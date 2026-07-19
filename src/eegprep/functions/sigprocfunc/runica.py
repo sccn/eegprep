@@ -488,9 +488,8 @@ def runica(data, **kwargs):
     if verbose:
         logger.info('Removing mean of each channel ...')
 
-    rowmeans = np.mean(data, axis=1)  # shape: (chans,)
-    for i in range(data.shape[0]):
-        data[i, :] = data[i, :] - rowmeans[i]
+    rowmeans = np.mean(data, axis=1, keepdims=True)
+    data -= rowmeans
 
     if verbose:
         logger.info(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
@@ -507,7 +506,7 @@ def runica(data, **kwargs):
         PCdat2 = data.T  # shape: (frames, chans)
         PCn, PCp = PCdat2.shape
         PCdat2 = PCdat2 / PCn
-        PCout = data @ PCdat2
+        PCout = _matmul(data, PCdat2)
 
         # Eigendecomposition
         # Note: scipy.linalg.eig returns (eigenvalues, eigenvectors)
@@ -523,7 +522,7 @@ def runica(data, **kwargs):
 
         # Project to ncomps dimensions
         eigenvectors = PCEigenVectors
-        data = eigenvectors[:, :ncomps].T @ data
+        data = _matmul(eigenvectors[:, :ncomps].T, data)
 
     # =========================================================================
     # 8. SPHERING COMPUTATION
@@ -547,7 +546,7 @@ def runica(data, **kwargs):
 
         if verbose:
             logger.info('Sphering the data ...')
-        data = sphere @ data
+        data = _matmul(sphere, data)
 
     elif sphering == 'off':
         if wts_passed == 0:
@@ -556,7 +555,7 @@ def runica(data, **kwargs):
                 logger.info('Returning the identity matrix in variable "sphere" ...')
             sphere_temp = 2.0 * np.linalg.inv(sqrtm(np.cov(data, rowvar=True)))
             sphere_temp = sphere_temp.real
-            weights = np.eye(ncomps, chans) @ sphere_temp
+            weights = _matmul(np.eye(ncomps, chans), sphere_temp)
             sphere = np.eye(chans)
         else:
             if verbose:
@@ -605,7 +604,7 @@ def runica(data, **kwargs):
             signs_str = ' '.join([str(int(signs[k])) for k in range(ncomps)])
             logger.info(f'Fixed extended-ICA sign assignments: {signs_str}')
 
-    # Optimized: Keep signs as a 1D vector instead of a diagonal matrix!
+    # Keep signs as a vector so applying them is a row-wise scaling operation.
     oldsigns = np.zeros_like(signs)
     signcount = 0
     signcounts = []
@@ -667,34 +666,33 @@ def runica(data, **kwargs):
     # 3. biasflag=False, extended=True  (lines 1127-1295 in MATLAB)
     # 4. biasflag=False, extended=False (lines 1298-1422 in MATLAB)
 
-    # Entire loop dispatcher is wrapped in an outer np.errstate block to
-    # completely eliminate repeated context manager entry/exit overhead (~10%).
-    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
-        # =========================================================================
-        # TRAINING LOOP 1: bias=True, extended=True (Extended-ICA with tanh)
-        # =========================================================================
-        # This implements lines 827-1001 of runica.m
+    # =========================================================================
+    # TRAINING LOOP 1: bias=True, extended=True (Extended-ICA with tanh)
+    # =========================================================================
+    # This implements lines 827-1001 of runica.m
 
-        if biasflag and extended:
-            while step < maxsteps:  # MATLAB line 828
-                # Shuffle data order at each step (MATLAB line 829)
-                timeperm = rand_permutation(datalength, rng)
-                shuffled_data = data[:, timeperm]
+    if biasflag and extended:
+        while step < maxsteps:  # MATLAB line 828
+            # Shuffle data order at each step (MATLAB line 829)
+            timeperm = rand_permutation(datalength, rng)
 
-                # Process data in blocks (MATLAB line 831)
+            # Process data in blocks (MATLAB line 831)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block (MATLAB line 846)
-                    # Optimized bias addition with broadcasting and fast basic slicing (no copy)
-                    u = weights @ shuffled_data[:, t : t + block] + bias
+                    # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
+                    u = weights @ data[:, timeperm[t : t + block]] + bias
 
                     # Apply tanh nonlinearity (MATLAB line 848)
                     y = np.tanh(u)
 
                     # Extended-ICA natural gradient weight update (MATLAB line 849)
-                    # Optimized using 1D signs vector and native operator:
-                    weights = weights + lrate * ((BI - (signs[:, np.newaxis] * y) @ u.T - u @ u.T) @ weights)
+                    # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
+                    signed_y = signs[:, np.newaxis] * y
+                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
 
                     # Bias update for tanh (MATLAB line 850)
+                    # bias = bias + lrate*sum((-2*y)')';
                     bias = bias + lrate * np.sum(-2.0 * y, axis=1, keepdims=True)
 
                     # Add momentum if enabled (MATLAB lines 852-856)
@@ -734,7 +732,6 @@ def runica(data, **kwargs):
                                 old_kk = kk
 
                             # Update signs based on kurtosis (MATLAB line 887)
-                            # Optimized: keeps signs as 1D vector (no np.diag)
                             signs = np.sign(kk + signsbias)
 
                             # Track sign changes (MATLAB lines 888-898)
@@ -760,117 +757,118 @@ def runica(data, **kwargs):
 
                 # End of block loop (MATLAB line 905)
 
-                # Compute weight changes if no blowup (MATLAB lines 907-917)
-                if not wts_blowup:
-                    oldwtchange = weights - oldweights
-                    step = step + 1
+            # Compute weight changes if no blowup (MATLAB lines 907-917)
+            if not wts_blowup:
+                oldwtchange = weights - oldweights
+                step = step + 1
 
-                    # Store learning rate (MATLAB line 913)
-                    lrates[step - 1] = lrate
+                # Store learning rate (MATLAB line 913)
+                lrates[step - 1] = lrate
 
-                    # Compute change magnitude (MATLAB lines 914-916)
-                    angledelta = 0.0
-                    delta = oldwtchange.flatten()
-                    change = delta @ delta
+                # Compute change magnitude (MATLAB lines 914-916)
+                angledelta = 0.0
+                delta = oldwtchange.flatten()
+                change = _matmul(delta, delta)
 
-                # Check for restart conditions (MATLAB lines 921-999)
-                if wts_blowup or np.isnan(change) or np.isinf(change):
-                    if verbose:
-                        logger.info('')
+            # Check for restart conditions (MATLAB lines 921-999)
+            if wts_blowup or np.isnan(change) or np.isinf(change):
+                if verbose:
+                    logger.info('')
 
-                    # Restart training (MATLAB lines 923-945)
-                    step = 0
-                    change = nochange
-                    wts_blowup = 0
-                    blockno = 1
-                    lrate = lrate * DEFAULT_RESTART_FAC
-                    weights = startweights.copy()
-                    oldweights = startweights.copy()
-                    change = nochange
-                    oldwtchange = np.zeros((chans, ncomps))
-                    delta = np.zeros(chans * ncomps)
-                    olddelta = delta.copy()
-                    extblocks = urextblocks
-                    prevweights = startweights.copy()
-                    prevwtchange = np.zeros((chans, ncomps))
-                    lrates = np.zeros(maxsteps)
-                    bias = np.zeros((ncomps, 1))
+                # Restart training (MATLAB lines 923-945)
+                step = 0
+                change = nochange
+                wts_blowup = 0
+                blockno = 1
+                lrate = lrate * DEFAULT_RESTART_FAC
+                weights = startweights.copy()
+                oldweights = startweights.copy()
+                change = nochange
+                oldwtchange = np.zeros((chans, ncomps))
+                delta = np.zeros(chans * ncomps)
+                olddelta = delta.copy()
+                extblocks = urextblocks
+                prevweights = startweights.copy()
+                prevwtchange = np.zeros((chans, ncomps))
+                lrates = np.zeros(maxsteps)
+                bias = np.zeros((ncomps, 1))
 
-                    # Reinitialize signs (MATLAB lines 940-945)
-                    signs_vec = np.ones(ncomps)
-                    for k in range(nsub):
-                        signs_vec[k] = -1
-                    signs = signs_vec
-                    oldsigns = np.zeros_like(signs)
+                # Reinitialize signs (MATLAB lines 940-945)
+                signs_vec = np.ones(ncomps)
+                for k in range(nsub):
+                    signs_vec[k] = -1
+                signs = signs_vec
+                oldsigns = np.zeros_like(signs)
 
-                    # Check if we can continue (MATLAB lines 947-960)
-                    if lrate > MIN_LRATE:
-                        r = np.linalg.matrix_rank(data)
-                        if r < ncomps:
-                            if verbose:
-                                logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
-                            break
-                        else:
-                            if verbose:
-                                logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                # Check if we can continue (MATLAB lines 947-960)
+                if lrate > MIN_LRATE:
+                    r = np.linalg.matrix_rank(data)
+                    if r < ncomps:
+                        if verbose:
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                        break
                     else:
                         if verbose:
-                            logger.error('runica(): QUITTING - weight matrix may not be invertible!')
-                        break
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                else:
+                    if verbose:
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
+                    break
 
-                else:  # Weights in bounds (MATLAB line 961)
-                    # Compute angle delta after step 2 (MATLAB lines 965-967)
-                    if step > 2:
-                        cos_angle = delta @ olddelta / np.sqrt(change * oldchange)
-                        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-                        angledelta = np.arccos(cos_angle)
+            else:  # Weights in bounds (MATLAB line 961)
+                # Compute angle delta after step 2 (MATLAB lines 965-967)
+                if step > 2:
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angledelta = np.arccos(cos_angle)
 
-                    # Print progress (MATLAB lines 968-970)
-                    if verbose and (step % 10 == 0 or step < 5):
-                        logger.info(
-                            f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                            f'angledelta {degconst * angledelta:4.1f} deg'
-                        )
+                # Print progress (MATLAB lines 968-970)
+                if verbose and (step % 10 == 0 or step < 5):
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
-                    # Save current values (MATLAB lines 974-975)
-                    changes.append(change)
-                    oldweights = weights.copy()
+                # Save current values (MATLAB lines 974-975)
+                changes.append(change)
+                oldweights = weights.copy()
 
-                    # Anneal learning rate (MATLAB lines 979-986)
-                    if degconst * angledelta > annealdeg:
-                        lrate = lrate * annealstep
-                        olddelta = delta.copy()
-                        oldchange = change
-                    elif step == 1:
-                        olddelta = delta.copy()
-                        oldchange = change
+                # Anneal learning rate (MATLAB lines 979-986)
+                if degconst * angledelta > annealdeg:
+                    lrate = lrate * annealstep
+                    olddelta = delta.copy()
+                    oldchange = change
+                elif step == 1:
+                    olddelta = delta.copy()
+                    oldchange = change
 
-                    # Apply stopping rule (MATLAB lines 990-995)
-                    if step > 2 and change < nochange:
-                        laststep = step
-                        step = maxsteps
-                    elif change > DEFAULT_BLOWUP:
-                        lrate = lrate * DEFAULT_BLOWUP_FAC
+                # Apply stopping rule (MATLAB lines 990-995)
+                if step > 2 and change < nochange:
+                    laststep = step
+                    step = maxsteps
+                elif change > DEFAULT_BLOWUP:
+                    lrate = lrate * DEFAULT_BLOWUP_FAC
 
-            # End while step < maxsteps (MATLAB line 1000)
+        # End while step < maxsteps (MATLAB line 1000)
 
-        # =========================================================================
-        # TRAINING LOOP 2: bias=True, extended=False (standard logistic ICA)
-        # =========================================================================
-        # This implements lines 1003-1125 of runica.m
-        # This is the most common use case
+    # =========================================================================
+    # TRAINING LOOP 2: bias=True, extended=False (standard logistic ICA)
+    # =========================================================================
+    # This implements lines 1003-1125 of runica.m
+    # This is the most common use case
 
-        elif biasflag and not extended:
-            while step < maxsteps:  # MATLAB line 1004
-                # Shuffle data order at each step (MATLAB line 1005)
-                timeperm = rand_permutation(datalength, rng)
-                shuffled_data = data[:, timeperm]
+    elif biasflag and not extended:
+        while step < maxsteps:  # MATLAB line 1004
+            # Shuffle data order at each step (MATLAB line 1005)
+            timeperm = rand_permutation(datalength, rng)
 
-                # Process data in blocks (MATLAB line 1007)
+            # Process data in blocks (MATLAB line 1007)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block (MATLAB line 1021)
-                    # Optimized bias addition with broadcasting and fast basic slicing (no copy)
-                    u = weights @ shuffled_data[:, t : t + block] + bias
+                    # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
+                    # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
+                    u = weights @ data[:, timeperm[t : t + block]] + bias
 
                     # Apply logistic nonlinearity (MATLAB line 1022)
                     # Clip u to prevent overflow in exp
@@ -879,11 +877,13 @@ def runica(data, **kwargs):
                     y = 1.0 / (1.0 + np.exp(-u))
 
                     # Natural gradient weight update (MATLAB line 1023)
-                    # Optimized using native @ operator
-                    weights = weights + lrate * ((BI + (1.0 - 2.0 * y) @ u.T) @ weights)
+                    # weights = weights + lrate*(BI+(1-2*y)*u')*weights
+                    y_update = 1.0 - 2.0 * y
+                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
 
                     # Bias update (MATLAB line 1024)
-                    bias = bias + lrate * np.sum(1.0 - 2.0 * y, axis=1, keepdims=True)
+                    # bias = bias + lrate*sum((1-2*y)')';
+                    bias = bias + lrate * np.sum(y_update, axis=1, keepdims=True)
 
                     # Add momentum if enabled (MATLAB lines 1026-1030)
                     if momentum > 0:
@@ -905,115 +905,122 @@ def runica(data, **kwargs):
 
                 # End of block loop (MATLAB line 1040)
 
-                # Compute weight changes if no blowup (MATLAB lines 1042-1052)
-                if not wts_blowup:
-                    oldwtchange = weights - oldweights
-                    step = step + 1
+            # Compute weight changes if no blowup (MATLAB lines 1042-1052)
+            if not wts_blowup:
+                oldwtchange = weights - oldweights
+                step = step + 1
 
-                    # Store learning rate (MATLAB line 1048)
-                    lrates[step - 1] = lrate
+                # Store learning rate (MATLAB line 1048)
+                # MATLAB uses 1-based indexing: lrates(1,step)
+                lrates[step - 1] = lrate
 
-                    # Compute change magnitude (MATLAB lines 1049-1051)
-                    angledelta = 0.0
-                    delta = oldwtchange.flatten()  # Reshape to 1D
-                    change = delta @ delta  # Squared norm
+                # Compute change magnitude (MATLAB lines 1049-1051)
+                angledelta = 0.0
+                delta = oldwtchange.flatten()  # Reshape to 1D
+                change = _matmul(delta, delta)  # Squared norm
 
-                # Check for restart conditions (MATLAB lines 1056-1085)
-                if wts_blowup or np.isnan(change) or np.isinf(change):
-                    if verbose:
-                        logger.info('')
+            # Check for restart conditions (MATLAB lines 1056-1085)
+            if wts_blowup or np.isnan(change) or np.isinf(change):
+                if verbose:
+                    logger.info('')
 
-                    # Restart training (MATLAB lines 1058-1073)
-                    step = 0
-                    change = nochange
-                    wts_blowup = 0
-                    blockno = 1
-                    lrate = lrate * DEFAULT_RESTART_FAC  # Lower learning rate
-                    weights = startweights.copy()
-                    oldweights = startweights.copy()
-                    change = nochange
-                    oldwtchange = np.zeros((chans, ncomps))
-                    delta = np.zeros(chans * ncomps)
-                    olddelta = delta.copy()
-                    extblocks = urextblocks
-                    prevweights = startweights.copy()
-                    prevwtchange = np.zeros((chans, ncomps))
-                    lrates = np.zeros(maxsteps)
-                    bias = np.zeros((ncomps, 1))
+                # Restart training (MATLAB lines 1058-1073)
+                step = 0
+                change = nochange
+                wts_blowup = 0
+                blockno = 1
+                lrate = lrate * DEFAULT_RESTART_FAC  # Lower learning rate
+                weights = startweights.copy()
+                oldweights = startweights.copy()
+                change = nochange
+                oldwtchange = np.zeros((chans, ncomps))
+                delta = np.zeros(chans * ncomps)
+                olddelta = delta.copy()
+                extblocks = urextblocks
+                prevweights = startweights.copy()
+                prevwtchange = np.zeros((chans, ncomps))
+                lrates = np.zeros(maxsteps)
+                bias = np.zeros((ncomps, 1))
 
-                    # Check if we can continue (MATLAB lines 1074-1085)
-                    if lrate > MIN_LRATE:
-                        r = np.linalg.matrix_rank(data)
-                        if r < ncomps:
-                            if verbose:
-                                logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
-                            break
-                        else:
-                            if verbose:
-                                logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                # Check if we can continue (MATLAB lines 1074-1085)
+                if lrate > MIN_LRATE:
+                    r = np.linalg.matrix_rank(data)
+                    if r < ncomps:
+                        if verbose:
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                        # Return current state
+                        break
                     else:
                         if verbose:
-                            logger.error('runica(): QUITTING - weight matrix may not be invertible!')
-                        break
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                else:
+                    if verbose:
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
+                    # Return current state
+                    break
 
-                else:  # Weights in bounds (MATLAB line 1086)
-                    # Compute angle delta after step 2 (MATLAB lines 1090-1092)
-                    if step > 2:
-                        cos_angle = delta @ olddelta / np.sqrt(change * oldchange)
-                        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-                        angledelta = np.arccos(cos_angle)
+            else:  # Weights in bounds (MATLAB line 1086)
+                # Compute angle delta after step 2 (MATLAB lines 1090-1092)
+                if step > 2:
+                    # acos((delta*olddelta')/sqrt(change*oldchange))
+                    # Clip to avoid numerical issues with acos
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angledelta = np.arccos(cos_angle)
 
-                    # Print progress (MATLAB lines 1093-1095)
-                    if verbose and (step % 10 == 0 or step < 5):
-                        logger.info(
-                            f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                            f'angledelta {degconst * angledelta:4.1f} deg'
-                        )
+                # Print progress (MATLAB lines 1093-1095)
+                if verbose and (step % 10 == 0 or step < 5):
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
-                    # Save current values (MATLAB lines 1099-1100)
-                    changes.append(change)
-                    oldweights = weights.copy()
+                # Save current values (MATLAB lines 1099-1100)
+                changes.append(change)
+                oldweights = weights.copy()
 
-                    # Anneal learning rate (MATLAB lines 1104-1111)
-                    if degconst * angledelta > annealdeg:
-                        lrate = lrate * annealstep  # Anneal
-                        olddelta = delta.copy()
-                        oldchange = change
-                    elif step == 1:  # On first step only
-                        olddelta = delta.copy()
-                        oldchange = change
+                # Anneal learning rate (MATLAB lines 1104-1111)
+                if degconst * angledelta > annealdeg:
+                    lrate = lrate * annealstep  # Anneal
+                    olddelta = delta.copy()
+                    oldchange = change
+                elif step == 1:  # On first step only
+                    olddelta = delta.copy()
+                    oldchange = change
 
-                    # Apply stopping rule (MATLAB lines 1115-1120)
-                    if step > 2 and change < nochange:
-                        laststep = step
-                        step = maxsteps  # Stop when weights stabilize
-                    elif change > DEFAULT_BLOWUP:
-                        lrate = lrate * DEFAULT_BLOWUP_FAC  # Keep trying with smaller rate
+                # Apply stopping rule (MATLAB lines 1115-1120)
+                if step > 2 and change < nochange:
+                    laststep = step
+                    step = maxsteps  # Stop when weights stabilize
+                elif change > DEFAULT_BLOWUP:
+                    lrate = lrate * DEFAULT_BLOWUP_FAC  # Keep trying with smaller rate
 
-            # End while step < maxsteps (MATLAB line 1123)
+        # End while step < maxsteps (MATLAB line 1123)
 
-        # =========================================================================
-        # TRAINING LOOP 3: bias=False, extended=True (Extended-ICA, no bias)
-        # =========================================================================
-        # This implements lines 1127-1295 of runica.m
+    # =========================================================================
+    # TRAINING LOOP 3: bias=False, extended=True (Extended-ICA, no bias)
+    # =========================================================================
+    # This implements lines 1127-1295 of runica.m
 
-        elif not biasflag and extended:
-            while step < maxsteps:  # MATLAB line 1128
-                # Shuffle data order at each step (MATLAB line 1129)
-                timeperm = rand_permutation(datalength, rng)
-                shuffled_data = data[:, timeperm]
+    elif not biasflag and extended:
+        while step < maxsteps:  # MATLAB line 1128
+            # Shuffle data order at each step (MATLAB line 1129)
+            timeperm = rand_permutation(datalength, rng)
 
-                # Process data in blocks (MATLAB line 1131)
+            # Process data in blocks (MATLAB line 1131)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block - NO BIAS (MATLAB line 1145)
-                    u = weights @ shuffled_data[:, t : t + block]
+                    u = weights @ data[:, timeperm[t : t + block]]
 
                     # Apply tanh nonlinearity (MATLAB line 1146)
                     y = np.tanh(u)
 
                     # Extended-ICA natural gradient weight update (MATLAB line 1147)
-                    # Optimized using 1D signs vector and native operator:
-                    weights = weights + lrate * ((BI - (signs[:, np.newaxis] * y) @ u.T - u @ u.T) @ weights)
+                    signed_y = signs[:, np.newaxis] * y
+                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
+
+                    # NO BIAS UPDATE for no-bias variant
 
                     # Add momentum if enabled (MATLAB lines 1149-1153)
                     if momentum > 0:
@@ -1030,7 +1037,7 @@ def runica(data, **kwargs):
                     if not wts_blowup:
                         if extblocks > 0 and blockno % extblocks == 0:
                             if kurtsize < frames:
-                                # Use randint to avoid index overflow
+                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
                                 rp = rng.randint(1, datalength, size=kurtsize)
                                 partact = weights @ data[:, rp[:kurtsize]]
                             else:
@@ -1045,7 +1052,6 @@ def runica(data, **kwargs):
                                 kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
                                 old_kk = kk
 
-                            # Optimized: keeps signs as 1D vector (no np.diag)
                             signs = np.sign(kk + signsbias)
 
                             if np.array_equal(signs, oldsigns):
@@ -1065,109 +1071,108 @@ def runica(data, **kwargs):
                     if wts_blowup:
                         break
 
-                # Compute weight changes if no blowup (MATLAB lines 1204-1214)
-                if not wts_blowup:
-                    oldwtchange = weights - oldweights
-                    step = step + 1
-                    lrates[step - 1] = lrate
-                    angledelta = 0.0
-                    delta = oldwtchange.flatten()
-                    change = delta @ delta
+            # Compute weight changes if no blowup (MATLAB lines 1204-1214)
+            if not wts_blowup:
+                oldwtchange = weights - oldweights
+                step = step + 1
+                lrates[step - 1] = lrate
+                angledelta = 0.0
+                delta = oldwtchange.flatten()
+                change = _matmul(delta, delta)
 
-                # Check for restart conditions (MATLAB lines 1218-1256)
-                if wts_blowup or np.isnan(change) or np.isinf(change):
-                    if verbose:
-                        logger.info('')
+            # Check for restart conditions (MATLAB lines 1218-1256)
+            if wts_blowup or np.isnan(change) or np.isinf(change):
+                if verbose:
+                    logger.info('')
 
-                    step = 0
-                    change = nochange
-                    wts_blowup = 0
-                    blockno = 1
-                    lrate = lrate * DEFAULT_RESTART_FAC
-                    weights = startweights.copy()
-                    oldweights = startweights.copy()
-                    change = nochange
-                    oldwtchange = np.zeros((chans, ncomps))
-                    delta = np.zeros(chans * ncomps)
-                    olddelta = delta.copy()
-                    extblocks = urextblocks
-                    prevweights = startweights.copy()
-                    prevwtchange = np.zeros((chans, ncomps))
-                    lrates = np.zeros(maxsteps)
-                    bias = np.zeros((ncomps, 1))
+                step = 0
+                change = nochange
+                wts_blowup = 0
+                blockno = 1
+                lrate = lrate * DEFAULT_RESTART_FAC
+                weights = startweights.copy()
+                oldweights = startweights.copy()
+                change = nochange
+                oldwtchange = np.zeros((chans, ncomps))
+                delta = np.zeros(chans * ncomps)
+                olddelta = delta.copy()
+                extblocks = urextblocks
+                prevweights = startweights.copy()
+                prevwtchange = np.zeros((chans, ncomps))
+                lrates = np.zeros(maxsteps)
+                bias = np.zeros((ncomps, 1))
 
-                    # Reinitialize signs
-                    signs_vec = np.ones(ncomps)
-                    for k in range(nsub):
-                        signs_vec[k] = -1
-                    signs = signs_vec
-                    oldsigns = np.zeros_like(signs)
+                signs_vec = np.ones(ncomps)
+                for k in range(nsub):
+                    signs_vec[k] = -1
+                signs = signs_vec
+                oldsigns = np.zeros_like(signs)
 
-                    if lrate > MIN_LRATE:
-                        r = np.linalg.matrix_rank(data)
-                        if r < ncomps:
-                            if verbose:
-                                logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
-                            break
-                        else:
-                            if verbose:
-                                logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                if lrate > MIN_LRATE:
+                    r = np.linalg.matrix_rank(data)
+                    if r < ncomps:
+                        if verbose:
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                        break
                     else:
                         if verbose:
-                            logger.error('runica(): QUITTING - weight matrix may not be invertible!')
-                        break
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                else:
+                    if verbose:
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
+                    break
 
-                else:  # Weights in bounds
-                    # Compute angle delta after step 2 (MATLAB lines 1261-1263)
-                    if step > 2:
-                        cos_angle = delta @ olddelta / np.sqrt(change * oldchange)
-                        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-                        angledelta = np.arccos(cos_angle)
+            else:  # Weights in bounds
+                # Compute angle delta after step 2 (MATLAB lines 1261-1263)
+                if step > 2:
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angledelta = np.arccos(cos_angle)
 
-                    # Print progress (MATLAB lines 1265-1266)
-                    if verbose and (step % 10 == 0 or step < 5):
-                        logger.info(
-                            f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                            f'angledelta {degconst * angledelta:4.1f} deg'
-                        )
+                # Print progress (MATLAB lines 1265-1266)
+                if verbose and (step % 10 == 0 or step < 5):
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
-                    # Save current values (MATLAB lines 1270-1271)
-                    changes.append(change)
-                    oldweights = weights.copy()
+                # Save current values (MATLAB lines 1270-1271)
+                changes.append(change)
+                oldweights = weights.copy()
 
-                    # Anneal learning rate (MATLAB lines 1275-1282)
-                    if degconst * angledelta > annealdeg:
-                        lrate = lrate * annealstep
-                        olddelta = delta.copy()
-                        oldchange = change
-                    elif step == 1:
-                        olddelta = delta.copy()
-                        oldchange = change
+                # Anneal learning rate (MATLAB lines 1275-1282)
+                if degconst * angledelta > annealdeg:
+                    lrate = lrate * annealstep
+                    olddelta = delta.copy()
+                    oldchange = change
+                elif step == 1:
+                    olddelta = delta.copy()
+                    oldchange = change
 
-                    # Apply stopping rule (MATLAB lines 1286-1291)
-                    if step > 2 and change < nochange:
-                        laststep = step
-                        step = maxsteps
-                    elif change > DEFAULT_BLOWUP:
-                        lrate = lrate * DEFAULT_BLOWUP_FAC
+                # Apply stopping rule (MATLAB lines 1286-1291)
+                if step > 2 and change < nochange:
+                    laststep = step
+                    step = maxsteps
+                elif change > DEFAULT_BLOWUP:
+                    lrate = lrate * DEFAULT_BLOWUP_FAC
 
-            # End while step < maxsteps (MATLAB line 1294)
+        # End while step < maxsteps (MATLAB line 1294)
 
-        # =========================================================================
-        # TRAINING LOOP 4: bias=False, extended=False (standard ICA, no bias)
-        # =========================================================================
-        # This implements lines 1298-1422 of runica.m
+    # =========================================================================
+    # TRAINING LOOP 4: bias=False, extended=False (standard ICA, no bias)
+    # =========================================================================
+    # This implements lines 1298-1422 of runica.m
 
-        else:  # not biasflag and not extended
-            while step < maxsteps:  # MATLAB line 1299
-                # Shuffle data order at each step (MATLAB line 1300)
-                timeperm = rand_permutation(datalength, rng)
-                shuffled_data = data[:, timeperm]
+    else:  # not biasflag and not extended
+        while step < maxsteps:  # MATLAB line 1299
+            # Shuffle data order at each step (MATLAB line 1300)
+            timeperm = rand_permutation(datalength, rng)
 
-                # Process data in blocks (MATLAB line 1302)
+            # Process data in blocks (MATLAB line 1302)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 for t in range(0, lastt, block):
                     # Extract and process block - NO BIAS (MATLAB line 1315)
-                    u = weights @ shuffled_data[:, t : t + block]
+                    u = weights @ data[:, timeperm[t : t + block]]
 
                     # Apply logistic nonlinearity (MATLAB line 1316)
                     u = np.maximum(u, -MAX_WEIGHT)
@@ -1175,7 +1180,10 @@ def runica(data, **kwargs):
                     y = 1.0 / (1.0 + np.exp(-u))
 
                     # Natural gradient weight update (MATLAB line 1317)
-                    weights = weights + lrate * ((BI + (1.0 - 2.0 * y) @ u.T) @ weights)
+                    y_update = 1.0 - 2.0 * y
+                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
+
+                    # NO BIAS UPDATE for no-bias variant
 
                     # Add momentum if enabled (MATLAB lines 1319-1323)
                     if momentum > 0:
@@ -1193,86 +1201,86 @@ def runica(data, **kwargs):
                     if wts_blowup:
                         break
 
-                # Compute weight changes if no blowup (MATLAB lines 1336-1346)
-                if not wts_blowup:
-                    oldwtchange = weights - oldweights
-                    step = step + 1
-                    lrates[step - 1] = lrate
-                    angledelta = 0.0
-                    delta = oldwtchange.flatten()
-                    change = delta @ delta
+            # Compute weight changes if no blowup (MATLAB lines 1336-1346)
+            if not wts_blowup:
+                oldwtchange = weights - oldweights
+                step = step + 1
+                lrates[step - 1] = lrate
+                angledelta = 0.0
+                delta = oldwtchange.flatten()
+                change = _matmul(delta, delta)
 
-                # Check for restart conditions (MATLAB lines 1350-1383)
-                if wts_blowup or np.isnan(change) or np.isinf(change):
-                    if verbose:
-                        logger.info('')
+            # Check for restart conditions (MATLAB lines 1350-1383)
+            if wts_blowup or np.isnan(change) or np.isinf(change):
+                if verbose:
+                    logger.info('')
 
-                    step = 0
-                    change = nochange
-                    wts_blowup = 0
-                    blockno = 1
-                    lrate = lrate * DEFAULT_RESTART_FAC
-                    weights = startweights.copy()
-                    oldweights = startweights.copy()
-                    change = nochange
-                    oldwtchange = np.zeros((chans, ncomps))
-                    delta = np.zeros(chans * ncomps)
-                    olddelta = delta.copy()
-                    extblocks = urextblocks
-                    prevweights = startweights.copy()
-                    prevwtchange = np.zeros((chans, ncomps))
-                    lrates = np.zeros(maxsteps)
-                    bias = np.zeros((ncomps, 1))
+                step = 0
+                change = nochange
+                wts_blowup = 0
+                blockno = 1
+                lrate = lrate * DEFAULT_RESTART_FAC
+                weights = startweights.copy()
+                oldweights = startweights.copy()
+                change = nochange
+                oldwtchange = np.zeros((chans, ncomps))
+                delta = np.zeros(chans * ncomps)
+                olddelta = delta.copy()
+                extblocks = urextblocks
+                prevweights = startweights.copy()
+                prevwtchange = np.zeros((chans, ncomps))
+                lrates = np.zeros(maxsteps)
+                bias = np.zeros((ncomps, 1))
 
-                    if lrate > MIN_LRATE:
-                        r = np.linalg.matrix_rank(data)
-                        if r < ncomps:
-                            if verbose:
-                                logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
-                            break
-                        else:
-                            if verbose:
-                                logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                if lrate > MIN_LRATE:
+                    r = np.linalg.matrix_rank(data)
+                    if r < ncomps:
+                        if verbose:
+                            logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
+                        break
                     else:
                         if verbose:
-                            logger.error('runica(): QUITTING - weight matrix may not be invertible!')
-                        break
+                            logger.info(f'Lowering learning rate to {lrate:g} and starting again.')
+                else:
+                    if verbose:
+                        logger.error('runica(): QUITTING - weight matrix may not be invertible!')
+                    break
 
-                else:  # Weights in bounds
-                    # Compute angle delta after step 2 (MATLAB lines 1388-1390)
-                    if step > 2:
-                        cos_angle = delta @ olddelta / np.sqrt(change * oldchange)
-                        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-                        angledelta = np.arccos(cos_angle)
+            else:  # Weights in bounds
+                # Compute angle delta after step 2 (MATLAB lines 1388-1390)
+                if step > 2:
+                    cos_angle = _matmul(delta, olddelta) / np.sqrt(change * oldchange)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angledelta = np.arccos(cos_angle)
 
-                    # Print progress (MATLAB lines 1392-1393)
-                    if verbose and (step % 10 == 0 or step < 5):
-                        logger.info(
-                            f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
-                            f'angledelta {degconst * angledelta:4.1f} deg'
-                        )
+                # Print progress (MATLAB lines 1392-1393)
+                if verbose and (step % 10 == 0 or step < 5):
+                    logger.info(
+                        f'step {step} - lrate {lrate:5f}, wchange {change:8.8f}, '
+                        f'angledelta {degconst * angledelta:4.1f} deg'
+                    )
 
-                    # Save current values (MATLAB lines 1397-1398)
-                    changes.append(change)
-                    oldweights = weights.copy()
+                # Save current values (MATLAB lines 1397-1398)
+                changes.append(change)
+                oldweights = weights.copy()
 
-                    # Anneal learning rate (MATLAB lines 1402-1409)
-                    if degconst * angledelta > annealdeg:
-                        lrate = lrate * annealstep
-                        olddelta = delta.copy()
-                        oldchange = change
-                    elif step == 1:
-                        olddelta = delta.copy()
-                        oldchange = change
+                # Anneal learning rate (MATLAB lines 1402-1409)
+                if degconst * angledelta > annealdeg:
+                    lrate = lrate * annealstep
+                    olddelta = delta.copy()
+                    oldchange = change
+                elif step == 1:
+                    olddelta = delta.copy()
+                    oldchange = change
 
-                    # Apply stopping rule (MATLAB lines 1413-1418)
-                    if step > 2 and change < nochange:
-                        laststep = step
-                        step = maxsteps
-                    elif change > DEFAULT_BLOWUP:
-                        lrate = lrate * DEFAULT_BLOWUP_FAC
+                # Apply stopping rule (MATLAB lines 1413-1418)
+                if step > 2 and change < nochange:
+                    laststep = step
+                    step = maxsteps
+                elif change > DEFAULT_BLOWUP:
+                    lrate = lrate * DEFAULT_BLOWUP_FAC
 
-            # End while step < maxsteps (MATLAB line 1421)
+        # End while step < maxsteps (MATLAB line 1421)
 
     # =========================================================================
     # OUTPUT PREPARATION
@@ -1295,16 +1303,14 @@ def runica(data, **kwargs):
     # Make activations from sphered data (MATLAB line 1439)
     # Add back the row means removed from data before sphering (MATLAB lines 1442-1447)
     if pcaflag == 'off':
-        sr = sphere @ rowmeans
-        for r in range(ncomps):
-            data[r, :] = data[r, :] + sr[r]
-        activations_unsorted = weights @ data  # MATLAB line 1447
+        sr = _matmul(sphere, rowmeans)
+        data += sr
+        activations_unsorted = _matmul(weights, data)  # MATLAB line 1447
     else:
         # For PCA case (MATLAB lines 1449-1453)
-        ser = (sphere @ eigenvectors[:, :ncomps].T) @ rowmeans
-        for r in range(ncomps):
-            data[r, :] = data[r, :] + ser[r]
-        activations_unsorted = weights @ data
+        ser = _matmul(_matmul(sphere, eigenvectors[:, :ncomps].T), rowmeans)
+        data += ser
+        activations_unsorted = _matmul(weights, data)
 
     # Now 'activations_unsorted' are the component activations = weights*sphere*raw_data
 
@@ -1317,7 +1323,7 @@ def runica(data, **kwargs):
                 'Composing the eigenvector, weights, and sphere matrices '
                 f'into a single rectangular weights matrix; sphere=eye({chans})'
             )
-        weights = (weights @ sphere) @ eigenvectors[:, :ncomps].T
+        weights = _matmul(_matmul(weights, sphere), eigenvectors[:, :ncomps].T)
         sphere = np.eye(urchans)
 
     # =========================================================================
@@ -1327,7 +1333,7 @@ def runica(data, **kwargs):
         logger.info('Sorting components in descending order of mean projected variance ...')
 
     # Compute inverse of unmixing matrix for backprojection (MATLAB lines 1477-1482)
-    unmixing = weights @ sphere
+    unmixing = _matmul(weights, sphere)
     if ncomps == urchans:  # if weights are square
         winv = np.linalg.inv(unmixing)
     else:
