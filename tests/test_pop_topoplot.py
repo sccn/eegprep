@@ -264,6 +264,18 @@ def test_pop_topoplot_gui_parses_eeglab_style_options():
     plt.close(figures[0])
 
 
+def test_pop_topoplot_dialog_geometry_lays_out_every_control():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20, n_components=4)
+    for typeplot in (1, 0):
+        spec = pop_topoplot_dialog_spec(eeg, typeplot=typeplot)
+        slots = sum(len(row) if isinstance(row, tuple) else 1 for row in spec.geometry)
+        assert slots == len(spec.controls), (
+            f"typeplot={typeplot}: geometry lays out {slots} controls but spec has {len(spec.controls)}"
+        )
+        assert len(spec.geomvert) == len(spec.geometry)
+        assert any(control.tag == "options" for control in spec.controls)
+
+
 def test_pop_topoplot_rejects_missing_ica_or_chanlocs():
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20, n_components=4)
     eeg["icawinv"] = np.array([])

@@ -142,11 +142,12 @@ def pop_topoplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         ControlSpec("edit", tag="rowcols", value="[]"),
     ]
     if not int(typeplot):
+        # The dipole row is text + checkbox + one filler cell (EEGLAB uigeom [1.55 0.2 0.8]);
+        # the standalone spacer before the options edit is added by the shared block below.
         controls.extend(
             [
                 ControlSpec("text", "Plot associated dipole(s) (if present)"),
                 ControlSpec("checkbox", tag="plotdip", value=False),
-                ControlSpec("spacer"),
                 ControlSpec("spacer"),
             ]
         )
@@ -258,9 +259,10 @@ def _plot_map_pages(
             ax.set_title(label)
         for ax in axes.ravel()[len(page_maps) :]:
             ax.axis("off")
+        # EEGLAB prints the figure title at the bottom (textsc at y=0.05), not the top.
         if topotitle:
-            fig.suptitle(topotitle, fontweight="bold")
-        fig.tight_layout()
+            fig.text(0.5, 0.02, topotitle, ha="center", va="bottom", fontweight="bold")
+        fig.tight_layout(rect=(0, 0.05, 1, 1) if topotitle else (0, 0, 1, 1))
         if colorbar and colorbar_image is not None:
             _add_map_colorbar(fig, colorbar_image, plotted_axes, component=component)
         figures.append(fig)
