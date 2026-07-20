@@ -207,7 +207,10 @@ def _channel_spectral_data(data: np.ndarray, process: str) -> np.ndarray:
     mode = process.upper()
     if mode == "ERP":
         return np.nanmean(data, axis=2)
-    return data.reshape(data.shape[0], -1)
+    # Keep 3-D so ``spectopo`` runs per-epoch pwelch and averages linear power,
+    # as EEGLAB does. Flattening here with numpy's C-order would interleave trials
+    # of Fortran-contiguous EEG data.
+    return data
 
 
 def _component_spectral_data(EEG: dict[str, Any], timerange: Any, components: Any) -> tuple[np.ndarray, np.ndarray]:
@@ -220,7 +223,7 @@ def _component_spectral_data(EEG: dict[str, Any], timerange: Any, components: An
         mask = (full_times >= times[0]) & (full_times <= times[-1])
         acts = acts[:, mask, :]
     indices = selected_indices(components, acts.shape[0])
-    return acts[indices, :, :].reshape(indices.size, -1), indices + 1
+    return acts[indices, :, :], indices + 1
 
 
 def _component_map_numbers(
