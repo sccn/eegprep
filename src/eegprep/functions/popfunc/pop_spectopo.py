@@ -158,7 +158,7 @@ def pop_spectopo_dialog_spec(EEG: dict[str, Any], *, dataflag: int = 1) -> Dialo
             ControlSpec("text", "Plotting frequency range [lo_Hz hi_Hz]:"),
             ControlSpec("edit", tag="freqrange", value="2 25"),
             ControlSpec("text", "Spectral and scalp map options (see topoplot):"),
-            ControlSpec("edit", tag="options", value="'electrodes', 'off'"),
+            ControlSpec("edit", tag="options", value="electrodes='off'"),
         ]
     )
     return DialogSpec(

@@ -29,7 +29,7 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc._plot_utils import component_activations
+from eegprep.functions.popfunc._plot_utils import component_activations, parse_plot_options_text
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
@@ -144,6 +144,42 @@ def test_pop_spectopo_rejects_max_power_plotchan(ica_epoch):
 def test_pop_spectopo_rejects_datacomp_icamode(ica_epoch):
     with pytest.raises(ValueError, match="component spectra"):
         pop_spectopo(ica_epoch, dataflag=0, freqs=[10], icamode=False, icacomps=[1, 2])
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("'electrodes', 'off'", {"electrodes": "off"}),
+        ("electrodes='off'", {"electrodes": "off"}),
+        ("electrodes='off', style='blank'", {"electrodes": "off", "style": "blank"}),
+        ("'electrodes', 'off', 'style', 'blank'", {"electrodes": "off", "style": "blank"}),
+        ("electrodes='off', 'style', 'blank'", {"electrodes": "off", "style": "blank"}),
+        ("gridscale=32", {"gridscale": 32}),
+        ("maplimits=[-5, 5]", {"maplimits": [-5.0, 5.0]}),
+    ],
+)
+def test_parse_plot_options_text_accepts_python_and_matlab_styles(text, expected):
+    assert parse_plot_options_text(text) == expected
+
+
+def test_pop_spectopo_gui_options_field_accepts_python_style(sample_eeg):
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "timerange": "-1000 1992.19",
+                "percent": "100",
+                "freqs": "6 10 22",
+                "process": "EEG",
+                "freqrange": "2 25",
+                "options": "electrodes='off'",
+            }
+
+    result, command = pop_spectopo(deepcopy(sample_eeg), gui=True, renderer=Renderer(), return_com=True)
+
+    assert result["figure"] is not None
+    assert "electrodes='off'" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
 
 
 def test_pop_prop_plots_sample_channel_properties(sample_eeg):
