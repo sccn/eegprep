@@ -381,6 +381,7 @@ def _channel_location_points(chan_locs):
 _EAR_X = np.array([0.492, 0.510, 0.518, 0.5299, 0.5419, 0.540, 0.547, 0.532, 0.510, 0.484])
 _EAR_Y = np.array([0.0955, 0.1175, 0.1183, 0.1146, 0.0955, -0.0055, -0.0932, -0.1313, -0.1384, -0.1199])
 _HEAD_LINEWIDTH = 2.5
+_CLIM_MARGIN = 0.05  # EEGLAB expands the color axis by 5% beyond the data limits (topoplot caxis)
 
 
 def _draw_ears(ax, scale=1.0):
@@ -421,10 +422,18 @@ def _maplimits_kwargs(maplimits, data):
     if isinstance(maplimits, str):
         if maplimits.lower() == 'absmax':
             limit = np.nanmax(np.abs(data))
-            return {"vmin": -limit, "vmax": limit} if np.isfinite(limit) and limit > 0 else {}
+            return _clim_kwargs(-limit, limit) if np.isfinite(limit) and limit > 0 else {}
         if maplimits.lower() == 'maxmin':
             return {}
     values = np.asarray(maplimits, dtype=float).ravel()
     if values.size >= 2 and np.all(np.isfinite(values[:2])):
-        return {"vmin": float(values[0]), "vmax": float(values[1])}
+        return _clim_kwargs(float(values[0]), float(values[1]))
     return {}
+
+
+def _clim_kwargs(amin, amax):
+    # Scale each limit to 1.05*v away from zero, matching EEGLAB topoplot's caxis 5% margin.
+    return {
+        "vmin": amin + np.sign(amin) * _CLIM_MARGIN * abs(amin),
+        "vmax": amax + np.sign(amax) * _CLIM_MARGIN * abs(amax),
+    }

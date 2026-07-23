@@ -17,6 +17,14 @@ from eegprep.functions.sigprocfunc.topoplot import topoplot
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
+def _is_numeric_label(text: str) -> bool:
+    try:
+        float(text.replace("−", "-"))  # matplotlib renders minus as U+2212
+        return True
+    except ValueError:
+        return False
+
+
 def test_topoplot_blank_channel_locations_by_label_and_number():
     chanlocs = [
         {"labels": "Fz", "theta": 0, "radius": 0.3},
@@ -94,9 +102,9 @@ def test_pop_topoplot_multi_map_pages_include_shared_colorbar_by_default():
     plt.close(figures[0])
 
 
-def test_pop_topoplot_component_pages_use_shared_default_scale():
+def test_pop_topoplot_component_pages_scale_each_map_to_own_absmax():
     eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=2)
-    eeg["icawinv"] = np.column_stack([np.ones(6), np.arange(1, 7) * 10.0])
+    eeg["icawinv"] = np.column_stack([np.arange(1, 7) * 1.0, np.arange(1, 7) * 10.0])
 
     figures = pop_topoplot(
         eeg,
@@ -107,10 +115,34 @@ def test_pop_topoplot_component_pages_use_shared_default_scale():
         electrodes="off",
     )
 
+    expected = []
+    for index in range(2):
+        _, zi, *_ = topoplot(eeg["icawinv"][:, index], eeg["chanlocs"], noplot="on")
+        limit = float(np.nanmax(np.abs(zi))) * 1.05  # topoplot widens the color axis by EEGLAB's 5% margin
+        expected.append((-limit, limit))
     clims = [axis.images[0].get_clim() for axis in figures[0].axes[:2]]
-    assert clims[0] == clims[1] == (-60.0, 60.0)
+    np.testing.assert_allclose(clims[0], expected[0], rtol=1e-6)
+    np.testing.assert_allclose(clims[1], expected[1], rtol=1e-6)
+    assert not np.allclose(clims[0], clims[1])
     assert len(figures[0].axes) == 3
     plt.close(figures[0])
+
+
+def test_pop_topoplot_component_colorbar_uses_polarity_labels():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=3)
+
+    comp_figs = pop_topoplot(eeg, typeplot=0, items=[1, 2], topotitle="ic", rowcols=[1, 2], electrodes="off")
+    comp_figs[0].canvas.draw()
+    comp_labels = [text.get_text() for text in comp_figs[0].axes[-1].get_yticklabels()]
+    assert comp_labels == ["-", "0", "+"]
+    plt.close(comp_figs[0])
+
+    erp_figs = pop_topoplot(eeg, typeplot=1, items=[0, 20], topotitle="erp", rowcols=[1, 2], electrodes="off")
+    erp_figs[0].canvas.draw()
+    erp_labels = [text.get_text() for text in erp_figs[0].axes[-1].get_yticklabels() if text.get_text().strip()]
+    assert len(erp_labels) >= 2
+    assert all(_is_numeric_label(label) for label in erp_labels)
+    plt.close(erp_figs[0])
 
 
 def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():
@@ -230,6 +262,18 @@ def test_pop_topoplot_gui_parses_eeglab_style_options():
     assert "items=[1, 2]" in command
     assert "colorbar='off'" in command
     plt.close(figures[0])
+
+
+def test_pop_topoplot_dialog_geometry_lays_out_every_control():
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=20, n_components=4)
+    for typeplot in (1, 0):
+        spec = pop_topoplot_dialog_spec(eeg, typeplot=typeplot)
+        slots = sum(len(row) if isinstance(row, tuple) else 1 for row in spec.geometry)
+        assert slots == len(spec.controls), (
+            f"typeplot={typeplot}: geometry lays out {slots} controls but spec has {len(spec.controls)}"
+        )
+        assert len(spec.geomvert) == len(spec.geometry)
+        assert any(control.tag == "options" for control in spec.controls)
 
 
 def test_pop_topoplot_rejects_missing_ica_or_chanlocs():
