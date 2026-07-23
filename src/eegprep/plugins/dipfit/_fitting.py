@@ -17,7 +17,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import component_channel_indices, component_maps, numeric_vector
+from eegprep.functions.popfunc.plot_utils import component_channel_indices, component_maps, numeric_vector
 from eegprep.plugins.dipfit._coordinates import apply_transform, traditionaldipfit
 from eegprep.plugins.dipfit._utils import (
     component_count,

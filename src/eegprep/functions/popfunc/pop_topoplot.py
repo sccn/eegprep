@@ -13,8 +13,8 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import component_map_data
-from eegprep.functions.popfunc._plot_utils import history_command as plot_history_command
+from eegprep.functions.popfunc.plot_utils import component_map_data
+from eegprep.functions.popfunc.plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot

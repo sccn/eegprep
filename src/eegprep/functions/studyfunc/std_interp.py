@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs

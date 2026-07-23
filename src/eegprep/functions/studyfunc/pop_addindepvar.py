@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.popfunc._plot_utils import python_literal
+from eegprep.functions.popfunc.plot_utils import python_literal
 from eegprep.functions.studyfunc._study_utils import (
     build_python_call,
     ensure_study,

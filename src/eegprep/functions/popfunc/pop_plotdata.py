@@ -8,7 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import component_activations, eeg_times_ms, history_command, numeric_vector
+from eegprep.functions.popfunc.plot_utils import component_activations, eeg_times_ms, history_command, numeric_vector
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 

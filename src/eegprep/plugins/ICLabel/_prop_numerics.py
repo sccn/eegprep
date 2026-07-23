@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._plot_utils import (
+from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
     component_channel_indices,

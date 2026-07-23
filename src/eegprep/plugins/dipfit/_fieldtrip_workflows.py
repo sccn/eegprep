@@ -10,7 +10,7 @@ from scipy.io import loadmat
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
-from eegprep.functions.popfunc._plot_utils import numeric_vector, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import numeric_vector, parse_plot_options_text
 from eegprep.plugins.dipfit._fitting import (
     DEFAULT_HEAD_RADIUS_MM,
     dipfit_gridsearch as run_gridsearch,

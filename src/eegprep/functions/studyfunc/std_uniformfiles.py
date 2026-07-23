@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.popfunc._plot_utils import channel_labels
+from eegprep.functions.popfunc.plot_utils import channel_labels
 from eegprep.functions.studyfunc._study_utils import as_alleeg_list, check_datasetinfo, ensure_study
 
 

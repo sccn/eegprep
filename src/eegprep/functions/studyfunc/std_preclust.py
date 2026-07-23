@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._plot_utils import component_maps, python_literal
+from eegprep.functions.popfunc.plot_utils import component_maps, python_literal
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 from eegprep.functions.studyfunc._study_utils import (
     axis_position,

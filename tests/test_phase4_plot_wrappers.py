@@ -29,7 +29,7 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc._plot_utils import component_activations, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import component_activations, parse_plot_options_text
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
@@ -1368,7 +1368,7 @@ def test_component_activations_dedup_contract():
     """Lock the K4 dedup: rejection delegates recompute to the canonical helper.
 
     The rejection ``component_activations`` (``_rejection``) and the canonical
-    plotting helper (``_plot_utils``) must agree when recomputing from weights,
+    plotting helper (``plot_utils``) must agree when recomputing from weights,
     and rejection must ignore a stored ``icaact`` while plotting trusts it.
     """
     from eegprep.functions.popfunc._rejection import component_activations as rejection_activations

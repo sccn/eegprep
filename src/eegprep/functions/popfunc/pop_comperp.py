@@ -11,7 +11,7 @@ from scipy.signal import butter, sosfiltfilt
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import (
+from eegprep.functions.popfunc.plot_utils import (
     as_eeg_list,
     component_activations,
     eeg_epoch_data,
