@@ -131,6 +131,42 @@ def test_pop_spectopo_component_figure_omits_frequency_markers(ica_epoch):
     plt.close(fig)
 
 
+def test_pop_spectopo_epoched_data_averages_per_trial_pwelch():
+    """Epoched (nchan, pnts, trials) input must equal per-trial welch averaged
+    in linear power then converted to dB, matching EEGLAB spectopo. Prior code
+    reshaped the Fortran-contiguous EEG array with numpy default C-order, which
+    interleaved trials and produced tens of dB of error on real datasets.
+    """
+    from scipy.signal import get_window, welch as scipy_welch
+
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset as _pop_loadset
+    from eegprep.functions.sigprocfunc.spectopo import spectopo
+
+    EEG = _pop_loadset(str(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"))
+    py_spectra, py_freqs = spectopo(EEG["data"], EEG["pnts"], float(EEG["srate"]), plot="off")[:2]
+
+    nperseg = min(round(float(EEG["srate"])), int(EEG["pnts"]))
+    window = get_window("hamming", nperseg, fftbins=False)
+    power_sum = None
+    for trial in range(int(EEG["trials"])):
+        ref_freqs, power = scipy_welch(
+            EEG["data"][:, :, trial].astype(float),
+            fs=float(EEG["srate"]),
+            window=window,
+            nperseg=nperseg,
+            noverlap=0,
+            nfft=None,
+            axis=1,
+            detrend=False,
+            scaling="density",
+        )
+        power_sum = power if power_sum is None else power_sum + power
+    ref_spectra = 10.0 * np.log10(power_sum / int(EEG["trials"]))
+
+    np.testing.assert_allclose(py_freqs, ref_freqs, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(py_spectra, ref_spectra, rtol=0, atol=1e-10)
+
+
 def test_pop_spectopo_rejects_nondefault_plotchan(ica_epoch):
     with pytest.raises(ValueError, match="whole-scalp component spectra"):
         pop_spectopo(ica_epoch, dataflag=0, freqs=[10], plotchan=3, icacomps=[1, 2])
