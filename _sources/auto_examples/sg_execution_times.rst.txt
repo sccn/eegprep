@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:14.006** total execution time for 6 files **from auto_examples**:
+**00:14.046** total execution time for 6 files **from auto_examples**:
 
 .. container::
 
@@ -33,20 +33,20 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_examples_plot_artifact_removal.py` (``plot_artifact_removal.py``)
-     - 00:06.731
+     - 00:06.733
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_and_iclabel.py` (``plot_ica_and_iclabel.py``)
-     - 00:03.157
+     - 00:03.180
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_basic_preprocessing.py` (``plot_basic_preprocessing.py``)
-     - 00:02.977
+     - 00:03.016
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_channel_interpolation.py` (``plot_channel_interpolation.py``)
-     - 00:01.000
+     - 00:00.980
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_bids_pipeline.py` (``plot_bids_pipeline.py``)
-     - 00:00.118
+     - 00:00.116
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_public_api_and_plugins.py` (``plot_public_api_and_plugins.py``)
-     - 00:00.022
+     - 00:00.021
      - 0.0
