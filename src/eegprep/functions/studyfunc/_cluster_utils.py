@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._plot_utils import component_maps, python_literal
+from eegprep.functions.popfunc.plot_utils import component_maps, python_literal
 from eegprep.functions.studyfunc._study_utils import (
     as_alleeg_list,
     ensure_study,

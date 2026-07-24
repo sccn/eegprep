@@ -8,7 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import (
+from eegprep.functions.popfunc.plot_utils import (
     component_activations,
     component_map_data,
     data_time_slice,
@@ -158,7 +158,7 @@ def pop_spectopo_dialog_spec(EEG: dict[str, Any], *, dataflag: int = 1) -> Dialo
             ControlSpec("text", "Plotting frequency range [lo_Hz hi_Hz]:"),
             ControlSpec("edit", tag="freqrange", value="2 25"),
             ControlSpec("text", "Spectral and scalp map options (see topoplot):"),
-            ControlSpec("edit", tag="options", value="'electrodes', 'off'"),
+            ControlSpec("edit", tag="options", value="electrodes='off'"),
         ]
     )
     return DialogSpec(

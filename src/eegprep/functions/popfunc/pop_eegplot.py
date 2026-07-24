@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.popfunc._plot_utils import history_command
+from eegprep.functions.popfunc.plot_utils import history_command
 import numpy as np
 
 from eegprep.functions.popfunc._eegplot_rejection import (

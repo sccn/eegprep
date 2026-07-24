@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from scipy import signal, stats
 
-from eegprep.functions.popfunc._plot_utils import component_activations as plot_component_activations
+from eegprep.functions.popfunc.plot_utils import component_activations as plot_component_activations
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 
 

@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import numeric_vector, python_literal
+from eegprep.functions.popfunc.plot_utils import numeric_vector, python_literal
 
 
 FIELDTRIP_LIMITATION = (

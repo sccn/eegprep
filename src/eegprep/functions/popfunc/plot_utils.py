@@ -194,19 +194,35 @@ def python_literal(value: Any) -> str:
 
 
 def parse_plot_options_text(text: Any) -> dict[str, Any]:
-    """Parse simple EEGLAB-style ``'key', value`` plot option text."""
+    """Parse plot option text as either Python ``key=value`` or ``'key', value`` pairs.
+
+    Both styles may appear in a single string, separated by top-level commas
+    (e.g. ``electrodes='off', 'style', 'blank'``).
+    """
     stripped = str(text or "").strip()
     if not stripped or stripped in {"[]", "{}"}:
         return {}
     parts = _split_top_level_commas(stripped)
-    if len(parts) % 2:
-        raise ValueError("Plot options must be key/value pairs")
     options: dict[str, Any] = {}
-    for index in range(0, len(parts), 2):
-        key = _parse_option_atom(parts[index])
+    index = 0
+    while index < len(parts):
+        part = parts[index]
+        eq_pos = _find_top_level_equals(part)
+        if eq_pos is not None:
+            key_text = part[:eq_pos].strip()
+            value_text = part[eq_pos + 1 :].strip()
+            if not key_text.isidentifier():
+                raise ValueError(f"Plot option key must be a Python identifier: {key_text!r}")
+            options[key_text.lower()] = _parse_option_atom(value_text)
+            index += 1
+            continue
+        if index + 1 >= len(parts):
+            raise ValueError("Plot options must be key/value pairs")
+        key = _parse_option_atom(part)
         if not isinstance(key, str):
             raise ValueError("Plot option keys must be strings")
         options[key.lower()] = _parse_option_atom(parts[index + 1])
+        index += 2
     return options
 
 
@@ -258,6 +274,26 @@ def _split_top_level_commas(text: str) -> list[str]:
         raise ValueError("Unbalanced bracket in plot options")
     parts.append("".join(current).strip())
     return [part for part in parts if part]
+
+
+def _find_top_level_equals(text: str) -> int | None:
+    quote: str | None = None
+    bracket_depth = 0
+    for index, char in enumerate(text):
+        if quote is not None:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char in "[({":
+            bracket_depth += 1
+        elif char in "])}" and bracket_depth:
+            bracket_depth -= 1
+        if char == "=" and bracket_depth == 0:
+            return index
+    return None
 
 
 def _parse_option_atom(text: str) -> Any:
