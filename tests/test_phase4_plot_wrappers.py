@@ -118,17 +118,34 @@ def test_pop_spectopo_channel_figure_structure(sample_eeg):
     plt.close(fig)
 
 
-def test_pop_spectopo_component_figure_omits_frequency_markers(ica_epoch):
+def test_pop_spectopo_component_figure_marks_analysis_frequency(ica_epoch):
+    """Component spectra draw a vertical marker at the analysis frequency, as EEGLAB does."""
     fig = pop_spectopo(
         ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2], nicamaps=2, gui=False
     )["figure"]
 
     spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
-    verticals = [
-        line for line in spec_ax.get_lines() if len({round(float(value), 6) for value in line.get_xdata()}) == 1
-    ]
-    assert verticals == []
+    verticals = sorted(
+        float(line.get_xdata()[0])
+        for line in spec_ax.get_lines()
+        if len({round(float(value), 6) for value in line.get_xdata()}) == 1
+    )
+    assert verticals == pytest.approx([10.0])
     plt.close(fig)
+
+
+def test_pop_spectopo_component_maps_labeled_by_index_with_composite(ica_epoch):
+    """Component spectra show the composite power-at-frequency map plus the top-N
+    component maps labeled by component index (EEGLAB), not a fixed IC 1..N row."""
+    res = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3, 4], nicamaps=2, gui=False
+    )
+    titles = [ax.get_title() for ax in res["figure"].axes if ax.get_title().strip()]
+    assert sum("Hz" in title for title in titles) == 1
+    comp_labels = [title for title in titles if "Hz" not in title]
+    assert len(comp_labels) == 2
+    assert all(title.isdigit() for title in comp_labels)  # component index labels, not the old "IC N"
+    plt.close(res["figure"])
 
 
 def test_pop_spectopo_epoched_data_averages_per_trial_pwelch():

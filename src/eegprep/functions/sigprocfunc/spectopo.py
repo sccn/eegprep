@@ -38,8 +38,6 @@ def spectopo(
     freqs: Any = None,
     freqrange: Any = None,
     chanlocs: Any = None,
-    map_values: Any = None,
-    map_labels: Any = None,
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
     plot: str = "on",
@@ -71,8 +69,6 @@ def spectopo(
             freqs=freqs,
             freqrange=freqrange,
             chanlocs=chanlocs,
-            map_values=map_values,
-            map_labels=map_labels,
             topoplot_options=topoplot_options,
             title=title,
         )
@@ -159,8 +155,6 @@ def plot_spectra(
     freqs: Any = None,
     freqrange: Any = None,
     chanlocs: Any = None,
-    map_values: Any = None,
-    map_labels: Any = None,
     topoplot_options: dict[str, Any] | None = None,
     title: str = "",
 ):
@@ -171,9 +165,7 @@ def plot_spectra(
     right, as in EEGLAB.
     """
     requested_freqs = np.sort(_numeric_values(freqs))
-    # component maps span the whole spectrum, so markers + leader lines are channel-only
-    freq_case = map_values is None or not np.asarray(map_values).size
-    scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs, map_values, map_labels)
+    scalp_values, scalp_labels = _scalp_maps(spectra, frequency_values, requested_freqs)
     locs = chanlocs_as_list(chanlocs)
     draw_maps = bool(scalp_values) and bool(locs)
 
@@ -204,7 +196,7 @@ def plot_spectra(
             scalp_values,
             scalp_labels,
             locs,
-            requested_freqs if freq_case else None,
+            requested_freqs,
             frequency_values,
             spectra,
             topoplot_options,
@@ -255,8 +247,8 @@ def _draw_maps_row(
     spectra: np.ndarray,
     topoplot_options: dict[str, Any] | None,
 ) -> None:
-    """Draw the top row of scalp maps, the polarity colorbar, and (for frequency
-    maps) vertical markers plus leader lines to each map.
+    """Draw the top row of scalp maps, the polarity colorbar, and the vertical
+    frequency markers plus leader lines to each map.
 
     Each map is scaled independently (``maplimits='absmax'``), so the shared
     colorbar is polarity-only (``+``/``-``), not a common data scale."""
@@ -285,8 +277,6 @@ def _draw_maps_row(
     colorbar.set_ticklabels(["-", "", "+"])
     colorbar.ax.tick_params(length=0)
 
-    if requested_freqs is None:
-        return
     for topo_ax, freq in zip(map_axes, requested_freqs):
         freq_index = int(np.argmin(np.abs(frequency_values - freq)))
         column = spectra[:, freq_index]
@@ -308,17 +298,7 @@ def _scalp_maps(
     spectra: np.ndarray,
     frequency_values: np.ndarray,
     requested_freqs: np.ndarray,
-    map_values: Any,
-    map_labels: Any,
 ) -> tuple[list[np.ndarray], list[str]]:
-    if map_values is not None and np.asarray(map_values).size:
-        values = np.asarray(map_values, dtype=float)
-        if values.ndim != 2:
-            raise ValueError("map_values must be channels x maps")
-        labels = [str(label) for label in (map_labels or [])]
-        while len(labels) < values.shape[1]:
-            labels.append(f"Map {len(labels) + 1}")
-        return [values[:, index] for index in range(values.shape[1])], labels[: values.shape[1]]
     maps = []
     labels = []
     last = requested_freqs.size - 1
@@ -344,4 +324,137 @@ def _numeric_values(value: Any) -> np.ndarray:
     return np.asarray([value], dtype=float)
 
 
-__all__ = ["compute_spectra", "plot_spectra", "spectopo"]
+# EEGLAB spectopo top-contributing-component trace/leader colors (``colrs``).
+_ICA_TRACE_COLORS = ["r", "b", "g", "m", "c"]
+
+
+def _select_component_maps(comp_spectra, component_numbers, freq_index, nicamaps, icamaps):
+    """Return row indices of the components to map: explicit ``icamaps`` or the
+    ``nicamaps`` components with the most power at the marker frequency (EEGLAB)."""
+    explicit = _numeric_values(icamaps).astype(int)
+    if explicit.size:
+        lookup = {int(number): row for row, number in enumerate(component_numbers)}
+        return np.array([lookup[n] for n in explicit if n in lookup], dtype=int)
+    order = np.argsort(comp_spectra[:, freq_index])[::-1]  # highest power first
+    count = int(nicamaps) if nicamaps else 5
+    return order[: min(count, comp_spectra.shape[0])]
+
+
+def plot_component_spectra(
+    comp_spectra: np.ndarray,
+    frequency_values: np.ndarray,
+    *,
+    component_numbers: np.ndarray,
+    icawinv: np.ndarray,
+    chanlocs: Any,
+    channel_spectra: np.ndarray,
+    channel_chanlocs: Any = None,
+    freq: Any,
+    freqrange: Any = None,
+    nicamaps: int = 5,
+    icamaps: Any = None,
+    topoplot_options: dict[str, Any] | None = None,
+    title: str = "",
+):
+    """Plot component power spectra like EEGLAB ``spectopo`` component mode.
+
+    Draws the bold black data RMS-power curve, thin traces for every component,
+    colored traces for the top-``nicamaps`` components at ``freq``, a vertical
+    marker at ``freq``, and a top row of scalp maps (the composite power-at-freq
+    map plus each mapped component's scalp projection), joined to the marker by
+    colored leader lines.
+    """
+    freqs_req = _numeric_values(freq)
+    f0 = float(freqs_req[0]) if freqs_req.size else float(frequency_values[len(frequency_values) // 2])
+    fidx = int(np.argmin(np.abs(frequency_values - f0)))
+    ncomp = comp_spectra.shape[0]
+    component_numbers = np.asarray(component_numbers, dtype=int)
+    icawinv = np.asarray(icawinv, dtype=float)
+
+    # Black curve: RMS power across channels (linear), back to dB (EEGLAB eegspecdBtoplot).
+    chan_linear = 10.0 ** (np.asarray(channel_spectra, dtype=float) / 10.0)
+    data_rms = 10.0 * np.log10(np.sqrt(np.nanmean(chan_linear**2, axis=0)))
+
+    sel = _select_component_maps(comp_spectra, component_numbers, fidx, nicamaps, icamaps)
+    comp_locs = chanlocs_as_list(chanlocs)
+    composite_locs = chanlocs_as_list(channel_chanlocs) if channel_chanlocs is not None else comp_locs
+
+    fig = plt.figure(figsize=(8.6, 6.4))
+    spec_ax = fig.add_axes([0.12, 0.10, 0.78, 0.52])
+    for row in range(ncomp):
+        spec_ax.plot(
+            frequency_values, comp_spectra[row], color=_TRACE_COLORS[(row + 1) % len(_TRACE_COLORS)], linewidth=0.75
+        )
+    for order, row in enumerate(sel):
+        spec_ax.plot(frequency_values, comp_spectra[row], color=_ICA_TRACE_COLORS[order % 5], linewidth=1.75, zorder=4)
+    spec_ax.plot(frequency_values, data_rms, color="k", linewidth=2.5, zorder=6)
+
+    spec_ax.set_xlabel("Frequency (Hz)")
+    spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
+    spec_ax.spines[["top", "right"]].set_visible(False)
+    low, high, min_idx, max_idx = _frequency_window(frequency_values, freqs_req, freqrange)
+    spec_ax.set_xlim(low, high)
+    stacked = np.vstack([comp_spectra, data_rms[None, :]])
+    y_low, y_high = _spectra_ylim(stacked, min_idx, max_idx)
+    if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
+        spec_ax.set_ylim(y_low, y_high)
+
+    marker_lo = float(min(np.nanmin(comp_spectra[:, fidx]), data_rms[fidx]))
+    marker_hi = float(max(np.nanmax(comp_spectra[:, fidx]), data_rms[fidx]))
+    spec_ax.plot([f0, f0], [marker_lo, marker_hi], color="k", linewidth=2.5, zorder=7)
+
+    # Maps: composite power-at-freq map (mean-removed across channels), then each mapped component.
+    composite = np.asarray(channel_spectra, dtype=float)[:, fidx]
+    composite = composite - np.nanmean(composite)
+    map_specs = [(composite, f"{f0:.1f} Hz", "k", data_rms[fidx], 2.5, composite_locs)]
+    for order, row in enumerate(sel):
+        number = int(component_numbers[row])
+        map_specs.append(
+            (
+                # EEGLAB spectopo plots the squared projection icawinv(:,n).^2 (power magnitude,
+                # always non-negative) for component maps, not the signed scalp map.
+                icawinv[:, number - 1] ** 2,
+                f"{number}",
+                _ICA_TRACE_COLORS[order % 5],
+                float(comp_spectra[row, fidx]),
+                0.75,
+                comp_locs,
+            )
+        )
+
+    draw_maps = bool(comp_locs)
+    if draw_maps:
+        count = len(map_specs)
+        top_y, top_h = 0.68, 0.24
+        left, right = 0.07, 0.86
+        slot = (right - left) / count
+        map_w = min(slot * 0.9, 0.16)
+        plot_options = {"electrodes": "off", "maplimits": "absmax", **(topoplot_options or {})}
+        for index, (values, label, colr, yval, lw, map_locs) in enumerate(map_specs):
+            center = left + slot * (index + 0.5)
+            topo_ax = fig.add_axes([center - map_w / 2, top_y, map_w, top_h])
+            topoplot(values, map_locs, axes=topo_ax, **plot_options)
+            topo_ax.set_title(label, fontweight="bold", fontsize=11)
+            fig.add_artist(
+                ConnectionPatch(
+                    xyA=(f0, yval),
+                    coordsA=spec_ax.transData,
+                    xyB=(0.5, 0.0),
+                    coordsB=topo_ax.transAxes,
+                    color=colr,
+                    linewidth=lw,
+                )
+            )
+        cbar_ax = fig.add_axes([0.90, top_y + 0.02, 0.02, top_h - 0.06])
+        cmap = plt.get_cmap((topoplot_options or {}).get("colormap") or "turbo")
+        colorbar = fig.colorbar(ScalarMappable(cmap=cmap, norm=Normalize(vmin=-1, vmax=1)), cax=cbar_ax)
+        colorbar.set_ticks([-0.8, 0, 0.8])
+        colorbar.set_ticklabels(["-", "", "+"])
+        colorbar.ax.tick_params(length=0)
+
+    if title:
+        fig.suptitle(title, fontsize=12)
+    return fig
+
+
+__all__ = ["compute_spectra", "plot_component_spectra", "plot_spectra", "spectopo"]
