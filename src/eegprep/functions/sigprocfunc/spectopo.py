@@ -340,6 +340,21 @@ def _select_component_maps(comp_spectra, component_numbers, freq_index, nicamaps
     return order[: min(count, comp_spectra.shape[0])]
 
 
+def _closestplot_slots(marker_x, slot_x):
+    """Assign maps to slot positions like EEGLAB spectopo's ``closestplot``: taking
+    maps in priority order (composite first, then components by descending power),
+    each claims the unused slot whose left edge is nearest the marker, so the
+    composite sits over it. Returns ``realpos`` where ``realpos[i]`` is the slot
+    index for the i-th map."""
+    used = [False] * len(slot_x)
+    realpos = []
+    for _ in slot_x:
+        best = min((i for i in range(len(slot_x)) if not used[i]), key=lambda i: abs(slot_x[i] - marker_x))
+        used[best] = True
+        realpos.append(best)
+    return realpos
+
+
 def plot_component_spectra(
     comp_spectra: np.ndarray,
     frequency_values: np.ndarray,
@@ -429,9 +444,13 @@ def plot_component_spectra(
         left, right = 0.07, 0.86
         slot = (right - left) / count
         map_w = min(slot * 0.9, 0.16)
+        slot_lefts = [left + slot * i for i in range(count)]
+        spec_pos = spec_ax.get_position()
+        marker_x = spec_pos.x0 + spec_pos.width * (f0 - low) / (high - low)
+        realpos = _closestplot_slots(marker_x, slot_lefts)
         plot_options = {"electrodes": "off", "maplimits": "absmax", **(topoplot_options or {})}
         for index, (values, label, colr, yval, lw, map_locs) in enumerate(map_specs):
-            center = left + slot * (index + 0.5)
+            center = slot_lefts[realpos[index]] + slot / 2
             topo_ax = fig.add_axes([center - map_w / 2, top_y, map_w, top_h])
             topoplot(values, map_locs, axes=topo_ax, **plot_options)
             topo_ax.set_title(label, fontweight="bold", fontsize=11)
