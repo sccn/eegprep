@@ -379,7 +379,7 @@ def plot_component_spectra(
     map plus each mapped component's scalp projection), joined to the marker by
     colored leader lines.
     """
-    freqs_req = _numeric_values(freq)
+    freqs_req = np.sort(_numeric_values(freq))  # EEGLAB sorts g.freq before taking the first
     f0 = float(freqs_req[0]) if freqs_req.size else float(frequency_values[len(frequency_values) // 2])
     fidx = int(np.argmin(np.abs(frequency_values - f0)))
     ncomp = comp_spectra.shape[0]

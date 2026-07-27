@@ -148,6 +148,26 @@ def test_pop_spectopo_component_maps_labeled_by_index_with_composite(ica_epoch):
     plt.close(res["figure"])
 
 
+def test_pop_spectopo_component_maps_match_eeglab_selection_and_order():
+    """On eeglab_data_epochs_ica.set the component-spectra maps reproduce EEGLAB: the
+    top-nicamaps selection by projection-scaled power at 10 Hz, and the closestplot
+    left-to-right order with the composite centered over the marker."""
+    EEG = pop_loadset(str(SAMPLE_DATASET_PATH.parent / "eeglab_data_epochs_ica.set"))
+    fig = pop_spectopo(
+        EEG, dataflag=0, freqs=[10], freqrange=[2, 25], plotchan=0, percent=100, nicamaps=5, electrodes="off", gui=False
+    )["figure"]
+    map_titles = [
+        ax.get_title()
+        for ax in sorted((a for a in fig.axes if a.get_title().strip()), key=lambda a: a.get_position().x0)
+    ]
+    # one composite power-at-frequency map plus the five selected component maps
+    assert map_titles.count("10.0 Hz") == 1
+    assert sorted(int(title) for title in map_titles if "Hz" not in title) == [1, 4, 5, 6, 10]
+    # closestplot arrangement: composite centered, components ordered around the marker
+    assert map_titles == ["4", "6", "10.0 Hz", "10", "5", "1"]
+    plt.close(fig)
+
+
 def test_pop_spectopo_epoched_data_averages_per_trial_pwelch():
     """Epoched (nchan, pnts, trials) input must equal per-trial welch averaged
     in linear power then converted to dB, matching EEGLAB spectopo. Prior code
