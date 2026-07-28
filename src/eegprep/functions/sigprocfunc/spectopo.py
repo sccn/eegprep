@@ -451,7 +451,9 @@ def plot_component_spectra(
         plot_options = {"electrodes": "off", "maplimits": "absmax", **(topoplot_options or {})}
         for index, (values, label, colr, yval, lw, map_locs) in enumerate(map_specs):
             center = slot_lefts[realpos[index]] + slot / 2
-            topo_ax = fig.add_axes([center - map_w / 2, top_y, map_w, top_h])
+            # Raise the composite map (index 0) so it stands out above the component row (EEGLAB spectopo).
+            map_y = top_y + 0.04 if index == 0 else top_y
+            topo_ax = fig.add_axes([center - map_w / 2, map_y, map_w, top_h])
             topoplot(values, map_locs, axes=topo_ax, **plot_options)
             topo_ax.set_title(label, fontweight="bold", fontsize=11)
             fig.add_artist(
