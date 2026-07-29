@@ -18,7 +18,7 @@ from eegprep.functions.popfunc.plot_utils import (
     selected_indices,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
-from eegprep.functions.sigprocfunc.spectopo import spectopo
+from eegprep.functions.sigprocfunc.spectopo import plot_component_spectra, spectopo
 
 
 def pop_spectopo(
@@ -49,43 +49,67 @@ def pop_spectopo(
 
     data, times = data_time_slice(EEG, timerange)
     history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}
-    if dataflag:
-        plot_data = _channel_spectral_data(data, process)
-        chanlocs = EEG.get("chanlocs", [])
-        map_values = None
-        map_labels = None
-        title = ""  # EEGLAB spectopo adds no default suptitle
-    else:
-        _raise_for_unsupported_component_options(options)
-        plot_data, component_numbers = _component_spectral_data(EEG, timerange, options.get("icacomps"))
-        maps, chanlocs = component_map_data(EEG)
-        map_numbers = _component_map_numbers(
-            options.get("icamaps"),
-            options.get("nicamaps"),
-            component_numbers,
-            maps.shape[1],
-        )
-        map_values = maps[:, map_numbers - 1] if map_numbers.size else None
-        map_labels = [f"IC {number}" for number in map_numbers.tolist()]
-        title = ""  # EEGLAB spectopo adds no default suptitle
+    srate = float(EEG.get("srate", 1) or 1)
     freqs = numeric_vector(options.pop("freqs", options.pop("freq", []))).tolist()
     freqrange = numeric_vector(options.pop("freqrange", [])).tolist()
     percent = float(options.pop("percent", 100))
-    spectral_options, topoplot_options = _split_spectopo_options(options)
-    spectra, frequency_values, speccomp, contrib, specstd, figure = spectopo(
-        plot_data,
-        int(plot_data.shape[1]),
-        float(EEG.get("srate", 1) or 1),
-        percent=percent,
-        freqs=freqs,
-        freqrange=freqrange,
-        chanlocs=chanlocs,
-        map_values=map_values,
-        map_labels=map_labels,
-        topoplot_options=topoplot_options,
-        title=title,
-        **spectral_options,
-    )
+
+    if dataflag:
+        nicamaps = np.asarray([], dtype=int)
+        icamaps = np.asarray([], dtype=int)
+        spectral_options, topoplot_options = _split_spectopo_options(options)
+        plot_data = _channel_spectral_data(data, process)
+        spectra, frequency_values, speccomp, contrib, specstd, figure = spectopo(
+            plot_data,
+            int(plot_data.shape[1]),
+            srate,
+            percent=percent,
+            freqs=freqs,
+            freqrange=freqrange,
+            chanlocs=EEG.get("chanlocs", []),
+            topoplot_options=topoplot_options,
+            title="",  # EEGLAB spectopo adds no default suptitle
+            **spectral_options,
+        )
+    else:
+        _raise_for_unsupported_component_options(options)
+        comp_data, component_numbers = _component_spectral_data(EEG, timerange, options.get("icacomps"))
+        icawinv, chanlocs = component_map_data(EEG)
+        nicamaps = numeric_vector(options.pop("nicamaps", []), dtype=int)
+        icamaps = numeric_vector(options.pop("icamaps", []), dtype=int)
+        spectral_options, topoplot_options = _split_spectopo_options(options)
+        # EEGLAB rescales each component's whole-scalp spectrum by its projection
+        # strength: add 10*log10(sqrt(mean(icawinv_col^4))) (spectopo 'normal' icamode).
+        comp_spectra, frequency_values, speccomp, contrib, specstd, _ = spectopo(
+            comp_data, int(comp_data.shape[1]), srate, percent=percent, plot="off", **spectral_options
+        )
+        projection = np.asarray(icawinv, dtype=float)[:, component_numbers - 1]
+        comp_spectra = comp_spectra + (10.0 * np.log10(np.sqrt(np.nanmean(projection**4, axis=0))))[:, None]
+        # Channel-data spectra drive the bold black RMS curve and the composite freq map.
+        channel_spectra, *_ = spectopo(
+            _channel_spectral_data(data, process),
+            int(data.shape[1]),
+            srate,
+            percent=percent,
+            plot="off",
+            **spectral_options,
+        )
+        figure = plot_component_spectra(
+            comp_spectra,
+            frequency_values,
+            component_numbers=component_numbers,
+            icawinv=np.asarray(icawinv, dtype=float),
+            chanlocs=chanlocs,
+            channel_spectra=channel_spectra,
+            channel_chanlocs=EEG.get("chanlocs", []),
+            freq=freqs,
+            freqrange=freqrange,
+            nicamaps=int(nicamaps[0]) if nicamaps.size else 5,
+            icamaps=icamaps.tolist() if icamaps.size else None,
+            topoplot_options=topoplot_options,
+        )
+        spectra = comp_spectra
+
     result = {
         "spectra": spectra,
         "freqs": frequency_values,
@@ -224,21 +248,6 @@ def _component_spectral_data(EEG: dict[str, Any], timerange: Any, components: An
         acts = acts[:, mask, :]
     indices = selected_indices(components, acts.shape[0])
     return acts[indices, :, :], indices + 1
-
-
-def _component_map_numbers(
-    map_values: Any, count_values: Any, component_numbers: np.ndarray, map_count: int
-) -> np.ndarray:
-    explicit = numeric_vector(map_values, dtype=int)
-    if explicit.size:
-        numbers = explicit
-    else:
-        counts = numeric_vector(count_values, dtype=int)
-        count = int(counts[0]) if counts.size else min(5, component_numbers.size)
-        numbers = component_numbers[: max(0, count)]
-    if np.any(numbers < 1) or np.any(numbers > map_count):
-        raise ValueError(f"component map indices must be within 1..{map_count}")
-    return numbers.astype(int)
 
 
 def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:

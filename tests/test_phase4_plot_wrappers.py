@@ -5,6 +5,7 @@ from copy import deepcopy
 import importlib
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import matplotlib
@@ -118,16 +119,83 @@ def test_pop_spectopo_channel_figure_structure(sample_eeg):
     plt.close(fig)
 
 
-def test_pop_spectopo_component_figure_omits_frequency_markers(ica_epoch):
+def test_pop_spectopo_component_figure_marks_analysis_frequency(ica_epoch):
+    """Component spectra draw a vertical marker at the analysis frequency, as EEGLAB does."""
     fig = pop_spectopo(
         ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2], nicamaps=2, gui=False
     )["figure"]
 
     spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
-    verticals = [
-        line for line in spec_ax.get_lines() if len({round(float(value), 6) for value in line.get_xdata()}) == 1
+    verticals = sorted(
+        float(line.get_xdata()[0])
+        for line in spec_ax.get_lines()
+        if len({round(float(value), 6) for value in line.get_xdata()}) == 1
+    )
+    assert verticals == pytest.approx([10.0])
+    plt.close(fig)
+
+
+def test_pop_spectopo_component_maps_labeled_by_index_with_composite(ica_epoch):
+    """Component spectra show the composite power-at-frequency map plus the top-N
+    component maps labeled by component index (EEGLAB), not a fixed IC 1..N row."""
+    res = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3, 4], nicamaps=2, gui=False
+    )
+    titles = [ax.get_title() for ax in res["figure"].axes if ax.get_title().strip()]
+    assert sum("Hz" in title for title in titles) == 1
+    comp_labels = [title for title in titles if "Hz" not in title]
+    assert len(comp_labels) == 2
+    assert all(title.isdigit() for title in comp_labels)  # component index labels, not the old "IC N"
+    plt.close(res["figure"])
+
+
+def test_pop_spectopo_component_maps_match_eeglab_selection_and_order():
+    """On eeglab_data_epochs_ica.set the component-spectra maps reproduce EEGLAB: the
+    top-nicamaps selection by projection-scaled power at 10 Hz, and the closestplot
+    left-to-right order with the composite centered over the marker."""
+    EEG = pop_loadset(str(SAMPLE_DATASET_PATH.parent / "eeglab_data_epochs_ica.set"))
+    fig = pop_spectopo(
+        EEG, dataflag=0, freqs=[10], freqrange=[2, 25], plotchan=0, percent=100, nicamaps=5, electrodes="off", gui=False
+    )["figure"]
+    map_titles = [
+        ax.get_title()
+        for ax in sorted((a for a in fig.axes if a.get_title().strip()), key=lambda a: a.get_position().x0)
     ]
-    assert verticals == []
+    # one composite power-at-frequency map plus the five selected component maps
+    assert map_titles.count("10.0 Hz") == 1
+    assert sorted(int(title) for title in map_titles if "Hz" not in title) == [1, 4, 5, 6, 10]
+    # closestplot arrangement: composite centered, components ordered around the marker
+    assert map_titles == ["4", "6", "10.0 Hz", "10", "5", "1"]
+    plt.close(fig)
+
+
+def test_pop_spectopo_component_traces_report_index_on_click(ica_epoch, capsys):
+    """Clicking a component trace prints its component index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3], nicamaps=2, gui=False
+    )["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Component ")]
+    # each component is drawn once, so clicking every trace reports each index exactly once
+    # (a selected component drawn both thin and bold would print twice)
+    assert sorted(int(ln.split()[1]) for ln in printed) == [1, 2, 3]
+    plt.close(fig)
+
+
+def test_pop_spectopo_channel_traces_report_index_on_click(sample_eeg, capsys):
+    """Clicking a channel trace prints its channel index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], gui=False)["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Channel ")]
+    assert sorted({int(ln.split()[1]) for ln in printed}) == list(range(1, int(sample_eeg["nbchan"]) + 1))
     plt.close(fig)
 
 
