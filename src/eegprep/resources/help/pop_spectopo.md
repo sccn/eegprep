@@ -17,6 +17,10 @@ frequency (labeled by component index) alongside the composite
 power-at-frequency map, each joined to the marker by a leader line — matching
 EEGLAB `spectopo`. Set `icamaps` to map specific components instead.
 
+In an interactive window, click any spectrum trace to print its channel number
+(channel spectra) or component number (component spectra) to the console, as in
+EEGLAB.
+
 The GUI's "Spectral and scalp map options" field accepts either Python
 `key=value` pairs (e.g. `electrodes='off', style='blank'`) or the classic
 `'key', value` pairs (e.g. `'electrodes', 'off', 'style', 'blank'`). Multiple

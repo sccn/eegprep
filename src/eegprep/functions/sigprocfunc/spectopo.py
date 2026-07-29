@@ -175,10 +175,13 @@ def plot_spectra(
     else:
         fig, spec_ax = plt.subplots(figsize=(7, 4))
 
+    trace_labels = {}
     for index, channel_spectrum in enumerate(spectra):
-        spec_ax.plot(
+        (line,) = spec_ax.plot(
             frequency_values, channel_spectrum, color=_TRACE_COLORS[(index + 1) % len(_TRACE_COLORS)], linewidth=2.0
         )
+        trace_labels[line] = f"Channel {index + 1}"
+    _enable_trace_identification(fig, trace_labels)
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
@@ -355,6 +358,22 @@ def _closestplot_slots(marker_x, slot_x):
     return realpos
 
 
+def _enable_trace_identification(fig, trace_labels):
+    """Print each trace's channel/component index when it is clicked, matching EEGLAB
+    spectopo's per-trace ``ButtonDownFcn``. Fires only on interactive backends; in
+    headless (``Agg``) renders no pick events occur, so this is a harmless no-op."""
+    for line in trace_labels:
+        line.set_picker(True)
+        line.set_pickradius(5)
+
+    def _on_pick(event):
+        label = trace_labels.get(event.artist)
+        if label is not None:
+            print(label)
+
+    fig.canvas.mpl_connect("pick_event", _on_pick)
+
+
 def plot_component_spectra(
     comp_spectra: np.ndarray,
     frequency_values: np.ndarray,
@@ -396,13 +415,19 @@ def plot_component_spectra(
 
     fig = plt.figure(figsize=(8.6, 6.4))
     spec_ax = fig.add_axes([0.12, 0.10, 0.78, 0.52])
+    trace_labels = {}
     for row in range(ncomp):
-        spec_ax.plot(
+        (line,) = spec_ax.plot(
             frequency_values, comp_spectra[row], color=_TRACE_COLORS[(row + 1) % len(_TRACE_COLORS)], linewidth=0.75
         )
+        trace_labels[line] = f"Component {int(component_numbers[row])}"
     for order, row in enumerate(sel):
-        spec_ax.plot(frequency_values, comp_spectra[row], color=_ICA_TRACE_COLORS[order % 5], linewidth=1.75, zorder=4)
+        (line,) = spec_ax.plot(
+            frequency_values, comp_spectra[row], color=_ICA_TRACE_COLORS[order % 5], linewidth=1.75, zorder=4
+        )
+        trace_labels[line] = f"Component {int(component_numbers[row])}"
     spec_ax.plot(frequency_values, data_rms, color="k", linewidth=2.5, zorder=6)
+    _enable_trace_identification(fig, trace_labels)
 
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")

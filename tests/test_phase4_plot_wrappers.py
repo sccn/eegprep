@@ -5,6 +5,7 @@ from copy import deepcopy
 import importlib
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import matplotlib
@@ -165,6 +166,35 @@ def test_pop_spectopo_component_maps_match_eeglab_selection_and_order():
     assert sorted(int(title) for title in map_titles if "Hz" not in title) == [1, 4, 5, 6, 10]
     # closestplot arrangement: composite centered, components ordered around the marker
     assert map_titles == ["4", "6", "10.0 Hz", "10", "5", "1"]
+    plt.close(fig)
+
+
+def test_pop_spectopo_component_traces_report_index_on_click(ica_epoch, capsys):
+    """Clicking a component trace prints its component index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3], nicamaps=2, gui=False
+    )["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Component ")]
+    assert printed  # every clickable trace reports its component index
+    assert sorted({int(ln.split()[1]) for ln in printed}) == [1, 2, 3]
+    plt.close(fig)
+
+
+def test_pop_spectopo_channel_traces_report_index_on_click(sample_eeg, capsys):
+    """Clicking a channel trace prints its channel index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], gui=False)["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Channel ")]
+    assert sorted({int(ln.split()[1]) for ln in printed}) == list(range(1, int(sample_eeg["nbchan"]) + 1))
     plt.close(fig)
 
 
