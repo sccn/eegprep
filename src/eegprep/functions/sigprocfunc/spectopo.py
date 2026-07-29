@@ -416,7 +416,10 @@ def plot_component_spectra(
     fig = plt.figure(figsize=(8.6, 6.4))
     spec_ax = fig.add_axes([0.12, 0.10, 0.78, 0.52])
     trace_labels = {}
+    selected = {int(row) for row in sel}
     for row in range(ncomp):
+        if row in selected:
+            continue  # selected components are drawn bold below; EEGLAB plots only the others thin
         (line,) = spec_ax.plot(
             frequency_values, comp_spectra[row], color=_TRACE_COLORS[(row + 1) % len(_TRACE_COLORS)], linewidth=0.75
         )

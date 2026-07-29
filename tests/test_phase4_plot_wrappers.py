@@ -180,8 +180,9 @@ def test_pop_spectopo_component_traces_report_index_on_click(ica_epoch, capsys):
     for line in pickable:
         fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
     printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Component ")]
-    assert printed  # every clickable trace reports its component index
-    assert sorted({int(ln.split()[1]) for ln in printed}) == [1, 2, 3]
+    # each component is drawn once, so clicking every trace reports each index exactly once
+    # (a selected component drawn both thin and bold would print twice)
+    assert sorted(int(ln.split()[1]) for ln in printed) == [1, 2, 3]
     plt.close(fig)
 
 
