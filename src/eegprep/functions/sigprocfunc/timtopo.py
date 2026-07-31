@@ -155,8 +155,10 @@ def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.
         requested = requested[np.isfinite(requested)]
         if requested.size:
             return requested
-    variance = np.nanvar(values, axis=0)
-    return np.asarray([x_values[int(np.nanargmax(variance))]], dtype=float)
+    # Default frame is the peak global power (sum of squares across channels), matching
+    # EEGLAB timtopo's ``max(sum(data.*data))`` -- not the mean-removed variance.
+    power = np.nansum(values**2, axis=0)
+    return np.asarray([x_values[int(np.nanargmax(power))]], dtype=float)
 
 
 def _latency_values(values: np.ndarray, x_values: np.ndarray, latency: float, winsize: float) -> np.ndarray:

@@ -30,7 +30,7 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.plot_utils import component_activations, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import component_activations, data_time_slice, parse_plot_options_text
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
@@ -1417,6 +1417,24 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     plt.close(timtopo_fig)
     plt.close(plottopo_fig)
     plt.close(envtopo_fig)
+
+
+def test_timtopo_auto_latency_uses_peak_global_power(sample_epoch):
+    """Default (NaN) latency is the frame of peak global power (sum of squares across
+    channels), as EEGLAB timtopo picks it -- not the max mean-removed variance frame."""
+    data, _ = data_time_slice(sample_epoch, None)
+    erp = np.nanmean(data, axis=2)
+    x = np.linspace(float(sample_epoch["xmin"]) * 1000.0, float(sample_epoch["xmax"]) * 1000.0, erp.shape[1])
+    global_power_latency = x[int(np.argmax(np.sum(erp**2, axis=0)))]
+    variance_latency = x[int(np.argmax(np.nanvar(erp, axis=0)))]
+    # Guard: the two metrics must disagree here or the test could not catch the bug.
+    assert round(global_power_latency) != round(variance_latency)
+
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[float("nan")], return_com=True)
+    map_titles = [ax.get_title().strip() for ax in fig.axes if ax.get_title().strip()]
+    assert len(map_titles) == 1
+    assert float(map_titles[0]) == pytest.approx(global_power_latency, abs=1)
+    plt.close(fig)
 
 
 def test_pop_spectopo_component_path_plots_component_maps(ica_epoch):
