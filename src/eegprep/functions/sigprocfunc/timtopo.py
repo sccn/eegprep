@@ -88,8 +88,13 @@ def timtopo(
             trace_ax.axvline(latency, color="b", linewidth=1.0)
 
     if title:
-        # EEGLAB places the timtopo title between the trace panel and the maps, left-aligned.
-        fig.text(0.03, 0.62, title, ha="left", fontsize=12)
+        if draw_maps:
+            # EEGLAB places the timtopo title between the trace panel and the maps, left-aligned.
+            fig.text(0.03, 0.62, title, ha="left", fontsize=12)
+        else:
+            # No maps row to sit under; keep the title on the trace panel instead of at y=0.62,
+            # which would land inside the full-height axes.
+            trace_ax.set_title(title)
     return fig
 
 
@@ -171,7 +176,6 @@ def _enable_click_maps(
     """Redraw the rightmost scalp map at the clicked ERP latency, matching EEGLAB
     timtopo's click callback. Fires only on interactive backends; headless renders
     receive no click events, so this is a harmless no-op."""
-    srate = (values.shape[1] - 1) / (float(x_values[-1]) - float(x_values[0])) * 1000.0
 
     def _on_click(event: Any) -> None:
         if event.inaxes is not trace_ax or event.xdata is None:
@@ -180,7 +184,7 @@ def _enable_click_maps(
         # Hide the rightmost map's static leader; it no longer points at the redrawn map.
         target_leader.set_visible(False)
         target_ax.clear()
-        topoplot(_click_latency_values(values, x_values, srate, latency, winsize), locs, axes=target_ax, **plot_options)
+        topoplot(_latency_values(values, x_values, latency, winsize), locs, axes=target_ax, **plot_options)
         if winsize and winsize > 0:
             label = f"{latency - winsize:.0f} to {latency + winsize:.0f} ms"
         else:
@@ -189,18 +193,6 @@ def _enable_click_maps(
         event.canvas.draw_idle()
 
     fig.canvas.mpl_connect("button_press_event", _on_click)
-
-
-def _click_latency_values(
-    values: np.ndarray, x_values: np.ndarray, srate: float, latency: float, winsize: float
-) -> np.ndarray:
-    """ERP averaged over +/- winsize ms around a clicked latency (single frame when
-    winsize == 0), matching EEGLAB timtopo's click callback."""
-    center = int(round((latency - float(x_values[0])) / 1000.0 * srate))
-    winpts = int(round(winsize / 1000.0 * srate))
-    lo = max(0, center - winpts)
-    hi = min(values.shape[1] - 1, center + winpts)
-    return np.nanmean(values[:, lo : hi + 1], axis=1)
 
 
 def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.ndarray:
@@ -216,11 +208,13 @@ def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.
 
 
 def _latency_values(values: np.ndarray, x_values: np.ndarray, latency: float, winsize: float) -> np.ndarray:
+    """ERP at ``latency``: a single frame when ``winsize == 0``, otherwise averaged over
+    ``latency +/- winsize`` ms. This is EEGLAB timtopo's half-width convention, shared by
+    the static map row and the click callback so both use one window for a given input."""
     if winsize <= 0:
         frame = int(np.argmin(np.abs(x_values - latency)))
         return values[:, frame]
-    half_window = winsize / 2.0
-    mask = (x_values >= latency - half_window) & (x_values <= latency + half_window)
+    mask = (x_values >= latency - winsize) & (x_values <= latency + winsize)
     if not np.any(mask):
         raise ValueError("winsize does not include any samples around requested latency")
     return np.nanmean(values[:, mask], axis=1)

@@ -1453,6 +1453,22 @@ def test_timtopo_click_redraws_rightmost_scalp_map(sample_epoch):
     plt.close(fig)
 
 
+def test_timtopo_click_matches_static_map_for_same_winsize(sample_epoch):
+    """The click callback reuses the static row's window helper, so clicking a map's own
+    latency reproduces its scalp map -- guarding a single winsize window in both paths."""
+    latency, winsize = 60.0, 20.0
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[latency], winsize=[winsize], return_com=True)
+    fig.canvas.draw()
+    map_ax = [ax for ax in fig.axes if ax.get_title().strip()][-1]
+    static_map = np.ma.filled(map_ax.images[0].get_array().astype(float), np.nan)
+    trace_ax = fig.axes[0]
+    px, py = trace_ax.transData.transform((latency, 0.0))
+    fig.canvas.callbacks.process("button_press_event", MouseEvent("button_press_event", fig.canvas, px, py))
+    clicked_map = np.ma.filled(map_ax.images[0].get_array().astype(float), np.nan)
+    np.testing.assert_allclose(clicked_map, static_map, equal_nan=True)
+    plt.close(fig)
+
+
 def test_pop_spectopo_component_path_plots_component_maps(ica_epoch):
     result, command = pop_spectopo(
         ica_epoch,
