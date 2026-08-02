@@ -1453,6 +1453,19 @@ def test_timtopo_click_redraws_rightmost_scalp_map(sample_epoch):
     plt.close(fig)
 
 
+def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
+    """A NaN entry in plottimes is filled with the peak-power latency (EEGLAB), keeping the
+    other requested latencies and the slot count -- not silently dropped."""
+    data, _ = data_time_slice(sample_epoch, None)
+    erp = np.nanmean(data, axis=2)
+    x = np.linspace(float(sample_epoch["xmin"]) * 1000.0, float(sample_epoch["xmax"]) * 1000.0, erp.shape[1])
+    auto = x[int(np.argmax(np.sum(erp**2, axis=0)))]
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[float("nan"), 100.0], return_com=True)
+    latencies = sorted(float(ax.get_title().split()[0]) for ax in fig.axes if ax.get_title().strip())
+    assert latencies == [pytest.approx(min(auto, 100.0), abs=1), pytest.approx(max(auto, 100.0), abs=1)]
+    plt.close(fig)
+
+
 def test_timtopo_click_matches_static_map_for_same_winsize(sample_epoch):
     """The click callback reuses the static row's window helper, so clicking a map's own
     latency reproduces its scalp map -- guarding a single winsize window in both paths."""

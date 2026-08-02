@@ -156,6 +156,9 @@ def _draw_maps_row(
     cbar_ax = fig.add_axes([0.925, top_y + 0.07, 0.018, top_h - 0.14])
     cmap = plt.get_cmap((topoplot_options or {}).get("colormap") or "turbo")
     colorbar = fig.colorbar(ScalarMappable(cmap=cmap, norm=Normalize(vmin=-1, vmax=1)), cax=cbar_ax)
+    # Inset the +/- labels from the bar ends (EEGLAB places them at the outermost ticks,
+    # not flush with the extremes). Purely cosmetic; the bar spans the full gradient and
+    # does not drive the per-map scalp colors.
     colorbar.set_ticks([-0.8, 0, 0.8])
     colorbar.set_ticklabels(["-", "", "+"])
     colorbar.ax.tick_params(length=0)
@@ -196,15 +199,17 @@ def _enable_click_maps(
 
 
 def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.ndarray:
-    if plottimes is not None and len(np.asarray(plottimes).ravel()):
-        requested = np.asarray(plottimes, dtype=float).ravel()
-        requested = requested[np.isfinite(requested)]
-        if requested.size:
-            return requested
-    # Default frame is the peak global power (sum of squares across channels), matching
-    # EEGLAB timtopo's ``max(sum(data.*data))`` -- not the mean-removed variance.
-    power = np.nansum(values**2, axis=0)
-    return np.asarray([x_values[int(np.nanargmax(power))]], dtype=float)
+    # Empty/NaN slots use the peak global power latency (sum of squares across channels),
+    # matching EEGLAB timtopo's ``max(sum(data.*data))`` -- not the mean-removed variance.
+    auto = float(x_values[int(np.nanargmax(np.nansum(values**2, axis=0)))])
+    requested = np.asarray(plottimes, dtype=float).ravel() if plottimes is not None else np.asarray([], dtype=float)
+    if requested.size == 0:
+        return np.asarray([auto], dtype=float)
+    # EEGLAB replaces each NaN entry with the peak-power latency, keeping the finite
+    # entries and the slot count, rather than dropping the NaN slot.
+    requested = requested.copy()
+    requested[np.isnan(requested)] = auto
+    return requested
 
 
 def _latency_values(values: np.ndarray, x_values: np.ndarray, latency: float, winsize: float) -> np.ndarray:
