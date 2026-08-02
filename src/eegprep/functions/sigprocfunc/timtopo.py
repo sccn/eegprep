@@ -40,7 +40,9 @@ def timtopo(
 
     The layout mirrors EEGLAB ``timtopo``: a row of scalp maps sits above an ERP
     trace panel, each map joined to a blue latency marker on the traces by an
-    oblique leader line, with a ``+``/``-`` polarity colorbar on the right.
+    oblique leader line, with a ``+``/``-`` polarity colorbar on the right. Clicking
+    a trace redraws the rightmost scalp map at the clicked latency (interactive
+    backends only).
     """
     values = np.asarray(data, dtype=float)
     if values.ndim == 3:
@@ -77,7 +79,10 @@ def timtopo(
         trace_ax.axvline(0, color="k", linestyle=":", linewidth=1.5)
 
     if draw_maps:
-        _draw_maps_row(fig, trace_ax, values, x_values, map_times, locs, winsize, topoplot_options)
+        target_ax, plot_options, target_leader = _draw_maps_row(
+            fig, trace_ax, values, x_values, map_times, locs, winsize, topoplot_options
+        )
+        _enable_click_maps(fig, trace_ax, target_ax, target_leader, values, x_values, locs, winsize, plot_options)
     else:
         for latency in map_times:
             trace_ax.axvline(latency, color="b", linewidth=1.0)
@@ -97,12 +102,14 @@ def _draw_maps_row(
     locs: list,
     winsize: float,
     topoplot_options: dict[str, Any] | None,
-) -> None:
+) -> tuple[Any, dict[str, Any], Any]:
     """Draw the top row of scalp maps, the blue latency markers with oblique leader
     lines down to the traces, and the ``+``/``-`` polarity colorbar.
 
     Each map is scaled independently (``maplimits='absmax'``, EEGLAB's default), so
-    the shared colorbar is polarity-only, not a common data scale."""
+    the shared colorbar is polarity-only, not a common data scale. Returns the
+    rightmost map axes, the topoplot options, and that map's leader line, which the
+    click callback reuses."""
     count = len(map_times)
     top_y, top_h = 0.66, 0.26
     left, right = 0.10, 0.88
@@ -130,7 +137,7 @@ def _draw_maps_row(
 
         # Oblique leader line from the marker's top to the bottom-center of the map,
         # cycling MATLAB's default color order the way EEGLAB does.
-        fig.add_artist(
+        leader = fig.add_artist(
             ConnectionPatch(
                 xyA=(latency, v_high),
                 coordsA=trace_ax.transData,
@@ -147,6 +154,53 @@ def _draw_maps_row(
     colorbar.set_ticks([-0.8, 0, 0.8])
     colorbar.set_ticklabels(["-", "", "+"])
     colorbar.ax.tick_params(length=0)
+    return topo_ax, plot_options, leader
+
+
+def _enable_click_maps(
+    fig: Any,
+    trace_ax: Any,
+    target_ax: Any,
+    target_leader: Any,
+    values: np.ndarray,
+    x_values: np.ndarray,
+    locs: list,
+    winsize: float,
+    plot_options: dict[str, Any],
+) -> None:
+    """Redraw the rightmost scalp map at the clicked ERP latency, matching EEGLAB
+    timtopo's click callback. Fires only on interactive backends; headless renders
+    receive no click events, so this is a harmless no-op."""
+    srate = (values.shape[1] - 1) / (float(x_values[-1]) - float(x_values[0])) * 1000.0
+
+    def _on_click(event: Any) -> None:
+        if event.inaxes is not trace_ax or event.xdata is None:
+            return
+        latency = float(event.xdata)
+        # Hide the rightmost map's static leader; it no longer points at the redrawn map.
+        target_leader.set_visible(False)
+        target_ax.clear()
+        topoplot(_click_latency_values(values, x_values, srate, latency, winsize), locs, axes=target_ax, **plot_options)
+        if winsize and winsize > 0:
+            label = f"{latency - winsize:.0f} to {latency + winsize:.0f} ms"
+        else:
+            label = f"{latency:.0f} ms"
+        target_ax.set_title(label, fontweight="bold", fontsize=10)
+        event.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("button_press_event", _on_click)
+
+
+def _click_latency_values(
+    values: np.ndarray, x_values: np.ndarray, srate: float, latency: float, winsize: float
+) -> np.ndarray:
+    """ERP averaged over +/- winsize ms around a clicked latency (single frame when
+    winsize == 0), matching EEGLAB timtopo's click callback."""
+    center = int(round((latency - float(x_values[0])) / 1000.0 * srate))
+    winpts = int(round(winsize / 1000.0 * srate))
+    lo = max(0, center - winpts)
+    hi = min(values.shape[1] - 1, center + winpts)
+    return np.nanmean(values[:, lo : hi + 1], axis=1)
 
 
 def _plot_times(values: np.ndarray, x_values: np.ndarray, plottimes: Any) -> np.ndarray:

@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseEvent
 import numpy as np
 import pytest
 import scipy.io
@@ -1434,6 +1435,21 @@ def test_timtopo_auto_latency_uses_peak_global_power(sample_epoch):
     map_titles = [ax.get_title().strip() for ax in fig.axes if ax.get_title().strip()]
     assert len(map_titles) == 1
     assert float(map_titles[0]) == pytest.approx(global_power_latency, abs=1)
+    plt.close(fig)
+
+
+def test_timtopo_click_redraws_rightmost_scalp_map(sample_epoch):
+    """Clicking a trace redraws the rightmost scalp map (and titles it) at the clicked
+    latency, matching EEGLAB timtopo's ButtonDownFcn."""
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[-50, 0, 100, 180], return_com=True)
+    fig.canvas.draw()
+    trace_ax = fig.axes[0]
+    click_latency = 50.0
+    px, py = trace_ax.transData.transform((click_latency, 0.0))
+    event = MouseEvent("button_press_event", fig.canvas, px, py)
+    fig.canvas.callbacks.process("button_press_event", event)
+    map_titles = [ax.get_title() for ax in fig.axes if ax.get_title().strip()]
+    assert f"{click_latency:.0f} ms" in map_titles
     plt.close(fig)
 
 
