@@ -623,6 +623,13 @@ string:</p>
 <p><code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns four values. Scripts that only need the cleaned EEG
 should use the first value or call <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>.</p>
 </section>
+<section id="sampling-rates">
+<h2>Sampling Rates<a class="headerlink" href="#sampling-rates" title="Link to this heading">#</a></h2>
+<p>ASR calibration designs its spectral-shaping filter for whatever sampling rate
+the dataset has, so no resampling is required beforehand. Clinical and
+consumer amplifier rates that are not round numbers, such as 258 Hz, work
+directly.</p>
+</section>
 <section id="riemannian-asr-notes">
 <h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>
 <p>EEGPrep supports the Riemannian ASR calibration variant through
@@ -807,6 +814,7 @@ replayed in scripts.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#select-data-and-channels">Select Data and Channels</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filter">Filter</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-continuous-data">Clean Continuous Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sampling-rates">Sampling Rates</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#riemannian-asr-notes">Riemannian ASR Notes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#review-rejected-segments">Review Rejected Segments</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#resample">Resample</a></li>
