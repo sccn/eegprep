@@ -129,6 +129,14 @@ Use ``clean_artifacts`` when you need lower-level state outputs:
 ``clean_artifacts`` returns four values. Scripts that only need the cleaned EEG
 should use the first value or call ``pop_clean_rawdata``.
 
+Sampling Rates
+==============
+
+ASR calibration designs its spectral-shaping filter for whatever sampling rate
+the dataset has, so no resampling is required beforehand. Clinical and
+consumer amplifier rates that are not round numbers, such as 258 Hz, work
+directly.
+
 Riemannian ASR Notes
 ====================
 

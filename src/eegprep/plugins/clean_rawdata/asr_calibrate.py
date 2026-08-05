@@ -9,11 +9,9 @@ import scipy.linalg
 from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
+from .private.yulewalk import yulewalk
 
 logger = logging.getLogger(__name__)
-
-# Sampling rates (Hz) for which a pre-computed spectral-shaping IIR filter is available.
-_SUPPORTED_SRATES = frozenset({100, 128, 200, 250, 256, 300, 500, 512})
 
 
 def asr_calibrate(
@@ -66,9 +64,9 @@ def asr_calibrate(
                                  allows to reduce the memory and time requirements of the robust estimators by this
                                  factor. Default: 10. (Note: Memory-based dynamic calculation from MATLAB not implemented).
       B (np.ndarray, optional): Numerator coefficients of an IIR filter used for shaping the spectrum for artifact statistics.
-                                Default: Calculated using pre-computed values based on srate (approximating yulewalk).
+                                Default: designed for `srate` with `yulewalk`, as asr_calibrate.m does.
       A (np.ndarray, optional): Denominator coefficients of an IIR filter used for shaping the spectrum for artifact statistics.
-                                Default: Calculated using pre-computed values based on srate (approximating yulewalk).
+                                Default: designed for `srate` with `yulewalk`, as asr_calibrate.m does.
       window_len (float, optional): Window length in seconds for checking artifact content. Default: 0.5.
       window_overlap (float, optional): Window overlap fraction (0-1). Default: 0.66.
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
@@ -122,251 +120,19 @@ def asr_calibrate(
     # to match it, we'll have to use it here as well
     blocksize = max(blocksize, math.ceil((C * C * S * 8 * 3 * 2) / (maxmem * (2**21))))
 
-    # Default IIR filter coefficients (approximating MATLAB's yulewalk defaults)
-    # Based on artifact_removal_legacy.py and asr_calibrate.m logic
+    # Spectral-shaping filter for the artifact statistics. asr_calibrate.m designs
+    # this with yulewalk() at the dataset's own sampling rate; the frequency/amplitude
+    # breakpoints below are its emphasis curve (attenuate the 3-13 Hz alpha/theta
+    # range, emphasise DC drift and high-frequency muscle).
     if B is None or A is None:
-        sr_round = int(round_mat(srate))
-        if sr_round == 100:
-            B = np.array(
-                [
-                    0.9314233528641650,
-                    -1.0023683814963549,
-                    -0.4125359862018213,
-                    0.7631567476327510,
-                    0.4160430392910331,
-                    -0.6549131038692215,
-                    -0.0372583518046807,
-                    0.1916268458752655,
-                    0.0462411971592346,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -0.4544220180303844,
-                    -1.0007038682936749,
-                    0.5374925521337940,
-                    0.4905013360991340,
-                    -0.4861062879351137,
-                    -0.1995986490699414,
-                    0.1830048420730026,
-                    0.0457678549234644,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 128:
-            B = np.array(
-                [
-                    1.1027301639165037,
-                    -2.0025621813611867,
-                    0.8942119516481342,
-                    0.1549979524226999,
-                    0.0192366904488084,
-                    0.1782897770278735,
-                    -0.5280306696498717,
-                    0.2913540603407520,
-                    -0.0262209802526358,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -1.1042042046423233,
-                    -0.3319558528606542,
-                    0.5802946221107337,
-                    -0.0010360013915635,
-                    0.0382167091925086,
-                    -0.2609928034425362,
-                    0.0298719057761086,
-                    0.0935044692959187,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 200:
-            B = np.array(
-                [
-                    1.4489483325802353,
-                    -2.6692514764802775,
-                    2.0813970620731115,
-                    -0.9736678877049534,
-                    0.1054605060352928,
-                    -0.1889101692314626,
-                    0.6111331636592364,
-                    -0.3616483013075088,
-                    0.1834313060776763,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -0.9913236099393967,
-                    0.3159563145469344,
-                    -0.0708347481677557,
-                    -0.0558793822071149,
-                    -0.2539619026478943,
-                    0.2473056615251193,
-                    -0.0420478437473110,
-                    0.0077455718334464,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 250:
-            B = np.array(
-                [
-                    1.7313331085426,
-                    -4.168133532957,
-                    5.37379900844173,
-                    -5.57212564343886,
-                    4.70122651316513,
-                    -3.34208799655246,
-                    1.95045488724908,
-                    -0.766909658912065,
-                    0.233281060974837,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0,
-                    -1.6384949276666,
-                    1.73987814299055,
-                    -1.83638657883456,
-                    1.3924177536798,
-                    -0.953780426622198,
-                    0.505158779550745,
-                    -0.159504514603055,
-                    0.0545278399847978,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 256:
-            B = np.array(
-                [
-                    1.7587013141770287,
-                    -4.3267624394458641,
-                    5.7999880031015953,
-                    -6.2396625463547508,
-                    5.3768079046882207,
-                    -3.7938218893374835,
-                    2.1649108095226470,
-                    -0.8591392569863763,
-                    0.2569361125627988,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -1.7008039639301735,
-                    1.9232830391058724,
-                    -2.0826929726929797,
-                    1.5982638742557307,
-                    -1.0735854183930011,
-                    0.5679719225652651,
-                    -0.1886181499768189,
-                    0.0572954115997261,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 300:
-            B = np.array(
-                [
-                    1.9153920676433143,
-                    -5.7748421104926795,
-                    9.1864764859103936,
-                    -10.7350356619363630,
-                    9.6423672437729007,
-                    -6.6181939699544277,
-                    3.4219421494177711,
-                    -1.2622976569994351,
-                    0.2968423019363821,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -2.3143703322055491,
-                    3.2222567327379434,
-                    -3.6030527704320621,
-                    2.9645154844073698,
-                    -1.8842615840684735,
-                    0.9222455868758080,
-                    -0.3103251703648485,
-                    0.0634586449896364,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 500:
-            B = np.array(
-                [
-                    2.3133520086975823,
-                    -11.9471223009159130,
-                    29.1067166493384340,
-                    -43.7550171007238190,
-                    44.3385767452216370,
-                    -30.9965523846388000,
-                    14.6209883020737190,
-                    -4.2743412400311449,
-                    0.5982553583777899,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -4.6893329084452580,
-                    10.5989986701080210,
-                    -14.9691518101365230,
-                    14.3320358399731820,
-                    -9.4924317069169977,
-                    4.2425899618982656,
-                    -1.1715600975178280,
-                    0.1538048427717476,
-                ],
-                dtype=np.float64,
-            )
-        elif sr_round == 512:
-            B = np.array(
-                [
-                    2.3275475636130865,
-                    -12.2166478485960430,
-                    30.1632789058248850,
-                    -45.8009842020820410,
-                    46.7261263011068880,
-                    -32.7796858196767220,
-                    15.4623349612560630,
-                    -4.5019779685307473,
-                    0.6242733481676324,
-                ],
-                dtype=np.float64,
-            )
-            A = np.array(
-                [
-                    1.0000000000000000,
-                    -4.7827378944258703,
-                    10.9780696236622980,
-                    -15.6795187888195360,
-                    15.1281978667576310,
-                    -10.0632079834518220,
-                    4.5014690636505614,
-                    -1.2394100873286753,
-                    0.1614727510688058,
-                ],
-                dtype=np.float64,
-            )
-        else:
-            # No precomputed spectral-shaping filter for this sampling rate. Degrading
-            # to a trivial difference filter would silently miscalibrate the ASR
-            # thresholds, so fail loudly instead (mirrors MATLAB's asr_calibrate:NoYulewalk).
-            raise ValueError(
-                f"No pre-computed ASR spectral filter for srate {srate} Hz "
-                f"(supported: {sorted(_SUPPORTED_SRATES)}). Resample the data to a "
-                "supported rate or pass explicit filter coefficients via B and A."
-            )
+        freqvals = np.concatenate((np.array([0, 2, 3, 13, 16, 40, min(80.0, srate / 2.0 - 1.0)]) * 2.0 / srate, [1.0]))
+        amps = np.array([3, 0.75, 0.33, 0.33, 1, 1, 3, 3], dtype=np.float64)
+        if srate < 80:
+            # min(80, srate/2-1) is already below 40 Hz here, so drop that breakpoint
+            # rather than attenuating it.
+            freqvals = np.delete(freqvals, freqvals.size - 3)
+            amps = amps[:-1]
+        B, A = yulewalk(8, freqvals, amps)
 
     # Ensure data is finite
     X[~np.isfinite(X)] = 0.0
