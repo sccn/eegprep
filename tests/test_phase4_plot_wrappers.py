@@ -14,6 +14,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseEvent
+from matplotlib.figure import Figure
 import numpy as np
 import pytest
 import scipy.io
@@ -31,7 +32,13 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.plot_utils import component_activations, data_time_slice, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import (
+    backend_can_display,
+    component_activations,
+    data_time_slice,
+    parse_plot_options_text,
+    show_figures,
+)
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
@@ -848,6 +855,64 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(plotdata_fig)
     plt.close(envtopo_fig)
     plt.close(erpimage_result["figure"])
+
+
+def test_show_figures_is_noop_on_noninteractive_backend(monkeypatch):
+    """On file-output backends (Agg, the test default) show_figures opens nothing."""
+    figure = plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+
+    assert not backend_can_display()
+    show_figures(figure)
+
+    assert shown == []
+    plt.close(figure)
+
+
+def test_show_figures_displays_each_figure_on_interactive_backend(monkeypatch):
+    """On an interactive backend show_figures pops each figure and skips None entries."""
+    first, second = plt.figure(), plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    show_figures([first, None, second])
+
+    assert shown == [first, second]
+    plt.close(first)
+    plt.close(second)
+
+
+def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_epoch, monkeypatch):
+    """Every plotting pop_* wrapper pops up its figure on an interactive backend,
+    like EEGLAB. The GUI relies on this to make graphs appear; on Agg it stays silent."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    timtopo_fig, _ = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
+    plottopo_fig, _ = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
+    erpimage_result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    prop_fig, _ = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
+    topoplot_figs, _ = pop_topoplot(ica_epoch, typeplot=0, items=[1], colorbar="off", return_com=True)
+    spectopo_result, _ = pop_spectopo(ica_epoch, dataflag=0, freqs=[10], return_com=True)
+    plotdata_fig, _ = pop_plotdata(ica_epoch, components=[1, 2], return_com=True)
+    envtopo_fig, _ = pop_envtopo(ica_epoch, components=[1, 2], return_com=True)
+
+    expected = [
+        timtopo_fig,
+        plottopo_fig,
+        erpimage_result["figure"],
+        prop_fig,
+        *topoplot_figs,
+        spectopo_result["figure"],
+        plotdata_fig,
+        envtopo_fig,
+    ]
+    for figure in expected:
+        assert figure in shown
+        plt.close(figure)
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):

@@ -16,6 +16,7 @@ from eegprep.functions.popfunc.plot_utils import (
     numeric_vector,
     parse_plot_options_text,
     selected_indices,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.sigprocfunc.spectopo import plot_component_spectra, spectopo
@@ -127,8 +128,7 @@ def pop_spectopo(
         process=None if process == "EEG" else process,
         **history_options,
     )
-    if gui and figure is not None:
-        figure.show()
+    show_figures(figure)
     return (result, command) if return_com else result
 
 

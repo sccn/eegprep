@@ -15,6 +15,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.timefreqfunc.newtimef import newtimef
@@ -56,6 +57,7 @@ def pop_newtimef(
     data, times = _selected_signal(EEG, typeproc, num, tlimits)
     result = newtimef(data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
+    show_figures(result.figure)
     return (result, command) if return_com else result
 
 

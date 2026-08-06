@@ -8,7 +8,13 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.plot_utils import component_activations, eeg_times_ms, history_command, numeric_vector
+from eegprep.functions.popfunc.plot_utils import (
+    component_activations,
+    eeg_times_ms,
+    history_command,
+    numeric_vector,
+    show_figures,
+)
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
@@ -45,6 +51,7 @@ def pop_plotdata(
         ylimits=ylimits,
     )
     command = history_command("pop_plotdata", components, **command_kwargs)
+    show_figures(figure)
     return (figure, command) if return_com else figure
 
 

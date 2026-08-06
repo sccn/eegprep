@@ -27,6 +27,15 @@ The console workflow is recommended because it shows ``LASTCOM`` and ``ALLCOM``
 after each menu action. See :ref:`gui_console_session` for the shared-session
 model and implementation details.
 
+.. note::
+
+   Plotting commands such as ``Plot > Channel spectra and maps`` and
+   ``Plot > Channel ERPs > With scalp maps`` open a figure window on any
+   interactive backend, whether you trigger them from a Plot menu or call the
+   matching ``pop_*`` function in ``eegprep-console``. On non-interactive
+   backends (for example ``Agg`` in headless runs) the figure is built and
+   returned without opening a window.
+
 Load, Inspect, and Save a Dataset
 =================================
 

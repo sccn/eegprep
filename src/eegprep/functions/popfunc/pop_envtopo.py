@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.envtopo import envtopo
 
@@ -81,6 +82,7 @@ def pop_envtopo(
         title=title,
     )
     command = history_command("pop_envtopo", timerange, **command_kwargs)
+    show_figures(figure)
     return (figure, command) if return_com else figure
 
 

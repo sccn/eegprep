@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     eeg_times_ms,
     numeric_vector,
     python_literal,
+    show_figures,
 )
 from eegprep.functions.studyfunc._std_measureplot import plot_measure_data
 from eegprep.functions.studyfunc._study_utils import MEASURE_DATA_FIELDS
@@ -64,6 +65,7 @@ def pop_chanplot(
     etc = study.get("etc") if isinstance(study.get("etc"), dict) else {}
     study["etc"] = {**etc, "last_chanplot": last_selection}
     command = _history_command(channels=channels, components=components, measure=measure, mode=mode)
+    show_figures(fig)
     return (study, command, fig) if return_com else study
 
 

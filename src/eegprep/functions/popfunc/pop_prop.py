@@ -19,6 +19,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -60,6 +61,7 @@ def pop_prop(
             show=show_activity,
         )
     command = history_command("pop_prop", typecomp, indices.astype(int).tolist(), winhandle, spec_opt)
+    show_figures(figures)
     return (
         (figures[0] if len(figures) == 1 else figures, command)
         if return_com

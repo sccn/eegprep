@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.sigprocfunc.erpimage import erpimage
@@ -84,6 +85,7 @@ def pop_erpimage(
         vert=kwargs.pop("vert", None),
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
+    show_figures(figure)
     return ({"figure": figure, "image": image}, command) if return_com else {"figure": figure, "image": image}
 
 

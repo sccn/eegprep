@@ -4,11 +4,35 @@ from __future__ import annotations
 
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
+
+# matplotlib's file-output backends cannot open a figure window.
+_NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
+
+
+def backend_can_display() -> bool:
+    """Return True when the active matplotlib backend can show a figure window."""
+    return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
+
+
+def show_figures(figures: Any) -> None:
+    """Pop up figure windows on an interactive backend, like EEGLAB plots.
+
+    Accepts a single figure, a list/tuple of figures, or ``None``. It is a no-op
+    on file-output backends (Agg, PDF, ...) so headless rendering and tests stay
+    silent. Displaying here, rather than in the noninteractive sigproc cores,
+    keeps those cores test-safe while every plotting ``pop_*`` wrapper shows its
+    figure from both the GUI and the console.
+    """
+    if not backend_can_display():
+        return
+    for figure in _as_figure_list(figures):
+        figure.show()
 
 
 def as_eeg_list(value: Any) -> list[dict[str, Any]]:
@@ -234,6 +258,14 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
         f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
     )
     return f"{function_name}({', '.join(pieces)})"
+
+
+def _as_figure_list(figures: Any) -> list[Any]:
+    if figures is None:
+        return []
+    if isinstance(figures, (list, tuple)):
+        return [figure for figure in figures if figure is not None]
+    return [figures]
 
 
 def _is_empty_sequence(value: Any) -> bool:

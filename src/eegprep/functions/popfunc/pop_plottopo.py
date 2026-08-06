@@ -14,6 +14,7 @@ from eegprep.functions.popfunc.plot_utils import (
     numeric_vector,
     parse_plot_options_text,
     selected_indices,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
@@ -63,6 +64,7 @@ def pop_plottopo(
         rect=rect,
     )
     command = history_command("pop_plottopo", chans, **command_kwargs)
+    show_figures(figure)
     return (figure, command) if return_com else figure
 
 

@@ -14,6 +14,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
@@ -63,6 +64,7 @@ def pop_newcrossf(
     command = history_command(
         "pop_newcrossf", typeproc, _first_index(num1), _first_index(num2), tlimits, cycles, **options
     )
+    show_figures(result.figure)
     return (result, command) if return_com else result
 
 

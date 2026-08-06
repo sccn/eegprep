@@ -13,6 +13,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.timtopo import timtopo
 
@@ -52,6 +53,7 @@ def pop_timtopo(
         topoplot_options=topoplot_options,
     )
     command = history_command("pop_timtopo", plottimes, **command_kwargs)
+    show_figures(figure)
     return (figure, command) if return_com else figure
 
 

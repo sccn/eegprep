@@ -13,7 +13,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc.plot_utils import component_map_data
+from eegprep.functions.popfunc.plot_utils import component_map_data, show_figures
 from eegprep.functions.popfunc.plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
@@ -108,9 +108,7 @@ def pop_topoplot(
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
 
     # EEGLAB displays the figure whether called from the GUI or the command line.
-    if _backend_can_display():
-        for figure in figures:
-            figure.show()
+    show_figures(figures)
     return (figures, command) if return_com else figures
 
 
@@ -206,8 +204,7 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
 
-    if _backend_can_display():
-        fig.show()
+    show_figures(fig)
     return (fig, command) if return_com else fig
 
 
@@ -428,15 +425,6 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
     _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
-
-
-# matplotlib's file-output backends (Agg, PDF, SVG, ...) cannot open a window.
-_NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
-
-
-def _backend_can_display() -> bool:
-    """True when the active matplotlib backend can show a figure window."""
-    return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
 
 
 def _is_plotdip_value(value: Any) -> bool:

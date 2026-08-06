@@ -20,6 +20,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
@@ -110,6 +111,7 @@ def pop_headplot(
     command = _history_command(
         typeplot, items_array, topotitle, [rows, columns], colorbar, setup, load, command_options
     )
+    show_figures(figures)
     return (figures, command) if return_com else figures
 
 

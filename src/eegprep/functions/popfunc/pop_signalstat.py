@@ -13,6 +13,7 @@ from eegprep.functions.popfunc.plot_utils import (
     component_map_data,
     history_command,
     numeric_vector,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
@@ -64,6 +65,7 @@ def pop_signalstat(
         map_value = maps[:, index - 1]
     result = signalstat(values, 1, dlabel, float(percent), dlabel2, map_value, stat_chanlocs)
     command = history_command("pop_signalstat", typeproc, index, percent)
+    show_figures(result.figure)
     return (result, command) if return_com else result
 
 
