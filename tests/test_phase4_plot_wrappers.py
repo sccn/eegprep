@@ -45,7 +45,9 @@ from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
-from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -913,6 +915,38 @@ def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_
     for figure in expected:
         assert figure in shown
         plt.close(figure)
+
+
+def test_topoplot_core_displays_only_when_it_owns_the_figure(sample_eeg, monkeypatch):
+    """Match EEGLAB: a standalone topoplot() call pops a window, but a call that
+    draws into a caller's axes (axes=) adds no window of its own."""
+    chanlocs = chanlocs_as_list(sample_eeg["chanlocs"])
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    standalone, *_ = topoplot([], chanlocs, style="blank")
+    assert shown == [standalone]
+
+    fig, ax = plt.subplots()
+    topoplot([], chanlocs, style="blank", axes=ax)
+    assert shown == [standalone]  # the embedded call opened no new window
+
+    plt.close(standalone)
+    plt.close(fig)
+
+
+def test_plot_channel_locations_displays_figure_exactly_once(sample_eeg, monkeypatch):
+    """The channel-locations view shows its figure once, via the topoplot core that
+    owns it, with no duplicate wrapper show."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig, _ = plot_channel_locations(sample_eeg, mode="labels", return_com=True)
+
+    assert shown == [fig]
+    plt.close(fig)
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):

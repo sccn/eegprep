@@ -204,7 +204,7 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
 
-    show_figures(fig)
+    # topoplot() owns and displays this standalone figure; no extra show here.
     return (fig, command) if return_com else fig
 
 

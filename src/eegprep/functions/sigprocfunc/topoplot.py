@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 
+from eegprep.functions.popfunc.plot_utils import show_figures
+
 
 def griddata_v4(x, y, v, xq, yq):
     """Python version of MATLAB's GDATAV4 interpolation based on David T. Sandwell's biharmonic spline interpolation.
@@ -313,7 +315,9 @@ def topoplot(datavector, chan_locs, **kwargs):
 
         if own_figure:
             ax.set_title('Topoplot')
-            _show_if_interactive()
+            # Standalone topoplot() owns its figure, so it displays it, matching a
+            # bare EEGLAB topoplot() call; embedded (axes=) calls stay silent.
+            show_figures(fig)
 
         handle = fig
 
@@ -351,7 +355,7 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     ax.axis('off')
     ax.set_title(kwargs.get('title', 'Channel locations'))
     if own_figure:
-        _show_if_interactive()
+        show_figures(fig)
     return fig, Zi, 0.5, xi, yi
 
 
@@ -409,11 +413,6 @@ def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
         return
     for x_pos, y_pos, text in zip(x, y, text_labels):
         ax.annotate(text, (x_pos, y_pos), fontsize=7, ha='center', va='center')
-
-
-def _show_if_interactive():
-    if 'agg' not in plt.get_backend().lower():
-        plt.show()
 
 
 def _maplimits_kwargs(maplimits, data):
