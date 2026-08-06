@@ -949,39 +949,42 @@ def test_plot_channel_locations_displays_figure_exactly_once(sample_eeg, monkeyp
     plt.close(fig)
 
 
-def test_show_figures_plot_off_suppresses_window(monkeypatch):
-    """show_figures(plot='off') opens no window even on an interactive backend."""
-    figure = plt.figure()
+def test_show_figures_plot_off_closes_figure(monkeypatch):
+    """plot='off' never calls show() and removes the figure from pyplot's registry
+    so an interactive session (IPython %matplotlib qt) cannot auto-display it."""
     shown = []
     monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
     monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
 
-    show_figures(figure, plot="off")
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot="off")
     assert shown == []
-    show_figures(figure, plot="on")
-    assert shown == [figure]
-    plt.close(figure)
+    assert not plt.fignum_exists(num)  # closed -> interactive mode won't show it
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot="on")
+    assert shown == [fig_on]
+    plt.close(fig_on)
 
 
 def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monkeypatch):
-    """plot='off' still builds and returns the figure but pops no window; the
-    default displays it. Covered for both return shapes (dict and bare figure)."""
+    """plot='off' still returns a usable figure but leaves nothing in pyplot's
+    registry to auto-display; the default plot='on' shows it."""
     shown = []
     monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
     monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
 
     spec = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")
     timtopo_fig = pop_timtopo(sample_epoch, plottimes=[0], plot="off")
-    assert spec["figure"] is not None
-    assert timtopo_fig is not None
-    assert shown == []  # nothing displayed with plot='off'
+    assert spec["figure"] is not None and timtopo_fig is not None  # built and returned
+    assert shown == []  # never shown
+    assert plt.get_fignums() == []  # nothing left for an interactive session to pop up
 
     displayed = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="on")
     assert shown == [displayed["figure"]]
-
-    plt.close(spec["figure"])
-    plt.close(timtopo_fig)
-    plt.close(displayed["figure"])
+    plt.close("all")
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):

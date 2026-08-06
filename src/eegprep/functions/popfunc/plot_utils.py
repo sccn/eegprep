@@ -33,6 +33,12 @@ def show_figures(figures: Any, *, plot: str = "on") -> None:
     the built figure so they can save or embed it without a pop-up.
     """
     if str(plot).lower() == "off":
+        # Interactive sessions (e.g. IPython's ``%matplotlib qt``) auto-display
+        # every pyplot-managed figure, so suppressing the window means removing
+        # the figure from pyplot's registry, not just skipping ``show()``. The
+        # returned Figure object stays usable for ``savefig``/embedding.
+        for figure in _as_figure_list(figures):
+            plt.close(figure)
         return
     if not backend_can_display():
         return
