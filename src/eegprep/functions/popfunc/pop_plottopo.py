@@ -25,10 +25,14 @@ def pop_plottopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot channel ERP traces in a rectangular/scalp-like array."""
+    """Plot channel ERP traces in a rectangular/scalp-like array.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -64,7 +68,7 @@ def pop_plottopo(
         rect=rect,
     )
     command = history_command("pop_plottopo", chans, **command_kwargs)
-    show_figures(figure)
+    show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
 

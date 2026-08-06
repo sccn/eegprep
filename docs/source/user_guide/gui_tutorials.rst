@@ -36,6 +36,11 @@ model and implementation details.
    backends (for example ``Agg`` in headless runs) the figure is built and
    returned without opening a window.
 
+   When scripting, pass ``plot='off'`` to any plotting ``pop_*`` function to
+   build and return the figure without popping a window, for example
+   ``fig = pop_spectopo(EEG, 1, [], freqs=[10], plot='off')['figure']`` to save
+   or embed it. The default ``plot='on'`` displays it.
+
 Load, Inspect, and Save a Dataset
 =================================
 

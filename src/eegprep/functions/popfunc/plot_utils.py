@@ -20,7 +20,7 @@ def backend_can_display() -> bool:
     return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
 
 
-def show_figures(figures: Any) -> None:
+def show_figures(figures: Any, *, plot: str = "on") -> None:
     """Pop up figure windows on an interactive backend, like EEGLAB plots.
 
     Accepts a single figure, a list/tuple of figures, or ``None``. It is a no-op
@@ -28,7 +28,12 @@ def show_figures(figures: Any) -> None:
     silent. Displaying here, rather than in the noninteractive sigproc cores,
     keeps those cores test-safe while every plotting ``pop_*`` wrapper shows its
     figure from both the GUI and the console.
+
+    Pass ``plot="off"`` to suppress the window entirely; callers still receive
+    the built figure so they can save or embed it without a pop-up.
     """
+    if str(plot).lower() == "off":
+        return
     if not backend_can_display():
         return
     for figure in _as_figure_list(figures):

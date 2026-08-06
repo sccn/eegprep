@@ -30,10 +30,14 @@ def pop_newcrossf(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot event-related channel/component cross-coherence."""
+    """Plot event-related channel/component cross-coherence.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typeproc = int(typeproc)
@@ -64,7 +68,7 @@ def pop_newcrossf(
     command = history_command(
         "pop_newcrossf", typeproc, _first_index(num1), _first_index(num2), tlimits, cycles, **options
     )
-    show_figures(result.figure)
+    show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
 
 

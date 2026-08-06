@@ -653,7 +653,11 @@ class _IPythonShellAdapter:
         _make_shell_prompt_dynamic(self.shell)
         restore_logging = _install_prompt_safe_logging()
         restore_progress_logging = _install_console_progress_logging()
-        self.shell.enable_gui("qt")
+        # Enable the Qt event loop *and* point matplotlib at the matching qtagg
+        # backend, so figures from pop_* plot functions actually pop up and stay
+        # responsive; a bare enable_gui("qt") leaves matplotlib on its default
+        # backend, whose windows the Qt loop never drives.
+        self.shell.enable_matplotlib("qt")
 
         def post_run_cell(result: Any) -> None:
             raw_cell = getattr(getattr(result, "info", None), "raw_cell", "")

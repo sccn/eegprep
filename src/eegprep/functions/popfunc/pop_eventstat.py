@@ -23,9 +23,13 @@ def pop_eventstat(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
 ):
-    """Compute and plot statistics for numeric EEG event fields."""
+    """Compute and plot statistics for numeric EEG event fields.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -50,7 +54,7 @@ def pop_eventstat(
     )
     result = signalstat(values, 1, label, float(percent), title)
     command = history_command("pop_eventstat", eventfield, type, latrange, percent)
-    show_figures(result.figure)
+    show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
 
 

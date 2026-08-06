@@ -46,6 +46,7 @@ def pop_headplot(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
@@ -54,6 +55,8 @@ def pop_headplot(
     Like EEGLAB, ``pop_headplot`` requires a ``.spl`` spline setup file. Use
     ``setup={...}`` to create one, ``load=...`` to reuse one, or launch the GUI
     to select/create it interactively.
+
+    Pass ``plot='off'`` to build and return the figures without opening a window.
     """
     if EEG is None:
         return ([], "") if return_com else []
@@ -111,7 +114,7 @@ def pop_headplot(
     command = _history_command(
         typeplot, items_array, topotitle, [rows, columns], colorbar, setup, load, command_options
     )
-    show_figures(figures)
+    show_figures(figures, plot=plot)
     return (figures, command) if return_com else figures
 
 

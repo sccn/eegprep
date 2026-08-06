@@ -37,9 +37,13 @@ def pop_chanplot(
     mode: str = "channels",
     gui: bool = False,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
 ):
-    """Plot precomputed STUDY channel or component measures."""
+    """Plot precomputed STUDY channel or component measures.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if STUDY is None:
         raise ValueError("pop_chanplot requires a STUDY structure")
     datasets = as_eeg_list(ALLEEG)
@@ -65,7 +69,7 @@ def pop_chanplot(
     etc = study.get("etc") if isinstance(study.get("etc"), dict) else {}
     study["etc"] = {**etc, "last_chanplot": last_selection}
     command = _history_command(channels=channels, components=components, measure=measure, mode=mode)
-    show_figures(fig)
+    show_figures(fig, plot=plot)
     return (study, command, fig) if return_com else study
 
 

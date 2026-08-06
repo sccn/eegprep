@@ -949,6 +949,41 @@ def test_plot_channel_locations_displays_figure_exactly_once(sample_eeg, monkeyp
     plt.close(fig)
 
 
+def test_show_figures_plot_off_suppresses_window(monkeypatch):
+    """show_figures(plot='off') opens no window even on an interactive backend."""
+    figure = plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    show_figures(figure, plot="off")
+    assert shown == []
+    show_figures(figure, plot="on")
+    assert shown == [figure]
+    plt.close(figure)
+
+
+def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monkeypatch):
+    """plot='off' still builds and returns the figure but pops no window; the
+    default displays it. Covered for both return shapes (dict and bare figure)."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    spec = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")
+    timtopo_fig = pop_timtopo(sample_epoch, plottimes=[0], plot="off")
+    assert spec["figure"] is not None
+    assert timtopo_fig is not None
+    assert shown == []  # nothing displayed with plot='off'
+
+    displayed = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="on")
+    assert shown == [displayed["figure"]]
+
+    plt.close(spec["figure"])
+    plt.close(timtopo_fig)
+    plt.close(displayed["figure"])
+
+
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
     figure, command = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
 

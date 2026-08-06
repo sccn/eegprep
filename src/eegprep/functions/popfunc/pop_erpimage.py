@@ -30,10 +30,14 @@ def pop_erpimage(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot an ERP image for one channel or component."""
+    """Plot an ERP image for one channel or component.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typeplot = int(typeplot)
@@ -85,7 +89,7 @@ def pop_erpimage(
         vert=kwargs.pop("vert", None),
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
-    show_figures(figure)
+    show_figures(figure, plot=plot)
     return ({"figure": figure, "image": image}, command) if return_com else {"figure": figure, "image": image}
 
 

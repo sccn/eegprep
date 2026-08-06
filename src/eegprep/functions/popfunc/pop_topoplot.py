@@ -30,6 +30,7 @@ def pop_topoplot(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
@@ -48,6 +49,7 @@ def pop_topoplot(
             are deferred to the Phase 4 headplot/DIPFIT integration.
         gui: Force or suppress the EEGLAB-like input dialog.
         renderer: Optional dialog renderer for tests.
+        plot: ``'off'`` builds and returns the figures without opening a window.
         return_com: Return ``(figures, command)`` when true.
         **kwargs: Additional ``topoplot`` options such as ``electrodes``,
             ``colorbar`` and ``maplimits``.
@@ -108,7 +110,7 @@ def pop_topoplot(
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
 
     # EEGLAB displays the figure whether called from the GUI or the command line.
-    show_figures(figures)
+    show_figures(figures, plot=plot)
     return (figures, command) if return_com else figures
 
 

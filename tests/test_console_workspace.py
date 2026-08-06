@@ -1452,7 +1452,7 @@ class _FakeShell:
         self.enabled_gui = None
         self.called = False
 
-    def enable_gui(self, gui):
+    def enable_matplotlib(self, gui):
         self.enabled_gui = gui
 
     def __call__(self):

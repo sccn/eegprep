@@ -31,10 +31,14 @@ def pop_comperp(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Compute and plot grand-average ERPs across loaded datasets."""
+    """Compute and plot grand-average ERPs across loaded datasets.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     datasets = as_eeg_list(ALLEEG)
     if gui is None:
         gui = datadd is None
@@ -91,7 +95,7 @@ def pop_comperp(
         options=options,
     )
     result = {"erp1": erp1, "erp2": erp2, "erpsub": erpsub, "times": times, "pvalues": pvalues, "figure": figure}
-    show_figures(figure)
+    show_figures(figure, plot=plot)
     command = history_command(
         "pop_comperp", int(flag), (add_indices + 1).tolist(), (sub_indices + 1).tolist(), eeg_name="ALLEEG", **kwargs
     )

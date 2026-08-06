@@ -30,10 +30,14 @@ def pop_spectopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot channel or component spectra and scalp maps."""
+    """Plot channel or component spectra and scalp maps.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -47,6 +51,10 @@ def pop_spectopo(
         timerange = result["timerange"]
         process = result["process"]
         options.update(result["options"])
+
+    # "plot" governs whether the window pops up; keep it out of the core spectopo
+    # options so a stray EEGLAB-style 'plot','off' can't suppress figure drawing.
+    plot = str(options.pop("plot", plot))
 
     data, times = data_time_slice(EEG, timerange)
     history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}
@@ -128,7 +136,7 @@ def pop_spectopo(
         process=None if process == "EEG" else process,
         **history_options,
     )
-    show_figures(figure)
+    show_figures(figure, plot=plot)
     return (result, command) if return_com else result
 
 
