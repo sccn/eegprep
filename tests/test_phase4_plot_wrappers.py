@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from copy import deepcopy
 import importlib
+import io
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -1027,6 +1028,17 @@ def test_wrapper_plot_flag_accepts_bool(sample_eeg, monkeypatch):
     assert shown == []
     assert plt.get_fignums() == []
     plt.close("all")
+
+
+def test_plot_off_figure_still_savable(sample_eeg):
+    """A figure returned with plot='off' is closed but still usable for savefig."""
+    figure = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")["figure"]
+
+    buffer = io.BytesIO()
+    figure.savefig(buffer, format="png")
+
+    assert buffer.getvalue()
+    plt.close(figure)
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
