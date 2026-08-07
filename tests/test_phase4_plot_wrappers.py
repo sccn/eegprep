@@ -987,6 +987,48 @@ def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monke
     plt.close("all")
 
 
+def test_show_figures_plot_accepts_bool(monkeypatch):
+    """The plot flag also accepts booleans: False suppresses, True displays."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot=False)
+    assert shown == []
+    assert not plt.fignum_exists(num)
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot=True)
+    assert shown == [fig_on]
+    plt.close(fig_on)
+
+
+def test_show_figures_plot_rejects_unknown_value(monkeypatch):
+    """An unrecognized plot value fails loudly rather than silently showing a window."""
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    fig = plt.figure()
+    with pytest.raises(ValueError):
+        show_figures(fig, plot="maybe")
+    plt.close(fig)
+
+
+def test_wrapper_plot_flag_accepts_bool(sample_eeg, monkeypatch):
+    """A wrapper honors plot=False like plot='off': figure built, no window."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot=False)
+
+    assert result["figure"] is not None
+    assert shown == []
+    assert plt.get_fignums() == []
+    plt.close("all")
+
+
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
     figure, command = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
 

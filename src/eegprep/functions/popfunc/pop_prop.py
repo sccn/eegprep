@@ -34,7 +34,7 @@ def pop_prop(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
-    plot: str = "on",
+    plot: str | bool = "on",
     scroll_event: int | bool = 1,
     show_activity: bool = False,
     return_com: bool = False,

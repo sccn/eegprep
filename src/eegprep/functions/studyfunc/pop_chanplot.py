@@ -37,7 +37,7 @@ def pop_chanplot(
     mode: str = "channels",
     gui: bool = False,
     renderer: Any | None = None,
-    plot: str = "on",
+    plot: str | bool = "on",
     return_com: bool = False,
 ):
     """Plot precomputed STUDY channel or component measures.

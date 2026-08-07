@@ -24,7 +24,7 @@ def pop_plotdata(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
-    plot: str = "on",
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):

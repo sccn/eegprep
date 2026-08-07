@@ -30,7 +30,7 @@ def pop_spectopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
-    plot: str = "on",
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
@@ -54,7 +54,7 @@ def pop_spectopo(
 
     # "plot" gates the window here; keep it out of the core options so it can't
     # also suppress figure drawing.
-    plot = str(options.pop("plot", plot))
+    plot = options.pop("plot", plot)
 
     data, times = data_time_slice(EEG, timerange)
     history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}

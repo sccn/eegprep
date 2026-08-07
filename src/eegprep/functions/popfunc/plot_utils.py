@@ -20,15 +20,15 @@ def backend_can_display() -> bool:
     return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
 
 
-def show_figures(figures: Any, *, plot: str = "on") -> None:
+def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
     """Display figures (a single figure, a list, or ``None``) on an interactive backend.
 
     No-op on file-output backends (Agg, PDF, ...) so headless runs stay silent.
-    ``plot="off"`` suppresses the window but still returns the built figure.
+    ``plot`` accepts ``'on'/'off'`` or ``True/False``. With it off, the figures are
+    closed (unregistered from pyplot) so an interactive session cannot auto-display
+    them; the caller keeps the returned Figure, which stays usable for ``savefig``.
     """
-    if str(plot).lower() == "off":
-        # Close, not just skip show(): an interactive session auto-displays any
-        # pyplot-managed figure, so the window is suppressed only by unregistering it.
+    if not _plot_enabled(plot):
         for figure in _as_figure_list(figures):
             plt.close(figure)
         return
@@ -261,6 +261,15 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
         f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
     )
     return f"{function_name}({', '.join(pieces)})"
+
+
+def _plot_enabled(plot: str | bool) -> bool:
+    """Whether the ``plot`` flag requests a window: ``'on'/'off'`` or ``True/False``."""
+    if isinstance(plot, bool):
+        return plot
+    if isinstance(plot, str) and plot.strip().lower() in {"on", "off"}:
+        return plot.strip().lower() == "on"
+    raise ValueError(f"plot must be 'on'/'off' or True/False, got {plot!r}")
 
 
 def _as_figure_list(figures: Any) -> list[Any]:
