@@ -15,6 +15,8 @@ import warnings
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
+import matplotlib.pyplot as plt
+
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
@@ -658,6 +660,11 @@ class _IPythonShellAdapter:
         # responsive; a bare enable_gui("qt") leaves matplotlib on its default
         # backend, whose windows the Qt loop never drives.
         self.shell.enable_matplotlib("qt")
+        # Keep interactive mode OFF so figures never auto-display on creation:
+        # pop_* functions show them explicitly via show_figures(). Otherwise an
+        # interactive figure window pops on every plt.subplots() and steals GUI
+        # focus even when plot='off' suppresses the plot itself.
+        plt.ioff()
 
         def post_run_cell(result: Any) -> None:
             raw_cell = getattr(getattr(result, "info", None), "raw_cell", "")

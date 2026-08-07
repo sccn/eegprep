@@ -12,6 +12,7 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -1498,6 +1499,9 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert captured["gui_kwargs"]["native_file_dialogs"] is False
     assert "EEGPrep interactive console" in captured["banner"]
     assert shell.enabled_gui == "qt"
+    # Console keeps matplotlib non-interactive: figures display only via
+    # show_figures(), so plot='off' never pops a window or steals GUI focus.
+    assert not plt.isinteractive()
     assert shell.called is True
     assert "EEG" in captured["namespace"]
 
