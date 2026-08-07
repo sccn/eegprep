@@ -52,9 +52,10 @@ def pop_spectopo(
         process = result["process"]
         options.update(result["options"])
 
-    # "plot" gates the window here; keep it out of the core options so it can't
-    # also suppress figure drawing.
-    plot = options.pop("plot", plot)
+    # Guard only: drop a stray EEGLAB-style ('plot', ...) pair so it can't reach
+    # the core spectopo(plot=...) and skip drawing. The display flag is the
+    # keyword-only "plot" parameter, consistent with the other wrappers.
+    options.pop("plot", None)
 
     data, times = data_time_slice(EEG, timerange)
     history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}
@@ -280,7 +281,7 @@ def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:
 
 
 def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    spectral_keys = {"plot", "winsize", "overlap", "nfft"}
+    spectral_keys = {"winsize", "overlap", "nfft"}
     spectral = {key: options[key] for key in spectral_keys if key in options}
     if "winsize" in spectral:
         spectral["winsize"] = int(numeric_vector(spectral["winsize"])[0])

@@ -1034,11 +1034,28 @@ def test_plot_off_figure_still_savable(sample_eeg):
     """A figure returned with plot='off' is closed but still usable for savefig."""
     figure = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")["figure"]
 
+    assert not plt.fignum_exists(figure.number)  # closed / unregistered from pyplot
+
     buffer = io.BytesIO()
     figure.savefig(buffer, format="png")
 
     assert buffer.getvalue()
     plt.close(figure)
+
+
+def test_pop_spectopo_plot_pair_is_ignored_not_leaked(sample_eeg, monkeypatch):
+    """A stray EEGLAB-style ('plot','off') pair is dropped before the spectopo core
+    (figure still built) and does not act as the keyword-only display flag."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, 1, [], "EEG", "plot", "off", freqs=[10])
+
+    assert result["figure"] is not None  # guard held: core still drew
+    assert shown == [result["figure"]]  # keyword-only: the pair did not suppress
+    plt.close("all")
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
