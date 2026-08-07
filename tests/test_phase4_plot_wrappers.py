@@ -930,7 +930,7 @@ def test_topoplot_core_displays_only_when_it_owns_the_figure(sample_eeg, monkeyp
 
     fig, ax = plt.subplots()
     topoplot([], chanlocs, style="blank", axes=ax)
-    assert shown == [standalone]  # the embedded call opened no new window
+    assert shown == [standalone]
 
     plt.close(standalone)
     plt.close(fig)
@@ -960,7 +960,7 @@ def test_show_figures_plot_off_closes_figure(monkeypatch):
     num = fig_off.number
     show_figures(fig_off, plot="off")
     assert shown == []
-    assert not plt.fignum_exists(num)  # closed -> interactive mode won't show it
+    assert not plt.fignum_exists(num)
 
     fig_on = plt.figure()
     show_figures(fig_on, plot="on")
@@ -978,9 +978,9 @@ def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monke
 
     spec = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")
     timtopo_fig = pop_timtopo(sample_epoch, plottimes=[0], plot="off")
-    assert spec["figure"] is not None and timtopo_fig is not None  # built and returned
-    assert shown == []  # never shown
-    assert plt.get_fignums() == []  # nothing left for an interactive session to pop up
+    assert spec["figure"] is not None and timtopo_fig is not None
+    assert shown == []
+    assert plt.get_fignums() == []
 
     displayed = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="on")
     assert shown == [displayed["figure"]]

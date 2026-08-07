@@ -52,8 +52,8 @@ def pop_spectopo(
         process = result["process"]
         options.update(result["options"])
 
-    # "plot" governs whether the window pops up; keep it out of the core spectopo
-    # options so a stray EEGLAB-style 'plot','off' can't suppress figure drawing.
+    # "plot" gates the window here; keep it out of the core options so it can't
+    # also suppress figure drawing.
     plot = str(options.pop("plot", plot))
 
     data, times = data_time_slice(EEG, timerange)

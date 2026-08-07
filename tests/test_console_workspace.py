@@ -1499,8 +1499,7 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert captured["gui_kwargs"]["native_file_dialogs"] is False
     assert "EEGPrep interactive console" in captured["banner"]
     assert shell.enabled_gui == "qt"
-    # Console keeps matplotlib non-interactive: figures display only via
-    # show_figures(), so plot='off' never pops a window or steals GUI focus.
+    # Non-interactive: pop_* display via show_figures(), so plot='off' pops nothing.
     assert not plt.isinteractive()
     assert shell.called is True
     assert "EEG" in captured["namespace"]

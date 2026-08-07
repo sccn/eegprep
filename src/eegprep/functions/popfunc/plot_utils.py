@@ -21,22 +21,14 @@ def backend_can_display() -> bool:
 
 
 def show_figures(figures: Any, *, plot: str = "on") -> None:
-    """Pop up figure windows on an interactive backend, like EEGLAB plots.
+    """Display figures (a single figure, a list, or ``None``) on an interactive backend.
 
-    Accepts a single figure, a list/tuple of figures, or ``None``. It is a no-op
-    on file-output backends (Agg, PDF, ...) so headless rendering and tests stay
-    silent. Displaying here, rather than in the noninteractive sigproc cores,
-    keeps those cores test-safe while every plotting ``pop_*`` wrapper shows its
-    figure from both the GUI and the console.
-
-    Pass ``plot="off"`` to suppress the window entirely; callers still receive
-    the built figure so they can save or embed it without a pop-up.
+    No-op on file-output backends (Agg, PDF, ...) so headless runs stay silent.
+    ``plot="off"`` suppresses the window but still returns the built figure.
     """
     if str(plot).lower() == "off":
-        # Interactive sessions (e.g. IPython's ``%matplotlib qt``) auto-display
-        # every pyplot-managed figure, so suppressing the window means removing
-        # the figure from pyplot's registry, not just skipping ``show()``. The
-        # returned Figure object stays usable for ``savefig``/embedding.
+        # Close, not just skip show(): an interactive session auto-displays any
+        # pyplot-managed figure, so the window is suppressed only by unregistering it.
         for figure in _as_figure_list(figures):
             plt.close(figure)
         return

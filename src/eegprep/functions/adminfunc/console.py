@@ -655,15 +655,11 @@ class _IPythonShellAdapter:
         _make_shell_prompt_dynamic(self.shell)
         restore_logging = _install_prompt_safe_logging()
         restore_progress_logging = _install_console_progress_logging()
-        # Enable the Qt event loop *and* point matplotlib at the matching qtagg
-        # backend, so figures from pop_* plot functions actually pop up and stay
-        # responsive; a bare enable_gui("qt") leaves matplotlib on its default
-        # backend, whose windows the Qt loop never drives.
+        # qtagg so figures are driven by the Qt loop; a bare enable_gui("qt")
+        # leaves the default backend, which the loop can't drive.
         self.shell.enable_matplotlib("qt")
-        # Keep interactive mode OFF so figures never auto-display on creation:
-        # pop_* functions show them explicitly via show_figures(). Otherwise an
-        # interactive figure window pops on every plt.subplots() and steals GUI
-        # focus even when plot='off' suppresses the plot itself.
+        # Interactive mode off: pop_* functions display via show_figures(), so
+        # plot='off' opens no window and does not steal GUI focus.
         plt.ioff()
 
         def post_run_cell(result: Any) -> None:

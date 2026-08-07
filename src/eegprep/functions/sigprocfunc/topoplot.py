@@ -315,8 +315,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
         if own_figure:
             ax.set_title('Topoplot')
-            # Standalone topoplot() owns its figure, so it displays it, matching a
-            # bare EEGLAB topoplot() call; embedded (axes=) calls stay silent.
+            # Display only when we own the figure, like a bare EEGLAB topoplot() call.
             show_figures(fig)
 
         handle = fig

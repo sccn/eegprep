@@ -35,3 +35,5 @@ EEGPrep does not implement EEGLAB's phase-sorting, coherence, spectrum inset,
 amplitude-image, or event-alignment workflows in this standalone ERP-image
 wrapper. Those options raise clear `ValueError` messages instead of falling
 through to MATLAB-only behavior.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

@@ -40,3 +40,5 @@ The Manual coreg. window shows user electrodes in green and reference electrodes
 in brown. `Align montages` fits a shared-scale transform to common labels;
 `Warp montage` fits the EEGLAB-style 9-parameter transform. The transform field
 is then written back to the `pop_headplot` setup dialog.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

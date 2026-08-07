@@ -27,3 +27,5 @@ testing.
 Unsupported option names now raise `ValueError` with the unsupported keys
 listed. STUDY-level ERP statistics and EEGLAB plot callbacks that depend on
 MATLAB workspace state remain outside this standalone wrapper.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.
