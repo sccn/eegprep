@@ -110,7 +110,7 @@ class TestEnvtopoParity(unittest.TestCase):
         matlab_code = f"""
         set(0, 'DefaultFigureVisible', 'off');
         EEG = pop_loadset('{temp_file}');
-        sig = mean(EEG.data, 3);
+        sig = mean(double(EEG.data), 3);  % double: EEG.data is single, EEGPrep computes in float64
         [compvarorder, compvars, compframes, comptimes, compsplotted, sortvar] = envtopo( ...
             sig, EEG.icaweights*EEG.icasphere, 'chanlocs', EEG.chanlocs, 'icawinv', EEG.icawinv, ...
             'timerange', [{self.timerange[0]} {self.timerange[1]}]{_matlab_options(options)});
@@ -132,7 +132,7 @@ class TestEnvtopoParity(unittest.TestCase):
         ml_plotted = _icol(mat["compsplotted"])
         ml_sortvar = _fcol(mat["sortvar"])
         ml_frames = _icol(mat["compframes"])  # 1-based absolute frames
-        ml_times = _fcol(mat["comptimes"])  # seconds
+        times_ms = np.linspace(self.timerange[0], self.timerange[1], self.sig.shape[1])
 
         res = envtopo(
             self.sig,
@@ -162,11 +162,16 @@ class TestEnvtopoParity(unittest.TestCase):
         py_frame = dict(zip(py_order.tolist(), np.asarray(res.compframes, dtype=int).tolist()))
         py_time = dict(zip(py_order.tolist(), np.asarray(res.comptimes, dtype=float).tolist()))
         ml_frame = dict(zip(ml_order.tolist(), (ml_frames - 1).tolist()))
-        ml_time = dict(zip(ml_order.tolist(), (ml_times * 1000.0).tolist()))
         for ic in ml_plotted.tolist():
             self.assertEqual(py_frame[ic], ml_frame[ic], msg=f"peak frame differs for IC{ic}, {options}")
+            # EEGLAB's comptimes output double-applies the sort permutation (envtopo.m:731) and is
+            # misaligned; derive the expected latency from MATLAB's correct compframes instead.
             np.testing.assert_allclose(
-                py_time[ic], ml_time[ic], rtol=RTOL, atol=ATOL, err_msg=f"peak latency differs for IC{ic}, {options}"
+                py_time[ic],
+                times_ms[ml_frame[ic]],
+                rtol=RTOL,
+                atol=ATOL,
+                err_msg=f"peak latency differs for IC{ic}, {options}",
             )
         plt.close(res.figure)
 
