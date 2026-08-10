@@ -1398,6 +1398,16 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
         pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
 
 
+def test_pop_envtopo_threads_eeglab_options_into_history(ica_epoch):
+    figure, command = pop_envtopo(ica_epoch, compsplot=2, sortvar="pp", return_com=True)
+
+    assert isinstance(figure, Figure)
+    _assert_python_command(command)
+    assert "sortvar='pp'" in command
+    assert "compsplot=2" in command
+    plt.close(figure)
+
+
 def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     second = deepcopy(sample_epoch)
     second["setname"] = "second"
