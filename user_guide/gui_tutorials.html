@@ -533,6 +533,19 @@ repeatable commands, and save the resulting datasets when review is complete.</p
 <p>The console workflow is recommended because it shows <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>
 after each menu action. See <a class="reference internal" href="gui_console_session.html#gui-console-session"><span class="std std-ref">GUI and Console Together</span></a> for the shared-session
 model and implementation details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Plotting commands such as <code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">spectra</span> <span class="pre">and</span> <span class="pre">maps</span></code> and
+<code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">ERPs</span> <span class="pre">&gt;</span> <span class="pre">With</span> <span class="pre">scalp</span> <span class="pre">maps</span></code> open a figure window on any
+interactive backend, whether you trigger them from a Plot menu or call the
+matching <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. On non-interactive
+backends (for example <code class="docutils literal notranslate"><span class="pre">Agg</span></code> in headless runs) the figure is built and
+returned without opening a window.</p>
+<p>When scripting, pass <code class="docutils literal notranslate"><span class="pre">plot='off'</span></code> to any plotting <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function to
+build and return the figure without popping a window, for example
+<code class="docutils literal notranslate"><span class="pre">fig</span> <span class="pre">=</span> <span class="pre">pop_spectopo(EEG,</span> <span class="pre">1,</span> <span class="pre">[],</span> <span class="pre">freqs=[10],</span> <span class="pre">plot='off')['figure']</span></code> to save
+or embed it. The default <code class="docutils literal notranslate"><span class="pre">plot='on'</span></code> displays it.</p>
+</div>
 </section>
 <section id="load-inspect-and-save-a-dataset">
 <h2>Load, Inspect, and Save a Dataset<a class="headerlink" href="#load-inspect-and-save-a-dataset" title="Link to this heading">#</a></h2>
