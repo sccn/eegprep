@@ -12,3 +12,5 @@ EEGPrep's standalone wrapper accepts one dataset. Multi-dataset envelope
 comparison is not implemented because component maps, ICA channel subsets, and
 dataset-level envelopes need a dedicated group workflow rather than a silent
 merge.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

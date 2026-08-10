@@ -16,6 +16,7 @@ from eegprep.functions.popfunc.plot_utils import (
     numeric_vector,
     parse_plot_options_text,
     selected_indices,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.sigprocfunc.spectopo import plot_component_spectra, spectopo
@@ -29,10 +30,14 @@ def pop_spectopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot channel or component spectra and scalp maps."""
+    """Plot channel or component spectra and scalp maps.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
@@ -46,6 +51,11 @@ def pop_spectopo(
         timerange = result["timerange"]
         process = result["process"]
         options.update(result["options"])
+
+    # Guard only: drop a stray EEGLAB-style ('plot', ...) pair so it can't reach
+    # the core spectopo(plot=...) and skip drawing. The display flag is the
+    # keyword-only "plot" parameter, consistent with the other wrappers.
+    options.pop("plot", None)
 
     data, times = data_time_slice(EEG, timerange)
     history_options = {key: value for key, value in options.items() if key not in {"plotchan", "icamode"}}
@@ -127,8 +137,7 @@ def pop_spectopo(
         process=None if process == "EEG" else process,
         **history_options,
     )
-    if gui and figure is not None:
-        figure.show()
+    show_figures(figure, plot=plot)
     return (result, command) if return_com else result
 
 
@@ -272,7 +281,7 @@ def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:
 
 
 def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    spectral_keys = {"plot", "winsize", "overlap", "nfft"}
+    spectral_keys = {"winsize", "overlap", "nfft"}
     spectral = {key: options[key] for key in spectral_keys if key in options}
     if "winsize" in spectral:
         spectral["winsize"] = int(numeric_vector(spectral["winsize"])[0])

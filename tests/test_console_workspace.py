@@ -12,6 +12,7 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -1452,7 +1453,7 @@ class _FakeShell:
         self.enabled_gui = None
         self.called = False
 
-    def enable_gui(self, gui):
+    def enable_matplotlib(self, gui):
         self.enabled_gui = gui
 
     def __call__(self):
@@ -1498,6 +1499,8 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert captured["gui_kwargs"]["native_file_dialogs"] is False
     assert "EEGPrep interactive console" in captured["banner"]
     assert shell.enabled_gui == "qt"
+    # Non-interactive: pop_* display via show_figures(), so plot='off' pops nothing.
+    assert not plt.isinteractive()
     assert shell.called is True
     assert "EEG" in captured["namespace"]
 

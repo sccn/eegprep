@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.sigprocfunc.erpimage import erpimage
@@ -29,10 +30,14 @@ def pop_erpimage(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot an ERP image for one channel or component."""
+    """Plot an ERP image for one channel or component.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typeplot = int(typeplot)
@@ -84,6 +89,7 @@ def pop_erpimage(
         vert=kwargs.pop("vert", None),
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
+    show_figures(figure, plot=plot)
     return ({"figure": figure, "image": image}, command) if return_com else {"figure": figure, "image": image}
 
 

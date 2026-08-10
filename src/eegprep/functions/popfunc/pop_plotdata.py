@@ -8,7 +8,13 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.plot_utils import component_activations, eeg_times_ms, history_command, numeric_vector
+from eegprep.functions.popfunc.plot_utils import (
+    component_activations,
+    eeg_times_ms,
+    history_command,
+    numeric_vector,
+    show_figures,
+)
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
@@ -18,10 +24,14 @@ def pop_plotdata(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot component ERP activations in a rectangular array."""
+    """Plot component ERP activations in a rectangular array.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -45,6 +55,7 @@ def pop_plotdata(
         ylimits=ylimits,
     )
     command = history_command("pop_plotdata", components, **command_kwargs)
+    show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
 

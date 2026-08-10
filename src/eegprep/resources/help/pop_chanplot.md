@@ -25,3 +25,5 @@ editing.
 
 Use `std_erpplot`, `std_specplot`, `std_erspplot`, and `std_itcplot` for direct
 script-level access to the same cached measure plotting helpers.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

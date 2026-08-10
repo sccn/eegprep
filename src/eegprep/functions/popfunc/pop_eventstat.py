@@ -8,7 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc.plot_utils import history_command, numeric_vector
+from eegprep.functions.popfunc.plot_utils import history_command, numeric_vector, show_figures
 from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.sigprocfunc.signalstat import signalstat
@@ -23,9 +23,13 @@ def pop_eventstat(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
 ):
-    """Compute and plot statistics for numeric EEG event fields."""
+    """Compute and plot statistics for numeric EEG event fields.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -50,6 +54,7 @@ def pop_eventstat(
     )
     result = signalstat(values, 1, label, float(percent), title)
     command = history_command("pop_eventstat", eventfield, type, latrange, percent)
+    show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
 
 

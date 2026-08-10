@@ -13,6 +13,7 @@ from eegprep.functions.popfunc.plot_utils import (
     component_map_data,
     history_command,
     numeric_vector,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 
@@ -25,9 +26,13 @@ def pop_signalstat(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
 ):
-    """Compute and plot statistics for one channel or component."""
+    """Compute and plot statistics for one channel or component.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typeproc = int(typeproc)
@@ -64,6 +69,7 @@ def pop_signalstat(
         map_value = maps[:, index - 1]
     result = signalstat(values, 1, dlabel, float(percent), dlabel2, map_value, stat_chanlocs)
     command = history_command("pop_signalstat", typeproc, index, percent)
+    show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
 
 

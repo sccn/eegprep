@@ -20,6 +20,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import is_empty_value as _is_empty
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
@@ -45,6 +46,7 @@ def pop_headplot(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
@@ -53,6 +55,8 @@ def pop_headplot(
     Like EEGLAB, ``pop_headplot`` requires a ``.spl`` spline setup file. Use
     ``setup={...}`` to create one, ``load=...`` to reuse one, or launch the GUI
     to select/create it interactively.
+
+    Pass ``plot='off'`` to build and return the figures without opening a window.
     """
     if EEG is None:
         return ([], "") if return_com else []
@@ -110,6 +114,7 @@ def pop_headplot(
     command = _history_command(
         typeplot, items_array, topotitle, [rows, columns], colorbar, setup, load, command_options
     )
+    show_figures(figures, plot=plot)
     return (figures, command) if return_com else figures
 
 

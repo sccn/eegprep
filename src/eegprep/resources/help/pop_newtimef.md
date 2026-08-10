@@ -24,3 +24,5 @@ of each event column, matching EEGLAB's standalone workflow.
 The `tf cycle calc` button opens the Morlet wavelet cycle calculator. It writes
 the calculated frequency and cycle vectors back to the parent `pop_newtimef`
 dialog.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

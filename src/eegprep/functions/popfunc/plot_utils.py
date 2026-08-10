@@ -4,11 +4,38 @@ from __future__ import annotations
 
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
+
+# matplotlib's file-output backends cannot open a figure window.
+_NONINTERACTIVE_BACKENDS = frozenset({"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"})
+
+
+def backend_can_display() -> bool:
+    """Return True when the active matplotlib backend can show a figure window."""
+    return plt.get_backend().lower() not in _NONINTERACTIVE_BACKENDS
+
+
+def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
+    """Display figures (a single figure, a list, or ``None``) on an interactive backend.
+
+    No-op on file-output backends (Agg, PDF, ...) so headless runs stay silent.
+    ``plot`` accepts ``'on'/'off'`` or ``True/False``. With it off, the figures are
+    closed (unregistered from pyplot) so an interactive session cannot auto-display
+    them; the caller keeps the returned Figure, which stays usable for ``savefig``.
+    """
+    if not _plot_enabled(plot):
+        for figure in _as_figure_list(figures):
+            plt.close(figure)
+        return
+    if not backend_can_display():
+        return
+    for figure in _as_figure_list(figures):
+        figure.show()
 
 
 def as_eeg_list(value: Any) -> list[dict[str, Any]]:
@@ -234,6 +261,23 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
         f"{key}={python_literal(value)}" for key, value in kwargs.items() if not _is_empty_history_value(value)
     )
     return f"{function_name}({', '.join(pieces)})"
+
+
+def _plot_enabled(plot: str | bool) -> bool:
+    """Whether the ``plot`` flag requests a window: ``'on'/'off'`` or ``True/False``."""
+    if isinstance(plot, bool):
+        return plot
+    if isinstance(plot, str) and plot.strip().lower() in {"on", "off"}:
+        return plot.strip().lower() == "on"
+    raise ValueError(f"plot must be 'on'/'off' or True/False, got {plot!r}")
+
+
+def _as_figure_list(figures: Any) -> list[Any]:
+    if figures is None:
+        return []
+    if isinstance(figures, (list, tuple)):
+        return [figure for figure in figures if figure is not None]
+    return [figures]
 
 
 def _is_empty_sequence(value: Any) -> bool:

@@ -19,6 +19,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -33,11 +34,15 @@ def pop_prop(
     *,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     scroll_event: int | bool = 1,
     show_activity: bool = False,
     return_com: bool = False,
 ):
-    """Plot properties of one channel or independent component."""
+    """Plot properties of one channel or independent component.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typecomp = int(typecomp)
@@ -60,6 +65,7 @@ def pop_prop(
             show=show_activity,
         )
     command = history_command("pop_prop", typecomp, indices.astype(int).tolist(), winhandle, spec_opt)
+    show_figures(figures, plot=plot)
     return (
         (figures[0] if len(figures) == 1 else figures, command)
         if return_com

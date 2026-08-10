@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from copy import deepcopy
 import importlib
+import io
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseEvent
+from matplotlib.figure import Figure
 import numpy as np
 import pytest
 import scipy.io
@@ -31,14 +33,22 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.plot_utils import component_activations, data_time_slice, parse_plot_options_text
+from eegprep.functions.popfunc.plot_utils import (
+    backend_can_display,
+    component_activations,
+    data_time_slice,
+    parse_plot_options_text,
+    show_figures,
+)
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
-from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -848,6 +858,204 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(plotdata_fig)
     plt.close(envtopo_fig)
     plt.close(erpimage_result["figure"])
+
+
+def test_show_figures_is_noop_on_noninteractive_backend(monkeypatch):
+    """On file-output backends (Agg, the test default) show_figures opens nothing."""
+    figure = plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+
+    assert not backend_can_display()
+    show_figures(figure)
+
+    assert shown == []
+    plt.close(figure)
+
+
+def test_show_figures_displays_each_figure_on_interactive_backend(monkeypatch):
+    """On an interactive backend show_figures pops each figure and skips None entries."""
+    first, second = plt.figure(), plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    show_figures([first, None, second])
+
+    assert shown == [first, second]
+    plt.close(first)
+    plt.close(second)
+
+
+def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_epoch, monkeypatch):
+    """Every plotting pop_* wrapper pops up its figure on an interactive backend,
+    like EEGLAB. The GUI relies on this to make graphs appear; on Agg it stays silent."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    timtopo_fig, _ = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
+    plottopo_fig, _ = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
+    erpimage_result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    prop_fig, _ = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
+    topoplot_figs, _ = pop_topoplot(ica_epoch, typeplot=0, items=[1], colorbar="off", return_com=True)
+    spectopo_result, _ = pop_spectopo(ica_epoch, dataflag=0, freqs=[10], return_com=True)
+    plotdata_fig, _ = pop_plotdata(ica_epoch, components=[1, 2], return_com=True)
+    envtopo_fig, _ = pop_envtopo(ica_epoch, components=[1, 2], return_com=True)
+
+    expected = [
+        timtopo_fig,
+        plottopo_fig,
+        erpimage_result["figure"],
+        prop_fig,
+        *topoplot_figs,
+        spectopo_result["figure"],
+        plotdata_fig,
+        envtopo_fig,
+    ]
+    for figure in expected:
+        assert figure in shown
+        plt.close(figure)
+
+
+def test_topoplot_core_displays_only_when_it_owns_the_figure(sample_eeg, monkeypatch):
+    """Match EEGLAB: a standalone topoplot() call pops a window, but a call that
+    draws into a caller's axes (axes=) adds no window of its own."""
+    chanlocs = chanlocs_as_list(sample_eeg["chanlocs"])
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    standalone, *_ = topoplot([], chanlocs, style="blank")
+    assert shown == [standalone]
+
+    fig, ax = plt.subplots()
+    topoplot([], chanlocs, style="blank", axes=ax)
+    assert shown == [standalone]
+
+    plt.close(standalone)
+    plt.close(fig)
+
+
+def test_plot_channel_locations_displays_figure_exactly_once(sample_eeg, monkeypatch):
+    """The channel-locations view shows its figure once, via the topoplot core that
+    owns it, with no duplicate wrapper show."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig, _ = plot_channel_locations(sample_eeg, mode="labels", return_com=True)
+
+    assert shown == [fig]
+    plt.close(fig)
+
+
+def test_show_figures_plot_off_closes_figure(monkeypatch):
+    """plot='off' never calls show() and removes the figure from pyplot's registry
+    so an interactive session (IPython %matplotlib qt) cannot auto-display it."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot="off")
+    assert shown == []
+    assert not plt.fignum_exists(num)
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot="on")
+    assert shown == [fig_on]
+    plt.close(fig_on)
+
+
+def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monkeypatch):
+    """plot='off' still returns a usable figure but leaves nothing in pyplot's
+    registry to auto-display; the default plot='on' shows it."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    spec = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")
+    timtopo_fig = pop_timtopo(sample_epoch, plottimes=[0], plot="off")
+    assert spec["figure"] is not None and timtopo_fig is not None
+    assert shown == []
+    assert plt.get_fignums() == []
+
+    displayed = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="on")
+    assert shown == [displayed["figure"]]
+    plt.close("all")
+
+
+def test_show_figures_plot_accepts_bool(monkeypatch):
+    """The plot flag also accepts booleans: False suppresses, True displays."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot=False)
+    assert shown == []
+    assert not plt.fignum_exists(num)
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot=True)
+    assert shown == [fig_on]
+    plt.close(fig_on)
+
+
+def test_show_figures_plot_rejects_unknown_value(monkeypatch):
+    """An unrecognized plot value fails loudly rather than silently showing a window."""
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    fig = plt.figure()
+    with pytest.raises(ValueError):
+        show_figures(fig, plot="maybe")
+    plt.close(fig)
+
+
+def test_wrapper_plot_flag_accepts_bool(sample_eeg, monkeypatch):
+    """A wrapper honors plot=False like plot='off': figure built, no window."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot=False)
+
+    assert result["figure"] is not None
+    assert shown == []
+    assert plt.get_fignums() == []
+    plt.close("all")
+
+
+def test_plot_off_figure_still_savable(sample_eeg):
+    """A figure returned with plot='off' is closed but still usable for savefig."""
+    figure = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")["figure"]
+
+    assert not plt.fignum_exists(figure.number)  # closed / unregistered from pyplot
+
+    buffer = io.BytesIO()
+    figure.savefig(buffer, format="png")
+
+    assert buffer.getvalue()
+    plt.close(figure)
+
+
+def test_pop_spectopo_plot_pair_is_ignored_not_leaked(sample_eeg, monkeypatch):
+    """A stray EEGLAB-style ('plot','off') pair is dropped before the spectopo core
+    (figure still built) and does not act as the keyword-only display flag."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, 1, [], "EEG", "plot", "off", freqs=[10])
+
+    assert result["figure"] is not None  # guard held: core still drew
+    assert shown == [result["figure"]]  # keyword-only: the pair did not suppress
+    plt.close("all")
 
 
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):

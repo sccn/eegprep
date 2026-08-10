@@ -13,6 +13,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.timtopo import timtopo
 
@@ -23,10 +24,14 @@ def pop_timtopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot channel ERP traces and scalp maps at selected latencies."""
+    """Plot channel ERP traces and scalp maps at selected latencies.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -52,6 +57,7 @@ def pop_timtopo(
         topoplot_options=topoplot_options,
     )
     command = history_command("pop_timtopo", plottimes, **command_kwargs)
+    show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
 

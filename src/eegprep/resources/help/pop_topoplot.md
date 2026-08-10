@@ -21,3 +21,5 @@ Additional `topoplot` options can be passed as keyword arguments, for example
 `electrodes="on"`, `colorbar="off"`, or `maplimits=[-5, 5]`.
 
 DIPFIT dipole overlays and 3-D head plots are handled by later Phase 4 work.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

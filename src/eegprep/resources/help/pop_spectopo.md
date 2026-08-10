@@ -25,3 +25,6 @@ The GUI's "Spectral and scalp map options" field accepts either Python
 `key=value` pairs (e.g. `electrodes='off', style='blank'`) or the classic
 `'key', value` pairs (e.g. `'electrodes', 'off', 'style', 'blank'`). Multiple
 entries in either style are separated by commas.
+
+When scripting, pass `plot='off'` to build and return the figure without
+opening a window (`result['figure']`); the default `plot='on'` displays it.

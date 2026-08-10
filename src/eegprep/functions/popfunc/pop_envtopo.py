@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.sigprocfunc.envtopo import envtopo
 
@@ -27,10 +28,14 @@ def pop_envtopo(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot largest component ERP envelopes and component maps."""
+    """Plot largest component ERP envelopes and component maps.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     if isinstance(EEG, list):
@@ -81,6 +86,7 @@ def pop_envtopo(
         title=title,
     )
     command = history_command("pop_envtopo", timerange, **command_kwargs)
+    show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
 
