@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
@@ -54,6 +55,7 @@ def pop_erpimage(
     _raise_for_unsupported_kwargs(kwargs)
     command_kwargs = dict(kwargs)
     projchan = kwargs.pop("projchan", None)
+    plotmap = bool(kwargs.pop("plotmap", True))
     values = _erpimage_values(EEG, typeplot, int(index), projchan=projchan)
     times = eeg_times_ms(EEG)
     sort_values = kwargs.pop("sort_values", None)
@@ -76,6 +78,7 @@ def pop_erpimage(
             raise ValueError("limits do not contain any samples")
         values = values[mask, :]
         times = times[mask]
+    chan_locs, channel_index = _scalp_map_arguments(EEG, typeplot, int(index), plotmap=plotmap)
     figure, image = erpimage(
         values,
         times=times,
@@ -87,6 +90,8 @@ def pop_erpimage(
         cbar=bool(kwargs.pop("cbar", True)),
         plot_erp=bool(kwargs.pop("erp", True)),
         vert=kwargs.pop("vert", None),
+        chan_locs=chan_locs,
+        channel_index=channel_index,
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
     show_figures(figure, plot=plot)
@@ -322,6 +327,7 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
     projchan = numeric_vector(result.get("projchan", []), dtype=int)
     if projchan.size:
         options["projchan"] = projchan.tolist()
+    options["plotmap"] = bool(result.get("plotmap", True))
     return {
         "index": int(values[0]) if values.size else 1,
         "options": options,
@@ -403,6 +409,7 @@ def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
         "erp",
         "vert",
         "projchan",
+        "plotmap",
         "sortingeventfield",
         "sortingtype",
         "sortingwin",
@@ -419,6 +426,20 @@ def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
         raise ValueError(
             "pop_erpimage option(s) are not available in EEGPrep's standalone ERP image plot: " + ", ".join(unsupported)
         )
+
+
+def _scalp_map_arguments(EEG: dict[str, Any], typeplot: int, index: int, *, plotmap: bool) -> tuple[Any, int | None]:
+    """Return ``(chan_locs, channel_index)`` for the scalp inset, or ``(None, None)``.
+
+    EEGLAB only draws the small ERP-image scalp map for channel plots; component
+    scalp maps are shown by other pop-functions and are outside this dialog's default.
+    """
+    if not plotmap or not typeplot:
+        return None, None
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
+    if not chanlocs:
+        return None, None
+    return chanlocs, index
 
 
 def _event_sort_values(EEG: dict[str, Any], field: Any, event_types: Any, eventrange: Any, renorm: Any) -> np.ndarray:

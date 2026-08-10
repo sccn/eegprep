@@ -11,7 +11,8 @@ dataset must be epoched.
 
 Supported plot options include `title`, `limits`, `caxis`, `cbar`, `erp`,
 `vert`, `smooth`, `decimate`, `sort_values`, and component projection through
-`projchan`.
+`projchan`. Channel plots draw a small scalp map above the image with the
+plotted electrode marked; pass `plotmap=False` to suppress it.
 
 Event-field sorting is available with EEGLAB-style names:
 

@@ -7,6 +7,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.sigprocfunc.topoplot import topoplot
+
 
 def erpimage(
     data: Any,
@@ -20,8 +22,15 @@ def erpimage(
     cbar: bool = True,
     plot_erp: bool = True,
     vert: Any = None,
+    chan_locs: Any = None,
+    channel_index: int | None = None,
 ):
-    """Plot trials as an EEGLAB-style ERP image plus the average ERP."""
+    """Plot trials as an EEGLAB-style ERP image plus the average ERP.
+
+    Pass ``chan_locs`` and ``channel_index`` (1-based) to draw a small scalp
+    map above the image with the plotted channel marked, matching EEGLAB's
+    default ERP-image layout for channels.
+    """
     values = np.asarray(data, dtype=float)
     if values.ndim != 2:
         raise ValueError("erpimage data must be points x trials")
@@ -37,19 +46,33 @@ def erpimage(
     image = values[:, order].T
     image = _decimate_trials(image, decimate)
     image = _smooth_trials(image, smooth)
+    show_topo = chan_locs is not None and channel_index is not None
+    height_ratios: list[float] = []
+    if show_topo:
+        height_ratios.append(1.0)
+    height_ratios.append(3.0)
     if plot_erp:
-        fig, (image_ax, erp_ax) = plt.subplots(
-            2,
-            1,
-            figsize=(7.5, 5.0),
-            gridspec_kw={"height_ratios": [3, 1]},
-            sharex=True,
-        )
-    else:
-        fig, image_ax = plt.subplots(figsize=(7.5, 4.2))
-        erp_ax = None
+        height_ratios.append(1.0)
+    fig_height = 1.2 * sum(height_ratios) + 0.6
+    fig = plt.figure(figsize=(7.5, fig_height))
+    gs = fig.add_gridspec(
+        nrows=len(height_ratios),
+        ncols=2,
+        width_ratios=[20, 1],
+        height_ratios=height_ratios,
+        hspace=0.15,
+        wspace=0.04,
+    )
+    row = 0
+    topo_ax = fig.add_subplot(gs[row, 0]) if show_topo else None
+    if show_topo:
+        row += 1
+    image_ax = fig.add_subplot(gs[row, 0])
+    cax = fig.add_subplot(gs[row, 1]) if cbar else None
+    row += 1
+    erp_ax = fig.add_subplot(gs[row, 0], sharex=image_ax) if plot_erp else None
     extent = [float(x_values[0]), float(x_values[-1]), 1, image.shape[0]]
-    im = image_ax.imshow(image, aspect="auto", origin="lower", extent=extent, cmap="RdBu_r")
+    im = image_ax.imshow(image, aspect="auto", origin="lower", extent=extent, cmap="turbo")
     limits = _limits(caxis)
     if limits is not None:
         im.set_clim(*limits)
@@ -57,18 +80,19 @@ def erpimage(
     image_ax.set_title(title or "ERP image")
     for latency in _numeric_values(vert):
         image_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
-    if cbar:
-        fig.colorbar(im, ax=image_ax, shrink=0.85)
+    if cax is not None:
+        fig.colorbar(im, cax=cax)
     if erp_ax is not None:
         erp_ax.plot(x_values, np.nanmean(values, axis=1), color="black")
         erp_ax.axhline(0, color="0.7", linewidth=0.6)
         for latency in _numeric_values(vert):
             erp_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
         erp_ax.set_xlabel("Time (ms)")
-        erp_ax.set_ylabel("ERP")
+        erp_ax.set_ylabel("µV")
     else:
         image_ax.set_xlabel("Time (ms)")
-    fig.tight_layout()
+    if topo_ax is not None:
+        _draw_channel_topo(topo_ax, chan_locs, int(channel_index))
     return fig, image
 
 
@@ -107,6 +131,24 @@ def _numeric_values(value: Any) -> np.ndarray:
         return np.asarray([], dtype=float)
     values = np.asarray(value, dtype=float).ravel()
     return values[np.isfinite(values)]
+
+
+def _draw_channel_topo(ax: Any, chan_locs: Any, channel_index: int) -> None:
+    """Render a small scalp map with the plotted channel marked."""
+    topoplot([], chan_locs, style="blank", electrodes="off", axes=ax, title="")
+    if not 1 <= channel_index <= len(chan_locs):
+        return
+    loc = chan_locs[channel_index - 1]
+    try:
+        theta_rad = np.deg2rad(float(loc.get("theta")))
+        radius_value = float(loc.get("radius"))
+    except (TypeError, ValueError):
+        return
+    if not (np.isfinite(theta_rad) and np.isfinite(radius_value)):
+        return
+    x = np.cos(theta_rad) * radius_value
+    y = np.sin(theta_rad) * radius_value
+    ax.scatter(-y, x, c="k", s=24, zorder=6)
 
 
 __all__ = ["erpimage"]

@@ -1590,6 +1590,48 @@ def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
         pop_erpimage(eeg, typeplot=1, index=1, align=[0])
 
 
+def test_pop_erpimage_uses_turbo_and_aligns_image_with_erp(sample_epoch):
+    """Match EEGLAB defaults: turbo colormap, ERP axis flush with the image column."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    erp_ax = next(
+        ax for ax in figure.axes if ax is not image_ax and ax.get_xlabel() == "Time (ms)" and ax.get_ylabel() == "µV"
+    )
+
+    assert image_ax.images[0].get_cmap().name == "turbo"
+    assert image_ax.get_position().x1 == pytest.approx(erp_ax.get_position().x1, abs=1e-6)
+    assert image_ax.get_position().x0 == pytest.approx(erp_ax.get_position().x0, abs=1e-6)
+    plt.close(figure)
+
+
+def test_pop_erpimage_channel_adds_scalp_map_axis(sample_epoch):
+    """Channel ERP images draw a small scalp inset above the image with a marker at the channel."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    topo_axes = [
+        ax
+        for ax in figure.axes
+        if ax is not image_ax and not ax.images and ax.get_position().y0 > image_ax.get_position().y1
+    ]
+    assert topo_axes, "expected a scalp topo axis above the image axis"
+    marker_axes = [ax for ax in topo_axes if any(coll.get_offsets().size > 0 for coll in ax.collections)]
+    assert marker_axes, "scalp topo axis should mark the plotted channel"
+    plt.close(figure)
+
+
+def test_pop_erpimage_component_omits_scalp_map_axis(ica_epoch):
+    """Component ERP images stay in the 2-row layout (no scalp inset)."""
+    result, _ = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    above = [ax for ax in figure.axes if ax is not image_ax and ax.get_position().y0 > image_ax.get_position().y1]
+    assert not above
+    plt.close(figure)
+
+
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     timtopo_fig, timtopo_command = pop_timtopo(
         sample_epoch,
