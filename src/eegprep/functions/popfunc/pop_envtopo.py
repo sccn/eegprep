@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import (
     component_channel_indices,
@@ -63,31 +64,31 @@ def pop_envtopo(
         raise ValueError("pop_envtopo requires ICA weights")
     icachansind = component_channel_indices(dataset, data.shape[0])
     data = data[icachansind, :, :]
-    weights = icaweights @ icasphere
+    weights = finite_matmul(icaweights, icasphere)
     if weights.shape[1] != data.shape[0]:
         raise ValueError("ICA weights do not match EEG.icachansind channel count")
     maps = component_maps(dataset)
     chanlocs = _component_chanlocs(dataset, maps, icachansind)
-    components = kwargs.pop("compnums", kwargs.pop("components", None))
-    max_components = _first_int(kwargs.pop("compsplot", None), default=7)
-    title = str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components"))
+    label_times = times if times.size else eeg_times_ms(dataset)
     topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
-    figure = envtopo(
+    result = envtopo(
         np.nanmean(data, axis=2),
         weights,
-        times=times if times.size else eeg_times_ms(dataset),
         chanlocs=chanlocs,
         icawinv=maps,
-        components=components,
-        max_components=max_components,
-        rank_window=kwargs.pop("limcontrib", None),
-        exclude_components=kwargs.pop("subcomps", None),
+        timerange=[float(label_times[0]), float(label_times[-1])],
+        limcontrib=kwargs.pop("limcontrib", None),
+        compnums=kwargs.pop("compnums", kwargs.pop("components", None)),
+        compsplot=_first_int(kwargs.pop("compsplot", None), default=7),
+        subcomps=kwargs.pop("subcomps", 0),
+        sortvar=str(kwargs.pop("sortvar", topoplot_options.pop("sortvar", "mp"))),
+        envmode=str(kwargs.pop("envmode", topoplot_options.pop("envmode", "avg"))),
+        title=str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components")),
         topoplot_options=topoplot_options,
-        title=title,
     )
     command = history_command("pop_envtopo", timerange, **command_kwargs)
-    show_figures(figure, plot=plot)
-    return (figure, command) if return_com else figure
+    show_figures(result.figure, plot=plot)
+    return (result.figure, command) if return_com else result.figure
 
 
 def pop_envtopo_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
