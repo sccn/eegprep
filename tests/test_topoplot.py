@@ -472,6 +472,42 @@ class TestTopoplot(unittest.TestCase):
             handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='off')
             self.assertIsInstance(Zi, np.ndarray)
 
+    def test_labelpoint_offsets_labels_from_dots(self):
+        """labelpoint labels sit beside the marker, not on top (issue #299)."""
+        with patch('matplotlib.pyplot.show'):
+            fig, _, _, _, _ = topoplot(None, self.chan_locs, style='blank', electrodes='labelpoint')
+        try:
+            ax = fig.axes[0]
+            annotations = {a.get_text(): a for a in ax.texts}
+            self.assertIn('Fz', annotations)
+            offsets = []
+            for loc in self.chan_locs:
+                label = loc['labels']
+                theta = np.deg2rad(loc['theta'])
+                r = loc['radius']
+                dot_x = -np.sin(theta) * r
+                text_x, _ = annotations[label].get_position()
+                offsets.append(text_x - dot_x)
+                self.assertEqual(annotations[label].get_ha(), 'left')
+            # All labels shifted by the same positive offset from their dot.
+            self.assertGreater(offsets[0], 0)
+            for offset in offsets[1:]:
+                self.assertAlmostEqual(offset, offsets[0], places=6)
+        finally:
+            plt.close(fig)
+
+        with patch('matplotlib.pyplot.show'):
+            fig, _, _, _, _ = topoplot(None, self.chan_locs, style='blank', electrodes='labels')
+        try:
+            ax = fig.axes[0]
+            fz = next(a for a in ax.texts if a.get_text() == 'Fz')
+            theta = np.deg2rad(self.chan_locs[0]['theta'])
+            r = self.chan_locs[0]['radius']
+            self.assertAlmostEqual(fz.get_position()[0], -np.sin(theta) * r, places=6)
+            self.assertEqual(fz.get_ha(), 'center')
+        finally:
+            plt.close(fig)
+
 
 class TestTopoplotParity(unittest.TestCase):
     """Test parity between Python and MATLAB topoplot implementations."""
