@@ -17,6 +17,21 @@ Release Notes
 Unreleased
 ----------
 
+Version 0.3.0
+-------------
+
+**Release Date**: 2026-08-11
+
+Bug Fixes
+~~~~~~~~~
+
+- ``clean_rawdata`` now processes data at any sampling rate. ASR calibration previously
+  relied on a table of pre-computed spectral-shaping filter coefficients covering only
+  100, 128, 200, 250, 256, 300, 500 and 512 Hz, and raised an error otherwise, so common
+  clinical rates such as 258 Hz could not be cleaned without resampling first. The filter
+  is now designed for the recording's own rate with a ``yulewalk`` port, matching what
+  EEGLAB's ``asr_calibrate.m`` does. See :ref:`preprocessing_pipeline` for details.
+
 Breaking Changes
 ~~~~~~~~~~~~~~~~
 
