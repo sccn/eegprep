@@ -1,302 +1,122 @@
 .. _references:
 
-========================
-References and Citations
-========================
+==========
+References
+==========
 
-Key Publications
-================
+Papers behind the methods EEGPrep implements. Each entry can be copied as APA or
+BibTeX.
 
-EEG Preprocessing Methods
--------------------------
+.. raw:: html
 
-The following papers describe key preprocessing methods implemented in EEGPrep:
+   <style>
+   .eegprep-cite-actions { margin: 0.35rem 0 0.2rem; }
+   .eegprep-cite-copy {
+     font: inherit; font-size: 0.85em; cursor: pointer;
+     padding: 0.15rem 0.6rem; margin-right: 0.4rem;
+     border: 1px solid currentColor; border-radius: 4px;
+     background: transparent; color: inherit; opacity: 0.75;
+   }
+   .eegprep-cite-copy:hover { opacity: 1; }
+   </style>
+   <script>
+   document.addEventListener("click", function (event) {
+     var button = event.target.closest(".eegprep-cite-copy");
+     if (!button) { return; }
+     var text = button.getAttribute("data-citation");
+     var restore = button.textContent;
+     var done = function () {
+       button.textContent = "Copied";
+       setTimeout(function () { button.textContent = restore; }, 1500);
+     };
+     if (navigator.clipboard && navigator.clipboard.writeText) {
+       navigator.clipboard.writeText(text).then(done);
+     } else {
+       var area = document.createElement("textarea");
+       area.value = text;
+       document.body.appendChild(area);
+       area.select();
+       document.execCommand("copy");
+       document.body.removeChild(area);
+       done();
+     }
+   });
+   </script>
 
-**Artifact Removal and Cleaning**
+**EEGPrep**
 
-- Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. *Journal of Neuroscience Methods*, 134(1), 9-21.
+Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., & Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline. arXiv:2607.16647.
 
-  - Foundational paper for EEGLAB and many preprocessing techniques
+`arXiv <https://arxiv.org/abs/2607.16647>`_ | `OpenAlex <https://openalex.org/W7169837262>`_
 
-- Kothe, C. A., & Makeig, S. (2013). BCILAB: a platform for brain–computer interface development. *Journal of Neural Engineering*, 10(5), 056014.
+.. raw:: html
 
-  - Describes ASR (Artifact Subspace Reconstruction) algorithm
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &amp; Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline. arXiv:2607.16647.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@misc{delorme2026eegprep,&#10;  author = {Delorme, Arnaud and Ranganath, Suraj and Kothe, Christian and Jaiswal, Aman and Makeig, Scott and Aristimunha, Bruno},&#10;  title = {EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline},&#10;  year = {2026},&#10;  eprint = {2607.16647},&#10;  archivePrefix = {arXiv},&#10;  doi = {10.48550/arXiv.2607.16647}&#10;}">Copy BibTeX</button>
+   </p>
 
-- Onton, J., Westerfield, M., Townsend, J., & Makeig, S. (2006). Imaging human EEG dynamics using independent component analysis. *Neuroscience & Biobehavioral Reviews*, 30(6), 808-822.
+**EEGLAB**
 
-  - ICA for EEG analysis
+Delorme, A., & Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of Neuroscience Methods, 134(1), 9-21.
 
-**Independent Component Analysis (ICA)**
+`PubMed <https://pubmed.ncbi.nlm.nih.gov/15102499/>`_ | `OpenAlex <https://openalex.org/W2128495200>`_
 
-- Hyvärinen, A., & Oja, E. (2000). Independent component analysis: algorithms and applications. *Neural Networks*, 13(4-5), 411-430.
+.. raw:: html
 
-  - Comprehensive ICA review
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Delorme, A., &amp; Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of Neuroscience Methods, 134(1), 9-21.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@article{delorme2004eeglab,&#10;  author = {Delorme, Arnaud and Makeig, Scott},&#10;  title = {EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis},&#10;  journal = {Journal of Neuroscience Methods},&#10;  volume = {134},&#10;  number = {1},&#10;  pages = {9--21},&#10;  year = {2004},&#10;  doi = {10.1016/j.jneumeth.2003.10.009}&#10;}">Copy BibTeX</button>
+   </p>
 
-- Bell, A. J., & Sejnowski, T. J. (1995). An information-maximization approach to blind separation and blind deconvolution. *Neural Computation*, 7(6), 1129-1159.
+**Artifact Subspace Reconstruction (ASR)**
 
-  - Infomax ICA algorithm
+Mullen, T. R., Kothe, C. A. E., Chi, Y. M., Ojeda, A., Kerth, T., Makeig, S., Jung, T.-P., & Cauwenberghs, G. (2015). Real-time neuroimaging and cognitive monitoring using wearable dry EEG. IEEE Transactions on Biomedical Engineering, 62(11), 2553-2567.
 
-**ICLabel Component Classification**
+`PubMed <https://pubmed.ncbi.nlm.nih.gov/26415149/>`_ | `OpenAlex <https://openalex.org/W1936982107>`_
 
-- Pion-Tonachini, L., Kreutz-Delgado, K., & Makeig, S. (2019). ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation. *NeuroImage*, 198, 181-197.
+.. raw:: html
 
-  - Deep learning-based IC classification
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Mullen, T. R., Kothe, C. A. E., Chi, Y. M., Ojeda, A., Kerth, T., Makeig, S., Jung, T.-P., &amp; Cauwenberghs, G. (2015). Real-time neuroimaging and cognitive monitoring using wearable dry EEG. IEEE Transactions on Biomedical Engineering, 62(11), 2553-2567.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@article{mullen2015asr,&#10;  author = {Mullen, Tim R. and Kothe, Christian A. E. and Chi, Yu M. and Ojeda, Alejandro and Kerth, Trevor and Makeig, Scott and Jung, Tzyy-Ping and Cauwenberghs, Gert},&#10;  title = {Real-time neuroimaging and cognitive monitoring using wearable dry EEG},&#10;  journal = {IEEE Transactions on Biomedical Engineering},&#10;  volume = {62},&#10;  number = {11},&#10;  pages = {2553--2567},&#10;  year = {2015},&#10;  doi = {10.1109/TBME.2015.2481482}&#10;}">Copy BibTeX</button>
+   </p>
 
-**BIDS Format**
+**ICLabel**
 
-- Gorgolewski, K. J., Auer, T., Calhoun, V. D., et al. (2016). The brain imaging data structure, a format for organizing and describing outputs of neuroimaging experiments. *Scientific Data*, 3, 160044.
+Delorme, A., Truong, D., Pion-Tonachini, L., & Makeig, S. (2024). Automatic EEG independent component classification using ICLabel in Python. In 2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM), 4137-4141.
 
-  - BIDS specification paper
+`IEEE Xplore <https://ieeexplore.ieee.org/document/10822445/>`_ | `OpenAlex <https://openalex.org/W4406260175>`_
 
-- Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., et al. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. *Scientific Data*, 6, 103.
+.. raw:: html
 
-  - EEG-BIDS extension
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Delorme, A., Truong, D., Pion-Tonachini, L., &amp; Makeig, S. (2024). Automatic EEG independent component classification using ICLabel in Python. In 2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM), 4137-4141.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@inproceedings{delorme2024iclabel,&#10;  author = {Delorme, Arnaud and Truong, Dung and Pion-Tonachini, Luca and Makeig, Scott},&#10;  title = {Automatic EEG Independent Component Classification Using ICLabel in Python},&#10;  booktitle = {2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM)},&#10;  pages = {4137--4141},&#10;  year = {2024},&#10;  doi = {10.1109/BIBM62325.2024.10822445}&#10;}">Copy BibTeX</button>
+   </p>
 
-**Signal Processing**
+**ICA Artifact Rejection**
 
-- Widmann, A., Schröger, E., & Maess, B. (2015). Digital filter design for electrophysiological data–a practical approach. *Journal of Neuroscience Methods*, 250, 34-46.
+Delorme, A., Sejnowski, T., & Makeig, S. (2007). Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis. NeuroImage, 34(4), 1443-1449.
 
-  - Filter design for EEG
+`PubMed <https://pubmed.ncbi.nlm.nih.gov/17188898/>`_ | `OpenAlex <https://openalex.org/W2149407814>`_
 
-Related Tools
-=============
+.. raw:: html
 
-EEGLAB
-------
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Delorme, A., Sejnowski, T., &amp; Makeig, S. (2007). Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis. NeuroImage, 34(4), 1443-1449.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@article{delorme2007artifacts,&#10;  author = {Delorme, Arnaud and Sejnowski, Terrence and Makeig, Scott},&#10;  title = {Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis},&#10;  journal = {NeuroImage},&#10;  volume = {34},&#10;  number = {4},&#10;  pages = {1443--1449},&#10;  year = {2007},&#10;  doi = {10.1016/j.neuroimage.2006.11.004}&#10;}">Copy BibTeX</button>
+   </p>
 
-**Website**: `https://sccn.ucsd.edu/eeglab/ <https://sccn.ucsd.edu/eeglab/>`_
+**EEG-BIDS**
 
-**Description**: MATLAB-based EEG analysis toolbox with extensive preprocessing capabilities.
+Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G., Phillips, C., Delorme, A., & Oostenveld, R. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. Scientific Data, 6, 103.
 
-**Key Features**:
+`PubMed <https://pubmed.ncbi.nlm.nih.gov/31239435/>`_ | `OpenAlex <https://openalex.org/W2956069845>`_
 
-- Interactive GUI
-- Comprehensive preprocessing tools
-- ICA and component analysis
-- Large plugin ecosystem
-- Established in neuroscience community
+.. raw:: html
 
-**When to use**: Interactive exploration, MATLAB workflows, extensive plugin ecosystem
-
-MNE-Python
-----------
-
-**Website**: `https://mne.tools/ <https://mne.tools/>`_
-
-**Description**: Python package for MEG and EEG analysis.
-
-**Key Features**:
-
-- General neuroimaging (EEG, MEG, fMRI)
-- Extensive analysis tools
-- Source localization
-- Time-frequency analysis
-- Large community
-
-**When to use**: Comprehensive analysis, source localization, Python workflows
-
-Fieldtrip
----------
-
-**Website**: `http://www.fieldtriptoolbox.org/ <http://www.fieldtriptoolbox.org/>`_
-
-**Description**: MATLAB toolbox for MEG and EEG analysis.
-
-**Key Features**:
-
-- Comprehensive preprocessing
-- Source analysis
-- Statistical testing
-- Good documentation
-- Active community
-
-**When to use**: MATLAB workflows, source analysis, statistical testing
-
-Brainstorm
-----------
-
-**Website**: `https://neuroimage.usc.edu/brainstorm/ <https://neuroimage.usc.edu/brainstorm/>`_
-
-**Description**: MATLAB-based neuroimaging software for MEG and EEG.
-
-**Key Features**:
-
-- Interactive visualization
-- Source localization
-- Preprocessing tools
-- Good for clinical applications
-- User-friendly interface
-
-**When to use**: Interactive analysis, source localization, clinical applications
-
-External Resources
-===================
-
-Tutorials and Documentation
----------------------------
-
-**EEG Analysis Tutorials**
-
-- `MNE-Python Tutorials <https://mne.tools/stable/auto_tutorials/index.html>`_ - Comprehensive EEG/MEG analysis tutorials
-- `EEGLAB Wiki <https://sccn.ucsd.edu/wiki/EEGLAB>`_ - EEGLAB documentation and tutorials
-- `Fieldtrip Tutorials <http://www.fieldtriptoolbox.org/tutorial/>`_ - Fieldtrip analysis tutorials
-
-**Signal Processing**
-
-- `Digital Signal Processing <https://en.wikipedia.org/wiki/Digital_signal_processing>`_ - Wikipedia overview
-- `Scipy Signal Processing <https://docs.scipy.org/doc/scipy/reference/signal.html>`_ - Python signal processing library
-
-**Machine Learning**
-
-- `Scikit-learn Documentation <https://scikit-learn.org/>`_ - Machine learning in Python
-- `PyTorch Documentation <https://pytorch.org/docs/>`_ - Deep learning framework
-
-Forums and Communities
-----------------------
-
-**GitHub**
-
-- `EEGPrep Issues <https://github.com/sccn/eegprep/issues>`_ - Report bugs and ask questions
-
-**EEG Community Lists**
-
-- `EEGLAB mailing list <https://sccn.ucsd.edu/mailman/listinfo/eeglablist>`_ - EEG and neuroimaging discussions
-
-**Stack Overflow**
-
-- `EEG Tag <https://stackoverflow.com/questions/tagged/eeg>`_ - EEG-related questions
-- `Signal Processing Tag <https://stackoverflow.com/questions/tagged/signal-processing>`_ - Signal processing questions
-
-**Reddit**
-
-- `r/neuroscience <https://www.reddit.com/r/neuroscience/>`_ - Neuroscience community
-- `r/MachineLearning <https://www.reddit.com/r/MachineLearning/>`_ - Machine learning discussions
-
-Datasets
---------
-
-**Public EEG Datasets**
-
-- `OpenNeuro <https://openneuro.org/>`_ - Open neuroimaging datasets in BIDS format
-- `PhysioNet <https://physionet.org/>`_ - Biomedical signal databases
-- `EEG Motor Movement/Imagery Dataset <https://physionet.org/content/eegmmidb/1.0.0/>`_ - Motor imagery EEG data
-
-Citation Information
-====================
-
-How to Cite EEGPrep
--------------------
-
-If you use EEGPrep in your research, please cite it as:
-
-**BibTeX**:
-
-.. code-block:: bibtex
-
-    @software{eegprep2024,
-      title={EEGPrep: A comprehensive Python EEG preprocessing pipeline},
-      author={EEGPrep Contributors},
-      year={2024},
-      url={https://github.com/sccn/eegprep}
-    }
-
-**APA Format**:
-
-EEGPrep Contributors. (2024). EEGPrep: A comprehensive Python EEG preprocessing pipeline. Retrieved from https://github.com/sccn/eegprep
-
-**Chicago Format**:
-
-EEGPrep Contributors. "EEGPrep: A comprehensive Python EEG preprocessing pipeline." Accessed 2024. https://github.com/sccn/eegprep.
-
-Citing Dependencies
--------------------
-
-If you use specific algorithms, please also cite the original papers:
-
-**For ASR (Artifact Subspace Reconstruction)**:
-
-.. code-block:: bibtex
-
-    @article{kothe2013bcilab,
-      title={BCILAB: a platform for brain--computer interface development},
-      author={Kothe, Christian A and Makeig, Scott},
-      journal={Journal of Neural Engineering},
-      volume={10},
-      number={5},
-      pages={056014},
-      year={2013},
-      publisher={IOP Publishing}
-    }
-
-**For ICLabel**:
-
-.. code-block:: bibtex
-
-    @article{pion2019iclabel,
-      title={ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation},
-      author={Pion-Tonachini, Luca and Kreutz-Delgado, Kenneth and Makeig, Scott},
-      journal={NeuroImage},
-      volume={198},
-      pages={181--197},
-      year={2019},
-      publisher={Elsevier}
-    }
-
-**For EEGLAB**:
-
-.. code-block:: bibtex
-
-    @article{delorme2004eeglab,
-      title={EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis},
-      author={Delorme, Arnaud and Makeig, Scott},
-      journal={Journal of Neuroscience Methods},
-      volume={134},
-      number={1},
-      pages={9--21},
-      year={2004},
-      publisher={Elsevier}
-    }
-
-Acknowledgments
-===============
-
-Contributors
-------------
-
-EEGPrep is developed and maintained by SCCN contributors and the EEG research community. We thank all contributors who have helped improve the project through code contributions, bug reports, and feedback.
-
-Funding
--------
-
-EEGPrep development has been supported by:
-
-- SCCN and EEG community contributors
-- Open-source software initiatives
-- Academic institutions
-
-Inspiration and Acknowledgments
--------------------------------
-
-EEGPrep builds upon the excellent work of:
-
-- **EEGLAB**: For pioneering EEG preprocessing and analysis tools
-- **MNE-Python**: For comprehensive neuroimaging analysis
-- **Fieldtrip**: For robust signal processing methods
-- **Brainstorm**: For user-friendly neuroimaging software
-
-We acknowledge the neuroscience and signal processing communities for their contributions to EEG analysis methods.
-
-Related Publications Using EEGPrep
-==================================
-
-If you've published research using EEGPrep, we'd love to hear about it! Please open an issue or discussion on GitHub to share your work.
-
-Getting Help with References
-=============================
-
-- Check the :doc:`user_guide/index` for implementation details
-- Review :doc:`examples/index` for practical examples
-- Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_ for related discussions
-- Contact the maintainers for citation questions
-
-For more information about EEG analysis methods, see the :doc:`/user_guide/glossary` for terminology definitions.
+   <p class="eegprep-cite-actions">
+     <button class="eegprep-cite-copy" data-citation="Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G., Phillips, C., Delorme, A., &amp; Oostenveld, R. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. Scientific Data, 6, 103.">Copy APA</button>
+     <button class="eegprep-cite-copy" data-citation="@article{pernet2019eegbids,&#10;  author = {Pernet, Cyril R. and Appelhoff, Stefan and Gorgolewski, Krzysztof J. and Flandin, Guillaume and Phillips, Christophe and Delorme, Arnaud and Oostenveld, Robert},&#10;  title = {EEG-BIDS, an extension to the brain imaging data structure for electroencephalography},&#10;  journal = {Scientific Data},&#10;  volume = {6},&#10;  pages = {103},&#10;  year = {2019},&#10;  doi = {10.1038/s41597-019-0104-8}&#10;}">Copy BibTeX</button>
+   </p>
