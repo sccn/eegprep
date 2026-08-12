@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -29,7 +30,7 @@ HPC_WRAPPER = PROJECT_ROOT / "tools" / "hpc" / "main.pbs"
 DOCKER_REPO = "arnodelorme/eegprep"
 
 
-def fail(message):
+def fail(message) -> NoReturn:
     print(f"error: {message}", file=sys.stderr)
     sys.exit(1)
 
@@ -61,7 +62,7 @@ def update_hpc_pin(version):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Build and push the EEGPrep Docker image.")
     parser.add_argument("--version", help="override the version tag (default: __version__)")
     parser.add_argument("--no-push", action="store_true", help="build locally without pushing")
     args = parser.parse_args(argv)
