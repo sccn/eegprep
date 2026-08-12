@@ -266,11 +266,11 @@ Cross-References
 
 For more information on specific topics, see:
 
-- :doc:`user_guide/index` - Detailed usage guides
-- :doc:`api/index` - API reference
-- :doc:`examples/index` - Example scripts
-- :doc:`references` - Key publications and resources
-- :doc:`faq` - Frequently asked questions
+- :doc:`index` - Detailed usage guides
+- :doc:`/api/index` - API reference
+- :doc:`/examples/index` - Example scripts
+- :doc:`/references` - Key publications and resources
+- :doc:`/faq` - Frequently asked questions
 
 Additional Resources
 ====================

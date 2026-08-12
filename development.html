@@ -184,8 +184,8 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="glossary.html">
-    Glossary
+  <a class="nav-link nav-internal" href="references.html">
+    References and Citations
   </a>
 </li>
 
@@ -197,13 +197,6 @@
                 </button>
                 <ul id="pst-nav-more-links" class="dropdown-menu">
                     
-<li class=" ">
-  <a class="nav-link dropdown-item nav-internal" href="references.html">
-    References and Citations
-  </a>
-</li>
-
-
 <li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="contributing.html">
     Contributing to EEGPrep
@@ -334,13 +327,6 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="faq.html">
     Frequently Asked Questions
-  </a>
-</li>
-
-
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="glossary.html">
-    Glossary
   </a>
 </li>
 
@@ -587,77 +573,74 @@ this environment.</p>
 </ul>
 <p>Check CI status on GitHub Actions.</p>
 </section>
+<section id="full-pipeline-parity-harness">
+<h3>Full-Pipeline Parity Harness<a class="headerlink" href="#full-pipeline-parity-harness" title="Link to this heading">#</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">tests/</span></code> suite covers parity function by function. End-to-end parity — does
+a complete preprocessing pipeline in EEGPrep reproduce EEGLAB numerically, step
+by step, on real data? — lives in a <strong>separate repository</strong>:
+<a class="reference external" href="https://github.com/sccn/eegprep_parity_test">sccn/eegprep_parity_test</a>.</p>
+<p>It runs the same seven-step pipeline twice, once in EEGPrep and once in
+MATLAB/EEGLAB through the <code class="docutils literal notranslate"><span class="pre">eeglabcompat</span></code> MATLAB Engine bridge, then reports the
+per-step difference for every subject:</p>
+<ol class="arabic simple">
+<li><p>Import (BIDS to EEG, select EEG channels)</p></li>
+<li><p>Average re-reference</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_rawdata</span></code> (ASR)</p></li>
+<li><p>Picard ICA (identity init, deterministic)</p></li>
+<li><p>ICLabel and component removal</p></li>
+<li><p>Spherical-spline interpolation</p></li>
+<li><p>Epoch and baseline</p></li>
+</ol>
+<p>For each step it records <code class="docutils literal notranslate"><span class="pre">max_abs_diff</span></code> and <code class="docutils literal notranslate"><span class="pre">rms_diff</span></code> in microvolts on the
+common channels and minimum length, plus ICA decomposition parity (AMARI
+distance, component correlation) and ICLabel rejection counts. Reference
+summaries are committed in the harness so a run can be checked against a known
+good result with its <code class="docutils literal notranslate"><span class="pre">verify.py</span></code>.</p>
+<section id="why-it-is-not-part-of-tests">
+<h4>Why it is not part of <code class="docutils literal notranslate"><span class="pre">tests/</span></code><a class="headerlink" href="#why-it-is-not-part-of-tests" title="Link to this heading">#</a></h4>
+<ul class="simple">
+<li><p><strong>Data size.</strong> The input is a 13-subject, 64-channel BIDS P300 dataset of about
+790 MB, tracked with Git LFS. That is far too large to vendor into this
+repository.</p></li>
+<li><p><strong>Runtime.</strong> A full run over all subjects and steps takes roughly 45 to 60
+minutes.</p></li>
+<li><p><strong>MATLAB requirement.</strong> The oracle side needs a licensed MATLAB plus the MATLAB
+Engine for Python, with the interpreter architecture matching MATLAB’s, and an
+EEGLAB checkout pointed to by <code class="docutils literal notranslate"><span class="pre">EEGPREP_EEGLAB_ROOT</span></code>.</p></li>
+</ul>
+<p>Bit-level agreement also depends on the NumPy and MATLAB stacks sharing a BLAS
+accumulation order, so results are reproducible per platform pair rather than
+universally. The harness documents the validated combinations.</p>
+<p>Folding a reduced version into <code class="docutils literal notranslate"><span class="pre">tests/</span></code> — one subject, a few steps, behind the
+existing <code class="docutils literal notranslate"><span class="pre">matlab</span></code> and <code class="docutils literal notranslate"><span class="pre">slow</span></code> markers — would be a worthwhile future
+improvement. It is not wired up today.</p>
+</section>
+<section id="running-it">
+<h4>Running it<a class="headerlink" href="#running-it" title="Link to this heading">#</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eegprep_parity_test
+<span class="nb">cd</span><span class="w"> </span>eegprep_parity_test
+uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.11<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MATLABROOT</span><span class="s2">/extern/engines/python&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_EEGLAB_ROOT</span><span class="o">=</span>/path/to/eeglab
+
+python<span class="w"> </span>run_parity.py<span class="w">                 </span><span class="c1"># all subjects, all steps</span>
+python<span class="w"> </span>run_parity.py<span class="w"> </span>sub-005<span class="w"> </span>--steps<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">3</span>
+python<span class="w"> </span>verify.py<span class="w"> </span>summary_new.md<span class="w"> </span>expected_results/summary_arm_R2025a.md
+</pre></div>
+</div>
+<p>Point the harness at the EEGPrep you want to test by installing it into that
+environment, for example <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">/path/to/eegprep</span></code> for a working tree.
+See the harness’s own <code class="docutils literal notranslate"><span class="pre">README.md</span></code> and <code class="docutils literal notranslate"><span class="pre">docs/SETUP.md</span></code> for the validated
+platform combinations and the required EEGLAB patches.</p>
+</section>
+</section>
 </section>
 <section id="eeg-and-session-contracts">
 <h2>EEG And Session Contracts<a class="headerlink" href="#eeg-and-session-contracts" title="Link to this heading">#</a></h2>
-<p>EEGPrep follows EEGLAB’s public data model while keeping Python internals
-explicit and testable. Feature code should treat the following contracts as
-shared foundations rather than per-function conventions.</p>
-<section id="eeg-dictionaries">
-<h3>EEG Dictionaries<a class="headerlink" href="#eeg-dictionaries" title="Link to this heading">#</a></h3>
-<p>Stored EEG dictionaries should be normalized through <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> or an
-<code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> storage helper before other code relies on shape or type
-invariants. The core fields are <code class="docutils literal notranslate"><span class="pre">data</span></code>, <code class="docutils literal notranslate"><span class="pre">nbchan</span></code>, <code class="docutils literal notranslate"><span class="pre">pnts</span></code>, <code class="docutils literal notranslate"><span class="pre">trials</span></code>,
-<code class="docutils literal notranslate"><span class="pre">srate</span></code>, <code class="docutils literal notranslate"><span class="pre">xmin</span></code>, <code class="docutils literal notranslate"><span class="pre">xmax</span></code>, <code class="docutils literal notranslate"><span class="pre">times</span></code>, <code class="docutils literal notranslate"><span class="pre">event</span></code>, <code class="docutils literal notranslate"><span class="pre">urevent</span></code>, <code class="docutils literal notranslate"><span class="pre">epoch</span></code>,
-<code class="docutils literal notranslate"><span class="pre">chanlocs</span></code>, <code class="docutils literal notranslate"><span class="pre">chaninfo</span></code>, <code class="docutils literal notranslate"><span class="pre">history</span></code>, <code class="docutils literal notranslate"><span class="pre">icaact</span></code>, <code class="docutils literal notranslate"><span class="pre">icawinv</span></code>,
-<code class="docutils literal notranslate"><span class="pre">icasphere</span></code>, <code class="docutils literal notranslate"><span class="pre">icaweights</span></code>, and <code class="docutils literal notranslate"><span class="pre">icachansind</span></code>.</p>
-<p>Continuous data is channel-major with shape <code class="docutils literal notranslate"><span class="pre">(nbchan,</span> <span class="pre">pnts)</span></code>. Epoched data
-is channel-major with shape <code class="docutils literal notranslate"><span class="pre">(nbchan,</span> <span class="pre">pnts,</span> <span class="pre">trials)</span></code>. Event latencies and
-user-visible dataset, channel, epoch, and component indices are EEGLAB-style
-1-based values. Python array indexing remains 0-based inside numerical code.</p>
-<p><code class="docutils literal notranslate"><span class="pre">event</span></code> entries should keep EEGLAB-facing <code class="docutils literal notranslate"><span class="pre">latency</span></code> values and, when
-available, <code class="docutils literal notranslate"><span class="pre">urevent</span></code> pointers back to <code class="docutils literal notranslate"><span class="pre">urevent</span></code> entries. <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is the
-original-event table; functions that create, delete, or reorder events must
-state whether they preserve, extend, or rebuild it. <code class="docutils literal notranslate"><span class="pre">epoch</span></code> stores per-epoch
-event metadata for epoched datasets. <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> entries use EEGLAB-style
-channel dictionaries, and <code class="docutils literal notranslate"><span class="pre">chaninfo</span></code> stores global channel-location metadata.
-ICA fields must be cleared or recomputed consistently when data, channel
-order, or channel count changes.</p>
-</section>
-<section id="session-selection">
-<h3>Session Selection<a class="headerlink" href="#session-selection" title="Link to this heading">#</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.CURRENTSET</span></code> is always a Python <code class="docutils literal notranslate"><span class="pre">list[int]</span></code> containing
-EEGLAB-facing 1-based dataset indices. An empty selection is <code class="docutils literal notranslate"><span class="pre">[]</span></code> internally
-and <code class="docutils literal notranslate"><span class="pre">0</span></code> in the console workspace. A single selected dataset is exposed as
-<code class="docutils literal notranslate"><span class="pre">CURRENTSET</span> <span class="pre">==</span> <span class="pre">n</span></code> in the console. Multiple selected datasets are exposed as
-<code class="docutils literal notranslate"><span class="pre">CURRENTSET</span> <span class="pre">==</span> <span class="pre">[n,</span> <span class="pre">...]</span></code>. Selection order is preserved and duplicate dataset
-indices are invalid.</p>
-<p>Read selection state through <code class="docutils literal notranslate"><span class="pre">EEGPrepSession.selected_dataset_indices()</span></code> when
-future STUDY or group-level code needs the current dataset vector. Phase 1a
-defines this read contract only; user-facing multi-selection mutation belongs
-to later feature work.</p>
-</section>
-<section id="history-and-menu-inventory">
-<h3>History And Menu Inventory<a class="headerlink" href="#history-and-menu-inventory" title="Link to this heading">#</a></h3>
-<p>User-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions should support <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and return a
-history command that can be converted to valid <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> input. GUI
-and console code should append each successful command once through
-<code class="docutils literal notranslate"><span class="pre">EEGPrepSession.add_history</span></code> or storage helpers.</p>
-<p>GUI data-changing actions that produce a new EEG dataset, such as resampling,
-filtering, cleaning, epoching, selecting data, rereferencing, interpolation,
-or component removal, should commit through <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code> so the user can
-choose whether to overwrite the current dataset or keep the result as a new
-dataset. Actions that only update metadata, marks, history, ICA fields, or
-STUDY state may store directly when that matches EEGLAB’s callback behavior.</p>
-<p><code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> and the GUI share one session. GUI command echoes should
-show replayable Python input before progress messages or warnings from the same
-action. <code class="docutils literal notranslate"><span class="pre">eegh</span></code> presents history newest-first like EEGLAB while
-<code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLCOM</span></code> remains chronological internally.</p>
-<p>Do not fake EEGLAB’s one-dataset-in-memory <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code> behavior.
-Use <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code>/<code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code> or <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> so saved non-current
-datasets are represented by explicit offloaded disk handles and rehydrated
-through the shared storage path. Unsaved resident datasets must stay resident
-or fail clearly until the user saves them.</p>
-<p>Menu placeholders are machine-readable. Each placeholder action has either a
-target epic phase or an explicit exclusion reason for workflows that cannot be
-packaged in EEGPrep. Runtime package code must not read, import, or shell out
-to <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code>; that tree is only a development parity reference.</p>
-<p>GUI Help buttons and Help-menu topics must resolve to packaged Markdown files
-under <code class="docutils literal notranslate"><span class="pre">src/eegprep/resources/help</span></code>. Do not fall back to the vendored EEGLAB
-tree or Python docstrings at runtime. When adding a new implemented
-GUI-reachable <code class="docutils literal notranslate"><span class="pre">pop_*</span></code>/<code class="docutils literal notranslate"><span class="pre">eeg_*</span></code> action, add its help resource and extend the
-menu/help resource inventory tests.</p>
-</section>
+<p>The EEG dictionary, session-selection, and history contracts that feature code
+must honor are documented for users and extension authors in
+<a class="reference internal" href="user_guide/contracts.html#contracts"><span class="std std-ref">EEG and Session Contracts</span></a>.</p>
 </section>
 <section id="eeglab-core-parity-matrix">
 <h2>EEGLAB Core Parity Matrix<a class="headerlink" href="#eeglab-core-parity-matrix" title="Link to this heading">#</a></h2>
@@ -1027,14 +1010,14 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-tests">Running Tests</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous Integration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-pipeline-parity-harness">Full-Pipeline Parity Harness</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#why-it-is-not-part-of-tests">Why it is not part of <code class="docutils literal notranslate"><span class="pre">tests/</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#running-it">Running it</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-and-session-contracts">EEG And Session Contracts</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-dictionaries">EEG Dictionaries</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#session-selection">Session Selection</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#history-and-menu-inventory">History And Menu Inventory</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-and-session-contracts">EEG And Session Contracts</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab-core-parity-matrix">EEGLAB Core Parity Matrix</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab-final-standalone-parity-matrix">EEGLAB Final Standalone Parity Matrix</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#building-documentation">Building Documentation</a><ul class="nav section-nav flex-column">

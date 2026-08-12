@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Example Gallery &#8212; EEGPrep manual</title>
+    <title>EEG and Session Contracts &#8212; EEGPrep manual</title>
   
   
   
@@ -58,13 +58,13 @@
     <script src="../_static/togglebutton.js?v=b8b12719"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/index';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/contracts';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Artifact Removal Methods Comparison" href="plot_artifact_removal.html" />
-    <link rel="prev" title="Examples" href="../examples/index.html" />
+    <link rel="next" title="Glossary" href="glossary.html" />
+    <link rel="prev" title="Concepts Guide" href="concepts.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -155,14 +155,14 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../user_guide/index.html">
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
     User Guide
   </a>
 </li>
 
 
-<li class="nav-item current active">
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
   </a>
@@ -273,6 +273,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -299,14 +303,14 @@
 <nav>
   <ul class="bd-navbar-elements navbar-nav">
     
-<li class="nav-item ">
-  <a class="nav-link nav-internal" href="../user_guide/index.html">
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
     User Guide
   </a>
 </li>
 
 
-<li class="nav-item current active">
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../examples/index.html">
     Examples
   </a>
@@ -417,17 +421,49 @@
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Example Gallery:</span></p>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Example Gallery</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="plot_artifact_removal.html">Artifact Removal Methods Comparison</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_basic_preprocessing.html">Basic EEG Preprocessing Workflow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_bids_pipeline.html">BIDS Dataset Preprocessing Pipeline</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_channel_interpolation.html">Channel Interpolation for Bad Channel Recovery</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_ica_and_iclabel.html">ICA Decomposition and ICLabel Classification</a></li>
-<li class="toctree-l2"><a class="reference internal" href="plot_public_api_and_plugins.html">Public API, Plugins, and Console Session</a></li>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts Guide</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">EEG and Session Contracts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="glossary.html">Glossary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eeglab_migration.html">EEGLAB Migration Notes</a></li>
 </ul>
-</details></li>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_console_session.html">GUI and Console Together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_tutorials.html">GUI Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_console.html">Interactive Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="agent_cli.html">Agent-Friendly EEGPrep CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scripting_workflows.html">Scripting Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mne_integration.html">MNE-Python Integration</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_pipeline.html">Preprocessing Pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_rejection.html">ICA, ICLabel, Rejection, and Visual Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="eegbrowser.html">EEGBrowser Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids_workflow.html">BIDS Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Large-Dataset Storage</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugins.html">Bundled Plugins and Extensions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">External Extensions</a></li>
+
+
+
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="extension_curation.html">Extension Curation and Catalog Policy</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="gui_help_menus.html">GUI and Help Menus</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="visual_parity.html">Visual Parity Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_topics.html">Advanced Topics</a></li>
 </ul>
 </div>
 </nav></div>
@@ -462,9 +498,9 @@
       </a>
     </li>
     
-    <li class="breadcrumb-item"><a href="../examples/index.html" class="nav-link">Examples</a></li>
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">User Guide</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Example Gallery</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">EEG and Session Contracts</span></li>
   </ul>
 </nav>
 </div>
@@ -481,18 +517,77 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="example-gallery">
-<span id="auto-examples"></span><h1>Example Gallery<a class="headerlink" href="#example-gallery" title="Link to this heading">#</a></h1>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="plot_artifact_removal.html">Artifact Removal Methods Comparison</a></li>
-<li class="toctree-l1"><a class="reference internal" href="plot_basic_preprocessing.html">Basic EEG Preprocessing Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="plot_bids_pipeline.html">BIDS Dataset Preprocessing Pipeline</a></li>
-<li class="toctree-l1"><a class="reference internal" href="plot_channel_interpolation.html">Channel Interpolation for Bad Channel Recovery</a></li>
-<li class="toctree-l1"><a class="reference internal" href="plot_ica_and_iclabel.html">ICA Decomposition and ICLabel Classification</a></li>
-<li class="toctree-l1"><a class="reference internal" href="plot_public_api_and_plugins.html">Public API, Plugins, and Console Session</a></li>
-</ul>
+  <section id="eeg-and-session-contracts">
+<span id="contracts"></span><h1>EEG and Session Contracts<a class="headerlink" href="#eeg-and-session-contracts" title="Link to this heading">#</a></h1>
+<p>EEGPrep follows EEGLAB’s public data model while keeping Python internals
+explicit and testable. These are the shared guarantees you can rely on across
+functions, whether you are scripting against EEGPrep or extending it. For an
+introduction to the field names and shapes themselves, read <a class="reference internal" href="concepts.html#concepts"><span class="std std-ref">Concepts Guide</span></a>
+first.</p>
+<section id="eeg-dictionaries">
+<h2>EEG Dictionaries<a class="headerlink" href="#eeg-dictionaries" title="Link to this heading">#</a></h2>
+<p>Stored EEG dictionaries are normalized through <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> or an
+<code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> storage helper before other code relies on shape or type
+invariants. If you build a dataset dictionary by hand, pass it through
+<code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> before handing it to other functions.</p>
+<p><code class="docutils literal notranslate"><span class="pre">event</span></code> entries keep EEGLAB-facing <code class="docutils literal notranslate"><span class="pre">latency</span></code> values and, when available,
+<code class="docutils literal notranslate"><span class="pre">urevent</span></code> pointers back to <code class="docutils literal notranslate"><span class="pre">urevent</span></code> entries. <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is the
+original-event table; functions that create, delete, or reorder events state
+whether they preserve, extend, or rebuild it.</p>
+<p>ICA fields are cleared or recomputed consistently when the data, channel order,
+or channel count changes, so a stale decomposition is never left attached to
+data it no longer describes.</p>
+</section>
+<section id="session-selection">
+<h2>Session Selection<a class="headerlink" href="#session-selection" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.CURRENTSET</span></code> is always a Python <code class="docutils literal notranslate"><span class="pre">list[int]</span></code> of EEGLAB-facing
+1-based dataset indices. The console presents it in EEGLAB’s shape: <code class="docutils literal notranslate"><span class="pre">0</span></code> when
+the selection is empty, <code class="docutils literal notranslate"><span class="pre">n</span></code> for a single dataset, and <code class="docutils literal notranslate"><span class="pre">[n,</span> <span class="pre">...]</span></code> for a
+multi-dataset selection. Selection order is preserved, and duplicate dataset
+indices are invalid.</p>
+<p>Read selection state through <code class="docutils literal notranslate"><span class="pre">EEGPrepSession.selected_dataset_indices()</span></code> when
+you need the current dataset vector, for example in group-level or STUDY code.</p>
+</section>
+<section id="history-and-menu-inventory">
+<h2>History and Menu Inventory<a class="headerlink" href="#history-and-menu-inventory" title="Link to this heading">#</a></h2>
+<p>User-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> functions support <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and return a history
+command that converts to valid <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> input. GUI and console code
+appends each successful command once, through <code class="docutils literal notranslate"><span class="pre">EEGPrepSession.add_history</span></code> or
+a storage helper, so history never double-records an action.</p>
+<p>GUI actions that produce a new EEG dataset — resampling, filtering, cleaning,
+epoching, selecting data, rereferencing, interpolation, component removal —
+commit through <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>, so you choose whether to overwrite the current
+dataset or keep the result as a new one. Actions that only update metadata,
+marks, history, ICA fields, or STUDY state may store directly, matching
+EEGLAB’s callback behavior.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> and the GUI share one session. GUI command echoes show
+replayable Python input before progress messages or warnings from the same
+action. <code class="docutils literal notranslate"><span class="pre">eegh</span></code> presents history newest-first like EEGLAB, while
+<code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLCOM</span></code> stays chronological internally.</p>
+<p>EEGPrep does not emulate EEGLAB’s one-dataset-in-memory <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code>
+behavior. Saved non-current datasets are represented by explicit offloaded disk
+handles and rehydrated through the shared storage path via <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code> and
+<code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code>. Unsaved resident datasets stay resident, or fail clearly,
+until you save them.</p>
+</section>
+<section id="standalone-runtime-boundary">
+<h2>Standalone Runtime Boundary<a class="headerlink" href="#standalone-runtime-boundary" title="Link to this heading">#</a></h2>
+<p>Runtime package code never reads, imports, or shells out to
+<code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code>; that tree is a development parity reference only. GUI
+Help buttons and Help-menu topics resolve to packaged Markdown files under
+<code class="docutils literal notranslate"><span class="pre">src/eegprep/resources/help</span></code> rather than falling back to the vendored EEGLAB
+tree or Python docstrings.</p>
+<p>Menu placeholders are machine-readable: each placeholder action carries either a
+target epic phase or an explicit exclusion reason for workflows that cannot be
+packaged in EEGPrep.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Extending EEGPrep? When you add an implemented GUI-reachable <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> or
+<code class="docutils literal notranslate"><span class="pre">eeg_*</span></code> action, add its help resource under
+<code class="docutils literal notranslate"><span class="pre">src/eegprep/resources/help</span></code> and extend the menu and help-resource
+inventory tests. See <a class="reference internal" href="../development.html#development"><span class="std std-ref">Development Setup</span></a> for the test layout.</p>
 </div>
+</section>
 </section>
 
 
@@ -506,20 +601,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../examples/index.html"
+       href="concepts.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Examples</p>
+        <p class="prev-next-title">Concepts Guide</p>
       </div>
     </a>
     <a class="right-next"
-       href="plot_artifact_removal.html"
+       href="glossary.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Artifact Removal Methods Comparison</p>
+        <p class="prev-next-title">Glossary</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -529,6 +624,27 @@
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-dictionaries">EEG Dictionaries</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#session-selection">Session Selection</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-and-menu-inventory">History and Menu Inventory</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#standalone-runtime-boundary">Standalone Runtime Boundary</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>
