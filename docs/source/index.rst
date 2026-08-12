@@ -89,6 +89,7 @@ Manual
 
    contributing
    development
+   releasing
    changelog
 
 Five-Minute Script

@@ -5,6 +5,15 @@ Release script for eegprep package.
 This script helps maintainers create test and production releases with
 appropriate checks and git tagging.
 
+Version source:
+    `pyproject.toml` declares `dynamic = ["version"]`, so the single source of
+    truth is `__version__` in src/eegprep/__init__.py. That file and the pinned
+    image tag in tools/hpc/main.pbs are what this script rewrites.
+
+Build tool:
+    Builds run through `uv build`. `python -m build` cannot work from this repo,
+    because the `build/` output directory shadows the `build` package on sys.path.
+
 TestPyPI Package Naming:
     TestPyPI releases use the package name 'eegprep_test' to avoid conflicts
     with the existing package owned by a previous maintainer. The production
@@ -37,7 +46,6 @@ import shutil
 import platform
 import re
 from pathlib import Path
-from importlib.util import find_spec
 
 # Use colorama for colored output (already a dependency)
 try:
@@ -57,9 +65,12 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
+# pyproject declares `dynamic = ["version"]` and reads it from this attribute, so
+# __init__.py is the single source of truth for the version.
+VERSION_PATH = PROJECT_ROOT / "src" / "eegprep" / "__init__.py"
 MAIN_PATH = PROJECT_ROOT / "tools" / "hpc" / "main.pbs"
 DIST_DIR = PROJECT_ROOT / "dist"
-DOCKERFILE_PATH = PROJECT_ROOT / "DOCKERFILE"
+DOCKERFILE_NAME = "Dockerfile"
 
 # Test package name for TestPyPI (to avoid conflicts with existing package)
 TESTPYPI_PACKAGE_NAME = "eegprep_test"
@@ -104,18 +115,18 @@ def print_info(text):
 
 
 def get_version():
-    """Extract version from pyproject.toml."""
+    """Extract __version__ from src/eegprep/__init__.py."""
     try:
-        with open(PYPROJECT_PATH, 'r') as f:
-            content = f.read()
-            match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
-            if match:
-                return match.group(1)
+        content = VERSION_PATH.read_text()
     except Exception as e:
-        print_error(f"Failed to read version from pyproject.toml: {e}")
+        print_error(f"Failed to read version from {VERSION_PATH}: {e}")
         sys.exit(1)
 
-    print_error("Could not find version in pyproject.toml")
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+    if match:
+        return match.group(1)
+
+    print_error(f"Could not find __version__ in {VERSION_PATH}")
     sys.exit(1)
 
 
@@ -184,19 +195,27 @@ def check_prerequisites():
             print("Exiting.")
             sys.exit(0)
 
-    # Check for build package
-    if find_spec("build") is None:
-        print_error("Package 'build' is not installed.")
-        print(f"Install with: {Fore.CYAN}{get_install_command('build')}{Style.RESET_ALL}")
+    # Builds go through `uv build`. `python -m build` cannot work from this repo:
+    # PROJECT_ROOT holds a `build/` output directory that shadows the `build`
+    # package on sys.path, so the module resolves to the directory and fails with
+    # "'build' is a package and cannot be directly executed" no matter what is
+    # installed. That shadowing also makes find_spec("build") a false positive.
+    if not UV_AVAILABLE:
+        print_error("uv is required to build the package.")
+        print(f"Install it from: {Fore.CYAN}https://docs.astral.sh/uv/{Style.RESET_ALL}")
         sys.exit(1)
-    print_success("Package 'build' is installed")
+    print_success("uv is available for building")
 
-    # Check for twine
-    if find_spec("twine") is None:
-        print_error("Package 'twine' is not installed.")
+    # Check for twine. Resolve it as a runnable module rather than with find_spec,
+    # so a stale directory or partial install cannot pass the check.
+    twine_probe = subprocess.run(
+        [sys.executable, "-m", "twine", "--version"], cwd=SCRIPT_DIR, capture_output=True, text=True
+    )
+    if twine_probe.returncode != 0:
+        print_error("Package 'twine' is not installed (or not runnable).")
         print(f"Install with: {Fore.CYAN}{get_install_command('twine')}{Style.RESET_ALL}")
         sys.exit(1)
-    print_success("Package 'twine' is installed")
+    print_success(f"twine is available ({twine_probe.stdout.strip().splitlines()[0]})")
 
     # Remind about tests
     print_info("Remember to run tests before releasing!")
@@ -214,60 +233,42 @@ def get_new_version(current_version):
     return new_version
 
 
-def update_version_in_file(file_path, old_version, new_version):
-    """Update version in a file."""
+def replace_once(file_path, old_text, new_text):
+    """Replace the first occurrence of old_text in file_path; report if absent."""
     try:
-        with open(file_path, 'r') as f:
-            content = f.read()
-
-        # Replace version
-        updated_content = content.replace(old_version, new_version)
-
-        with open(file_path, 'w') as f:
-            f.write(updated_content)
-
-        return True
+        content = Path(file_path).read_text()
     except Exception as e:
-        print_error(f"Failed to update version in {file_path}: {e}")
+        print_error(f"Failed to read {file_path}: {e}")
         return False
+
+    if old_text not in content:
+        print_error(f"Expected to find {old_text!r} in {file_path}")
+        return False
+
+    try:
+        Path(file_path).write_text(content.replace(old_text, new_text, 1))
+    except Exception as e:
+        print_error(f"Failed to write {file_path}: {e}")
+        return False
+    return True
 
 
 def update_version_files(old_version, new_version):
-    """Update version in pyproject.toml and the HPC wrapper."""
+    """Update __version__ and the HPC wrapper's pinned image tag."""
     print_step(3, f"Updating version from {old_version} to {new_version}")
 
-    # Update pyproject.toml
-    print_info("Updating pyproject.toml...")
-    cmd = f"sed -i '' 's/version = \"{old_version}\"/version = \"{new_version}\"/' {PYPROJECT_PATH}"
-    print(f"Running: {cmd}")
-    try:
-        subprocess.run(
-            ["sed", "-i", "", f's/version = "{old_version}"/version = "{new_version}"/', str(PYPROJECT_PATH)],
-            cwd=PROJECT_ROOT,
-            check=True,
-        )
-        print_success("Updated pyproject.toml")
-    except subprocess.CalledProcessError:
-        # Fallback to Python method
-        if not update_version_in_file(PYPROJECT_PATH, f'version = "{old_version}"', f'version = "{new_version}"'):
-            return False
-        print_success("Updated pyproject.toml")
+    print_info(f"Updating {VERSION_PATH.relative_to(PROJECT_ROOT)}...")
+    if not replace_once(VERSION_PATH, f'__version__ = "{old_version}"', f'__version__ = "{new_version}"'):
+        return False
+    print_success("Updated __version__")
 
-    # Update HPC wrapper
-    print_info("Updating HPC wrapper...")
-    cmd = f"sed -i '' 's/eegprep:{old_version}/eegprep:{new_version}/g' {MAIN_PATH}"
-    print(f"Running: {cmd}")
-    try:
-        subprocess.run(
-            ["sed", "-i", "", f's/eegprep:{old_version}/eegprep:{new_version}/g', str(MAIN_PATH)],
-            cwd=PROJECT_ROOT,
-            check=True,
-        )
-        print_success("Updated HPC wrapper")
-    except subprocess.CalledProcessError:
-        # Fallback to Python method
-        if not update_version_in_file(MAIN_PATH, f'eegprep:{old_version}', f'eegprep:{new_version}'):
-            return False
+    # The HPC wrapper pins the published image tag, so it must track the version.
+    print_info(f"Updating {MAIN_PATH.relative_to(PROJECT_ROOT)}...")
+    main_text = MAIN_PATH.read_text()
+    if f"eegprep:{old_version}" not in main_text:
+        print_warning(f"No 'eegprep:{old_version}' pin found in {MAIN_PATH.name}; leaving it unchanged")
+    else:
+        MAIN_PATH.write_text(main_text.replace(f"eegprep:{old_version}", f"eegprep:{new_version}"))
         print_success("Updated HPC wrapper")
 
     return True
@@ -277,10 +278,10 @@ def commit_version_changes(version):
     """Commit version changes."""
     print_step(4, "Committing version changes")
 
-    cmd = f"git add {PYPROJECT_PATH} {MAIN_PATH}"
+    cmd = f"git add {VERSION_PATH} {MAIN_PATH}"
     print(f"Running: {cmd}")
     try:
-        subprocess.run(["git", "add", str(PYPROJECT_PATH), str(MAIN_PATH)], cwd=PROJECT_ROOT, check=True)
+        subprocess.run(["git", "add", str(VERSION_PATH), str(MAIN_PATH)], cwd=PROJECT_ROOT, check=True)
         print_success("Staged version files")
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to stage files: {e}")
@@ -343,10 +344,10 @@ def build_package(package_name=None):
             if not set_package_name(package_name):
                 return False
 
-    cmd = f"{sys.executable} -m build"
-    print(f"Running: {cmd}")
+    build_cmd = ["uv", "build"]
+    print(f"Running: {' '.join(build_cmd)}")
     try:
-        subprocess.run([sys.executable, "-m", "build"], cwd=PROJECT_ROOT, check=True)
+        subprocess.run(build_cmd, cwd=PROJECT_ROOT, check=True)
         print_success("Package built successfully")
 
         # Show what was built
@@ -373,6 +374,19 @@ def build_package(package_name=None):
         return False
 
 
+def dist_files():
+    """Return the built artifacts as explicit paths.
+
+    The shell is not involved when running through subprocess, so a literal
+    "dist/*" argument would not be expanded here.
+    """
+    files = sorted(str(p) for p in DIST_DIR.glob("*") if p.suffix in {".whl", ".gz"})
+    if not files:
+        print_error(f"No artifacts found in {DIST_DIR}. Build first.")
+        sys.exit(1)
+    return files
+
+
 def upload_to_testpypi():
     """Upload to TestPyPI using the test package name."""
     print_header("Uploading to TestPyPI")
@@ -381,7 +395,7 @@ def upload_to_testpypi():
     print_info("This avoids conflicts with existing packages on TestPyPI")
 
     # Build command with optional token
-    cmd = [sys.executable, "-m", "twine", "upload", "--repository", "testpypi", "dist/*"]
+    cmd = [sys.executable, "-m", "twine", "upload", "--repository", "testpypi", *dist_files()]
 
     # Check if token is provided via environment variable
     token = os.environ.get("TWINE_PASSWORD_TESTPYPI") or os.environ.get("TESTPYPI_TOKEN")
@@ -409,9 +423,8 @@ def upload_to_pypi():
     """Upload to PyPI."""
     print_step(6, "Uploading to PyPI")
 
-    # Build command with optional token
-    cmd = f"{sys.executable} -m twine upload dist/*"
-    print(f"Running: {cmd}")
+    cmd = [sys.executable, "-m", "twine", "upload", *dist_files()]
+    print(f"Running: {' '.join(cmd)}")
 
     # Check if token is provided via environment variable
     token = os.environ.get("TWINE_PASSWORD") or os.environ.get("PYPI_TOKEN")
@@ -426,7 +439,7 @@ def upload_to_pypi():
         env = None
 
     try:
-        subprocess.run([sys.executable, "-m", "twine", "upload", "dist/*"], cwd=PROJECT_ROOT, check=True, env=env)
+        subprocess.run(cmd, cwd=PROJECT_ROOT, check=True, env=env)
         print_success("Uploaded to PyPI successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -456,7 +469,8 @@ def create_and_push_tag(version):
     """Create and push git tag for production release."""
     print_step(8, "Creating and pushing git tag")
 
-    tag_name = f"{version}"
+    # Match the newest published tags, which carry the `v` prefix (v0.2.23).
+    tag_name = f"v{version}"
 
     # Create tag
     cmd = f'git tag -a {tag_name} -m "Release version {version}"'
@@ -486,12 +500,13 @@ def build_and_push_docker(version):
     """Build and push Docker image."""
     print_step(9, "Building and pushing Docker image")
 
-    # Build Docker image
-    cmd = f"docker build -t eegprep:{version} -f DOCKERFILE ."
+    # Build Docker image. Use the tracked filename's exact casing: macOS is
+    # case-insensitive so "DOCKERFILE" resolves locally, but it fails on Linux.
+    cmd = f"docker build -t eegprep:{version} -f {DOCKERFILE_NAME} ."
     print(f"Running: {cmd}")
     try:
         subprocess.run(
-            ["docker", "build", "-t", f"eegprep:{version}", "-f", "DOCKERFILE", "."], cwd=PROJECT_ROOT, check=True
+            ["docker", "build", "-t", f"eegprep:{version}", "-f", DOCKERFILE_NAME, "."], cwd=PROJECT_ROOT, check=True
         )
         print_success(f"Built Docker image: eegprep:{version}")
     except subprocess.CalledProcessError as e:
@@ -592,6 +607,13 @@ def main():
     # Run other checks
     check_prerequisites()
 
+    choice = choose_release_type()
+    if choice == 'q':
+        print("Exiting.")
+        sys.exit(0)
+    do_test = choice in ('a', 'c')
+    do_prod = choice in ('b', 'c')
+
     # Step 2: Get current version and ask for new version
     current_version = get_version()
     new_version = get_new_version(current_version)
@@ -600,25 +622,43 @@ def main():
     if not update_version_files(current_version, new_version):
         sys.exit(1)
 
-    # Step 4: Commit version changes
-    if not commit_version_changes(new_version):
-        sys.exit(1)
+    # Step 4: Commit version changes. A TestPyPI-only run is a throwaway upload, so
+    # it does not get a release commit; the bumped files are left in the worktree.
+    if do_prod:
+        if not commit_version_changes(new_version):
+            sys.exit(1)
+    else:
+        print_warning("Test-only release: version files were bumped but NOT committed.")
+
+    # Step 5: TestPyPI leg, built under the test package name
+    if do_test:
+        if not build_package(TESTPYPI_PACKAGE_NAME):
+            sys.exit(1)
+        if not upload_to_testpypi():
+            sys.exit(1)
+        if do_prod:
+            response = input("\nTestPyPI upload done. Continue to production PyPI? [y/N]: ").strip().lower()
+            if response != 'y':
+                print("Stopping before production release.")
+                print_test_instructions(new_version, 'test')
+                return
 
     # Step 5-9: Build, upload to PyPI, push changes, tag, and Docker
-    if not build_package():
-        sys.exit(1)
+    if do_prod:
+        if not build_package():
+            sys.exit(1)
 
-    if not upload_to_pypi():
-        sys.exit(1)
+        if not upload_to_pypi():
+            sys.exit(1)
 
-    if not push_git_changes():
-        sys.exit(1)
+        if not push_git_changes():
+            sys.exit(1)
 
-    if not create_and_push_tag(new_version):
-        sys.exit(1)
+        if not create_and_push_tag(new_version):
+            sys.exit(1)
 
-    if not build_and_push_docker(new_version):
-        print_warning("Docker build/push failed, but continuing...")
+        if not build_and_push_docker(new_version):
+            print_warning("Docker build/push failed, but continuing...")
 
     # Print summary
     print_header("Release Summary")
@@ -626,8 +666,9 @@ def main():
 
     # Reminder about brainlife online
     print_step(10, "Next Steps")
-    print_warning("REMINDER: Update the default app option on brainlife online")
-    print_test_instructions(new_version, 'prod')
+    if do_prod:
+        print_warning("REMINDER: Update the default app option on brainlife online")
+    print_test_instructions(new_version, 'both' if (do_test and do_prod) else ('prod' if do_prod else 'test'))
 
 
 if __name__ == "__main__":
