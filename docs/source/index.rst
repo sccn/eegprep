@@ -126,7 +126,7 @@ Where EEGLAB Users Should Go First
      - :doc:`user_guide/gui_console_session`, :doc:`user_guide/gui_tutorials`,
        and :doc:`user_guide/interactive_console`
    * - ``pop_*`` scripts
-     - :doc:`user_guide/scripting_workflows` and :doc:`api/pop_functions`
+     - :doc:`user_guide/scripting_workflows` and :doc:`api/interactive_pop_workflows`
    * - clean_rawdata, FIRFilt, ICLabel, DIPFIT, EEG-BIDS
      - :doc:`user_guide/plugins`
    * - EEGBrowser and visual rejection

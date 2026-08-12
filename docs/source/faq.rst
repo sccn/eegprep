@@ -1,8 +1,8 @@
 .. _faq:
 
-==========================
-Frequently Asked Questions
-==========================
+===
+FAQ
+===
 
 Installation FAQ
 ================
