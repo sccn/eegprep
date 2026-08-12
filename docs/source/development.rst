@@ -471,72 +471,16 @@ Run with:
 Release Process
 ===============
 
-Version Numbering
------------------
+Releases are published by ``.github/workflows/release.yml`` when a ``v*`` tag is
+pushed. See :ref:`releasing` for the full procedure, including the dry run and the
+separate Docker image step.
 
-EEGPrep uses `Semantic Versioning <https://semver.org/>`_:
+EEGPrep uses `Semantic Versioning <https://semver.org/>`_: **MAJOR** for
+incompatible API changes, **MINOR** for backward-compatible functionality, and
+**PATCH** for backward-compatible bug fixes.
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New functionality (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
-
-Example: ``1.2.3`` (Major.Minor.Patch)
-
-Versioning Steps
-----------------
-
-1. Update version in ``src/eegprep/__init__.py``:
-
-.. code-block:: python
-
-    __version__ = "1.2.3"
-
-2. Update version in ``pyproject.toml``:
-
-.. code-block:: toml
-
-    [project]
-    version = "1.2.3"
-
-3. Update ``docs/source/changelog.rst`` with release notes
-
-4. Commit changes:
-
-.. code-block:: bash
-
-    git add .
-    git commit -m "Release version 1.2.3"
-
-Tagging
--------
-
-Create a git tag for the release:
-
-.. code-block:: bash
-
-    git tag -a v1.2.3 -m "Release version 1.2.3"
-    git push origin v1.2.3
-
-PyPI Release
-------------
-
-Build distribution packages:
-
-.. code-block:: bash
-
-    uv run --group release python -m build
-
-Upload to PyPI:
-
-.. code-block:: bash
-
-    uv run --group release python -m twine upload dist/*
-
-Or upload to TestPyPI first:
-
-.. code-block:: bash
-
-    uv run --group release python -m twine upload --repository testpypi dist/*
+The version lives only in ``src/eegprep/__init__.py``; ``pyproject.toml`` reads it
+via ``dynamic = ["version"]``.
 
 Common Issues
 =============
