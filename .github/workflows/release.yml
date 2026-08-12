@@ -42,6 +42,25 @@ jobs:
       - name: Install Python 3.11
         run: uv python install 3.11
 
+      - name: Install Linux GUI runtime libraries
+        # PySide6 needs these to import at all; without them the GUI tests fail
+        # with "libEGL.so.1: cannot open shared object file". Mirrors test.yml.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libgl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0
+          echo "QT_QPA_PLATFORM=offscreen" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: uv sync --python 3.11 --all-extras --group dev
 
