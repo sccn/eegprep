@@ -27,6 +27,8 @@ Getting Started
    installation
    quickstart
    concepts
+   contracts
+   glossary
    eeglab_migration
 
 GUI, Console, and Scripts

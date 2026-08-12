@@ -80,7 +80,6 @@ Manual
 
    api/index
    faq
-   glossary
    references
 
 .. toctree::
