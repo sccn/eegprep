@@ -116,4 +116,3 @@ docs/_build/
 docs/source/auto_examples/
 # Autosummary stub pages are build output, regenerated on every docs build.
 docs/source/api/generated/
-!docs/source/auto_examples/index.rst

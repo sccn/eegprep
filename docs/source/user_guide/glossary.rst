@@ -268,7 +268,7 @@ For more information on specific topics, see:
 
 - :doc:`index` - Detailed usage guides
 - :doc:`/api/index` - API reference
-- :doc:`/examples/index` - Example scripts
+- :doc:`/auto_examples/index` - Example scripts
 - :doc:`/references` - Key publications and resources
 - :doc:`/faq` - Frequently asked questions
 

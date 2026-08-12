@@ -340,7 +340,7 @@ Getting Help
 ============
 
 - **Documentation**: Check the :doc:`user_guide/index` and :doc:`api/index`
-- **Examples**: See :doc:`examples/index` for practical examples
+- **Examples**: See :doc:`/auto_examples/index` for practical examples
 - **Issues**: Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - **Discussions**: Join our community discussions on GitHub
 

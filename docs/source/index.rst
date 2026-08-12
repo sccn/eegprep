@@ -72,7 +72,7 @@ Manual
    :caption: Workflows
 
    user_guide/index
-   examples/index
+   auto_examples/index
 
 .. toctree::
    :maxdepth: 2

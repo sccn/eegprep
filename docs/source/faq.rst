@@ -468,7 +468,7 @@ Getting Help
 ============
 
 - Check the :doc:`user_guide/index`
-- Review :doc:`examples/index`
+- Review :doc:`/auto_examples/index`
 - Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - Ask in GitHub Discussions
 - Contact the maintainers
