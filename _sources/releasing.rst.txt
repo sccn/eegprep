@@ -4,7 +4,10 @@
 Releasing
 =========
 
-How to publish a new EEGPrep release to PyPI. For maintainers.
+For maintainers. Releases are published by ``.github/workflows/release.yml``,
+triggered by pushing a ``v*`` tag. That is the only path to PyPI; there is no
+separate local publishing route. You drive it from your machine with ``git`` and
+``gh``, as below.
 
 The version lives in one place
 ==============================
@@ -16,25 +19,55 @@ The version lives in one place
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
 there is no version string to edit in ``pyproject.toml``.
 
-Recommended: tag and let CI publish
-===================================
+Release from your machine
+=========================
 
-``.github/workflows/release.yml`` publishes to PyPI when a ``v*`` tag is pushed,
-using PyPI Trusted Publishing, so no API token is stored in the repository.
+**1. Dry run first.** This runs the whole pipeline except publishing, so you find
+problems before a tag exists:
 
 .. code-block:: bash
 
-   # 1. bump __version__ in src/eegprep/__init__.py
-   git commit -am "release: 0.3.0"
+   gh workflow run release.yml --ref master -f dry_run=true
+   gh run watch "$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
 
-   # 2. land it on master
+**2. Bump the version** in ``src/eegprep/__init__.py``, then commit and land it on
+``master``:
+
+.. code-block:: bash
+
+   git commit -am "release: 0.3.0"
    git checkout master && git merge --no-ff develop && git push origin master
 
-   # 3. tag — this triggers the release
+.. tip::
+
+   If ``master`` is strictly behind ``develop``, ``git push origin develop:master``
+   fast-forwards it without checking out ``master``. Useful when you have local
+   changes — for example a modified ``src/eegprep/eeglab`` submodule — that would
+   block the checkout.
+
+**3. Tag and push.** Pushing the tag starts the release:
+
+.. code-block:: bash
+
    git tag -a v0.3.0 -m "Release version 0.3.0"
    git push origin v0.3.0
 
-The workflow runs four jobs in order:
+**4. Watch it.** Nothing reaches PyPI unless every check passes:
+
+.. code-block:: bash
+
+   gh run watch "$(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+
+If it fails, inspect and fix:
+
+.. code-block:: bash
+
+   gh run view --log-failed
+
+**5. Add a section to** :ref:`changelog`.
+
+What the workflow does
+======================
 
 1. **verify** — ``ruff check``, ``ruff format --check``, ``ty check``, and the full
    test suite with ``EEGPREP_SKIP_MATLAB=1``.
@@ -42,11 +75,9 @@ The workflow runs four jobs in order:
    the vendored EEGLAB checkout is absent from both artifacts, that packaged data
    (ICLabel weights, help resources) is present, that ``twine check --strict``
    passes, and that the built wheel installs and imports.
-3. **publish** — uploads to PyPI via Trusted Publishing.
+3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
+   stored in the repository.
 4. **github-release** — creates the GitHub release with the artifacts attached.
-
-To exercise the build and all its checks without publishing, run the workflow
-manually from the Actions tab; its ``dry_run`` input defaults to true.
 
 .. note::
 
@@ -54,43 +85,38 @@ manually from the Actions tab; its ``dry_run`` input defaults to true.
    *Manage project → Publishing → Add a new publisher*: owner ``sccn``, repository
    ``eegprep``, workflow ``release.yml``, environment ``pypi``.
 
-Alternative: the local script
-=============================
+If a tag was pushed at a bad commit
+===================================
 
-``scripts/make_release.py`` does an interactive release from your machine, and is
-the only path that also builds and pushes the Docker image.
+Fix the problem, then move the tag. This is safe only while the tag published
+nothing; once a version is on PyPI it can never be replaced.
 
 .. code-block:: bash
 
-   uv sync --group release
-   uv run python scripts/make_release.py
+   git push origin :refs/tags/v0.3.0     # delete the remote tag
+   git tag -f v0.3.0 && git push origin v0.3.0
 
-It prompts for the release type (TestPyPI as ``eegprep_test``, production, or both)
-and the new version, then rewrites ``__version__``, commits, builds, uploads, pushes,
-tags ``v<version>``, and builds the Docker image. Credentials come from ``~/.pypirc``
-or the ``PYPI_TOKEN`` / ``TESTPYPI_TOKEN`` environment variables.
+Docker image
+============
 
-Two things that will trip you up
-================================
+CI does not build Docker images. After the tag is published, build and push the
+image, which also updates the pin in ``tools/hpc/main.pbs``:
 
-**Use** ``uv build``\ **, never** ``python -m build``\ **.** The repository contains a
-``build/`` output directory that shadows the ``build`` package on ``sys.path``, so
-``python -m build`` fails with "'build' is a package and cannot be directly executed"
-no matter what is installed.
+.. code-block:: bash
 
-**Clear** ``dist/`` **before building by hand.** It can hold artifacts from an earlier
-version, and ``twine upload dist/*`` would pick them up. Both the workflow and the
-script clear it for you; only ad-hoc commands are exposed.
+   docker login
+   uv run python scripts/build_docker.py
+
+Commit the updated pin. Use ``--no-push`` to build without publishing.
 
 .. warning::
 
    PyPI uploads are immutable. A version number can never be reused, even after the
-   release is deleted. Let the workflow's checks run before publishing.
+   release is deleted. Always dry-run first.
 
-After a release
-===============
+.. note::
 
-- Add a section to :ref:`changelog`.
-- If the Docker image changed, update the ``eegprep:<version>`` pin in
-  ``tools/hpc/main.pbs``. CI does not build Docker images; only the local script does.
-- Update the default app option on brainlife if the release affects it.
+   Build with ``uv build``, never ``python -m build``. The repository contains a
+   ``build/`` output directory that shadows the ``build`` package on ``sys.path``, so
+   ``python -m build`` fails with "'build' is a package and cannot be directly
+   executed" no matter what is installed.

@@ -886,63 +886,14 @@ uv<span class="w"> </span>run<span class="w"> </span>make<span class="w"> </span
 </section>
 <section id="release-process">
 <h2>Release Process<a class="headerlink" href="#release-process" title="Link to this heading">#</a></h2>
-<section id="version-numbering">
-<h3>Version Numbering<a class="headerlink" href="#version-numbering" title="Link to this heading">#</a></h3>
-<p>EEGPrep uses <a class="reference external" href="https://semver.org/">Semantic Versioning</a>:</p>
-<ul class="simple">
-<li><p><strong>MAJOR</strong>: Incompatible API changes</p></li>
-<li><p><strong>MINOR</strong>: New functionality (backward compatible)</p></li>
-<li><p><strong>PATCH</strong>: Bug fixes (backward compatible)</p></li>
-</ul>
-<p>Example: <code class="docutils literal notranslate"><span class="pre">1.2.3</span></code> (Major.Minor.Patch)</p>
-</section>
-<section id="versioning-steps">
-<h3>Versioning Steps<a class="headerlink" href="#versioning-steps" title="Link to this heading">#</a></h3>
-<ol class="arabic simple">
-<li><p>Update version in <code class="docutils literal notranslate"><span class="pre">src/eegprep/__init__.py</span></code>:</p></li>
-</ol>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.2.3&quot;</span>
-</pre></div>
-</div>
-<ol class="arabic simple" start="2">
-<li><p>Update version in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>:</p></li>
-</ol>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[project]</span>
-<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;1.2.3&quot;</span>
-</pre></div>
-</div>
-<ol class="arabic simple" start="3">
-<li><p>Update <code class="docutils literal notranslate"><span class="pre">docs/source/changelog.rst</span></code> with release notes</p></li>
-<li><p>Commit changes:</p></li>
-</ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>.
-git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release version 1.2.3&quot;</span>
-</pre></div>
-</div>
-</section>
-<section id="tagging">
-<h3>Tagging<a class="headerlink" href="#tagging" title="Link to this heading">#</a></h3>
-<p>Create a git tag for the release:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v1.2.3<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release version 1.2.3&quot;</span>
-git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v1.2.3
-</pre></div>
-</div>
-</section>
-<section id="pypi-release">
-<h3>PyPI Release<a class="headerlink" href="#pypi-release" title="Link to this heading">#</a></h3>
-<p>Build distribution packages:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>release<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>build
-</pre></div>
-</div>
-<p>Upload to PyPI:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>release<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>twine<span class="w"> </span>upload<span class="w"> </span>dist/*
-</pre></div>
-</div>
-<p>Or upload to TestPyPI first:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>release<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>twine<span class="w"> </span>upload<span class="w"> </span>--repository<span class="w"> </span>testpypi<span class="w"> </span>dist/*
-</pre></div>
-</div>
-</section>
+<p>Releases are published by <code class="docutils literal notranslate"><span class="pre">.github/workflows/release.yml</span></code> when a <code class="docutils literal notranslate"><span class="pre">v*</span></code> tag is
+pushed. See <a class="reference internal" href="releasing.html#releasing"><span class="std std-ref">Releasing</span></a> for the full procedure, including the dry run and the
+separate Docker image step.</p>
+<p>EEGPrep uses <a class="reference external" href="https://semver.org/">Semantic Versioning</a>: <strong>MAJOR</strong> for
+incompatible API changes, <strong>MINOR</strong> for backward-compatible functionality, and
+<strong>PATCH</strong> for backward-compatible bug fixes.</p>
+<p>The version lives only in <code class="docutils literal notranslate"><span class="pre">src/eegprep/__init__.py</span></code>; <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> reads it
+via <code class="docutils literal notranslate"><span class="pre">dynamic</span> <span class="pre">=</span> <span class="pre">[&quot;version&quot;]</span></code>.</p>
 </section>
 <section id="common-issues">
 <h2>Common Issues<a class="headerlink" href="#common-issues" title="Link to this heading">#</a></h2>
@@ -1100,13 +1051,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-profiling">Memory Profiling</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-process">Release Process</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version-numbering">Version Numbering</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-steps">Versioning Steps</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tagging">Tagging</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pypi-release">PyPI Release</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-process">Release Process</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues">Common Issues</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#import-errors">Import Errors</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-failures">Test Failures</a></li>
