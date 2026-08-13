@@ -26,6 +26,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure
 from matplotlib.patches import ConnectionPatch
+from matplotlib.ticker import MaxNLocator
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -299,29 +300,33 @@ def _build_figure(
     figure = plt.figure(figsize=(9, 6))
     env_ax = figure.add_axes([0.10, 0.10, 0.80, 0.52] if draw_maps else [0.10, 0.12, 0.85, 0.78])
 
-    env_ax.fill_between(times_ms, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
+    times = np.asarray(times_ms, dtype=float) / 1000.0  # EEGLAB envtopo plots the time axis in seconds
+
+    env_ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
     for position in range(n_topos):
         color = _COMP_COLORS[position % len(_COMP_COLORS)]
-        env_ax.plot(times_ms, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
-        env_ax.plot(times_ms, comp_envelopes[position, 1], color=color, linewidth=1.0, zorder=3)
-    env_ax.plot(times_ms, data_env[0], color="k", linewidth=2.0, zorder=4)
-    env_ax.plot(times_ms, data_env[1], color="k", linewidth=2.0, zorder=4)
+        env_ax.plot(times, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
+        env_ax.plot(times, comp_envelopes[position, 1], color=color, linewidth=1.0, zorder=3)
+    env_ax.plot(times, data_env[0], color="k", linewidth=2.0, zorder=4)
+    env_ax.plot(times, data_env[1], color="k", linewidth=2.0, zorder=4)
 
-    env_ax.set_xlim(float(times_ms[0]), float(times_ms[-1]))
-    env_ax.set_xlabel("Latency (ms)")
+    env_ax.set_xlim(float(times[0]), float(times[-1]))
+    env_ax.set_xlabel("Time (s)")
     env_ax.set_ylabel("RMS (µV)" if str(envmode).lower() == "rms" else "Potential (µV)")
+    # Denser y-ticks (~5 µV spacing) to match EEGLAB rather than matplotlib's sparse default.
+    env_ax.yaxis.set_major_locator(MaxNLocator(nbins=11, steps=[1, 2, 5, 10], min_n_ticks=8))
     env_ax.grid(True, axis="y", linestyle=":")
-    if times_ms[0] < 0 < times_ms[-1]:
+    if times[0] < 0 < times[-1]:
         env_ax.axvline(0.0, color="k", linewidth=1.5, zorder=2)
     if limcontrib_ms is not None:
         for edge in limcontrib_ms:
-            env_ax.axvline(float(edge), color="k", linestyle=":", linewidth=1.2, zorder=2)
+            env_ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=1.2, zorder=2)
 
     if draw_maps:
         _draw_maps_row(
             figure,
             env_ax,
-            times_ms,
+            times,
             comp_envelopes,
             max_projections,
             plotted_frames,
@@ -338,7 +343,7 @@ def _build_figure(
 def _draw_maps_row(
     figure,
     env_ax,
-    times_ms,
+    times,
     comp_envelopes,
     max_projections,
     plotted_frames,
@@ -357,7 +362,7 @@ def _draw_maps_row(
     options = {"electrodes": "on" if map_w >= 0.12 else "off", "maplimits": "absmax", **(topoplot_options or {})}
 
     for column, source in enumerate(temporal):
-        latency = float(times_ms[plotted_frames[source]])
+        latency = float(times[plotted_frames[source]])
         center = left + slot * (column + 0.5)
         topo_ax = figure.add_axes([center - map_w / 2, top_y, map_w, top_h])
         topoplot(max_projections[plot_channels, source], locs, axes=topo_ax, **options)
