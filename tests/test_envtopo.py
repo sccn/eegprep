@@ -181,6 +181,21 @@ def test_subcomps_are_subtracted_and_excluded_from_selection():
     plt.close(res.figure)
 
 
+def test_plotchans_subset_with_full_chanlocs_draws_maps():
+    """A plotchans subset paired with full chanlocs aligns the maps instead of size-mismatching topoplot."""
+    eeg, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
+    chanlocs = eeg["chanlocs"]  # full 6-channel locations
+    plotchans = [1, 2, 3]  # 1-based subset
+
+    res = envtopo(
+        mean_data, weights, chanlocs=chanlocs, icawinv=icawinv, timerange=timerange, plotchans=plotchans, compsplot=2
+    )
+
+    assert isinstance(res.figure, Figure)
+    assert any(ax.images for ax in res.figure.axes)  # scalp maps were drawn
+    plt.close(res.figure)
+
+
 def test_resolve_subcomps_empty_vs_zero():
     """EEGLAB parity: 0 removes none (the default); [] removes all but the candidate components."""
     candidates = np.array([0, 1])  # 1-based compnums 1,2 of 4 components

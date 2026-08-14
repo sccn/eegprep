@@ -334,6 +334,8 @@ def _build_figure(
     window (EEGLAB ``axcopy``); the ``redraws`` closures reproduce each axes.
     """
     locs = chanlocs_as_list(chanlocs) if chanlocs is not None else []
+    if plot_channels.size < len(locs):  # full chanlocs given with a plotchans subset -> align to plotted channels
+        locs = [locs[int(index)] for index in plot_channels]
     draw_maps = bool(locs)
     n_topos = plotted_labels.size
     times = np.asarray(times_ms, dtype=float) / 1000.0  # EEGLAB envtopo plots the time axis in seconds
