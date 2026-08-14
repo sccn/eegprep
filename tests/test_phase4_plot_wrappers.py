@@ -1408,6 +1408,47 @@ def test_pop_envtopo_threads_eeglab_options_into_history(ica_epoch):
     plt.close(figure)
 
 
+def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+    env_ax = next(ax for ax in figure.axes if ax.get_xlabel() == "Time (s)")
+
+    def _left_click(ax):
+        before = set(plt.get_fignums())
+        px, py = ax.transData.transform((sum(ax.get_xlim()) / 2, sum(ax.get_ylim()) / 2))
+        figure.canvas.callbacks.process(
+            "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+        )
+        return sorted(set(plt.get_fignums()) - before)
+
+    # Left-clicking a scalp map pops out an enlarged copy with its IC title and sort metric.
+    opened = _left_click(map_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.images
+    assert popup.get_title().startswith("IC ")
+    assert any("mp:" in text.get_text() for text in popup.texts)
+    plt.close(opened[0])
+
+    # Left-clicking the envelope panel pops out an enlarged copy of the traces.
+    opened = _left_click(env_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.lines
+    assert popup.get_xlabel() == "Time (s)"
+    plt.close(opened[0])
+
+    # A non-left button does not pop anything out (EEGLAB axcopy is left-button only).
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=3)
+    )
+    assert set(plt.get_fignums()) == before
+    plt.close(figure)
+
+
 def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     second = deepcopy(sample_epoch)
     second["setname"] = "second"

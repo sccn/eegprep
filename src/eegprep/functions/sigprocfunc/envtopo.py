@@ -30,6 +30,7 @@ from matplotlib.ticker import MaxNLocator
 
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.axcopy import axcopy
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
 MAXTOPOS = 20  # EEGLAB caps the number of plotted component maps
@@ -83,6 +84,8 @@ def envtopo(
     topoplot_options: dict[str, Any] | None = None,
 ) -> EnvtopoResult:
     """Rank component contributions to a data epoch and plot their envelopes/maps.
+
+    Left-clicking the envelope panel or a scalp map enlarges it in a pop-up window.
 
     Args:
         data: Channels x frames, or channels x frames x epochs (epochs averaged).
@@ -151,6 +154,8 @@ def envtopo(
         max_projections=max_projections[:, order][:, :n_topos],
         plotted_frames=compframes[:n_topos],
         plotted_labels=compsplotted,
+        plotted_metric=compvars[:n_topos],
+        metric_mode=metric_mode,
         plot_channels=plot_channels,
         chanlocs=chanlocs,
         limcontrib_ms=None if (lim1, lim2) == (0, n_frames - 1) else (times_ms[lim1], times_ms[lim2]),
@@ -285,6 +290,8 @@ def _build_figure(
     max_projections,
     plotted_frames,
     plotted_labels,
+    plotted_metric,
+    metric_mode,
     plot_channels,
     chanlocs,
     limcontrib_ms,
@@ -292,36 +299,25 @@ def _build_figure(
     title,
     topoplot_options,
 ):
-    """Draw the envelope panel, summed/per-component envelopes and scalp maps."""
+    """Draw the envelope panel, summed/per-component envelopes and scalp maps.
+
+    Left-clicking the envelope panel or any scalp map enlarges it in a pop-up
+    window (EEGLAB ``axcopy``); the ``redraws`` closures reproduce each axes.
+    """
     locs = chanlocs_as_list(chanlocs) if chanlocs is not None else []
     draw_maps = bool(locs)
     n_topos = plotted_labels.size
+    times = np.asarray(times_ms, dtype=float) / 1000.0  # EEGLAB envtopo plots the time axis in seconds
 
     figure = plt.figure(figsize=(9, 6))
     env_ax = figure.add_axes([0.10, 0.10, 0.80, 0.52] if draw_maps else [0.10, 0.12, 0.85, 0.78])
+    _draw_envelope(env_ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms)
 
-    times = np.asarray(times_ms, dtype=float) / 1000.0  # EEGLAB envtopo plots the time axis in seconds
-
-    env_ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
-    for position in range(n_topos):
-        color = _COMP_COLORS[position % len(_COMP_COLORS)]
-        env_ax.plot(times, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
-        env_ax.plot(times, comp_envelopes[position, 1], color=color, linewidth=1.0, zorder=3)
-    env_ax.plot(times, data_env[0], color="k", linewidth=2.0, zorder=4)
-    env_ax.plot(times, data_env[1], color="k", linewidth=2.0, zorder=4)
-
-    env_ax.set_xlim(float(times[0]), float(times[-1]))
-    env_ax.set_xlabel("Time (s)")
-    env_ax.set_ylabel("RMS (µV)" if str(envmode).lower() == "rms" else "Potential (µV)")
-    # Denser y-ticks (~5 µV spacing) to match EEGLAB rather than matplotlib's sparse default.
-    env_ax.yaxis.set_major_locator(MaxNLocator(nbins=11, steps=[1, 2, 5, 10], min_n_ticks=8))
-    env_ax.grid(True, axis="y", linestyle=":")
-    if times[0] < 0 < times[-1]:
-        env_ax.axvline(0.0, color="k", linewidth=1.5, zorder=2)
-    if limcontrib_ms is not None:
-        for edge in limcontrib_ms:
-            env_ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=1.2, zorder=2)
-
+    redraws = {
+        env_ax: lambda ax: _draw_envelope(
+            ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms
+        )
+    }
     if draw_maps:
         _draw_maps_row(
             figure,
@@ -331,13 +327,40 @@ def _build_figure(
             max_projections,
             plotted_frames,
             plotted_labels,
+            plotted_metric,
+            metric_mode,
             plot_channels,
             locs,
             topoplot_options,
+            redraws,
         )
     if title:
         figure.suptitle(title, fontsize=12, fontweight="bold")
+    axcopy(figure, redraws)
     return figure
+
+
+def _draw_envelope(ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms):
+    """Draw the data envelope, the summed fill and the per-component envelopes."""
+    ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
+    for position in range(n_topos):
+        color = _COMP_COLORS[position % len(_COMP_COLORS)]
+        ax.plot(times, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
+        ax.plot(times, comp_envelopes[position, 1], color=color, linewidth=1.0, zorder=3)
+    ax.plot(times, data_env[0], color="k", linewidth=2.0, zorder=4)
+    ax.plot(times, data_env[1], color="k", linewidth=2.0, zorder=4)
+
+    ax.set_xlim(float(times[0]), float(times[-1]))
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("RMS (µV)" if str(envmode).lower() == "rms" else "Potential (µV)")
+    # Denser y-ticks (~5 µV spacing) to match EEGLAB rather than matplotlib's sparse default.
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=11, steps=[1, 2, 5, 10], min_n_ticks=8))
+    ax.grid(True, axis="y", linestyle=":")
+    if times[0] < 0 < times[-1]:
+        ax.axvline(0.0, color="k", linewidth=1.5, zorder=2)
+    if limcontrib_ms is not None:
+        for edge in limcontrib_ms:
+            ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=1.2, zorder=2)
 
 
 def _draw_maps_row(
@@ -348,9 +371,12 @@ def _draw_maps_row(
     max_projections,
     plotted_frames,
     plotted_labels,
+    plotted_metric,
+    metric_mode,
     plot_channels,
     locs,
     topoplot_options,
+    redraws,
 ):
     """Top row of scalp maps in temporal order, joined to their peak latency."""
     n_topos = plotted_labels.size
@@ -360,13 +386,15 @@ def _draw_maps_row(
     slot = (right - left) / n_topos
     map_w = min(slot * 0.9, 0.22)
     options = {"electrodes": "on" if map_w >= 0.12 else "off", "maplimits": "absmax", **(topoplot_options or {})}
+    popup_options = {**options, "electrodes": "on"}  # the enlarged pop-out always shows electrodes
 
     for column, source in enumerate(temporal):
         latency = float(times[plotted_frames[source]])
         center = left + slot * (column + 0.5)
         topo_ax = figure.add_axes([center - map_w / 2, top_y, map_w, top_h])
-        topoplot(max_projections[plot_channels, source], locs, axes=topo_ax, **options)
-        topo_ax.set_title(f"IC {int(plotted_labels[source])}", fontsize=10, fontweight="bold")
+        values = max_projections[plot_channels, source]
+        label = int(plotted_labels[source])
+        _topo_map(topo_ax, values, locs, options, label)
 
         color = _COMP_COLORS[source % len(_COMP_COLORS)]
         figure.add_artist(
@@ -379,6 +407,10 @@ def _draw_maps_row(
                 linewidth=1.0,
             )
         )
+        metric_value = float(plotted_metric[source])
+        redraws[topo_ax] = lambda ax, v=values, la=label, mv=metric_value: _redraw_map_popup(
+            ax, v, locs, popup_options, la, metric_mode, mv
+        )
 
     cbar_ax = figure.add_axes([0.925, top_y + 0.05, 0.018, top_h - 0.10])
     cmap = plt.get_cmap((topoplot_options or {}).get("colormap") or "turbo")
@@ -386,6 +418,18 @@ def _draw_maps_row(
     colorbar.set_ticks([-0.8, 0, 0.8])
     colorbar.set_ticklabels(["-", "", "+"])
     colorbar.ax.tick_params(length=0)
+
+
+def _topo_map(ax, values, locs, options, label):
+    """Draw one component scalp map with its IC-number title."""
+    topoplot(values, locs, axes=ax, **options)
+    ax.set_title(f"IC {int(label)}", fontsize=10, fontweight="bold")
+
+
+def _redraw_map_popup(ax, values, locs, options, label, metric_mode, metric_value):
+    """Enlarged pop-out of a scalp map, annotated with its sort-metric value."""
+    _topo_map(ax, values, locs, options, label)
+    ax.text(0.5, -0.03, f"{metric_mode}: {metric_value:.2f}", transform=ax.transAxes, ha="center", va="top")
 
 
 def _is_empty(value):
