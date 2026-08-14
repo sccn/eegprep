@@ -1452,7 +1452,8 @@ def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
     popup = plt.figure(opened[0]).axes[0]
     assert popup.images
     assert popup.get_title().startswith("IC ")
-    assert any("mp:" in text.get_text() for text in popup.texts)
+    # Default sortvar 'mp' is a raw peak power, annotated in µV².
+    assert any("mp:" in text.get_text() and "µV²" in text.get_text() for text in popup.texts)
     plt.close(opened[0])
 
     # Left-clicking the envelope panel pops out an enlarged copy of the traces.
@@ -1462,6 +1463,26 @@ def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
     assert popup.lines
     assert popup.get_xlabel() == "Time (s)"
     plt.close(opened[0])
+
+
+def test_pop_envtopo_enlarged_map_annotation_uses_percent_for_pvaf(ica_epoch):
+    """Percent sort modes (pv/pp/rp) annotate the enlarged map with %, not µV²."""
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, sortvar="pp", plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+    )
+    opened = sorted(set(plt.get_fignums()) - before)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    annotations = [text.get_text() for text in popup.texts if "pp:" in text.get_text()]
+    assert annotations and annotations[0].endswith("%") and "µV²" not in annotations[0]
+    plt.close(opened[0])
+    plt.close(figure)
 
     # A non-left button does not pop anything out (EEGLAB axcopy is left-button only).
     before = set(plt.get_fignums())

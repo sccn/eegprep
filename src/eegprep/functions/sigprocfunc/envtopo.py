@@ -492,7 +492,11 @@ def _topo_map(ax, values, locs, options, label):
 def _redraw_map_popup(ax, values, locs, options, label, metric_mode, metric_value):
     """Enlarged pop-out of a scalp map, annotated with its sort-metric value."""
     _topo_map(ax, values, locs, options, label)
-    ax.text(0.5, -0.03, f"{metric_mode}: {metric_value:.2f}", transform=ax.transAxes, ha="center", va="top")
+    # 'mp' is a raw peak power; 'pv'/'pp'/'rp' are percentages of data variance/power.
+    annotation = (
+        f"{metric_mode}: {metric_value:.2f} µV²" if metric_mode == "mp" else f"{metric_mode}: {metric_value:.2f}%"
+    )
+    ax.text(0.5, -0.03, annotation, transform=ax.transAxes, ha="center", va="top")
 
 
 def _is_empty(value):
