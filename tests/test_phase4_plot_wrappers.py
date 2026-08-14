@@ -1408,6 +1408,30 @@ def test_pop_envtopo_threads_eeglab_options_into_history(ica_epoch):
     plt.close(figure)
 
 
+def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
+    """A blank GUI remove-components field means remove none (subcomps=0), not [] (remove all but compnums)."""
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "timerange": "",
+                "limcontrib": "",
+                "compsplot": "2",
+                "components": "1 2",
+                "subcomps": "",
+                "title": "blank subcomps",
+                "options": "",
+            }
+
+    figure, command = pop_envtopo(ica_epoch, gui=True, renderer=Renderer(), return_com=True)
+
+    assert isinstance(figure, Figure)
+    assert "subcomps=0" in command
+    assert "subcomps=[]" not in command
+    _assert_python_command(command)
+    plt.close(figure)
+
+
 def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
     figure, _ = pop_envtopo(ica_epoch, compsplot=3, plot="off", return_com=True)
     figure.canvas.draw()

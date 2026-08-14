@@ -8,6 +8,9 @@ fig, com = pop_envtopo(EEG, timerange=[-100, 300], return_com=True)
 
 This requires epoched data, channel locations, and ICA weights/maps.
 
+Leaving the "Component numbers to remove from data before plotting" field blank
+removes no components.
+
 Left-click the envelope panel or any scalp map to enlarge it in a pop-up window;
 each enlarged map is annotated with its ranking metric value.
 

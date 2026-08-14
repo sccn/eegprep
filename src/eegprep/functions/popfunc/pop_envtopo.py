@@ -139,7 +139,8 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
             "components": numeric_vector(result.get("components", []), dtype=int).tolist(),
             "limcontrib": numeric_vector(result.get("limcontrib", [])).tolist(),
             "compsplot": numeric_vector(result.get("compsplot", []), dtype=int).tolist(),
-            "subcomps": numeric_vector(result.get("subcomps", []), dtype=int).tolist(),
+            # Blank field -> 0 ("remove none"), matching EEGLAB; [] would mean "remove all but compnums".
+            "subcomps": numeric_vector(result.get("subcomps", []), dtype=int).tolist() or 0,
             "title": str(result.get("title", "") or ""),
             "options": str(result.get("options", "") or ""),
         },

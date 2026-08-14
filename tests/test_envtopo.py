@@ -24,7 +24,7 @@ from matplotlib.figure import Figure
 import numpy as np
 import pytest
 
-from eegprep.functions.sigprocfunc.envtopo import envtopo
+from eegprep.functions.sigprocfunc.envtopo import _resolve_subcomps, envtopo
 from tests.fixtures import create_test_eeg_with_ica
 
 pytestmark = pytest.mark.parity
@@ -179,6 +179,13 @@ def test_subcomps_are_subtracted_and_excluded_from_selection():
 
     assert 1 not in res.compsplotted.tolist()
     plt.close(res.figure)
+
+
+def test_resolve_subcomps_empty_vs_zero():
+    """EEGLAB parity: 0 removes none (the default); [] removes all but the candidate components."""
+    candidates = np.array([0, 1])  # 1-based compnums 1,2 of 4 components
+    assert _resolve_subcomps(0, 4, candidates).size == 0
+    np.testing.assert_array_equal(_resolve_subcomps([], 4, candidates), np.array([2, 3]))
 
 
 def test_unknown_sortvar_raises():
