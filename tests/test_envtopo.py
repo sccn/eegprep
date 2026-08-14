@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import PolyCollection
 from matplotlib.figure import Figure
 import numpy as np
 import pytest
@@ -196,3 +197,39 @@ def test_envmode_rms_runs_and_preserves_ranking():
     np.testing.assert_array_equal(avg.compvarorder, rms.compvarorder)
     plt.close(avg.figure)
     plt.close(rms.figure)
+
+
+@pytest.mark.parametrize("mode,label", [("mp", "ppaf"), ("pv", "pvaf"), ("rp", "rp")])
+def test_summed_metric_label_matches_mode(mode, label):
+    """The envelope panel prints the summed metric with EEGLAB's label per mode."""
+    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
+    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, sortvar=mode)
+    texts = [t.get_text() for t in res.figure.axes[0].texts]
+    assert any(t.startswith(f"{label} ") and t.endswith("%") for t in texts)
+    plt.close(res.figure)
+
+
+def test_sumenv_modes_control_the_summed_envelope():
+    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
+    common = dict(chanlocs=None, icawinv=icawinv, timerange=timerange)
+    fill = envtopo(mean_data, weights, sumenv="fill", **common)
+    lines_on = envtopo(mean_data, weights, sumenv="on", **common)
+    off = envtopo(mean_data, weights, sumenv="off", **common)
+
+    assert any(isinstance(c, PolyCollection) for c in fill.figure.axes[0].collections)
+    assert not any(isinstance(c, PolyCollection) for c in off.figure.axes[0].collections)
+    # 'on' draws the summed envelope as two extra lines (max and min) vs 'off'.
+    assert len(lines_on.figure.axes[0].lines) == len(off.figure.axes[0].lines) + 2
+    for result in (fill, lines_on, off):
+        plt.close(result.figure)
+    with pytest.raises(ValueError, match="sumenv"):
+        envtopo(mean_data, weights, sumenv="nope", **common)
+
+
+def test_vert_draws_marker_lines():
+    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
+    latency = timerange[0] + 0.4 * (timerange[1] - timerange[0])
+    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, vert=[latency])
+    verticals = [ln.get_xdata()[0] for ln in res.figure.axes[0].lines if len(np.unique(ln.get_xdata())) == 1]
+    assert any(abs(x - latency / 1000.0) < 1e-9 for x in verticals)
+    plt.close(res.figure)

@@ -83,6 +83,8 @@ def pop_envtopo(
         subcomps=kwargs.pop("subcomps", 0),
         sortvar=str(kwargs.pop("sortvar", topoplot_options.pop("sortvar", "mp"))),
         envmode=str(kwargs.pop("envmode", topoplot_options.pop("envmode", "avg"))),
+        sumenv=str(kwargs.pop("sumenv", topoplot_options.pop("sumenv", "fill"))),
+        vert=kwargs.pop("vert", None),
         title=str(kwargs.pop("title", dataset.get("setname") or "Largest ERP components")),
         topoplot_options=topoplot_options,
     )

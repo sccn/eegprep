@@ -79,6 +79,8 @@ def envtopo(
     subcomps: Any = 0,
     sortvar: str = "mp",
     envmode: str = "avg",
+    sumenv: str = "fill",
+    vert: Any = None,
     plotchans: Any = None,
     title: str = "",
     topoplot_options: dict[str, Any] | None = None,
@@ -100,6 +102,9 @@ def envtopo(
             ``[]`` removes all but ``compnums``.
         sortvar: Ranking metric ``'mp'`` (default), ``'pv'``, ``'pp'`` or ``'rp'``.
         envmode: ``'avg'`` (max/min envelope) or ``'rms'``.
+        sumenv: Summed-contribution envelope: ``'fill'`` (default), ``'on'`` (lines
+            only) or ``'off'``.
+        vert: Latencies (ms) at which to draw vertical dashed marker lines.
         plotchans: 1-based channels used for envelopes and maps; defaults to all.
         title: Figure title.
         topoplot_options: Extra keyword arguments forwarded to :func:`topoplot`.
@@ -121,6 +126,8 @@ def envtopo(
 
     maps = np.linalg.pinv(weight_matrix) if _is_empty(icawinv) else np.asarray(icawinv, dtype=float)
     metric_mode = _normalize_sortvar(sortvar)
+    if sumenv not in ("on", "off", "fill"):
+        raise ValueError(f"envtopo: sumenv must be 'on', 'off' or 'fill', got {sumenv!r}")
     times_ms = _time_axis(timerange, n_frames)
     plot_channels = _resolve_channels(plotchans, n_chans)
     candidates = _resolve_components(compnums, n_components)
@@ -144,12 +151,16 @@ def envtopo(
     compsplotted = compvarorder[:n_topos]
 
     plotted_components = candidates[order][:n_topos]
+    sumproj = finite_matmul(maps[np.ix_(plot_channels, plotted_components)], activations[plotted_components])
+    data_win = values[plot_channels, lim1 : lim2 + 1]
+    reference = float(np.mean(np.var(data_win, axis=0))) if metric_mode == "pv" else float(np.mean(data_win**2))
+    summed_metric, metric_label = _summed_metric(metric_mode, data_win, sumproj[:, lim1 : lim2 + 1], reference)
     figure = _build_figure(
         times_ms=times_ms,
         data_env=_envelope(finite_matmul(maps[plot_channels, :], activations), envmode),
-        summed_env=_envelope(
-            finite_matmul(maps[np.ix_(plot_channels, plotted_components)], activations[plotted_components]), envmode
-        ),
+        summed_env=_envelope(sumproj, envmode),
+        summed_metric=summed_metric,
+        metric_label=metric_label,
         comp_envelopes=comp_envelopes[order][:n_topos],
         max_projections=max_projections[:, order][:, :n_topos],
         plotted_frames=compframes[:n_topos],
@@ -160,6 +171,8 @@ def envtopo(
         chanlocs=chanlocs,
         limcontrib_ms=None if (lim1, lim2) == (0, n_frames - 1) else (times_ms[lim1], times_ms[lim2]),
         envmode=envmode,
+        sumenv=sumenv,
+        vert=vert,
         title=title,
         topoplot_options=topoplot_options,
     )
@@ -199,6 +212,18 @@ def _sort_metric(metric_mode, max_power, data_win, proj_win, reference):
     if metric_mode == "pp":
         return 100.0 - 100.0 * float(np.mean((data_win - proj_win) ** 2)) / reference
     return 100.0 * float(np.mean(proj_win**2)) / reference  # "rp"
+
+
+def _summed_metric(metric_mode, data_win, sum_win, reference):
+    """Summed sort metric over the plotted components, with its EEGLAB label.
+
+    Mirrors EEGLAB: ``pv`` -> pvaf, ``rp`` -> rp, and ``mp``/``pp`` -> ppaf.
+    """
+    if metric_mode == "pv":
+        return 100.0 - 100.0 * float(np.mean(np.var(data_win - sum_win, axis=0))) / reference, "pvaf"
+    if metric_mode == "rp":
+        return 100.0 * float(np.mean(sum_win**2)) / reference, "rp"
+    return 100.0 - 100.0 * float(np.mean((data_win - sum_win) ** 2)) / reference, "ppaf"
 
 
 def _envelope(data, envmode):
@@ -286,6 +311,8 @@ def _build_figure(
     times_ms,
     data_env,
     summed_env,
+    summed_metric,
+    metric_label,
     comp_envelopes,
     max_projections,
     plotted_frames,
@@ -296,6 +323,8 @@ def _build_figure(
     chanlocs,
     limcontrib_ms,
     envmode,
+    sumenv,
+    vert,
     title,
     topoplot_options,
 ):
@@ -311,13 +340,25 @@ def _build_figure(
 
     figure = plt.figure(figsize=(9, 6))
     env_ax = figure.add_axes([0.10, 0.10, 0.80, 0.52] if draw_maps else [0.10, 0.12, 0.85, 0.78])
-    _draw_envelope(env_ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms)
 
-    redraws = {
-        env_ax: lambda ax: _draw_envelope(
-            ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms
+    def draw_env(ax):
+        _draw_envelope(
+            ax,
+            times,
+            data_env,
+            summed_env,
+            comp_envelopes,
+            n_topos,
+            envmode,
+            limcontrib_ms,
+            summed_metric,
+            metric_label,
+            vert,
+            sumenv,
         )
-    }
+
+    draw_env(env_ax)
+    redraws = {env_ax: draw_env}
     if draw_maps:
         _draw_maps_row(
             figure,
@@ -340,9 +381,26 @@ def _build_figure(
     return figure
 
 
-def _draw_envelope(ax, times, data_env, summed_env, comp_envelopes, n_topos, envmode, limcontrib_ms):
-    """Draw the data envelope, the summed fill and the per-component envelopes."""
-    ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
+def _draw_envelope(
+    ax,
+    times,
+    data_env,
+    summed_env,
+    comp_envelopes,
+    n_topos,
+    envmode,
+    limcontrib_ms,
+    summed_metric,
+    metric_label,
+    vert,
+    sumenv,
+):
+    """Draw the data envelope, the summed contribution and per-component envelopes."""
+    if sumenv == "fill":
+        ax.fill_between(times, summed_env[1], summed_env[0], color=_FILLCOLOR, linewidth=0.0, zorder=1)
+    elif sumenv == "on":
+        ax.plot(times, summed_env[0], color=_FILLCOLOR, linewidth=3.0, zorder=2)
+        ax.plot(times, summed_env[1], color=_FILLCOLOR, linewidth=3.0, zorder=2)
     for position in range(n_topos):
         color = _COMP_COLORS[position % len(_COMP_COLORS)]
         ax.plot(times, comp_envelopes[position, 0], color=color, linewidth=1.0, zorder=3)
@@ -361,6 +419,11 @@ def _draw_envelope(ax, times, data_env, summed_env, comp_envelopes, n_topos, env
     if limcontrib_ms is not None:
         for edge in limcontrib_ms:
             ax.axvline(float(edge) / 1000.0, color="k", linestyle=":", linewidth=1.2, zorder=2)
+    if not _is_empty(vert):
+        for latency in np.asarray(vert, dtype=float).ravel():
+            ax.axvline(latency / 1000.0, color="k", linestyle="--", linewidth=2.0, zorder=2)
+    # EEGLAB prints the summed sort metric (ppaf/pvaf/rp) in the lower-left of the panel.
+    ax.text(0.02, 0.04, f"{metric_label} {summed_metric:.2f}%", transform=ax.transAxes, fontsize=8, fontweight="bold")
 
 
 def _draw_maps_row(
