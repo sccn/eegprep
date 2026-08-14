@@ -71,6 +71,9 @@ def pop_envtopo(
     chanlocs = _component_chanlocs(dataset, maps, icachansind)
     label_times = times if times.size else eeg_times_ms(dataset)
     topoplot_options = parse_plot_options_text(kwargs.pop("options", ""))
+    compnums = kwargs.pop("compnums", None)
+    if compnums is None:  # GUI supplies "components"; the console uses "compnums"
+        compnums = kwargs.pop("components", None)
     result = envtopo(
         np.nanmean(data, axis=2),
         weights,
@@ -78,7 +81,7 @@ def pop_envtopo(
         icawinv=maps,
         timerange=[float(label_times[0]), float(label_times[-1])],
         limcontrib=kwargs.pop("limcontrib", None),
-        compnums=kwargs.pop("compnums", kwargs.pop("components", None)),
+        compnums=compnums,
         compsplot=_first_int(kwargs.pop("compsplot", None), default=7),
         subcomps=kwargs.pop("subcomps", 0),
         sortvar=str(kwargs.pop("sortvar", topoplot_options.pop("sortvar", "mp"))),

@@ -153,7 +153,7 @@ def envtopo(
     plotted_components = candidates[order][:n_topos]
     sumproj = finite_matmul(maps[np.ix_(plot_channels, plotted_components)], activations[plotted_components])
     data_win = values[plot_channels, lim1 : lim2 + 1]
-    reference = float(np.mean(np.var(data_win, axis=0))) if metric_mode == "pv" else float(np.mean(data_win**2))
+    reference = _reference(data_win, metric_mode)
     summed_metric, metric_label = _summed_metric(metric_mode, data_win, sumproj[:, lim1 : lim2 + 1], reference)
     figure = _build_figure(
         times_ms=times_ms,
@@ -183,7 +183,7 @@ def _contributions(values, activations, maps, candidates, plot_channels, lim1, l
     """Per-candidate ranking metric, peak frame, envelope and peak-frame map."""
     window = slice(lim1, lim2 + 1)
     data_win = values[plot_channels, window]
-    reference = float(np.mean(np.var(data_win, axis=0))) if metric_mode == "pv" else float(np.mean(data_win**2))
+    reference = _reference(data_win, metric_mode)
 
     metric = np.empty(candidates.size)
     plotframes = np.empty(candidates.size, dtype=int)
@@ -202,6 +202,11 @@ def _contributions(values, activations, maps, candidates, plot_channels, lim1, l
         envelopes[position] = _envelope(proj_plot, envmode)
         metric[position] = _sort_metric(metric_mode, float(power[peak]), data_win, proj_win, reference)
     return metric, plotframes, envelopes, max_projections
+
+
+def _reference(data_win, metric_mode):
+    """Denominator for the pv/pp/rp percentage metrics: data variance ('pv') or mean power."""
+    return float(np.mean(np.var(data_win, axis=0))) if metric_mode == "pv" else float(np.mean(data_win**2))
 
 
 def _sort_metric(metric_mode, max_power, data_win, proj_win, reference):
