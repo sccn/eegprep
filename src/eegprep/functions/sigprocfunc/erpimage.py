@@ -185,7 +185,8 @@ def _draw_channel_topo(ax: Any, chan_locs: Any, channel_index: int) -> None:
         return
     x = np.cos(theta_rad) * radius_value
     y = np.sin(theta_rad) * radius_value
-    ax.scatter(-y, x, c="k", s=24, zorder=6)
+    # EEGLAB draws the scalp map with screen X = sin(theta)*radius (left hemisphere on the left).
+    ax.scatter(y, x, c="k", s=24, zorder=6)
 
 
 __all__ = ["erpimage"]
