@@ -9,6 +9,8 @@ import numpy as np
 
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
+_ZERO_LINEWIDTH = 1.5  # EEGLAB erpimage draws a solid time-zero line (ZEROWIDTH), thicker than vert lines
+
 
 def erpimage(
     data: Any,
@@ -67,26 +69,47 @@ def erpimage(
     topo_ax = fig.add_subplot(gs[row, 0]) if show_topo else None
     if show_topo:
         row += 1
+        cell = topo_ax.get_position()
+        fw, fh = fig.get_size_inches()
+        side_h = cell.height
+        side_w = side_h * fh / fw  # keep the scalp map square in display coordinates
+        # EEGLAB draws the scalp map as a small square at the upper left (erpimage.m).
+        topo_ax.set_position((cell.x0 + 0.10 * cell.width, cell.y0, side_w, side_h))
     image_ax = fig.add_subplot(gs[row, 0])
     cax = fig.add_subplot(gs[row, 1]) if cbar else None
     row += 1
     erp_ax = fig.add_subplot(gs[row, 0], sharex=image_ax) if plot_erp else None
     extent = [float(x_values[0]), float(x_values[-1]), 1, image.shape[0]]
+    draw_zero = float(x_values[0]) <= 0.0 <= float(x_values[-1])
     im = image_ax.imshow(image, aspect="auto", origin="lower", extent=extent, cmap="turbo")
     limits = _limits(caxis)
+    if limits is None:
+        # EEGLAB erpimage default: color axis symmetric about 0 (erpimage.m).
+        cmax = float(np.nanmax(np.abs(image))) if image.size else 0.0
+        limits = (-cmax, cmax) if np.isfinite(cmax) and cmax > 0 else None
     if limits is not None:
         im.set_clim(*limits)
     image_ax.set_ylabel("Trials")
     image_ax.set_title(title or "ERP image")
     for latency in _numeric_values(vert):
         image_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
+    if draw_zero:
+        image_ax.axvline(0, color="black", linewidth=_ZERO_LINEWIDTH)
     if cax is not None:
-        fig.colorbar(im, cax=cax)
+        colorbar = fig.colorbar(im, cax=cax)
+        vmin, vmax = im.get_clim()
+        if vmax > vmin:
+            # EEGLAB cbar: 5 ticks across the color range, decade-rounded labels (cbar.m).
+            ticks, tick_labels = _colorbar_ticks(vmin, vmax)
+            colorbar.set_ticks(ticks)
+            colorbar.set_ticklabels([f"{value:g}" for value in tick_labels])
     if erp_ax is not None:
         erp_ax.plot(x_values, np.nanmean(values, axis=1), color="black")
         erp_ax.axhline(0, color="0.7", linewidth=0.6)
         for latency in _numeric_values(vert):
             erp_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
+        if draw_zero:
+            erp_ax.axvline(0, color="black", linewidth=_ZERO_LINEWIDTH)
         erp_ax.set_xlabel("Time (ms)")
         erp_ax.set_ylabel("µV")
     else:
@@ -131,6 +154,20 @@ def _numeric_values(value: Any) -> np.ndarray:
         return np.asarray([], dtype=float)
     values = np.asarray(value, dtype=float).ravel()
     return values[np.isfinite(values)]
+
+
+def _colorbar_ticks(vmin: float, vmax: float) -> tuple[np.ndarray, np.ndarray]:
+    """Five evenly spaced ticks with EEGLAB cbar's decade-based label rounding (cbar.m)."""
+    ticks = np.linspace(vmin, vmax, 5)
+    scale = max(abs(vmin), abs(vmax))
+    dec = int(np.floor(np.log10(scale)))
+    if dec < 1:
+        labels = np.round(ticks * 10.0 ** (1 - dec)) * 10.0 ** (dec - 1)
+    elif dec == 1:
+        labels = np.round(ticks * 10.0 ** (2 - dec)) * 10.0 ** (dec - 2)
+    else:
+        labels = np.round(ticks)
+    return ticks, labels
 
 
 def _draw_channel_topo(ax: Any, chan_locs: Any, channel_index: int) -> None:

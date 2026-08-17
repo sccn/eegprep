@@ -1543,6 +1543,62 @@ def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
     plt.close(result["figure"])
 
 
+def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
+    """With no caxis, the color axis is symmetric about 0 (EEGLAB erpimage default)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    image_ax = next(ax for ax in result["figure"].axes if ax.images)
+    vmin, vmax = image_ax.images[0].get_clim()
+    assert vmax > 0
+    assert vmin == pytest.approx(-vmax)
+    assert vmax == pytest.approx(float(np.nanmax(np.abs(result["image"]))))
+    plt.close(result["figure"])
+
+
+def test_pop_erpimage_draws_solid_time_zero_line(sample_epoch):
+    """The ERP image and the ERP trace both mark time zero with a solid line."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.images)
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+
+    def has_solid_zero_line(ax):
+        return any(
+            np.allclose(line.get_xdata(), 0.0) and line.get_linestyle() == "-" for line in ax.get_lines()
+        )
+
+    assert has_solid_zero_line(image_ax)
+    assert has_solid_zero_line(erp_ax)
+    plt.close(fig)
+
+
+def test_pop_erpimage_colorbar_matches_eeglab_ticks(sample_epoch):
+    """Colorbar shows 5 ticks across the range with EEGLAB cbar's decade rounding (cbar.m)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, caxis=[-50.24, 50.24], return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    cax = next(ax for ax in fig.axes if ax not in {image_ax, erp_ax, topo_ax})
+    fig.canvas.draw()
+    assert np.allclose(sorted(cax.get_yticks()), np.linspace(-50.24, 50.24, 5))
+    assert {t.get_text() for t in cax.get_yticklabels()} >= {"-50.2", "-25.1", "0", "25.1", "50.2"}
+    plt.close(fig)
+
+
+def test_pop_erpimage_scalp_map_is_small_and_upper_left(sample_epoch):
+    """The channel scalp map is a small square at the upper left (EEGLAB layout)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    img = image_ax.get_position()
+    topo = topo_ax.get_position()
+    assert topo.width < 0.5 * img.width  # small, not full width
+    assert (topo.x0 + topo.width / 2) < (img.x0 + img.width / 2)  # left of the image center
+    assert topo.y0 >= img.y1 - 1e-6  # above the image
+    plt.close(fig)
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(
