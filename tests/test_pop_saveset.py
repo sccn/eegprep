@@ -168,6 +168,43 @@ class TestPopSaveset(unittest.TestCase):
             loaded = scipy.io.loadmat(out, struct_as_record=True)
         self.assertIn('unit', loaded['chanlocs'].dtype.names)
 
+    def test_no_location_channel_coordinates_saved_as_empty(self):
+        # No-location channels (e.g. EOG) must keep empty coordinates on save, as
+        # EEGLAB does. Writing 0 would place them at the head center when the .set
+        # is reloaded (here or in EEGLAB), corrupting scalp maps.
+        empty = np.array([])
+        chanlocs = [
+            {'labels': 'Cz', 'theta': 0.0, 'radius': 0.0, 'X': 0.0, 'Y': 0.0, 'Z': 1.0},
+            {'labels': 'EOG', 'theta': empty, 'radius': empty, 'X': empty, 'Y': empty, 'Z': empty},
+        ]
+        EEG = {
+            'setname': 't',
+            'nbchan': 2,
+            'trials': 1,
+            'pnts': 4,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.03,
+            'times': np.arange(4) / 100.0,
+            'data': np.zeros((2, 4)),
+            'chanlocs': chanlocs,
+            'event': [],
+            'icachansind': np.array([]),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'noloc.set')
+            pop_saveset(EEG, out)
+            raw = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['chanlocs']
+            reloaded = pop_loadset(out)['chanlocs']
+        # On disk: no-location coords are empty (not 0); the located channel keeps its value.
+        self.assertEqual(np.size(raw[1].theta), 0)
+        self.assertEqual(np.size(raw[1].radius), 0)
+        self.assertEqual(float(raw[0].radius), 0.0)
+        # Round-trip through EEGPrep keeps the no-location coords empty.
+        self.assertEqual(np.asarray(reloaded[0]['radius']).size, 1)
+        self.assertEqual(np.asarray(reloaded[1]['theta']).size, 0)
+        self.assertEqual(np.asarray(reloaded[1]['radius']).size, 0)
+
 
 if __name__ == '__main__':
     # EEG = pop_loadset(ensure_file('FlankerTest.set'))

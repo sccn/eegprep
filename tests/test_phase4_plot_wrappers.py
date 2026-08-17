@@ -1398,6 +1398,102 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
         pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
 
 
+def test_pop_envtopo_threads_eeglab_options_into_history(ica_epoch):
+    figure, command = pop_envtopo(ica_epoch, compsplot=2, sortvar="pp", return_com=True)
+
+    assert isinstance(figure, Figure)
+    _assert_python_command(command)
+    assert "sortvar='pp'" in command
+    assert "compsplot=2" in command
+    plt.close(figure)
+
+
+def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
+    """A blank GUI remove-components field means remove none (subcomps=0), not [] (remove all but compnums)."""
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "timerange": "",
+                "limcontrib": "",
+                "compsplot": "2",
+                "components": "1 2",
+                "subcomps": "",
+                "title": "blank subcomps",
+                "options": "",
+            }
+
+    figure, command = pop_envtopo(ica_epoch, gui=True, renderer=Renderer(), return_com=True)
+
+    assert isinstance(figure, Figure)
+    assert "subcomps=0" in command
+    assert "subcomps=[]" not in command
+    _assert_python_command(command)
+    plt.close(figure)
+
+
+def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+    env_ax = next(ax for ax in figure.axes if ax.get_xlabel() == "Time (s)")
+
+    def _left_click(ax):
+        before = set(plt.get_fignums())
+        px, py = ax.transData.transform((sum(ax.get_xlim()) / 2, sum(ax.get_ylim()) / 2))
+        figure.canvas.callbacks.process(
+            "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+        )
+        return sorted(set(plt.get_fignums()) - before)
+
+    # Left-clicking a scalp map pops out an enlarged copy with its IC title and sort metric.
+    opened = _left_click(map_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.images
+    assert popup.get_title().startswith("IC ")
+    # Default sortvar 'mp' is a raw peak power, annotated in µV².
+    assert any("mp:" in text.get_text() and "µV²" in text.get_text() for text in popup.texts)
+    plt.close(opened[0])
+
+    # Left-clicking the envelope panel pops out an enlarged copy of the traces.
+    opened = _left_click(env_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.lines
+    assert popup.get_xlabel() == "Time (s)"
+    plt.close(opened[0])
+
+    # A non-left button does not pop anything out (EEGLAB axcopy is left-button only).
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=3)
+    )
+    assert set(plt.get_fignums()) == before
+    plt.close(figure)
+
+
+def test_pop_envtopo_enlarged_map_annotation_uses_percent_for_pvaf(ica_epoch):
+    """Percent sort modes (pv/pp/rp) annotate the enlarged map with %, not µV²."""
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, sortvar="pp", plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+    )
+    opened = sorted(set(plt.get_fignums()) - before)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    annotations = [text.get_text() for text in popup.texts if "pp:" in text.get_text()]
+    assert annotations and annotations[0].endswith("%") and "µV²" not in annotations[0]
+    plt.close(opened[0])
+    plt.close(figure)
+
+
 def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
     second = deepcopy(sample_epoch)
     second["setname"] = "second"
