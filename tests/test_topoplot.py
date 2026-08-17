@@ -472,6 +472,34 @@ class TestTopoplot(unittest.TestCase):
             handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='off')
             self.assertIsInstance(Zi, np.ndarray)
 
+    def test_markers_match_eeglab_left_right_orientation(self):
+        """Markers sit on the same side as their data, matching EEGLAB (no L/R mirror).
+
+        EEGLAB plots screen X = sin(theta)*Rd, so a theta=90 channel is on the right.
+        Its marker and its interpolated data peak must land on the same (right) side.
+        """
+        chan_locs = [
+            {'labels': 'FRONT', 'theta': 0, 'radius': 0.5},
+            {'labels': 'RIGHT', 'theta': 90, 'radius': 0.5},
+            {'labels': 'BACK', 'theta': 180, 'radius': 0.5},
+            {'labels': 'LEFT', 'theta': 270, 'radius': 0.5},
+        ]
+        data = np.array([0.0, 10.0, 0.0, 0.0])  # hot spot on the theta=90 (EEGLAB right) channel
+        fig, ax = plt.subplots()
+        try:
+            with patch('matplotlib.pyplot.show'):
+                topoplot(data, chan_locs, axes=ax, electrodes='on')
+            markers = next(np.asarray(c.get_offsets()) for c in ax.collections if len(c.get_offsets()) == 4)
+            self.assertGreater(markers[1, 0], 0)  # RIGHT channel marker on the right
+            image = ax.images[0]
+            grid = image.get_array()
+            left, right, _, _ = image.get_extent()
+            _, col = np.unravel_index(np.nanargmax(grid), grid.shape)
+            blob_x = left + (col + 0.5) / grid.shape[1] * (right - left)
+            self.assertGreater(blob_x, 0)  # data blob on the same (right) side as the marker
+        finally:
+            plt.close(fig)
+
 
 class TestTopoplotParity(unittest.TestCase):
     """Test parity between Python and MATLAB topoplot implementations."""
