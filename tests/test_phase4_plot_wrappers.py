@@ -1597,6 +1597,28 @@ def test_pop_erpimage_scalp_map_is_small_and_upper_left(sample_epoch):
     plt.close(fig)
 
 
+def test_pop_erpimage_dialog_plotmap_checkbox_only_for_channels(sample_epoch, ica_epoch):
+    """The 'Plot scalp map' checkbox appears only in channel mode (ignored for components)."""
+    channel_tags = {control.tag for control in pop_erpimage_dialog_spec(sample_epoch, typeplot=1).controls}
+    component_tags = {control.tag for control in pop_erpimage_dialog_spec(ica_epoch, typeplot=0).controls}
+    assert "plotmap" in channel_tags
+    assert "plotmap" not in component_tags
+
+
+def test_pop_erpimage_cbar_false_fills_width(sample_epoch):
+    """cbar=False drops the colorbar column and lets the image span the full width."""
+    with_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, return_com=True)
+    without_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, cbar=False, return_com=True)
+    try:
+        img_with = next(ax for ax in with_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        img_without = next(ax for ax in without_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        assert len(without_bar["figure"].axes) == len(with_bar["figure"].axes) - 1  # no colorbar axes
+        assert img_without.get_position().x1 > img_with.get_position().x1  # image reclaims the width
+    finally:
+        plt.close(with_bar["figure"])
+        plt.close(without_bar["figure"])
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(

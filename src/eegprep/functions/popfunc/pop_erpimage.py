@@ -170,7 +170,10 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         [
             ControlSpec("text", "Smoothing", font_weight="bold"),
             ControlSpec("edit", tag="smooth", value=str(smooth)),
-            ControlSpec("checkbox", "Plot scalp map", tag="plotmap", value=True),
+            # EEGLAB shows no scalp map for components, so only offer the checkbox for channels.
+            ControlSpec("checkbox", "Plot scalp map", tag="plotmap", value=True)
+            if is_channel
+            else ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("text", "Downsampling", font_weight="bold"),

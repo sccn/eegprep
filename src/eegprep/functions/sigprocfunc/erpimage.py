@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
-_ZERO_LINEWIDTH = 1.5  # EEGLAB erpimage draws a solid time-zero line (ZEROWIDTH), thicker than vert lines
+_ZERO_LINEWIDTH = 2.5  # solid time-zero line, clearly thicker than dotted vert lines (EEGLAB ZEROWIDTH=3.0)
 
 
 def erpimage(
@@ -57,10 +57,11 @@ def erpimage(
         height_ratios.append(1.0)
     fig_height = 1.2 * sum(height_ratios) + 0.6
     fig = plt.figure(figsize=(7.5, fig_height))
+    # Reserve a narrow colorbar column only when a colorbar is drawn, so cbar=False fills the width.
     gs = fig.add_gridspec(
         nrows=len(height_ratios),
-        ncols=2,
-        width_ratios=[20, 1],
+        ncols=2 if cbar else 1,
+        width_ratios=[20, 1] if cbar else [1],
         height_ratios=height_ratios,
         hspace=0.15,
         wspace=0.04,
