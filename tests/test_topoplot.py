@@ -508,6 +508,17 @@ class TestTopoplot(unittest.TestCase):
         finally:
             plt.close(fig)
 
+    def test_showlabels_with_electrodes_on_offsets_labels(self):
+        """electrodes='on' with showlabels sits labels beside the dot, not on it (issue #299)."""
+        with patch('matplotlib.pyplot.show'):
+            handle, _, _, _, _ = topoplot(self.datavector, self.chan_locs, electrodes='on', showlabels=True)
+        try:
+            labels_drawn = [a for a in handle.axes[0].texts if a.get_text()]
+            self.assertTrue(labels_drawn)
+            self.assertTrue(all(a.get_ha() == 'left' for a in labels_drawn))
+        finally:
+            plt.close(handle)
+
 
 class TestTopoplotParity(unittest.TestCase):
     """Test parity between Python and MATLAB topoplot implementations."""

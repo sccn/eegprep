@@ -385,7 +385,7 @@ _EAR_X = np.array([0.492, 0.510, 0.518, 0.5299, 0.5419, 0.540, 0.547, 0.532, 0.5
 _EAR_Y = np.array([0.0955, 0.1175, 0.1183, 0.1146, 0.0955, -0.0055, -0.0932, -0.1313, -0.1384, -0.1199])
 _HEAD_LINEWIDTH = 2.5
 _CLIM_MARGIN = 0.05  # EEGLAB expands the color axis by 5% beyond the data limits (topoplot caxis)
-_LABEL_OFFSET = 0.01  # EEGLAB labelpoint/numpoint text offset from marker (rmax=0.5 units)
+_LABEL_OFFSET = 0.01  # text offset beside marker in axes data coords (EEGLAB topoplot.m text(y+0.01, x))
 
 
 def _draw_ears(ax, scale=1.0):
@@ -411,9 +411,10 @@ def _draw_electrode_labels(ax, x, y, labels, electrodes, *, showlabels=False):
         text_labels = labels
     else:
         return
-    # EEGLAB draws labelpoint/numpoint labels at (y+0.01, x) with left alignment
-    # so the text sits beside the marker dot; 'labels' mode has no dot and stays centered.
-    if electrode_mode in {'labelpoint', 'numpoint'}:
+    # Offset the text beside the marker dot (EEGLAB text(y+0.01, x), left-aligned) whenever a dot
+    # is drawn under it: labelpoint/numpoint, or 'on' with showlabels. 'labels' has no dot and
+    # stays centered.
+    if electrode_mode in {'labelpoint', 'numpoint'} or (showlabels and electrode_mode == 'on'):
         x_offset = _LABEL_OFFSET
         halign = 'left'
     else:
