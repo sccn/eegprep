@@ -1562,9 +1562,7 @@ def test_pop_erpimage_draws_solid_time_zero_line(sample_epoch):
     erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
 
     def has_solid_zero_line(ax):
-        return any(
-            np.allclose(line.get_xdata(), 0.0) and line.get_linestyle() == "-" for line in ax.get_lines()
-        )
+        return any(np.allclose(line.get_xdata(), 0.0) and line.get_linestyle() == "-" for line in ax.get_lines())
 
     assert has_solid_zero_line(image_ax)
     assert has_solid_zero_line(erp_ax)

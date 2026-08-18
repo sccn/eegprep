@@ -67,7 +67,7 @@ def erpimage(
     )
     row = 0
     topo_ax = fig.add_subplot(gs[row, 0]) if show_topo else None
-    if show_topo:
+    if topo_ax is not None:
         row += 1
         cell = topo_ax.get_position()
         fw, fh = fig.get_size_inches()
