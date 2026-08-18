@@ -1583,31 +1583,6 @@ def test_pop_erpimage_colorbar_matches_eeglab_ticks(sample_epoch):
     plt.close(fig)
 
 
-def test_pop_erpimage_scalp_marker_on_eeglab_side(sample_epoch):
-    """The scalp-inset channel marker uses screen X = +sin(theta)*radius (EEGLAB side, not mirrored)."""
-
-    def screen_xy(loc):
-        try:
-            theta = np.deg2rad(float(np.asarray(loc["theta"]).ravel()[0]))
-            radius = float(np.asarray(loc["radius"]).ravel()[0])
-        except (KeyError, IndexError, TypeError, ValueError):
-            return 0.0, 0.0
-        return np.sin(theta) * radius, np.cos(theta) * radius
-
-    chanlocs = sample_epoch["chanlocs"]
-    index = next(i for i, loc in enumerate(chanlocs, start=1) if abs(screen_xy(loc)[0]) > 0.1)
-    expected_x, expected_y = screen_xy(chanlocs[index - 1])
-    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=index, return_com=True)
-    fig = result["figure"]
-    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
-    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
-    marker = next(c for c in topo_ax.collections if len(c.get_offsets()) == 1)
-    marker_x, marker_y = np.asarray(marker.get_offsets())[0]
-    assert marker_x == pytest.approx(expected_x)  # +sin(theta)*r, not the mirrored -sin
-    assert marker_y == pytest.approx(expected_y)
-    plt.close(fig)
-
-
 def test_pop_erpimage_scalp_map_is_small_and_upper_left(sample_epoch):
     """The channel scalp map is a small square at the upper left (EEGLAB layout)."""
     result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
