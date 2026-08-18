@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import matplotlib
 
@@ -24,7 +25,7 @@ from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
-from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
+from eegprep.functions.popfunc.pop_erpimage import _run_gui, pop_erpimage, pop_erpimage_dialog_spec
 from eegprep.functions.popfunc.pop_headplot import (
     pop_headplot,
     pop_headplot_dialog_spec,
@@ -1603,6 +1604,16 @@ def test_pop_erpimage_dialog_plotmap_checkbox_only_for_channels(sample_epoch, ic
     component_tags = {control.tag for control in pop_erpimage_dialog_spec(ica_epoch, typeplot=0).controls}
     assert "plotmap" in channel_tags
     assert "plotmap" not in component_tags
+
+
+def test_pop_erpimage_gui_records_plotmap_only_for_channels(sample_epoch, ica_epoch):
+    """_run_gui records plotmap in the replayable options only for channels, not components."""
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1, "plotmap": True}):
+        channel_options = _run_gui(sample_epoch, typeplot=1)["options"]
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1}):
+        component_options = _run_gui(ica_epoch, typeplot=0)["options"]
+    assert "plotmap" in channel_options
+    assert "plotmap" not in component_options
 
 
 def test_pop_erpimage_cbar_false_fills_width(sample_epoch):

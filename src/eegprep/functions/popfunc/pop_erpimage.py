@@ -330,7 +330,9 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
     projchan = numeric_vector(result.get("projchan", []), dtype=int)
     if projchan.size:
         options["projchan"] = projchan.tolist()
-    options["plotmap"] = bool(result.get("plotmap", True))
+    # Only components lack the scalp-map checkbox; recording plotmap for them is history noise.
+    if bool(int(typeplot)):
+        options["plotmap"] = bool(result.get("plotmap", True))
     return {
         "index": int(values[0]) if values.size else 1,
         "options": options,
