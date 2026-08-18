@@ -257,8 +257,8 @@ def topoplot(datavector, chan_locs, **kwargs):
         else:
             fig = ax.figure
 
-        # EEGLAB plots plot3(y, x): screen X = y = sin(theta)*Rd, screen Y = x = cos(theta)*Rd.
-        x_rotated = y.copy()
+        # Rotate electrode positions by -90 degrees: (x, y) -> (y, -x)
+        x_rotated = -y.copy()
         y_rotated = x.copy()
         extent_rotated = (ymin, ymax, -xmax, -xmin)
 
@@ -375,7 +375,7 @@ def _channel_location_points(chan_locs):
         labels.append(str(loc.get('labels', index + 1)))
         x = np.cos(theta_rad) * radius_value
         y = np.sin(theta_rad) * radius_value
-        xs.append(y)
+        xs.append(-y)
         ys.append(x)
     return np.asarray(labels), np.asarray(xs), np.asarray(ys)
 
