@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import matplotlib
 
@@ -24,7 +25,7 @@ from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
-from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
+from eegprep.functions.popfunc.pop_erpimage import _run_gui, pop_erpimage, pop_erpimage_dialog_spec
 from eegprep.functions.popfunc.pop_headplot import (
     pop_headplot,
     pop_headplot_dialog_spec,
@@ -1639,6 +1640,92 @@ def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
     plt.close(result["figure"])
 
 
+def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
+    """With no caxis, the color axis is symmetric about 0 (EEGLAB erpimage default)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    image_ax = next(ax for ax in result["figure"].axes if ax.images)
+    vmin, vmax = image_ax.images[0].get_clim()
+    assert vmax > 0
+    assert vmin == pytest.approx(-vmax)
+    assert vmax == pytest.approx(float(np.nanmax(np.abs(result["image"]))))
+    plt.close(result["figure"])
+
+
+def test_pop_erpimage_draws_solid_time_zero_line(sample_epoch):
+    """The ERP image and the ERP trace both mark time zero with a solid line."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.images)
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+
+    def has_solid_zero_line(ax):
+        return any(np.allclose(line.get_xdata(), 0.0) and line.get_linestyle() == "-" for line in ax.get_lines())
+
+    assert has_solid_zero_line(image_ax)
+    assert has_solid_zero_line(erp_ax)
+    plt.close(fig)
+
+
+def test_pop_erpimage_colorbar_matches_eeglab_ticks(sample_epoch):
+    """Colorbar shows 5 ticks across the range with EEGLAB cbar's decade rounding (cbar.m)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, caxis=[-50.24, 50.24], return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    cax = next(ax for ax in fig.axes if ax not in {image_ax, erp_ax, topo_ax})
+    fig.canvas.draw()
+    assert np.allclose(sorted(cax.get_yticks()), np.linspace(-50.24, 50.24, 5))
+    assert {t.get_text() for t in cax.get_yticklabels()} >= {"-50.2", "-25.1", "0", "25.1", "50.2"}
+    plt.close(fig)
+
+
+def test_pop_erpimage_scalp_map_is_small_and_upper_left(sample_epoch):
+    """The channel scalp map is a small square at the upper left (EEGLAB layout)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    img = image_ax.get_position()
+    topo = topo_ax.get_position()
+    assert topo.width < 0.5 * img.width  # small, not full width
+    assert (topo.x0 + topo.width / 2) < (img.x0 + img.width / 2)  # left of the image center
+    assert topo.y0 >= img.y1 - 1e-6  # above the image
+    plt.close(fig)
+
+
+def test_pop_erpimage_dialog_plotmap_checkbox_only_for_channels(sample_epoch, ica_epoch):
+    """The 'Plot scalp map' checkbox appears only in channel mode (ignored for components)."""
+    channel_tags = {control.tag for control in pop_erpimage_dialog_spec(sample_epoch, typeplot=1).controls}
+    component_tags = {control.tag for control in pop_erpimage_dialog_spec(ica_epoch, typeplot=0).controls}
+    assert "plotmap" in channel_tags
+    assert "plotmap" not in component_tags
+
+
+def test_pop_erpimage_gui_records_plotmap_only_for_channels(sample_epoch, ica_epoch):
+    """_run_gui records plotmap in the replayable options only for channels, not components."""
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1, "plotmap": True}):
+        channel_options = _run_gui(sample_epoch, typeplot=1)["options"]
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1}):
+        component_options = _run_gui(ica_epoch, typeplot=0)["options"]
+    assert "plotmap" in channel_options
+    assert "plotmap" not in component_options
+
+
+def test_pop_erpimage_cbar_false_fills_width(sample_epoch):
+    """cbar=False drops the colorbar column and lets the image span the full width."""
+    with_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, return_com=True)
+    without_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, cbar=False, return_com=True)
+    try:
+        img_with = next(ax for ax in with_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        img_without = next(ax for ax in without_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        assert len(without_bar["figure"].axes) == len(with_bar["figure"].axes) - 1  # no colorbar axes
+        assert img_without.get_position().x1 > img_with.get_position().x1  # image reclaims the width
+    finally:
+        plt.close(with_bar["figure"])
+        plt.close(without_bar["figure"])
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(
@@ -1684,6 +1771,48 @@ def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
 
     with pytest.raises(ValueError, match="standalone ERP image"):
         pop_erpimage(eeg, typeplot=1, index=1, align=[0])
+
+
+def test_pop_erpimage_uses_turbo_and_aligns_image_with_erp(sample_epoch):
+    """Match EEGLAB defaults: turbo colormap, ERP axis flush with the image column."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    erp_ax = next(
+        ax for ax in figure.axes if ax is not image_ax and ax.get_xlabel() == "Time (ms)" and ax.get_ylabel() == "µV"
+    )
+
+    assert image_ax.images[0].get_cmap().name == "turbo"
+    assert image_ax.get_position().x1 == pytest.approx(erp_ax.get_position().x1, abs=1e-6)
+    assert image_ax.get_position().x0 == pytest.approx(erp_ax.get_position().x0, abs=1e-6)
+    plt.close(figure)
+
+
+def test_pop_erpimage_channel_adds_scalp_map_axis(sample_epoch):
+    """Channel ERP images draw a small scalp inset above the image with a marker at the channel."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    topo_axes = [
+        ax
+        for ax in figure.axes
+        if ax is not image_ax and not ax.images and ax.get_position().y0 > image_ax.get_position().y1
+    ]
+    assert topo_axes, "expected a scalp topo axis above the image axis"
+    marker_axes = [ax for ax in topo_axes if any(coll.get_offsets().size > 0 for coll in ax.collections)]
+    assert marker_axes, "scalp topo axis should mark the plotted channel"
+    plt.close(figure)
+
+
+def test_pop_erpimage_component_omits_scalp_map_axis(ica_epoch):
+    """Component ERP images stay in the 2-row layout (no scalp inset)."""
+    result, _ = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    above = [ax for ax in figure.axes if ax is not image_ax and ax.get_position().y0 > image_ax.get_position().y1]
+    assert not above
+    plt.close(figure)
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
