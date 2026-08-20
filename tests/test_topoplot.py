@@ -513,7 +513,7 @@ class TestTopoplot(unittest.TestCase):
                 label = loc['labels']
                 theta = np.deg2rad(loc['theta'])
                 r = loc['radius']
-                dot_x = -np.sin(theta) * r
+                dot_x = np.sin(theta) * r
                 text_x, _ = annotations[label].get_position()
                 offsets.append(text_x - dot_x)
                 self.assertEqual(annotations[label].get_ha(), 'left')
@@ -531,7 +531,7 @@ class TestTopoplot(unittest.TestCase):
             fz = next(a for a in ax.texts if a.get_text() == 'Fz')
             theta = np.deg2rad(self.chan_locs[0]['theta'])
             r = self.chan_locs[0]['radius']
-            self.assertAlmostEqual(fz.get_position()[0], -np.sin(theta) * r, places=6)
+            self.assertAlmostEqual(fz.get_position()[0], np.sin(theta) * r, places=6)
             self.assertEqual(fz.get_ha(), 'center')
         finally:
             plt.close(fig)

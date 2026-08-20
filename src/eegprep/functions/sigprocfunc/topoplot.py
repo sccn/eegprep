@@ -257,19 +257,21 @@ def topoplot(datavector, chan_locs, **kwargs):
         else:
             fig = ax.figure
 
-        # EEGLAB plots plot3(y, x): screen X = y = sin(theta)*Rd, screen Y = x = cos(theta)*Rd.
-        x_rotated = y.copy()
-        y_rotated = x.copy()
-        extent_rotated = (ymin, ymax, -xmax, -xmin)
+        # Screen coords match topo_screen_coords: screen X = sin (left-right), screen Y = cos
+        # (front-back). x, y here are already cartesian (cos*Rd, sin*Rd), so this is the swap (y, x).
+        # imshow: columns span y over [ymin, ymax]; rows span x over [xmin, xmax], origin='lower'.
+        screen_x = y.copy()
+        screen_y = x.copy()
+        screen_extent = (ymin, ymax, xmin, xmax)
 
         im = ax.imshow(
-            Zi, extent=extent_rotated, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
+            Zi, extent=screen_extent, origin='lower', cmap=cmap, **_maplimits_kwargs(kwargs.get('maplimits'), Zi)
         )
         # Contour lines
         if np.count_nonzero(np.isfinite(Zi)) > 1 and np.nanmin(Zi) < np.nanmax(Zi):
             grid_x, grid_y = np.meshgrid(
-                np.linspace(extent_rotated[0], extent_rotated[1], Zi.shape[1]),
-                np.linspace(extent_rotated[2], extent_rotated[3], Zi.shape[0]),
+                np.linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
+                np.linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
             )
             levels = np.linspace(np.nanmin(Zi), np.nanmax(Zi), 8)[1:-1]
             ax.contour(
@@ -287,7 +289,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
         markersize = kwargs.get('markersize', 6)
         if str(ELECTRODES).lower() == 'on':
-            ax.scatter(x_rotated, y_rotated, c='k', s=markersize, zorder=5)
+            ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
         theta_c = np.linspace(0, 2 * np.pi, 100)
         # white ring hides the jagged color edge at rmax
         ax.plot(
@@ -306,7 +308,7 @@ def topoplot(datavector, chan_locs, **kwargs):
         )
         _draw_ears(ax, scale=squeezefac)
 
-        _draw_electrode_labels(ax, x_rotated, y_rotated, labels, ELECTRODES, showlabels=kwargs.get('showlabels', False))
+        _draw_electrode_labels(ax, screen_x, screen_y, labels, ELECTRODES, showlabels=kwargs.get('showlabels', False))
 
         ax.set_xlim(-0.6, 0.6)
         ax.set_ylim(-0.6, 0.65)
@@ -325,7 +327,7 @@ def topoplot(datavector, chan_locs, **kwargs):
 
 def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, **kwargs):
     """Draw channel locations without interpolated data."""
-    labels, x_rotated, y_rotated = _channel_location_points(chan_locs)
+    labels, screen_x, screen_y = _channel_location_points(chan_locs)
     xi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     yi_1d = np.linspace(-0.5, 0.5, int(gridscale))
     xi, yi = np.meshgrid(xi_1d, yi_1d)
@@ -346,8 +348,8 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     markersize = kwargs.get('markersize', 6)
     electrode_mode = str(electrodes).lower()
     if electrode_mode in {'on', 'labelpoint', 'numpoint'}:
-        ax.scatter(x_rotated, y_rotated, c='k', s=markersize, zorder=5)
-    _draw_electrode_labels(ax, x_rotated, y_rotated, labels, electrodes)
+        ax.scatter(screen_x, screen_y, c='k', s=markersize, zorder=5)
+    _draw_electrode_labels(ax, screen_x, screen_y, labels, electrodes)
     ax.set_xlim(-0.6, 0.6)
     ax.set_ylim(-0.6, 0.65)
     ax.set_aspect('equal')
@@ -358,6 +360,26 @@ def _blank_topoplot(chan_locs, *, noplot='off', electrodes='on', gridscale=67, *
     return fig, Zi, 0.5, xi, yi
 
 
+def topo_screen_coords(theta_deg, radius):
+    """Map EEGLAB polar channel coordinates to topoplot screen coordinates.
+
+    EEGLAB draws scalp maps nose-up via ``plot(y, x)``: screen X is the sine
+    (left-right) component and screen Y the cosine (front-back) component of a
+    channel's ``(theta, radius)``. Routing every scalp renderer through this one
+    mapping keeps electrode markers, labels, and interpolated data on the same
+    side, with no left-right mirror.
+
+    Args:
+        theta_deg: Channel angle in degrees; scalar or array-like.
+        radius: Channel radius; scalar or array-like.
+
+    Returns:
+        ``(screen_x, screen_y)`` in axes data coordinates.
+    """
+    theta = np.deg2rad(theta_deg)
+    return np.sin(theta) * radius, np.cos(theta) * radius
+
+
 def _channel_location_points(chan_locs):
     labels = []
     xs = []
@@ -366,17 +388,16 @@ def _channel_location_points(chan_locs):
         if 'theta' not in loc or 'radius' not in loc:
             continue
         try:
-            theta_rad = np.deg2rad(float(loc.get('theta')))
+            theta_deg = float(loc.get('theta'))
             radius_value = float(loc.get('radius'))
         except (TypeError, ValueError):
             continue
-        if not np.isfinite(theta_rad) or not np.isfinite(radius_value):
+        if not np.isfinite(theta_deg) or not np.isfinite(radius_value):
             continue
         labels.append(str(loc.get('labels', index + 1)))
-        x = np.cos(theta_rad) * radius_value
-        y = np.sin(theta_rad) * radius_value
-        xs.append(y)
-        ys.append(x)
+        screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
+        xs.append(screen_x)
+        ys.append(screen_y)
     return np.asarray(labels), np.asarray(xs), np.asarray(ys)
 
 
