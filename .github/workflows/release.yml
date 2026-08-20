@@ -1,0 +1,213 @@
+name: Release
+
+# Publishes to PyPI when a v* tag is pushed. Uses PyPI Trusted Publishing
+# (OIDC), so no API token is stored in the repository.
+#
+# One-time PyPI setup (Manage project -> Publishing -> Add a new publisher):
+#   Owner: sccn   Repository: eegprep
+#   Workflow: release.yml   Environment: pypi
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and verify only; do not publish'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Lint, type check and test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the vendored EEGLAB reference itself, but not EEGLAB's nested
+          # plugin submodules; upstream EEGLAB can temporarily point at plugin
+          # commits that are unavailable for shallow GitHub Actions checkout.
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.11
+        run: uv python install 3.11
+
+      - name: Install Linux GUI runtime libraries
+        # PySide6 needs these to import at all; without them the GUI tests fail
+        # with "libEGL.so.1: cannot open shared object file". Mirrors test.yml.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libgl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0
+          echo "QT_QPA_PLATFORM=offscreen" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: uv sync --python 3.11 --all-extras --group dev
+
+      - name: Run Ruff lint
+        run: uv run --no-sync ruff check .
+
+      - name: Run Ruff format check
+        run: uv run --no-sync ruff format --check .
+
+      - name: Run ty type check
+        run: uv run --no-sync ty check
+
+      - name: Run tests
+        # PyPI uploads are immutable, so gate the release on a green suite even
+        # though test.yml already ran on the branch push.
+        env:
+          EEGPREP_SKIP_MATLAB: '1'
+        run: uv run --no-sync pytest tests
+
+  build:
+    name: Build and verify artifacts
+    needs: verify
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.11
+        run: uv python install 3.11
+
+      - name: Build sdist and wheel
+        # `uv build`, not `python -m build`: the repo's build/ output directory
+        # shadows the `build` package on sys.path and breaks `python -m build`.
+        run: |
+          rm -rf dist
+          uv build
+
+      - name: Check version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(python3 -c "import re,pathlib; print(re.search(r'^__version__\s*=\s*[\"\']([^\"\']+)', pathlib.Path('src/eegprep/__init__.py').read_text(), re.M).group(1))")
+          echo "tag=$tag  __version__=$pkg"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match __version__ $pkg"
+            exit 1
+          fi
+          test -f "dist/eegprep-${pkg}-py3-none-any.whl"
+          test -f "dist/eegprep-${pkg}.tar.gz"
+
+      - name: Verify artifact contents
+        run: |
+          set -euo pipefail
+          whl=$(ls dist/*.whl)
+          sdist=$(ls dist/*.tar.gz)
+
+          # The vendored EEGLAB checkout must never ship: runtime code must work
+          # standalone, and including it would bloat the wheel enormously.
+          if [ "$(unzip -l "$whl" | grep -c 'eegprep/eeglab/' || true)" != "0" ]; then
+            echo "::error::Vendored EEGLAB leaked into the wheel"; exit 1
+          fi
+          if [ "$(tar tzf "$sdist" | grep -c 'eegprep/eeglab/' || true)" != "0" ]; then
+            echo "::error::Vendored EEGLAB leaked into the sdist"; exit 1
+          fi
+
+          # Packaged data the runtime needs.
+          if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" = "0" ]; then
+            echo "::error::ICLabel weights (netICL.mat) missing from the wheel"; exit 1
+          fi
+          if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
+            echo "::error::Packaged help resources missing from the wheel"; exit 1
+          fi
+
+          ls -la dist
+
+      - name: Check metadata renders on PyPI
+        run: uvx twine check --strict dist/*
+
+      - name: Smoke test the built wheel
+        run: |
+          set -euo pipefail
+          uv venv --python 3.11 /tmp/relcheck
+          VIRTUAL_ENV=/tmp/relcheck uv pip install dist/*.whl
+          VIRTUAL_ENV=/tmp/relcheck uv run --no-project python -c "
+          import eegprep
+          print('installed', eegprep.__version__)
+          from eegprep.plugins.clean_rawdata.private.yulewalk import yulewalk
+          import numpy as np
+          f = np.concatenate((np.array([0,2,3,13,16,40,80])*2.0/258, [1.0]))
+          B, A = yulewalk(8, f, np.array([3,.75,.33,.33,1,1,3,3], float))
+          assert np.all(np.abs(np.roots(A)) < 1), 'unstable ASR shaping filter'
+          print('ASR shaping filter designs and is stable at 258 Hz')
+          "
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+    runs-on: ubuntu-22.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/eegprep
+    permissions:
+      # Required for Trusted Publishing; no PyPI token needed.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Create GitHub release
+    needs: publish
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "EEGPrep ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            dist/*

@@ -121,88 +121,79 @@ Tests run automatically on:
 
 Check CI status on GitHub Actions.
 
+Full-Pipeline Parity Harness
+----------------------------
+
+The ``tests/`` suite covers parity function by function. End-to-end parity — does
+a complete preprocessing pipeline in EEGPrep reproduce EEGLAB numerically, step
+by step, on real data? — lives in a **separate repository**:
+`sccn/eegprep_parity_test <https://github.com/sccn/eegprep_parity_test>`_.
+
+It runs the same seven-step pipeline twice, once in EEGPrep and once in
+MATLAB/EEGLAB through the ``eeglabcompat`` MATLAB Engine bridge, then reports the
+per-step difference for every subject:
+
+1. Import (BIDS to EEG, select EEG channels)
+2. Average re-reference
+3. ``clean_rawdata`` (ASR)
+4. Picard ICA (identity init, deterministic)
+5. ICLabel and component removal
+6. Spherical-spline interpolation
+7. Epoch and baseline
+
+For each step it records ``max_abs_diff`` and ``rms_diff`` in microvolts on the
+common channels and minimum length, plus ICA decomposition parity (AMARI
+distance, component correlation) and ICLabel rejection counts. Reference
+summaries are committed in the harness so a run can be checked against a known
+good result with its ``verify.py``.
+
+Why it is not part of ``tests/``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **Data size.** The input is a 13-subject, 64-channel BIDS P300 dataset of about
+  790 MB, tracked with Git LFS. That is far too large to vendor into this
+  repository.
+- **Runtime.** A full run over all subjects and steps takes roughly 45 to 60
+  minutes.
+- **MATLAB requirement.** The oracle side needs a licensed MATLAB plus the MATLAB
+  Engine for Python, with the interpreter architecture matching MATLAB's, and an
+  EEGLAB checkout pointed to by ``EEGPREP_EEGLAB_ROOT``.
+
+Bit-level agreement also depends on the NumPy and MATLAB stacks sharing a BLAS
+accumulation order, so results are reproducible per platform pair rather than
+universally. The harness documents the validated combinations.
+
+Folding a reduced version into ``tests/`` — one subject, a few steps, behind the
+existing ``matlab`` and ``slow`` markers — would be a worthwhile future
+improvement. It is not wired up today.
+
+Running it
+~~~~~~~~~~
+
+.. code-block:: bash
+
+    git clone https://github.com/sccn/eegprep_parity_test
+    cd eegprep_parity_test
+    uv venv --python 3.11 .venv && source .venv/bin/activate
+    pip install -r requirements.txt
+    pip install "$MATLABROOT/extern/engines/python"
+    export EEGPREP_EEGLAB_ROOT=/path/to/eeglab
+
+    python run_parity.py                 # all subjects, all steps
+    python run_parity.py sub-005 --steps 1 2 3
+    python verify.py summary_new.md expected_results/summary_arm_R2025a.md
+
+Point the harness at the EEGPrep you want to test by installing it into that
+environment, for example ``pip install -e /path/to/eegprep`` for a working tree.
+See the harness's own ``README.md`` and ``docs/SETUP.md`` for the validated
+platform combinations and the required EEGLAB patches.
+
 EEG And Session Contracts
 =========================
 
-EEGPrep follows EEGLAB's public data model while keeping Python internals
-explicit and testable. Feature code should treat the following contracts as
-shared foundations rather than per-function conventions.
-
-EEG Dictionaries
-----------------
-
-Stored EEG dictionaries should be normalized through ``eeg_checkset`` or an
-``EEGPrepSession`` storage helper before other code relies on shape or type
-invariants. The core fields are ``data``, ``nbchan``, ``pnts``, ``trials``,
-``srate``, ``xmin``, ``xmax``, ``times``, ``event``, ``urevent``, ``epoch``,
-``chanlocs``, ``chaninfo``, ``history``, ``icaact``, ``icawinv``,
-``icasphere``, ``icaweights``, and ``icachansind``.
-
-Continuous data is channel-major with shape ``(nbchan, pnts)``. Epoched data
-is channel-major with shape ``(nbchan, pnts, trials)``. Event latencies and
-user-visible dataset, channel, epoch, and component indices are EEGLAB-style
-1-based values. Python array indexing remains 0-based inside numerical code.
-
-``event`` entries should keep EEGLAB-facing ``latency`` values and, when
-available, ``urevent`` pointers back to ``urevent`` entries. ``urevent`` is the
-original-event table; functions that create, delete, or reorder events must
-state whether they preserve, extend, or rebuild it. ``epoch`` stores per-epoch
-event metadata for epoched datasets. ``chanlocs`` entries use EEGLAB-style
-channel dictionaries, and ``chaninfo`` stores global channel-location metadata.
-ICA fields must be cleared or recomputed consistently when data, channel
-order, or channel count changes.
-
-Session Selection
------------------
-
-``EEGPrepSession.CURRENTSET`` is always a Python ``list[int]`` containing
-EEGLAB-facing 1-based dataset indices. An empty selection is ``[]`` internally
-and ``0`` in the console workspace. A single selected dataset is exposed as
-``CURRENTSET == n`` in the console. Multiple selected datasets are exposed as
-``CURRENTSET == [n, ...]``. Selection order is preserved and duplicate dataset
-indices are invalid.
-
-Read selection state through ``EEGPrepSession.selected_dataset_indices()`` when
-future STUDY or group-level code needs the current dataset vector. Phase 1a
-defines this read contract only; user-facing multi-selection mutation belongs
-to later feature work.
-
-History And Menu Inventory
---------------------------
-
-User-facing ``pop_*`` functions should support ``return_com=True`` and return a
-history command that can be converted to valid ``eegprep-console`` input. GUI
-and console code should append each successful command once through
-``EEGPrepSession.add_history`` or storage helpers.
-
-GUI data-changing actions that produce a new EEG dataset, such as resampling,
-filtering, cleaning, epoching, selecting data, rereferencing, interpolation,
-or component removal, should commit through ``pop_newset`` so the user can
-choose whether to overwrite the current dataset or keep the result as a new
-dataset. Actions that only update metadata, marks, history, ICA fields, or
-STUDY state may store directly when that matches EEGLAB's callback behavior.
-
-``eegprep-console`` and the GUI share one session. GUI command echoes should
-show replayable Python input before progress messages or warnings from the same
-action. ``eegh`` presents history newest-first like EEGLAB while
-``EEGPrepSession.ALLCOM`` remains chronological internally.
-
-Do not fake EEGLAB's one-dataset-in-memory ``option_storedisk`` behavior.
-Use ``eeg_store``/``eeg_retrieve`` or ``EEGPrepSession`` so saved non-current
-datasets are represented by explicit offloaded disk handles and rehydrated
-through the shared storage path. Unsaved resident datasets must stay resident
-or fail clearly until the user saves them.
-
-Menu placeholders are machine-readable. Each placeholder action has either a
-target epic phase or an explicit exclusion reason for workflows that cannot be
-packaged in EEGPrep. Runtime package code must not read, import, or shell out
-to ``src/eegprep/eeglab``; that tree is only a development parity reference.
-
-GUI Help buttons and Help-menu topics must resolve to packaged Markdown files
-under ``src/eegprep/resources/help``. Do not fall back to the vendored EEGLAB
-tree or Python docstrings at runtime. When adding a new implemented
-GUI-reachable ``pop_*``/``eeg_*`` action, add its help resource and extend the
-menu/help resource inventory tests.
+The EEG dictionary, session-selection, and history contracts that feature code
+must honor are documented for users and extension authors in
+:ref:`contracts`.
 
 EEGLAB Core Parity Matrix
 =========================
@@ -471,72 +462,16 @@ Run with:
 Release Process
 ===============
 
-Version Numbering
------------------
+Releases are published by ``.github/workflows/release.yml`` when a ``v*`` tag is
+pushed. See :ref:`releasing` for the full procedure, including the dry run and the
+separate Docker image step.
 
-EEGPrep uses `Semantic Versioning <https://semver.org/>`_:
+EEGPrep uses `Semantic Versioning <https://semver.org/>`_: **MAJOR** for
+incompatible API changes, **MINOR** for backward-compatible functionality, and
+**PATCH** for backward-compatible bug fixes.
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New functionality (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
-
-Example: ``1.2.3`` (Major.Minor.Patch)
-
-Versioning Steps
-----------------
-
-1. Update version in ``src/eegprep/__init__.py``:
-
-.. code-block:: python
-
-    __version__ = "1.2.3"
-
-2. Update version in ``pyproject.toml``:
-
-.. code-block:: toml
-
-    [project]
-    version = "1.2.3"
-
-3. Update ``docs/source/changelog.rst`` with release notes
-
-4. Commit changes:
-
-.. code-block:: bash
-
-    git add .
-    git commit -m "Release version 1.2.3"
-
-Tagging
--------
-
-Create a git tag for the release:
-
-.. code-block:: bash
-
-    git tag -a v1.2.3 -m "Release version 1.2.3"
-    git push origin v1.2.3
-
-PyPI Release
-------------
-
-Build distribution packages:
-
-.. code-block:: bash
-
-    uv run --group release python -m build
-
-Upload to PyPI:
-
-.. code-block:: bash
-
-    uv run --group release python -m twine upload dist/*
-
-Or upload to TestPyPI first:
-
-.. code-block:: bash
-
-    uv run --group release python -m twine upload --repository testpypi dist/*
+The version lives only in ``src/eegprep/__init__.py``; ``pyproject.toml`` reads it
+via ``dynamic = ["version"]``.
 
 Common Issues
 =============

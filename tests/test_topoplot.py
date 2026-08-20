@@ -500,6 +500,53 @@ class TestTopoplot(unittest.TestCase):
         finally:
             plt.close(fig)
 
+    def test_labelpoint_offsets_labels_from_dots(self):
+        """labelpoint labels sit beside the marker, not on top (issue #299)."""
+        with patch('matplotlib.pyplot.show'):
+            fig, _, _, _, _ = topoplot(None, self.chan_locs, style='blank', electrodes='labelpoint')
+        try:
+            ax = fig.axes[0]
+            annotations = {a.get_text(): a for a in ax.texts}
+            self.assertIn('Fz', annotations)
+            offsets = []
+            for loc in self.chan_locs:
+                label = loc['labels']
+                theta = np.deg2rad(loc['theta'])
+                r = loc['radius']
+                dot_x = -np.sin(theta) * r
+                text_x, _ = annotations[label].get_position()
+                offsets.append(text_x - dot_x)
+                self.assertEqual(annotations[label].get_ha(), 'left')
+            # All labels shifted by the same positive offset from their dot.
+            self.assertGreater(offsets[0], 0)
+            for offset in offsets[1:]:
+                self.assertAlmostEqual(offset, offsets[0], places=6)
+        finally:
+            plt.close(fig)
+
+        with patch('matplotlib.pyplot.show'):
+            fig, _, _, _, _ = topoplot(None, self.chan_locs, style='blank', electrodes='labels')
+        try:
+            ax = fig.axes[0]
+            fz = next(a for a in ax.texts if a.get_text() == 'Fz')
+            theta = np.deg2rad(self.chan_locs[0]['theta'])
+            r = self.chan_locs[0]['radius']
+            self.assertAlmostEqual(fz.get_position()[0], -np.sin(theta) * r, places=6)
+            self.assertEqual(fz.get_ha(), 'center')
+        finally:
+            plt.close(fig)
+
+    def test_showlabels_with_electrodes_on_offsets_labels(self):
+        """electrodes='on' with showlabels sits labels beside the dot, not on it (issue #299)."""
+        with patch('matplotlib.pyplot.show'):
+            handle, _, _, _, _ = topoplot(self.datavector, self.chan_locs, electrodes='on', showlabels=True)
+        try:
+            labels_drawn = [a for a in handle.axes[0].texts if a.get_text()]
+            self.assertTrue(labels_drawn)
+            self.assertTrue(all(a.get_ha() == 'left' for a in labels_drawn))
+        finally:
+            plt.close(handle)
+
 
 class TestTopoplotParity(unittest.TestCase):
     """Test parity between Python and MATLAB topoplot implementations."""

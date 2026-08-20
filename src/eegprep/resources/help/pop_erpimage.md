@@ -11,7 +11,12 @@ dataset must be epoched.
 
 Supported plot options include `title`, `limits`, `caxis`, `cbar`, `erp`,
 `vert`, `smooth`, `decimate`, `sort_values`, and component projection through
-`projchan`.
+`projchan`. Channel plots draw a small scalp map above the image with the
+plotted electrode marked; pass `plotmap=False` to suppress it.
+
+By default the color axis is symmetric about zero (as in EEGLAB); pass `caxis`
+to set explicit limits. A solid vertical line marks time zero on both the image
+and the ERP trace.
 
 Event-field sorting is available with EEGLAB-style names:
 

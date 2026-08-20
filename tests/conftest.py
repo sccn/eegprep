@@ -66,6 +66,7 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_eeg_point2lat.py",
     "tests/test_eeg_rpsd_parity.py",
     "tests/test_eegfindboundaries.py",
+    "tests/test_envtopo_parity.py",
     "tests/test_iclabel.py",
     "tests/test_iclabel_features.py",
     "tests/test_parity_rng.py",

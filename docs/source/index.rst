@@ -80,7 +80,6 @@ Manual
 
    api/index
    faq
-   glossary
    references
 
 .. toctree::
@@ -89,6 +88,7 @@ Manual
 
    contributing
    development
+   releasing
    changelog
 
 Five-Minute Script

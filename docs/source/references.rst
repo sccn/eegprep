@@ -299,4 +299,4 @@ Getting Help with References
 - Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_ for related discussions
 - Contact the maintainers for citation questions
 
-For more information about EEG analysis methods, see the :doc:`glossary` for terminology definitions.
+For more information about EEG analysis methods, see the :doc:`/user_guide/glossary` for terminology definitions.
