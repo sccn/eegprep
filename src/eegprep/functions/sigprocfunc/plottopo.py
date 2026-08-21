@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords
 
 
 def plottopo(
@@ -87,13 +88,13 @@ def _topographic_positions(chanlocs: Any, indices: np.ndarray) -> np.ndarray | N
     for index in indices:
         loc = locs[int(index)]
         try:
-            theta = np.deg2rad(float(loc["theta"]))
+            theta_deg = float(loc["theta"])
             radius = float(loc["radius"])
         except (KeyError, TypeError, ValueError):
             return None
-        if not np.isfinite(theta) or not np.isfinite(radius):
+        if not np.isfinite(theta_deg) or not np.isfinite(radius):
             return None
-        positions.append((-np.sin(theta) * radius, np.cos(theta) * radius))
+        positions.append(topo_screen_coords(theta_deg, radius))
     return np.asarray(positions, dtype=float)
 
 
