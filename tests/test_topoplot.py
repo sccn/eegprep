@@ -19,7 +19,7 @@ import scipy.io
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4
+from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4, topo_screen_coords
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
@@ -472,6 +472,23 @@ class TestTopoplot(unittest.TestCase):
         with patch('matplotlib.pyplot.show'):
             handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='off')
             self.assertIsInstance(Zi, np.ndarray)
+
+    def test_topo_screen_coords_cardinal_directions(self):
+        """Pin the shared polar-to-screen orientation contract (nose up, EEGLAB left-right).
+
+        theta=0 -> front (+y), 90 -> right (+x), 180 -> back (-y), 270 -> left (-x).
+        Three modules import this helper, so a sign flip here would re-mirror every plot.
+        """
+        cardinals = {
+            0: (0.0, 0.5),  # front (nose up)
+            90: (0.5, 0.0),  # right
+            180: (0.0, -0.5),  # back
+            270: (-0.5, 0.0),  # left
+        }
+        for theta_deg, (expected_x, expected_y) in cardinals.items():
+            screen_x, screen_y = topo_screen_coords(theta_deg, 0.5)
+            self.assertAlmostEqual(float(screen_x), expected_x, places=10)
+            self.assertAlmostEqual(float(screen_y), expected_y, places=10)
 
     def test_markers_match_eeglab_left_right_orientation(self):
         """Markers sit on the same side as their data, matching EEGLAB (no L/R mirror).

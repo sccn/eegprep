@@ -382,8 +382,8 @@ def topo_screen_coords(theta_deg, radius):
 
 def _channel_location_points(chan_locs):
     labels = []
-    xs = []
-    ys = []
+    screen_xs = []
+    screen_ys = []
     for index, loc in enumerate(chan_locs):
         if 'theta' not in loc or 'radius' not in loc:
             continue
@@ -396,9 +396,9 @@ def _channel_location_points(chan_locs):
             continue
         labels.append(str(loc.get('labels', index + 1)))
         screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
-        xs.append(screen_x)
-        ys.append(screen_y)
-    return np.asarray(labels), np.asarray(xs), np.asarray(ys)
+        screen_xs.append(screen_x)
+        screen_ys.append(screen_y)
+    return np.asarray(labels), np.asarray(screen_xs), np.asarray(screen_ys)
 
 
 # EEGLAB topoplot ear outline (rmax = 0.5); the left ear mirrors these x-coords.
