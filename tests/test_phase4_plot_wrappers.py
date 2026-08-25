@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import MouseEvent
+from matplotlib.collections import PathCollection
 from matplotlib.figure import Figure
 import numpy as np
 import pytest
@@ -49,6 +50,7 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.erpimage import _draw_channel_topo
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
@@ -1343,6 +1345,46 @@ def test_pop_plottopo_rect_option_switches_layout(sample_epoch):
     _assert_python_command(rect_command)
     plt.close(topo_fig)
     plt.close(rect_fig)
+
+
+def test_pop_plottopo_scalp_array_places_channels_on_correct_side(sample_epoch):
+    """plottopo scalp-array sub-plots sit on the same side as their electrodes (no L/R mirror)."""
+    eeg = deepcopy(sample_epoch)
+    eeg["data"] = eeg["data"][:4]
+    eeg["nbchan"] = 4
+    eeg["chanlocs"] = [
+        {"labels": "Fz", "theta": 0, "radius": 0.5},
+        {"labels": "F4", "theta": 45, "radius": 0.5},
+        {"labels": "Pz", "theta": 180, "radius": 0.5},
+        {"labels": "F3", "theta": -45, "radius": 0.5},
+    ]
+    fig, _command = pop_plottopo(eeg, chans=[1, 2, 3, 4], return_com=True)
+    axes_by_label = {axis.get_title(): axis for axis in fig.axes}
+    # F4 (right, +theta) sits right of F3 (left, -theta); Fz (front) above Pz (back).
+    assert axes_by_label["F4"].get_position().x0 > axes_by_label["F3"].get_position().x0
+    assert axes_by_label["Fz"].get_position().y0 > axes_by_label["Pz"].get_position().y0
+    plt.close(fig)
+
+
+def test_erpimage_scalp_inset_marks_channel_on_correct_side():
+    """The erpimage scalp inset marks the plotted channel on its true side (no L/R mirror)."""
+    chan_locs = [
+        {"labels": "F3", "theta": -39.947, "radius": 0.3446},
+        {"labels": "F4", "theta": 39.897, "radius": 0.3445},
+    ]
+    for channel_index, on_right in [(2, True), (1, False)]:
+        fig, ax = plt.subplots()
+        _draw_channel_topo(ax, chan_locs, channel_index)
+        marker = next(
+            np.asarray(c.get_offsets())
+            for c in ax.collections
+            if isinstance(c, PathCollection) and len(c.get_offsets()) == 1
+        )
+        if on_right:
+            assert marker[0, 0] > 0  # F4 marked on the right
+        else:
+            assert marker[0, 0] < 0  # F3 marked on the left
+        plt.close(fig)
 
 
 def test_component_activations_use_icachansind_subset(ica_epoch):

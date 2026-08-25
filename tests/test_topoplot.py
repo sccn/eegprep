@@ -11,6 +11,7 @@ import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.collections import PathCollection
 from unittest.mock import patch
 import tempfile
 import scipy.io
@@ -489,14 +490,44 @@ class TestTopoplot(unittest.TestCase):
         try:
             with patch('matplotlib.pyplot.show'):
                 topoplot(data, chan_locs, axes=ax, electrodes='on')
-            markers = next(np.asarray(c.get_offsets()) for c in ax.collections if len(c.get_offsets()) == 4)
-            self.assertGreater(markers[1, 0], 0)  # RIGHT channel marker on the right
+            markers = next(
+                np.asarray(c.get_offsets())
+                for c in ax.collections
+                if isinstance(c, PathCollection) and len(c.get_offsets()) == len(chan_locs)
+            )
+            # Marker order matches chan_locs: FRONT, RIGHT, BACK, LEFT.
+            self.assertGreater(markers[1, 0], 0)  # RIGHT marker on the right (screen_x > 0)
+            self.assertLess(markers[3, 0], 0)  # LEFT marker on the left (screen_x < 0)
+            self.assertGreater(markers[0, 1], markers[2, 1])  # FRONT above BACK (screen_y)
             image = ax.images[0]
             grid = image.get_array()
             left, right, _, _ = image.get_extent()
             _, col = np.unravel_index(np.nanargmax(grid), grid.shape)
             blob_x = left + (col + 0.5) / grid.shape[1] * (right - left)
             self.assertGreater(blob_x, 0)  # data blob on the same (right) side as the marker
+        finally:
+            plt.close(fig)
+
+    def test_extent_matches_channel_geometry_for_asymmetric_layout(self):
+        """Image extent uses (xmin, xmax) for front-back, not the old (-xmax, -xmin).
+
+        A back channel beyond the head (radius > 1) makes xmin != -xmax; the image
+        bottom must follow xmin so the interpolated field aligns with channel geometry.
+        The old (-xmax, -xmin) form would clamp the bottom to -rmax instead.
+        """
+        chan_locs = [
+            {'labels': 'BACK', 'theta': 180, 'radius': 1.2},  # off-head -> asymmetric xmin
+            {'labels': 'RIGHT', 'theta': 90, 'radius': 0.5},
+            {'labels': 'FRONT', 'theta': 0, 'radius': 0.5},
+        ]
+        data = np.array([1.0, 0.0, -1.0])
+        fig, ax = plt.subplots()
+        try:
+            with patch('matplotlib.pyplot.show'):
+                topoplot(data, chan_locs, axes=ax, electrodes='on')
+            _, _, bottom, top = ax.images[0].get_extent()
+            self.assertLess(bottom, -0.5)  # extends below -rmax; old (-xmax,-xmin) would give -0.5
+            self.assertAlmostEqual(top, 0.5, places=6)  # front side stays at +rmax
         finally:
             plt.close(fig)
 
