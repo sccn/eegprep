@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Scalp maps now render with EEGLAB's left-right orientation. ``topoplot``, ``plottopo``,
+  and ``erpimage`` previously mirrored electrode markers, labels, and interpolated data
+  along the left-right axis; channel positions now match EEGLAB (F4 on the right, F3 on the
+  left). Dataset contents and history are unaffected.
+
 Version 0.3.0
 =============
 
