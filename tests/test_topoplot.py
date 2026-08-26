@@ -11,6 +11,7 @@ import unittest
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.collections import PathCollection
 from unittest.mock import patch
 import tempfile
 import scipy.io
@@ -18,7 +19,7 @@ import scipy.io
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4
+from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4, topo_screen_coords
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
@@ -472,6 +473,81 @@ class TestTopoplot(unittest.TestCase):
             handle, Zi, plotrad, xi, yi = topoplot(self.minimal_data, self.minimal_chan_locs, noplot='off')
             self.assertIsInstance(Zi, np.ndarray)
 
+    def test_topo_screen_coords_cardinal_directions(self):
+        """Pin the shared polar-to-screen orientation contract (nose up, EEGLAB left-right).
+
+        theta=0 -> front (+y), 90 -> right (+x), 180 -> back (-y), 270 -> left (-x).
+        Three modules import this helper, so a sign flip here would re-mirror every plot.
+        """
+        cardinals = {
+            0: (0.0, 0.5),  # front (nose up)
+            90: (0.5, 0.0),  # right
+            180: (0.0, -0.5),  # back
+            270: (-0.5, 0.0),  # left
+        }
+        for theta_deg, (expected_x, expected_y) in cardinals.items():
+            screen_x, screen_y = topo_screen_coords(theta_deg, 0.5)
+            self.assertAlmostEqual(float(screen_x), expected_x, places=10)
+            self.assertAlmostEqual(float(screen_y), expected_y, places=10)
+
+    def test_markers_match_eeglab_left_right_orientation(self):
+        """Markers sit on the same side as their data, matching EEGLAB (no L/R mirror).
+
+        EEGLAB plots screen X = sin(theta)*Rd, so a theta=90 channel is on the right.
+        Its marker and its interpolated data peak must land on the same (right) side.
+        """
+        chan_locs = [
+            {'labels': 'FRONT', 'theta': 0, 'radius': 0.5},
+            {'labels': 'RIGHT', 'theta': 90, 'radius': 0.5},
+            {'labels': 'BACK', 'theta': 180, 'radius': 0.5},
+            {'labels': 'LEFT', 'theta': 270, 'radius': 0.5},
+        ]
+        data = np.array([0.0, 10.0, 0.0, 0.0])  # hot spot on the theta=90 (EEGLAB right) channel
+        fig, ax = plt.subplots()
+        try:
+            with patch('matplotlib.pyplot.show'):
+                topoplot(data, chan_locs, axes=ax, electrodes='on')
+            markers = next(
+                np.asarray(c.get_offsets())
+                for c in ax.collections
+                if isinstance(c, PathCollection) and len(c.get_offsets()) == len(chan_locs)
+            )
+            # Marker order matches chan_locs: FRONT, RIGHT, BACK, LEFT.
+            self.assertGreater(markers[1, 0], 0)  # RIGHT marker on the right (screen_x > 0)
+            self.assertLess(markers[3, 0], 0)  # LEFT marker on the left (screen_x < 0)
+            self.assertGreater(markers[0, 1], markers[2, 1])  # FRONT above BACK (screen_y)
+            image = ax.images[0]
+            grid = image.get_array()
+            left, right, _, _ = image.get_extent()
+            _, col = np.unravel_index(np.nanargmax(grid), grid.shape)
+            blob_x = left + (col + 0.5) / grid.shape[1] * (right - left)
+            self.assertGreater(blob_x, 0)  # data blob on the same (right) side as the marker
+        finally:
+            plt.close(fig)
+
+    def test_extent_matches_channel_geometry_for_asymmetric_layout(self):
+        """Image extent uses (xmin, xmax) for front-back, not the old (-xmax, -xmin).
+
+        A back channel beyond the head (radius > 1) makes xmin != -xmax; the image
+        bottom must follow xmin so the interpolated field aligns with channel geometry.
+        The old (-xmax, -xmin) form would clamp the bottom to -rmax instead.
+        """
+        chan_locs = [
+            {'labels': 'BACK', 'theta': 180, 'radius': 1.2},  # off-head -> asymmetric xmin
+            {'labels': 'RIGHT', 'theta': 90, 'radius': 0.5},
+            {'labels': 'FRONT', 'theta': 0, 'radius': 0.5},
+        ]
+        data = np.array([1.0, 0.0, -1.0])
+        fig, ax = plt.subplots()
+        try:
+            with patch('matplotlib.pyplot.show'):
+                topoplot(data, chan_locs, axes=ax, electrodes='on')
+            _, _, bottom, top = ax.images[0].get_extent()
+            self.assertLess(bottom, -0.5)  # extends below -rmax; old (-xmax,-xmin) would give -0.5
+            self.assertAlmostEqual(top, 0.5, places=6)  # front side stays at +rmax
+        finally:
+            plt.close(fig)
+
     def test_labelpoint_offsets_labels_from_dots(self):
         """labelpoint labels sit beside the marker, not on top (issue #299)."""
         with patch('matplotlib.pyplot.show'):
@@ -485,7 +561,7 @@ class TestTopoplot(unittest.TestCase):
                 label = loc['labels']
                 theta = np.deg2rad(loc['theta'])
                 r = loc['radius']
-                dot_x = -np.sin(theta) * r
+                dot_x = np.sin(theta) * r
                 text_x, _ = annotations[label].get_position()
                 offsets.append(text_x - dot_x)
                 self.assertEqual(annotations[label].get_ha(), 'left')
@@ -503,7 +579,7 @@ class TestTopoplot(unittest.TestCase):
             fz = next(a for a in ax.texts if a.get_text() == 'Fz')
             theta = np.deg2rad(self.chan_locs[0]['theta'])
             r = self.chan_locs[0]['radius']
-            self.assertAlmostEqual(fz.get_position()[0], -np.sin(theta) * r, places=6)
+            self.assertAlmostEqual(fz.get_position()[0], np.sin(theta) * r, places=6)
             self.assertEqual(fz.get_ha(), 'center')
         finally:
             plt.close(fig)

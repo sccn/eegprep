@@ -7,7 +7,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
 
 _ZERO_LINEWIDTH = 2.5  # solid time-zero line, clearly thicker than dotted vert lines (EEGLAB ZEROWIDTH=3.0)
 
@@ -178,15 +178,14 @@ def _draw_channel_topo(ax: Any, chan_locs: Any, channel_index: int) -> None:
         return
     loc = chan_locs[channel_index - 1]
     try:
-        theta_rad = np.deg2rad(float(loc.get("theta")))
+        theta_deg = float(loc.get("theta"))
         radius_value = float(loc.get("radius"))
     except (TypeError, ValueError):
         return
-    if not (np.isfinite(theta_rad) and np.isfinite(radius_value)):
+    if not (np.isfinite(theta_deg) and np.isfinite(radius_value)):
         return
-    x = np.cos(theta_rad) * radius_value
-    y = np.sin(theta_rad) * radius_value
-    ax.scatter(-y, x, c="k", s=24, zorder=6)
+    screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
+    ax.scatter(screen_x, screen_y, c="k", s=24, zorder=6)
 
 
 __all__ = ["erpimage"]
