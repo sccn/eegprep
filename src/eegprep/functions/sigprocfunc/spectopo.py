@@ -84,6 +84,7 @@ def compute_spectra(
     winsize: int | None = None,
     overlap: int = 0,
     nfft: int | None = None,
+    mapnorm: Any = None,
 ) -> tuple[np.ndarray, np.ndarray, None]:
     """Return Welch spectra in dB as ``channels x frequencies``.
 
@@ -91,6 +92,10 @@ def compute_spectra(
     ``frames < sample_count``) is handled per epoch and averaged in linear power
     before the dB conversion, matching EEGLAB ``spectopo``'s ``spectcomp``. 2-D
     concatenated data is unstacked column-major to match MATLAB's ``reshape``.
+
+    ``mapnorm`` (a component scalp-map column) scales the linear power by
+    ``sqrt(mean(mapnorm**4))`` before the dB conversion, so a single component's
+    activation spectrum reflects its projected scalp power (EEGLAB ``spectopo.m``).
     """
     values = np.asarray(data, dtype=float)
     if values.ndim == 3:
@@ -144,6 +149,8 @@ def compute_spectra(
             psd_sum = np.zeros_like(power)
         psd_sum += power
     psd_mean = psd_sum / trials
+    if mapnorm is not None:
+        psd_mean = psd_mean * np.sqrt(np.mean(np.asarray(mapnorm, dtype=float) ** 4))
     spectra = 10.0 * np.log10(np.maximum(psd_mean, np.finfo(float).tiny))
     return spectra, freqs, None
 

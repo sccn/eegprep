@@ -380,6 +380,29 @@ def topo_screen_coords(theta_deg, radius):
     return np.sin(theta) * radius, np.cos(theta) * radius
 
 
+def plot_channel_location(ax, chan_locs, channel_index, *, markersize=24):
+    """Draw a blank scalp map and mark a single channel's location.
+
+    Mirrors EEGLAB's single-channel ``topoplot(..., 'style', 'blank',
+    'emarkersize1chan', ...)`` used by the property and ERP-image plots.
+    ``channel_index`` is 1-based; an out-of-range or coordinate-less channel draws
+    just the blank head.
+    """
+    topoplot([], chan_locs, style="blank", electrodes="off", axes=ax, title="")
+    if not 1 <= channel_index <= len(chan_locs):
+        return
+    loc = chan_locs[channel_index - 1]
+    try:
+        theta_deg = float(loc.get("theta"))
+        radius_value = float(loc.get("radius"))
+    except (TypeError, ValueError):
+        return
+    if not (np.isfinite(theta_deg) and np.isfinite(radius_value)):
+        return
+    screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
+    ax.scatter(screen_x, screen_y, c="k", s=markersize, zorder=6)
+
+
 def _channel_location_points(chan_locs):
     labels = []
     screen_xs = []

@@ -50,8 +50,7 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.sigprocfunc.erpimage import _draw_channel_topo
-from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -1374,7 +1373,7 @@ def test_erpimage_scalp_inset_marks_channel_on_correct_side():
     ]
     for channel_index, on_right in [(2, True), (1, False)]:
         fig, ax = plt.subplots()
-        _draw_channel_topo(ax, chan_locs, channel_index)
+        plot_channel_location(ax, chan_locs, channel_index)
         marker = next(
             np.asarray(c.get_offsets())
             for c in ax.collections
