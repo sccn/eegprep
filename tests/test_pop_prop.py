@@ -182,6 +182,19 @@ def test_component_map_shows_electrode_markers() -> None:
     plt.close("all")
 
 
+def test_component_map_color_axis_is_symmetric_about_zero() -> None:
+    """The component map uses maplimits='absmax' so 0 maps to the colormap center."""
+    eeg = _epoched_eeg()
+    fig = pop_prop(eeg, 0, 2, plot="off")
+
+    topo_ax = _find_axis(fig, lambda a: bool(a.get_images()) and a.get_title().startswith("IC"))
+    assert topo_ax is not None, "no component scalp-map panel found"
+    vmin, vmax = topo_ax.get_images()[0].get_clim()
+    assert vmax > 0
+    np.testing.assert_allclose(vmin, -vmax, rtol=1e-9)
+    plt.close("all")
+
+
 def test_continuous_data_still_builds_an_erpimage() -> None:
     """Continuous (single-trial) data yields an ERP image, not a bare line plot."""
     eeg = create_test_eeg(n_channels=8, n_samples=4096, srate=128.0, n_trials=1)

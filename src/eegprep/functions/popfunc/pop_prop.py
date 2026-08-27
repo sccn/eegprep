@@ -166,7 +166,11 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             raise ValueError("component index is outside available ICA components")
         trace = acts[index - 1]
         basename = f"IC{index}"
-        topoplot(maps[:, index - 1], map_chanlocs, axes=topo_ax, numcontour=COMPONENT_MAP_NUMCONTOUR)
+        # maplimits='absmax' centers the color axis on 0 (EEGLAB topoplot default), so the
+        # map is not forced to matplotlib's asymmetric [min, max] auto range.
+        topoplot(
+            maps[:, index - 1], map_chanlocs, axes=topo_ax, numcontour=COMPONENT_MAP_NUMCONTOUR, maplimits="absmax"
+        )
         spectrum_input = acts[index - 1 : index]
         mapnorm = np.asarray(EEG["icawinv"], dtype=float)[:, index - 1]
     topo_ax.set_title(basename, fontsize=14)
