@@ -169,6 +169,19 @@ def test_channel_topo_marks_only_the_selected_channel() -> None:
     plt.close("all")
 
 
+def test_component_map_shows_electrode_markers() -> None:
+    """The component scalp map keeps electrode dots on, like EEGLAB pop_prop."""
+    eeg = _epoched_eeg()
+    fig = pop_prop(eeg, 0, 2, plot="off")
+
+    topo_ax = _find_axis(fig, lambda a: bool(a.get_images()) and a.get_title().startswith("IC"))
+    assert topo_ax is not None, "no component scalp-map panel found"
+    dots = [c for c in topo_ax.collections if isinstance(c, PathCollection)]
+    marked = sum(len(np.asarray(c.get_offsets())) for c in dots)
+    assert marked == int(eeg["nbchan"]), "component map should mark every electrode"
+    plt.close("all")
+
+
 def test_continuous_data_still_builds_an_erpimage() -> None:
     """Continuous (single-trial) data yields an ERP image, not a bare line plot."""
     eeg = create_test_eeg(n_channels=8, n_samples=4096, srate=128.0, n_trials=1)

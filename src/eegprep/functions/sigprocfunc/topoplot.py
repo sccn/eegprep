@@ -273,7 +273,7 @@ def topoplot(datavector, chan_locs, **kwargs):
                 np.linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
                 np.linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
             )
-            levels = np.linspace(np.nanmin(Zi), np.nanmax(Zi), 8)[1:-1]
+            levels = _contour_levels(np.nanmin(Zi), np.nanmax(Zi), int(kwargs.get('numcontour', 6)))
             ax.contour(
                 grid_x,
                 grid_y,
@@ -380,7 +380,12 @@ def topo_screen_coords(theta_deg, radius):
     return np.sin(theta) * radius, np.cos(theta) * radius
 
 
-def plot_channel_location(ax, chan_locs, channel_index, *, markersize=24):
+def _contour_levels(zmin, zmax, numcontour):
+    """Return ``numcontour`` interior contour levels between ``zmin`` and ``zmax``."""
+    return np.linspace(zmin, zmax, int(numcontour) + 2)[1:-1]
+
+
+def plot_channel_location(ax, chan_locs, channel_index, *, markersize=24, color="k"):
     """Draw a blank scalp map and mark a single channel's location.
 
     Mirrors EEGLAB's single-channel ``topoplot(..., 'style', 'blank',
@@ -400,7 +405,7 @@ def plot_channel_location(ax, chan_locs, channel_index, *, markersize=24):
     if not (np.isfinite(theta_deg) and np.isfinite(radius_value)):
         return
     screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
-    ax.scatter(screen_x, screen_y, c="k", s=markersize, zorder=6)
+    ax.scatter(screen_x, screen_y, c=color, s=markersize, zorder=6)
 
 
 def _channel_location_points(chan_locs):

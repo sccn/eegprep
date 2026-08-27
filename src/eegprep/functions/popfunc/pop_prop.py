@@ -26,9 +26,12 @@ from eegprep.functions.sigprocfunc.erpimage import erpimage
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 
-# EEGLAB pop_prop() spectrum-axis label and single-channel marker size.
+# EEGLAB pop_prop() spectrum-axis label and 3-contour component map. EEGLAB draws the
+# selected channel marker and its spectrum trace in red.
 SPECTRUM_YLABEL = r"Power 10*log$_{10}$($\mu$V$^2$/Hz)"
-CHANNEL_MARKER_SIZE = 80
+CHANNEL_MARKER_SIZE = 50
+EEGLAB_RED = "red"
+COMPONENT_MAP_NUMCONTOUR = 3
 
 
 def pop_prop(
@@ -147,7 +150,13 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             raise ValueError("channel index is outside available channels")
         trace = data[index - 1]
         basename = f"Channel {index}"
-        plot_channel_location(topo_ax, chanlocs_as_list(EEG.get("chanlocs", [])), index, markersize=CHANNEL_MARKER_SIZE)
+        plot_channel_location(
+            topo_ax,
+            chanlocs_as_list(EEG.get("chanlocs", [])),
+            index,
+            markersize=CHANNEL_MARKER_SIZE,
+            color=EEGLAB_RED,
+        )
         spectrum_input = data[index - 1 : index]
         mapnorm = None
     else:
@@ -157,7 +166,7 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             raise ValueError("component index is outside available ICA components")
         trace = acts[index - 1]
         basename = f"IC{index}"
-        topoplot(maps[:, index - 1], map_chanlocs, axes=topo_ax, electrodes="off")
+        topoplot(maps[:, index - 1], map_chanlocs, axes=topo_ax, numcontour=COMPONENT_MAP_NUMCONTOUR)
         spectrum_input = acts[index - 1 : index]
         mapnorm = np.asarray(EEG["icawinv"], dtype=float)[:, index - 1]
     topo_ax.set_title(basename, fontsize=14)
@@ -224,7 +233,7 @@ def _draw_spectrum(ax: Any, EEG: dict[str, Any], spectrum_input: np.ndarray, spe
         nfft=_first_int(spec_options.get("nfft")),
         mapnorm=mapnorm,
     )
-    ax.plot(freqs, spectra[0], color="black")
+    ax.plot(freqs, spectra[0], color=EEGLAB_RED)
     freqrange = numeric_vector(spec_options.get("freqrange", []))
     if freqrange.size == 2:
         ax.set_xlim(float(freqrange[0]), float(freqrange[1]))
