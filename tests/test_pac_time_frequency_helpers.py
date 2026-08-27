@@ -29,7 +29,10 @@ def test_pac_computes_frequency_pair_grid_for_epoched_data():
     corr = pac(amp, phase, srate, freqs=[20, 40], freqs2=[4, 8], nfreqs=5, ntimesout=8, method="corrsin")
 
     assert isinstance(result, PacResult)
-    assert result.pac.shape == (5, 3, 8)
+    # EEGLAB timefreq keeps one output bin per requested frequency, duplicates
+    # allowed; nfreqs=5 over [4, 8] Hz snaps to [4, 4, 6, 6, 8] (MATLAB-verified).
+    assert result.pac.shape == (5, 5, 8)
+    np.testing.assert_allclose(result.freqs2, [4, 4, 6, 6, 8])
     assert result.times.size == 8
     assert np.iscomplexobj(result.pac)
     assert np.isfinite(np.abs(result.pac)).all()

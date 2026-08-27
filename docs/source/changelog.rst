@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` time-frequency plots built on it --
+  now match EEGLAB's decomposition numerics. Requested output frequencies are no longer
+  de-duplicated, so ``freqs``/``nfreqs`` requests that snap several values onto the same FFT
+  bin return one output frequency per request (as in EEGLAB, duplicates included); ``detrend``
+  is now correctly a no-op on the FFT (``cycles=0``) path; output time windows are centered
+  with EEGLAB's ``eeg_lat2point`` rounding and the negative-``ntimesout`` subsample grid no
+  longer includes a spurious trailing time point; ``subitc`` returns the pre-subtraction
+  inter-trial coherence; and exact-zero spectral bins are guarded as in EEGLAB. Some outputs
+  change shape or value versus earlier EEGPrep releases.
 - Scalp maps now render with EEGLAB's left-right orientation. ``topoplot``, ``plottopo``,
   and ``erpimage`` previously mirrored electrode markers, labels, and interpolated data
   along the left-right axis; channel positions now match EEGLAB (F4 on the right, F3 on the

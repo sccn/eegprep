@@ -64,7 +64,7 @@ from eegprep.functions.timefreqfunc.rsget import rsget
 from eegprep.functions.timefreqfunc.rspdfsolv import rspdfsolv
 from eegprep.functions.timefreqfunc.rspfunc import rspfunc
 from eegprep.functions.timefreqfunc.tf_cycle_calc import tf_cycle_calc
-from eegprep.functions.timefreqfunc.timefreq import timefreq
+from eegprep.functions.timefreqfunc.timefreq import _replace_zero_bins, timefreq
 from eegprep.functions.timefreqfunc.timewarp import timewarp
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
@@ -139,6 +139,147 @@ def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
     assert result.times.size > 1
     assert result.freqs.size > 0
     assert result.tfdata.shape == (result.freqs.size, result.times.size, sample_epoch["trials"])
+
+
+# --- timefreq numeric-parity regression guards (EEGLAB timefreq.m) ----------
+
+
+def _oscillation_trials(srate, frames, phases):
+    times = np.arange(frames) / srate
+    return np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in phases], axis=1)
+
+
+def test_timefreq_fft_path_ignores_detrend():
+    # EEGLAB's active FFT branch only subtracts the window mean; 'detrend' is a
+    # no-op for cycles=0 (timefreq.m 323-346), even with a linear trend present.
+    srate = 128.0
+    frames = 128
+    trend = np.linspace(0.0, 3.0, frames)[:, None] * np.asarray([1.0, 0.7, 1.3])
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2, 0.5]) + trend
+    common = dict(frames=frames, cycles=0, tlimits=[0, 1000], freqs=[5, 20], ntimesout=12, padratio=2)
+    off = timefreq(trials, srate, detrend="off", **common)
+    on = timefreq(trials, srate, detrend="on", **common)
+    np.testing.assert_allclose(on.tfdata, off.tfdata, rtol=1e-12, atol=1e-12)
+
+
+def test_timefreq_subitc_returns_presubtraction_itc():
+    # EEGLAB returns the pre-subtraction ITC and only then subtracts it from the
+    # single-trial estimates (timefreq.m 552-561).
+    srate = 128.0
+    frames = 128
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2, 0.5])
+    common = dict(frames=frames, cycles=0, tlimits=[0, 1000], freqs=[5, 20], ntimesout=12, padratio=2)
+    off = timefreq(trials, srate, subitc="off", **common)
+    on = timefreq(trials, srate, subitc="on", **common)
+    np.testing.assert_allclose(on.itcvals, off.itcvals, rtol=1e-12, atol=1e-12)
+    assert not np.allclose(on.tfdata, off.tfdata)
+
+
+def test_timefreq_keeps_one_output_bin_per_requested_frequency():
+    # EEGLAB maps each requested frequency to its nearest computed bin without
+    # de-duplicating (timefreq.m 565-576); a coarse grid still yields one output
+    # frequency per request, duplicates included.
+    srate = 128.0
+    frames = 128
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2])
+    requested = [5, 6, 7, 8, 9, 10]
+    result = timefreq(
+        trials,
+        srate,
+        frames=frames,
+        cycles=0,
+        tlimits=[0, 1000],
+        freqs=requested,
+        winsize=16,
+        padratio=2,
+        ntimesout=12,
+    )
+    assert result.freqs.size == len(requested)
+    assert result.tfdata.shape[0] == len(requested)
+    assert np.unique(result.freqs).size < result.freqs.size
+
+
+def test_timefreq_output_times_round_half_away_from_zero():
+    # Output windows are centered via eeg_lat2point + round-half-away-from-zero
+    # (timefreq.m 657). A request landing exactly between two samples rounds up,
+    # where a nearest-sample argmin would fall back to the lower index.
+    srate = 100.0
+    frames = 101
+    tlimits = [0.0, 1000.0]  # 10 ms sample spacing
+    winsize = 20
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2])
+    result = timefreq(
+        trials,
+        srate,
+        frames=frames,
+        cycles=0,
+        tlimits=tlimits,
+        freqs=[5, 20],
+        winsize=winsize,
+        padratio=2,
+        timesout=[205, 405, 605],
+    )
+    # Each request sits exactly between samples (e.g. 405 ms between 400 and 410);
+    # EEGLAB rounds up, so the selected sample times are the upper neighbours.
+    np.testing.assert_allclose(result.times, [210.0, 410.0, 610.0], rtol=1e-12, atol=1e-12)
+
+
+def test_timefreq_subsample_times_match_eeglab_colon():
+    # Negative ntimesout subsamples on EEGLAB's colon grid (timefreq.m 629); the
+    # inclusive upper bound is frames-ceil(winsize/2)-1, with no extra tail point.
+    srate = 128.0
+    frames = 121
+    tlimits = [0.0, 1000.0]
+    winsize = 16
+    nsub = 10
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2])
+    result = timefreq(
+        trials,
+        srate,
+        frames=frames,
+        cycles=0,
+        tlimits=tlimits,
+        freqs=[5, 20],
+        winsize=winsize,
+        padratio=2,
+        ntimesout=-nsub,
+    )
+    start1 = int(np.ceil(winsize / 2 + nsub / 2))
+    stop1 = frames - int(np.ceil(winsize / 2)) - 1
+    expected_idx = np.arange(start1, stop1 + 1, nsub) - 1
+    timevect = np.linspace(tlimits[0], tlimits[1], frames)
+    np.testing.assert_allclose(result.times, timevect[expected_idx], rtol=1e-12, atol=1e-12)
+
+
+def test_timefreq_wavelet_detrend_only_applies_to_single_channel():
+    # EEGLAB detrends only the single-channel wavelet branch (timefreq.m 457-462);
+    # the multichannel branch subtracts the window mean only.
+    srate = 128.0
+    frames = 128
+    tlimits = [0.0, 1000.0]
+    trend = np.linspace(0.0, 4.0, frames)[:, None]
+    ch0 = _oscillation_trials(srate, frames, [0.0, 0.2, 0.5]) + trend * np.asarray([1.0, 0.7, 1.3])
+    ch1 = _oscillation_trials(srate, frames, [0.1, 0.3, 0.4]) + trend * np.asarray([0.8, 1.1, 0.9])
+    multi = np.stack([ch0, ch1], axis=0)
+    common = dict(cycles=[3, 0.5], tlimits=tlimits, freqs=[8, 18], ntimesout=8)
+    multi_off = timefreq(multi, srate, detrend="off", **common)
+    multi_on = timefreq(multi, srate, detrend="on", **common)
+    np.testing.assert_allclose(multi_on.tfdata, multi_off.tfdata, rtol=1e-12, atol=1e-12)
+
+    single_off = timefreq(ch0, srate, frames=frames, detrend="off", **common)
+    single_on = timefreq(ch0, srate, frames=frames, detrend="on", **common)
+    assert not np.allclose(single_on.tfdata, single_off.tfdata)
+
+
+def test_replace_zero_bins_matches_eeglab_guard():
+    # timefreq.m 543-548: exact-zero bins take the smallest non-zero estimate.
+    clean = np.asarray([[1 + 1j, 2 - 1j], [0.5 + 0.5j, 3 + 0j]])
+    np.testing.assert_array_equal(_replace_zero_bins(clean), clean)
+    with_zero = np.asarray([[0 + 0j, 2 - 1j], [0.5 + 0.5j, 3 + 0j]])
+    filled = _replace_zero_bins(with_zero)
+    assert filled[0, 0] == 0.5 + 0.5j
+    np.testing.assert_array_equal(filled[0, 1:], with_zero[0, 1:])
+    np.testing.assert_array_equal(filled[1, :], with_zero[1, :])
 
 
 def test_timewarp_matches_eeglab_linear_interpolation_matrix():

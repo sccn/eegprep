@@ -9,6 +9,7 @@ import numpy as np
 from scipy import signal
 
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3, symmetric_hanning
 from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
@@ -87,7 +88,6 @@ def timefreq(
             timesout,
             ntimesout,
             str(ffttaper).lower(),
-            str(detrend).lower(),
             str(causal).lower(),
         )
     else:
@@ -113,10 +113,12 @@ def timefreq(
 
     if tfdata.shape[0] == 1:
         tfdata = tfdata[0]
+    tfdata = _replace_zero_bins(tfdata)
     itcvals = newtimefitc(tfdata, itctype) if tfdata.ndim >= 3 else None
     if str(subitc).lower() == "on":
+        # EEGLAB returns the pre-subtraction ITC and only then subtracts it from
+        # the single-trial estimates (timefreq.m lines 552-561).
         tfdata = _subtract_itc(tfdata, itcvals)
-        itcvals = newtimefitc(tfdata, itctype)
     return TimeFrequencyDecomposition(tfdata, output_freqs, times, itcvals, window_size, cycle_values)
 
 
@@ -241,7 +243,6 @@ def _fft_timefreq(
     timesout: Any,
     ntimesout: Any,
     taper: str,
-    detrend_mode: str,
     causal: str,
 ) -> np.ndarray:
     _, indices = _output_times(data.shape[1], tlimits, srate, winsize, timesout, ntimesout, causal)
@@ -257,9 +258,9 @@ def _fft_timefreq(
             start = center - half + 1
             stop = center + half + 1
         segment = data[:, start:stop, :].copy()
+        # EEGLAB's active FFT branch only subtracts the window mean; the
+        # 'detrend' option is a no-op here (timefreq.m lines 323-346).
         segment -= np.nanmean(segment, axis=1, keepdims=True)
-        if detrend_mode == "on":
-            segment = signal.detrend(segment, axis=1, type="linear")
         transformed = np.fft.fft(segment * window[np.newaxis, :, np.newaxis], n=nfft, axis=1)
         output[:, :, time_index, :] = transformed[:, 1 : nfft // 2 + 1, :]
     return output
@@ -289,7 +290,9 @@ def _wavelet_timefreq(
                 stop = center + half + 1
             segment = data[:, start:stop, :].copy()
             segment -= np.nanmean(segment, axis=1, keepdims=True)
-            if detrend_mode == "on":
+            # EEGLAB only detrends the single-channel wavelet branch
+            # (timefreq.m lines 457-462); the multichannel branch does not.
+            if detrend_mode == "on" and data.shape[0] == 1:
                 segment = signal.detrend(segment, axis=1, type="linear")
             output[:, freq_index, time_index, :] = np.sum(segment * wavelet[np.newaxis, :, np.newaxis], axis=1)
     return output
@@ -320,7 +323,7 @@ def _output_times(
                 wanted = np.linspace(float(tlimits[0]) + 2.0 * wintime, float(tlimits[1]), ntimes)
             else:
                 wanted = np.linspace(float(tlimits[0]) + wintime, float(tlimits[1]) - wintime, ntimes)
-            indices = _nearest_time_indices(timevect, wanted)
+            indices = _nearest_time_indices(wanted, srate, tlimits)
         else:
             step = max(1, -ntimes)
             if causal == "on":
@@ -328,7 +331,7 @@ def _output_times(
             else:
                 start = int(np.ceil(winsize / 2.0 + step / 2.0)) - 1
                 stop = len(timevect) - int(np.ceil(winsize / 2.0)) - 1
-                indices = np.arange(start, stop + 1, step, dtype=int)
+                indices = np.arange(start, stop, step, dtype=int)
     else:
         if causal == "on":
             mask = (explicit_times >= float(tlimits[0]) + 2.0 * wintime - 0.0001) & (
@@ -341,15 +344,18 @@ def _output_times(
         wanted = explicit_times[mask]
         if wanted.size == 0:
             raise ValueError("No time points. Reduce time window or minimum frequency.")
-        indices = _nearest_time_indices(timevect, wanted)
+        indices = _nearest_time_indices(wanted, srate, tlimits)
     indices = np.unique(indices[(indices >= 0) & (indices < frames)])
     if indices.size == 0:
         raise ValueError("No valid time points for time-frequency decomposition")
     return timevect[indices], indices
 
 
-def _nearest_time_indices(timevect: np.ndarray, wanted: np.ndarray) -> np.ndarray:
-    return np.asarray([int(np.argmin(np.abs(timevect - value))) for value in wanted], dtype=int)
+def _nearest_time_indices(wanted: np.ndarray, srate: float, tlimits: np.ndarray) -> np.ndarray:
+    # EEGLAB maps requested times to data points with eeg_lat2point and rounds
+    # half-away-from-zero (timefreq.m line 657). Points are 1-based; shift to 0.
+    points, _ = eeg_lat2point(wanted, 1, srate, [float(tlimits[0]), float(tlimits[1])], 1e-3)
+    return np.floor(np.asarray(points, dtype=float) + 0.5).astype(int) - 1
 
 
 def _fft_window(winsize: int, taper: str) -> np.ndarray:
@@ -383,9 +389,9 @@ def _select_requested_freqs(
 ) -> tuple[np.ndarray, np.ndarray]:
     if requested_freqs.size == all_freqs.size and np.allclose(requested_freqs, all_freqs):
         return all_freqs, tfdata
+    # EEGLAB keeps one output bin per requested frequency, duplicates allowed
+    # (timefreq.m lines 565-576); it does not de-duplicate the mapping.
     indices = np.asarray([int(np.argmin(np.abs(all_freqs - freq))) for freq in requested_freqs], dtype=int)
-    _, unique_positions = np.unique(indices, return_index=True)
-    indices = indices[np.sort(unique_positions)]
     return all_freqs[indices], tfdata[:, indices, :, :]
 
 
@@ -463,6 +469,23 @@ def _snapped_warp_positions(
         kept_source.append(source)
         kept_target.append(target)
     return np.asarray(kept_source, dtype=int), np.asarray(kept_target, dtype=int)
+
+
+def _replace_zero_bins(tfdata: np.ndarray) -> np.ndarray:
+    """Replace exact-zero spectral bins with the smallest non-zero estimate.
+
+    Mirrors EEGLAB's guard (timefreq.m lines 543-548) so downstream ITC and
+    single-trial baseline steps never divide by a zero-magnitude bin.
+    """
+    zero_mask = tfdata == 0
+    if not zero_mask.any():
+        return tfdata
+    magnitudes = np.abs(tfdata)
+    magnitudes[zero_mask] = np.inf
+    minval = tfdata.reshape(-1)[int(np.argmin(magnitudes))]
+    result = tfdata.copy()
+    result[zero_mask] = minval
+    return result
 
 
 def _subtract_itc(tfdata: np.ndarray, itcvals: np.ndarray | None) -> np.ndarray:
