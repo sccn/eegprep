@@ -1,8 +1,10 @@
 name: zz debug claude auth
-on: push
+on:
+  pull_request:
+    types: [opened, synchronize]
 jobs:
   probe:
-    if: github.ref == 'refs/heads/debug/claude-auth'
+    if: github.head_ref == 'debug/claude-auth'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
