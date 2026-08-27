@@ -60,6 +60,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.CLAUDE_MAX_OAUTH_TOKEN }}
           allowed_bots: 'claude[bot]'
+          # TEMPORARY: surfaces the suppressed CLI error while the bot fails at
+          # startup. Revert once the cause is identified.
+          show_full_output: true
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
