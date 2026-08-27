@@ -169,6 +169,24 @@ def test_channel_topo_marks_only_the_selected_channel() -> None:
     plt.close("all")
 
 
+@pytest.mark.parity
+def test_spectrum_y_axis_hugs_the_visible_frequency_band() -> None:
+    """The spectrum y-limits track the data within the plotted band, not out-of-view freqs."""
+    eeg = _epoched_eeg()
+    fig = pop_prop(eeg, 0, 2, spec_opt="'freqrange', [2, 50]", plot="off")
+
+    spec_ax = _spectrum_axis(fig)
+    freqs = np.asarray(spec_ax.lines[0].get_xdata(), dtype=float)
+    spectra = np.asarray(spec_ax.lines[0].get_ydata(), dtype=float)
+    band = (freqs >= 2.0) & (freqs <= 50.0)
+    band_lo, band_hi = float(spectra[band].min()), float(spectra[band].max())
+    margin = (band_hi - band_lo) / 7.0
+
+    y_lo, y_hi = spec_ax.get_ylim()
+    np.testing.assert_allclose([y_lo, y_hi], [band_lo - margin, band_hi + margin], rtol=1e-9)
+    plt.close("all")
+
+
 def test_component_map_shows_electrode_markers() -> None:
     """The component scalp map keeps electrode dots on, like EEGLAB pop_prop."""
     eeg = _epoched_eeg()

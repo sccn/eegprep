@@ -193,9 +193,9 @@ def plot_spectra(
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
 
-    low, high, min_idx, max_idx = _frequency_window(frequency_values, requested_freqs, freqrange)
+    low, high, min_idx, max_idx = frequency_window(frequency_values, requested_freqs, freqrange)
     spec_ax.set_xlim(low, high)
-    y_low, y_high = _spectra_ylim(spectra, min_idx, max_idx)
+    y_low, y_high = spectra_ylim(spectra, min_idx, max_idx)
     if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
         spec_ax.set_ylim(y_low, y_high)
 
@@ -219,7 +219,7 @@ def plot_spectra(
     return fig
 
 
-def _frequency_window(
+def frequency_window(
     frequency_values: np.ndarray, requested_freqs: np.ndarray, freqrange: Any
 ) -> tuple[float, float, int, int]:
     """Return the (low, high) x-limits and their frequency indices, as EEGLAB does."""
@@ -235,7 +235,7 @@ def _frequency_window(
     return low, high, min_idx, max_idx
 
 
-def _spectra_ylim(spectra: np.ndarray, min_idx: int, max_idx: int) -> tuple[float, float]:
+def spectra_ylim(spectra: np.ndarray, min_idx: int, max_idx: int) -> tuple[float, float]:
     """Data range over the plotted band, expanded by 1/7 each side (EEGLAB convention)."""
     low_i, high_i = sorted((min_idx, max_idx))
     window = spectra[:, low_i : high_i + 1]
@@ -442,10 +442,10 @@ def plot_component_spectra(
     spec_ax.set_xlabel("Frequency (Hz)")
     spec_ax.set_ylabel(r"Log Power Spectral Density 10*log$_{10}$($\mu$V$^2$/Hz)")
     spec_ax.spines[["top", "right"]].set_visible(False)
-    low, high, min_idx, max_idx = _frequency_window(frequency_values, freqs_req, freqrange)
+    low, high, min_idx, max_idx = frequency_window(frequency_values, freqs_req, freqrange)
     spec_ax.set_xlim(low, high)
     stacked = np.vstack([comp_spectra, data_rms[None, :]])
-    y_low, y_high = _spectra_ylim(stacked, min_idx, max_idx)
+    y_low, y_high = spectra_ylim(stacked, min_idx, max_idx)
     if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
         spec_ax.set_ylim(y_low, y_high)
 

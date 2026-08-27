@@ -23,7 +23,7 @@ from eegprep.functions.popfunc.plot_utils import (
     show_figures,
 )
 from eegprep.functions.sigprocfunc.erpimage import erpimage
-from eegprep.functions.sigprocfunc.spectopo import compute_spectra
+from eegprep.functions.sigprocfunc.spectopo import compute_spectra, frequency_window, spectra_ylim
 from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 
 # EEGLAB pop_prop() spectrum-axis label and 3-contour component map. EEGLAB draws the
@@ -238,9 +238,13 @@ def _draw_spectrum(ax: Any, EEG: dict[str, Any], spectrum_input: np.ndarray, spe
         mapnorm=mapnorm,
     )
     ax.plot(freqs, spectra[0], color=EEGLAB_RED)
-    freqrange = numeric_vector(spec_options.get("freqrange", []))
-    if freqrange.size == 2:
-        ax.set_xlim(float(freqrange[0]), float(freqrange[1]))
+    # Match spectopo: x-limits from the requested band, y-limits hugging the data in that
+    # band (EEGLAB's 1/7 margin), so the axis stays tight to the visible spectrum.
+    low, high, min_idx, max_idx = frequency_window(freqs, np.asarray([]), spec_options.get("freqrange", []))
+    ax.set_xlim(low, high)
+    y_low, y_high = spectra_ylim(spectra, min_idx, max_idx)
+    if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
+        ax.set_ylim(y_low, y_high)
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel(SPECTRUM_YLABEL)
     ax.set_title("Activity power spectrum")
