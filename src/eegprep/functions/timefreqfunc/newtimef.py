@@ -82,6 +82,8 @@ def newtimef(
     plotersp: Any = "on",
     plotitc: Any = "on",
     plotphase: Any = "off",
+    erspmax: Any = None,
+    itcmax: Any = None,
     title: str = "Time-frequency",
     rng: Any = None,
     detrend: str = "off",
@@ -218,6 +220,8 @@ def newtimef(
             ersp_significant=ersp_significant,
             itc_significant=itc_significant,
             vertical_markers=vertical_markers,
+            erspmax=erspmax,
+            itcmax=itcmax,
         )
     return TimeFrequencyResult(
         ersp,
@@ -514,6 +518,8 @@ def _plot_time_frequency(
     ersp_significant: np.ndarray | None,
     itc_significant: np.ndarray | None,
     vertical_markers: np.ndarray | None,
+    erspmax: Any = None,
+    itcmax: Any = None,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
@@ -521,6 +527,7 @@ def _plot_time_frequency(
     fig, axes = plt.subplots(panels, 1, figsize=(7.5, 5.0), squeeze=False)
     row = 0
     if plotersp:
+        ersp_vmin, ersp_vmax = _color_limits(erspmax, symmetric=True)
         _plot_panel(
             axes[row, 0],
             fig,
@@ -531,10 +538,15 @@ def _plot_time_frequency(
             label="ERSP",
             plottype=plottype,
             significant=ersp_significant,
+            vmin=ersp_vmin,
+            vmax=ersp_vmax,
             vertical_markers=vertical_markers,
         )
         row += 1
     if plotitc:
+        itc_vmin, itc_vmax = _color_limits(itcmax, symmetric=False)
+        if itc_vmax is None:
+            itc_vmin, itc_vmax = 0.0, max(1.0, float(np.nanmax(itc)))
         _plot_panel(
             axes[row, 0],
             fig,
@@ -545,8 +557,8 @@ def _plot_time_frequency(
             label="ITC",
             plottype=plottype,
             significant=itc_significant,
-            vmin=0.0,
-            vmax=max(1.0, float(np.nanmax(itc))),
+            vmin=itc_vmin,
+            vmax=itc_vmax,
             vertical_markers=vertical_markers,
         )
     axes[panels - 1, 0].set_xlabel("Time (ms)")
@@ -610,6 +622,22 @@ def _numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
 def _first_numeric(value: Any, default: float) -> float:
     values = _numeric_vector(value)
     return float(values[0]) if values.size else float(default)
+
+
+def _color_limits(value: Any, *, symmetric: bool) -> tuple[float | None, float | None]:
+    """Return ``(vmin, vmax)`` image color limits from an EEGLAB color-max value.
+
+    A single value ``m`` gives ``(-m, m)`` for a symmetric (ERSP) scale or
+    ``(0, m)`` for a one-sided (ITC) scale; a ``[min, max]`` pair is used as is.
+    Empty or zero input returns ``(None, None)`` so the caller keeps auto limits.
+    """
+    values = _numeric_vector(value)
+    if values.size >= 2:
+        return float(values[0]), float(values[1])
+    if values.size == 0 or values[0] == 0:
+        return None, None
+    magnitude = abs(float(values[0]))
+    return (-magnitude, magnitude) if symmetric else (0.0, magnitude)
 
 
 __all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

@@ -195,6 +195,12 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     alpha = numeric_vector(result.get("alpha", []))
     if alpha.size:
         options["alpha"] = float(alpha[0])
+    erspmax = numeric_vector(result.get("erspmax", []))
+    if erspmax.size:
+        options["erspmax"] = erspmax.tolist() if erspmax.size > 1 else float(erspmax[0])
+    itcmax = numeric_vector(result.get("itcmax", []))
+    if itcmax.size:
+        options["itcmax"] = itcmax.tolist() if itcmax.size > 1 else float(itcmax[0])
     if bool(result.get("fdr", False)):
         options["mcorrect"] = "fdr"
     if bool(result.get("freqscale", False)):

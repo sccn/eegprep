@@ -578,6 +578,41 @@ def test_pop_newtimef_accepts_supplied_bootstrap_limits(sample_epoch):
     np.testing.assert_array_equal(result.itcboot, np.asarray([0.5, 0.5], dtype=float))
 
 
+def test_newtimef_applies_ersp_and_itc_color_limits():
+    srate = 128
+    times = np.arange(128) / srate
+    trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
+
+    result = newtimef(trials, trials.shape[0], [0, 1000], srate, 0, freqs=[5, 20], timesout=12, erspmax=3.0, itcmax=0.4)
+
+    clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
+    assert (-3.0, 3.0) in clims  # ERSP color max is symmetric [-erspmax, erspmax]
+    assert (0.0, 0.4) in clims  # ITC color max is one-sided [0, itcmax]
+    plt.close(result.figure)
+
+
+def test_pop_newtimef_forwards_color_limits(sample_eeg, sample_epoch):
+    class _ColorLimitRenderer:
+        def run(self, spec, initial_values=None):
+            _ = initial_values
+            values = {control.tag: control.value for control in spec.controls if control.tag}
+            values["erspmax"] = "3"
+            values["itcmax"] = "0.4"
+            return values
+
+    gui = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_ColorLimitRenderer())
+    assert gui["options"]["erspmax"] == 3.0
+    assert gui["options"]["itcmax"] == 0.4
+
+    result, command = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], erspmax=2.5, itcmax=0.6, return_com=True)
+    assert "erspmax=2.5" in command
+    assert "itcmax=0.6" in command
+    clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
+    assert (-2.5, 2.5) in clims
+    assert (0.0, 0.6) in clims
+    plt.close(result.figure)
+
+
 def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_eeg):
     newtimef = pop_newtimef_dialog_spec(sample_eeg, typeproc=1)
     newcrossf = pop_newcrossf_dialog_spec(sample_eeg, typeproc=1)

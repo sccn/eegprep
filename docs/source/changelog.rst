@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` now honors the dialog's "ERSP color limits" and "ITC color limits"
+  fields (the ``erspmax`` / ``itcmax`` options); previously these edit boxes were collected
+  but ignored. ``erspmax`` sets a symmetric ERSP image scale (``[-erspmax, erspmax]``) and
+  ``itcmax`` the ITC image maximum.
 - ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` time-frequency plots built on it --
   now match EEGLAB's decomposition numerics. Requested output frequencies are no longer
   de-duplicated, so ``freqs``/``nfreqs`` requests that snap several values onto the same FFT

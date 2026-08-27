@@ -21,6 +21,11 @@ reference latencies and `timewarpidx` to choose which event columns are marked
 with vertical lines. If `timewarpms` is omitted, EEGPrep uses the median latency
 of each event column, matching EEGLAB's standalone workflow.
 
+The "ERSP color limits" and "ITC color limits" dialog fields (options `erspmax`
+and `itcmax`) set the image color-scale maxima. `erspmax` is applied symmetrically
+as `[-erspmax, erspmax]`; `itcmax` sets the ITC image upper limit. Leave a field
+empty to auto-scale.
+
 The `tf cycle calc` button opens the Morlet wavelet cycle calculator. It writes
 the calculated frequency and cycle vectors back to the parent `pop_newtimef`
 dialog.
