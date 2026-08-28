@@ -27,6 +27,7 @@ def erpimage(
     chan_locs: Any = None,
     channel_index: int | None = None,
     target: Any = None,
+    yerplabel: str = "µV",
 ):
     """Plot trials as an EEGLAB-style ERP image plus the average ERP.
 
@@ -38,6 +39,9 @@ def erpimage(
     ``f`` that sets a symmetric color axis of ``+/- f * max(|image|)`` (EEGLAB
     ``erpimage.m`` ``caxfraction``). Pass ``target`` (a Figure or SubFigure) to
     draw the panels into an existing figure instead of opening a new window.
+
+    ``yerplabel`` labels the average-ERP y-axis; EEGLAB passes an empty string
+    for unitless data such as ICA component activations (``'yerplabel', ''``).
     """
     values = np.asarray(data, dtype=float)
     if values.ndim != 2:
@@ -122,7 +126,7 @@ def erpimage(
         if draw_zero:
             erp_ax.axvline(0, color="black", linewidth=_ZERO_LINEWIDTH)
         erp_ax.set_xlabel("Time (ms)")
-        erp_ax.set_ylabel("µV")
+        erp_ax.set_ylabel(yerplabel)
     else:
         image_ax.set_xlabel("Time (ms)")
     if topo_ax is not None:

@@ -139,26 +139,27 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
     times = eeg_times_ms(EEG)
     trials = int(EEG.get("trials", 1) or 1)
 
-    fig = plt.figure(figsize=(5, 5), layout="constrained")  # EEGLAB uses a 500x500 square
-    top, bottom = fig.subfigures(2, 1, height_ratios=(3, 2))
-    topo_sf, erp_sf = top.subfigures(1, 2, width_ratios=(2, 3))
-    topo_ax = topo_sf.add_subplot(1, 1, 1)
-    spec_ax = bottom.add_subplot(1, 1, 1)
-
+    # Resolve and validate the trace before creating the figure so a bad index cannot
+    # leak an open figure (EEGLAB validates the range first: pop_prop.m:130).
     if typecomp:
         if index < 1 or index > data.shape[0]:
             raise ValueError("channel index is outside available channels")
         trace = data[index - 1]
         basename = f"Channel {index}"
-        plot_channel_location(
-            topo_ax,
-            chanlocs_as_list(EEG.get("chanlocs", [])),
-            index,
-            markersize=CHANNEL_MARKER_SIZE,
-            color=EEGLAB_RED,
-        )
         spectrum_input = data[index - 1 : index]
         mapnorm = None
+        # EEGLAB pop_prop leaves erpimage's default "ERP" ordinate label for channels
+        # (pop_prop.m:192) and blanks it for components (:200).
+        yerplabel = "ERP"
+
+        def draw_topo(ax: Any) -> None:
+            plot_channel_location(
+                ax,
+                chanlocs_as_list(EEG.get("chanlocs", [])),
+                index,
+                markersize=CHANNEL_MARKER_SIZE,
+                color=EEGLAB_RED,
+            )
     else:
         acts = component_activations(EEG)
         maps, map_chanlocs = component_map_data(EEG)
@@ -166,23 +167,34 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             raise ValueError("component index is outside available ICA components")
         trace = acts[index - 1]
         basename = f"IC{index}"
-        # maplimits='absmax' centers the color axis on 0 (EEGLAB topoplot default), so the
-        # map is not forced to matplotlib's asymmetric [min, max] auto range.
-        topoplot(
-            maps[:, index - 1], map_chanlocs, axes=topo_ax, numcontour=COMPONENT_MAP_NUMCONTOUR, maplimits="absmax"
-        )
         spectrum_input = acts[index - 1 : index]
         mapnorm = np.asarray(EEG["icawinv"], dtype=float)[:, index - 1]
+        # EEGLAB blanks the ERP y-label for components (pop_prop.m: 'yerplabel', '').
+        yerplabel = ""
+        component_map = maps[:, index - 1]
+
+        def draw_topo(ax: Any) -> None:
+            # maplimits='absmax' centers the color axis on 0 (EEGLAB topoplot default), so the
+            # map is not forced to matplotlib's asymmetric [min, max] auto range.
+            topoplot(component_map, map_chanlocs, axes=ax, numcontour=COMPONENT_MAP_NUMCONTOUR, maplimits="absmax")
+
+    fig = plt.figure(figsize=(5, 5), layout="constrained")  # EEGLAB uses a 500x500 square
+    top, bottom = fig.subfigures(2, 1, height_ratios=(3, 2))
+    topo_sf, erp_sf = top.subfigures(1, 2, width_ratios=(2, 3))
+    topo_ax = topo_sf.add_subplot(1, 1, 1)
+    spec_ax = bottom.add_subplot(1, 1, 1)
+
+    draw_topo(topo_ax)
     topo_ax.set_title(basename, fontsize=14)
 
-    _draw_erp_image(erp_sf, trace, times, trials, basename, float(EEG.get("srate", 1) or 1))
+    _draw_erp_image(erp_sf, trace, times, trials, basename, float(EEG.get("srate", 1) or 1), yerplabel)
     _draw_spectrum(spec_ax, EEG, spectrum_input, spec_opt, mapnorm)
     fig.suptitle(f"pop_prop() - {basename} properties", fontweight="bold")
     return fig
 
 
 def _draw_erp_image(
-    container: Any, trace: np.ndarray, times: np.ndarray, trials: int, basename: str, srate: float
+    container: Any, trace: np.ndarray, times: np.ndarray, trials: int, basename: str, srate: float, yerplabel: str
 ) -> None:
     """Draw the ERP-image panel, offset-subtracted like EEGLAB nan_mean."""
     trace_2d = trace if trace.ndim == 2 else trace[:, np.newaxis]
@@ -198,6 +210,7 @@ def _draw_erp_image(
             cbar=True,
             plot_erp=True,
             target=container,
+            yerplabel=yerplabel,
         )
     else:
         _draw_continuous_erp_image(container, trace_2d.reshape(-1), srate)

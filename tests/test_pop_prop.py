@@ -77,14 +77,22 @@ def _topo_axis(fig: Any) -> Any:
     return ax
 
 
+def _erp_average_axis(fig: Any) -> Any:
+    """The ERP average-trace panel (xlabel 'Time (ms)', no image), below the ERP image."""
+    ax = _find_axis(fig, lambda a: a.get_xlabel() == "Time (ms)" and not a.get_images())
+    assert ax is not None, "no ERP average panel (xlabel 'Time (ms)') found"
+    return ax
+
+
 def test_channel_property_has_three_eeglab_panels() -> None:
     eeg = _epoched_eeg()
     fig = pop_prop(eeg, 1, 3, plot="off")
 
     image_ax = _image_axis(fig)
     assert image_ax.get_ylabel() == "Trials"
-    erp_ax = _find_axis(fig, lambda a: a.get_ylabel() in {"µV", "uV"})
-    assert erp_ax is not None and erp_ax.get_xlabel() == "Time (ms)"
+    # EEGLAB pop_prop labels the channel ERP average "ERP" (erpimage default, pop_prop.m:192).
+    erp_ax = _erp_average_axis(fig)
+    assert erp_ax.get_ylabel() == "ERP"
 
     spec_ax = _spectrum_axis(fig)
     assert spec_ax.get_xlabel() == "Frequency (Hz)"
@@ -145,10 +153,25 @@ def test_erp_average_uses_global_offset_subtracted_data() -> None:
     offset = np.nanmean(trace)
     expected_erp = np.nanmean(trace - offset, axis=1)
 
-    erp_ax = _find_axis(fig, lambda a: a.get_ylabel() in {"µV", "uV"})
-    assert erp_ax is not None
+    erp_ax = _erp_average_axis(fig)
     ydata = np.asarray(erp_ax.lines[0].get_ydata(), dtype=float)
     np.testing.assert_allclose(ydata, expected_erp, atol=1e-9)
+    plt.close("all")
+
+
+@pytest.mark.parity
+def test_erp_average_y_label_matches_eeglab_pop_prop() -> None:
+    """EEGLAB pop_prop labels the channel ERP "ERP" (default) and blanks it for components."""
+    eeg = _epoched_eeg()
+
+    # IC activations are unitless, so EEGLAB passes 'yerplabel', '' (pop_prop.m:200).
+    comp_fig = pop_prop(eeg, 0, 2, plot="off")
+    assert _erp_average_axis(comp_fig).get_ylabel() == ""
+
+    # Channels keep erpimage's default "ERP" label (pop_prop.m:192), so the blanking is
+    # component-specific.
+    chan_fig = pop_prop(eeg, 1, 3, plot="off")
+    assert _erp_average_axis(chan_fig).get_ylabel() == "ERP"
     plt.close("all")
 
 

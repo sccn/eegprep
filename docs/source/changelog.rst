@@ -16,7 +16,9 @@ Unreleased
   computed from the raw per-epoch data, and component spectra are scaled by the component
   map power (``mapnorm``) so their levels match EEGLAB. Channel maps mark the selected
   channel's location, and the spectrum y-axis stays tight to the plotted frequency band
-  instead of stretching to out-of-view frequencies.
+  instead of stretching to out-of-view frequencies. The ERP average panel is labeled "ERP"
+  for channels and left blank for components, since ICA component activations are unitless,
+  matching EEGLAB.
 - Scalp maps now render with EEGLAB's left-right orientation. ``topoplot``, ``plottopo``,
   and ``erpimage`` previously mirrored electrode markers, labels, and interpolated data
   along the left-right axis; channel positions now match EEGLAB (F4 on the right, F3 on the
