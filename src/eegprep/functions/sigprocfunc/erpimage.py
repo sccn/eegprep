@@ -7,7 +7,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
+from eegprep.functions.sigprocfunc.topoplot import plot_channel_location
 
 _ZERO_LINEWIDTH = 2.5  # solid time-zero line, clearly thicker than dotted vert lines (EEGLAB ZEROWIDTH=3.0)
 
@@ -26,12 +26,23 @@ def erpimage(
     vert: Any = None,
     chan_locs: Any = None,
     channel_index: int | None = None,
+    target: Any = None,
+    yerplabel: str = "µV",
+    title_fontsize: float | None = None,
 ):
     """Plot trials as an EEGLAB-style ERP image plus the average ERP.
 
     Pass ``chan_locs`` and ``channel_index`` (1-based) to draw a small scalp
     map above the image with the plotted channel marked, matching EEGLAB's
     default ERP-image layout for channels.
+
+    ``caxis`` accepts either ``[lo, hi]`` explicit limits or a single fraction
+    ``f`` that sets a symmetric color axis of ``+/- f * max(|image|)`` (EEGLAB
+    ``erpimage.m`` ``caxfraction``). Pass ``target`` (a Figure or SubFigure) to
+    draw the panels into an existing figure instead of opening a new window.
+
+    ``yerplabel`` labels the average-ERP y-axis; EEGLAB passes an empty string
+    for unitless data such as ICA component activations (``'yerplabel', ''``).
     """
     values = np.asarray(data, dtype=float)
     if values.ndim != 2:
@@ -56,14 +67,16 @@ def erpimage(
     if plot_erp:
         height_ratios.append(1.0)
     fig_height = 1.2 * sum(height_ratios) + 0.6
-    fig = plt.figure(figsize=(7.5, fig_height))
+    fig = target if target is not None else plt.figure(figsize=(7.5, fig_height))
     # Reserve a narrow colorbar column only when a colorbar is drawn, so cbar=False fills the width.
+    # EEGLAB abuts the ERP trace directly under the image (erpimage.m:2056/2927 share the boundary),
+    # so use no row gap unless a scalp-map row is present (its inset title needs the gap above).
     gs = fig.add_gridspec(
         nrows=len(height_ratios),
         ncols=2 if cbar else 1,
         width_ratios=[20, 1] if cbar else [1],
         height_ratios=height_ratios,
-        hspace=0.15,
+        hspace=0.15 if show_topo else 0.0,
         wspace=0.04,
     )
     row = 0
@@ -85,13 +98,17 @@ def erpimage(
     im = image_ax.imshow(image, aspect="auto", origin="lower", extent=extent, cmap="turbo")
     limits = _limits(caxis)
     if limits is None:
-        # EEGLAB erpimage default: color axis symmetric about 0 (erpimage.m).
+        # EEGLAB erpimage default: color axis symmetric about 0, optionally scaled
+        # by a single caxis fraction f -> +/- f * max(|image|) (erpimage.m).
         cmax = float(np.nanmax(np.abs(image))) if image.size else 0.0
+        fraction = _caxis_fraction(caxis)
+        if fraction is not None:
+            cmax *= fraction
         limits = (-cmax, cmax) if np.isfinite(cmax) and cmax > 0 else None
     if limits is not None:
         im.set_clim(*limits)
     image_ax.set_ylabel("Trials")
-    image_ax.set_title(title or "ERP image")
+    image_ax.set_title(title or "ERP image", fontsize=title_fontsize)
     for latency in _numeric_values(vert):
         image_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
     if draw_zero:
@@ -112,11 +129,14 @@ def erpimage(
         if draw_zero:
             erp_ax.axvline(0, color="black", linewidth=_ZERO_LINEWIDTH)
         erp_ax.set_xlabel("Time (ms)")
-        erp_ax.set_ylabel("µV")
+        erp_ax.set_ylabel(yerplabel)
+        # EEGLAB blanks the image's x-tick labels so only the ERP trace carries the time
+        # axis (erpimage.m:2922); this also lets the two panels sit flush.
+        image_ax.tick_params(labelbottom=False)
     else:
         image_ax.set_xlabel("Time (ms)")
     if topo_ax is not None:
-        _draw_channel_topo(topo_ax, chan_locs, int(channel_index))
+        plot_channel_location(topo_ax, chan_locs, int(channel_index))
     return fig, image
 
 
@@ -150,6 +170,12 @@ def _limits(value: Any) -> tuple[float, float] | None:
     return float(values[0]), float(values[1])
 
 
+def _caxis_fraction(value: Any) -> float | None:
+    """A single ``caxis`` value is an EEGLAB caxfraction, not explicit limits."""
+    values = _numeric_values(value)
+    return float(values[0]) if values.size == 1 else None
+
+
 def _numeric_values(value: Any) -> np.ndarray:
     if value is None:
         return np.asarray([], dtype=float)
@@ -169,23 +195,6 @@ def _colorbar_ticks(vmin: float, vmax: float) -> tuple[np.ndarray, np.ndarray]:
     else:
         labels = np.round(ticks)
     return ticks, labels
-
-
-def _draw_channel_topo(ax: Any, chan_locs: Any, channel_index: int) -> None:
-    """Render a small scalp map with the plotted channel marked."""
-    topoplot([], chan_locs, style="blank", electrodes="off", axes=ax, title="")
-    if not 1 <= channel_index <= len(chan_locs):
-        return
-    loc = chan_locs[channel_index - 1]
-    try:
-        theta_deg = float(loc.get("theta"))
-        radius_value = float(loc.get("radius"))
-    except (TypeError, ValueError):
-        return
-    if not (np.isfinite(theta_deg) and np.isfinite(radius_value)):
-        return
-    screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
-    ax.scatter(screen_x, screen_y, c="k", s=24, zorder=6)
 
 
 __all__ = ["erpimage"]
