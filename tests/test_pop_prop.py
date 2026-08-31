@@ -175,6 +175,29 @@ def test_erp_average_y_label_matches_eeglab_pop_prop() -> None:
     plt.close("all")
 
 
+@pytest.mark.parity
+def test_erp_image_and_trace_sit_flush() -> None:
+    """EEGLAB stacks the ERP trace flush under the image, with only the trace carrying the
+    time axis (erpimage.m:2922/2927), and puts the properties label in the window title."""
+    eeg = _epoched_eeg()
+    for typecomp, index in ((1, 3), (0, 2)):
+        fig = pop_prop(eeg, typecomp, index, plot="off")
+        fig.canvas.draw()  # positions are only resolved after a draw
+
+        image_ax = _image_axis(fig)
+        erp_ax = _erp_average_axis(fig)
+        gap = image_ax.get_position().y0 - erp_ax.get_position().y1
+        assert abs(gap) < 1e-3, f"ERP image/trace not flush (gap={gap:.4f}) for typecomp={typecomp}"
+
+        # Only the ERP trace shows the time-axis tick labels (image blanks them).
+        assert not any(t.get_text() and t.get_visible() for t in image_ax.get_xticklabels())
+        assert any(t.get_text() and t.get_visible() for t in erp_ax.get_xticklabels())
+
+        name = f"Channel {index}" if typecomp else f"IC{index}"
+        assert fig.canvas.manager.get_window_title() == f"pop_prop() - {name} properties"
+        plt.close("all")
+
+
 def test_channel_topo_marks_only_the_selected_channel() -> None:
     """The scalp map marks exactly the selected channel (EEGLAB emarkersize1chan)."""
     eeg = _epoched_eeg()

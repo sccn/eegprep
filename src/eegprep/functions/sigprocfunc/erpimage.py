@@ -28,6 +28,7 @@ def erpimage(
     channel_index: int | None = None,
     target: Any = None,
     yerplabel: str = "µV",
+    title_fontsize: float | None = None,
 ):
     """Plot trials as an EEGLAB-style ERP image plus the average ERP.
 
@@ -68,12 +69,14 @@ def erpimage(
     fig_height = 1.2 * sum(height_ratios) + 0.6
     fig = target if target is not None else plt.figure(figsize=(7.5, fig_height))
     # Reserve a narrow colorbar column only when a colorbar is drawn, so cbar=False fills the width.
+    # EEGLAB abuts the ERP trace directly under the image (erpimage.m:2056/2927 share the boundary),
+    # so use no row gap unless a scalp-map row is present (its inset title needs the gap above).
     gs = fig.add_gridspec(
         nrows=len(height_ratios),
         ncols=2 if cbar else 1,
         width_ratios=[20, 1] if cbar else [1],
         height_ratios=height_ratios,
-        hspace=0.15,
+        hspace=0.15 if show_topo else 0.0,
         wspace=0.04,
     )
     row = 0
@@ -105,7 +108,7 @@ def erpimage(
     if limits is not None:
         im.set_clim(*limits)
     image_ax.set_ylabel("Trials")
-    image_ax.set_title(title or "ERP image")
+    image_ax.set_title(title or "ERP image", fontsize=title_fontsize)
     for latency in _numeric_values(vert):
         image_ax.axvline(latency, color="black", linestyle=":", linewidth=0.8)
     if draw_zero:
@@ -127,6 +130,9 @@ def erpimage(
             erp_ax.axvline(0, color="black", linewidth=_ZERO_LINEWIDTH)
         erp_ax.set_xlabel("Time (ms)")
         erp_ax.set_ylabel(yerplabel)
+        # EEGLAB blanks the image's x-tick labels so only the ERP trace carries the time
+        # axis (erpimage.m:2922); this also lets the two panels sit flush.
+        image_ax.tick_params(labelbottom=False)
     else:
         image_ax.set_xlabel("Time (ms)")
     if topo_ax is not None:

@@ -32,6 +32,19 @@ SPECTRUM_YLABEL = r"Power 10*log$_{10}$($\mu$V$^2$/Hz)"
 CHANNEL_MARKER_SIZE = 50
 EEGLAB_RED = "red"
 COMPONENT_MAP_NUMCONTOUR = 3
+# The ERP-image title is long ("<name> activity (global offset ...)"); a smaller font keeps
+# it inside the panel (EEGLAB shrinks the parenthetical part, pop_prop.m:203).
+ERP_IMAGE_TITLE_FONTSIZE = 11
+# Panel placement for the three-panel figure. hspace leaves room for the ERP-image time
+# axis above the spectrum title; wspace keeps the ERP y-label clear of the scalp map.
+FIGURE_MARGINS = {
+    "left": 0.15,
+    "right": 0.93,
+    "top": 0.92,
+    "bottom": 0.10,
+    "hspace": 0.85,
+    "wspace": 0.42,
+}
 
 
 def pop_prop(
@@ -178,18 +191,26 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             # map is not forced to matplotlib's asymmetric [min, max] auto range.
             topoplot(component_map, map_chanlocs, axes=ax, numcontour=COMPONENT_MAP_NUMCONTOUR, maplimits="absmax")
 
-    fig = plt.figure(figsize=(5, 5), layout="constrained")  # EEGLAB uses a 500x500 square
-    top, bottom = fig.subfigures(2, 1, height_ratios=(3, 2))
-    topo_sf, erp_sf = top.subfigures(1, 2, width_ratios=(2, 3))
-    topo_ax = topo_sf.add_subplot(1, 1, 1)
-    spec_ax = bottom.add_subplot(1, 1, 1)
+    # EEGLAB draws a 500x500 window: scalp map upper-left, ERP image + trace upper-right,
+    # power spectrum across the bottom (pop_prop.m:155/176/248). A manual GridSpec with
+    # explicit margins (not constrained layout) lets the ERP image and its trace sit flush,
+    # the way EEGLAB stacks them.
+    fig = plt.figure(figsize=(5, 5))
+    grid = fig.add_gridspec(2, 2, height_ratios=(3, 2), width_ratios=(2, 3), **FIGURE_MARGINS)
+    topo_ax = fig.add_subplot(grid[0, 0])
+    erp_sf = fig.add_subfigure(grid[0, 1])
+    spec_ax = fig.add_subplot(grid[1, :])
 
     draw_topo(topo_ax)
     topo_ax.set_title(basename, fontsize=14)
 
     _draw_erp_image(erp_sf, trace, times, trials, basename, float(EEG.get("srate", 1) or 1), yerplabel)
     _draw_spectrum(spec_ax, EEG, spectrum_input, spec_opt, mapnorm)
-    fig.suptitle(f"pop_prop() - {basename} properties", fontweight="bold")
+    # EEGLAB puts "pop_prop() - <name> properties" in the window title bar, not on the canvas
+    # (pop_prop.m:144).
+    manager = fig.canvas.manager
+    if manager is not None:
+        manager.set_window_title(f"pop_prop() - {basename} properties")
     return fig
 
 
@@ -211,6 +232,7 @@ def _draw_erp_image(
             plot_erp=True,
             target=container,
             yerplabel=yerplabel,
+            title_fontsize=ERP_IMAGE_TITLE_FONTSIZE,
         )
     else:
         _draw_continuous_erp_image(container, trace_2d.reshape(-1), srate)
