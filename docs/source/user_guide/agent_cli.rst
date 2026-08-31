@@ -141,6 +141,26 @@ high-pass cleaning criteria off unless the YAML config sets them explicitly.
 Set ``highpass`` as a two-value transition band, for example
 ``highpass: [0.25, 0.75]``.
 
+Manifest Portability And Migration
+==================================
+
+The ``eegprep.manifest.v2`` schema stores the ``path`` fields in
+``input_files`` and ``output_files`` relative to the manifest file. Stored
+relative paths always use forward slashes. Runtime manifests created by
+``build_manifest()`` use absolute paths, and ``read_manifest()`` restores v2
+relative paths to absolute paths for the current machine.
+
+This preserves artifact relationships when the manifest and files move
+together. References using ``..`` only remain valid when the referenced files
+move with the same directory layout. A path on another Windows drive cannot be
+made relative and remains absolute, so it is not portable to another machine.
+
+Version 1 and unknown schema versions keep their original path strings when
+read or written; EEGPrep cannot infer what their relative paths were relative
+to. Consumers that need resolved v2 paths should use ``read_manifest()``
+instead of loading the JSON directly. Path serialization does not alter or
+verify the recorded SHA-256 values.
+
 QC And Reports
 ==============
 
