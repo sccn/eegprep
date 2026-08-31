@@ -1,5 +1,7 @@
 import ast
 
+import numpy as np
+
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.studyfunc.pop_study import pop_study, pop_study_dialog_spec
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign, pop_studydesign_dialog_spec
@@ -84,6 +86,43 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
     assert namespace["ALLEEG"][0]["condition"] == "standard"
 
 
+def test_pop_study_gui_ignores_untouched_components_button_label():
+    study, alleeg = _study_inputs()
+    renderer = _Renderer(
+        {
+            "name": "Edited",
+            "task": "",
+            "notes": "",
+            "dataset_1_subject": "S02",
+            "dataset_1_components": "All comp.",
+        }
+    )
+
+    edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert edited["datasetinfo"][0]["subject"] == "S02"
+    assert "comps" not in command
+    ast.parse(command)
+
+
+def test_pop_study_gui_records_selected_components():
+    study, alleeg = _study_inputs()
+    renderer = _Renderer(
+        {
+            "name": "Study",
+            "task": "",
+            "notes": "",
+            "dataset_1_components": [1, 2],
+        }
+    )
+
+    edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert edited["datasetinfo"][0]["comps"] == [1, 2]
+    assert "'comps', [1, 2]" in command
+    ast.parse(command)
+
+
 def test_pop_study_gui_cancel_is_noop():
     study, alleeg = _study_inputs()
 
@@ -92,6 +131,17 @@ def test_pop_study_gui_cancel_is_noop():
     assert edited == study
     assert edited_alleeg == alleeg
     assert command == ""
+
+
+def test_pop_study_dialog_spec_handles_numpy_component_lists():
+    study, alleeg = _study_inputs()
+    study["datasetinfo"][0]["comps"] = np.array([1, 2, 3, 4])
+
+    spec = pop_study_dialog_spec(study, alleeg)
+    controls = controls_by_tag(spec)
+
+    assert controls["dataset_1_components"].string == "Comp.: 1 2 ..."
+    assert controls["dataset_1_components"].value == [1, 2, 3, 4]
 
 
 def test_pop_studydesign_dialog_spec_lists_factors_and_current_design():
