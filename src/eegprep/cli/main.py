@@ -17,6 +17,7 @@ from eegprep.cli.commands import migrate as migrate_commands
 from eegprep.cli.commands import pipeline as pipeline_commands
 from eegprep.cli.commands import qc as qc_commands
 from eegprep.cli.commands import report as report_commands
+from eegprep.cli.commands import software_info as software_info_commands
 from eegprep.cli.commands.transforms import register_subcommands
 
 
@@ -139,6 +140,7 @@ def build_parser(*, json_requested: bool = False) -> EEGPrepArgumentParser:
     pipeline_commands.register(subparsers)
     qc_commands.register(subparsers)
     report_commands.register(subparsers)
+    software_info_commands.register(subparsers)
     batch_commands.register(subparsers)
     bids_commands.register(subparsers)
     migrate_commands.register(subparsers)

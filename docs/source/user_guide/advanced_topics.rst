@@ -247,3 +247,27 @@ dictionary behavior:
 For GUI/console synchronization changes, add coverage near
 ``tests/test_console_workspace.py`` so ``EEG``, ``ALLEEG``, ``CURRENTSET``,
 ``LASTCOM``, ``ALLCOM``, ``STUDY``, and ``CURRENTSTUDY`` stay synchronized.
+
+Math Backends
+=============
+
+Floating-point results from iterative algorithms such as ICA and ASR can vary
+across numerical-library and threading configurations. Inspect the current
+process with either output format:
+
+.. code-block:: console
+
+   eegprep software_info
+   eegprep software_info --json
+
+The report distinguishes the BLAS and LAPACK libraries used to build NumPy
+from libraries currently visible to ``threadpoolctl``. This distinction matters
+on platforms such as macOS, where Apple Accelerate can appear in NumPy's build
+configuration without appearing in the loaded-library list. Effective thread
+counts and explicitly configured thread environment variables are reported when
+available.
+
+CLI manifests store the same facts under ``software.math_backend_info``. This
+metadata helps compare environments; it does not predict or guarantee a
+particular numerical tolerance. Backend inspection is best-effort, and any
+collection error is recorded without interrupting the processing command.
