@@ -1,7 +1,6 @@
 {
   "metadata": {
     "schema_version": 1,
-    "source_audit": ".notes/eeglab-final-parity-audit.md",
     "source_issue": "https://github.com/sccn/eegprep/issues/158",
     "parent_epic": "https://github.com/sccn/eegprep/issues/157",
     "scope": {
