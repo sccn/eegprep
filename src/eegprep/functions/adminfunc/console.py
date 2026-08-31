@@ -35,7 +35,6 @@ _MATLAB_MULTI_ASSIGN_PATTERN = re.compile(r"^\s*\[([A-Za-z_][A-Za-z0-9_]*(?:\s+[
 _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
     r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*="
 )
-_POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
@@ -878,32 +877,7 @@ def _is_python_literal_token(token: str) -> bool:
     return True
 
 
-def _replace_outside_strings(text: str, pattern: re.Pattern[str], replacement: Callable[[re.Match[str]], str]) -> str:
-    output = []
-    cursor = 0
-    for start, end in _string_spans(text):
-        output.append(pattern.sub(replacement, text[cursor:start]))
-        output.append(text[start:end])
-        cursor = end
-    output.append(pattern.sub(replacement, text[cursor:]))
-    return "".join(output)
-
-
-def _string_spans(text: str) -> list[tuple[int, int]]:
-    spans = []
-    index = 0
-    while index < len(text):
-        if text[index] not in {"'", '"'}:
-            index += 1
-            continue
-        start = index
-        index = _string_end(text, index)
-        spans.append((start, index))
-    return spans
-
-
 def _pythonize_known_pop_arguments(text: str) -> str:
-    text = _pythonize_pop_interp_channels(text)
     try:
         tree = ast.parse(text)
     except SyntaxError:
@@ -912,14 +886,6 @@ def _pythonize_known_pop_arguments(text: str) -> str:
     tree = converter.visit(tree)
     ast.fix_missing_locations(tree)
     return ast.unparse(tree) if converter.changed else text
-
-
-def _pythonize_pop_interp_channels(text: str) -> str:
-    def replacement(match: re.Match[str]) -> str:
-        channels = [int(token) - 1 for token in match.group(2).replace(",", " ").split()]
-        return f"{match.group(1)}{channels}"
-
-    return _replace_outside_strings(text, _POP_INTERP_CHANNELS_PATTERN, replacement)
 
 
 def _keywordize_console_pop_calls(text: str) -> str:
@@ -950,13 +916,36 @@ class _ConsoleCommandArgumentConverter(ast.NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
         self.generic_visit(node)
-        if not isinstance(node.func, ast.Name):
-            return node
-        if node.func.id == "pop_reref":
+        function_name = _console_call_name(node.func)
+        if function_name == "pop_reref":
             self._convert_pop_reref(node)
-        elif node.func.id == "pop_select":
+        elif function_name == "pop_select":
             self._convert_pop_select(node)
+        elif function_name == "pop_interp":
+            self._convert_pop_interp(node)
+        elif function_name == "pop_editset":
+            self._convert_pop_editset(node)
         return node
+
+    def _convert_pop_interp(self, node: ast.Call) -> None:
+        if len(node.args) >= 2:
+            node.args[1] = self._zero_base_channel_arg(node.args[1])
+        for index in range(1, len(node.args) - 1, 2):
+            key = self._string_constant(node.args[index])
+            if key == "bad_elec":
+                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
+        for kw in node.keywords:
+            if kw.arg == "bad_elec":
+                kw.value = self._zero_base_channel_arg(kw.value)
+
+    def _convert_pop_editset(self, node: ast.Call) -> None:
+        for index in range(1, len(node.args) - 1, 2):
+            key = self._string_constant(node.args[index])
+            if key == "icachansind":
+                node.args[index + 1] = self._zero_base_channel_arg(node.args[index + 1])
+        for kw in node.keywords:
+            if kw.arg == "icachansind":
+                kw.value = self._zero_base_channel_arg(kw.value)
 
     def _convert_pop_reref(self, node: ast.Call) -> None:
         if len(node.args) >= 2:
@@ -1035,6 +1024,14 @@ class _ConsoleCommandKeywordizer(ast.NodeTransformer):
         arg_index = 0
         while arg_index < len(node.args) and arg_index < len(positional_parameters):
             arg = node.args[arg_index]
+
+            # If this arg is a string that can be a keyword, and there are more args,
+            # it is likely the start of MATLAB name/value pairs. Stop positional mapping.
+            if arg_index + 1 < len(node.args):
+                key = _option_pair_key(arg)
+                if key is not None and _can_pass_keyword(key, keyword_parameters, accepts_var_keywords):
+                    break
+
             parameter = positional_parameters[arg_index]
             if (
                 parameter.kind == inspect.Parameter.POSITIONAL_ONLY

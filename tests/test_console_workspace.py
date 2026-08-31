@@ -1641,6 +1641,75 @@ def test_console_pop_select_numeric_channels_zero_based_on_replay():
         ast.parse(command)
 
 
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    (
+        ("EEG = pop_interp(EEG, [1 5])", "EEG = pop_interp(EEG, bad_elec=[0, 4])"),
+        ("EEG = pop_interp(EEG, 1)", "EEG = pop_interp(EEG, bad_elec=0)"),
+        (
+            "EEG = pop_interp(EEG, 'bad_elec', [1 5], 'method', 'spherical')",
+            "EEG = pop_interp(EEG, bad_elec=[0, 4], method='spherical')",
+        ),
+        ("EEG = pop_interp(EEG, bad_elec=[1, 5])", "EEG = pop_interp(EEG, bad_elec=[0, 4])"),
+        ("EEG = pop_interp(EEG, bad_elec=5)", "EEG = pop_interp(EEG, bad_elec=4)"),
+        ("EEG = pop_interp(EEG, 'Cz', 'spherical')", "EEG = pop_interp(EEG, bad_elec='Cz', method='spherical')"),
+        (
+            "EEG = pop_interp(EEG, np.arange(1, 6))",
+            "EEG = pop_interp(EEG, bad_elec=np.arange(1, 6))",
+        ),
+        ("EEG = pop_interp(EEG, [1, channel])", "EEG = pop_interp(EEG, bad_elec=[1, channel])"),
+        (
+            "EEG = pop_interp(EEG, channels=1, method='spherical')",
+            "EEG = pop_interp(EEG, channels=1, method='spherical')",
+        ),
+        (
+            "EEG = eegprep.pop_interp(EEG, [1 5])",
+            "EEG = eegprep.pop_interp(EEG, bad_elec=[0, 4])",
+        ),
+    ),
+)
+def test_console_pop_interp_index_translation(command, expected):
+    translated = console_module._console_python_command(command)
+
+    assert translated == expected
+    ast.parse(translated)
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    (
+        (
+            "EEG = pop_editset(EEG, 'icachansind', [1 5])",
+            "EEG = pop_editset(EEG, icachansind=[0, 4])",
+        ),
+        ("EEG = pop_editset(EEG, 'icachansind', 1)", "EEG = pop_editset(EEG, icachansind=0)"),
+        ("EEG = pop_editset(EEG, icachansind=[1, 5])", "EEG = pop_editset(EEG, icachansind=[0, 4])"),
+        ("EEG = pop_editset(EEG, icachansind=5)", "EEG = pop_editset(EEG, icachansind=4)"),
+        (
+            "EEG = pop_editset(EEG, 'setname', 'demo', 'icachansind', [1 5])",
+            "EEG = pop_editset(EEG, setname='demo', icachansind=[0, 4])",
+        ),
+        (
+            "EEG = pop_editset(EEG, 'icachansind', np.arange(1, 6))",
+            "EEG = pop_editset(EEG, icachansind=np.arange(1, 6))",
+        ),
+        (
+            "EEG = pop_editset(EEG, 'icachansind', [1, channel])",
+            "EEG = pop_editset(EEG, icachansind=[1, channel])",
+        ),
+        (
+            "EEG = eegprep.pop_editset(EEG, 'icachansind', [1 5])",
+            "EEG = eegprep.pop_editset(EEG, icachansind=[0, 4])",
+        ),
+    ),
+)
+def test_console_pop_editset_index_translation(command, expected):
+    translated = console_module._console_python_command(command)
+
+    assert translated == expected
+    ast.parse(translated)
+
+
 def test_ipython_adapter_keeps_prompt_message_dynamic():
     shell = _FakeShell()
     shell.prompts = _FakePrompts(shell)

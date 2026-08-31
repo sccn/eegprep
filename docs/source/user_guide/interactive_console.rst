@@ -100,6 +100,12 @@ When you move commands into a script, keep the explicit assignment:
 
    EEG, com = pop_resample(EEG, 64, return_com=True)
 
+EEGLAB history and GUI commands use one-based channel indices. When those
+commands are replayed, ``eegprep-console`` translates literal ``bad_elec``
+values for ``pop_interp`` and literal ``icachansind`` values for
+``pop_editset`` to Python's zero-based indices. Dynamic expressions are left
+unchanged, so write their results in zero-based form.
+
 GUI Help, STUDY, and Extensions
 ===============================
 
