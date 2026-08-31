@@ -371,47 +371,63 @@ class EEGPrepConsoleWorkspace:
 
         targets = _workspace_assignment_targets(source)
         history_command = self._history_command_for_source(source, targets)
+        eeg_changed = self._namespace_eeg_changed(targets)
+        eeg = self.namespace.get("EEG") if eeg_changed else None
+        pending_history = history_command
         changed = False
 
         if "ALLEEG" in targets or "CURRENTSET" in targets:
             alleeg = self.namespace.get("ALLEEG", [])
             if not isinstance(alleeg, list):
                 raise ValueError("ALLEEG must be a list of EEG datasets")
-            current = (
-                _normalize_currentset(self.namespace.get("CURRENTSET"))
-                if "CURRENTSET" in targets
-                else self.session.CURRENTSET
-            )
+            if "CURRENTSET" in targets:
+                current = _normalize_currentset(self.namespace.get("CURRENTSET"))
+            else:
+                current = _currentset_after_alleeg_change(self.session.CURRENTSET, len(alleeg))
+            command = "" if eeg_changed else pending_history
             self.session.apply_workspace_state(
-                alleeg=alleeg, currentset=current, command="", append_dataset_history=False
+                alleeg=alleeg,
+                currentset=current,
+                command=command,
+                append_dataset_history=False,
             )
+            if command:
+                pending_history = ""
             changed = True
 
-        if self._namespace_eeg_changed(targets):
-            eeg = self.namespace.get("EEG")
+        if eeg_changed:
             if not _is_eeg_selection(eeg):
                 raise ValueError("EEG must be an EEG dataset dictionary or a list of EEG dataset dictionaries")
             self._store_eeg(eeg, history_command)
+            pending_history = ""
             changed = True
         elif "LASTCOM" in targets:
             command = str(self.namespace.get("LASTCOM") or "").strip()
             if command and command != self.session.LASTCOM:
                 self.session.add_history(command)
+                pending_history = ""
                 changed = True
 
         if "STUDY" in targets:
-            study_kwargs: dict[str, Any] = {"study": self.namespace.get("STUDY"), "command": ""}
+            study_kwargs: dict[str, Any] = {
+                "study": self.namespace.get("STUDY"),
+                "command": pending_history,
+            }
             if "CURRENTSTUDY" in targets:
                 study_kwargs["currentstudy"] = self.namespace.get("CURRENTSTUDY")
             self.session.apply_workspace_state(**study_kwargs)
+            pending_history = ""
             changed = True
         elif "CURRENTSTUDY" in targets:
-            self.session.apply_workspace_state(currentstudy=self.namespace.get("CURRENTSTUDY"), command="")
+            self.session.apply_workspace_state(
+                currentstudy=self.namespace.get("CURRENTSTUDY"),
+                command=pending_history,
+            )
+            pending_history = ""
             changed = True
 
-        if changed:
-            if history_command and history_command != self.session.LASTCOM:
-                self.session.add_history(history_command)
+        if changed and pending_history and pending_history != self.session.LASTCOM:
+            self.session.add_history(pending_history)
         self.pull_from_session()
         if changed:
             self._refresh()
@@ -1411,7 +1427,28 @@ def _normalize_currentset(value: Any) -> list[int]:
         raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
 
 
+def _currentset_after_alleeg_change(currentset: list[int], dataset_count: int) -> list[int]:
+    """Keep valid selected indices, or select the nearest remaining dataset."""
+    if dataset_count == 0:
+        return []
+    valid = [index for index in currentset if index <= dataset_count]
+    if valid:
+        return valid
+    return [dataset_count] if currentset else []
+
+
+_IN_PLACE_MUTATION_METHODS = frozenset(
+    {"append", "clear", "extend", "fill", "insert", "pop", "remove", "reverse", "sort", "update"}
+)
+_IN_PLACE_SYNC_ROOTS = frozenset({"ALLEEG", "CURRENTSET", "EEG", "STUDY"})
+
+
 def _workspace_assignment_targets(source: str) -> set[str]:
+    """Return workspace roots assigned to or mutated by a known method call.
+
+    Method calls must be rooted directly in a syncable workspace name. Mutations
+    through aliases or free functions are intentionally outside this boundary.
+    """
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -1422,6 +1459,12 @@ def _workspace_assignment_targets(source: str) -> set[str]:
             raw_targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for target in raw_targets:
                 targets.update(root for root in _target_root_names(target) if root in WORKSPACE_NAMES)
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in _IN_PLACE_MUTATION_METHODS
+        ):
+            targets.update(_target_root_names(node.func.value) & _IN_PLACE_SYNC_ROOTS)
     return targets
 
 

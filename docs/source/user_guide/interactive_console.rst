@@ -82,6 +82,31 @@ Assignment-style calls also work:
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
 
+In-place Workspace Edits
+========================
+
+The console also synchronizes known in-place method calls rooted directly in
+``EEG``, ``ALLEEG``, ``CURRENTSET``, or ``STUDY``. The recognized method names
+are ``append``, ``extend``, ``insert``, ``update``, ``pop``, ``clear``,
+``remove``, ``fill``, ``sort``, and ``reverse``. Nested targets retain their
+workspace root, so these edits refresh the shared session:
+
+.. code-block:: python
+
+   EEG.update({"setname": "cleaned"})
+   EEG["data"].fill(0)
+   ALLEEG.append(new_eeg)
+
+Detection is intentionally syntax-based. It does not follow aliases or infer
+mutations performed by free functions. Assign the result back to a workspace
+root when using either pattern:
+
+.. code-block:: python
+
+   data = EEG["data"]
+   data.fill(0)
+   EEG["data"] = data
+
 History Replay
 ==============
 
