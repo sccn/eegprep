@@ -1371,7 +1371,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
 
-    def test_file_menu_import_uses_native_file_dialog_by_default(self):
+    def test_file_menu_import_uses_stable_file_dialog_by_default(self):
         captured = {}
 
         class QFileDialog:
@@ -1392,9 +1392,9 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(filename, "")
         self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {})
+        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
 
-    def test_file_menu_import_can_use_stable_qt_file_dialog(self):
+    def test_file_menu_import_can_use_native_qt_file_dialog(self):
         captured = {}
 
         class QFileDialog:
@@ -1407,15 +1407,88 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 captured["kwargs"] = kwargs
                 return "", ""
 
-        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
-        dispatcher = MenuActionDispatcher(EEGPrepSession(), native_file_dialogs=False)
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
-        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
-            filename = dispatcher._open_import_filename("pop_fileio", None)
+        original_option = EEG_OPTIONS.get("option_native_dialogs", 0)
+        EEG_OPTIONS["option_native_dialogs"] = 1
 
-        self.assertEqual(filename, "")
-        self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
+        try:
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(EEGPrepSession())
+
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                filename = dispatcher._open_import_filename("pop_fileio", None)
+
+            self.assertEqual(filename, "")
+            self.assertEqual(captured["args"][1], "Import data")
+            self.assertEqual(captured["kwargs"], {})
+        finally:
+            EEG_OPTIONS["option_native_dialogs"] = original_option
+
+    def test_headless_preferences_dispatch_preserves_legacy_menu_toggle(self):
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
+        original_options = dict(EEG_OPTIONS)
+        refresh = mock.Mock()
+        dispatcher = MenuActionDispatcher(EEGPrepSession(), refresh=refresh)
+        try:
+            EEG_OPTIONS["option_allmenus"] = 0
+            EEG_OPTIONS["option_native_dialogs"] = 1
+
+            with mock.patch.object(dispatcher, "_info"):
+                dispatcher.dispatch("pop_editoptions")
+
+            self.assertEqual(EEG_OPTIONS["option_allmenus"], 1)
+            self.assertEqual(EEG_OPTIONS["option_native_dialogs"], 1)
+            refresh.assert_called_once()
+        finally:
+            EEG_OPTIONS.clear()
+            EEG_OPTIONS.update(original_options)
+
+    def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6 import QtWidgets
+
+        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
+        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        parent = QtWidgets.QWidget()
+        original_options = dict(EEG_OPTIONS)
+        session = EEGPrepSession()
+        dispatcher = MenuActionDispatcher(session)
+
+        def accept_with_both_options(dialog):
+            checkboxes = {checkbox.text(): checkbox for checkbox in dialog.findChildren(QtWidgets.QCheckBox)}
+            self.assertEqual(
+                set(checkboxes),
+                {"Show advanced legacy menu items?", "Use Native OS Dialogs"},
+            )
+            for checkbox in checkboxes.values():
+                checkbox.setChecked(True)
+            return QtWidgets.QDialog.Accepted
+
+        try:
+            EEG_OPTIONS["option_allmenus"] = 0
+            EEG_OPTIONS["option_native_dialogs"] = 0
+            with (
+                mock.patch(
+                    "eegprep.functions.guifunc.menu_actions._require_qt_widgets",
+                    return_value=QtWidgets,
+                ),
+                mock.patch.object(QtWidgets.QDialog, "exec", accept_with_both_options),
+                mock.patch.object(dispatcher, "_info"),
+            ):
+                dispatcher._edit_options(parent)
+
+            self.assertEqual(EEG_OPTIONS["option_allmenus"], 1)
+            self.assertEqual(EEG_OPTIONS["option_native_dialogs"], 1)
+            self.assertEqual(session.ALLCOM, ["LASTCOM = pop_editoptions();"])
+        finally:
+            EEG_OPTIONS.clear()
+            EEG_OPTIONS.update(original_options)
+            parent.close()
+            app.processEvents()
 
     def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
         session = EEGPrepSession()

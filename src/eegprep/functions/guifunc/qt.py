@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.theme import (
     EEGLAB_BACKGROUND,
@@ -1061,12 +1062,15 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
 
 def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
     _qt_core, qt_widgets = _require_qt()
+
     caption = str(params.get("caption", "Select file"))
     file_filter = str(params.get("filter", "All files (*)"))
+    kwargs = file_dialog_kwargs(qt_widgets)
+
     if params.get("mode") == "save":
-        filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter)
+        filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter, **kwargs)
     else:
-        filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter)
+        filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter, **kwargs)
     if not filename:
         return
     if hasattr(target, "setText"):

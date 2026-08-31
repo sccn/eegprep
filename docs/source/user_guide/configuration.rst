@@ -53,6 +53,9 @@ Common Global Options
      - Treat numeric ``-99`` events as boundary events for ERPLAB-style data.
    * - ``option_computeica``
      - Precompute ICA activations where supported.
+   * - ``option_native_dialogs``
+     - Use experimental native OS file panels instead of stable Qt dialogs for
+       the current process. Disabled by default.
    * - ``option_scaleicarms``
      - Scale ICA component activations to RMS microvolt during checkset paths.
    * - ``option_cachesize``
@@ -76,6 +79,11 @@ Use the Options menu in the GUI, or call ``pop_editoptions`` from
 
 In a shared GUI/console session, the menu refresh uses the same
 ``EEG_OPTIONS`` dictionary.
+
+Pass ``native_file_dialogs=True`` or ``False`` to ``eeglab()`` or ``gui()`` to
+override the global option for that window. The override also applies to file
+panels opened from nested GUI callbacks. ``EEG_OPTIONS`` is process-local; it
+does not persist across application restarts.
 
 Preprocessing Parameters
 ========================

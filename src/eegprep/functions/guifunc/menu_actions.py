@@ -6,10 +6,12 @@ import inspect
 import logging
 import webbrowser
 from collections.abc import Callable, Mapping
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 from eegprep.extension_runtime import ExtensionRuntime
+from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs, native_file_dialog_override
 from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
@@ -20,6 +22,16 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 logger = logging.getLogger(__name__)
+
+
+def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(method)
+    def wrapped(self: "MenuActionDispatcher", *args: Any, **kwargs: Any) -> Any:
+        with native_file_dialog_override(self.native_file_dialogs):
+            return method(self, *args, **kwargs)
+
+    return wrapped
+
 
 # Action handlers import user-facing pop/plugin modules lazily so launching the
 # main GUI does not eagerly load heavier signal-processing and optional stacks.
@@ -254,7 +266,7 @@ class MenuActionDispatcher:
         session: EEGPrepSession,
         refresh: Callable[[], None] | None = None,
         *,
-        native_file_dialogs: bool = True,
+        native_file_dialogs: bool | None = None,
         extension_runtime: ExtensionRuntime | None = None,
     ):
         self.session = session
@@ -274,6 +286,7 @@ class MenuActionDispatcher:
                     raise
                 self._warn(parent, str(exc))
 
+    @_with_file_dialog_override
     def dispatch(self, action: str, parent: Any | None = None) -> None:
         """Run a menu action."""
         base, _sep, variant = action.partition(":")
@@ -460,7 +473,7 @@ class MenuActionDispatcher:
             "Load existing dataset",
             "",
             "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
-            **self._file_dialog_kwargs(qt_widgets),
+            **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         if not filename:
             return
@@ -486,7 +499,7 @@ class MenuActionDispatcher:
                 "Save current dataset as",
                 str(datasets[0].get("filename") or ""),
                 "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
             filenames = [filename]
         if len(datasets) == 1 and not filename:
@@ -510,7 +523,7 @@ class MenuActionDispatcher:
                 parent,
                 "Import BIDS folder structure",
                 "",
-                **self._file_dialog_kwargs(qt_widgets, directories=True),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
             )
             if not source:
                 return
@@ -559,7 +572,7 @@ class MenuActionDispatcher:
             "Import data",
             "",
             filters.get(action, "EEG files (*.set *.edf *.bdf *.gdf *.vhdr *.mff *.cnt *.eeg);;All files (*)"),
-            **self._file_dialog_kwargs(qt_widgets),
+            **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         return filename
 
@@ -581,7 +594,7 @@ class MenuActionDispatcher:
                 "Import event/epoch info",
                 "",
                 "Text tables (*.txt *.tsv *.csv *.log);;All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
             if not filename:
                 return
@@ -615,7 +628,7 @@ class MenuActionDispatcher:
                 parent,
                 "Export to BIDS folder structure",
                 "",
-                **self._file_dialog_kwargs(qt_widgets, directories=True),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
             )
             if not directory:
                 return
@@ -628,7 +641,7 @@ class MenuActionDispatcher:
                 "Export data",
                 "",
                 _export_filter(action),
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
             if not filename:
                 return
@@ -659,7 +672,7 @@ class MenuActionDispatcher:
                 "Load existing study",
                 "",
                 "STUDY files (*.study *.json);;All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
             if not filename:
                 return
@@ -682,7 +695,7 @@ class MenuActionDispatcher:
                     "Save current study as",
                     "",
                     "STUDY files (*.study);;All files (*)",
-                    **self._file_dialog_kwargs(qt_widgets),
+                    **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
                 )
             if not filename:
                 return
@@ -770,7 +783,7 @@ class MenuActionDispatcher:
                 "Browse for datasets",
                 "",
                 "EEGPrep/EEGLAB datasets (*.set *.mat);;All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
             if not filenames:
                 return
@@ -807,22 +820,47 @@ class MenuActionDispatcher:
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
         from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 
-        enabled = int(not bool(EEG_OPTIONS.get("option_allmenus", 0)))
-        if parent is not None:
+        allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
+        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 0))
+
+        if parent is None:
+            allmenus_val = int(not bool(allmenus_val))
+        else:
             qt_widgets = _require_qt_widgets()
-            result = qt_widgets.QMessageBox.question(
-                parent,
-                "EEGPrep preferences",
-                "Show advanced legacy menu items?",
-                qt_widgets.QMessageBox.Yes | qt_widgets.QMessageBox.No | qt_widgets.QMessageBox.Cancel,
-                qt_widgets.QMessageBox.Yes if enabled else qt_widgets.QMessageBox.No,
+            dialog = qt_widgets.QDialog(parent)
+            dialog.setWindowTitle("EEGPrep preferences")
+            layout = qt_widgets.QVBoxLayout(dialog)
+
+            allmenus_cb = qt_widgets.QCheckBox("Show advanced legacy menu items?")
+            allmenus_cb.setChecked(bool(allmenus_val))
+            layout.addWidget(allmenus_cb)
+
+            group_box = qt_widgets.QGroupBox("Experimental Features")
+            group_layout = qt_widgets.QVBoxLayout(group_box)
+            native_dialogs_cb = qt_widgets.QCheckBox("Use Native OS Dialogs")
+            native_dialogs_cb.setChecked(bool(native_dialogs_val))
+            group_layout.addWidget(native_dialogs_cb)
+            layout.addWidget(group_box)
+
+            button_box = qt_widgets.QDialogButtonBox(
+                qt_widgets.QDialogButtonBox.Ok | qt_widgets.QDialogButtonBox.Cancel
             )
-            if result == qt_widgets.QMessageBox.Cancel:
+            button_box.accepted.connect(dialog.accept)
+            button_box.rejected.connect(dialog.reject)
+            layout.addWidget(button_box)
+
+            if dialog.exec() != qt_widgets.QDialog.Accepted:
                 return
-            enabled = int(result == qt_widgets.QMessageBox.Yes)
-        command = pop_editoptions(option_allmenus=enabled)
+
+            allmenus_val = int(allmenus_cb.isChecked())
+            native_dialogs_val = int(native_dialogs_cb.isChecked())
+
+        command = pop_editoptions(option_allmenus=allmenus_val, option_native_dialogs=native_dialogs_val)
         self._add_history_from_gui(command)
-        self._info(parent, "Preferences updated. Reopen the main window to rebuild the menu mode.")
+        self._info(
+            parent,
+            "Preferences updated. File-dialog changes apply immediately; reopen the main window to rebuild menus.",
+        )
         self._refresh()
 
     def _save_history(self, variant: str, parent: Any | None) -> None:
@@ -832,7 +870,7 @@ class MenuActionDispatcher:
             "Save history script",
             "eegprephist.m",
             "MATLAB scripts (*.m);;All files (*)",
-            **self._file_dialog_kwargs(qt_widgets),
+            **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         if not filename:
             return
@@ -855,7 +893,7 @@ class MenuActionDispatcher:
             "Run history script",
             "",
             "Scripts (*.py *.m *.txt);;All files (*)",
-            **self._file_dialog_kwargs(qt_widgets),
+            **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
         )
         if not filename:
             return
@@ -894,7 +932,7 @@ class MenuActionDispatcher:
                 parent,
                 "Validate BIDS dataset",
                 "",
-                **self._file_dialog_kwargs(qt_widgets, directories=True),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
             )
             if not directory:
                 return
@@ -1003,7 +1041,7 @@ class MenuActionDispatcher:
                 "Export data",
                 "",
                 "All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
         else:
             filename, _filter = qt_widgets.QFileDialog.getOpenFileName(
@@ -1011,7 +1049,7 @@ class MenuActionDispatcher:
                 "Import data",
                 "",
                 "All files (*)",
-                **self._file_dialog_kwargs(qt_widgets),
+                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
             )
         return filename
 
@@ -1695,13 +1733,6 @@ class MenuActionDispatcher:
         if self.refresh is not None:
             self.refresh()
 
-    def _file_dialog_kwargs(self, qt_widgets: Any, *, directories: bool = False) -> dict[str, Any]:
-        return _file_dialog_kwargs(
-            qt_widgets,
-            native_file_dialogs=self.native_file_dialogs,
-            directories=directories,
-        )
-
 
 def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
     filepath = str(eeg.get("filepath") or "")
@@ -1822,30 +1853,6 @@ def action_kind(action: str, extension_runtime: ExtensionRuntime | None = None) 
     if is_placeholder_action(action):
         return "placeholder"
     return "unknown"
-
-
-def _file_dialog_kwargs(
-    qt_widgets: Any, *, native_file_dialogs: bool = True, directories: bool = False
-) -> dict[str, Any]:
-    if native_file_dialogs:
-        return {}
-    # Native macOS file panels can close immediately under IPython's Qt input hook.
-    options = _qt_enum_value(qt_widgets.QFileDialog, "Option", "DontUseNativeDialog")
-    if directories:
-        show_dirs = _qt_enum_value(qt_widgets.QFileDialog, "Option", "ShowDirsOnly")
-        if options is None:
-            options = show_dirs
-        elif show_dirs is not None:
-            options = options | show_dirs
-    return {"options": options} if options is not None else {}
-
-
-def _qt_enum_value(owner: Any, enum_name: str, value_name: str) -> Any | None:
-    enum = getattr(owner, enum_name, None)
-    value = getattr(enum, value_name, None) if enum is not None else None
-    if value is not None:
-        return value
-    return getattr(owner, value_name, None)
 
 
 def _qt_widgets() -> Any | None:
