@@ -9,6 +9,12 @@ reproducible preprocessing pipelines. It complements the human-facing
 ``eegprep-gui`` and ``eegprep-console`` entry points; it does not replace the
 shared GUI plus console workspace.
 
+EEGPrep also includes an optional ``eegprep-mcp`` server for AI tools that
+support the Model Context Protocol. The MCP server exposes the same
+machine-readable command schemas, examples, dataset inspection, validation, and
+safe command execution rules through tool calls, so agents can work with EEGPrep
+without scraping terminal help text.
+
 To get started, point your AI agent at this page or at the EEGPrep repository.
 The documentation, bundled CLI skill, and repository ``AGENTS.md`` file provide
 the context agents need to use EEGPrep commands safely and reproducibly.
@@ -70,9 +76,73 @@ Discovery Commands
    eegprep examples pipeline --json
    eegprep skills list --json
    eegprep skills get eegprep-cli
+   eegprep skills get eegprep-mcp
 
 These commands let agents discover supported operations and version-matched
 usage guidance without scraping docs.
+
+Model Context Protocol Server
+=============================
+
+Install the optional MCP dependencies when you want an AI assistant or agent
+host to call EEGPrep through MCP tools:
+
+.. code-block:: bash
+
+   pip install "eegprep[mcp]"
+
+From a source checkout, the development environment already includes the MCP
+dependency group after ``uv sync --group dev``. Start the server with stdio,
+which is the transport most local agent hosts expect:
+
+.. code-block:: bash
+
+   uv run eegprep-mcp
+
+For MCP clients that use HTTP transports:
+
+.. code-block:: bash
+
+   uv run eegprep-mcp --transport streamable-http --host 127.0.0.1 --port 8000
+
+The server exposes these tools:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Tool
+     - Purpose
+   * - ``eegprep_capabilities``
+     - List MCP tools, allowed CLI commands, and write/overwrite safety policy.
+   * - ``eegprep_agent_guide``
+     - Return version-matched MCP usage rules for agents.
+   * - ``eegprep_inspect_dataset``
+     - Inspect dataset summary, events, channels, or ICA fields.
+   * - ``eegprep_validate_dataset``
+     - Validate a dataset and return stable warning/error codes.
+   * - ``eegprep_command_schema``
+     - Return a command schema before generating command arguments.
+   * - ``eegprep_command_examples``
+     - Return copy-pasteable examples for a command.
+   * - ``eegprep_plan_cli_command``
+     - Plan an allowlisted CLI command without running it.
+   * - ``eegprep_run_cli_command``
+     - Run an allowlisted JSON CLI command in-process with explicit write gates.
+
+Agents should use this sequence for data-changing work:
+
+.. code-block:: text
+
+   eegprep_inspect_dataset(path, section="summary")
+   eegprep_validate_dataset(path)
+   eegprep_command_schema("resample")
+   eegprep_plan_cli_command(["resample", path, "--freq", "128", "--output", out, "--json"])
+   eegprep_run_cli_command([...], allow_write=True)
+
+``eegprep_run_cli_command`` never invokes a shell. It routes through EEGPrep's
+Python CLI dispatcher, captures stdout and stderr separately, requires
+``--json``, and blocks write or overwrite operations unless the agent passes the
+matching explicit flag after user approval.
 
 Dataset Inspection And Validation
 =================================
