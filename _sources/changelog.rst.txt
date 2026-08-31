@@ -10,6 +10,17 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_prop`` (Plot > Channel/Component properties) now matches EEGLAB's three-panel
+  layout: a scalp map, an ERP image, and the activity power spectrum. The ERP panel is a
+  full ERP image (reusing ``erpimage``) instead of a single averaged trace, the spectrum is
+  computed from the raw per-epoch data, and component spectra are scaled by the component
+  map power (``mapnorm``) so their levels match EEGLAB. Channel maps mark the selected
+  channel's location, and the spectrum y-axis stays tight to the plotted frequency band
+  instead of stretching to out-of-view frequencies. The ERP average panel is labeled "ERP"
+  for channels and left blank for components, since ICA component activations are unitless,
+  matching EEGLAB. The ERP trace now sits flush beneath the ERP image (only the trace carries
+  the time axis), and the "pop_prop() - <name> properties" label is shown in the window title
+  bar rather than on the canvas, as EEGLAB does.
 - Scalp maps now render with EEGLAB's left-right orientation. ``topoplot``, ``plottopo``,
   and ``erpimage`` previously mirrored electrode markers, labels, and interpolated data
   along the left-right axis; channel positions now match EEGLAB (F4 on the right, F3 on the

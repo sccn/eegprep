@@ -476,6 +476,17 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> (Plot &gt; Channel/Component properties) now matches EEGLAB’s three-panel
+layout: a scalp map, an ERP image, and the activity power spectrum. The ERP panel is a
+full ERP image (reusing <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>) instead of a single averaged trace, the spectrum is
+computed from the raw per-epoch data, and component spectra are scaled by the component
+map power (<code class="docutils literal notranslate"><span class="pre">mapnorm</span></code>) so their levels match EEGLAB. Channel maps mark the selected
+channel’s location, and the spectrum y-axis stays tight to the plotted frequency band
+instead of stretching to out-of-view frequencies. The ERP average panel is labeled “ERP”
+for channels and left blank for components, since ICA component activations are unitless,
+matching EEGLAB. The ERP trace now sits flush beneath the ERP image (only the trace carries
+the time axis), and the “pop_prop() - &lt;name&gt; properties” label is shown in the window title
+bar rather than on the canvas, as EEGLAB does.</p></li>
 <li><p>Scalp maps now render with EEGLAB’s left-right orientation. <code class="docutils literal notranslate"><span class="pre">topoplot</span></code>, <code class="docutils literal notranslate"><span class="pre">plottopo</span></code>,
 and <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> previously mirrored electrode markers, labels, and interpolated data
 along the left-right axis; channel positions now match EEGLAB (F4 on the right, F3 on the
