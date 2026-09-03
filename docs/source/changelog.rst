@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` now draw the ERSP and ITC images in EEGLAB's style: the
+  ``jet`` colormap, a symmetric color axis, non-significant regions shown as the green colormap
+  midpoint (rather than blanked to white), right-hand colorbars titled with the power unit, and
+  a stimulus-onset (time 0) marker. Curve-mode plots are unchanged. (Marginal panels, the scalp
+  inset, and phase-sign coloring follow in subsequent changes.)
 - ``pop_newtimef`` now honors the dialog's "ERSP color limits" and "ITC color limits"
   fields (the ``erspmax`` / ``itcmax`` options); previously these edit boxes were collected
   but ignored. ``erspmax`` sets a symmetric ERSP image scale (``[-erspmax, erspmax]``) and

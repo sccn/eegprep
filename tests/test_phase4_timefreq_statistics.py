@@ -587,7 +587,7 @@ def test_newtimef_applies_ersp_and_itc_color_limits():
 
     clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
     assert (-3.0, 3.0) in clims  # ERSP color max is symmetric [-erspmax, erspmax]
-    assert (0.0, 0.4) in clims  # ITC color max is one-sided [0, itcmax]
+    assert (-0.4, 0.4) in clims  # ITC image uses a symmetric caxis; the colorbar is clipped to [0, itcmax]
     plt.close(result.figure)
 
 
@@ -609,7 +609,52 @@ def test_pop_newtimef_forwards_color_limits(sample_eeg, sample_epoch):
     assert "itcmax=0.6" in command
     clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
     assert (-2.5, 2.5) in clims
-    assert (0.0, 0.6) in clims
+    assert (-0.6, 0.6) in clims
+    plt.close(result.figure)
+
+
+def test_newtimef_image_panels_match_eeglab_styling():
+    srate = 256
+    frames = 256
+    times = np.arange(frames) / srate
+    burst = np.exp(-((times - 0.5) ** 2) / (2 * 0.1**2))
+    rng = np.random.default_rng(0)
+    trials = np.stack(
+        [0.5 * rng.standard_normal(frames) + 1.2 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(20)],
+        axis=1,
+    )
+
+    result = newtimef(
+        trials, frames, [0, 1000], srate, [3, 0.5], freqs=[4, 40], nfreqs=40, alpha=0.05, rng=0, title="Fz"
+    )
+
+    fig = result.figure
+    images = [image for axis in fig.axes for image in axis.get_images()]
+    assert len(images) == 2  # ERSP image + ITC image
+    for image in images:
+        assert image.get_cmap().name == "jet"
+        vmin, vmax = image.get_clim()
+        assert vmin == pytest.approx(-vmax)  # symmetric color axis, so the baseline sits at green
+        assert not np.isnan(image.get_array()).any()  # non-significant cells are green-floored, not NaN/white
+    titles = [axis.get_title() for axis in fig.axes]
+    assert any(title.startswith("ERSP(") for title in titles)  # colorbar unit title
+    assert "ITC" in titles
+    ersp_axis = images[0].axes
+    assert any(np.allclose(line.get_xdata(), 0.0) for line in ersp_axis.get_lines())  # stimulus-onset marker
+    assert ersp_axis.get_xlim() == pytest.approx((result.times[0], result.times[-1]))
+    plt.close(fig)
+
+
+def test_newtimef_curve_mode_still_plots_per_frequency_lines():
+    srate = 128
+    times = np.arange(128) / srate
+    trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
+
+    result = newtimef(trials, trials.shape[0], [0, 1000], srate, 0, freqs=[5, 20], timesout=12, plottype="curve")
+
+    assert result.figure.axes  # curve figure is produced
+    assert any(axis.get_lines() for axis in result.figure.axes)  # per-frequency traces, not an image
+    assert not any(axis.get_images() for axis in result.figure.axes)
     plt.close(result.figure)
 
 

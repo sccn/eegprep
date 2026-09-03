@@ -21,6 +21,7 @@ from eegprep.functions.timefreqfunc._bootstrap import (
 from eegprep.functions.timefreqfunc.bootstat import exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
+from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 from eegprep.functions.timefreqfunc.timefreq import timefreq
 
@@ -208,6 +209,8 @@ def newtimef(
 
     figure = None
     if _is_on(plot):
+        unit = newtimefpowerunit({"scale": scale_mode, "baseline": baseline, "basenorm": normalize_baseline})
+        ersp_baseval = 1.0 if scale_mode == "abs" and normalize_baseline == "off" else 0.0
         figure = _plot_time_frequency(
             ersp,
             np.abs(itc),
@@ -222,6 +225,8 @@ def newtimef(
             vertical_markers=vertical_markers,
             erspmax=erspmax,
             itcmax=itcmax,
+            unit=unit,
+            ersp_baseval=ersp_baseval,
         )
     return TimeFrequencyResult(
         ersp,
@@ -505,6 +510,16 @@ def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
     return (values <= lower) | (values >= upper)
 
 
+_BASE_POS = (0.13, 0.11, 0.775, 0.815)  # EEGLAB's default axes rectangle; panels are placed relative to it
+_IMAGE_COLORMAP = "jet"
+
+
+def _axes_rect(nx: float, ny: float, nw: float, nh: float) -> list[float]:
+    """Map an EEGLAB ``plottimef`` normalized position into figure coordinates."""
+    x0, y0, w0, h0 = _BASE_POS
+    return [x0 + nx * w0, y0 + ny * h0, nw * w0, nh * h0]
+
+
 def _plot_time_frequency(
     ersp: np.ndarray,
     itc: np.ndarray,
@@ -520,45 +535,175 @@ def _plot_time_frequency(
     vertical_markers: np.ndarray | None,
     erspmax: Any = None,
     itcmax: Any = None,
+    unit: str = "dB",
+    ersp_baseval: float = 0.0,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
         return None
-    fig, axes = plt.subplots(panels, 1, figsize=(7.5, 5.0), squeeze=False)
-    row = 0
+    if plottype == "curve":
+        return _plot_curve_figure(
+            ersp,
+            itc,
+            times,
+            freqs,
+            title=title,
+            plotersp=plotersp,
+            plotitc=plotitc,
+            ersp_significant=ersp_significant,
+            itc_significant=itc_significant,
+            vertical_markers=vertical_markers,
+        )
+    if plottype != "image":
+        raise ValueError("plottype must be 'image' or 'curve'")
+
+    fig = plt.figure(figsize=(7.2, 6.2))
+    if plotersp and plotitc:
+        ersp_ordinate, itc_ordinate, height = 0.67, 0.1, 0.33
+    else:
+        ersp_ordinate = itc_ordinate = 0.1
+        height = 0.9
     if plotersp:
-        ersp_vmin, ersp_vmax = _color_limits(erspmax, symmetric=True)
-        _plot_panel(
-            axes[row, 0],
+        vmin, vmax = _ersp_color_axis(ersp, erspmax, ersp_baseval)
+        _draw_image_panel(
             fig,
             ersp,
             times,
             freqs,
-            title=title,
-            label="ERSP",
-            plottype=plottype,
+            ordinate=ersp_ordinate,
+            height=height,
+            vmin=vmin,
+            vmax=vmax,
             significant=ersp_significant,
-            vmin=ersp_vmin,
-            vmax=ersp_vmax,
+            baseval=ersp_baseval,
+            colorbar_title=f"ERSP({unit})",
             vertical_markers=vertical_markers,
         )
-        row += 1
     if plotitc:
-        itc_vmin, itc_vmax = _color_limits(itcmax, symmetric=False)
-        if itc_vmax is None:
-            itc_vmin, itc_vmax = 0.0, max(1.0, float(np.nanmax(itc)))
-        _plot_panel(
-            axes[row, 0],
+        vmin, vmax = _itc_color_axis(itc, itcmax)
+        _draw_image_panel(
             fig,
             itc,
             times,
             freqs,
-            title="" if plotersp else title,
-            label="ITC",
-            plottype=plottype,
+            ordinate=itc_ordinate,
+            height=height,
+            vmin=vmin,
+            vmax=vmax,
             significant=itc_significant,
-            vmin=itc_vmin,
-            vmax=itc_vmax,
+            baseval=0.0,
+            colorbar_title="ITC",
+            vertical_markers=vertical_markers,
+            colorbar_positive_only=True,
+        )
+    if title:
+        x0, y0, _w0, h0 = _BASE_POS
+        fig.text(x0 - 0.039, y0 + 1.01 * h0, str(title), ha="left", va="bottom", fontsize=10, fontweight="bold")
+    return fig
+
+
+def _ersp_color_axis(ersp: np.ndarray, erspmax: Any, baseval: float) -> tuple[float, float]:
+    """EEGLAB ERSP color limits: user ``erspmax`` or an auto symmetric scale."""
+    vmin, vmax = _color_limits(erspmax, symmetric=True)
+    if vmax is not None:
+        return vmin, vmax
+    peak = float(np.nanmax(np.abs(ersp))) if np.size(ersp) else 0.0
+    if baseval == 1.0:  # abs power as % of baseline: EEGLAB centers the scale on 1
+        return (2.0 - peak, peak) if peak > 1.0 else (peak, 2.0 - peak)
+    half = peak / 2.0 if peak else 1.0
+    return -half, half
+
+
+def _itc_color_axis(itc: np.ndarray, itcmax: Any) -> tuple[float, float]:
+    """EEGLAB ITC color limits: symmetric about zero, capped at 1 when auto."""
+    vmin, vmax = _color_limits(itcmax, symmetric=True)
+    if vmax is not None:
+        return vmin, vmax
+    peak = min(float(np.nanmax(np.abs(itc))), 1.0) if np.size(itc) else 1.0
+    peak = peak or 1.0
+    return -peak, peak
+
+
+def _draw_image_panel(
+    fig,
+    values: np.ndarray,
+    times: np.ndarray,
+    freqs: np.ndarray,
+    *,
+    ordinate: float,
+    height: float,
+    vmin: float,
+    vmax: float,
+    significant: np.ndarray | None,
+    baseval: float,
+    colorbar_title: str,
+    vertical_markers: np.ndarray | None,
+    colorbar_positive_only: bool = False,
+):
+    axis = fig.add_axes(_axes_rect(0.1, ordinate, 0.8, height))
+    # Non-significant cells collapse to the baseline value, which the symmetric
+    # jet scale renders as the green midpoint (EEGLAB masks to baseval, not NaN).
+    array = values if significant is None else np.where(significant, values, baseval)
+    image = axis.imshow(
+        array,
+        aspect="auto",
+        origin="lower",
+        extent=[times[0], times[-1], freqs[0], freqs[-1]],
+        interpolation="nearest",
+        cmap=_IMAGE_COLORMAP,
+        vmin=vmin,
+        vmax=vmax,
+    )
+    axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)  # stimulus onset
+    if vertical_markers is not None:
+        for marker in np.asarray(vertical_markers, dtype=float).ravel():
+            axis.axvline(float(marker), color="m", linewidth=1.0)
+    axis.set_xlim(times[0], times[-1])  # keep the image span; the time-0 line is clipped if outside
+    axis.set_xlabel("Time (ms)")
+    axis.set_ylabel("Frequency (Hz)")
+    colorbar_axis = fig.add_axes(_axes_rect(0.95, ordinate, 0.05, height))
+    fig.colorbar(image, cax=colorbar_axis)
+    if colorbar_positive_only:
+        colorbar_axis.set_ylim(0.0, vmax)
+    colorbar_axis.set_title(colorbar_title, fontsize=9)
+    return axis
+
+
+def _plot_curve_figure(
+    ersp: np.ndarray,
+    itc: np.ndarray,
+    times: np.ndarray,
+    freqs: np.ndarray,
+    *,
+    title: str,
+    plotersp: bool,
+    plotitc: bool,
+    ersp_significant: np.ndarray | None,
+    itc_significant: np.ndarray | None,
+    vertical_markers: np.ndarray | None,
+):
+    panels = int(plotersp) + int(plotitc)
+    fig, axes = plt.subplots(panels, 1, figsize=(7.5, 5.0), squeeze=False)
+    row = 0
+    if plotersp:
+        _plot_curve_panel(
+            axes[row, 0],
+            ersp,
+            times,
+            freqs,
+            title=title,
+            significant=ersp_significant,
+            vertical_markers=vertical_markers,
+        )
+        row += 1
+    if plotitc:
+        _plot_curve_panel(
+            axes[row, 0],
+            itc,
+            times,
+            freqs,
+            title="" if plotersp else title,
+            significant=itc_significant,
             vertical_markers=vertical_markers,
         )
     axes[panels - 1, 0].set_xlabel("Time (ms)")
@@ -566,43 +711,23 @@ def _plot_time_frequency(
     return fig
 
 
-def _plot_panel(
+def _plot_curve_panel(
     axis,
-    figure,
     values: np.ndarray,
     times: np.ndarray,
     freqs: np.ndarray,
     *,
     title: str,
-    label: str,
-    plottype: str,
     significant: np.ndarray | None,
     vertical_markers: np.ndarray | None,
-    vmin: float | None = None,
-    vmax: float | None = None,
 ) -> None:
-    if plottype == "curve":
-        for freq_index, freq in enumerate(freqs):
-            line_values = values[freq_index]
-            if significant is not None:
-                line_values = np.where(significant[freq_index], line_values, np.nan)
-            axis.plot(times, line_values, label=f"{freq:g} Hz")
-        if freqs.size <= 12:
-            axis.legend(loc="best", fontsize="small")
-    elif plottype == "image":
-        image_values = values if significant is None else np.where(significant, values, np.nan)
-        image = axis.imshow(
-            image_values,
-            aspect="auto",
-            origin="lower",
-            extent=[times[0], times[-1], freqs[0], freqs[-1]],
-            interpolation="nearest",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        figure.colorbar(image, ax=axis, label=label)
-    else:
-        raise ValueError("plottype must be 'image' or 'curve'")
+    for freq_index, freq in enumerate(freqs):
+        line_values = values[freq_index]
+        if significant is not None:
+            line_values = np.where(significant[freq_index], line_values, np.nan)
+        axis.plot(times, line_values, label=f"{freq:g} Hz")
+    if freqs.size <= 12:
+        axis.legend(loc="best", fontsize="small")
     if title:
         axis.set_title(title)
     if vertical_markers is not None:
