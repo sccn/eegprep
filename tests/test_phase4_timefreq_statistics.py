@@ -118,19 +118,18 @@ def test_newtimef_is_on_uses_whitelist_semantics():
     assert newtimef_is_on(np.array([0, 1])) is False
 
 
-def test_newtimef_fails_loudly_on_unimplemented_overlap_and_plotphase():
+def test_newtimef_still_rejects_unimplemented_overlap():
     signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
 
     with pytest.raises(NotImplementedError, match="overlap"):
         newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=2)
-    with pytest.raises(NotImplementedError, match="plotphase"):
-        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", plotphase="on")
     with pytest.raises(NotImplementedError, match="overlap"):
         compute_time_frequency(signal, 128, [0, 1000], 128, 0, overlap=2)
 
-    # Default values still compute without raising.
-    result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=None, plotphase="off")
-    assert result.ersp.shape == result.itc.shape
+    # plotphase is now implemented (both 'on' and 'off') and no longer raises.
+    for phase in ("on", "off"):
+        result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=None, plotphase=phase)
+        assert result.ersp.shape == result.itc.shape
 
 
 def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
@@ -529,7 +528,7 @@ def test_pop_newtimef_gui_defaults_are_replayable_and_honest(sample_eeg):
     result = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_DefaultDialogRenderer())
 
     assert result["options"]["timesout"] == 200
-    assert "plotphase" not in result["options"]
+    assert result["options"]["plotphase"] == "off"  # the "plot ITC phase" checkbox defaults to off
     assert "plottype" not in result["options"]
 
 
@@ -722,6 +721,74 @@ def test_newtimef_image_has_eeglab_marginal_panels():
     spectrum_axis = next(a for a in axes if (a.get_xlabel(), a.get_ylabel()) == ("dB", "Frequency (Hz)"))
     assert len(spectrum_axis.get_lines()) >= 3  # baseline curve plus the bootstrap threshold envelope
     plt.close(result.figure)
+
+
+def test_newtimef_itc_phase_sign_and_phase_only_modes():
+    srate = 256
+    frames = 384
+    times = np.arange(frames) / srate
+    burst = np.exp(-((times - 0.5) ** 2) / (2 * 0.1**2))
+    rng = np.random.default_rng(0)
+    trials = np.stack(
+        [0.5 * rng.standard_normal(frames) + 1.2 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(20)],
+        axis=1,
+    )
+    common = dict(freqs=[4, 40], nfreqs=40)
+
+    def itc_image(result):
+        return [image for axis in result.figure.axes for image in axis.get_images()][1]
+
+    signed = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], **common)  # plotphase defaults to 'on'
+    assert float(np.nanmin(itc_image(signed).get_array())) < 0.0  # phase sign yields negative (cool) cells
+    plt.close(signed.figure)
+
+    magnitude = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], plotphase="off", **common)
+    assert float(np.nanmin(itc_image(magnitude).get_array())) >= 0.0  # magnitude only, no phase sign
+    plt.close(magnitude.figure)
+
+    phase = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], plotphaseonly="on", **common)
+    assert itc_image(phase).get_clim() == (-180.0, 180.0)  # phase in degrees
+    assert "ITC phase" in [axis.get_title() for axis in phase.figure.axes]
+    plt.close(phase.figure)
+
+
+def test_newtimef_pcontour_outlines_significance_instead_of_masking():
+    srate = 256
+    frames = 512
+    tlimits = [-1000, 1000]
+    times = np.linspace(tlimits[0], tlimits[1], frames) / 1000.0
+    rng = np.random.default_rng(0)
+    burst = np.exp(-((times - 0.30) ** 2) / (2 * 0.12**2)) * (times > 0)
+    data = np.stack(
+        [0.8 * rng.standard_normal(frames) + 1.6 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(30)],
+        axis=1,
+    )
+    common = dict(freqs=[5, 45], nfreqs=40, baseline=[-1000, 0], alpha=0.05, rng=0)
+
+    masked = newtimef(data, frames, tlimits, srate, [3, 0.5], **common)
+    contoured = newtimef(data, frames, tlimits, srate, [3, 0.5], pcontour="on", **common)
+
+    ersp_masked = np.asarray([im for axis in masked.figure.axes for im in axis.get_images()][0].get_array())
+    ersp_contoured = np.asarray([im for axis in contoured.figure.axes for im in axis.get_images()][0].get_array())
+    assert np.mean(ersp_masked == 0.0) > 0.3  # green-floor sets non-significant cells to baseval
+    assert np.mean(ersp_contoured == 0.0) < 0.05  # pcontour keeps the raw values
+    masked_collections = sum(len(axis.collections) for axis in masked.figure.axes)
+    contoured_collections = sum(len(axis.collections) for axis in contoured.figure.axes)
+    assert contoured_collections > masked_collections  # significance drawn as contour outlines
+    plt.close(masked.figure)
+    plt.close(contoured.figure)
+
+
+def test_pop_newtimef_forwards_plotphase(sample_eeg):
+    class _PhaseCheckedRenderer:
+        def run(self, spec, initial_values=None):
+            _ = initial_values
+            values = {control.tag: control.value for control in spec.controls if control.tag}
+            values["plotphase"] = True
+            return values
+
+    checked = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_PhaseCheckedRenderer())
+    assert "plotphase" not in checked["options"]  # checked keeps newtimef's phase-sign default
 
 
 def test_newtimef_curve_mode_still_plots_per_frequency_lines():

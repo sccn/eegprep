@@ -81,7 +81,10 @@ def newtimef(
     plot: Any = "on",
     plotersp: Any = "on",
     plotitc: Any = "on",
-    plotphase: Any = "off",
+    plotphase: Any = "on",
+    plotphasesign: Any = "on",
+    plotphaseonly: Any = "off",
+    pcontour: Any = "off",
     erspmax: Any = None,
     itcmax: Any = None,
     title: str = "Time-frequency",
@@ -98,8 +101,8 @@ def newtimef(
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
-    if str(plotphase).strip().lower() not in {"off", "0", "false", "no", "none"}:
-        raise NotImplementedError("newtimef does not implement the 'plotphase' option")
+    if not _is_on(plotphase):
+        plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:
         freqs = freqrange
     if type is not None:
@@ -223,7 +226,7 @@ def newtimef(
         )
         figure = _plot_time_frequency(
             ersp,
-            np.abs(itc),
+            itc,
             decomp.times,
             decomp.freqs,
             title=str(title),
@@ -241,6 +244,9 @@ def newtimef(
             erp=erp,
             ersp_boot=ersp_boot,
             itc_boot=itc_boot,
+            plotphasesign=_is_on(plotphasesign),
+            plotphaseonly=_is_on(plotphaseonly),
+            pcontour=_is_on(pcontour),
         )
     return TimeFrequencyResult(
         ersp,
@@ -575,6 +581,9 @@ def _plot_time_frequency(
     erp: Any = None,
     ersp_boot: Any = None,
     itc_boot: Any = None,
+    plotphasesign: bool = True,
+    plotphaseonly: bool = False,
+    pcontour: bool = False,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
@@ -582,7 +591,7 @@ def _plot_time_frequency(
     if plottype == "curve":
         return _plot_curve_figure(
             ersp,
-            itc,
+            np.abs(np.asarray(itc)),
             times,
             freqs,
             title=title,
@@ -616,6 +625,7 @@ def _plot_time_frequency(
             baseval=ersp_baseval,
             colorbar_title=f"ERSP({unit})",
             vertical_markers=vertical_markers,
+            pcontour=pcontour,
         )
         extremes = np.stack([np.nanmin(ersp, axis=0), np.nanmax(ersp, axis=0)])
         _draw_time_marginal(
@@ -636,21 +646,31 @@ def _plot_time_frequency(
             value_label=unit,
         )
     if plotitc:
-        vmin, vmax = _itc_color_axis(itc, itcmax)
+        itc_magnitude = np.abs(np.asarray(itc))
+        phase_only = plotphaseonly or (itc_magnitude.size > 0 and abs(float(itc_magnitude.flat[0]) - 1.0) < 1e-4)
+        if phase_only:
+            itc_display = np.angle(np.asarray(itc)) / np.pi * 180.0  # phase in degrees
+            itc_vmin, itc_vmax, itc_title, itc_clip = -180.0, 180.0, "ITC phase", False
+        else:
+            # phase-sign colors the coherence magnitude by the sign of its imaginary part
+            itc_display = np.sign(np.imag(np.asarray(itc))) * itc_magnitude if plotphasesign else itc_magnitude
+            itc_vmin, itc_vmax = _itc_color_axis(itc_magnitude, itcmax)
+            itc_title, itc_clip = "ITC", True  # magnitude and phase-sign share a [0, max] colorbar
         _draw_image_panel(
             fig,
-            itc,
+            itc_display,
             times,
             freqs,
             ordinate=itc_ordinate,
             height=height,
-            vmin=vmin,
-            vmax=vmax,
+            vmin=itc_vmin,
+            vmax=itc_vmax,
             significant=itc_significant,
             baseval=0.0,
-            colorbar_title="ITC",
+            colorbar_title=itc_title,
             vertical_markers=vertical_markers,
-            colorbar_positive_only=True,
+            colorbar_positive_only=itc_clip,
+            pcontour=pcontour,
         )
         if erp is not None:
             _draw_time_marginal(
@@ -668,7 +688,7 @@ def _plot_time_frequency(
             ordinate=itc_ordinate,
             height=height,
             freqs=freqs,
-            curve=np.nanmean(np.asarray(itc, dtype=float), axis=1),
+            curve=np.nanmean(itc_magnitude, axis=1),
             overlays=itc_overlays,
             value_label="ERP",  # EEGLAB labels the marginal-ITC value axis 'ERP'
         )
@@ -715,11 +735,13 @@ def _draw_image_panel(
     colorbar_title: str,
     vertical_markers: np.ndarray | None,
     colorbar_positive_only: bool = False,
+    pcontour: bool = False,
 ):
     axis = fig.add_axes(_axes_rect(0.1, ordinate, 0.8, height))
-    # Non-significant cells collapse to the baseline value, which the symmetric
-    # jet scale renders as the green midpoint (EEGLAB masks to baseval, not NaN).
-    array = values if significant is None else np.where(significant, values, baseval)
+    # Non-significant cells collapse to the baseline value (the symmetric jet scale
+    # renders it green); with pcontour they stay visible and significance is drawn
+    # as a contour outline instead (EEGLAB masks to baseval, not NaN).
+    array = values if significant is None or pcontour else np.where(significant, values, baseval)
     image = axis.imshow(
         array,
         aspect="auto",
@@ -730,6 +752,8 @@ def _draw_image_panel(
         vmin=vmin,
         vmax=vmax,
     )
+    if significant is not None and pcontour:
+        axis.contour(times, freqs, np.asarray(significant, dtype=float), levels=[0.5], colors="k", linewidths=0.25)
     axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)  # stimulus onset
     if vertical_markers is not None:
         for marker in np.asarray(vertical_markers, dtype=float).ravel():

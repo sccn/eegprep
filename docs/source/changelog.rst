@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` ITC images now support phase display: by default the coherence
+  is colored by its phase sign (``plotphasesign``), ``plotphaseonly`` shows the phase angle in
+  degrees, and the dialog's "plot ITC phase" checkbox is honored. A ``pcontour`` option outlines
+  significant regions with contours instead of masking them to the baseline.
 - ``pop_newtimef`` / ``newtimef`` image plots now include EEGLAB's marginal panels: the ERSP
   minimum/maximum envelope and the ERP trace below the images, and the rotated baseline power
   spectrum and mean inter-trial coherence to their left (with bootstrap-threshold overlays when

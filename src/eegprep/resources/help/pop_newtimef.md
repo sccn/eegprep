@@ -26,6 +26,11 @@ and `itcmax`) set the image color-scale maxima. `erspmax` is applied symmetrical
 as `[-erspmax, erspmax]`; `itcmax` sets the ITC image upper limit. Leave a field
 empty to auto-scale.
 
+The "plot ITC phase" checkbox (option `plotphase`) colors the ITC image by the sign
+of the coherence phase; leave it unchecked to show coherence magnitude only. Scripts
+can also pass `plotphaseonly='on'` to display the phase angle in degrees, or
+`pcontour='on'` to outline significant regions with contours instead of masking them.
+
 The `tf cycle calc` button opens the Morlet wavelet cycle calculator. It writes
 the calculated frequency and cycle vectors back to the parent `pop_newtimef`
 dialog.

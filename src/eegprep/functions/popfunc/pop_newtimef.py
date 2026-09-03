@@ -211,6 +211,8 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         options["plotersp"] = "off"
     if not bool(result.get("plotitc", True)):
         options["plotitc"] = "off"
+    if not bool(result.get("plotphase", False)):
+        options["plotphase"] = "off"
     if bool(result.get("plotcurve", False)):
         options["plottype"] = "curve"
     _add_popup_options(
