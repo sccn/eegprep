@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` image plots now include EEGLAB's marginal panels: the ERSP
+  minimum/maximum envelope and the ERP trace below the images, and the rotated baseline power
+  spectrum and mean inter-trial coherence to their left (with bootstrap-threshold overlays when
+  a significance level is set). The image axes themselves are unlabelled, matching EEGLAB.
 - ``pop_newtimef`` / ``newtimef`` bootstrap significance now ranks each time-frequency point
   against a per-frequency baseline null distribution (matching EEGLAB), so significant
   event-related ERSP and ITC survive masking. Previously the surrogate distribution was built

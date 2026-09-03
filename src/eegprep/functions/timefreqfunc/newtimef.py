@@ -22,7 +22,7 @@ from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
-from eegprep.functions.timefreqfunc.timefreq import timefreq
+from eegprep.functions.timefreqfunc.timefreq import as_channel_epoch_data, timefreq
 
 
 @dataclass(frozen=True)
@@ -210,6 +210,17 @@ def newtimef(
     if _is_on(plot):
         unit = newtimefpowerunit({"scale": scale_mode, "baseline": baseline, "basenorm": normalize_baseline})
         ersp_baseval = 1.0 if scale_mode == "abs" and normalize_baseline == "off" else 0.0
+        limits = _numeric_vector(tlimits)
+        epoch_data = as_channel_epoch_data(data, frames=int(frames))[0]
+        erp_full = np.nanmean(epoch_data, axis=1)
+        full_times = np.linspace(float(limits[0]), float(limits[-1]), int(frames))
+        erp = erp_full[[int(np.argmin(np.abs(full_times - center))) for center in decomp.times]]
+        spectrum = np.asarray(powbase_array, dtype=float).reshape(-1)
+        baseline_spectrum = (
+            _power_to_output(spectrum, scale_mode)
+            if spectrum.size == decomp.freqs.size and np.isfinite(spectrum).any()
+            else np.zeros(decomp.freqs.size)
+        )
         figure = _plot_time_frequency(
             ersp,
             np.abs(itc),
@@ -226,6 +237,10 @@ def newtimef(
             itcmax=itcmax,
             unit=unit,
             ersp_baseval=ersp_baseval,
+            powbase=baseline_spectrum,
+            erp=erp,
+            ersp_boot=ersp_boot,
+            itc_boot=itc_boot,
         )
     return TimeFrequencyResult(
         ersp,
@@ -530,6 +545,7 @@ def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
 
 _BASE_POS = (0.13, 0.11, 0.775, 0.815)  # EEGLAB's default axes rectangle; panels are placed relative to it
 _IMAGE_COLORMAP = "jet"
+_MARGIN_SIZE = 0.1  # thickness of the marginal panels below and left of each image (EEGLAB plottimef)
 
 
 def _axes_rect(nx: float, ny: float, nw: float, nh: float) -> list[float]:
@@ -555,6 +571,10 @@ def _plot_time_frequency(
     itcmax: Any = None,
     unit: str = "dB",
     ersp_baseval: float = 0.0,
+    powbase: Any = None,
+    erp: Any = None,
+    ersp_boot: Any = None,
+    itc_boot: Any = None,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
@@ -597,6 +617,24 @@ def _plot_time_frequency(
             colorbar_title=f"ERSP({unit})",
             vertical_markers=vertical_markers,
         )
+        extremes = np.stack([np.nanmin(ersp, axis=0), np.nanmax(ersp, axis=0)])
+        _draw_time_marginal(
+            fig,
+            ordinate=ersp_ordinate - _MARGIN_SIZE,
+            times=times,
+            series=extremes,
+            ylabel=unit,
+            vertical_markers=vertical_markers,
+        )
+        _draw_freq_marginal(
+            fig,
+            ordinate=ersp_ordinate,
+            height=height,
+            freqs=freqs,
+            curve=powbase,
+            overlays=_spectrum_overlays(powbase, ersp_boot, freqs.size),
+            value_label=unit,
+        )
     if plotitc:
         vmin, vmax = _itc_color_axis(itc, itcmax)
         _draw_image_panel(
@@ -614,6 +652,26 @@ def _plot_time_frequency(
             vertical_markers=vertical_markers,
             colorbar_positive_only=True,
         )
+        if erp is not None:
+            _draw_time_marginal(
+                fig,
+                ordinate=itc_ordinate - _MARGIN_SIZE,
+                times=times,
+                series=np.asarray(erp, dtype=float).reshape(1, -1),
+                ylabel="µV",
+                vertical_markers=vertical_markers,
+                zero_line=True,
+            )
+        itc_overlays = [np.asarray(itc_boot, dtype=float).reshape(-1)] if itc_boot is not None else []
+        _draw_freq_marginal(
+            fig,
+            ordinate=itc_ordinate,
+            height=height,
+            freqs=freqs,
+            curve=np.nanmean(np.asarray(itc, dtype=float), axis=1),
+            overlays=itc_overlays,
+            value_label="ERP",  # EEGLAB labels the marginal-ITC value axis 'ERP'
+        )
     if title:
         x0, y0, _w0, h0 = _BASE_POS
         fig.text(x0 - 0.039, y0 + 1.01 * h0, str(title), ha="left", va="bottom", fontsize=10, fontweight="bold")
@@ -622,7 +680,7 @@ def _plot_time_frequency(
 
 def _ersp_color_axis(ersp: np.ndarray, erspmax: Any, baseval: float) -> tuple[float, float]:
     """EEGLAB ERSP color limits: user ``erspmax`` or an auto symmetric scale."""
-    vmin, vmax = _color_limits(erspmax, symmetric=True)
+    vmin, vmax = _color_limits(erspmax)
     if vmax is not None:
         return vmin, vmax
     peak = float(np.nanmax(np.abs(ersp))) if np.size(ersp) else 0.0
@@ -634,7 +692,7 @@ def _ersp_color_axis(ersp: np.ndarray, erspmax: Any, baseval: float) -> tuple[fl
 
 def _itc_color_axis(itc: np.ndarray, itcmax: Any) -> tuple[float, float]:
     """EEGLAB ITC color limits: symmetric about zero, capped at 1 when auto."""
-    vmin, vmax = _color_limits(itcmax, symmetric=True)
+    vmin, vmax = _color_limits(itcmax)
     if vmax is not None:
         return vmin, vmax
     peak = min(float(np.nanmax(np.abs(itc))), 1.0) if np.size(itc) else 1.0
@@ -677,14 +735,81 @@ def _draw_image_panel(
         for marker in np.asarray(vertical_markers, dtype=float).ravel():
             axis.axvline(float(marker), color="m", linewidth=1.0)
     axis.set_xlim(times[0], times[-1])  # keep the image span; the time-0 line is clipped if outside
-    axis.set_xlabel("Time (ms)")
-    axis.set_ylabel("Frequency (Hz)")
+    # EEGLAB strips the image axes; the marginal panels carry the time/frequency labels.
+    axis.set_xticks([])
+    axis.set_yticks([])
     colorbar_axis = fig.add_axes(_axes_rect(0.95, ordinate, 0.05, height))
     fig.colorbar(image, cax=colorbar_axis)
     if colorbar_positive_only:
         colorbar_axis.set_ylim(0.0, vmax)
     colorbar_axis.set_title(colorbar_title, fontsize=9)
     return axis
+
+
+def _draw_time_marginal(
+    fig,
+    *,
+    ordinate: float,
+    times: np.ndarray,
+    series: np.ndarray,
+    ylabel: str,
+    vertical_markers: np.ndarray | None,
+    zero_line: bool = False,
+):
+    """Draw curves below an image sharing its time axis (ERSP min/max, or the ERP)."""
+    axis = fig.add_axes(_axes_rect(0.1, ordinate, 0.8, _MARGIN_SIZE))
+    for row in np.atleast_2d(np.asarray(series, dtype=float)):
+        axis.plot(times, row, linewidth=1.0)
+    if zero_line:
+        axis.plot([times[0], times[-1]], [0.0, 0.0], color="k", linewidth=0.8)
+    axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)
+    if vertical_markers is not None:
+        for marker in np.asarray(vertical_markers, dtype=float).ravel():
+            axis.axvline(float(marker), color="m", linewidth=1.0)
+    axis.set_xlim(times[0], times[-1])
+    axis.set_xlabel("Time (ms)")
+    axis.set_ylabel(ylabel)
+    axis.yaxis.set_label_position("right")
+    axis.yaxis.tick_right()
+    return axis
+
+
+def _draw_freq_marginal(
+    fig,
+    *,
+    ordinate: float,
+    height: float,
+    freqs: np.ndarray,
+    curve: Any,
+    overlays: list[np.ndarray],
+    value_label: str,
+):
+    """Draw a rotated marginal (value vs frequency) to the left of an image."""
+    axis = fig.add_axes(_axes_rect(0.0, ordinate, _MARGIN_SIZE, height))
+    values = _numeric_vector(curve)
+    if values.size == freqs.size and np.isfinite(values).any():
+        axis.plot(values, freqs, color="C0", linewidth=1.0)
+    for overlay in overlays:
+        overlay_values = np.asarray(overlay, dtype=float)
+        if overlay_values.size == freqs.size:
+            axis.plot(overlay_values, freqs, color="g", linewidth=1.0)
+            axis.plot(overlay_values, freqs, color="k", linestyle=":", linewidth=1.0)
+    if freqs[0] != freqs[-1]:
+        axis.set_ylim(freqs[0], freqs[-1])
+    axis.set_ylabel("Frequency (Hz)")
+    axis.set_xlabel(value_label)
+    return axis
+
+
+def _spectrum_overlays(spectrum: Any, boot: Any, nfreq: int) -> list[np.ndarray]:
+    """Baseline-spectrum significance envelope: ``mbase + [lower, upper]`` thresholds."""
+    if spectrum is None or boot is None:
+        return []
+    values = _numeric_vector(spectrum)
+    boot_values = np.asarray(boot, dtype=float)
+    if values.size != nfreq or boot_values.ndim != 2 or boot_values.shape[0] != nfreq:
+        return []
+    return [values + boot_values[:, 0], values + boot_values[:, 1]]
 
 
 def _plot_curve_figure(
@@ -767,11 +892,9 @@ def _first_numeric(value: Any, default: float) -> float:
     return float(values[0]) if values.size else float(default)
 
 
-def _color_limits(value: Any, *, symmetric: bool) -> tuple[float | None, float | None]:
-    """Return ``(vmin, vmax)`` image color limits from an EEGLAB color-max value.
+def _color_limits(value: Any) -> tuple[float | None, float | None]:
+    """Return symmetric ``(-m, m)`` limits from a scalar ``m``, or a ``[min, max]`` pair as is.
 
-    A single value ``m`` gives ``(-m, m)`` for a symmetric (ERSP) scale or
-    ``(0, m)`` for a one-sided (ITC) scale; a ``[min, max]`` pair is used as is.
     Empty or zero input returns ``(None, None)`` so the caller keeps auto limits.
     """
     values = _numeric_vector(value)
@@ -780,7 +903,7 @@ def _color_limits(value: Any, *, symmetric: bool) -> tuple[float | None, float |
     if values.size == 0 or values[0] == 0:
         return None, None
     magnitude = abs(float(values[0]))
-    return (-magnitude, magnitude) if symmetric else (0.0, magnitude)
+    return -magnitude, magnitude
 
 
 __all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

@@ -60,7 +60,7 @@ def timefreq(
     input before applying the EEGLAB algorithm.
     """
     _ = verbose
-    data_3d = _as_channel_epoch_data(data, frames=frames)
+    data_3d = as_channel_epoch_data(data, frames=frames)
     _, frame_count, trial_count = data_3d.shape
     srate = float(srate)
     cycle_values = _cycles(cycles, wavelet)
@@ -122,7 +122,7 @@ def timefreq(
     return TimeFrequencyDecomposition(tfdata, output_freqs, times, itcvals, window_size, cycle_values)
 
 
-def _as_channel_epoch_data(data: Any, *, frames: int | None) -> np.ndarray:
+def as_channel_epoch_data(data: Any, *, frames: int | None) -> np.ndarray:
     values = np.asarray(data, dtype=float)
     if values.ndim == 1:
         if frames is None:

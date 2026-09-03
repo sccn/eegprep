@@ -684,6 +684,46 @@ def test_newtimef_image_panels_match_eeglab_styling():
     plt.close(fig)
 
 
+def test_newtimef_image_has_eeglab_marginal_panels():
+    # The composite image carries EEGLAB's four marginal panels: ERSP min/max and
+    # the ERP curve below the images, and the baseline spectrum and marginal ITC
+    # (rotated) to their left, each labelled and -- with alpha -- showing thresholds.
+    srate = 256
+    frames = 512
+    tlimits = [-1000, 1000]
+    times = np.linspace(tlimits[0], tlimits[1], frames) / 1000.0
+    rng = np.random.default_rng(0)
+    burst = np.exp(-((times - 0.30) ** 2) / (2 * 0.12**2)) * (times > 0)
+    data = np.stack(
+        [0.8 * rng.standard_normal(frames) + 1.6 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(30)],
+        axis=1,
+    )
+
+    result = newtimef(
+        data,
+        frames,
+        tlimits,
+        srate,
+        [3, 0.5],
+        freqs=[5, 45],
+        nfreqs=40,
+        baseline=[-1000, 0],
+        alpha=0.05,
+        rng=0,
+        title="Fz",
+    )
+
+    axes = result.figure.axes
+    labels = {(axis.get_xlabel(), axis.get_ylabel()) for axis in axes}
+    assert ("Time (ms)", "dB") in labels  # ERSP min/max marginal, below the ERSP image
+    assert ("Time (ms)", "µV") in labels  # ERP trace, below the ITC image
+    assert ("dB", "Frequency (Hz)") in labels  # baseline spectrum, left of the ERSP image
+    assert ("ERP", "Frequency (Hz)") in labels  # marginal ITC, left of the ITC image
+    spectrum_axis = next(a for a in axes if (a.get_xlabel(), a.get_ylabel()) == ("dB", "Frequency (Hz)"))
+    assert len(spectrum_axis.get_lines()) >= 3  # baseline curve plus the bootstrap threshold envelope
+    plt.close(result.figure)
+
+
 def test_newtimef_curve_mode_still_plots_per_frequency_lines():
     srate = 128
     times = np.arange(128) / srate
