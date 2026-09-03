@@ -578,6 +578,45 @@ def test_pop_newtimef_accepts_supplied_bootstrap_limits(sample_epoch):
     np.testing.assert_array_equal(result.itcboot, np.asarray([0.5, 0.5], dtype=float))
 
 
+def test_newtimef_significance_flags_event_related_effect():
+    # A phase-locked post-stimulus burst must test significant against the
+    # pre-stimulus baseline null; EEGLAB ranks each cell against a per-frequency
+    # baseline distribution, so the effect survives while the baseline does not.
+    srate = 256
+    frames = 512
+    tlimits = [-1000, 1000]
+    times = np.linspace(tlimits[0], tlimits[1], frames) / 1000.0
+    rng = np.random.default_rng(0)
+    burst = np.exp(-((times - 0.30) ** 2) / (2 * 0.12**2)) * (times > 0)
+    data = np.stack(
+        [0.8 * rng.standard_normal(frames) + 1.6 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(40)],
+        axis=1,
+    )
+
+    result = newtimef(
+        data,
+        frames,
+        tlimits,
+        srate,
+        [3, 0.5],
+        freqs=[5, 45],
+        nfreqs=50,
+        baseline=[-1000, 0],
+        alpha=0.05,
+        rng=0,
+        plot="off",
+    )
+
+    row = int(np.argmin(np.abs(result.freqs - 10)))
+    post = result.times > 150
+    pre = result.times < -150
+    assert result.itc_significant[row, post].mean() > 0.7  # the 10 Hz post-stimulus band is significant
+    assert result.itc_significant[row, pre].mean() < 0.1  # the pre-stimulus baseline is not
+    # a sane overall fraction -- not the near-zero of the pre-fix full-data-null bug, nor everything
+    assert 0.02 < result.itc_significant.mean() < 0.35
+    assert 0.02 < result.ersp_significant.mean() < 0.35
+
+
 def test_newtimef_applies_ersp_and_itc_color_limits():
     srate = 128
     times = np.arange(128) / srate

@@ -18,7 +18,6 @@ from eegprep.functions.timefreqfunc._bootstrap import (
     threshold_vector as _threshold_vector,
     thresholds_by_frequency,
 )
-from eegprep.functions.timefreqfunc.bootstat import exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
 from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
@@ -179,7 +178,7 @@ def newtimef(
     if alpha_value is not None:
         boot_indices = _bootstrap_indices(decomp.times, baseline, baseboot, baseln)
         if ersp_boot is None:
-            ersp_boot, ersp_surrogates = _bootstrap_power(
+            ersp_boot, ersp_null = _bootstrap_power(
                 corrected_power,
                 scale_mode,
                 alpha=alpha_value,
@@ -188,12 +187,12 @@ def newtimef(
                 base_indices=boot_indices,
                 rng=rng,
             )
-            ersp_pvalues = exact_p_values(ersp, ersp_surrogates)
+            ersp_pvalues = _baseline_pvalues(ersp, ersp_null)
             ersp_significant = _significance_mask(ersp_pvalues, alpha_value, mcorrect)
         else:
             ersp_significant = _threshold_mask(ersp, ersp_boot)
         if itc_boot is None:
-            itc_boot, itc_surrogates = _bootstrap_itc(
+            itc_boot, itc_null = _bootstrap_itc(
                 tfdata,
                 itctype,
                 alpha=alpha_value,
@@ -202,7 +201,7 @@ def newtimef(
                 base_indices=boot_indices,
                 rng=rng,
             )
-            itc_pvalues = exact_p_values(np.abs(itc), itc_surrogates)
+            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null)
             itc_significant = _significance_mask(itc_pvalues, alpha_value, mcorrect)
         else:
             itc_significant = np.abs(itc) >= _threshold_vector(itc_boot, itc.shape)
@@ -449,17 +448,17 @@ def _bootstrap_power(
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # EEGLAB draws the surrogate distribution from the baseline (bootstat with
+    # 'basevect'); the same baseline null feeds both the threshold and the
+    # per-frequency p-values (newtimef.m lines 1282-1286, 1369).
     generator = np.random.default_rng(rng)
-    surrogates = np.empty((int(naccu), power.shape[0], power.shape[1]), dtype=float)
     boot_source = power[:, base_indices, :] if base_indices.size else power
-    threshold_source = np.empty((int(naccu), power.shape[0], max(1, boot_source.shape[1])), dtype=float)
+    baseline_null = np.empty((int(naccu), power.shape[0], max(1, boot_source.shape[1])), dtype=float)
     for index in range(int(naccu)):
-        sample = resample_trials(power, generator, boottype)
-        surrogates[index] = _power_to_output(np.nanmean(sample, axis=2), scale)
-        threshold_sample = resample_trials(boot_source, generator, boottype)
-        threshold_source[index] = _power_to_output(np.nanmean(threshold_sample, axis=2), scale)
-    thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=True)
-    return thresholds, surrogates
+        sample = resample_trials(boot_source, generator, boottype)
+        baseline_null[index] = _power_to_output(np.nanmean(sample, axis=2), scale)
+    thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=True)
+    return thresholds, baseline_null
 
 
 def _bootstrap_itc(
@@ -472,21 +471,40 @@ def _bootstrap_itc(
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # As for power, the ITC null comes from the baseline single-trial estimates
+    # (newtimef.m lines 1336-1347, 1382); it feeds the threshold and p-values.
     generator = np.random.default_rng(rng)
-    surrogates = np.empty((int(naccu), tfdata.shape[0], tfdata.shape[1]), dtype=float)
     boot_source = tfdata[:, base_indices, :] if base_indices.size else tfdata
-    threshold_source = np.empty((int(naccu), tfdata.shape[0], max(1, boot_source.shape[1])), dtype=float)
+    baseline_null = np.empty((int(naccu), tfdata.shape[0], max(1, boot_source.shape[1])), dtype=float)
     for index in range(int(naccu)):
-        sample = resample_trials(tfdata, generator, boottype, complex_phase=True)
-        surrogates[index] = np.abs(newtimefitc(sample, itctype))
-        threshold_sample = resample_trials(boot_source, generator, boottype, complex_phase=True)
-        threshold_source[index] = np.abs(newtimefitc(threshold_sample, itctype))
-    thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=False)
-    return thresholds, surrogates
+        sample = resample_trials(boot_source, generator, boottype, complex_phase=True)
+        baseline_null[index] = np.abs(newtimefitc(sample, itctype))
+    thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=False)
+    return thresholds, baseline_null
 
 
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
     return thresholds_by_frequency(values, alpha=alpha, bootside="both" if both else "upper")
+
+
+def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray) -> np.ndarray:
+    """Two-sided p-values of each cell against the per-frequency baseline null.
+
+    Mirrors EEGLAB ``compute_pvals``: one null distribution per frequency (drawn
+    from the baseline and shared across all output times), against which every
+    time-frequency value is ranked by its distance from the surrogate mean.
+    """
+    observed_values = np.asarray(observed, dtype=float)
+    null = np.moveaxis(np.asarray(baseline_null, dtype=float), 1, 0).reshape(observed_values.shape[0], -1)
+    center = np.nanmean(null, axis=1, keepdims=True)
+    null_distance = np.sort(np.abs(null - center), axis=1)
+    distance = np.abs(observed_values - center)
+    sample_count = null_distance.shape[1]
+    pvalues = np.empty_like(observed_values)
+    for freq_index in range(observed_values.shape[0]):
+        below = np.searchsorted(null_distance[freq_index], distance[freq_index], side="left")
+        pvalues[freq_index] = 1.0 - below / sample_count
+    return pvalues
 
 
 def _significance_mask(pvalues: np.ndarray, alpha: float, correction: str) -> np.ndarray:

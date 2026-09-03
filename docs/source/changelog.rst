@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` bootstrap significance now ranks each time-frequency point
+  against a per-frequency baseline null distribution (matching EEGLAB), so significant
+  event-related ERSP and ITC survive masking. Previously the surrogate distribution was built
+  from the full, effect-carrying data, so with a significance level (``alpha``) set almost
+  nothing was flagged significant and the images looked uniformly non-significant. The fix
+  applies to both the default and the FDR (``mcorrect``) paths.
 - ``pop_newtimef`` / ``newtimef`` now draw the ERSP and ITC images in EEGLAB's style: the
   ``jet`` colormap, a symmetric color axis, non-significant regions shown as the green colormap
   midpoint (rather than blanked to white), right-hand colorbars titled with the power unit, and
