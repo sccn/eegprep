@@ -54,7 +54,7 @@ from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_freque
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac_empirical_pvalue
 from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
-from eegprep.functions.timefreqfunc.newtimef import _significance_mask, _thresholds_by_frequency
+from eegprep.functions.timefreqfunc.newtimef import _reduce_to_two_ticks, _significance_mask, _thresholds_by_frequency
 from eegprep.functions.timefreqfunc.newtimef import _threshold_vector as newtimef_threshold_vector
 from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency, newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
@@ -738,6 +738,34 @@ def test_newtimef_image_has_eeglab_marginal_panels():
     assert len(time_marginals) == 2 and all(len(a.get_yticks()) == 2 for a in time_marginals)
     assert len(freq_marginals) == 2 and all(len(a.get_xticks()) == 2 for a in freq_marginals)
     plt.close(result.figure)
+
+
+def test_reduce_to_two_ticks_matches_eeglab_tick_choices():
+    # Every case below is a real EEGLAB (YLim -> displayed ticks) pair captured from the
+    # newtimef marginal panels of two figures. EEGLAB uses MATLAB's 1/2/5 tick steps (not
+    # matplotlib's 2.5); the sparser spectrum panel keeps tick(end-1) via drop_last.
+    first_last = [
+        ((-0.0642, 0.4711), [0.0, 0.4]),  # marginal ITC (step 0.1, not matplotlib's 0.25)
+        ((-1.8545, 1.7770), [-1.0, 1.0]),  # ERP trace
+        ((-7.9296, 22.7297), [0.0, 20.0]),  # ERSP min/max (dB)
+        ((0.0557, 0.1708), [0.06, 0.16]),  # marginal ITC (step 0.02, not 0.05 -> 0.1,0.15)
+        ((-7.4781, 34.8989), [0.0, 30.0]),  # ERP trace (not 0,20)
+        ((-2.3130, 1.5606), [-2.0, 1.0]),  # ERSP min/max (dB)
+    ]
+    drop_last = [
+        ((-3.1417, -0.6802), [-3.0, -2.0]),  # spectrum: tick(end-1) = -2, not -3,-1 or -3,-1.5
+        ((8.7617, 27.4748), [10.0, 20.0]),  # spectrum
+    ]
+    _fig, axis = plt.subplots()
+    for (lo, hi), want in first_last:
+        axis.set_xlim(lo, hi)
+        _reduce_to_two_ticks(axis, "x")
+        np.testing.assert_allclose(axis.get_xticks(), want, err_msg=f"[{lo},{hi}]")
+    for (lo, hi), want in drop_last:
+        axis.set_xlim(lo, hi)
+        _reduce_to_two_ticks(axis, "x", drop_last=True)
+        np.testing.assert_allclose(axis.get_xticks(), want, err_msg=f"[{lo},{hi}]")
+    plt.close(_fig)
 
 
 def test_newtimef_itc_phase_sign_and_phase_only_modes():

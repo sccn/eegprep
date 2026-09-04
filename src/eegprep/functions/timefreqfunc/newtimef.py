@@ -7,6 +7,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
@@ -670,6 +671,7 @@ def _plot_time_frequency(
             overlays=_spectrum_overlays(powbase, ersp_boot, freqs.size),
             value_label=unit,
             value_limits=_marginal_spectrum_limits(powbase),
+            drop_last_tick=True,  # EEGLAB's spectrum panel keeps tick(end-1), not tick(end)
         )
     if plotitc:
         itc_magnitude = np.abs(np.asarray(itc))
@@ -845,6 +847,7 @@ def _draw_freq_marginal(
     overlays: list[np.ndarray],
     value_label: str,
     value_limits: tuple[float, float] | None = None,
+    drop_last_tick: bool = False,
 ):
     """Draw a rotated marginal (value vs frequency) to the left of an image."""
     axis = fig.add_axes(_axes_rect(0.0, ordinate, _MARGIN_SIZE, height))
@@ -860,21 +863,31 @@ def _draw_freq_marginal(
         axis.set_ylim(freqs[0], freqs[-1])
     if value_limits is not None and value_limits[0] < value_limits[1]:
         axis.set_xlim(value_limits)
-        _reduce_to_two_ticks(axis, "x")  # EEGLAB shows only the first and last tick
+        _reduce_to_two_ticks(axis, "x", drop_last=drop_last_tick)
     axis.set_ylabel("Frequency (Hz)")
     axis.set_xlabel(value_label)
     return axis
 
 
-def _reduce_to_two_ticks(axis, which: str) -> None:
-    """Keep only the first and last auto tick on one axis (EEGLAB marginal panels)."""
-    matplotlib_axis = axis.yaxis if which == "y" else axis.xaxis
+def _reduce_to_two_ticks(axis, which: str, *, drop_last: bool = False) -> None:
+    """Keep two ticks on a marginal value axis, EEGLAB-style.
+
+    Reproduces the tick values EEGLAB shows by picking candidate ticks with MATLAB's
+    1/2/5 steps (not matplotlib's 2.5) and keeping the first and last -- or first and
+    second-to-last for the spectrum panel (``drop_last``, EEGLAB's ``tick(end-1)``
+    quirk). The spectrum panel is sparser in EEGLAB, so it uses a coarser locator; both
+    tick counts were matched against EEGLAB ground truth across the ERSP, spectrum, ERP,
+    and marginal-ITC panels.
+    """
     setter = axis.set_yticks if which == "y" else axis.set_xticks
     lo, hi = sorted(axis.get_ylim() if which == "y" else axis.get_xlim())
-    # tick_values gives the ticks the auto-locator would place, independent of draw state
-    ticks = [tick for tick in matplotlib_axis.get_major_locator().tick_values(lo, hi) if lo - 1e-9 <= tick <= hi + 1e-9]
-    if len(ticks) >= 2:
-        setter([ticks[0], ticks[-1]])
+    locator = MaxNLocator(nbins=4 if drop_last else 6, steps=[1, 2, 5, 10])
+    ticks = [tick for tick in locator.tick_values(lo, hi) if lo - 1e-9 <= tick <= hi + 1e-9]
+    if len(ticks) <= 2:
+        if ticks:
+            setter(ticks)
+        return
+    setter([ticks[0], ticks[-2] if drop_last else ticks[-1]])
 
 
 def _marginal_extreme_limits(extremes: np.ndarray) -> tuple[float, float] | None:

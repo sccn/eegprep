@@ -12,7 +12,12 @@ Unreleased
 
 - ``pop_newtimef`` / ``newtimef`` marginal panels now use EEGLAB's value-axis limits and show two
   ticks (first and last), so the ERSP min/max, baseline spectrum, ERP, and marginal-ITC graphs
-  scale like EEGLAB instead of matplotlib's auto-scaling.
+  scale like EEGLAB instead of matplotlib's auto-scaling. The two tick values are chosen with
+  MATLAB's 1/2/5 tick steps (not matplotlib's 2.5 steps); the sparser baseline-spectrum panel
+  uses a coarser step and keeps its second-to-last tick. The tick counts were matched against
+  EEGLAB across the ERSP, spectrum, ERP, and marginal-ITC panels, so the printed numbers match
+  EEGLAB (for example marginal ITC ``0.06, 0.16`` and spectrum ``-3, -2`` rather than matplotlib's
+  ``0.10, 0.15`` and ``-3, -1``).
 - ``pop_newtimef`` / ``newtimef`` significance now builds its null by shuffling the baseline
   time course (matching EEGLAB's permutation), so the bootstrap thresholds and the set of
   significant time-frequency points closely match EEGLAB. ITC significance uses an upper tail
