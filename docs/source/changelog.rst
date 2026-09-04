@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` ``pcontour`` outlines now match EEGLAB's appearance: the
+  significance mask is contoured at MATLAB's auto levels (0.1 through 1.0) in black, so the
+  ten coincident lines render as EEGLAB's bold banded outline instead of a single faint line.
 - ``pop_newtimef`` / ``newtimef`` marginal panels now use EEGLAB's value-axis limits and show two
   ticks (first and last), so the ERSP min/max, baseline spectrum, ERP, and marginal-ITC graphs
   scale like EEGLAB instead of matplotlib's auto-scaling. The two tick values are chosen with
@@ -20,8 +23,11 @@ Unreleased
   ``0.10, 0.15`` and ``-3, -1``).
 - ``pop_newtimef`` / ``newtimef`` significance now builds its null by shuffling the baseline
   time course (matching EEGLAB's permutation), so the bootstrap thresholds and the set of
-  significant time-frequency points closely match EEGLAB. ITC significance uses an upper tail
-  (only elevated coherence is meaningful).
+  significant time-frequency points closely match EEGLAB. Each cell's p-value ranks the
+  observed value within its per-frequency baseline null and folds to a two-sided tail
+  (EEGLAB's ``compute_pvals``) for both ERSP and ITC, so the scattered baseline false
+  positives that EEGLAB shows -- for example in the ITC phase and ``pcontour`` panels --
+  now appear in EEGPrep too, instead of the sparser upper-tail-only pattern.
 - ``pop_newtimef`` / ``newtimef`` refinements for EEGLAB parity: the ERSP/ITC images use the
   ``turbo`` colormap (EEGPrep's house colormap); the default frequency range now stops at 50 Hz
   (EEGLAB's ``maxfreq`` default, capped at Nyquist) instead of the full Nyquist band; and the

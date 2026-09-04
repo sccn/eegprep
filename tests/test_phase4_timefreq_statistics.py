@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.contour import QuadContourSet
 import numpy as np
 import pytest
 import scipy.io
@@ -626,6 +627,10 @@ def test_newtimef_significance_flags_event_related_effect():
     # a sane overall fraction -- not the near-zero of the pre-fix full-data-null bug, nor everything
     assert 0.02 < result.itc_significant.mean() < 0.35
     assert 0.02 < result.ersp_significant.mean() < 0.35
+    # EEGLAB's compute_pvals is two-sided for ITC, so the effect-free baseline flags ~alpha of cells
+    # (both tails) as chance false positives -- roughly double the ~alpha/2 an upper-tail test gives.
+    baseline = result.times < 0
+    assert 0.03 < result.itc_significant[:, baseline].mean() < 0.08
 
 
 def test_newtimef_applies_ersp_and_itc_color_limits():
@@ -820,6 +825,13 @@ def test_newtimef_pcontour_outlines_significance_instead_of_masking():
     masked_collections = sum(len(axis.collections) for axis in masked.figure.axes)
     contoured_collections = sum(len(axis.collections) for axis in contoured.figure.axes)
     assert contoured_collections > masked_collections  # significance drawn as contour outlines
+    # EEGLAB draws the mask contour with MATLAB's auto levels 0.1:0.1:1.0 (ten black lines
+    # that fan out into a bold banded outline), not a single thin 0.5 line.
+    contour_sets = contoured.figure.findobj(QuadContourSet)
+    assert contour_sets
+    for cset in contour_sets:
+        np.testing.assert_allclose(cset.levels, np.arange(1, 11) / 10.0)
+        assert np.allclose(cset.get_edgecolor()[:, :3], 0.0)  # black
     plt.close(masked.figure)
     plt.close(contoured.figure)
 

@@ -210,7 +210,7 @@ def newtimef(
                 base_indices=boot_indices,
                 rng=rng,
             )
-            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null, two_sided=False)
+            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null)
             itc_significant = _significance_mask(itc_pvalues, alpha_value, mcorrect)
         else:
             itc_significant = np.abs(itc) >= _threshold_vector(itc_boot, itc.shape)
@@ -526,27 +526,25 @@ def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) ->
     return thresholds_by_frequency(values, alpha=alpha, bootside="both" if both else "upper")
 
 
-def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray, *, two_sided: bool = True) -> np.ndarray:
-    """P-values of each cell against the per-frequency baseline null.
+def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray) -> np.ndarray:
+    """Two-sided p-values of each cell against its per-frequency baseline null.
 
-    Mirrors EEGLAB ``compute_pvals``: one null distribution per frequency (drawn
-    from the baseline, shared across all output times). ERSP is two-sided (power
-    moves either way); ITC uses an upper tail (only elevated coherence matters).
+    Mirrors EEGLAB ``compute_pvals`` (newtimef.m 2096): pool one null distribution
+    per frequency (drawn from the baseline, shared across all output times), rank the
+    observed value within ``null + observed`` (``p = 1 - (mx - 0.5) / len``), and fold
+    it to a two-sided p-value with ``2 * min(p, 1 - p)``. EEGLAB uses this two-sided
+    tail for both ERSP and ITC, so an unusually *low* coherence in the baseline is
+    flagged just like an unusually high one.
     """
     observed_values = np.asarray(observed, dtype=float)
     null = np.moveaxis(np.asarray(baseline_null, dtype=float), 1, 0).reshape(observed_values.shape[0], -1)
-    if two_sided:
-        center = np.nanmean(null, axis=1, keepdims=True)
-        null_compare = np.sort(np.abs(null - center), axis=1)
-        observed_compare = np.abs(observed_values - center)
-    else:
-        null_compare = np.sort(null, axis=1)
-        observed_compare = observed_values
-    sample_count = null_compare.shape[1]
+    null_sorted = np.sort(null, axis=1)
+    length = null_sorted.shape[1] + 1  # EEGLAB appends the observed value to the surrogate set
     pvalues = np.empty_like(observed_values)
     for freq_index in range(observed_values.shape[0]):
-        below = np.searchsorted(null_compare[freq_index], observed_compare[freq_index], side="left")
-        pvalues[freq_index] = 1.0 - below / sample_count
+        rank = np.searchsorted(null_sorted[freq_index], observed_values[freq_index], side="right") + 1
+        p_upper = 1.0 - (rank - 0.5) / length
+        pvalues[freq_index] = 2.0 * np.minimum(p_upper, 1.0 - p_upper)
     return pvalues
 
 
@@ -788,7 +786,17 @@ def _draw_image_panel(
         vmax=vmax,
     )
     if significant is not None and pcontour:
-        axis.contour(times, freqs, np.asarray(significant, dtype=float), levels=[0.5], colors="k", linewidths=0.25)
+        # EEGLAB draws contour() on the binary mask with MATLAB's auto levels
+        # (0.1:0.1:1.0). On a 0/1 mask these ten lines fan out across one time-frequency
+        # cell, giving the bold banded outline EEGLAB shows; a single 0.5 level looks thin.
+        axis.contour(
+            times,
+            freqs,
+            np.asarray(significant, dtype=float),
+            levels=np.arange(1, 11) / 10.0,
+            colors="k",
+            linewidths=0.25,
+        )
     axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)  # stimulus onset
     if vertical_markers is not None:
         for marker in np.asarray(vertical_markers, dtype=float).ravel():
