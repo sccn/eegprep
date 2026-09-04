@@ -732,6 +732,11 @@ def test_newtimef_image_has_eeglab_marginal_panels():
     assert ("ERP", "Frequency (Hz)") in labels  # marginal ITC, left of the ITC image
     spectrum_axis = next(a for a in axes if (a.get_xlabel(), a.get_ylabel()) == ("dB", "Frequency (Hz)"))
     assert len(spectrum_axis.get_lines()) >= 3  # baseline curve plus the bootstrap threshold envelope
+    # EEGLAB caps each marginal value axis at two ticks (first and last)
+    time_marginals = [a for a in axes if a.get_xlabel() == "Time (ms)" and a.get_ylabel() in ("dB", "µV")]
+    freq_marginals = [a for a in axes if a.get_ylabel() == "Frequency (Hz)" and a.get_xlabel() in ("dB", "ERP")]
+    assert len(time_marginals) == 2 and all(len(a.get_yticks()) == 2 for a in time_marginals)
+    assert len(freq_marginals) == 2 and all(len(a.get_xticks()) == 2 for a in freq_marginals)
     plt.close(result.figure)
 
 

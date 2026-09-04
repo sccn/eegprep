@@ -659,6 +659,7 @@ def _plot_time_frequency(
             series=extremes,
             ylabel=unit,
             vertical_markers=vertical_markers,
+            value_limits=_marginal_extreme_limits(extremes),
         )
         _draw_freq_marginal(
             fig,
@@ -668,6 +669,7 @@ def _plot_time_frequency(
             curve=powbase,
             overlays=_spectrum_overlays(powbase, ersp_boot, freqs.size),
             value_label=unit,
+            value_limits=_marginal_spectrum_limits(powbase),
         )
     if plotitc:
         itc_magnitude = np.abs(np.asarray(itc))
@@ -704,17 +706,20 @@ def _plot_time_frequency(
                 series=np.asarray(erp, dtype=float).reshape(1, -1),
                 ylabel="µV",
                 vertical_markers=vertical_markers,
+                value_limits=_marginal_erp_limits(erp),
                 zero_line=True,
             )
         itc_overlays = [np.asarray(itc_boot, dtype=float).reshape(-1)] if itc_boot is not None else []
+        mean_itc = np.nanmean(itc_magnitude, axis=1)
         _draw_freq_marginal(
             fig,
             ordinate=itc_ordinate,
             height=height,
             freqs=freqs,
-            curve=np.nanmean(itc_magnitude, axis=1),
+            curve=mean_itc,
             overlays=itc_overlays,
             value_label="ERP",  # EEGLAB labels the marginal-ITC value axis 'ERP'
+            value_limits=_marginal_itc_limits(mean_itc, itc_boot),
         )
     if title:
         x0, y0, _w0, h0 = _BASE_POS
@@ -806,6 +811,7 @@ def _draw_time_marginal(
     series: np.ndarray,
     ylabel: str,
     vertical_markers: np.ndarray | None,
+    value_limits: tuple[float, float] | None = None,
     zero_line: bool = False,
 ):
     """Draw curves below an image sharing its time axis (ERSP min/max, or the ERP)."""
@@ -819,6 +825,9 @@ def _draw_time_marginal(
         for marker in np.asarray(vertical_markers, dtype=float).ravel():
             axis.axvline(float(marker), color="m", linewidth=1.0)
     axis.set_xlim(times[0], times[-1])
+    if value_limits is not None and value_limits[0] < value_limits[1]:
+        axis.set_ylim(value_limits)
+        _reduce_to_two_ticks(axis, "y")  # EEGLAB shows only the first and last tick
     axis.set_xlabel("Time (ms)")
     axis.set_ylabel(ylabel)
     axis.yaxis.set_label_position("right")
@@ -835,6 +844,7 @@ def _draw_freq_marginal(
     curve: Any,
     overlays: list[np.ndarray],
     value_label: str,
+    value_limits: tuple[float, float] | None = None,
 ):
     """Draw a rotated marginal (value vs frequency) to the left of an image."""
     axis = fig.add_axes(_axes_rect(0.0, ordinate, _MARGIN_SIZE, height))
@@ -848,9 +858,67 @@ def _draw_freq_marginal(
             axis.plot(overlay_values, freqs, color="k", linestyle=":", linewidth=1.0)
     if freqs[0] != freqs[-1]:
         axis.set_ylim(freqs[0], freqs[-1])
+    if value_limits is not None and value_limits[0] < value_limits[1]:
+        axis.set_xlim(value_limits)
+        _reduce_to_two_ticks(axis, "x")  # EEGLAB shows only the first and last tick
     axis.set_ylabel("Frequency (Hz)")
     axis.set_xlabel(value_label)
     return axis
+
+
+def _reduce_to_two_ticks(axis, which: str) -> None:
+    """Keep only the first and last auto tick on one axis (EEGLAB marginal panels)."""
+    matplotlib_axis = axis.yaxis if which == "y" else axis.xaxis
+    setter = axis.set_yticks if which == "y" else axis.set_xticks
+    lo, hi = sorted(axis.get_ylim() if which == "y" else axis.get_xlim())
+    # tick_values gives the ticks the auto-locator would place, independent of draw state
+    ticks = [tick for tick in matplotlib_axis.get_major_locator().tick_values(lo, hi) if lo - 1e-9 <= tick <= hi + 1e-9]
+    if len(ticks) >= 2:
+        setter([ticks[0], ticks[-1]])
+
+
+def _marginal_extreme_limits(extremes: np.ndarray) -> tuple[float, float] | None:
+    """EEGLAB ``erspmarglim``: min/max curves padded by ``max|E|/3``."""
+    values = np.asarray(extremes, dtype=float)
+    if not np.isfinite(values).any():
+        return None
+    pad = float(np.nanmax(np.abs(values))) / 3.0
+    return float(np.nanmin(values[0]) - pad), float(np.nanmax(values[1]) + pad)
+
+
+def _marginal_spectrum_limits(spectrum: Any) -> tuple[float, float] | None:
+    """EEGLAB ``speclim``: baseline spectrum padded by ``max|mbase|/3``."""
+    values = _numeric_vector(spectrum)
+    if values.size == 0 or not np.isfinite(values).any():
+        return None
+    pad = float(np.nanmax(np.abs(values))) / 3.0
+    return float(np.nanmin(values) - pad), float(np.nanmax(values) + pad)
+
+
+def _marginal_erp_limits(erp: Any) -> tuple[float, float] | None:
+    """EEGLAB ``erplim``: ERP range padded by 10%."""
+    values = _numeric_vector(erp)
+    if values.size == 0 or not np.isfinite(values).any():
+        return None
+    low, high = float(np.nanmin(values)), float(np.nanmax(values))
+    pad = 0.1 * (high - low)
+    return low - pad, high + pad
+
+
+def _marginal_itc_limits(mean_itc: np.ndarray, itc_boot: Any) -> tuple[float, float]:
+    """EEGLAB ``itcavglim``: marginal ITC padded; upper bound from the bootstrap when present."""
+    values = _numeric_vector(mean_itc)
+    if values.size == 0 or not np.isfinite(values).any():
+        return -1.0, 1.0
+    low = float(np.nanmin(values) - np.nanmax(values) / 3.0)
+    if itc_boot is not None:
+        boot = _numeric_vector(itc_boot)
+        high = float(np.nanmax(boot) + np.nanmax(boot) / 3.0)
+    else:
+        high = float(np.nanmax(values) + np.nanmax(values) / 3.0)
+    if high == 0.0 or not np.isfinite(high) or not np.isfinite(low):
+        return -1.0, 1.0
+    return low, high
 
 
 def _spectrum_overlays(spectrum: Any, boot: Any, nfreq: int) -> list[np.ndarray]:

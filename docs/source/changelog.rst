@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` marginal panels now use EEGLAB's value-axis limits and show two
+  ticks (first and last), so the ERSP min/max, baseline spectrum, ERP, and marginal-ITC graphs
+  scale like EEGLAB instead of matplotlib's auto-scaling.
 - ``pop_newtimef`` / ``newtimef`` significance now builds its null by shuffling the baseline
   time course (matching EEGLAB's permutation), so the bootstrap thresholds and the set of
   significant time-frequency points closely match EEGLAB. ITC significance uses an upper tail
