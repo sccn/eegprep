@@ -11,6 +11,7 @@ import numpy as np
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+from eegprep.functions.sigprocfunc.topoplot import topoplot
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._bootstrap import (
     bootstrap_indices as shared_bootstrap_indices,
@@ -87,6 +88,9 @@ def newtimef(
     pcontour: Any = "off",
     erspmax: Any = None,
     itcmax: Any = None,
+    topovec: Any = None,
+    elocs: Any = None,
+    caption: Any = None,
     title: str = "Time-frequency",
     rng: Any = None,
     detrend: str = "off",
@@ -247,6 +251,9 @@ def newtimef(
             plotphasesign=_is_on(plotphasesign),
             plotphaseonly=_is_on(plotphaseonly),
             pcontour=_is_on(pcontour),
+            topovec=topovec,
+            elocs=elocs,
+            caption=caption,
         )
     return TimeFrequencyResult(
         ersp,
@@ -584,6 +591,9 @@ def _plot_time_frequency(
     plotphasesign: bool = True,
     plotphaseonly: bool = False,
     pcontour: bool = False,
+    topovec: Any = None,
+    elocs: Any = None,
+    caption: Any = None,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
@@ -695,6 +705,10 @@ def _plot_time_frequency(
     if title:
         x0, y0, _w0, h0 = _BASE_POS
         fig.text(x0 - 0.039, y0 + 1.01 * h0, str(title), ha="left", va="bottom", fontsize=10, fontweight="bold")
+    if caption:
+        fig.text(0.5, 0.985, str(caption), ha="center", va="top", fontsize=11, fontweight="bold")
+    if topovec is not None and np.size(np.asarray(topovec)) > 0 and plotersp and plotitc:
+        _draw_scalp_inset(fig, topovec, elocs)
     return fig
 
 
@@ -834,6 +848,17 @@ def _spectrum_overlays(spectrum: Any, boot: Any, nfreq: int) -> list[np.ndarray]
     if values.size != nfreq or boot_values.ndim != 2 or boot_values.shape[0] != nfreq:
         return []
     return [values + boot_values[:, 0], values + boot_values[:, 1]]
+
+
+def _draw_scalp_inset(fig, topovec: Any, elocs: Any):
+    """Draw the channel/component scalp-map inset at EEGLAB's mid-left position."""
+    inset = fig.add_axes(_axes_rect(-0.1, 0.43, 0.2, 0.14))
+    values = np.asarray(topovec)
+    if values.size == 1:  # a single channel: blank head (topoplot's default title suppressed)
+        topoplot(int(values.flat[0]), elocs, axes=inset, style="blank", electrodes="off", title="")
+    else:  # an ICA component column: interpolated scalp map
+        topoplot(values, elocs, axes=inset, electrodes="off")
+    inset.set_aspect("equal")
 
 
 def _plot_curve_figure(

@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` figures now include the channel or component scalp-map inset and a caption
+  (the channel label or ``IC n``), matching EEGLAB: a channel shows a head with its location, and
+  a component shows its interpolated scalp map. The inset appears when channel locations are
+  available and both the ERSP and ITC panels are shown.
 - ``pop_newtimef`` / ``newtimef`` ITC images now support phase display: by default the coherence
   is colored by its phase sign (``plotphasesign``), ``plotphaseonly`` shows the phase angle in
   degrees, and the dialog's "plot ITC phase" checkbox is honored. A ``pcontour`` option outlines

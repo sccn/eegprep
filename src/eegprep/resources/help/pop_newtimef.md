@@ -1,7 +1,10 @@
 POP_NEWTIMEF - Plot channel or component time-frequency decomposition.
 
 `pop_newtimef` computes an event-related spectral perturbation (ERSP) image and
-inter-trial coherence (ITC) image for one channel or ICA component.
+inter-trial coherence (ITC) image for one channel or ICA component. When channel
+locations are available, the figure adds a scalp-map inset (the channel's head
+location, or the component's interpolated map) and a caption naming the channel
+or component.
 
 Examples:
 

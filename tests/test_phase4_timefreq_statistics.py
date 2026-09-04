@@ -26,8 +26,9 @@ from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat,
 from eegprep.functions.popfunc.pop_crossf import pop_crossf
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
+from eegprep.functions.popfunc.plot_utils import channel_labels
 from eegprep.functions.popfunc.pop_newtimef import _run_gui as run_newtimef_gui
-from eegprep.functions.popfunc.pop_newtimef import pop_newtimef, pop_newtimef_dialog_spec
+from eegprep.functions.popfunc.pop_newtimef import _topo_options, pop_newtimef, pop_newtimef_dialog_spec
 from eegprep.functions.popfunc.pop_timef import pop_timef
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signalstat_dialog_spec
 from eegprep.functions.sigprocfunc.signalstat import signalstat
@@ -777,6 +778,21 @@ def test_newtimef_pcontour_outlines_significance_instead_of_masking():
     assert contoured_collections > masked_collections  # significance drawn as contour outlines
     plt.close(masked.figure)
     plt.close(contoured.figure)
+
+
+def test_pop_newtimef_adds_scalp_map_inset_and_caption(sample_epoch, ica_epoch):
+    result, command = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off", return_com=True)
+    assert channel_labels(sample_epoch)[0] in [text.get_text() for text in result.figure.texts]  # channel caption
+    assert len(result.figure.axes) == 9  # 8 image/marginal/colorbar axes + the scalp-map inset
+    assert "elocs" not in command and "topovec" not in command  # injected for the plot, not the history
+    plt.close(result.figure)
+
+    component = pop_newtimef(ica_epoch, 0, 2, [-100, 200], [3, 0.8], plot="off")
+    assert "IC 2" in [text.get_text() for text in component.figure.texts]
+    assert len(component.figure.axes) == 9
+    plt.close(component.figure)
+
+    assert _topo_options({"chanlocs": []}, 1, 1) == {}  # no channel locations -> no inset
 
 
 def test_pop_newtimef_forwards_plotphase(sample_eeg):

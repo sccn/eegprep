@@ -8,9 +8,11 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
+    component_map_data,
     data_time_slice,
     history_command,
     numeric_vector,
@@ -59,7 +61,10 @@ def pop_newtimef(
     if cycles is None:
         cycles = [3, 0.8]
     data, times = _selected_signal(EEG, typeproc, num, tlimits)
-    result = newtimef(data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options)
+    plot_options = {"title": "", **_topo_options(EEG, typeproc, num), **options}
+    result = newtimef(
+        data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **plot_options
+    )
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
     show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
@@ -250,6 +255,40 @@ def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any)
     if index < 0 or index >= acts.shape[0]:
         raise ValueError(f"component number must be 1-based and within 1..{acts.shape[0]}")
     return acts[index, :, :], full_times
+
+
+def _topo_options(EEG: dict[str, Any], typeproc: int, num: Any) -> dict[str, Any]:
+    """Scalp-map inset options (topovec/elocs/caption) when channel locations exist.
+
+    Mirrors EEGLAB ``pop_newtimef``: a channel passes its 1-based index (marked on a
+    blank head) and label; a component passes its ``icawinv`` map column and ``IC n``.
+    """
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    if not chanlocs or not _has_theta(chanlocs[0]):
+        return {}
+    index = int(_first_index(num)) - 1
+    if typeproc == 1:
+        if not (0 <= index < len(chanlocs)) or not _has_theta(chanlocs[index]):
+            return {}
+        labels = channel_labels(EEG)
+        caption = labels[index] if index < len(labels) else f"Channel {index + 1}"
+        return {"topovec": index + 1, "elocs": chanlocs, "caption": caption}
+    if EEG.get("icawinv") is None:
+        return {}
+    maps, map_chanlocs = component_map_data(EEG)
+    if not (0 <= index < maps.shape[1]):
+        return {}
+    return {"topovec": maps[:, index], "elocs": map_chanlocs, "caption": f"IC {index + 1}"}
+
+
+def _has_theta(chanloc: dict[str, Any]) -> bool:
+    theta = chanloc.get("theta")
+    if theta is None:
+        return False
+    try:
+        return bool(np.isfinite(float(theta)))
+    except (TypeError, ValueError):
+        return False
 
 
 def _add_popup_options(options: dict[str, Any], ntimesout: int, nfreqs: int, basenorm: int, freqs: list[float]) -> None:
