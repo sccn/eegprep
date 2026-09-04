@@ -10,6 +10,14 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` significance now builds its null by shuffling the baseline
+  time course (matching EEGLAB's permutation), so the bootstrap thresholds and the set of
+  significant time-frequency points closely match EEGLAB. ITC significance uses an upper tail
+  (only elevated coherence is meaningful).
+- ``pop_newtimef`` / ``newtimef`` refinements for EEGLAB parity: the ERSP/ITC images use the
+  ``turbo`` colormap (EEGPrep's house colormap); the default frequency range now stops at 50 Hz
+  (EEGLAB's ``maxfreq`` default, capped at Nyquist) instead of the full Nyquist band; and the
+  channel scalp inset now marks the selected electrode.
 - ``pop_newtimef`` figures now include the channel or component scalp-map inset and a caption
   (the channel label or ``IC n``), matching EEGLAB: a channel shows a head with its location, and
   a component shows its interpolated scalp map. The inset appears when channel locations are

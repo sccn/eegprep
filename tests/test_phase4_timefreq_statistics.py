@@ -119,6 +119,17 @@ def test_newtimef_is_on_uses_whitelist_semantics():
     assert newtimef_is_on(np.array([0, 1])) is False
 
 
+def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
+    # With no explicit freqs, EEGLAB stops at maxfreq=50 (capped at Nyquist), not the full band.
+    times = np.arange(256) / 128
+    trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
+
+    result = newtimef(trials, 256, [0, 2000], 128, [3, 0.5], plot="off")
+
+    assert result.freqs.max() <= 50.0 + 1e-9
+    assert result.freqs.max() > 30.0  # the band is not truncated too aggressively
+
+
 def test_newtimef_still_rejects_unimplemented_overlap():
     signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
 
@@ -671,7 +682,7 @@ def test_newtimef_image_panels_match_eeglab_styling():
     images = [image for axis in fig.axes for image in axis.get_images()]
     assert len(images) == 2  # ERSP image + ITC image
     for image in images:
-        assert image.get_cmap().name == "jet"
+        assert image.get_cmap().name == "turbo"
         vmin, vmax = image.get_clim()
         assert vmin == pytest.approx(-vmax)  # symmetric color axis, so the baseline sits at green
         assert not np.isnan(image.get_array()).any()  # non-significant cells are green-floored, not NaN/white

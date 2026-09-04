@@ -11,11 +11,10 @@ import numpy as np
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
-from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._bootstrap import (
     bootstrap_indices as shared_bootstrap_indices,
-    resample_trials,
     threshold_vector as _threshold_vector,
     thresholds_by_frequency,
 )
@@ -109,6 +108,8 @@ def newtimef(
         plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:
         freqs = freqrange
+    if freqs is None:
+        freqs = [0.0, min(50.0, float(srate) / 2.0)]  # EEGLAB DEFAULT_MAXFREQ, capped at Nyquist
     if type is not None:
         itctype = type
     scale_mode = str(scale).lower()
@@ -208,7 +209,7 @@ def newtimef(
                 base_indices=boot_indices,
                 rng=rng,
             )
-            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null)
+            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null, two_sided=False)
             itc_significant = _significance_mask(itc_pvalues, alpha_value, mcorrect)
         else:
             itc_significant = np.abs(itc) >= _threshold_vector(itc_boot, itc.shape)
@@ -476,15 +477,13 @@ def _bootstrap_power(
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # EEGLAB draws the surrogate distribution from the baseline (bootstat with
-    # 'basevect'); the same baseline null feeds both the threshold and the
-    # per-frequency p-values (newtimef.m lines 1282-1286, 1369).
-    generator = np.random.default_rng(rng)
+    # EEGLAB shuffles the baseline TIME dimension and averages over trials, so the
+    # null is the baseline mean-power spectrum resampled across time -- not a trial
+    # resample, which adds spurious variance (newtimef.m 1282-1286, bootstat 'shuffle').
+    _ = boottype
     boot_source = power[:, base_indices, :] if base_indices.size else power
-    baseline_null = np.empty((int(naccu), power.shape[0], max(1, boot_source.shape[1])), dtype=float)
-    for index in range(int(naccu)):
-        sample = resample_trials(boot_source, generator, boottype)
-        baseline_null[index] = _power_to_output(np.nanmean(sample, axis=2), scale)
+    baseline_stat = _power_to_output(np.nanmean(boot_source, axis=2), scale)
+    baseline_null = _resample_baseline_times(baseline_stat, naccu, rng)
     thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=True)
     return thresholds, baseline_null
 
@@ -499,38 +498,53 @@ def _bootstrap_itc(
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # As for power, the ITC null comes from the baseline single-trial estimates
-    # (newtimef.m lines 1336-1347, 1382); it feeds the threshold and p-values.
+    # EEGLAB shuffles each trial's baseline time course, breaking the inter-trial
+    # phase alignment, then recomputes ITC -- giving a chance-level null with the
+    # right spread (newtimef.m 1336-1347, bootstat 'shuffle').
+    _ = boottype
     generator = np.random.default_rng(rng)
     boot_source = tfdata[:, base_indices, :] if base_indices.size else tfdata
-    baseline_null = np.empty((int(naccu), tfdata.shape[0], max(1, boot_source.shape[1])), dtype=float)
+    n_base, n_trials = boot_source.shape[1], boot_source.shape[2]
+    baseline_null = np.empty((int(naccu), boot_source.shape[0], n_base), dtype=float)
     for index in range(int(naccu)):
-        sample = resample_trials(boot_source, generator, boottype, complex_phase=True)
-        baseline_null[index] = np.abs(newtimefitc(sample, itctype))
+        shuffled = np.stack([boot_source[:, generator.permutation(n_base), trial] for trial in range(n_trials)], axis=2)
+        baseline_null[index] = np.abs(newtimefitc(shuffled, itctype))
     thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=False)
     return thresholds, baseline_null
+
+
+def _resample_baseline_times(baseline_stat: np.ndarray, naccu: int, rng: Any) -> np.ndarray:
+    """Resample the per-frequency baseline statistic across time (EEGLAB time-shuffle)."""
+    generator = np.random.default_rng(rng)
+    n_base = baseline_stat.shape[1]
+    columns = generator.integers(0, n_base, size=(int(naccu), n_base))
+    return baseline_stat[:, columns].transpose(1, 0, 2)
 
 
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
     return thresholds_by_frequency(values, alpha=alpha, bootside="both" if both else "upper")
 
 
-def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray) -> np.ndarray:
-    """Two-sided p-values of each cell against the per-frequency baseline null.
+def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray, *, two_sided: bool = True) -> np.ndarray:
+    """P-values of each cell against the per-frequency baseline null.
 
     Mirrors EEGLAB ``compute_pvals``: one null distribution per frequency (drawn
-    from the baseline and shared across all output times), against which every
-    time-frequency value is ranked by its distance from the surrogate mean.
+    from the baseline, shared across all output times). ERSP is two-sided (power
+    moves either way); ITC uses an upper tail (only elevated coherence matters).
     """
     observed_values = np.asarray(observed, dtype=float)
     null = np.moveaxis(np.asarray(baseline_null, dtype=float), 1, 0).reshape(observed_values.shape[0], -1)
-    center = np.nanmean(null, axis=1, keepdims=True)
-    null_distance = np.sort(np.abs(null - center), axis=1)
-    distance = np.abs(observed_values - center)
-    sample_count = null_distance.shape[1]
+    if two_sided:
+        center = np.nanmean(null, axis=1, keepdims=True)
+        null_compare = np.sort(np.abs(null - center), axis=1)
+        observed_compare = np.abs(observed_values - center)
+    else:
+        null_compare = np.sort(null, axis=1)
+        observed_compare = observed_values
+    sample_count = null_compare.shape[1]
     pvalues = np.empty_like(observed_values)
     for freq_index in range(observed_values.shape[0]):
-        below = np.searchsorted(null_distance[freq_index], distance[freq_index], side="left")
+        below = np.searchsorted(null_compare[freq_index], observed_compare[freq_index], side="left")
         pvalues[freq_index] = 1.0 - below / sample_count
     return pvalues
 
@@ -557,7 +571,7 @@ def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
 
 
 _BASE_POS = (0.13, 0.11, 0.775, 0.815)  # EEGLAB's default axes rectangle; panels are placed relative to it
-_IMAGE_COLORMAP = "jet"
+_IMAGE_COLORMAP = "turbo"  # EEGPrep house colormap (EEGLAB uses jet); the green/teal midpoint marks the baseline
 _MARGIN_SIZE = 0.1  # thickness of the marginal panels below and left of each image (EEGLAB plottimef)
 
 
@@ -854,11 +868,28 @@ def _draw_scalp_inset(fig, topovec: Any, elocs: Any):
     """Draw the channel/component scalp-map inset at EEGLAB's mid-left position."""
     inset = fig.add_axes(_axes_rect(-0.1, 0.43, 0.2, 0.14))
     values = np.asarray(topovec)
-    if values.size == 1:  # a single channel: blank head (topoplot's default title suppressed)
-        topoplot(int(values.flat[0]), elocs, axes=inset, style="blank", electrodes="off", title="")
+    if values.size == 1:  # a single channel: blank head with its electrode marked
+        channel = int(values.flat[0])
+        topoplot(channel, elocs, axes=inset, style="blank", electrodes="off", title="")
+        _mark_electrode(inset, elocs, channel - 1)
     else:  # an ICA component column: interpolated scalp map
         topoplot(values, elocs, axes=inset, electrodes="off")
     inset.set_aspect("equal")
+
+
+def _mark_electrode(axis, elocs: Any, index: int) -> None:
+    """Mark one electrode (EEGLAB's ``emarkersize1chan``) on a blank channel inset."""
+    if not (isinstance(elocs, (list, tuple)) and 0 <= index < len(elocs)):
+        return
+    loc = elocs[index]
+    theta, radius = loc.get("theta"), loc.get("radius")
+    if theta is None or radius is None:
+        return
+    try:
+        screen_x, screen_y = topo_screen_coords(float(theta), float(radius))
+    except (TypeError, ValueError):
+        return
+    axis.plot(screen_x, screen_y, marker="o", color="r", markersize=6, markeredgecolor="k", zorder=6)
 
 
 def _plot_curve_figure(
