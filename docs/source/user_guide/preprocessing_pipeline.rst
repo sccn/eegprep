@@ -248,6 +248,10 @@ Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
 
    image, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
 
+Channel ERP images use a symmetric color axis, a solid line marking time zero on
+both the image and the ERP trace, and a small scalp map at the upper left with
+the plotted channel marked, matching EEGLAB's ERP-image layout.
+
 GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
 returns replayable Python history commands for these wrappers. Some MATLAB-only
 ``pop_erpimage`` event-alignment and advanced renormalization options are not

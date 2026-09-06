@@ -306,14 +306,20 @@ def _chanlocs_to_struct_array(chanlocs_list):
     if not retain:
         return np.array([])
 
-    dtype = np.dtype([(f, t) for f, t in field_spec if f in retain])
+    # A numeric field that is empty for some channels (e.g. no-location EOG or
+    # reference channels) cannot share a homogeneous numeric column, so store it
+    # as an object column holding MATLAB empty [] for those channels. EEGLAB
+    # records a missing location as [], not 0; writing 0 would place the channel
+    # at the head center when the .set is reloaded (here or in EEGLAB).
+    resolved = [
+        (f, object if np.issubdtype(t, np.number) and any(d[f] is None for d in d_list) else t)
+        for f, t in field_spec
+        if f in retain
+    ]
+    dtype = np.dtype(resolved)
     arr = np.array(
         [
-            tuple(
-                d[f] if d[f] is not None else (0 if np.issubdtype(t, np.number) else '')
-                for f, t in field_spec
-                if f in retain
-            )
+            tuple(d[f] if d[f] is not None else (np.array([]) if t is object else '') for f, t in resolved)
             for d in d_list
         ],
         dtype=dtype,

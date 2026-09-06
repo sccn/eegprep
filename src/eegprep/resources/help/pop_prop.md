@@ -1,7 +1,7 @@
 # pop_prop
 
-Plots properties of one channel or independent component, including a scalp
-location/map, ERP trace, and spectrum.
+Plots properties of one channel or independent component in a three-panel
+figure: a scalp location/map, an ERP image, and the activity power spectrum.
 
 ```python
 fig, com = pop_prop(EEG, typecomp=1, chanorcomp=1, return_com=True)
