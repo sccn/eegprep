@@ -13,8 +13,8 @@ STUDY, ALLEEG, com = pop_preclust(
 ```
 
 Scalp-map features are read from loaded ICA maps. ERP, spectrum, ERSP, and ITC
-features must already be present under
-`STUDY["etc"]["eegprep"]["component_measures"]`, the Phase 5b component-measure
-contract documented in `.notes/implementation-notes.html`.
+features must already be cached on the parent `STUDY["cluster"][0]` entry,
+normally by calling `pop_precomp(STUDY, ALLEEG, "components", ...)` for the
+requested measures.
 
-See also: STD_PRECLUST, POP_CLUST, POP_CLUSTEDIT
+See also: POP_PRECOMP, STD_PRECLUST, POP_CLUST, POP_CLUSTEDIT

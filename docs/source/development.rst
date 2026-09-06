@@ -200,9 +200,9 @@ EEGLAB Core Parity Matrix
 
 The Phase 1 core parity epic uses a committed machine-readable matrix at
 ``docs/parity/eeglab_core_parity_matrix.json``. The matrix classifies the
-EEGLAB public and semi-public functions in the first seven migration-gap audit
-categories from ``.notes/eeglab-migration-gap-audit.md``. It is a work
-contract for later phase agents, not package runtime data.
+EEGLAB public and semi-public functions in the scope categories recorded in
+its metadata and source issue. It is a work contract for later phase agents,
+not package runtime data.
 
 Rows use these statuses:
 
@@ -290,11 +290,11 @@ Validate the final matrix with:
 
    uv run --no-sync python -m tools.eeglab_final_parity_matrix --json
 
-The docs architecture for the final epic is recorded in the matrix metadata and
-in ``.notes/eeglab-final-parity-audit.md``. It should be useful to EEG
-researchers first: describe EEGPrep's standalone Python package, Qt GUI, and
-``eegprep-console`` behavior accurately, and use EEGLAB comparisons only where
-they help users migrate or understand familiar concepts.
+The docs architecture for the final epic is recorded directly in the matrix
+metadata and its source issue. It should be useful to EEG researchers first:
+describe EEGPrep's standalone Python package, Qt GUI, and ``eegprep-console``
+behavior accurately, and use EEGLAB comparisons only where they help users
+migrate or understand familiar concepts.
 
 Building Documentation
 ======================
