@@ -55,7 +55,12 @@ from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_freque
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac_empirical_pvalue
 from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
-from eegprep.functions.timefreqfunc.newtimef import _reduce_to_two_ticks, _significance_mask, _thresholds_by_frequency
+from eegprep.functions.timefreqfunc.newtimef import (
+    _baseline_pvalues,
+    _reduce_to_two_ticks,
+    _significance_mask,
+    _thresholds_by_frequency,
+)
 from eegprep.functions.timefreqfunc.newtimef import _threshold_vector as newtimef_threshold_vector
 from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency, newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
@@ -1433,6 +1438,95 @@ def test_timefreq_helpers_match_eeglab_deterministic_outputs(tmp_path):
     cycle_result = tf_cycle_calc(freqs=[10, 20], width=0.2, width_unit="fwhm_t")
     np.testing.assert_allclose(cycle_result.cycles, np.asarray(matlab["calc_cycles"]).ravel(), rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(cycle_result.widths_table, matlab["widths_table"], rtol=1e-12, atol=1e-12)
+
+
+@pytest.mark.matlab
+def test_newtimef_matches_eeglab_ersp_itc_and_pvalues(tmp_path):
+    # End-to-end parity for the assembled newtimef outputs (the low-level helpers are covered
+    # above): the ERSP (dB) and complex ITC are deterministic, so they must match EEGLAB tightly.
+    # The two-sided baseline p-value (the significance mask's core) is checked against EEGLAB's
+    # own compute_pvals on fixed observed/null arrays -- no bootstrap randomness on either side.
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    srate = 128.0
+    n_frames = 128
+    tlimits = [-500, 500]  # 1 s epoch; the 5 Hz wavelet eats ~300 ms at each edge
+    sample_times = np.arange(n_frames) / srate
+    envelope = 1.0 + (sample_times > 0.5)  # amplitude step mid-epoch -> a non-trivial ERSP
+    trials = np.stack(
+        [
+            envelope * np.sin(2 * np.pi * 10 * sample_times + phase) + 0.5 * np.sin(2 * np.pi * 6 * sample_times)
+            for phase in np.linspace(0.0, 1.2, 12)
+        ],
+        axis=1,
+    )
+    # Request output times on exact frame centers well inside the valid decomposition range, so
+    # both engines select identical frames (the scalar-timesout auto-grid can round one interior
+    # point to a neighbouring frame, MATLAB round() vs NumPy half-to-even -- not what we test here).
+    frame_times = tlimits[0] + np.arange(n_frames) * (tlimits[1] - tlimits[0]) / (n_frames - 1)
+    timesout = frame_times[[44, 52, 60, 68, 76, 82]]
+    # Fixed arrays for the p-value comparison; both sides consume the identical saved values.
+    generator = np.random.default_rng(0)
+    observed = generator.standard_normal((6, 10))
+    null = generator.standard_normal((6, 50))
+
+    inputs = tmp_path / "newtimef_inputs.mat"
+    output = tmp_path / "newtimef_outputs.mat"
+    scipy.io.savemat(inputs, {"data": trials, "obs": observed, "null": null, "timesout": timesout})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            figure('visible','off');
+            [P,R,mbase,times,freqs] = newtimef(data, {n_frames}, [{tlimits[0]} {tlimits[1]}], {srate}, [3 0.5], ...
+                'freqs', [5 20], 'nfreqs', 8, 'timesout', timesout, 'baseline', [-200 0], ...
+                'plotphase', 'off', 'verbose', 'off');
+            surrog = repmat(reshape(null, [size(null,1) 1 size(null,2)]), [1 size(obs,2) 1]);
+            surrog = sort(surrog, 3);
+            surrog(:,:,end+1) = obs;
+            [~, idx] = sort(surrog, 3);
+            [~, mx] = max(idx, [], 3);
+            pupper = 1 - (mx - 0.5) / size(surrog, 3);
+            pvals = 2 * min(pupper, 1 - pupper);
+            save('{_matlab_string(output)}', 'P', 'R', 'mbase', 'times', 'freqs', 'pvals');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    result = newtimef(
+        trials,
+        n_frames,
+        tlimits,
+        srate,
+        [3, 0.5],
+        freqs=[5, 20],
+        nfreqs=8,
+        timesout=timesout,
+        baseline=[-200, 0],
+        plotphase="off",
+        plot="off",
+    )
+    py_pvals = _baseline_pvalues(observed, null.T[:, :, None])
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    np.testing.assert_allclose(result.freqs, np.asarray(matlab["freqs"]).ravel(), rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(result.times, np.asarray(matlab["times"]).ravel(), rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(result.ersp, matlab["P"], rtol=1e-6, atol=1e-6)  # ERSP (dB)
+    np.testing.assert_allclose(result.itc, matlab["R"], rtol=1e-6, atol=1e-6)  # complex ITC
+    np.testing.assert_allclose(py_pvals, matlab["pvals"], rtol=1e-12, atol=1e-12)  # two-sided compute_pvals
 
 
 @pytest.mark.matlab
