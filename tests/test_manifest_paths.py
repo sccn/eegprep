@@ -28,8 +28,8 @@ def test_manifest_v2_round_trip_uses_manifest_relative_posix_paths(tmp_path):
     project = tmp_path / "project"
     input_path = project / "raw" / "sub-01.set"
     output_path = project / "derivatives" / "sub-01-clean.set"
-    sidecar_path = project / "derivatives" / "sub-01-clean.fdt"
-    manifest_path = project / "derivatives" / "manifests" / "sub-01.json"
+    sidecar_path = project / "derivatives" / "extra" / "sub-01-clean.fdt"
+    manifest_path = project / "derivatives" / "sub-01.json"
     input_path.parent.mkdir(parents=True)
     input_path.write_bytes(b"input")
 
@@ -41,15 +41,35 @@ def test_manifest_v2_round_trip_uses_manifest_relative_posix_paths(tmp_path):
     assert entry["path"] == str(manifest_path)
     stored = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert stored["schema_version"] == MANIFEST_SCHEMA_VERSION
-    assert stored["input_files"][0]["path"] == "../../raw/sub-01.set"
+    # Inputs outside the manifest directory stay absolute; outputs under it become relative.
+    assert stored["input_files"][0]["path"] == str(input_path.resolve())
     assert [item["path"] for item in stored["output_files"]] == [
-        "../sub-01-clean.set",
-        "../sub-01-clean.fdt",
+        "sub-01-clean.set",
+        "extra/sub-01-clean.fdt",
     ]
     assert [item["path"] for item in manifest["input_files"] + manifest["output_files"]] == original_paths
 
     loaded = read_manifest(manifest_path)
     assert [item["path"] for item in loaded["input_files"] + loaded["output_files"]] == original_paths
+
+
+def test_manifest_v2_outputs_follow_a_moved_output_folder(tmp_path):
+    project = tmp_path / "project"
+    input_path = project / "raw" / "sub-01.set"
+    output_path = project / "derivatives" / "sub-01-clean.set"
+    manifest_path = project / "derivatives" / "sub-01.json"
+    input_path.parent.mkdir(parents=True)
+    input_path.write_bytes(b"input")
+
+    write_manifest_file(manifest_path, _build_manifest(input_path, [output_path]))
+
+    moved = tmp_path / "archive" / "deeper" / "derivatives"
+    moved.mkdir(parents=True)
+    (manifest_path.parent / "sub-01.json").rename(moved / "sub-01.json")
+
+    loaded = read_manifest(moved / "sub-01.json")
+    assert loaded["output_files"][0]["path"] == str((moved / "sub-01-clean.set").resolve())
+    assert loaded["input_files"][0]["path"] == str(input_path.resolve())
 
 
 def test_build_manifest_normalizes_runtime_relative_paths(tmp_path, monkeypatch):

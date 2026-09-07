@@ -20,7 +20,6 @@ import numpy as np
 
 from eegprep.cli.core import (
     EEGPrepCLIError,
-    MANIFEST_SCHEMA_VERSION as _MANIFEST_SCHEMA_VERSION,
     build_manifest,
     file_sha256,
     utc_now,
@@ -39,7 +38,6 @@ from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 logger = logging.getLogger(__name__)
 
 RESULT_SCHEMA_VERSION = "eegprep.transform_result.v1"
-MANIFEST_SCHEMA_VERSION = _MANIFEST_SCHEMA_VERSION
 DATASET_OUTPUT_TYPE = "eeglab_set"
 
 

@@ -281,11 +281,13 @@ def _make_manifest_relative(manifest: dict[str, Any], manifest_path: Path) -> di
         native_path = Path(value).expanduser()
         if not native_path.is_absolute():
             continue
-        try:
-            item["path"] = Path(os.path.relpath(native_path, start=base_dir)).as_posix()
-        except ValueError:
-            # Windows cannot express a path on another drive as a relative path.
+        resolved = native_path.resolve()
+        # Only files under the manifest directory travel with it. Paths elsewhere
+        # (typically raw inputs, or another Windows drive) stay absolute: a ".."
+        # chain would break as soon as the manifest is copied to another depth.
+        if not resolved.is_relative_to(base_dir):
             continue
+        item["path"] = resolved.relative_to(base_dir).as_posix()
     return prepared
 
 
