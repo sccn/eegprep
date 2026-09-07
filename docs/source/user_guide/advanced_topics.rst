@@ -257,8 +257,8 @@ process with either output format:
 
 .. code-block:: console
 
-   eegprep software_info
-   eegprep software_info --json
+   eegprep software-info
+   eegprep software-info --json
 
 The report distinguishes the BLAS and LAPACK libraries used to build NumPy
 from libraries currently visible to ``threadpoolctl``. This distinction matters

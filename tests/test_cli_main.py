@@ -43,8 +43,8 @@ def test_help_has_agent_start_section():
 
 
 def test_software_info_has_human_and_json_output():
-    human = _run_cli("software_info")
-    structured = _run_cli("software_info", "--json")
+    human = _run_cli("software-info")
+    structured = _run_cli("software-info", "--json")
 
     assert human.returncode == 0, human.stderr
     assert "eegprep_version:" in human.stdout
@@ -54,7 +54,7 @@ def test_software_info_has_human_and_json_output():
 
     assert structured.returncode == 0, structured.stderr
     payload = _json_stdout(structured)
-    assert payload["command"] == "software_info"
+    assert payload["command"] == "software-info"
     assert payload["logical_cpu_count"]
     assert "numpy_build_dependencies" in payload["math_backend_info"]
     assert "loaded_libraries" in payload["math_backend_info"]
@@ -71,7 +71,7 @@ def test_capabilities_schema_examples_and_skill_are_json_readable():
     assert "filter" in commands
     assert "batch" in commands
     assert "migrate" in commands
-    assert "software_info" in commands
+    assert "software-info" in commands
     assert "eeglab" not in commands
     assert schema.returncode == 0
     assert _json_stdout(schema)["schema"]["schema_version"] == "eegprep.schema.command.filter.v1"

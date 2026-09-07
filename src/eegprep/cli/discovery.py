@@ -63,7 +63,7 @@ def capabilities() -> dict[str, Any]:
                 "supports_json": True,
                 "supports_dry_run": False,
             },
-            "software_info": {
+            "software-info": {
                 "description": "Report NumPy build backends, loaded thread-pool libraries, and CPU metadata.",
                 "inputs": [],
                 "outputs": ["text", "json"],
@@ -210,9 +210,9 @@ def command_schema(command: str) -> dict[str, Any]:
                 "overwrite": {"type": "boolean", "default": False},
             },
         },
-        "software_info": {
+        "software-info": {
             "schema_version": "eegprep.schema.command.software_info.v1",
-            "syntax": "eegprep software_info [--json]",
+            "syntax": "eegprep software-info [--json]",
             "required": [],
             "properties": {},
         },
@@ -314,7 +314,7 @@ def examples(name: str) -> dict[str, Any]:
             "eegprep qc report sample_data/eeglab_data.set --html qc.html --json",
         ],
         "report": ["eegprep report sample_data/eeglab_data.set --output report.html --json"],
-        "software_info": ["eegprep software_info", "eegprep software_info --json"],
+        "software-info": ["eegprep software-info", "eegprep software-info --json"],
         "bids": [
             "eegprep bids validate bids_root --json",
             "eegprep bids export input.set --bids-root bids_out --subject 01 --task rest --json",

@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 import eegprep
+from eegprep.utils.math_backend import get_math_backend_info
 
 
 COMMAND_RESULT_SCHEMA_VERSION = "eegprep.cli.result.v1"
@@ -219,8 +220,6 @@ def file_sha256(path: str | Path) -> str:
 
 
 def software_info() -> dict[str, Any]:
-    from eegprep.utils.math_backend import get_math_backend_info
-
     return {
         "eegprep_version": eegprep.__version__,
         "python_version": platform.python_version(),
