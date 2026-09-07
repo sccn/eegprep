@@ -6,7 +6,7 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import is_on
 from eegprep.functions.studyfunc._cluster_utils import checked_study_and_datasets, cluster_command
 from eegprep.functions.studyfunc.std_preclust import DEFAULT_PRECLUST, normalize_preclust_specs, std_preclust

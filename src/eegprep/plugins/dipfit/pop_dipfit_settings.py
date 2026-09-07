@@ -7,7 +7,7 @@ from typing import Any
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
-from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.plugins.dipfit._utils import (
     STANDARD_TEMPLATES,
     apply_template,

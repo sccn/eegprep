@@ -6,7 +6,7 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import history_command
+from eegprep.functions.popfunc.plot_utils import history_command
 from eegprep.plugins.ICLabel._prop_browser import build_navigable_dashboard
 from eegprep.plugins.ICLabel._prop_numerics import (
     DEFAULT_ICLABEL_CLASSES,

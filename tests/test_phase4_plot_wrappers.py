@@ -3,15 +3,21 @@ from __future__ import annotations
 import ast
 from copy import deepcopy
 import importlib
+import io
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import matplotlib
 
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseEvent
+from matplotlib.collections import PathCollection
+from matplotlib.figure import Figure
 import numpy as np
 import pytest
 import scipy.io
@@ -20,7 +26,7 @@ from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_comperp import pop_comperp, pop_comperp_dialog_spec
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
-from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
+from eegprep.functions.popfunc.pop_erpimage import _run_gui, pop_erpimage, pop_erpimage_dialog_spec
 from eegprep.functions.popfunc.pop_headplot import (
     pop_headplot,
     pop_headplot_dialog_spec,
@@ -29,14 +35,22 @@ from eegprep.functions.popfunc.pop_headplot import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc._plot_utils import component_activations
+from eegprep.functions.popfunc.plot_utils import (
+    backend_can_display,
+    component_activations,
+    data_time_slice,
+    parse_plot_options_text,
+    show_figures,
+)
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo, pop_plottopo_dialog_spec
 from eegprep.functions.popfunc.pop_prop import pop_prop, pop_prop_dialog_spec
 from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
-from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
+from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
     ElectrodeSet,
@@ -118,17 +132,120 @@ def test_pop_spectopo_channel_figure_structure(sample_eeg):
     plt.close(fig)
 
 
-def test_pop_spectopo_component_figure_omits_frequency_markers(ica_epoch):
+def test_pop_spectopo_component_figure_marks_analysis_frequency(ica_epoch):
+    """Component spectra draw a vertical marker at the analysis frequency, as EEGLAB does."""
     fig = pop_spectopo(
         ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2], nicamaps=2, gui=False
     )["figure"]
 
     spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
-    verticals = [
-        line for line in spec_ax.get_lines() if len({round(float(value), 6) for value in line.get_xdata()}) == 1
-    ]
-    assert verticals == []
+    verticals = sorted(
+        float(line.get_xdata()[0])
+        for line in spec_ax.get_lines()
+        if len({round(float(value), 6) for value in line.get_xdata()}) == 1
+    )
+    assert verticals == pytest.approx([10.0])
     plt.close(fig)
+
+
+def test_pop_spectopo_component_maps_labeled_by_index_with_composite(ica_epoch):
+    """Component spectra show the composite power-at-frequency map plus the top-N
+    component maps labeled by component index (EEGLAB), not a fixed IC 1..N row."""
+    res = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3, 4], nicamaps=2, gui=False
+    )
+    titles = [ax.get_title() for ax in res["figure"].axes if ax.get_title().strip()]
+    assert sum("Hz" in title for title in titles) == 1
+    comp_labels = [title for title in titles if "Hz" not in title]
+    assert len(comp_labels) == 2
+    assert all(title.isdigit() for title in comp_labels)  # component index labels, not the old "IC N"
+    plt.close(res["figure"])
+
+
+def test_pop_spectopo_component_maps_match_eeglab_selection_and_order():
+    """On eeglab_data_epochs_ica.set the component-spectra maps reproduce EEGLAB: the
+    top-nicamaps selection by projection-scaled power at 10 Hz, and the closestplot
+    left-to-right order with the composite centered over the marker."""
+    EEG = pop_loadset(str(SAMPLE_DATASET_PATH.parent / "eeglab_data_epochs_ica.set"))
+    fig = pop_spectopo(
+        EEG, dataflag=0, freqs=[10], freqrange=[2, 25], plotchan=0, percent=100, nicamaps=5, electrodes="off", gui=False
+    )["figure"]
+    map_titles = [
+        ax.get_title()
+        for ax in sorted((a for a in fig.axes if a.get_title().strip()), key=lambda a: a.get_position().x0)
+    ]
+    # one composite power-at-frequency map plus the five selected component maps
+    assert map_titles.count("10.0 Hz") == 1
+    assert sorted(int(title) for title in map_titles if "Hz" not in title) == [1, 4, 5, 6, 10]
+    # closestplot arrangement: composite centered, components ordered around the marker
+    assert map_titles == ["4", "6", "10.0 Hz", "10", "5", "1"]
+    plt.close(fig)
+
+
+def test_pop_spectopo_component_traces_report_index_on_click(ica_epoch, capsys):
+    """Clicking a component trace prints its component index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(
+        ica_epoch, dataflag=0, freqs=[10], plotchan=0, icamode=True, icacomps=[1, 2, 3], nicamaps=2, gui=False
+    )["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Component ")]
+    # each component is drawn once, so clicking every trace reports each index exactly once
+    # (a selected component drawn both thin and bold would print twice)
+    assert sorted(int(ln.split()[1]) for ln in printed) == [1, 2, 3]
+    plt.close(fig)
+
+
+def test_pop_spectopo_channel_traces_report_index_on_click(sample_eeg, capsys):
+    """Clicking a channel trace prints its channel index, like EEGLAB spectopo's
+    per-trace ButtonDownFcn."""
+    fig = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], gui=False)["figure"]
+    spec_ax = next(ax for ax in fig.axes if "Frequency" in ax.get_xlabel())
+    pickable = [line for line in spec_ax.get_lines() if line.get_picker()]
+    for line in pickable:
+        fig.canvas.callbacks.process("pick_event", SimpleNamespace(artist=line))
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("Channel ")]
+    assert sorted({int(ln.split()[1]) for ln in printed}) == list(range(1, int(sample_eeg["nbchan"]) + 1))
+    plt.close(fig)
+
+
+def test_pop_spectopo_epoched_data_averages_per_trial_pwelch():
+    """Epoched (nchan, pnts, trials) input must equal per-trial welch averaged
+    in linear power then converted to dB, matching EEGLAB spectopo. Prior code
+    reshaped the Fortran-contiguous EEG array with numpy default C-order, which
+    interleaved trials and produced tens of dB of error on real datasets.
+    """
+    from scipy.signal import get_window, welch as scipy_welch
+
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset as _pop_loadset
+    from eegprep.functions.sigprocfunc.spectopo import spectopo
+
+    EEG = _pop_loadset(str(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"))
+    py_spectra, py_freqs = spectopo(EEG["data"], EEG["pnts"], float(EEG["srate"]), plot="off")[:2]
+
+    nperseg = min(round(float(EEG["srate"])), int(EEG["pnts"]))
+    window = get_window("hamming", nperseg, fftbins=False)
+    power_sum = None
+    for trial in range(int(EEG["trials"])):
+        ref_freqs, power = scipy_welch(
+            EEG["data"][:, :, trial].astype(float),
+            fs=float(EEG["srate"]),
+            window=window,
+            nperseg=nperseg,
+            noverlap=0,
+            nfft=None,
+            axis=1,
+            detrend=False,
+            scaling="density",
+        )
+        power_sum = power if power_sum is None else power_sum + power
+    ref_spectra = 10.0 * np.log10(power_sum / int(EEG["trials"]))
+
+    np.testing.assert_allclose(py_freqs, ref_freqs, rtol=0, atol=1e-9)
+    np.testing.assert_allclose(py_spectra, ref_spectra, rtol=0, atol=1e-10)
 
 
 def test_pop_spectopo_rejects_nondefault_plotchan(ica_epoch):
@@ -144,6 +261,42 @@ def test_pop_spectopo_rejects_max_power_plotchan(ica_epoch):
 def test_pop_spectopo_rejects_datacomp_icamode(ica_epoch):
     with pytest.raises(ValueError, match="component spectra"):
         pop_spectopo(ica_epoch, dataflag=0, freqs=[10], icamode=False, icacomps=[1, 2])
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("'electrodes', 'off'", {"electrodes": "off"}),
+        ("electrodes='off'", {"electrodes": "off"}),
+        ("electrodes='off', style='blank'", {"electrodes": "off", "style": "blank"}),
+        ("'electrodes', 'off', 'style', 'blank'", {"electrodes": "off", "style": "blank"}),
+        ("electrodes='off', 'style', 'blank'", {"electrodes": "off", "style": "blank"}),
+        ("gridscale=32", {"gridscale": 32}),
+        ("maplimits=[-5, 5]", {"maplimits": [-5.0, 5.0]}),
+    ],
+)
+def test_parse_plot_options_text_accepts_python_and_matlab_styles(text, expected):
+    assert parse_plot_options_text(text) == expected
+
+
+def test_pop_spectopo_gui_options_field_accepts_python_style(sample_eeg):
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "timerange": "-1000 1992.19",
+                "percent": "100",
+                "freqs": "6 10 22",
+                "process": "EEG",
+                "freqrange": "2 25",
+                "options": "electrodes='off'",
+            }
+
+    result, command = pop_spectopo(deepcopy(sample_eeg), gui=True, renderer=Renderer(), return_com=True)
+
+    assert result["figure"] is not None
+    assert "electrodes='off'" in command
+    _assert_python_command(command)
+    plt.close(result["figure"])
 
 
 def test_pop_prop_plots_sample_channel_properties(sample_eeg):
@@ -709,6 +862,204 @@ def test_component_plot_wrappers_work_when_ica_fields_exist(ica_epoch):
     plt.close(erpimage_result["figure"])
 
 
+def test_show_figures_is_noop_on_noninteractive_backend(monkeypatch):
+    """On file-output backends (Agg, the test default) show_figures opens nothing."""
+    figure = plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+
+    assert not backend_can_display()
+    show_figures(figure)
+
+    assert shown == []
+    plt.close(figure)
+
+
+def test_show_figures_displays_each_figure_on_interactive_backend(monkeypatch):
+    """On an interactive backend show_figures pops each figure and skips None entries."""
+    first, second = plt.figure(), plt.figure()
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    show_figures([first, None, second])
+
+    assert shown == [first, second]
+    plt.close(first)
+    plt.close(second)
+
+
+def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_epoch, monkeypatch):
+    """Every plotting pop_* wrapper pops up its figure on an interactive backend,
+    like EEGLAB. The GUI relies on this to make graphs appear; on Agg it stays silent."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    timtopo_fig, _ = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
+    plottopo_fig, _ = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
+    erpimage_result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    prop_fig, _ = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
+    topoplot_figs, _ = pop_topoplot(ica_epoch, typeplot=0, items=[1], colorbar="off", return_com=True)
+    spectopo_result, _ = pop_spectopo(ica_epoch, dataflag=0, freqs=[10], return_com=True)
+    plotdata_fig, _ = pop_plotdata(ica_epoch, components=[1, 2], return_com=True)
+    envtopo_fig, _ = pop_envtopo(ica_epoch, components=[1, 2], return_com=True)
+
+    expected = [
+        timtopo_fig,
+        plottopo_fig,
+        erpimage_result["figure"],
+        prop_fig,
+        *topoplot_figs,
+        spectopo_result["figure"],
+        plotdata_fig,
+        envtopo_fig,
+    ]
+    for figure in expected:
+        assert figure in shown
+        plt.close(figure)
+
+
+def test_topoplot_core_displays_only_when_it_owns_the_figure(sample_eeg, monkeypatch):
+    """Match EEGLAB: a standalone topoplot() call pops a window, but a call that
+    draws into a caller's axes (axes=) adds no window of its own."""
+    chanlocs = chanlocs_as_list(sample_eeg["chanlocs"])
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    standalone, *_ = topoplot([], chanlocs, style="blank")
+    assert shown == [standalone]
+
+    fig, ax = plt.subplots()
+    topoplot([], chanlocs, style="blank", axes=ax)
+    assert shown == [standalone]
+
+    plt.close(standalone)
+    plt.close(fig)
+
+
+def test_plot_channel_locations_displays_figure_exactly_once(sample_eeg, monkeypatch):
+    """The channel-locations view shows its figure once, via the topoplot core that
+    owns it, with no duplicate wrapper show."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig, _ = plot_channel_locations(sample_eeg, mode="labels", return_com=True)
+
+    assert shown == [fig]
+    plt.close(fig)
+
+
+def test_show_figures_plot_off_closes_figure(monkeypatch):
+    """plot='off' never calls show() and removes the figure from pyplot's registry
+    so an interactive session (IPython %matplotlib qt) cannot auto-display it."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot="off")
+    assert shown == []
+    assert not plt.fignum_exists(num)
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot="on")
+    assert shown == [fig_on]
+    plt.close(fig_on)
+
+
+def test_plot_off_builds_figure_without_a_window(sample_eeg, sample_epoch, monkeypatch):
+    """plot='off' still returns a usable figure but leaves nothing in pyplot's
+    registry to auto-display; the default plot='on' shows it."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    spec = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")
+    timtopo_fig = pop_timtopo(sample_epoch, plottimes=[0], plot="off")
+    assert spec["figure"] is not None and timtopo_fig is not None
+    assert shown == []
+    assert plt.get_fignums() == []
+
+    displayed = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="on")
+    assert shown == [displayed["figure"]]
+    plt.close("all")
+
+
+def test_show_figures_plot_accepts_bool(monkeypatch):
+    """The plot flag also accepts booleans: False suppresses, True displays."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+
+    fig_off = plt.figure()
+    num = fig_off.number
+    show_figures(fig_off, plot=False)
+    assert shown == []
+    assert not plt.fignum_exists(num)
+
+    fig_on = plt.figure()
+    show_figures(fig_on, plot=True)
+    assert shown == [fig_on]
+    plt.close(fig_on)
+
+
+def test_show_figures_plot_rejects_unknown_value(monkeypatch):
+    """An unrecognized plot value fails loudly rather than silently showing a window."""
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    fig = plt.figure()
+    with pytest.raises(ValueError):
+        show_figures(fig, plot="maybe")
+    plt.close(fig)
+
+
+def test_wrapper_plot_flag_accepts_bool(sample_eeg, monkeypatch):
+    """A wrapper honors plot=False like plot='off': figure built, no window."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot=False)
+
+    assert result["figure"] is not None
+    assert shown == []
+    assert plt.get_fignums() == []
+    plt.close("all")
+
+
+def test_plot_off_figure_still_savable(sample_eeg):
+    """A figure returned with plot='off' is closed but still usable for savefig."""
+    figure = pop_spectopo(sample_eeg, dataflag=1, freqs=[10], plot="off")["figure"]
+
+    assert not plt.fignum_exists(figure.number)  # closed / unregistered from pyplot
+
+    buffer = io.BytesIO()
+    figure.savefig(buffer, format="png")
+
+    assert buffer.getvalue()
+    plt.close(figure)
+
+
+def test_pop_spectopo_plot_pair_is_ignored_not_leaked(sample_eeg, monkeypatch):
+    """A stray EEGLAB-style ('plot','off') pair is dropped before the spectopo core
+    (figure still built) and does not act as the keyword-only display flag."""
+    shown = []
+    monkeypatch.setattr(Figure, "show", lambda self: shown.append(self))
+    monkeypatch.setattr(plt, "get_backend", lambda: "QtAgg")
+    plt.close("all")
+
+    result = pop_spectopo(sample_eeg, 1, [], "EEG", "plot", "off", freqs=[10])
+
+    assert result["figure"] is not None  # guard held: core still drew
+    assert shown == [result["figure"]]  # keyword-only: the pair did not suppress
+    plt.close("all")
+
+
 def test_pop_prop_attaches_component_activity_browser_model(ica_epoch):
     figure, command = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
 
@@ -995,6 +1346,46 @@ def test_pop_plottopo_rect_option_switches_layout(sample_epoch):
     plt.close(rect_fig)
 
 
+def test_pop_plottopo_scalp_array_places_channels_on_correct_side(sample_epoch):
+    """plottopo scalp-array sub-plots sit on the same side as their electrodes (no L/R mirror)."""
+    eeg = deepcopy(sample_epoch)
+    eeg["data"] = eeg["data"][:4]
+    eeg["nbchan"] = 4
+    eeg["chanlocs"] = [
+        {"labels": "Fz", "theta": 0, "radius": 0.5},
+        {"labels": "F4", "theta": 45, "radius": 0.5},
+        {"labels": "Pz", "theta": 180, "radius": 0.5},
+        {"labels": "F3", "theta": -45, "radius": 0.5},
+    ]
+    fig, _command = pop_plottopo(eeg, chans=[1, 2, 3, 4], return_com=True)
+    axes_by_label = {axis.get_title(): axis for axis in fig.axes}
+    # F4 (right, +theta) sits right of F3 (left, -theta); Fz (front) above Pz (back).
+    assert axes_by_label["F4"].get_position().x0 > axes_by_label["F3"].get_position().x0
+    assert axes_by_label["Fz"].get_position().y0 > axes_by_label["Pz"].get_position().y0
+    plt.close(fig)
+
+
+def test_erpimage_scalp_inset_marks_channel_on_correct_side():
+    """The erpimage scalp inset marks the plotted channel on its true side (no L/R mirror)."""
+    chan_locs = [
+        {"labels": "F3", "theta": -39.947, "radius": 0.3446},
+        {"labels": "F4", "theta": 39.897, "radius": 0.3445},
+    ]
+    for channel_index, on_right in [(2, True), (1, False)]:
+        fig, ax = plt.subplots()
+        plot_channel_location(ax, chan_locs, channel_index)
+        marker = next(
+            np.asarray(c.get_offsets())
+            for c in ax.collections
+            if isinstance(c, PathCollection) and len(c.get_offsets()) == 1
+        )
+        if on_right:
+            assert marker[0, 0] > 0  # F4 marked on the right
+        else:
+            assert marker[0, 0] < 0  # F3 marked on the left
+        plt.close(fig)
+
+
 def test_component_activations_use_icachansind_subset(ica_epoch):
     eeg = deepcopy(ica_epoch)
     eeg["icaact"] = None
@@ -1047,6 +1438,102 @@ def test_pop_envtopo_uses_icachansind_subset_and_rejects_multiple(ica_epoch):
     plt.close(figure)
     with pytest.raises(ValueError, match="one dataset"):
         pop_envtopo([ica_epoch, deepcopy(ica_epoch)], components=[1])
+
+
+def test_pop_envtopo_threads_eeglab_options_into_history(ica_epoch):
+    figure, command = pop_envtopo(ica_epoch, compsplot=2, sortvar="pp", return_com=True)
+
+    assert isinstance(figure, Figure)
+    _assert_python_command(command)
+    assert "sortvar='pp'" in command
+    assert "compsplot=2" in command
+    plt.close(figure)
+
+
+def test_pop_envtopo_blank_gui_subcomps_removes_none(ica_epoch):
+    """A blank GUI remove-components field means remove none (subcomps=0), not [] (remove all but compnums)."""
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "timerange": "",
+                "limcontrib": "",
+                "compsplot": "2",
+                "components": "1 2",
+                "subcomps": "",
+                "title": "blank subcomps",
+                "options": "",
+            }
+
+    figure, command = pop_envtopo(ica_epoch, gui=True, renderer=Renderer(), return_com=True)
+
+    assert isinstance(figure, Figure)
+    assert "subcomps=0" in command
+    assert "subcomps=[]" not in command
+    _assert_python_command(command)
+    plt.close(figure)
+
+
+def test_pop_envtopo_click_enlarges_map_and_envelope(ica_epoch):
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+    env_ax = next(ax for ax in figure.axes if ax.get_xlabel() == "Time (s)")
+
+    def _left_click(ax):
+        before = set(plt.get_fignums())
+        px, py = ax.transData.transform((sum(ax.get_xlim()) / 2, sum(ax.get_ylim()) / 2))
+        figure.canvas.callbacks.process(
+            "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+        )
+        return sorted(set(plt.get_fignums()) - before)
+
+    # Left-clicking a scalp map pops out an enlarged copy with its IC title and sort metric.
+    opened = _left_click(map_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.images
+    assert popup.get_title().startswith("IC ")
+    # Default sortvar 'mp' is a raw peak power, annotated in µV².
+    assert any("mp:" in text.get_text() and "µV²" in text.get_text() for text in popup.texts)
+    plt.close(opened[0])
+
+    # Left-clicking the envelope panel pops out an enlarged copy of the traces.
+    opened = _left_click(env_ax)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    assert popup.lines
+    assert popup.get_xlabel() == "Time (s)"
+    plt.close(opened[0])
+
+    # A non-left button does not pop anything out (EEGLAB axcopy is left-button only).
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=3)
+    )
+    assert set(plt.get_fignums()) == before
+    plt.close(figure)
+
+
+def test_pop_envtopo_enlarged_map_annotation_uses_percent_for_pvaf(ica_epoch):
+    """Percent sort modes (pv/pp/rp) annotate the enlarged map with %, not µV²."""
+    figure, _ = pop_envtopo(ica_epoch, compsplot=3, sortvar="pp", plot="off", return_com=True)
+    figure.canvas.draw()
+    map_ax = next(ax for ax in figure.axes if ax.images)
+
+    before = set(plt.get_fignums())
+    px, py = map_ax.transData.transform((sum(map_ax.get_xlim()) / 2, sum(map_ax.get_ylim()) / 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, px, py, button=1)
+    )
+    opened = sorted(set(plt.get_fignums()) - before)
+    assert len(opened) == 1
+    popup = plt.figure(opened[0]).axes[0]
+    annotations = [text.get_text() for text in popup.texts if "pp:" in text.get_text()]
+    assert annotations and annotations[0].endswith("%") and "µV²" not in annotations[0]
+    plt.close(opened[0])
+    plt.close(figure)
 
 
 def test_pop_comperp_and_chanplot_work_on_epoched_dataset_lists(sample_epoch):
@@ -1194,6 +1681,92 @@ def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
     plt.close(result["figure"])
 
 
+def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
+    """With no caxis, the color axis is symmetric about 0 (EEGLAB erpimage default)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    image_ax = next(ax for ax in result["figure"].axes if ax.images)
+    vmin, vmax = image_ax.images[0].get_clim()
+    assert vmax > 0
+    assert vmin == pytest.approx(-vmax)
+    assert vmax == pytest.approx(float(np.nanmax(np.abs(result["image"]))))
+    plt.close(result["figure"])
+
+
+def test_pop_erpimage_draws_solid_time_zero_line(sample_epoch):
+    """The ERP image and the ERP trace both mark time zero with a solid line."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.images)
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+
+    def has_solid_zero_line(ax):
+        return any(np.allclose(line.get_xdata(), 0.0) and line.get_linestyle() == "-" for line in ax.get_lines())
+
+    assert has_solid_zero_line(image_ax)
+    assert has_solid_zero_line(erp_ax)
+    plt.close(fig)
+
+
+def test_pop_erpimage_colorbar_matches_eeglab_ticks(sample_epoch):
+    """Colorbar shows 5 ticks across the range with EEGLAB cbar's decade rounding (cbar.m)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, caxis=[-50.24, 50.24], return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    erp_ax = next(ax for ax in fig.axes if ax.get_xlabel() == "Time (ms)")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    cax = next(ax for ax in fig.axes if ax not in {image_ax, erp_ax, topo_ax})
+    fig.canvas.draw()
+    assert np.allclose(sorted(cax.get_yticks()), np.linspace(-50.24, 50.24, 5))
+    assert {t.get_text() for t in cax.get_yticklabels()} >= {"-50.2", "-25.1", "0", "25.1", "50.2"}
+    plt.close(fig)
+
+
+def test_pop_erpimage_scalp_map_is_small_and_upper_left(sample_epoch):
+    """The channel scalp map is a small square at the upper left (EEGLAB layout)."""
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    fig = result["figure"]
+    image_ax = next(ax for ax in fig.axes if ax.get_ylabel() == "Trials")
+    topo_ax = next(ax for ax in fig.axes if ax is not image_ax and ax.get_aspect() == 1.0)
+    img = image_ax.get_position()
+    topo = topo_ax.get_position()
+    assert topo.width < 0.5 * img.width  # small, not full width
+    assert (topo.x0 + topo.width / 2) < (img.x0 + img.width / 2)  # left of the image center
+    assert topo.y0 >= img.y1 - 1e-6  # above the image
+    plt.close(fig)
+
+
+def test_pop_erpimage_dialog_plotmap_checkbox_only_for_channels(sample_epoch, ica_epoch):
+    """The 'Plot scalp map' checkbox appears only in channel mode (ignored for components)."""
+    channel_tags = {control.tag for control in pop_erpimage_dialog_spec(sample_epoch, typeplot=1).controls}
+    component_tags = {control.tag for control in pop_erpimage_dialog_spec(ica_epoch, typeplot=0).controls}
+    assert "plotmap" in channel_tags
+    assert "plotmap" not in component_tags
+
+
+def test_pop_erpimage_gui_records_plotmap_only_for_channels(sample_epoch, ica_epoch):
+    """_run_gui records plotmap in the replayable options only for channels, not components."""
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1, "plotmap": True}):
+        channel_options = _run_gui(sample_epoch, typeplot=1)["options"]
+    with patch("eegprep.functions.popfunc.pop_erpimage.inputgui", return_value={"index": 1}):
+        component_options = _run_gui(ica_epoch, typeplot=0)["options"]
+    assert "plotmap" in channel_options
+    assert "plotmap" not in component_options
+
+
+def test_pop_erpimage_cbar_false_fills_width(sample_epoch):
+    """cbar=False drops the colorbar column and lets the image span the full width."""
+    with_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, return_com=True)
+    without_bar, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, plotmap=False, cbar=False, return_com=True)
+    try:
+        img_with = next(ax for ax in with_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        img_without = next(ax for ax in without_bar["figure"].axes if ax.get_ylabel() == "Trials")
+        assert len(without_bar["figure"].axes) == len(with_bar["figure"].axes) - 1  # no colorbar axes
+        assert img_without.get_position().x1 > img_with.get_position().x1  # image reclaims the width
+    finally:
+        plt.close(with_bar["figure"])
+        plt.close(without_bar["figure"])
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(
@@ -1241,6 +1814,48 @@ def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
         pop_erpimage(eeg, typeplot=1, index=1, align=[0])
 
 
+def test_pop_erpimage_uses_turbo_and_aligns_image_with_erp(sample_epoch):
+    """Match EEGLAB defaults: turbo colormap, ERP axis flush with the image column."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    erp_ax = next(
+        ax for ax in figure.axes if ax is not image_ax and ax.get_xlabel() == "Time (ms)" and ax.get_ylabel() == "µV"
+    )
+
+    assert image_ax.images[0].get_cmap().name == "turbo"
+    assert image_ax.get_position().x1 == pytest.approx(erp_ax.get_position().x1, abs=1e-6)
+    assert image_ax.get_position().x0 == pytest.approx(erp_ax.get_position().x0, abs=1e-6)
+    plt.close(figure)
+
+
+def test_pop_erpimage_channel_adds_scalp_map_axis(sample_epoch):
+    """Channel ERP images draw a small scalp inset above the image with a marker at the channel."""
+    result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    topo_axes = [
+        ax
+        for ax in figure.axes
+        if ax is not image_ax and not ax.images and ax.get_position().y0 > image_ax.get_position().y1
+    ]
+    assert topo_axes, "expected a scalp topo axis above the image axis"
+    marker_axes = [ax for ax in topo_axes if any(coll.get_offsets().size > 0 for coll in ax.collections)]
+    assert marker_axes, "scalp topo axis should mark the plotted channel"
+    plt.close(figure)
+
+
+def test_pop_erpimage_component_omits_scalp_map_axis(ica_epoch):
+    """Component ERP images stay in the 2-row layout (no scalp inset)."""
+    result, _ = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
+    figure = result["figure"]
+    image_ax = next(ax for ax in figure.axes if ax.images)
+    above = [ax for ax in figure.axes if ax is not image_ax and ax.get_position().y0 > image_ax.get_position().y1]
+    assert not above
+    plt.close(figure)
+
+
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     timtopo_fig, timtopo_command = pop_timtopo(
         sample_epoch,
@@ -1277,6 +1892,68 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     plt.close(timtopo_fig)
     plt.close(plottopo_fig)
     plt.close(envtopo_fig)
+
+
+def test_timtopo_auto_latency_uses_peak_global_power(sample_epoch):
+    """Default (NaN) latency is the frame of peak global power (sum of squares across
+    channels), as EEGLAB timtopo picks it -- not the max mean-removed variance frame."""
+    data, _ = data_time_slice(sample_epoch, None)
+    erp = np.nanmean(data, axis=2)
+    x = np.linspace(float(sample_epoch["xmin"]) * 1000.0, float(sample_epoch["xmax"]) * 1000.0, erp.shape[1])
+    global_power_latency = x[int(np.argmax(np.sum(erp**2, axis=0)))]
+    variance_latency = x[int(np.argmax(np.nanvar(erp, axis=0)))]
+    # Guard: the two metrics must disagree here or the test could not catch the bug.
+    assert round(global_power_latency) != round(variance_latency)
+
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[float("nan")], return_com=True)
+    map_titles = [ax.get_title().strip() for ax in fig.axes if ax.get_title().strip()]
+    assert len(map_titles) == 1
+    assert float(map_titles[0]) == pytest.approx(global_power_latency, abs=1)
+    plt.close(fig)
+
+
+def test_timtopo_click_redraws_rightmost_scalp_map(sample_epoch):
+    """Clicking a trace redraws the rightmost scalp map (and titles it) at the clicked
+    latency, matching EEGLAB timtopo's ButtonDownFcn."""
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[-50, 0, 100, 180], return_com=True)
+    fig.canvas.draw()
+    trace_ax = fig.axes[0]
+    click_latency = 50.0
+    px, py = trace_ax.transData.transform((click_latency, 0.0))
+    event = MouseEvent("button_press_event", fig.canvas, px, py)
+    fig.canvas.callbacks.process("button_press_event", event)
+    map_titles = [ax.get_title() for ax in fig.axes if ax.get_title().strip()]
+    assert f"{click_latency:.0f} ms" in map_titles
+    plt.close(fig)
+
+
+def test_timtopo_mixed_nan_plottimes_fills_slot_with_auto_latency(sample_epoch):
+    """A NaN entry in plottimes is filled with the peak-power latency (EEGLAB), keeping the
+    other requested latencies and the slot count -- not silently dropped."""
+    data, _ = data_time_slice(sample_epoch, None)
+    erp = np.nanmean(data, axis=2)
+    x = np.linspace(float(sample_epoch["xmin"]) * 1000.0, float(sample_epoch["xmax"]) * 1000.0, erp.shape[1])
+    auto = x[int(np.argmax(np.sum(erp**2, axis=0)))]
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[float("nan"), 100.0], return_com=True)
+    latencies = sorted(float(ax.get_title().split()[0]) for ax in fig.axes if ax.get_title().strip())
+    assert latencies == [pytest.approx(min(auto, 100.0), abs=1), pytest.approx(max(auto, 100.0), abs=1)]
+    plt.close(fig)
+
+
+def test_timtopo_click_matches_static_map_for_same_winsize(sample_epoch):
+    """The click callback reuses the static row's window helper, so clicking a map's own
+    latency reproduces its scalp map -- guarding a single winsize window in both paths."""
+    latency, winsize = 60.0, 20.0
+    fig, _ = pop_timtopo(sample_epoch, plottimes=[latency], winsize=[winsize], return_com=True)
+    fig.canvas.draw()
+    map_ax = [ax for ax in fig.axes if ax.get_title().strip()][-1]
+    static_map = np.ma.filled(map_ax.images[0].get_array().astype(float), np.nan)
+    trace_ax = fig.axes[0]
+    px, py = trace_ax.transData.transform((latency, 0.0))
+    fig.canvas.callbacks.process("button_press_event", MouseEvent("button_press_event", fig.canvas, px, py))
+    clicked_map = np.ma.filled(map_ax.images[0].get_array().astype(float), np.nan)
+    np.testing.assert_allclose(clicked_map, static_map, equal_nan=True)
+    plt.close(fig)
 
 
 def test_pop_spectopo_component_path_plots_component_maps(ica_epoch):
@@ -1332,7 +2009,7 @@ def test_component_activations_dedup_contract():
     """Lock the K4 dedup: rejection delegates recompute to the canonical helper.
 
     The rejection ``component_activations`` (``_rejection``) and the canonical
-    plotting helper (``_plot_utils``) must agree when recomputing from weights,
+    plotting helper (``plot_utils``) must agree when recomputing from weights,
     and rejection must ignore a stored ``icaact`` while plotting trusts it.
     """
     from eegprep.functions.popfunc._rejection import component_activations as rejection_activations
