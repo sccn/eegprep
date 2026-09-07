@@ -1445,7 +1445,9 @@ def test_newtimef_matches_eeglab_ersp_itc_and_pvalues(tmp_path):
     # End-to-end parity for the assembled newtimef outputs (the low-level helpers are covered
     # above): the ERSP (dB) and complex ITC are deterministic, so they must match EEGLAB tightly.
     # The two-sided baseline p-value (the significance mask's core) is checked against EEGLAB's
-    # own compute_pvals on fixed observed/null arrays -- no bootstrap randomness on either side.
+    # compute_pvals formula, reimplemented inline below because it is a private subfunction of
+    # newtimef.m and cannot be called directly, on fixed observed/null arrays -- no bootstrap
+    # randomness on either side.
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
         pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
     try:

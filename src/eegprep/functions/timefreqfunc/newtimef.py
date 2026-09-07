@@ -673,7 +673,7 @@ def _plot_time_frequency(
         )
     if plotitc:
         itc_magnitude = np.abs(np.asarray(itc))
-        phase_only = plotphaseonly or (itc_magnitude.size > 0 and abs(float(itc_magnitude.flat[0]) - 1.0) < 1e-4)
+        phase_only = plotphaseonly or (itc_magnitude.size > 0 and np.allclose(itc_magnitude, 1.0))
         if phase_only:
             itc_display = np.angle(np.asarray(itc)) / np.pi * 180.0  # phase in degrees
             itc_vmin, itc_vmax, itc_title, itc_clip = -180.0, 180.0, "ITC phase", False
