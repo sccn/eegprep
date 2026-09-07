@@ -105,6 +105,8 @@ def newtimef(
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
+    if str(boottype).lower() != "shuffle":
+        raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
     if not _is_on(plotphase):
         plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:
@@ -192,7 +194,6 @@ def newtimef(
                 scale_mode,
                 alpha=alpha_value,
                 naccu=naccu,
-                boottype=boottype,
                 base_indices=boot_indices,
                 rng=rng,
             )
@@ -206,7 +207,6 @@ def newtimef(
                 itctype,
                 alpha=alpha_value,
                 naccu=naccu,
-                boottype=boottype,
                 base_indices=boot_indices,
                 rng=rng,
             )
@@ -474,14 +474,12 @@ def _bootstrap_power(
     *,
     alpha: float,
     naccu: int,
-    boottype: str,
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
     # EEGLAB shuffles the baseline TIME dimension and averages over trials, so the
     # null is the baseline mean-power spectrum resampled across time -- not a trial
     # resample, which adds spurious variance (newtimef.m 1282-1286, bootstat 'shuffle').
-    _ = boottype
     boot_source = power[:, base_indices, :] if base_indices.size else power
     baseline_stat = _power_to_output(np.nanmean(boot_source, axis=2), scale)
     baseline_null = _resample_baseline_times(baseline_stat, naccu, rng)
@@ -495,14 +493,12 @@ def _bootstrap_itc(
     *,
     alpha: float,
     naccu: int,
-    boottype: str,
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
     # EEGLAB shuffles each trial's baseline time course, breaking the inter-trial
     # phase alignment, then recomputes ITC -- giving a chance-level null with the
     # right spread (newtimef.m 1336-1347, bootstat 'shuffle').
-    _ = boottype
     generator = np.random.default_rng(rng)
     boot_source = tfdata[:, base_indices, :] if base_indices.size else tfdata
     n_base, n_trials = boot_source.shape[1], boot_source.shape[2]

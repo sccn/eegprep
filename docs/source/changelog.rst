@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``newtimef`` now raises a clear error when given a ``boottype`` other than ``'shuffle'``.
+  Only EEGLAB's default ``'shuffle'`` permutation null is implemented; ``'rand'`` and
+  ``'randall'`` build materially different nulls, so they now fail loudly instead of being
+  silently treated as ``'shuffle'``.
 - ``pop_newtimef`` / ``newtimef`` ``pcontour`` outlines now match EEGLAB's appearance: the
   significance mask is contoured at MATLAB's auto levels (0.1 through 1.0) in black, so the
   ten coincident lines render as EEGLAB's bold banded outline instead of a single faint line.

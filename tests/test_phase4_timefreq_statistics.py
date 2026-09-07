@@ -150,6 +150,19 @@ def test_newtimef_still_rejects_unimplemented_overlap():
         assert result.ersp.shape == result.itc.shape
 
 
+def test_newtimef_rejects_non_shuffle_boottype():
+    # newtimef implements only EEGLAB's default 'shuffle' null; 'rand'/'randall' build
+    # materially different nulls (newtimef.m 1282-1347), so an unsupported boottype must
+    # fail loudly instead of silently returning the shuffle result.
+    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
+    for boottype in ("rand", "randall"):
+        with pytest.raises(NotImplementedError, match="boottype"):
+            newtimef(signal, 128, [0, 1000], 128, 0, plot="off", boottype=boottype)
+    # the default 'shuffle' is accepted, case-insensitively as in EEGLAB
+    result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", boottype="Shuffle")
+    assert result.ersp.shape == result.itc.shape
+
+
 def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
     result = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off")
 
