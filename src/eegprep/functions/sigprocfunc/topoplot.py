@@ -47,19 +47,17 @@ def griddata_v4(x, y, v, xq, yq):
         # If still singular, use pseudoinverse as last resort
         weights = np.linalg.pinv(g_reg) @ v
 
-    # Initialize output array
-    m, n = xq.shape
-    vq = np.zeros_like(xq)
+    # Evaluate at requested points (vectorized)
+    # q is (M, N), xy is (L,) -> d_q is (M, N, L)
+    q = xq + 1j * yq
+    d_q = np.abs(q[:, :, np.newaxis] - xy[np.newaxis, np.newaxis, :])
 
-    # Evaluate at requested points
-    xy = xy[:, None]  # Make it column vector for broadcasting
-    for i in range(m):
-        for j in range(n):
-            d = np.abs(xq[i, j] + 1j * yq[i, j] - xy.ravel())
-            with np.errstate(divide='ignore', invalid='ignore'):
-                g = (d**2) * (np.log(d) - 1)  # Green's function
-            g[d == 0] = 0  # Handle Green's function at zero
-            vq[i, j] = np.dot(g, weights)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        g_q = (d_q**2) * (np.log(d_q) - 1)  # Green's function
+    g_q[d_q == 0] = 0  # Handle Green's function at zero
+
+    # Weights is (L,), g_q is (M, N, L) -> vq is (M, N)
+    vq = g_q @ weights
 
     return vq
 
@@ -273,7 +271,7 @@ def topoplot(datavector, chan_locs, **kwargs):
                 np.linspace(screen_extent[0], screen_extent[1], Zi.shape[1]),
                 np.linspace(screen_extent[2], screen_extent[3], Zi.shape[0]),
             )
-            levels = np.linspace(np.nanmin(Zi), np.nanmax(Zi), 8)[1:-1]
+            levels = _contour_levels(np.nanmin(Zi), np.nanmax(Zi), int(kwargs.get('numcontour', 6)))
             ax.contour(
                 grid_x,
                 grid_y,
@@ -378,6 +376,34 @@ def topo_screen_coords(theta_deg, radius):
     """
     theta = np.deg2rad(theta_deg)
     return np.sin(theta) * radius, np.cos(theta) * radius
+
+
+def _contour_levels(zmin, zmax, numcontour):
+    """Return ``numcontour`` interior contour levels between ``zmin`` and ``zmax``."""
+    return np.linspace(zmin, zmax, int(numcontour) + 2)[1:-1]
+
+
+def plot_channel_location(ax, chan_locs, channel_index, *, markersize=24, color="k"):
+    """Draw a blank scalp map and mark a single channel's location.
+
+    Mirrors EEGLAB's single-channel ``topoplot(..., 'style', 'blank',
+    'emarkersize1chan', ...)`` used by the property and ERP-image plots.
+    ``channel_index`` is 1-based; an out-of-range or coordinate-less channel draws
+    just the blank head.
+    """
+    topoplot([], chan_locs, style="blank", electrodes="off", axes=ax, title="")
+    if not 1 <= channel_index <= len(chan_locs):
+        return
+    loc = chan_locs[channel_index - 1]
+    try:
+        theta_deg = float(loc.get("theta"))
+        radius_value = float(loc.get("radius"))
+    except (TypeError, ValueError):
+        return
+    if not (np.isfinite(theta_deg) and np.isfinite(radius_value)):
+        return
+    screen_x, screen_y = topo_screen_coords(theta_deg, radius_value)
+    ax.scatter(screen_x, screen_y, c=color, s=markersize, zorder=6)
 
 
 def _channel_location_points(chan_locs):

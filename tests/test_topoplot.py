@@ -19,7 +19,7 @@ import scipy.io
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
 
-from eegprep.functions.sigprocfunc.topoplot import topoplot, griddata_v4, topo_screen_coords
+from eegprep.functions.sigprocfunc.topoplot import _contour_levels, topoplot, griddata_v4, topo_screen_coords
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
@@ -114,6 +114,17 @@ class TestGriddataV4(unittest.TestCase):
 
         # Should handle zero distances without crashing
         self.assertEqual(vq.shape, xq_exact.shape)
+
+
+class TestContourLevels(unittest.TestCase):
+    """topoplot draws ``numcontour`` interior contour levels (EEGLAB numcontour)."""
+
+    def test_numcontour_controls_level_count_and_endpoints_excluded(self):
+        # Default of 6 keeps the historical linspace(min, max, 8)[1:-1] behavior.
+        np.testing.assert_allclose(_contour_levels(0.0, 1.0, 6), np.linspace(0.0, 1.0, 8)[1:-1])
+        three = _contour_levels(0.0, 1.0, 3)
+        self.assertEqual(len(three), 3)
+        np.testing.assert_allclose(three, [0.25, 0.5, 0.75])
 
 
 class TestTopoplot(unittest.TestCase):

@@ -38,7 +38,6 @@ from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 logger = logging.getLogger(__name__)
 
 RESULT_SCHEMA_VERSION = "eegprep.transform_result.v1"
-MANIFEST_SCHEMA_VERSION = "eegprep.manifest.v1"
 DATASET_OUTPUT_TYPE = "eeglab_set"
 
 
