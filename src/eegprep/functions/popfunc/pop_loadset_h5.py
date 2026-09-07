@@ -292,7 +292,8 @@ def pop_loadset_h5(file_name):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
-    EEG = eeg_checkset(EEG)
+    # Before eeg_checkset, which copies event.urevent into epoch.eventurevent.
     ur_indices_to_zero_based(EEG)
+    EEG = eeg_checkset(EEG)
 
     return EEG
