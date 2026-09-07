@@ -98,6 +98,9 @@ Practical rules:
   one-based on disk.
 * Single-trial datasets have no ``epoch`` structure: ``eeg_checkset`` empties
   it and removes ``event[i]["epoch"]``, as EEGLAB does.
+* ``pop_saveset`` writes the MATLAB classes EEGLAB expects: integer fields
+  become ``double``, boolean masks stay ``logical``, and ``epoch`` event fields
+  are cell arrays when any epoch holds more than one event.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use
