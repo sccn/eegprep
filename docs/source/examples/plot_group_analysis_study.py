@@ -18,6 +18,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import (  # noqa: E402
     pop_clust,
     pop_listfactors,
@@ -33,7 +34,7 @@ from eegprep import (  # noqa: E402
     std_maketrialinfo,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 SAMPLE = REPO_ROOT / "sample_data" / "eeglab_data_epochs_ica.set"
 
 # %%
@@ -71,9 +72,7 @@ print("factors:", [f"{f['label']}={f['value']}" for f in factors])
 # Add a second design contrasting the two groups and select it
 # (``Study > Select/Edit study design(s)``).
 
-STUDY, com = std_makedesign(
-    STUDY, ALLEEG, 2, name="group contrast", variable1="group", return_com=True
-)
+STUDY, com = std_makedesign(STUDY, ALLEEG, 2, name="group contrast", variable1="group", return_com=True)
 STUDY, ALLEEG, com = pop_studydesign(STUDY, ALLEEG, 2, return_com=True)
 print("designs:", [d.get("name") for d in STUDY["design"]])
 print("current design:", STUDY["currentdesign"])
@@ -82,9 +81,7 @@ print("current design:", STUDY["currentdesign"])
 # Precompute channel ERP and spectrum measures
 # (``Study > Precompute channel measures``).
 
-STUDY, ALLEEG, com = pop_precomp(
-    STUDY, ALLEEG, "channels", erp="on", spec="on", return_com=True
-)
+STUDY, ALLEEG, com = pop_precomp(STUDY, ALLEEG, "channels", erp="on", spec="on", return_com=True)
 print("cached channel groups:", len(STUDY["changrp"]))
 print("cached fields:", sorted(k for k in STUDY["changrp"][0] if k.endswith("data")))
 
@@ -100,9 +97,7 @@ print("times:", f"{erptimes[0]:.1f} .. {erptimes[-1]:.1f} ms")
 # Component measures, preclustering array, and k-means clustering
 # (``Study > Precompute component measures``, ``Study > PCA clustering``).
 
-STUDY, ALLEEG, com = pop_precomp(
-    STUDY, ALLEEG, "components", scalp="on", erp="on", return_com=True
-)
+STUDY, ALLEEG, com = pop_precomp(STUDY, ALLEEG, "components", scalp="on", erp="on", return_com=True)
 STUDY, ALLEEG, com = pop_preclust(
     STUDY,
     ALLEEG,

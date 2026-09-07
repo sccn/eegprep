@@ -22,7 +22,7 @@ import eegprep
 
 def find_sample_data() -> Path:
     """Return the repository ``sample_data`` directory."""
-    for parent in Path(__file__).resolve().parents:
+    for parent in Path(eegprep.__file__).resolve().parents:  # sphinx-gallery defines no __file__
         candidate = parent / "sample_data"
         if candidate.is_dir():
             return candidate

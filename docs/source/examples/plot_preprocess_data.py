@@ -16,9 +16,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import pop_eegfiltnew, pop_loadset, pop_reref, pop_resample, pop_spectopo
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 EEG = pop_loadset(REPO_ROOT / "sample_data" / "eeglab_data.set")
 
 print(f"loaded    : {EEG['nbchan']} chan, {EEG['pnts']} pnts, {EEG['srate']:g} Hz")

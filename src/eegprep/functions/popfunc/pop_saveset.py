@@ -93,15 +93,22 @@ def _matlab_empty_or_copy(EEG, key):
     """Like ``_matlab_empty_if_missing`` but deep-copies struct-array fields.
 
     Saving applies in-place 1-based offsets and latency coercion to the
-    MATLAB-facing structures; copying first keeps the caller's chanlocs/event
-    dicts (0-based urchan/urevent, untouched latencies) intact.  ``chanlocs``
-    and ``event`` can be Python lists or NumPy object arrays of dicts, so both
-    are deep-copied.
+    MATLAB-facing structures; copying first keeps the caller's chanlocs/event/
+    epoch dicts (0-based urchan/urevent/event indices, untouched latencies)
+    intact.  These fields can be Python lists or NumPy object arrays of dicts,
+    so both are deep-copied.
     """
     value = _matlab_empty_if_missing(EEG, key)
     if isinstance(value, list) or (isinstance(value, np.ndarray) and value.dtype == object):
         return copy.deepcopy(value)
     return value
+
+
+def _one_based(value):
+    """Shift 0-based index value(s) to MATLAB 1-based; accepts a scalar, list, or array."""
+    if isinstance(value, (list, np.ndarray)):
+        return [v + 1 for v in value]
+    return value + 1
 
 
 def _matlab_empty_struct_if_missing(EEG, key):
@@ -406,7 +413,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'event': _matlab_empty_or_copy(EEG, 'event'),
         'urevent': _matlab_empty_if_missing(EEG, 'urevent'),
         'eventdescription': _matlab_empty_if_missing(EEG, 'eventdescription'),
-        'epoch': _matlab_empty_if_missing(EEG, 'epoch'),
+        'epoch': _matlab_empty_or_copy(EEG, 'epoch'),
         'epochdescription': _matlab_empty_if_missing(EEG, 'epochdescription'),
         'reject': _matlab_empty_if_missing(EEG, 'reject'),
         'stats': _matlab_empty_if_missing(EEG, 'stats'),
@@ -437,6 +444,12 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
         for i in range(len(eeglab_dict['event'])):
             eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+
+    # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
+    for ep in eeglab_dict['epoch']:
+        for key in ('event', 'eventurevent'):
+            if key in ep:
+                ep[key] = _one_based(ep[key])
 
     # Serialize chanlocs through the single canonical chanloc converter so the
     # primary channel struct uses the same schema as chaninfo.removedchans.

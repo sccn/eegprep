@@ -12,6 +12,7 @@ figure is built and returned instead of opening a window.
 # Load the epoched dataset with an ICA decomposition
 # --------------------------------------------------
 
+import tempfile
 from pathlib import Path
 
 import matplotlib
@@ -19,6 +20,8 @@ import numpy as np
 
 matplotlib.use("Agg")
 
+import eegprep
+from eegprep.functions.sigprocfunc.headplot import default_headplot_mesh_transform
 from eegprep import (
     eeg_pvaf,
     pop_envtopo,
@@ -34,11 +37,18 @@ from eegprep import (
     pop_topoplot,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 SAMPLE_DATA = REPO_ROOT / "sample_data"
 
 EEG = pop_loadset(SAMPLE_DATA / "eeglab_data_epochs_ica.set")
 EPOCH_MS = [EEG["xmin"] * 1000.0, EEG["xmax"] * 1000.0]
+# 3-D head plots need a spline setup file; the first pop_headplot call builds it
+# (Plot > ERP map series > 3-D "setup"), later calls reuse it with ``load``.
+SPLINE_FILE = Path(tempfile.mkdtemp()) / "eeglab_data_epochs_ica.spl"
+HEADPLOT_SETUP = {
+    "splinefile": str(SPLINE_FILE),
+    "transform": default_headplot_mesh_transform(chaninfo=EEG["chaninfo"]),
+}
 print(f"data {EEG['data'].shape} srate {EEG['srate']:g} trials {EEG['trials']}")
 print(f"components {np.asarray(EEG['icaweights']).shape[0]} epoch {EPOCH_MS[0]:g}..{EPOCH_MS[1]:g} ms")
 
@@ -49,7 +59,7 @@ print(f"components {np.asarray(EEG['icaweights']).shape[0]} epoch {EPOCH_MS[0]:g
 fig_timtopo, com_timtopo = pop_timtopo(EEG, [100, 300], timerange=[-100, 600], plot="off", return_com=True)
 fig_plottopo = pop_plottopo(EEG, chans=list(range(1, 33)), plot="off")
 figs_erp2d = pop_topoplot(EEG, 1, [0, 100, 200, 300], plot="off")
-figs_erp3d = pop_headplot(EEG, 1, [100, 300], load=SAMPLE_DATA / "eeglab_data_epochs_ica.spl", plot="off")
+figs_erp3d = pop_headplot(EEG, 1, [100, 300], setup=HEADPLOT_SETUP, plot="off")
 print("timtopo history:", com_timtopo)
 print(f"ERP map series: {len(figs_erp2d)} 2-D figure(s), {len(figs_erp3d)} 3-D figure(s)")
 
@@ -99,7 +109,7 @@ fig_envtopo, com_envtopo = pop_envtopo(EEG, [-100, 600], compnums=list(range(1, 
 comp_image = pop_erpimage(EEG, 0, 1, smooth=10, decimate=2, plot="off")
 comp_tf = pop_newtimef(EEG, 0, 1, EPOCH_MS, [3, 0.8], plot="off")
 figs_comp2d = pop_topoplot(EEG, 0, [1, 2, 3, 4, 5], plot="off")
-figs_comp3d = pop_headplot(EEG, 0, [1, 2], load=SAMPLE_DATA / "eeglab_data_epochs_ica.spl", plot="off")
+figs_comp3d = pop_headplot(EEG, 0, [1, 2], load=SPLINE_FILE, plot="off")
 pvaf, _, _ = eeg_pvaf(EEG, [1, 2, 3, 4, 5])
 print(f"component spectra {comp_spectra['spectra'].shape}")
 print(f"pvaf of components 1-5: {float(np.atleast_1d(pvaf)[0]):.2f}%")
