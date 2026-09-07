@@ -3,7 +3,7 @@
 import h5py
 import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.popfunc._file_io import normalize_icachansind
+from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 
 
 def pop_loadset_h5(file_name):
@@ -293,5 +293,6 @@ def pop_loadset_h5(file_name):
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
     EEG = eeg_checkset(EEG)
+    ur_indices_to_zero_based(EEG)
 
     return EEG

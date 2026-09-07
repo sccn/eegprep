@@ -17,6 +17,7 @@ from eegprep.functions.popfunc.pop_importepoch import pop_importepoch
 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 from eegprep.functions.popfunc.pop_importerplab import pop_importerplab
 from eegprep.functions.popfunc.pop_importpres import pop_importpres
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_runscript import pop_runscript
 from eegprep.functions.popfunc.pop_saveh import pop_saveh
 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
@@ -26,6 +27,7 @@ from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.plugins.EEG_BIDS.bids_tools import pop_eventinfo, pop_participantinfo, pop_taskinfo, validate_bids
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
+from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _eeg(epoched=False):
@@ -143,12 +145,32 @@ def test_pop_importevent_replaces_and_appends_events(tmp_path):
 
     assert [event["type"] for event in replaced["event"]] == ["stim", "resp"]
     assert [event["latency"] for event in replaced["event"]] == [1, 4]
-    assert [event["urevent"] for event in replaced["event"]] == [1, 2]
+    assert [event["urevent"] for event in replaced["event"]] == [0, 1]
     assert all("urevent" not in urevent for urevent in replaced["urevent"])
     assert len(appended["event"]) == 3
     assert all("urevent" in event for event in appended["event"])
     assert all("urevent" not in urevent for urevent in appended["urevent"])
     assert "pop_importevent" in command
+
+
+def test_pop_importevent_append_keeps_loaded_urevent_pointers(tmp_path):
+    events_file = tmp_path / "events.tsv"
+    events_file.write_text("type\tlatency\tduration\nnew1\t5\t0\nnew2\t9\t0\n", encoding="utf-8")
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    original = [(event["type"], event["latency"], event["urevent"]) for event in eeg["event"]]
+    n_urevents = len(eeg["urevent"])
+
+    appended = pop_importevent(eeg, "event", events_file, "timeunit", math.nan, "append", "yes")
+
+    kept = [(e["type"], e["latency"], e["urevent"]) for e in appended["event"] if e["type"] not in {"new1", "new2"}]
+    assert kept == original
+    assert sorted(e["urevent"] for e in appended["event"] if e["type"] in {"new1", "new2"}) == [
+        n_urevents,
+        n_urevents + 1,
+    ]
+    assert len(appended["urevent"]) == n_urevents + 2
+    for event in appended["event"]:
+        assert appended["urevent"][event["urevent"]]["type"] == event["type"]
 
 
 def test_pop_importepoch_requires_epoch_count_match(tmp_path):
@@ -175,7 +197,7 @@ def test_pop_chanevent_extracts_edges_without_deleting_channel():
 
 def test_pop_chanevent_preserves_existing_urevents_when_appending():
     eeg = eeg_from_data(np.array([[0, 0, 1, 1, 0, 0]], dtype=float), srate=100)
-    eeg["event"] = [{"type": "old", "latency": 1, "urevent": 1}]
+    eeg["event"] = [{"type": "old", "latency": 1, "urevent": 0}]
     eeg["urevent"] = [{"type": "old", "latency": 1}]
 
     imported = pop_chanevent(eeg, 1, "edge", "both", "delchan", "off", "delevent", "off")
@@ -183,7 +205,8 @@ def test_pop_chanevent_preserves_existing_urevents_when_appending():
     urevents = [dict(event) for event in imported["urevent"]]
 
     assert [event["latency"] for event in events] == [1, 2, 5]
-    assert [event["urevent"] for event in events] == [1, 2, 3]
+    assert [event["urevent"] for event in events] == [0, 1, 2]
+    assert [urevents[event["urevent"]]["latency"] for event in events] == [1, 2, 5]
     assert urevents == [
         {"type": "old", "latency": 1},
         {"type": "chan1", "latency": 2},
@@ -193,7 +216,7 @@ def test_pop_chanevent_preserves_existing_urevents_when_appending():
 
 def test_pop_chanevent_rebuilds_urevents_when_replacing_events():
     eeg = eeg_from_data(np.array([[0, 0, 1, 1, 0, 0]], dtype=float), srate=100)
-    eeg["event"] = [{"type": "old", "latency": 1, "urevent": 1}]
+    eeg["event"] = [{"type": "old", "latency": 1, "urevent": 0}]
     eeg["urevent"] = [{"type": "old", "latency": 1}]
 
     imported = pop_chanevent(eeg, 1, "edge", "both", "delchan", "off", "delevent", "on")
@@ -201,7 +224,7 @@ def test_pop_chanevent_rebuilds_urevents_when_replacing_events():
     urevents = [dict(event) for event in imported["urevent"]]
 
     assert [event["latency"] for event in events] == [2, 5]
-    assert [event["urevent"] for event in events] == [1, 2]
+    assert [event["urevent"] for event in events] == [0, 1]
     assert urevents == [
         {"type": "chan1", "latency": 2},
         {"type": "chan1", "latency": 5},
