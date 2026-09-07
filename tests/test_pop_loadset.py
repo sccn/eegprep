@@ -4,6 +4,8 @@ import pytest
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from eegprep.functions.popfunc.pop_select import pop_select
 
 
 def test_pop_loadset_marks_loaded_dataset_justloaded():
@@ -31,6 +33,34 @@ def test_pop_loadset_normalizes_nonempty_icachansind_to_zero_based_integers():
 
     assert np.issubdtype(eeg["icachansind"].dtype, np.integer)
     np.testing.assert_array_equal(eeg["icachansind"][:5], np.array([0, 1, 2, 3, 4]))
+
+
+@pytest.mark.parametrize(
+    "path", ["sample_data/eeglab_data_epochs_ica.set", "sample_data/eeglab_data_epochs_ica_hdf5.set"]
+)
+def test_pop_loadset_epoch_eventurevent_is_zero_based_like_event_urevent(path):
+    eeg = pop_loadset(path)
+
+    assert list(eeg["epoch"][0]["event"]) == [0, 1, 2]
+    assert list(eeg["epoch"][0]["eventurevent"]) == [0, 1, 2]
+    for ep in eeg["epoch"]:
+        assert list(ep["eventurevent"]) == [eeg["event"][i]["urevent"] for i in ep["event"]]
+
+
+def test_pop_loadset_single_event_and_single_channel_set(tmp_path):
+    # A 1x1 MATLAB struct array is read by scipy as a bare dict, not a list.
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+    eeg = pop_select(eeg, channel=[0])
+    eeg["event"] = [dict(eeg["event"][0])]
+    out = str(tmp_path / "one_event_one_channel.set")
+    pop_saveset(eeg, out)
+
+    reloaded = pop_loadset(out)
+
+    assert len(reloaded["chanlocs"]) == 1
+    assert reloaded["chanlocs"][0]["urchan"] == eeg["chanlocs"][0]["urchan"]
+    assert len(reloaded["event"]) == 1
+    assert reloaded["event"][0]["urevent"] == eeg["event"][0]["urevent"]
 
 
 def test_pop_loadset_hdf5_fallback_does_not_subtract_icachansind_twice():

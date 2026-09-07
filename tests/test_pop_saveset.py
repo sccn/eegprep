@@ -68,6 +68,29 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_epoch_event_indices_one_based(self):
+        src = os.path.join(local_url, 'eeglab_data_epochs_ica.set')
+        EEG = pop_loadset(src)
+        epoch_before = [(list(ep['event']), list(ep['eventurevent'])) for ep in EEG['epoch']]
+        self.assertEqual(epoch_before[0], ([0, 1, 2], [0, 1, 2]))  # 0-based in memory
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'epochs.set')
+            pop_saveset(EEG, out)
+
+            raw_src = scipy.io.loadmat(src, squeeze_me=True, struct_as_record=False)['EEG'].epoch[0]
+            raw_out = scipy.io.loadmat(out, squeeze_me=True, struct_as_record=False)['epoch'][0]
+            np.testing.assert_array_equal(raw_src.event, [1, 2, 3])
+            np.testing.assert_array_equal(raw_out.event, raw_src.event)  # 1-based on disk
+            np.testing.assert_array_equal(raw_out.eventurevent, [1, 2, 3])
+
+            reloaded = pop_loadset(out)
+
+        epoch_after = [(list(ep['event']), list(ep['eventurevent'])) for ep in EEG['epoch']]
+        self.assertEqual(epoch_after, epoch_before)  # caller's dict not mutated
+        epoch_reloaded = [(list(ep['event']), list(ep['eventurevent'])) for ep in reloaded['epoch']]
+        self.assertEqual(epoch_reloaded, epoch_before)  # round trip
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')
