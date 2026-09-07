@@ -15,6 +15,8 @@ import warnings
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
+import matplotlib.pyplot as plt
+
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
@@ -653,7 +655,12 @@ class _IPythonShellAdapter:
         _make_shell_prompt_dynamic(self.shell)
         restore_logging = _install_prompt_safe_logging()
         restore_progress_logging = _install_console_progress_logging()
-        self.shell.enable_gui("qt")
+        # qtagg so figures are driven by the Qt loop; a bare enable_gui("qt")
+        # leaves the default backend, which the loop can't drive.
+        self.shell.enable_matplotlib("qt")
+        # Interactive mode off: pop_* functions display via show_figures(), so
+        # plot='off' opens no window and does not steal GUI focus.
+        plt.ioff()
 
         def post_run_cell(result: Any) -> None:
             raw_cell = getattr(getattr(result, "info", None), "raw_cell", "")
