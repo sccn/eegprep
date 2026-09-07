@@ -410,6 +410,13 @@ def eeg_checkset(EEG, *checks, load_data=True):
     except exception_type as e:
         logger.warning(f"Could not build epoch structure: {e}")
 
+    # Single-trial data carries no epoch structure and no event.epoch field
+    # (eeg_checkset.m, "check if only one epoch").
+    if int(EEG.get('trials', 1) or 1) == 1:
+        for ev in EEG['event']:
+            ev.pop('epoch', None)
+        EEG['epoch'] = np.array([], dtype=object)
+
     # check if EEG['data'] is 3D
     if 'data' in EEG and EEG['data'].ndim == 3:
         if EEG['data'].shape[2] == 1:

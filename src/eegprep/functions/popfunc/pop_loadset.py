@@ -112,7 +112,12 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
     # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
-    # copies event.urevent into epoch.eventurevent.
+    # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
+    # bare dict for a 1x1 struct array, so wrap it in a list first.
+    for key in ('chanlocs', 'event'):
+        if isinstance(EEG.get(key), dict):
+            EEG[key] = [EEG[key]]
+
     chanlocs = EEG.get('chanlocs', default_empty)
     if len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
         for i in range(len(chanlocs)):

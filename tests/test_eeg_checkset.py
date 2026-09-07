@@ -13,6 +13,7 @@ import logging
 # Add src to path for imports
 sys.path.insert(0, 'src')
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 
 
@@ -428,6 +429,21 @@ class TestEegChecksetDataSqueezing(DebuggableTestCase):
         # Should remain 2D
         self.assertEqual(result['data'].ndim, 2)
         self.assertEqual(result['data'].shape, (32, 1000))
+
+    def test_single_trial_clears_epoch_and_event_epoch_field(self):
+        """Like eeg_checkset.m, trials == 1 drops the epoch struct and event.epoch."""
+        eeg = pop_loadset('sample_data/eeglab_data_epochs_ica.set')
+        eeg['data'] = eeg['data'][:, :, :1]
+        eeg['trials'] = 1
+        eeg['event'] = [ev for ev in eeg['event'] if ev['epoch'] == 1]
+        eeg['epoch'] = eeg['epoch'][:1]
+        self.assertEqual(len(eeg['epoch']), 1)
+
+        result = eeg_checkset(eeg)
+
+        self.assertEqual(len(result['epoch']), 0)
+        self.assertEqual(len(result['event']), 3)
+        self.assertFalse(any('epoch' in ev for ev in result['event']))
 
 
 class TestEegChecksetICAActivations(DebuggableTestCase):
