@@ -1837,13 +1837,14 @@ def test_workspace_assignment_targets_detects_only_supported_mutations(source, e
         ("EEG.update({'setname': 'updated'})", ["beta", "updated"], "updated", None),
         ("EEG['data'].fill(0)", ["beta", "alpha"], "alpha", 0.0),
         ("EEG.pop('custom')", ["beta", "alpha"], "alpha", None),
+        # Reordering ALLEEG keeps the same dataset current at its new index.
         (
             "ALLEEG.sort(key=lambda item: item['setname'])",
             ["alpha", "beta"],
-            "beta",
+            "alpha",
             None,
         ),
-        ("ALLEEG.reverse()", ["alpha", "beta"], "beta", None),
+        ("ALLEEG.reverse()", ["alpha", "beta"], "alpha", None),
     ],
 )
 def test_console_in_place_mutations_sync_session_once(
@@ -1896,6 +1897,25 @@ def test_console_alleeg_removal_reselects_a_remaining_dataset(source):
     assert session.ALLCOM == [source]
     notifications.assert_called_once_with(session)
     refresh.assert_called_once()
+
+
+@pytest.mark.parametrize("source", ["ALLEEG.pop(0)", "ALLEEG.remove(ALLEEG[0])"])
+def test_console_alleeg_removal_of_lower_dataset_keeps_current_dataset(source):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.store_current(_demo_eeg("third"), new=True)
+    session.apply_workspace_state(currentset=[2], command="")
+    current = session.EEG
+    workspace = EEGPrepConsoleWorkspace(session, refresh=mock.Mock(), exports={})
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert [item.get("setname") for item in session.ALLEEG] == ["second", "third"]
+    assert session.CURRENTSET == [1]
+    assert session.EEG is current
+    assert workspace.namespace["CURRENTSET"] == 1
 
 
 def test_console_alleeg_clear_resets_the_dataset_selection():

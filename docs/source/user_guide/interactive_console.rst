@@ -97,6 +97,10 @@ workspace root, so these edits refresh the shared session:
    EEG["data"].fill(0)
    ALLEEG.append(new_eeg)
 
+When an edit removes or reorders datasets in ``ALLEEG``, the current dataset
+stays current and ``CURRENTSET`` follows it to its new index. If the current
+dataset itself was removed, the nearest remaining dataset is selected.
+
 Detection is intentionally syntax-based. It does not follow aliases or infer
 mutations performed by free functions. Assign the result back to a workspace
 root when using either pattern:
