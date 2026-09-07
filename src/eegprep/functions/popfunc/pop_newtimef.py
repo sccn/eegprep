@@ -8,13 +8,14 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._plot_utils import (
+from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
     data_time_slice,
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.timefreqfunc.newtimef import newtimef
@@ -29,10 +30,14 @@ def pop_newtimef(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
-    """Plot a channel or component ERSP/ITC decomposition."""
+    """Plot a channel or component ERSP/ITC decomposition.
+
+    Pass ``plot='off'`` to build and return the figure without opening a window.
+    """
     if EEG is None:
         return (None, "") if return_com else None
     typeproc = int(typeproc)
@@ -56,6 +61,7 @@ def pop_newtimef(
     data, times = _selected_signal(EEG, typeproc, num, tlimits)
     result = newtimef(data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
+    show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
 
 

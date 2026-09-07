@@ -8,7 +8,7 @@ from typing import Any
 
 from .functions.adminfunc.logs import setup_logging
 
-__version__ = "0.2.23"
+__version__ = "0.3.0"
 
 setup_logging(logging.WARNING)
 

@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs
 from eegprep.functions.studyfunc.std_checkset import std_checkset
