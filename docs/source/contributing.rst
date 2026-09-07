@@ -6,6 +6,20 @@ Contributing to EEGPrep
 
 We welcome contributions from the community! This guide will help you get started with contributing to EEGPrep.
 
+.. _reporting-bugs:
+
+Reporting Bugs
+==============
+
+Found a bug? Please report it on `GitHub Issues <https://github.com/sccn/eegprep/issues>`_.
+
+Include:
+
+- EEGPrep version (``python -c "import eegprep; print(eegprep.__version__)"``)
+- Python version and operating system
+- Minimal code that reproduces the problem
+- The full error message and traceback
+
 Getting Started
 ===============
 
@@ -326,7 +340,7 @@ Getting Help
 ============
 
 - **Documentation**: Check the :doc:`user_guide/index` and :doc:`api/index`
-- **Examples**: See :doc:`examples/index` for practical examples
+- **Examples**: See :doc:`/auto_examples/index` for practical examples
 - **Issues**: Search `GitHub Issues <https://github.com/sccn/eegprep/issues>`_
 - **Discussions**: Join our community discussions on GitHub
 

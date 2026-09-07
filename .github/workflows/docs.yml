@@ -39,7 +39,9 @@ jobs:
       - name: Install dependencies
         run: |
           uv python install 3.11
-          uv sync --python 3.11 --extra docs
+          # The torch extra is required: gallery examples call ICLabel, which
+          # raises ImportError without it rather than degrading to a skip.
+          uv sync --python 3.11 --extra docs --extra torch
 
       - name: Build HTML documentation
         run: |

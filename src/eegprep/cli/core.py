@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 import eegprep
+from eegprep.utils.math_backend import get_math_backend_info
 
 
 COMMAND_RESULT_SCHEMA_VERSION = "eegprep.cli.result.v1"
@@ -225,6 +226,10 @@ def software_info() -> dict[str, Any]:
         "eegprep_version": eegprep.__version__,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
+        "architecture": platform.machine(),
+        "processor": platform.processor(),
+        "logical_cpu_count": os.cpu_count(),
+        "math_backend_info": get_math_backend_info(),
     }
 
 
@@ -241,6 +246,10 @@ def build_manifest(
     warnings: list[Any] | None = None,
 ) -> dict[str, Any]:
     stamp = runtime_stamp(started_at) if finished_at is None else RuntimeStamp(started_at, finished_at)
+    soft_info = software_info()
+
+    all_warnings = list(warnings) if warnings else []
+
     input_records = [_input_file_record(path) for path in input_files]
     manifest: dict[str, Any] = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -249,9 +258,9 @@ def build_manifest(
         "output_files": _make_manifest_paths_absolute(output_files),
         "parameters": json_safe(parameters),
         "history": history,
-        "software": software_info(),
+        "software": soft_info,
         "runtime": {"started_at": stamp.started_at, "finished_at": stamp.finished_at},
-        "warnings": warnings or [],
+        "warnings": all_warnings,
     }
     if deterministic is not None:
         manifest["deterministic"] = deterministic

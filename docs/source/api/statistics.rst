@@ -1,8 +1,8 @@
 .. _api_statistics:
 
-====================
-Statistics Functions
-====================
+==========
+Statistics
+==========
 
 EEGPrep statistics helpers mirror the useful parts of EEGLAB's
 ``functions/statistics`` package while using explicit NumPy contracts. Unless
@@ -12,50 +12,34 @@ surrogate replications.
 Condition Tests
 ===============
 
-.. autofunction:: eegprep.functions.statistics.statcond
-   :no-index:
+.. autosummary::
+   :toctree: generated/
 
-.. autofunction:: eegprep.functions.statistics.ttest_cell
-   :no-index:
+   eegprep.functions.statistics.statcond
+   eegprep.functions.statistics.ttest_cell
+   eegprep.functions.statistics.ttest2_cell
+   eegprep.functions.statistics.anova1_cell
+   eegprep.functions.statistics.anova1rm_cell
+   eegprep.functions.statistics.anova2_cell
+   eegprep.functions.statistics.anova2rm_cell
 
-.. autofunction:: eegprep.functions.statistics.ttest2_cell
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.anova1_cell
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.anova1rm_cell
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.anova2_cell
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.anova2rm_cell
-   :no-index:
-
-Multiple Comparisons And Surrogates
+Multiple Comparisons and Surrogates
 ===================================
 
-.. autofunction:: eegprep.functions.statistics.fdr
-   :no-index:
+.. autosummary::
+   :toctree: generated/
 
-.. autofunction:: eegprep.functions.statistics.stat_surrogate_pvals
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.stat_surrogate_ci
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.surrogdistrib
-   :no-index:
+   eegprep.functions.statistics.fdr
+   eegprep.functions.statistics.stat_surrogate_pvals
+   eegprep.functions.statistics.stat_surrogate_ci
+   eegprep.functions.statistics.surrogdistrib
 
 Data Helpers
 ============
 
-.. autofunction:: eegprep.functions.statistics.concatdata
-   :no-index:
+.. autosummary::
+   :toctree: generated/
 
-.. autofunction:: eegprep.functions.statistics.corrcoef_cell
-   :no-index:
-
-.. autofunction:: eegprep.functions.statistics.teststat
-   :no-index:
+   eegprep.functions.statistics.concatdata
+   eegprep.functions.statistics.corrcoef_cell
+   eegprep.functions.statistics.teststat

@@ -488,9 +488,8 @@ def runica(data, **kwargs):
     if verbose:
         logger.info('Removing mean of each channel ...')
 
-    rowmeans = np.mean(data, axis=1)  # shape: (chans,)
-    for i in range(data.shape[0]):
-        data[i, :] = data[i, :] - rowmeans[i]
+    rowmeans = np.mean(data, axis=1, keepdims=True)
+    data -= rowmeans
 
     if verbose:
         logger.info(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
@@ -593,7 +592,6 @@ def runica(data, **kwargs):
     prevwtchange = np.zeros((chans, ncomps))
     oldwtchange = np.zeros((chans, ncomps))
     lrates = np.zeros(maxsteps)
-    onesrow = np.ones((1, block))
     bias = np.zeros((ncomps, 1))
 
     # Initialize signs for extended-ICA
@@ -606,7 +604,7 @@ def runica(data, **kwargs):
             signs_str = ' '.join([str(int(signs[k])) for k in range(ncomps)])
             logger.info(f'Fixed extended-ICA sign assignments: {signs_str}')
 
-    signs = np.diag(signs)  # make diagonal matrix
+    # Keep signs as a vector so applying them is a row-wise scaling operation.
     oldsigns = np.zeros_like(signs)
     signcount = 0
     signcounts = []
@@ -679,86 +677,85 @@ def runica(data, **kwargs):
             timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 831)
-            for t in range(0, lastt, block):
-                # Extract and process block (MATLAB line 846)
-                # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                for t in range(0, lastt, block):
+                    # Extract and process block (MATLAB line 846)
+                    # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
+                    u = weights @ data[:, timeperm[t : t + block]] + bias
 
-                # Apply tanh nonlinearity (MATLAB line 848)
-                y = np.tanh(u)
+                    # Apply tanh nonlinearity (MATLAB line 848)
+                    y = np.tanh(u)
 
-                # Extended-ICA natural gradient weight update (MATLAB line 849)
-                # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
-                weights = weights + lrate * _matmul(
-                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
-                    weights,
-                )
+                    # Extended-ICA natural gradient weight update (MATLAB line 849)
+                    # weights = weights + lrate*(BI-signs*y*u'-u*u')*weights
+                    signed_y = signs[:, np.newaxis] * y
+                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
 
-                # Bias update for tanh (MATLAB line 850)
-                # bias = bias + lrate*sum((-2*y)')';
-                bias = bias + lrate * np.sum(-2 * y, axis=1, keepdims=True)
+                    # Bias update for tanh (MATLAB line 850)
+                    # bias = bias + lrate*sum((-2*y)')';
+                    bias = bias + lrate * np.sum(-2.0 * y, axis=1, keepdims=True)
 
-                # Add momentum if enabled (MATLAB lines 852-856)
-                if momentum > 0:
-                    weights = weights + momentum * prevwtchange
-                    prevwtchange = weights - prevweights
-                    prevweights = weights.copy()
+                    # Add momentum if enabled (MATLAB lines 852-856)
+                    if momentum > 0:
+                        weights = weights + momentum * prevwtchange
+                        prevwtchange = weights - prevweights
+                        prevweights = weights.copy()
 
-                # Check for weight blowup (MATLAB lines 858-861)
-                if np.max(np.abs(weights)) > MAX_WEIGHT:
-                    wts_blowup = 1
-                    change = nochange
+                    # Check for weight blowup (MATLAB lines 858-861)
+                    if np.max(np.abs(weights)) > MAX_WEIGHT:
+                        wts_blowup = 1
+                        change = nochange
 
-                # Extended-ICA kurtosis estimation (MATLAB lines 862-900)
-                if not wts_blowup:
-                    # Recompute signs vector using kurtosis (MATLAB line 866)
-                    if extblocks > 0 and blockno % extblocks == 0:
-                        # Random subset selection or whole data (MATLAB lines 868-879)
-                        if kurtsize < frames:
-                            # Pick random subset (MATLAB lines 869-876)
-                            # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                            rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = _matmul(weights, data[:, rp[:kurtsize]])
-                        else:
-                            # For small data sets, use whole data (MATLAB lines 877-878)
-                            partact = _matmul(weights, data)
+                    # Extended-ICA kurtosis estimation (MATLAB lines 862-900)
+                    if not wts_blowup:
+                        # Recompute signs vector using kurtosis (MATLAB line 866)
+                        if extblocks > 0 and blockno % extblocks == 0:
+                            # Random subset selection or whole data (MATLAB lines 868-879)
+                            if kurtsize < frames:
+                                # Pick random subset (MATLAB lines 869-876)
+                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
+                                rp = rng.randint(1, datalength, size=kurtsize)
+                                partact = weights @ data[:, rp[:kurtsize]]
+                            else:
+                                # For small data sets, use whole data (MATLAB lines 877-878)
+                                partact = weights @ data
 
-                        # Compute kurtosis (MATLAB lines 880-882)
-                        m2 = np.mean(partact**2, axis=1) ** 2
-                        m4 = np.mean(partact**4, axis=1)
-                        # Add epsilon to prevent division by zero for near-zero variance components
-                        kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
+                            # Compute kurtosis (MATLAB lines 880-882)
+                            m2 = np.mean(partact**2, axis=1) ** 2
+                            m4 = np.mean(partact**4, axis=1)
+                            # Add epsilon to prevent division by zero for near-zero variance components
+                            kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
 
-                        # Apply momentum to kurtosis (MATLAB lines 883-886)
-                        if extmomentum:
-                            kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
-                            old_kk = kk
+                            # Apply momentum to kurtosis (MATLAB lines 883-886)
+                            if extmomentum:
+                                kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
+                                old_kk = kk
 
-                        # Update signs based on kurtosis (MATLAB line 887)
-                        signs = np.diag(np.sign(kk + signsbias))
+                            # Update signs based on kurtosis (MATLAB line 887)
+                            signs = np.sign(kk + signsbias)
 
-                        # Track sign changes (MATLAB lines 888-898)
-                        if np.array_equal(signs, oldsigns):
-                            signcount = signcount + 1
-                        else:
-                            signcount = 0
+                            # Track sign changes (MATLAB lines 888-898)
+                            if np.array_equal(signs, oldsigns):
+                                signcount = signcount + 1
+                            else:
+                                signcount = 0
 
-                        oldsigns = signs.copy()
-                        signcounts.append(signcount)
+                            oldsigns = signs.copy()
+                            signcounts.append(signcount)
 
-                        # Make kurtosis estimation less frequent if signs stable (MATLAB lines 895-898)
-                        if signcount >= SIGNCOUNT_THRESHOLD:
-                            extblocks = int(extblocks * SIGNCOUNT_STEP)
-                            signcount = 0
+                            # Make kurtosis estimation less frequent if signs stable (MATLAB lines 895-898)
+                            if signcount >= SIGNCOUNT_THRESHOLD:
+                                extblocks = int(extblocks * SIGNCOUNT_STEP)
+                                signcount = 0
 
-                # Increment block counter (MATLAB line 901)
-                blockno = blockno + 1
+                    # Increment block counter (MATLAB line 901)
+                    blockno = blockno + 1
 
-                # Break if weights blew up (MATLAB lines 902-904)
-                if wts_blowup:
-                    break
+                    # Break if weights blew up (MATLAB lines 902-904)
+                    if wts_blowup:
+                        break
 
-            # End of block loop (MATLAB line 905)
+                # End of block loop (MATLAB line 905)
 
             # Compute weight changes if no blowup (MATLAB lines 907-917)
             if not wts_blowup:
@@ -800,7 +797,7 @@ def runica(data, **kwargs):
                 signs_vec = np.ones(ncomps)
                 for k in range(nsub):
                     signs_vec[k] = -1
-                signs = np.diag(signs_vec)
+                signs = signs_vec
                 oldsigns = np.zeros_like(signs)
 
                 # Check if we can continue (MATLAB lines 947-960)
@@ -866,45 +863,47 @@ def runica(data, **kwargs):
             timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1007)
-            for t in range(0, lastt, block):
-                # Extract and process block (MATLAB line 1021)
-                # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
-                # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
-                u = _matmul(weights, data[:, timeperm[t : t + block]]) + _matmul(bias, onesrow)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                for t in range(0, lastt, block):
+                    # Extract and process block (MATLAB line 1021)
+                    # MATLAB: u = weights*double(data(:,timeperm(t:t+block-1))) + bias*onesrow
+                    # Note: MATLAB uses 1-based indexing, so t:t+block-1 means t to t+block
+                    u = weights @ data[:, timeperm[t : t + block]] + bias
 
-                # Apply logistic nonlinearity (MATLAB line 1022)
-                # Clip u to prevent overflow in exp
-                u = np.maximum(u, -MAX_WEIGHT)
-                u = np.minimum(u, MAX_WEIGHT)
-                y = 1.0 / (1.0 + np.exp(-u))
+                    # Apply logistic nonlinearity (MATLAB line 1022)
+                    # Clip u to prevent overflow in exp
+                    u = np.maximum(u, -MAX_WEIGHT)
+                    u = np.minimum(u, MAX_WEIGHT)
+                    y = 1.0 / (1.0 + np.exp(-u))
 
-                # Natural gradient weight update (MATLAB line 1023)
-                # weights = weights + lrate*(BI+(1-2*y)*u')*weights
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
+                    # Natural gradient weight update (MATLAB line 1023)
+                    # weights = weights + lrate*(BI+(1-2*y)*u')*weights
+                    y_update = 1.0 - 2.0 * y
+                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
 
-                # Bias update (MATLAB line 1024)
-                # bias = bias + lrate*sum((1-2*y)')';
-                bias = bias + lrate * np.sum(1 - 2 * y, axis=1, keepdims=True)
+                    # Bias update (MATLAB line 1024)
+                    # bias = bias + lrate*sum((1-2*y)')';
+                    bias = bias + lrate * np.sum(y_update, axis=1, keepdims=True)
 
-                # Add momentum if enabled (MATLAB lines 1026-1030)
-                if momentum > 0:
-                    weights = weights + momentum * prevwtchange
-                    prevwtchange = weights - prevweights
-                    prevweights = weights.copy()
+                    # Add momentum if enabled (MATLAB lines 1026-1030)
+                    if momentum > 0:
+                        weights = weights + momentum * prevwtchange
+                        prevwtchange = weights - prevweights
+                        prevweights = weights.copy()
 
-                # Check for weight blowup (MATLAB lines 1032-1035)
-                if np.max(np.abs(weights)) > MAX_WEIGHT:
-                    wts_blowup = 1
-                    change = nochange
+                    # Check for weight blowup (MATLAB lines 1032-1035)
+                    if np.max(np.abs(weights)) > MAX_WEIGHT:
+                        wts_blowup = 1
+                        change = nochange
 
-                # Increment block counter (MATLAB line 1036)
-                blockno = blockno + 1
+                    # Increment block counter (MATLAB line 1036)
+                    blockno = blockno + 1
 
-                # Break if weights blew up (MATLAB lines 1037-1039)
-                if wts_blowup:
-                    break
+                    # Break if weights blew up (MATLAB lines 1037-1039)
+                    if wts_blowup:
+                        break
 
-            # End of block loop (MATLAB line 1040)
+                # End of block loop (MATLAB line 1040)
 
             # Compute weight changes if no blowup (MATLAB lines 1042-1052)
             if not wts_blowup:
@@ -1009,69 +1008,68 @@ def runica(data, **kwargs):
             timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1131)
-            for t in range(0, lastt, block):
-                # Extract and process block - NO BIAS (MATLAB line 1145)
-                u = _matmul(weights, data[:, timeperm[t : t + block]])
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                for t in range(0, lastt, block):
+                    # Extract and process block - NO BIAS (MATLAB line 1145)
+                    u = weights @ data[:, timeperm[t : t + block]]
 
-                # Apply tanh nonlinearity (MATLAB line 1146)
-                y = np.tanh(u)
+                    # Apply tanh nonlinearity (MATLAB line 1146)
+                    y = np.tanh(u)
 
-                # Extended-ICA natural gradient weight update (MATLAB line 1147)
-                weights = weights + lrate * _matmul(
-                    BI - _matmul(_matmul(signs, y), u.T) - _matmul(u, u.T),
-                    weights,
-                )
+                    # Extended-ICA natural gradient weight update (MATLAB line 1147)
+                    signed_y = signs[:, np.newaxis] * y
+                    weights = weights + lrate * ((BI - (signed_y + u) @ u.T) @ weights)
 
-                # NO BIAS UPDATE for no-bias variant
+                    # NO BIAS UPDATE for no-bias variant
 
-                # Add momentum if enabled (MATLAB lines 1149-1153)
-                if momentum > 0:
-                    weights = weights + momentum * prevwtchange
-                    prevwtchange = weights - prevweights
-                    prevweights = weights.copy()
+                    # Add momentum if enabled (MATLAB lines 1149-1153)
+                    if momentum > 0:
+                        weights = weights + momentum * prevwtchange
+                        prevwtchange = weights - prevweights
+                        prevweights = weights.copy()
 
-                # Check for weight blowup (MATLAB lines 1155-1158)
-                if np.max(np.abs(weights)) > MAX_WEIGHT:
-                    wts_blowup = 1
-                    change = nochange
+                    # Check for weight blowup (MATLAB lines 1155-1158)
+                    if np.max(np.abs(weights)) > MAX_WEIGHT:
+                        wts_blowup = 1
+                        change = nochange
 
-                # Extended-ICA kurtosis estimation (MATLAB lines 1159-1197)
-                if not wts_blowup:
-                    if extblocks > 0 and blockno % extblocks == 0:
-                        if kurtsize < frames:
-                            # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                            rp = rng.randint(1, datalength, size=kurtsize)
-                            partact = _matmul(weights, data[:, rp[:kurtsize]])
-                        else:
-                            partact = _matmul(weights, data)
+                    # Extended-ICA kurtosis estimation (MATLAB lines 1159-1197)
+                    if not wts_blowup:
+                        if extblocks > 0 and blockno % extblocks == 0:
+                            if kurtsize < frames:
+                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
+                                rp = rng.randint(1, datalength, size=kurtsize)
+                                partact = weights @ data[:, rp[:kurtsize]]
+                            else:
+                                partact = weights @ data
 
-                        m2 = np.mean(partact**2, axis=1) ** 2
-                        m4 = np.mean(partact**4, axis=1)
-                        # Add epsilon to prevent division by zero for near-zero variance components
-                        kk = (m4 / (m2 + 1e-10)) - 3.0
+                            m2 = np.mean(partact**2, axis=1) ** 2
+                            m4 = np.mean(partact**4, axis=1)
+                            # Add epsilon to prevent division by zero for near-zero variance components
+                            kk = (m4 / (m2 + 1e-10)) - 3.0
 
-                        if extmomentum:
-                            kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
-                            old_kk = kk
+                            if extmomentum:
+                                kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
+                                old_kk = kk
 
-                        signs = np.diag(np.sign(kk + signsbias))
+                            signs = np.sign(kk + signsbias)
 
-                        if np.array_equal(signs, oldsigns):
-                            signcount = signcount + 1
-                        else:
-                            signcount = 0
+                            if np.array_equal(signs, oldsigns):
+                                signcount = signcount + 1
+                            else:
+                                signcount = 0
 
-                        oldsigns = signs.copy()
-                        signcounts.append(signcount)
+                            oldsigns = signs.copy()
+                            signcounts.append(signcount)
 
-                        if signcount >= SIGNCOUNT_THRESHOLD:
-                            extblocks = int(extblocks * SIGNCOUNT_STEP)
-                            signcount = 0
+                            if signcount >= SIGNCOUNT_THRESHOLD:
+                                extblocks = int(extblocks * SIGNCOUNT_STEP)
+                                signcount = 0
 
-                blockno = blockno + 1
+                    blockno = blockno + 1
 
-                if wts_blowup:
-                    break
+                    if wts_blowup:
+                        break
 
             # Compute weight changes if no blowup (MATLAB lines 1204-1214)
             if not wts_blowup:
@@ -1107,7 +1105,7 @@ def runica(data, **kwargs):
                 signs_vec = np.ones(ncomps)
                 for k in range(nsub):
                     signs_vec[k] = -1
-                signs = np.diag(signs_vec)
+                signs = signs_vec
                 oldsigns = np.zeros_like(signs)
 
                 if lrate > MIN_LRATE:
@@ -1171,35 +1169,37 @@ def runica(data, **kwargs):
             timeperm = rand_permutation(datalength, rng)
 
             # Process data in blocks (MATLAB line 1302)
-            for t in range(0, lastt, block):
-                # Extract and process block - NO BIAS (MATLAB line 1315)
-                u = _matmul(weights, data[:, timeperm[t : t + block]])
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                for t in range(0, lastt, block):
+                    # Extract and process block - NO BIAS (MATLAB line 1315)
+                    u = weights @ data[:, timeperm[t : t + block]]
 
-                # Apply logistic nonlinearity (MATLAB line 1316)
-                u = np.maximum(u, -MAX_WEIGHT)
-                u = np.minimum(u, MAX_WEIGHT)
-                y = 1.0 / (1.0 + np.exp(-u))
+                    # Apply logistic nonlinearity (MATLAB line 1316)
+                    u = np.maximum(u, -MAX_WEIGHT)
+                    u = np.minimum(u, MAX_WEIGHT)
+                    y = 1.0 / (1.0 + np.exp(-u))
 
-                # Natural gradient weight update (MATLAB line 1317)
-                weights = weights + lrate * _matmul(BI + _matmul(1 - 2 * y, u.T), weights)
+                    # Natural gradient weight update (MATLAB line 1317)
+                    y_update = 1.0 - 2.0 * y
+                    weights = weights + lrate * ((BI + y_update @ u.T) @ weights)
 
-                # NO BIAS UPDATE for no-bias variant
+                    # NO BIAS UPDATE for no-bias variant
 
-                # Add momentum if enabled (MATLAB lines 1319-1323)
-                if momentum > 0:
-                    weights = weights + momentum * prevwtchange
-                    prevwtchange = weights - prevweights
-                    prevweights = weights.copy()
+                    # Add momentum if enabled (MATLAB lines 1319-1323)
+                    if momentum > 0:
+                        weights = weights + momentum * prevwtchange
+                        prevwtchange = weights - prevweights
+                        prevweights = weights.copy()
 
-                # Check for weight blowup (MATLAB lines 1325-1328)
-                if np.max(np.abs(weights)) > MAX_WEIGHT:
-                    wts_blowup = 1
-                    change = nochange
+                    # Check for weight blowup (MATLAB lines 1325-1328)
+                    if np.max(np.abs(weights)) > MAX_WEIGHT:
+                        wts_blowup = 1
+                        change = nochange
 
-                blockno = blockno + 1
+                    blockno = blockno + 1
 
-                if wts_blowup:
-                    break
+                    if wts_blowup:
+                        break
 
             # Compute weight changes if no blowup (MATLAB lines 1336-1346)
             if not wts_blowup:
@@ -1304,14 +1304,12 @@ def runica(data, **kwargs):
     # Add back the row means removed from data before sphering (MATLAB lines 1442-1447)
     if pcaflag == 'off':
         sr = _matmul(sphere, rowmeans)
-        for r in range(ncomps):
-            data[r, :] = data[r, :] + sr[r]
+        data += sr
         activations_unsorted = _matmul(weights, data)  # MATLAB line 1447
     else:
         # For PCA case (MATLAB lines 1449-1453)
         ser = _matmul(_matmul(sphere, eigenvectors[:, :ncomps].T), rowmeans)
-        for r in range(ncomps):
-            data[r, :] = data[r, :] + ser[r]
+        data += ser
         activations_unsorted = _matmul(weights, data)
 
     # Now 'activations_unsorted' are the component activations = weights*sphere*raw_data
@@ -1361,8 +1359,8 @@ def runica(data, **kwargs):
     weights = weights[windex, :]  # reorder the weight matrix (MATLAB line 1527)
     bias = bias[windex]  # reorder bias (MATLAB line 1528)
 
-    # Convert signs diagonal matrix to vector and reorder (MATLAB lines 1529-1530)
-    signs_vec = np.diag(signs)  # vectorize the signs matrix
+    # Convert signs vector to reordered vector (MATLAB lines 1529-1530)
+    signs_vec = signs
     signs_vec = signs_vec[windex]  # reorder them
 
     # Prepare final outputs
