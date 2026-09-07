@@ -2,14 +2,18 @@
 
 `pop_editoptions` updates EEGPrep's EEGLAB-style option registry.
 
-The main GUI currently exposes the advanced-menu preference. Enabling advanced
-menus shows legacy/full EEGLAB menu items represented in EEGPrep's menu
-inventory; disabling it returns to the default simplified menu.
+The main GUI exposes two preferences. Enabling advanced menus shows legacy/full
+EEGLAB menu items represented in EEGPrep's menu inventory; disabling it returns
+to the default simplified menu. The native file dialog preference chooses
+between the operating system's file panels (default) and Qt file dialogs for
+this process; `eegprep-console` uses Qt dialogs unless launched with
+`--native-file-dialogs`.
 
 Programmatic calls accept named options:
 
 ```python
 com = pop_editoptions(option_allmenus=1)
+com = pop_editoptions(option_native_dialogs=0)
 ```
 
 Reopen the main window after changing menu-mode options so the menu tree is

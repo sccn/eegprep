@@ -55,7 +55,7 @@ class EEGPrepMainWindow:
         include_plugins: bool = True,
         extension_runtime: ExtensionRuntime | None = None,
         native_menu_bar: bool | None = None,
-        native_file_dialogs: bool = True,
+        native_file_dialogs: bool | None = None,
     ) -> None:
         qt_core, qt_gui, qt_widgets = _require_qt()
         self._qt_core = qt_core
@@ -337,7 +337,7 @@ def build_main_window(
     include_plugins: bool = True,
     extension_runtime: ExtensionRuntime | None = None,
     native_menu_bar: bool | None = None,
-    native_file_dialogs: bool = True,
+    native_file_dialogs: bool | None = None,
 ) -> EEGPrepMainWindow:
     """Build an EEGPrep main window without entering the Qt event loop."""
     return EEGPrepMainWindow(
