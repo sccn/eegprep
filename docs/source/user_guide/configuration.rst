@@ -54,8 +54,10 @@ Common Global Options
    * - ``option_computeica``
      - Precompute ICA activations where supported.
    * - ``option_native_dialogs``
-     - Use experimental native OS file panels instead of stable Qt dialogs for
-       the current process. Disabled by default.
+     - Use native OS file panels (``1``, the default) or Qt file dialogs
+       (``0``) for the current process. ``eegprep-console`` overrides this with
+       Qt dialogs unless launched with ``--native-file-dialogs``, because native
+       macOS panels can close immediately under IPython's Qt input hook.
    * - ``option_scaleicarms``
      - Scale ICA component activations to RMS microvolt during checkset paths.
    * - ``option_cachesize``

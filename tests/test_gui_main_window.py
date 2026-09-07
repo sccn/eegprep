@@ -1371,7 +1371,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
 
-    def test_file_menu_import_uses_stable_file_dialog_by_default(self):
+    def test_file_menu_import_uses_native_file_dialog_by_default(self):
         captured = {}
 
         class QFileDialog:
@@ -1392,9 +1392,9 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(filename, "")
         self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
+        self.assertEqual(captured["kwargs"], {})
 
-    def test_file_menu_import_can_use_native_qt_file_dialog(self):
+    def test_file_menu_import_can_use_qt_file_dialog(self):
         captured = {}
 
         class QFileDialog:
@@ -1409,8 +1409,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
-        original_option = EEG_OPTIONS.get("option_native_dialogs", 0)
-        EEG_OPTIONS["option_native_dialogs"] = 1
+        original_option = EEG_OPTIONS.get("option_native_dialogs", 1)
+        EEG_OPTIONS["option_native_dialogs"] = 0
 
         try:
             qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
@@ -1421,7 +1421,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
             self.assertEqual(filename, "")
             self.assertEqual(captured["args"][1], "Import data")
-            self.assertEqual(captured["kwargs"], {})
+            self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
         finally:
             EEG_OPTIONS["option_native_dialogs"] = original_option
 

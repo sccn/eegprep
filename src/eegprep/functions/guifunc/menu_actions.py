@@ -821,7 +821,7 @@ class MenuActionDispatcher:
         from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 
         allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
-        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 0))
+        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 1))
 
         if parent is None:
             allmenus_val = int(not bool(allmenus_val))

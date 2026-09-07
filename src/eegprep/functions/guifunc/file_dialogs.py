@@ -7,6 +7,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+
 
 _NATIVE_FILE_DIALOG_OVERRIDE: ContextVar[bool | None] = ContextVar(
     "eegprep_native_file_dialog_override",
@@ -57,9 +59,7 @@ def _use_native_file_dialogs(explicit: bool | None) -> bool:
     scoped = _NATIVE_FILE_DIALOG_OVERRIDE.get()
     if scoped is not None:
         return scoped
-    from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-
-    return bool(int(EEG_OPTIONS.get("option_native_dialogs", 0) or 0))
+    return bool(int(EEG_OPTIONS.get("option_native_dialogs", 1)))
 
 
 def _qt_enum_value(owner: Any, enum_name: str, value_name: str) -> Any | None:
