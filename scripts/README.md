@@ -5,7 +5,9 @@ part of the installed `eegprep` Python package.
 
 ## Maintained Commands
 
-- `make_release.py`: release helper for building and publishing EEGPrep.
+- `build_docker.py`: builds and pushes the EEGPrep Docker image, and updates the
+  image pin in `tools/hpc/main.pbs`. PyPI releases are published by
+  `.github/workflows/release.yml`, not from here; see `docs/source/releasing.rst`.
 
 ## Incubating Workflows
 

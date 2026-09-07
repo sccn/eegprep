@@ -15,3 +15,5 @@ Supported deterministic coherence modes are `phasecoher`, `phasecoher2`,
 continuous inputs use EEGLAB's cross-spectrum mode. Bootstrap, shuffle,
 `subitc`, and supplied `rboot` significance paths are supported in standalone
 Python.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

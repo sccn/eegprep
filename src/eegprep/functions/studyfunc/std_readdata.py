@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._plot_utils import numeric_vector
+from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.studyfunc._cluster_utils import cluster_list, sets_array
 from eegprep.functions.studyfunc._study_utils import (
     MEASURE_DATA_FIELDS,

@@ -79,13 +79,14 @@ html_theme_options = {
             "icon": "fab fa-github-square",
         },
     ],
-    # Navigation display
-    "show_nav_level": 2,
+    # Navigation display. Level 1 keeps the Functions groups collapsed so the
+    # sidebar lists groups; expanding one reveals its individual functions.
+    "show_nav_level": 1,
     "use_edit_page_button": False,
     # Search settings
     "search_bar_text": "Search the EEGPrep manual...",
     # Sidebar behavior
-    "collapse_navigation": False,
+    "collapse_navigation": True,
 }
 
 html_context = {
@@ -108,7 +109,16 @@ autodoc_default_options = {
 
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
-autosummary_generate_overwrite = False
+
+# Drop the "eegprep." prefix from rendered signatures and headings; the sidebar
+# then shows bare function names such as `statcond` rather than
+# `eegprep.functions.statistics.statcond`.
+add_module_names = False
+
+# Stub pages under api/generated/ are build output. Regenerate them so they pick
+# up _templates/autosummary/, which titles each page with the short name.
+autosummary_generate = True
+autosummary_generate_overwrite = True
 
 # -- Options for Napoleon (Google-style docstrings) ---------------------------
 # https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html

@@ -303,58 +303,42 @@ of Neuroscience Methods*, 134(1), 9-21.
 <details>
 <summary>Maintainer release notes</summary>
 
-### Versioning
+### Release Process
 
-- Change the version inside `pyproject.toml`.
-- Change the version inside `tools/hpc/main.pbs` for Singularity/Docker image
-  references.
-- Run `make_release` in the script folder and tag with the version.
-- Use the correct Docker version when building.
+Releases are published by `.github/workflows/release.yml` when a `v*` tag is
+pushed. That is the only path to PyPI. Full instructions, including the dry run,
+are in [docs/source/releasing.rst](docs/source/releasing.rst).
 
-### PyPI Release Process
-
-Use the release script for streamlined releases:
+The version lives in `src/eegprep/__init__.py` (`__version__`); `pyproject.toml`
+reads it via `dynamic = ["version"]`, so there is nothing to edit there.
 
 ```bash
-uv run --group release python scripts/make_release.py
+# dry run first: everything except publishing
+gh workflow run release.yml --ref master -f dry_run=true
+
+# bump __version__, land it on master, then tag to release
+git commit -am "release: 0.3.0"
+git push origin develop:master
+git tag -a v0.3.0 -m "Release version 0.3.0" && git push origin v0.3.0
 ```
 
-The script will:
+The workflow lints, type-checks, runs the test suite, builds, verifies the
+artifacts, publishes to PyPI with Trusted Publishing (no stored token), and
+creates the GitHub release.
 
-1. Check prerequisites: build, twine, and git status.
-2. Confirm the version from `pyproject.toml`.
-3. Let you choose a test release, production release, or both.
-4. Build and upload the package. TestPyPI builds automatically use the
-   `eegprep_test` name.
-5. Create and push git tags for production releases.
-
-Install release tools with:
+CI does not build Docker images. After the tag is published:
 
 ```bash
-uv sync --group release
+docker login
+uv run python scripts/build_docker.py
 ```
 
-Get API tokens for PyPI and TestPyPI. Twine can prompt for them during upload,
-or you can store them in `~/.pypirc`.
+That builds and pushes `arnodelorme/eegprep:<version>` and updates the image pin
+in `tools/hpc/main.pbs`; commit the pin.
 
-Manual release remains possible, but `scripts/make_release.py` is preferred to
-avoid package-name mistakes. A former maintainer owns the `eegprep` name on
-TestPyPI, so manual TestPyPI builds must temporarily change `name = "eegprep"`
-to `name = "eegprep_test"` in `pyproject.toml`, then change it back after
-uploading.
+Verify the published release:
 
 ```bash
-uv run --group release python -m build
-uv run --group release python -m twine upload --repository testpypi dist/*
-uv pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ eegprep_test==X.Y.Z
-```
-
-Production release:
-
-```bash
-uv run --group release python -m twine upload dist/*
-git tag -a vX.Y.Z -m "Release version X.Y.Z"
-git push origin vX.Y.Z
 uv pip install eegprep==X.Y.Z
 ```
 
