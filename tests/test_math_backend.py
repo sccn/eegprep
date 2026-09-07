@@ -6,8 +6,10 @@ from eegprep.utils import math_backend
 
 
 def test_math_backend_info_reports_real_build_and_runtime_state(monkeypatch):
+    # Isolate from the runner's own thread settings so only the value set here is reported.
+    for name in math_backend._THREAD_ENVIRONMENT_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("OMP_NUM_THREADS", "3")
-    monkeypatch.delenv("MKL_NUM_THREADS", raising=False)
 
     info = math_backend.get_math_backend_info()
 

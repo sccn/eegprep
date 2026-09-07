@@ -18,6 +18,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import (  # noqa: E402
     EEGPrepSession,
     eeg_retrieve,
@@ -30,7 +31,7 @@ from eegprep import (  # noqa: E402
     pop_saveset,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 TUTORIAL_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
 
 EEG = pop_loadset(str(TUTORIAL_SET))

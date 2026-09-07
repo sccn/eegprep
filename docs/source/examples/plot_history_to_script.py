@@ -29,6 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
+import eegprep
 from eegprep import (
     EEGPrepSession,
     eegh,
@@ -41,7 +42,7 @@ from eegprep import (
     pop_saveh,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 SAMPLE = REPO_ROOT / "sample_data" / "eeglab_data.set"
 
 _MASKS: list[tuple[str, str]] = [(str(REPO_ROOT), "<repo>")]
@@ -52,6 +53,7 @@ def mask(text: str) -> str:
     for actual, label in _MASKS:
         text = text.replace(actual, label)
     return text
+
 
 # %%
 # Interactive-style pass, recording history
