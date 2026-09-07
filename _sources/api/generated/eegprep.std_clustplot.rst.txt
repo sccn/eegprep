@@ -1,0 +1,6 @@
+﻿std\_clustplot
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_clustplot

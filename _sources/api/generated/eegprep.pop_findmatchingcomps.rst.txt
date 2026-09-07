@@ -1,0 +1,6 @@
+﻿pop\_findmatchingcomps
+======================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_findmatchingcomps

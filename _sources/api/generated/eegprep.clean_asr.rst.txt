@@ -1,5 +1,5 @@
-﻿eegprep.clean\_asr
-==================
+﻿clean\_asr
+==========
 
 .. currentmodule:: eegprep
 

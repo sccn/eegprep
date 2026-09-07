@@ -1,0 +1,6 @@
+﻿interp
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: interp

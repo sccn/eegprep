@@ -1,0 +1,6 @@
+﻿pop\_fusechanrej
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_fusechanrej

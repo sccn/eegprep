@@ -1,0 +1,6 @@
+﻿pop\_runscript
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_runscript

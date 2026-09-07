@@ -1,5 +1,5 @@
-﻿eegprep.plotfresp
-=================
+﻿plotfresp
+=========
 
 .. currentmodule:: eegprep
 

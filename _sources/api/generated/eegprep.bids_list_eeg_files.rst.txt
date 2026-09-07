@@ -1,5 +1,5 @@
-﻿eegprep.bids\_list\_eeg\_files
-==============================
+﻿bids\_list\_eeg\_files
+======================
 
 .. currentmodule:: eegprep
 

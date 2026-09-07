@@ -1,5 +1,5 @@
-﻿eegprep.extension\_version\_satisfies
-=====================================
+﻿extension\_version\_satisfies
+=============================
 
 .. currentmodule:: eegprep
 

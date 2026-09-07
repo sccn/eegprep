@@ -1,0 +1,6 @@
+﻿reref
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: reref

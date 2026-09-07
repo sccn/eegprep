@@ -1,5 +1,5 @@
-﻿eegprep.EXTENSION\_CURATION\_POLICY\_URL
-========================================
+﻿EXTENSION\_CURATION\_POLICY\_URL
+================================
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿snapread
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: snapread

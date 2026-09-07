@@ -1,5 +1,5 @@
-﻿eegprep.pop\_preclust
-=====================
+﻿pop\_preclust
+=============
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.clean\_windows
-======================
+﻿clean\_windows
+==============
 
 .. currentmodule:: eegprep
 

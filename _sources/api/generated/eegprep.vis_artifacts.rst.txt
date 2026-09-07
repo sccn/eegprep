@@ -1,5 +1,5 @@
-﻿eegprep.vis\_artifacts
-======================
+﻿vis\_artifacts
+==============
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.assert\_extension\_entry\_point\_loads
-==============================================
+﻿assert\_extension\_entry\_point\_loads
+======================================
 
 .. currentmodule:: eegprep
 

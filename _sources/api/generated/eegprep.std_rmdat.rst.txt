@@ -1,5 +1,5 @@
-﻿eegprep.std\_rmdat
-==================
+﻿std\_rmdat
+==========
 
 .. currentmodule:: eegprep
 

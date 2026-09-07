@@ -1,0 +1,6 @@
+﻿pop\_headplot
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_headplot

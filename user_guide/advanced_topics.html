@@ -63,7 +63,7 @@
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Examples" href="../examples/index.html" />
+    <link rel="next" title="Examples" href="../auto_examples/index.html" />
     <link rel="prev" title="Visual Parity Testing" href="visual_parity.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -736,6 +736,26 @@ dictionary behavior:</p>
 <code class="docutils literal notranslate"><span class="pre">tests/test_console_workspace.py</span></code> so <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>,
 <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>, <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>, and <code class="docutils literal notranslate"><span class="pre">CURRENTSTUDY</span></code> stay synchronized.</p>
 </section>
+<section id="math-backends">
+<h2>Math Backends<a class="headerlink" href="#math-backends" title="Link to this heading">#</a></h2>
+<p>Floating-point results from iterative algorithms such as ICA and ASR can vary
+across numerical-library and threading configurations. Inspect the current
+process with either output format:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">eegprep software-info</span>
+<span class="go">eegprep software-info --json</span>
+</pre></div>
+</div>
+<p>The report distinguishes the BLAS and LAPACK libraries used to build NumPy
+from libraries currently visible to <code class="docutils literal notranslate"><span class="pre">threadpoolctl</span></code>. This distinction matters
+on platforms such as macOS, where Apple Accelerate can appear in NumPy’s build
+configuration without appearing in the loaded-library list. Effective thread
+counts and explicitly configured thread environment variables are reported when
+available.</p>
+<p>CLI manifests store the same facts under <code class="docutils literal notranslate"><span class="pre">software.math_backend_info</span></code>. This
+metadata helps compare environments; it does not predict or guarantee a
+particular numerical tolerance. Backend inspection is best-effort, and any
+collection error is recorded without interrupting the processing command.</p>
+</section>
 </section>
 
 
@@ -758,7 +778,7 @@ dictionary behavior:</p>
       </div>
     </a>
     <a class="right-next"
-       href="../examples/index.html"
+       href="../auto_examples/index.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
@@ -794,6 +814,7 @@ dictionary behavior:</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-and-storage">Memory and Storage</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#extending-eegprep">Extending EEGPrep</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#testing-custom-workflows">Testing Custom Workflows</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#math-backends">Math Backends</a></li>
 </ul>
   </nav></div>
 

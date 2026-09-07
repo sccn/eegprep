@@ -1,0 +1,6 @@
+﻿kaiserbeta
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: kaiserbeta

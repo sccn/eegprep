@@ -1,0 +1,6 @@
+﻿pop\_rejepoch
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rejepoch

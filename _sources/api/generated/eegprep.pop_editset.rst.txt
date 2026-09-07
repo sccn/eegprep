@@ -1,0 +1,6 @@
+﻿pop\_editset
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_editset

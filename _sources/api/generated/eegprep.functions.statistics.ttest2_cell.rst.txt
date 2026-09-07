@@ -1,0 +1,6 @@
+﻿ttest2\_cell
+============
+
+.. currentmodule:: eegprep.functions.statistics
+
+.. autofunction:: ttest2_cell

@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_autocorr\_fftw
-===========================
+﻿eeg\_autocorr\_fftw
+===================
 
 .. currentmodule:: eegprep
 

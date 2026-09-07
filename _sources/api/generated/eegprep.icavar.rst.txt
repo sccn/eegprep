@@ -1,0 +1,6 @@
+﻿icavar
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: icavar

@@ -1,5 +1,5 @@
-eegprep.pop\_adjustevents
-=========================
+﻿pop\_adjustevents
+=================
 
 .. currentmodule:: eegprep
 

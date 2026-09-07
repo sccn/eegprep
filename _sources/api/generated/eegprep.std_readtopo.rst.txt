@@ -1,5 +1,5 @@
-﻿eegprep.std\_readtopo
-=====================
+﻿std\_readtopo
+=============
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.std\_checkfiles
-=======================
+﻿std\_checkfiles
+===============
 
 .. currentmodule:: eegprep
 

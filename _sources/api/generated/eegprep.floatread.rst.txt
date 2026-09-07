@@ -1,0 +1,6 @@
+﻿floatread
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: floatread

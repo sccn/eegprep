@@ -1,5 +1,5 @@
-﻿eegprep.rsfit
-=============
+﻿rsfit
+=====
 
 .. currentmodule:: eegprep
 

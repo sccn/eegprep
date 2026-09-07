@@ -1,5 +1,5 @@
-﻿eegprep.pop\_dipfit\_nonlinear
-==============================
+﻿pop\_dipfit\_nonlinear
+======================
 
 .. currentmodule:: eegprep
 

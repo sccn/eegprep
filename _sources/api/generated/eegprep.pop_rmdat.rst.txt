@@ -1,0 +1,6 @@
+﻿pop\_rmdat
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rmdat

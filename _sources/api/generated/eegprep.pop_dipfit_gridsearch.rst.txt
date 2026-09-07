@@ -1,5 +1,5 @@
-﻿eegprep.pop\_dipfit\_gridsearch
-===============================
+﻿pop\_dipfit\_gridsearch
+=======================
 
 .. currentmodule:: eegprep
 

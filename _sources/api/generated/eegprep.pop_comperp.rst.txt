@@ -1,0 +1,6 @@
+﻿pop\_comperp
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_comperp

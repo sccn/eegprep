@@ -1,0 +1,6 @@
+﻿pop\_topochansel
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_topochansel

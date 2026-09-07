@@ -1,0 +1,6 @@
+﻿firgauss
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: firgauss

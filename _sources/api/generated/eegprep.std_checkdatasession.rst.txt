@@ -1,5 +1,5 @@
-﻿eegprep.std\_checkdatasession
-=============================
+﻿std\_checkdatasession
+=====================
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.pop\_prop\_extended
-===========================
+﻿pop\_prop\_extended
+===================
 
 .. currentmodule:: eegprep
 

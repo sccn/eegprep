@@ -1,5 +1,5 @@
-﻿eegprep.std\_dipoleclusters
-===========================
+﻿std\_dipoleclusters
+===================
 
 .. currentmodule:: eegprep
 

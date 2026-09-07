@@ -1,0 +1,6 @@
+﻿eeg2mne
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg2mne

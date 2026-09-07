@@ -1,0 +1,6 @@
+﻿pop\_importdata
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_importdata

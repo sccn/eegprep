@@ -1,0 +1,6 @@
+﻿minphaserceps
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: minphaserceps

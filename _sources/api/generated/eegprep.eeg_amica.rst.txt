@@ -1,5 +1,5 @@
-eegprep.eeg_amica
-=================
+﻿eeg\_amica
+==========
 
 .. currentmodule:: eegprep
 

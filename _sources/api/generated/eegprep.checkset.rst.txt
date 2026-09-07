@@ -1,0 +1,6 @@
+﻿checkset
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: checkset

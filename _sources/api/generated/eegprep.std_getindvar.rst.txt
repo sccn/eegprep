@@ -1,5 +1,5 @@
-﻿eegprep.std\_getindvar
-======================
+﻿std\_getindvar
+==============
 
 .. currentmodule:: eegprep
 

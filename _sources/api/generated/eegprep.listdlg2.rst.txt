@@ -1,5 +1,5 @@
-﻿eegprep.listdlg2
-================
+﻿listdlg2
+========
 
 .. currentmodule:: eegprep
 

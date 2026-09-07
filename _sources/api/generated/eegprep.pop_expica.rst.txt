@@ -1,0 +1,6 @@
+﻿pop\_expica
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_expica

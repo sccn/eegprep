@@ -1,0 +1,6 @@
+﻿readelp
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readelp

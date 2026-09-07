@@ -1,0 +1,6 @@
+﻿invkaiserbeta
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: invkaiserbeta

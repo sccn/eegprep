@@ -1,0 +1,6 @@
+﻿std\_editset
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_editset

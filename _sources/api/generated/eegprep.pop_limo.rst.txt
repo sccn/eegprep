@@ -1,0 +1,6 @@
+﻿pop\_limo
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_limo

@@ -1,0 +1,6 @@
+﻿pop\_erpimage
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_erpimage

@@ -1,0 +1,6 @@
+﻿pop\_chanevent
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_chanevent

@@ -1,0 +1,6 @@
+﻿clean\_rawdata\_vis\_artifacts\_diagnostics
+===========================================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: clean_rawdata_vis_artifacts_diagnostics

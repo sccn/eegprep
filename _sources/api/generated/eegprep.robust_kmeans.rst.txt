@@ -1,5 +1,5 @@
-﻿eegprep.robust\_kmeans
-======================
+﻿robust\_kmeans
+==============
 
 .. currentmodule:: eegprep
 

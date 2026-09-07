@@ -1,5 +1,5 @@
-﻿eegprep.pac\_cont
-=================
+﻿pac\_cont
+=========
 
 .. currentmodule:: eegprep
 

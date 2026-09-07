@@ -1,5 +1,5 @@
-﻿eegprep.std\_pacplot
-====================
+﻿std\_pacplot
+============
 
 .. currentmodule:: eegprep
 

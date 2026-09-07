@@ -1,0 +1,6 @@
+﻿select
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: select

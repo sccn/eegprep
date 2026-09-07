@@ -1,0 +1,6 @@
+﻿fdr
+===
+
+.. currentmodule:: eegprep.functions.statistics
+
+.. autofunction:: fdr

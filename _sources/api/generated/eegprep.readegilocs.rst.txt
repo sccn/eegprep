@@ -1,0 +1,6 @@
+﻿readegilocs
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readegilocs

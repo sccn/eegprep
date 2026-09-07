@@ -1,0 +1,6 @@
+﻿pop\_chancoresp
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_chancoresp

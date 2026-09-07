@@ -1,5 +1,5 @@
-﻿eegprep.clean\_channels\_nolocs
-===============================
+﻿clean\_channels\_nolocs
+=======================
 
 .. currentmodule:: eegprep
 

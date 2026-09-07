@@ -1,5 +1,5 @@
-﻿eegprep.vis\_artifacts\_diagnostics
-===================================
+﻿vis\_artifacts\_diagnostics
+===========================
 
 .. currentmodule:: eegprep
 

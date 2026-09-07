@@ -1,5 +1,5 @@
-﻿eegprep.std\_erspplot
-=====================
+﻿std\_erspplot
+=============
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿picard
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: picard

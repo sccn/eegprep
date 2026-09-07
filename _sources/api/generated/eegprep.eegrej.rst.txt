@@ -1,5 +1,5 @@
-﻿eegprep.eegrej
-==============
+﻿eegrej
+======
 
 .. currentmodule:: eegprep
 

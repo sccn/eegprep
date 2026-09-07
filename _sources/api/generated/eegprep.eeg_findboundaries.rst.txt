@@ -1,0 +1,6 @@
+﻿eeg\_findboundaries
+===================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_findboundaries

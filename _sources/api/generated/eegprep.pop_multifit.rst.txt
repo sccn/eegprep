@@ -1,5 +1,5 @@
-﻿eegprep.pop\_multifit
-=====================
+﻿pop\_multifit
+=============
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿anova1\_cell
+============
+
+.. currentmodule:: eegprep.functions.statistics
+
+.. autofunction:: anova1_cell

@@ -1,5 +1,5 @@
-﻿eegprep.pop\_icflag
-===================
+﻿pop\_icflag
+===========
 
 .. currentmodule:: eegprep
 

@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -578,6 +578,30 @@ wraps <code class="docutils literal notranslate"><span class="pre">pop_*</span><
 <p>This console behavior is specific to <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.</p>
 </section>
+<section id="in-place-workspace-edits">
+<h2>In-place Workspace Edits<a class="headerlink" href="#in-place-workspace-edits" title="Link to this heading">#</a></h2>
+<p>The console also synchronizes known in-place method calls rooted directly in
+<code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, or <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>. The recognized method names
+are <code class="docutils literal notranslate"><span class="pre">append</span></code>, <code class="docutils literal notranslate"><span class="pre">extend</span></code>, <code class="docutils literal notranslate"><span class="pre">insert</span></code>, <code class="docutils literal notranslate"><span class="pre">update</span></code>, <code class="docutils literal notranslate"><span class="pre">pop</span></code>, <code class="docutils literal notranslate"><span class="pre">clear</span></code>,
+<code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">fill</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code>, and <code class="docutils literal notranslate"><span class="pre">reverse</span></code>. Nested targets retain their
+workspace root, so these edits refresh the shared session:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;setname&quot;</span><span class="p">:</span> <span class="s2">&quot;cleaned&quot;</span><span class="p">})</span>
+<span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">ALLEEG</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_eeg</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When an edit removes or reorders datasets in <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, the current dataset
+stays current and <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code> follows it to its new index. If the current
+dataset itself was removed, the nearest remaining dataset is selected.</p>
+<p>Detection is intentionally syntax-based. It does not follow aliases or infer
+mutations performed by free functions. Assign the result back to a workspace
+root when using either pattern:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span>
+<span class="n">data</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+</pre></div>
+</div>
+</section>
 <section id="history-replay">
 <h2>History Replay<a class="headerlink" href="#history-replay" title="Link to this heading">#</a></h2>
 <p>Use <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> for the most recent menu or console command and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> for
@@ -670,6 +694,7 @@ package installation for you.</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sample-data-walkthrough">Sample Data Walkthrough</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#in-place-workspace-edits">In-place Workspace Edits</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-replay">History Replay</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#gui-help-study-and-extensions">GUI Help, STUDY, and Extensions</a></li>
 </ul>

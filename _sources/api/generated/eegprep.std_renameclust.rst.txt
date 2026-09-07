@@ -1,0 +1,6 @@
+﻿std\_renameclust
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_renameclust

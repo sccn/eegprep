@@ -1,5 +1,5 @@
-﻿eegprep.pop\_addindepvar
-========================
+﻿pop\_addindepvar
+================
 
 .. currentmodule:: eegprep
 

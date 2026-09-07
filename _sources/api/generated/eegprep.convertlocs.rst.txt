@@ -1,0 +1,6 @@
+﻿convertlocs
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: convertlocs

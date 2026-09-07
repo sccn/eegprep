@@ -1,5 +1,5 @@
-﻿eegprep.std\_checkconsist
-=========================
+﻿std\_checkconsist
+=================
 
 .. currentmodule:: eegprep
 

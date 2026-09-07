@@ -1,5 +1,5 @@
-﻿eegprep.signalstat
-==================
+﻿signalstat
+==========
 
 .. currentmodule:: eegprep
 

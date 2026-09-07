@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_retrieve
-=====================
+﻿eeg\_retrieve
+=============
 
 .. currentmodule:: eegprep
 

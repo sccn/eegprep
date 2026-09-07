@@ -1,0 +1,6 @@
+﻿pop\_icathresh
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_icathresh

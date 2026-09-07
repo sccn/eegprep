@@ -1,5 +1,5 @@
-﻿eegprep.pop\_leadfield
-======================
+﻿pop\_leadfield
+==============
 
 .. currentmodule:: eegprep
 

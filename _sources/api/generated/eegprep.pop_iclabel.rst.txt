@@ -1,5 +1,5 @@
-﻿eegprep.pop\_iclabel
-====================
+﻿pop\_iclabel
+============
 
 .. currentmodule:: eegprep
 

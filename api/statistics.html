@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Statistics Functions &#8212; EEGPrep manual</title>
+    <title>Statistics &#8212; EEGPrep manual</title>
   
   
   
@@ -63,8 +63,8 @@
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Input/Output Functions" href="io.html" />
-    <link rel="prev" title="Signal Processing Functions" href="signal_processing.html" />
+    <link rel="next" title="statcond" href="generated/eegprep.functions.statistics.statcond.html" />
+    <link rel="prev" title="vis_artifacts_diagnostics" href="generated/eegprep.vis_artifacts_diagnostics.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -422,13 +422,35 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="core.html">Core Functions and Classes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="preprocessing.html">Preprocessing Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ica.html">Independent Component Analysis</a></li>
-<li class="toctree-l1"><a class="reference internal" href="signal_processing.html">Signal Processing Functions</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Statistics Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="io.html">Input/Output Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pop_functions.html">Interactive Pop Workflow API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core_and_session.html">Core and Session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_and_console.html">GUI and Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loading_and_saving.html">Data Loading and Saving</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids.html">BIDS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_and_artifacts.html">Preprocessing and Artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epoching_and_selection.html">Epoching and Selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_and_components.html">ICA and Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Statistics</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.statcond.html">statcond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.ttest_cell.html">ttest_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.ttest2_cell.html">ttest2_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.anova1_cell.html">anova1_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.anova1rm_cell.html">anova1rm_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.anova2_cell.html">anova2_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.anova2rm_cell.html">anova2rm_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.fdr.html">fdr</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.stat_surrogate_pvals.html">stat_surrogate_pvals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.stat_surrogate_ci.html">stat_surrogate_ci</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.surrogdistrib.html">surrogdistrib</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.concatdata.html">concatdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.corrcoef_cell.html">corrcoef_cell</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.teststat.html">teststat</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="extensions.html">Extension SDK and Registry</a></li>
 
 
@@ -437,267 +459,6 @@
 
 
 
-<li class="toctree-l1"><a class="reference internal" href="utils.html">Utility Functions</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGobj.html">eegprep.EEGobj</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGPrepSession.html">eegprep.EEGPrepSession</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.gui.html">eegprep.gui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeglab.html">eegprep.eeglab</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEGPrepConsoleWorkspace.html">eegprep.EEGPrepConsoleWorkspace</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ConsolePopResult.html">eegprep.ConsolePopResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ConsoleDatasetResult.html">eegprep.ConsoleDatasetResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.inputgui.html">eegprep.inputgui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.listdlg2.html">eegprep.listdlg2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pophelp.html">eegprep.pophelp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.DialogSpec.html">eegprep.DialogSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ControlSpec.html">eegprep.ControlSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CallbackSpec.html">eegprep.CallbackSpec</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_emptyset.html">eegprep.eeg_emptyset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_store.html">eegprep.eeg_store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_retrieve.html">eegprep.eeg_retrieve</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newset.html">eegprep.pop_newset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_delset.html">eegprep.pop_delset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_editoptions.html">eegprep.pop_editoptions</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html">eegprep.select_multiple_datasets</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset.html">eegprep.pop_loadset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.loadset.html">eegprep.loadset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html">eegprep.pop_loadset_h5</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_saveset.html">eegprep.pop_saveset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_artifacts.html">eegprep.clean_artifacts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_asr.html">eegprep.clean_asr</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_flatlines.html">eegprep.clean_flatlines</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_drifts.html">eegprep.clean_drifts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_windows.html">eegprep.clean_windows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.vis_artifacts.html">eegprep.vis_artifacts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.vis_artifacts_diagnostics.html">eegprep.vis_artifacts_diagnostics</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels.html">eegprep.clean_channels</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.clean_channels_nolocs.html">eegprep.clean_channels_nolocs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eegprep.eeg_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_interp.html">eegprep.pop_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_reref.html">eegprep.pop_reref</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_resample.html">eegprep.pop_resample</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html">eegprep.pop_eegfiltnew</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firws.html">eegprep.pop_firws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firpm.html">eegprep.pop_firpm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firma.html">eegprep.pop_firma</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_kaiserbeta.html">eegprep.pop_kaiserbeta</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firwsord.html">eegprep.pop_firwsord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_firpmord.html">eegprep.pop_firpmord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_xfirws.html">eegprep.pop_xfirws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firfiltreport.html">eegprep.firfiltreport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plotfresp.html">eegprep.plotfresp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_amica.html">eegprep.eeg_amica</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_picard.html">eegprep.eeg_picard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_runica.html">eegprep.eeg_runica</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.iclabel.html">eegprep.iclabel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html">eegprep.ICL_feature_extractor</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_rpsd.html">eegprep.eeg_rpsd</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eegprep.eeg_autocorr</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html">eegprep.eeg_autocorr_welch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html">eegprep.eeg_autocorr_fftw</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimef.html">eegprep.newtimef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newcrossf.html">eegprep.newcrossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timefreq.html">eegprep.timefreq</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timef.html">eegprep.timef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.crossf.html">eegprep.crossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pac.html">eegprep.pac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pac_cont.html">eegprep.pac_cont</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.timewarp.html">eegprep.timewarp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.angtimewarp.html">eegprep.angtimewarp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html">eegprep.tf_cycle_calc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefbaseln.html">eegprep.newtimefbaseln</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html">eegprep.newtimeftrialbaseln</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefitc.html">eegprep.newtimefitc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html">eegprep.newtimefpowerunit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bootstat.html">eegprep.bootstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.correct_mc.html">eegprep.correct_mc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.correctfit.html">eegprep.correctfit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsadjust.html">eegprep.rsadjust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsfit.html">eegprep.rsfit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rsget.html">eegprep.rsget</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rspdfsolv.html">eegprep.rspdfsolv</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.rspfunc.html">eegprep.rspfunc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.signalstat.html">eegprep.signalstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newtimef.html">eegprep.pop_newtimef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_newcrossf.html">eegprep.pop_newcrossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_timef.html">eegprep.pop_timef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_crossf.html">eegprep.pop_crossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_signalstat.html">eegprep.pop_signalstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_eventstat.html">eegprep.pop_eventstat</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_adjustevents.html">eegprep.pop_adjustevents</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_epoch.html">eegprep.pop_epoch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_select.html">eegprep.pop_select</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eegprep.eeg_eegrej</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegrej.html">eegprep.eegrej</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.cart2topo.html">eegprep.cart2topo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eegplot.html">eegprep.eegplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_multieegplot.html">eegprep.eeg_multieegplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_topoplot.html">eegprep.pop_topoplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.topoplot.html">eegprep.topoplot</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg.html">eegprep.eeg_mne2eeg</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg_epochs.html">eegprep.eeg_mne2eeg_epochs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_eeg2mne.html">eegprep.eeg_eeg2mne</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_checkset.html">eegprep.eeg_checkset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_compare.html">eegprep.eeg_compare</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_decodechan.html">eegprep.eeg_decodechan</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eegprep.eeg_lat2point</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eegprep.eeg_point2lat</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_importbids.html">eegprep.pop_importbids</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_exportbids.html">eegprep.pop_exportbids</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.bundled_plugins.html">eegprep.bundled_plugins</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plugin_status.html">eegprep.plugin_status</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.plugin_menu.html">eegprep.plugin_menu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.format_plugin_menu.html">eegprep.format_plugin_menu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clean_rawdata.html">eegprep.pop_clean_rawdata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.eeg_icalabelstat.html">eegprep.eeg_icalabelstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_iclabel.html">eegprep.pop_iclabel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_icflag.html">eegprep.pop_icflag</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_prop_extended.html">eegprep.pop_prop_extended</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_viewprops.html">eegprep.pop_viewprops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firws.html">eegprep.firws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.firwsord.html">eegprep.firwsord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_settings.html">eegprep.pop_dipfit_settings</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipplot.html">eegprep.pop_dipplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_headmodel.html">eegprep.pop_dipfit_headmodel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_gridsearch.html">eegprep.pop_dipfit_gridsearch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_nonlinear.html">eegprep.pop_dipfit_nonlinear</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_multifit.html">eegprep.pop_multifit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_leadfield.html">eegprep.pop_leadfield</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_dipfit_loreta.html">eegprep.pop_dipfit_loreta</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CATALOG_SCHEMA_VERSION.html">eegprep.CATALOG_SCHEMA_VERSION</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationIssue.html">eegprep.CatalogValidationIssue</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationOptions.html">eegprep.CatalogValidationOptions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogValidationReport.html">eegprep.CatalogValidationReport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_COMPATIBILITY_POLICY.html">eegprep.EXTENSION_COMPATIBILITY_POLICY</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_CURATION_POLICY_URL.html">eegprep.EXTENSION_CURATION_POLICY_URL</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_NAMING_PREFIX.html">eegprep.EXTENSION_NAMING_PREFIX</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EXTENSION_TRUST_MESSAGE.html">eegprep.EXTENSION_TRUST_MESSAGE</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionSpec.html">eegprep.ExtensionSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionRegistry.html">eegprep.ExtensionRegistry</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionRecord.html">eegprep.ExtensionRecord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionStatus.html">eegprep.ExtensionStatus</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionSourceType.html">eegprep.ExtensionSourceType</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionCatalog.html">eegprep.ExtensionCatalog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionCatalogEntry.html">eegprep.ExtensionCatalogEntry</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.CatalogSourceType.html">eegprep.CatalogSourceType</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionAction.html">eegprep.ExtensionAction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionPopFunction.html">eegprep.ExtensionPopFunction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionMenu.html">eegprep.ExtensionMenu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionDependency.html">eegprep.ExtensionDependency</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionResource.html">eegprep.ExtensionResource</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionLoadError.html">eegprep.ExtensionLoadError</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionValidationResult.html">eegprep.ExtensionValidationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.ExtensionTestHarness.html">eegprep.ExtensionTestHarness</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.LazyImport.html">eegprep.LazyImport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.assert_extension_entry_point_loads.html">eegprep.assert_extension_entry_point_loads</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.check_extension_compatibility.html">eegprep.check_extension_compatibility</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.discover_extensions.html">eegprep.discover_extensions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.extension_version_satisfies.html">eegprep.extension_version_satisfies</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.load_catalog_entries.html">eegprep.load_catalog_entries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_catalog_entries.html">eegprep.validate_catalog_entries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_catalog_file.html">eegprep.validate_catalog_file</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.validate_extension_spec.html">eegprep.validate_extension_spec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.load_extension_catalog.html">eegprep.load_extension_catalog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.build_safe_install_commands.html">eegprep.build_safe_install_commands</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.build_safe_update_commands.html">eegprep.build_safe_update_commands</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_study.html">eegprep.pop_study</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_studywizard.html">eegprep.pop_studywizard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_studyerp.html">eegprep.pop_studyerp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_loadstudy.html">eegprep.pop_loadstudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_savestudy.html">eegprep.pop_savestudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_addindepvar.html">eegprep.pop_addindepvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_importgroupvar.html">eegprep.pop_importgroupvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_listfactors.html">eegprep.pop_listfactors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_precomp.html">eegprep.pop_precomp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_chanplot.html">eegprep.pop_chanplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_preclust.html">eegprep.pop_preclust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clust.html">eegprep.pop_clust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.pop_clustedit.html">eegprep.pop_clustedit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_addvarlevel.html">eegprep.std_addvarlevel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_builddesignmat.html">eegprep.std_builddesignmat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_limodesign.html">eegprep.std_limodesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkconsist.html">eegprep.std_checkconsist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkdesign.html">eegprep.std_checkdesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_combtrialinfo.html">eegprep.std_combtrialinfo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_findsameica.html">eegprep.std_findsameica</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_getindvar.html">eegprep.std_getindvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_gettrialsind.html">eegprep.std_gettrialsind</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_indvarmatch.html">eegprep.std_indvarmatch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_maketrialinfo.html">eegprep.std_maketrialinfo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rmdat.html">eegprep.std_rmdat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rmalldatafields.html">eegprep.std_rmalldatafields</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_rebuilddesign.html">eegprep.std_rebuilddesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_saveindvar.html">eegprep.std_saveindvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_selectdataset.html">eegprep.std_selectdataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_selsubject.html">eegprep.std_selsubject</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_substudy.html">eegprep.std_substudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readdata.html">eegprep.std_readdata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readerp.html">eegprep.std_readerp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readspec.html">eegprep.std_readspec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readersp.html">eegprep.std_readersp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readitc.html">eegprep.std_readitc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readtopo.html">eegprep.std_readtopo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_readpac.html">eegprep.std_readpac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_pac.html">eegprep.std_pac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_pacplot.html">eegprep.std_pacplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_prepare_neighbors.html">eegprep.std_prepare_neighbors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_interp.html">eegprep.std_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_dipplot.html">eegprep.std_dipplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_dipoleclusters.html">eegprep.std_dipoleclusters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkfiles.html">eegprep.std_checkfiles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_checkdatasession.html">eegprep.std_checkdatasession</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_uniformfiles.html">eegprep.std_uniformfiles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_uniformsetinds.html">eegprep.std_uniformsetinds</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_erpplot.html">eegprep.std_erpplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_specplot.html">eegprep.std_specplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_erspplot.html">eegprep.std_erspplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_itcplot.html">eegprep.std_itcplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.optimal_kmeans.html">eegprep.optimal_kmeans</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.robust_kmeans.html">eegprep.robust_kmeans</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_apcluster.html">eegprep.std_apcluster</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_centroid.html">eegprep.std_centroid</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.std_findoutlierclust.html">eegprep.std_findoutlierclust</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">eegprep.EEG_OPTIONS</a></li>
 </ul>
 </div>
 </nav></div>
@@ -732,9 +493,9 @@
       </a>
     </li>
     
-    <li class="breadcrumb-item"><a href="index.html" class="nav-link">API Reference</a></li>
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">Functions</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Statistics Functions</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Statistics</span></li>
   </ul>
 </nav>
 </div>
@@ -751,290 +512,77 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="statistics-functions">
-<span id="api-statistics"></span><h1>Statistics Functions<a class="headerlink" href="#statistics-functions" title="Link to this heading">#</a></h1>
+  <section id="statistics">
+<span id="api-statistics"></span><h1>Statistics<a class="headerlink" href="#statistics" title="Link to this heading">#</a></h1>
 <p>EEGPrep statistics helpers mirror the useful parts of EEGLAB’s
 <code class="docutils literal notranslate"><span class="pre">functions/statistics</span></code> package while using explicit NumPy contracts. Unless
 noted otherwise, condition arrays use their final axis for cases, subjects, or
 surrogate replications.</p>
 <section id="condition-tests">
 <h2>Condition Tests<a class="headerlink" href="#condition-tests" title="Link to this heading">#</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">statcond</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">paired</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'param'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">naccu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'homogenous'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceanova</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'both'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surrog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_resampling_array</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compare condition arrays using EEGLAB-style t-tests or ANOVAs.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – One- or two-dimensional sequence of condition arrays. The case
-dimension is the last axis by default.</p></li>
-<li><p><strong>paired</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;on&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">True</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;off&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;param&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;perm&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;bootstrap&quot;</span></code>.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Legacy alias for <code class="docutils literal notranslate"><span class="pre">method</span></code>.</p></li>
-<li><p><strong>naccu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of surrogate samples for nonparametric methods.</p></li>
-<li><p><strong>variance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;homogenous&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;inhomogenous&quot;</span></code> for unpaired t-tests.</p></li>
-<li><p><strong>forceanova</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Use one-way ANOVA instead of a two-condition t-test.</p></li>
-<li><p><strong>tail</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Empirical-tail mode for supplied or computed surrogates.</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Axis in each condition array that stores cases.</p></li>
-<li><p><strong>rng</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="(in NumPy v2.5)"><em>Generator</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Optional NumPy generator or seed for deterministic resampling.</p></li>
-<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>) – Optional threshold for confidence intervals and masks; requires
-a nonparametric method or supplied surrogate statistics.</p></li>
-<li><p><strong>surrog</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Precomputed surrogate statistic array.</p></li>
-<li><p><strong>stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Observed statistic to pair with <code class="docutils literal notranslate"><span class="pre">surrog</span></code>.</p></li>
-<li><p><strong>return_resampling_array</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Return surrogate condition grids instead of
-computing statistics.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>StatcondResult</em> | <em>SurrogateDistribution</em></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">ttest_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute paired t-statistics across the case axis.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">ttest2_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'homogenous'</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute unpaired t-statistics across the case axis.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>variance</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a> | <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">anova1_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute one-way unpaired ANOVA F-statistics across condition arrays.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">anova1rm_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute one-way repeated-measures ANOVA F-statistics.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">anova2_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute balanced two-way unpaired ANOVA F-statistics.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>TwoWayAnovaResult</em></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">anova2rm_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute two-way repeated-measures ANOVA F-statistics.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>TwoWayAnovaResult</em></p>
-</dd>
-</dl>
-</dd></dl>
-
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.statcond.html#eegprep.functions.statistics.statcond" title="eegprep.functions.statistics.statcond"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.statcond</span></code></a>(data, *)</p></td>
+<td><p>Compare condition arrays using EEGLAB-style t-tests or ANOVAs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest_cell.html#eegprep.functions.statistics.ttest_cell" title="eegprep.functions.statistics.ttest_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest_cell</span></code></a>(a[, ...])</p></td>
+<td><p>Compute paired t-statistics across the case axis.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest2_cell.html#eegprep.functions.statistics.ttest2_cell" title="eegprep.functions.statistics.ttest2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest2_cell</span></code></a>(a)</p></td>
+<td><p>Compute unpaired t-statistics across the case axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1_cell.html#eegprep.functions.statistics.anova1_cell" title="eegprep.functions.statistics.anova1_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1_cell</span></code></a>(data, *)</p></td>
+<td><p>Compute one-way unpaired ANOVA F-statistics across condition arrays.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1rm_cell.html#eegprep.functions.statistics.anova1rm_cell" title="eegprep.functions.statistics.anova1rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1rm_cell</span></code></a>(data, *)</p></td>
+<td><p>Compute one-way repeated-measures ANOVA F-statistics.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2_cell.html#eegprep.functions.statistics.anova2_cell" title="eegprep.functions.statistics.anova2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2_cell</span></code></a>(data, *)</p></td>
+<td><p>Compute balanced two-way unpaired ANOVA F-statistics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2rm_cell.html#eegprep.functions.statistics.anova2rm_cell" title="eegprep.functions.statistics.anova2rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2rm_cell</span></code></a>(data, *)</p></td>
+<td><p>Compute two-way repeated-measures ANOVA F-statistics.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section id="multiple-comparisons-and-surrogates">
-<h2>Multiple Comparisons And Surrogates<a class="headerlink" href="#multiple-comparisons-and-surrogates" title="Link to this heading">#</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">fdr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pvals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fdr_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'parametric'</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute Benjamini-Hochberg or Benjamini-Yekutieli FDR thresholds.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pvals</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Numeric p-value array with values in the closed interval [0, 1].</p></li>
-<li><p><strong>q</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>) – Desired false discovery rate. If omitted, an EEGLAB-style array of
-corrected thresholds is returned.</p></li>
-<li><p><strong>fdr_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;parametric&quot;</span></code> for Benjamini-Hochberg or
-<code class="docutils literal notranslate"><span class="pre">&quot;nonparametric&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;nonParametric&quot;</span></code> for Benjamini-Yekutieli.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Threshold and boolean mask with the same shape as <code class="docutils literal notranslate"><span class="pre">pvals</span></code>.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><em>FDRResult</em></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">stat_surrogate_pvals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distribution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'both'</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute empirical p-values against a surrogate distribution.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>distribution</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Surrogate statistic array whose last axis stores
-surrogate replications.</p></li>
-<li><p><strong>observed</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Observed statistic array matching <code class="docutils literal notranslate"><span class="pre">distribution.shape[:-1]</span></code>.</p></li>
-<li><p><strong>tail</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;right&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;upper&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;one&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;left&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;lower&quot;</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">&quot;both&quot;</span></code>.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">stat_surrogate_ci</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">distribution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'both'</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute surrogate confidence intervals along the last axis.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>distribution</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Surrogate statistic array whose last axis stores
-surrogate replications.</p></li>
-<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Type-I error rate.</p></li>
-<li><p><strong>tail</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;upper&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;lower&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;one&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;both&quot;</span></code>.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">surrogdistrib</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'perm'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pairing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'on'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">naccu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Build bootstrap or permutation surrogate condition grids.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – One- or two-dimensional sequence of condition arrays.</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;perm&quot;</span></code>/<code class="docutils literal notranslate"><span class="pre">&quot;permutation&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;bootstrap&quot;</span></code>.</p></li>
-<li><p><strong>pairing</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;on&quot;</span></code> to preserve case identity across conditions or
-<code class="docutils literal notranslate"><span class="pre">&quot;off&quot;</span></code> to resample from the pooled case axis.</p></li>
-<li><p><strong>naccu</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of surrogate grids to generate.</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Axis in each condition array that stores cases.</p></li>
-<li><p><strong>rng</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="(in NumPy v2.5)"><em>Generator</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Optional NumPy generator or seed for deterministic resampling.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>SurrogateDistribution</em></p>
-</dd>
-</dl>
-</dd></dl>
-
+<h2>Multiple Comparisons and Surrogates<a class="headerlink" href="#multiple-comparisons-and-surrogates" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.fdr.html#eegprep.functions.statistics.fdr" title="eegprep.functions.statistics.fdr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.fdr</span></code></a>(pvals[, q, ...])</p></td>
+<td><p>Compute Benjamini-Hochberg or Benjamini-Yekutieli FDR thresholds.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.stat_surrogate_pvals.html#eegprep.functions.statistics.stat_surrogate_pvals" title="eegprep.functions.statistics.stat_surrogate_pvals"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.stat_surrogate_pvals</span></code></a>(...)</p></td>
+<td><p>Compute empirical p-values against a surrogate distribution.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.stat_surrogate_ci.html#eegprep.functions.statistics.stat_surrogate_ci" title="eegprep.functions.statistics.stat_surrogate_ci"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.stat_surrogate_ci</span></code></a>(...)</p></td>
+<td><p>Compute surrogate confidence intervals along the last axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.surrogdistrib.html#eegprep.functions.statistics.surrogdistrib" title="eegprep.functions.statistics.surrogdistrib"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.surrogdistrib</span></code></a>(data, *)</p></td>
+<td><p>Build bootstrap or permutation surrogate condition grids.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section id="data-helpers">
 <h2>Data Helpers<a class="headerlink" href="#data-helpers" title="Link to this heading">#</a></h2>
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">concatdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Concatenate condition arrays along their case axis.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – One- or two-dimensional sequence of condition arrays.</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Axis in each condition array that stores cases.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>ConcatenatedData</em></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">corrcoef_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Compute pairwise correlations along a case axis.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py">
-<span class="sig-prename descclassname"><span class="pre">eegprep.functions.statistics.</span></span><span class="sig-name descname"><span class="pre">teststat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span></dt>
-<dd><p>Run deterministic smoke checks for the EEGPrep statistics package.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
-</dd>
-</dl>
-</dd></dl>
-
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.concatdata.html#eegprep.functions.statistics.concatdata" title="eegprep.functions.statistics.concatdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.concatdata</span></code></a>(data, *)</p></td>
+<td><p>Concatenate condition arrays along their case axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.corrcoef_cell.html#eegprep.functions.statistics.corrcoef_cell" title="eegprep.functions.statistics.corrcoef_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.corrcoef_cell</span></code></a>(a)</p></td>
+<td><p>Compute pairwise correlations along a case axis.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.teststat.html#eegprep.functions.statistics.teststat" title="eegprep.functions.statistics.teststat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.teststat</span></code></a>([seed])</p></td>
+<td><p>Run deterministic smoke checks for the EEGPrep statistics package.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 </section>
 
@@ -1049,20 +597,20 @@ surrogate replications.</p></li>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="signal_processing.html"
+       href="generated/eegprep.vis_artifacts_diagnostics.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Signal Processing Functions</p>
+        <p class="prev-next-title">vis_artifacts_diagnostics</p>
       </div>
     </a>
     <a class="right-next"
-       href="io.html"
+       href="generated/eegprep.functions.statistics.statcond.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Input/Output Functions</p>
+        <p class="prev-next-title">statcond</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1086,7 +634,7 @@ surrogate replications.</p></li>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#condition-tests">Condition Tests</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiple-comparisons-and-surrogates">Multiple Comparisons And Surrogates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiple-comparisons-and-surrogates">Multiple Comparisons and Surrogates</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-helpers">Data Helpers</a></li>
 </ul>
   </nav></div>

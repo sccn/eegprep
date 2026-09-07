@@ -1,0 +1,6 @@
+﻿pop\_writeeeg
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_writeeeg

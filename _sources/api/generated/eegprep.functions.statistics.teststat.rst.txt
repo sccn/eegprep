@@ -1,0 +1,6 @@
+﻿teststat
+========
+
+.. currentmodule:: eegprep.functions.statistics
+
+.. autofunction:: teststat

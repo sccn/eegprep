@@ -1,5 +1,5 @@
-﻿eegprep.discover\_extensions
-============================
+﻿discover\_extensions
+====================
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.EXTENSION\_COMPATIBILITY\_POLICY
-========================================
+﻿EXTENSION\_COMPATIBILITY\_POLICY
+================================
 
 .. currentmodule:: eegprep
 

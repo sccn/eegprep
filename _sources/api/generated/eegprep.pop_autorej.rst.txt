@@ -1,0 +1,6 @@
+﻿pop\_autorej
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_autorej

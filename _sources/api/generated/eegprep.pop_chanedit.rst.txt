@@ -1,0 +1,6 @@
+﻿pop\_chanedit
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_chanedit

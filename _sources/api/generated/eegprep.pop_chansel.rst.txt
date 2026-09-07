@@ -1,0 +1,6 @@
+﻿pop\_chansel
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_chansel

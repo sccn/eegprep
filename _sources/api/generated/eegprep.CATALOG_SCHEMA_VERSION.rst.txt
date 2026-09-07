@@ -1,5 +1,5 @@
-﻿eegprep.CATALOG\_SCHEMA\_VERSION
-================================
+﻿CATALOG\_SCHEMA\_VERSION
+========================
 
 .. currentmodule:: eegprep
 

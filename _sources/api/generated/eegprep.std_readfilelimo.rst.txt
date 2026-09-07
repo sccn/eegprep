@@ -1,0 +1,6 @@
+﻿std\_readfilelimo
+=================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_readfilelimo

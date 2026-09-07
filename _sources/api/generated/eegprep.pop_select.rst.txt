@@ -1,5 +1,5 @@
-﻿eegprep.pop\_select
-===================
+﻿pop\_select
+===========
 
 .. currentmodule:: eegprep
 

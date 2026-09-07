@@ -1,11 +1,348 @@
-.. _auto_examples:
+:orphan:
 
-================
-Example Gallery
-================
+.. _examples:
+
+========
+Examples
+========
+
+Runnable scripts covering common EEGPrep workflows. Each one executes during the
+documentation build, so the figure on every card is that example's real output.
+Select a card to see the code, the plots, and a download link.
+
+
+.. raw:: html
+
+  <div id='sg-tag-list' class='sphx-glr-tag-list'></div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbnails">
+
+.. thumbnail-parent-div-open
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example shows how to use EEGPrep&#x27;s public imports for the shared GUI/console session and bundled plugin inventory without opening a GUI window. The same session object is used by eegprep-console and the main window.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_public_api_and_plugins_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_public_api_and_plugins`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Public API, Plugins, and Console Session</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Epoch the continuous tutorial dataset around the square stimulus events, remove the pre-stimulus baseline, cut a shorter sub-epoch window, then select epochs by index and by event field.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_extract_epochs_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_extract_epochs`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Extract Data Epochs</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Mirrors the EEGLAB tutorial section &quot;Preprocess data&quot; on the checked-in tutorial dataset. The script runs headless: no dialog, no figure window.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_preprocess_data_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_preprocess_data`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Preprocess Data: Filtering, Re-referencing, Resampling</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example mirrors the four steps of the EEGLAB Quickstart guide on the checked-in tutorial dataset: load the sample dataset, read the summary that the main window shows, explore event values, read the dataset comments, and open the scrolling channel browser. Everything runs headless.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_quickstart_tour_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_quickstart_tour`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Quickstart Tour: Load, Inspect Events, Scroll</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Equivalent-dipole source localization of ICA components with EEGPrep DIPFIT. Mirrors EEGLAB&#x27;s &quot;Source analysis&quot; tutorial workflow: choose a head model, coarse-fit component dipoles on a grid, refine them, then read the resulting EEG.dipfit.model entries.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_source_analysis_dipfit_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_source_analysis_dipfit`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Source Analysis with DIPFIT</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Load the tutorial dataset, modify it, store the result as a second dataset, switch between datasets, save one to disk, and delete it from memory. This is the scripted form of File &gt; Load existing dataset, Datasets &gt; ..., File &gt; Save current dataset as, and Edit &gt; Delete dataset(s) from memory.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_dataset_management_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_dataset_management`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Dataset Management</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Build a STUDY from several loaded datasets, add a design, precompute channel measures, read a grand-average ERP, cluster ICA components, and save/reload the .study file. Everything here runs headless; the same steps are reachable from File &gt; Create study and the Study menu in the GUI.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_group_analysis_study_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_group_analysis_study`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Group Analysis with STUDY</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example shows the EEGPrep scripting loop:">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_history_to_script_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_history_to_script`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">From History to a Replayable Script</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="A guided tour of the objects EEGPrep passes between functions: the EEG dataset dictionary, its chanlocs / event / urevent / epoch tables, the ICA fields, and the ALLEEG / CURRENTSET dataset list.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_data_structures_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_data_structures`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">EEGPrep Data Structures</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Headless walkthrough of the EEGPrep Plot menu on the epoched tutorial dataset sample_data/eeglab_data_epochs_ica.set. Every call is the console equivalent of one Plot menu item, and each passes plot=&#x27;off&#x27; so the figure is built and returned instead of opening a window.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_data_plotting_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_data_plotting`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Plot data: ERPs, ERP-images, spectra, time-frequency, ICA components</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Import continuous and epoched recordings, attach events, read channel locations, and round-trip a BIDS folder. The example runs headless and only uses files from sample_data plus a temporary directory.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_import_data_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_import_data`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Import Data</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="Headless walkthrough of the four EEGPrep artifact-rejection paths that mirror the EEGLAB &quot;Reject artifacts&quot; tutorial: bad channels, bad continuous data, automated cleaning with clean_rawdata/ASR, and ICA component rejection.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_reject_artifacts_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_reject_artifacts`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Reject Artifacts: Channels, Data, ASR, and ICA</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates a complete EEG preprocessing workflow using eegprep, following best practices established by leading neuroimaging packages.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_basic_preprocessing_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_basic_preprocessing`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Basic EEG Preprocessing Workflow</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to work with BIDS-formatted EEG datasets using eegprep. BIDS (Brain Imaging Data Structure) is a standardized format for organizing neuroimaging data, making it easier to share and process datasets across different labs and tools.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_bids_pipeline_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_bids_pipeline`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">BIDS Dataset Preprocessing Pipeline</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates Independent Component Analysis (ICA) decomposition and automatic component classification using ICLabel in eegprep.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_ica_and_iclabel_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_ica_and_iclabel`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">ICA Decomposition and ICLabel Classification</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates and compares different artifact removal methods available in eegprep. Understanding the strengths and limitations of each method is crucial for effective EEG preprocessing.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_artifact_removal_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_artifact_removal`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Artifact Removal Methods Comparison</div>
+    </div>
+
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to identify bad channels and perform interpolation using eegprep. Channel interpolation is a crucial preprocessing step for recovering data from channels with poor signal quality.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_plot_channel_interpolation_thumb.png
+    :alt:
+
+  :doc:`/auto_examples/plot_channel_interpolation`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Channel Interpolation for Bad Channel Recovery</div>
+    </div>
+
+
+.. thumbnail-parent-div-close
+
+.. raw:: html
+
+    </div>
+
 
 .. toctree::
-   :maxdepth: 1
-   :glob:
+   :hidden:
 
-   plot_*
+   /auto_examples/plot_public_api_and_plugins
+   /auto_examples/plot_extract_epochs
+   /auto_examples/plot_preprocess_data
+   /auto_examples/plot_quickstart_tour
+   /auto_examples/plot_source_analysis_dipfit
+   /auto_examples/plot_dataset_management
+   /auto_examples/plot_group_analysis_study
+   /auto_examples/plot_history_to_script
+   /auto_examples/plot_data_structures
+   /auto_examples/plot_data_plotting
+   /auto_examples/plot_import_data
+   /auto_examples/plot_reject_artifacts
+   /auto_examples/plot_basic_preprocessing
+   /auto_examples/plot_bids_pipeline
+   /auto_examples/plot_ica_and_iclabel
+   /auto_examples/plot_artifact_removal
+   /auto_examples/plot_channel_interpolation
+
+
+
+.. only:: html
+
+ .. rst-class:: sphx-glr-signature
+
+    `Gallery generated by Sphinx-Gallery <https://sphinx-gallery.github.io>`_

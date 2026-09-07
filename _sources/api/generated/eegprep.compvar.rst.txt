@@ -1,0 +1,6 @@
+﻿compvar
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: compvar

@@ -1,0 +1,6 @@
+﻿pop\_rejmenu
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rejmenu

@@ -1,5 +1,5 @@
-﻿eegprep.std\_apcluster
-======================
+﻿std\_apcluster
+==============
 
 .. currentmodule:: eegprep
 

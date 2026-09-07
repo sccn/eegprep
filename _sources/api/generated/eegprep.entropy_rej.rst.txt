@@ -1,0 +1,6 @@
+﻿entropy\_rej
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: entropy_rej

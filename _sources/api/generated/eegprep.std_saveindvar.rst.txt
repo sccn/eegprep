@@ -1,5 +1,5 @@
-﻿eegprep.std\_saveindvar
-=======================
+﻿std\_saveindvar
+===============
 
 .. currentmodule:: eegprep
 

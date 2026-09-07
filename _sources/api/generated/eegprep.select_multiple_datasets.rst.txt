@@ -1,5 +1,5 @@
-﻿eegprep.select\_multiple\_datasets
-==================================
+﻿select\_multiple\_datasets
+==========================
 
 .. currentmodule:: eegprep
 

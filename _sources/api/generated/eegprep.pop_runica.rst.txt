@@ -1,0 +1,6 @@
+﻿pop\_runica
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_runica

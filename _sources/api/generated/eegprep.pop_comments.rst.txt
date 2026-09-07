@@ -1,0 +1,6 @@
+﻿pop\_comments
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_comments

@@ -1,5 +1,5 @@
-﻿eegprep.ICL\_feature\_extractor
-===============================
+﻿ICL\_feature\_extractor
+=======================
 
 .. currentmodule:: eegprep
 

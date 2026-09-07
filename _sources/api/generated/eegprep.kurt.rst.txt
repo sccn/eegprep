@@ -1,0 +1,6 @@
+﻿kurt
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: kurt

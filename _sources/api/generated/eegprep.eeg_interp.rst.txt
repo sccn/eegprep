@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_interp
-===================
+﻿eeg\_interp
+===========
 
 .. currentmodule:: eegprep
 

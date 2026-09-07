@@ -1,0 +1,6 @@
+﻿pop\_limoresults
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_limoresults

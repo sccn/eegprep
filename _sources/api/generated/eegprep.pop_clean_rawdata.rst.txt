@@ -1,5 +1,5 @@
-﻿eegprep.pop\_clean\_rawdata
-===========================
+﻿pop\_clean\_rawdata
+===================
 
 .. currentmodule:: eegprep
 

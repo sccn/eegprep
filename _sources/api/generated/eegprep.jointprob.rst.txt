@@ -1,0 +1,6 @@
+﻿jointprob
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: jointprob

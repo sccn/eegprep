@@ -1,5 +1,5 @@
-﻿eegprep.std\_checkdesign
-========================
+﻿std\_checkdesign
+================
 
 .. currentmodule:: eegprep
 

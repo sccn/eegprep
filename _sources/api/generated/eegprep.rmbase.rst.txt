@@ -1,0 +1,6 @@
+﻿rmbase
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: rmbase

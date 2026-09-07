@@ -1,16 +1,9 @@
-﻿eegprep.ConsolePopResult
-========================
+﻿ConsolePopResult
+================
 
 .. currentmodule:: eegprep
 
 .. autoclass:: ConsolePopResult
-
-
-   .. automethod:: __init__
-
-
-   .. rubric:: Methods
-
-   .. autosummary::
-
-      ~ConsolePopResult.__init__
+   :members:
+   :inherited-members:
+   :show-inheritance:

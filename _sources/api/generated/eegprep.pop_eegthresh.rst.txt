@@ -1,0 +1,6 @@
+﻿pop\_eegthresh
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_eegthresh

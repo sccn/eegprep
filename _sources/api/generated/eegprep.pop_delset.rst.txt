@@ -1,5 +1,5 @@
-﻿eegprep.pop\_delset
-===================
+﻿pop\_delset
+===========
 
 .. currentmodule:: eegprep
 

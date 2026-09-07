@@ -1,5 +1,5 @@
-﻿eegprep.pop\_clustedit
-======================
+﻿pop\_clustedit
+==============
 
 .. currentmodule:: eegprep
 

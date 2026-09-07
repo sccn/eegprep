@@ -1,5 +1,5 @@
-﻿eegprep.std\_interp
-===================
+﻿std\_interp
+===========
 
 .. currentmodule:: eegprep
 

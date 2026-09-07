@@ -1,5 +1,5 @@
-﻿eegprep.rsadjust
-================
+﻿rsadjust
+========
 
 .. currentmodule:: eegprep
 

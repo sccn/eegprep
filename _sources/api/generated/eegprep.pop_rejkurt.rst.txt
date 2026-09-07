@@ -1,0 +1,6 @@
+﻿pop\_rejkurt
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rejkurt

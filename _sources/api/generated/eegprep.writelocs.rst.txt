@@ -1,0 +1,6 @@
+﻿writelocs
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: writelocs

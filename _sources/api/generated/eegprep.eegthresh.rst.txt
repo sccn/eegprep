@@ -1,0 +1,6 @@
+﻿eegthresh
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegthresh

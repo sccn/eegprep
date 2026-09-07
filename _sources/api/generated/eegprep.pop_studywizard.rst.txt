@@ -1,5 +1,5 @@
-﻿eegprep.pop\_studywizard
-========================
+﻿pop\_studywizard
+================
 
 .. currentmodule:: eegprep
 

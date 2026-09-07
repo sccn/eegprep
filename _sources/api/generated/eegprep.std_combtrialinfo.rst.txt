@@ -1,5 +1,5 @@
-﻿eegprep.std\_combtrialinfo
-==========================
+﻿std\_combtrialinfo
+==================
 
 .. currentmodule:: eegprep
 

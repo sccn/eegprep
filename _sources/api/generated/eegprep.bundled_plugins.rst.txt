@@ -1,5 +1,5 @@
-﻿eegprep.bundled\_plugins
-========================
+﻿bundled\_plugins
+================
 
 .. currentmodule:: eegprep
 

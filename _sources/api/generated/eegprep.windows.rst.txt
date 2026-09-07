@@ -1,0 +1,6 @@
+﻿windows
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: windows

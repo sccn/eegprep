@@ -1,5 +1,5 @@
-﻿eegprep.std\_readerp
-====================
+﻿std\_readerp
+============
 
 .. currentmodule:: eegprep
 

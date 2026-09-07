@@ -1,5 +1,5 @@
-﻿eegprep.firfiltreport
-=====================
+﻿firfiltreport
+=============
 
 .. currentmodule:: eegprep
 

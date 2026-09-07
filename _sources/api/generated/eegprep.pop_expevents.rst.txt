@@ -1,0 +1,6 @@
+﻿pop\_expevents
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_expevents

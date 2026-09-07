@@ -1,5 +1,5 @@
-﻿eegprep.std\_indvarmatch
-========================
+﻿std\_indvarmatch
+================
 
 .. currentmodule:: eegprep
 

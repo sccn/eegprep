@@ -1,5 +1,5 @@
-﻿eegprep.angtimewarp
-===================
+﻿angtimewarp
+===========
 
 .. currentmodule:: eegprep
 

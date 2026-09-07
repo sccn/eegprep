@@ -1,0 +1,6 @@
+﻿point2lat
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: point2lat

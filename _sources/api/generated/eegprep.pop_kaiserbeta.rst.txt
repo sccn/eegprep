@@ -1,5 +1,5 @@
-﻿eegprep.pop\_kaiserbeta
-=======================
+﻿pop\_kaiserbeta
+===============
 
 .. currentmodule:: eegprep
 

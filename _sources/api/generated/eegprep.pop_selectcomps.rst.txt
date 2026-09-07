@@ -1,0 +1,6 @@
+﻿pop\_selectcomps
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_selectcomps

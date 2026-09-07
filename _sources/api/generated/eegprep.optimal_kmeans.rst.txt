@@ -1,5 +1,5 @@
-﻿eegprep.optimal\_kmeans
-=======================
+﻿optimal\_kmeans
+===============
 
 .. currentmodule:: eegprep
 

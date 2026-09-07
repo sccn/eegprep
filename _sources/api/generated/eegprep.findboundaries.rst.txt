@@ -1,0 +1,6 @@
+﻿findboundaries
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: findboundaries

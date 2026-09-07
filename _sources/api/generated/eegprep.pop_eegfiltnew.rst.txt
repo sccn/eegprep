@@ -1,5 +1,5 @@
-﻿eegprep.pop\_eegfiltnew
-=======================
+﻿pop\_eegfiltnew
+===============
 
 .. currentmodule:: eegprep
 

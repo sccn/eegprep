@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_checkset
-=====================
+﻿eeg\_checkset
+=============
 
 .. currentmodule:: eegprep
 

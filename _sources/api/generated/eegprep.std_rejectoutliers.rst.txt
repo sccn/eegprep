@@ -1,0 +1,6 @@
+﻿std\_rejectoutliers
+===================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_rejectoutliers

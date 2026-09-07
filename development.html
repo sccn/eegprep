@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="examples/index.html">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="examples/index.html">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -646,9 +646,9 @@ must honor are documented for users and extension authors in
 <h2>EEGLAB Core Parity Matrix<a class="headerlink" href="#eeglab-core-parity-matrix" title="Link to this heading">#</a></h2>
 <p>The Phase 1 core parity epic uses a committed machine-readable matrix at
 <code class="docutils literal notranslate"><span class="pre">docs/parity/eeglab_core_parity_matrix.json</span></code>. The matrix classifies the
-EEGLAB public and semi-public functions in the first seven migration-gap audit
-categories from <code class="docutils literal notranslate"><span class="pre">.notes/eeglab-migration-gap-audit.md</span></code>. It is a work
-contract for later phase agents, not package runtime data.</p>
+EEGLAB public and semi-public functions in the scope categories recorded in
+its metadata and source issue. It is a work contract for later phase agents,
+not package runtime data.</p>
 <p>Rows use these statuses:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">implemented</span></code>: EEGPrep already covers the behavior.</p></li>
@@ -728,11 +728,11 @@ later agents do not silently fake external-toolbox behavior.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tools.eeglab_final_parity_matrix<span class="w"> </span>--json
 </pre></div>
 </div>
-<p>The docs architecture for the final epic is recorded in the matrix metadata and
-in <code class="docutils literal notranslate"><span class="pre">.notes/eeglab-final-parity-audit.md</span></code>. It should be useful to EEG
-researchers first: describe EEGPrep’s standalone Python package, Qt GUI, and
-<code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> behavior accurately, and use EEGLAB comparisons only where
-they help users migrate or understand familiar concepts.</p>
+<p>The docs architecture for the final epic is recorded directly in the matrix
+metadata and its source issue. It should be useful to EEG researchers first:
+describe EEGPrep’s standalone Python package, Qt GUI, and <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>
+behavior accurately, and use EEGLAB comparisons only where they help users
+migrate or understand familiar concepts.</p>
 </section>
 <section id="building-documentation">
 <h2>Building Documentation<a class="headerlink" href="#building-documentation" title="Link to this heading">#</a></h2>

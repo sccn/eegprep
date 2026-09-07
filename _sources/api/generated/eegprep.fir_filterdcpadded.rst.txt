@@ -1,0 +1,6 @@
+﻿fir\_filterdcpadded
+===================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: fir_filterdcpadded

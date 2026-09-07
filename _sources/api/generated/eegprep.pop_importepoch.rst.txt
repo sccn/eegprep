@@ -1,0 +1,6 @@
+﻿pop\_importepoch
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_importepoch

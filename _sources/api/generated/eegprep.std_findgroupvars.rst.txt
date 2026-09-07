@@ -1,0 +1,6 @@
+﻿std\_findgroupvars
+==================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_findgroupvars

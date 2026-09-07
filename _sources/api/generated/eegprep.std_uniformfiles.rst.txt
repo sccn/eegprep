@@ -1,5 +1,5 @@
-﻿eegprep.std\_uniformfiles
-=========================
+﻿std\_uniformfiles
+=================
 
 .. currentmodule:: eegprep
 

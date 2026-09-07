@@ -1,5 +1,5 @@
-﻿eegprep.std\_readitc
-====================
+﻿std\_readitc
+============
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿pop\_writelocs
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_writelocs

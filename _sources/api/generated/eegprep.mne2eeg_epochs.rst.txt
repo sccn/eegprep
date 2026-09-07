@@ -1,0 +1,6 @@
+﻿mne2eeg\_epochs
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: mne2eeg_epochs

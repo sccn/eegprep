@@ -1,0 +1,6 @@
+﻿rejtrend
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: rejtrend

@@ -1,0 +1,6 @@
+﻿pop\_snapread
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_snapread

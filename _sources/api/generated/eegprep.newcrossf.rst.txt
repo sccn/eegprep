@@ -1,5 +1,5 @@
-﻿eegprep.newcrossf
-=================
+﻿newcrossf
+=========
 
 .. currentmodule:: eegprep
 

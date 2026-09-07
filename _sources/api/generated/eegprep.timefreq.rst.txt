@@ -1,5 +1,5 @@
-﻿eegprep.timefreq
-================
+﻿timefreq
+========
 
 .. currentmodule:: eegprep
 

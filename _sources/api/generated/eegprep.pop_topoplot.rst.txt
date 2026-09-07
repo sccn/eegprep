@@ -1,5 +1,5 @@
-eegprep.pop_topoplot
-====================
+﻿pop\_topoplot
+=============
 
 .. currentmodule:: eegprep
 

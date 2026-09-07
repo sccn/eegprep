@@ -1,0 +1,6 @@
+﻿pop\_timtopo
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_timtopo

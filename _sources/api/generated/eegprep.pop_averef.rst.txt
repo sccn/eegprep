@@ -1,0 +1,6 @@
+﻿pop\_averef
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_averef

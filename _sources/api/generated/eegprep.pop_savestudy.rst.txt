@@ -1,5 +1,5 @@
-﻿eegprep.pop\_savestudy
-======================
+﻿pop\_savestudy
+==============
 
 .. currentmodule:: eegprep
 

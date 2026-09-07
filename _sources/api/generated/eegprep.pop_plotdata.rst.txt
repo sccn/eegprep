@@ -1,0 +1,6 @@
+﻿pop\_plotdata
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_plotdata

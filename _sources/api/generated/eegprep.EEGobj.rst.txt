@@ -1,6 +1,9 @@
-﻿eegprep.EEGobj
-==============
+﻿EEGobj
+======
 
 .. currentmodule:: eegprep
 
 .. autoclass:: EEGobj
+   :members:
+   :inherited-members:
+   :show-inheritance:

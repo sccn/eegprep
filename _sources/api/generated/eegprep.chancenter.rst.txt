@@ -1,0 +1,6 @@
+﻿chancenter
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: chancenter

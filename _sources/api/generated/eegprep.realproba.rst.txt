@@ -1,0 +1,6 @@
+﻿realproba
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: realproba

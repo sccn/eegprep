@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>References and Citations &#8212; EEGPrep manual</title>
+    <title>References &#8212; EEGPrep manual</title>
   
   
   
@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Contributing to EEGPrep" href="contributing.html" />
-    <link rel="prev" title="Frequently Asked Questions" href="faq.html" />
+    <link rel="prev" title="FAQ" href="faq.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="examples/index.html">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="#">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -273,10 +273,6 @@
   
 
   
-    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
-      <span class="fa-solid fa-outdent"></span>
-    </button>
-  
 </div>
 
     </header>
@@ -311,7 +307,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="examples/index.html">
+  <a class="nav-link nav-internal" href="auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +315,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="#">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -453,7 +449,7 @@
         <i class="fa-solid fa-home"></i>
       </a>
     </li>
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">References and Citations</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">References</span></li>
   </ul>
 </nav>
 </div>
@@ -470,290 +466,94 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="references-and-citations">
-<span id="references"></span><h1>References and Citations<a class="headerlink" href="#references-and-citations" title="Link to this heading">#</a></h1>
-<section id="key-publications">
-<h2>Key Publications<a class="headerlink" href="#key-publications" title="Link to this heading">#</a></h2>
-<section id="eeg-preprocessing-methods">
-<h3>EEG Preprocessing Methods<a class="headerlink" href="#eeg-preprocessing-methods" title="Link to this heading">#</a></h3>
-<p>The following papers describe key preprocessing methods implemented in EEGPrep:</p>
-<p><strong>Artifact Removal and Cleaning</strong></p>
-<ul class="simple">
-<li><p>Delorme, A., &amp; Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. <em>Journal of Neuroscience Methods</em>, 134(1), 9-21.</p>
-<ul>
-<li><p>Foundational paper for EEGLAB and many preprocessing techniques</p></li>
-</ul>
-</li>
-<li><p>Kothe, C. A., &amp; Makeig, S. (2013). BCILAB: a platform for brain–computer interface development. <em>Journal of Neural Engineering</em>, 10(5), 056014.</p>
-<ul>
-<li><p>Describes ASR (Artifact Subspace Reconstruction) algorithm</p></li>
-</ul>
-</li>
-<li><p>Onton, J., Westerfield, M., Townsend, J., &amp; Makeig, S. (2006). Imaging human EEG dynamics using independent component analysis. <em>Neuroscience &amp; Biobehavioral Reviews</em>, 30(6), 808-822.</p>
-<ul>
-<li><p>ICA for EEG analysis</p></li>
-</ul>
-</li>
-</ul>
-<p><strong>Independent Component Analysis (ICA)</strong></p>
-<ul class="simple">
-<li><p>Hyvärinen, A., &amp; Oja, E. (2000). Independent component analysis: algorithms and applications. <em>Neural Networks</em>, 13(4-5), 411-430.</p>
-<ul>
-<li><p>Comprehensive ICA review</p></li>
-</ul>
-</li>
-<li><p>Bell, A. J., &amp; Sejnowski, T. J. (1995). An information-maximization approach to blind separation and blind deconvolution. <em>Neural Computation</em>, 7(6), 1129-1159.</p>
-<ul>
-<li><p>Infomax ICA algorithm</p></li>
-</ul>
-</li>
-</ul>
-<p><strong>ICLabel Component Classification</strong></p>
-<ul class="simple">
-<li><p>Pion-Tonachini, L., Kreutz-Delgado, K., &amp; Makeig, S. (2019). ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation. <em>NeuroImage</em>, 198, 181-197.</p>
-<ul>
-<li><p>Deep learning-based IC classification</p></li>
-</ul>
-</li>
-</ul>
-<p><strong>BIDS Format</strong></p>
-<ul class="simple">
-<li><p>Gorgolewski, K. J., Auer, T., Calhoun, V. D., et al. (2016). The brain imaging data structure, a format for organizing and describing outputs of neuroimaging experiments. <em>Scientific Data</em>, 3, 160044.</p>
-<ul>
-<li><p>BIDS specification paper</p></li>
-</ul>
-</li>
-<li><p>Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., et al. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. <em>Scientific Data</em>, 6, 103.</p>
-<ul>
-<li><p>EEG-BIDS extension</p></li>
-</ul>
-</li>
-</ul>
-<p><strong>Signal Processing</strong></p>
-<ul class="simple">
-<li><p>Widmann, A., Schröger, E., &amp; Maess, B. (2015). Digital filter design for electrophysiological data–a practical approach. <em>Journal of Neuroscience Methods</em>, 250, 34-46.</p>
-<ul>
-<li><p>Filter design for EEG</p></li>
-</ul>
-</li>
-</ul>
-</section>
-</section>
-<section id="related-tools">
-<h2>Related Tools<a class="headerlink" href="#related-tools" title="Link to this heading">#</a></h2>
-<section id="eeglab">
-<h3>EEGLAB<a class="headerlink" href="#eeglab" title="Link to this heading">#</a></h3>
-<p><strong>Website</strong>: <a class="reference external" href="https://sccn.ucsd.edu/eeglab/">https://sccn.ucsd.edu/eeglab/</a></p>
-<p><strong>Description</strong>: MATLAB-based EEG analysis toolbox with extensive preprocessing capabilities.</p>
-<p><strong>Key Features</strong>:</p>
-<ul class="simple">
-<li><p>Interactive GUI</p></li>
-<li><p>Comprehensive preprocessing tools</p></li>
-<li><p>ICA and component analysis</p></li>
-<li><p>Large plugin ecosystem</p></li>
-<li><p>Established in neuroscience community</p></li>
-</ul>
-<p><strong>When to use</strong>: Interactive exploration, MATLAB workflows, extensive plugin ecosystem</p>
-</section>
-<section id="mne-python">
-<h3>MNE-Python<a class="headerlink" href="#mne-python" title="Link to this heading">#</a></h3>
-<p><strong>Website</strong>: <a class="reference external" href="https://mne.tools/">https://mne.tools/</a></p>
-<p><strong>Description</strong>: Python package for MEG and EEG analysis.</p>
-<p><strong>Key Features</strong>:</p>
-<ul class="simple">
-<li><p>General neuroimaging (EEG, MEG, fMRI)</p></li>
-<li><p>Extensive analysis tools</p></li>
-<li><p>Source localization</p></li>
-<li><p>Time-frequency analysis</p></li>
-<li><p>Large community</p></li>
-</ul>
-<p><strong>When to use</strong>: Comprehensive analysis, source localization, Python workflows</p>
-</section>
-<section id="fieldtrip">
-<h3>Fieldtrip<a class="headerlink" href="#fieldtrip" title="Link to this heading">#</a></h3>
-<p><strong>Website</strong>: <a class="reference external" href="http://www.fieldtriptoolbox.org/">http://www.fieldtriptoolbox.org/</a></p>
-<p><strong>Description</strong>: MATLAB toolbox for MEG and EEG analysis.</p>
-<p><strong>Key Features</strong>:</p>
-<ul class="simple">
-<li><p>Comprehensive preprocessing</p></li>
-<li><p>Source analysis</p></li>
-<li><p>Statistical testing</p></li>
-<li><p>Good documentation</p></li>
-<li><p>Active community</p></li>
-</ul>
-<p><strong>When to use</strong>: MATLAB workflows, source analysis, statistical testing</p>
-</section>
-<section id="brainstorm">
-<h3>Brainstorm<a class="headerlink" href="#brainstorm" title="Link to this heading">#</a></h3>
-<p><strong>Website</strong>: <a class="reference external" href="https://neuroimage.usc.edu/brainstorm/">https://neuroimage.usc.edu/brainstorm/</a></p>
-<p><strong>Description</strong>: MATLAB-based neuroimaging software for MEG and EEG.</p>
-<p><strong>Key Features</strong>:</p>
-<ul class="simple">
-<li><p>Interactive visualization</p></li>
-<li><p>Source localization</p></li>
-<li><p>Preprocessing tools</p></li>
-<li><p>Good for clinical applications</p></li>
-<li><p>User-friendly interface</p></li>
-</ul>
-<p><strong>When to use</strong>: Interactive analysis, source localization, clinical applications</p>
-</section>
-</section>
-<section id="external-resources">
-<h2>External Resources<a class="headerlink" href="#external-resources" title="Link to this heading">#</a></h2>
-<section id="tutorials-and-documentation">
-<h3>Tutorials and Documentation<a class="headerlink" href="#tutorials-and-documentation" title="Link to this heading">#</a></h3>
-<p><strong>EEG Analysis Tutorials</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://mne.tools/stable/auto_tutorials/index.html">MNE-Python Tutorials</a> - Comprehensive EEG/MEG analysis tutorials</p></li>
-<li><p><a class="reference external" href="https://sccn.ucsd.edu/wiki/EEGLAB">EEGLAB Wiki</a> - EEGLAB documentation and tutorials</p></li>
-<li><p><a class="reference external" href="http://www.fieldtriptoolbox.org/tutorial/">Fieldtrip Tutorials</a> - Fieldtrip analysis tutorials</p></li>
-</ul>
-<p><strong>Signal Processing</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Digital_signal_processing">Digital Signal Processing</a> - Wikipedia overview</p></li>
-<li><p><a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/signal.html">Scipy Signal Processing</a> - Python signal processing library</p></li>
-</ul>
-<p><strong>Machine Learning</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://scikit-learn.org/">Scikit-learn Documentation</a> - Machine learning in Python</p></li>
-<li><p><a class="reference external" href="https://pytorch.org/docs/">PyTorch Documentation</a> - Deep learning framework</p></li>
-</ul>
-</section>
-<section id="forums-and-communities">
-<h3>Forums and Communities<a class="headerlink" href="#forums-and-communities" title="Link to this heading">#</a></h3>
-<p><strong>GitHub</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://github.com/sccn/eegprep/issues">EEGPrep Issues</a> - Report bugs and ask questions</p></li>
-</ul>
-<p><strong>EEG Community Lists</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://sccn.ucsd.edu/mailman/listinfo/eeglablist">EEGLAB mailing list</a> - EEG and neuroimaging discussions</p></li>
-</ul>
-<p><strong>Stack Overflow</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://stackoverflow.com/questions/tagged/eeg">EEG Tag</a> - EEG-related questions</p></li>
-<li><p><a class="reference external" href="https://stackoverflow.com/questions/tagged/signal-processing">Signal Processing Tag</a> - Signal processing questions</p></li>
-</ul>
-<p><strong>Reddit</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://www.reddit.com/r/neuroscience/">r/neuroscience</a> - Neuroscience community</p></li>
-<li><p><a class="reference external" href="https://www.reddit.com/r/MachineLearning/">r/MachineLearning</a> - Machine learning discussions</p></li>
-</ul>
-</section>
-<section id="datasets">
-<h3>Datasets<a class="headerlink" href="#datasets" title="Link to this heading">#</a></h3>
-<p><strong>Public EEG Datasets</strong></p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://openneuro.org/">OpenNeuro</a> - Open neuroimaging datasets in BIDS format</p></li>
-<li><p><a class="reference external" href="https://physionet.org/">PhysioNet</a> - Biomedical signal databases</p></li>
-<li><p><a class="reference external" href="https://physionet.org/content/eegmmidb/1.0.0/">EEG Motor Movement/Imagery Dataset</a> - Motor imagery EEG data</p></li>
-</ul>
-</section>
-</section>
-<section id="citation-information">
-<h2>Citation Information<a class="headerlink" href="#citation-information" title="Link to this heading">#</a></h2>
-<section id="how-to-cite-eegprep">
-<h3>How to Cite EEGPrep<a class="headerlink" href="#how-to-cite-eegprep" title="Link to this heading">#</a></h3>
-<p>If you use EEGPrep in your research, please cite it as:</p>
-<p><strong>BibTeX</strong>:</p>
-<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@software</span><span class="p">{</span><span class="nl">eegprep2024</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{EEGPrep: A comprehensive Python EEG preprocessing pipeline}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{EEGPrep Contributors}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">url</span><span class="p">=</span><span class="s">{https://github.com/sccn/eegprep}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p><strong>APA Format</strong>:</p>
-<p>EEGPrep Contributors. (2024). EEGPrep: A comprehensive Python EEG preprocessing pipeline. Retrieved from <a class="github reference external" href="https://github.com/sccn/eegprep">sccn/eegprep</a></p>
-<p><strong>Chicago Format</strong>:</p>
-<p>EEGPrep Contributors. “EEGPrep: A comprehensive Python EEG preprocessing pipeline.” Accessed 2024. <a class="github reference external" href="https://github.com/sccn/eegprep">sccn/eegprep</a>.</p>
-</section>
-<section id="citing-dependencies">
-<h3>Citing Dependencies<a class="headerlink" href="#citing-dependencies" title="Link to this heading">#</a></h3>
-<p>If you use specific algorithms, please also cite the original papers:</p>
-<p><strong>For ASR (Artifact Subspace Reconstruction)</strong>:</p>
-<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">kothe2013bcilab</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{BCILAB: a platform for brain--computer interface development}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Kothe, Christian A and Makeig, Scott}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Journal of Neural Engineering}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{10}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{5}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{056014}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2013}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{IOP Publishing}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p><strong>For ICLabel</strong>:</p>
-<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">pion2019iclabel</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{ICLabel: Automated electroencephalographic independent component classification, labeling and brain source estimation}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Pion-Tonachini, Luca and Kreutz-Delgado, Kenneth and Makeig, Scott}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{NeuroImage}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{198}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{181--197}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2019}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Elsevier}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<p><strong>For EEGLAB</strong>:</p>
-<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">delorme2004eeglab</span><span class="p">,</span>
-<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Delorme, Arnaud and Makeig, Scott}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Journal of Neuroscience Methods}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{134}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{1}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{9--21}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2004}</span><span class="p">,</span>
-<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Elsevier}</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="acknowledgments">
-<h2>Acknowledgments<a class="headerlink" href="#acknowledgments" title="Link to this heading">#</a></h2>
-<section id="contributors">
-<h3>Contributors<a class="headerlink" href="#contributors" title="Link to this heading">#</a></h3>
-<p>EEGPrep is developed and maintained by SCCN contributors and the EEG research community. We thank all contributors who have helped improve the project through code contributions, bug reports, and feedback.</p>
-</section>
-<section id="funding">
-<h3>Funding<a class="headerlink" href="#funding" title="Link to this heading">#</a></h3>
-<p>EEGPrep development has been supported by:</p>
-<ul class="simple">
-<li><p>SCCN and EEG community contributors</p></li>
-<li><p>Open-source software initiatives</p></li>
-<li><p>Academic institutions</p></li>
-</ul>
-</section>
-<section id="inspiration-and-acknowledgments">
-<h3>Inspiration and Acknowledgments<a class="headerlink" href="#inspiration-and-acknowledgments" title="Link to this heading">#</a></h3>
-<p>EEGPrep builds upon the excellent work of:</p>
-<ul class="simple">
-<li><p><strong>EEGLAB</strong>: For pioneering EEG preprocessing and analysis tools</p></li>
-<li><p><strong>MNE-Python</strong>: For comprehensive neuroimaging analysis</p></li>
-<li><p><strong>Fieldtrip</strong>: For robust signal processing methods</p></li>
-<li><p><strong>Brainstorm</strong>: For user-friendly neuroimaging software</p></li>
-</ul>
-<p>We acknowledge the neuroscience and signal processing communities for their contributions to EEG analysis methods.</p>
-</section>
-</section>
-<section id="related-publications-using-eegprep">
-<h2>Related Publications Using EEGPrep<a class="headerlink" href="#related-publications-using-eegprep" title="Link to this heading">#</a></h2>
-<p>If you’ve published research using EEGPrep, we’d love to hear about it! Please open an issue or discussion on GitHub to share your work.</p>
-</section>
-<section id="getting-help-with-references">
-<h2>Getting Help with References<a class="headerlink" href="#getting-help-with-references" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p>Check the <a class="reference internal" href="user_guide/index.html"><span class="doc">User Guide</span></a> for implementation details</p></li>
-<li><p>Review <a class="reference internal" href="examples/index.html"><span class="doc">Examples</span></a> for practical examples</p></li>
-<li><p>Search <a class="reference external" href="https://github.com/sccn/eegprep/issues">GitHub Issues</a> for related discussions</p></li>
-<li><p>Contact the maintainers for citation questions</p></li>
-</ul>
-<p>For more information about EEG analysis methods, see the <a class="reference internal" href="user_guide/glossary.html"><span class="doc">Glossary</span></a> for terminology definitions.</p>
-</section>
-</section>
+  <section id="references">
+<span id="id1"></span><h1>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h1>
+<p>Papers behind the methods EEGPrep implements. Each entry can be copied as APA or
+BibTeX.</p>
+<style>
+.eegprep-citation { margin-bottom: 1.1rem; }
+.eegprep-citation p { margin: 0.1rem 0; }
+.eegprep-cite-links { white-space: nowrap; margin-left: 0.15rem; }
+.eegprep-cite-copy {
+  font: inherit; font-size: 0.82em; cursor: pointer;
+  padding: 0.05rem 0.5rem; margin-left: 0.35rem;
+  border: 1px solid currentColor; border-radius: 4px;
+  background: transparent; color: inherit; opacity: 0.7;
+  vertical-align: baseline; white-space: nowrap;
+}
+.eegprep-cite-copy:hover { opacity: 1; }
+</style>
+<script>
+document.addEventListener("click", function (event) {
+  var button = event.target.closest(".eegprep-cite-copy");
+  if (!button) { return; }
+  var text = button.getAttribute("data-citation");
+  var restore = button.textContent;
+  var done = function () {
+    button.textContent = "Copied";
+    setTimeout(function () { button.textContent = restore; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done);
+  } else {
+    var area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+    done();
+  }
+});
+</script><div class="eegprep-citation">
+  <p><strong>EEGPrep</strong></p>
+  <p>
+    Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &amp; Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline. arXiv:2607.16647.
+    <span class="eegprep-cite-links"><a href="https://arxiv.org/abs/2607.16647">arXiv</a> | <a href="https://openalex.org/W7169837262">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Delorme, A., Ranganath, S., Kothe, C., Jaiswal, A., Makeig, S., &amp; Aristimunha, B. (2026). EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline. arXiv:2607.16647.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@misc{delorme2026eegprep,&#10;  author = {Delorme, Arnaud and Ranganath, Suraj and Kothe, Christian and Jaiswal, Aman and Makeig, Scott and Aristimunha, Bruno},&#10;  title = {EEGPrep: a validated Python implementation of the EEGLAB preprocessing pipeline},&#10;  year = {2026},&#10;  eprint = {2607.16647},&#10;  archivePrefix = {arXiv},&#10;  doi = {10.48550/arXiv.2607.16647}&#10;}">Copy BibTeX</button>
+  </p>
+</div><div class="eegprep-citation">
+  <p><strong>EEGLAB</strong></p>
+  <p>
+    Delorme, A., &amp; Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of Neuroscience Methods, 134(1), 9-21.
+    <span class="eegprep-cite-links"><a href="https://pubmed.ncbi.nlm.nih.gov/15102499/">PubMed</a> | <a href="https://openalex.org/W2128495200">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Delorme, A., &amp; Makeig, S. (2004). EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis. Journal of Neuroscience Methods, 134(1), 9-21.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@article{delorme2004eeglab,&#10;  author = {Delorme, Arnaud and Makeig, Scott},&#10;  title = {EEGLAB: an open source toolbox for analysis of single-trial EEG dynamics including independent component analysis},&#10;  journal = {Journal of Neuroscience Methods},&#10;  volume = {134},&#10;  number = {1},&#10;  pages = {9--21},&#10;  year = {2004},&#10;  doi = {10.1016/j.jneumeth.2003.10.009}&#10;}">Copy BibTeX</button>
+  </p>
+</div><div class="eegprep-citation">
+  <p><strong>Artifact Subspace Reconstruction (ASR)</strong></p>
+  <p>
+    Mullen, T. R., Kothe, C. A. E., Chi, Y. M., Ojeda, A., Kerth, T., Makeig, S., Jung, T.-P., &amp; Cauwenberghs, G. (2015). Real-time neuroimaging and cognitive monitoring using wearable dry EEG. IEEE Transactions on Biomedical Engineering, 62(11), 2553-2567.
+    <span class="eegprep-cite-links"><a href="https://pubmed.ncbi.nlm.nih.gov/26415149/">PubMed</a> | <a href="https://openalex.org/W1936982107">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Mullen, T. R., Kothe, C. A. E., Chi, Y. M., Ojeda, A., Kerth, T., Makeig, S., Jung, T.-P., &amp; Cauwenberghs, G. (2015). Real-time neuroimaging and cognitive monitoring using wearable dry EEG. IEEE Transactions on Biomedical Engineering, 62(11), 2553-2567.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@article{mullen2015asr,&#10;  author = {Mullen, Tim R. and Kothe, Christian A. E. and Chi, Yu M. and Ojeda, Alejandro and Kerth, Trevor and Makeig, Scott and Jung, Tzyy-Ping and Cauwenberghs, Gert},&#10;  title = {Real-time neuroimaging and cognitive monitoring using wearable dry EEG},&#10;  journal = {IEEE Transactions on Biomedical Engineering},&#10;  volume = {62},&#10;  number = {11},&#10;  pages = {2553--2567},&#10;  year = {2015},&#10;  doi = {10.1109/TBME.2015.2481482}&#10;}">Copy BibTeX</button>
+  </p>
+</div><div class="eegprep-citation">
+  <p><strong>ICLabel</strong></p>
+  <p>
+    Delorme, A., Truong, D., Pion-Tonachini, L., &amp; Makeig, S. (2024). Automatic EEG independent component classification using ICLabel in Python. In 2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM), 4137-4141.
+    <span class="eegprep-cite-links"><a href="https://ieeexplore.ieee.org/document/10822445/">IEEE Xplore</a> | <a href="https://openalex.org/W4406260175">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Delorme, A., Truong, D., Pion-Tonachini, L., &amp; Makeig, S. (2024). Automatic EEG independent component classification using ICLabel in Python. In 2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM), 4137-4141.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@inproceedings{delorme2024iclabel,&#10;  author = {Delorme, Arnaud and Truong, Dung and Pion-Tonachini, Luca and Makeig, Scott},&#10;  title = {Automatic EEG Independent Component Classification Using ICLabel in Python},&#10;  booktitle = {2024 IEEE International Conference on Bioinformatics and Biomedicine (BIBM)},&#10;  pages = {4137--4141},&#10;  year = {2024},&#10;  doi = {10.1109/BIBM62325.2024.10822445}&#10;}">Copy BibTeX</button>
+  </p>
+</div><div class="eegprep-citation">
+  <p><strong>ICA Artifact Rejection</strong></p>
+  <p>
+    Delorme, A., Sejnowski, T., &amp; Makeig, S. (2007). Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis. NeuroImage, 34(4), 1443-1449.
+    <span class="eegprep-cite-links"><a href="https://pubmed.ncbi.nlm.nih.gov/17188898/">PubMed</a> | <a href="https://openalex.org/W2149407814">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Delorme, A., Sejnowski, T., &amp; Makeig, S. (2007). Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis. NeuroImage, 34(4), 1443-1449.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@article{delorme2007artifacts,&#10;  author = {Delorme, Arnaud and Sejnowski, Terrence and Makeig, Scott},&#10;  title = {Enhanced detection of artifacts in EEG data using higher-order statistics and independent component analysis},&#10;  journal = {NeuroImage},&#10;  volume = {34},&#10;  number = {4},&#10;  pages = {1443--1449},&#10;  year = {2007},&#10;  doi = {10.1016/j.neuroimage.2006.11.004}&#10;}">Copy BibTeX</button>
+  </p>
+</div><div class="eegprep-citation">
+  <p><strong>EEG-BIDS</strong></p>
+  <p>
+    Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G., Phillips, C., Delorme, A., &amp; Oostenveld, R. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. Scientific Data, 6, 103.
+    <span class="eegprep-cite-links"><a href="https://pubmed.ncbi.nlm.nih.gov/31239435/">PubMed</a> | <a href="https://openalex.org/W2956069845">OpenAlex</a></span>
+    <button class="eegprep-cite-copy" data-citation="Pernet, C. R., Appelhoff, S., Gorgolewski, K. J., Flandin, G., Phillips, C., Delorme, A., &amp; Oostenveld, R. (2019). EEG-BIDS, an extension to the brain imaging data structure for electroencephalography. Scientific Data, 6, 103.">Copy APA</button>
+    <button class="eegprep-cite-copy" data-citation="@article{pernet2019eegbids,&#10;  author = {Pernet, Cyril R. and Appelhoff, Stefan and Gorgolewski, Krzysztof J. and Flandin, Guillaume and Phillips, Christophe and Delorme, Arnaud and Oostenveld, Robert},&#10;  title = {EEG-BIDS, an extension to the brain imaging data structure for electroencephalography},&#10;  journal = {Scientific Data},&#10;  volume = {6},&#10;  pages = {103},&#10;  year = {2019},&#10;  doi = {10.1038/s41597-019-0104-8}&#10;}">Copy BibTeX</button>
+  </p>
+</div></section>
 
 
                 </article>
@@ -771,7 +571,7 @@
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Frequently Asked Questions</p>
+        <p class="prev-next-title">FAQ</p>
       </div>
     </a>
     <a class="right-next"
@@ -789,53 +589,6 @@
             </div>
             
             
-              
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item">
-<div
-    id="pst-page-navigation-heading-2"
-    class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> On this page
-  </div>
-  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#key-publications">Key Publications</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeg-preprocessing-methods">EEG Preprocessing Methods</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-tools">Related Tools</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eeglab">EEGLAB</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mne-python">MNE-Python</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fieldtrip">Fieldtrip</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#brainstorm">Brainstorm</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#external-resources">External Resources</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorials-and-documentation">Tutorials and Documentation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forums-and-communities">Forums and Communities</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#datasets">Datasets</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation-information">Citation Information</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#how-to-cite-eegprep">How to Cite EEGPrep</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#citing-dependencies">Citing Dependencies</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#acknowledgments">Acknowledgments</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#contributors">Contributors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#funding">Funding</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#inspiration-and-acknowledgments">Inspiration and Acknowledgments</a></li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-publications-using-eegprep">Related Publications Using EEGPrep</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help-with-references">Getting Help with References</a></li>
-</ul>
-  </nav></div>
-
-</div></div>
               
             
           </div>

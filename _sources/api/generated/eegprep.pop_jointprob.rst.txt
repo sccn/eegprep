@@ -1,0 +1,6 @@
+﻿pop\_jointprob
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_jointprob

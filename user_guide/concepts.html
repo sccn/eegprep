@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -627,6 +627,11 @@ or writing event metadata.</p></li>
 read and reused later.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">icachansind</span></code> is normalized to zero-based integer indices after loading a
 MATLAB <code class="docutils literal notranslate"><span class="pre">.set</span></code> file, then converted back to one-based values when saving.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chanlocs[i][&quot;urchan&quot;]</span></code>, <code class="docutils literal notranslate"><span class="pre">event[i][&quot;urevent&quot;]</span></code>, <code class="docutils literal notranslate"><span class="pre">epoch[k][&quot;event&quot;]</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">epoch[k][&quot;eventurevent&quot;]</span></code> follow the same rule: zero-based in memory,
+one-based on disk.</p></li>
+<li><p>Single-trial datasets have no <code class="docutils literal notranslate"><span class="pre">epoch</span></code> structure: <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> empties
+it and removes <code class="docutils literal notranslate"><span class="pre">event[i][&quot;epoch&quot;]</span></code>, as EEGLAB does.</p></li>
 </ul>
 <p>For epoched data, <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;][:,</span> <span class="pre">:,</span> <span class="pre">trial_index]</span></code> is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

@@ -1,5 +1,5 @@
-﻿eegprep.pop\_firma
-==================
+﻿pop\_firma
+==========
 
 .. currentmodule:: eegprep
 

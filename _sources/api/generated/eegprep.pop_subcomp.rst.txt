@@ -1,0 +1,6 @@
+﻿pop\_subcomp
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_subcomp

@@ -1,5 +1,5 @@
-﻿eegprep.load\_extension\_catalog
-================================
+﻿load\_extension\_catalog
+========================
 
 .. currentmodule:: eegprep
 

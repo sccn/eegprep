@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_eegrej
-===================
+﻿eeg\_eegrej
+===========
 
 .. currentmodule:: eegprep
 

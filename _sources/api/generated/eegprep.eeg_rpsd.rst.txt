@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_rpsd
-=================
+﻿eeg\_rpsd
+=========
 
 .. currentmodule:: eegprep
 

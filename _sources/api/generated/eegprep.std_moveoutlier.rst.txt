@@ -1,0 +1,6 @@
+﻿std\_moveoutlier
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_moveoutlier

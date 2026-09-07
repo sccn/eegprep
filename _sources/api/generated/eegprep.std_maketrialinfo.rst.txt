@@ -1,5 +1,5 @@
-﻿eegprep.std\_maketrialinfo
-==========================
+﻿std\_maketrialinfo
+==================
 
 .. currentmodule:: eegprep
 

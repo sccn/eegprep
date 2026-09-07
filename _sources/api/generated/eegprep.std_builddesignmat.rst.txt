@@ -1,5 +1,5 @@
-﻿eegprep.std\_builddesignmat
-===========================
+﻿std\_builddesignmat
+===================
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿eeglab\_clean\_artifacts
+========================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeglab_clean_artifacts

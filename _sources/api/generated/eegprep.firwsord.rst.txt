@@ -1,5 +1,5 @@
-﻿eegprep.firwsord
-================
+﻿firwsord
+========
 
 .. currentmodule:: eegprep
 

@@ -1,0 +1,6 @@
+﻿pop\_eegfilt
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_eegfilt

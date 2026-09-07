@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_multieegplot
-=========================
+﻿eeg\_multieegplot
+=================
 
 .. currentmodule:: eegprep
 

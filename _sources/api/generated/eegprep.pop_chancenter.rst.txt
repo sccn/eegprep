@@ -1,0 +1,6 @@
+﻿pop\_chancenter
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_chancenter

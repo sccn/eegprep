@@ -1,0 +1,6 @@
+﻿pop\_mergeset
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_mergeset

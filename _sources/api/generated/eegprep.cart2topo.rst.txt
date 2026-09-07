@@ -1,5 +1,5 @@
-eegprep.cart2topo
-=================
+﻿cart2topo
+=========
 
 .. currentmodule:: eegprep
 

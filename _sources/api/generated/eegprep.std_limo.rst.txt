@@ -1,0 +1,6 @@
+﻿std\_limo
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_limo

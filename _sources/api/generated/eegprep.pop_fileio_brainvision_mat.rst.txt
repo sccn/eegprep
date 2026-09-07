@@ -1,0 +1,6 @@
+﻿pop\_fileio\_brainvision\_mat
+=============================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_fileio_brainvision_mat

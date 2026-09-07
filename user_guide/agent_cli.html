@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -641,6 +641,25 @@ high-pass cleaning criteria off unless the YAML config sets them explicitly.
 Set <code class="docutils literal notranslate"><span class="pre">highpass</span></code> as a two-value transition band, for example
 <code class="docutils literal notranslate"><span class="pre">highpass:</span> <span class="pre">[0.25,</span> <span class="pre">0.75]</span></code>.</p>
 </section>
+<section id="manifest-portability-and-migration">
+<h2>Manifest Portability And Migration<a class="headerlink" href="#manifest-portability-and-migration" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">eegprep.manifest.v2</span></code> schema stores the <code class="docutils literal notranslate"><span class="pre">path</span></code> fields in
+<code class="docutils literal notranslate"><span class="pre">input_files</span></code> and <code class="docutils literal notranslate"><span class="pre">output_files</span></code> relative to the manifest file whenever the
+file lives inside the manifest’s directory. Stored relative paths always use
+forward slashes. Runtime manifests created by <code class="docutils literal notranslate"><span class="pre">build_manifest()</span></code> use absolute
+paths, and <code class="docutils literal notranslate"><span class="pre">read_manifest()</span></code> restores v2 relative paths to absolute paths for
+the current machine.</p>
+<p>Outputs written next to the manifest, the default for every EEGPrep writer,
+therefore stay valid when the output folder is copied elsewhere. Files outside
+that folder, typically the raw inputs or a path on another Windows drive, are
+recorded as absolute paths: they remain valid on the machine that produced the
+manifest but are not portable.</p>
+<p>Version 1 and unknown schema versions keep their original path strings when
+read or written; EEGPrep cannot infer what their relative paths were relative
+to. Consumers that need resolved v2 paths should use <code class="docutils literal notranslate"><span class="pre">read_manifest()</span></code>
+instead of loading the JSON directly. Path serialization does not alter or
+verify the recorded SHA-256 values.</p>
+</section>
 <section id="qc-and-reports">
 <h2>QC And Reports<a class="headerlink" href="#qc-and-reports" title="Link to this heading">#</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>eegprep<span class="w"> </span>qc<span class="w"> </span>input.set<span class="w"> </span>--json
@@ -722,6 +741,7 @@ instead of silently inventing behavior.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset-inspection-and-validation">Dataset Inspection And Validation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#transform-commands">Transform Commands</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pipeline-configs">Pipeline Configs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#manifest-portability-and-migration">Manifest Portability And Migration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#qc-and-reports">QC And Reports</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bids-and-migration">BIDS And Migration</a></li>
 </ul>

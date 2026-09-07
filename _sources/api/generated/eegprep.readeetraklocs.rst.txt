@@ -1,0 +1,6 @@
+﻿readeetraklocs
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readeetraklocs

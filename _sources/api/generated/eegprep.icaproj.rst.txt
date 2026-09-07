@@ -1,0 +1,6 @@
+﻿icaproj
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: icaproj

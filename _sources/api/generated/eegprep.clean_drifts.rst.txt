@@ -1,5 +1,5 @@
-﻿eegprep.clean\_drifts
-=====================
+﻿clean\_drifts
+=============
 
 .. currentmodule:: eegprep
 

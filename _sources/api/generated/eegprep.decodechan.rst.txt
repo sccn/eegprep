@@ -1,0 +1,6 @@
+﻿decodechan
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: decodechan

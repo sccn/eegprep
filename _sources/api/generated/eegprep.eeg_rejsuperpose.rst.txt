@@ -1,0 +1,6 @@
+﻿eeg\_rejsuperpose
+=================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_rejsuperpose

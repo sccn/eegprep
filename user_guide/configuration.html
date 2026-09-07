@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../examples/index.html">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../api/index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -570,10 +570,16 @@ default.</p></td>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_computeica</span></code></p></td>
 <td><p>Precompute ICA activations where supported.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_scaleicarms</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_native_dialogs</span></code></p></td>
+<td><p>Use native OS file panels (<code class="docutils literal notranslate"><span class="pre">1</span></code>, the default) or Qt file dialogs
+(<code class="docutils literal notranslate"><span class="pre">0</span></code>) for the current process. <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> overrides this with
+Qt dialogs unless launched with <code class="docutils literal notranslate"><span class="pre">--native-file-dialogs</span></code>, because native
+macOS panels can close immediately under IPython’s Qt input hook.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_scaleicarms</span></code></p></td>
 <td><p>Scale ICA component activations to RMS microvolt during checkset paths.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">option_cachesize</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">option_cachesize</span></code></p></td>
 <td><p>STUDY cache size in MB for implemented STUDY measure workflows.</p></td>
 </tr>
 </tbody>
@@ -594,6 +600,10 @@ default.</p></td>
 </div>
 <p>In a shared GUI/console session, the menu refresh uses the same
 <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> dictionary.</p>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">native_file_dialogs=True</span></code> or <code class="docutils literal notranslate"><span class="pre">False</span></code> to <code class="docutils literal notranslate"><span class="pre">eeglab()</span></code> or <code class="docutils literal notranslate"><span class="pre">gui()</span></code> to
+override the global option for that window. The override also applies to file
+panels opened from nested GUI callbacks. <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS</span></code> is process-local; it
+does not persist across application restarts.</p>
 </section>
 <section id="preprocessing-parameters">
 <h2>Preprocessing Parameters<a class="headerlink" href="#preprocessing-parameters" title="Link to this heading">#</a></h2>

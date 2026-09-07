@@ -1,0 +1,6 @@
+﻿icaact
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: icaact

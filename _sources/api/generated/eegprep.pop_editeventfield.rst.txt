@@ -1,0 +1,6 @@
+﻿pop\_editeventfield
+===================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_editeventfield

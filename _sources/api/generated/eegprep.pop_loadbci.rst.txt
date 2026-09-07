@@ -1,0 +1,6 @@
+﻿pop\_loadbci
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_loadbci

@@ -1,0 +1,6 @@
+﻿corrcoef\_cell
+==============
+
+.. currentmodule:: eegprep.functions.statistics
+
+.. autofunction:: corrcoef_cell

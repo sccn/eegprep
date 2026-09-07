@@ -1,0 +1,6 @@
+﻿pop\_fileio
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_fileio

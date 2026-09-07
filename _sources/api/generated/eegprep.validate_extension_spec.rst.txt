@@ -1,5 +1,5 @@
-﻿eegprep.validate\_extension\_spec
-=================================
+﻿validate\_extension\_spec
+=========================
 
 .. currentmodule:: eegprep
 

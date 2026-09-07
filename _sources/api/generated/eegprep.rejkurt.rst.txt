@@ -1,0 +1,6 @@
+﻿rejkurt
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: rejkurt

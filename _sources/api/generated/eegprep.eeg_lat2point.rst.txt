@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_lat2point
-======================
+﻿eeg\_lat2point
+==============
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.build\_safe\_update\_commands
-=====================================
+﻿build\_safe\_update\_commands
+=============================
 
 .. currentmodule:: eegprep
 

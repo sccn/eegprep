@@ -1,0 +1,6 @@
+﻿std\_precomp
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_precomp

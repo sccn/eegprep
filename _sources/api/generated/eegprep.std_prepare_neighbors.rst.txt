@@ -1,5 +1,5 @@
-﻿eegprep.std\_prepare\_neighbors
-===============================
+﻿std\_prepare\_neighbors
+=======================
 
 .. currentmodule:: eegprep
 

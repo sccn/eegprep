@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>eegprep.EEGPrepSession &#8212; EEGPrep manual</title>
+    <title>EEGPrepSession &#8212; EEGPrep manual</title>
   
   
   
@@ -63,8 +63,8 @@
     <link rel="icon" href="../../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="eegprep.gui" href="eegprep.gui.html" />
-    <link rel="prev" title="eegprep.EEGobj" href="eegprep.EEGobj.html" />
+    <link rel="next" title="EEG_OPTIONS" href="eegprep.EEG_OPTIONS.html" />
+    <link rel="prev" title="Core and Session" href="../core_and_session.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -163,7 +163,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../../examples/index.html">
+  <a class="nav-link nav-internal" href="../../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -171,21 +171,21 @@
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="../index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -311,7 +311,7 @@
 
 
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="../../examples/index.html">
+  <a class="nav-link nav-internal" href="../../auto_examples/index.html">
     Examples
   </a>
 </li>
@@ -319,21 +319,21 @@
 
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="../index.html">
-    API Reference
+    Functions
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../../faq.html">
-    Frequently Asked Questions
+    FAQ
   </a>
 </li>
 
 
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../../references.html">
-    References and Citations
+    References
   </a>
 </li>
 
@@ -421,14 +421,36 @@
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../core.html">Core Functions and Classes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../preprocessing.html">Preprocessing Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ica.html">Independent Component Analysis</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../signal_processing.html">Signal Processing Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../io.html">Input/Output Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pop_functions.html">Interactive Pop Workflow API</a></li>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../core_and_session.html">Core and Session</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">EEGPrepSession</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.EEG_OPTIONS.html">EEG_OPTIONS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.EEGobj.html">EEGobj</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.checkset.html">checkset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.compare.html">compare</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_checkset.html">eeg_checkset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_checkset_strict_mode.html">eeg_checkset_strict_mode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_compare.html">eeg_compare</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_emptyset.html">eeg_emptyset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_retrieve.html">eeg_retrieve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_store.html">eeg_store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eegh.html">eegh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeglab.html">eeglab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.options.html">options</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../gui_and_console.html">GUI and Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../data_loading_and_saving.html">Data Loading and Saving</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../bids.html">BIDS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../preprocessing_and_artifacts.html">Preprocessing and Artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../epoching_and_selection.html">Epoching and Selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ica_and_components.html">ICA and Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../extensions.html">Extension SDK and Registry</a></li>
 
 
@@ -437,267 +459,6 @@
 
 
 
-<li class="toctree-l1"><a class="reference internal" href="../utils.html">Utility Functions</a></li>
-</ul>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EEGobj.html">eegprep.EEGobj</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">eegprep.EEGPrepSession</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.gui.html">eegprep.gui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeglab.html">eegprep.eeglab</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EEGPrepConsoleWorkspace.html">eegprep.EEGPrepConsoleWorkspace</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ConsolePopResult.html">eegprep.ConsolePopResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ConsoleDatasetResult.html">eegprep.ConsoleDatasetResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.inputgui.html">eegprep.inputgui</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.listdlg2.html">eegprep.listdlg2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pophelp.html">eegprep.pophelp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.DialogSpec.html">eegprep.DialogSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ControlSpec.html">eegprep.ControlSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CallbackSpec.html">eegprep.CallbackSpec</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_emptyset.html">eegprep.eeg_emptyset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_store.html">eegprep.eeg_store</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_retrieve.html">eegprep.eeg_retrieve</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_newset.html">eegprep.pop_newset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_delset.html">eegprep.pop_delset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_editoptions.html">eegprep.pop_editoptions</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.select_multiple_datasets.html">eegprep.select_multiple_datasets</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_loadset.html">eegprep.pop_loadset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.loadset.html">eegprep.loadset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_loadset_h5.html">eegprep.pop_loadset_h5</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_saveset.html">eegprep.pop_saveset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_load_frombids.html">eegprep.pop_load_frombids</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_artifacts.html">eegprep.clean_artifacts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_asr.html">eegprep.clean_asr</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_flatlines.html">eegprep.clean_flatlines</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_drifts.html">eegprep.clean_drifts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_windows.html">eegprep.clean_windows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.vis_artifacts.html">eegprep.vis_artifacts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.vis_artifacts_diagnostics.html">eegprep.vis_artifacts_diagnostics</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_channels.html">eegprep.clean_channels</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.clean_channels_nolocs.html">eegprep.clean_channels_nolocs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_interp.html">eegprep.eeg_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_interp.html">eegprep.pop_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_reref.html">eegprep.pop_reref</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_resample.html">eegprep.pop_resample</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_eegfiltnew.html">eegprep.pop_eegfiltnew</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_firws.html">eegprep.pop_firws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_firpm.html">eegprep.pop_firpm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_firma.html">eegprep.pop_firma</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_kaiserbeta.html">eegprep.pop_kaiserbeta</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_firwsord.html">eegprep.pop_firwsord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_firpmord.html">eegprep.pop_firpmord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_xfirws.html">eegprep.pop_xfirws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.firfiltreport.html">eegprep.firfiltreport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.plotfresp.html">eegprep.plotfresp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_amica.html">eegprep.eeg_amica</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_picard.html">eegprep.eeg_picard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_runica.html">eegprep.eeg_runica</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.iclabel.html">eegprep.iclabel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ICL_feature_extractor.html">eegprep.ICL_feature_extractor</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_rpsd.html">eegprep.eeg_rpsd</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_autocorr.html">eegprep.eeg_autocorr</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_autocorr_welch.html">eegprep.eeg_autocorr_welch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_autocorr_fftw.html">eegprep.eeg_autocorr_fftw</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newtimef.html">eegprep.newtimef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newcrossf.html">eegprep.newcrossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.timefreq.html">eegprep.timefreq</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.timef.html">eegprep.timef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.crossf.html">eegprep.crossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pac.html">eegprep.pac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pac_cont.html">eegprep.pac_cont</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.timewarp.html">eegprep.timewarp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.angtimewarp.html">eegprep.angtimewarp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.tf_cycle_calc.html">eegprep.tf_cycle_calc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newtimefbaseln.html">eegprep.newtimefbaseln</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newtimeftrialbaseln.html">eegprep.newtimeftrialbaseln</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newtimefitc.html">eegprep.newtimefitc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.newtimefpowerunit.html">eegprep.newtimefpowerunit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.bootstat.html">eegprep.bootstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.correct_mc.html">eegprep.correct_mc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.correctfit.html">eegprep.correctfit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.rsadjust.html">eegprep.rsadjust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.rsfit.html">eegprep.rsfit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.rsget.html">eegprep.rsget</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.rspdfsolv.html">eegprep.rspdfsolv</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.rspfunc.html">eegprep.rspfunc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.signalstat.html">eegprep.signalstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_newtimef.html">eegprep.pop_newtimef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_newcrossf.html">eegprep.pop_newcrossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_timef.html">eegprep.pop_timef</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_crossf.html">eegprep.pop_crossf</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_signalstat.html">eegprep.pop_signalstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_eventstat.html">eegprep.pop_eventstat</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_adjustevents.html">eegprep.pop_adjustevents</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_epoch.html">eegprep.pop_epoch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_select.html">eegprep.pop_select</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_eegrej.html">eegprep.eeg_eegrej</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eegrej.html">eegprep.eegrej</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.cart2topo.html">eegprep.cart2topo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eegplot.html">eegprep.eegplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_multieegplot.html">eegprep.eeg_multieegplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_topoplot.html">eegprep.pop_topoplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.topoplot.html">eegprep.topoplot</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_mne2eeg.html">eegprep.eeg_mne2eeg</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_mne2eeg_epochs.html">eegprep.eeg_mne2eeg_epochs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_eeg2mne.html">eegprep.eeg_eeg2mne</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_checkset.html">eegprep.eeg_checkset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_compare.html">eegprep.eeg_compare</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_decodechan.html">eegprep.eeg_decodechan</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_lat2point.html">eegprep.eeg_lat2point</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_point2lat.html">eegprep.eeg_point2lat</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.bids_preproc.html">eegprep.bids_preproc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.bids_list_eeg_files.html">eegprep.bids_list_eeg_files</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_importbids.html">eegprep.pop_importbids</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_exportbids.html">eegprep.pop_exportbids</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.bundled_plugins.html">eegprep.bundled_plugins</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.plugin_status.html">eegprep.plugin_status</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.plugin_menu.html">eegprep.plugin_menu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.format_plugin_menu.html">eegprep.format_plugin_menu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_clean_rawdata.html">eegprep.pop_clean_rawdata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.eeg_icalabelstat.html">eegprep.eeg_icalabelstat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_iclabel.html">eegprep.pop_iclabel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_icflag.html">eegprep.pop_icflag</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_prop_extended.html">eegprep.pop_prop_extended</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_viewprops.html">eegprep.pop_viewprops</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.firws.html">eegprep.firws</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.firwsord.html">eegprep.firwsord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipfit_settings.html">eegprep.pop_dipfit_settings</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipplot.html">eegprep.pop_dipplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipfit_headmodel.html">eegprep.pop_dipfit_headmodel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipfit_gridsearch.html">eegprep.pop_dipfit_gridsearch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipfit_nonlinear.html">eegprep.pop_dipfit_nonlinear</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_multifit.html">eegprep.pop_multifit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_leadfield.html">eegprep.pop_leadfield</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_dipfit_loreta.html">eegprep.pop_dipfit_loreta</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CATALOG_SCHEMA_VERSION.html">eegprep.CATALOG_SCHEMA_VERSION</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CatalogValidationIssue.html">eegprep.CatalogValidationIssue</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CatalogValidationOptions.html">eegprep.CatalogValidationOptions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CatalogValidationReport.html">eegprep.CatalogValidationReport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EXTENSION_COMPATIBILITY_POLICY.html">eegprep.EXTENSION_COMPATIBILITY_POLICY</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EXTENSION_CURATION_POLICY_URL.html">eegprep.EXTENSION_CURATION_POLICY_URL</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EXTENSION_NAMING_PREFIX.html">eegprep.EXTENSION_NAMING_PREFIX</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EXTENSION_TRUST_MESSAGE.html">eegprep.EXTENSION_TRUST_MESSAGE</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionSpec.html">eegprep.ExtensionSpec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionRegistry.html">eegprep.ExtensionRegistry</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionRecord.html">eegprep.ExtensionRecord</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionStatus.html">eegprep.ExtensionStatus</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionSourceType.html">eegprep.ExtensionSourceType</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionCatalog.html">eegprep.ExtensionCatalog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionCatalogEntry.html">eegprep.ExtensionCatalogEntry</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.CatalogSourceType.html">eegprep.CatalogSourceType</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionAction.html">eegprep.ExtensionAction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionPopFunction.html">eegprep.ExtensionPopFunction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionMenu.html">eegprep.ExtensionMenu</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionDependency.html">eegprep.ExtensionDependency</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionResource.html">eegprep.ExtensionResource</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionLoadError.html">eegprep.ExtensionLoadError</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionValidationResult.html">eegprep.ExtensionValidationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.ExtensionTestHarness.html">eegprep.ExtensionTestHarness</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.LazyImport.html">eegprep.LazyImport</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.assert_extension_entry_point_loads.html">eegprep.assert_extension_entry_point_loads</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.check_extension_compatibility.html">eegprep.check_extension_compatibility</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.discover_extensions.html">eegprep.discover_extensions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.extension_version_satisfies.html">eegprep.extension_version_satisfies</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.load_catalog_entries.html">eegprep.load_catalog_entries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.validate_catalog_entries.html">eegprep.validate_catalog_entries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.validate_catalog_file.html">eegprep.validate_catalog_file</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.validate_extension_spec.html">eegprep.validate_extension_spec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.load_extension_catalog.html">eegprep.load_extension_catalog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.build_safe_install_commands.html">eegprep.build_safe_install_commands</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.build_safe_update_commands.html">eegprep.build_safe_update_commands</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_study.html">eegprep.pop_study</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_studywizard.html">eegprep.pop_studywizard</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_studyerp.html">eegprep.pop_studyerp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_loadstudy.html">eegprep.pop_loadstudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_savestudy.html">eegprep.pop_savestudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_addindepvar.html">eegprep.pop_addindepvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_importgroupvar.html">eegprep.pop_importgroupvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_listfactors.html">eegprep.pop_listfactors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_precomp.html">eegprep.pop_precomp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_chanplot.html">eegprep.pop_chanplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_preclust.html">eegprep.pop_preclust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_clust.html">eegprep.pop_clust</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.pop_clustedit.html">eegprep.pop_clustedit</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_addvarlevel.html">eegprep.std_addvarlevel</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_builddesignmat.html">eegprep.std_builddesignmat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_limodesign.html">eegprep.std_limodesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_checkconsist.html">eegprep.std_checkconsist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_checkdesign.html">eegprep.std_checkdesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_combtrialinfo.html">eegprep.std_combtrialinfo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_findsameica.html">eegprep.std_findsameica</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_getindvar.html">eegprep.std_getindvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_gettrialsind.html">eegprep.std_gettrialsind</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_indvarmatch.html">eegprep.std_indvarmatch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_maketrialinfo.html">eegprep.std_maketrialinfo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_rmdat.html">eegprep.std_rmdat</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_rmalldatafields.html">eegprep.std_rmalldatafields</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_rebuilddesign.html">eegprep.std_rebuilddesign</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_saveindvar.html">eegprep.std_saveindvar</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_selectdataset.html">eegprep.std_selectdataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_selsubject.html">eegprep.std_selsubject</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_substudy.html">eegprep.std_substudy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readdata.html">eegprep.std_readdata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readerp.html">eegprep.std_readerp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readspec.html">eegprep.std_readspec</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readersp.html">eegprep.std_readersp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readitc.html">eegprep.std_readitc</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readtopo.html">eegprep.std_readtopo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_readpac.html">eegprep.std_readpac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_pac.html">eegprep.std_pac</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_pacplot.html">eegprep.std_pacplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_prepare_neighbors.html">eegprep.std_prepare_neighbors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_interp.html">eegprep.std_interp</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_dipplot.html">eegprep.std_dipplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_dipoleclusters.html">eegprep.std_dipoleclusters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_checkfiles.html">eegprep.std_checkfiles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_checkdatasession.html">eegprep.std_checkdatasession</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_uniformfiles.html">eegprep.std_uniformfiles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_uniformsetinds.html">eegprep.std_uniformsetinds</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_erpplot.html">eegprep.std_erpplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_specplot.html">eegprep.std_specplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_erspplot.html">eegprep.std_erspplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_itcplot.html">eegprep.std_itcplot</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.optimal_kmeans.html">eegprep.optimal_kmeans</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.robust_kmeans.html">eegprep.robust_kmeans</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_apcluster.html">eegprep.std_apcluster</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_centroid.html">eegprep.std_centroid</a></li>
-<li class="toctree-l1"><a class="reference internal" href="eegprep.std_findoutlierclust.html">eegprep.std_findoutlierclust</a></li>
-</ul>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="eegprep.EEG_OPTIONS.html">eegprep.EEG_OPTIONS</a></li>
 </ul>
 </div>
 </nav></div>
@@ -732,9 +493,12 @@
       </a>
     </li>
     
-    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">API Reference</a></li>
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Functions</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">eegprep.EEGPrepSession</span></li>
+    
+    <li class="breadcrumb-item"><a href="../core_and_session.html" class="nav-link">Core and Session</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">EEGPrepSession</span></li>
   </ul>
 </nav>
 </div>
@@ -751,11 +515,11 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="eegprep-eegprepsession">
-<h1>eegprep.EEGPrepSession<a class="headerlink" href="#eegprep-eegprepsession" title="Link to this heading">#</a></h1>
+  <section id="eegprepsession">
+<h1>EEGPrepSession<a class="headerlink" href="#eegprepsession" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="eegprep.EEGPrepSession">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">eegprep.</span></span><span class="sig-name descname"><span class="pre">EEGPrepSession</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSET</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">LASTCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">STUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSTUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">PLUGINLIST</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">EEGPrepSession</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSET</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">LASTCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">STUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSTUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">PLUGINLIST</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>EEGLAB-like GUI state without module globals.</p>
 <dl class="field-list simple">
@@ -772,142 +536,6 @@
 </ul>
 </dd>
 </dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="eegprep.EEGPrepSession.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSET</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">LASTCOM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">STUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CURRENTSTUDY</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">PLUGINLIST</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.__init__" title="Link to this definition">#</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>)</p></li>
-<li><p><strong>ALLEEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>)</p></li>
-<li><p><strong>CURRENTSET</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>)</p></li>
-<li><p><strong>ALLCOM</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
-<li><p><strong>LASTCOM</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>STUDY</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
-<li><p><strong>CURRENTSTUDY</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>PLUGINLIST</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
-</dd>
-</dl>
-</dd></dl>
-
-<p class="rubric">Methods</p>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.__init__" title="eegprep.EEGPrepSession.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([EEG, ALLEEG, CURRENTSET, ALLCOM, ...])</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.add_change_listener" title="eegprep.EEGPrepSession.add_change_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_change_listener</span></code></a>(listener)</p></td>
-<td><p>Register a callback that runs after session state changes.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.add_command_echo_listener" title="eegprep.EEGPrepSession.add_command_echo_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_command_echo_listener</span></code></a>(listener)</p></td>
-<td><p>Register a callback for GUI commands to display in the console.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.add_gui_action_listener" title="eegprep.EEGPrepSession.add_gui_action_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_gui_action_listener</span></code></a>(listener)</p></td>
-<td><p>Register a callback for GUI action start/end notifications.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.add_history" title="eegprep.EEGPrepSession.add_history"><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_history</span></code></a>(command, *[, notify])</p></td>
-<td><p>Append an EEGLAB-style command to session history.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.begin_gui_action" title="eegprep.EEGPrepSession.begin_gui_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">begin_gui_action</span></code></a>(action)</p></td>
-<td><p>Notify listeners that a GUI action is about to run.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.clear_all" title="eegprep.EEGPrepSession.clear_all"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_all</span></code></a>()</p></td>
-<td><p>Clear all datasets and study state.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.clone_current" title="eegprep.EEGPrepSession.clone_current"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clone_current</span></code></a>()</p></td>
-<td><p>Return a deep copy of the current EEG selection.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.current_eeg" title="eegprep.EEGPrepSession.current_eeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">current_eeg</span></code></a>()</p></td>
-<td><p>Return the current EEG selection.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.current_set_value" title="eegprep.EEGPrepSession.current_set_value"><code class="xref py py-obj docutils literal notranslate"><span class="pre">current_set_value</span></code></a>()</p></td>
-<td><p>Return EEGLAB-style CURRENTSET scalar/list value.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.dataset_summaries" title="eegprep.EEGPrepSession.dataset_summaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dataset_summaries</span></code></a>()</p></td>
-<td><p>Return <code class="docutils literal notranslate"><span class="pre">(index,</span> <span class="pre">label,</span> <span class="pre">selected)</span></code> tuples for the Datasets menu.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.delete_current" title="eegprep.EEGPrepSession.delete_current"><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_current</span></code></a>()</p></td>
-<td><p>Delete the current dataset selection from memory.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.echo_command" title="eegprep.EEGPrepSession.echo_command"><code class="xref py py-obj docutils literal notranslate"><span class="pre">echo_command</span></code></a>(command)</p></td>
-<td><p>Display a GUI command without mutating session history.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.end_gui_action" title="eegprep.EEGPrepSession.end_gui_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">end_gui_action</span></code></a>(action)</p></td>
-<td><p>Notify listeners that a GUI action has finished.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.gui_action" title="eegprep.EEGPrepSession.gui_action"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gui_action</span></code></a>(action)</p></td>
-<td><p>Wrap a user-triggered GUI action for console/output synchronization.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.mark_current_saved" title="eegprep.EEGPrepSession.mark_current_saved"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mark_current_saved</span></code></a>()</p></td>
-<td><p>Mark the current dataset selection as saved in EEG and ALLEEG.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.menu_statuses" title="eegprep.EEGPrepSession.menu_statuses"><code class="xref py py-obj docutils literal notranslate"><span class="pre">menu_statuses</span></code></a>()</p></td>
-<td><p>Return EEGLAB-style menu status tokens for the current state.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.notify_changed" title="eegprep.EEGPrepSession.notify_changed"><code class="xref py py-obj docutils literal notranslate"><span class="pre">notify_changed</span></code></a>()</p></td>
-<td><p>Notify listeners that session-backed state changed.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.remove_change_listener" title="eegprep.EEGPrepSession.remove_change_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_change_listener</span></code></a>(listener)</p></td>
-<td><p>Remove a previously registered session change callback.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.remove_command_echo_listener" title="eegprep.EEGPrepSession.remove_command_echo_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_command_echo_listener</span></code></a>(listener)</p></td>
-<td><p>Remove a previously registered command echo callback.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.remove_gui_action_listener" title="eegprep.EEGPrepSession.remove_gui_action_listener"><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_gui_action_listener</span></code></a>(listener)</p></td>
-<td><p>Remove a previously registered GUI action callback.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.retrieve" title="eegprep.EEGPrepSession.retrieve"><code class="xref py py-obj docutils literal notranslate"><span class="pre">retrieve</span></code></a>(indices)</p></td>
-<td><p>Select dataset(s) from ALLEEG using 1-based indices.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.select_study" title="eegprep.EEGPrepSession.select_study"><code class="xref py py-obj docutils literal notranslate"><span class="pre">select_study</span></code></a>(*[, command])</p></td>
-<td><p>Select the current STUDY set in the shared workspace.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.selected_dataset_indices" title="eegprep.EEGPrepSession.selected_dataset_indices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">selected_dataset_indices</span></code></a>()</p></td>
-<td><p>Return the selected EEGLAB-facing dataset indices in order.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.set_study" title="eegprep.EEGPrepSession.set_study"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_study</span></code></a>(study[, alleeg, command])</p></td>
-<td><p>Set STUDY/CURRENTSTUDY and optionally replace loaded datasets.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.store_current" title="eegprep.EEGPrepSession.store_current"><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_current</span></code></a>(eeg, *[, new, command, ...])</p></td>
-<td><p>Store <code class="docutils literal notranslate"><span class="pre">eeg</span></code> in ALLEEG and select it.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p class="rubric">Attributes</p>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.CURRENTSTUDY" title="eegprep.EEGPrepSession.CURRENTSTUDY"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CURRENTSTUDY</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.LASTCOM" title="eegprep.EEGPrepSession.LASTCOM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LASTCOM</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.STUDY" title="eegprep.EEGPrepSession.STUDY"><code class="xref py py-obj docutils literal notranslate"><span class="pre">STUDY</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.EEG" title="eegprep.EEGPrepSession.EEG"><code class="xref py py-obj docutils literal notranslate"><span class="pre">EEG</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.ALLEEG" title="eegprep.EEGPrepSession.ALLEEG"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ALLEEG</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.CURRENTSET" title="eegprep.EEGPrepSession.CURRENTSET"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CURRENTSET</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.ALLCOM" title="eegprep.EEGPrepSession.ALLCOM"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ALLCOM</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#eegprep.EEGPrepSession.PLUGINLIST" title="eegprep.EEGPrepSession.PLUGINLIST"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PLUGINLIST</span></code></a></p></td>
-<td><p></p></td>
-</tr>
-</tbody>
-</table>
-</div>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="eegprep.EEGPrepSession.EEG">
 <span class="sig-name descname"><span class="pre">EEG</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#eegprep.EEGPrepSession.EEG" title="Link to this definition">#</a></dt>
@@ -1379,20 +1007,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="eegprep.EEGobj.html"
+       href="../core_and_session.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">eegprep.EEGobj</p>
+        <p class="prev-next-title">Core and Session</p>
       </div>
     </a>
     <a class="right-next"
-       href="eegprep.gui.html"
+       href="eegprep.EEG_OPTIONS.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">eegprep.gui</p>
+        <p class="prev-next-title">EEG_OPTIONS</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1416,7 +1044,6 @@
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.__init__"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.__init__()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.EEG"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.EEG</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.ALLEEG"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLEEG</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.EEGPrepSession.CURRENTSET"><code class="docutils literal notranslate"><span class="pre">EEGPrepSession.CURRENTSET</span></code></a></li>

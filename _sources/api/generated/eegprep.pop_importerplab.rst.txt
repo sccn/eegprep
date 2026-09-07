@@ -1,0 +1,6 @@
+﻿pop\_importerplab
+=================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_importerplab

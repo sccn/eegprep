@@ -1,0 +1,6 @@
+﻿eeg\_pvaf
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_pvaf

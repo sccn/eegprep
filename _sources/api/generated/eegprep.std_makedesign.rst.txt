@@ -1,0 +1,6 @@
+﻿std\_makedesign
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_makedesign

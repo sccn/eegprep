@@ -1,0 +1,6 @@
+﻿eeg\_checkset\_strict\_mode
+===========================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_checkset_strict_mode

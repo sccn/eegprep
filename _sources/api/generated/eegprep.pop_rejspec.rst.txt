@@ -1,0 +1,6 @@
+﻿pop\_rejspec
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rejspec

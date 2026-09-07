@@ -1,5 +1,5 @@
-﻿eegprep.EXTENSION\_TRUST\_MESSAGE
-=================================
+﻿EXTENSION\_TRUST\_MESSAGE
+=========================
 
 .. currentmodule:: eegprep
 

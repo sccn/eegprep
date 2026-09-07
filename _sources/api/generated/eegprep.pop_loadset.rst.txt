@@ -1,5 +1,5 @@
-﻿eegprep.pop\_loadset
-====================
+﻿pop\_loadset
+============
 
 .. currentmodule:: eegprep
 

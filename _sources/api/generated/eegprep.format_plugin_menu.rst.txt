@@ -1,5 +1,5 @@
-﻿eegprep.format\_plugin\_menu
-============================
+﻿format\_plugin\_menu
+====================
 
 .. currentmodule:: eegprep
 

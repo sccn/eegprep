@@ -1,5 +1,5 @@
-﻿eegprep.plugin\_status
-======================
+﻿plugin\_status
+==============
 
 .. currentmodule:: eegprep
 

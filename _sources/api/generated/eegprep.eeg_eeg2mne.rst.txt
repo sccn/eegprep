@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_eeg2mne
-====================
+﻿eeg\_eeg2mne
+============
 
 .. currentmodule:: eegprep
 

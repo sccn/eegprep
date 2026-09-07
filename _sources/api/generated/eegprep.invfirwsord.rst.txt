@@ -1,0 +1,6 @@
+﻿invfirwsord
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: invfirwsord

@@ -1,0 +1,1149 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Interactive Pop Workflows &#8212; EEGPrep manual</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../_static/documentation_options.js?v=e259d695"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=b8b12719"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/interactive_pop_workflows';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pop_biosig" href="generated/eegprep.pop_biosig.html" />
+    <link rel="prev" title="std_substudy" href="generated/eegprep.std_substudy.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.3.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar"><svg class="pst-icon svg-inline--fa" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="core_and_session.html">Core and Session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_and_console.html">GUI and Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loading_and_saving.html">Data Loading and Saving</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids.html">BIDS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_and_artifacts.html">Preprocessing and Artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epoching_and_selection.html">Epoching and Selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_and_components.html">ICA and Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Interactive Pop Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_biosig.html">pop_biosig</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chanedit.html">pop_chanedit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_editset.html">pop_editset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_expevents.html">pop_expevents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_export.html">pop_export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_exportbids.html">pop_exportbids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importdata.html">pop_importdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importepoch.html">pop_importepoch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importevent.html">pop_importevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">pop_load_frombids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadset.html">pop_loadset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html">pop_loadset_h5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_readlocs.html">pop_readlocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_saveh.html">pop_saveh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_saveset.html">pop_saveset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_writeeeg.html">pop_writeeeg</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_autorej.html">pop_autorej</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_clean_rawdata.html">pop_clean_rawdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_eegfilt.html">pop_eegfilt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html">pop_eegfiltnew</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_eegthresh.html">pop_eegthresh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_epoch.html">pop_epoch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_firws.html">pop_firws</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_firwsord.html">pop_firwsord</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_interp.html">pop_interp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_jointprob.html">pop_jointprob</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejchan.html">pop_rejchan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejchanspec.html">pop_rejchanspec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejcont.html">pop_rejcont</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejepoch.html">pop_rejepoch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejkurt.html">pop_rejkurt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejspec.html">pop_rejspec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejtrend.html">pop_rejtrend</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_reref.html">pop_reref</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_resample.html">pop_resample</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rmbase.html">pop_rmbase</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_select.html">pop_select</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_selectcomps.html">pop_selectcomps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_selectevent.html">pop_selectevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_xfirws.html">pop_xfirws</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_expica.html">pop_expica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_icathresh.html">pop_icathresh</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_iclabel.html">pop_iclabel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_prop.html">pop_prop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_prop_extended.html">pop_prop_extended</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_runica.html">pop_runica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_subcomp.html">pop_subcomp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_viewprops.html">pop_viewprops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chanplot.html">pop_chanplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_compareerps.html">pop_compareerps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_crossf.html">pop_crossf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipplot.html">pop_dipplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_eegplot.html">pop_eegplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_envtopo.html">pop_envtopo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_erpimage.html">pop_erpimage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_headplot.html">pop_headplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_newcrossf.html">pop_newcrossf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_newtimef.html">pop_newtimef</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_plotdata.html">pop_plotdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_plottopo.html">pop_plottopo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_spectopo.html">pop_spectopo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_timtopo.html">pop_timtopo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_topochansel.html">pop_topochansel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_topoplot.html">pop_topoplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_clust.html">pop_clust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_clustedit.html">pop_clustedit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadstudy.html">pop_loadstudy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_preclust.html">pop_preclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_precomp.html">pop_precomp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_savestudy.html">pop_savestudy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_study.html">pop_study</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_studydesign.html">pop_studydesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_studyerp.html">pop_studyerp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_studywizard.html">pop_studywizard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_addindepvar.html">pop_addindepvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_adjustevents.html">pop_adjustevents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_averef.html">pop_averef</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chancenter.html">pop_chancenter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chancoresp.html">pop_chancoresp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chanevent.html">pop_chanevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_chansel.html">pop_chansel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_comments.html">pop_comments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_comperp.html">pop_comperp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_copyset.html">pop_copyset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_delset.html">pop_delset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipfit_gridsearch.html">pop_dipfit_gridsearch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipfit_headmodel.html">pop_dipfit_headmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipfit_loreta.html">pop_dipfit_loreta</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipfit_nonlinear.html">pop_dipfit_nonlinear</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_dipfit_settings.html">pop_dipfit_settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_editeventfield.html">pop_editeventfield</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_editeventvals.html">pop_editeventvals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_editoptions.html">pop_editoptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_eventstat.html">pop_eventstat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_fileio.html">pop_fileio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_fileio_brainvision_mat.html">pop_fileio_brainvision_mat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_findmatchingcomps.html">pop_findmatchingcomps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_firma.html">pop_firma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_firpm.html">pop_firpm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_firpmord.html">pop_firpmord</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_fusechanrej.html">pop_fusechanrej</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_icflag.html">pop_icflag</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importbids.html">pop_importbids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importerplab.html">pop_importerplab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importgroupvar.html">pop_importgroupvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importpres.html">pop_importpres</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_kaiserbeta.html">pop_kaiserbeta</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_leadfield.html">pop_leadfield</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_limo.html">pop_limo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_limoresults.html">pop_limoresults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_listfactors.html">pop_listfactors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadbci.html">pop_loadbci</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_mergeset.html">pop_mergeset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_multifit.html">pop_multifit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_newset.html">pop_newset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejmenu.html">pop_rejmenu</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rmdat.html">pop_rmdat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_runscript.html">pop_runscript</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_signalstat.html">pop_signalstat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_snapread.html">pop_snapread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_timef.html">pop_timef</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_writelocs.html">pop_writelocs</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">Extension SDK and Registry</a></li>
+
+
+
+
+
+
+
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">Functions</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Interactive Pop Workflows</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="interactive-pop-workflows">
+<span id="api-interactive-pop-workflows"></span><h1>Interactive Pop Workflows<a class="headerlink" href="#interactive-pop-workflows" title="Link to this heading">#</a></h1>
+<p>User-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> wrappers. Each accepts <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and returns a replayable history command.</p>
+<section id="loading-and-saving">
+<h2>Loading and Saving<a class="headerlink" href="#loading-and-saving" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_biosig.html#eegprep.pop_biosig" title="eegprep.pop_biosig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_biosig</span></code></a>(filename, *[, return_com])</p></td>
+<td><p>Import BIOSIG-style EDF/BDF/GDF files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_chanedit.html#eegprep.pop_chanedit" title="eegprep.pop_chanedit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chanedit</span></code></a>(chans, *args[, gui, ...])</p></td>
+<td><p>Edit EEG channel-location metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editset.html#eegprep.pop_editset" title="eegprep.pop_editset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editset</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Edit dataset metadata fields in an EEG dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_expevents.html#eegprep.pop_expevents" title="eegprep.pop_expevents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_expevents</span></code></a>(EEG, filename)</p></td>
+<td><p>Export <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code> as a tab-delimited text file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_export.html#eegprep.pop_export" title="eegprep.pop_export"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_export</span></code></a>(EEG, filename, *args, ...)</p></td>
+<td><p>Export EEG data or ICA activity to a delimited text file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_exportbids.html#eegprep.pop_exportbids" title="eegprep.pop_exportbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_exportbids</span></code></a>(EEG, output_dir, *[, ...])</p></td>
+<td><p>Export EEG dataset(s) as BIDS-like EEGLAB files and sidecars.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importdata.html#eegprep.pop_importdata" title="eegprep.pop_importdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importdata</span></code></a>(*args[, return_com])</p></td>
+<td><p>Import data from an array or supported file into an EEG dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importepoch.html#eegprep.pop_importepoch" title="eegprep.pop_importepoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importepoch</span></code></a>(EEG[, filename, ...])</p></td>
+<td><p>Import per-epoch metadata from a text table.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importevent.html#eegprep.pop_importevent" title="eegprep.pop_importevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importevent</span></code></a>(EEG, *args[, return_com])</p></td>
+<td><p>Import events from a text table or record array.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_load_frombids.html#eegprep.pop_load_frombids" title="eegprep.pop_load_frombids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_load_frombids</span></code></a>(filename, *[, ...])</p></td>
+<td><p>Load an EEG data file of a supported format from a BIDS dataset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_loadset.html#eegprep.pop_loadset" title="eegprep.pop_loadset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadset</span></code></a>([file_path, loadmode, ...])</p></td>
+<td><p>Load EEGLAB dataset from .set or .mat file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html#eegprep.pop_loadset_h5" title="eegprep.pop_loadset_h5"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadset_h5</span></code></a>(file_name)</p></td>
+<td><p>Load EEG data from HDF5 file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_readlocs.html#eegprep.pop_readlocs" title="eegprep.pop_readlocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_readlocs</span></code></a>([filename, return_com])</p></td>
+<td><p>Read channel locations and return an EEGPrep <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> list.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_saveh.html#eegprep.pop_saveh" title="eegprep.pop_saveh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveh</span></code></a>(allcoms[, filename, filepath])</p></td>
+<td><p>Save dataset or session command history to a script file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_saveset.html#eegprep.pop_saveset" title="eegprep.pop_saveset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveset</span></code></a>(EEG[, file_name])</p></td>
+<td><p>Save EEG data to file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_writeeeg.html#eegprep.pop_writeeeg" title="eegprep.pop_writeeeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writeeeg</span></code></a>(EEG, filename, *args, ...)</p></td>
+<td><p>Write continuous EEG data to an EDF/BDF/GDF-compatible file.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="preprocessing">
+<h2>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_autorej.html#eegprep.pop_autorej" title="eegprep.pop_autorej"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_autorej</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Run EEGLAB's automatic epoch rejection protocol.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_clean_rawdata.html#eegprep.pop_clean_rawdata" title="eegprep.pop_clean_rawdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_clean_rawdata</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Clean continuous EEG data using the clean_rawdata workflow.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_eegfilt.html#eegprep.pop_eegfilt" title="eegprep.pop_eegfilt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eegfilt</span></code></a>(EEG[, locutoff, ...])</p></td>
+<td><p>Filter EEG data through the legacy <code class="docutils literal notranslate"><span class="pre">pop_eegfilt</span></code> interface.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_eegfiltnew.html#eegprep.pop_eegfiltnew" title="eegprep.pop_eegfiltnew"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eegfiltnew</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Filter EEG data using EEGLAB's Hamming-windowed FIR defaults.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_eegthresh.html#eegprep.pop_eegthresh" title="eegprep.pop_eegthresh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eegthresh</span></code></a>(EEG[, icacomp, ...])</p></td>
+<td><p>Mark or reject epochs using EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_eegthresh</span></code> semantics.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_epoch.html#eegprep.pop_epoch" title="eegprep.pop_epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_epoch</span></code></a>([EEG, types, lim, gui, ...])</p></td>
+<td><p>Extract data epochs time locked to event types or event indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_firws.html#eegprep.pop_firws" title="eegprep.pop_firws"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_firws</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Filter EEG data using a windowed-sinc FIR filter.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_firwsord.html#eegprep.pop_firwsord" title="eegprep.pop_firwsord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_firwsord</span></code></a>([wtype, fs, df, dev, ...])</p></td>
+<td><p>Estimate a windowed-sinc FIR order.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_interp.html#eegprep.pop_interp" title="eegprep.pop_interp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_interp</span></code></a>([EEG, bad_elec, method, ...])</p></td>
+<td><p>Interpolate EEG channels using EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> semantics.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_jointprob.html#eegprep.pop_jointprob" title="eegprep.pop_jointprob"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_jointprob</span></code></a>(EEG[, icacomp, ...])</p></td>
+<td><p>Mark or reject epochs by local/global joint probability.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rejchan.html#eegprep.pop_rejchan" title="eegprep.pop_rejchan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejchan</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Reject channels by probability, kurtosis, spectrum, or standard deviation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rejchanspec.html#eegprep.pop_rejchanspec" title="eegprep.pop_rejchanspec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejchanspec</span></code></a>([EEG, return_com])</p></td>
+<td><p>Reject bad channels from spectral outliers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rejcont.html#eegprep.pop_rejcont" title="eegprep.pop_rejcont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejcont</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Reject continuous data portions based on high-frequency power.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rejepoch.html#eegprep.pop_rejepoch" title="eegprep.pop_rejepoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejepoch</span></code></a>(EEG[, tmprej, confirm, ...])</p></td>
+<td><p>Remove rejected epochs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rejkurt.html#eegprep.pop_rejkurt" title="eegprep.pop_rejkurt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejkurt</span></code></a>(EEG[, icacomp, ...])</p></td>
+<td><p>Mark or reject epochs by local/global kurtosis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rejspec.html#eegprep.pop_rejspec" title="eegprep.pop_rejspec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejspec</span></code></a>(EEG[, icacomp, gui, ...])</p></td>
+<td><p>Mark or reject epochs by spectral power thresholds.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rejtrend.html#eegprep.pop_rejtrend" title="eegprep.pop_rejtrend"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejtrend</span></code></a>(EEG[, icacomp, ...])</p></td>
+<td><p>Mark or reject epochs containing line-like trends.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_reref.html#eegprep.pop_reref" title="eegprep.pop_reref"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_reref</span></code></a>([EEG, ref, gui, renderer, ...])</p></td>
+<td><p>Convert an EEG dataset to average or common-reference data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_resample.html#eegprep.pop_resample" title="eegprep.pop_resample"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_resample</span></code></a>(EEG[, freq, engine, ...])</p></td>
+<td><p>Resample EEG data to a new sampling rate.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rmbase.html#eegprep.pop_rmbase" title="eegprep.pop_rmbase"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rmbase</span></code></a>([EEG, timerange, ...])</p></td>
+<td><p>Remove baseline means from an epoched or continuous EEG dataset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_select.html#eegprep.pop_select" title="eegprep.pop_select"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_select</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Select EEG data using EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_select</span></code> semantics.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_selectcomps.html#eegprep.pop_selectcomps" title="eegprep.pop_selectcomps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_selectcomps</span></code></a>(EEG[, compnum, fig, ...])</p></td>
+<td><p>Inspect components and optionally mark them in <code class="docutils literal notranslate"><span class="pre">EEG.reject.gcompreject</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_selectevent.html#eegprep.pop_selectevent" title="eegprep.pop_selectevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_selectevent</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Select, rename, or delete events using EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code> semantics.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_xfirws.html#eegprep.pop_xfirws" title="eegprep.pop_xfirws"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_xfirws</span></code></a>(*args[, gui, renderer, ...])</p></td>
+<td><p>Design a FIRFilt windowed-sinc FIR and optionally export an <code class="docutils literal notranslate"><span class="pre">.fir</span></code> file.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ica-and-components">
+<h2>ICA and Components<a class="headerlink" href="#ica-and-components" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_expica.html#eegprep.pop_expica" title="eegprep.pop_expica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_expica</span></code></a>(EEG, filename[, matrix])</p></td>
+<td><p>Export the ICA weight matrix or inverse weight matrix.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_icathresh.html#eegprep.pop_icathresh" title="eegprep.pop_icathresh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_icathresh</span></code></a>([EEG, threshval, ...])</p></td>
+<td><p>Set ICA rejection thresholds and update <code class="docutils literal notranslate"><span class="pre">reject.gcompreject</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_iclabel.html#eegprep.pop_iclabel" title="eegprep.pop_iclabel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_iclabel</span></code></a>(EEG[, icversion, gui, ...])</p></td>
+<td><p>Classify independent components using ICLabel.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_prop.html#eegprep.pop_prop" title="eegprep.pop_prop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop</span></code></a>([EEG, typecomp, ...])</p></td>
+<td><p>Plot properties of one channel or independent component.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_prop_extended.html#eegprep.pop_prop_extended" title="eegprep.pop_prop_extended"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_prop_extended</span></code></a>([EEG, typecomp, ...])</p></td>
+<td><p>Render the EEGLAB viewprops-style extended property dashboard.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_runica.html#eegprep.pop_runica" title="eegprep.pop_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runica</span></code></a>(EEG, *args[, icatype, ...])</p></td>
+<td><p>Run ICA decomposition with EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> calling semantics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_subcomp.html#eegprep.pop_subcomp" title="eegprep.pop_subcomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_subcomp</span></code></a>(EEG[, components, ...])</p></td>
+<td><p>Remove ICA components from data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_viewprops.html#eegprep.pop_viewprops" title="eegprep.pop_viewprops"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_viewprops</span></code></a>(EEG[, typecomp, ...])</p></td>
+<td><p>Render channel/component property overview figures and activity views.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="plotting-and-review">
+<h2>Plotting and Review<a class="headerlink" href="#plotting-and-review" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_chanplot.html#eegprep.pop_chanplot" title="eegprep.pop_chanplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chanplot</span></code></a>([STUDY, ALLEEG, ...])</p></td>
+<td><p>Plot precomputed STUDY channel or component measures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_compareerps.html#eegprep.pop_compareerps" title="eegprep.pop_compareerps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_compareerps</span></code></a>([ALLEEG, setlist, ...])</p></td>
+<td><p>Compare ERP averages for selected datasets using <code class="docutils literal notranslate"><span class="pre">pop_comperp</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_crossf.html#eegprep.pop_crossf" title="eegprep.pop_crossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_crossf</span></code></a>([EEG, typeproc, num1, ...])</p></td>
+<td><p>Run legacy <code class="docutils literal notranslate"><span class="pre">pop_crossf</span></code> through EEGPrep's <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> implementation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_dipplot.html#eegprep.pop_dipplot" title="eegprep.pop_dipplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipplot</span></code></a>([EEG, comps, gui, ...])</p></td>
+<td><p>Plot localized DIPFIT component positions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_eegplot.html#eegprep.pop_eegplot" title="eegprep.pop_eegplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eegplot</span></code></a>([EEG, icacomp, ...])</p></td>
+<td><p>Inspect EEG channel or component activity in the scrolling browser.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_envtopo.html#eegprep.pop_envtopo" title="eegprep.pop_envtopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_envtopo</span></code></a>([EEG, timerange, gui, ...])</p></td>
+<td><p>Plot largest component ERP envelopes and component maps.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_erpimage.html#eegprep.pop_erpimage" title="eegprep.pop_erpimage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_erpimage</span></code></a>([EEG, typeplot, index, ...])</p></td>
+<td><p>Plot an ERP image for one channel or component.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_headplot.html#eegprep.pop_headplot" title="eegprep.pop_headplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_headplot</span></code></a>([EEG, typeplot, items, ...])</p></td>
+<td><p>Plot ERP or component maps on a spline-interpolated 3-D head mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_newcrossf.html#eegprep.pop_newcrossf" title="eegprep.pop_newcrossf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_newcrossf</span></code></a>([EEG, typeproc, num1, ...])</p></td>
+<td><p>Plot event-related channel/component cross-coherence.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_newtimef.html#eegprep.pop_newtimef" title="eegprep.pop_newtimef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_newtimef</span></code></a>([EEG, typeproc, num, ...])</p></td>
+<td><p>Plot a channel or component ERSP/ITC decomposition.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_plotdata.html#eegprep.pop_plotdata" title="eegprep.pop_plotdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plotdata</span></code></a>([EEG, components, gui, ...])</p></td>
+<td><p>Plot component ERP activations in a rectangular array.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_plottopo.html#eegprep.pop_plottopo" title="eegprep.pop_plottopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plottopo</span></code></a>([EEG, chans, gui, ...])</p></td>
+<td><p>Plot channel ERP traces in a rectangular/scalp-like array.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_spectopo.html#eegprep.pop_spectopo" title="eegprep.pop_spectopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_spectopo</span></code></a>([EEG, dataflag, ...])</p></td>
+<td><p>Plot channel or component spectra and scalp maps.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_timtopo.html#eegprep.pop_timtopo" title="eegprep.pop_timtopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_timtopo</span></code></a>([EEG, plottimes, gui, ...])</p></td>
+<td><p>Plot channel ERP traces and scalp maps at selected latencies.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_topochansel.html#eegprep.pop_topochansel" title="eegprep.pop_topochansel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_topochansel</span></code></a>(chanlocs[, select, ...])</p></td>
+<td><p>Select channels by label/index using EEGPrep's channel selector.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_topoplot.html#eegprep.pop_topoplot" title="eegprep.pop_topoplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_topoplot</span></code></a>([EEG, typeplot, items, ...])</p></td>
+<td><p>Plot EEGLAB-style 2-D scalp maps for ERP latencies or ICA components.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="study">
+<h2>STUDY<a class="headerlink" href="#study" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_clust.html#eegprep.pop_clust" title="eegprep.pop_clust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_clust</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Run deterministic k-means clustering on <code class="docutils literal notranslate"><span class="pre">STUDY.etc.preclust</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_clustedit.html#eegprep.pop_clustedit" title="eegprep.pop_clustedit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_clustedit</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Run cluster edit and plotting actions on <code class="docutils literal notranslate"><span class="pre">STUDY.cluster</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_loadstudy.html#eegprep.pop_loadstudy" title="eegprep.pop_loadstudy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadstudy</span></code></a>([filename, filepath, ...])</p></td>
+<td><p>Load a STUDY JSON file saved by <code class="docutils literal notranslate"><span class="pre">pop_savestudy</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_preclust.html#eegprep.pop_preclust" title="eegprep.pop_preclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_preclust</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Prepare a STUDY component clustering matrix.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_precomp.html#eegprep.pop_precomp" title="eegprep.pop_precomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_precomp</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Precompute STUDY channel or component measures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_savestudy.html#eegprep.pop_savestudy" title="eegprep.pop_savestudy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_savestudy</span></code></a>(STUDY[, EEG, ...])</p></td>
+<td><p>Save a STUDY structure as an EEGPrep JSON <code class="docutils literal notranslate"><span class="pre">.study</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_study.html#eegprep.pop_study" title="eegprep.pop_study"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_study</span></code></a>([STUDY, ALLEEG, name, ...])</p></td>
+<td><p>Create or edit a STUDY structure from loaded EEG datasets.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_studydesign.html#eegprep.pop_studydesign" title="eegprep.pop_studydesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studydesign</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Edit STUDY designs and select the current design.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_studyerp.html#eegprep.pop_studyerp" title="eegprep.pop_studyerp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studyerp</span></code></a>([ALLEEG, return_com])</p></td>
+<td><p>Create a STUDY marked as a simple ERP design.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_studywizard.html#eegprep.pop_studywizard" title="eegprep.pop_studywizard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_studywizard</span></code></a>(filenames, *[, ...])</p></td>
+<td><p>Load selected datasets and create a STUDY.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="other">
+<h2>Other<a class="headerlink" href="#other" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_addindepvar.html#eegprep.pop_addindepvar" title="eegprep.pop_addindepvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_addindepvar</span></code></a>(varlist[, fig, var, ...])</p></td>
+<td><p>Return <code class="docutils literal notranslate"><span class="pre">(variable,</span> <span class="pre">values,</span> <span class="pre">categorical_flag)</span></code> for STUDY designs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_adjustevents.html#eegprep.pop_adjustevents" title="eegprep.pop_adjustevents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_adjustevents</span></code></a>(EEG, *args[, ...])</p></td>
+<td><p>Adjust event offset of all or selected events.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_averef.html#eegprep.pop_averef" title="eegprep.pop_averef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_averef</span></code></a>([EEG, confirm, return_com])</p></td>
+<td><p>Convert data to average reference through <code class="docutils literal notranslate"><span class="pre">pop_reref(EEG,</span> <span class="pre">[])</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_chancenter.html#eegprep.pop_chancenter" title="eegprep.pop_chancenter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chancenter</span></code></a>(chans[, center, ...])</p></td>
+<td><p>Recenter channel locations using a known or optimized sphere center.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_chancoresp.html#eegprep.pop_chancoresp" title="eegprep.pop_chancoresp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chancoresp</span></code></a>(chans1, chans2, *args)</p></td>
+<td><p>Return 1-based channel correspondences by label.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_chanevent.html#eegprep.pop_chanevent" title="eegprep.pop_chanevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chanevent</span></code></a>(EEG, chan, *args[, ...])</p></td>
+<td><p>Import events from rising, falling, or both edges of data channels.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_chansel.html#eegprep.pop_chansel" title="eegprep.pop_chansel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chansel</span></code></a>(chans, *[, withindex, ...])</p></td>
+<td><p>Open an EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_chansel</span></code>-style channel selector.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_comments.html#eegprep.pop_comments" title="eegprep.pop_comments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_comments</span></code></a>(EEG[, plottitle, ...])</p></td>
+<td><p>Edit or assign dataset comments.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_comperp.html#eegprep.pop_comperp" title="eegprep.pop_comperp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_comperp</span></code></a>([ALLEEG, flag, datadd, ...])</p></td>
+<td><p>Compute and plot grand-average ERPs across loaded datasets.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_copyset.html#eegprep.pop_copyset" title="eegprep.pop_copyset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_copyset</span></code></a>(ALLEEG, set_in[, ...])</p></td>
+<td><p>Copy dataset <code class="docutils literal notranslate"><span class="pre">set_in</span></code> to <code class="docutils literal notranslate"><span class="pre">set_out</span></code> using EEGLAB-facing indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_delset.html#eegprep.pop_delset" title="eegprep.pop_delset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_delset</span></code></a>(ALLEEG, indices)</p></td>
+<td><p>Delete dataset indices from <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> and return a history command.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_dipfit_gridsearch.html#eegprep.pop_dipfit_gridsearch" title="eegprep.pop_dipfit_gridsearch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipfit_gridsearch</span></code></a>([EEG, select, ...])</p></td>
+<td><p>Run a standalone spherical coarse grid search for ICA components.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_dipfit_headmodel.html#eegprep.pop_dipfit_headmodel" title="eegprep.pop_dipfit_headmodel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipfit_headmodel</span></code></a>([EEG, mriFile, ...])</p></td>
+<td><p>Validate headmodel inputs, then fail clearly until FieldTrip is ported.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_dipfit_loreta.html#eegprep.pop_dipfit_loreta" title="eegprep.pop_dipfit_loreta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipfit_loreta</span></code></a>([EEG, select, ...])</p></td>
+<td><p>Validate LORETA prerequisites, then fail clearly until a backend exists.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_dipfit_nonlinear.html#eegprep.pop_dipfit_nonlinear" title="eegprep.pop_dipfit_nonlinear"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipfit_nonlinear</span></code></a>([EEG, ...])</p></td>
+<td><p>Run standalone nonlinear dipole refinement for one component.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_dipfit_settings.html#eegprep.pop_dipfit_settings" title="eegprep.pop_dipfit_settings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_dipfit_settings</span></code></a>([EEG, gui, ...])</p></td>
+<td><p>Configure DIPFIT settings without requiring an EEGLAB runtime.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editeventfield.html#eegprep.pop_editeventfield" title="eegprep.pop_editeventfield"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editeventfield</span></code></a>(EEG, *args[, ...])</p></td>
+<td><p>Add, remove, rename, or update fields in <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_editeventvals.html#eegprep.pop_editeventvals" title="eegprep.pop_editeventvals"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editeventvals</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Edit individual <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code> values.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editoptions.html#eegprep.pop_editoptions" title="eegprep.pop_editoptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editoptions</span></code></a>([options])</p></td>
+<td><p>Update EEGPrep's EEGLAB-compatible options dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_eventstat.html#eegprep.pop_eventstat" title="eegprep.pop_eventstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eventstat</span></code></a>([EEG, eventfield, ...])</p></td>
+<td><p>Compute and plot statistics for numeric EEG event fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio.html#eegprep.pop_fileio" title="eegprep.pop_fileio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio</span></code></a>(filename, *[, return_com])</p></td>
+<td><p>Import a supported EEG data file with MNE/File-IO-style readers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio_brainvision_mat.html#eegprep.pop_fileio_brainvision_mat" title="eegprep.pop_fileio_brainvision_mat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio_brainvision_mat</span></code></a>(filename, *)</p></td>
+<td><p>Import a BrainVision Analyzer MATLAB file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_findmatchingcomps.html#eegprep.pop_findmatchingcomps" title="eegprep.pop_findmatchingcomps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_findmatchingcomps</span></code></a>([EEG, return_com])</p></td>
+<td><p>Find current-dataset components matching another set of scalp maps.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_firma.html#eegprep.pop_firma" title="eegprep.pop_firma"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_firma</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Filter EEG data using a moving-average FIR filter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_firpm.html#eegprep.pop_firpm" title="eegprep.pop_firpm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_firpm</span></code></a>(EEG, *args[, gui, ...])</p></td>
+<td><p>Filter EEG data using a Parks-McClellan equiripple FIR filter.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_firpmord.html#eegprep.pop_firpmord" title="eegprep.pop_firpmord"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_firpmord</span></code></a>([f, a, dev, fs, gui, ...])</p></td>
+<td><p>Estimate Parks-McClellan FIR order and pass/stop weights.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_fusechanrej.html#eegprep.pop_fusechanrej" title="eegprep.pop_fusechanrej"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fusechanrej</span></code></a>([EEG, return_com])</p></td>
+<td><p>Keep only common channels across datasets with the same subject/session.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_icflag.html#eegprep.pop_icflag" title="eegprep.pop_icflag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_icflag</span></code></a>(EEG[, thresholds, gui, ...])</p></td>
+<td><p>Flag ICLabel-classified components for later rejection.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importbids.html#eegprep.pop_importbids" title="eegprep.pop_importbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importbids</span></code></a>(path, *[, return_com])</p></td>
+<td><p>Load one or more EEG files from a BIDS dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importerplab.html#eegprep.pop_importerplab" title="eegprep.pop_importerplab"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importerplab</span></code></a>(EEG[, filename, ...])</p></td>
+<td><p>Import an ERPLAB-style event text file through the generic event importer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importgroupvar.html#eegprep.pop_importgroupvar" title="eegprep.pop_importgroupvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importgroupvar</span></code></a>(STUDY[, ...])</p></td>
+<td><p>Attach one imported variable value per STUDY subject.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importpres.html#eegprep.pop_importpres" title="eegprep.pop_importpres"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importpres</span></code></a>(EEG[, filename, ...])</p></td>
+<td><p>Import a Presentation LOG file using EEGPrep's generic event importer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_kaiserbeta.html#eegprep.pop_kaiserbeta" title="eegprep.pop_kaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_kaiserbeta</span></code></a>([dev, gui, renderer, ...])</p></td>
+<td><p>Estimate Kaiser window beta from passband ripple.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_leadfield.html#eegprep.pop_leadfield" title="eegprep.pop_leadfield"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_leadfield</span></code></a>([EEG, gui, renderer, ...])</p></td>
+<td><p>Compute a standalone spherical leadfield for explicit source points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_limo.html#eegprep.pop_limo" title="eegprep.pop_limo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limo</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report that standalone EEGPrep does not run external LIMO workflows.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_limoresults.html#eegprep.pop_limoresults" title="eegprep.pop_limoresults"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limoresults</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report that standalone EEGPrep does not browse external LIMO results.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_listfactors.html#eegprep.pop_listfactors" title="eegprep.pop_listfactors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_listfactors</span></code></a>(des, *args[, return_com])</p></td>
+<td><p>Return factor descriptors for one STUDY or design structure.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_loadbci.html#eegprep.pop_loadbci" title="eegprep.pop_loadbci"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadbci</span></code></a>(filename[, srate, ...])</p></td>
+<td><p>Import a BCI2000-style file into an EEG dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_mergeset.html#eegprep.pop_mergeset" title="eegprep.pop_mergeset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_mergeset</span></code></a>(INEEG1[, INEEG2, ...])</p></td>
+<td><p>Merge two or more EEG datasets.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_multifit.html#eegprep.pop_multifit" title="eegprep.pop_multifit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_multifit</span></code></a>([EEG, comps, gui, ...])</p></td>
+<td><p>Fit multiple ICA components using grid search and nonlinear refinement.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_newset.html#eegprep.pop_newset" title="eegprep.pop_newset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_newset</span></code></a>(ALLEEG, EEG, CURRENTSET, ...)</p></td>
+<td><p>Store or retrieve datasets following EEGLAB's <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code> contract.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rejmenu.html#eegprep.pop_rejmenu" title="eegprep.pop_rejmenu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejmenu</span></code></a>(EEG[, icacomp, gui, ...])</p></td>
+<td><p>Open a compact rejection menu that combines stored non-browser marks.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rmdat.html#eegprep.pop_rmdat" title="eegprep.pop_rmdat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rmdat</span></code></a>(EEG[, events, timelims, ...])</p></td>
+<td><p>Keep or remove continuous data around event types.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_runscript.html#eegprep.pop_runscript" title="eegprep.pop_runscript"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runscript</span></code></a>(filename[, namespace])</p></td>
+<td><p>Run a Python history script selected by the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_signalstat.html#eegprep.pop_signalstat" title="eegprep.pop_signalstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_signalstat</span></code></a>([EEG, typeproc, ...])</p></td>
+<td><p>Compute and plot statistics for one channel or component.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_snapread.html#eegprep.pop_snapread" title="eegprep.pop_snapread"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_snapread</span></code></a>(filename[, gain, ...])</p></td>
+<td><p>Import a SnapMaster <code class="docutils literal notranslate"><span class="pre">.SMA</span></code> file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_timef.html#eegprep.pop_timef" title="eegprep.pop_timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_timef</span></code></a>([EEG, typeproc, num, ...])</p></td>
+<td><p>Run legacy <code class="docutils literal notranslate"><span class="pre">pop_timef</span></code> through EEGPrep's <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> implementation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_writelocs.html#eegprep.pop_writelocs" title="eegprep.pop_writelocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writelocs</span></code></a>(chans[, filename, ...])</p></td>
+<td><p>Write channel locations and return a replayable history command.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="generated/eegprep.std_substudy.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">std_substudy</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="generated/eegprep.pop_biosig.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">pop_biosig</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-and-saving">Loading and Saving</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing">Preprocessing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ica-and-components">ICA and Components</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting-and-review">Plotting and Review</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#study">STUDY</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other">Other</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024-2026, EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

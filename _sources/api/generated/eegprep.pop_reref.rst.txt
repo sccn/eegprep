@@ -1,5 +1,5 @@
-﻿eegprep.pop\_reref
-==================
+﻿pop\_reref
+==========
 
 .. currentmodule:: eegprep
 

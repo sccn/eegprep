@@ -1,5 +1,5 @@
-﻿eegprep.tf\_cycle\_calc
-=======================
+﻿tf\_cycle\_calc
+===============
 
 .. currentmodule:: eegprep
 

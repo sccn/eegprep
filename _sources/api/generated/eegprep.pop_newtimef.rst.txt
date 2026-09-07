@@ -1,5 +1,5 @@
-﻿eegprep.pop\_newtimef
-=====================
+﻿pop\_newtimef
+=============
 
 .. currentmodule:: eegprep
 

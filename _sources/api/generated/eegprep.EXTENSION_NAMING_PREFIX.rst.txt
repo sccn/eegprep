@@ -1,5 +1,5 @@
-﻿eegprep.EXTENSION\_NAMING\_PREFIX
-=================================
+﻿EXTENSION\_NAMING\_PREFIX
+=========================
 
 .. currentmodule:: eegprep
 

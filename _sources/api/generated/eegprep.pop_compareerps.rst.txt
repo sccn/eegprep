@@ -1,0 +1,6 @@
+﻿pop\_compareerps
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_compareerps

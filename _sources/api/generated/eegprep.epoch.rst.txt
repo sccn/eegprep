@@ -1,0 +1,6 @@
+﻿epoch
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: epoch

@@ -1,0 +1,6 @@
+﻿pop\_studydesign
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_studydesign

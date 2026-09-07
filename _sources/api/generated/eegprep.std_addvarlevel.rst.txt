@@ -1,5 +1,5 @@
-﻿eegprep.std\_addvarlevel
-========================
+﻿std\_addvarlevel
+================
 
 .. currentmodule:: eegprep
 

@@ -1,5 +1,5 @@
-﻿eegprep.std\_itcplot
-====================
+﻿std\_itcplot
+============
 
 .. currentmodule:: eegprep
 

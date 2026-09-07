@@ -1,5 +1,5 @@
-﻿eegprep.clean\_flatlines
-========================
+﻿clean\_flatlines
+================
 
 .. currentmodule:: eegprep
 

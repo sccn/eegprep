@@ -1,0 +1,6 @@
+﻿pop\_importevent
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_importevent

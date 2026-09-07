@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_mne2eeg\_epochs
-============================
+﻿eeg\_mne2eeg\_epochs
+====================
 
 .. currentmodule:: eegprep
 

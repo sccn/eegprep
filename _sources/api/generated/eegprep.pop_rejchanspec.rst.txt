@@ -1,0 +1,6 @@
+﻿pop\_rejchanspec
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_rejchanspec

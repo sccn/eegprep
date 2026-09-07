@@ -1,5 +1,5 @@
-﻿eegprep.std\_rebuilddesign
-==========================
+﻿std\_rebuilddesign
+==================
 
 .. currentmodule:: eegprep
 

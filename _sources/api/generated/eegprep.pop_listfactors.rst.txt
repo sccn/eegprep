@@ -1,5 +1,5 @@
-﻿eegprep.pop\_listfactors
-========================
+﻿pop\_listfactors
+================
 
 .. currentmodule:: eegprep
 

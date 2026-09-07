@@ -1,0 +1,896 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" data-theme="light">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>STUDY Workflows &#8212; EEGPrep manual</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=92c3505e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../_static/documentation_options.js?v=e259d695"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=6dbb43f8"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=b8b12719"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/study_workflows';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/logo.jpg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="std_addvarlevel" href="generated/eegprep.std_addvarlevel.html" />
+    <link rel="prev" title="teststat" href="generated/eegprep.functions.statistics.teststat.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.3.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="light">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the EEGPrep manual..."
+         aria-label="Search the EEGPrep manual..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+    
+    <img src="../_static/logo.jpg" class="logo__image only-light" alt=""/>
+    <img src="../_static/logo.jpg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">eegprep</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../auto_examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Functions
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../faq.html">
+    FAQ
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../references.html">
+    References
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../contributing.html">
+    Contributing to EEGPrep
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../development.html">
+    Development Setup
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../releasing.html">
+    Releasing
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../changelog.html">
+    Changelog
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/sccn/eegprep" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar"><svg class="pst-icon svg-inline--fa" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="core_and_session.html">Core and Session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui_and_console.html">GUI and Console</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_loading_and_saving.html">Data Loading and Saving</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bids.html">BIDS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="preprocessing_and_artifacts.html">Preprocessing and Artifacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="epoching_and_selection.html">Epoching and Selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ica_and_components.html">ICA and Components</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">STUDY Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_addvarlevel.html">std_addvarlevel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_builddesignmat.html">std_builddesignmat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkconsist.html">std_checkconsist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkdatasession.html">std_checkdatasession</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkdatasetinfo.html">std_checkdatasetinfo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkdesign.html">std_checkdesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkfiles.html">std_checkfiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_checkset.html">std_checkset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_combtrialinfo.html">std_combtrialinfo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_editset.html">std_editset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_findgroupvars.html">std_findgroupvars</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_maketrialinfo.html">std_maketrialinfo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_rebuilddesign.html">std_rebuilddesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_selectdataset.html">std_selectdataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_uniformfiles.html">std_uniformfiles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_uniformsetinds.html">std_uniformsetinds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_apcluster.html">std_apcluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_centroid.html">std_centroid</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_clustplot.html">std_clustplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_createclust.html">std_createclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_dipoleclusters.html">std_dipoleclusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_findoutlierclust.html">std_findoutlierclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_mergeclust.html">std_mergeclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_moveoutlier.html">std_moveoutlier</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_preclust.html">std_preclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readtopo.html">std_readtopo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_rejectoutliers.html">std_rejectoutliers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_renameclust.html">std_renameclust</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_erpplot.html">std_erpplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_erspplot.html">std_erspplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_interp.html">std_interp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_itcplot.html">std_itcplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_precomp.html">std_precomp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readdata.html">std_readdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readerp.html">std_readerp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readersp.html">std_readersp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readfilelimo.html">std_readfilelimo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readitc.html">std_readitc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readspec.html">std_readspec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_specplot.html">std_specplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_dipplot.html">std_dipplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_pacplot.html">std_pacplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_findsameica.html">std_findsameica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_getindvar.html">std_getindvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_gettrialsind.html">std_gettrialsind</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_indvarmatch.html">std_indvarmatch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_limo.html">std_limo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_limodesign.html">std_limodesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_limoresults.html">std_limoresults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_makedesign.html">std_makedesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_movecomp.html">std_movecomp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_pac.html">std_pac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_prepare_neighbors.html">std_prepare_neighbors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_readpac.html">std_readpac</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_rmalldatafields.html">std_rmalldatafields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_rmdat.html">std_rmdat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_savedat.html">std_savedat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_saveindvar.html">std_saveindvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_selectdesign.html">std_selectdesign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_selsubject.html">std_selsubject</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.std_substudy.html">std_substudy</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.html">Extension SDK and Registry</a></li>
+
+
+
+
+
+
+
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">Functions</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">STUDY Workflows</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="study-workflows">
+<span id="api-study-workflows"></span><h1>STUDY Workflows<a class="headerlink" href="#study-workflows" title="Link to this heading">#</a></h1>
+<p>Group-level STUDY functions for design, clustering, measures, and plotting.</p>
+<section id="study-setup-and-validation">
+<h2>Study Setup and Validation<a class="headerlink" href="#study-setup-and-validation" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_addvarlevel.html#eegprep.std_addvarlevel" title="eegprep.std_addvarlevel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_addvarlevel</span></code></a>(STUDY[, designind])</p></td>
+<td><p>Return <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> with <code class="docutils literal notranslate"><span class="pre">one</span></code>/<code class="docutils literal notranslate"><span class="pre">two</span></code> design-variable levels.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_builddesignmat.html#eegprep.std_builddesignmat" title="eegprep.std_builddesignmat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_builddesignmat</span></code></a>(design, trialinfo)</p></td>
+<td><p>Build a design matrix from a STUDY design and trial metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_checkconsist.html#eegprep.std_checkconsist" title="eegprep.std_checkconsist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkconsist</span></code></a>(STUDY, *args[, ...])</p></td>
+<td><p>Check whether each value of a STUDY factor has the same subject count.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_checkdatasession.html#eegprep.std_checkdatasession" title="eegprep.std_checkdatasession"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkdatasession</span></code></a>(STUDY[, ...])</p></td>
+<td><p>Check dataset/session alignment for a STUDY and loaded ALLEEG.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_checkdatasetinfo.html#eegprep.std_checkdatasetinfo" title="eegprep.std_checkdatasetinfo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkdatasetinfo</span></code></a>(STUDY, ALLEEG)</p></td>
+<td><p>Return STUDY.datasetinfo consistency checks for loaded datasets.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_checkdesign.html#eegprep.std_checkdesign" title="eegprep.std_checkdesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkdesign</span></code></a>(STUDY[, designind])</p></td>
+<td><p>Return 1 when a design has no continuous variables or multi-valued extras.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_checkfiles.html#eegprep.std_checkfiles" title="eegprep.std_checkfiles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkfiles</span></code></a>(STUDY[, ALLEEG, ...])</p></td>
+<td><p>Check loaded STUDY data and cached measures for standalone EEGPrep.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_checkset.html#eegprep.std_checkset" title="eegprep.std_checkset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_checkset</span></code></a>(STUDY, ALLEEG, *[, ...])</p></td>
+<td><p>Normalize a STUDY dict and refresh dataset/design consistency metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_combtrialinfo.html#eegprep.std_combtrialinfo" title="eegprep.std_combtrialinfo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_combtrialinfo</span></code></a>(datasetinfo, inds)</p></td>
+<td><p>Return trial rows enriched with selected <code class="docutils literal notranslate"><span class="pre">datasetinfo</span></code> fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_editset.html#eegprep.std_editset" title="eegprep.std_editset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_editset</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Modify STUDY metadata and datasetinfo entries.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_findgroupvars.html#eegprep.std_findgroupvars" title="eegprep.std_findgroupvars"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_findgroupvars</span></code></a>(STUDY)</p></td>
+<td><p>Return dataset variables that are constant within each subject.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_maketrialinfo.html#eegprep.std_maketrialinfo" title="eegprep.std_maketrialinfo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_maketrialinfo</span></code></a>(STUDY, ALLEEG)</p></td>
+<td><p>Populate <code class="docutils literal notranslate"><span class="pre">STUDY.datasetinfo[*].trialinfo</span></code> from loaded EEG metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_rebuilddesign.html#eegprep.std_rebuilddesign" title="eegprep.std_rebuilddesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_rebuilddesign</span></code></a>(STUDY[, ALLEEG, ...])</p></td>
+<td><p>Refresh STUDY design variables after dataset metadata changes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_selectdataset.html#eegprep.std_selectdataset" title="eegprep.std_selectdataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_selectdataset</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Return selected 1-based dataset indices and trial indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_uniformfiles.html#eegprep.std_uniformfiles" title="eegprep.std_uniformfiles"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_uniformfiles</span></code></a>(STUDY, ALLEEG)</p></td>
+<td><p>Return <code class="docutils literal notranslate"><span class="pre">1</span></code> for uniform channels, <code class="docutils literal notranslate"><span class="pre">0</span></code> for mismatch, <code class="docutils literal notranslate"><span class="pre">-1</span></code> for missing files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_uniformsetinds.html#eegprep.std_uniformsetinds" title="eegprep.std_uniformsetinds"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_uniformsetinds</span></code></a>(STUDY)</p></td>
+<td><p>Return <code class="docutils literal notranslate"><span class="pre">1</span></code> when STUDY channel group set indices are uniform.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="clustering">
+<h2>Clustering<a class="headerlink" href="#clustering" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_apcluster.html#eegprep.std_apcluster" title="eegprep.std_apcluster"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_apcluster</span></code></a>(clustdata, *[, ...])</p></td>
+<td><p>Cluster rows using deterministic affinity propagation updates.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_centroid.html#eegprep.std_centroid" title="eegprep.std_centroid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_centroid</span></code></a>(data[, labels])</p></td>
+<td><p>Return centroids for all rows or for each positive label.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_clustplot.html#eegprep.std_clustplot" title="eegprep.std_clustplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_clustplot</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Plot a compact cluster summary for GUI and console workflows.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_createclust.html#eegprep.std_createclust" title="eegprep.std_createclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_createclust</span></code></a>(STUDY, ALLEEG, *, ...)</p></td>
+<td><p>Create child clusters from one cluster label per preclustering row.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_dipoleclusters.html#eegprep.std_dipoleclusters" title="eegprep.std_dipoleclusters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_dipoleclusters</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report the standalone boundary for STUDY dipole-cluster workflows.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_findoutlierclust.html#eegprep.std_findoutlierclust" title="eegprep.std_findoutlierclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_findoutlierclust</span></code></a>(data[, labels, ...])</p></td>
+<td><p>Return 1-based row indices farther than <code class="docutils literal notranslate"><span class="pre">threshold</span></code> cluster spreads.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_mergeclust.html#eegprep.std_mergeclust" title="eegprep.std_mergeclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_mergeclust</span></code></a>(STUDY, ALLEEG, mrg_cls)</p></td>
+<td><p>Merge two or more 1-based STUDY clusters into a new child cluster.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_moveoutlier.html#eegprep.std_moveoutlier" title="eegprep.std_moveoutlier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_moveoutlier</span></code></a>(STUDY, ALLEEG, ...)</p></td>
+<td><p>Move component positions from a cluster into its outlier cluster.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_preclust.html#eegprep.std_preclust" title="eegprep.std_preclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_preclust</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Build the PCA-reduced matrix used by <code class="docutils literal notranslate"><span class="pre">pop_clust</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_readtopo.html#eegprep.std_readtopo" title="eegprep.std_readtopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readtopo</span></code></a>(STUDY[, ALLEEG, ...])</p></td>
+<td><p>Read cached STUDY component scalp topographies.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_rejectoutliers.html#eegprep.std_rejectoutliers" title="eegprep.std_rejectoutliers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_rejectoutliers</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Move components farther than <code class="docutils literal notranslate"><span class="pre">th</span></code> cluster-distance stds to outliers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_renameclust.html#eegprep.std_renameclust" title="eegprep.std_renameclust"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_renameclust</span></code></a>(STUDY, ALLEEG, cls, ...)</p></td>
+<td><p>Rename one 1-based STUDY cluster and update parent/child links.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="measures">
+<h2>Measures<a class="headerlink" href="#measures" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_erpplot.html#eegprep.std_erpplot" title="eegprep.std_erpplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_erpplot</span></code></a>(STUDY, ALLEEG, *args, ...)</p></td>
+<td><p>Read and plot precomputed STUDY ERP measures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_erspplot.html#eegprep.std_erspplot" title="eegprep.std_erspplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_erspplot</span></code></a>(STUDY, ALLEEG, *args, ...)</p></td>
+<td><p>Read and plot precomputed STUDY ERSP measures.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_interp.html#eegprep.std_interp" title="eegprep.std_interp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_interp</span></code></a>(STUDY, ALLEEG[, chans, ...])</p></td>
+<td><p>Interpolate selected missing channels into every STUDY dataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_itcplot.html#eegprep.std_itcplot" title="eegprep.std_itcplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_itcplot</span></code></a>(STUDY, ALLEEG, *args, ...)</p></td>
+<td><p>Read and plot precomputed STUDY ITC measures.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_precomp.html#eegprep.std_precomp" title="eegprep.std_precomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_precomp</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Precompute ERP, spectrum, ERSP, and ITC measures for a STUDY.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_readdata.html#eegprep.std_readdata" title="eegprep.std_readdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readdata</span></code></a>(STUDY[, ALLEEG, ...])</p></td>
+<td><p>Read precomputed STUDY measures from EEGPrep's in-memory cache.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_readerp.html#eegprep.std_readerp" title="eegprep.std_readerp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readerp</span></code></a>(STUDY[, ALLEEG])</p></td>
+<td><p>Read cached STUDY ERP measures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_readersp.html#eegprep.std_readersp" title="eegprep.std_readersp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readersp</span></code></a>(STUDY[, ALLEEG])</p></td>
+<td><p>Read cached STUDY ERSP measures.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_readfilelimo.html#eegprep.std_readfilelimo" title="eegprep.std_readfilelimo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readfilelimo</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report that standalone EEGPrep does not parse external LIMO files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_readitc.html#eegprep.std_readitc" title="eegprep.std_readitc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readitc</span></code></a>(STUDY[, ALLEEG])</p></td>
+<td><p>Read cached STUDY ITC measures.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_readspec.html#eegprep.std_readspec" title="eegprep.std_readspec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readspec</span></code></a>(STUDY[, ALLEEG])</p></td>
+<td><p>Read cached STUDY spectrum measures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_specplot.html#eegprep.std_specplot" title="eegprep.std_specplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_specplot</span></code></a>(STUDY, ALLEEG, *args, ...)</p></td>
+<td><p>Read and plot precomputed STUDY spectrum measures.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="plotting">
+<h2>Plotting<a class="headerlink" href="#plotting" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_dipplot.html#eegprep.std_dipplot" title="eegprep.std_dipplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_dipplot</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report the standalone boundary for STUDY-level source plotting.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_pacplot.html#eegprep.std_pacplot" title="eegprep.std_pacplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_pacplot</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Read and optionally plot precomputed STUDY PAC measures.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="other">
+<h2>Other<a class="headerlink" href="#other" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_findsameica.html#eegprep.std_findsameica" title="eegprep.std_findsameica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_findsameica</span></code></a>(ALLEEG[, icathreshold])</p></td>
+<td><p>Group 1-based dataset indices with near-identical ICA weights*sphere.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_getindvar.html#eegprep.std_getindvar" title="eegprep.std_getindvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_getindvar</span></code></a>(STUDY[, mode, scandesign])</p></td>
+<td><p>Return STUDY factor names, values, subject groupings, and pairing flags.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_gettrialsind.html#eegprep.std_gettrialsind" title="eegprep.std_gettrialsind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_gettrialsind</span></code></a>(trialinfo, *args[, ...])</p></td>
+<td><p>Return 1-based trial indices matching all requested trialinfo values.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_indvarmatch.html#eegprep.std_indvarmatch" title="eegprep.std_indvarmatch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_indvarmatch</span></code></a>(value, valuelist)</p></td>
+<td><p>Return 1-based indices where an independent-variable value matches.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_limo.html#eegprep.std_limo" title="eegprep.std_limo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_limo</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report that standalone EEGPrep does not run external LIMO models.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_limodesign.html#eegprep.std_limodesign" title="eegprep.std_limodesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_limodesign</span></code></a>(factors, trialinfo, *args)</p></td>
+<td><p>Create LIMO-compatible categorical and continuous design matrices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_limoresults.html#eegprep.std_limoresults" title="eegprep.std_limoresults"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_limoresults</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Report that standalone EEGPrep does not compute external LIMO results.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_makedesign.html#eegprep.std_makedesign" title="eegprep.std_makedesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_makedesign</span></code></a>(STUDY, ALLEEG[, ...])</p></td>
+<td><p>Create or replace a 1-based STUDY design.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_movecomp.html#eegprep.std_movecomp" title="eegprep.std_movecomp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_movecomp</span></code></a>(STUDY, ALLEEG, ...[, ...])</p></td>
+<td><p>Move component positions from one 1-based STUDY cluster to another.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_pac.html#eegprep.std_pac" title="eegprep.std_pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_pac</span></code></a>(EEG_or_STUDY[, ALLEEG, ...])</p></td>
+<td><p>Compute phase-amplitude coupling for an EEG dataset or STUDY.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_prepare_neighbors.html#eegprep.std_prepare_neighbors" title="eegprep.std_prepare_neighbors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_prepare_neighbors</span></code></a>(STUDY, ALLEEG, ...)</p></td>
+<td><p>Prepare a FieldTrip-like neighbor list and LIMO adjacency matrix.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_readpac.html#eegprep.std_readpac" title="eegprep.std_readpac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_readpac</span></code></a>(STUDY[, ALLEEG, ...])</p></td>
+<td><p>Read EEGPrep-owned cached STUDY PAC data when present.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_rmalldatafields.html#eegprep.std_rmalldatafields" title="eegprep.std_rmalldatafields"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_rmalldatafields</span></code></a>(STUDY[, chanorcomp])</p></td>
+<td><p>Return STUDY without cached measure/data fields for the requested target.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_rmdat.html#eegprep.std_rmdat" title="eegprep.std_rmdat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_rmdat</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Remove datasets from STUDY/ALLEEG and return removed 1-based indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_savedat.html#eegprep.std_savedat" title="eegprep.std_savedat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_savedat</span></code></a>(tmpfile, structure)</p></td>
+<td><p>Save a measure structure as JSON or MATLAB-compatible MAT data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_saveindvar.html#eegprep.std_saveindvar" title="eegprep.std_saveindvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_saveindvar</span></code></a>(STUDY, *[, return_com])</p></td>
+<td><p>Save factor descriptors under <code class="docutils literal notranslate"><span class="pre">STUDY.etc.eegprep.independent_variables</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_selectdesign.html#eegprep.std_selectdesign" title="eegprep.std_selectdesign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_selectdesign</span></code></a>(STUDY, ALLEEG, ...)</p></td>
+<td><p>Select a 1-based STUDY design index.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.std_selsubject.html#eegprep.std_selsubject" title="eegprep.std_selsubject"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_selsubject</span></code></a>(data, subject, ...[, ...])</p></td>
+<td><p>Return cached-measure cells with only the requested subject columns.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.std_substudy.html#eegprep.std_substudy" title="eegprep.std_substudy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.std_substudy</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Return a STUDY/ALLEEG subset using EEGLAB-facing 1-based selectors.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="generated/eegprep.functions.statistics.teststat.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">teststat</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="generated/eegprep.std_addvarlevel.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">std_addvarlevel</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#study-setup-and-validation">Study Setup and Validation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clustering">Clustering</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#measures">Measures</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting">Plotting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other">Other</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2024-2026, EEGPrep contributors.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+﻿eegh
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegh

@@ -1,5 +1,5 @@
-﻿eegprep.pop\_firws
-==================
+﻿pop\_firws
+==========
 
 .. currentmodule:: eegprep
 

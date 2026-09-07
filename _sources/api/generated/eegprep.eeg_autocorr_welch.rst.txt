@@ -1,5 +1,5 @@
-﻿eegprep.eeg\_autocorr\_welch
-============================
+﻿eeg\_autocorr\_welch
+====================
 
 .. currentmodule:: eegprep
 

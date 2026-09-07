@@ -1,5 +1,5 @@
-﻿eegprep.pop\_importbids
-=======================
+﻿pop\_importbids
+===============
 
 .. currentmodule:: eegprep
 

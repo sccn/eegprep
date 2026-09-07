@@ -1,0 +1,6 @@
+﻿pop\_copyset
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_copyset

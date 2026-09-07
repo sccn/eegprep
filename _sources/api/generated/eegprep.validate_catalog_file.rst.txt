@@ -1,5 +1,5 @@
-﻿eegprep.validate\_catalog\_file
-===============================
+﻿validate\_catalog\_file
+=======================
 
 .. currentmodule:: eegprep
 

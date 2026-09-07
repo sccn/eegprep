@@ -1,0 +1,6 @@
+﻿pop\_eegplot
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_eegplot

@@ -1,5 +1,5 @@
-﻿eegprep.std\_uniformsetinds
-===========================
+﻿std\_uniformsetinds
+===================
 
 .. currentmodule:: eegprep
 

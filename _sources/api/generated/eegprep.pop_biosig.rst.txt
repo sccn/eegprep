@@ -1,0 +1,6 @@
+﻿pop\_biosig
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_biosig

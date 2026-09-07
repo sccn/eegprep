@@ -1,0 +1,6 @@
+﻿eeg\_icflag
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_icflag

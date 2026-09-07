@@ -1,0 +1,6 @@
+﻿dftfilt2
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: dftfilt2
