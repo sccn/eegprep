@@ -33,6 +33,18 @@ def test_pop_loadset_normalizes_nonempty_icachansind_to_zero_based_integers():
     np.testing.assert_array_equal(eeg["icachansind"][:5], np.array([0, 1, 2, 3, 4]))
 
 
+@pytest.mark.parametrize(
+    "path", ["sample_data/eeglab_data_epochs_ica.set", "sample_data/eeglab_data_epochs_ica_hdf5.set"]
+)
+def test_pop_loadset_epoch_eventurevent_is_zero_based_like_event_urevent(path):
+    eeg = pop_loadset(path)
+
+    assert list(eeg["epoch"][0]["event"]) == [0, 1, 2]
+    assert list(eeg["epoch"][0]["eventurevent"]) == [0, 1, 2]
+    for ep in eeg["epoch"]:
+        assert list(ep["eventurevent"]) == [eeg["event"][i]["urevent"] for i in ep["event"]]
+
+
 def test_pop_loadset_hdf5_fallback_does_not_subtract_icachansind_twice():
     eeg = pop_loadset("sample_data/eeglab_data_epochs_ica_hdf5.set")
 

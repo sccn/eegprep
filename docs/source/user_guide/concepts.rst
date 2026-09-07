@@ -93,6 +93,9 @@ Practical rules:
   read and reused later.
 * ``icachansind`` is normalized to zero-based integer indices after loading a
   MATLAB ``.set`` file, then converted back to one-based values when saving.
+* ``chanlocs[i]["urchan"]``, ``event[i]["urevent"]``, ``epoch[k]["event"]``, and
+  ``epoch[k]["eventurevent"]`` follow the same rule: zero-based in memory,
+  one-based on disk.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

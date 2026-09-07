@@ -111,20 +111,22 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     if not loaded_with_h5:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
+    # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
+    # copies event.urevent into epoch.eventurevent.
+    chanlocs = EEG.get('chanlocs', default_empty)
+    if len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
+        for i in range(len(chanlocs)):
+            chanlocs[i]['urchan'] = chanlocs[i]['urchan'] - 1
+
+    event = EEG.get('event', default_empty)
+    if len(event) > 0 and 'urevent' in event[0]:
+        for i in range(len(event)):
+            if 'urevent' in event[i] and event[i]['urevent'] is not None:
+                event[i]['urevent'] = event[i]['urevent'] - 1
+
     EEG = eeg_checkset(EEG)
     EEG.pop("changes_not_saved", None)
     EEG["saved"] = "justloaded"
-
-    # check if EEG['urchan'] is 0-based
-    if len(EEG['chanlocs']) > 0 and 'urchan' in EEG['chanlocs'][0]:
-        for i in range(len(EEG['chanlocs'])):
-            EEG['chanlocs'][i]['urchan'] = EEG['chanlocs'][i]['urchan'] - 1
-
-    # check if EEG['chanlocs'][i]['urevent'] is 0-based
-    if len(EEG['event']) > 0 and 'urevent' in EEG['event'][0]:
-        for i in range(len(EEG['event'])):
-            if 'urevent' in EEG['event'][i] and EEG['event'][i]['urevent'] is not None:
-                EEG['event'][i]['urevent'] = EEG['event'][i]['urevent'] - 1
 
     return EEG
 
