@@ -26,7 +26,7 @@ def test_eeglab_full_mode_builds_window_without_showing():
         all_menus=True,
         include_plugins=False,
         native_menu_bar=None,
-        native_file_dialogs=True,
+        native_file_dialogs=None,
     )
     window.show.assert_not_called()
     window.exec.assert_not_called()

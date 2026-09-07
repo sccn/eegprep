@@ -43,7 +43,10 @@ class TestSpectopoParity(unittest.TestCase):
             self.eeglab = get_eeglab("MAT", auto_file_roundtrip=False)
         except Exception as e:
             self.skipTest(f"MATLAB/EEGLAB not available: {e}")
-        self.EEG = pop_loadset(os.path.join(local_url, "eeglab_data.set"))
+        # Epoched dataset exercises the per-epoch averaging path; the continuous
+        # (single-epoch) path is trivially the same as ``pwelch`` and is not the
+        # regression this test guards.
+        self.EEG = pop_loadset(os.path.join(local_url, "eeglab_data_epochs_ica.set"))
 
     def test_channel_spectra_match_matlab(self):
         """EEGPrep spectopo channel spectra match EEGLAB spectopo (pwelch), in dB."""

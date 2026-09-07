@@ -13,3 +13,5 @@ stats = pop_eventstat(EEG, "duration", ["square"], [0, 300], 5)
 
 String-valued event fields are ignored because the statistical workflow requires
 numeric values.
+
+When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.

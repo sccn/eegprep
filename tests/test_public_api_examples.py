@@ -7,6 +7,8 @@ import runpy
 from importlib.resources import files
 from pathlib import Path
 
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
@@ -20,6 +22,42 @@ def test_public_api_and_plugins_example_runs() -> None:
     example = REPO_ROOT / "docs/source/examples/plot_public_api_and_plugins.py"
 
     runpy.run_path(str(example), run_name="__main__")
+
+
+# One illustration script per user guide section. These run for real against
+# sample_data/, so a failure here means the documented workflow is broken.
+# plot_reject_artifacts.py calls ICLabel, which needs the torch extra and raises
+# ImportError without it rather than skipping; install eegprep[torch] to run.
+USER_GUIDE_EXAMPLES = (
+    "plot_quickstart_tour.py",
+    "plot_data_structures.py",
+    "plot_import_data.py",
+    "plot_dataset_management.py",
+    "plot_preprocess_data.py",
+    "plot_extract_epochs.py",
+    "plot_reject_artifacts.py",
+    "plot_data_plotting.py",
+    "plot_source_analysis_dipfit.py",
+    "plot_group_analysis_study.py",
+    "plot_history_to_script.py",
+)
+
+
+@pytest.mark.parametrize("name", USER_GUIDE_EXAMPLES)
+def test_user_guide_example_runs(name: str, capsys: pytest.CaptureFixture[str]) -> None:
+    example = REPO_ROOT / "docs/source/examples" / name
+
+    assert example.is_file(), f"{name} is referenced by the user guide but missing"
+    runpy.run_path(str(example), run_name="__main__")
+
+    # Whatever the example prints becomes gallery page content, so it must not
+    # embed machine-specific paths or a build date; those would make the
+    # published page change on every build and on every machine.
+    printed = capsys.readouterr().out
+    leaks = [
+        marker for marker in (str(REPO_ROOT), "/var/folders/", "/private/tmp/", "generated on") if marker in printed
+    ]
+    assert not leaks, f"{name} prints machine-specific output: {leaks}"
 
 
 def test_package_resources_cover_public_workflows() -> None:

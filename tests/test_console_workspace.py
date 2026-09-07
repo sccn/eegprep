@@ -12,6 +12,7 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -1452,7 +1453,7 @@ class _FakeShell:
         self.enabled_gui = None
         self.called = False
 
-    def enable_gui(self, gui):
+    def enable_matplotlib(self, gui):
         self.enabled_gui = gui
 
     def __call__(self):
@@ -1498,6 +1499,8 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert captured["gui_kwargs"]["native_file_dialogs"] is False
     assert "EEGPrep interactive console" in captured["banner"]
     assert shell.enabled_gui == "qt"
+    # Non-interactive: pop_* display via show_figures(), so plot='off' pops nothing.
+    assert not plt.isinteractive()
     assert shell.called is True
     assert "EEG" in captured["namespace"]
 
@@ -1801,3 +1804,155 @@ def test_terminal_write_sync_path_writes_immediately_without_prompt_toolkit():
 
     import_module.assert_not_called()
     assert stream.getvalue() == "\nIn [2]: EEG = pop_interp(EEG, [1]);\n"
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_targets"),
+    [
+        ("ALLEEG.append(new_eeg)", {"ALLEEG"}),
+        ("EEG.update({'setname': 'updated'})", {"EEG"}),
+        ("EEG['data'].fill(0)", {"EEG"}),
+        ("ALLEEG[0]['data'].fill(0)", {"ALLEEG"}),
+        ("EEG.pop('custom')", {"EEG"}),
+        ("ALLEEG.sort(key=lambda item: item['setname'])", {"ALLEEG"}),
+        ("ALLEEG.reverse()", {"ALLEEG"}),
+        ("ALLEEG.append(new_eeg); ALLEEG.reverse()", {"ALLEEG"}),
+        ("STUDY.update({'name': 'updated'})", {"STUDY"}),
+        ("items.append(1)", set()),
+        ("EEG.get('data')", set()),
+        ("alias = EEG['data']; alias.fill(0)", set()),
+        ("np.copyto(EEG['data'], values)", set()),
+        ("ALLCOM.append('command')", set()),
+        ("not valid Python", set()),
+    ],
+)
+def test_workspace_assignment_targets_detects_only_supported_mutations(source, expected_targets):
+    assert console_module._workspace_assignment_targets(source) == expected_targets
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_names", "expected_current_name", "expected_data"),
+    [
+        ("ALLEEG.append(new_eeg)", ["beta", "alpha", "new"], "alpha", None),
+        ("EEG.update({'setname': 'updated'})", ["beta", "updated"], "updated", None),
+        ("EEG['data'].fill(0)", ["beta", "alpha"], "alpha", 0.0),
+        ("EEG.pop('custom')", ["beta", "alpha"], "alpha", None),
+        # Reordering ALLEEG keeps the same dataset current at its new index.
+        (
+            "ALLEEG.sort(key=lambda item: item['setname'])",
+            ["alpha", "beta"],
+            "alpha",
+            None,
+        ),
+        ("ALLEEG.reverse()", ["alpha", "beta"], "alpha", None),
+    ],
+)
+def test_console_in_place_mutations_sync_session_once(
+    source,
+    expected_names,
+    expected_current_name,
+    expected_data,
+):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("beta"), new=True)
+    alpha = _demo_eeg("alpha")
+    alpha["custom"] = "present"
+    session.store_current(alpha, new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    workspace.namespace["new_eeg"] = _demo_eeg("new")
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert [item.get("setname") for item in session.ALLEEG] == expected_names
+    assert session.EEG.get("setname") == expected_current_name
+    if expected_data is not None:
+        np.testing.assert_array_equal(session.EEG["data"], expected_data)
+    if source == "EEG.pop('custom')":
+        assert "custom" not in session.EEG
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
+
+
+@pytest.mark.parametrize("source", ["ALLEEG.pop()", "ALLEEG.remove(ALLEEG[0])"])
+def test_console_alleeg_removal_reselects_a_remaining_dataset(source):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("beta"), new=True)
+    session.store_current(_demo_eeg("alpha"), new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert len(session.ALLEEG) == 1
+    assert session.CURRENTSET == [1]
+    assert session.EEG is session.ALLEEG[0]
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
+
+
+@pytest.mark.parametrize("source", ["ALLEEG.pop(0)", "ALLEEG.remove(ALLEEG[0])"])
+def test_console_alleeg_removal_of_lower_dataset_keeps_current_dataset(source):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.store_current(_demo_eeg("third"), new=True)
+    session.apply_workspace_state(currentset=[2], command="")
+    current = session.EEG
+    workspace = EEGPrepConsoleWorkspace(session, refresh=mock.Mock(), exports={})
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert [item.get("setname") for item in session.ALLEEG] == ["second", "third"]
+    assert session.CURRENTSET == [1]
+    assert session.EEG is current
+    assert workspace.namespace["CURRENTSET"] == 1
+
+
+def test_console_alleeg_clear_resets_the_dataset_selection():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("demo"), new=True)
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    source = "ALLEEG.clear()"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert session.ALLEEG == []
+    assert session.CURRENTSET == []
+    assert session.EEG["data"].size == 0
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
+
+
+def test_console_study_in_place_update_syncs_state_and_history_once():
+    session = EEGPrepSession()
+    session.STUDY = {"name": "original", "datasetinfo": []}
+    session.CURRENTSTUDY = 1
+    notifications = mock.Mock()
+    session.add_change_listener(notifications)
+    refresh = mock.Mock()
+    workspace = EEGPrepConsoleWorkspace(session, refresh=refresh, exports={})
+    source = "STUDY.update({'name': 'updated'})"
+
+    exec(source, workspace.namespace)
+    workspace.after_execute(source)
+
+    assert session.STUDY["name"] == "updated"
+    assert session.CURRENTSTUDY == 1
+    assert session.ALLCOM == [source]
+    notifications.assert_called_once_with(session)
+    refresh.assert_called_once()
