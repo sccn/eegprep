@@ -1532,6 +1532,66 @@ def test_newtimef_matches_eeglab_ersp_itc_and_pvalues(tmp_path):
 
 
 @pytest.mark.matlab
+def test_timefreq_negative_ntimesout_times_match_eeglab(tmp_path):
+    # Ground-truth the negative-ntimesout subsample grid against real EEGLAB timefreq (not a
+    # hand-encoded colon formula): the trickiest off-by-one in the decomposition is np.arange's
+    # exclusive stop vs MATLAB's inclusive a:step:b. frames/winsize/nsub are chosen so EEGLAB's
+    # colon endpoint (length-ceil(winsize/2)-1) lands exactly on a grid point, so dropping or
+    # adding the trailing time would change the output length and fail here.
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    srate = 128.0
+    frames = 122  # -> EEGLAB colon stop 122-ceil(16/2)-1 = 113 sits on the 13:10:113 grid
+    tlimits = [0.0, 1000.0]
+    winsize = 16
+    nsub = 10
+    trials = _oscillation_trials(srate, frames, [0.0, 0.2, 0.5])
+
+    inputs = tmp_path / "timefreq_subsample_inputs.mat"
+    output = tmp_path / "timefreq_subsample_outputs.mat"
+    scipy.io.savemat(inputs, {"data": trials})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            [~, freqs, times] = timefreq(data, {srate}, 'cycles', 0, 'tlimits', [{tlimits[0]} {tlimits[1]}], ...
+                'winsize', {winsize}, 'ntimesout', {-nsub}, 'freqs', [5 20], 'padratio', 2, ...
+                'detrend', 'off', 'causal', 'off', 'verbose', 'off');
+            save('{_matlab_string(output)}', 'times', 'freqs');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    result = timefreq(
+        trials,
+        srate,
+        frames=frames,
+        cycles=0,
+        tlimits=tlimits,
+        freqs=[5, 20],
+        winsize=winsize,
+        padratio=2,
+        ntimesout=-nsub,
+    )
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    np.testing.assert_allclose(result.times, np.asarray(matlab["times"]).ravel(), rtol=1e-9, atol=1e-9)
+
+
+@pytest.mark.matlab
 def test_ramberg_schmeiser_helpers_match_eeglab_deterministic_outputs(tmp_path):
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
         pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
