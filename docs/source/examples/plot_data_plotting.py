@@ -19,6 +19,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import (
     eeg_pvaf,
     pop_envtopo,
@@ -34,7 +35,7 @@ from eegprep import (
     pop_topoplot,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 SAMPLE_DATA = REPO_ROOT / "sample_data"
 
 EEG = pop_loadset(SAMPLE_DATA / "eeglab_data_epochs_ica.set")

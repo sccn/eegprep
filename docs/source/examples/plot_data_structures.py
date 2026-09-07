@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
+import eegprep
 from eegprep import (
     eeg_emptyset,
     eeg_findboundaries,
@@ -42,7 +43,7 @@ print("fields:", ", ".join(sorted(EEG_EMPTY)))
 # Continuous data is channel-major ``(nbchan, pnts)``. ``trials`` is 1.
 # ``xmin`` / ``xmax`` are seconds; ``times`` is milliseconds.
 
-SAMPLE_DIR = Path(__file__).resolve().parents[3] / "sample_data"
+SAMPLE_DIR = Path(eegprep.__file__).resolve().parents[2] / "sample_data"  # sphinx-gallery defines no __file__
 
 EEG = pop_loadset(str(SAMPLE_DIR / "eeglab_data.set"))
 print("setname:", EEG["setname"])

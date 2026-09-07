@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+import eegprep
 from eegprep import (
     pop_dipfit_gridsearch,
     pop_dipfit_nonlinear,
@@ -25,7 +26,9 @@ from eegprep import (
     pop_multifit,
 )
 
-SAMPLE = Path(__file__).resolve().parents[3] / "sample_data" / "eeglab_data_epochs_ica.set"
+SAMPLE = (
+    Path(eegprep.__file__).resolve().parents[2] / "sample_data" / "eeglab_data_epochs_ica.set"
+)  # sphinx-gallery defines no __file__
 
 # 1. Load a dataset that already carries channel locations and an ICA decomposition.
 EEG = pop_loadset(str(SAMPLE))

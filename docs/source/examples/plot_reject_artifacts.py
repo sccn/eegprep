@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 
 import numpy as np
 
+import eegprep
 from eegprep import (
     eeg_eegrej,
     eegplot,
@@ -40,7 +41,7 @@ from eegprep import (
 
 def _sample_data_dir() -> Path:
     """Locate the repository ``sample_data`` directory from this file."""
-    for parent in Path(__file__).resolve().parents:
+    for parent in Path(eegprep.__file__).resolve().parents:  # sphinx-gallery defines no __file__
         candidate = parent / "sample_data"
         if candidate.is_dir():
             return candidate
