@@ -4,13 +4,18 @@ Test suite for bids_preproc.py
 
 import logging
 import os
+import shutil
 import socket
+import tempfile
 import unittest
 
 import numpy as np
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins.EEG_BIDS.bids_preproc import _write_events_tsv
 from eegprep.plugins.EEG_BIDS.coords import coords_to_mm
 from eegprep.utils.testing import DebuggableTestCase
+from tests.fixtures import SAMPLE_DATASET_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +236,52 @@ class TestBidsPreproc(DebuggableTestCase):
                 EpochBaseline=[None, 0],
                 MinimizeDiskUsage=False,
             )
+
+
+class TestWriteEventsTsv(unittest.TestCase):
+    """events.tsv onsets use 1-based, possibly fractional, sample latencies."""
+
+    def setUp(self):
+        self.EEG = pop_loadset(str(SAMPLE_DATASET_PATH))
+        self.tmpdir = tempfile.mkdtemp()
+        self.fpath = os.path.join(self.tmpdir, 'events.tsv')
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir)
+
+    def _read_rows(self):
+        with open(self.fpath) as fp:
+            header = fp.readline().rstrip('\n').split('\t')
+            rows = [line.rstrip('\n').split('\t') for line in fp]
+        return header, rows
+
+    def test_fractional_latencies_written_without_drops(self):
+        events, srate = self.EEG['event'], self.EEG['srate']
+        # sample data has fractional latencies, which previously raised IndexError
+        self.assertNotEqual(events[0]['latency'], int(events[0]['latency']))
+
+        _write_events_tsv(self.EEG, self.fpath)
+
+        header, rows = self._read_rows()
+        self.assertEqual(header, ['onset', 'duration', 'trial_type'])
+        self.assertEqual(len(rows), len(events))
+        for row, e in zip(rows, events):
+            self.assertAlmostEqual(float(row[0]), (e['latency'] - 1) / srate, places=12)
+            self.assertEqual(float(row[1]), 0.0)
+            self.assertEqual(row[2], e['type'])
+
+    def test_first_and_last_sample_onsets(self):
+        srate, pnts = self.EEG['srate'], self.EEG['pnts']
+        first, last = dict(self.EEG['event'][0]), dict(self.EEG['event'][1])
+        first['latency'], last['latency'] = 1.0, float(pnts)
+        self.EEG['event'] = [first, last]
+
+        _write_events_tsv(self.EEG, self.fpath)
+
+        _, rows = self._read_rows()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(float(rows[0][0]), 0.0)
+        self.assertAlmostEqual(float(rows[1][0]), (pnts - 1) / srate, places=12)
 
 
 class TestCoordsToMm(unittest.TestCase):
