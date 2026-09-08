@@ -41,6 +41,16 @@ def test_eeg_store_appends_modified_dataset_as_unsaved():
     assert alleeg[0]["saved"] == "no"
 
 
+def test_eeg_store_fills_lowest_empty_slot():
+    # EEGLAB eeg_store puts a new dataset into the first slot whose data is empty.
+    alleeg = [_eeg(name="first"), {}, _eeg(name="third")]
+
+    alleeg, _checked, index = eeg_store(alleeg, _eeg(name="second"), 0)
+
+    assert index == 2
+    assert [eeg["setname"] for eeg in alleeg] == ["first", "second", "third"]
+
+
 def test_eeg_store_preserves_justloaded_dataset_as_saved():
     alleeg, checked, index = eeg_store([], _eeg(saved="justloaded"), 0)
 

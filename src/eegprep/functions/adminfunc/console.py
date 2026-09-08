@@ -21,7 +21,7 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
-from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
+from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
@@ -36,6 +36,7 @@ _TUPLE_ASSIGNMENT_TARGET_PATTERN = re.compile(
     r"(^|;\s*)\(([A-Za-z_][A-Za-z0-9_]*(?:,\s*[A-Za-z_][A-Za-z0-9_]*)+)\)\s*="
 )
 _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-9,\s]+)\]")
+_ALLEEG_ASSIGNMENT_PATTERN = re.compile(r"^\s*ALLEEG\s*=")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
@@ -101,6 +102,32 @@ class ConsoleDatasetResult:
         if len(command) > POP_RESULT_PREVIEW_LIMIT:
             command = command[: POP_RESULT_PREVIEW_LIMIT - 3] + "..."
         return f"<EEGPrep dataset result: CURRENTSET={self.currentset!r}, LASTCOM={command!r}>"
+
+
+class ConsoleAllEegResult:
+    """Compact, unpackable result for ``pop_*`` calls returning ``(ALLEEG, command)``."""
+
+    def __init__(self, alleeg: list[Any], currentset: Any, command: str) -> None:
+        self.alleeg = alleeg
+        self.currentset = currentset
+        self.command = command
+
+    def __iter__(self) -> Iterator[Any]:
+        yield self.alleeg
+        yield self.command
+
+    def __getitem__(self, index: int) -> Any:
+        return (self.alleeg, self.command)[index]
+
+    def __len__(self) -> int:
+        return 2
+
+    def __repr__(self) -> str:
+        command = self.command or "(no history command)"
+        if len(command) > POP_RESULT_PREVIEW_LIMIT:
+            command = command[: POP_RESULT_PREVIEW_LIMIT - 3] + "..."
+        datasets = sum(1 for dataset in self.alleeg if dataset)
+        return f"<EEGPrep dataset list: {datasets} dataset(s), CURRENTSET={self.currentset!r}, LASTCOM={command!r}>"
 
 
 class ConsoleStudyResult:
@@ -383,7 +410,7 @@ class EEGPrepConsoleWorkspace:
             if "CURRENTSET" in targets:
                 current = _normalize_currentset(self.namespace.get("CURRENTSET"))
             else:
-                current = _currentset_after_alleeg_change(self.session.CURRENTSET, self.session.EEG, alleeg)
+                current = follow_dataset_selection(alleeg, self.session.EEG, self.session.CURRENTSET)
             command = "" if eeg_changed else pending_history
             self.session.apply_workspace_state(
                 alleeg=alleeg,
@@ -450,6 +477,20 @@ class EEGPrepConsoleWorkspace:
             return ConsoleDatasetResult(
                 self.session.ALLEEG, self.session.EEG, self.session.current_set_value(), command
             )
+
+        alleeg_state = _extract_pop_alleeg_state(result)
+        if alleeg_state is not None:
+            alleeg, command = alleeg_state
+            self.session.apply_workspace_state(
+                alleeg=alleeg,
+                currentset=follow_dataset_selection(alleeg, self.session.EEG, self.session.CURRENTSET),
+                command=command,
+                append_dataset_history=False,
+            )
+            self._pop_updated_session = True
+            self.pull_from_session()
+            self._refresh()
+            return ConsoleAllEegResult(self.session.ALLEEG, self.session.current_set_value(), command)
 
         study_state = _extract_pop_study_state(result)
         if study_state is not None:
@@ -1367,6 +1408,26 @@ def _extract_pop_eeg_and_command(result: Any) -> tuple[Any | None, str]:
     return None, ""
 
 
+def _extract_pop_alleeg_state(result: Any) -> tuple[list[Any], str] | None:
+    """Recognize an ``(ALLEEG, command)`` result such as ``pop_delset``'s.
+
+    The command names its assignment target, so ``ALLEEG = pop_delset( ALLEEG, [2] );``
+    is distinguishable from a ``pop_*`` that returns a list of selected datasets. Without
+    this the returned list is either discarded (a deleted slot fails ``_is_eeg_selection``)
+    or mistaken for new datasets and appended.
+    """
+    if not isinstance(result, tuple) or len(result) != 2:
+        return None
+    alleeg, command = result
+    if not isinstance(alleeg, list) or not isinstance(command, str):
+        return None
+    if not _ALLEEG_ASSIGNMENT_PATTERN.match(command):
+        return None
+    if not all(isinstance(item, dict) and (not item or _is_eeg_selection(item)) for item in alleeg):
+        return None
+    return alleeg, command.strip()
+
+
 def _extract_pop_dataset_state(result: Any) -> tuple[list[dict[str, Any]], Any, Any, str] | None:
     if not isinstance(result, tuple) or len(result) < 4:
         return None
@@ -1425,20 +1486,6 @@ def _normalize_currentset(value: Any) -> list[int]:
         return normalize_dataset_indices(value)
     except ValueError as exc:
         raise ValueError("CURRENTSET must be a 1-based integer or list of integers") from exc
-
-
-def _currentset_after_alleeg_change(currentset: list[int], previous_eeg: Any, alleeg: list[Any]) -> list[int]:
-    """Follow the selected datasets to their new positions, else select the nearest remaining one."""
-    if not alleeg:
-        return []
-    previous = previous_eeg if isinstance(previous_eeg, list) else [previous_eeg]
-    followed = [index + 1 for index, dataset in enumerate(alleeg) if any(dataset is item for item in previous)]
-    if followed:
-        return followed
-    valid = [index for index in currentset if index <= len(alleeg)]
-    if valid:
-        return valid
-    return [len(alleeg)] if currentset else []
 
 
 _IN_PLACE_MUTATION_METHODS = frozenset(

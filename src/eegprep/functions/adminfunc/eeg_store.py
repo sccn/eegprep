@@ -11,6 +11,10 @@ from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
 
 def _normalize_index(index: int | None, alleeg: list[dict[str, Any]]) -> int:
     if index is None or index == 0:
+        # EEGLAB stores a new dataset in the lowest empty slot (here ``{}``) before appending.
+        for position, dataset in enumerate(alleeg, start=1):
+            if not dataset:
+                return position
         return len(alleeg) + 1
     if index < 1:
         raise ValueError("EEGLAB dataset indices are 1-based")

@@ -19,16 +19,25 @@ def eeg_retrieve(
         indices = [int(item) for item in index]
         datasets = [dataset_with_loaded_data(_dataset_at(alleeg, item)) for item in indices]
         for item, dataset in zip(indices, datasets):
-            if 1 <= item <= len(alleeg):
+            if _is_occupied(alleeg, item):
                 alleeg[item - 1] = deepcopy(dataset)
         offload_storedisk_datasets(alleeg, set(indices))
         return datasets, alleeg, indices
     current = int(index)
     dataset = dataset_with_loaded_data(_dataset_at(alleeg, current))
-    if 1 <= current <= len(alleeg):
+    if _is_occupied(alleeg, current):
         alleeg[current - 1] = deepcopy(dataset)
     offload_storedisk_datasets(alleeg, {current})
     return dataset, alleeg, current
+
+
+def _is_occupied(alleeg: list[dict[str, Any]], index: int) -> bool:
+    """Return whether ``index`` addresses a dataset rather than a deleted (empty) slot.
+
+    Retrieving a deleted slot yields ``eeg_emptyset()``; writing that back would turn the
+    empty slot into a real dataset and resurrect it in the Datasets menu.
+    """
+    return 1 <= index <= len(alleeg) and bool(alleeg[index - 1])
 
 
 def _dataset_at(alleeg: list[dict[str, Any]], index: int) -> dict[str, Any]:

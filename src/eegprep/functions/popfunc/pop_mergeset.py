@@ -111,7 +111,9 @@ def _run_gui(
 
 def _default_indices_text(ALLEEG: list[dict[str, Any]], default_indices: Any) -> str:
     if default_indices is None:
-        return " ".join(str(index) for index in range(1, min(len(ALLEEG), 2) + 1)) or "1"
+        # Deleted datasets leave empty slots; offer real dataset numbers only.
+        datasets = [index for index, dataset in enumerate(ALLEEG, start=1) if dataset]
+        return " ".join(str(index) for index in datasets[:2]) or "1"
     return " ".join(str(index) for index in normalize_dataset_indices(default_indices, allow_empty=False))
 
 
