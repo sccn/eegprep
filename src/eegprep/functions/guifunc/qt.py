@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs
+from eegprep.functions.guifunc.listdlg2 import listdlg2
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.theme import (
     EEGLAB_BACKGROUND,
@@ -25,6 +26,7 @@ from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.functions.studyfunc._study_utils import format_components_button
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, design_firma, design_firpm, design_firws
 from eegprep.plugins.firfilt._pop_common import numeric_or_none, vector_or_none
 from eegprep.plugins.firfilt.kaiserbeta import kaiserbeta
@@ -108,6 +110,9 @@ class QtDialogRenderer:
     _set_reref_mode: Any
     _set_enabled: Any
     _show_help: Any
+    _clear_widgets: Any
+    _select_study_components: Any
+    _apply_study_component_selection: Any
     _read_widget: Any
 
     def run(
@@ -364,6 +369,14 @@ class QtDialogRenderer:
             source = widgets.get(params["source"])
             if source is not None:
                 source.clicked.connect(lambda: self._navigate_channel(widgets, params))
+        elif callback.name == "clear_widgets":
+            source = widgets.get(params["button"])
+            if source is not None:
+                source.clicked.connect(lambda: self._clear_widgets(widgets, params))
+        elif callback.name == "select_study_components":
+            button = widgets.get(params["button"])
+            if button is not None:
+                button.clicked.connect(lambda: self._select_study_components(button, widgets, params))
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -1351,6 +1364,76 @@ def _show_help(_qt_widgets: Any, dialog: Any, spec: DialogSpec) -> None:
     dialog._eegprep_help_dialog = pophelp(spec.help_text or spec.function_name, parent=dialog)
 
 
+def _clear_widgets(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    labels = params.get("labels", {})
+    values = params.get("values", {})
+    for tag in params.get("targets", ()):
+        widget = widgets.get(tag)
+        if widget is None:
+            continue
+        if hasattr(widget, "setText"):
+            widget.setText(str(labels.get(tag, "")))
+        if hasattr(widget, "setProperty"):
+            widget.setProperty(_VALUE_PROPERTY, values.get(tag))
+
+
+def _select_study_components(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    count = int(params.get("count", 0))
+    if count <= 0:
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", "No components found for this dataset. Run ICA first.")
+        return
+
+    current = button.property(_VALUE_PROPERTY)
+    if current is None:
+        current = params.get("initial", [])
+    selected, ok, _strval = listdlg2(
+        promptstring="Select components",
+        liststring=[f"IC {index + 1}" for index in range(count)],
+        selectionmode="multiple",
+        initialvalue=[int(value) for value in current],
+        parent=button,
+    )
+    if not ok:
+        return
+    _apply_study_component_selection(widgets, params, selected)
+
+
+def _apply_study_component_selection(
+    widgets: Mapping[str, Any], params: Mapping[str, Any], selection: list[int]
+) -> None:
+    """Store ``selection`` on the clicked row and on every row of the same recording.
+
+    EEGLAB ``pop_study`` applies a component selection to all datasets with the same
+    non-empty subject, session, and run, since those share one ICA decomposition.
+    """
+    rows = params["rows"]
+    own = int(params["row"])
+    key = _study_recording_key(widgets, rows[own])
+    for index, tags in enumerate(rows):
+        if index != own and (key is None or _study_recording_key(widgets, tags) != key):
+            continue
+        target = widgets[tags["components"]]
+        target.setProperty(_VALUE_PROPERTY, list(selection))
+        target.setText(format_components_button(selection))
+
+
+def _study_recording_key(widgets: Mapping[str, Any], tags: Mapping[str, str]) -> tuple[str, str, str] | None:
+    subject = _widget_text(widgets.get(tags["subject"])).strip().lower()
+    if not subject:
+        return None
+    return (
+        subject,
+        _study_number_token(_widget_text(widgets.get(tags["session"]))),
+        _study_number_token(_widget_text(widgets.get(tags["run"]))),
+    )
+
+
+def _study_number_token(text: str) -> str:
+    text = text.strip()
+    return str(int(text)) if _is_int_text(text) else text.lower()
+
+
 def _read_widget(widget: Any) -> Any:
     stored_value = widget.property(_VALUE_PROPERTY)
     if stored_value is not None:
@@ -1466,6 +1549,9 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_set_reref_mode",
     "_set_enabled",
     "_show_help",
+    "_clear_widgets",
+    "_select_study_components",
+    "_apply_study_component_selection",
     "_read_widget",
 )
 for _helper_name in _QT_RENDERER_STATIC_HELPERS:
