@@ -10,68 +10,37 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``newtimef`` now raises a clear error when given a ``boottype`` other than ``'shuffle'``.
-  Only EEGLAB's default ``'shuffle'`` permutation null is implemented; ``'rand'`` and
-  ``'randall'`` build materially different nulls, so they now fail loudly instead of being
-  silently treated as ``'shuffle'``.
-- ``pop_newtimef`` / ``newtimef`` ``pcontour`` outlines now match EEGLAB's appearance: the
-  significance mask is contoured at MATLAB's auto levels (0.1 through 1.0) in black, so the
-  ten coincident lines render as EEGLAB's bold banded outline instead of a single faint line.
-- ``pop_newtimef`` / ``newtimef`` marginal panels now use EEGLAB's value-axis limits and show two
-  ticks (first and last), so the ERSP min/max, baseline spectrum, ERP, and marginal-ITC graphs
-  scale like EEGLAB instead of matplotlib's auto-scaling. The two tick values are chosen with
-  MATLAB's 1/2/5 tick steps (not matplotlib's 2.5 steps); the sparser baseline-spectrum panel
-  uses a coarser step and keeps its second-to-last tick. The tick counts were matched against
-  EEGLAB across the ERSP, spectrum, ERP, and marginal-ITC panels, so the printed numbers match
-  EEGLAB (for example marginal ITC ``0.06, 0.16`` and spectrum ``-3, -2`` rather than matplotlib's
-  ``0.10, 0.15`` and ``-3, -1``).
-- ``pop_newtimef`` / ``newtimef`` significance now builds its null by shuffling the baseline
-  time course (matching EEGLAB's permutation), so the bootstrap thresholds and the set of
-  significant time-frequency points closely match EEGLAB. Each cell's p-value ranks the
-  observed value within its per-frequency baseline null and folds to a two-sided tail
-  (EEGLAB's ``compute_pvals``) for both ERSP and ITC, so the scattered baseline false
-  positives that EEGLAB shows -- for example in the ITC phase and ``pcontour`` panels --
-  now appear in EEGPrep too, instead of the sparser upper-tail-only pattern.
-- ``pop_newtimef`` / ``newtimef`` refinements for EEGLAB parity: the ERSP/ITC images use the
-  ``turbo`` colormap (EEGPrep's house colormap); the default frequency range now stops at 50 Hz
-  (EEGLAB's ``maxfreq`` default, capped at Nyquist) instead of the full Nyquist band; and the
-  channel scalp inset now marks the selected electrode.
-- ``pop_newtimef`` figures now include the channel or component scalp-map inset and a caption
-  (the channel label or ``IC n``), matching EEGLAB: a channel shows a head with its location, and
-  a component shows its interpolated scalp map. The inset appears when channel locations are
-  available and both the ERSP and ITC panels are shown.
-- ``pop_newtimef`` / ``newtimef`` ITC images now support phase display: by default the coherence
-  is colored by its phase sign (``plotphasesign``), ``plotphaseonly`` shows the phase angle in
-  degrees, and the dialog's "plot ITC phase" checkbox is honored. A ``pcontour`` option outlines
-  significant regions with contours instead of masking them to the baseline.
-- ``pop_newtimef`` / ``newtimef`` image plots now include EEGLAB's marginal panels: the ERSP
-  minimum/maximum envelope and the ERP trace below the images, and the rotated baseline power
-  spectrum and mean inter-trial coherence to their left (with bootstrap-threshold overlays when
-  a significance level is set). The image axes themselves are unlabelled, matching EEGLAB.
-- ``pop_newtimef`` / ``newtimef`` bootstrap significance now ranks each time-frequency point
-  against a per-frequency baseline null distribution (matching EEGLAB), so significant
-  event-related ERSP and ITC survive masking. Previously the surrogate distribution was built
-  from the full, effect-carrying data, so with a significance level (``alpha``) set almost
-  nothing was flagged significant and the images looked uniformly non-significant. The fix
-  applies to both the default and the FDR (``mcorrect``) paths.
-- ``pop_newtimef`` / ``newtimef`` now draw the ERSP and ITC images in EEGLAB's style: the
-  ``jet`` colormap, a symmetric color axis, non-significant regions shown as the green colormap
-  midpoint (rather than blanked to white), right-hand colorbars titled with the power unit, and
-  a stimulus-onset (time 0) marker. Curve-mode plots are unchanged. (Marginal panels, the scalp
-  inset, and phase-sign coloring follow in subsequent changes.)
-- ``pop_newtimef`` now honors the dialog's "ERSP color limits" and "ITC color limits"
-  fields (the ``erspmax`` / ``itcmax`` options); previously these edit boxes were collected
-  but ignored. ``erspmax`` sets a symmetric ERSP image scale (``[-erspmax, erspmax]``) and
-  ``itcmax`` the ITC image maximum.
-- ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` time-frequency plots built on it --
-  now match EEGLAB's decomposition numerics. Requested output frequencies are no longer
-  de-duplicated, so ``freqs``/``nfreqs`` requests that snap several values onto the same FFT
-  bin return one output frequency per request (as in EEGLAB, duplicates included); ``detrend``
-  is now correctly a no-op on the FFT (``cycles=0``) path; output time windows are centered
-  with EEGLAB's ``eeg_lat2point`` rounding and the negative-``ntimesout`` subsample grid no
-  longer includes a spurious trailing time point; ``subitc`` returns the pre-subtraction
-  inter-trial coherence; and exact-zero spectral bins are guarded as in EEGLAB. Some outputs
-  change shape or value versus earlier EEGPrep releases.
+- ``pop_newtimef`` / ``newtimef`` now render EEGLAB's single-condition ERSP/ITC time-frequency
+  figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
+  right-hand colorbars titled with the power unit, and the ``turbo`` colormap (EEGPrep's house
+  colormap, consistent with ``topoplot`` and ``erpimage``); ITC is colored by its phase sign by
+  default (``plotphasesign``), with ``plotphaseonly`` showing the phase angle in degrees. The
+  figure adds EEGLAB's marginal panels -- the ERSP min/max envelope and ERP trace below the
+  images, and the rotated baseline power spectrum and mean ITC to their left -- using EEGLAB's
+  value-axis limits and two ticks per panel. When channel locations are available it also draws
+  the channel or component scalp-map inset and caption (the channel label or ``IC n``), marking
+  the selected electrode for channels. The ``erspmax`` / ``itcmax`` dialog fields set the ERSP
+  and ITC color limits, and the default frequency range stops at 50 Hz (EEGLAB's ``maxfreq``,
+  capped at Nyquist).
+- ``pop_newtimef`` / ``newtimef`` bootstrap significance now matches EEGLAB. With a significance
+  level (``alpha``), each time-frequency point is ranked against a per-frequency baseline null
+  built by permuting the baseline time course (EEGLAB's ``shuffle`` permutation, averaged over
+  trials), and the p-value folds to a two-sided tail (EEGLAB's ``compute_pvals``) for both ERSP
+  and ITC -- so the scattered baseline false positives EEGLAB shows are reproduced and genuine
+  event-related effects survive masking. Non-significant regions are shown as the colormap
+  midpoint, or outlined with contours instead when ``pcontour`` is set; the FDR (``mcorrect``)
+  path is supported. A non-default ``boottype`` (``'rand'`` / ``'randall'``) is now rejected with
+  a clear error rather than silently treated as ``'shuffle'``.
+- ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` plots built on it -- now match EEGLAB's
+  decomposition numerics. Requested output frequencies are no longer de-duplicated, so
+  ``freqs``/``nfreqs`` requests that snap several values onto the same FFT bin return one output
+  frequency per request (as in EEGLAB) -- this changes the ``pac`` output shape (for example
+  ``(5, 3, 8)`` becomes ``(5, 5, 8)``); ``detrend`` is now a no-op on the FFT (``cycles=0``)
+  path; output time windows are centered with EEGLAB's
+  ``eeg_lat2point`` rounding and the negative-``ntimesout`` subsample grid no longer includes a
+  spurious trailing time point; ``subitc`` returns the pre-subtraction inter-trial coherence; and
+  exact-zero spectral bins are guarded as in EEGLAB. Some outputs change shape or value versus
+  earlier EEGPrep releases.
 - ``pop_prop`` (Plot > Channel/Component properties) now matches EEGLAB's three-panel
   layout: a scalp map, an ERP image, and the activity power spectrum. The ERP panel is a
   full ERP image (reusing ``erpimage``) instead of a single averaged trace, the spectrum is
