@@ -70,8 +70,10 @@ MEASURE_Y_AXIS_FIELDS = {"ersp": "erspfreqs", "itc": "itcfreqs"}
 def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
     """Return ``ALLEEG`` as a list of EEG dictionaries without deleted (empty) slots.
 
-    EEGLAB's ``std_editset`` compacts empty datasets the same way, so STUDY dataset
-    numbers stay contiguous when the workspace has gaps.
+    A STUDY needs contiguous dataset numbers, so deleted slots are compacted away here.
+    EEGLAB's ``std_editset`` also removes blank datasets and renumbers
+    ``datasetinfo.index``, though it keys the removal on both the dataset and its
+    ``datasetinfo`` entry being empty.
     """
     if ALLEEG is None:
         return []

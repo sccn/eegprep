@@ -243,6 +243,15 @@ class PopInterpGuiSpecTests(unittest.TestCase):
         self.assertEqual(tuple(alleeg[0]), ("chanlocs",))
         self.assertEqual(alleeg[0]["chanlocs"][0]["labels"], "Ch1")
 
+    def test_other_dataset_callbacks_keep_deleted_slots_empty(self):
+        controls = controls_by_tag(pop_interp_dialog_spec(_eeg(), alleeg=[_eeg(), {}, _eeg()]))
+
+        alleeg = controls["interp_uselist"].callback.params["alleeg"]
+
+        # A deleted dataset stays falsy so the dialog can reject its number.
+        self.assertEqual(alleeg[1], {})
+        self.assertEqual(alleeg[0]["chanlocs"][0]["labels"], "Ch1")
+
     def test_renderer_stores_interp_selection_as_inputgui_userdata(self):
         class Target:
             def __init__(self):

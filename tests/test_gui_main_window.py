@@ -488,6 +488,61 @@ class EEGPrepSessionTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [2])  # new datasets fill the lowest empty slot
         self.assertEqual(session.ALLEEG[1]["setname"], "fourth")
 
+    def test_session_selection_cannot_land_on_a_deleted_slot(self):
+        session = EEGPrepSession()
+        for name in ("first", "second", "third"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+        session.delete_current()
+
+        session.apply_workspace_state(currentset=2)
+
+        # eeglab redraw refuses to leave the selection on an emptied slot.
+        self.assertEqual(session.CURRENTSET, [3])
+        self.assertEqual(session.EEG["setname"], "third")
+
+    def test_session_study_action_keeps_the_selected_dataset(self):
+        from eegprep.functions.studyfunc.pop_study import pop_study
+
+        session = EEGPrepSession()
+        for index, name in enumerate(("first", "second", "third"), start=1):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            eeg["subject"] = f"S0{index}"
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+        session.delete_current()
+        self.assertEqual(session.EEG["setname"], "third")
+
+        study, alleeg = pop_study(None, session.ALLEEG, name="Gaps")
+        session.set_study(study, alleeg)
+
+        # A STUDY needs contiguous numbers, so the workspace compacts, but the
+        # selection follows the dataset it was on rather than its old number.
+        self.assertEqual([eeg["setname"] for eeg in session.ALLEEG], ["first", "third"])
+        self.assertEqual(session.EEG["setname"], "third")
+        self.assertEqual(session.CURRENTSET, [2])
+
+    def test_session_summary_handles_a_deleted_slot_in_study_mode(self):
+        from eegprep.functions.guifunc.main_window import _summary_for_session
+
+        session = EEGPrepSession()
+        for name in ("first", "second"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(1)
+        session.delete_current()
+        session.STUDY = {"name": "demo", "datasetinfo": []}
+        session.CURRENTSTUDY = 1
+
+        _title, _subtitle, rows = _summary_for_session(session)
+
+        # The emptied slot is not a dataset, so it must not reach the summary helpers.
+        self.assertEqual(dict(rows)["Channels per frame"], str(session.ALLEEG[1]["nbchan"]))
+
     def test_session_reports_dataset_status_edges(self):
         session = EEGPrepSession()
         session.EEG = _demo_eeg(chanlocs=False, ica=False)
@@ -556,6 +611,23 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dispatcher.dispatch_gui("pop_adjustevents", parent="window")
 
         warn.assert_called_once_with("window", "bad input")
+
+    def test_merge_datasets_warns_when_only_one_dataset_survives_a_delete(self):
+        session = EEGPrepSession()
+        for name in ("first", "second"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(1)
+        session.delete_current()
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch.object(dispatcher, "_warn") as warn:
+            dispatcher._merge_datasets("window")
+
+        # ALLEEG still has two slots, but one of them is an emptied slot, not a dataset.
+        self.assertEqual(len(session.ALLEEG), 2)
+        warn.assert_called_once_with("window", "Load at least two datasets before merging")
 
     def test_show_help_missing_resource_raises_clear_error_not_coming_soon(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())

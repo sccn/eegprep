@@ -101,8 +101,22 @@ Practical rules:
 * Deleting a dataset empties its ``ALLEEG`` slot (an empty ``{}`` entry) instead
   of shifting later datasets down, so the numbers in the Datasets menu,
   ``CURRENTSET``, and the history stay valid, as in EEGLAB. New datasets fill the
-  lowest empty slot, trailing empty slots are dropped, and STUDY functions skip
-  empty slots.
+  lowest empty slot and trailing empty slots are dropped. Selecting an empty slot
+  is not possible: the selection falls back to a remaining dataset, as EEGLAB's
+  redraw does.
+* Building a STUDY needs contiguous dataset numbers, so creating or editing one
+  compacts the empty slots away and renumbers the remaining datasets. EEGLAB's
+  ``std_editset`` does the same. Your selection follows the dataset it was on
+  rather than the number. Editing a STUDY design, precomputing measures, and
+  preclustering leave ``ALLEEG`` untouched, as in EEGLAB.
+
+Two deliberate differences from EEGLAB:
+
+* After a delete, EEGPrep selects the nearest remaining dataset at or above the
+  deleted number, while EEGLAB always falls back to the lowest-numbered dataset.
+  Staying near the deleted dataset is friendlier when you delete from a long list.
+* EEGLAB refuses to delete when only one dataset is loaded and tells you to clear
+  all datasets instead. EEGPrep deletes it and leaves an empty ``ALLEEG``.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

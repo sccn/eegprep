@@ -354,6 +354,8 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
     eeg = session.current_eeg()
     if session.CURRENTSTUDY == 1 and session.STUDY:
         study = session.STUDY
+        # Deleted datasets leave empty ALLEEG slots; they are not datasets of the STUDY.
+        datasets = [dataset for dataset in session.ALLEEG if dataset]
         return (
             f"STUDY set: {study.get('name', '')}",
             _short_file_line("Study filename", study.get("filepath", ""), study.get("filename", "")),
@@ -363,12 +365,12 @@ def _summary_for_session(session: EEGPrepSession) -> tuple[str, str, list[tuple[
                 ("Nb of conditions", _per_subject_count(study.get("condition", []) or [])),
                 ("Nb of sessions", _per_subject_count(study.get("session", []) or [])),
                 ("Nb of groups", _per_subject_count(study.get("group", []) or [])),
-                ("Epoch consistency", _epoch_consistency(session.ALLEEG)),
-                ("Channels per frame", _unique_values(session.ALLEEG, "nbchan")),
-                ("Channel locations", _study_channel_locations(session.ALLEEG)),
+                ("Epoch consistency", _epoch_consistency(datasets)),
+                ("Channels per frame", _unique_values(datasets, "nbchan")),
+                ("Channel locations", _study_channel_locations(datasets)),
                 ("Clusters", str(len(study.get("cluster", []) or []))),
-                ("Status", _study_status(session.ALLEEG)),
-                ("Total size (Mb)", _size_mb(session.ALLEEG)),
+                ("Status", _study_status(datasets)),
+                ("Total size (Mb)", _size_mb(datasets)),
             ],
         )
     if isinstance(eeg, list) and len(eeg) > 1:

@@ -243,15 +243,25 @@ def test_console_currentset_reassignment_preserves_both_datasets():
     assert workspace.namespace["EEG"]["setname"] == "second"
 
 
-def test_console_pop_delset_keeps_dataset_numbers_and_moves_selection():
+def _delset_console_session(selected):
+    """Return a session and a console workspace with the real ``pop_delset`` wrapper bound."""
     session = EEGPrepSession()
     for name in ("first", "second", "third"):
         session.store_current(_demo_eeg(name), new=True)
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    session.retrieve(2)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_delset": pop_delset})
+    session.retrieve(selected)
+    return session, workspace
 
-    workspace.namespace["ALLEEG"], _command = pop_delset(workspace.namespace["ALLEEG"], [2])
-    workspace.after_execute("ALLEEG, com = pop_delset(ALLEEG, [2])")
+
+def _run_console(workspace, source):
+    exec(source, workspace.namespace)  # noqa: S102 - exercising the console execution path
+    workspace.after_execute(source)
+
+
+def test_console_pop_delset_keeps_dataset_numbers_and_moves_selection():
+    session, workspace = _delset_console_session(2)
+
+    _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [2])")
 
     assert session.ALLEEG[1] == {}  # emptied in place, as in EEGLAB
     assert session.ALLEEG[2]["setname"] == "third"  # dataset 3 keeps its number
@@ -259,6 +269,38 @@ def test_console_pop_delset_keeps_dataset_numbers_and_moves_selection():
     assert session.EEG["setname"] == "third"
     assert workspace.namespace["CURRENTSET"] == 3
     assert [index for index, _label, _selected in session.dataset_summaries()] == [1, 3]
+
+
+def test_console_pop_delset_of_trailing_dataset_trims_without_duplicating():
+    session, workspace = _delset_console_session(3)
+
+    _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [3])")
+
+    # The trimmed list must not be mistaken for a selection of new datasets.
+    assert [eeg["setname"] for eeg in session.ALLEEG] == ["first", "second"]
+    assert session.CURRENTSET == [2]
+    assert session.EEG["setname"] == "second"
+
+
+def test_console_pop_delset_of_other_dataset_keeps_the_selected_one():
+    session, workspace = _delset_console_session(2)
+
+    _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [1])")
+
+    assert session.ALLEEG[0] == {}
+    assert session.CURRENTSET == [2]  # the selected dataset keeps its number
+    assert session.EEG["setname"] == "second"
+
+
+def test_console_currentset_on_deleted_slot_selects_a_remaining_dataset():
+    session, workspace = _delset_console_session(2)
+    _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [2])")
+
+    _run_console(workspace, "CURRENTSET = 2")
+
+    # eeglab redraw refuses to leave the selection on an emptied slot.
+    assert session.CURRENTSET == [3]
+    assert session.EEG["setname"] == "third"
 
 
 def test_console_pop_study_result_updates_shared_study_workspace():

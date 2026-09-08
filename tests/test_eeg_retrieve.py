@@ -57,3 +57,23 @@ def test_eeg_retrieve_rejects_zero_and_missing_indices():
         eeg_retrieve([_eeg()], 0)
     with pytest.raises(IndexError, match="No dataset"):
         eeg_retrieve([_eeg()], 2)
+
+
+def test_eeg_retrieve_leaves_a_deleted_slot_empty():
+    # Retrieving a deleted slot yields an empty EEG, but must not turn the slot into a dataset.
+    alleeg = [_eeg(name="first"), {}, _eeg(name="third")]
+
+    selected, alleeg, current = eeg_retrieve(alleeg, 2)
+
+    assert current == 2
+    assert selected["setname"] == ""
+    assert alleeg[1] == {}
+
+
+def test_eeg_retrieve_list_leaves_deleted_slots_empty():
+    alleeg = [_eeg(name="first"), {}, _eeg(name="third")]
+
+    _selected, alleeg, _current = eeg_retrieve(alleeg, [1, 2, 3])
+
+    assert alleeg[1] == {}
+    assert [alleeg[0]["setname"], alleeg[2]["setname"]] == ["first", "third"]
