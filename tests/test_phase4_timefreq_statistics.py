@@ -57,6 +57,7 @@ from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac
 from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
 from eegprep.functions.timefreqfunc.newtimef import (
     _baseline_pvalues,
+    _bootstrap_power,
     _reduce_to_two_ticks,
     _significance_mask,
     _thresholds_by_frequency,
@@ -1602,6 +1603,76 @@ def test_timefreq_negative_ntimesout_times_match_eeglab(tmp_path):
 
     matlab = scipy.io.loadmat(output, squeeze_me=True)
     np.testing.assert_allclose(result.times, np.asarray(matlab["times"]).ravel(), rtol=1e-9, atol=1e-9)
+
+
+def _trial_common_baseline_power(rng, n_freq, n_base, n_trials, noise):
+    # Positive baseline power whose time course is largely shared across trials, so an
+    # average-then-resample null (spread ~ std of the trial-mean) diverges from EEGLAB's
+    # permute-then-average null (the shared structure averages out across trials).
+    shared = rng.gamma(3.0, 1.0, size=(n_freq, n_base))[:, :, None]
+    return shared + noise * rng.gamma(3.0, 1.0, size=(n_freq, n_base, n_trials))
+
+
+def test_bootstrap_power_null_is_not_degenerate():
+    # The ERSP null averages a per-trial permutation of the baseline time course, so each
+    # exemplar is a fresh trial-mean -- unlike the old with-replacement resample of the fixed
+    # trial-mean spectrum, which produced at most n_base distinct null values per frequency.
+    rng = np.random.default_rng(0)
+    n_freq, n_base, n_trials = 4, 20, 15
+    power = _trial_common_baseline_power(rng, n_freq, n_base, n_trials, noise=0.01)
+    _, baseline_null = _bootstrap_power(power, "abs", alpha=0.05, naccu=200, base_indices=np.arange(n_base), rng=0)
+    for freq in range(n_freq):
+        assert np.unique(baseline_null[:, freq, :]).size > n_base
+
+
+@pytest.mark.matlab
+def test_bootstrap_power_null_matches_eeglab_bootstat(tmp_path):
+    # The ERSP significance null must match EEGLAB bootstat's 'shuffle' permutation in
+    # distribution. Bootstrap is random, so compare the converged per-frequency null spread
+    # on identical trial-common baseline power (where average-then-resample would diverge)
+    # within a loose tolerance, against real EEGLAB bootstat.
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    rng = np.random.default_rng(0)
+    n_freq, n_base, n_trials = 5, 24, 16
+    naccu = 3000
+    power = _trial_common_baseline_power(rng, n_freq, n_base, n_trials, noise=0.2)
+
+    inputs = tmp_path / "bootstrap_power_inputs.mat"
+    output = tmp_path / "bootstrap_power_outputs.mat"
+    scipy.io.savemat(inputs, {"P": power})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            [~, ~, Pboottrials] = bootstat(P, 'mean(arg1,3);', 'boottype', 'shuffle', ...
+                'shuffledim', 2, 'basevect', 1:size(P,2), 'naccu', {naccu}, 'alpha', 0.05, ...
+                'dimaccu', 2, 'bootside', 'both');
+            null_std = std(Pboottrials, 0, 1);
+            save('{_matlab_string(output)}', 'null_std');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    _, baseline_null = _bootstrap_power(power, "abs", alpha=0.05, naccu=naccu, base_indices=np.arange(n_base), rng=0)
+    py_null_std = np.std(baseline_null, axis=(0, 2))
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    matlab_null_std = np.asarray(matlab["null_std"], dtype=float).ravel()
+    np.testing.assert_allclose(py_null_std, matlab_null_std, rtol=0.1)
 
 
 @pytest.mark.matlab

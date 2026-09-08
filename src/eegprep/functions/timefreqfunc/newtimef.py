@@ -477,12 +477,18 @@ def _bootstrap_power(
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # EEGLAB shuffles the baseline TIME dimension and averages over trials, so the
-    # null is the baseline mean-power spectrum resampled across time -- not a trial
-    # resample, which adds spurious variance (newtimef.m 1282-1286, bootstat 'shuffle').
+    # EEGLAB permutes each trial's baseline time course independently and then averages
+    # power over trials, so every null exemplar is a trial-mean of independently shuffled
+    # baseline samples -- not a resample of the fixed trial-mean spectrum, which yields only
+    # n_base distinct values and inflates the spread whenever trials share baseline structure
+    # (newtimef.m 1282-1286, bootstat 'shuffle' -> shuffleonedim(arg1, 2) then mean(arg1, 3)).
+    generator = np.random.default_rng(rng)
     boot_source = power[:, base_indices, :] if base_indices.size else power
-    baseline_stat = _power_to_output(np.nanmean(boot_source, axis=2), scale)
-    baseline_null = _resample_baseline_times(baseline_stat, naccu, rng)
+    n_base, n_trials = boot_source.shape[1], boot_source.shape[2]
+    baseline_null = np.empty((int(naccu), boot_source.shape[0], n_base), dtype=float)
+    for index in range(int(naccu)):
+        shuffled = np.stack([boot_source[:, generator.permutation(n_base), trial] for trial in range(n_trials)], axis=2)
+        baseline_null[index] = _power_to_output(np.nanmean(shuffled, axis=2), scale)
     thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=True)
     return thresholds, baseline_null
 
@@ -508,14 +514,6 @@ def _bootstrap_itc(
         baseline_null[index] = np.abs(newtimefitc(shuffled, itctype))
     thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=False)
     return thresholds, baseline_null
-
-
-def _resample_baseline_times(baseline_stat: np.ndarray, naccu: int, rng: Any) -> np.ndarray:
-    """Resample the per-frequency baseline statistic across time (EEGLAB time-shuffle)."""
-    generator = np.random.default_rng(rng)
-    n_base = baseline_stat.shape[1]
-    columns = generator.integers(0, n_base, size=(int(naccu), n_base))
-    return baseline_stat[:, columns].transpose(1, 0, 2)
 
 
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
