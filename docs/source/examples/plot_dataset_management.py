@@ -105,8 +105,9 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
 # %%
 # Delete datasets from memory (``Edit > Delete dataset(s) from memory`` or
-# ``File > Clear dataset(s)``).
+# ``File > Clear dataset(s)``). As in EEGLAB, the slot is emptied in place, so the
+# remaining datasets keep their numbers; trailing empty slots are dropped.
 
-ALLEEG, delete_com = pop_delset(ALLEEG, [3])
-print("datasets in memory:", len(ALLEEG))
+ALLEEG, delete_com = pop_delset(ALLEEG, [2])
+print("dataset numbers still in memory:", [index for index, eeg in enumerate(ALLEEG, start=1) if eeg])
 print(delete_com)

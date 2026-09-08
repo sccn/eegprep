@@ -68,14 +68,20 @@ MEASURE_Y_AXIS_FIELDS = {"ersp": "erspfreqs", "itc": "itcfreqs"}
 
 
 def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
-    """Return ``ALLEEG`` as a list of EEG dictionaries."""
+    """Return ``ALLEEG`` as a list of EEG dictionaries without deleted (empty) slots.
+
+    A STUDY needs contiguous dataset numbers, so deleted slots are compacted away here.
+    EEGLAB's ``std_editset`` also removes blank datasets and renumbers
+    ``datasetinfo.index``, though it keys the removal on both the dataset and its
+    ``datasetinfo`` entry being empty.
+    """
     if ALLEEG is None:
         return []
     if isinstance(ALLEEG, dict):
         return [ALLEEG]
     if not isinstance(ALLEEG, list) or not all(isinstance(item, dict) for item in ALLEEG):
         raise TypeError("ALLEEG must be a list of EEG dataset dictionaries")
-    return list(ALLEEG)
+    return [item for item in ALLEEG if item]
 
 
 def merged_chanlocs(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
