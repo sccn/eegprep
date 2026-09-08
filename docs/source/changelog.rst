@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Deleting a dataset that belongs to a STUDY no longer shifts its STUDY metadata
+  (subject, condition, group, session, run, and components) onto the following
+  datasets. The deleted dataset's ``datasetinfo`` row is dropped together with its
+  ``ALLEEG`` slot, as EEGLAB's ``std_editset`` does, so ``std_checkset`` and the STUDY
+  editor keep each dataset's metadata with that dataset.
 - Deleting datasets (``pop_delset``, Edit > Delete dataset(s) from memory) now empties
   the slot in place like EEGLAB instead of shifting later datasets down, so dataset
   numbers in the Datasets menu, ``CURRENTSET``, and the history stay valid. ``eeg_store``

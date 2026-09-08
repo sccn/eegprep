@@ -172,7 +172,7 @@ def _std_pac_study(
     datasets = as_alleeg_list(ALLEEG)
     if not datasets:
         raise ValueError("std_pac STUDY mode requires ALLEEG datasets")
-    study, datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     params = _parameters(datasets[0], freqs, cycles, freqphase, cyclephase, padratio, freqscale, pac_options)
     if is_on(getparams):
         return (

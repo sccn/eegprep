@@ -8,9 +8,7 @@ import numpy as np
 
 from eegprep.functions.studyfunc._study_utils import (
     _empty_value,
-    as_alleeg_list,
-    ensure_study,
-    sync_datasetinfo,
+    sync_study_datasets,
     trialinfo_rows,
 )
 from eegprep.functions.studyfunc.std_indvarmatch import std_indvarmatch
@@ -31,8 +29,7 @@ def std_selectdataset(
     matching trial are returned.
     """
     _ = verboseFlag
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     infos = [info for info in study.get("datasetinfo") or [] if isinstance(info, dict)]
     trialselect = _all_trials(infos, datasets)
     if _empty_value(indvar):

@@ -55,7 +55,7 @@ def std_precomp(
     datasets = as_alleeg_list(ALLEEG)
     if not datasets:
         raise ValueError("std_precomp requires ALLEEG datasets")
-    study, datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     erp = options.pop("erp", erp)
     spec = options.pop("spec", spec)

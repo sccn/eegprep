@@ -10,9 +10,7 @@ import numpy as np
 
 from eegprep.functions.popfunc.plot_utils import component_maps, python_literal
 from eegprep.functions.studyfunc._study_utils import (
-    as_alleeg_list,
-    ensure_study,
-    sync_datasetinfo,
+    sync_study_datasets,
     unique_preserving_order,
 )
 
@@ -21,10 +19,9 @@ def checked_study_and_datasets(
     STUDY: dict[str, Any] | None, ALLEEG: Any
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Return a STUDY with datasetinfo synchronized to loaded datasets."""
-    datasets = as_alleeg_list(ALLEEG)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     if not datasets:
         raise ValueError("STUDY clustering requires loaded ALLEEG datasets")
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
     return study, datasets
 
 
