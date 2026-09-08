@@ -66,6 +66,15 @@ def test_pop_study_history_preserves_requested_design_name():
     assert "design='ERP'" in command
 
 
+def test_pop_study_skips_empty_alleeg_slots():
+    # A deleted dataset leaves an empty ALLEEG slot; STUDY numbering compacts like std_editset.
+    study, alleeg = pop_study(None, [_eeg("one", subject="S01"), {}, _eeg("three", subject="S03")], name="Gaps")
+
+    assert [info["setname"] for info in study["datasetinfo"]] == ["one", "three"]
+    assert [info["index"] for info in study["datasetinfo"]] == [1, 2]
+    assert [eeg["setname"] for eeg in alleeg] == ["one", "three"]
+
+
 def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
     study, alleeg = pop_study(None, [_eeg("one")], name="Initial")
 

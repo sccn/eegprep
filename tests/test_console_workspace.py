@@ -27,6 +27,7 @@ from eegprep.extensions import (
 )
 from eegprep.functions.adminfunc import console as console_module
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
@@ -240,6 +241,24 @@ def test_console_currentset_reassignment_preserves_both_datasets():
     assert session.ALLEEG[0]["setname"] == "first"
     assert session.ALLEEG[1]["setname"] == "second"
     assert workspace.namespace["EEG"]["setname"] == "second"
+
+
+def test_console_pop_delset_keeps_dataset_numbers_and_moves_selection():
+    session = EEGPrepSession()
+    for name in ("first", "second", "third"):
+        session.store_current(_demo_eeg(name), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    session.retrieve(2)
+
+    workspace.namespace["ALLEEG"], _command = pop_delset(workspace.namespace["ALLEEG"], [2])
+    workspace.after_execute("ALLEEG, com = pop_delset(ALLEEG, [2])")
+
+    assert session.ALLEEG[1] == {}  # emptied in place, as in EEGLAB
+    assert session.ALLEEG[2]["setname"] == "third"  # dataset 3 keeps its number
+    assert session.CURRENTSET == [3]
+    assert session.EEG["setname"] == "third"
+    assert workspace.namespace["CURRENTSET"] == 3
+    assert [index for index, _label, _selected in session.dataset_summaries()] == [1, 3]
 
 
 def test_console_pop_study_result_updates_shared_study_workspace():

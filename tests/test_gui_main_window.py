@@ -461,9 +461,32 @@ class EEGPrepSessionTests(unittest.TestCase):
 
         session.delete_current()
 
-        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.ALLEEG[0], {})  # emptied in place, as in EEGLAB
+        self.assertEqual(session.CURRENTSET, [2])  # dataset 2 keeps its number
         self.assertEqual(session.EEG["setname"], "second")
         self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
+
+    def test_session_delete_current_keeps_dataset_numbers_and_reuses_slot(self):
+        session = EEGPrepSession()
+        for name in ("first", "second", "third"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+
+        session.delete_current()
+
+        self.assertEqual(session.ALLEEG[1], {})
+        self.assertEqual(session.ALLEEG[2]["setname"], "third")
+        self.assertEqual(session.CURRENTSET, [3])
+        self.assertEqual([index for index, _label, _selected in session.dataset_summaries()], [1, 3])
+
+        fourth = _demo_eeg()
+        fourth["setname"] = "fourth"
+        session.store_current(fourth, new=True)
+
+        self.assertEqual(session.CURRENTSET, [2])  # new datasets fill the lowest empty slot
+        self.assertEqual(session.ALLEEG[1]["setname"], "fourth")
 
     def test_session_reports_dataset_status_edges(self):
         session = EEGPrepSession()

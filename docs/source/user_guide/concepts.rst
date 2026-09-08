@@ -98,6 +98,11 @@ Practical rules:
   one-based on disk.
 * Single-trial datasets have no ``epoch`` structure: ``eeg_checkset`` empties
   it and removes ``event[i]["epoch"]``, as EEGLAB does.
+* Deleting a dataset empties its ``ALLEEG`` slot (an empty ``{}`` entry) instead
+  of shifting later datasets down, so the numbers in the Datasets menu,
+  ``CURRENTSET``, and the history stay valid, as in EEGLAB. New datasets fill the
+  lowest empty slot, trailing empty slots are dropped, and STUDY functions skip
+  empty slots.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

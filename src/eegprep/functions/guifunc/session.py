@@ -82,6 +82,15 @@ def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list
     return normalized
 
 
+def nearest_dataset_index(alleeg: list[Any], anchor: int) -> int | None:
+    """Return the first dataset number at or above ``anchor`` whose slot is not empty, else the last one below."""
+    remaining = [index for index, dataset in enumerate(alleeg, start=1) if dataset]
+    if not remaining:
+        return None
+    above = [index for index in remaining if index >= anchor]
+    return above[0] if above else remaining[-1]
+
+
 @dataclass
 class EEGPrepSession:
     """EEGLAB-like GUI state without module globals."""
@@ -286,14 +295,19 @@ class EEGPrepSession:
         self.notify_changed()
 
     def delete_current(self) -> None:
-        """Delete the current dataset selection from memory."""
+        """Delete the current dataset selection from memory.
+
+        Deleted slots stay empty so the other datasets keep their numbers, as in
+        EEGLAB; the selection moves to the nearest remaining dataset.
+        """
         if not self.CURRENTSET:
             return
         deleted_indices = list(self.CURRENTSET)
         self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
         self.add_history(command, notify=False)
-        if self.ALLEEG:
-            self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
+        target = nearest_dataset_index(self.ALLEEG, min(deleted_indices))
+        if target is not None:
+            self.retrieve(target)
             return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()

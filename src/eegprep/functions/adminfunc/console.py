@@ -21,7 +21,7 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
-from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
+from eegprep.functions.guifunc.session import EEGPrepSession, nearest_dataset_index, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
@@ -1429,16 +1429,17 @@ def _normalize_currentset(value: Any) -> list[int]:
 
 def _currentset_after_alleeg_change(currentset: list[int], previous_eeg: Any, alleeg: list[Any]) -> list[int]:
     """Follow the selected datasets to their new positions, else select the nearest remaining one."""
-    if not alleeg:
-        return []
     previous = previous_eeg if isinstance(previous_eeg, list) else [previous_eeg]
     followed = [index + 1 for index, dataset in enumerate(alleeg) if any(dataset is item for item in previous)]
     if followed:
         return followed
-    valid = [index for index in currentset if index <= len(alleeg)]
+    valid = [index for index in currentset if index <= len(alleeg) and alleeg[index - 1]]
     if valid:
         return valid
-    return [len(alleeg)] if currentset else []
+    if not currentset:
+        return []
+    target = nearest_dataset_index(alleeg, min(currentset))
+    return [] if target is None else [target]
 
 
 _IN_PLACE_MUTATION_METHODS = frozenset(

@@ -152,7 +152,8 @@ print("eeg_getica(EEG, 1):", eeg_getica(EPOCHED, 1).shape)
 # -----------------------------
 # Loaded datasets live in ``ALLEEG``, a plain Python list. ``CURRENTSET``
 # holds 1-based dataset numbers, matching what the GUI Datasets menu and the
-# console show. ``eeg_store`` appends or overwrites; ``eeg_retrieve`` selects.
+# console show. ``eeg_store`` fills the lowest empty slot or overwrites;
+# ``eeg_retrieve`` selects.
 
 ALLEEG, _EEG, CURRENTSET = eeg_store([], EEG, 0)
 ALLEEG, _EEG, CURRENTSET = eeg_store(ALLEEG, EPOCHED, 0)

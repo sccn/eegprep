@@ -9,16 +9,20 @@ def pop_delset(
     ALLEEG: list[dict[str, Any]] | None,
     indices: int | list[int] | tuple[int, ...],
 ) -> tuple[list[dict[str, Any]], str]:
-    """Delete dataset indices from ``ALLEEG`` and return a history command."""
+    """Delete datasets from ``ALLEEG`` and return a history command.
+
+    Like EEGLAB, each deleted slot is emptied in place (an empty slot is ``{}``) so
+    the remaining datasets keep their numbers; trailing empty slots are dropped.
+    """
     alleeg = [] if ALLEEG is None else list(ALLEEG)
-    if isinstance(indices, int):
-        delete_indices = [int(indices)]
-    else:
-        delete_indices = [int(index) for index in indices]
-    for index in sorted(set(delete_indices), reverse=True):
+    delete_indices = [int(indices)] if isinstance(indices, int) else [int(index) for index in indices]
+    for index in set(delete_indices):
         if index < 1:
             raise ValueError("EEGLAB dataset indices are 1-based")
-        if index <= len(alleeg):
-            del alleeg[index - 1]
+        if index > len(alleeg):
+            raise IndexError(f"No dataset at EEGLAB index {index}")
+        alleeg[index - 1] = {}
+    while alleeg and not alleeg[-1]:
+        alleeg.pop()
     command = f"ALLEEG = pop_delset( ALLEEG, {delete_indices} );"
     return alleeg, command

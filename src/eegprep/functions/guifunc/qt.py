@@ -1280,7 +1280,7 @@ def _select_interp_channels(button: Any, target: Any, params: Mapping[str, Any])
     )
     if not accepted:
         return
-    if dataset_index < 1 or dataset_index > len(alleeg):
+    if dataset_index < 1 or dataset_index > len(alleeg) or not alleeg[dataset_index - 1]:  # {} = deleted slot
         qt_widgets.QMessageBox.warning(button, "Warning", "Wrong index")
         return
 

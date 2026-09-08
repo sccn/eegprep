@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Deleting datasets (``pop_delset``, Edit > Delete dataset(s) from memory) now empties
+  the slot in place like EEGLAB instead of shifting later datasets down, so dataset
+  numbers in the Datasets menu, ``CURRENTSET``, and the history stay valid. ``eeg_store``
+  stores new datasets in the lowest empty slot, trailing empty slots are dropped, STUDY
+  functions ignore empty slots, and ``pop_delset`` raises for a dataset number that does
+  not exist.
 - ``pop_prop`` (Plot > Channel/Component properties) now matches EEGLAB's three-panel
   layout: a scalp map, an ERP image, and the activity power spectrum. The ERP panel is a
   full ERP image (reusing ``erpimage``) instead of a single averaged trace, the spectrum is
