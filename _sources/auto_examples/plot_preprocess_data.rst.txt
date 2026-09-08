@@ -119,7 +119,7 @@ Re-referencing. An empty reference means the average of all channels.
 
     reref     : EEG = pop_reref( EEG, []);
     reference : 'average'
-    max abs channel sum per sample: 4.263e-13
+    max abs channel sum per sample: 3.872e-13
 
 
 
@@ -214,7 +214,7 @@ Check the result in the frequency domain without opening a window.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.269 seconds)
+   **Total running time of the script:** (0 minutes 0.280 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_preprocess_data.py:

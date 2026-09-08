@@ -382,7 +382,7 @@ console show. ``eeg_store`` appends or overwrites; ``eeg_retrieve`` selects.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.091 seconds)
+   **Total running time of the script:** (0 minutes 0.084 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_structures.py:
