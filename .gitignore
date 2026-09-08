@@ -3,8 +3,6 @@
 .coveragerc
 .notes/*
 !.notes/.gitkeep
-!.notes/eeglab-migration-gap-audit.md
-!.notes/implementation-notes.html
 
 # Python
 # Byte-compiled / optimized / DLL files
@@ -114,4 +112,5 @@ matlab/clean_rawdata
 docs/build/
 docs/_build/
 docs/source/auto_examples/
-!docs/source/auto_examples/index.rst
+# Autosummary stub pages are build output, regenerated on every docs build.
+docs/source/api/generated/

@@ -68,6 +68,29 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_epoch_event_indices_one_based(self):
+        src = os.path.join(local_url, 'eeglab_data_epochs_ica.set')
+        EEG = pop_loadset(src)
+        epoch_before = [(list(ep['event']), list(ep['eventurevent'])) for ep in EEG['epoch']]
+        self.assertEqual(epoch_before[0], ([0, 1, 2], [0, 1, 2]))  # 0-based in memory
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'epochs.set')
+            pop_saveset(EEG, out)
+
+            raw_src = scipy.io.loadmat(src, squeeze_me=True, struct_as_record=False)['EEG'].epoch[0]
+            raw_out = scipy.io.loadmat(out, squeeze_me=True, struct_as_record=False)['epoch'][0]
+            np.testing.assert_array_equal(raw_src.event, [1, 2, 3])
+            np.testing.assert_array_equal(raw_out.event, raw_src.event)  # 1-based on disk
+            np.testing.assert_array_equal(raw_out.eventurevent, [1, 2, 3])
+
+            reloaded = pop_loadset(out)
+
+        epoch_after = [(list(ep['event']), list(ep['eventurevent'])) for ep in EEG['epoch']]
+        self.assertEqual(epoch_after, epoch_before)  # caller's dict not mutated
+        epoch_reloaded = [(list(ep['event']), list(ep['eventurevent'])) for ep in reloaded['epoch']]
+        self.assertEqual(epoch_reloaded, epoch_before)  # round trip
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')
@@ -167,6 +190,43 @@ class TestPopSaveset(unittest.TestCase):
             pop_saveset(EEG, out)
             loaded = scipy.io.loadmat(out, struct_as_record=True)
         self.assertIn('unit', loaded['chanlocs'].dtype.names)
+
+    def test_no_location_channel_coordinates_saved_as_empty(self):
+        # No-location channels (e.g. EOG) must keep empty coordinates on save, as
+        # EEGLAB does. Writing 0 would place them at the head center when the .set
+        # is reloaded (here or in EEGLAB), corrupting scalp maps.
+        empty = np.array([])
+        chanlocs = [
+            {'labels': 'Cz', 'theta': 0.0, 'radius': 0.0, 'X': 0.0, 'Y': 0.0, 'Z': 1.0},
+            {'labels': 'EOG', 'theta': empty, 'radius': empty, 'X': empty, 'Y': empty, 'Z': empty},
+        ]
+        EEG = {
+            'setname': 't',
+            'nbchan': 2,
+            'trials': 1,
+            'pnts': 4,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.03,
+            'times': np.arange(4) / 100.0,
+            'data': np.zeros((2, 4)),
+            'chanlocs': chanlocs,
+            'event': [],
+            'icachansind': np.array([]),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'noloc.set')
+            pop_saveset(EEG, out)
+            raw = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['chanlocs']
+            reloaded = pop_loadset(out)['chanlocs']
+        # On disk: no-location coords are empty (not 0); the located channel keeps its value.
+        self.assertEqual(np.size(raw[1].theta), 0)
+        self.assertEqual(np.size(raw[1].radius), 0)
+        self.assertEqual(float(raw[0].radius), 0.0)
+        # Round-trip through EEGPrep keeps the no-location coords empty.
+        self.assertEqual(np.asarray(reloaded[0]['radius']).size, 1)
+        self.assertEqual(np.asarray(reloaded[1]['theta']).size, 0)
+        self.assertEqual(np.asarray(reloaded[1]['radius']).size, 0)
 
 
 if __name__ == '__main__':

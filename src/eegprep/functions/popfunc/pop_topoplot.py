@@ -13,8 +13,8 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._plot_utils import component_map_data
-from eegprep.functions.popfunc._plot_utils import history_command as plot_history_command
+from eegprep.functions.popfunc.plot_utils import component_map_data, show_figures
+from eegprep.functions.popfunc.plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -30,6 +30,7 @@ def pop_topoplot(
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
+    plot: str | bool = "on",
     return_com: bool = False,
     **kwargs: Any,
 ):
@@ -48,6 +49,7 @@ def pop_topoplot(
             are deferred to the Phase 4 headplot/DIPFIT integration.
         gui: Force or suppress the EEGLAB-like input dialog.
         renderer: Optional dialog renderer for tests.
+        plot: ``'off'`` builds and returns the figures without opening a window.
         return_com: Return ``(figures, command)`` when true.
         **kwargs: Additional ``topoplot`` options such as ``electrodes``,
             ``colorbar`` and ``maplimits``.
@@ -93,15 +95,22 @@ def pop_topoplot(
     else:
         raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")
 
+    # EEGLAB scaling: ERP maps share one symmetric absmax scale; component maps each use their own.
+    plot_options = dict(options)
+    plot_options.setdefault("maplimits", _default_maplimits(maps) if typeplot == 1 else "absmax")
     figures = _plot_map_pages(
         maps,
         labels,
         plot_chanlocs,
         topotitle=topotitle,
         rowcols=rowcols_array,
-        options=dict(options),
+        options=plot_options,
+        component=typeplot == 0,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
+
+    # EEGLAB displays the figure whether called from the GUI or the command line.
+    show_figures(figures, plot=plot)
     return (figures, command) if return_com else figures
 
 
@@ -133,11 +142,12 @@ def pop_topoplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         ControlSpec("edit", tag="rowcols", value="[]"),
     ]
     if not int(typeplot):
+        # The dipole row is text + checkbox + one filler cell (EEGLAB uigeom [1.55 0.2 0.8]);
+        # the standalone spacer before the options edit is added by the shared block below.
         controls.extend(
             [
                 ControlSpec("text", "Plot associated dipole(s) (if present)"),
                 ControlSpec("checkbox", tag="plotdip", value=False),
-                ControlSpec("spacer"),
                 ControlSpec("spacer"),
             ]
         )
@@ -195,6 +205,8 @@ def plot_channel_locations(EEG: dict[str, Any], *, mode: str = "labels", return_
     electrodes = "numpoint" if mode == "numbers" else "labelpoint"
     fig, *_ = topoplot([], chanlocs, style="blank", electrodes=electrodes, title="Channel locations")
     command = f"topoplot([], EEG['chanlocs'], style='blank', electrodes={electrodes!r})"
+
+    # topoplot() owns and displays this standalone figure; no extra show here.
     return (fig, command) if return_com else fig
 
 
@@ -221,18 +233,16 @@ def _plot_map_pages(
     topotitle: str,
     rowcols: tuple[int, int],
     options: dict[str, Any],
+    component: bool = False,
 ) -> list[Any]:
     rows, cols = rowcols
     per_page = rows * cols
     figures = []
     colorbar = _is_on(options.pop("colorbar", "on"))
     maplimits = options.pop("maplimits", None)
-    if maplimits is None or _is_absmax_maplimits(maplimits):
-        maplimits = _default_maplimits(maps)
     for page_start in range(0, len(maps), per_page):
         page_maps = maps[page_start : page_start + per_page]
         page_labels = labels[page_start : page_start + per_page]
-        plotted_map_count = sum(values is not None for values in page_maps)
         fig, axes = plt.subplots(rows, cols, squeeze=False, figsize=(cols * 2.1, rows * 2.0))
         colorbar_image = None
         plotted_axes = []
@@ -240,27 +250,31 @@ def _plot_map_pages(
             if values is None:
                 ax.axis("off")
                 continue
-            topoplot(
-                values,
-                chanlocs,
-                axes=ax,
-                colorbar=colorbar and plotted_map_count == 1,
-                maplimits=maplimits,
-                **options,
-            )
+            # pop_topoplot owns the colorbar so it can label component maps by polarity.
+            topoplot(values, chanlocs, axes=ax, colorbar=False, maplimits=maplimits, **options)
             if ax.images:
                 colorbar_image = ax.images[-1]
                 plotted_axes.append(ax)
             ax.set_title(label)
         for ax in axes.ravel()[len(page_maps) :]:
             ax.axis("off")
+        # EEGLAB prints the figure title at the bottom (textsc at y=0.05), not the top.
         if topotitle:
-            fig.suptitle(topotitle, fontweight="bold")
-        fig.tight_layout()
-        if colorbar and plotted_map_count > 1 and colorbar_image is not None:
-            fig.colorbar(colorbar_image, ax=plotted_axes, shrink=0.7)
+            fig.text(0.5, 0.02, topotitle, ha="center", va="bottom", fontweight="bold")
+        fig.tight_layout(rect=(0, 0.05, 1, 1) if topotitle else (0, 0, 1, 1))
+        if colorbar and colorbar_image is not None:
+            _add_map_colorbar(fig, colorbar_image, plotted_axes, component=component)
         figures.append(fig)
     return figures
+
+
+def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> None:
+    """Draw the shared scalp-map colorbar, marking component maps with -/0/+ polarity labels."""
+    cbar = fig.colorbar(image, ax=axes, shrink=0.7)
+    if component:
+        low, high = image.get_clim()
+        cbar.set_ticks([low, 0.0, high])
+        cbar.set_ticklabels(["-", "0", "+"])
 
 
 def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
@@ -413,10 +427,6 @@ def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
     _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
-
-
-def _is_absmax_maplimits(value: Any) -> bool:
-    return isinstance(value, str) and value.lower() == "absmax"
 
 
 def _is_plotdip_value(value: Any) -> bool:

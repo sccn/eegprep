@@ -66,6 +66,7 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_eeg_point2lat.py",
     "tests/test_eeg_rpsd_parity.py",
     "tests/test_eegfindboundaries.py",
+    "tests/test_envtopo_parity.py",
     "tests/test_iclabel.py",
     "tests/test_iclabel_features.py",
     "tests/test_parity_rng.py",
@@ -74,6 +75,7 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_pop_epoch.py",
     "tests/test_pop_loadset_h5.py",
     "tests/test_pop_resample.py",
+    "tests/test_spectopo_parity.py",
 )
 
 MATLAB_NODEID_PARTS = (

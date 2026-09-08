@@ -128,6 +128,7 @@ API Reference
 =============
 
 .. autosummary::
+   :toctree: generated/
 
    eegprep.CATALOG_SCHEMA_VERSION
    eegprep.CatalogValidationIssue
