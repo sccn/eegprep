@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.listdlg2 import listdlg2
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.theme import (
     EEGLAB_BACKGROUND,
@@ -24,6 +25,7 @@ from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.functions.studyfunc._study_utils import format_components_button
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, design_firma, design_firpm, design_firws
 from eegprep.plugins.firfilt._pop_common import numeric_or_none, vector_or_none
 from eegprep.plugins.firfilt.kaiserbeta import kaiserbeta
@@ -109,6 +111,7 @@ class QtDialogRenderer:
     _show_help: Any
     _clear_widgets: Any
     _select_study_components: Any
+    _apply_study_component_selection: Any
     _read_widget: Any
 
     def run(
@@ -1377,33 +1380,54 @@ def _select_study_components(button: Any, widgets: Mapping[str, Any], params: Ma
         qt_widgets.QMessageBox.warning(button, "Warning", "No components found for this dataset. Run ICA first.")
         return
 
-    labels = [f"IC {i + 1}" for i in range(count)]
-    current = button.property(_VALUE_PROPERTY) or params.get("initial", [])
-    if isinstance(current, str):
-        initial = current
-    else:
-        initial = " ".join(str(i) for i in current)
-
-    chanlist, chanliststr, _allchanstr = pop_chansel(
-        labels,
-        withindex="on",
-        select=initial,
+    current = button.property(_VALUE_PROPERTY)
+    if current is None:
+        current = params.get("initial", [])
+    selected, ok, _strval = listdlg2(
+        promptstring="Select components",
+        liststring=[f"IC {index + 1}" for index in range(count)],
+        selectionmode="multiple",
+        initialvalue=[int(value) for value in current],
         parent=button,
     )
-
-    if chanlist is None:
+    if not ok:
         return
+    _apply_study_component_selection(widgets, params, selected)
 
-    button.setProperty(_VALUE_PROPERTY, list(chanlist))
 
-    if not chanlist:
-        button.setText("All comp.")
-    else:
-        if len(chanlist) > 3:
-            label = f"Comp.: {' '.join(str(i) for i in chanlist[:2])} ..."
-        else:
-            label = f"Comp.: {' '.join(str(i) for i in chanlist)}"
-        button.setText(label)
+def _apply_study_component_selection(
+    widgets: Mapping[str, Any], params: Mapping[str, Any], selection: list[int]
+) -> None:
+    """Store ``selection`` on the clicked row and on every row of the same recording.
+
+    EEGLAB ``pop_study`` applies a component selection to all datasets with the same
+    non-empty subject, session, and run, since those share one ICA decomposition.
+    """
+    rows = params["rows"]
+    own = int(params["row"])
+    key = _study_recording_key(widgets, rows[own])
+    for index, tags in enumerate(rows):
+        if index != own and (key is None or _study_recording_key(widgets, tags) != key):
+            continue
+        target = widgets[tags["components"]]
+        target.setProperty(_VALUE_PROPERTY, list(selection))
+        target.setText(format_components_button(selection))
+
+
+def _study_recording_key(widgets: Mapping[str, Any], tags: Mapping[str, str]) -> tuple[str, str, str] | None:
+    subject = _widget_text(widgets.get(tags["subject"])).strip().lower()
+    if not subject:
+        return None
+    return (
+        subject,
+        _study_number_token(_widget_text(widgets.get(tags["session"]))),
+        _study_number_token(_widget_text(widgets.get(tags["run"]))),
+    )
+
+
+def _study_number_token(text: str) -> str:
+    text = text.strip()
+    return str(int(text)) if _is_int_text(text) else text.lower()
 
 
 def _read_widget(widget: Any) -> Any:
@@ -1523,6 +1547,7 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_show_help",
     "_clear_widgets",
     "_select_study_components",
+    "_apply_study_component_selection",
     "_read_widget",
 )
 for _helper_name in _QT_RENDERER_STATIC_HELPERS:

@@ -6,11 +6,12 @@ from typing import Any
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.studyfunc._study_utils import (
     as_alleeg_list,
     build_python_call,
     ensure_study,
+    format_components_button,
     parse_optional_int_text,
 )
 from eegprep.functions.studyfunc.std_checkset import std_checkset
@@ -142,9 +143,20 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         ),
         ControlSpec("spacer"),
     ]
+    # A component selection is applied to every row with the same subject, session,
+    # and run (one ICA decomposition), as in EEGLAB; the renderer needs all row tags.
+    component_rows = [
+        {
+            "components": f"dataset_{row}_components",
+            "subject": f"dataset_{row}_subject",
+            "session": f"dataset_{row}_session",
+            "run": f"dataset_{row}_run",
+        }
+        for row in range(1, visible_rows + 1)
+    ]
     for index in range(1, visible_rows + 1):
         info = datasetinfo[index - 1] if index <= len(datasetinfo) else {}
-        component_values = _component_values(info.get("comps"))
+        component_values = parse_numeric_sequence(info.get("comps"), dtype=int)
         browse_tag = f"dataset_{index}_browse"
         filename_tag = f"dataset_{index}_filename"
         components_tag = f"dataset_{index}_components"
@@ -199,7 +211,7 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                 ),
                 ControlSpec(
                     "pushbutton",
-                    _format_components_button(component_values),
+                    format_components_button(component_values),
                     tag=components_tag,
                     value=component_values,
                     callback=CallbackSpec(
@@ -208,6 +220,8 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
                             "button": components_tag,
                             "count": _dataset_component_count(datasets, index),
                             "initial": component_values,
+                            "row": index - 1,
+                            "rows": component_rows,
                         },
                     ),
                 ),
@@ -289,6 +303,8 @@ def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, A
         """,
         known_differences=(
             "EEGPrep Phase 5a edits loaded dataset metadata; dataset browsing is provided by pop_studywizard.",
+            "All dataset rows are listed in one scrollable table instead of EEGLAB's pages of ten.",
+            "Clear resets the row's metadata to defaults; EEGLAB's CLear removes the dataset from the STUDY and ALLEEG.",
         ),
     )
 
@@ -362,29 +378,6 @@ def _dataset_component_count(datasets: list[dict[str, Any]], index: int) -> int:
     if weights is not None and hasattr(weights, "shape"):
         return int(weights.shape[0])
     return 0
-
-
-def _component_values(comps: Any) -> list[Any]:
-    if comps is None:
-        return []
-    if isinstance(comps, str):
-        return comps.split()
-    if hasattr(comps, "ravel") and hasattr(comps, "tolist"):
-        return list(comps.ravel().tolist())
-    if hasattr(comps, "tolist"):
-        comps = comps.tolist()
-    if isinstance(comps, (list, tuple, set)):
-        return list(comps)
-    return [comps]
-
-
-def _format_components_button(comps: Any) -> str:
-    values = _component_values(comps)
-    if not values:
-        return "All comp."
-    if len(values) > 3:
-        return f"Comp.: {' '.join(str(i) for i in values[:2])} ..."
-    return f"Comp.: {' '.join(str(i) for i in values)}"
 
 
 __all__ = ["pop_study", "pop_study_dialog_spec"]
