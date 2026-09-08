@@ -628,7 +628,9 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_delset">
 <span class="sig-name descname"><span class="pre">pop_delset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_delset" title="Link to this definition">#</a></dt>
-<dd><p>Delete dataset indices from <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> and return a history command.</p>
+<dd><p>Delete datasets from <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> and return a history command.</p>
+<p>Like EEGLAB, each deleted slot is emptied in place (an empty slot is <code class="docutils literal notranslate"><span class="pre">{}</span></code>) so
+the remaining datasets keep their numbers; trailing empty slots are dropped.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

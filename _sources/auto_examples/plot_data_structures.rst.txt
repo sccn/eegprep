@@ -344,15 +344,16 @@ separate dataset. ``icaact`` is a cache that can be recomputed from
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 151-156
+.. GENERATED FROM PYTHON SOURCE LINES 151-157
 
 ``ALLEEG`` and ``CURRENTSET``
 -----------------------------
 Loaded datasets live in ``ALLEEG``, a plain Python list. ``CURRENTSET``
 holds 1-based dataset numbers, matching what the GUI Datasets menu and the
-console show. ``eeg_store`` appends or overwrites; ``eeg_retrieve`` selects.
+console show. ``eeg_store`` fills the lowest empty slot or overwrites;
+``eeg_retrieve`` selects.
 
-.. GENERATED FROM PYTHON SOURCE LINES 156-164
+.. GENERATED FROM PYTHON SOURCE LINES 157-165
 
 .. code-block:: Python
 
@@ -382,7 +383,7 @@ console show. ``eeg_store`` appends or overwrites; ``eeg_retrieve`` selects.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.084 seconds)
+   **Total running time of the script:** (0 minutes 0.080 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_structures.py:

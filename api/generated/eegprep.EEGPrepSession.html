@@ -822,6 +822,8 @@
 <dt class="sig sig-object py" id="eegprep.EEGPrepSession.delete_current">
 <span class="sig-name descname"><span class="pre">delete_current</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepSession.delete_current" title="Link to this definition">#</a></dt>
 <dd><p>Delete the current dataset selection from memory.</p>
+<p>Deleted slots stay empty so the other datasets keep their numbers, as in
+EEGLAB; the selection moves to the nearest remaining dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>None</p>
