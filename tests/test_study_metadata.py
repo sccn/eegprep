@@ -96,6 +96,24 @@ def test_std_editset_updates_datasetinfo_and_loaded_dataset_metadata():
     assert "std_editset" in command
 
 
+def test_std_editset_accepts_nested_command_groups_and_list_values():
+    # Nested groups follow EEGLAB's {{'index', 1, ...}, ...}; list values such as
+    # comps=[] or [3, 4] are values, not command groups.
+    study, alleeg = pop_study(None, [_eeg("one"), _eeg("two")], name="Initial")
+
+    edited, _edited_alleeg = std_editset(
+        study,
+        alleeg,
+        commands=[["index", 1, "subject", "S01", "comps", [3, 4]], ["index", 2, "comps", []]],
+    )
+
+    assert edited["datasetinfo"][0]["subject"] == "S01"
+    assert edited["datasetinfo"][0]["comps"] == [3, 4]
+    assert edited["datasetinfo"][1]["comps"] == []
+    with pytest.raises(ValueError, match="key/value"):
+        std_editset(study, alleeg, commands=["index", 1, "subject"])
+
+
 def test_std_makedesign_selects_1_based_design_and_validates_variables():
     study, alleeg = pop_study(
         None,

@@ -349,6 +349,16 @@ def parse_optional_int_text(value: Any) -> Any:
     return values
 
 
+def format_components_button(comps: Any) -> str:
+    """Label of the pop_study component button (EEGLAB ``formatbut``): 'All comp.' or 'Comp.: ...'."""
+    values = parse_numeric_sequence(comps, dtype=int)
+    if not values:
+        return "All comp."
+    if len(values) > 3:
+        return f"Comp.: {values[0]} {values[1]} ..."
+    return "Comp.: " + " ".join(str(value) for value in values)
+
+
 def build_python_call(targets: tuple[str, ...], function_name: str, *args: str, **kwargs: Any) -> str:
     """Build a pasteable Python history command."""
     pieces = list(args)
