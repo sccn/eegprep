@@ -713,6 +713,59 @@ wrappers for the common EEGLAB plotting workflows:</p>
 <span class="n">spectra</span><span class="p">,</span> <span class="n">com_spectopo</span> <span class="o">=</span> <span class="n">pop_spectopo</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">timerange</span><span class="o">=</span><span class="p">[],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> plots one channel or component at a time. Set <code class="docutils literal notranslate"><span class="pre">typeproc=1</span></code> for
+a channel and <code class="docutils literal notranslate"><span class="pre">typeproc=0</span></code> for an ICA component; <code class="docutils literal notranslate"><span class="pre">num</span></code> is the 1-based channel
+or component index. <code class="docutils literal notranslate"><span class="pre">tlimits</span></code> is the epoch window in milliseconds and <code class="docutils literal notranslate"><span class="pre">cycles</span></code>
+selects the decomposition: <code class="docutils literal notranslate"><span class="pre">[0]</span></code> uses a short-time FFT, while <code class="docutils literal notranslate"><span class="pre">[n]</span></code> (optionally
+<code class="docutils literal notranslate"><span class="pre">[n</span> <span class="pre">factor]</span></code>) uses an <code class="docutils literal notranslate"><span class="pre">n</span></code>-cycle Morlet wavelet that narrows toward higher
+frequencies. Called with no index, <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> opens a dialog to collect
+these values; the <code class="docutils literal notranslate"><span class="pre">Plot</span></code> menu exposes the same dialog under <em>Channel
+time-frequency</em> and <em>Component time-frequency</em>.</p>
+<section id="reading-the-figure">
+<h3>Reading the figure<a class="headerlink" href="#reading-the-figure" title="Link to this heading">#</a></h3>
+<p>The figure stacks two images that share a time axis:</p>
+<ul class="simple">
+<li><p><strong>ERSP</strong> (top) – event-related spectral perturbation, the trial-averaged power
+change from the baseline window, in dB.</p></li>
+<li><p><strong>ITC</strong> (bottom) – inter-trial coherence, from 0 (phase varies across trials)
+to 1 (perfect phase locking).</p></li>
+</ul>
+<p>Each image carries marginal panels: a rotated plot to its left (the baseline
+power spectrum beside ERSP; the frequency-averaged coherence beside ITC) and a
+horizontal plot below it (the ERSP minimum/maximum envelope; the ERP trace). A
+dashed line marks time zero, colorbars sit on the right, and – when channel
+locations are available – a scalp-map inset in the upper left shows the
+channel’s head position or the component’s interpolated map, captioned with the
+channel label or <code class="docutils literal notranslate"><span class="pre">IC</span> <span class="pre">n</span></code>.</p>
+</section>
+<section id="baseline-and-significance">
+<h3>Baseline and significance<a class="headerlink" href="#baseline-and-significance" title="Link to this heading">#</a></h3>
+<p>Pass a <code class="docutils literal notranslate"><span class="pre">baseline</span></code> window in milliseconds to normalize power, and an <code class="docutils literal notranslate"><span class="pre">alpha</span></code>
+to test each time-frequency point against a bootstrap null drawn from the
+baseline:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">pop_newtimef</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                      <span class="n">baseline</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Non-significant points are drawn at the colormap’s green midpoint so the
+surviving effects stand out; add <code class="docutils literal notranslate"><span class="pre">mcorrect=&quot;fdr&quot;</span></code> to control the false
+discovery rate across the image. Because this is a permutation test, roughly
+<code class="docutils literal notranslate"><span class="pre">alpha</span></code> of the effect-free baseline points survive by chance – expected
+scatter, not a real effect.</p>
+</section>
+<section id="display-options">
+<h3>Display options<a class="headerlink" href="#display-options" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pcontour=&quot;on&quot;</span></code> keeps every point at its measured value and outlines the
+significant regions with a contour instead of masking them.</p></li>
+<li><p>The ITC image is colored by the sign of the coherence phase by default; pass
+<code class="docutils literal notranslate"><span class="pre">plotphase=&quot;off&quot;</span></code> for magnitude only, or <code class="docutils literal notranslate"><span class="pre">plotphaseonly=&quot;on&quot;</span></code> to show the
+phase angle in degrees.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">erspmax</span></code> sets a symmetric ERSP color scale (<code class="docutils literal notranslate"><span class="pre">[-erspmax,</span> <span class="pre">erspmax]</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">itcmax</span></code> the ITC image maximum; leave them unset to auto-scale.</p></li>
+</ul>
+<p>Two-condition comparisons (contrasting two datasets in a single figure) are not
+yet part of the standalone wrapper.</p>
 <p>Legacy <code class="docutils literal notranslate"><span class="pre">pop_timef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_crossf</span></code> calls route through the standalone
 <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> implementations. ERP-image workflows use
 <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> for channel or component images:</p>
@@ -729,6 +782,7 @@ returns replayable Python history commands for these wrappers. Some MATLAB-only
 <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> event-alignment and advanced renormalization options are not
 standalone EEGPrep features; those requests raise explicit errors instead of
 silently substituting a different analysis.</p>
+</section>
 </section>
 <section id="epoch-and-baseline">
 <h2>Epoch and Baseline<a class="headerlink" href="#epoch-and-baseline" title="Link to this heading">#</a></h2>
@@ -825,7 +879,12 @@ replayed in scripts.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#resample">Resample</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#re-reference-and-interpolate">Re-Reference and Interpolate</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-ica-and-iclabel">Run ICA and ICLabel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#time-frequency-and-erp-images">Time-Frequency and ERP Images</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#time-frequency-and-erp-images">Time-Frequency and ERP Images</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reading-the-figure">Reading the figure</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#baseline-and-significance">Baseline and significance</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#display-options">Display options</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#epoch-and-baseline">Epoch and Baseline</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#save">Save</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#quality-control-checklist">Quality Control Checklist</a></li>

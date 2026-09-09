@@ -118,7 +118,7 @@ positions are approximate and will not match FieldTrip BEM coordinates.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.770 seconds)
+   **Total running time of the script:** (0 minutes 0.798 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_source_analysis_dipfit.py:

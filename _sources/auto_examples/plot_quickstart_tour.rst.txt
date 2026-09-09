@@ -202,7 +202,7 @@ same call is usable in scripts and tests.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.020 seconds)
+   **Total running time of the script:** (0 minutes 0.021 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_quickstart_tour.py:

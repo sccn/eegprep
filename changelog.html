@@ -476,6 +476,37 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> / <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> now render EEGLAB’s single-condition ERSP/ITC time-frequency
+figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
+right-hand colorbars titled with the power unit, and the <code class="docutils literal notranslate"><span class="pre">turbo</span></code> colormap (EEGPrep’s house
+colormap, consistent with <code class="docutils literal notranslate"><span class="pre">topoplot</span></code> and <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>); ITC is colored by its phase sign by
+default (<code class="docutils literal notranslate"><span class="pre">plotphasesign</span></code>), with <code class="docutils literal notranslate"><span class="pre">plotphaseonly</span></code> showing the phase angle in degrees. The
+figure adds EEGLAB’s marginal panels – the ERSP min/max envelope and ERP trace below the
+images, and the rotated baseline power spectrum and mean ITC to their left – using EEGLAB’s
+value-axis limits and two ticks per panel. When channel locations are available it also draws
+the channel or component scalp-map inset and caption (the channel label or <code class="docutils literal notranslate"><span class="pre">IC</span> <span class="pre">n</span></code>), marking
+the selected electrode for channels. The <code class="docutils literal notranslate"><span class="pre">erspmax</span></code> / <code class="docutils literal notranslate"><span class="pre">itcmax</span></code> dialog fields set the ERSP
+and ITC color limits, and the default frequency range stops at 50 Hz (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">maxfreq</span></code>,
+capped at Nyquist).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> / <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> bootstrap significance now matches EEGLAB. With a significance
+level (<code class="docutils literal notranslate"><span class="pre">alpha</span></code>), each time-frequency point is ranked against a per-frequency baseline null
+built by permuting the baseline time course (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">shuffle</span></code> permutation, averaged over
+trials), and the p-value folds to a two-sided tail (EEGLAB’s <code class="docutils literal notranslate"><span class="pre">compute_pvals</span></code>) for both ERSP
+and ITC – so the scattered baseline false positives EEGLAB shows are reproduced and genuine
+event-related effects survive masking. Non-significant regions are shown as the colormap
+midpoint, or outlined with contours instead when <code class="docutils literal notranslate"><span class="pre">pcontour</span></code> is set; the FDR (<code class="docutils literal notranslate"><span class="pre">mcorrect</span></code>)
+path is supported. A non-default <code class="docutils literal notranslate"><span class="pre">boottype</span></code> (<code class="docutils literal notranslate"><span class="pre">'rand'</span></code> / <code class="docutils literal notranslate"><span class="pre">'randall'</span></code>) is now rejected with
+a clear error rather than silently treated as <code class="docutils literal notranslate"><span class="pre">'shuffle'</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">timefreq</span></code> – and the <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> / <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> plots built on it – now match EEGLAB’s
+decomposition numerics. Requested output frequencies are no longer de-duplicated, so
+<code class="docutils literal notranslate"><span class="pre">freqs</span></code>/<code class="docutils literal notranslate"><span class="pre">nfreqs</span></code> requests that snap several values onto the same FFT bin return one output
+frequency per request (as in EEGLAB) – this changes the <code class="docutils literal notranslate"><span class="pre">pac</span></code> output shape (for example
+<code class="docutils literal notranslate"><span class="pre">(5,</span> <span class="pre">3,</span> <span class="pre">8)</span></code> becomes <code class="docutils literal notranslate"><span class="pre">(5,</span> <span class="pre">5,</span> <span class="pre">8)</span></code>); <code class="docutils literal notranslate"><span class="pre">detrend</span></code> is now a no-op on the FFT (<code class="docutils literal notranslate"><span class="pre">cycles=0</span></code>)
+path; output time windows are centered with EEGLAB’s
+<code class="docutils literal notranslate"><span class="pre">eeg_lat2point</span></code> rounding and the negative-<code class="docutils literal notranslate"><span class="pre">ntimesout</span></code> subsample grid no longer includes a
+spurious trailing time point; <code class="docutils literal notranslate"><span class="pre">subitc</span></code> returns the pre-subtraction inter-trial coherence; and
+exact-zero spectral bins are guarded as in EEGLAB. Some outputs change shape or value versus
+earlier EEGPrep releases.</p></li>
 <li><p>Deleting datasets (<code class="docutils literal notranslate"><span class="pre">pop_delset</span></code>, Edit &gt; Delete dataset(s) from memory) now empties
 the slot in place like EEGLAB instead of shifting later datasets down, so dataset
 numbers in the Datasets menu, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, and the history stay valid. <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code>
