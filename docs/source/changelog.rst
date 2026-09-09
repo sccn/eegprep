@@ -10,6 +10,37 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_newtimef`` / ``newtimef`` now render EEGLAB's single-condition ERSP/ITC time-frequency
+  figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
+  right-hand colorbars titled with the power unit, and the ``turbo`` colormap (EEGPrep's house
+  colormap, consistent with ``topoplot`` and ``erpimage``); ITC is colored by its phase sign by
+  default (``plotphasesign``), with ``plotphaseonly`` showing the phase angle in degrees. The
+  figure adds EEGLAB's marginal panels -- the ERSP min/max envelope and ERP trace below the
+  images, and the rotated baseline power spectrum and mean ITC to their left -- using EEGLAB's
+  value-axis limits and two ticks per panel. When channel locations are available it also draws
+  the channel or component scalp-map inset and caption (the channel label or ``IC n``), marking
+  the selected electrode for channels. The ``erspmax`` / ``itcmax`` dialog fields set the ERSP
+  and ITC color limits, and the default frequency range stops at 50 Hz (EEGLAB's ``maxfreq``,
+  capped at Nyquist).
+- ``pop_newtimef`` / ``newtimef`` bootstrap significance now matches EEGLAB. With a significance
+  level (``alpha``), each time-frequency point is ranked against a per-frequency baseline null
+  built by permuting the baseline time course (EEGLAB's ``shuffle`` permutation, averaged over
+  trials), and the p-value folds to a two-sided tail (EEGLAB's ``compute_pvals``) for both ERSP
+  and ITC -- so the scattered baseline false positives EEGLAB shows are reproduced and genuine
+  event-related effects survive masking. Non-significant regions are shown as the colormap
+  midpoint, or outlined with contours instead when ``pcontour`` is set; the FDR (``mcorrect``)
+  path is supported. A non-default ``boottype`` (``'rand'`` / ``'randall'``) is now rejected with
+  a clear error rather than silently treated as ``'shuffle'``.
+- ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` plots built on it -- now match EEGLAB's
+  decomposition numerics. Requested output frequencies are no longer de-duplicated, so
+  ``freqs``/``nfreqs`` requests that snap several values onto the same FFT bin return one output
+  frequency per request (as in EEGLAB) -- this changes the ``pac`` output shape (for example
+  ``(5, 3, 8)`` becomes ``(5, 5, 8)``); ``detrend`` is now a no-op on the FFT (``cycles=0``)
+  path; output time windows are centered with EEGLAB's
+  ``eeg_lat2point`` rounding and the negative-``ntimesout`` subsample grid no longer includes a
+  spurious trailing time point; ``subitc`` returns the pre-subtraction inter-trial coherence; and
+  exact-zero spectral bins are guarded as in EEGLAB. Some outputs change shape or value versus
+  earlier EEGPrep releases.
 - Deleting datasets (``pop_delset``, Edit > Delete dataset(s) from memory) now empties
   the slot in place like EEGLAB instead of shifting later datasets down, so dataset
   numbers in the Datasets menu, ``CURRENTSET``, and the history stay valid. ``eeg_store``
