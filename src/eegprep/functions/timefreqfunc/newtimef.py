@@ -32,7 +32,7 @@ class TimeFrequencyResult:
 
     ersp: np.ndarray
     itc: np.ndarray
-    powbase: np.ndarray
+    powbase: np.ndarray  # baseline power spectrum (EEGLAB mbase): dB for log scale, absolute power otherwise
     times: np.ndarray
     freqs: np.ndarray
     tfdata: np.ndarray
@@ -257,10 +257,22 @@ def newtimef(
             elocs=elocs,
             caption=caption,
         )
+    base_vec = _numeric_vector(baseline)
+    baseline_on = base_vec.size > 0 and not np.isnan(base_vec[0])
+    powbase_out = np.asarray(powbase_array, dtype=float)
+    if (
+        scale_mode == "log"
+        and str(trialbase).lower() == "off"
+        and baseline_on
+        and powbase_out.size
+        and np.isfinite(powbase_out.reshape(-1)[0])
+    ):
+        # EEGLAB newtimef.m:1399 returns the baseline power spectrum in dB for log scale (trialbase off).
+        powbase_out = 10.0 * np.log10(powbase_out)
     return TimeFrequencyResult(
         ersp,
         itc,
-        np.asarray(powbase_array).squeeze(),
+        powbase_out.squeeze(),
         decomp.times,
         decomp.freqs,
         tfdata,

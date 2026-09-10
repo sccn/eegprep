@@ -1546,6 +1546,91 @@ def test_newtimef_matches_eeglab_ersp_itc_and_pvalues(tmp_path):
 
 
 @pytest.mark.matlab
+def test_newtimef_scale_and_baseline_modes_match_eeglab(tmp_path):
+    # Parity for the option paths the deterministic end-to-end test above does not exercise:
+    # absolute power scale, baseline normalization (basenorm), single-trial baseline (trialbase 'full'),
+    # and the cycles=0 short-time FFT path. Each case is deterministic, so P (ERSP), R (complex ITC),
+    # and mbase (baseline spectrum) match EEGLAB tightly. mbase in particular guards the units EEGLAB
+    # returns: dB for the default log scale (newtimef.m:1399), absolute power for abs/basenorm/trialbase.
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    srate = 128.0
+    n_frames = 128
+    tlimits = [-500, 500]
+    sample_times = np.arange(n_frames) / srate
+    envelope = 1.0 + (sample_times > 0.5)  # amplitude step mid-epoch -> a non-trivial ERSP
+    trials = np.stack(
+        [
+            envelope * np.sin(2 * np.pi * 10 * sample_times + phase) + 0.5 * np.sin(2 * np.pi * 6 * sample_times)
+            for phase in np.linspace(0.0, 1.2, 12)
+        ],
+        axis=1,
+    )
+    # Output times on exact frame centers well inside the valid range, so both engines pick identical frames.
+    frame_times = tlimits[0] + np.arange(n_frames) * (tlimits[1] - tlimits[0]) / (n_frames - 1)
+    timesout = frame_times[[44, 52, 60, 68, 76, 82]]
+
+    inputs = tmp_path / "newtimef_modes_inputs.mat"
+    output = tmp_path / "newtimef_modes_outputs.mat"
+    scipy.io.savemat(inputs, {"data": trials, "timesout": timesout})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            set(0, 'DefaultFigureVisible', 'off');
+            common = {{'freqs', [5 20], 'nfreqs', 8, 'timesout', timesout, 'baseline', [-200 0], ...
+                      'plotphase', 'off', 'verbose', 'off'}};
+            [abs_P, abs_R, abs_mbase, abs_times, abs_freqs] = ...
+                newtimef(data, {n_frames}, [{tlimits[0]} {tlimits[1]}], {srate}, [3 0.5], 'scale', 'abs', common{{:}});
+            [bn_P, bn_R, bn_mbase] = ...
+                newtimef(data, {n_frames}, [{tlimits[0]} {tlimits[1]}], {srate}, [3 0.5], 'basenorm', 'on', common{{:}});
+            [tb_P, tb_R, tb_mbase] = ...
+                newtimef(data, {n_frames}, [{tlimits[0]} {tlimits[1]}], {srate}, [3 0.5], 'trialbase', 'full', common{{:}});
+            [fft_P, fft_R, fft_mbase] = ...
+                newtimef(data, {n_frames}, [{tlimits[0]} {tlimits[1]}], {srate}, 0, 'padratio', 2, common{{:}});
+            close all;
+            save('{_matlab_string(output)}', 'abs_P', 'abs_R', 'abs_mbase', 'abs_times', 'abs_freqs', ...
+                 'bn_P', 'bn_R', 'bn_mbase', 'tb_P', 'tb_R', 'tb_mbase', 'fft_P', 'fft_R', 'fft_mbase');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    common = dict(freqs=[5, 20], nfreqs=8, timesout=timesout, baseline=[-200, 0], plotphase="off", plot="off")
+    results = {
+        "abs": newtimef(trials, n_frames, tlimits, srate, [3, 0.5], scale="abs", **common),
+        "bn": newtimef(trials, n_frames, tlimits, srate, [3, 0.5], basenorm="on", **common),
+        "tb": newtimef(trials, n_frames, tlimits, srate, [3, 0.5], trialbase="full", **common),
+        "fft": newtimef(trials, n_frames, tlimits, srate, 0, padratio=2, **common),
+    }
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    np.testing.assert_allclose(results["abs"].freqs, np.asarray(matlab["abs_freqs"]).ravel(), rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(results["abs"].times, np.asarray(matlab["abs_times"]).ravel(), rtol=1e-9, atol=1e-9)
+    for case in ("abs", "bn", "tb", "fft"):
+        np.testing.assert_allclose(results[case].ersp, matlab[f"{case}_P"], rtol=1e-6, atol=1e-6)  # ERSP
+        np.testing.assert_allclose(results[case].itc, matlab[f"{case}_R"], rtol=1e-6, atol=1e-6)  # complex ITC
+        np.testing.assert_allclose(  # baseline spectrum: dB for the log FFT case, absolute power otherwise
+            np.asarray(results[case].powbase, dtype=float).ravel(),
+            np.asarray(matlab[f"{case}_mbase"], dtype=float).ravel(),
+            rtol=1e-6,
+            atol=1e-6,
+        )
+
+
+@pytest.mark.matlab
 def test_timefreq_negative_ntimesout_times_match_eeglab(tmp_path):
     # Ground-truth the negative-ntimesout subsample grid against real EEGLAB timefreq (not a
     # hand-encoded colon formula): the trickiest off-by-one in the decomposition is np.arange's
