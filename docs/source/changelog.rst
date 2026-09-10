@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``newtimef`` / ``pop_newtimef`` now return the baseline power spectrum (``powbase``) in dB for the
+  default log power scale, matching EEGLAB's ``mbase``; it was previously returned in absolute power.
+  Absolute-scale, ``basenorm``, and ``trialbase`` runs are unchanged (``powbase`` stays in absolute
+  power there, as in EEGLAB), as is the plotted figure.
 - ``pop_newtimef`` / ``newtimef`` now render EEGLAB's single-condition ERSP/ITC time-frequency
   figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
   right-hand colorbars titled with the power unit, and the ``turbo`` colormap (EEGPrep's house
