@@ -57,6 +57,7 @@ from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac
 from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
 from eegprep.functions.timefreqfunc.newtimef import (
     _baseline_pvalues,
+    _bootstrap_itc,
     _bootstrap_power,
     _reduce_to_two_ticks,
     _significance_mask,
@@ -1045,6 +1046,23 @@ def test_timefreq_threshold_helpers_pool_through_canonical_bootstrap_threshold()
     assert _upper_thresholds_by_frequency(single, alpha=0.1).shape == (1,)
 
 
+def test_bootstrap_threshold_matches_eeglab_tail_mean_formula():
+    # EEGLAB bootstat thresholds the sorted null at i = round(naccu*alpha) and averages the
+    # i most extreme surrogates on each requested side (bootstat.m accarray1/accarray2). Pin
+    # that tail selection and averaging with hand-computed values so a switch to a
+    # percentile-interpolation or floor(i) rule would fail loudly.
+    surrogates = np.arange(1.0, 21.0).reshape(20, 1)  # 20 sorted surrogates, one frequency
+
+    # alpha=0.1 -> i = round(20 * 0.1) = 2: mean of the two most extreme surrogates per side.
+    assert float(bootstrap_threshold(surrogates, alpha=0.1, bootside="upper")) == pytest.approx(19.5)  # mean(19, 20)
+    np.testing.assert_allclose(bootstrap_threshold(surrogates, alpha=0.1, bootside="both"), [1.5, 19.5])
+    # alpha=0.05 -> i = round(20 * 0.05) = 1: the single most extreme surrogate per side.
+    np.testing.assert_allclose(bootstrap_threshold(surrogates, alpha=0.05, bootside="both"), [1.0, 20.0])
+    # Complex surrogates are thresholded on magnitude (EEGLAB accarray = sqrt(x .* conj(x))).
+    complex_col = (np.arange(1.0, 21.0) * np.exp(1j * np.arange(20))).reshape(20, 1)
+    assert float(bootstrap_threshold(complex_col, alpha=0.05, bootside="upper")) == pytest.approx(20.0)
+
+
 def test_timefreq_shared_bootstrap_helpers_cover_newtimef_and_newcrossf_paths():
     times = np.asarray([-100.0, 0.0, 0.5, 100.0, 200.0])
     baseln = np.asarray([0, 1], dtype=int)
@@ -1753,6 +1771,63 @@ def test_bootstrap_power_null_matches_eeglab_bootstat(tmp_path):
         engine.quit()
 
     _, baseline_null = _bootstrap_power(power, "abs", alpha=0.05, naccu=naccu, base_indices=np.arange(n_base), rng=0)
+    py_null_std = np.std(baseline_null, axis=(0, 2))
+
+    matlab = scipy.io.loadmat(output, squeeze_me=True)
+    matlab_null_std = np.asarray(matlab["null_std"], dtype=float).ravel()
+    np.testing.assert_allclose(py_null_std, matlab_null_std, rtol=0.1)
+
+
+@pytest.mark.matlab
+def test_bootstrap_itc_null_matches_eeglab_bootstat(tmp_path):
+    # The ITC significance null must match EEGLAB bootstat's 'shuffle' permutation in
+    # distribution: shuffling each trial's baseline time course breaks the inter-trial phase
+    # alignment, and ITC is recomputed. Bootstrap is random, so compare the converged
+    # per-frequency null spread within a loose tolerance against real EEGLAB bootstat on
+    # identical complex tf estimates (newtimef.m ITC path, phasecoher normalization).
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
+    try:
+        matlab_engine = importlib.import_module("matlab.engine")
+    except ImportError as exc:
+        pytest.skip(f"MATLAB not available: {exc}")
+    eeglab_root = _eeglab_reference_root()
+    if eeglab_root is None:
+        pytest.skip("EEGLAB reference checkout not available")
+
+    rng = np.random.default_rng(0)
+    n_freq, n_base, n_trials = 5, 24, 16
+    naccu = 3000
+    # Complex tf estimates with partial inter-trial phase coherence (shared phase per time
+    # bin plus per-trial jitter), so the shuffle null has a non-trivial per-frequency spread.
+    mag = rng.gamma(3.0, 1.0, size=(n_freq, n_base, n_trials))
+    shared_phase = rng.uniform(-np.pi, np.pi, size=(n_freq, n_base))[:, :, None]
+    noise_phase = 0.6 * rng.standard_normal((n_freq, n_base, n_trials))
+    tf = mag * np.exp(1j * (shared_phase + noise_phase))
+
+    inputs = tmp_path / "bootstrap_itc_inputs.mat"
+    output = tmp_path / "bootstrap_itc_outputs.mat"
+    scipy.io.savemat(inputs, {"tf": tf})
+
+    engine = matlab_engine.start_matlab()
+    try:
+        engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
+        engine.eval(
+            f"""
+            load('{_matlab_string(inputs)}');
+            inputdata = tf ./ sqrt(tf .* conj(tf));  % phasecoher normalization (newtimef.m)
+            [~, ~, Rboottrials] = bootstat(inputdata, 'mean(arg1,3);', 'boottype', 'shuffle', ...
+                'basevect', 1:size(tf,2), 'naccu', {naccu}, 'alpha', 0.05, ...
+                'dimaccu', 2, 'bootside', 'upper');
+            null_std = std(Rboottrials, 0, 1);
+            save('{_matlab_string(output)}', 'null_std');
+            """,
+            nargout=0,
+        )
+    finally:
+        engine.quit()
+
+    _, baseline_null = _bootstrap_itc(tf, "phasecoher", alpha=0.05, naccu=naccu, base_indices=np.arange(n_base), rng=0)
     py_null_std = np.std(baseline_null, axis=(0, 2))
 
     matlab = scipy.io.loadmat(output, squeeze_me=True)
