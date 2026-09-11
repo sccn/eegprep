@@ -173,6 +173,92 @@ def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
     assert result.tfdata.shape == (result.freqs.size, result.times.size, sample_epoch["trials"])
 
 
+def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
+    # freqrange aliases freqs; freqscale='log' spaces the output frequencies geometrically;
+    # an unknown scale fails fast.
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+
+    aliased = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], freqrange=[6, 30], nfreqs=6, plot="off")
+    assert aliased.freqs.min() == pytest.approx(6.0)
+    assert aliased.freqs.max() == pytest.approx(30.0)
+
+    log_freqs = newtimef(
+        trials, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 30], nfreqs=6, freqscale="log", plot="off"
+    ).freqs
+    ratios = log_freqs[1:] / log_freqs[:-1]
+    np.testing.assert_allclose(ratios, ratios[0], rtol=1e-6)  # constant ratio -> geometric spacing
+
+    with pytest.raises(ValueError, match="scale"):
+        newtimef(trials, 256, [0, 2000], srate, [3, 0.5], scale="bogus", plot="off")
+
+
+def test_newtimef_itctype_variants_and_type_alias():
+    # itctype selects the coherence statistic; all stay within the unit disk but differ,
+    # and 'type' is an accepted alias for 'itctype'.
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.4, 0.8, 1.2])
+    common = dict(freqs=[6, 20], nfreqs=6, plot="off")
+
+    default = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common)  # 'phasecoher'
+    coher = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], itctype="coher", **common)
+    pc2 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], itctype="phasecoher2", **common)
+    for result in (default, coher, pc2):
+        assert result.itc.shape == default.itc.shape
+        assert np.all(np.abs(result.itc) <= 1 + 1e-9)
+    assert not np.allclose(default.itc, coher.itc)  # the statistic actually changes
+
+    aliased = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], type="coher", **common)
+    np.testing.assert_allclose(aliased.itc, coher.itc)
+
+
+def test_newtimef_supplied_powbase_shifts_ersp_by_db_offset():
+    # A supplied baseline spectrum (dB) sets the log-power baseline directly; raising it by
+    # K dB lowers the whole ERSP by K dB (EEGLAB log-subtracts the supplied powbase).
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+    common = dict(freqs=[6, 20], nfreqs=6, plot="off")
+
+    nfreq = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common).freqs.size
+    base0 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], powbase=np.zeros(nfreq), **common)
+    base3 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], powbase=np.full(nfreq, 3.0), **common)
+    np.testing.assert_allclose(base3.ersp, base0.ersp - 3.0, rtol=1e-6, atol=1e-6)
+
+
+def test_newtimef_single_trial_itc_is_unity():
+    # With one trial, inter-trial coherence is trivially perfect: |itc| == 1 everywhere.
+    srate = 128
+    signal = np.sin(2 * np.pi * 10 * np.arange(256) / srate)
+
+    result = newtimef(signal, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 20], nfreqs=6, plot="off")
+
+    assert result.tfdata.shape[2] == 1
+    np.testing.assert_allclose(np.abs(result.itc), 1.0, atol=1e-9)
+
+
+def test_newtimef_supplied_1d_bootstrap_thresholds_flag_extremes():
+    # A 1-D erspboot supplies a symmetric per-frequency band and a 1-D itcboot an upper
+    # magnitude threshold; supplied limits bypass the bootstrap and mask by comparison.
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+    common = dict(freqs=[6, 20], nfreqs=6, plot="off")
+
+    nfreq = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common).freqs.size
+    result = newtimef(
+        trials,
+        256,
+        [0, 2000],
+        srate,
+        [3, 0.5],
+        alpha=0.05,
+        erspboot=np.full(nfreq, 0.5),
+        itcboot=np.full(nfreq, 0.3),
+        **common,
+    )
+    np.testing.assert_array_equal(result.ersp_significant, np.abs(result.ersp) >= 0.5)
+    np.testing.assert_array_equal(result.itc_significant, np.abs(result.itc) >= 0.3)
+
+
 # --- timefreq numeric-parity regression guards (EEGLAB timefreq.m) ----------
 
 
@@ -893,6 +979,36 @@ def test_newtimef_curve_mode_still_plots_per_frequency_lines():
     assert result.figure.axes  # curve figure is produced
     assert any(axis.get_lines() for axis in result.figure.axes)  # per-frequency traces, not an image
     assert not any(axis.get_images() for axis in result.figure.axes)
+    plt.close(result.figure)
+
+
+def test_newtimef_single_panel_figures():
+    # plotitc='off' draws only the ERSP image; plotersp='off' draws only the ITC image.
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+    common = dict(freqs=[6, 20], nfreqs=6, timesout=12)
+
+    ersp_only = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], plotitc="off", **common)
+    itc_only = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], plotersp="off", **common)
+
+    assert len([im for ax in ersp_only.figure.axes for im in ax.get_images()]) == 1
+    assert len([im for ax in itc_only.figure.axes for im in ax.get_images()]) == 1
+    assert any(title.startswith("ERSP(") for title in [ax.get_title() for ax in ersp_only.figure.axes])
+    assert "ITC" in [ax.get_title() for ax in itc_only.figure.axes]
+    plt.close(ersp_only.figure)
+    plt.close(itc_only.figure)
+
+
+def test_newtimef_vert_markers_drawn_on_image_panels():
+    # A 'vert' marker draws a vertical line on the image panel (besides the time-0 marker).
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+    marker = 500.0  # ms, inside the epoch
+
+    result = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 20], nfreqs=6, vert=[marker])
+
+    ersp_axis = [im for ax in result.figure.axes for im in ax.get_images()][0].axes
+    assert any(np.allclose(line.get_xdata(), marker) for line in ersp_axis.get_lines())
     plt.close(result.figure)
 
 
