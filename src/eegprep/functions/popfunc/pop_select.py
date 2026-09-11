@@ -93,9 +93,6 @@ def _pop_select_apply(EEG, **kwargs):
             return False
         return True
 
-    # Track whether notime came directly from rmtime (to match MATLAB boundary adjustment logic)
-    notime_from_rmtime = _has_content(g['rmtime'])
-
     if _has_content(g['rmtrial']):
         g['notrial'] = g['rmtrial']
     if _has_content(g['rmtime']):
@@ -402,25 +399,20 @@ def _pop_select_apply(EEG, **kwargs):
                 if cur < xmax:
                     bounds.append([cur, xmax])
                 notime_mat = np.array(bounds, dtype=float) if bounds else np.empty((0, 2))
+                # EEGLAB shifts the interior edges of the derived complement by one
+                # sample so the kept samples are exactly [t0, t1]. User-supplied
+                # notime/nopoint/rmtime/rmpoint ranges are passed through unchanged.
+                for i in range(notime_mat.shape[0]):
+                    if notime_mat[i, 0] != xmin:
+                        notime_mat[i, 0] += 1.0 / srate
+                    if notime_mat[i, 1] != xmax:
+                        notime_mat[i, 1] -= 1.0 / srate
 
             # now reject notime_mat intervals from continuous data
             if notime_mat.size:
-                # EEGLAB only adjusts interior edges when notime was derived from time, not when it came from rmtime
-                if notime_from_rmtime:
-                    # Skip boundary adjustment when notime came directly from rmtime
-                    adjusted = notime_mat.copy()
-                else:
-                    # EEGLAB adjusts interior edges by +/- one sample; replicate
-                    adjusted = notime_mat.copy()
-                    for i in range(adjusted.shape[0]):
-                        # shift interior boundaries off-sample
-                        if adjusted[i, 0] != xmin:
-                            adjusted[i, 0] += 1.0 / srate
-                        if adjusted[i, 1] != xmax:
-                            adjusted[i, 1] -= 1.0 / srate
                 # map to 1-based sample indices
-                nbtimes = adjusted.size
-                pts, _ = eeg_lat2point(adjusted.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
+                nbtimes = notime_mat.size
+                pts, _ = eeg_lat2point(notime_mat.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
                 pts = pts.reshape((-1, 2))
                 # drop empty ranges
                 keep_rows = (pts[:, 1] - pts[:, 0]) != 0
