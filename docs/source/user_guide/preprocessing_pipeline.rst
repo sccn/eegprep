@@ -238,6 +238,65 @@ wrappers for the common EEGLAB plotting workflows:
    cross, com_crossf = pop_newcrossf(EEG, typeproc=1, num1=1, num2=2, return_com=True)
    spectra, com_spectopo = pop_spectopo(EEG, 1, timerange=[], return_com=True)
 
+``pop_newtimef`` plots one channel or component at a time. Set ``typeproc=1`` for
+a channel and ``typeproc=0`` for an ICA component; ``num`` is the 1-based channel
+or component index. ``tlimits`` is the epoch window in milliseconds and ``cycles``
+selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
+``[n factor]``) uses an ``n``-cycle Morlet wavelet that narrows toward higher
+frequencies. Called with no index, ``pop_newtimef`` opens a dialog to collect
+these values; the ``Plot`` menu exposes the same dialog under *Channel
+time-frequency* and *Component time-frequency*.
+
+Reading the figure
+------------------
+
+The figure stacks two images that share a time axis:
+
+- **ERSP** (top) -- event-related spectral perturbation, the trial-averaged power
+  change from the baseline window, in dB.
+- **ITC** (bottom) -- inter-trial coherence, from 0 (phase varies across trials)
+  to 1 (perfect phase locking).
+
+Each image carries marginal panels: a rotated plot to its left (the baseline
+power spectrum beside ERSP; the frequency-averaged coherence beside ITC) and a
+horizontal plot below it (the ERSP minimum/maximum envelope; the ERP trace). A
+dashed line marks time zero, colorbars sit on the right, and -- when channel
+locations are available -- a scalp-map inset in the upper left shows the
+channel's head position or the component's interpolated map, captioned with the
+channel label or ``IC n``.
+
+Baseline and significance
+-------------------------
+
+Pass a ``baseline`` window in milliseconds to normalize power, and an ``alpha``
+to test each time-frequency point against a bootstrap null drawn from the
+baseline:
+
+.. code-block:: python
+
+   result = pop_newtimef(EEG, 1, 1, [-1000, 1000], [3, 0.5],
+                         baseline=[-1000, 0], alpha=0.05)
+
+Non-significant points are drawn at the colormap's green midpoint so the
+surviving effects stand out; add ``mcorrect="fdr"`` to control the false
+discovery rate across the image. Because this is a permutation test, roughly
+``alpha`` of the effect-free baseline points survive by chance -- expected
+scatter, not a real effect.
+
+Display options
+---------------
+
+- ``pcontour="on"`` keeps every point at its measured value and outlines the
+  significant regions with a contour instead of masking them.
+- The ITC image is colored by the sign of the coherence phase by default; pass
+  ``plotphase="off"`` for magnitude only, or ``plotphaseonly="on"`` to show the
+  phase angle in degrees.
+- ``erspmax`` sets a symmetric ERSP color scale (``[-erspmax, erspmax]``) and
+  ``itcmax`` the ITC image maximum; leave them unset to auto-scale.
+
+Two-condition comparisons (contrasting two datasets in a single figure) are not
+yet part of the standalone wrapper.
+
 Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
 ``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
 ``pop_erpimage`` for channel or component images:

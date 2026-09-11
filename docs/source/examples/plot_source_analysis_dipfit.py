@@ -1,5 +1,8 @@
-"""Equivalent-dipole source localization of ICA components with EEGPrep DIPFIT.
+"""
+Source Analysis with DIPFIT
+===========================
 
+Equivalent-dipole source localization of ICA components with EEGPrep DIPFIT.
 Mirrors EEGLAB's "Source analysis" tutorial workflow: choose a head model,
 coarse-fit component dipoles on a grid, refine them, then read the resulting
 ``EEG.dipfit.model`` entries.
@@ -16,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
+import eegprep
 from eegprep import (
     pop_dipfit_gridsearch,
     pop_dipfit_nonlinear,
@@ -25,7 +29,9 @@ from eegprep import (
     pop_multifit,
 )
 
-SAMPLE = Path(__file__).resolve().parents[3] / "sample_data" / "eeglab_data_epochs_ica.set"
+# sphinx-gallery defines no __file__, so anchor on the installed package.
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]
+SAMPLE = REPO_ROOT / "sample_data" / "eeglab_data_epochs_ica.set"
 
 # 1. Load a dataset that already carries channel locations and an ICA decomposition.
 EEG = pop_loadset(str(SAMPLE))

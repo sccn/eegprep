@@ -19,6 +19,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import (
     eeg_checkset,
     pop_epoch,
@@ -28,7 +29,7 @@ from eegprep import (
     pop_selectevent,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 input_file = REPO_ROOT / "sample_data" / "eeglab_data.set"
 
 EEG = pop_loadset(input_file)
@@ -40,9 +41,7 @@ print("event types:", sorted({str(event["type"]) for event in EEG["event"]}))
 # (``Tools > Extract epochs``). ``pop_epoch`` returns the epoched dataset plus
 # the history command the GUI and console record.
 
-EEG, epoch_com = pop_epoch(
-    EEG, ["square"], [-1, 2], newname="Square epochs", return_com=True
-)
+EEG, epoch_com = pop_epoch(EEG, ["square"], [-1, 2], newname="Square epochs", return_com=True)
 print("epoched:", EEG["data"].shape, "trials:", EEG["trials"])
 print("epoch range (s):", EEG["xmin"], EEG["xmax"])
 print(epoch_com)
@@ -66,9 +65,7 @@ print(select_time_com)
 # Select epochs by index. Epoch selectors are EEGLAB-facing 1-based indices, so
 # ``trial=[1, ..., 10]`` keeps the first ten epochs.
 
-EEG_first10, select_trial_com = pop_select(
-    EEG, trial=list(range(1, 11)), return_com=True
-)
+EEG_first10, select_trial_com = pop_select(EEG, trial=list(range(1, 11)), return_com=True)
 print("first 10 epochs:", EEG_first10["data"].shape)
 print(select_trial_com)
 

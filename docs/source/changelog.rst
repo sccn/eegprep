@@ -10,6 +10,53 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``newtimef`` / ``pop_newtimef`` now return the baseline power spectrum (``powbase``) in dB for the
+  default log power scale with a baseline, matching EEGLAB's ``mbase``; it was previously returned in
+  absolute power. It stays in absolute power for absolute-scale, ``basenorm``, and ``trialbase`` runs
+  and when no baseline is used (as in EEGLAB), and the plotted figure is unchanged. ``std_precomp``
+  correspondingly caches the STUDY ``erspbase`` field in dB for its default log/baseline settings;
+  rerun precomputation with ``recompute='on'`` to refresh values cached by an earlier version.
+- ``pop_newtimef`` / ``newtimef`` now render EEGLAB's single-condition ERSP/ITC time-frequency
+  figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
+  right-hand colorbars titled with the power unit, and the ``turbo`` colormap (EEGPrep's house
+  colormap, consistent with ``topoplot`` and ``erpimage``); ITC is colored by its phase sign by
+  default (``plotphasesign``), with ``plotphaseonly`` showing the phase angle in degrees. The
+  figure adds EEGLAB's marginal panels -- the ERSP min/max envelope and ERP trace below the
+  images, and the rotated baseline power spectrum and mean ITC to their left -- using EEGLAB's
+  value-axis limits and two ticks per panel. When channel locations are available it also draws
+  the channel or component scalp-map inset and caption (the channel label or ``IC n``), marking
+  the selected electrode for channels. The ``erspmax`` / ``itcmax`` dialog fields set the ERSP
+  and ITC color limits, and the default frequency range stops at 50 Hz (EEGLAB's ``maxfreq``,
+  capped at Nyquist).
+- ``pop_newtimef`` / ``newtimef`` bootstrap significance now matches EEGLAB. With a significance
+  level (``alpha``), each time-frequency point is ranked against a per-frequency baseline null
+  built by permuting the baseline time course (EEGLAB's ``shuffle`` permutation, averaged over
+  trials), and the p-value folds to a two-sided tail (EEGLAB's ``compute_pvals``) for both ERSP
+  and ITC -- so the scattered baseline false positives EEGLAB shows are reproduced and genuine
+  event-related effects survive masking. Non-significant regions are shown as the colormap
+  midpoint, or outlined with contours instead when ``pcontour`` is set; the FDR (``mcorrect``)
+  path is supported. A non-default ``boottype`` (``'rand'`` / ``'randall'``) is now rejected with
+  a clear error rather than silently treated as ``'shuffle'``.
+- ``timefreq`` -- and the ``newtimef`` / ``pop_newtimef`` plots built on it -- now match EEGLAB's
+  decomposition numerics. Requested output frequencies are no longer de-duplicated, so
+  ``freqs``/``nfreqs`` requests that snap several values onto the same FFT bin return one output
+  frequency per request (as in EEGLAB) -- this changes the ``pac`` output shape (for example
+  ``(5, 3, 8)`` becomes ``(5, 5, 8)``); ``detrend`` is now a no-op on the FFT (``cycles=0``)
+  path; output time windows are centered with EEGLAB's
+  ``eeg_lat2point`` rounding and the negative-``ntimesout`` subsample grid no longer includes a
+  spurious trailing time point; ``subitc`` returns the pre-subtraction inter-trial coherence; and
+  exact-zero spectral bins are guarded as in EEGLAB. Some outputs change shape or value versus
+  earlier EEGPrep releases.
+- Deleting datasets (``pop_delset``, Edit > Delete dataset(s) from memory) now empties
+  the slot in place like EEGLAB instead of shifting later datasets down, so dataset
+  numbers in the Datasets menu, ``CURRENTSET``, and the history stay valid. ``eeg_store``
+  stores new datasets in the lowest empty slot, trailing empty slots are dropped, and
+  ``pop_delset`` raises for a dataset number that does not exist. A dataset selection can
+  no longer land on an emptied slot; it falls back to a remaining dataset the way EEGLAB's
+  redraw does. Creating or editing a STUDY still compacts the empty slots away, because a
+  STUDY needs contiguous dataset numbers, but the selection now follows the dataset it was
+  on instead of its old number. Editing a STUDY design, precomputing measures, and
+  preclustering no longer modify ``ALLEEG``, matching EEGLAB's ``e_plot_study``.
 - ``pop_prop`` (Plot > Channel/Component properties) now matches EEGLAB's three-panel
   layout: a scalp map, an ERP image, and the activity power spectrum. The ERP panel is a
   full ERP image (reusing ``erpimage``) instead of a single averaged trace, the spectrum is

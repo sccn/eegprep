@@ -7,6 +7,7 @@ import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
 
 # where the test resources
@@ -112,6 +113,63 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(epoch_after, epoch_before)  # caller's dict not mutated
         epoch_reloaded = [(list(ep['event']), list(ep['eventurevent'])) for ep in reloaded['epoch']]
         self.assertEqual(epoch_reloaded, epoch_before)  # round trip
+
+    def test_saveset_writes_matlab_field_classes(self):
+        # EEGLAB stores numeric fields as double and multi-event epoch fields as
+        # cell arrays; int64/uint8 or char matrices break MATLAB arithmetic and
+        # indexing code that expects those classes.
+        EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_epochs_ica.set'))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'classes.set')
+            pop_saveset(EEG, out)
+            raw = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=False)
+            reloaded = pop_loadset(out)
+
+        ep = raw['epoch'][0, 0]
+        self.assertEqual(ep.event.dtype, np.float64)
+        np.testing.assert_array_equal(ep.event, [[1, 2, 3]])
+        for name in ('eventtype', 'eventlatency', 'eventposition', 'eventurevent'):
+            self.assertEqual(getattr(ep, name).dtype, object, name)  # MATLAB cell
+            self.assertEqual(getattr(ep, name).shape, (1, 3), name)
+        self.assertEqual(str(ep.eventtype[0, 0][0]), EEG['epoch'][0]['eventtype'][0])
+        self.assertEqual(ep.eventlatency[0, 0].dtype, np.float64)
+        self.assertEqual(ep.eventurevent[0, 0].dtype, np.float64)
+        np.testing.assert_array_equal([c[0, 0] for c in ep.eventurevent[0]], [1, 2, 3])
+
+        ev = raw['event'][0, 0]
+        self.assertEqual(ev.position.dtype, np.float64)
+        self.assertEqual(ev.urevent.dtype, np.float64)
+        self.assertEqual(ev.epoch.dtype, np.float64)
+        self.assertEqual(raw['icachansind'].dtype, np.float64)
+        self.assertEqual(raw['chanlocs'][0, 0].urchan.dtype, np.float64)
+        self.assertEqual(raw['urchanlocs'][0, 0].theta.dtype, np.float64)
+        self.assertEqual(raw['reject'][0, 0].threshentropy.dtype, np.float64)
+        self.assertEqual(raw['reject'][0, 0].gcompreject.dtype, np.float64)
+
+        # In-memory round trip is unchanged by the on-disk classes.
+        for before, after in zip(EEG['epoch'], reloaded['epoch']):
+            self.assertEqual(list(before['event']), list(after['event']))
+            self.assertEqual(list(before['eventtype']), list(after['eventtype']))
+            np.testing.assert_allclose(before['eventlatency'], after['eventlatency'])
+
+    def test_saveset_epoch_fields_are_scalars_with_one_event_per_epoch(self):
+        # eeg_checkset.m only builds cell arrays when some epoch holds more than
+        # one event; with at most one event per epoch each field is a bare value.
+        EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_epochs_ica.set'))
+        seen = set()
+        EEG['event'] = [ev for ev in EEG['event'] if not (ev['epoch'] in seen or seen.add(ev['epoch']))]
+        EEG = eeg_checkset(EEG)
+        self.assertTrue(all(len(ep['event']) == 1 for ep in EEG['epoch']))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'one_per_epoch.set')
+            pop_saveset(EEG, out)
+            ep = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['epoch'][0]
+
+        self.assertEqual(float(ep.event), 1.0)
+        self.assertIsInstance(ep.eventtype, str)
+        self.assertEqual(np.ndim(ep.eventlatency), 0)
+        self.assertEqual(np.ndim(ep.eventurevent), 0)
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')

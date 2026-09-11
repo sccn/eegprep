@@ -123,15 +123,18 @@ def _flatten_commands(commands: Any) -> list[Any]:
         commands = list(commands)
     if not isinstance(commands, list):
         raise ValueError("commands must be a list, tuple, or dict")
+    # Walk key/value positions: a list, tuple, or dict where a key is expected is a
+    # nested command group (EEGLAB {{'index', 1, ...}, ...}); anything in a value
+    # position is a value, so list values such as comps=[] or [1, 2] stay intact.
     flat = []
+    expecting_key = True
     for item in commands:
-        if isinstance(item, dict):
+        if expecting_key and isinstance(item, (dict, list, tuple)):
             flat.extend(_flatten_commands(item))
-        elif isinstance(item, (list, tuple)):
-            flat.extend(_flatten_commands(list(item)))
-        else:
-            flat.append(item)
-    if len(flat) % 2:
+            continue
+        flat.append(item)
+        expecting_key = not expecting_key
+    if not expecting_key:
         raise ValueError("commands must contain key/value pairs")
     return flat
 

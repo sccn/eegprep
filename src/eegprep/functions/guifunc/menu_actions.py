@@ -714,11 +714,14 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
 
-            study, alleeg, command = pop_studydesign(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            study, _alleeg, command = pop_studydesign(
+                self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True
+            )
             if not command:
                 return
             self.session.echo_command(command)
-            self.session.set_study(study, alleeg, command=command)
+            # EEGLAB's cb_studydesign forces ALLEEGTMP = ALLEEG and e_plot_study discards it.
+            self.session.set_study(study, command=command)
             self._refresh()
             return
         if action == "pop_preclust":
@@ -727,11 +730,12 @@ class MenuActionDispatcher:
                 return
             from eegprep.functions.studyfunc.pop_preclust import pop_preclust
 
-            study, alleeg, command = pop_preclust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
+            study, _alleeg, command = pop_preclust(self.session.STUDY, self.session.ALLEEG, gui=True, return_com=True)
             if not command:
                 return
             self.session.echo_command(command)
-            self.session.set_study(study, alleeg, command=command)
+            # EEGLAB's e_plot_study clears ALLEEGTMP, so preclustering leaves ALLEEG alone.
+            self.session.set_study(study, command=command)
             self._refresh()
             return
         if action == "pop_precomp":
@@ -741,13 +745,14 @@ class MenuActionDispatcher:
             from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 
             target = "components" if variant == "components" else "channels"
-            study, alleeg, command = pop_precomp(
+            study, _alleeg, command = pop_precomp(
                 self.session.STUDY, self.session.ALLEEG, target, gui=True, return_com=True
             )
             if not command:
                 return
             self.session.echo_command(command)
-            self.session.set_study(study, alleeg, command=command)
+            # EEGLAB's e_plot_study clears ALLEEGTMP, so precomputing leaves ALLEEG alone.
+            self.session.set_study(study, command=command)
             self._refresh()
             return
         if action == "pop_clust":
@@ -1437,7 +1442,8 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _merge_datasets(self, parent: Any | None) -> None:
-        if len(self.session.ALLEEG) < 2:
+        # Deleted datasets leave empty ALLEEG slots, so count real datasets rather than slots.
+        if len(self.session.dataset_summaries()) < 2:
             self._warn(parent, "Load at least two datasets before merging")
             return
         from eegprep.functions.popfunc.pop_mergeset import pop_mergeset

@@ -612,3 +612,12 @@ def test_pop_mergeset_matches_eeglab_for_continuous_event_offsets():
         [float(event["latency"]) for event in py_out["event"]],
         [float(event["latency"]) for event in matlab_out["event"]],
     )
+
+
+def test_pop_mergeset_default_indices_skip_deleted_slots():
+    from eegprep.functions.popfunc.pop_mergeset import _default_indices_text
+
+    # Deleted datasets leave empty ALLEEG slots; the dialog must offer real dataset numbers.
+    assert _default_indices_text([_eeg("first"), {}, _eeg("third")], None) == "1 3"
+    assert _default_indices_text([{}, _eeg("second")], None) == "2"
+    assert _default_indices_text([_eeg("only"), {}], None) == "1"
