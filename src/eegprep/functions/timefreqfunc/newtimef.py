@@ -32,7 +32,7 @@ class TimeFrequencyResult:
 
     ersp: np.ndarray
     itc: np.ndarray
-    powbase: np.ndarray  # baseline power spectrum (EEGLAB mbase): dB for log scale, absolute power otherwise
+    powbase: np.ndarray  # EEGLAB mbase: dB only with log scale, a baseline, and trialbase off; else absolute power
     times: np.ndarray
     freqs: np.ndarray
     tfdata: np.ndarray
@@ -257,8 +257,10 @@ def newtimef(
             elocs=elocs,
             caption=caption,
         )
-    base_vec = _numeric_vector(baseline)
-    baseline_on = base_vec.size > 0 and not np.isnan(base_vec[0])
+    # Mirror newtimefbaseln's `disabled` check so powbase units always track ersp: a multi-window
+    # (nested-list) baseline flattens cleanly, `[]` stays enabled, and only NaN/None disables.
+    base_vec = np.asarray(baseline, dtype=float).reshape(-1)
+    baseline_on = not (base_vec.size and np.isnan(base_vec[0]))
     powbase_out = np.asarray(powbase_array, dtype=float)
     if (
         scale_mode == "log"

@@ -225,6 +225,38 @@ def test_newtimef_supplied_powbase_shifts_ersp_by_db_offset():
     np.testing.assert_allclose(base3.ersp, base0.ersp - 3.0, rtol=1e-6, atol=1e-6)
 
 
+def test_newtimef_baseline_forms_control_powbase_units():
+    # The baseline guard must accept every EEGLAB baseline form. A multi-window (nested-list)
+    # baseline and an empty-list baseline are both enabled, so log-scale powbase comes back in dB
+    # (= 10*log10 of the absolute-scale powbase); a NaN baseline is disabled, so powbase stays in
+    # absolute power. Regression guard: a nested-list baseline previously crashed the guard.
+    srate = 128
+    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
+
+    def powbase(baseline, scale="log"):
+        result = newtimef(
+            trials,
+            256,
+            [-1000, 1000],
+            srate,
+            [3, 0.5],
+            freqs=[6, 20],
+            nfreqs=6,
+            baseline=baseline,
+            scale=scale,
+            plot="off",
+        )
+        return np.asarray(result.powbase).ravel()
+
+    for baseline in ([[-400, -200], [200, 400]], []):  # both enabled -> dB
+        log_db = powbase(baseline)
+        assert np.isfinite(log_db).all()
+        np.testing.assert_allclose(log_db, 10.0 * np.log10(powbase(baseline, scale="abs")), rtol=1e-6, atol=1e-6)
+
+    # NaN disables the baseline, so log-scale powbase stays in absolute power (as in EEGLAB)
+    np.testing.assert_allclose(powbase(np.nan), powbase(np.nan, scale="abs"), rtol=1e-6, atol=1e-6)
+
+
 def test_newtimef_single_trial_itc_is_unity():
     # With one trial, inter-trial coherence is trivially perfect: |itc| == 1 everywhere.
     srate = 128
