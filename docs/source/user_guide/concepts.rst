@@ -117,6 +117,9 @@ Two deliberate differences from EEGLAB:
   Staying near the deleted dataset is friendlier when you delete from a long list.
 * EEGLAB refuses to delete when only one dataset is loaded and tells you to clear
   all datasets instead. EEGPrep deletes it and leaves an empty ``ALLEEG``.
+* ``pop_saveset`` writes the MATLAB classes EEGLAB expects: integer fields
+  become ``double``, boolean masks stay ``logical``, and ``epoch`` event fields
+  are cell arrays when any epoch holds more than one event.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

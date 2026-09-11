@@ -111,11 +111,73 @@ def _one_based(value):
     return value + 1
 
 
+def _matlab_double(value):
+    """Recursively cast integer values to double, EEGLAB's numeric class.
+
+    MATLAB arithmetic on int64 rounds (``int64(3) * 1000 / 128`` is ``23``), so
+    integer-typed fields such as ``event.position`` or ``reject.threshentropy``
+    would silently misbehave in EEGLAB.  Booleans stay boolean so savemat writes
+    MATLAB logical masks (``etc.clean_sample_mask``).  Recurses into dicts, lists,
+    and object arrays (MATLAB cells); float, string, and structured arrays pass
+    through.
+    """
+    if isinstance(value, (bool, np.bool_)):
+        return value
+    if isinstance(value, (int, np.integer)):
+        return float(value)
+    if isinstance(value, dict):
+        return {k: _matlab_double(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_matlab_double(v) for v in value]
+    if not isinstance(value, np.ndarray) or value.dtype.names is not None:
+        return value
+    if value.dtype == object:
+        out = np.empty(value.shape, dtype=object)
+        for idx in np.ndindex(value.shape):
+            out[idx] = _matlab_double(value[idx])
+        return out
+    if value.dtype.kind in 'iu':
+        return value.astype(np.float64)
+    return value
+
+
+def _epoch_fields_to_matlab(epoch):
+    """Type ``epoch`` fields in place the way ``eeg_checkset.m`` builds them.
+
+    ``event`` is a double row vector.  Each ``event<field>`` is a cell array,
+    unless no epoch holds more than one event, in which case it is the bare
+    value ([] for an epoch without events).
+    """
+    maxlen = max((np.size(ep['event']) for ep in epoch if 'event' in ep), default=0)
+    for ep in epoch:
+        for key, value in ep.items():
+            if not key.startswith('event'):
+                continue
+            values = list(value) if isinstance(value, (list, np.ndarray)) else [value]
+            if key == 'event':
+                ep[key] = np.asarray(values, dtype=np.float64)
+            elif maxlen <= 1:
+                ep[key] = values[0] if values else default_empty
+            else:
+                cell = np.empty((1, len(values)), dtype=object)
+                for i, v in enumerate(values):
+                    cell[0, i] = v
+                ep[key] = cell
+
+
 def _matlab_empty_struct_if_missing(EEG, key):
     """Return an EEGLAB empty array for optional empty struct-like fields."""
     value = _matlab_empty_if_missing(EEG, key)
     if isinstance(value, dict) and not value:
         return default_empty
+    return value
+
+
+def _matlab_empty_cell_if_missing(EEG, key):
+    """Return an EEGLAB empty cell ``{}`` for optional cell fields that are missing or empty."""
+    value = _matlab_empty_if_missing(EEG, key)
+    if np.size(value) == 0:
+        return np.empty((0, 0), dtype=object)
     return value
 
 
@@ -156,7 +218,7 @@ def flatten_dict(data):
     # (scipy.io.savemat handles mixed typed/object recarrays poorly)
     if has_object:
         dtype = np.dtype([(f, 'O') for f in fields])
-        data_tuples = [tuple(item[field] for field in fields) for item in flat_data]
+        data_tuples = [tuple(_matlab_double(item[field]) for field in fields) for item in flat_data]
     else:
         dtype = np.dtype(dtypes)
         data_tuples = []
@@ -291,7 +353,7 @@ def _chanlocs_to_struct_array(chanlocs_list):
         ('sph_phi', np.float64),
         ('sph_radius', np.float64),
         ('type', 'U10'),
-        ('urchan', np.int32),
+        ('urchan', np.float64),
         ('ref', 'U100'),
         ('unit', 'U20'),
     ]
@@ -412,21 +474,21 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'ref': EEG.get('ref', 'common'),
         'event': _matlab_empty_or_copy(EEG, 'event'),
         'urevent': _matlab_empty_if_missing(EEG, 'urevent'),
-        'eventdescription': _matlab_empty_if_missing(EEG, 'eventdescription'),
+        'eventdescription': _matlab_empty_cell_if_missing(EEG, 'eventdescription'),
         'epoch': _matlab_empty_or_copy(EEG, 'epoch'),
-        'epochdescription': _matlab_empty_if_missing(EEG, 'epochdescription'),
+        'epochdescription': _matlab_empty_cell_if_missing(EEG, 'epochdescription'),
         'reject': _matlab_empty_if_missing(EEG, 'reject'),
         'stats': _matlab_empty_if_missing(EEG, 'stats'),
         'specdata': _matlab_empty_if_missing(EEG, 'specdata'),
         'specicaact': _matlab_empty_if_missing(EEG, 'specicaact'),
-        'splinefile': _matlab_empty_if_missing(EEG, 'splinefile'),
-        'icasplinefile': _matlab_empty_if_missing(EEG, 'icasplinefile'),
+        'splinefile': _string_field(EEG.get('splinefile', '')),
+        'icasplinefile': _string_field(EEG.get('icasplinefile', '')),
         'dipfit': _matlab_empty_if_missing(EEG, 'dipfit'),
         'history': EEG.get('history', ''),
         'saved': EEG.get('saved', 'yes'),
         'etc': _matlab_empty_struct_if_missing(EEG, 'etc'),
         'run': _matlab_empty_if_missing(EEG, 'run'),
-        'roi': _matlab_empty_if_missing(EEG, 'roi'),
+        'roi': _matlab_empty_struct_if_missing(EEG, 'roi'),
     }
 
     # add 1 to EEG['icachansind'] to make it 1-based
@@ -450,6 +512,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for key in ('event', 'eventurevent'):
             if key in ep:
                 ep[key] = _one_based(ep[key])
+    _epoch_fields_to_matlab(eeglab_dict['epoch'])
 
     # Serialize chanlocs through the single canonical chanloc converter so the
     # primary channel struct uses the same schema as chaninfo.removedchans.
@@ -475,6 +538,9 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
             and isinstance(eeglab_dict[key][0], dict)
         ):
             eeglab_dict[key] = flatten_dict(eeglab_dict[key])
+
+    for key in eeglab_dict:
+        eeglab_dict[key] = _matlab_double(eeglab_dict[key])
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
