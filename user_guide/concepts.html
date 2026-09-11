@@ -651,6 +651,9 @@ deleted number, while EEGLAB always falls back to the lowest-numbered dataset.
 Staying near the deleted dataset is friendlier when you delete from a long list.</p></li>
 <li><p>EEGLAB refuses to delete when only one dataset is loaded and tells you to clear
 all datasets instead. EEGPrep deletes it and leaves an empty <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> writes the MATLAB classes EEGLAB expects: integer fields
+become <code class="docutils literal notranslate"><span class="pre">double</span></code>, boolean masks stay <code class="docutils literal notranslate"><span class="pre">logical</span></code>, and <code class="docutils literal notranslate"><span class="pre">epoch</span></code> event fields
+are cell arrays when any epoch holds more than one event.</p></li>
 </ul>
 <p>For epoched data, <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;][:,</span> <span class="pre">:,</span> <span class="pre">trial_index]</span></code> is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use
