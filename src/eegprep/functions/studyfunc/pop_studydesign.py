@@ -8,7 +8,6 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
-    as_alleeg_list,
     build_python_call,
     ensure_study,
     parse_design_values,
@@ -29,8 +28,7 @@ def pop_studydesign(
     **kwargs: Any,
 ) -> Any:
     """Edit STUDY designs and select the current design."""
-    datasets = as_alleeg_list(ALLEEG)
-    study, datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     gui = options.pop("gui", gui)
     if designind is None:
@@ -59,8 +57,7 @@ def pop_studydesign(
 
 def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None) -> DialogSpec:
     """Return the EEGLAB-like STUDY design dialog spec."""
-    datasets = as_alleeg_list(ALLEEG)
-    study, _datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, _datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     designs = study.get("design") or []
     current = int(study.get("currentdesign") or 1)
     design = designs[current - 1] if 0 < current <= len(designs) else {}

@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Deleting a dataset that belongs to a STUDY no longer shifts its STUDY metadata
+  (subject, condition, group, session, run, and components) onto the following
+  datasets. The deleted dataset's ``datasetinfo`` row is dropped together with its
+  ``ALLEEG`` slot, as EEGLAB's ``std_editset`` does, so ``std_checkset`` and the STUDY
+  editor keep each dataset's metadata with that dataset.
 - ``newtimef`` / ``pop_newtimef`` now return the baseline power spectrum (``powbase``) in dB for the
   default log power scale with a baseline, matching EEGLAB's ``mbase``; it was previously returned in
   absolute power. It stays in absolute power for absolute-scale, ``basenorm``, and ``trialbase`` runs
