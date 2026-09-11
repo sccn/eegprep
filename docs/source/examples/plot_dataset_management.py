@@ -18,6 +18,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import eegprep
 from eegprep import (  # noqa: E402
     EEGPrepSession,
     eeg_retrieve,
@@ -30,7 +31,7 @@ from eegprep import (  # noqa: E402
     pop_saveset,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 TUTORIAL_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
 
 EEG = pop_loadset(str(TUTORIAL_SET))
@@ -104,8 +105,9 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
 # %%
 # Delete datasets from memory (``Edit > Delete dataset(s) from memory`` or
-# ``File > Clear dataset(s)``).
+# ``File > Clear dataset(s)``). As in EEGLAB, the slot is emptied in place, so the
+# remaining datasets keep their numbers; trailing empty slots are dropped.
 
-ALLEEG, delete_com = pop_delset(ALLEEG, [3])
-print("datasets in memory:", len(ALLEEG))
+ALLEEG, delete_com = pop_delset(ALLEEG, [2])
+print("dataset numbers still in memory:", [index for index, eeg in enumerate(ALLEEG, start=1) if eeg])
 print(delete_com)

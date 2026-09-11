@@ -13,9 +13,10 @@ scrolling channel browser. Everything runs headless.
 
 from pathlib import Path
 
+import eegprep
 from eegprep import eeg_checkset, eegplot, pop_comments, pop_editeventvals, pop_loadset
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(eegprep.__file__).resolve().parents[2]  # sphinx-gallery defines no __file__
 dataset = REPO_ROOT / "sample_data" / "eeglab_data.set"
 
 EEG = pop_loadset(dataset)

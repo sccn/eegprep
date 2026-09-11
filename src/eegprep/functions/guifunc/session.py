@@ -82,6 +82,50 @@ def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list
     return normalized
 
 
+def nearest_dataset_index(alleeg: list[Any], anchor: int) -> int | None:
+    """Return the first dataset number at or above ``anchor`` whose slot is not empty, else the last one below."""
+    remaining = [index for index, dataset in enumerate(alleeg, start=1) if dataset]
+    if not remaining:
+        return None
+    above = [index for index in remaining if index >= anchor]
+    return above[0] if above else remaining[-1]
+
+
+def _occupied_selection(alleeg: list[Any], selection: list[int]) -> list[int]:
+    """Drop selected indices that address a deleted (empty) slot, re-anchoring if none survive.
+
+    EEGLAB's redraw refuses to leave the selection on an emptied slot
+    (``eeglab.m`` tests ``isempty(ALLEEG(CURRENTSET(1)).data)``) and falls back to a
+    remaining dataset instead of handing the caller an empty EEG.
+    """
+    occupied = [index for index in selection if alleeg[index - 1]]
+    if occupied:
+        return occupied
+    target = nearest_dataset_index(alleeg, min(selection))
+    return [] if target is None else [target]
+
+
+def follow_dataset_selection(alleeg: list[Any], previous_eeg: Any, selection: list[int]) -> list[int]:
+    """Return the dataset selection to use after ``ALLEEG`` was replaced.
+
+    Previously selected datasets are matched by identity first, so a compacted or
+    reordered ``ALLEEG`` keeps the same datasets selected instead of the same numbers.
+    Otherwise the still-occupied numbers are kept, and failing that the nearest
+    remaining dataset is selected.
+    """
+    previous = previous_eeg if isinstance(previous_eeg, list) else [previous_eeg]
+    followed = [index + 1 for index, dataset in enumerate(alleeg) if any(dataset is item for item in previous)]
+    if followed:
+        return followed
+    if not selection:
+        return []
+    in_range = [index for index in selection if index <= len(alleeg)]
+    if in_range:
+        return _occupied_selection(alleeg, in_range)
+    target = nearest_dataset_index(alleeg, min(selection))
+    return [] if target is None else [target]
+
+
 @dataclass
 class EEGPrepSession:
     """EEGLAB-like GUI state without module globals."""
@@ -252,6 +296,8 @@ class EEGPrepSession:
             )
             if resolved_currentset and max(resolved_currentset) > len(resolved_alleeg):
                 raise ValueError("CURRENTSET contains indices outside ALLEEG")
+            if eeg is _UNSET and resolved_currentset:
+                resolved_currentset = _occupied_selection(resolved_alleeg, resolved_currentset)
             resolved_eeg = self._resolve_workspace_eeg(eeg, resolved_alleeg, resolved_currentset)
             current = resolved_eeg if isinstance(resolved_eeg, list) else [resolved_eeg]
             if resolved_currentset and len(current) != len(resolved_currentset):
@@ -286,14 +332,19 @@ class EEGPrepSession:
         self.notify_changed()
 
     def delete_current(self) -> None:
-        """Delete the current dataset selection from memory."""
+        """Delete the current dataset selection from memory.
+
+        Deleted slots stay empty so the other datasets keep their numbers, as in
+        EEGLAB; the selection moves to the nearest remaining dataset.
+        """
         if not self.CURRENTSET:
             return
         deleted_indices = list(self.CURRENTSET)
         self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
         self.add_history(command, notify=False)
-        if self.ALLEEG:
-            self.retrieve(min(min(deleted_indices), len(self.ALLEEG)))
+        target = nearest_dataset_index(self.ALLEEG, min(deleted_indices))
+        if target is not None:
+            self.retrieve(target)
             return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()
@@ -319,15 +370,18 @@ class EEGPrepSession:
         self.STUDY = study
         self.CURRENTSTUDY = 1 if study else 0
         if alleeg is not None:
+            previous_eeg = self.EEG
+            previous_selection = list(self.CURRENTSET)
             self.ALLEEG = alleeg
-            if self.ALLEEG and (not self.CURRENTSET or max(self.CURRENTSET) > len(self.ALLEEG)):
-                self.CURRENTSET = [1]
-                self.EEG = self.ALLEEG[0]
-            elif self.ALLEEG and self.CURRENTSET:
+            # STUDY functions return a compacted ALLEEG, so follow the selected datasets
+            # rather than reusing their old numbers.
+            self.CURRENTSET = follow_dataset_selection(self.ALLEEG, previous_eeg, previous_selection)
+            if not self.CURRENTSET and self.ALLEEG:
+                self.CURRENTSET = [index for index, dataset in enumerate(self.ALLEEG, start=1) if dataset][:1]
+            if self.CURRENTSET:
                 selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET]
                 self.EEG = selected if len(selected) > 1 else selected[0]
-            elif not self.ALLEEG:
-                self.CURRENTSET = []
+            else:
                 self.EEG = eeg_emptyset()
             offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
         self.add_history(command, notify=False)

@@ -7,22 +7,23 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
 from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.timefreqfunc._bootstrap import (
     bootstrap_indices as shared_bootstrap_indices,
-    resample_trials,
     threshold_vector as _threshold_vector,
     thresholds_by_frequency,
 )
-from eegprep.functions.timefreqfunc.bootstat import exact_p_values
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
 from eegprep.functions.timefreqfunc.newtimefitc import newtimefitc
+from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
-from eegprep.functions.timefreqfunc.timefreq import timefreq
+from eegprep.functions.timefreqfunc.timefreq import as_channel_epoch_data, timefreq
 
 
 @dataclass(frozen=True)
@@ -31,7 +32,7 @@ class TimeFrequencyResult:
 
     ersp: np.ndarray
     itc: np.ndarray
-    powbase: np.ndarray
+    powbase: np.ndarray  # EEGLAB mbase: dB only with log scale, a baseline, and trialbase off; else absolute power
     times: np.ndarray
     freqs: np.ndarray
     tfdata: np.ndarray
@@ -81,7 +82,15 @@ def newtimef(
     plot: Any = "on",
     plotersp: Any = "on",
     plotitc: Any = "on",
-    plotphase: Any = "off",
+    plotphase: Any = "on",
+    plotphasesign: Any = "on",
+    plotphaseonly: Any = "off",
+    pcontour: Any = "off",
+    erspmax: Any = None,
+    itcmax: Any = None,
+    topovec: Any = None,
+    elocs: Any = None,
+    caption: Any = None,
     title: str = "Time-frequency",
     rng: Any = None,
     detrend: str = "off",
@@ -96,10 +105,14 @@ def newtimef(
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
-    if str(plotphase).strip().lower() not in {"off", "0", "false", "no", "none"}:
-        raise NotImplementedError("newtimef does not implement the 'plotphase' option")
+    if str(boottype).lower() != "shuffle":
+        raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
+    if not _is_on(plotphase):
+        plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:
         freqs = freqrange
+    if freqs is None:
+        freqs = [0.0, min(50.0, float(srate) / 2.0)]  # EEGLAB DEFAULT_MAXFREQ, capped at Nyquist
     if type is not None:
         itctype = type
     scale_mode = str(scale).lower()
@@ -176,39 +189,50 @@ def newtimef(
     if alpha_value is not None:
         boot_indices = _bootstrap_indices(decomp.times, baseline, baseboot, baseln)
         if ersp_boot is None:
-            ersp_boot, ersp_surrogates = _bootstrap_power(
+            ersp_boot, ersp_null = _bootstrap_power(
                 corrected_power,
                 scale_mode,
                 alpha=alpha_value,
                 naccu=naccu,
-                boottype=boottype,
                 base_indices=boot_indices,
                 rng=rng,
             )
-            ersp_pvalues = exact_p_values(ersp, ersp_surrogates)
+            ersp_pvalues = _baseline_pvalues(ersp, ersp_null)
             ersp_significant = _significance_mask(ersp_pvalues, alpha_value, mcorrect)
         else:
             ersp_significant = _threshold_mask(ersp, ersp_boot)
         if itc_boot is None:
-            itc_boot, itc_surrogates = _bootstrap_itc(
+            itc_boot, itc_null = _bootstrap_itc(
                 tfdata,
                 itctype,
                 alpha=alpha_value,
                 naccu=naccu,
-                boottype=boottype,
                 base_indices=boot_indices,
                 rng=rng,
             )
-            itc_pvalues = exact_p_values(np.abs(itc), itc_surrogates)
+            itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null)
             itc_significant = _significance_mask(itc_pvalues, alpha_value, mcorrect)
         else:
             itc_significant = np.abs(itc) >= _threshold_vector(itc_boot, itc.shape)
 
     figure = None
     if _is_on(plot):
+        unit = newtimefpowerunit({"scale": scale_mode, "baseline": baseline, "basenorm": normalize_baseline})
+        ersp_baseval = 1.0 if scale_mode == "abs" and normalize_baseline == "off" else 0.0
+        limits = _numeric_vector(tlimits)
+        epoch_data = as_channel_epoch_data(data, frames=int(frames))[0]
+        erp_full = np.nanmean(epoch_data, axis=1)
+        full_times = np.linspace(float(limits[0]), float(limits[-1]), int(frames))
+        erp = erp_full[[int(np.argmin(np.abs(full_times - center))) for center in decomp.times]]
+        spectrum = np.asarray(powbase_array, dtype=float).reshape(-1)
+        baseline_spectrum = (
+            _power_to_output(spectrum, scale_mode)
+            if spectrum.size == decomp.freqs.size and np.isfinite(spectrum).any()
+            else np.zeros(decomp.freqs.size)
+        )
         figure = _plot_time_frequency(
             ersp,
-            np.abs(itc),
+            itc,
             decomp.times,
             decomp.freqs,
             title=str(title),
@@ -218,11 +242,39 @@ def newtimef(
             ersp_significant=ersp_significant,
             itc_significant=itc_significant,
             vertical_markers=vertical_markers,
+            erspmax=erspmax,
+            itcmax=itcmax,
+            unit=unit,
+            ersp_baseval=ersp_baseval,
+            powbase=baseline_spectrum,
+            erp=erp,
+            ersp_boot=ersp_boot,
+            itc_boot=itc_boot,
+            plotphasesign=_is_on(plotphasesign),
+            plotphaseonly=_is_on(plotphaseonly),
+            pcontour=_is_on(pcontour),
+            topovec=topovec,
+            elocs=elocs,
+            caption=caption,
         )
+    # Mirror newtimefbaseln's `disabled` check so powbase units always track ersp: a multi-window
+    # (nested-list) baseline flattens cleanly, `[]` stays enabled, and only NaN/None disables.
+    base_vec = np.asarray(baseline, dtype=float).reshape(-1)
+    baseline_on = not (base_vec.size and np.isnan(base_vec[0]))
+    powbase_out = np.asarray(powbase_array, dtype=float)
+    if (
+        scale_mode == "log"
+        and str(trialbase).lower() == "off"
+        and baseline_on
+        and powbase_out.size
+        and np.isfinite(powbase_out.reshape(-1)[0])
+    ):
+        # EEGLAB newtimef.m:1399 returns the baseline power spectrum in dB for log scale (trialbase off).
+        powbase_out = 10.0 * np.log10(powbase_out)
     return TimeFrequencyResult(
         ersp,
         itc,
-        np.asarray(powbase_array).squeeze(),
+        powbase_out.squeeze(),
         decomp.times,
         decomp.freqs,
         tfdata,
@@ -436,21 +488,23 @@ def _bootstrap_power(
     *,
     alpha: float,
     naccu: int,
-    boottype: str,
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # EEGLAB permutes each trial's baseline time course independently and then averages
+    # power over trials, so every null exemplar is a trial-mean of independently shuffled
+    # baseline samples -- not a resample of the fixed trial-mean spectrum, which yields only
+    # n_base distinct values and inflates the spread whenever trials share baseline structure
+    # (newtimef.m 1282-1286, bootstat 'shuffle' -> shuffleonedim(arg1, 2) then mean(arg1, 3)).
     generator = np.random.default_rng(rng)
-    surrogates = np.empty((int(naccu), power.shape[0], power.shape[1]), dtype=float)
     boot_source = power[:, base_indices, :] if base_indices.size else power
-    threshold_source = np.empty((int(naccu), power.shape[0], max(1, boot_source.shape[1])), dtype=float)
+    n_base, n_trials = boot_source.shape[1], boot_source.shape[2]
+    baseline_null = np.empty((int(naccu), boot_source.shape[0], n_base), dtype=float)
     for index in range(int(naccu)):
-        sample = resample_trials(power, generator, boottype)
-        surrogates[index] = _power_to_output(np.nanmean(sample, axis=2), scale)
-        threshold_sample = resample_trials(boot_source, generator, boottype)
-        threshold_source[index] = _power_to_output(np.nanmean(threshold_sample, axis=2), scale)
-    thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=True)
-    return thresholds, surrogates
+        shuffled = np.stack([boot_source[:, generator.permutation(n_base), trial] for trial in range(n_trials)], axis=2)
+        baseline_null[index] = _power_to_output(np.nanmean(shuffled, axis=2), scale)
+    thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=True)
+    return thresholds, baseline_null
 
 
 def _bootstrap_itc(
@@ -459,25 +513,47 @@ def _bootstrap_itc(
     *,
     alpha: float,
     naccu: int,
-    boottype: str,
     base_indices: np.ndarray,
     rng: Any,
 ) -> tuple[np.ndarray, np.ndarray]:
+    # EEGLAB shuffles each trial's baseline time course, breaking the inter-trial
+    # phase alignment, then recomputes ITC -- giving a chance-level null with the
+    # right spread (newtimef.m 1336-1347, bootstat 'shuffle').
     generator = np.random.default_rng(rng)
-    surrogates = np.empty((int(naccu), tfdata.shape[0], tfdata.shape[1]), dtype=float)
     boot_source = tfdata[:, base_indices, :] if base_indices.size else tfdata
-    threshold_source = np.empty((int(naccu), tfdata.shape[0], max(1, boot_source.shape[1])), dtype=float)
+    n_base, n_trials = boot_source.shape[1], boot_source.shape[2]
+    baseline_null = np.empty((int(naccu), boot_source.shape[0], n_base), dtype=float)
     for index in range(int(naccu)):
-        sample = resample_trials(tfdata, generator, boottype, complex_phase=True)
-        surrogates[index] = np.abs(newtimefitc(sample, itctype))
-        threshold_sample = resample_trials(boot_source, generator, boottype, complex_phase=True)
-        threshold_source[index] = np.abs(newtimefitc(threshold_sample, itctype))
-    thresholds = _thresholds_by_frequency(threshold_source, alpha=alpha, both=False)
-    return thresholds, surrogates
+        shuffled = np.stack([boot_source[:, generator.permutation(n_base), trial] for trial in range(n_trials)], axis=2)
+        baseline_null[index] = np.abs(newtimefitc(shuffled, itctype))
+    thresholds = _thresholds_by_frequency(baseline_null, alpha=alpha, both=False)
+    return thresholds, baseline_null
 
 
 def _thresholds_by_frequency(values: np.ndarray, *, alpha: float, both: bool) -> np.ndarray:
     return thresholds_by_frequency(values, alpha=alpha, bootside="both" if both else "upper")
+
+
+def _baseline_pvalues(observed: np.ndarray, baseline_null: np.ndarray) -> np.ndarray:
+    """Two-sided p-values of each cell against its per-frequency baseline null.
+
+    Mirrors EEGLAB ``compute_pvals`` (newtimef.m 2096): pool one null distribution
+    per frequency (drawn from the baseline, shared across all output times), rank the
+    observed value within ``null + observed`` (``p = 1 - (mx - 0.5) / len``), and fold
+    it to a two-sided p-value with ``2 * min(p, 1 - p)``. EEGLAB uses this two-sided
+    tail for both ERSP and ITC, so an unusually *low* coherence in the baseline is
+    flagged just like an unusually high one.
+    """
+    observed_values = np.asarray(observed, dtype=float)
+    null = np.moveaxis(np.asarray(baseline_null, dtype=float), 1, 0).reshape(observed_values.shape[0], -1)
+    null_sorted = np.sort(null, axis=1)
+    length = null_sorted.shape[1] + 1  # EEGLAB appends the observed value to the surrogate set
+    pvalues = np.empty_like(observed_values)
+    for freq_index in range(observed_values.shape[0]):
+        rank = np.searchsorted(null_sorted[freq_index], observed_values[freq_index], side="right") + 1
+        p_upper = 1.0 - (rank - 0.5) / length
+        pvalues[freq_index] = 2.0 * np.minimum(p_upper, 1.0 - p_upper)
+    return pvalues
 
 
 def _significance_mask(pvalues: np.ndarray, alpha: float, correction: str) -> np.ndarray:
@@ -501,6 +577,17 @@ def _threshold_mask(values: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
     return (values <= lower) | (values >= upper)
 
 
+_BASE_POS = (0.13, 0.11, 0.775, 0.815)  # EEGLAB's default axes rectangle; panels are placed relative to it
+_IMAGE_COLORMAP = "turbo"  # EEGPrep house colormap (EEGLAB uses jet); the green/teal midpoint marks the baseline
+_MARGIN_SIZE = 0.1  # thickness of the marginal panels below and left of each image (EEGLAB plottimef)
+
+
+def _axes_rect(nx: float, ny: float, nw: float, nh: float) -> list[float]:
+    """Map an EEGLAB ``plottimef`` normalized position into figure coordinates."""
+    x0, y0, w0, h0 = _BASE_POS
+    return [x0 + nx * w0, y0 + ny * h0, nw * w0, nh * h0]
+
+
 def _plot_time_frequency(
     ersp: np.ndarray,
     itc: np.ndarray,
@@ -514,39 +601,429 @@ def _plot_time_frequency(
     ersp_significant: np.ndarray | None,
     itc_significant: np.ndarray | None,
     vertical_markers: np.ndarray | None,
+    erspmax: Any = None,
+    itcmax: Any = None,
+    unit: str = "dB",
+    ersp_baseval: float = 0.0,
+    powbase: Any = None,
+    erp: Any = None,
+    ersp_boot: Any = None,
+    itc_boot: Any = None,
+    plotphasesign: bool = True,
+    plotphaseonly: bool = False,
+    pcontour: bool = False,
+    topovec: Any = None,
+    elocs: Any = None,
+    caption: Any = None,
 ):
     panels = int(plotersp) + int(plotitc)
     if panels == 0:
         return None
-    fig, axes = plt.subplots(panels, 1, figsize=(7.5, 5.0), squeeze=False)
-    row = 0
+    if plottype == "curve":
+        return _plot_curve_figure(
+            ersp,
+            np.abs(np.asarray(itc)),
+            times,
+            freqs,
+            title=title,
+            plotersp=plotersp,
+            plotitc=plotitc,
+            ersp_significant=ersp_significant,
+            itc_significant=itc_significant,
+            vertical_markers=vertical_markers,
+        )
+    if plottype != "image":
+        raise ValueError("plottype must be 'image' or 'curve'")
+
+    fig = plt.figure(figsize=(7.2, 6.2))
+    if plotersp and plotitc:
+        ersp_ordinate, itc_ordinate, height = 0.67, 0.1, 0.33
+    else:
+        ersp_ordinate = itc_ordinate = 0.1
+        height = 0.9
     if plotersp:
-        _plot_panel(
-            axes[row, 0],
+        vmin, vmax = _ersp_color_axis(ersp, erspmax, ersp_baseval)
+        _draw_image_panel(
             fig,
             ersp,
             times,
             freqs,
+            ordinate=ersp_ordinate,
+            height=height,
+            vmin=vmin,
+            vmax=vmax,
+            significant=ersp_significant,
+            baseval=ersp_baseval,
+            colorbar_title=f"ERSP({unit})",
+            vertical_markers=vertical_markers,
+            pcontour=pcontour,
+        )
+        extremes = np.stack([np.nanmin(ersp, axis=0), np.nanmax(ersp, axis=0)])
+        _draw_time_marginal(
+            fig,
+            ordinate=ersp_ordinate - _MARGIN_SIZE,
+            times=times,
+            series=extremes,
+            ylabel=unit,
+            vertical_markers=vertical_markers,
+            value_limits=_marginal_extreme_limits(extremes),
+        )
+        _draw_freq_marginal(
+            fig,
+            ordinate=ersp_ordinate,
+            height=height,
+            freqs=freqs,
+            curve=powbase,
+            overlays=_spectrum_overlays(powbase, ersp_boot, freqs.size),
+            value_label=unit,
+            value_limits=_marginal_spectrum_limits(powbase),
+            drop_last_tick=True,  # EEGLAB's spectrum panel keeps tick(end-1), not tick(end)
+        )
+    if plotitc:
+        itc_magnitude = np.abs(np.asarray(itc))
+        phase_only = plotphaseonly or (itc_magnitude.size > 0 and np.allclose(itc_magnitude, 1.0))
+        if phase_only:
+            itc_display = np.angle(np.asarray(itc)) / np.pi * 180.0  # phase in degrees
+            itc_vmin, itc_vmax, itc_title, itc_clip = -180.0, 180.0, "ITC phase", False
+        else:
+            # phase-sign colors the coherence magnitude by the sign of its imaginary part
+            itc_display = np.sign(np.imag(np.asarray(itc))) * itc_magnitude if plotphasesign else itc_magnitude
+            itc_vmin, itc_vmax = _itc_color_axis(itc_magnitude, itcmax)
+            itc_title, itc_clip = "ITC", True  # magnitude and phase-sign share a [0, max] colorbar
+        _draw_image_panel(
+            fig,
+            itc_display,
+            times,
+            freqs,
+            ordinate=itc_ordinate,
+            height=height,
+            vmin=itc_vmin,
+            vmax=itc_vmax,
+            significant=itc_significant,
+            baseval=0.0,
+            colorbar_title=itc_title,
+            vertical_markers=vertical_markers,
+            colorbar_positive_only=itc_clip,
+            pcontour=pcontour,
+        )
+        if erp is not None:
+            _draw_time_marginal(
+                fig,
+                ordinate=itc_ordinate - _MARGIN_SIZE,
+                times=times,
+                series=np.asarray(erp, dtype=float).reshape(1, -1),
+                ylabel="µV",
+                vertical_markers=vertical_markers,
+                value_limits=_marginal_erp_limits(erp),
+                zero_line=True,
+            )
+        itc_overlays = [np.asarray(itc_boot, dtype=float).reshape(-1)] if itc_boot is not None else []
+        mean_itc = np.nanmean(itc_magnitude, axis=1)
+        _draw_freq_marginal(
+            fig,
+            ordinate=itc_ordinate,
+            height=height,
+            freqs=freqs,
+            curve=mean_itc,
+            overlays=itc_overlays,
+            value_label="ERP",  # EEGLAB labels the marginal-ITC value axis 'ERP'
+            value_limits=_marginal_itc_limits(mean_itc, itc_boot),
+        )
+    if title:
+        x0, y0, _w0, h0 = _BASE_POS
+        fig.text(x0 - 0.039, y0 + 1.01 * h0, str(title), ha="left", va="bottom", fontsize=10, fontweight="bold")
+    if caption:
+        fig.text(0.5, 0.985, str(caption), ha="center", va="top", fontsize=11, fontweight="bold")
+    if topovec is not None and np.size(np.asarray(topovec)) > 0 and plotersp and plotitc:
+        _draw_scalp_inset(fig, topovec, elocs)
+    return fig
+
+
+def _ersp_color_axis(ersp: np.ndarray, erspmax: Any, baseval: float) -> tuple[float, float]:
+    """EEGLAB ERSP color limits: user ``erspmax`` or an auto symmetric scale."""
+    vmin, vmax = _color_limits(erspmax)
+    if vmax is not None:
+        return vmin, vmax
+    peak = float(np.nanmax(np.abs(ersp))) if np.size(ersp) else 0.0
+    if baseval == 1.0:  # abs power as % of baseline: EEGLAB centers the scale on 1
+        return (2.0 - peak, peak) if peak > 1.0 else (peak, 2.0 - peak)
+    half = peak / 2.0 if peak else 1.0
+    return -half, half
+
+
+def _itc_color_axis(itc: np.ndarray, itcmax: Any) -> tuple[float, float]:
+    """EEGLAB ITC color limits: symmetric about zero, capped at 1 when auto."""
+    vmin, vmax = _color_limits(itcmax)
+    if vmax is not None:
+        return vmin, vmax
+    peak = min(float(np.nanmax(np.abs(itc))), 1.0) if np.size(itc) else 1.0
+    peak = peak or 1.0
+    return -peak, peak
+
+
+def _draw_image_panel(
+    fig,
+    values: np.ndarray,
+    times: np.ndarray,
+    freqs: np.ndarray,
+    *,
+    ordinate: float,
+    height: float,
+    vmin: float,
+    vmax: float,
+    significant: np.ndarray | None,
+    baseval: float,
+    colorbar_title: str,
+    vertical_markers: np.ndarray | None,
+    colorbar_positive_only: bool = False,
+    pcontour: bool = False,
+):
+    axis = fig.add_axes(_axes_rect(0.1, ordinate, 0.8, height))
+    # Non-significant cells collapse to the baseline value (the symmetric jet scale
+    # renders it green); with pcontour they stay visible and significance is drawn
+    # as a contour outline instead (EEGLAB masks to baseval, not NaN).
+    array = values if significant is None or pcontour else np.where(significant, values, baseval)
+    image = axis.imshow(
+        array,
+        aspect="auto",
+        origin="lower",
+        extent=[times[0], times[-1], freqs[0], freqs[-1]],
+        interpolation="nearest",
+        cmap=_IMAGE_COLORMAP,
+        vmin=vmin,
+        vmax=vmax,
+    )
+    if significant is not None and pcontour:
+        # EEGLAB draws contour() on the binary mask with MATLAB's auto levels
+        # (0.1:0.1:1.0). On a 0/1 mask these ten lines fan out across one time-frequency
+        # cell, giving the bold banded outline EEGLAB shows; a single 0.5 level looks thin.
+        axis.contour(
+            times,
+            freqs,
+            np.asarray(significant, dtype=float),
+            levels=np.arange(1, 11) / 10.0,
+            colors="k",
+            linewidths=0.25,
+        )
+    axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)  # stimulus onset
+    if vertical_markers is not None:
+        for marker in np.asarray(vertical_markers, dtype=float).ravel():
+            axis.axvline(float(marker), color="m", linewidth=1.0)
+    axis.set_xlim(times[0], times[-1])  # keep the image span; the time-0 line is clipped if outside
+    # EEGLAB strips the image axes; the marginal panels carry the time/frequency labels.
+    axis.set_xticks([])
+    axis.set_yticks([])
+    colorbar_axis = fig.add_axes(_axes_rect(0.95, ordinate, 0.05, height))
+    fig.colorbar(image, cax=colorbar_axis)
+    if colorbar_positive_only:
+        colorbar_axis.set_ylim(0.0, vmax)
+    colorbar_axis.set_title(colorbar_title, fontsize=9)
+    return axis
+
+
+def _draw_time_marginal(
+    fig,
+    *,
+    ordinate: float,
+    times: np.ndarray,
+    series: np.ndarray,
+    ylabel: str,
+    vertical_markers: np.ndarray | None,
+    value_limits: tuple[float, float] | None = None,
+    zero_line: bool = False,
+):
+    """Draw curves below an image sharing its time axis (ERSP min/max, or the ERP)."""
+    axis = fig.add_axes(_axes_rect(0.1, ordinate, 0.8, _MARGIN_SIZE))
+    for row in np.atleast_2d(np.asarray(series, dtype=float)):
+        axis.plot(times, row, linewidth=1.0)
+    if zero_line:
+        axis.plot([times[0], times[-1]], [0.0, 0.0], color="k", linewidth=0.8)
+    axis.axvline(0.0, color="m", linestyle="--", linewidth=1.0)
+    if vertical_markers is not None:
+        for marker in np.asarray(vertical_markers, dtype=float).ravel():
+            axis.axvline(float(marker), color="m", linewidth=1.0)
+    axis.set_xlim(times[0], times[-1])
+    if value_limits is not None and value_limits[0] < value_limits[1]:
+        axis.set_ylim(value_limits)
+        _reduce_to_two_ticks(axis, "y")  # EEGLAB shows only the first and last tick
+    axis.set_xlabel("Time (ms)")
+    axis.set_ylabel(ylabel)
+    axis.yaxis.set_label_position("right")
+    axis.yaxis.tick_right()
+    return axis
+
+
+def _draw_freq_marginal(
+    fig,
+    *,
+    ordinate: float,
+    height: float,
+    freqs: np.ndarray,
+    curve: Any,
+    overlays: list[np.ndarray],
+    value_label: str,
+    value_limits: tuple[float, float] | None = None,
+    drop_last_tick: bool = False,
+):
+    """Draw a rotated marginal (value vs frequency) to the left of an image."""
+    axis = fig.add_axes(_axes_rect(0.0, ordinate, _MARGIN_SIZE, height))
+    values = _numeric_vector(curve)
+    if values.size == freqs.size and np.isfinite(values).any():
+        axis.plot(values, freqs, color="C0", linewidth=1.0)
+    for overlay in overlays:
+        overlay_values = np.asarray(overlay, dtype=float)
+        if overlay_values.size == freqs.size:
+            axis.plot(overlay_values, freqs, color="g", linewidth=1.0)
+            axis.plot(overlay_values, freqs, color="k", linestyle=":", linewidth=1.0)
+    if freqs[0] != freqs[-1]:
+        axis.set_ylim(freqs[0], freqs[-1])
+    if value_limits is not None and value_limits[0] < value_limits[1]:
+        axis.set_xlim(value_limits)
+        _reduce_to_two_ticks(axis, "x", drop_last=drop_last_tick)
+    axis.set_ylabel("Frequency (Hz)")
+    axis.set_xlabel(value_label)
+    return axis
+
+
+def _reduce_to_two_ticks(axis, which: str, *, drop_last: bool = False) -> None:
+    """Keep two ticks on a marginal value axis, EEGLAB-style.
+
+    Reproduces the tick values EEGLAB shows by picking candidate ticks with MATLAB's
+    1/2/5 steps (not matplotlib's 2.5) and keeping the first and last -- or first and
+    second-to-last for the spectrum panel (``drop_last``, EEGLAB's ``tick(end-1)``
+    quirk). The spectrum panel is sparser in EEGLAB, so it uses a coarser locator; both
+    tick counts were matched against EEGLAB ground truth across the ERSP, spectrum, ERP,
+    and marginal-ITC panels.
+    """
+    setter = axis.set_yticks if which == "y" else axis.set_xticks
+    lo, hi = sorted(axis.get_ylim() if which == "y" else axis.get_xlim())
+    locator = MaxNLocator(nbins=4 if drop_last else 6, steps=[1, 2, 5, 10])
+    ticks = [tick for tick in locator.tick_values(lo, hi) if lo - 1e-9 <= tick <= hi + 1e-9]
+    if len(ticks) <= 2:
+        if ticks:
+            setter(ticks)
+        return
+    setter([ticks[0], ticks[-2] if drop_last else ticks[-1]])
+
+
+def _marginal_extreme_limits(extremes: np.ndarray) -> tuple[float, float] | None:
+    """EEGLAB ``erspmarglim``: min/max curves padded by ``max|E|/3``."""
+    values = np.asarray(extremes, dtype=float)
+    if not np.isfinite(values).any():
+        return None
+    pad = float(np.nanmax(np.abs(values))) / 3.0
+    return float(np.nanmin(values[0]) - pad), float(np.nanmax(values[1]) + pad)
+
+
+def _marginal_spectrum_limits(spectrum: Any) -> tuple[float, float] | None:
+    """EEGLAB ``speclim``: baseline spectrum padded by ``max|mbase|/3``."""
+    values = _numeric_vector(spectrum)
+    if values.size == 0 or not np.isfinite(values).any():
+        return None
+    pad = float(np.nanmax(np.abs(values))) / 3.0
+    return float(np.nanmin(values) - pad), float(np.nanmax(values) + pad)
+
+
+def _marginal_erp_limits(erp: Any) -> tuple[float, float] | None:
+    """EEGLAB ``erplim``: ERP range padded by 10%."""
+    values = _numeric_vector(erp)
+    if values.size == 0 or not np.isfinite(values).any():
+        return None
+    low, high = float(np.nanmin(values)), float(np.nanmax(values))
+    pad = 0.1 * (high - low)
+    return low - pad, high + pad
+
+
+def _marginal_itc_limits(mean_itc: np.ndarray, itc_boot: Any) -> tuple[float, float]:
+    """EEGLAB ``itcavglim``: marginal ITC padded; upper bound from the bootstrap when present."""
+    values = _numeric_vector(mean_itc)
+    if values.size == 0 or not np.isfinite(values).any():
+        return -1.0, 1.0
+    low = float(np.nanmin(values) - np.nanmax(values) / 3.0)
+    if itc_boot is not None:
+        boot = _numeric_vector(itc_boot)
+        high = float(np.nanmax(boot) + np.nanmax(boot) / 3.0)
+    else:
+        high = float(np.nanmax(values) + np.nanmax(values) / 3.0)
+    if high == 0.0 or not np.isfinite(high) or not np.isfinite(low):
+        return -1.0, 1.0
+    return low, high
+
+
+def _spectrum_overlays(spectrum: Any, boot: Any, nfreq: int) -> list[np.ndarray]:
+    """Baseline-spectrum significance envelope: ``mbase + [lower, upper]`` thresholds."""
+    if spectrum is None or boot is None:
+        return []
+    values = _numeric_vector(spectrum)
+    boot_values = np.asarray(boot, dtype=float)
+    if values.size != nfreq or boot_values.ndim != 2 or boot_values.shape[0] != nfreq:
+        return []
+    return [values + boot_values[:, 0], values + boot_values[:, 1]]
+
+
+def _draw_scalp_inset(fig, topovec: Any, elocs: Any):
+    """Draw the channel/component scalp-map inset at EEGLAB's mid-left position."""
+    inset = fig.add_axes(_axes_rect(-0.1, 0.43, 0.2, 0.14))
+    values = np.asarray(topovec)
+    if values.size == 1:  # a single channel: blank head with its electrode marked
+        channel = int(values.flat[0])
+        topoplot(channel, elocs, axes=inset, style="blank", electrodes="off", title="")
+        _mark_electrode(inset, elocs, channel - 1)
+    else:  # an ICA component column: interpolated scalp map
+        topoplot(values, elocs, axes=inset, electrodes="off")
+    inset.set_aspect("equal")
+
+
+def _mark_electrode(axis, elocs: Any, index: int) -> None:
+    """Mark one electrode (EEGLAB's ``emarkersize1chan``) on a blank channel inset."""
+    if not (isinstance(elocs, (list, tuple)) and 0 <= index < len(elocs)):
+        return
+    loc = elocs[index]
+    theta, radius = loc.get("theta"), loc.get("radius")
+    if theta is None or radius is None:
+        return
+    try:
+        screen_x, screen_y = topo_screen_coords(float(theta), float(radius))
+    except (TypeError, ValueError):
+        return
+    axis.plot(screen_x, screen_y, marker="o", color="r", markersize=6, markeredgecolor="k", zorder=6)
+
+
+def _plot_curve_figure(
+    ersp: np.ndarray,
+    itc: np.ndarray,
+    times: np.ndarray,
+    freqs: np.ndarray,
+    *,
+    title: str,
+    plotersp: bool,
+    plotitc: bool,
+    ersp_significant: np.ndarray | None,
+    itc_significant: np.ndarray | None,
+    vertical_markers: np.ndarray | None,
+):
+    panels = int(plotersp) + int(plotitc)
+    fig, axes = plt.subplots(panels, 1, figsize=(7.5, 5.0), squeeze=False)
+    row = 0
+    if plotersp:
+        _plot_curve_panel(
+            axes[row, 0],
+            ersp,
+            times,
+            freqs,
             title=title,
-            label="ERSP",
-            plottype=plottype,
             significant=ersp_significant,
             vertical_markers=vertical_markers,
         )
         row += 1
     if plotitc:
-        _plot_panel(
+        _plot_curve_panel(
             axes[row, 0],
-            fig,
             itc,
             times,
             freqs,
             title="" if plotersp else title,
-            label="ITC",
-            plottype=plottype,
             significant=itc_significant,
-            vmin=0.0,
-            vmax=max(1.0, float(np.nanmax(itc))),
             vertical_markers=vertical_markers,
         )
     axes[panels - 1, 0].set_xlabel("Time (ms)")
@@ -554,43 +1031,23 @@ def _plot_time_frequency(
     return fig
 
 
-def _plot_panel(
+def _plot_curve_panel(
     axis,
-    figure,
     values: np.ndarray,
     times: np.ndarray,
     freqs: np.ndarray,
     *,
     title: str,
-    label: str,
-    plottype: str,
     significant: np.ndarray | None,
     vertical_markers: np.ndarray | None,
-    vmin: float | None = None,
-    vmax: float | None = None,
 ) -> None:
-    if plottype == "curve":
-        for freq_index, freq in enumerate(freqs):
-            line_values = values[freq_index]
-            if significant is not None:
-                line_values = np.where(significant[freq_index], line_values, np.nan)
-            axis.plot(times, line_values, label=f"{freq:g} Hz")
-        if freqs.size <= 12:
-            axis.legend(loc="best", fontsize="small")
-    elif plottype == "image":
-        image_values = values if significant is None else np.where(significant, values, np.nan)
-        image = axis.imshow(
-            image_values,
-            aspect="auto",
-            origin="lower",
-            extent=[times[0], times[-1], freqs[0], freqs[-1]],
-            interpolation="nearest",
-            vmin=vmin,
-            vmax=vmax,
-        )
-        figure.colorbar(image, ax=axis, label=label)
-    else:
-        raise ValueError("plottype must be 'image' or 'curve'")
+    for freq_index, freq in enumerate(freqs):
+        line_values = values[freq_index]
+        if significant is not None:
+            line_values = np.where(significant[freq_index], line_values, np.nan)
+        axis.plot(times, line_values, label=f"{freq:g} Hz")
+    if freqs.size <= 12:
+        axis.legend(loc="best", fontsize="small")
     if title:
         axis.set_title(title)
     if vertical_markers is not None:
@@ -610,6 +1067,20 @@ def _numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
 def _first_numeric(value: Any, default: float) -> float:
     values = _numeric_vector(value)
     return float(values[0]) if values.size else float(default)
+
+
+def _color_limits(value: Any) -> tuple[float | None, float | None]:
+    """Return symmetric ``(-m, m)`` limits from a scalar ``m``, or a ``[min, max]`` pair as is.
+
+    Empty or zero input returns ``(None, None)`` so the caller keeps auto limits.
+    """
+    values = _numeric_vector(value)
+    if values.size >= 2:
+        return float(values[0]), float(values[1])
+    if values.size == 0 or values[0] == 0:
+        return None, None
+    magnitude = abs(float(values[0]))
+    return -magnitude, magnitude
 
 
 __all__ = ["TimeFrequencyResult", "compute_time_frequency", "newtimef"]

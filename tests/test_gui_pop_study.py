@@ -1,4 +1,7 @@
 import ast
+import os
+
+import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.studyfunc.pop_study import pop_study, pop_study_dialog_spec
@@ -84,6 +87,43 @@ def test_pop_study_gui_updates_metadata_and_returns_python_history():
     assert namespace["ALLEEG"][0]["condition"] == "standard"
 
 
+def test_pop_study_gui_ignores_untouched_components_button_label():
+    study, alleeg = _study_inputs()
+    renderer = _Renderer(
+        {
+            "name": "Edited",
+            "task": "",
+            "notes": "",
+            "dataset_1_subject": "S02",
+            "dataset_1_components": "All comp.",
+        }
+    )
+
+    edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert edited["datasetinfo"][0]["subject"] == "S02"
+    assert "comps" not in command
+    ast.parse(command)
+
+
+def test_pop_study_gui_records_selected_components():
+    study, alleeg = _study_inputs()
+    renderer = _Renderer(
+        {
+            "name": "Study",
+            "task": "",
+            "notes": "",
+            "dataset_1_components": [1, 2],
+        }
+    )
+
+    edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert edited["datasetinfo"][0]["comps"] == [1, 2]
+    assert "'comps', [1, 2]" in command
+    ast.parse(command)
+
+
 def test_pop_study_gui_cancel_is_noop():
     study, alleeg = _study_inputs()
 
@@ -92,6 +132,64 @@ def test_pop_study_gui_cancel_is_noop():
     assert edited == study
     assert edited_alleeg == alleeg
     assert command == ""
+
+
+def test_pop_study_dialog_spec_handles_numpy_component_lists():
+    study, alleeg = _study_inputs()
+    study["datasetinfo"][0]["comps"] = np.array([1, 2, 3, 4])
+
+    spec = pop_study_dialog_spec(study, alleeg)
+    controls = controls_by_tag(spec)
+
+    assert controls["dataset_1_components"].string == "Comp.: 1 2 ..."
+    assert controls["dataset_1_components"].value == [1, 2, 3, 4]
+
+
+def test_pop_study_gui_clear_resets_components_to_all():
+    # The Clear button leaves an empty component list on the row; OK must accept it
+    # (comps=[] means all components, as in EEGLAB) instead of raising.
+    study, alleeg = _study_inputs()
+    study["datasetinfo"][0]["comps"] = [1, 2]
+    renderer = _Renderer({"name": "Study", "task": "", "notes": "", "dataset_1_components": []})
+
+    edited, _edited_alleeg, command = pop_study(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    assert edited["datasetinfo"][0]["comps"] == []
+    assert "'comps', []" in command
+    ast.parse(command)
+
+
+def test_pop_study_component_selection_propagates_to_same_recording_rows():
+    # EEGLAB pop_study applies a component selection to every dataset with the same
+    # subject, session, and run (they share one ICA decomposition).
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc.qt import _VALUE_PROPERTY, QtDialogRenderer, _require_qt
+
+    _qt_core, qt_widgets = _require_qt()
+    qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    datasets = []
+    for setname, subject, condition in (("a", "S01", "target"), ("b", "S01", "standard"), ("c", "S02", "target")):
+        eeg = create_test_eeg(n_channels=2, n_samples=10)
+        eeg.update(
+            {"setname": setname, "subject": subject, "session": 1, "condition": condition, "filename": f"{setname}.set"}
+        )
+        datasets.append(eeg)
+    study, alleeg = pop_study(None, datasets, name="Study")
+    controls = controls_by_tag(pop_study_dialog_spec(study, alleeg))
+    widgets = {}
+    for tag, control in controls.items():
+        if control.style == "edit":
+            widgets[tag] = qt_widgets.QLineEdit(str(control.value or ""))
+        elif control.style == "pushbutton":
+            widgets[tag] = qt_widgets.QPushButton(control.string)
+
+    QtDialogRenderer._apply_study_component_selection(widgets, controls["dataset_1_components"].callback.params, [1, 2])
+
+    assert widgets["dataset_1_components"].property(_VALUE_PROPERTY) == [1, 2]
+    assert widgets["dataset_2_components"].property(_VALUE_PROPERTY) == [1, 2]  # same subject/session/run
+    assert widgets["dataset_2_components"].text() == "Comp.: 1 2"
+    assert widgets["dataset_3_components"].property(_VALUE_PROPERTY) is None  # other subject: untouched
+    assert widgets["dataset_3_components"].text() == "All comp."
 
 
 def test_pop_studydesign_dialog_spec_lists_factors_and_current_design():

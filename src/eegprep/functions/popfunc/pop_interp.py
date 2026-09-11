@@ -248,8 +248,10 @@ def _warn_gui_interpolation() -> None:
 
 
 def _alleeg_chanlocs(alleeg: list[dict] | None) -> tuple[dict[str, Any], ...]:
+    # A deleted dataset stays an empty slot; keep it empty so the dialog can reject its number.
     return tuple(
-        {"chanlocs": tuple(copy.deepcopy(_chanlocs_as_list(dataset.get("chanlocs", []))))} for dataset in (alleeg or [])
+        {"chanlocs": tuple(copy.deepcopy(_chanlocs_as_list(dataset.get("chanlocs", []))))} if dataset else {}
+        for dataset in (alleeg or [])
     )
 
 
