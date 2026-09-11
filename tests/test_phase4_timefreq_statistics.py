@@ -223,6 +223,9 @@ def test_newtimef_supplied_powbase_shifts_ersp_by_db_offset():
     base0 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], powbase=np.zeros(nfreq), **common)
     base3 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], powbase=np.full(nfreq, 3.0), **common)
     np.testing.assert_allclose(base3.ersp, base0.ersp - 3.0, rtol=1e-6, atol=1e-6)
+    # the supplied dB spectrum round-trips (dB -> linear on input, linear -> dB on return)
+    np.testing.assert_allclose(base0.powbase, np.zeros(nfreq), atol=1e-9)
+    np.testing.assert_allclose(base3.powbase, np.full(nfreq, 3.0), rtol=1e-9)
 
 
 def test_newtimef_baseline_forms_control_powbase_units():
@@ -269,26 +272,24 @@ def test_newtimef_single_trial_itc_is_unity():
 
 
 def test_newtimef_supplied_1d_bootstrap_thresholds_flag_extremes():
-    # A 1-D erspboot supplies a symmetric per-frequency band and a 1-D itcboot an upper
-    # magnitude threshold; supplied limits bypass the bootstrap and mask by comparison.
+    # A 1-D erspboot supplies a symmetric per-frequency band and a 1-D itcboot an upper magnitude
+    # threshold; supplied limits bypass the bootstrap and mask by comparison. (The dB / symmetric-band
+    # reading of a 1-D vector is an EEGPrep convention; EEGLAB documents pboot as an (nfreqs, 2) array.)
     srate = 128
     trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
     common = dict(freqs=[6, 20], nfreqs=6, plot="off")
 
-    nfreq = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common).freqs.size
+    base = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common)
+    # per-frequency thresholds that straddle the data, so the masks are genuinely mixed
+    ersp_thresh = np.percentile(np.abs(base.ersp), 60, axis=1)
+    itc_thresh = np.percentile(np.abs(base.itc), 40, axis=1)
     result = newtimef(
-        trials,
-        256,
-        [0, 2000],
-        srate,
-        [3, 0.5],
-        alpha=0.05,
-        erspboot=np.full(nfreq, 0.5),
-        itcboot=np.full(nfreq, 0.3),
-        **common,
+        trials, 256, [0, 2000], srate, [3, 0.5], alpha=0.05, erspboot=ersp_thresh, itcboot=itc_thresh, **common
     )
-    np.testing.assert_array_equal(result.ersp_significant, np.abs(result.ersp) >= 0.5)
-    np.testing.assert_array_equal(result.itc_significant, np.abs(result.itc) >= 0.3)
+    np.testing.assert_array_equal(result.ersp_significant, np.abs(result.ersp) >= ersp_thresh[:, None])
+    np.testing.assert_array_equal(result.itc_significant, np.abs(result.itc) >= itc_thresh[:, None])
+    assert 0.0 < result.ersp_significant.mean() < 1.0  # mixed mask, not all-False/all-True
+    assert 0.0 < result.itc_significant.mean() < 1.0
 
 
 # --- timefreq numeric-parity regression guards (EEGLAB timefreq.m) ----------
@@ -1709,6 +1710,9 @@ def test_newtimef_matches_eeglab_ersp_itc_and_pvalues(tmp_path):
     np.testing.assert_allclose(result.ersp, matlab["P"], rtol=1e-6, atol=1e-6)  # ERSP (dB)
     np.testing.assert_allclose(result.itc, matlab["R"], rtol=1e-6, atol=1e-6)  # complex ITC
     np.testing.assert_allclose(py_pvals, matlab["pvals"], rtol=1e-12, atol=1e-12)  # two-sided compute_pvals
+    np.testing.assert_allclose(  # baseline spectrum in dB (EEGLAB mbase) -- the default log/baseline case
+        np.asarray(result.powbase).ravel(), np.asarray(matlab["mbase"]).ravel(), rtol=1e-6, atol=1e-6
+    )
 
 
 @pytest.mark.matlab
@@ -1933,6 +1937,8 @@ def test_bootstrap_itc_null_matches_eeglab_bootstat(tmp_path):
     # alignment, and ITC is recomputed. Bootstrap is random, so compare the converged
     # per-frequency null spread within a loose tolerance against real EEGLAB bootstat on
     # identical complex tf estimates (newtimef.m ITC path, phasecoher normalization).
+    # Note: naccu here counts full shuffles, whereas EEGLAB's dimaccu accumulates over time bins
+    # (~naccu/ntimes shuffles); the pooled distributions coincide, which is what this test checks.
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
         pytest.skip("MATLAB tests disabled via EEGPREP_SKIP_MATLAB")
     try:

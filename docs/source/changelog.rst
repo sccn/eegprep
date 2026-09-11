@@ -13,7 +13,9 @@ Unreleased
 - ``newtimef`` / ``pop_newtimef`` now return the baseline power spectrum (``powbase``) in dB for the
   default log power scale with a baseline, matching EEGLAB's ``mbase``; it was previously returned in
   absolute power. It stays in absolute power for absolute-scale, ``basenorm``, and ``trialbase`` runs
-  and when no baseline is used (as in EEGLAB), and the plotted figure is unchanged.
+  and when no baseline is used (as in EEGLAB), and the plotted figure is unchanged. ``std_precomp``
+  correspondingly caches the STUDY ``erspbase`` field in dB for its default log/baseline settings;
+  rerun precomputation with ``recompute='on'`` to refresh values cached by an earlier version.
 - ``pop_newtimef`` / ``newtimef`` now render EEGLAB's single-condition ERSP/ITC time-frequency
   figure. The ERSP and ITC images use a symmetric color axis, a stimulus-onset (time 0) marker,
   right-hand colorbars titled with the power unit, and the ``turbo`` colormap (EEGPrep's house
