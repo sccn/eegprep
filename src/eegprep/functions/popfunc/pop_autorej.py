@@ -22,6 +22,9 @@ from eegprep.functions.popfunc.pop_jointprob import pop_jointprob
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
 
+DEFAULT_STARTPROB = 5.0  # EEGLAB prunes back toward this value, not toward the requested startprob
+MAX_PRUNING_ROUNDS = 8
+
 
 def pop_autorej(
     EEG: dict[str, Any],
@@ -138,23 +141,35 @@ def _apply_one(
     rows = electrodes if process_data else icacomps
     work = out
     remaining = list(range(1, int(work.get("trials", 1) or 1) + 1))
+    # EEGLAB's loop: a pass rejects its flagged epochs only when they are fewer than
+    # maxrej percent of the remaining epochs, otherwise the threshold rises by 0.5 s.d.
+    # Once a pass flags nothing, the threshold walks back down toward DEFAULT_STARTPROB
+    # for at most MAX_PRUNING_ROUNDS rounds before the loop ends.
     limit = startprob
-    for _iteration in range(12):
-        work, _locthresh, _globthresh, _nrej = pop_jointprob(work, int(process_data), rows, limit, limit, 0, 0)
-        field = "rejjp" if process_data else "icarejjp"
-        marks = np.asarray((work.get("reject") or {}).get(field, []), dtype=bool)
-        current = (np.flatnonzero(marks) + 1).tolist()
-        if not current:
-            break
-        if len(current) / max(1, int(work.get("trials", 1))) <= maxrej / 100:
-            rejected.update(remaining[index - 1] for index in current)
-            work = pop_rejepoch(work, current, 0)
-            drop = set(current)
-            remaining = [value for index, value in enumerate(remaining, start=1) if index not in drop]
-            if int(work.get("trials", 1) or 1) <= 1:
-                break
+    numrej = 1  # forces the first probability pass
+    pruning_rounds = 0
+    while True:
+        if numrej > 0:
+            work, _locthresh, _globthresh, _nrej = pop_jointprob(work, int(process_data), rows, limit, limit, 0, 0)
+            field = "rejjp" if process_data else "icarejjp"
+            marks = np.asarray((work.get("reject") or {}).get(field, []), dtype=bool)
+            current = (np.flatnonzero(marks) + 1).tolist()
+            numrej = len(current)
+            if numrej / int(work.get("trials", 1)) >= maxrej / 100:
+                limit += 0.5
+            elif current:
+                rejected.update(remaining[index - 1] for index in current)
+                work = pop_rejepoch(work, current, 0)
+                drop = set(current)
+                remaining = [value for index, value in enumerate(remaining, start=1) if index not in drop]
+                if int(work.get("trials", 1) or 1) <= 1:
+                    break
+        elif limit > DEFAULT_STARTPROB and pruning_rounds < MAX_PRUNING_ROUNDS:
+            limit -= 0.5
+            numrej = 1
+            pruning_rounds += 1
         else:
-            limit += 0.5
+            break
     if int(work.get("trials", 1) or 1) > 1:
         work, _locthresh, _globthresh, _nrej = pop_rejkurt(work, int(process_data), rows, 6, 6, 0, 0)
         field = "rejkurt" if process_data else "icarejkurt"

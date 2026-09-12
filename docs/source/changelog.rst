@@ -10,6 +10,14 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
+  exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
+  percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is
+  raised instead), and once a pass flags nothing the threshold walks back down in
+  0.5 s.d. steps toward 5 s.d. for up to eight pruning rounds instead of stopping at the
+  first clean pass. The final kurtosis pass is applied in channel mode as well; EEGLAB
+  currently skips it there because it reads the component rejection field. Rejected
+  epochs on the epoched sample dataset now match ``tests/matlab/pop_autorej_reference.m``.
 - Deleting a dataset that belongs to a STUDY no longer shifts its STUDY metadata
   (subject, condition, group, session, run, and components) onto the following
   datasets. The deleted dataset's ``datasetinfo`` row is dropped together with its
