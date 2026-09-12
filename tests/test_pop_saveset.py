@@ -6,6 +6,7 @@ import numpy as np
 import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
+from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
 
@@ -69,6 +70,26 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_one_based_urevent_after_edit(self):
+        EEG = pop_loadset(os.path.join(local_url, 'eeglab_data.set'))
+        n_events = len(EEG['event'])
+        # Append values follow the dataset's field order: type, position, latency.
+        EEG = pop_editeventvals(EEG, "changefield", [2, "latency", 1.5], "append", [n_events, "new", 2, 100.0])
+        in_memory = [int(ev['urevent']) for ev in EEG['event']]
+        self.assertEqual(sorted(in_memory), list(range(n_events + 1)))  # 0-based, appended event gets 154
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'edited.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)
+            on_disk = [int(ev.urevent) for ev in saved['event']]
+            reloaded = pop_loadset(out)
+
+        self.assertEqual(on_disk, [value + 1 for value in in_memory])
+        self.assertEqual([int(ev['urevent']) for ev in reloaded['event']], in_memory)
+        for event in reloaded['event']:
+            self.assertEqual(reloaded['urevent'][int(event['urevent'])]['latency'], event['latency'])
 
     def test_saveset_writes_epoch_event_indices_one_based(self):
         src = os.path.join(local_url, 'eeglab_data_epochs_ica.set')

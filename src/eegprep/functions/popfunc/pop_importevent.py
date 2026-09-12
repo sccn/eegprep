@@ -80,8 +80,8 @@ def _events_with_existing_urevents(
         normalized = dict(event)
         urevent_index = _valid_urevent_index(normalized.get("urevent"), len(normalized_urevents))
         if urevent_index is None:
-            normalized_urevents.append(_urevent_record(normalized))
             urevent_index = len(normalized_urevents)
+            normalized_urevents.append(_urevent_record(normalized))
         normalized["urevent"] = urevent_index
         normalized_events.append(normalized)
     return normalized_events, normalized_urevents
@@ -93,7 +93,7 @@ def _events_with_new_urevents(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     normalized_events = []
     urevents = []
-    for index, event in enumerate(events, start=1):
+    for index, event in enumerate(events):
         urevent = _urevent_record(event)
         event_with_ref = dict(urevent)
         event_with_ref["urevent"] = offset + index
@@ -107,7 +107,7 @@ def _valid_urevent_index(value: Any, count: int) -> int | None:
         index = int(value)
     except (TypeError, ValueError):
         return None
-    return index if 1 <= index <= count else None
+    return index if 0 <= index < count else None
 
 
 def _urevent_record(event: dict[str, Any]) -> dict[str, Any]:

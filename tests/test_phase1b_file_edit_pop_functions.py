@@ -61,8 +61,8 @@ def _eeg(setname: str = "demo") -> dict:
         "urchanlocs": [],
         "chaninfo": {},
         "event": [
-            {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1},
-            {"type": "resp", "latency": 50.0, "duration": 0.0, "urevent": 2},
+            {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0},
+            {"type": "resp", "latency": 50.0, "duration": 0.0, "urevent": 1},
         ],
         "urevent": [
             {"type": "stim", "latency": 10.0, "duration": 0.0},
@@ -96,6 +96,7 @@ def test_pop_editeventfield_adds_renames_deletes_fields_and_updates_urevent():
     assert eeg["event"][0].get("condition") is None
     assert [event["condition"] for event in out["event"]] == ["target", "button"]
     assert out["urevent"][0]["condition"] == "target"
+    assert out["urevent"][1]["condition"] == "button"
     assert "pop_editeventfield" in command
     _assert_python_echo_is_parseable(command)
 
@@ -105,6 +106,31 @@ def test_pop_editeventfield_adds_renames_deletes_fields_and_updates_urevent():
 
     deleted = pop_editeventfield(renamed, "trialtype", [])
     assert "trialtype" not in deleted["event"][0]
+
+
+def test_pop_editeventfield_updates_urevent_pointed_to_by_loaded_event():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    values = [f"tag{index}" for index in range(len(eeg["event"]))]
+
+    out = pop_editeventfield(eeg, "tag", values)
+
+    for event in out["event"]:
+        assert out["urevent"][event["urevent"]]["tag"] == event["tag"]
+
+
+def test_pop_editeventvals_append_continues_zero_based_urevent_numbering():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    n_events = len(eeg["event"])
+    n_urevents = len(eeg["urevent"])
+
+    # Value list follows the dataset's field order: type, position, latency.
+    out = pop_editeventvals(eeg, "append", [n_events, "new", 2, 100.0])
+
+    assert len(out["event"]) == n_events + 1
+    new_event = next(event for event in out["event"] if event["type"] == "new")
+    assert new_event["urevent"] == n_urevents
+    assert len(out["urevent"]) == n_urevents + 1
+    assert out["urevent"][new_event["urevent"]]["type"] == "new"
 
 
 def test_pop_editeventvals_change_insert_delete_and_sort_events():
@@ -130,8 +156,8 @@ def test_pop_editeventvals_change_insert_delete_and_sort_events():
 
 def test_pop_editeventvals_insert_preserves_existing_urevent_links():
     eeg = _eeg()
-    eeg["event"][0]["urevent"] = 2
-    eeg["event"][1]["urevent"] = 1
+    eeg["event"][0]["urevent"] = 1
+    eeg["event"][1]["urevent"] = 0
     eeg["urevent"] = [
         {"type": "resp", "latency": 50.0, "duration": 0.0},
         {"type": "stim", "latency": 10.0, "duration": 0.0},
@@ -139,7 +165,7 @@ def test_pop_editeventvals_insert_preserves_existing_urevent_links():
 
     inserted = pop_editeventvals(eeg, "insert", [2, "new", 25.0, 0.0, 99])
 
-    assert [event["urevent"] for event in inserted["event"]] == [2, 3, 1]
+    assert [event["urevent"] for event in inserted["event"]] == [1, 2, 0]
     assert [event["type"] for event in inserted["urevent"]] == ["resp", "stim", "new"]
 
 
@@ -178,8 +204,8 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
     eeg["trials"] = 2
     eeg["times"] = np.arange(50, dtype=float)
     eeg["event"] = [
-        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1, "epoch": 1},
-        {"type": "resp", "latency": 60.0, "duration": 0.0, "urevent": 2, "epoch": 2},
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0, "epoch": 1},
+        {"type": "resp", "latency": 60.0, "duration": 0.0, "urevent": 1, "epoch": 2},
     ]
 
     out, selected = pop_selectevent(
@@ -201,7 +227,7 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
 
 def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
     eeg = _eeg()
-    eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 3})
+    eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 2})
     eeg["urevent"].append({"type": -99, "latency": 25.0, "duration": 0.0})
     old = EEG_OPTIONS["option_boundary99"]
     EEG_OPTIONS["option_boundary99"] = 1
@@ -228,7 +254,7 @@ def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
 
 def test_pop_rmdat_uses_numeric_boundary99_to_limit_windows():
     eeg = _eeg()
-    eeg["event"].insert(1, {"type": -99, "latency": 15.0, "duration": 0.0, "urevent": 3})
+    eeg["event"].insert(1, {"type": -99, "latency": 15.0, "duration": 0.0, "urevent": 2})
     old = EEG_OPTIONS["option_boundary99"]
     try:
         EEG_OPTIONS["option_boundary99"] = 1
@@ -244,8 +270,8 @@ def test_pop_rmdat_uses_numeric_boundary99_to_limit_windows():
 def test_pop_rmdat_matches_sorted_event_behavior_when_events_are_unsorted():
     unsorted_eeg = _eeg()
     unsorted_eeg["event"] = [
-        {"type": "stim", "latency": 50.0, "duration": 0.0, "urevent": 2},
-        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1},
+        {"type": "stim", "latency": 50.0, "duration": 0.0, "urevent": 1},
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0},
     ]
     sorted_eeg = deepcopy(unsorted_eeg)
     sorted_eeg["event"] = list(reversed(unsorted_eeg["event"]))

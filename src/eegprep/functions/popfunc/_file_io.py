@@ -34,6 +34,23 @@ def normalize_icachansind(value: Any, *, matlab_one_based: bool) -> np.ndarray:
     return indices.flatten().astype(int)
 
 
+def ur_indices_to_zero_based(EEG: dict[str, Any]) -> None:
+    """Convert MATLAB 1-based ``chanlocs.urchan`` and ``event.urevent`` pointers to 0-based in place.
+
+    Called before ``eeg_checkset`` (which derives ``epoch.eventurevent`` from
+    ``event.urevent``), so the fields may still be missing or empty.
+    """
+    chanlocs = EEG.get('chanlocs')
+    if chanlocs is not None and len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
+        for chanloc in chanlocs:
+            chanloc['urchan'] = chanloc['urchan'] - 1
+    events = EEG.get('event')
+    if events is not None and len(events) > 0 and 'urevent' in events[0]:
+        for event in events:
+            if 'urevent' in event and event['urevent'] is not None:
+                event['urevent'] = event['urevent'] - 1
+
+
 def infer_dataformat(filename: str | Path | None, dataformat: str | None = None) -> str:
     """Infer an EEGLAB-style import data format from a filename."""
     if dataformat and dataformat != "auto":

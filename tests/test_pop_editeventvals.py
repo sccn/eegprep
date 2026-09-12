@@ -13,6 +13,8 @@ from eegprep.functions.popfunc.pop_editeventvals import (
     _display_event_value,
     _display_field_label,
 )
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _epoched_eeg():
@@ -73,6 +75,21 @@ def test_epoched_latency_edit_round_trips_through_display():
     new_ms = 60.0
     out = pop_editeventvals(deepcopy(eeg), "changefield", [1, "latency", new_ms])
     assert _display_event_value(out, out["event"][0], "latency") == new_ms
+
+
+def test_changefield_updates_urevent_at_zero_based_pointer_of_loaded_event():
+    """event[k]['urevent'] is a 0-based index into EEG['urevent'] (eeglab_data.set: 0..153)."""
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    k = 1
+    pointer = eeg["event"][k]["urevent"]
+    assert pointer == k
+    untouched = deepcopy(eeg["urevent"][0])
+
+    out = pop_editeventvals(eeg, "changefield", [k + 1, "latency", 1.5])
+
+    assert out["event"][k]["latency"] == pytest.approx(1.5 * eeg["srate"] + 1)
+    assert out["urevent"][pointer]["latency"] == pytest.approx(out["event"][k]["latency"])
+    assert out["urevent"][0] == untouched
 
 
 def test_navigation_buttons_enabled_with_callbacks():

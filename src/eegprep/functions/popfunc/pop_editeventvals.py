@@ -184,7 +184,7 @@ def _change_field(
     urevents = events_as_list(output.get("urevent"))
     urevent = events[index].get("urevent")
     if not _is_empty(urevent):
-        urindex = int(urevent) - 1
+        urindex = int(urevent)
         if 0 <= urindex < len(urevents):
             urevents[urindex][field] = converted
             output["urevent"] = urevents
@@ -294,7 +294,7 @@ def _allocate_inserted_urevent(output: dict[str, Any], events: list[dict[str, An
         return
     urevents = events_as_list(output.get("urevent"))
     inserted = events[insert_position]
-    inserted["urevent"] = len(urevents) + 1
+    inserted["urevent"] = len(urevents)
     urevent = {field: deepcopy(value) for field, value in inserted.items() if field != "urevent"}
     urevents.append(urevent)
     output["urevent"] = urevents

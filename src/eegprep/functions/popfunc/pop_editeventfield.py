@@ -312,7 +312,7 @@ def _update_matching_urevent(output: dict[str, Any], event: dict[str, Any], fiel
         return
     urevents = events_as_list(output.get("urevent"))
     try:
-        index = int(urevent_index) - 1
+        index = int(urevent_index)
     except (TypeError, ValueError):
         return
     if 0 <= index < len(urevents):

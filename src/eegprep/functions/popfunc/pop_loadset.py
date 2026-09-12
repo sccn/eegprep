@@ -8,7 +8,7 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
-from eegprep.functions.popfunc._file_io import normalize_icachansind
+from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
@@ -118,16 +118,9 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 
-    chanlocs = EEG.get('chanlocs', default_empty)
-    if len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
-        for i in range(len(chanlocs)):
-            chanlocs[i]['urchan'] = chanlocs[i]['urchan'] - 1
-
-    event = EEG.get('event', default_empty)
-    if len(event) > 0 and 'urevent' in event[0]:
-        for i in range(len(event)):
-            if 'urevent' in event[i] and event[i]['urevent'] is not None:
-                event[i]['urevent'] = event[i]['urevent'] - 1
+    # pop_loadset_h5 already did this.
+    if not loaded_with_h5:
+        ur_indices_to_zero_based(EEG)
 
     EEG = eeg_checkset(EEG)
     EEG.pop("changes_not_saved", None)

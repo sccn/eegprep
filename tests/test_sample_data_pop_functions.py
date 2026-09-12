@@ -477,6 +477,10 @@ def test_pop_expevents_writes_all_sample_events(tmp_path, sample_eeg):
     assert lines[0] == "latency\tposition\ttype\turevent"
     assert len(lines) == len(sample_eeg["event"]) + 1
     assert "square" in lines[1]
+    # Exported urevent is 1-based like EEGLAB; in memory it is 0-based.
+    exported_urevents = [int(line.split("\t")[3]) for line in lines[1:]]
+    assert exported_urevents == [int(event["urevent"]) + 1 for event in sample_eeg["event"]]
+    assert exported_urevents[0] == 1
     assert "pop_expevents" in command
 
 

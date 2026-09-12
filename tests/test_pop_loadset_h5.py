@@ -560,6 +560,20 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
         eeg_compare(EEG1, EEG2)
 
+    def test_direct_call_returns_zero_based_urevent_and_urchan(self):
+        direct = pop_loadset_h5('sample_data/eeglab_data_hdf5.set')
+        via_loadset = pop_loadset('sample_data/eeglab_data_hdf5.set')
+        from_set = pop_loadset('sample_data/eeglab_data.set')
+
+        urevents = [int(event['urevent']) for event in direct['event']]
+        self.assertEqual(urevents, list(range(len(direct['urevent']))))
+        self.assertEqual(urevents, [int(event['urevent']) for event in via_loadset['event']])
+        self.assertEqual(urevents, [int(event['urevent']) for event in from_set['event']])
+        urchans = [int(chan['urchan']) for chan in direct['chanlocs']]
+        self.assertEqual(urchans, list(range(direct['nbchan'])))
+        self.assertEqual(urchans, [int(chan['urchan']) for chan in via_loadset['chanlocs']])
+        self.assertEqual(urchans, [int(chan['urchan']) for chan in from_set['chanlocs']])
+
 
 if __name__ == '__main__':
     # test test_load_epoched_data only
