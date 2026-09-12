@@ -476,6 +476,11 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Deleting a dataset that belongs to a STUDY no longer shifts its STUDY metadata
+(subject, condition, group, session, run, and components) onto the following
+datasets. The deleted dataset’s <code class="docutils literal notranslate"><span class="pre">datasetinfo</span></code> row is dropped together with its
+<code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> slot, as EEGLAB’s <code class="docutils literal notranslate"><span class="pre">std_editset</span></code> does, so <code class="docutils literal notranslate"><span class="pre">std_checkset</span></code> and the STUDY
+editor keep each dataset’s metadata with that dataset.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">newtimef</span></code> / <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> now return the baseline power spectrum (<code class="docutils literal notranslate"><span class="pre">powbase</span></code>) in dB for the
 default log power scale with a baseline, matching EEGLAB’s <code class="docutils literal notranslate"><span class="pre">mbase</span></code>; it was previously returned in
 absolute power. It stays in absolute power for absolute-scale, <code class="docutils literal notranslate"><span class="pre">basenorm</span></code>, and <code class="docutils literal notranslate"><span class="pre">trialbase</span></code> runs

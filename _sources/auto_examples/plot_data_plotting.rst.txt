@@ -212,7 +212,7 @@ d. Time-frequency -- Plot > Time-frequency transforms > Channel time-frequency
  .. code-block:: none
 
     ERSP (45, 200) ITC (45, 200) freqs 6.0-50.0 Hz
-    FDR-masked bins: ERSP 428, ITC 19
+    FDR-masked bins: ERSP 387, ITC 0
     curve mode ERSP (3, 200) at freqs [5.0, 10.0, 20.0]
 
 
@@ -261,7 +261,7 @@ e. ICA components -- Plot > Component spectra/maps/ERPs/ERP image/time-frequency
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.714 seconds)
+   **Total running time of the script:** (0 minutes 5.063 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_plotting.py:

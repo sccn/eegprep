@@ -640,8 +640,8 @@ is not possible: the selection falls back to a remaining dataset, as EEGLAB’s
 redraw does.</p></li>
 <li><p>Building a STUDY needs contiguous dataset numbers, so creating or editing one
 compacts the empty slots away and renumbers the remaining datasets. EEGLAB’s
-<code class="docutils literal notranslate"><span class="pre">std_editset</span></code> does the same. Your selection follows the dataset it was on
-rather than the number. Editing a STUDY design, precomputing measures, and
+<code class="docutils literal notranslate"><span class="pre">std_editset</span></code> does the same. Each dataset keeps its own STUDY metadata, and
+your selection follows the dataset it was on rather than the number. Editing a STUDY design, precomputing measures, and
 preclustering leave <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> untouched, as in EEGLAB.</p></li>
 </ul>
 <p>Two deliberate differences from EEGLAB:</p>

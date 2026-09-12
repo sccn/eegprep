@@ -106,8 +106,8 @@ Practical rules:
   redraw does.
 * Building a STUDY needs contiguous dataset numbers, so creating or editing one
   compacts the empty slots away and renumbers the remaining datasets. EEGLAB's
-  ``std_editset`` does the same. Your selection follows the dataset it was on
-  rather than the number. Editing a STUDY design, precomputing measures, and
+  ``std_editset`` does the same. Each dataset keeps its own STUDY metadata, and
+  your selection follows the dataset it was on rather than the number. Editing a STUDY design, precomputing measures, and
   preclustering leave ``ALLEEG`` untouched, as in EEGLAB.
 
 Two deliberate differences from EEGLAB:
