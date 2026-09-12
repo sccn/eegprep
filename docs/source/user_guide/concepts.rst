@@ -106,8 +106,8 @@ Practical rules:
   redraw does.
 * Building a STUDY needs contiguous dataset numbers, so creating or editing one
   compacts the empty slots away and renumbers the remaining datasets. EEGLAB's
-  ``std_editset`` does the same. Your selection follows the dataset it was on
-  rather than the number. Editing a STUDY design, precomputing measures, and
+  ``std_editset`` does the same. Each dataset keeps its own STUDY metadata, and
+  your selection follows the dataset it was on rather than the number. Editing a STUDY design, precomputing measures, and
   preclustering leave ``ALLEEG`` untouched, as in EEGLAB.
 
 Two deliberate differences from EEGLAB:
@@ -117,6 +117,9 @@ Two deliberate differences from EEGLAB:
   Staying near the deleted dataset is friendlier when you delete from a long list.
 * EEGLAB refuses to delete when only one dataset is loaded and tells you to clear
   all datasets instead. EEGPrep deletes it and leaves an empty ``ALLEEG``.
+* ``pop_saveset`` writes the MATLAB classes EEGLAB expects: integer fields
+  become ``double``, boolean masks stay ``logical``, and ``epoch`` event fields
+  are cell arrays when any epoch holds more than one event.
 
 For epoched data, ``EEG["data"][:, :, trial_index]`` is zero-based Python
 indexing. User-facing epoch and component selectors in GUI dialogs use

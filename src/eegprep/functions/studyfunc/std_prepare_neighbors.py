@@ -9,7 +9,7 @@ import numpy as np
 
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs
+from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study, merged_chanlocs
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -32,7 +32,7 @@ def std_prepare_neighbors(
     neighbordist = options.pop("neighbordist", neighbordist)
     if options:
         raise ValueError(f"Unknown std_prepare_neighbors option(s): {', '.join(sorted(options))}")
-    study, datasets = std_checkset(ensure_study(STUDY), as_alleeg_list(ALLEEG))
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     if not is_on(force) and not _study_requests_neighbors(study):
         neighbors: list[dict[str, Any]] = []
         limostruct = {"expected_chanlocs": [], "channeighbstructmat": np.empty((0, 0), dtype=int)}

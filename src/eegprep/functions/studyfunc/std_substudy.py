@@ -11,10 +11,8 @@ from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.studyfunc._cluster_utils import sets_array
 from eegprep.functions.studyfunc._study_utils import (
     _empty_value,
-    as_alleeg_list,
     build_python_call,
-    ensure_study,
-    sync_datasetinfo,
+    sync_study_datasets,
 )
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc.std_rmalldatafields import std_rmalldatafields
@@ -41,8 +39,7 @@ def std_substudy(
     rmdat = options.pop("rmdat", rmdat)
     if options:
         raise ValueError(f"Unknown std_substudy option(s): {', '.join(sorted(options))}")
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     infos = [info for info in study.get("datasetinfo") or [] if isinstance(info, dict)]
     keep = _kept_dataset_indices(infos, len(datasets), dataset, subject, condition, group)
     if not keep:

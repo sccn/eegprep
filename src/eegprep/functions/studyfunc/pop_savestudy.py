@@ -11,7 +11,7 @@ from eegprep.functions.popfunc._file_io import write_json
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -42,8 +42,8 @@ def pop_savestudy(
     if resavedatasets not in {"on", "off"}:
         raise ValueError("resavedatasets must be 'on' or 'off'")
 
-    datasets = [deepcopy(eeg) for eeg in as_alleeg_list(EEG)] if EEG is not None else []
-    study, _datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), EEG)
+    datasets = [deepcopy(eeg) for eeg in datasets]
     path = _save_path(study, filename, filepath, savemode=savemode)
     path.parent.mkdir(parents=True, exist_ok=True)
     if resavedatasets == "on":

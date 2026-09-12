@@ -9,10 +9,8 @@ import numpy as np
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
     _empty_value,
-    as_alleeg_list,
     build_python_call,
-    ensure_study,
-    sync_datasetinfo,
+    sync_study_datasets,
 )
 from eegprep.functions.studyfunc.std_substudy import std_substudy
 
@@ -48,8 +46,7 @@ def std_rmdat(
     keepvarvalues = options.pop("keepvarvalues", keepvarvalues)
     if options:
         raise ValueError(f"Unknown std_rmdat option(s): {', '.join(sorted(options))}")
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     infos = [info for info in study.get("datasetinfo") or [] if isinstance(info, dict)]
     total = max(len(datasets), len(infos))
     remove = set(_index_values(datinds, total))

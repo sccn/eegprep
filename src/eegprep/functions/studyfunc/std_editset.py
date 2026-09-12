@@ -9,11 +9,10 @@ from typing import Any
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.studyfunc._study_utils import (
-    as_alleeg_list,
     build_python_call,
-    ensure_study,
     parse_optional_int_text,
     sync_datasetinfo,
+    sync_study_datasets,
 )
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
@@ -33,8 +32,8 @@ def std_editset(
     **kwargs: Any,
 ) -> Any:
     """Modify STUDY metadata and datasetinfo entries."""
-    datasets = [deepcopy(eeg) for eeg in as_alleeg_list(ALLEEG)]
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
+    datasets = [deepcopy(eeg) for eeg in datasets]
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     name = options.pop("name", name)
     task = options.pop("task", task)

@@ -67,21 +67,42 @@ MEASURE_X_AXIS_FIELDS = {"erp": "erptimes", "spec": "specfreqs", "ersp": "erspti
 MEASURE_Y_AXIS_FIELDS = {"ersp": "erspfreqs", "itc": "itcfreqs"}
 
 
-def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
-    """Return ``ALLEEG`` as a list of EEG dictionaries without deleted (empty) slots.
-
-    A STUDY needs contiguous dataset numbers, so deleted slots are compacted away here.
-    EEGLAB's ``std_editset`` also removes blank datasets and renumbers
-    ``datasetinfo.index``, though it keys the removal on both the dataset and its
-    ``datasetinfo`` entry being empty.
-    """
+def _alleeg_slots(ALLEEG: Any) -> list[dict[str, Any]]:
+    """Return ``ALLEEG`` as a list of slots, keeping deleted (empty ``{}``) slots in place."""
     if ALLEEG is None:
         return []
     if isinstance(ALLEEG, dict):
         return [ALLEEG]
     if not isinstance(ALLEEG, list) or not all(isinstance(item, dict) for item in ALLEEG):
         raise TypeError("ALLEEG must be a list of EEG dataset dictionaries")
-    return [item for item in ALLEEG if item]
+    return list(ALLEEG)
+
+
+def as_alleeg_list(ALLEEG: Any) -> list[dict[str, Any]]:
+    """Return ``ALLEEG`` as a list of EEG dictionaries without deleted (empty) slots.
+
+    A STUDY needs contiguous dataset numbers, so deleted slots are compacted away here.
+    Use :func:`sync_study_datasets` when ``STUDY.datasetinfo`` must follow the compaction.
+    """
+    return [slot for slot in _alleeg_slots(ALLEEG) if slot]
+
+
+def sync_study_datasets(STUDY: Any, ALLEEG: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Return the STUDY with ``datasetinfo`` synchronized to the loaded datasets.
+
+    A dataset deleted from the workspace leaves an empty ``ALLEEG`` slot. While
+    ``datasetinfo`` still has one row per slot, the row of each deleted slot is dropped
+    together with the slot, so the metadata of the remaining datasets stays with them
+    instead of shifting onto the next dataset. EEGLAB's ``std_editset`` removes the two
+    arrays together the same way.
+    """
+    study = ensure_study(STUDY)
+    slots = _alleeg_slots(ALLEEG)
+    existing = _datasetinfo_list(study.get("datasetinfo"))
+    if len(existing) == len(slots) and not all(slots):
+        study["datasetinfo"] = [info for info, slot in zip(existing, slots) if slot]
+    datasets = [slot for slot in slots if slot]
+    return sync_datasetinfo(study, datasets), datasets
 
 
 def merged_chanlocs(datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:

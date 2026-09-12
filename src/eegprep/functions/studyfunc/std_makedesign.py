@@ -8,13 +8,11 @@ from typing import Any
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.studyfunc._study_utils import (
     _empty_value,
-    as_alleeg_list,
     available_variables,
     build_python_call,
-    ensure_study,
     parse_design_values,
     store_consistency,
-    sync_datasetinfo,
+    sync_study_datasets,
     variable_values,
 )
 from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
@@ -54,8 +52,7 @@ def std_makedesign(
     change, while ``'off'`` preserves any precomputed ``changrp``/``cluster``
     measures attached to the redefined design.
     """
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     name = options.pop("name", name)
     variable1 = options.pop("variable1", variable1)

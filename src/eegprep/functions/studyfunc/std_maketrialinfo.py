@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, ensure_study, sync_datasetinfo, trialinfo_from_eeg
+from eegprep.functions.studyfunc._study_utils import sync_study_datasets, trialinfo_from_eeg
 
 
 EVENT_TRIALINFO_EXCLUDE = {"latency", "urevent", "epoch"}
@@ -18,8 +18,7 @@ def std_maketrialinfo(
     ALLEEG: list[dict[str, Any]] | None,
 ) -> tuple[dict[str, Any], list[list[dict[str, Any]]]]:
     """Populate ``STUDY.datasetinfo[*].trialinfo`` from loaded EEG metadata."""
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     alltrialinfo: list[list[dict[str, Any]]] = []
     for index, eeg in enumerate(datasets):
         rows = trialinfo_from_eeg(eeg)
