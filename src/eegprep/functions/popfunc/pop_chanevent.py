@@ -36,10 +36,19 @@ def pop_chanevent(
     events = []
     for channel in channels:
         x = data[channel - 1, :]
+        nbtype = options.get("nbtype", np.nan)
+        named_type = not _is_nan(nbtype) or np.unique(x).size == 2
         if "oper" in options and options["oper"]:
             x = _apply_oper(x, str(options["oper"]))
         events.extend(
-            _events_from_channel(x, channel, edge=edge, duration=duration, edgelen=int(options.get("edgelen", 1)))
+            _events_from_channel(
+                x,
+                edge=edge,
+                duration=duration,
+                edgelen=int(options.get("edgelen", 1)),
+                typename=str(options.get("typename", f"chan{channel}")),
+                named_type=named_type,
+            )
         )
     out = deepcopy(EEG)
     delete_events = str(options.get("delevent", "on")).lower() in {"on", "yes", "true", "1"}
@@ -72,23 +81,35 @@ def pop_chanevent(
 
 
 def _events_from_channel(
-    x: np.ndarray, channel: int, *, edge: str, duration: bool, edgelen: int
+    x: np.ndarray,
+    *,
+    edge: str,
+    duration: bool,
+    edgelen: int,
+    typename: str,
+    named_type: bool,
 ) -> list[dict[str, Any]]:
     values = np.asarray(x)
-    diff = np.diff(np.r_[values, values[-1]])
-    leading = np.flatnonzero(diff > 0) + 1
-    trailing = np.flatnonzero(diff < 0) + 2
+    diff = np.diff(np.abs(np.r_[values, values[-1]]))
+    leading = _keep_first_of_close(np.flatnonzero(diff > 0) + 1, edgelen)
+    trailing = _keep_last_of_close(np.flatnonzero(diff < 0) + 2, edgelen)
     if edge == "leading":
-        latencies = _drop_close(leading, edgelen)
+        latencies = leading
     elif edge == "trailing":
-        latencies = _drop_close(trailing, edgelen)
+        latencies = trailing
     else:
-        latencies = np.sort(np.r_[_drop_close(leading, edgelen), _drop_close(trailing, edgelen)])
+        latencies = np.sort(np.r_[leading, trailing])
     events = []
     for latency in latencies:
-        event = {"type": f"chan{channel}", "latency": int(latency)}
+        if edge == "both":
+            event_edge = "trailing" if latency in trailing else "leading"
+        else:
+            event_edge = edge
+        event_type = typename if named_type else _event_value(values, int(latency), event_edge)
+        event = {"type": event_type, "latency": int(latency)}
         if duration:
-            next_trailing = trailing[trailing >= latency]
+            falling_boundaries = trailing - 1
+            next_trailing = falling_boundaries[falling_boundaries >= latency]
             event["duration"] = int(next_trailing[0] - latency) if next_trailing.size else int(values.size - latency)
         events.append(event)
     return events
@@ -140,14 +161,29 @@ def _urevent_record(event: dict[str, Any]) -> dict[str, Any]:
     return record
 
 
-def _drop_close(values: np.ndarray, edgelen: int) -> np.ndarray:
+def _keep_first_of_close(values: np.ndarray, edgelen: int) -> np.ndarray:
     if values.size < 2 or edgelen <= 1:
         return values
-    keep = [values[0]]
-    for value in values[1:]:
-        if value - keep[-1] >= edgelen:
-            keep.append(value)
-    return np.asarray(keep, dtype=int)
+    return values[np.r_[True, np.diff(values) >= edgelen]]
+
+
+def _keep_last_of_close(values: np.ndarray, edgelen: int) -> np.ndarray:
+    if values.size < 2 or edgelen <= 1:
+        return values
+    return values[np.r_[np.diff(values) >= edgelen, True]]
+
+
+def _event_value(values: np.ndarray, latency: int, edge: str) -> Any:
+    if edge == "leading":
+        return values[latency].item()
+    return values[latency - 2].item()
+
+
+def _is_nan(value: Any) -> bool:
+    try:
+        return bool(np.isnan(value))
+    except TypeError:
+        return False
 
 
 def _apply_oper(x: np.ndarray, oper: str) -> np.ndarray:

@@ -12,7 +12,11 @@ Usage:
 ```python
 EEG = pop_fileio("recording.vhdr")
 EEG, com = pop_fileio("recording.edf", return_com=True)
+EEG = pop_fileio("recording.bdf", blockrange=[10, 20])
 ```
+
+For MNE-backed continuous formats, `blockrange=[start, stop]` imports a
+half-open interval measured in seconds.
 
 Use the more specific File menu entries when you want format-specific file
 filters in the GUI.
