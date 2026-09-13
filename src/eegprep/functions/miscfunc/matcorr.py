@@ -7,6 +7,8 @@ from typing import Any
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from ._validation import real_array
+
 
 def matcorr(
     first: Any,
@@ -21,8 +23,8 @@ def matcorr(
     approximation), and ``2`` (successive maximum correlation). Returned row
     indices are zero-based. Rectangular inputs return ``min(rows)`` unique pairs.
     """
-    left = np.asarray(first, dtype=float)
-    right = np.asarray(second, dtype=float)
+    left = real_array(first, "first")
+    right = real_array(second, "second")
     if left.ndim != 2 or right.ndim != 2 or left.shape[1] != right.shape[1]:
         raise ValueError("input matrices must be 2-D with the same number of columns")
     if remove_mean:
@@ -45,7 +47,7 @@ def _cosine_rows(left: np.ndarray, right: np.ndarray) -> np.ndarray:
 def _apply_weighting(correlations: np.ndarray, weighting: Any | None) -> np.ndarray:
     if weighting is None:
         return correlations
-    weights = np.asarray(weighting, dtype=float)
+    weights = real_array(weighting, "weighting")
     if weights.size == 0 or np.linalg.norm(weights) == 0:
         return correlations
     if weights.shape != correlations.shape:

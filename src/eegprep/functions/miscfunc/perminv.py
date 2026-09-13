@@ -6,10 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import integer_array
+
 
 def perminv(permutation: Any) -> np.ndarray:
     """Return the inverse of a zero-based permutation vector."""
-    values = np.asarray(permutation, dtype=int)
+    values = integer_array(permutation, "permutation")
     if values.ndim != 1:
         raise ValueError("permutation must be one-dimensional")
     if np.unique(values).size != values.size or np.any(np.sort(values) != np.arange(values.size)):

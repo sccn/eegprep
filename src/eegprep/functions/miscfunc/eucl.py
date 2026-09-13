@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+
+from ._validation import real_array
 from scipy.spatial.distance import cdist, pdist, squareform
 
 
@@ -30,7 +32,7 @@ def eucl(coordinates: Any, other: Any | None = None) -> np.ndarray | float:
 
 
 def _points(value: Any) -> np.ndarray:
-    points = np.asarray(value, dtype=float)
+    points = real_array(value, "coordinates")
     if points.ndim == 1:
         points = points.reshape(1, -1)
     if points.ndim != 2:

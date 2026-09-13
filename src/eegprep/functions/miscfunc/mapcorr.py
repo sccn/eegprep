@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import real_array
 from .matcorr import _apply_weighting, _cosine_rows, _match_correlations
 
 
@@ -20,17 +21,23 @@ def mapcorr(
     weighting: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Match rows after aligning map columns by common channel labels."""
-    left = np.asarray(first, dtype=float)
-    right = np.asarray(second, dtype=float)
+    left = real_array(first, "first")
+    right = real_array(second, "second")
     if left.ndim != 2 or right.ndim != 2:
         raise ValueError("map matrices must be 2-D")
     if left.shape[1] != len(first_channels) or right.shape[1] != len(second_channels):
         raise ValueError("channel-location counts must match map columns")
-    right_by_label = {str(channel.get("labels", "")): index for index, channel in enumerate(second_channels)}
+    left_labels = [str(channel.get("labels", "")).strip() for channel in first_channels]
+    right_labels = [str(channel.get("labels", "")).strip() for channel in second_channels]
+    if not all(left_labels) or not all(right_labels):
+        raise ValueError("channel labels must be nonempty")
+    if len(set(left_labels)) != len(left_labels) or len(set(right_labels)) != len(right_labels):
+        raise ValueError("channel labels must be unique within each map")
+    right_by_label = {label: index for index, label in enumerate(right_labels)}
     left_indices: list[int] = []
     right_indices: list[int] = []
     for left_index, channel in enumerate(first_channels):
-        label = str(channel.get("labels", ""))
+        label = left_labels[left_index]
         if label in right_by_label:
             left_indices.append(left_index)
             right_indices.append(right_by_label[label])

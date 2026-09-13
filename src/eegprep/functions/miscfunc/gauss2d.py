@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._validation import integer_scalar
+
 
 def gauss2d(
     rows: int,
@@ -37,7 +39,7 @@ def gauss2d(
 
 
 def _positive_shape(rows: int, columns: int) -> tuple[int, int]:
-    shape = int(rows), int(columns)
+    shape = integer_scalar(rows, "rows"), integer_scalar(columns, "columns")
     if shape[0] < 1 or shape[1] < 1:
         raise ValueError("kernel dimensions must be positive")
     return shape

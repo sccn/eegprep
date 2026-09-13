@@ -5,16 +5,22 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
+from ._validation import integer_scalar
 
-def scanfold(folder: str | Path, ignore: Iterable[str] = (), max_depth: int = 100) -> tuple[list[str], str]:
+
+def scanfold(
+    folder: str | Path, ignore: Iterable[str] | str | Path = (), max_depth: int = 100
+) -> tuple[list[str], str]:
     """Return MATLAB filenames below ``folder`` and EEGLAB's ``-a`` text."""
     root = Path(folder)
     if not root.is_dir():
         raise NotADirectoryError(root)
-    if max_depth < 0:
+    depth = integer_scalar(max_depth, "max_depth")
+    if depth < 0:
         raise ValueError("max_depth must be nonnegative")
-    ignored = {str(name).casefold() for name in ignore}
-    filenames = _scan(root, ignored, max_depth)
+    ignore_names = [ignore] if isinstance(ignore, (str, Path)) else ignore
+    ignored = {str(name).casefold() for name in ignore_names}
+    filenames = _scan(root, ignored, depth)
     return filenames, "".join(f" -a {name}" for name in filenames)
 
 

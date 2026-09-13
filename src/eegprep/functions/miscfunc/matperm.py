@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import integer_array, real_array
+
 
 def matperm(
     first: Any, second: Any, first_indices: Any, second_indices: Any, correlations: Any
@@ -13,9 +15,9 @@ def matperm(
     """Reorder and sign-correct rows of ``first`` into ``second`` row order."""
     left = np.asarray(first)
     right = np.asarray(second)
-    rows = np.asarray(first_indices, dtype=int).reshape(-1)
-    destinations = np.asarray(second_indices, dtype=int).reshape(-1)
-    values = np.asarray(correlations, dtype=float).reshape(-1)
+    rows = integer_array(first_indices, "first_indices").reshape(-1)
+    destinations = integer_array(second_indices, "second_indices").reshape(-1)
+    values = real_array(correlations, "correlations").reshape(-1)
     if left.ndim != 2 or right.ndim != 2 or left.shape[1] != right.shape[1]:
         raise ValueError("input matrices must be 2-D with the same number of columns")
     if not (rows.size == destinations.size == values.size):

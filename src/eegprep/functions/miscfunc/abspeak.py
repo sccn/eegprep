@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import integer_scalar
+
 
 def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return absolute peaks, zero-based frames, and signs for each epoch.
@@ -18,7 +20,9 @@ def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray,
     if values.ndim != 2:
         raise ValueError("data must be a 2-D channel-by-frame array")
     total_frames = values.shape[1]
-    epoch_frames = total_frames if frames_per_epoch in {None, 0} else int(frames_per_epoch)
+    epoch_frames = total_frames if frames_per_epoch is None else integer_scalar(frames_per_epoch, "frames_per_epoch")
+    if epoch_frames == 0:
+        epoch_frames = total_frames
     if epoch_frames <= 0 or total_frames % epoch_frames:
         raise ValueError("frames_per_epoch must be positive and divide the data length")
 
@@ -26,7 +30,7 @@ def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray,
     reshaped = values.reshape(values.shape[0], epochs, epoch_frames)
     amplitudes = np.empty((values.shape[0], epochs), dtype=float)
     frames = np.full((values.shape[0], epochs), -1, dtype=int)
-    signs = np.empty((values.shape[0], epochs), dtype=float)
+    signs = np.empty((values.shape[0], epochs), dtype=np.result_type(values.dtype, float))
     for channel in range(values.shape[0]):
         for epoch in range(epochs):
             row = reshaped[channel, epoch]
@@ -39,8 +43,21 @@ def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray,
             frame = int(np.flatnonzero(valid & (np.abs(row) == peak))[-1])
             amplitudes[channel, epoch] = peak
             frames[channel, epoch] = frame
-            signs[channel, epoch] = np.sign(row[frame])
+            signs[channel, epoch] = _phase(row[frame], peak)
     return amplitudes, frames, signs
+
+
+def _phase(value: Any, magnitude: float) -> Any:
+    if magnitude == 0:
+        return 0
+    if not np.isinf(magnitude):
+        return value / magnitude
+    real = np.sign(np.real(value)) if np.isinf(np.real(value)) else 0
+    if not np.iscomplexobj(value):
+        return real
+    imaginary = np.sign(np.imag(value)) if np.isinf(np.imag(value)) else 0
+    direction = complex(real, imaginary)
+    return direction / abs(direction)
 
 
 __all__ = ["abspeak"]

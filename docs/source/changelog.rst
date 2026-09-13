@@ -15,7 +15,12 @@ Unreleased
   correlation-based map matching, grouped summaries, PCA compression and
   reconstruction, interpolation, quantiles, matrix selection, and permutation
   handling. Python-facing indices are zero-based, and each function is covered
-  by ports of the corresponding current EEGLAB test wrapper.
+  by ports of the corresponding current EEGLAB test wrapper. Numerical edge
+  contracts reject fractional indices and lossy complex casts, support MATLAB
+  cell arrays loaded through SciPy, preserve complex PCA and interpolation, and
+  avoid catastrophic cancellation in NaN-aware standard deviations. Grouped
+  standard errors also use the finite sample count, correcting an EEGLAB helper
+  defect when groups contain missing observations.
 - Current EEGLAB visual-wrapper test ports now exercise plots through
   deterministic headless numerical and figure assertions. ``pop_plotdata``
   supports channel/component mode, 1-based trial selection, trial averaging,
