@@ -80,6 +80,7 @@ def _pop_select_apply(EEG, **kwargs):
         'sort': kwargs.get('sort', None),
         'sorttrial': kwargs.get('sorttrial', 'on'),
         'checkchans': kwargs.get('checkchans', 'on'),
+        'erroronempty': kwargs.get('erroronempty', 'on'),
     }
 
     # alias normalization
@@ -143,7 +144,7 @@ def _pop_select_apply(EEG, **kwargs):
         keep = np.setdiff1d(trial_set, notrial_set, assume_unique=False)
         keep.sort()
         g['trial'] = keep.tolist()
-        if len(g['trial']) == 0:
+        if len(g['trial']) == 0 and str(g['erroronempty']).lower() == 'on':
             fname = _get('filename', '<EEG>')
             raise ValueError(f'Error: dataset {fname} is empty')
     else:
@@ -154,7 +155,7 @@ def _pop_select_apply(EEG, **kwargs):
         _, idx = np.unique(trial_seq, return_index=True)
         g['trial'] = trial_seq[np.sort(idx)].tolist()
 
-    if min(g['trial']) < 1 or max(g['trial']) > trials:
+    if g['trial'] and (min(g['trial']) < 1 or max(g['trial']) > trials):
         raise ValueError('Wrong trial range')
 
     # 2) Channel selection by name or type, with mutual exclusion

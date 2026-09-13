@@ -8,6 +8,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
@@ -263,18 +265,45 @@ def _plot_map_pages(
             fig.text(0.5, 0.02, topotitle, ha="center", va="bottom", fontweight="bold")
         fig.tight_layout(rect=(0, 0.05, 1, 1) if topotitle else (0, 0, 1, 1))
         if colorbar and colorbar_image is not None:
-            _add_map_colorbar(fig, colorbar_image, plotted_axes, component=component)
+            _add_map_colorbar(
+                fig,
+                colorbar_image,
+                plotted_axes,
+                component=component,
+                maplimits=maplimits,
+            )
         figures.append(fig)
     return figures
 
 
-def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> None:
-    """Draw the shared scalp-map colorbar, marking component maps with -/0/+ polarity labels."""
-    cbar = fig.colorbar(image, ax=axes, shrink=0.7)
-    if component:
-        low, high = image.get_clim()
+def _add_map_colorbar(
+    fig: Any,
+    image: Any,
+    axes: list[Any],
+    *,
+    component: bool,
+    maplimits: Any,
+) -> None:
+    """Draw the shared scalp-map colorbar using EEGLAB's displayed limits."""
+    limits = _numeric_maplimits(maplimits)
+    mappable = image
+    if limits is not None:
+        mappable = ScalarMappable(norm=Normalize(vmin=limits[0], vmax=limits[1]), cmap=image.get_cmap())
+        mappable.set_array([])
+    cbar = fig.colorbar(mappable, ax=axes, shrink=0.7)
+    low, high = cbar.mappable.get_clim()
+    if component and low < 0 < high:
         cbar.set_ticks([low, 0.0, high])
         cbar.set_ticklabels(["-", "0", "+"])
+
+
+def _numeric_maplimits(maplimits: Any) -> tuple[float, float] | None:
+    if isinstance(maplimits, str) or maplimits is None:
+        return None
+    values = np.asarray(maplimits, dtype=float).ravel()
+    if values.size < 2 or not np.all(np.isfinite(values[:2])):
+        return None
+    return float(values[0]), float(values[1])
 
 
 def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
