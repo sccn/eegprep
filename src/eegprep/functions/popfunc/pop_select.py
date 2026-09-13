@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.misc import finite_pinv
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -61,6 +62,7 @@ def _pop_select_apply(EEG, **kwargs):
     -------
     EEG_out, com
     """
+    source_data = EEG.get("data")
     EEG = copy.deepcopy(EEG)
     # shallow options with MATLAB-compatible aliases
     g = {
@@ -567,6 +569,7 @@ def _pop_select_apply(EEG, **kwargs):
 
     # Call eeg_checkset to ensure consistency after modifications
     EEG = eeg_checkset(EEG)
+    EEG["data"] = mapped_output_like(source_data, EEG["data"])
 
     return EEG
 

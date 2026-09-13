@@ -28,6 +28,8 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.loadeeg
    eegprep.loadtxt
    eegprep.loadset
+   eegprep.MemmapData
+   eegprep.mmo
    eegprep.getchanlist
    eegprep.mne2eeg
    eegprep.mne2eeg_epochs
