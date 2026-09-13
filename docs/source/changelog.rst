@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_loadset`` now supports EEGLAB's metadata-only and 1-based channel
+  loading modes, while ``pop_fileio`` applies 1-based channel and inclusive
+  sample/trial selections with consistent dataset bookkeeping. ``pop_writeeeg``
+  now writes real EDF and BDF files through the installed writer instead of
+  routing unsupported BDF/GDF format names into MNE's EDF-only exporter; GDF
+  output fails explicitly until a compatible writer is available.
 - Added ``pop_dipparams``, ``pop_erpimparams``, ``pop_erpparams``,
   ``pop_erspparams``, ``pop_specparams``, and ``pop_statparams`` for storing
   EEGLAB-compatible STUDY plotting and statistics settings. Analysis-defining

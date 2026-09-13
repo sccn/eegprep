@@ -11,9 +11,10 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,14 @@ _EEGLAB_STRUCT_MARKERS = frozenset({"nbchan", "srate", "pnts", "trials", "chanlo
 def pop_fileio(
     filename: str | Path, *, return_com: bool = False, **kwargs: Any
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
-    """Import a supported EEG data file with MNE/File-IO-style readers."""
+    """Import an EEG file, optionally selecting 1-based channels, samples, or trials."""
     path = Path(filename)
     suffix = path.suffix.lower()
+    history_options = dict(kwargs)
     blockrange = kwargs.pop("blockrange", None)
+    channels = kwargs.pop("channels", None)
+    samples = kwargs.pop("samples", None)
+    trials = kwargs.pop("trials", None)
     if suffix == ".set":
         eeg = pop_loadset(str(path))
     elif suffix == ".mat" and kwargs.get("dataformat") != "matlab-array":
@@ -45,7 +50,8 @@ def pop_fileio(
         if blockrange is not None:
             _crop_raw_to_blockrange(raw, blockrange)
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
-    command = f"EEG = pop_fileio({format_history_value(path)});"
+    eeg = _select_imported_data(eeg, channels=channels, samples=samples, trials=trials)
+    command = _history_command(path, history_options)
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
 
@@ -91,3 +97,34 @@ def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
     if start >= recording_stop:
         raise ValueError("blockrange starts after the end of the recording")
     raw.crop(tmin=start, tmax=min(stop, recording_stop), include_tmax=False)
+
+
+def _select_imported_data(EEG: dict[str, Any], *, channels: Any, samples: Any, trials: Any) -> dict[str, Any]:
+    options: dict[str, Any] = {}
+    if channels is not None:
+        selected = parse_numeric_sequence(channels, dtype=int)
+        if not selected or any(index < 1 for index in selected):
+            raise ValueError("channels must contain positive 1-based indices")
+        options["channel"] = [index - 1 for index in selected]
+    if samples is not None:
+        options["point"] = _inclusive_bounds(samples, "samples")
+    if trials is not None:
+        start, stop = _inclusive_bounds(trials, "trials")
+        options["trial"] = list(range(start, stop + 1))
+    if not options:
+        return EEG
+    return pop_select(EEG, gui=False, **options)
+
+
+def _inclusive_bounds(value: Any, name: str) -> list[int]:
+    bounds = parse_numeric_sequence(value, dtype=int)
+    if len(bounds) != 2 or bounds[0] < 1 or bounds[1] < bounds[0]:
+        raise ValueError(f"{name} must be a positive 1-based [start, stop] range")
+    return bounds
+
+
+def _history_command(path: Path, options: dict[str, Any]) -> str:
+    pieces = [format_history_value(path)]
+    for key, value in options.items():
+        pieces.extend([format_history_value(key), format_history_value(value, cell_for_sequence=None)])
+    return f"EEG = pop_fileio({', '.join(pieces)});"
