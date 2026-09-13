@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Current EEGLAB rejection-workflow test ports now cover threshold, statistical,
+  spectral, trend, channel, epoch, and automatic rejection. Scripted
+  ``pop_rejchan`` calls use EEGLAB's default threshold of 400; the interactive
+  dialog continues to default to a normalized threshold of 5.
 - Topographic interpolation no longer leaks NumPy 2 floating-point warnings for
   finite biharmonic matrix products.
 - ``eeg_interp`` now accepts MATLAB-loaded object arrays of channel locations when

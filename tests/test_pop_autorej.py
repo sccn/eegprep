@@ -16,6 +16,7 @@ import pytest
 
 from eegprep.functions.popfunc.pop_autorej import pop_autorej
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from tests.eeglab_tests import eeglab_test
 
 EPOCHED_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
 
@@ -42,6 +43,10 @@ EEGLAB_REJECTIONS = [
 
 
 @pytest.mark.parametrize(("options", "expected"), EEGLAB_REJECTIONS)
+@eeglab_test(
+    "unittesting_popfunc/pop_autorej/popfunc_pop_autorej_wrapperTest.m",
+    "test_test_pop_autorej",
+)
 def test_pop_autorej_rejects_the_same_epochs_as_eeglab(options, expected):
     EEG = pop_loadset(EPOCHED_DATASET_PATH)
 
