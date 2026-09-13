@@ -18,6 +18,7 @@ _LAZY_EXPORTS = {
     "inputgui": ("eegprep.functions.guifunc.inputgui", "inputgui"),
     "listdlg2": ("eegprep.functions.guifunc.listdlg2", "listdlg2"),
     "pophelp": ("eegprep.functions.guifunc.pophelp", "pophelp"),
+    "supergui": ("eegprep.functions.guifunc.supergui", "supergui"),
 }
 
 __all__ = list(_LAZY_EXPORTS)

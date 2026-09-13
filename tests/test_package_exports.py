@@ -106,6 +106,7 @@ def test_phase_6b_public_exports_are_intentional() -> None:
         "pop_editoptions",
         "pop_newset",
         "pophelp",
+        "supergui",
         "validate_catalog_entries",
         "validate_catalog_file",
         "validate_extension_spec",

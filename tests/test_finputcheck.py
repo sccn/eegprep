@@ -14,14 +14,17 @@ RULES = (
     ("p3rcent", "real", [0, 1], 1 / math.sqrt(2)),
     ("forth", "cell", [], []),
 )
+FINPUTCHECK_WRAPPER = "unittesting_guifunc/finputcheck/guifunc_finputcheck_wrapperTest.m"
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_fail_no_arg")
 @eeglab_test("unittesting_guifunc/finputcheck/fail_no_arg.m", "test_fail_no_arg")
 def test_finputcheck_requires_arguments_and_field_rules():
     with pytest.raises(TypeError):
         finputcheck()
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_fail_no_key_val")
 @eeglab_test("unittesting_guifunc/finputcheck/fail_no_key_val.m", "test_fail_no_key_val")
 def test_finputcheck_reports_an_incomplete_key_value_sequence():
     result = finputcheck(["key1", 3, "the2test"], RULES)
@@ -29,6 +32,7 @@ def test_finputcheck_reports_an_incomplete_key_value_sequence():
     assert result == "error: bad 'key', 'val' sequence"
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_empty")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_1")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_empty.m", "test_pass_empty")
 def test_finputcheck_uses_defaults_for_an_empty_argument_list():
@@ -44,6 +48,7 @@ def test_finputcheck_uses_defaults_for_an_empty_argument_list():
     }
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_general")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_2")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_general.m", "test_pass_general")
 def test_finputcheck_validates_all_supported_rule_values():
@@ -54,6 +59,7 @@ def test_finputcheck_validates_all_supported_rule_values():
     assert result == {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_multiple_types")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_3")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_multiple_types.m", "test_pass_multiple_types")
 def test_finputcheck_accepts_a_value_matching_any_declared_type():
@@ -69,6 +75,7 @@ def test_finputcheck_accepts_a_value_matching_any_declared_type():
     assert result == {"key1": "test", "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_standard")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_4")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_standard.m", "test_pass_standard")
 def test_finputcheck_fills_only_omitted_values_from_defaults():
@@ -84,6 +91,7 @@ def test_finputcheck_fills_only_omitted_values_from_defaults():
     }
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_strings")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_5")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_strings.m", "test_pass_strings")
 def test_finputcheck_accepts_declared_string_choices_case_insensitively():
@@ -95,6 +103,7 @@ def test_finputcheck_accepts_declared_string_choices_case_insensitively():
     assert result == {"key1": 3, "the2test": "foo", "p3rcent": 0.4937, "forth": ["a", 2, "11b", "D"]}
 
 
+@eeglab_test(FINPUTCHECK_WRAPPER, "test_pass_unknown")
 @eeglab_test("regression_tests/t_finputcheck.m", "test_6")
 @eeglab_test("unittesting_guifunc/finputcheck/pass_unknown.m", "test_pass_unknown")
 def test_finputcheck_can_return_unrecognized_arguments_in_ignore_mode():

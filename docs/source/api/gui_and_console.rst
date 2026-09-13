@@ -6,8 +6,11 @@ GUI and Console
 Qt dialogs, console workspace objects, and the entry points that open the graphical interface.
 
 ``listdlg2`` accepts either a sequence of labels or one scalar string. A scalar
-string is displayed as one choice, and returned selections use EEGLAB-facing
-1-based positions.
+string is displayed as one choice, returned selections use EEGLAB-facing
+1-based positions, and ``okstring`` and ``cancelstring`` customize the action
+labels. ``inputgui(..., mode="plot")`` opens a nonmodal preview and returns the
+application, dialog, and tagged widget mapping. ``supergui`` exposes the same
+renderer-level construction without showing or executing the dialog.
 
 .. autosummary::
    :toctree: generated/
@@ -32,3 +35,4 @@ string is displayed as one choice, and returned selections use EEGLAB-facing
    eegprep.plugin_status
    eegprep.pophelp
    eegprep.select_multiple_datasets
+   eegprep.supergui
