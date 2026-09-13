@@ -10,6 +10,8 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Topographic interpolation no longer leaks NumPy 2 floating-point warnings for
+  finite biharmonic matrix products.
 - ``eeg_interp`` now accepts MATLAB-loaded object arrays of channel locations when
   restoring a full montage. ``pop_editeventfield`` now reads values from delimited
   text files, accepts MATLAB colon expressions for event indices, rebuilds ``urevent``

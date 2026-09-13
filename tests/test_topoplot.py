@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
 from unittest.mock import patch
 import tempfile
+import warnings
 import scipy.io
 
 # Set Agg backend before importing topoplot to avoid display issues
@@ -66,6 +67,20 @@ class TestGriddataV4(unittest.TestCase):
 
         # All results should be finite
         self.assertTrue(np.all(np.isfinite(vq)))
+
+    def test_interpolation_does_not_leak_finite_matmul_warnings(self):
+        theta = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+        x = np.cos(theta)
+        y = np.sin(theta)
+        values = np.linspace(-1, 1, 32)
+        query = np.linspace(-1, 1, 67)
+        xq, yq = np.meshgrid(query, query)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            interpolated = griddata_v4(x, y, values, xq, yq)
+
+        assert np.isfinite(interpolated).all()
 
     def test_single_point_interpolation(self):
         """Test interpolation with single data point."""
