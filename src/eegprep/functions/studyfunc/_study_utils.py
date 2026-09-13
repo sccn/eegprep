@@ -159,7 +159,7 @@ def sync_datasetinfo(study: dict[str, Any], datasets: list[dict[str, Any]]) -> d
     for index, eeg in enumerate(datasets, start=1):
         previous = existing[index - 1] if index <= len(existing) else {}
         info = dataset_info_from_eeg(index, eeg)
-        for field in ("subject", "condition", "group", "session", "run", "comps"):
+        for field in ("subject", "condition", "group", "session", "run", "comps", "trialinfo"):
             if not _empty_value(previous.get(field)):
                 info[field] = previous[field]
         for key, value in previous.items():
