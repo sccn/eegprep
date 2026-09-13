@@ -12,6 +12,7 @@ from scipy.signal import resample, resample_poly
 from scipy.signal.windows import kaiser
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _shared_is_boundary_event
@@ -167,7 +168,8 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     logger.info("resampling data %g Hz", float(freq))
     p, q = _resample_ratio(freq, EEG["srate"])
     ratio = p / q
-    data = np.asarray(EEG["data"])
+    source_data = EEG["data"]
+    data = np.asarray(source_data)
     if data.ndim not in {2, 3}:
         raise ValueError("pop_resample supports continuous or epoched EEG data")
     old_pnts = int(EEG.get("pnts", data.shape[1]))
@@ -186,7 +188,8 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     resampled_data = np.concatenate(segments, axis=1) if segments else data_3d[:, :0, :]
 
     output = deepcopy(EEG)
-    output["data"] = resampled_data[:, :, 0] if data.ndim == 2 else resampled_data
+    output_data = resampled_data[:, :, 0] if data.ndim == 2 else resampled_data
+    output["data"] = mapped_output_like(source_data, output_data)
     output["pnts"] = int(resampled_data.shape[1])
     output["trials"] = int(resampled_data.shape[2])
     output["srate"] = float(freq)

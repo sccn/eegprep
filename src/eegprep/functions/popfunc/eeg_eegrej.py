@@ -4,6 +4,7 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
 from ..miscfunc.misc import round_mat
@@ -278,6 +279,7 @@ def eeg_eegrej(EEG, regions):
     EEG : dict
         Updated EEG data structure with rejected segments removed
     """
+    source_data = EEG.get("data")
     EEG = deepcopy(EEG)
     if regions is None or len(regions) == 0:
         return EEG
@@ -306,7 +308,7 @@ def eeg_eegrej(EEG, regions):
     data_out, xmax_rel, event2, boundevents = _eegrej(EEG["data"], regions, xdur, events)
 
     # finalize core fields
-    EEG["data"] = data_out
+    EEG["data"] = mapped_output_like(source_data, data_out)
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
     EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
