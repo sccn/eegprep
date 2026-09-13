@@ -22,6 +22,7 @@ matplotlib.use('Agg')
 from eegprep.functions.sigprocfunc.topoplot import _contour_levels, topoplot, griddata_v4, topo_screen_coords
 from eegprep import pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from tests.eeglab_tests import eeglab_test
 
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
@@ -156,6 +157,7 @@ class TestTopoplot(unittest.TestCase):
         ]
         self.minimal_data = np.array([1.0, 0.5, -0.5])
 
+    @eeglab_test("unittesting_sigprocfunc/topoplot/sigprocfunc_topoplot_wrapperTest.m", "test_test_topoplot")
     def test_basic_topoplot_with_agg_backend(self):
         """Test basic topoplot functionality with Agg backend (no display)."""
         # Ensure Agg backend is set

@@ -17,6 +17,7 @@ import scipy.io
 sys.path.insert(0, 'src')
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.sigprocfunc.reref import reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
 from tests.eeglab_tests import eeglab_test
@@ -60,6 +61,47 @@ def test_pop_reref_current_suite_average_reference_workflow():
     output = pop_reref(eeg, [])
 
     np.testing.assert_allclose(output["data"].mean(axis=0), 0, atol=1e-5)
+@eeglab_test(
+    "unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m",
+    "test_test_reref",
+)
+def test_low_level_reref_upstream_continuous_and_epoched_contracts():
+    rng = np.random.default_rng(42)
+    locs = [{"labels": f"Ch{index + 1}"} for index in range(32)]
+
+    for data in (rng.normal(size=(32, 200)), rng.normal(size=(32, 40, 5))):
+        average, *_ = reref(data, [], keepref="on")
+        explicit_average, *_ = reref(data, np.arange(32), keepref="on")
+        np.testing.assert_allclose(average, explicit_average, rtol=1e-12, atol=1e-12)
+
+        removed, *_ = reref(data, [1, 4, 25], keepref="off")
+        assert removed.shape == (29, *data.shape[1:])
+
+        kept, *_ = reref(data, [4], keepref="on")
+        assert kept.shape == data.shape
+        np.testing.assert_allclose(kept[4], 0, atol=1e-12)
+
+        excluded, out_locs, *_ = reref(
+            data,
+            [1, 4, 25],
+            exclude=[0, 31],
+            keepref="off",
+            elocs=locs,
+        )
+        assert excluded.shape == (29, *data.shape[1:])
+        np.testing.assert_array_equal(excluded[[0, -1]], data[[0, 31]])
+        assert len(out_locs) == 29
+
+    restored, restored_locs, *_ = reref(
+        data,
+        [1, 4, 25],
+        exclude=[0, 31],
+        keepref="off",
+        elocs=locs,
+        refloc={"labels": "old-reference"},
+    )
+    assert restored.shape == (30, *data.shape[1:])
+    assert len(restored_locs) == 30
 
 
 class PopRerefIcaRegressionTests(unittest.TestCase):

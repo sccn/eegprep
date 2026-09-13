@@ -32,7 +32,12 @@ def _fit_center(x: np.ndarray, y: np.ndarray, z: np.ndarray, initial: np.ndarray
         radii = np.sqrt((x[finite] - center[0]) ** 2 + (y[finite] - center[1]) ** 2 + (z[finite] - center[2]) ** 2)
         return float(np.std(radii))
 
-    result = minimize(objective, initial, method="Nelder-Mead", options={"maxfev": 1000})
+    result = minimize(
+        objective,
+        initial,
+        method="Nelder-Mead",
+        options={"maxfev": 10_000, "xatol": 1e-12, "fatol": 1e-12},
+    )
     return np.asarray(result.x if result.success else initial, dtype=float)
 
 

@@ -19,6 +19,7 @@ import scipy.io
 from scipy import stats
 
 import eegprep
+from tests.eeglab_tests import eeglab_test
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -94,6 +95,7 @@ def ica_epoch():
     return create_test_eeg_with_ica(n_channels=6, n_samples=96, n_trials=5, n_components=4)
 
 
+@eeglab_test("unittesting_sigprocfunc/newtimef/sigprocfunc_newtimef_wrapperTest.m", "test_test_newtimef")
 def test_newtimef_synthetic_returns_deterministic_shapes():
     srate = 128
     times = np.arange(0, 1, 1 / srate)
@@ -106,6 +108,85 @@ def test_newtimef_synthetic_returns_deterministic_shapes():
     assert result.times.size <= 12
     assert np.isfinite(result.ersp).all()
     assert np.all(np.abs(result.itc) <= 1 + 1e-12)
+
+
+@eeglab_test("unittesting_sigprocfunc/newtimef/sigprocfunc_newtimef_wrapperTest.m", "test_test_newtimef2")
+def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
+    data = np.random.RandomState(0).rand(100, 10)
+    output_times = np.arange(20, 81, 10) * 10
+    common = dict(
+        timesout=output_times,
+        padratio=1,
+        winsize=32,
+        plotitc="off",
+        plotersp="off",
+        verbose="off",
+        outputformat="plot",
+        plot="off",
+    )
+    window = np.hanning(34)[1:-1]
+
+    def fft_window(center):
+        segment = data[center - 16 : center + 16]
+        segment = segment - segment.mean(axis=0)
+        return np.fft.fft(segment * window[:, None], axis=0)[1:17] * 2 / 0.375 / 32
+
+    fft_data = [fft_window(center) for center in (21, 31, 41)]
+    power = [np.mean(np.abs(values) ** 2, axis=1) for values in fft_data]
+
+    absolute = newtimef(data, 100, [0, 990], 100, 0, baseline=np.nan, scale="abs", **common)
+    logarithmic = newtimef(data, 100, [0, 990], 100, 0, baseline=np.nan, scale="log", **common)
+    np.testing.assert_allclose(absolute.ersp[:, 0], power[0], rtol=0, atol=1e-14)
+    np.testing.assert_allclose(logarithmic.ersp[:, 0], 10 * np.log10(power[0]), rtol=0, atol=1e-13)
+    expected_itc = np.mean(fft_data[0] / np.abs(fft_data[0]), axis=1)
+    np.testing.assert_allclose(np.abs(absolute.itc[:, 0]), np.abs(expected_itc), rtol=0, atol=1e-14)
+
+    baseline_abs = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="abs", **common)
+    baseline_log = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="log", **common)
+    np.testing.assert_allclose(baseline_abs.ersp[:, 1], power[1] / power[0], rtol=0, atol=1e-12)
+    np.testing.assert_allclose(baseline_abs.powbase, power[0], rtol=0, atol=1e-14)
+    np.testing.assert_allclose(baseline_log.ersp[:, 1], 10 * np.log10(power[1] / power[0]), rtol=0, atol=1e-12)
+    np.testing.assert_allclose(baseline_log.powbase, 10 * np.log10(power[0]), rtol=0, atol=1e-13)
+
+    trial_abs = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="abs", trialbase="on", **common)
+    trial_log = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="log", trialbase="on", **common)
+    trial_ratio = np.mean(np.abs(fft_data[1] / fft_data[0]) ** 2, axis=1)
+    np.testing.assert_allclose(trial_abs.ersp[:, 1], trial_ratio, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(trial_log.ersp[:, 1], 10 * np.log10(trial_ratio), rtol=0, atol=1e-12)
+
+    mean_base = (power[0] + power[1]) / 2
+    std_base = np.sqrt((power[0] - mean_base) ** 2 + (power[1] - mean_base) ** 2)
+    normalized = newtimef(data, 100, [0, 990], 100, 0, baseline=350, scale="abs", basenorm="on", **common)
+    np.testing.assert_allclose(normalized.ersp[:, 2], (power[2] - mean_base) / std_base, rtol=0, atol=1e-11)
+
+    trial_mean = np.abs(fft_data[0]) ** 2 / 2 + np.abs(fft_data[1]) ** 2 / 2
+    trial_std = np.sqrt((np.abs(fft_data[0]) ** 2 - trial_mean) ** 2 + (np.abs(fft_data[1]) ** 2 - trial_mean) ** 2)
+    trial_expected = np.mean((np.abs(fft_data[2]) ** 2 - trial_mean) / trial_std, axis=1)
+    trial_normalized = newtimef(
+        data,
+        100,
+        [0, 990],
+        100,
+        0,
+        baseline=350,
+        scale="abs",
+        trialbase="on",
+        basenorm="on",
+        **common,
+    )
+    np.testing.assert_allclose(trial_normalized.ersp[:, 2], trial_expected, rtol=0, atol=1e-11)
+
+    frequencies = [10, 12, 14, 16, 18]
+    wavelets, *_ = dftfilt3(frequencies, 3, 100, cycleinc="linear")
+    wavelet_values = []
+    for wavelet in wavelets:
+        half = (len(wavelet) - 1) // 2
+        segment = data[np.arange(-half, half + 1) + 30]
+        segment = segment - segment.mean(axis=0)
+        wavelet_values.append(np.sum(segment * wavelet[:, None], axis=0))
+    wavelet_power = np.mean(np.abs(wavelet_values) ** 2, axis=1)
+    wavelet_result = newtimef(data, 100, [0, 990], 100, 3, baseline=np.nan, scale="abs", freqs=frequencies, **common)
+    np.testing.assert_allclose(wavelet_result.ersp[:, 1], wavelet_power, rtol=0, atol=1e-14)
 
 
 def test_newtimef_rejects_unknown_options():
@@ -460,6 +541,41 @@ def test_angtimewarp_interpolates_and_wraps_like_eeglab():
     warped = angtimewarp([1, 3, 5], [1, 2, 5], angles)
 
     np.testing.assert_allclose(warped, [0, np.pi, 0, -np.pi / 3, 0], rtol=1e-12, atol=1e-12)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
+    "test_pass_5point_sinus",
+)
+def test_angtimewarp_upstream_five_point_compression():
+    warped = angtimewarp([1, 3, 5], [1, 5, 5], [0, 1, 0, -1, 0])
+
+    np.testing.assert_allclose(warped, [0, 0.5, 1, 0.5, 0])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
+    "test_pass_diff_start",
+)
+def test_angtimewarp_upstream_implicit_synchronized_start():
+    """Strengthen the upstream script, whose numerical assertion is disabled."""
+    warped = angtimewarp([2, 3, 4], [1, 3, 5], [0, 1, 0, -1, 0])
+
+    np.testing.assert_allclose(warped, [0, 0.5, 0, -0.5, -1])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
+    "test_pass_spike",
+)
+def test_angtimewarp_upstream_repeated_marker_wraps_large_angles():
+    """Strengthen the upstream script, whose numerical assertion is disabled."""
+    warped = angtimewarp([1, 3, 5], [1, 1, 5], [0, 5, 1000, -1000, 0])
+    unwrapped = np.asarray([0, 0, -1000, -500, 0], dtype=float)
+    expected = np.mod(unwrapped, 2 * np.pi)
+    expected[expected > np.pi] -= 2 * np.pi
+
+    np.testing.assert_allclose(warped, expected)
 
 
 def test_tf_cycle_calc_converts_width_units_and_dialog_inventory():
