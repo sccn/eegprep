@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone low-level signal and text helpers ``blockave``, ``eegfilt``,
+  ``env``, ``movav``, ``loadeeg``, ``loadtxt``, ``parsetxt``,
+  ``readneurodat``, and ``readtxtfile``. Legacy ``eegfilt`` now supports the
+  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
+  and truncated Neuroscan files retain complete sweeps without returning an
+  incomplete zero-filled tail.
 - Regular epoch generation, preceding-event timing, event alignment, BioSig
   event conversion, sphering, RMS summaries, int16 matrix reads, legacy
   lagged-regression artifact removal, ordered string selection, and
