@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone numerical utilities for peak extraction, average reference,
+  Gaussian/Gabor/Laplacian kernels, distance and assignment problems,
+  correlation-based map matching, grouped summaries, PCA compression and
+  reconstruction, interpolation, quantiles, matrix selection, and permutation
+  handling. Python-facing indices are zero-based, and each function is covered
+  by ports of the corresponding current EEGLAB test wrapper.
 - Current EEGLAB visual-wrapper test ports now exercise plots through
   deterministic headless numerical and figure assertions. ``pop_plotdata``
   supports channel/component mode, 1-based trial selection, trial averaging,

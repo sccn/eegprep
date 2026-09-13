@@ -19,6 +19,7 @@ see its functions.
    filtering_and_signal_processing
    time_frequency
    plotting_and_topography
+   numerical_utilities
    statistics
    study_workflows
    interactive_pop_workflows
