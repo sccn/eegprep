@@ -5,6 +5,9 @@ import numpy as np
 
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
+from tests.eeglab_tests import eeglab_test
 
 # Test Case	(Python vs. MATLAB)         Max Absolute	Max Relative	Scenario
 # test_parity_multiple_trials	        5.11e-04	1.99e-02 (1.99%)	3 trials, 3 channels, 1 trial
@@ -15,6 +18,39 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 # test_parity_spherical_kang	        2.81e-04	2.98e-03 (0.30%)	SphericalKang method, 3 channels, 1 trial
 # test_parity_spherical_basic	        2.50e-04	3.18e-03 (0.32%)	Basic spherical, 3 channels, 1 trial
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
+
+
+@eeglab_test("unittesting_popfunc/eeg_interp/popfunc_eeg_interp_wrapperTest.m", "test_checkinterp")
+def test_current_suite_checkinterp_preserves_existing_channels_when_restoring_montage():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+    eeg["data"] = eeg["data"][:, :1000]
+    eeg["pnts"] = 1000
+    original_locs = eeg["chanlocs"]
+    reduced = pop_select(eeg, nochannel=list(range(0, eeg["nbchan"], 4)))
+
+    restored = eeg_interp(reduced, original_locs)
+
+    restored_labels = [loc["labels"] for loc in restored["chanlocs"]]
+    reduced_labels = [loc["labels"] for loc in reduced["chanlocs"]]
+    for reduced_index, label in enumerate(reduced_labels):
+        restored_index = restored_labels.index(label)
+        np.testing.assert_array_equal(restored["data"][restored_index], reduced["data"][reduced_index])
+
+
+@eeglab_test("unittesting_popfunc/eeg_interp/popfunc_eeg_interp_wrapperTest.m", "test_test_eeg_interp")
+def test_eeg_interp_current_suite_sample_channel_and_montage_workflows():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+    eeg["data"] = eeg["data"][:, :1000]
+    eeg["pnts"] = 1000
+
+    for method in ("spherical", "invdist"):
+        interpolated = eeg_interp(eeg, list(range(16)), method)
+        unchanged = eeg_interp(eeg, [], method)
+
+        assert interpolated["data"].shape == eeg["data"].shape
+        assert np.isfinite(interpolated["data"]).all()
+        np.testing.assert_array_equal(interpolated["data"][16:], eeg["data"][16:])
+        np.testing.assert_array_equal(unchanged["data"], eeg["data"])
 
 
 class TestEegInterpPlanarGeometry(unittest.TestCase):
