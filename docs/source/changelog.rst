@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_clean_rawdata`` now routes channel cleaning to the location-free
+  algorithm when ``EEG["chanlocs"]`` is empty. It previously failed with an
+  indexing error before the documented fallback could run.
 - Current EEGLAB rejection-workflow test ports now cover threshold, statistical,
   spectral, trend, channel, epoch, and automatic rejection. Scripted
   ``pop_rejchan`` calls use EEGLAB's default threshold of 400; the interactive

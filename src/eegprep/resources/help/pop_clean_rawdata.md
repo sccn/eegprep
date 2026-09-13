@@ -32,6 +32,9 @@ Behavior:
 
 - The function calls EEGPrep's `clean_artifacts` backend and returns a cleaned EEG dataset.
 - GUI choices are converted to the same named options used by the command-line API.
+- Channel correlation cleaning uses spatial channel coordinates when they are
+  available. An empty `EEG['chanlocs']` automatically selects the location-free
+  correlation method.
 - `Distance='Riemannian'` uses EEGPrep's calibration-time Riemannian ASR
   estimate (`clean_asr(..., useriemannian='calib')`). Full Riemannian ASR
   processing is not ported, and direct `clean_asr(useriemannian=True)` requests

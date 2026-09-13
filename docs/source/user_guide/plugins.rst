@@ -93,6 +93,11 @@ Use ``clean_artifacts`` when you need lower-level tuple outputs:
 
    clean_eeg, highpass_state, burst_state, removed_channels = clean_artifacts(EEG)
 
+Channel correlation cleaning uses the spatial reconstruction method when the
+dataset has usable ``X``, ``Y``, and ``Z`` channel coordinates. If channel
+locations are empty, ``pop_clean_rawdata`` automatically uses the bundled
+location-free correlation method instead.
+
 FIRFilt
 =======
 
