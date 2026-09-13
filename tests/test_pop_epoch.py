@@ -19,7 +19,56 @@ import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
+from tests.eeglab_tests import eeglab_test
+
+
+@eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_test_pop_epoch")
+def test_pop_epoch_current_suite_square_event_workflow():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+
+    output, indices = pop_epoch(
+        eeg,
+        ["square"],
+        [-1, 2],
+        "newname",
+        "ee114 continuous (h.p. 1Hz) epochs",
+        "epochinfo",
+        "yes",
+    )
+
+    assert output["setname"] == "ee114 continuous (h.p. 1Hz) epochs"
+    assert output["trials"] == 80
+    assert output["data"].shape == (eeg["nbchan"], output["pnts"], 80)
+    assert len(indices) == 80
+    assert all("eventlatency" in epoch for epoch in output["epoch"])
+
+
+@eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_pass_bugzilla_455")
+def test_pop_epoch_current_suite_late_epoch_locking_event_has_zero_latency():
+    srate = 1.0
+    events = [{"type": "lock", "latency": float(2 + 40 * index)} for index in range(97)]
+    eeg = {
+        "data": np.arange(3900, dtype=np.float32)[np.newaxis, :],
+        "nbchan": 1,
+        "pnts": 3900,
+        "trials": 1,
+        "srate": srate,
+        "xmin": 0.0,
+        "xmax": 3899.0,
+        "times": np.arange(3900, dtype=float) * 1000,
+        "setname": "bugzilla 455",
+        "event": events,
+        "urevent": [],
+        "epoch": [],
+        "chanlocs": [],
+    }
+
+    output, _ = pop_epoch(eeg, [], [-1, 32])
+
+    assert output["trials"] == 97
+    assert 0 in np.asarray(output["epoch"][96]["eventlatency"], dtype=float)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

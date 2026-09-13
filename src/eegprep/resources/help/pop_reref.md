@@ -34,6 +34,7 @@ Optional inputs:
 - `refloc`: previous reference-channel location to reconstruct.
 - `refica`: `"on"`, `"off"`, `"backwardcomp"`, or `"remove"` for ICA handling.
 - `huber`: Huber threshold in microvolts.
+- `method`: rereferencing algorithm. EEGPrep currently supports EEGLAB's `"standard"` method.
 
 Output:
 
