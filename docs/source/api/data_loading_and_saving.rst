@@ -33,7 +33,9 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.getchanlist
    eegprep.mne2eeg
    eegprep.mne2eeg_epochs
+   eegprep.openbdf
    eegprep.parsetxt
+   eegprep.readbdf
    eegprep.readeetraklocs
    eegprep.readegilocs
    eegprep.readelp
