@@ -20,7 +20,13 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
    eegprep.eeg_checkset
    eegprep.eeg_checkset_strict_mode
    eegprep.eeg_compare
+   eegprep.eeg_context
    eegprep.eeg_emptyset
+   eegprep.eeg_eventhist
+   eegprep.eeg_eventtypes
+   eegprep.eeg_getepochevent
+   eegprep.eeg_insertbound
+   eegprep.eeg_urlatency
    eegprep.eeg_retrieve
    eegprep.eeg_store
    eegprep.eegh

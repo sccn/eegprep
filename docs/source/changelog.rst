@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Core event and channel helpers now cover EEGLAB-compatible event insertion,
+  event histograms and type counts, per-epoch field extraction, boundary-aware
+  original latencies and context queries, channel-type lookup and montage
+  matching/merging, ERP-window amplitude, and bad-time interpolation. These
+  helpers are available directly from ``eegprep`` and run without an EEGLAB
+  checkout.
 - ``pop_loadset`` now supports EEGLAB's metadata-only and 1-based channel
   loading modes, while ``pop_fileio`` applies 1-based channel and inclusive
   sample/trial selections with consistent dataset bookkeeping. ``pop_writeeeg``

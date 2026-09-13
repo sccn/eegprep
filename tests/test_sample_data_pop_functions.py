@@ -93,6 +93,7 @@ def sample_eeg_with_ica(sample_eeg_with_ica_base):
     return copy.deepcopy(sample_eeg_with_ica_base)
 
 
+@eeglab_test("eeglab_tests_wrapperTest.m", "test_readcontsamplefile")
 def test_pop_loadset_loads_eeglab_sample_data_with_core_fields(sample_eeg_base):
     assert sample_eeg_base["data"].shape == (32, 30504)
     assert sample_eeg_base["nbchan"] == 32
@@ -105,6 +106,7 @@ def test_pop_loadset_loads_eeglab_sample_data_with_core_fields(sample_eeg_base):
     assert np.issubdtype(np.asarray(sample_eeg_base["icachansind"]).dtype, np.integer)
 
 
+@eeglab_test("eeglab_tests_wrapperTest.m", "test_readepochsamplefile")
 @eeglab_test("unittesting_popfunc/pop_loadset/popfunc_pop_loadset_wrapperTest.m", "test_test_pop_loadset")
 def test_pop_loadset_current_suite_info_channel_and_eeg_modes():
     path = Path("sample_data/eeglab_data_epochs_ica.set")
