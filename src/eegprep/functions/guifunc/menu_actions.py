@@ -613,7 +613,7 @@ class MenuActionDispatcher:
             else:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
-                eeg_out, command = pop_importevent(selection, "event", filename, return_com=True)
+                eeg_out, command = pop_importevent(selection, "event", filename, "append", "no", return_com=True)
         self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 
