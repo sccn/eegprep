@@ -16,6 +16,7 @@ from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.importevent import importevent
 from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
 from eegprep.functions.popfunc.pop_editset import pop_editset
+from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
@@ -231,6 +232,36 @@ def test_current_pop_editset_builds_a_consistent_epoched_dataset_from_arrays():
     assert output["times"][[0, -1]].tolist() == pytest.approx([-100.0, -65.0])
     assert output["icaact"].shape == (3, 8, 3)
     assert [channel["labels"] for channel in output["chanlocs"]] == ["Fz", "Cz", "Pz"]
+
+
+@eeglab_test("unittesting_popfunc/pop_eegfilt/popfunc_pop_eegfilt_wrapperTest.m", "test_test_pop_eegfilt")
+def test_current_pop_eegfilt_default_highpass_attenuates_sub_cutoff_signal():
+    srate = 100.0
+    pnts = 4000
+    time = np.arange(pnts) / srate
+    below_cutoff = 2 * np.sin(2 * np.pi * 0.2 * time)
+    passband = np.sin(2 * np.pi * 10 * time)
+    eeg = _continuous_eeg(pnts=pnts)
+    eeg["data"] = np.vstack([below_cutoff + passband, 0.5 * below_cutoff + 2 * passband, below_cutoff, passband])
+    eeg["icaact"] = np.ones_like(eeg["data"])
+    input_data = eeg["data"].copy()
+    input_events = deepcopy(eeg["event"])
+
+    output, command = pop_eegfilt(eeg, 1, 0, [], [0], return_com=True)
+
+    frequencies = np.fft.rfftfreq(pnts, 1 / srate)
+    low_bin = int(np.argmin(np.abs(frequencies - 0.2)))
+    pass_bin = int(np.argmin(np.abs(frequencies - 10)))
+    input_spectrum = np.abs(np.fft.rfft(input_data[0]))
+    output_spectrum = np.abs(np.fft.rfft(output["data"][0]))
+    assert output_spectrum[low_bin] < input_spectrum[low_bin] * 0.01
+    assert output_spectrum[pass_bin] > input_spectrum[pass_bin] * 0.95
+    assert output["data"].shape == input_data.shape
+    assert output["event"] == input_events
+    assert output["icaact"].size == 0
+    assert output["saved"] == "no"
+    np.testing.assert_array_equal(eeg["data"], input_data)
+    assert command == "EEG = pop_eegfilt( EEG, 1, 0, [], [0], 0, 0, 'firls', 0);"
 
 
 @eeglab_test("unittesting_popfunc/pop_eventstat/popfunc_pop_eventstat_wrapperTest.m", "test_test_pop_eventstat")
