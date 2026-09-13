@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from pathlib import PurePosixPath
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 import pytest
+from scipy.io import loadmat
 
 
 EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab_tests.git"
@@ -47,6 +49,12 @@ def upstream_references(test_function: Callable) -> tuple[EeglabTestReference, .
     return tuple(getattr(test_function, _REFERENCE_ATTRIBUTE, ()))
 
 
+def load_matlab_test_fixture(file: str | Path) -> dict[str, Any]:
+    """Load a MATLAB v4-v7.2 test fixture without squeezing or casting values."""
+    loaded = loadmat(file, struct_as_record=True, squeeze_me=False)
+    return {key: value for key, value in loaded.items() if not key.startswith("__")}
+
+
 def _validated_reference(source: str, test: str) -> EeglabTestReference:
     source_path = PurePosixPath(source)
     if source_path.is_absolute() or ".." in source_path.parts or source_path.suffix != ".m":
@@ -63,5 +71,6 @@ __all__ = [
     "STALE_EEGLAB_TESTS_REPOSITORY",
     "EeglabTestReference",
     "eeglab_test",
+    "load_matlab_test_fixture",
     "upstream_references",
 ]

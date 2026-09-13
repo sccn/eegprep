@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import numpy as np
 import pytest
+from scipy.io import savemat
 
 from tests.eeglab_tests import (
     EEGLAB_TESTS_COMMIT,
@@ -8,6 +12,7 @@ from tests.eeglab_tests import (
     EEGLAB_TESTS_REPOSITORY,
     STALE_EEGLAB_TESTS_REPOSITORY,
     eeglab_test,
+    load_matlab_test_fixture,
     upstream_references,
 )
 
@@ -60,3 +65,16 @@ def test_eeglab_test_rejects_duplicate_references() -> None:
 
     with pytest.raises(ValueError, match="duplicate EEGLAB test reference"):
         decorator(translated_test)
+
+
+def test_load_matlab_test_fixture_preserves_shape_and_dtype(tmp_path: Path) -> None:
+    fixture_path = tmp_path / "fixture.mat"
+    expected = np.arange(6, dtype=np.float32).reshape(2, 3)
+    savemat(fixture_path, {"values": expected})
+
+    loaded = load_matlab_test_fixture(fixture_path)
+
+    assert set(loaded) == {"values"}
+    assert loaded["values"].shape == (2, 3)
+    assert loaded["values"].dtype == np.float32
+    np.testing.assert_array_equal(loaded["values"], expected)
