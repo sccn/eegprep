@@ -578,6 +578,31 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     _assert_python_echo_is_parseable(command)
 
 
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_pass_set_out")
+def test_pop_copyset_current_suite_overwrites_requested_output_slot():
+    first = _eeg("first")
+    second = _eeg("second")
+
+    alleeg, eeg, current_set = pop_copyset([first, second], 2, 1)
+
+    assert current_set == 1
+    assert eeg["setname"] == "second"
+    assert alleeg[0]["setname"] == "second"
+    assert alleeg[1]["setname"] == "second"
+
+
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_test_pop_copyset")
+def test_pop_copyset_current_suite_supports_copy_and_same_slot_copy():
+    eeg = _eeg("source")
+
+    alleeg, copied, current_set = pop_copyset([eeg, deepcopy(eeg)], 1, 2)
+    alleeg, copied, current_set = pop_copyset(alleeg, 1, 1)
+
+    assert current_set == 1
+    assert copied["setname"] == "source"
+    assert [dataset["setname"] for dataset in alleeg] == ["source", "source"]
+
+
 def test_pop_mergeset_continuous_offsets_events_and_inserts_boundary():
     first = _eeg("first")
     second = _eeg("second")

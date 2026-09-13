@@ -11,6 +11,7 @@ import pytest
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_comments import pop_comments
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
@@ -88,6 +89,44 @@ def test_pop_comments_accepts_sample_data_comments():
 
     assert out["comments"] == "sample-data note"
     assert str(eeg.get("comments", "")) != "sample-data note"
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments")
+def test_pop_comments_current_suite_replaces_cell_comments():
+    old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
+
+    result = pop_comments(old_comments, "", ["New line 1", "And this one is also new"])
+
+    assert result == "New line 1\nAnd this one is also new"
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
+def test_pop_comments_current_suite_concatenates_cell_comments():
+    old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
+
+    result = pop_comments(old_comments, "", ["New line 1", "And this one is also new"], 1)
+
+    assert result == (
+        "Line nr. 1\nThis is line nr.2\n\nAnd this is the final line\nNew line 1\nAnd this one is also new"
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
+def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
+    assert pop_comments("", "Testing!", "test pass!", 0) == "test pass!"
+    assert pop_comments("", "Testing!", "test pass!", 1) == "test pass!"
+    assert pop_comments("another ", "Testing!", "test pass!", 0) == "test pass!"
+    assert pop_comments("another ", "Testing!", "test pass!", 1) == "another\ntest pass!"
+    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 0) == "test pass!\npass again!"
+    assert pop_comments("another ", "Testing!", ["test pass!", "pass again!"], 1) == (
+        "another\ntest pass!\npass again!"
+    )
+
+    eeg = _eeg()
+    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 1)
+    assert eeg["comments"].endswith("un exemple\n\nde nouveau dataset")
+    eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 0)
+    assert eeg["comments"] == "un exemple\n\nde nouveau dataset"
 
 
 @unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")
