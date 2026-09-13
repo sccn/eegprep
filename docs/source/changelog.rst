@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Current EEGLAB legacy ICA/decomposition tests now have substantive Python
+  ports for PCA and whitening, Varimax/Promax rotation, component orientation,
+  variance and z-score ordering, deterministic k-means, spatial channel subsets,
+  event-sequence time-warp selection, and historical ``runica`` entry points.
+  The single maintained infomax engine backs all variants. EEGPrep corrects
+  EEGLAB's all-negative ``posact`` orientation, dimension-reduced ``varsort``
+  inverse, and multi-epoch ``zica`` peak-selection defects; interactive demo-only
+  wrappers are covered by numerical source-recovery checks without becoming
+  public APIs.
 - Added standalone ``openbdf`` and ``readbdf`` record-level BDF access. The
   reader decodes signed 24-bit samples, supports physical calibration and
   variable per-channel sample counts, and correctly infers unknown record

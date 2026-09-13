@@ -44,6 +44,18 @@ Data Helpers
    eegprep.functions.statistics.corrcoef_cell
    eegprep.functions.statistics.teststat
 
+Clustering
+==========
+
+``kmeans_st`` and ``kmeanscluster`` operate on observations in rows and return
+zero-based labels. Supply ``random_state`` for reproducible random starts.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.kmeans_st
+   eegprep.kmeanscluster
+
 Effective Dimensionality
 ========================
 

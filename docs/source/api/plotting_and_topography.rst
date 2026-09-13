@@ -10,5 +10,6 @@ Scalp maps and artifact review plots.
 
    eegprep.hist2
    eegprep.topoplot
+   eegprep.loc_subsets
    eegprep.vis_artifacts
    eegprep.vis_artifacts_diagnostics
