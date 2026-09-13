@@ -8,6 +8,10 @@ fig, com = pop_envtopo(EEG, timerange=[-100, 300], return_com=True)
 
 This requires epoched data, channel locations, and ICA weights/maps.
 
+`compnums=-N` retains EEGLAB's legacy shorthand for ranking all components and
+plotting the `N` largest contributors. Positive component indices restrict the
+candidate set instead.
+
 Leaving the "Component numbers to remove from data before plotting" field blank
 removes no components.
 

@@ -10,65 +10,113 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import (
     component_activations,
+    eeg_epoch_data,
     eeg_times_ms,
     history_command,
     numeric_vector,
+    selected_indices,
     show_figures,
 )
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
 def pop_plotdata(
     EEG: dict[str, Any] | None = None,
+    typeplot: int = 1,
+    indices: Any = None,
+    trials: Any = None,
+    plottitle: str = "",
+    singletrials: int = 0,
+    ydir: int = 1,
+    ylimits: Any = None,
+    *,
     components: Any = None,
-    *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
     plot: str | bool = "on",
     return_com: bool = False,
-    **kwargs: Any,
+    title: str | None = None,
 ):
-    """Plot component ERP activations in a rectangular array.
+    """Plot channel or component activity in a rectangular/scalp array.
 
-    Pass ``plot='off'`` to build and return the figure without opening a window.
+    ``typeplot=1`` selects channels and ``typeplot=0`` selects ICA components.
+    Trial selections and channel/component indices are EEGLAB-facing and
+    therefore 1-based. When ``singletrials`` is false, selected trials are
+    averaged before plotting; otherwise every selected trial is overlaid.
+
+    ``components=...`` is the EEGPrep convenience spelling for
+    ``typeplot=0, indices=...``. Pass ``plot='off'`` to build and return the
+    figure without opening a window.
     """
     if EEG is None:
         return (None, "") if return_com else None
+    if components is not None:
+        if indices is not None:
+            raise TypeError("indices and components cannot both be supplied")
+        typeplot = 0
+        indices = components
+    typeplot = int(typeplot)
+    if typeplot not in {0, 1}:
+        raise ValueError("typeplot must be 1 for channels or 0 for components")
     if gui is None:
-        gui = components is None and not kwargs
+        gui = indices is None
     if gui:
-        result = _run_gui(EEG, renderer=renderer)
+        result = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
         if result is None:
             return (None, "") if return_com else None
-        components = result["components"]
-        kwargs.update(result["options"])
-    acts = component_activations(EEG)
-    erp = np.nanmean(acts, axis=2)
-    command_kwargs = dict(kwargs)
-    ylimits = kwargs.pop("ylimits", None)
+        indices = result["indices"]
+        plottitle = result["plottitle"]
+        ylimits = result["ylimits"]
+        singletrials = 0
+        ydir = -1
+    if title is not None:
+        plottitle = title
+
+    source = eeg_epoch_data(EEG) if typeplot else component_activations(EEG)
+    row_indices = selected_indices(indices, source.shape[0])
+    trial_indices = selected_indices(trials, source.shape[2])
+    selected = source[row_indices, :, :][:, :, trial_indices]
+    plot_data = selected if int(bool(singletrials)) else np.nanmean(selected, axis=2)
+    plot_chanlocs = _selected_chanlocs(EEG, row_indices) if typeplot else _component_labels(row_indices)
+    default_title = "Channel ERPs" if typeplot else "Component ERPs"
+    title_value = str(plottitle or EEG.get("setname") or default_title)
     figure = plottopo(
-        erp,
+        plot_data,
         times=eeg_times_ms(EEG),
-        channels=components,
-        title=str(kwargs.pop("title", EEG.get("setname") or "Component ERPs")),
-        ydir=int(kwargs.pop("ydir", -1)),
+        chanlocs=plot_chanlocs,
+        title=title_value,
+        ydir=int(ydir),
         ylimits=ylimits,
+        rect=True,
+        singletrials=bool(singletrials),
     )
-    command = history_command("pop_plotdata", components, **command_kwargs)
+    command = history_command(
+        "pop_plotdata",
+        typeplot,
+        (row_indices + 1).tolist(),
+        (trial_indices + 1).tolist(),
+        plottitle,
+        int(bool(singletrials)),
+        int(ydir),
+        numeric_vector(ylimits).tolist() or [0, 0],
+    )
     show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
 
-def pop_plotdata_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
+def pop_plotdata_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> DialogSpec:
     """Return the EEGLAB-like dialog spec for ``pop_plotdata``."""
-    n_components = np.asarray(EEG.get("icaweights", [])).shape[0]
+    is_channel = bool(int(typeplot))
+    count = int(EEG.get("nbchan", 0) or 0) if is_channel else np.asarray(EEG.get("icaweights", [])).shape[0]
+    label = "Channel" if is_channel else "Component"
     return DialogSpec(
-        title="Component ERPs in rect. array -- pop_plotdata()",
+        title=f"{label} ERPs in rect. array -- pop_plotdata()",
         controls=(
-            ControlSpec("text", "Component number(s):"),
-            ControlSpec("edit", tag="components", value=f"1:{n_components}" if n_components else ""),
+            ControlSpec("text", f"{label} number(s):"),
+            ControlSpec("edit", tag="indices", value=f"1:{count}" if count else ""),
             ControlSpec("text", "Plot title:"),
-            ControlSpec("edit", tag="title", value=f"{str(EEG.get('setname') or '').strip()} ERP".strip()),
+            ControlSpec("edit", tag="plottitle", value=f"{str(EEG.get('setname') or '').strip()} ERP".strip()),
             ControlSpec("text", "Vertical limits ([0 0]-> data range):"),
             ControlSpec("edit", tag="ylimits", value="0 0"),
         ),
@@ -80,17 +128,26 @@ def pop_plotdata_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
     )
 
 
-def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, Any] | None:
-    result = inputgui(pop_plotdata_dialog_spec(EEG), renderer=renderer)
+def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None) -> dict[str, Any] | None:
+    result = inputgui(pop_plotdata_dialog_spec(EEG, typeplot=typeplot), renderer=renderer)
     if result is None:
         return None
     return {
-        "components": numeric_vector(result.get("components", []), dtype=int).tolist(),
-        "options": {
-            "title": str(result.get("title", "") or ""),
-            "ylimits": numeric_vector(result.get("ylimits", [])).tolist(),
-        },
+        "indices": numeric_vector(result.get("indices", []), dtype=int).tolist(),
+        "plottitle": str(result.get("plottitle", "") or ""),
+        "ylimits": numeric_vector(result.get("ylimits", [])).tolist(),
     }
+
+
+def _selected_chanlocs(EEG: dict[str, Any], indices: np.ndarray) -> list[dict[str, Any]]:
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    if len(chanlocs) < int(EEG.get("nbchan", 0) or 0):
+        return [{"labels": str(index + 1)} for index in indices]
+    return [chanlocs[int(index)] for index in indices]
+
+
+def _component_labels(indices: np.ndarray) -> list[dict[str, str]]:
+    return [{"labels": str(int(index) + 1)} for index in indices]
 
 
 __all__ = ["pop_plotdata", "pop_plotdata_dialog_spec"]
