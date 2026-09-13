@@ -13,6 +13,7 @@ import scipy.io
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
+from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
 
@@ -44,6 +45,12 @@ def pop_fileio(
             eeg = pop_importdata("data", str(path), "setname", path.stem, "dataformat", "matlab", **kwargs)
     elif suffix in {".csv", ".txt", ".tsv", ".npy", ".npz"}:
         eeg = pop_importdata("data", str(path), "setname", path.stem, **kwargs)
+    elif suffix == ".cnt":
+        if blockrange is not None:
+            start, stop = _blockrange_values(blockrange)
+            kwargs["t1"] = start
+            kwargs["lddur"] = stop - start
+        eeg = pop_loadcnt(path, **kwargs)
     else:
         reader = _reader_for_suffix(suffix)
         raw = reader(str(path), preload=True, verbose=False)
@@ -87,16 +94,21 @@ def _reader_for_suffix(suffix: str):
 
 
 def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
+    start, stop = _blockrange_values(blockrange)
+    recording_stop = raw.n_times / float(raw.info["sfreq"])
+    if start >= recording_stop:
+        raise ValueError("blockrange starts after the end of the recording")
+    raw.crop(tmin=start, tmax=min(stop, recording_stop), include_tmax=False)
+
+
+def _blockrange_values(blockrange: Any) -> tuple[float, float]:
     values = np.asarray(blockrange, dtype=float).reshape(-1)
     if values.size != 2 or not np.all(np.isfinite(values)):
         raise ValueError("blockrange must contain two finite times in seconds")
     start, stop = (float(value) for value in values)
     if start < 0 or stop <= start:
         raise ValueError("blockrange must satisfy 0 <= start < stop")
-    recording_stop = raw.n_times / float(raw.info["sfreq"])
-    if start >= recording_stop:
-        raise ValueError("blockrange starts after the end of the recording")
-    raw.crop(tmin=start, tmax=min(stop, recording_stop), include_tmax=False)
+    return start, stop
 
 
 def _select_imported_data(EEG: dict[str, Any], *, channels: Any, samples: Any, trials: Any) -> dict[str, Any]:

@@ -25,6 +25,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.eeg_mergelocs
    eegprep.floatread
    eegprep.floatwrite
+   eegprep.loadcnt
    eegprep.loadeeg
    eegprep.loadtxt
    eegprep.loadset
@@ -35,6 +36,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.mne2eeg_epochs
    eegprep.openbdf
    eegprep.parsetxt
+   eegprep.pop_loadcnt
    eegprep.readbdf
    eegprep.readeetraklocs
    eegprep.readegilocs
@@ -49,3 +51,8 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
 
 ``readegilocs`` includes packaged EGI montages for 32/33, 64/65, 128/129,
 and 256/257-channel nets.
+
+``loadcnt`` and ``pop_loadcnt`` read Neuroscan CNT data without an EEGLAB
+checkout. They support 16- and 32-bit recordings, channel-blocked storage,
+microvolt calibration, partial reads, event tables, and ``.fdt``-backed data.
+ANT Neuro CNT is a separate format and is not accepted by this reader.
