@@ -258,9 +258,11 @@ def canonicalize_signs(V):
     """Canonicalize signs of column matrix V so that the largest absolute value is positive."""
     # V: columns are eigenvectors
     idx = np.argmax(np.abs(V), axis=0)
-    sgn = np.sign(V[idx, range(V.shape[1])])
-    sgn[sgn == 0] = 1
-    return V * sgn
+    pivot = V[idx, range(V.shape[1])]
+    phase = np.ones_like(pivot, dtype=np.result_type(V.dtype, float))
+    nonzero = pivot != 0
+    phase[nonzero] = np.conj(pivot[nonzero]) / np.abs(pivot[nonzero])
+    return V * phase
 
 
 def round_mat(x, decimals=0):

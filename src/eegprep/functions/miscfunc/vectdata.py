@@ -8,6 +8,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import convolve
 
+from ._validation import real_array
 from .misc import round_mat
 
 
@@ -27,9 +28,11 @@ def vectdata(
     ``v4`` biharmonic ``griddata`` method has no well-defined one-dimensional
     equivalent and is rejected explicitly.
     """
-    values = np.asarray(data, dtype=float)
-    input_times = np.asarray(times, dtype=float).reshape(-1)
-    output_times = np.asarray(timesout, dtype=float).reshape(-1)
+    values = np.asarray(data)
+    if not np.issubdtype(values.dtype, np.number):
+        raise TypeError("data must be numeric")
+    input_times = real_array(times, "times").reshape(-1)
+    output_times = real_array(timesout, "timesout").reshape(-1)
     was_vector = values.ndim == 1
     if was_vector:
         values = values.reshape(1, -1)

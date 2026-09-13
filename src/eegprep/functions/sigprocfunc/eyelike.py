@@ -10,7 +10,9 @@ from scipy.optimize import linear_sum_assignment
 
 def eyelike(matrix: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Permute and scale rows so the output diagonal is one."""
-    values = np.asarray(matrix, dtype=float)
+    values = np.asarray(matrix)
+    if not np.issubdtype(values.dtype, np.number):
+        raise TypeError("matrix must be numeric")
     if values.ndim != 2 or values.shape[0] != values.shape[1]:
         raise ValueError("matrix must be square")
     row_norms = np.sum(np.abs(values), axis=1)

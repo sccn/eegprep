@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import real_array
+
 
 def covary(data: Any) -> np.ndarray | np.floating[Any]:
     """Return EEGLAB's globally centered, unbiased column second moment.
@@ -14,7 +16,7 @@ def covary(data: Any) -> np.ndarray | np.floating[Any]:
     grand mean from the entire input before computing each column. This
     behavior is retained because existing analyses can depend on it.
     """
-    values = np.asarray(data, dtype=float)
+    values = real_array(data, "data")
     if values.ndim == 0:
         return np.float64(np.nan)
     if values.ndim == 1 or (values.ndim == 2 and values.shape[0] == 1):

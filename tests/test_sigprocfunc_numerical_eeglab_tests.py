@@ -18,9 +18,19 @@ def _source(name: str) -> str:
 def test_current_celltomat_converts_rectangular_numeric_cells_and_empty_input():
     np.testing.assert_array_equal(celltomat([1, 2, 3]), [1, 2, 3])
     np.testing.assert_array_equal(celltomat([[1, 2, 3], [4, 5, 6]]), [[1, 2, 3], [4, 5, 6]])
+    object_cells = np.asarray([[1, 2], [3, 4]], dtype=object)
+    np.testing.assert_array_equal(celltomat(object_cells), [[1, 2], [3, 4]])
+    matlab_cells = np.empty((2, 2), dtype=object)
+    for index, value in enumerate([1, 2, 3, 4]):
+        matlab_cells.flat[index] = np.asarray([[value]])
+    np.testing.assert_array_equal(celltomat(matlab_cells), [[1, 2], [3, 4]])
     assert celltomat([]).size == 0
     with pytest.raises((TypeError, ValueError)):
         celltomat([[1, 2], [3]])
+    invalid_cells = np.empty(1, dtype=object)
+    invalid_cells[0] = np.asarray([1, 2])
+    with pytest.raises(TypeError):
+        celltomat(invalid_cells)
 
 
 @eeglab_test(_source("eyelike"), "test_pass_diag_zero_1")
@@ -35,6 +45,7 @@ def test_current_eyelike_produces_unit_diagonal_and_invertible_transform():
         np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float),
         np.asarray([[0, 1, 1], [1, 0, 1], [1, 1, 0]], dtype=float),
         np.asarray([[0, -4, 1], [2, 0, 1], [1, 3, 0]], dtype=float),
+        np.asarray([[1 + 2j, 3], [4, 2 - 1j]]),
     ]
     for matrix in matrices:
         normalized, scale, permutation = eyelike(matrix)
@@ -65,6 +76,10 @@ def test_current_matsel_selects_zero_based_frames_from_each_flattened_epoch():
     assert matsel(epoched, 2, [], [0], [0]).shape == (1, 0)
     with pytest.raises(IndexError):
         matsel(epoched, 2, [2])
+    with pytest.raises(ValueError, match="integer"):
+        matsel(epoched, 2.9, [0])
+    with pytest.raises(ValueError, match="integers"):
+        matsel(epoched, 2, [0.9])
 
 
 @eeglab_test(_source("mattocell"), "test_pass_empty_data")
@@ -87,6 +102,7 @@ def test_current_nan_mean_uses_first_nonsingleton_axis_and_preserves_all_nan_col
     np.testing.assert_allclose(nan_mean(values), [np.nan, 9.5, 2, -2 / 3, 0], equal_nan=True)
     assert nan_mean(1) == 1
     assert nan_mean([1, 2, 3, 0, -5]) == pytest.approx(0.2)
+    np.testing.assert_allclose(nan_mean([1 + 2j, 3 + 4j]), 2 + 3j)
 
 
 @eeglab_test(_source("quantile"), "test_pass_column")
@@ -107,6 +123,12 @@ def test_current_quantile_matches_midpoint_empirical_interpolation():
     np.testing.assert_allclose(quantile(matrix, [0, 0.25, 0.5, 0.75, 1]), matrix_expected)
     np.testing.assert_array_equal(quantile(17, [0.25, 0.5, 0.75]), [17, 17, 17])
     np.testing.assert_allclose(quantile([1, np.nan, 5], [0, 0.5, 1]), [1, 3, 5])
+    with pytest.raises(ValueError, match="integer"):
+        quantile(matrix, [0.5], axis=0.5)
+    with pytest.raises(ValueError, match="real"):
+        quantile([1 + 2j, 3 + 4j], [0.5])
+    with pytest.raises(ValueError, match="real"):
+        quantile([1, 3], [0.5 + 0.1j])
 
 
 @eeglab_test(_source("shuffle"), "test_test_shuffle")
@@ -118,3 +140,5 @@ def test_current_shuffle_returns_zero_based_permutation_and_exact_inverse_for_an
         np.testing.assert_array_equal(shuffled, np.take(data, permutation, axis=axis))
         np.testing.assert_array_equal(np.take(shuffled, inverse, axis=axis), data)
         np.testing.assert_array_equal(permutation[inverse], np.arange(shape[axis]))
+    with pytest.raises(ValueError, match="integer"):
+        shuffle(np.ones((2, 2)), axis=0.5)

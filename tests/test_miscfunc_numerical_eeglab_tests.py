@@ -42,6 +42,8 @@ def _source(name: str) -> str:
 def test_current_abspeak_rejects_an_epoch_length_that_does_not_divide_data():
     with pytest.raises(ValueError, match="divide"):
         abspeak(np.ones((2, 5)), 6)
+    with pytest.raises(ValueError, match="integer"):
+        abspeak(np.ones((2, 6)), 2.9)
 
 
 @eeglab_test(_source("abspeak"), "test_fail_no_arg")
@@ -103,6 +105,10 @@ def test_current_abspeak_returns_last_tied_peak_and_its_sign():
     np.testing.assert_array_equal(amplitudes, [[4, 7]])
     np.testing.assert_array_equal(frames, [[1, 0]])
     np.testing.assert_array_equal(signs, [[-1, -1]])
+    amplitudes, frames, signs = abspeak([[1 + 1j, 3 + 4j]])
+    np.testing.assert_allclose(amplitudes, [[5]])
+    np.testing.assert_array_equal(frames, [[1]])
+    np.testing.assert_allclose(signs, [[0.6 + 0.8j]])
 
 
 @eeglab_test(_source("abspeak"), "test_pass_nan_inf")
@@ -135,12 +141,22 @@ def test_current_averef_removes_each_frames_channel_mean():
     np.testing.assert_allclose(averef(positive), [[-3, -0.5, -1.5], [3, 0.5, 1.5]])
     mixed = np.asarray([[2, 1, 3, 2.4, -np.pi], [0, -3, -3, -1.8, np.pi]])
     np.testing.assert_allclose(averef(mixed), [[1, 2, 3, 2.1, -np.pi], [-1, -2, -3, -2.1, np.pi]])
+    complex_data = np.asarray([[1 + 2j, 3 - 1j], [5 - 2j, 1 + 3j]])
+    np.testing.assert_allclose(averef(complex_data).mean(axis=0), 0, atol=1e-15)
 
     referenced, weights, sphere, mean_data = averef(positive, np.eye(2), np.eye(2), return_parameters=True)
     np.testing.assert_allclose(referenced.mean(axis=0), 0, atol=1e-15)
     np.testing.assert_allclose(sphere, np.eye(2))
     np.testing.assert_allclose(mean_data, positive.mean(axis=0))
-    assert weights is not None and weights.shape == (2, 2)
+    np.testing.assert_allclose(weights, [[0.5, -0.5], [-0.5, 0.5]])
+
+    input_weights = np.asarray([[2.0, 1.0], [0.5, 1.5]])
+    input_sphere = np.asarray([[1.0, 0.2], [0.0, 0.8]])
+    _, transformed, transformed_sphere, _ = averef(positive, input_weights, input_sphere, return_parameters=True)
+    mixing = np.linalg.pinv(input_weights @ input_sphere)
+    average_matrix = np.eye(2) - np.ones((2, 2)) / 2
+    np.testing.assert_allclose(transformed, np.linalg.pinv(average_matrix @ mixing))
+    np.testing.assert_allclose(transformed_sphere, np.eye(2))
 
 
 @eeglab_test(_source("covary"), "test_pass_mixed_matrix")
@@ -209,6 +225,8 @@ def test_current_gauss_is_symmetric_positive_and_unit_peaked():
     assert window[2] == pytest.approx(1)
     assert np.all((window > 0) & (window <= 1))
     np.testing.assert_array_equal(gauss(1, 3), [1])
+    with pytest.raises(ValueError, match="integer"):
+        gauss(5.5, 1)
 
 
 @eeglab_test(_source("gauss2d"), "test_pass_general")
@@ -221,6 +239,8 @@ def test_current_gauss2d_has_requested_peak_symmetry_and_cut():
     cut = gauss2d(5, 4, 1, 1, 3, 2.5, 0.5)
     uncut = gauss2d(5, 4, 1, 1, 3, 2.5, 0)
     assert np.count_nonzero(cut) < np.count_nonzero(uncut)
+    with pytest.raises(ValueError, match="integer"):
+        gauss2d(5.5, 4)
 
 
 @eeglab_test(_source("gauss3d"), "test_test_gauss3d")
@@ -230,6 +250,8 @@ def test_current_gauss3d_honors_anisotropic_shape_peak_and_cut():
     assert np.argmax(kernel) == np.ravel_multi_index((0, 1, 2), kernel.shape)
     cut = gauss3d(3, 3, 3, 0.6, 0.6, 0.6, 2, 2, 2, 0.5)
     assert 0 < np.count_nonzero(cut) < cut.size
+    with pytest.raises(ValueError, match="integer"):
+        gauss3d(3, 3, 3.5)
 
 
 @eeglab_test(_source("hungarian"), "test_pass_equal")
@@ -260,6 +282,11 @@ def test_current_hungarian_finds_known_global_minima_with_unique_assignments():
             sum(costs[row, column] for column, row in enumerate(order)) for order in itertools.permutations(range(4))
         )
         assert total == pytest.approx(brute_force)
+    assignment, total = hungarian([[1, np.inf], [np.inf, 2]])
+    np.testing.assert_array_equal(assignment, [0, 1])
+    assert total == 3
+    with pytest.raises(ValueError, match="no finite complete assignment"):
+        hungarian([[1, np.inf], [2, np.inf]])
 
 
 @eeglab_test(_source("laplac2d"), "test_pass_cut")
@@ -294,6 +321,8 @@ def test_current_mapcorr_aligns_values_by_channel_label_before_matching():
     np.testing.assert_allclose(np.diag(all_correlations), 1)
     zero_weight = mapcorr(first, second, first_channels, second_channels, method=0, weighting=0)
     np.testing.assert_allclose(zero_weight[3], all_correlations)
+    with pytest.raises(ValueError, match="unique"):
+        mapcorr(first, second, first_channels, [{"labels": "Pz"}] * 4)
 
 
 @eeglab_test(_source("matcorr"), "test_pass_general")
@@ -331,6 +360,8 @@ def test_current_matperm_reorders_rows_and_corrects_component_polarity():
     output, permutation = matperm(first, second, [1, 0, 2], [0, 1, 2], [1, -1, 1])
     np.testing.assert_array_equal(output, second)
     np.testing.assert_array_equal(permutation, [1, 0, 2])
+    with pytest.raises(ValueError, match="integers"):
+        matperm(first, second, [0.9], [0], [1])
 
 
 @eeglab_test(_source("means"), "test_test_means")
@@ -341,6 +372,11 @@ def test_current_means_computes_groupwise_statistics_along_observations():
     np.testing.assert_allclose(group_means, [[5, 10], [3, 4]])
     np.testing.assert_allclose(variances, [[8, np.nan], [8, 8]], equal_nan=True)
     np.testing.assert_allclose(standard_errors, [[2, np.nan], [2, 2]], equal_nan=True)
+    _, missing_stderr, missing_variance, _ = means([[1], [3], [np.nan]])
+    np.testing.assert_allclose(missing_variance, [[2]])
+    np.testing.assert_allclose(missing_stderr, [[1]])
+    complex_means, _, _, _ = means([[1 + 2j], [3 + 4j]])
+    np.testing.assert_allclose(complex_means, [[2 + 3j]])
     assert means(np.ones((32, 100)))[0].shape == (1, 100)
     assert means(np.ones((32, 1)))[0].shape == (1, 1)
     assert means(np.ones((1, 100)))[0].shape == (1, 100)
@@ -356,6 +392,8 @@ def test_current_nan_std_uses_sample_scaling_and_first_nonsingleton_axis():
     np.testing.assert_allclose(
         nan_std(values), [np.nan, np.sqrt(50), np.sqrt(3), np.sqrt(31), np.sqrt(32)], equal_nan=True
     )
+    offset = 1e10
+    np.testing.assert_allclose(nan_std(offset + np.arange(4)), np.sqrt(5 / 3))
     assert np.isnan(nan_std(1))
     assert nan_std([1, 2]) == pytest.approx(np.sqrt(0.5))
 
@@ -382,6 +420,20 @@ def test_current_pcsquash_orders_components_and_roundtrips_through_pcexpand():
         np.testing.assert_allclose(pcexpand(compressed, vectors, data_mean), expected, atol=1e-12)
         assert np.all(np.diff(eigenvalues) <= 1e-15)
         np.testing.assert_allclose(vectors.T @ vectors, np.eye(vectors.shape[1]), atol=1e-12)
+    general = np.asarray([[1, 2, 3, 4, 5], [-2, 0, 2, -1, 6]])
+    vectors, eigenvalues, compressed, data_mean = pcsquash(general)
+    v1 = 0.5 * np.sqrt(2 - np.sqrt(2))
+    v2 = 0.5 * np.sqrt(2 + np.sqrt(2))
+    np.testing.assert_allclose(eigenvalues, [5 + 3 * np.sqrt(2), 5 - 3 * np.sqrt(2)])
+    np.testing.assert_allclose(np.abs(vectors), np.abs([[v1, -v2], [v2, v1]]))
+    np.testing.assert_allclose(data_mean, [3, 1])
+    np.testing.assert_allclose(vectors @ compressed + data_mean[:, None], general)
+    np.testing.assert_allclose(pcsquash([1, 2, 3])[1], [2 / 3])
+    complex_data = np.asarray([[1 + 2j, 3 + 1j, 2 - 1j], [2 - 1j, 0 + 2j, 4 + 3j]])
+    vectors, _, compressed, data_mean = pcsquash(complex_data)
+    np.testing.assert_allclose(pcexpand(compressed, vectors, data_mean), complex_data, atol=1e-12)
+    with pytest.raises(ValueError, match="integer"):
+        pcsquash([[1, 2, 3], [3, 2, 1]], 1.9)
 
 
 @eeglab_test(_source("perminv"), "test_pass_general")
@@ -390,6 +442,8 @@ def test_current_perminv_returns_zero_based_inverse_permutation():
     inverse = perminv(permutation)
     np.testing.assert_array_equal(inverse, [2, 0, 4, 1, 3])
     np.testing.assert_array_equal(permutation[inverse], np.arange(permutation.size))
+    with pytest.raises(ValueError, match="integers"):
+        perminv([0.9, 1.1])
 
 
 @eeglab_test(_source("scanfold"), "test_test_scanfold")
@@ -408,6 +462,9 @@ def test_current_scanfold_respects_ignored_directories_and_depth(tmp_path):
     assert command == " -a nested.m -a plugin.m -a root.m"
     assert scanfold(tmp_path, {"plugins"})[0] == ["nested.m", "root.m"]
     assert scanfold(tmp_path, max_depth=1)[0] == ["root.m"]
+    assert scanfold(tmp_path, ignore="plugins")[0] == ["nested.m", "root.m"]
+    with pytest.raises(ValueError, match="integer"):
+        scanfold(tmp_path, max_depth=1.5)
 
 
 @eeglab_test(_source("uniquef"), "test_test_uniquef")
@@ -442,5 +499,30 @@ def test_current_vectdata_interpolates_and_smooths_with_explicit_v4_exclusion():
     assert 0 < smoothed[4] < 1
     constant, _ = vectdata(np.ones(9), np.arange(9), timesout=np.arange(9), average=5, border="on")
     np.testing.assert_allclose(constant, 1)
+    complex_values = np.exp(1j * np.arange(5))
+    complex_result, _ = vectdata(complex_values, np.arange(5), timesout=np.arange(5))
+    np.testing.assert_allclose(complex_result, complex_values)
     with pytest.raises(NotImplementedError, match="v4"):
         vectdata(values, times, timesout=dense_times, method="v4")
+
+
+def test_real_only_numerical_helpers_reject_complex_inputs_instead_of_discarding_them():
+    complex_values = [1 + 2j, 3 + 4j]
+    for call in (
+        lambda: covary(complex_values),
+        lambda: datlim(complex_values),
+        lambda: eucl(complex_values),
+        lambda: hungarian([[1 + 1j]]),
+        lambda: mapcorr(
+            [complex_values],
+            [complex_values],
+            [{"labels": "A"}, {"labels": "B"}],
+            [{"labels": "A"}, {"labels": "B"}],
+        ),
+        lambda: matcorr([complex_values], [complex_values]),
+        lambda: matperm([complex_values], [complex_values], [0], [0], [1 + 1j]),
+        lambda: nan_std(complex_values),
+        lambda: uniquef(complex_values),
+    ):
+        with pytest.raises(ValueError, match="real"):
+            call()

@@ -6,12 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import real_array
+
 
 def datlim(data: Any) -> np.ndarray:
     """Return the minimum and maximum of a nonempty numeric array."""
-    values = np.asarray(data)
-    if not np.issubdtype(values.dtype, np.number):
-        raise TypeError("data must be a numeric array")
+    values = real_array(data, "data")
     if values.size == 0:
         raise ValueError("data must not be empty")
     return np.asarray([np.min(values), np.max(values)])

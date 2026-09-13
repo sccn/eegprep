@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from .gauss2d import _threshold_magnitude
+from ._validation import integer_scalar
 
 
 def gauss3d(
@@ -20,7 +21,11 @@ def gauss3d(
     cut: float = 0.0,
 ) -> np.ndarray:
     """Return an EEGLAB-compatible three-dimensional Gaussian kernel."""
-    shape = int(rows), int(columns), int(depth)
+    shape = (
+        integer_scalar(rows, "rows"),
+        integer_scalar(columns, "columns"),
+        integer_scalar(depth, "depth"),
+    )
     if min(shape) < 1:
         raise ValueError("kernel dimensions must be positive")
     sigmas = np.asarray(

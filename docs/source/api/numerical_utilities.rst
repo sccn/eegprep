@@ -19,9 +19,23 @@ EEGLAB formulas rather than Python array indices.
 
 ``covary`` deliberately retains EEGLAB's grand-mean centering before computing
 column second moments; use NumPy's variance functions when ordinary per-column
-centering is intended. ``quantile`` retains the midpoint empirical-probability
-rule used by the current EEGLAB tests. ``vectdata`` supports linear, cubic, and
-nearest-neighbor interpolation. MATLAB's legacy biharmonic ``griddata``
+centering is intended. ``means`` uses the number of finite observations when
+computing standard errors and leaves single-observation sample variances
+undefined. This fixes the historical EEGLAB helper's underestimated standard
+errors when a group contains missing values. ``nan_std`` uses a centered
+calculation so large constant offsets do not erase small physiological
+variation through catastrophic cancellation.
+
+``quantile`` retains the midpoint empirical-probability rule used by the
+current EEGLAB tests. Integer counts, axes, permutations, and selections must
+be exact integers; fractional values are rejected instead of silently selecting
+the wrong samples. Functions that have a meaningful complex-valued contract,
+including PCA, interpolation, peak phase, and NaN-aware means, preserve complex
+data. Real-only functions reject complex input instead of discarding its
+imaginary component.
+
+``vectdata`` supports linear, cubic, and nearest-neighbor interpolation.
+MATLAB's legacy biharmonic ``griddata``
 ``v4`` mode has no well-defined one-dimensional SciPy equivalent and raises
 ``NotImplementedError`` rather than substituting a different interpolator.
 

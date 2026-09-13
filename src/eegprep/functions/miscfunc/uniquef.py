@@ -6,10 +6,12 @@ from typing import Any
 
 import numpy as np
 
+from ._validation import real_array
+
 
 def uniquef(groups: Any, sort: bool = False) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return finite unique values, counts, and zero-based first indices."""
-    values = np.asarray(groups, dtype=float).reshape(-1)
+    values = real_array(groups, "groups").reshape(-1)
     tolerance = np.finfo(float).eps * 10**4
     unique_values: list[float] = []
     counts: list[int] = []

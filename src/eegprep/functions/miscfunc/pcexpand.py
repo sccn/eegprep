@@ -9,9 +9,11 @@ import numpy as np
 
 def pcexpand(projections: Any, eigenvectors: Any, data_means: Any) -> np.ndarray:
     """Expand component projections back into channel space."""
-    projected = np.asarray(projections, dtype=float)
-    vectors = np.asarray(eigenvectors, dtype=float)
-    means = np.asarray(data_means, dtype=float).reshape(-1)
+    projected = np.asarray(projections)
+    vectors = np.asarray(eigenvectors)
+    means = np.asarray(data_means).reshape(-1)
+    if not all(np.issubdtype(array.dtype, np.number) for array in (projected, vectors, means)):
+        raise TypeError("PCA inputs must be numeric")
     if projected.ndim != 2 or vectors.ndim != 2 or vectors.shape[0] != vectors.shape[1]:
         raise ValueError("projections must be 2-D and eigenvectors must be square")
     if projected.shape[0] > vectors.shape[1]:

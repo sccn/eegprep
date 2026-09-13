@@ -6,18 +6,19 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc._validation import integer_scalar, real_array
 from eegprep.functions.miscfunc.nan_std import _first_nonsingleton_axis
 
 
 def quantile(data: Any, probabilities: Any, axis: int | None = None) -> np.ndarray:
     """Return quantiles using MATLAB's midpoint empirical-probability rule."""
-    values = np.asarray(data, dtype=float)
-    requested = np.asarray(probabilities, dtype=float).reshape(-1)
+    values = real_array(data, "data")
+    requested = real_array(probabilities, "probabilities").reshape(-1)
     if np.any((requested < 0) | (requested > 1)):
         raise ValueError("probabilities must lie between zero and one")
     if values.ndim == 0:
         return np.full(requested.shape, float(values))
-    selected_axis = _first_nonsingleton_axis(values) if axis is None else axis
+    selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     moved = np.moveaxis(values, selected_axis, 0)
     if moved.shape[0] == 0:
         raise ValueError("data must not be empty")

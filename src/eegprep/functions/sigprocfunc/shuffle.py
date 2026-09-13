@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc._validation import integer_scalar
+
 
 def shuffle(
     data: Any, axis: int | None = None, *, rng: np.random.Generator | None = None
@@ -14,7 +16,7 @@ def shuffle(
     values = np.asarray(data)
     if values.ndim == 0:
         raise ValueError("data must have at least one dimension")
-    selected_axis = _first_nonsingleton_axis(values) if axis is None else int(axis)
+    selected_axis = _first_nonsingleton_axis(values) if axis is None else integer_scalar(axis, "axis")
     if selected_axis < 0:
         selected_axis += values.ndim
     if selected_axis < 0 or selected_axis >= values.ndim:

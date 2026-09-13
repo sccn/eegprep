@@ -6,6 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc._validation import integer_array, integer_scalar
+
 
 def matsel(
     data: Any,
@@ -22,7 +24,9 @@ def matsel(
     values = np.asarray(data)
     if values.ndim != 2 or values.size == 0:
         raise ValueError("data must be a nonempty 2-D channel-by-frame matrix")
-    epoch_frames = values.shape[1] if frames_per_epoch in {None, 0} else int(frames_per_epoch)
+    epoch_frames = values.shape[1] if frames_per_epoch is None else integer_scalar(frames_per_epoch, "frames_per_epoch")
+    if epoch_frames == 0:
+        epoch_frames = values.shape[1]
     if epoch_frames <= 0 or values.shape[1] % epoch_frames:
         raise ValueError("frames_per_epoch must divide the data length")
     epoch_count = values.shape[1] // epoch_frames
@@ -36,7 +40,7 @@ def matsel(
 
 
 def _indices(selection: Any | None, length: int, name: str) -> np.ndarray:
-    indices = np.arange(length) if selection is None else np.asarray(selection, dtype=int).reshape(-1)
+    indices = np.arange(length) if selection is None else integer_array(selection, name).reshape(-1)
     if indices.size == 0:
         return indices
     if np.any(indices < 0) or np.any(indices >= length):
