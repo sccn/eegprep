@@ -1183,7 +1183,7 @@ def test_phase4_dialog_specs_match_eeglab_selector_layouts(sample_eeg, ica_epoch
 
     plottopo_controls = controls_by_tag(pop_plottopo_dialog_spec(sample_eeg))
     assert plottopo_controls["rect"].value is False
-    assert plottopo_controls["options"].value == "'ydir', -1"
+    assert plottopo_controls["options"].value == "'ydir', 1"
 
     chanplot_controls = controls_by_tag(pop_chanplot_dialog_spec({"name": "demo study"}, [sample_eeg]))
     assert chanplot_controls["chan_list"].string.startswith("All channels|")

@@ -1668,7 +1668,7 @@
     },
     {
       "id": "pop_plotdata_dialog",
-      "description": "Component ERP array dialog opened from pop_plotdata.",
+      "description": "Channel ERP array dialog opened from pop_plotdata.",
       "window_size": [490, 231],
       "timeout_seconds": 120,
       "targets": {

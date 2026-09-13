@@ -274,14 +274,20 @@ def _raise_for_unsupported_component_options(options: dict[str, Any]) -> None:
                 "pop_spectopo only supports whole-scalp component spectra (plotchan=0); "
                 "per-electrode or max-power projection is not available in EEGPrep"
             )
-    if "icamode" in options and not bool(options["icamode"]):
-        raise ValueError(
-            "pop_spectopo only supports component spectra (icamode on); (data-comp) spectra is not available in EEGPrep"
+    if "icamode" in options:
+        mode = options["icamode"]
+        supported = (
+            str(mode).strip().lower() in {"normal", "on", "yes", "true", "1"} if isinstance(mode, str) else bool(mode)
         )
+        if not supported:
+            raise ValueError(
+                "pop_spectopo only supports component spectra (icamode normal); "
+                "(data-comp) spectra is not available in EEGPrep"
+            )
 
 
 def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    spectral_keys = {"winsize", "overlap", "nfft"}
+    spectral_keys = {"winsize", "overlap", "nfft", "wintype", "blckhn"}
     spectral = {key: options[key] for key in spectral_keys if key in options}
     if "winsize" in spectral:
         spectral["winsize"] = int(numeric_vector(spectral["winsize"])[0])
@@ -289,6 +295,10 @@ def _split_spectopo_options(options: dict[str, Any]) -> tuple[dict[str, Any], di
         spectral["overlap"] = int(numeric_vector(spectral["overlap"])[0])
     if "nfft" in spectral:
         spectral["nfft"] = int(numeric_vector(spectral["nfft"])[0])
+    if "wintype" in spectral:
+        spectral["wintype"] = str(spectral["wintype"])
+    if "blckhn" in spectral:
+        spectral["blckhn"] = int(numeric_vector(spectral["blckhn"])[0])
     topoplot = {key: value for key, value in options.items() if key not in spectral_keys}
     for unused in {"icacomps", "icamaps", "nicamaps", "plotchan", "icamode"}:
         topoplot.pop(unused, None)
