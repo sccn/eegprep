@@ -9,7 +9,7 @@ import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
-from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 # Allows access using . notation
 # class EEG:
@@ -30,12 +30,15 @@ def loadset(file_path):
 
 
 def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
-    """Load EEGLAB dataset from .set or .mat file.
+    """Load an EEGLAB dataset, its metadata, or selected channels.
 
     Parameters
     ----------
     file_path : str
         Path to the EEGLAB .set file.
+    loadmode : {"all", "info"} or int or sequence of int, optional
+        Load all data, metadata without sample data, or selected channels.
+        Channel numbers are 1-based, as in EEGLAB.
 
     Returns
     -------
@@ -45,8 +48,8 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
     file_path, loadmode, use_memmap = _load_options(file_path, args, kwargs, loadmode, memmap)
-    if loadmode != "all":
-        raise NotImplementedError("pop_loadset currently supports loadmode='all' only; storedisk uses eeg_retrieve().")
+    info_only = isinstance(loadmode, str) and loadmode == "info"
+    channel_selection = [] if isinstance(loadmode, str) else loadmode
 
     def new_check(obj):
         # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
@@ -108,8 +111,12 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
-    if not loaded_with_h5:
+    if not loaded_with_h5 and not info_only:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
+
+    info_data = None
+    if info_only:
+        info_data = _string_value(EEG.get("datfile")) or "in set file"
 
     # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
     # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
@@ -123,6 +130,10 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         ur_indices_to_zero_based(EEG)
 
     EEG = eeg_checkset(EEG)
+    if info_data is not None:
+        EEG["data"] = info_data
+    if channel_selection:
+        _select_loaded_channels(EEG, channel_selection)
     EEG.pop("changes_not_saved", None)
     EEG["saved"] = "justloaded"
 
@@ -147,7 +158,17 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
         options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
         filename = file_path
     filepath = options.pop("filepath", None)
-    loadmode = str(options.pop("loadmode", loadmode) or "all").lower()
+    loadmode = options.pop("loadmode", loadmode)
+    if loadmode is None or (isinstance(loadmode, str) and loadmode == ""):
+        loadmode = "all"
+    if isinstance(loadmode, str):
+        loadmode = loadmode.lower()
+        if loadmode not in {"all", "info"}:
+            raise ValueError("loadmode must be 'all', 'info', or 1-based channel indices")
+    else:
+        loadmode = parse_numeric_sequence(loadmode, dtype=int)
+        if not loadmode or any(index < 1 for index in loadmode):
+            raise ValueError("loadmode channel indices must be positive and 1-based")
     memmap = options.pop("memmap", memmap)
     options.pop("check", None)
     options.pop("verbose", None)
@@ -163,6 +184,24 @@ def _load_options(file_path, args, kwargs, loadmode, memmap):
         path = Path(os.fspath(filepath)) / path
     use_memmap = memmap_enabled() if memmap is None else is_on(memmap)
     return str(path), loadmode, use_memmap
+
+
+def _select_loaded_channels(EEG, channel_selection) -> None:
+    indices = np.asarray(channel_selection, dtype=int) - 1
+    nbchan = int(EEG.get("nbchan", np.asarray(EEG.get("data", [])).shape[0]) or 0)
+    if np.any(indices < 0) or np.any(indices >= nbchan):
+        raise ValueError("loadmode channel indices exceed the dataset channel count")
+    data = np.asarray(EEG.get("data"))
+    if data.ndim not in {2, 3}:
+        raise ValueError("channel loadmode requires numeric EEG data")
+    EEG["datachannel"] = channel_selection[0] if len(channel_selection) == 1 else list(channel_selection)
+    EEG["data"] = data[indices]
+    EEG["nbchan"] = len(indices)
+    chanlocs = EEG.get("chanlocs")
+    if chanlocs is not None and len(chanlocs):
+        EEG["chanlocs"] = [chanlocs[index] for index in indices]
+    for field in ("icachansind", "icaact", "icaweights", "icasphere", "icawinv"):
+        EEG[field] = np.array([])
 
 
 def _load_sidecar_data(EEG, file_path: Path, *, use_memmap: bool) -> None:

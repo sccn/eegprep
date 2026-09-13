@@ -77,6 +77,8 @@ def test_readlocs_reads_packaged_mat_backed_montage() -> None:
     assert {"X", "Y", "Z", "theta", "radius", "sph_theta", "sph_phi"} <= set(locs[3])
 
 
+@eeglab_test("unittesting_popfunc/pop_readlocs/popfunc_pop_readlocs_wrapperTest.m", "test_test_pop_readlocs")
+@eeglab_test("unittesting_popfunc/pop_writelocs/popfunc_pop_writelocs_wrapperTest.m", "test_test_pop_writelocs")
 def test_readlocs_and_writelocs_round_trip_locs_and_ced(tmp_path: Path) -> None:
     locs = [
         {"labels": "Fz", "theta": 0.0, "radius": 0.25},

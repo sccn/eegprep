@@ -13,10 +13,17 @@ Usage:
 EEG = pop_fileio("recording.vhdr")
 EEG, com = pop_fileio("recording.edf", return_com=True)
 EEG = pop_fileio("recording.bdf", blockrange=[10, 20])
+EEG = pop_fileio("epochs.set", channels="1:16", trials=[2, 50])
 ```
 
 For MNE-backed continuous formats, `blockrange=[start, stop]` imports a
 half-open interval measured in seconds.
+
+`channels` accepts 1-based channel numbers. `samples=[start, stop]` and
+`trials=[start, stop]` are inclusive, 1-based ranges matching File-IO and
+EEGLAB history commands. The resulting channel, point, and trial selection is
+performed with `pop_select`, so dataset dimensions, events, and ICA metadata
+are updated consistently.
 
 Use the more specific File menu entries when you want format-specific file
 filters in the GUI.
