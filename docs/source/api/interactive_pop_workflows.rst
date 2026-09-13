@@ -33,6 +33,21 @@ also accepts EEGLAB's positional event-type, time, and duration field names.
    eegprep.pop_saveset
    eegprep.pop_writeeeg
 
+Event and Epoch Tables
+----------------------
+
+``pop_importevent`` accepts text files or record sequences. Imported latencies
+use seconds by default, ``timeunit=1e-3`` selects milliseconds, and
+``timeunit=numpy.nan`` selects sample positions. Existing events are appended
+unless ``append="no"`` is supplied. Alignment can anchor imported rows to the
+existing event stream and optionally compensate for small clock-rate drift;
+``indices`` uses 1-based event numbers when updating selected rows.
+
+``pop_importepoch`` accepts one row per epoch. It preserves the row metadata in
+``EEG["epoch"]`` and creates time-locking and latency-field events in
+``EEG["event"]``. Event latencies are stored as 1-based absolute samples, and
+durations are stored as sample counts.
+
 Preprocessing
 -------------
 

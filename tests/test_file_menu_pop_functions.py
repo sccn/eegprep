@@ -140,7 +140,9 @@ def test_pop_importevent_replaces_and_appends_events(tmp_path):
     events_file.write_text("type\tlatency\tduration\nstim\t1\t0\nresp\t4\t1\n", encoding="utf-8")
     eeg = _eeg()
 
-    replaced, command = pop_importevent(eeg, "event", events_file, "timeunit", math.nan, return_com=True)
+    replaced, command = pop_importevent(
+        eeg, "event", events_file, "timeunit", math.nan, "append", "no", return_com=True
+    )
     appended = pop_importevent(eeg, "event", events_file, "timeunit", math.nan, "append", "yes")
 
     assert [event["type"] for event in replaced["event"]] == ["stim", "resp"]
@@ -153,24 +155,21 @@ def test_pop_importevent_replaces_and_appends_events(tmp_path):
     assert "pop_importevent" in command
 
 
-def test_pop_importevent_append_keeps_loaded_urevent_pointers(tmp_path):
+def test_pop_importevent_append_rebuilds_sorted_urevent_pointers(tmp_path):
     events_file = tmp_path / "events.tsv"
     events_file.write_text("type\tlatency\tduration\nnew1\t5\t0\nnew2\t9\t0\n", encoding="utf-8")
     eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
-    original = [(event["type"], event["latency"], event["urevent"]) for event in eeg["event"]]
+    original = [(event["type"], event["latency"]) for event in eeg["event"]]
     n_urevents = len(eeg["urevent"])
 
     appended = pop_importevent(eeg, "event", events_file, "timeunit", math.nan, "append", "yes")
 
-    kept = [(e["type"], e["latency"], e["urevent"]) for e in appended["event"] if e["type"] not in {"new1", "new2"}]
+    kept = [(e["type"], e["latency"]) for e in appended["event"] if e["type"] not in {"new1", "new2"}]
     assert kept == original
-    assert sorted(e["urevent"] for e in appended["event"] if e["type"] in {"new1", "new2"}) == [
-        n_urevents,
-        n_urevents + 1,
-    ]
     assert len(appended["urevent"]) == n_urevents + 2
     for event in appended["event"]:
         assert appended["urevent"][event["urevent"]]["type"] == event["type"]
+        assert appended["urevent"][event["urevent"]]["latency"] == event["latency"]
 
 
 def test_pop_importepoch_requires_epoch_count_match(tmp_path):
@@ -181,7 +180,7 @@ def test_pop_importepoch_requires_epoch_count_match(tmp_path):
     imported, command = pop_importepoch(eeg, epoch_file, return_com=True)
 
     assert [epoch["condition"] for epoch in imported["epoch"]] == ["rare", "frequent"]
-    assert imported["event"].size == 0
+    assert [(event["type"], event["latency"]) for event in imported["event"]] == [("TLE", 1), ("TLE", 7)]
     assert "pop_importepoch" in command
 
 
