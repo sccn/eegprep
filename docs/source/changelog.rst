@@ -23,6 +23,14 @@ Unreleased
   scales show their exact numeric ``maplimits`` endpoints. ``eeg_decodechan`` now accepts
   EEGLAB's whitespace-separated channel-name form as well as Python sequences. ICA rejection
   marks can also derive their row count from ``icachansind`` when stored ICA matrices are absent.
+- Current EEGLAB admin/GUI test ports exposed and fixed three parity defects:
+  ``eeg_retrieve(ALLEEG, 0)`` now returns the empty no-current dataset,
+  multi-dataset commands receive EEGLAB's marker in each dataset history, and
+  ``listdlg2`` treats a scalar string as one selectable item while preserving
+  its 1-based initial selection.
+- Compatibility helpers now cover EEGLAB key/value validation, option-file and
+  help-header parsing, history-value extraction and formatting, and the generic
+  ``inputdlg2`` and ``errordlg2`` dialogs without runtime access to EEGLAB.
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is

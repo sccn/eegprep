@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>EEGLAB admin and GUI test ports</title></head>
+<body>
+<h1>EEGLAB admin and GUI test ports</h1>
+<p>The only upstream test source used was <code>sccn/eeglab_tests</code> at
+<code>ff605546f3f70868916fb8d49c007472b3257b50</code>, paired with EEGLAB
+<code>8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</code>.</p>
+<h2>Design decisions</h2>
+<ul>
+  <li>Tests exercise Python-native state and tagged dialog specifications; they do not reproduce MATLAB globals, base-workspace evaluation, or handle arrays.</li>
+  <li>Commented interactive MATLAB scripts were translated only where EEGPrep has an observable corresponding contract.</li>
+  <li>Scalar <code>listdlg2</code> text is one item, matching MATLAB char-array behavior instead of Python's generic character iteration.</li>
+  <li><code>finputcheck</code> keeps EEGLAB's returned-error-string contract while using an explicit <code>return_unrecognized</code> flag for MATLAB's optional second output.</li>
+  <li><code>inputdlg2</code> is represented as a tagged <code>DialogSpec</code>, keeping it testable without user interaction.</li>
+</ul>
+<h2>Parity defects fixed</h2>
+<ul>
+  <li><code>eeg_retrieve(ALLEEG, 0)</code> now returns an empty EEG and current index zero.</li>
+  <li>Commands applied to more than one EEG receive EEGLAB's multi-dataset history prefix.</li>
+  <li><code>listdlg2</code> now applies initial selection after inserting each Qt item and treats every non-<code>multiple</code> mode as single selection.</li>
+</ul>
+<h2>Compatibility helpers added</h2>
+<ul>
+  <li><code>finputcheck</code> validates legacy key/value rules, including defaults, multiple accepted types, unknown-argument handling, and the six current regression fixtures.</li>
+  <li><code>inputdlg2</code> and <code>errordlg2</code> expose non-blocking builders used by GUI tests and capture tooling.</li>
+  <li><code>eeg_readoptions</code> parses option scripts as data without executing MATLAB code.</li>
+  <li><code>getkeyval</code> reads named and positional values from command-history strings without evaluating them.</li>
+  <li><code>gethelpvar</code> extracts documented input/output variables from MATLAB help headers.</li>
+  <li><code>vararg2str</code> serializes command arguments without evaluating user values.</li>
+</ul>
+<h2>Deliberate boundaries</h2>
+<p>MATLAB-only helpers and absent EEGPrep APIs are not represented by passing
+placeholder tests. The handoff identifies these cases so they can be tracked as
+missing functionality or reviewed exclusions.</p>
+</body>
+</html>

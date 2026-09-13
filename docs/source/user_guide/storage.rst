@@ -70,6 +70,10 @@ retrieve the dataset first:
    ALLEEG, EEG, CURRENTSET = eeg_store(ALLEEG, EEG, 0)
    EEG, ALLEEG, CURRENTSET = eeg_retrieve(ALLEEG, 1)
 
+Calling ``eeg_retrieve(ALLEEG, 0)`` represents the no-current-dataset state: it
+returns an empty EEG dataset and ``CURRENTSET == 0`` without deleting or
+renumbering ``ALLEEG``.
+
 The GUI, ``EEGPrepSession``, and ``eegprep-console`` use the same
 ``eeg_store``/``eeg_retrieve`` path, so ``EEG``, ``ALLEEG``, ``CURRENTSET``,
 history, and dataset menus stay synchronized. Unsaved resident datasets cannot

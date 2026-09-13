@@ -10,6 +10,10 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
 
    eegprep.EEGPrepSession
    eegprep.EEG_OPTIONS
+   eegprep.eeg_readoptions
+   eegprep.gethelpvar
+   eegprep.getkeyval
+   eegprep.vararg2str
    eegprep.EEGobj
    eegprep.checkset
    eegprep.compare
@@ -22,4 +26,3 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
    eegprep.eegh
    eegprep.eeglab
    eegprep.options
-
