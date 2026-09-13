@@ -79,6 +79,41 @@ This installs:
 Running Tests
 =============
 
+Porting The Current EEGLAB Tests
+--------------------------------
+
+Ports of the upstream MATLAB tests use only the current
+`sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
+older ``sccn/eeglab-testcases`` repository is stale and must not be used.
+EEGPrep currently pins ``eeglab_tests`` commit
+``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
+``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
+
+Translate the behavior and assertions of each MATLAB scenario into the closest
+existing pytest module. Decorate the Python test with its upstream path and
+test name so coverage remains traceable without a separate conversion matrix:
+
+.. code-block:: python
+
+    from tests.eeglab_tests import eeglab_test
+
+    @eeglab_test("regression_tests/t_pop_selectevent.m", "testRetainsMatchingEpochs")
+    def test_pop_selectevent_retains_matching_epochs():
+        ...
+
+One Python test may carry more than one decorator when it genuinely covers
+multiple equivalent upstream scenarios. Do not combine tests merely to reduce
+the number of ports. Preserve input shapes, dtypes, empty values, indexing,
+warnings, errors, and all scientifically relevant output fields. Use a live
+MATLAB comparison when practical or small expected data generated from the
+pinned suite when ordinary CI must run without MATLAB.
+
+When a faithful port exposes missing behavior or a defect, keep the failing
+scenario visible and create a Bead for the implementation work. Pure MATLAB
+runtime behavior may be excluded only with a concrete technical rationale.
+Never replace an applicable assertion with a no-crash smoke test or broaden a
+numerical tolerance simply to make the port pass.
+
 Test Discovery
 --------------
 
