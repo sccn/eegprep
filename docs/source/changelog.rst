@@ -10,6 +10,14 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added ``pop_dipparams``, ``pop_erpimparams``, ``pop_erpparams``,
+  ``pop_erspparams``, ``pop_specparams``, and ``pop_statparams`` for storing
+  EEGLAB-compatible STUDY plotting and statistics settings. Analysis-defining
+  range changes now invalidate stale measure caches. ``std_maketrialinfo`` now
+  derives custom fields such as reaction time from each epoch's time-locking
+  event and preserves those rows across later STUDY operations. Saving ``.set``
+  files now supports event dictionaries with heterogeneous custom fields by
+  encoding absent struct values as MATLAB empty arrays.
 - ``pop_clean_rawdata`` now routes channel cleaning to the location-free
   algorithm when ``EEG["chanlocs"]`` is empty. It previously failed with an
   indexing error before the documented fallback could run.
