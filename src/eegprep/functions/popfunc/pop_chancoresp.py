@@ -8,7 +8,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 
 
-FIDUCIAL_ALIASES = (("nz", "nasion", "fidnz"), ("lpa", "left", "fidt9"), ("rpa", "right", "fidt10"))
+FIDUCIAL_ALIASES = (("nz", "nasion", "fidnz"), ("lpa", "left", "fidt10"), ("rpa", "right", "fidt9"))
 
 
 def pop_chancoresp(chans1: Any, chans2: Any, *args: Any, return_com: bool = False, **kwargs: Any) -> Any:
@@ -53,16 +53,25 @@ def _subcommand(command: str, *args: Any) -> tuple[Any, ...]:
         labels2 = _labels(args[3])
         chanlist1 = list(args[4]) if len(args) > 4 else []
         chanlist2 = list(args[5]) if len(args) > 5 else []
+        str1 = str(args[6]) if len(args) > 6 else ""
+        str2 = str(args[7]) if len(args) > 7 else ""
         if name == "pair":
-            if ind1 not in chanlist1 and ind2 not in chanlist2:
-                chanlist1.append(ind1)
-                chanlist2.append(ind2)
-        else:
-            for pos, (left, right) in reversed(list(enumerate(zip(chanlist1, chanlist2)))):
-                if left == ind1 or right == ind2:
-                    chanlist1.pop(pos)
-                    chanlist2.pop(pos)
-        return (*_list_text(labels1, labels2, chanlist1, chanlist2), chanlist1, chanlist2)
+            if ind1 in chanlist1 or ind2 in chanlist2:
+                return str1, str2, chanlist1, chanlist2
+            chanlist1.append(ind1)
+            chanlist2.append(ind2)
+            return (
+                _pair_text(ind1, ind2, labels1, labels2),
+                _pair_text(ind2, ind1, labels2, labels1),
+                chanlist1,
+                chanlist2,
+            )
+        if ind1 not in chanlist1 or ind2 not in chanlist2:
+            return str1, str2, chanlist1, chanlist2
+        position = chanlist1.index(ind1)
+        chanlist1.pop(position)
+        chanlist2.pop(position)
+        return _channel_text(ind1, labels1), _channel_text(ind2, labels2), chanlist1, chanlist2
     raise ValueError(f"Unsupported pop_chancoresp subcommand: {command}")
 
 
@@ -124,18 +133,22 @@ def _list_text(
     paired = dict(zip(chanlist1, chanlist2))
     reverse = dict(zip(chanlist2, chanlist1))
     left = [
-        f"{index:2d} - {label:3s}   -> {paired[index]:2d} - {labels2[paired[index] - 1]:3s}"
-        if index in paired
-        else f"{index:2d} - {label:3s}"
-        for index, label in enumerate(labels1, start=1)
+        _pair_text(index, paired[index], labels1, labels2) if index in paired else _channel_text(index, labels1)
+        for index in range(1, len(labels1) + 1)
     ]
     right = [
-        f"{index:2d} - {label:3s}   -> {reverse[index]:2d} - {labels1[reverse[index] - 1]:3s}"
-        if index in reverse
-        else f"{index:2d} - {label:3s}"
-        for index, label in enumerate(labels2, start=1)
+        _pair_text(index, reverse[index], labels2, labels1) if index in reverse else _channel_text(index, labels2)
+        for index in range(1, len(labels2) + 1)
     ]
     return left, right
+
+
+def _channel_text(index: int, labels: list[str]) -> str:
+    return f"{index:2d} - {labels[index - 1]:>3s}"
+
+
+def _pair_text(index1: int, index2: int, labels1: list[str], labels2: list[str]) -> str:
+    return f"{_channel_text(index1, labels1)}   -> {_channel_text(index2, labels2)}"
 
 
 def _history_command(options: dict[str, Any]) -> str:
