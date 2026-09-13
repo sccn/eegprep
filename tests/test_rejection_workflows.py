@@ -34,6 +34,7 @@ from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
@@ -554,6 +555,95 @@ def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families
     assert marked["reject"]["rejglobal"].tolist() == [False, True, True, False, False]
     assert marked["reject"]["rejglobalE"].shape == (4, 5)
     assert not marked["reject"]["rejglobalE"].any()
+
+
+def _suite_rejection_eeg(*, trials=5, components=False):
+    eeg = create_test_eeg(n_channels=2, n_samples=100, n_trials=trials)
+    eeg["reject"] = {}
+    if components:
+        eeg["icachansind"] = np.array([0, 1])
+    return eeg
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_empty")
+def test_eeg_rejsuperpose_current_suite_empty_marks():
+    eeg = _suite_rejection_eeg()
+
+    output = eeg_rejsuperpose(eeg, 1, 0, 0, 0, 0, 0, 0, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.zeros(5, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.zeros((2, 5), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_zero")
+def test_eeg_rejsuperpose_current_suite_zero_marks():
+    eeg = _suite_rejection_eeg()
+    eeg["reject"].update(
+        {
+            "rejmanual": np.zeros(5, dtype=bool),
+            "rejfreq": np.zeros(5, dtype=bool),
+            "rejmanualE": np.zeros((2, 5), dtype=bool),
+            "rejfreqE": np.zeros((2, 5), dtype=bool),
+        }
+    )
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.zeros(5, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.zeros((2, 5), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_general")
+def test_eeg_rejsuperpose_current_suite_selected_mark_families():
+    eeg = _suite_rejection_eeg()
+    eeg["reject"].update(
+        {
+            "rejmanual": np.array([0, 0, 0, 1, 0], dtype=bool),
+            "rejfreq": np.array([1, 0, 0, 1, 0], dtype=bool),
+            "rejmanualE": np.array([[0, 0, 0, 1, 0], [0, 1, 0, 0, 0]], dtype=bool),
+            "rejfreqE": np.array([[0, 0, 0, 0, 1], [0, 0, 0, 0, 1]], dtype=bool),
+        }
+    )
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], [1, 0, 0, 1, 0])
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], [[0, 0, 0, 1, 1], [0, 1, 0, 0, 1]])
+
+
+def _all_rejection_marks(prefix=""):
+    marks = {}
+    for index, name in enumerate(("rejmanual", "rejthresh", "rejconst", "rejjp", "rejkurt", "rejfreq")):
+        trial_marks = np.zeros(6, dtype=bool)
+        trial_marks[index] = True
+        row_marks = np.zeros((2, 6), dtype=bool)
+        row_marks[0, index] = True
+        row_marks[1, 5 - index] = True
+        marks[f"{prefix}{name}"] = trial_marks
+        marks[f"{prefix}{name}E"] = row_marks
+    return marks
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_all")
+def test_eeg_rejsuperpose_current_suite_all_data_mark_families():
+    eeg = _suite_rejection_eeg(trials=6)
+    eeg["reject"] = _all_rejection_marks()
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 1, 1, 1, 1, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.ones(6, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.ones((2, 6), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_all_ica")
+def test_eeg_rejsuperpose_current_suite_all_component_mark_families():
+    eeg = _suite_rejection_eeg(trials=6, components=True)
+    eeg["reject"] = _all_rejection_marks("ica")
+
+    output = eeg_rejsuperpose(eeg, 0, 1, 1, 1, 1, 1, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.ones(6, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.ones((2, 6), dtype=bool))
 
 
 @pytest.mark.matlab
