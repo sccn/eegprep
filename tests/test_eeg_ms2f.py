@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from eegprep.functions.miscfunc.eeg_ms2f import eeg_ms2f
+from tests.eeglab_tests import eeglab_test
 
 pytestmark = pytest.mark.parity
 
@@ -51,3 +52,39 @@ def test_below_range_raises():
 def test_above_range_raises():
     with pytest.raises(ValueError, match="out of range"):
         eeg_ms2f(_eeg(0, 1, 1001), 2000)
+
+
+@eeglab_test(
+    "unittesting_miscfunc/eeg_ms2f/miscfunc_eeg_ms2f_wrapperTest.m",
+    "test_pass_center",
+)
+def test_current_eeglab_suite_rounds_a_half_frame_up():
+    assert eeg_ms2f(_eeg(0, 2, 3), 500) == 2
+
+
+@eeglab_test(
+    "unittesting_miscfunc/eeg_ms2f/miscfunc_eeg_ms2f_wrapperTest.m",
+    "test_pass_exact",
+)
+def test_current_eeglab_suite_maps_an_exact_latency():
+    assert eeg_ms2f(_eeg(0, 2, 3), 1000) == 2
+
+
+@eeglab_test(
+    "unittesting_miscfunc/eeg_ms2f/miscfunc_eeg_ms2f_wrapperTest.m",
+    "test_pass_rounded",
+)
+def test_current_eeglab_suite_rounds_to_the_nearest_frame():
+    assert eeg_ms2f(_eeg(0, 2, 3), 1653) == 3
+
+
+@eeglab_test(
+    "unittesting_miscfunc/eeg_ms2f/miscfunc_eeg_ms2f_wrapperTest.m",
+    "test_fail_outside",
+)
+def test_current_eeglab_suite_rejects_latency_after_epoch():
+    # The current MATLAB scenario is commented out, but its wrapper still
+    # discovers the test. Preserve the intended boundary check rather than
+    # translating that accidental no-op.
+    with pytest.raises(ValueError, match="out of range"):
+        eeg_ms2f(_eeg(0, 2, 3), 3000)
