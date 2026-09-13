@@ -17,10 +17,12 @@ FIR filter design, filtering helpers, and window functions.
    eegprep.firgauss
    eegprep.firws
    eegprep.firwsord
+   eegprep.getipsph
    eegprep.invfirwsord
    eegprep.invkaiserbeta
    eegprep.kaiserbeta
    eegprep.minphaserceps
    eegprep.plotfresp
+   eegprep.rmart
+   eegprep.rmsave
    eegprep.windows
-

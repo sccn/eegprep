@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Regular epoch generation, preceding-event timing, event alignment, BioSig
+  event conversion, sphering, RMS summaries, int16 matrix reads, legacy
+  lagged-regression artifact removal, ordered string selection, and
+  superimposed histograms are now public standalone utilities. Their current
+  EEGLAB tests now have deterministic ports, including substantive assertions
+  where the MATLAB tests are commented out or ignore their own result.
 - Added standalone numerical utilities for peak extraction, average reference,
   Gaussian/Gabor/Laplacian kernels, distance and assignment problems,
   correlation-based map matching, grouped summaries, PCA compression and

@@ -8,6 +8,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
 .. autosummary::
    :toctree: generated/
 
+   eegprep.biosig2eeglabevent
    eegprep.cart2topo
    eegprep.chancenter
    eegprep.convertlocs
@@ -34,6 +35,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.readlocs
    eegprep.saveset
    eegprep.snapread
+   eegprep.shortread
    eegprep.writelocs
 
 ``readegilocs`` includes packaged EGI montages for 32/33, 64/65, 128/129,

@@ -8,7 +8,7 @@ Scalp maps and artifact review plots.
 .. autosummary::
    :toctree: generated/
 
+   eegprep.hist2
    eegprep.topoplot
    eegprep.vis_artifacts
    eegprep.vis_artifacts_diagnostics
-
