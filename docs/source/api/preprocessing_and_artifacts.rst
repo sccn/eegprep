@@ -19,9 +19,11 @@ Artifact detection and repair, referencing, resampling, interpolation, and rejec
    eegprep.clean_windows
    eegprep.correct_mc
    eegprep.correctfit
+   eegprep.eeg_amplitudearea
    eegprep.eeg_eegrej
    eegprep.eeg_interp
    eegprep.eeg_rejsuperpose
+   eegprep.eeg_timeinterp
    eegprep.eeglab_clean_artifacts
    eegprep.eegrej
    eegprep.eegthresh
