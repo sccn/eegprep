@@ -271,6 +271,9 @@ def _apply_chanedit(
         elif key == "headrad":
             for chan in chanlocs:
                 chan["sph_radius"] = float(value)
+        elif key == "shrink":
+            if chanlocs:
+                chanlocs[0]["shrink"] = float(value)
         elif key == "settype":
             indices, chan_type = _index_value_args(value, len(chanlocs))
             for index in indices:
@@ -358,8 +361,10 @@ def _cart_to_all(chan: dict[str, Any]) -> None:
 
 
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
-    path = Path(value[0] if isinstance(value, (list, tuple)) else value)
-    return readlocs(path)
+    if isinstance(value, (list, tuple)):
+        path = Path(value[0])
+        return readlocs(path, *value[1:])
+    return readlocs(Path(value))
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:

@@ -153,6 +153,7 @@ _LAZY_EXPORTS = {
     "iclabel": ("eegprep.plugins.ICLabel.iclabel", "iclabel"),
     "eeg_icflag": ("eegprep.plugins.ICLabel.eeg_icflag", "eeg_icflag"),
     "inputdlg2": ("eegprep.functions.guifunc.inputdlg2", "inputdlg2"),
+    "importevent": ("eegprep.functions.popfunc.importevent", "importevent"),
     "inputgui": ("eegprep.functions.guifunc.inputgui", "inputgui"),
     "interp": ("eegprep.functions.redefine_functions", "interp"),
     "jointprob": ("eegprep.functions.sigprocfunc.jointprob", "jointprob"),
