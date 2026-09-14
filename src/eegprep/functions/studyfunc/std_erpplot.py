@@ -8,7 +8,7 @@ from eegprep.functions.studyfunc._std_measureplot import std_measureplot
 
 
 def std_erpplot(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None, *args: Any, **kwargs: Any):
-    """Read and plot precomputed STUDY ERP measures."""
+    """Plot precomputed ERPs grouped by the selected STUDY design."""
     return std_measureplot(STUDY, ALLEEG, "erp", *args, **kwargs)
 
 

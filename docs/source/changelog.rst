@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- STUDY ERP, spectrum, ERSP, ITC, and scalp-map functions now arrange cached
+  measures by condition and group, retain subject or component cases, return
+  parametric or resampled statistics and FDR masks, reconstruct saved
+  time-frequency trials, and plot grouped traces, images, and topographies.
 - Added standalone miscellaneous visualization utilities for spatial scalp-map
   gradients, logarithmic-axis matrix images, epoched event rasters, recursive
   Matplotlib font styling, and replayable 2-D/3-D scalp movies. Movie generation
