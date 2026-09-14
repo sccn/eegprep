@@ -24,6 +24,7 @@ at a time.
    :toctree: generated/
 
    eegprep.functions.statistics.statcond
+   eegprep.functions.statistics.statcondfieldtrip
    eegprep.functions.statistics.ttest_cell
    eegprep.functions.statistics.ttest2_cell
    eegprep.functions.statistics.anova1_cell
@@ -44,6 +45,37 @@ Although ``statcond`` documents rows, columns, and interaction, its unpaired
 branch forwards ``anova2_cell`` outputs in columns, rows, and interaction order.
 When translating positional unpaired MATLAB results, EEGPrep's ``rows`` value
 therefore corresponds to the second MATLAB cell and ``columns`` to the first.
+
+FieldTrip-style inference
+-------------------------
+
+``statcondfieldtrip`` is a standalone Python backend for the scientifically
+active behavior in EEGLAB's FieldTrip wrapper. It accepts condition arrays
+directly and does not require MATLAB, EEGLAB, or FieldTrip at runtime. Cases
+occupy the final axis by default; all preceding feature axes are preserved in
+the statistic, p-value, and mask.
+
+Supported designs are paired or equal-variance unpaired two-condition t-tests
+and unpaired one-way ANOVA. Analytic inference and seeded Monte Carlo
+permutation inference are available. Multiple-comparison options are ``none``,
+``bonferroni``, ``holm``, ``fdr``, and Monte Carlo ``max`` correction;
+``bonferoni`` and ``holms`` remain accepted migration spellings.
+
+As in FieldTrip, Bonferroni, Holm, and FDR leave the reported pointwise
+``pvalue`` unchanged and apply their correction to ``mask``. Monte Carlo
+probabilities use a plus-one estimate, so finite randomization runs cannot
+report zero probability. Max-statistic correction returns family-wise
+corrected probabilities and masks; two-condition tests use absolute t values
+for conventional two-sided inference. This fulfills the EEGLAB wrapper's
+documented two-tailed output contract directly; FieldTrip's internal
+``correcttail='alpha'`` representation instead pairs a one-tail probability
+with a halved alpha threshold.
+
+Paired one-way and two-way ANOVA are rejected because the maintained EEGLAB
+test disables those FieldTrip paths. Cluster correction and spatial-neighbour
+inputs are also rejected: faithful cluster inference requires an explicit
+adjacency graph and cluster-forming/statistic policy. Use ``statcond`` for the
+supported paired and two-way ANOVA designs without FieldTrip correction.
 
 Multiple Comparisons and Surrogates
 ===================================

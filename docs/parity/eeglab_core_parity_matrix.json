@@ -6759,16 +6759,16 @@
     {
       "eeglab_path": "functions/statistics/statcondfieldtrip.m",
       "eeglab_name": "statcondfieldtrip",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/statcondfieldtrip.py",
       "gap_category": "5_statistics_package",
-      "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone analytic and permutation backend for the maintained paired/unpaired t-test and unpaired one-way ANOVA contract, including pointwise and max-statistic corrections. FieldTrip structure conversion and cluster machinery remain explicit unsupported boundaries.",
+      "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by deterministic SciPy references and the active calls in the current eeglab_tests statcondfieldtrip wrapper; the wrapper's kmean guard typo is not reproduced."
     },
     {
       "eeglab_path": "functions/statistics/surrogdistrib.m",
