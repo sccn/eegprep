@@ -338,6 +338,7 @@ _LAZY_EXPORTS = {
     "pop_loadbci": ("eegprep.functions.popfunc.pop_loadbci", "pop_loadbci"),
     "pop_loadcnt": ("eegprep.functions.popfunc.pop_loadcnt", "pop_loadcnt"),
     "pop_load_frombids": ("eegprep.functions.popfunc.pop_load_frombids", "pop_load_frombids"),
+    "pop_loadbv": ("eegprep.functions.popfunc.pop_loadbv", "pop_loadbv"),
     "pop_loadstudy": ("eegprep.functions.studyfunc.pop_loadstudy", "pop_loadstudy"),
     "pop_loadset": ("eegprep.functions.popfunc.pop_loadset", "pop_loadset"),
     "pop_limo": ("eegprep.functions.studyfunc.pop_limo", "pop_limo"),

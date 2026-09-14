@@ -13,6 +13,7 @@ import scipy.io
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
+from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.popfunc.pop_loadset import _is_hdf5_file, pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
@@ -51,6 +52,10 @@ def pop_fileio(
             kwargs["t1"] = start
             kwargs["lddur"] = stop - start
         eeg = pop_loadcnt(path, **kwargs)
+    elif suffix == ".vhdr" and blockrange is None:
+        eeg = pop_loadbv(path, srange=samples, chans=channels)
+        channels = None
+        samples = None
     else:
         reader = _reader_for_suffix(suffix)
         raw = reader(str(path), preload=True, verbose=False)
