@@ -113,8 +113,9 @@ Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
 cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
 ``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
-in each measure group's metadata. EEGPrep stores dataset-level averages in the
-current standalone cache rather than EEGLAB sidecar measure files.
+in each measure group's metadata. EEGPrep stores dataset-level averages, and
+optionally single-trial values, in the current standalone cache rather than
+EEGLAB sidecar measure files.
 ``pop_chanplot`` reads cached channel and component measures through the same
 ``std_readdata``/``std_erpplot``/``std_erspplot`` cache contract used by scripts,
 so GUI and console plots slice axes and cached channel groups consistently.
@@ -138,11 +139,17 @@ Benjamini-Hochberg correction.
 The same masks are attached to ``fig.eegprep_plot_metadata["statistics"]`` so
 downstream reporting code can inspect exactly what the plot highlighted.
 
-Use ``savetrials="on"`` with ERSP/ITC precomputation when the per-trial
-time-frequency representation is needed. ``erspdatatrials`` stores linear,
-baseline-corrected power, so averaging trials and converting to decibels
-reproduces ``erspdata``. ``itcdatatrials`` stores phase in radians. Both are
-EEGPrep-owned cache fields and remain independent of an EEGLAB installation.
+Use ``savetrials="on"`` when a design factor varies between trials within one
+dataset. The measure plots select trials from ``datasetinfo[*]["trialinfo"]``
+and aggregate them within each subject before forming condition and group
+cells. ``erpdatatrials`` stores baseline-corrected amplitudes;
+``specdatatrials`` stores linear spectral density; ``erspdatatrials`` stores
+linear, baseline-corrected power; and ``itcdatatrials`` stores phase in radians.
+Spectrum and ERSP power are averaged before conversion to decibels, while ITC
+uses circular phase averaging. These EEGPrep-owned cache fields remain
+independent of an EEGLAB installation. A trial-level design without matching
+single-trial caches raises an error instructing you to rerun ``std_precomp``
+with ``savetrials="on"`` instead of silently grouping dataset averages.
 
 For component clusters, ``std_topoplot`` draws polarity-aligned centroid or
 member scalp maps and caches ``topo``, ``topoall``, and ``topopol`` on each
