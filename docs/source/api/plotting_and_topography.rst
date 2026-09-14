@@ -3,7 +3,12 @@
 Plotting and Topography
 =======================
 
-Scalp maps, curve summaries, figure-layout helpers, and artifact review plots.
+Scalp maps, curve summaries, figure-layout helpers, logarithmic image displays,
+event rasters, artifact review plots, and replayable scalp movies. Movie frames
+are returned as ``uint8`` RGB arrays so they can be inspected in notebooks,
+tested headlessly, encoded by downstream tools, or replayed with ``seemovie``.
+The ``movieframes`` argument follows EEGLAB's 1-based public indexing
+convention.
 
 .. autosummary::
    :toctree: generated/
@@ -16,6 +21,15 @@ Scalp maps, curve summaries, figure-layout helpers, and artifact review plots.
    eegprep.plotcurve
    eegprep.sbplot
    eegprep.slider
+   eegprep.gradmap
+   eegprep.gradplot
+   eegprep.imagesclogy
+   eegprep.imagescloglog
+   eegprep.show_events
+   eegprep.setfont
+   eegprep.eegmovie
+   eegprep.headmovie
+   eegprep.seemovie
    eegprep.topoplot
    eegprep.loc_subsets
    eegprep.vis_artifacts
