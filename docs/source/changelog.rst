@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added a standalone ``statcondfieldtrip`` backend for paired and unpaired
+  t-tests and unpaired one-way ANOVA, with analytic or seeded permutation
+  inference and Bonferroni, Holm, FDR, and max-statistic correction.
 - Added standalone ``corrmap`` and ``pop_corrmap`` component-template
   matching for STUDY workflows. Two-pass correlation handles ICA polarity,
   searches deterministic automatic thresholds, can store matched bad
