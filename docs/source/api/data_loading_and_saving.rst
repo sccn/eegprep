@@ -40,6 +40,8 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.pop_loadcnt
    eegprep.readbdf
    eegprep.read_erpss
+   eegprep.readegi
+   eegprep.readegihdr
    eegprep.readeetraklocs
    eegprep.readegilocs
    eegprep.readelp
@@ -85,3 +87,8 @@ returned as trials rather than a flattened continuous array.
 ``.RDF`` recordings without a compiled MEX extension. It preserves channel
 labels and 1-based event sample offsets, and supports both little- and
 big-endian files.
+
+``readegi`` reads EGI Simple Binary RAW versions 2 through 7 without an
+EEGLAB installation. Frame and segment selections are 1-based, while returned
+sample arrays are channel-major. ``readegihdr`` reads the same acquisition and
+event-code metadata without loading signal samples.
