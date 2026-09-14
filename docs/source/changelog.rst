@@ -10,6 +10,18 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- EGI Simple Binary RAW versions 2 through 7 can now be read directly through
+  ``readegihdr``, ``readegi``, ``pop_readegi``, and ``pop_readsegegi``. The
+  readers support 1-based frame or segment selection, A/D scaling, event
+  channels, segment categories, equal-length epoched datasets, and validated
+  numbered continuous-file series without requiring EEGLAB or large test
+  fixtures. Multi-file imports now report a correct continuous point count
+  instead of copying the zero-valued segmented header fields. Leading-edge
+  events are placed on the first nonzero sample, correcting EEGLAB's one-sample
+  early event-channel conversion, and a trailing channel is removed as a
+  reference only when the whole channel is empty rather than just ten samples.
+  Numbered imports reject gaps before later files instead of silently dropping
+  the remainder of the recording.
 - ERPSS ``.RAW`` and ``.RDF`` import now works without the legacy compiled
   MEX decompressor. ``read_erpss`` and ``pop_read_erpss`` support compressed
   and uncompressed little- and big-endian recordings, preserve channel labels

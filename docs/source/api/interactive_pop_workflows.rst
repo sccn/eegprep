@@ -18,6 +18,10 @@ accepts EEGLAB's positional event-type, time, and duration field names.
 ``pop_read_erpss`` imports uncompressed and delta-compressed ERPSS ``.RAW``
 and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
 the recording header.
+``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
+RAW files, including event channels and segment categories. ``pop_readsegegi``
+joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
+on, and validates that acquisition headers agree before concatenating samples.
 
 .. autosummary::
    :toctree: generated/
@@ -37,6 +41,8 @@ the recording header.
    eegprep.pop_loadset_h5
    eegprep.pop_read_erpss
    eegprep.pop_readlocs
+   eegprep.pop_readegi
+   eegprep.pop_readsegegi
    eegprep.pop_saveh
    eegprep.pop_saveset
    eegprep.pop_writeeeg
