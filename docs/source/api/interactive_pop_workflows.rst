@@ -8,6 +8,11 @@ User-facing ``pop_*`` wrappers. Each accepts ``return_com=True`` and returns a r
 Loading and Saving
 ------------------
 
+``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
+half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
+formats. ``pop_importpres`` recognizes tab-delimited Presentation headers and
+also accepts EEGLAB's positional event-type, time, and duration field names.
+
 .. autosummary::
    :toctree: generated/
 
