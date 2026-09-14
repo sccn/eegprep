@@ -15,6 +15,9 @@ and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
 metadata-only and 1-based channel loading through ``loadmode``.
 ``pop_importpres`` recognizes tab-delimited Presentation headers and also
 accepts EEGLAB's positional event-type, time, and duration field names.
+``pop_read_erpss`` imports uncompressed and delta-compressed ERPSS ``.RAW``
+and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
+the recording header.
 
 .. autosummary::
    :toctree: generated/
@@ -32,6 +35,7 @@ accepts EEGLAB's positional event-type, time, and duration field names.
    eegprep.pop_load_frombids
    eegprep.pop_loadset
    eegprep.pop_loadset_h5
+   eegprep.pop_read_erpss
    eegprep.pop_readlocs
    eegprep.pop_saveh
    eegprep.pop_saveset
@@ -193,6 +197,7 @@ Other
    eegprep.pop_mergeset
    eegprep.pop_multifit
    eegprep.pop_newset
+   eegprep.pop_read_erpss
    eegprep.pop_rejmenu
    eegprep.pop_rmdat
    eegprep.pop_runscript

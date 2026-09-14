@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ERPSS ``.RAW`` and ``.RDF`` import now works without the legacy compiled
+  MEX decompressor. ``read_erpss`` and ``pop_read_erpss`` support compressed
+  and uncompressed little- and big-endian recordings, preserve channel labels
+  and events, apply valid microvolt calibration, and fail clearly on truncated
+  blocks.
 - ``pop_loadbv`` now provides a standalone BrainVision reader for binary and
   ASCII recordings in multiplexed or vectorized orientation. It applies
   per-channel resolutions, normalizes voltage channels to microvolts, retains
