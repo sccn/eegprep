@@ -440,7 +440,6 @@ def test_headplot_setup_file_can_be_reused_for_sample_data(sample_eeg, tmp_path)
     plt.close(figure)
 
 
-@eeglab_test(_HEADPLOT_SOURCE, "test_pass_wireframe")
 def test_headplot_setup_plotmeshonly_and_orilocs_options(sample_eeg, tmp_path):
     transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
     preview_file = tmp_path / "preview.spl"
@@ -466,6 +465,24 @@ def test_headplot_setup_plotmeshonly_and_orilocs_options(sample_eeg, tmp_path):
     )
     spline = load_headplot_spline(created)
     np.testing.assert_allclose(spline.new_electrodes, np.column_stack([spline.xe, spline.ye, spline.ze]))
+
+
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_wireframe")
+def test_headplot_lighting_off_draws_wireframe_edges(sample_eeg, tmp_path):
+    splinefile = headplot_setup(
+        sample_eeg["chanlocs"],
+        tmp_path / "wireframe.spl",
+        chaninfo=sample_eeg["chaninfo"],
+        transform=[0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100],
+    )
+    values = np.nanmean(np.asarray(sample_eeg["data"], dtype=float), axis=1)
+
+    figure = headplot(values, splinefile, lighting="off", electrodes="off")
+    mesh = figure.axes[0].collections[0]
+
+    assert np.any(np.asarray(mesh.get_linewidths()) > 0)
+    assert np.asarray(mesh.get_edgecolors()).size > 0
+    plt.close(figure)
 
 
 def test_pop_headplot_setup_reuses_existing_spline_file(sample_eeg, tmp_path):
