@@ -31,9 +31,17 @@ Study Setup and Validation
 Clustering
 ----------
 
+``corrmap`` performs two-pass, polarity-invariant component matching against a
+template scalp map. Its average templates are RMS-normalized so arbitrary ICA
+column scale cannot bias which components are selected on the second pass.
+Datasets must use the same labelled montage; use ``std_interp`` first when
+montages differ. ``pop_corrmap`` is the history-producing scripted wrapper.
+
 .. autosummary::
    :toctree: generated/
 
+   eegprep.corrmap
+   eegprep.pop_corrmap
    eegprep.std_apcluster
    eegprep.std_centroid
    eegprep.std_clustplot
