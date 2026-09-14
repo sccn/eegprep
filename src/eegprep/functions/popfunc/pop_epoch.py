@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._file_io import infer_dataformat, load_data_array
@@ -171,6 +172,7 @@ def _pop_epoch_one(
 ) -> tuple[dict[str, Any], list[int]]:
     if not isinstance(EEG, dict):
         raise ValueError("pop_epoch: EEG must be a dataset dictionary")
+    source_data = EEG.get("data")
 
     events = _event_list(EEG.get("event"))
     if not events:
@@ -258,6 +260,7 @@ def _pop_epoch_one(
     output = eeg_checkset(output, "eventconsistency")
 
     output, accepted_positions = _remove_boundary_epochs(output, accepted_positions)
+    output["data"] = mapped_output_like(source_data, output["data"])
     return output, accepted_positions
 
 

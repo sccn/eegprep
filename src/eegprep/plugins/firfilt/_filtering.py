@@ -9,6 +9,7 @@ import numpy as np
 from scipy.signal import filtfilt, firls, firwin, lfilter, minimum_phase, remez
 from scipy.signal import windows as signal_windows
 
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
@@ -214,6 +215,7 @@ def apply_fir_filter(
     b = np.asarray(coefficients, dtype=float).ravel()
     if b.size % 2 != 1:
         raise ValueError("Filter order is not even.")
+    source_data = EEG["data"]
     output = deepcopy(EEG)
     data = np.asarray(output["data"])
     if data.ndim not in {2, 3}:
@@ -232,7 +234,8 @@ def apply_fir_filter(
         window = np.ix_(channel_indices, np.arange(start, stop))
         filtered[window] = _filter_segment(b, filtered[window], causal=causal, usefftfilt=usefftfilt)
 
-    output["data"] = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    output["data"] = mapped_output_like(source_data, filtered_data)
     output["icaact"] = np.array([])
     output["saved"] = "no"
     return output
@@ -249,6 +252,7 @@ def apply_eegfilt_legacy(
     b = np.asarray(coefficients, dtype=float).ravel()
     if b.size < 2:
         raise ValueError("Filter coefficients are required")
+    source_data = EEG["data"]
     output = deepcopy(EEG)
     data = np.asarray(output["data"])
     if data.ndim not in {2, 3}:
@@ -267,7 +271,8 @@ def apply_eegfilt_legacy(
         if segment.shape[1] <= order * 3 and not causal:
             raise ValueError("epochframes must be at least 3 times the filtorder.")
         filtered[:, start:stop] = _legacy_filter_segment(b, segment, causal=causal)
-    output["data"] = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    output["data"] = mapped_output_like(source_data, filtered_data)
     output["icaact"] = np.array([])
     output["saved"] = "no"
     return output

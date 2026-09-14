@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``MemmapData`` now covers current EEGLAB ``mmo`` construction, logical
+  indexing over normal and transposed files, copy-on-write mutation, resizing,
+  and deletion. Disk-backed EEG data remains disk-backed through rejection,
+  epoching, baseline removal, FIR filtering, rereferencing, selection, and
+  resampling without modifying the source mapping.
 - Added standalone low-level signal and text helpers ``blockave``, ``eegfilt``,
   ``env``, ``movav``, ``loadeeg``, ``loadtxt``, ``parsetxt``,
   ``readneurodat``, and ``readtxtfile``. Legacy ``eegfilt`` now supports the

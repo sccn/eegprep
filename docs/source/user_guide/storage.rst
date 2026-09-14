@@ -55,6 +55,31 @@ separate data file exists to map. Mutating a ``MemmapData`` value writes to the
 ``.fdt`` sidecar; use normal EEGPrep save/history workflows when the dataset
 metadata should be marked clean.
 
+``MemmapData`` uses zero-based NumPy indices against the logical
+``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
+``copy.deepcopy`` share the sidecar until one copy is written, then use a
+private copy-on-write sidecar so processing a copied EEG does not mutate its
+source. ``resize`` retains the overlapping region and fills new samples with
+zeros by default; ``delete`` removes indices along a selected logical axis.
+
+EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
+rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,
+selection, and resampling. Each result gets its own writable temporary mapping,
+while the original dataset and sidecar remain unchanged.
+
+For direct construction, ``mmo`` is the compact EEGLAB-compatible entry point:
+
+.. code-block:: python
+
+   from eegprep import mmo
+
+   data = mmo("subject01.fdt", (64, 30000), writable=True)
+   blank = mmo(None, (64, 30000))
+
+Pass ``transposed=True`` for files physically stored as
+``(samples, trials, channels)``. Indexing still uses the logical channels-first
+shape; storage orientation never changes the public shape or index order.
+
 Storedisk Sessions
 ==================
 
