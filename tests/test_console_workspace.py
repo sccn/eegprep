@@ -31,6 +31,7 @@ from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+from tests.eeglab_tests import eeglab_test
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -461,6 +462,7 @@ def test_default_console_eegh_uses_session_history_after_public_exports_bind():
     workspace.close()
 
 
+@eeglab_test("unittesting_adminfunc/eegh/pass_execute_command.m", "test_pass_execute_command")
 def test_console_eegh_positive_index_replays_command_through_workspace():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)

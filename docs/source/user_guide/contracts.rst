@@ -58,6 +58,9 @@ EEGLAB's callback behavior.
 replayable Python input before progress messages or warnings from the same
 action. ``eegh`` presents history newest-first like EEGLAB, while
 ``EEGPrepSession.ALLCOM`` stays chronological internally.
+When one command is applied to a multi-dataset selection, each selected EEG
+history records it with the ``% multiple datasets command:`` marker used by
+EEGLAB, while the session records the command once in ``ALLCOM``.
 
 EEGPrep does not emulate EEGLAB's one-dataset-in-memory ``option_storedisk``
 behavior. Saved non-current datasets are represented by explicit offloaded disk
