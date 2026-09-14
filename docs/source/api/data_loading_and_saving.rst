@@ -48,6 +48,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.snapread
    eegprep.shortread
    eegprep.writelocs
+   eegprep.writegdf
 
 ``readegilocs`` includes packaged EGI montages for 32/33, 64/65, 128/129,
 and 256/257-channel nets.
