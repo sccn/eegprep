@@ -951,7 +951,7 @@
       "status": "partial",
       "responsible_phase": "phase_4",
       "phase_issue": "#161 STUDY statistics, PAC, and LIMO-compatible workflows",
-      "rationale": "EEGPrep now owns STUDY channel interpolation and distance-based neighbor/adjacency preparation. STUDY dipole cluster/source plotting remains an explicit DIPFIT/FieldTrip backend boundary coordinated with Phase 3.",
+      "rationale": "EEGPrep owns STUDY channel interpolation, distance-based neighbor/adjacency preparation, and standalone plotting of existing DIPFIT models through std_dipplot. The broader std_dipoleclusters workflow remains an explicit DIPFIT/FieldTrip backend boundary.",
       "user_facing_surface": [
         "STUDY interpolation",
         "STUDY dipole clusters",
@@ -960,7 +960,7 @@
       "docs_targets": [
         "docs/source/user_guide/study_workflows.rst"
       ],
-      "test_notes": "Focused tests cover neighbor adjacency, STUDY interpolation, and explicit source-workflow limitation paths."
+      "test_notes": "Focused tests cover neighbor adjacency, STUDY interpolation, provenance-linked std_dipplot selections and centroids, and the remaining explicit std_dipoleclusters source-workflow limitation."
     },
     {
       "row_id": "docs-history-console-migration",

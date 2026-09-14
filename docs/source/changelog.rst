@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``std_dipplot`` now selects existing DIPFIT models through one-based STUDY
+  cluster membership, returns their coordinates, moments, residual variances,
+  and centroids, and renders joined, centroid, member, and separated views.
 - STUDY ERP, spectrum, ERSP, ITC, and scalp-map functions now arrange cached
   measures by condition and group, retain subject or component cases, return
   parametric or resampled statistics and FDR masks, reconstruct saved

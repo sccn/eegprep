@@ -34,7 +34,9 @@ parent `STUDY.cluster[0]` entry by `pop_precomp`.
 LIMO result computation and browsing are not silently emulated. `pop_limo`,
 `pop_limoresults`, `std_limo`, `std_limoresults`, and `std_readfilelimo`
 report that standalone EEGPrep does not run EEGLAB's external LIMO toolbox
-workflow. STUDY source workflows such as `std_dipplot` and
-`std_dipoleclusters` remain behind the DIPFIT/FieldTrip backend boundary.
+workflow. `std_dipplot` plots existing `EEG.dipfit.model` values by STUDY
+cluster and returns its selected coordinates, moments, residual variances, and
+centroids for inspection. The broader `std_dipoleclusters` workflow remains
+behind the DIPFIT/FieldTrip backend boundary.
 
 See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY, POP_PRECLUST, POP_CLUST, POP_CLUSTEDIT, STD_PAC
