@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- The current EEGLAB GUI-helper tests now have deterministic Python ports.
+  ``supergui`` builds declarative dialogs without entering a modal loop,
+  ``inputgui`` supports a non-blocking ``mode="plot"`` workflow and renders
+  radio buttons, and ``listdlg2`` accepts multi-line prompts and custom OK and
+  Cancel labels.
 - Core event and channel helpers now cover EEGLAB-compatible event insertion,
   event histograms and type counts, per-epoch field extraction, boundary-aware
   original latencies and context queries, channel-type lookup and montage
