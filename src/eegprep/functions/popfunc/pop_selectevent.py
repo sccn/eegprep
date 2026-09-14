@@ -261,11 +261,12 @@ def _apply_selectevent_one(EEG: dict[str, Any], options: dict[str, Any]) -> tupl
         if str(options.get("invertepochs", "off")).lower() == "on":
             all_epochs = set(range(1, int(output.get("trials", 1) or 1) + 1))
             epochs = sorted(all_epochs - set(epochs))
-        if not epochs:
+        erroronempty = str(options.get("erroronempty", "on")).lower()
+        if not epochs and erroronempty == "on":
             raise ValueError("Empty dataset: all epochs have been removed")
         if deleteevents:
             output["event"] = [events[index] for index in selected_indices]
-        output = pop_select(output, "trial", epochs)
+        output = pop_select(output, "trial", epochs, "erroronempty", erroronempty)
     elif deleteevents:
         output["event"] = [events[index] for index in selected_indices]
     else:

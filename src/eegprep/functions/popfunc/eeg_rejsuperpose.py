@@ -137,4 +137,7 @@ def _component_count(EEG: dict[str, Any]) -> int:
     winv = np.asarray(EEG.get("icawinv", []))
     if winv.ndim == 2 and winv.size:
         return int(winv.shape[1])
+    channels = np.asarray(EEG.get("icachansind", []))
+    if channels.size:
+        return int(channels.size)
     return 0

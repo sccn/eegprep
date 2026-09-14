@@ -16,6 +16,7 @@ from eegprep.functions.sigprocfunc.ica_helpers import compvar, eeg_getica, eeg_p
 from eegprep.functions.sigprocfunc.kurt import kurt
 from eegprep.functions.sigprocfunc.realproba import realproba
 from eegprep.functions.sigprocfunc.rejtrend import rejtrend
+from tests.eeglab_tests import eeglab_test
 
 
 def _eeg(data: np.ndarray) -> dict:
@@ -185,6 +186,20 @@ def test_ica_helpers_match_simple_projection_identities():
     assert total_pvaf == 100.0
     np.testing.assert_allclose(channel_pvaf, [100.0, 100.0])
     assert variances.shape == (2,)
+
+
+@eeglab_test("unittesting_popfunc/eeg_getica/popfunc_eeg_getica_wrapperTest.m", "test_test_eeg_getica")
+def test_eeg_getica_current_suite_all_single_and_multiple_components():
+    data = np.arange(48, dtype=float).reshape(6, 4, 2)
+    eeg = _eeg(data)
+
+    all_components = eeg_getica(eeg)
+    first_component = eeg_getica(eeg, 1)
+    selected_components = eeg_getica(eeg, [5, 6])
+
+    np.testing.assert_array_equal(all_components, data)
+    np.testing.assert_array_equal(first_component, data[[0]])
+    np.testing.assert_array_equal(selected_components, data[[4, 5]])
 
 
 def test_eeg_pvaf_maps_full_channel_selection_to_icachansind_subset():

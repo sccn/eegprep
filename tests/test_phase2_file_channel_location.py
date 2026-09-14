@@ -25,6 +25,7 @@ from eegprep import (
     snapread,
     writelocs,
 )
+from tests.eeglab_tests import eeglab_test
 
 
 def _eeg() -> dict:
@@ -180,6 +181,71 @@ def test_pop_chancenter_uses_one_based_omit_indices_and_console_return_shape() -
     assert out["chanlocs"][3]["Z"] == 1.0
     assert command == "EEG = pop_chancenter(EEG, [0 0 0], [4]);"
     _assert_parseable(command)
+
+
+def _chancenter_suite_locations(last_x=0.0) -> list[dict]:
+    return [
+        {"labels": "", "X": 0.0, "Y": 0.0, "Z": 0.0, "theta": 0.0, "radius": 0.0},
+        {"labels": "", "X": 1.0, "Y": 0.0, "Z": 0.0, "theta": 0.0, "radius": 0.0},
+        {"labels": "", "X": last_x, "Y": 1.0, "Z": 1.0, "theta": 0.0, "radius": 0.0},
+    ]
+
+
+@eeglab_test("unittesting_popfunc/pop_chancenter/popfunc_pop_chancenter_wrapperTest.m", "test_pass_empty_center")
+def test_pop_chancenter_current_suite_empty_center():
+    locations = _chancenter_suite_locations()
+    locations[0].update({"Y": 1.95})
+    locations[1].update({"X": 2.0})
+    locations[2].update({"Y": 0.0, "Z": 2.0})
+
+    centered = pop_chancenter(locations, [])
+
+    np.testing.assert_allclose(
+        [[location[axis] for axis in ("X", "Y", "Z")] for location in centered],
+        [[0.0, 1.95, 0.0], [2.0, 0.0, 0.0], [0.0, 0.0, 2.0]],
+        atol=0.11,
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_chancenter/popfunc_pop_chancenter_wrapperTest.m", "test_pass_no_omitchans")
+def test_pop_chancenter_current_suite_known_center():
+    centered = pop_chancenter(_chancenter_suite_locations(), [1, -1, 0])
+
+    np.testing.assert_allclose(
+        [[location[axis] for axis in ("X", "Y", "Z")] for location in centered],
+        [[-1, 1, 0], [0, 1, 0], [-1, 2, 1]],
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_chancenter/popfunc_pop_chancenter_wrapperTest.m", "test_pass_with_omitchans")
+def test_pop_chancenter_current_suite_omits_one_based_channels():
+    centered = pop_chancenter(_chancenter_suite_locations(last_x=1.0), [1, -1, 0], [1])
+
+    np.testing.assert_allclose(
+        [[location[axis] for axis in ("X", "Y", "Z")] for location in centered],
+        [[0, 0, 0], [0, 1, 0], [0, 2, 1]],
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_chancenter/popfunc_pop_chancenter_wrapperTest.m", "test_test_pop_chancenter")
+def test_pop_chancenter_current_suite_center_and_omit_smoke_cases():
+    locations = _eeg()["chanlocs"]
+    cases = [
+        ([], None),
+        ([0, 0, 0], None),
+        ([1, 1, 1], None),
+        ([-1, 0, 1], None),
+        ([100000, -1000000, 100], None),
+        ([1, 1, 1], [1]),
+        ([1, 1, 1], [1, 2, 3, 4]),
+        ([1, 1, 1], [0]),
+        ([1, 1, 1], [1, 2, 3, 4, 5]),
+    ]
+
+    for center, omitted in cases:
+        output = pop_chancenter(locations, center, omitted)
+        assert len(output) == len(locations)
+        assert all(np.isfinite(location[axis]) for location in output for axis in ("X", "Y", "Z"))
 
 
 @pytest.mark.gui

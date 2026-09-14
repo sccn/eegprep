@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_selectevent`` now supports ``erroronempty='off'`` when a selection removes every
+  epoch, returning an empty EEG instead of raising. Component ``pop_topoplot`` colorbars
+  now use polarity labels only for scales that span zero; positive-only and negative-only
+  scales show their exact numeric ``maplimits`` endpoints. ``eeg_decodechan`` now accepts
+  EEGLAB's whitespace-separated channel-name form as well as Python sequences. ICA rejection
+  marks can also derive their row count from ``icachansind`` when stored ICA matrices are absent.
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is
