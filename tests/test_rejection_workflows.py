@@ -75,19 +75,42 @@ def _reference_trend_marks(
     return row_marks
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_eegthresh/popfunc_pop_eegthresh_wrapperTest.m",
+    "test_test_pop_eegthresh",
+)
 def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
     eeg = _epoched_eeg()
 
     out, com = pop_eegthresh(eeg, 1, [1], -10, 10, 0, 0.79, 0, 0, return_com=True)
+    component_out, component_rejected = pop_eegthresh(eeg, 0, [1], -10, 10, 0, 0.79, 1, 0)
 
     assert out["reject"]["rejthresh"].tolist() == [False, True, False, False, False]
     assert out["reject"]["rejthreshE"][0].tolist() == [False, True, False, False, False]
+    assert component_rejected == [2]
+    assert component_out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
     assert _console_python_command(com) == (
         "EEG = pop_eegthresh(EEG, icacomp=1, elecrange=[1], negthresh=[-10], "
         "posthresh=[10], starttime=[0], endtime=[0.79], superpose=0, reject=0)"
     )
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_jointprob/popfunc_pop_jointprob_wrapperTest.m",
+    "test_test_pop_jointprob",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejkurt/popfunc_pop_rejkurt_wrapperTest.m",
+    "test_test_pop_rejkurt",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejspec/popfunc_pop_rejspec_wrapperTest.m",
+    "test_test_pop_rejspec",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejtrend/popfunc_pop_rejtrend_wrapperTest.m",
+    "test_test_pop_rejtrend",
+)
 def test_rejection_statistics_store_data_and_component_marks():
     eeg = _epoched_eeg()
 
@@ -643,6 +666,10 @@ def test_trend_marks_match_reference_window_loop():
     np.testing.assert_array_equal(reject, expected.any(axis=0))
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_rejepoch/popfunc_pop_rejepoch_wrapperTest.m",
+    "test_test_pop_rejepoch",
+)
 def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
     eeg = _epoched_eeg()
     eeg["reject"]["rejmanual"] = np.array([False, True, False, False, True])
@@ -885,6 +912,52 @@ def test_channel_and_continuous_rejection_work_on_sample_data_without_ica():
         pop_eegthresh(sample, 0, [1], -10, 10, 0, 1)
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_rejchan/popfunc_pop_rejchan_wrapperTest.m",
+    "test_test_pop_rejchan",
+)
+def test_pop_rejchan_current_suite_probability_and_kurtosis_options():
+    rng = np.random.default_rng(91)
+    eeg = create_test_eeg(n_channels=5, n_samples=40, n_trials=3, srate=100)
+    eeg["data"] = rng.normal(size=(5, 40, 3))
+    options = (
+        ([2, 4, 5], [5], "kurt", "off"),
+        ([1, 2, 3, 4, 5], [5], "kurt", "off"),
+        ([2, 4, 5], [5, 5, 5], "kurt", "off"),
+        ([2, 4, 5], [5], "prob", "off"),
+        ([1, 2, 3, 4, 5], [5], "kurt", "on"),
+        ([1, 2, 3, 4, 5], [5], "prob", "off"),
+        ([1, 2, 3, 4, 5], [5, 1], "kurt", "off"),
+        ([1, 2, 3, 4], [5], "kurt", "on"),
+    )
+
+    for channels, threshold, measure_name, norm in options:
+        out, rejected, measure = pop_rejchan(
+            eeg,
+            "elec",
+            channels,
+            "threshold",
+            threshold,
+            "measure",
+            measure_name,
+            "norm",
+            norm,
+            "indexonly",
+            "on",
+        )
+        assert measure.shape == (len(channels),)
+        assert np.isfinite(measure).all()
+        assert set(rejected).issubset(channels)
+        assert out["nbchan"] == eeg["nbchan"]
+
+    removal_eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
+    removal_eeg["data"] = np.zeros((2, 20))
+    removal_eeg["data"][0, 10] = 100
+    removed, rejected, _measure = pop_rejchan(removal_eeg, "measure", "std", "threshold", 5)
+    assert rejected == [1]
+    assert removed["nbchan"] == 1
+
+
 def test_rejection_component_threshold_recomputes_stale_stored_icaact():
     eeg = _epoched_eeg()
     eeg["icaweights"] = 2.0 * np.eye(4)
@@ -897,14 +970,14 @@ def test_rejection_component_threshold_recomputes_stale_stored_icaact():
     assert out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
 
 
-def test_pop_rejchan_default_threshold_matches_gui_zscore_default():
+def test_pop_rejchan_scripted_default_threshold_matches_eeglab():
     eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
     eeg["data"] = np.zeros((2, 20))
     eeg["data"][0, 10] = 100
 
     _out, rejected_channels, _measure = pop_rejchan(eeg, "measure", "std", "indexonly", "on")
 
-    assert rejected_channels == [1]
+    assert rejected_channels == []
 
 
 def test_pop_rejcont_history_replays_effectful_mode_and_overlap_options():

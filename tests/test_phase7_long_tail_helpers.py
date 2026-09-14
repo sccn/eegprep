@@ -121,6 +121,10 @@ def test_pop_icathresh_sets_component_rejection_flags():
     assert command == "EEG = pop_icathresh(EEG, [4 4 10], 'current', 25, 0);"
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_rejchanspec/popfunc_pop_rejchanspec_wrapperTest.m",
+    "test_test_pop_rejchanspec",
+)
 def test_pop_rejchanspec_rejects_spectral_outlier_and_returns_history():
     eeg = _eeg(np.zeros((3, 8)))
     specdata = np.array([[1.0, 2.0, 1.0], [1.0, 50.0, 1.0], [1.0, 2.0, 1.0]])
