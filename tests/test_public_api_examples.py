@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.eeglab_tests import eeglab_test
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
@@ -16,9 +18,16 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+MAKEHTML_OUTPUT_WRAPPER = "unittesting_miscfunc/makehtml/output/miscfunc_makehtml_output_wrapperTest.m"
 
 
+@eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_Contents")
+@eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_eeglab")
 def test_public_api_and_plugins_example_runs() -> None:
+    # These MATLAB methods execute generated documentation stubs: Contents.m is
+    # comments only and eeglab.m opens callback-string help links. EEGPrep's
+    # Sphinx replacement keeps its top-level example executable against the
+    # installed public API, which is the portable behavior worth preserving.
     example = REPO_ROOT / "docs/source/examples/plot_public_api_and_plugins.py"
 
     runpy.run_path(str(example), run_name="__main__")
