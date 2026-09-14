@@ -12,6 +12,14 @@ surrogate replications.
 Condition Tests
 ===============
 
+``statcond(..., return_resampling_array=True)`` returns a
+``SurrogateDistribution``. With ``arraycomp="on"`` (the default), it contains
+``naccu`` condition grids; every condition keeps its original feature and case
+shape. ``arraycomp="off"`` returns one grid and is compatible with EEGLAB's
+incremental resampling contract. For ordinary statistical results, the off
+mode still computes all ``naccu`` statistics while holding one resampled grid
+at a time.
+
 .. autosummary::
    :toctree: generated/
 
