@@ -5,7 +5,6 @@ import copy
 import numpy as np
 import pytest
 
-from tests.eeglab_tests import eeglab_test
 from eegprep.functions.popfunc.pop_averef import pop_averef
 from eegprep.functions.popfunc.pop_findmatchingcomps import pop_findmatchingcomps
 from eegprep.functions.popfunc.pop_fusechanrej import pop_fusechanrej

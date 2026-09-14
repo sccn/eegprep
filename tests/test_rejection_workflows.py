@@ -11,7 +11,6 @@ import scipy.io
 
 import eegprep.functions.popfunc._eegplot_rejection as eegplot_rejection_module
 import eegprep.functions.popfunc.pop_rejcont as pop_rejcont_module
-from tests.eeglab_tests import eeglab_test
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc.pop_eegplot import DEFAULT_REJECTION_COLORS
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose

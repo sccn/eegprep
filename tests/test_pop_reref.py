@@ -61,6 +61,8 @@ def test_pop_reref_current_suite_average_reference_workflow():
     output = pop_reref(eeg, [])
 
     np.testing.assert_allclose(output["data"].mean(axis=0), 0, atol=1e-5)
+
+
 @eeglab_test(
     "unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m",
     "test_test_reref",
