@@ -35,6 +35,28 @@ def test_rmbase_removes_epoch_baseline_and_returns_means():
     assert out.shape == data.shape
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/rmbase/sigprocfunc_rmbase_wrapperTest.m",
+    "test_test_rmbase",
+)
+def test_rmbase_upstream_frame_and_baseline_vector_call_forms():
+    rng = np.random.default_rng(12)
+    epoched = rng.normal(size=(32, 384, 8)).astype(np.float32)
+
+    for frames, baseline in ((None, 0), (384, 0), (192, 0), (384, np.arange(1, 129))):
+        corrected, means = rmbase(epoched, frames, baseline, return_mean=True)
+        assert corrected.shape == epoched.shape
+        expected_epochs = epoched.size // epoched.shape[0] // int(frames or epoched.shape[1] * epoched.shape[2])
+        assert means.shape == (32, expected_epochs)
+
+    continuous = rng.normal(size=(32, 30504)).astype(np.float32)
+    for frames, baseline in ((None, 0), (30504, 0), (3813, 0), (3813, np.arange(1, 1001))):
+        corrected, means = rmbase(continuous, frames, baseline, return_mean=True)
+        assert corrected.shape == continuous.shape
+        expected_epochs = continuous.shape[1] // int(frames or continuous.shape[1])
+        assert means.shape == (32, expected_epochs)
+
+
 def _legacy_rmbase(
     data: np.ndarray,
     frames: int,

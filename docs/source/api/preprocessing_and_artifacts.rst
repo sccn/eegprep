@@ -42,3 +42,6 @@ Artifact detection and repair, referencing, resampling, interpolation, and rejec
    eegprep.rspfunc
    eegprep.signalstat
 
+``realproba`` follows EEGLAB's default discretization of one probability bin
+per five input values, rounded to the nearest integer. Pass ``bins`` explicitly
+when a fixed histogram resolution is required.

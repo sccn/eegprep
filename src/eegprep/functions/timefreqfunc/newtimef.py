@@ -101,12 +101,15 @@ def newtimef(
     timewarpidx: Any = None,
     vert: Any = None,
     verbose: str = "off",
+    outputformat: str = "plot",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
     if str(boottype).lower() != "shuffle":
         raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
+    if str(outputformat).lower() != "plot":
+        raise NotImplementedError("newtimef only implements outputformat='plot'")
     if not _is_on(plotphase):
         plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:

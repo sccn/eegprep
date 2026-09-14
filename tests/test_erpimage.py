@@ -18,8 +18,13 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from eegprep.functions.sigprocfunc.erpimage import erpimage
+from tests.eeglab_tests import eeglab_test
+
+
+_ERPIMAGE_SOURCE = "unittesting_sigprocfunc/erpimage/sigprocfunc_erpimage_wrapperTest.m"
 
 
 def _ramp_trials(points: int = 40, trials: int = 12) -> np.ndarray:
@@ -52,3 +57,58 @@ def test_target_draws_into_existing_subfigure() -> None:
     assert result_fig is target
     assert len(target.axes) >= 2  # ERP image + average ERP
     plt.close("all")
+
+
+@eeglab_test(_ERPIMAGE_SOURCE, "test_fail_continuous")
+@eeglab_test(_ERPIMAGE_SOURCE, "test_fail_no_arg")
+def test_erpimage_requires_points_by_trials_data() -> None:
+    with pytest.raises(ValueError, match="points x trials"):
+        erpimage(np.arange(20))
+    with pytest.raises(TypeError):
+        erpimage()  # ty: ignore[missing-argument]
+
+
+@eeglab_test(_ERPIMAGE_SOURCE, "test_fail_one_trial")
+@eeglab_test(_ERPIMAGE_SOURCE, "test_fail_trial_div")
+def test_erpimage_requires_one_sort_value_per_trial() -> None:
+    data = np.array(
+        [
+            [21, 24, 25, 28, 31, 37],
+            [22, 25, 26, 29, 32, 38],
+            [23, 26, 27, 30, 33, 39],
+            [24, 27, 28, 31, 34, 40],
+        ]
+    )
+    for sort_values in ([1], [1, 2, 3, 4, 5]):
+        with pytest.raises(ValueError, match="one value per trial"):
+            erpimage(data, sort_values=sort_values)
+
+
+@eeglab_test(_ERPIMAGE_SOURCE, "test_pass_general")
+@eeglab_test(_ERPIMAGE_SOURCE, "test_pass_many_args")
+def test_erpimage_preserves_default_order_and_computes_erp() -> None:
+    data = np.array(
+        [
+            [21, 24, 25, 28, 31, 37],
+            [22, 25, 26, 29, 32, 38],
+            [23, 26, 27, 30, 33, 39],
+            [24, 27, 28, 31, 34, 40],
+        ]
+    )
+    fig, image = erpimage(data, title="testcase", smooth=1, decimate=1, cbar=True)
+
+    np.testing.assert_array_equal(image, data.T)
+    expected_erp = [27 + 2 / 3, 28 + 2 / 3, 29 + 2 / 3, 30 + 2 / 3]
+    np.testing.assert_allclose(fig.axes[-1].lines[0].get_ydata(), expected_erp)
+    assert fig.axes[0].get_title() == "testcase"
+    plt.close(fig)
+
+
+@eeglab_test(_ERPIMAGE_SOURCE, "test_pass_times")
+def test_erpimage_expands_eeglab_compact_time_specification() -> None:
+    data = np.arange(24, dtype=float).reshape(4, 6)
+    fig, _image = erpimage(data, times=[0, 4, 1])
+
+    np.testing.assert_allclose(fig.axes[0].get_xlim(), [0.0, 3000.0])
+    np.testing.assert_allclose(fig.axes[-1].lines[0].get_xdata(), [0.0, 1000.0, 2000.0, 3000.0])
+    plt.close(fig)

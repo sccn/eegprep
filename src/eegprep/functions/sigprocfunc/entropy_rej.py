@@ -41,6 +41,8 @@ def _as_rows_points_trials(signal: Any) -> np.ndarray:
     if arr.ndim == 1:
         arr = arr.reshape(1, arr.size, 1)
     elif arr.ndim == 2:
+        if arr.shape[1] == 1:
+            arr = arr.T
         arr = arr[:, :, np.newaxis]
     elif arr.ndim != 3:
         raise ValueError("signal must be 1-D, 2-D, or 3-D")
@@ -49,11 +51,11 @@ def _as_rows_points_trials(signal: Any) -> np.ndarray:
 
 def _normalize(scores: np.ndarray, *, signal_ndim: int) -> np.ndarray:
     if signal_ndim == 2:
-        std = float(np.std(scores))
+        std = float(np.std(scores, ddof=1)) if scores.size > 1 else 0.0
         if std == 0 or not np.isfinite(std):
             std = 1.0
         return (scores - np.mean(scores)) / std
-    std = np.std(scores, axis=1, keepdims=True)
+    std = np.std(scores, axis=1, ddof=1 if scores.shape[1] > 1 else 0, keepdims=True)
     std[~np.isfinite(std) | (std == 0)] = 1.0
     return (scores - scores.mean(axis=1, keepdims=True)) / std
 

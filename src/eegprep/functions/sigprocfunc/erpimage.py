@@ -48,11 +48,7 @@ def erpimage(
     if values.ndim != 2:
         raise ValueError("erpimage data must be points x trials")
     points, trials = values.shape
-    x_values = (
-        np.asarray(times, dtype=float).ravel()
-        if times is not None and len(np.asarray(times).ravel())
-        else np.arange(points)
-    )
+    x_values = _time_values(times, points)
     if x_values.size != points:
         raise ValueError("times must match the number of data points")
     order = _trial_order(values, sort_values)
@@ -138,6 +134,17 @@ def erpimage(
     if topo_ax is not None:
         plot_channel_location(topo_ax, chan_locs, int(channel_index))
     return fig, image
+
+
+def _time_values(times: Any, points: int) -> np.ndarray:
+    if times is None or not len(np.asarray(times).ravel()):
+        return np.arange(points, dtype=float)
+    values = np.asarray(times, dtype=float).ravel()
+    if values.size == 3 and points != 3 and int(values[1]) == points:
+        if values[2] <= 0:
+            raise ValueError("sampling rate in [start, frames, srate] must be positive")
+        return values[0] + np.arange(points, dtype=float) * 1000.0 / values[2]
+    return values
 
 
 def _trial_order(values: np.ndarray, sort_values: Any) -> np.ndarray:
