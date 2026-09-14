@@ -2140,6 +2140,11 @@ def _matlab_vector(values: list[float]) -> str:
 
 def _eeglab_reference_root() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
+    configured_reference = os.environ.get("EEGPREP_EEGLAB_ROOT")
+    if configured_reference:
+        configured_root = Path(configured_reference).expanduser()
+        if (configured_root / "functions" / "popfunc" / "pop_headplot.m").exists():
+            return configured_root
     package_reference = repo_root / "src" / "eegprep" / "eeglab"
     if (package_reference / "functions" / "popfunc" / "pop_headplot.m").exists():
         return package_reference

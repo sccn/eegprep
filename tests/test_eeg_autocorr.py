@@ -282,7 +282,7 @@ class TestEegAutocorr(DebuggableTestCase):
         from eegprep.functions.popfunc.pop_loadset import pop_loadset
         import os
 
-        test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
+        test_file = os.path.join(os.path.dirname(__file__), '..', 'sample_data', 'eeglab_data_with_ica_tmp.set')
         if not os.path.exists(test_file):
             self.skipTest(f"Test file not found: {test_file}")
 
@@ -307,7 +307,7 @@ class TestEegAutocorr(DebuggableTestCase):
         from eegprep.functions.popfunc.pop_loadset import pop_loadset
         import os
 
-        test_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'eeglab_data_with_ica_tmp.set')
+        test_file = os.path.join(os.path.dirname(__file__), '..', 'sample_data', 'eeglab_data_with_ica_tmp.set')
         if not os.path.exists(test_file):
             self.skipTest(f"Test file not found: {test_file}")
 

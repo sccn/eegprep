@@ -25,14 +25,18 @@ from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
 from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, matlab_engine_available
 
-EEGLAB_REFERENCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "eegprep" / "eeglab"
-
 
 def eeglab_reference_available() -> bool:
-    return (
-        (EEGLAB_REFERENCE_ROOT / "functions" / "popfunc" / "pop_selectevent.m").exists()
-        and (EEGLAB_REFERENCE_ROOT / "functions" / "popfunc" / "pop_mergeset.m").exists()
-        and (EEGLAB_REFERENCE_ROOT / "plugins" / "clean_rawdata" / "private").is_dir()
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = []
+    if os.environ.get("EEGPREP_EEGLAB_ROOT"):
+        candidates.append(Path(os.environ["EEGPREP_EEGLAB_ROOT"]).expanduser())
+    candidates.append(repo_root / "src" / "eegprep" / "eeglab")
+    return any(
+        (candidate / "functions" / "popfunc" / "pop_selectevent.m").exists()
+        and (candidate / "functions" / "popfunc" / "pop_mergeset.m").exists()
+        and (candidate / "plugins" / "clean_rawdata" / "private").is_dir()
+        for candidate in candidates
     )
 
 
