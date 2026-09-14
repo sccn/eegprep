@@ -10,6 +10,14 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Current EEGLAB visual-wrapper test ports now exercise plots through
+  deterministic headless numerical and figure assertions. ``pop_plotdata``
+  supports channel/component mode, 1-based trial selection, trial averaging,
+  and single-trial overlays; ``pop_plottopo`` honors its positional title and
+  single-trial arguments. ``pop_spectopo`` supports Blackman-Harris windows and
+  ``blckhn``, and ``pop_envtopo`` accepts the legacy ``compnums=-N`` top-N
+  shorthand. ``pop_topoplot`` renders signed ``EEG.chanmatrix`` grids even when
+  channel locations are unavailable.
 - The current EEGLAB GUI-helper tests now have deterministic Python ports.
   ``supergui`` builds declarative dialogs without entering a modal loop,
   ``inputgui`` supports a non-blocking ``mode="plot"`` workflow and renders

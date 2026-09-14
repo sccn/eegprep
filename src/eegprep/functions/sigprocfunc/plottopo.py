@@ -21,14 +21,19 @@ def plottopo(
     ydir: int = -1,
     ylimits: Any = None,
     rect: bool = False,
+    singletrials: bool = False,
 ):
-    """Plot channel/component traces in an EEGLAB-like array."""
+    """Plot channel/component traces in an EEGLAB-like array.
+
+    Three-dimensional input is averaged over trials by default. Set
+    ``singletrials=True`` to overlay every trial in each channel panel.
+    """
     values = np.asarray(data, dtype=float)
-    if values.ndim == 3:
+    if values.ndim == 3 and not singletrials:
         values = np.nanmean(values, axis=2)
-    if values.ndim != 2:
-        raise ValueError("plottopo data must be channels x points")
-    count, points = values.shape
+    if values.ndim not in {2, 3}:
+        raise ValueError("plottopo data must be channels x points or channels x points x trials")
+    count, points = values.shape[:2]
     x_values = (
         np.asarray(times, dtype=float).ravel()
         if times is not None and len(np.asarray(times).ravel())
@@ -135,10 +140,10 @@ def _plot_trace(
     ax.plot(x_values, values, color="black", linewidth=0.8)
     ax.axhline(0, color="0.75", linewidth=0.6)
     ax.set_title(label, fontsize=9)
-    if ydir < 0:
-        ax.invert_yaxis()
     if limits is not None:
         ax.set_ylim(limits)
+    if ydir < 0:
+        ax.invert_yaxis()
     ax.tick_params(labelsize=7)
 
 

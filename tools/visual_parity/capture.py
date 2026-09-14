@@ -742,7 +742,7 @@ def _write_matlab_simple_pop_dialog_script(
         "pop_plottopo": "Topographic ERP plot - pop_plottopo()",
         "pop_headplot": "ERP head plot(s) -- pop_headplot()",
         "coregister": "coregister()",
-        "pop_plotdata": "Component ERPs in rect. array -- pop_plotdata()",
+        "pop_plotdata": "Channel ERPs in rect. array -- pop_plotdata()",
         "pop_erpimage": "Channel ERP image -- pop_erpimage()",
         "pop_envtopo": "Plot component and ERP envelopes -- pop_envtopo()",
         "pop_comperp": "ERP grand average/RMS - pop_comperp()",
