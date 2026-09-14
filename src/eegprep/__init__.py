@@ -330,6 +330,7 @@ _LAZY_EXPORTS = {
     "pop_importbids": ("eegprep.plugins.EEG_BIDS.pop_importbids", "pop_importbids"),
     "pop_importgroupvar": ("eegprep.functions.studyfunc.pop_importgroupvar", "pop_importgroupvar"),
     "pop_importdata": ("eegprep.functions.popfunc.pop_importdata", "pop_importdata"),
+    "pop_importegimat": ("eegprep.functions.popfunc.pop_importegimat", "pop_importegimat"),
     "pop_importepoch": ("eegprep.functions.popfunc.pop_importepoch", "pop_importepoch"),
     "pop_importerplab": ("eegprep.functions.popfunc.pop_importerplab", "pop_importerplab"),
     "pop_importevent": ("eegprep.functions.popfunc.pop_importevent", "pop_importevent"),
