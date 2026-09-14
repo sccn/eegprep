@@ -174,7 +174,9 @@ def _model_data(eeg: dict[str, Any], mode: str, timelim: Any) -> tuple[np.ndarra
 
 
 def _enrich_rows(rows: list[dict[str, Any]], info: dict[str, Any], trials: int) -> list[dict[str, Any]]:
-    if len(rows) != trials:
+    if rows and len(rows) != trials:
+        raise ValueError(f"trial metadata has {len(rows)} rows but the EEG dataset has {trials} trials")
+    if not rows:
         rows = [{} for _index in range(trials)]
     constants = {
         key: value
@@ -192,6 +194,8 @@ def _design_matrix(
     for variable in design.get("variable") or []:
         if not isinstance(variable, dict):
             continue
+        if str(variable.get("level") or "one").lower() != "one":
+            continue
         label = str(variable.get("label") or "")
         if not label:
             continue
@@ -206,13 +210,18 @@ def _design_matrix(
         effects = []
         for level in levels:
             column = np.asarray([value_matches(row.get(label), level) for row in rows], dtype=float)
+            if not np.any(column):
+                raise ValueError(f"the first-level dataset has no trials for {label}={_level_name(level)}")
             columns.append(column)
             effects.append(column)
             names.append(f"{label}={_level_name(level)}")
         main_effects.append(effects)
     if interaction and len(main_effects) > 1:
         for combination in product(*main_effects):
-            columns.append(np.prod(np.vstack(combination), axis=0))
+            column = np.prod(np.vstack(combination), axis=0)
+            if not np.any(column):
+                raise ValueError("the requested first-level interaction contains an empty factor cell")
+            columns.append(column)
         for levels in product(*(levels for _label, levels in categorical)):
             names.append(
                 ":".join(f"{label}={_level_name(level)}" for (label, _values), level in zip(categorical, levels))
@@ -224,7 +233,9 @@ def _design_matrix(
         finite = np.isfinite(values)
         if np.count_nonzero(finite) > 1:
             scale = float(np.std(values[finite], ddof=1))
-            values[finite] = 0.0 if scale == 0 else (values[finite] - float(np.mean(values[finite]))) / scale
+            if scale == 0:
+                raise ValueError(f"continuous first-level regressor {label!r} has zero variance")
+            values[finite] = (values[finite] - float(np.mean(values[finite]))) / scale
         if splitreg and joint_conditions:
             for condition, level_names in zip(joint_conditions, joint_names):
                 membership = np.prod(np.vstack(condition), axis=0).astype(bool)
@@ -246,9 +257,6 @@ def _design_matrix(
     if not np.any(keep):
         raise ValueError("no trials have complete values for the active LIMO design")
     matrix = matrix[keep]
-    nonzero = np.any(np.abs(matrix) > np.finfo(float).eps, axis=0)
-    matrix = matrix[:, nonzero]
-    names = [name for name, retain in zip(names, nonzero) if retain]
     return matrix, names, keep
 
 

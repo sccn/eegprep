@@ -236,6 +236,8 @@ def _regression(values: np.ndarray, regressors: Any) -> dict[str, Any]:
 
 
 def _one_way_anova(source: Any) -> dict[str, Any]:
+    if not isinstance(source, (list, tuple)):
+        raise TypeError("one-way ANOVA source must be a sequence of group arrays")
     samples = [_array(item) for item in source]
     if len(samples) < 2 or any(sample.shape[0] < 2 for sample in samples):
         raise ValueError("one-way ANOVA requires at least two groups with two subjects each")
@@ -246,7 +248,7 @@ def _one_way_anova(source: Any) -> dict[str, Any]:
         "f": np.asarray(test.statistic),
         "p": np.asarray(test.pvalue),
         "df_between": len(samples) - 1,
-        "df_within": sum(sample.shape[0] for sample in samples) - len(samples),
+        "df_within": sum(np.sum(np.isfinite(sample), axis=0) for sample in samples) - len(samples),
         "group_means": np.stack([np.nanmean(sample, axis=0) for sample in samples]),
     }
 
