@@ -427,6 +427,7 @@ _LAZY_EXPORTS = {
     "signalstat": ("eegprep.functions.sigprocfunc.signalstat", "signalstat"),
     "shortread": ("eegprep.functions.miscfunc.shortread", "shortread"),
     "windows": ("eegprep.plugins.firfilt.windows", "windows"),
+    "writegdf": ("eegprep.functions.sigprocfunc.writegdf", "writegdf"),
     "snapread": ("eegprep.functions.sigprocfunc.snapread", "snapread"),
     "varimax": ("eegprep.functions.miscfunc.varimax", "varimax"),
     "varsort": ("eegprep.functions.miscfunc.varsort", "varsort"),

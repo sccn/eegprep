@@ -10,6 +10,7 @@ from .openbdf import openbdf
 from .quantile import quantile
 from .readbdf import readbdf
 from .shuffle import shuffle
+from .writegdf import writegdf
 
 __all__ = [
     "celltomat",
@@ -22,4 +23,5 @@ __all__ = [
     "quantile",
     "readbdf",
     "shuffle",
+    "writegdf",
 ]

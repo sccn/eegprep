@@ -1,4 +1,4 @@
-"""Export EEG data to EDF or BDF."""
+"""Export EEG data to EDF, BDF, or GDF."""
 
 from __future__ import annotations
 
@@ -11,10 +11,11 @@ from pyedflib import highlevel
 
 from eegprep.functions.popfunc._file_io import channel_labels, events_to_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.sigprocfunc.writegdf import writegdf
 
 
 def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
-    """Write continuous EEG data to EDF or BDF."""
+    """Write continuous EEG data to EDF, BDF, or GDF."""
     path = Path(filename)
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     output_type = str(options.pop("type", path.suffix.lstrip("."))).lower()
@@ -24,10 +25,19 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
         raise ValueError("pop_writeeeg output must end in .edf, .bdf, or .gdf")
     if output_type != path.suffix.lstrip(".").lower():
         raise ValueError("TYPE must match the output filename extension")
-    if output_type == "gdf":
-        raise NotImplementedError("GDF writing is not supported by EEGPrep's installed Python writer")
     path.parent.mkdir(parents=True, exist_ok=True)
-    _write_edf_family(EEG, path, output_type)
+    if output_type == "gdf":
+        writegdf(
+            path,
+            EEG["data"],
+            EEG["srate"],
+            labels=channel_labels(EEG),
+            events=events_to_records(EEG.get("event")),
+            subject=str(EEG.get("subject", "")),
+            recording=str(EEG.get("setname", "")),
+        )
+    else:
+        _write_edf_family(EEG, path, output_type)
     pieces = [format_history_value(path)]
     if "type" in {str(key).lower() for key in kwargs} or args:
         pieces.extend(["'TYPE'", format_history_value(output_type.upper())])
