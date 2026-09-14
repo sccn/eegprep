@@ -33,4 +33,5 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
    eegprep.eeg_store
    eegprep.eegh
    eegprep.eeglab
+   eegprep.eeglab_execmenu
    eegprep.options
