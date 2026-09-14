@@ -39,6 +39,13 @@ Unreleased
   searches deterministic automatic thresholds, can store matched bad
   components and child clusters, and RMS-normalizes average maps so arbitrary
   ICA scaling cannot change the second-pass template.
+- Added a standalone first- and second-level LIMO-compatible workflow.
+  ``pop_limo`` now fits OLS, robust WLS, and Tukey-bisquare IRLS models from
+  active STUDY designs, persists safe versioned results, and exposes model
+  diagnostics. Contrasts, core group tests, regression, ANOVA/ANCOVA,
+  repeated-measures ANOVA, and weighted summaries are available through
+  ``std_limoresults`` and ``pop_limoresults``. MATLAB ``.mat`` interchange,
+  bootstrap, TFCE, and LIMO plotting remain explicit boundaries.
 - ``statcond`` now accepts EEGLAB's ``arraycomp`` switch. Batched mode returns
   all requested resampling grids, while off mode exposes one compatibility
   grid or computes inference iteratively to bound peak memory without changing
