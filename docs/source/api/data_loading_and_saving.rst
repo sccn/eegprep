@@ -36,6 +36,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.mne2eeg_epochs
    eegprep.openbdf
    eegprep.parsetxt
+   eegprep.pop_loadbv
    eegprep.pop_loadcnt
    eegprep.readbdf
    eegprep.readeetraklocs
@@ -57,3 +58,24 @@ and 256/257-channel nets.
 checkout. They support 16- and 32-bit recordings, channel-blocked storage,
 microvolt calibration, partial reads, event tables, and ``.fdt``-backed data.
 ANT Neuro CNT is a separate format and is not accepted by this reader.
+
+BrainVision recordings
+----------------------
+
+Load a BrainVision Data Exchange recording through its header. The companion
+data and marker files are resolved from the header and must remain beside it.
+
+.. code-block:: python
+
+   from eegprep import pop_loadbv
+
+   EEG = pop_loadbv("subject01.vhdr")
+   EEG = pop_loadbv("/data/session", "subject01.vhdr", [1001, 5000], [1, 2, 8])
+
+``srange`` and ``chans`` use EEGLAB-compatible 1-based indexing; a two-value
+sample range is inclusive. Binary and ASCII, multiplexed and vectorized data
+are supported. Voltage data is normalized to microvolts while the original
+unit and resolution remain in each channel's ``bvunit`` and ``bvresolution``
+fields. Use ``metadata=True`` to inspect dimensions, channels, and events
+without loading samples. Uniform marker-based or fixed-time segments are
+returned as trials rather than a flattened continuous array.
