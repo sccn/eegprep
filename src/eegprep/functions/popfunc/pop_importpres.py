@@ -29,6 +29,8 @@ def pop_importpres(
     durfield = str(options.pop("durfield", durfield or ""))
     if "align" not in options:
         options["align"] = align
+    if len(EEG.get("event", [])) == 0:
+        options["align"] = float("nan")
 
     skipline = int(options.pop("skipline", 0) or 0)
     explicit_fields = "fields" in options
