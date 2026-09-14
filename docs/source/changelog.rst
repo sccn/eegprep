@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone ``pop_importegimat`` support for continuous and segmented
+  EGI Net Station MATLAB exports, including embedded sampling rates, trial
+  events and timing, empty-reference removal, packaged EGI montages, and
+  replayable command history. Unlike EEGLAB, segment numbering may contain
+  gaps or exceed the number of file variables, and a 1 ms pre-stimulus offset
+  is preserved correctly. A reference channel is removed only when all of its
+  trials and samples are empty.
 - EGI Simple Binary RAW versions 2 through 7 can now be read directly through
   ``readegihdr``, ``readegi``, ``pop_readegi``, and ``pop_readsegegi``. The
   readers support 1-based frame or segment selection, A/D scaling, event
