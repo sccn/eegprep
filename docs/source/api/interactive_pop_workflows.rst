@@ -25,6 +25,7 @@ accepts EEGLAB's positional event-type, time, and duration field names.
    eegprep.pop_expevents
    eegprep.pop_export
    eegprep.pop_exportbids
+   eegprep.importevent
    eegprep.pop_importdata
    eegprep.pop_importepoch
    eegprep.pop_importevent
@@ -39,7 +40,10 @@ accepts EEGLAB's positional event-type, time, and duration field names.
 Event and Epoch Tables
 ----------------------
 
-``pop_importevent`` accepts text files or record sequences. Imported latencies
+``importevent`` converts standalone event tables into event dictionaries using
+the same field, delimiter, time-unit, alignment, and append rules as
+``pop_importevent``. ``pop_importevent`` accepts text files or record sequences
+and stores the result on an EEG dataset. Imported latencies
 use seconds by default, ``timeunit=1e-3`` selects milliseconds, and
 ``timeunit=numpy.nan`` selects sample positions. Existing events are appended
 unless ``append="no"`` is supplied. Alignment can anchor imported rows to the
