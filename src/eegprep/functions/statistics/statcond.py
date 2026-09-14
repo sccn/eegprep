@@ -30,7 +30,13 @@ from eegprep.functions.statistics.ttest_cell import ttest_cell
 
 @dataclass(frozen=True)
 class StatcondResult:
-    """Result returned by :func:`statcond`."""
+    """Result returned by :func:`statcond`.
+
+    For a two-way design computed from condition arrays, the ``stat``, ``df``,
+    and ``pvalue`` fields are :class:`TwoWayEffects` in row, column, and
+    interaction order. Effect-valued nonparametric outputs follow the same
+    order.
+    """
 
     stat: Any
     df: Any
@@ -89,6 +95,12 @@ def statcond(
         arraycomp: ``True``/``"on"`` batches all resamples. ``False``/``"off"``
             computes one resample at a time and, with
             ``return_resampling_array=True``, returns one grid as in EEGLAB.
+
+    Returns:
+        A :class:`StatcondResult`, or a :class:`SurrogateDistribution` when
+        ``return_resampling_array`` is true. Computed two-way result fields use
+        named ``rows``, ``columns``, and ``interaction`` effects in that order
+        for both paired and unpaired designs.
     """
 
     method_name = normalize_method(mode or method)
