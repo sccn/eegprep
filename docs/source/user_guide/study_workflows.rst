@@ -111,6 +111,21 @@ current standalone cache rather than EEGLAB sidecar measure files.
 ``std_readdata``/``std_erpplot``/``std_erspplot`` cache contract used by scripts,
 so GUI and console plots slice axes and cached channel groups consistently.
 
+Store reusable plot and statistics choices on the STUDY before plotting:
+
+.. code-block:: python
+
+   from eegprep import pop_erpparams, pop_statparams
+
+   STUDY = pop_erpparams(STUDY, timerange=[-200, 800], plotconditions="together")
+   STUDY = pop_statparams(STUDY, condstats="on", method="perm", naccu=2000)
+
+The corresponding ``pop_erpimparams``, ``pop_erspparams``, ``pop_specparams``,
+and ``pop_dipparams`` functions store settings under ``STUDY["etc"]`` using
+EEGLAB field names. Changing an ERP time range, spectrum frequency range, or
+ERSP/ITC time-frequency range invalidates the affected cached measure fields;
+run ``pop_precomp(..., recompute="on")`` before plotting them again.
+
 Use ``std_checkfiles``, ``std_checkdatasession``, ``std_uniformfiles``, and
 ``std_uniformsetinds`` to audit loaded dataset consistency and cached measure
 shapes before saving or plotting group-level results. ``std_savedat`` writes
@@ -135,7 +150,9 @@ Select datasets or trials from STUDY metadata:
 These helpers return EEGLAB-facing 1-based dataset and trial indices. Trial
 metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
 ``{"factor": [values...]}`` dictionaries; STUDY selectors normalize both forms
-before matching factor levels and numerical ranges. Use ``std_substudy`` or
+before matching factor levels and numerical ranges. ``std_maketrialinfo`` uses
+each epoch's time-locking event, including custom fields such as reaction time,
+and later STUDY synchronization preserves those derived rows. Use ``std_substudy`` or
 ``std_rmdat`` when a workflow needs to remove datasets; EEGPrep remaps STUDY
 references and invalidates cached measure arrays after membership changes.
 
