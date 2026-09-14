@@ -125,13 +125,13 @@ The tutorial-wrapper ports additionally pin
 Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
 can execute them, while Octave cannot execute the Live Script format.
 
-``tutorial2_wrapperTest.test_bids_process_face_experiment`` is intentionally
-not represented as an executable pytest: its current wrapper body is entirely
-commented out and therefore performs no workflow or assertion. The active
-``test_bids_p300`` and the other tutorial methods have generated-data ports in
-``tests/test_tutorial_eeglab_tests.py``. These exercise the corresponding
-EEGPrep APIs without checking the upstream tutorial datasets into the package;
-the full EEGLAB datasets remain useful for separate MATLAB parity runs.
+Although ``tutorial2_wrapperTest.test_bids_process_face_experiment`` has an
+entirely commented wrapper body, its referenced Live Script is preserved as a
+generated-data port rather than an empty test. The face-recognition and active
+P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
+trial-level STUDY designs, precomputation, and ERP plotting without checking the
+upstream tutorial datasets into the package. The full EEGLAB datasets remain
+useful for separate MATLAB parity runs.
 
 Test Discovery
 --------------

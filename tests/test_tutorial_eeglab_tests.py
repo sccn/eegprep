@@ -64,6 +64,7 @@ from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
 TUTORIAL_WRAPPER = "unittesting_tutorial/tutorial_wrapperTest.m"
 TUTORIAL2_WRAPPER = "unittesting_tutorial/tutorial2_wrapperTest.m"
 CONDITIONS = ("standard", "oddball_with_reponse")
+FACE_EVENT_TYPES = ("famous_new", "scrambled_new", "unfamiliar_new")
 ICLABEL_THRESHOLDS = np.asarray(
     [
         [np.nan, np.nan],
@@ -285,6 +286,43 @@ def _bids_continuous_eeg(subject_index: int) -> dict:
     for channel, label in zip(eeg["chanlocs"], labels):
         channel["labels"] = label
     return eeg
+
+
+def _bids_face_eeg(subject_index: int) -> dict:
+    eeg = _bids_continuous_eeg(subject_index)
+    data = np.asarray(eeg["data"]).copy()
+    event_types = FACE_EVENT_TYPES * 2
+    amplitudes = {"famous": 5.0, "scrambled": 0.5, "unfamiliar": 2.5}
+    events = []
+    for index, event_type in enumerate(event_types):
+        latency = 97 + index * 105
+        face_type = event_type.split("_", maxsplit=1)[0]
+        events.append({"type": event_type, "latency": float(latency), "duration": 0.0, "urevent": index + 1})
+        center = latency - 1 + round(0.17 * eeg["srate"])
+        response = np.exp(-0.5 * ((np.arange(eeg["pnts"]) - center) / (0.045 * eeg["srate"])) ** 2)
+        data[0] += amplitudes[face_type] * response
+    eeg.update(
+        {
+            "data": data,
+            "setname": f"S{subject_index:02d}_FaceRecognition",
+            "event": events,
+            "urevent": [dict(event) for event in events],
+        }
+    )
+    return eeg
+
+
+def _add_face_type_to_bids_events(root: Path) -> None:
+    for path in root.rglob("*_events.tsv"):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        header = lines[0].split("\t")
+        trial_type_index = header.index("trial_type")
+        rows = [line.split("\t") for line in lines[1:]]
+        output = ["\t".join([*header, "face_type"])]
+        for row in rows:
+            face_type = row[trial_type_index].split("_", maxsplit=1)[0]
+            output.append("\t".join([*row, face_type]))
+        path.write_text("\n".join(output) + "\n", encoding="utf-8")
 
 
 @eeglab_test(TUTORIAL_WRAPPER, "test_eeglab_history")
@@ -674,6 +712,122 @@ def test_time_freq_all_electrodes_preserves_trial_power_and_spatial_axes():
         maplimits="absmax",
     )
     assert axis.collections
+    plt.close(figure)
+
+
+@eeglab_test(TUTORIAL2_WRAPPER, "test_bids_process_face_experiment")
+def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_path: Path):
+    bids_root = tmp_path / "generated_face_recognition"
+    export_commands = []
+    for subject in (1, 2):
+        _root, command = pop_exportbids(
+            _bids_face_eeg(subject),
+            bids_root,
+            subject=f"{subject:02d}",
+            task="FaceRecognition",
+            return_com=True,
+        )
+        export_commands.append(command)
+    _add_face_type_to_bids_events(bids_root)
+
+    imported, import_command = pop_importbids(
+        bids_root,
+        eventtype="trial_type",
+        bidsevent="replace",
+        return_com=True,
+    )
+    assert isinstance(imported, list)
+    selected, select_command = pop_select(imported, nochannel=["EOG1", "EOG2"], return_com=True)
+    cleaned, clean_command = pop_clean_rawdata(
+        selected,
+        FlatlineCriterion="off",
+        ChannelCriterion="off",
+        LineNoiseCriterion="off",
+        Highpass=[1, 2],
+        BurstCriterion="off",
+        WindowCriterion="off",
+        gui=False,
+        return_com=True,
+    )
+    referenced, reference_command = pop_reref(cleaned, [], return_com=True)
+    decomposed, ica_command = pop_runica(
+        referenced,
+        icatype="picard",
+        concatcond="on",
+        options={"pca": -1, "maxiter": 100, "verbose": False},
+        gui=False,
+        return_com=True,
+    )
+    for eeg in decomposed:
+        component_count = np.asarray(eeg["icaweights"]).shape[0]
+        classifications = np.zeros((component_count, 7))
+        classifications[:, 0] = 0.99
+        classifications[-1] = [0, 0.95, 0, 0, 0, 0, 0.05]
+        eeg.setdefault("etc", {}).setdefault("ic_classification", {})["ICLabel"] = {
+            "classes": ["Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other"],
+            "classifications": classifications,
+        }
+    flagged, flag_command = pop_icflag(decomposed, ICLABEL_THRESHOLDS, gui=False, return_com=True)
+    pruned, prune_command = pop_subcomp(flagged, [], 0, 0, gui=False, return_com=True)
+
+    epochs, epoch_command = pop_epoch(pruned, list(FACE_EVENT_TYPES), [-0.25, 0.75], return_com=True)
+    study, epochs, study_command = pop_study(None, epochs, name="Generated face recognition", return_com=True)
+    study, trialinfo = std_maketrialinfo(study, epochs)
+    study, design_command = std_makedesign(
+        study,
+        epochs,
+        1,
+        name="Face type",
+        variable1="face_type",
+        values1=["famous", "scrambled", "unfamiliar"],
+        subjselect=["01", "02"],
+        return_com=True,
+    )
+    study, epochs, precompute_command = std_precomp(
+        study,
+        epochs,
+        "channels",
+        erp="on",
+        savetrials="on",
+        recompute="on",
+        erpparams={"rmbase": [-250, 0]},
+        return_com=True,
+    )
+    _study, erpdata, times, figure = std_erpplot(study, epochs, channels=["Fz"], design=1)
+
+    assert len(imported) == len(selected) == len(cleaned) == len(decomposed) == len(pruned) == 2
+    assert all(eeg["nbchan"] == 6 for eeg in selected)
+    assert all(
+        {event["face_type"] for event in eeg["event"]} == {"famous", "scrambled", "unfamiliar"} for eeg in imported
+    )
+    assert all(np.asarray(eeg["icaweights"]).shape == (4, 6) for eeg in pruned)
+    assert all(eeg["trials"] == 6 for eeg in epochs)
+    assert all([row["face_type"] for row in rows] == ["famous", "scrambled", "unfamiliar"] * 2 for rows in trialinfo)
+    assert study["design"][0]["variable"][0]["value"] == ["famous", "scrambled", "unfamiliar"]
+    assert len(erpdata) == 3 and all(values.shape == (times.size, 2) for values in erpdata)
+    cache = next(entry for entry in study["changrp"] if entry["name"] == "Fz")
+    for face_type, actual in zip(("famous", "scrambled", "unfamiliar"), erpdata):
+        expected_cases = []
+        for values, rows in zip(cache["erpdatatrials"], cache["erptrialinfo"]):
+            mask = np.asarray([row["face_type"] == face_type for row in rows])
+            expected_cases.append(np.mean(np.asarray(values)[..., mask], axis=-1))
+        np.testing.assert_allclose(actual, np.stack(expected_cases, axis=-1), atol=1e-12)
+    assert not np.allclose(erpdata[0], erpdata[1])
+    for command in (
+        *export_commands,
+        import_command,
+        select_command,
+        clean_command,
+        reference_command,
+        ica_command,
+        flag_command,
+        prune_command,
+        epoch_command,
+        study_command,
+        design_command,
+        precompute_command,
+    ):
+        assert command
     plt.close(figure)
 
 
