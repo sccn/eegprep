@@ -11,11 +11,14 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 import numpy as np
+import pytest
 
 from eegprep.functions.popfunc.plot_utils import component_activations
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_clust import pop_clust
+from eegprep.functions.studyfunc.pop_corrmap import pop_corrmap
 from eegprep.functions.studyfunc.pop_study import pop_study
+from eegprep.functions.studyfunc.corrmap import corrmap
 from eegprep.functions.studyfunc.std_editset import std_editset
 from eegprep.functions.studyfunc.std_erpplot import std_erpplot
 from eegprep.functions.studyfunc.std_erspplot import std_erspplot
@@ -128,6 +131,111 @@ def _study_pair(*, n_channels: int = 4, n_components: int = 3) -> tuple[dict, li
         ),
     ]
     return pop_study(None, datasets, name="Generated N400 study")
+
+
+def _corrmap_study(*, scales: tuple[float, float] = (4.0, 0.2)) -> tuple[dict, list[dict]]:
+    template = np.array([-2.0, -1.0, -0.2, 0.5, 1.2, 2.0])
+    alternating = np.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
+    biphasic = np.array([1.0, 0.0, -1.0, 1.0, 0.0, -1.0])
+    unrelated = np.array([-0.5, 0.5, 1.0, -1.0, 0.5, -0.5])
+    near_template = template + np.array([0.1, -0.05, 0.03, -0.04, 0.02, -0.08])
+    inverse_maps = (
+        np.column_stack([template, alternating, biphasic]),
+        np.column_stack([alternating, -scales[0] * template, unrelated]),
+        np.column_stack([biphasic, unrelated, scales[1] * near_template]),
+        np.column_stack([alternating, biphasic, unrelated]),
+    )
+    datasets = []
+    for dataset_index, maps in enumerate(inverse_maps, start=1):
+        eeg = _deterministic_eeg(
+            f"corrmap_{dataset_index}",
+            f"S{dataset_index:02d}",
+            "target",
+            n_channels=6,
+            n_components=3,
+        )
+        eeg["icawinv"] = maps
+        eeg["icaweights"] = np.linalg.pinv(maps)
+        eeg["icasphere"] = np.eye(6)
+        datasets.append(eeg)
+    return pop_study(None, datasets, name="Generated CORRMAP study")
+
+
+@_reference("pop_corrmap", "test_test_pop_corrmap")
+def test_pop_corrmap_matches_polarity_builds_cluster_and_is_scale_invariant():
+    study, alleeg = _corrmap_study()
+
+    result, matched_study, matched_datasets, command = pop_corrmap(
+        study,
+        alleeg,
+        1,
+        1,
+        "chanlocs",
+        "",
+        "th",
+        "auto",
+        "ics",
+        1,
+        "title",
+        "Cluster test2",
+        "clname",
+        "test2",
+        "badcomps",
+        "yes",
+        "resetclusters",
+        "off",
+        return_com=True,
+    )
+
+    second_pairs = dict(zip(result["output"]["sets"][1], result["output"]["ics"][1], strict=True))
+    second_polarities = dict(zip(result["output"]["sets"][1], result["output"]["polarity"][1], strict=True))
+    # Direct output from CORRMAP 6d1b06e on these maps is first-pass sets
+    # [2, 3], components [2, 3], then second-pass sets/components [1, 2, 3].
+    assert second_pairs == {1: 1, 2: 2, 3: 3}
+    assert second_polarities == {1: 1, 2: -1, 3: 1}
+    np.testing.assert_array_equal(result["output"]["sets"][0], [2, 3])
+    np.testing.assert_array_equal(result["output"]["ics"][0], [2, 3])
+    np.testing.assert_allclose(result["corr"]["abs_values"][0][:3], [1.0, 0.9993692940674627, 0.5046949386828399])
+    np.testing.assert_array_equal(result["clust"]["sets"]["absent"][0], [1, 4])
+    np.testing.assert_array_equal(result["clust"]["sets"]["absent"][1], [4])
+    assert result["clust"]["best_th"] == 0.95
+    assert result["clust"]["similarity"] > 0.999
+
+    child = matched_study["cluster"][1]
+    assert child["name"] == "test2 1"
+    assert child["algorithm"][0] == "correlation (CORRMAP)"
+    assert dict(zip(child["sets"][0], child["comps"], strict=True)) == second_pairs
+    assert matched_study["cluster"][0]["child"] == ["test2 1"]
+    assert [eeg.get("badcomps", []) for eeg in matched_datasets] == [[1], [2], [3], []]
+    assert all("badcomps" not in eeg for eeg in alleeg)
+    assert command.startswith("CORRMAP, STUDY, ALLEEG = pop_corrmap(")
+
+    scaled_study, scaled_alleeg = _corrmap_study(scales=(400.0, 0.002))
+    scaled, _study, _datasets = pop_corrmap(scaled_study, scaled_alleeg, 1, 1, th="auto", ics=1)
+    np.testing.assert_allclose(result["output"]["average_plot"], scaled["output"]["average_plot"], atol=1e-12)
+
+
+def test_corrmap_aligns_labelled_montages_and_rejects_unsupported_inputs():
+    study, alleeg = _corrmap_study()
+    expected, _study, _datasets = corrmap(study, alleeg, 1, 1, th=0.95, ics=1)
+    permutation = np.array([5, 3, 1, 4, 2, 0])
+    alleeg[1]["icawinv"] = np.asarray(alleeg[1]["icawinv"])[permutation]
+    alleeg[1]["icaweights"] = np.linalg.pinv(alleeg[1]["icawinv"])
+    alleeg[1]["chanlocs"] = [alleeg[1]["chanlocs"][index] for index in permutation]
+    reordered_study, alleeg = pop_study(None, alleeg, name="Reordered CORRMAP study")
+
+    actual, _study, _datasets = corrmap(reordered_study, alleeg, 1, 1, th=0.95, ics=1)
+
+    np.testing.assert_allclose(actual["corr"]["abs_values"], expected["corr"]["abs_values"], atol=1e-12)
+    np.testing.assert_allclose(actual["output"]["average_plot"], expected["output"]["average_plot"], atol=1e-12)
+    with pytest.raises(ValueError, match="strictly between 0 and 1"):
+        corrmap(study, alleeg, 1, 1, th=1.0)
+    with pytest.raises(ValueError, match="1, 2, or 3"):
+        corrmap(study, alleeg, 1, 1, ics=4)
+    with pytest.raises(ValueError, match="template component"):
+        corrmap(study, alleeg, 1, 4, th=0.8, ics=1)
+    with pytest.raises(NotImplementedError, match="summary plotting"):
+        corrmap(study, alleeg, 1, 1, th=0.8, ics=1, plot="on")
 
 
 @_reference("std_editset", "test_test_std_editset")
