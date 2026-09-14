@@ -743,7 +743,7 @@ def test_pop_runscript_can_modify_sample_workspace_namespace(sample_eeg, tmp_pat
 
 
 @eeglab_test("unittesting_popfunc/pop_writeeeg/popfunc_pop_writeeeg_wrapperTest.m", "test_test_pop_writeeeg")
-def test_pop_writeeeg_current_suite_edf_and_bdf_roundtrip(tmp_path, sample_eeg):
+def test_pop_writeeeg_current_suite_edf_bdf_and_gdf_roundtrip(tmp_path, sample_eeg):
     eeg = copy.deepcopy(sample_eeg)
     eeg["data"] = eeg["data"][:2, :256]
     eeg["nbchan"] = 2
@@ -753,21 +753,21 @@ def test_pop_writeeeg_current_suite_edf_and_bdf_roundtrip(tmp_path, sample_eeg):
     eeg["chanlocs"] = eeg["chanlocs"][:2]
     eeg["event"] = []
 
-    for suffix in ("edf", "bdf"):
+    for suffix in ("edf", "bdf", "gdf"):
         output = tmp_path / f"sample.{suffix}"
         command = pop_writeeeg(eeg, output, "TYPE", suffix.upper())
         imported = pop_fileio(output)
         stored_ranges = np.ceil(np.max(eeg["data"], axis=1)) - np.floor(np.min(eeg["data"], axis=1))
-        quantization = np.max(stored_ranges) / (65_535 if suffix == "edf" else 16_777_215)
+        if suffix == "gdf":
+            quantization = np.finfo(np.float64).eps * max(1, float(np.max(np.abs(eeg["data"]))))
+        else:
+            quantization = np.max(stored_ranges) / (65_535 if suffix == "edf" else 16_777_215)
 
         assert output.exists()
         assert imported["data"].shape == eeg["data"].shape
         assert imported["srate"] == eeg["srate"]
         np.testing.assert_allclose(imported["data"], eeg["data"], rtol=0, atol=quantization * 1.1)
         assert f"'TYPE', '{suffix.upper()}'" in command
-
-    with pytest.raises(NotImplementedError, match="GDF writing"):
-        pop_writeeeg(eeg, tmp_path / "sample.gdf", "TYPE", "GDF")
 
 
 def test_pop_exportbids_writes_valid_bids_dataset_from_sample(tmp_path, sample_eeg):
