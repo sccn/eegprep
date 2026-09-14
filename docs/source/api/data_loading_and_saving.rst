@@ -39,6 +39,7 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.pop_loadbv
    eegprep.pop_loadcnt
    eegprep.readbdf
+   eegprep.read_erpss
    eegprep.readeetraklocs
    eegprep.readegilocs
    eegprep.readelp
@@ -79,3 +80,8 @@ unit and resolution remain in each channel's ``bvunit`` and ``bvresolution``
 fields. Use ``metadata=True`` to inspect dimensions, channels, and events
 without loading samples. Uniform marker-based or fixed-time segments are
 returned as trials rather than a flattened continuous array.
+
+``read_erpss`` reads uncompressed and delta-compressed ERPSS ``.RAW`` and
+``.RDF`` recordings without a compiled MEX extension. It preserves channel
+labels and 1-based event sample offsets, and supports both little- and
+big-endian files.
