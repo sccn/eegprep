@@ -549,6 +549,10 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
 
                 eeg_out, command = pop_fileio_brainvision_mat(filename, return_com=True)
+            elif action == "pop_fileio_brainvision":
+                from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
+
+                eeg_out, command = pop_loadbv(filename, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
