@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added a source-driven developer audit for the current EEGLAB test-port
+  project. It discovers all MATLAB wrapper and regression methods from the
+  pinned suite, collects pytest provenance, resolves same-directory scenario
+  scripts to their wrapper methods, and reports exact missing or stale ports.
 - Ported the current EEGLAB tutorial-wrapper workflows using
   deterministic generated EEG and BIDS fixtures. Coverage now follows scalp
   movies, grouped ERP and N400-style STUDY analyses, spherical source fitting,

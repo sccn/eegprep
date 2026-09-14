@@ -114,6 +114,22 @@ runtime behavior may be excluded only with a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.
 
+Before declaring the port complete, clone the current suite at its pinned
+commit and run the source-driven audit:
+
+.. code-block:: bash
+
+    git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
+    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests submodule update --init eeglab
+    uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
+
+The command discovers wrapper and regression methods directly from MATLAB,
+collects ``eeglab_test`` metadata through pytest, and prints every missing or
+stale reference. Pass ``--json`` for automation. It deliberately rejects the
+old ``eeglab-testcases`` repository, a checkout at another commit, and
+provenance that does not exist in the pinned suite.
+
 Tutorial-wrapper provenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
