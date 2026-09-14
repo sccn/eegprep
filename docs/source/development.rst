@@ -114,6 +114,25 @@ runtime behavior may be excluded only with a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.
 
+Tutorial-wrapper provenance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The tutorial-wrapper ports additionally pin
+``sccn/eeglab-tutorial-scripts`` commit
+``58bf12dd53e894dd3ee1285946563cd94999db16``. The four tutorial references
+``plot_study_erp``, ``source_reconstruction_advanced``,
+``source_reconstruction_eeg``, and ``time_freq_all_elec`` are MATLAB Live
+Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
+can execute them, while Octave cannot execute the Live Script format.
+
+``tutorial2_wrapperTest.test_bids_process_face_experiment`` is intentionally
+not represented as an executable pytest: its current wrapper body is entirely
+commented out and therefore performs no workflow or assertion. The active
+``test_bids_p300`` and the other tutorial methods have generated-data ports in
+``tests/test_tutorial_eeglab_tests.py``. These exercise the corresponding
+EEGPrep APIs without checking the upstream tutorial datasets into the package;
+the full EEGLAB datasets remain useful for separate MATLAB parity runs.
+
 Test Discovery
 --------------
 

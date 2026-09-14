@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Ported the active current EEGLAB tutorial-wrapper workflows using
+  deterministic generated EEG and BIDS fixtures. Coverage now follows scalp
+  movies, grouped ERP and N400-style STUDY analyses, spherical source fitting,
+  all-channel time-frequency analysis, and the full P300 preprocessing path.
+  Picard now accepts EEGLAB-style positive and negative PCA dimensions, and
+  multi-dataset ICA grouping handles empty NumPy-backed BIDS session metadata.
 - STUDY measure designs can now use categorical factors stored per trial. With
   ``savetrials="on"``, ERP, spectrum, ERSP, and ITC plots select the matching
   trials within each dataset and then aggregate one case per subject or

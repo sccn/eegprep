@@ -20,14 +20,17 @@ displayed.
 EEG Movies and Visual Workflow Boundaries
 =========================================
 
-EEGLAB's tutorial movie scripts, such as ``make_eeg_movie.m``, are treated as
-visual workflow references for this epic rather than standalone EEGPrep runtime
-features. EEGPrep owns static plots, ERP images, time-frequency wrappers, GUI
-dialog rendering, and the visual parity capture tooling described here. It does
-not currently ship an EEGLAB-compatible EEG movie generator or a persistent
-movie-authoring UI. Use the plotting wrappers documented in
-:ref:`preprocessing_pipeline` for analysis figures, and use this page's capture
-tools for reviewable GUI evidence.
+EEGPrep's ``eegmovie``, ``headmovie``, and ``seemovie`` helpers support the
+analysis path used by EEGLAB's ``make_eeg_movie.m`` tutorial. ``eegmovie``
+renders replayable 2-D or 3-D scalp frames and returns RGB arrays directly, so
+headless tests and notebooks can inspect or encode them without screen capture.
+The public ``movieframes`` boundary remains 1-based. EEGPrep does not provide a
+persistent movie-authoring UI or bundle a video encoder; pass the RGB frames to
+the image or video writer appropriate for the surrounding workflow.
+
+The visual parity tooling on this page remains focused on interactive dialogs
+and desktop state, where fixed rendering conditions are needed for meaningful
+side-by-side comparison.
 
 Install the optional EEGPREP GUI dependencies before capturing Python dialogs:
 
