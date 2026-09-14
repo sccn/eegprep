@@ -234,8 +234,14 @@ def _read_grouped(
 ) -> tuple[dict[str, Any], list[GroupedMeasure], np.ndarray, np.ndarray, list[str]]:
     if channels is not None:
         study, raw, x_axis, y_axis = std_readdata(study, alleeg, datatype=datatype, channels=channels)
-        grouped = group_channel_measures(study, raw, datatype, design=design, subject=subject)
         names = _channel_names(study, channels)
+        cache_lookup = {
+            str(group.get("name") or "").lower(): group
+            for group in study.get("changrp") or []
+            if isinstance(group, dict)
+        }
+        caches = [cache_lookup[name.lower()] for name in names]
+        grouped = group_channel_measures(study, raw, datatype, design=design, subject=subject, caches=caches)
         return study, [grouped], x_axis, y_axis, [", ".join(names)]
 
     cluster_indices = _cluster_indices(study, clusters)

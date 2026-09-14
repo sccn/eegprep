@@ -35,6 +35,7 @@ def group_channel_measures(
     *,
     design: int,
     subject: Any = None,
+    caches: list[dict[str, Any]] | None = None,
 ) -> GroupedMeasure:
     """Combine selected channel caches and split their dataset axis by design."""
     arrays = [np.asarray(values) for values in data]
@@ -47,7 +48,18 @@ def group_channel_measures(
     if len(arrays) == 1:
         raw = raw[:, 0, ...]
     dataset_ids = np.arange(1, raw.shape[0] + 1, dtype=int)
-    return _group_cases(study, raw, dataset_ids, datatype, design=design, subject=subject, component_cases=False)
+    trial_values, trialinfo = _channel_trial_cases(caches or [], datatype, raw.shape[0])
+    return _group_cases(
+        study,
+        raw,
+        dataset_ids,
+        datatype,
+        design=design,
+        subject=subject,
+        component_cases=False,
+        trial_values=trial_values,
+        trialinfo=trialinfo,
+    )
 
 
 def group_component_measures(
@@ -59,6 +71,7 @@ def group_component_measures(
     components: Any,
     design: int,
     subject: Any = None,
+    source_cache: dict[str, Any] | None = None,
 ) -> GroupedMeasure:
     """Split parent or child component measures by STUDY design cells."""
     clusters = cluster_list(study)
@@ -71,6 +84,8 @@ def group_component_measures(
         rows = []
         dataset_ids = []
         case_labels = []
+        trial_values = []
+        trialinfo = []
         for dataset_position, dataset_id in enumerate(dataset_axis.tolist()):
             for component_position in selection.tolist():
                 row = values[dataset_position, component_position, ...]
@@ -80,6 +95,11 @@ def group_component_measures(
                 rows.append(row)
                 dataset_ids.append(int(dataset_id))
                 case_labels.append(_component_label(study, int(dataset_id), component_id))
+                trial_value, trial_rows = _component_trial_case(
+                    source_cache or source, datatype, dataset_position, component_position
+                )
+                trial_values.append(trial_value)
+                trialinfo.append(trial_rows)
     else:
         cluster = clusters[cluster_index - 1]
         sets = sets_array(cluster.get("sets")).astype(int)[0]
@@ -88,6 +108,23 @@ def group_component_measures(
         rows = [values[position] for position in positions]
         dataset_ids = [int(sets[position]) for position in positions]
         case_labels = [_component_label(study, int(sets[position]), int(comps[position])) for position in positions]
+        trial_values = []
+        trialinfo = []
+        source_cache = source_cache or source
+        dataset_axis = component_dataset_axis(
+            source_cache, np.asarray(source_cache.get(_data_field(datatype))).shape[0]
+        )
+        component_axis = component_measure_axis(
+            source_cache, np.asarray(source_cache.get(_data_field(datatype))).shape[1]
+        )
+        for position in positions.tolist():
+            dataset_position = _axis_position(dataset_axis, int(sets[position]), "dataset")
+            component_position = _axis_position(component_axis, int(comps[position]), "component")
+            trial_value, trial_rows = _component_trial_case(
+                source_cache, datatype, dataset_position, component_position
+            )
+            trial_values.append(trial_value)
+            trialinfo.append(trial_rows)
     if not rows:
         raise ValueError("Selected STUDY cluster contains no cached components")
     return _group_cases(
@@ -99,6 +136,8 @@ def group_component_measures(
         subject=subject,
         component_cases=True,
         case_labels=case_labels,
+        trial_values=trial_values,
+        trialinfo=trialinfo,
     )
 
 
@@ -112,6 +151,8 @@ def _group_cases(
     subject: Any,
     component_cases: bool,
     case_labels: list[str] | None = None,
+    trial_values: list[np.ndarray | None] | None = None,
+    trialinfo: list[list[dict[str, Any]]] | None = None,
 ) -> GroupedMeasure:
     design_info = _design(study, design)
     variables = [item for item in design_info.get("variable") or [] if isinstance(item, dict)]
@@ -129,7 +170,7 @@ def _group_cases(
         row = []
         row_labels = []
         for group_label, group_value in groups:
-            positions = []
+            selected_values = []
             labels_for_cell = []
             for position, dataset_id in enumerate(dataset_ids.tolist()):
                 info = datasetinfo[dataset_id - 1]
@@ -138,13 +179,20 @@ def _group_cases(
                     continue
                 if allowed_cases and subject_name not in allowed_cases:
                     continue
-                if variables and not _matches(info.get(variables[0].get("label")), condition_value):
+                levels = [condition_value, group_value]
+                trial_value = trial_values[position] if trial_values else None
+                trial_rows = trialinfo[position] if trialinfo else []
+                if not trial_rows:
+                    trial_rows = [row for row in info.get("trialinfo") or [] if isinstance(row, dict)]
+                matches, trial_mask = _case_selection(info, variables, levels, trial_rows, trial_value)
+                if not matches:
                     continue
-                if len(variables) > 1 and not _matches(info.get(variables[1].get("label")), group_value):
-                    continue
-                positions.append(position)
+                value = raw[position]
+                if trial_mask is not None:
+                    value = _aggregate_trials(trial_value[..., trial_mask], datatype)
+                selected_values.append(value)
                 labels_for_cell.append(case_labels[position] if case_labels else subject_name)
-            selected = raw[np.asarray(positions, dtype=int), ...] if positions else raw[:0, ...]
+            selected = np.asarray(selected_values) if selected_values else raw[:0, ...]
             if not component_cases:
                 selected, labels_for_cell = _average_repeated_subjects(selected, labels_for_cell)
             row.append(_case_last(selected, datatype))
@@ -157,6 +205,111 @@ def _group_cases(
         [label for label, _value in groups],
         labels,
     )
+
+
+def _case_selection(
+    info: dict[str, Any],
+    variables: list[dict[str, Any]],
+    levels: list[Any],
+    trialinfo: list[dict[str, Any]],
+    trial_values: np.ndarray | None,
+) -> tuple[bool, np.ndarray | None]:
+    trial_mask = None
+    for variable, level in zip(variables, levels):
+        label = str(variable.get("label") or "")
+        if label in info and _has_dataset_value(info[label]):
+            if not _matches(info[label], level):
+                return False, None
+            continue
+        if not any(label in row for row in trialinfo):
+            return False, None
+        if trial_values is None:
+            raise ValueError(f"design variable {label!r} is trial-level; rerun std_precomp with savetrials='on'")
+        if len(trialinfo) != trial_values.shape[-1]:
+            raise ValueError("single-trial measure cache and trialinfo lengths do not match")
+        current = np.asarray([_matches(row.get(label), level) for row in trialinfo], dtype=bool)
+        trial_mask = current if trial_mask is None else trial_mask & current
+    if trial_mask is not None and not np.any(trial_mask):
+        return False, None
+    return True, trial_mask
+
+
+def _has_dataset_value(value: Any) -> bool:
+    return value is not None and not (isinstance(value, str) and value == "")
+
+
+def _aggregate_trials(values: np.ndarray, datatype: str) -> np.ndarray:
+    if datatype in {"spec", "ersp"}:
+        power = np.nanmean(values, axis=-1)
+        return 10.0 * np.log10(np.maximum(power, np.finfo(float).tiny))
+    if datatype == "itc":
+        return np.abs(np.nanmean(np.exp(1j * values), axis=-1))
+    return np.nanmean(values, axis=-1)
+
+
+def _channel_trial_cases(
+    caches: list[dict[str, Any]], datatype: str, dataset_count: int
+) -> tuple[list[np.ndarray | None], list[list[dict[str, Any]]]]:
+    field = _trial_field(datatype)
+    info_field = _trialinfo_field(datatype)
+    values: list[np.ndarray | None] = []
+    all_trialinfo: list[list[dict[str, Any]]] = []
+    for dataset_position in range(dataset_count):
+        channel_trials = []
+        rows: list[dict[str, Any]] = []
+        for cache in caches:
+            stored = cache.get(field)
+            if not isinstance(stored, list) or dataset_position >= len(stored):
+                channel_trials = []
+                break
+            channel_trials.append(np.asarray(stored[dataset_position], dtype=float))
+            cached_rows = cache.get(info_field)
+            if isinstance(cached_rows, list) and dataset_position < len(cached_rows):
+                rows = [row for row in cached_rows[dataset_position] if isinstance(row, dict)]
+        if channel_trials:
+            shape = channel_trials[0].shape
+            if any(item.shape != shape for item in channel_trials):
+                raise ValueError("selected channel single-trial caches must have matching shapes")
+            values.append(channel_trials[0] if len(channel_trials) == 1 else np.stack(channel_trials, axis=0))
+        else:
+            values.append(None)
+        all_trialinfo.append(rows)
+    return values, all_trialinfo
+
+
+def _component_trial_case(
+    source: dict[str, Any], datatype: str, dataset_position: int, component_position: int
+) -> tuple[np.ndarray | None, list[dict[str, Any]]]:
+    stored = source.get(_trial_field(datatype))
+    value = None
+    if isinstance(stored, list) and dataset_position < len(stored):
+        dataset = stored[dataset_position]
+        if isinstance(dataset, list) and component_position < len(dataset) and dataset[component_position] is not None:
+            value = np.asarray(dataset[component_position], dtype=float)
+    stored_rows = source.get(_trialinfo_field(datatype))
+    rows = []
+    if isinstance(stored_rows, list) and dataset_position < len(stored_rows):
+        rows = [row for row in stored_rows[dataset_position] if isinstance(row, dict)]
+    return value, rows
+
+
+def _trial_field(datatype: str) -> str:
+    return f"{datatype}datatrials"
+
+
+def _trialinfo_field(datatype: str) -> str:
+    return f"{datatype}trialinfo"
+
+
+def _data_field(datatype: str) -> str:
+    return f"{datatype}data"
+
+
+def _axis_position(axis: np.ndarray, value: int, label: str) -> int:
+    found = np.where(axis == value)[0]
+    if not found.size:
+        raise ValueError(f"{label} {value} is not present in the parent cluster cache")
+    return int(found[0])
 
 
 def _design(study: dict[str, Any], design: int) -> dict[str, Any]:
