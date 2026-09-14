@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.misc import finite_pinv
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -500,7 +501,7 @@ def _pop_select_apply(EEG, **kwargs):
         for ch in icachansind:
             if ch in chan_idx_list:
                 newinds.append(chan_idx_list.index(ch))
-        EEG['icachansind'] = newinds
+        EEG['icachansind'] = np.asarray(newinds, dtype=int)
     else:
         icasphere = EEG.get('icasphere')
         if _has_content(icasphere):
@@ -517,7 +518,7 @@ def _pop_select_apply(EEG, **kwargs):
                 EEG['icawinv'] = icawinv[np.array(icachans, dtype=int), :]
                 # recompute weights/sphere as in MATLAB
                 iw = EEG['icawinv']
-                EEG['icaweights'] = np.linalg.pinv(iw)
+                EEG['icaweights'] = finite_pinv(iw)
                 EEG['icasphere'] = np.eye(EEG['icaweights'].shape[1])
 
     if _has_content(EEG.get('specicaact')):

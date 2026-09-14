@@ -360,18 +360,15 @@ def test_pop_writeeeg_escapes_history_path(monkeypatch, tmp_path):
     filename = tmp_path / "output's.edf"
     captured = {}
 
-    monkeypatch.setattr("eegprep.functions.popfunc.pop_writeeeg.eeg_to_mne_raw", lambda _eeg: object())
+    def fake_write_edf_family(eeg, path, output_type):
+        captured.update({"eeg": eeg, "path": path, "output_type": output_type})
 
-    def fake_export_raw(path, raw, *, fmt, overwrite):
-        captured.update({"path": path, "raw": raw, "fmt": fmt, "overwrite": overwrite})
-
-    monkeypatch.setattr("eegprep.functions.popfunc.pop_writeeeg.export_raw", fake_export_raw)
+    monkeypatch.setattr("eegprep.functions.popfunc.pop_writeeeg._write_edf_family", fake_write_edf_family)
 
     command = pop_writeeeg(_eeg(), filename)
 
-    assert captured["path"] == str(filename)
-    assert captured["fmt"] == "edf"
-    assert captured["overwrite"] is True
+    assert captured["path"] == filename
+    assert captured["output_type"] == "edf"
     assert _matlab_string(filename) in command
 
 

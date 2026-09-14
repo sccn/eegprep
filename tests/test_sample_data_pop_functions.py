@@ -14,6 +14,7 @@ from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
+from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
@@ -104,6 +105,28 @@ def test_pop_loadset_loads_eeglab_sample_data_with_core_fields(sample_eeg_base):
     assert np.issubdtype(np.asarray(sample_eeg_base["icachansind"]).dtype, np.integer)
 
 
+@eeglab_test("unittesting_popfunc/pop_loadset/popfunc_pop_loadset_wrapperTest.m", "test_test_pop_loadset")
+def test_pop_loadset_current_suite_info_channel_and_eeg_modes():
+    path = Path("sample_data/eeglab_data_epochs_ica.set")
+    full = pop_loadset("filename", path.name, "filepath", path.parent)
+    info = pop_loadset("filename", path.name, "filepath", path.parent, "loadmode", "info")
+    channel = pop_loadset("filename", path.name, "filepath", path.parent, "loadmode", 10)
+    from_eeg = pop_loadset("filename", "", "filepath", "", "eeg", full)
+
+    assert full["data"].shape == (32, 384, 80)
+    assert info["data"] == "eeglab_data_epochs_ica.fdt"
+    assert info["nbchan"] == full["nbchan"]
+    assert info["pnts"] == full["pnts"]
+    assert info["trials"] == full["trials"]
+    assert channel["data"].shape == (1, 384, 80)
+    np.testing.assert_array_equal(channel["data"], full["data"][9:10])
+    assert channel["datachannel"] == 10
+    assert channel["chanlocs"][0]["labels"] == full["chanlocs"][9]["labels"]
+    for field in ("icachansind", "icaact", "icaweights", "icasphere", "icawinv"):
+        assert np.asarray(channel[field]).size == 0
+    np.testing.assert_array_equal(from_eeg["data"], full["data"])
+
+
 def test_pop_fileio_loads_sample_set_and_records_replayable_history(sample_eeg_base):
     eeg, command = pop_fileio(SAMPLE_SET, return_com=True)
 
@@ -111,6 +134,23 @@ def test_pop_fileio_loads_sample_set_and_records_replayable_history(sample_eeg_b
     assert eeg["event"][0]["type"] == "square"
     assert eeg["history"] == command
     assert command == "EEG = pop_fileio('sample_data/eeglab_data.set');"
+
+
+@eeglab_test("unittesting_popfunc/pop_fileio/popfunc_pop_fileio_wrapperTest.m", "test_test_pop_fileio")
+def test_pop_fileio_current_suite_channel_sample_and_trial_ranges():
+    path = Path("sample_data/eeglab_data_epochs_ica.set")
+    full = pop_fileio(path)
+    all_selected = pop_fileio(path, channels="1:32", samples=[1, 384])
+    selected, command = pop_fileio(path, channels="1:16", trials=[2, 50], return_com=True)
+
+    np.testing.assert_array_equal(all_selected["data"], full["data"])
+    np.testing.assert_array_equal(selected["data"], full["data"][:16, :, 1:50])
+    assert selected["data"].shape == (16, 384, 49)
+    assert selected["nbchan"] == 16
+    assert selected["trials"] == 49
+    assert selected["history"] == command
+    assert "'channels', '1:16'" in command
+    assert "'trials', [2 50]" in command
 
 
 def test_pop_biosig_rejects_sample_set_because_it_is_not_a_biosig_file():
@@ -430,19 +470,29 @@ def test_pop_icflag_flags_sample_components_with_iclabel_probabilities(sample_ee
     assert "pop_icflag" in command
 
 
-def test_pop_expica_exports_sample_ica_weights(sample_eeg_with_ica, tmp_path):
+@eeglab_test("unittesting_popfunc/pop_expica/popfunc_pop_expica_wrapperTest.m", "test_pass_inv_file")
+@eeglab_test("unittesting_popfunc/pop_expica/popfunc_pop_expica_wrapperTest.m", "test_pass_weights_file")
+def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
     weights_file = tmp_path / "sample_weights.tsv"
+    inverse_file = tmp_path / "sample_inverse.tsv"
 
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        command = pop_expica(sample_eeg_with_ica, weights_file)
+        weights_command = pop_expica(sample_eeg_with_ica, weights_file)
+        inverse_command = pop_expica(sample_eeg_with_ica, inverse_file, "inv")
 
-    exported = np.loadtxt(weights_file, delimiter="\t")
-    assert exported.shape == (32, 32)
-    assert np.isfinite(exported).all()
-    assert "pop_expica" in command
+    exported_weights = np.loadtxt(weights_file, delimiter="\t")
+    exported_inverse = np.loadtxt(inverse_file, delimiter="\t")
+    np.testing.assert_allclose(
+        exported_weights,
+        finite_matmul(sample_eeg_with_ica["icaweights"], sample_eeg_with_ica["icasphere"]),
+    )
+    np.testing.assert_allclose(exported_inverse, sample_eeg_with_ica["icawinv"])
+    assert "pop_expica" in weights_command
+    assert "'inv'" in inverse_command
 
 
+@eeglab_test("unittesting_popfunc/pop_export/popfunc_pop_export_wrapperTest.m", "test_test_pop_export")
 def test_pop_export_writes_sample_data_table(tmp_path, sample_eeg):
     output_file = tmp_path / "sample_export.tsv"
 
@@ -504,6 +554,7 @@ def test_pop_expevents_writes_all_sample_events(tmp_path, sample_eeg):
     assert "pop_expevents" in command
 
 
+@eeglab_test("unittesting_popfunc/pop_importdata/popfunc_pop_importdata_wrapperTest.m", "test_test_pop_importdata")
 def test_pop_importdata_loads_exported_sample_slice(tmp_path, sample_eeg):
     data_file = tmp_path / "sample_slice.tsv"
     np.savetxt(data_file, sample_eeg["data"][:2, :12], delimiter="\t")
@@ -568,16 +619,41 @@ def test_pop_importepoch_updates_sample_epoch_metadata(tmp_path, sample_eeg):
     assert "pop_importepoch" in command
 
 
-def test_pop_saveset_roundtrips_sample_dataset(tmp_path, sample_eeg):
-    output_file = tmp_path / "roundtrip.set"
+@eeglab_test("unittesting_popfunc/pop_saveset/popfunc_pop_saveset_wrapperTest.m", "test_test_pop_saveset")
+def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
+    source = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
 
-    pop_saveset(sample_eeg, str(output_file))
-    loaded = pop_loadset(str(output_file))
+    for check in ("off", "on"):
+        saved = pop_saveset(
+            copy.deepcopy(source),
+            "filename",
+            f"onefile_{check}.set",
+            "filepath",
+            tmp_path,
+            "check",
+            check,
+            "savemode",
+            "onefile",
+        )
+        loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
+        np.testing.assert_array_equal(loaded["data"], source["data"])
+        assert np.asarray(loaded["datfile"]).size == 0
 
-    assert loaded["data"].shape == sample_eeg["data"].shape
-    assert loaded["setname"] == sample_eeg["setname"]
-    assert len(loaded["event"]) == len(sample_eeg["event"])
-    assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
+    saved = pop_saveset(
+        copy.deepcopy(source),
+        "filename",
+        "twofiles.set",
+        "filepath",
+        tmp_path,
+        "check",
+        "off",
+        "savemode",
+        "twofiles",
+    )
+    loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
+    np.testing.assert_array_equal(loaded["data"], source["data"])
+    assert loaded["datfile"] == "twofiles.fdt"
+    assert (tmp_path / "twofiles.fdt").exists()
 
 
 def test_pop_study_records_sample_dataset_info(sample_eeg):
@@ -637,6 +713,7 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
     assert command.startswith("STUDY, ALLEEG = pop_studywizard(")
 
 
+@eeglab_test("unittesting_popfunc/pop_saveh/popfunc_pop_saveh_wrapperTest.m", "test_test_pop_saveh")
 def test_pop_saveh_writes_sample_history_commands(tmp_path):
     command = pop_saveh(
         ["EEG = pop_fileio('sample_data/eeglab_data.set');", "EEG = pop_reref( EEG, []);"],
@@ -651,6 +728,7 @@ def test_pop_saveh_writes_sample_history_commands(tmp_path):
     assert "pop_saveh" in command
 
 
+@eeglab_test("unittesting_popfunc/pop_runscript/popfunc_pop_runscript_wrapperTest.m", "test_test_pop_runscript")
 def test_pop_runscript_can_modify_sample_workspace_namespace(sample_eeg, tmp_path):
     script_file = tmp_path / "rename_sample.py"
     namespace = {"EEG": sample_eeg}
@@ -662,23 +740,32 @@ def test_pop_runscript_can_modify_sample_workspace_namespace(sample_eeg, tmp_pat
     assert "pop_runscript" in command
 
 
-def test_pop_writeeeg_exports_sample_through_mne_raw(monkeypatch, tmp_path, sample_eeg):
-    captured = {}
+@eeglab_test("unittesting_popfunc/pop_writeeeg/popfunc_pop_writeeeg_wrapperTest.m", "test_test_pop_writeeeg")
+def test_pop_writeeeg_current_suite_edf_and_bdf_roundtrip(tmp_path, sample_eeg):
+    eeg = copy.deepcopy(sample_eeg)
+    eeg["data"] = eeg["data"][:2, :256]
+    eeg["nbchan"] = 2
+    eeg["pnts"] = 256
+    eeg["xmax"] = (eeg["pnts"] - 1) / eeg["srate"]
+    eeg["times"] = np.arange(eeg["pnts"]) / eeg["srate"] * 1000
+    eeg["chanlocs"] = eeg["chanlocs"][:2]
+    eeg["event"] = []
 
-    def fake_export_raw(path, raw, *, fmt, overwrite):
-        captured.update({"path": path, "nchan": raw.info["nchan"], "fmt": fmt, "overwrite": overwrite})
+    for suffix in ("edf", "bdf"):
+        output = tmp_path / f"sample.{suffix}"
+        command = pop_writeeeg(eeg, output, "TYPE", suffix.upper())
+        imported = pop_fileio(output)
+        stored_ranges = np.ceil(np.max(eeg["data"], axis=1)) - np.floor(np.min(eeg["data"], axis=1))
+        quantization = np.max(stored_ranges) / (65_535 if suffix == "edf" else 16_777_215)
 
-    monkeypatch.setattr("eegprep.functions.popfunc.pop_writeeeg.export_raw", fake_export_raw)
+        assert output.exists()
+        assert imported["data"].shape == eeg["data"].shape
+        assert imported["srate"] == eeg["srate"]
+        np.testing.assert_allclose(imported["data"], eeg["data"], rtol=0, atol=quantization * 1.1)
+        assert f"'TYPE', '{suffix.upper()}'" in command
 
-    command = pop_writeeeg(sample_eeg, tmp_path / "sample.edf")
-
-    assert captured == {
-        "path": str(tmp_path / "sample.edf"),
-        "nchan": 32,
-        "fmt": "edf",
-        "overwrite": True,
-    }
-    assert "pop_writeeeg" in command
+    with pytest.raises(NotImplementedError, match="GDF writing"):
+        pop_writeeeg(eeg, tmp_path / "sample.gdf", "TYPE", "GDF")
 
 
 def test_pop_exportbids_writes_valid_bids_dataset_from_sample(tmp_path, sample_eeg):

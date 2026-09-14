@@ -79,11 +79,15 @@ The GUI, ``EEGPrepSession``, and ``eegprep-console`` use the same
 history, and dataset menus stay synchronized. Unsaved resident datasets cannot
 be offloaded; save them first or keep ``option_storedisk`` disabled.
 
-Current Limitations
-===================
+Selective Loading
+=================
 
-``pop_loadset`` supports full dataset loading for Phase 5. EEGLAB channel-only
-and ``loadmode="info"`` paths fail clearly instead of pretending data is
-available. Derived caches such as ``icaact`` are not managed by a separate
-lazy-storage layer, and EEGPrep does not provide multi-process write
-coordination for shared ``.fdt`` files.
+``pop_loadset(path, loadmode="info")`` loads metadata without loading sample
+data. ``EEG["data"]`` contains the saved sidecar filename or ``"in set file"``
+so callers can tell where the samples live. Passing an integer or sequence as
+``loadmode`` loads those 1-based channels and clears ICA fields that no longer
+describe the selected channel matrix.
+
+Derived caches such as ``icaact`` are not managed by a separate lazy-storage
+layer, and EEGPrep does not provide multi-process write coordination for shared
+``.fdt`` files.
