@@ -112,3 +112,31 @@ def test_erpimage_expands_eeglab_compact_time_specification() -> None:
     np.testing.assert_allclose(fig.axes[0].get_xlim(), [0.0, 3000.0])
     np.testing.assert_allclose(fig.axes[-1].lines[0].get_xdata(), [0.0, 1000.0, 2000.0, 3000.0])
     plt.close(fig)
+
+
+@eeglab_test(_ERPIMAGE_SOURCE, "test_todo_bugzilla_326")
+def test_erpimage_sorts_trials_when_event_latency_lines_are_drawn() -> None:
+    # The upstream TODO reports a silent sorting failure when sort values and
+    # event lines are combined; its body never executes. Assert both effects
+    # together so the historical regression cannot return silently.
+    data = np.asarray(
+        [
+            [10.0, 20.0, 30.0],
+            [11.0, 21.0, 31.0],
+            [12.0, 22.0, 32.0],
+            [13.0, 23.0, 33.0],
+        ]
+    )
+
+    figure, image = erpimage(
+        data,
+        times=[-100.0, 0.0, 100.0, 200.0],
+        sort_values=[30.0, 10.0, 20.0],
+        vert=[0.0],
+        cbar=False,
+    )
+
+    np.testing.assert_array_equal(image[:, 0], [20.0, 30.0, 10.0])
+    image_axis = next(axis for axis in figure.axes if axis.images)
+    assert any(np.allclose(line.get_xdata(), [0.0, 0.0]) for line in image_axis.lines)
+    plt.close(figure)

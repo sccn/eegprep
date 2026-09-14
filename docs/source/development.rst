@@ -114,6 +114,41 @@ runtime behavior may be excluded only with a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.
 
+Before declaring the port complete, clone the current suite at its pinned
+commit and run the source-driven audit:
+
+.. code-block:: bash
+
+    git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
+    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests submodule update --init eeglab
+    uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
+
+The command discovers wrapper and regression methods directly from MATLAB,
+collects ``eeglab_test`` metadata through pytest, and prints every missing or
+stale reference. Pass ``--json`` for automation. It deliberately rejects the
+old ``eeglab-testcases`` repository, a checkout at another commit, and
+provenance that does not exist in the pinned suite.
+
+Tutorial-wrapper provenance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The tutorial-wrapper ports additionally pin
+``sccn/eeglab-tutorial-scripts`` commit
+``58bf12dd53e894dd3ee1285946563cd94999db16``. The four tutorial references
+``plot_study_erp``, ``source_reconstruction_advanced``,
+``source_reconstruction_eeg``, and ``time_freq_all_elec`` are MATLAB Live
+Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
+can execute them, while Octave cannot execute the Live Script format.
+
+Although ``tutorial2_wrapperTest.test_bids_process_face_experiment`` has an
+entirely commented wrapper body, its referenced Live Script is preserved as a
+generated-data port rather than an empty test. The face-recognition and active
+P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
+trial-level STUDY designs, precomputation, and ERP plotting without checking the
+upstream tutorial datasets into the package. The full EEGLAB datasets remain
+useful for separate MATLAB parity runs.
+
 Test Discovery
 --------------
 

@@ -1,15 +1,47 @@
+import socket
+import sys
 from unittest import mock
 
 import eegprep
 
 from eegprep.functions.adminfunc import eeglab as eeglab_module
 from eegprep.functions.guifunc.session import EEGPrepSession
+from tests.eeglab_tests import eeglab_test
+
+
+IS_SCCN_WRAPPER = "unittesting_adminfunc/is_sccn/adminfunc_is_sccn_wrapperTest.m"
+IS_DEPLOYED_WRAPPER = "unittesting_adminfunc/iseeglabdeployed/adminfunc_iseeglabdeployed_wrapperTest.m"
 
 
 def test_eeglab_versions_and_nogui_entry_points():
     session = EEGPrepSession()
 
     assert eeglab_module.eeglab("versions") == eegprep.__version__
+    assert eeglab_module.eeglab("nogui", session=session, show=False) is session
+
+
+@eeglab_test(IS_SCCN_WRAPPER, "test_pass_general")
+def test_eegprep_startup_does_not_depend_on_an_institutional_hostname(monkeypatch):
+    # is_sccn only controls behavior tied to an obsolete institutional network,
+    # and its MATLAB test accepts either result without an assertion. EEGPrep's
+    # standalone startup must not consult DNS at all.
+    def fail_hostname_lookup():
+        raise AssertionError("portable EEGPrep startup must not inspect the hostname")
+
+    monkeypatch.setattr(socket, "gethostname", fail_hostname_lookup)
+    monkeypatch.setattr(socket, "getfqdn", fail_hostname_lookup)
+
+    session = EEGPrepSession()
+    assert eeglab_module.eeglab("nogui", session=session, show=False) is session
+
+
+@eeglab_test(IS_DEPLOYED_WRAPPER, "test_test_iseeglabdeployed")
+def test_eegprep_startup_has_one_runtime_path_for_frozen_python(monkeypatch):
+    # iseeglabdeployed selects MATLAB Compiler behavior. EEGPrep has no MATLAB
+    # runtime branch, so a frozen Python executable uses the same session path.
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    session = EEGPrepSession()
     assert eeglab_module.eeglab("nogui", session=session, show=False) is session
 
 

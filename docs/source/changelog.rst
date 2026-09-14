@@ -10,6 +10,17 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added a source-driven developer audit for the current EEGLAB test-port
+  project. It discovers all MATLAB wrapper and regression methods from the
+  pinned suite, collects pytest provenance, resolves same-directory scenario
+  scripts to their wrapper methods, and reports exact missing or stale ports.
+- Ported the current EEGLAB tutorial-wrapper workflows using
+  deterministic generated EEG and BIDS fixtures. Coverage now follows scalp
+  movies, grouped ERP and N400-style STUDY analyses, spherical source fitting,
+  all-channel time-frequency analysis, and full face-recognition and P300 BIDS
+  preprocessing paths.
+  Picard now accepts EEGLAB-style positive and negative PCA dimensions, and
+  multi-dataset ICA grouping handles empty NumPy-backed BIDS session metadata.
 - STUDY measure designs can now use categorical factors stored per trial. With
   ``savetrials="on"``, ERP, spectrum, ERSP, and ITC plots select the matching
   trials within each dataset and then aggregate one case per subject or

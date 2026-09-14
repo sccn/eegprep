@@ -15,6 +15,10 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
+from tests.eeglab_tests import eeglab_test
+
+
+POP_STDWARN_WRAPPER = "unittesting_adminfunc/pop_stdwarn/adminfunc_pop_stdwarn_wrapperTest.m"
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +59,11 @@ def _saved_loaded_eeg(tmp_path: Path, name: str, offset: float = 0.0) -> dict:
     return pop_loadset(set_file)
 
 
+@eeglab_test(POP_STDWARN_WRAPPER, "test_test_pop_stdwarn")
 def test_eeg_store_offloads_saved_non_current_and_retrieve_rehydrates(tmp_path: Path):
+    # The current pop_stdwarn test comments out its modal prompt. Exercise the
+    # behavior the prompt guards instead: storedisk bounds resident datasets
+    # while keeping the selected dataset scientifically identical on retrieval.
     EEG_OPTIONS["option_storedisk"] = 1
     alleeg, current, current_set = eeg_store([], _saved_loaded_eeg(tmp_path, "one"), 0)
     alleeg, current, current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "two", 10), 0)

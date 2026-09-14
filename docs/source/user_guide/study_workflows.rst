@@ -120,6 +120,25 @@ EEGLAB sidecar measure files.
 ``std_readdata``/``std_erpplot``/``std_erspplot`` cache contract used by scripts,
 so GUI and console plots slice axes and cached channel groups consistently.
 
+Tutorial-scale workflows
+------------------------
+
+The current EEGLAB tutorial-wrapper workflows are covered end to end with
+deterministic generated signals. This includes grouped ERP statistics and
+topographies, component preclustering for an N400-style study, all-channel
+time-frequency analysis, scalp movies, and a generated P300 BIDS pipeline from
+export/import through filtering, average reference, rank-reduced Picard ICA,
+component rejection, epoching, and STUDY plotting. Generated fixtures keep
+ordinary CI independent of large tutorial downloads while retaining numerical
+assertions at each processing boundary.
+
+Two optional boundaries remain explicit. ``pop_iclabel`` needs the ICLabel
+model runtime; callers that already have compatible seven-class probabilities
+can use ``pop_icflag`` and ``pop_subcomp`` independently. Dataset-level
+spherical DIPFIT fitting and leadfield construction run standalone, while
+MRI/BEM/LORETA workflows that require FieldTrip fail clearly until an external
+source-analysis backend is configured.
+
 Store reusable plot and statistics choices on the STUDY before plotting:
 
 .. code-block:: python
