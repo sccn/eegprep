@@ -8,9 +8,12 @@ FIR filter design, filtering helpers, and window functions.
 .. autosummary::
    :toctree: generated/
 
+   eegprep.blockave
    eegprep.dftfilt
    eegprep.dftfilt2
    eegprep.dftfilt3
+   eegprep.eegfilt
+   eegprep.env
    eegprep.fir_filterdcpadded
    eegprep.firfiltreport
    eegprep.firfiltsplit
@@ -22,6 +25,7 @@ FIR filter design, filtering helpers, and window functions.
    eegprep.invkaiserbeta
    eegprep.kaiserbeta
    eegprep.minphaserceps
+   eegprep.movav
    eegprep.plotfresp
    eegprep.rmart
    eegprep.rmsave

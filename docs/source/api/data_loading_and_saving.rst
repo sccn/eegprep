@@ -25,14 +25,19 @@ Readers and writers for EEG datasets, channel locations, and MNE interchange.
    eegprep.eeg_mergelocs
    eegprep.floatread
    eegprep.floatwrite
+   eegprep.loadeeg
+   eegprep.loadtxt
    eegprep.loadset
    eegprep.getchanlist
    eegprep.mne2eeg
    eegprep.mne2eeg_epochs
+   eegprep.parsetxt
    eegprep.readeetraklocs
    eegprep.readegilocs
    eegprep.readelp
    eegprep.readlocs
+   eegprep.readneurodat
+   eegprep.readtxtfile
    eegprep.saveset
    eegprep.snapread
    eegprep.shortread
