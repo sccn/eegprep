@@ -15,6 +15,7 @@ from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
+from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
@@ -61,6 +62,7 @@ from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+from tests.eeglab_tests import eeglab_test
 
 
 SAMPLE_SET = Path("sample_data/eeglab_data.set")
@@ -126,6 +128,24 @@ def test_pop_select_keeps_named_sample_channels(sample_eeg):
     np.testing.assert_allclose(selected["data"][0], original_data[0])
     np.testing.assert_allclose(selected["data"][1], original_data[2])
     assert command == "EEG = pop_select( EEG, 'channel', {'FPz' 'F3'});"
+
+
+@eeglab_test("unittesting_popfunc/pop_select/popfunc_pop_select_wrapperTest.m", "test_test_pop_select")
+def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
+    eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
+
+    selected = pop_select(eeg, time=[0.5, 1.0], notrial=[2, 3, 4], nochannel=[30])
+
+    points, _ = eeg_lat2point([0.5, 1.0], [1, 1], eeg["srate"], [eeg["xmin"], eeg["xmax"]])
+    start, stop = int(points[0]) - 1, int(points[1])
+    keep_channels = [index for index in range(eeg["nbchan"]) if index != 30]
+    keep_trials = [index for index in range(eeg["trials"]) if index not in {1, 2, 3}]
+    expected = eeg["data"][keep_channels, start:stop, :][:, :, keep_trials]
+    np.testing.assert_array_equal(selected["data"], expected)
+    assert selected["nbchan"] == eeg["nbchan"] - 1
+    assert selected["trials"] == eeg["trials"] - 3
+    assert selected["xmin"] == 0.5
+    assert selected["xmax"] == 1.0
 
 
 def test_pop_resample_halves_sample_rate_and_event_latencies(sample_eeg):
