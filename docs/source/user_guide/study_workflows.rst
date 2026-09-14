@@ -101,6 +101,14 @@ Precompute and plot STUDY measures:
    STUDY, erpdata, erptimes, fig = std_erpplot(STUDY, ALLEEG, channels=[1])
    STUDY, itcdata, itctimes, itcfreqs = std_readitc(STUDY, ALLEEG, channels=[1])
 
+Plot functions arrange these caches into the selected design before returning
+them. A one-factor design returns a list with one array per factor level. A
+two-factor design returns ``data[condition][group]``. Samples are the leading
+axes and subjects or cluster members are on the last axis; for example, ERP
+cells are ``times x cases`` and ERSP cells are ``frequencies x times x cases``.
+This matches the cell organization used by EEGLAB while keeping the arrays
+directly usable from NumPy.
+
 Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
 cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
@@ -119,6 +127,26 @@ Store reusable plot and statistics choices on the STUDY before plotting:
 
    STUDY = pop_erpparams(STUDY, timerange=[-200, 800], plotconditions="together")
    STUDY = pop_statparams(STUDY, condstats="on", method="perm", naccu=2000)
+
+Pass ``return_stats=True`` to ``std_erpplot``, ``std_specplot``,
+``std_erspplot``, or ``std_itcplot`` to receive ``pgroup``, ``pcond``, and
+``pinter`` before the returned figure. These are p-values when ``threshold``
+is NaN and numeric significance masks when a finite ``threshold`` is set,
+matching EEGLAB's output contract. A sequence of thresholds produces EEGLAB's
+graded masks. ``mcorrect="fdr"`` applies
+Benjamini-Hochberg correction.
+The same masks are attached to ``fig.eegprep_plot_metadata["statistics"]`` so
+downstream reporting code can inspect exactly what the plot highlighted.
+
+Use ``savetrials="on"`` with ERSP/ITC precomputation when the per-trial
+time-frequency representation is needed. ``erspdatatrials`` stores linear,
+baseline-corrected power, so averaging trials and converting to decibels
+reproduces ``erspdata``. ``itcdatatrials`` stores phase in radians. Both are
+EEGPrep-owned cache fields and remain independent of an EEGLAB installation.
+
+For component clusters, ``std_topoplot`` draws polarity-aligned centroid or
+member scalp maps and caches ``topo``, ``topoall``, and ``topopol`` on each
+plotted cluster.
 
 The corresponding ``pop_erpimparams``, ``pop_erspparams``, ``pop_specparams``,
 and ``pop_dipparams`` functions store settings under ``STUDY["etc"]`` using

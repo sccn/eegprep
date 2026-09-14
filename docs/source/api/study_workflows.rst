@@ -73,6 +73,7 @@ Measures
    eegprep.std_readitc
    eegprep.std_readspec
    eegprep.std_specplot
+   eegprep.std_topoplot
 
 Plot and Statistics Parameters
 ------------------------------
@@ -86,6 +87,7 @@ Plot and Statistics Parameters
    eegprep.pop_erspparams
    eegprep.pop_specparams
    eegprep.pop_statparams
+   eegprep.std_stat
 
 Plotting
 --------
