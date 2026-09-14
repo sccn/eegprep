@@ -33,7 +33,10 @@ Unreleased
   ``textgui`` remain explicit exclusions.
 - Added a standalone ``statcondfieldtrip`` backend for paired and unpaired
   t-tests and unpaired one-way ANOVA, with analytic or seeded permutation
-  inference and Bonferroni, Holm, FDR, and max-statistic correction.
+  inference and Bonferroni, Holm, FDR, max-statistic, and max-cluster-mass
+  correction. Cluster inference uses explicit dense or sparse adjacency,
+  correct paired/unpaired label exchangeability, a direct two-sided null, and
+  either seeded Monte Carlo sampling or bounded exact enumeration.
 - Added standalone ``corrmap`` and ``pop_corrmap`` component-template
   matching for STUDY workflows. Two-pass correlation handles ICA polarity,
   searches deterministic automatic thresholds, can store matched bad
