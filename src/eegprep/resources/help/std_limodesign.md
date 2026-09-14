@@ -5,7 +5,7 @@ factor descriptors and trial metadata.
 
 It supports categorical interactions, split continuous regressors, description
 only mode, and optional export of `categorical_variables.txt` and
-`continuous_variables.txt`. It does not run the external EEGLAB LIMO model
-fitting or result-browsing workflow.
+`continuous_variables.txt`. Use `pop_limo` to fit the active STUDY design in
+standalone EEGPrep.
 
 See also: POP_LISTFACTORS, STD_BUILDDESIGNMAT, POP_LIMO

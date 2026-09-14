@@ -294,11 +294,24 @@ surrogate-tail convention with FDR correction available through the statistics
 module. These definitions are intentionally not collapsed when they answer
 different inferential questions.
 
-The feasible in-package LIMO-compatible layer is design preparation:
-``std_limodesign`` builds categorical and continuous matrices from
-``pop_listfactors`` output and trial metadata, including interaction and split
-regressor descriptions. It can write ``categorical_variables.txt`` and
-``continuous_variables.txt`` for downstream analysis code.
+EEGPrep provides a standalone LIMO-compatible path from design preparation to
+core hierarchical statistics. ``std_limodesign`` builds categorical and
+continuous matrices from ``pop_listfactors`` output and trial metadata,
+including interaction and split-regressor descriptions. ``pop_limo`` uses the
+active STUDY design to fit mass-univariate OLS, LIMO PCOut-weighted WLS, or
+Tukey-bisquare IRLS models to epoched channel or component data. The
+returned model dictionaries contain betas, fitted values, residuals, R²,
+residual variance, standard errors, t statistics, p values, robust weights,
+and their exact design matrix.
+
+Pass ``outputdir`` to ``pop_limo`` to write versioned ``.npz`` model files.
+These files never require pickle and can be reopened with
+``std_readfilelimo``. ``std_limoresults`` and ``pop_limoresults`` compute and
+store first-level contrasts, one-sample, paired and Welch two-sample tests,
+mass-univariate regression, one-way ANOVA, ANCOVA, repeated-measures ANOVA,
+and mean or inverse-variance-weighted summaries. Group statistics always use
+the first axis as subjects; first-level parameter selection remains 1-based at
+the EEGLAB-facing boundary.
 
 ``std_prepare_neighbors`` creates a distance-based FieldTrip-like neighbor
 list and a LIMO-compatible channel adjacency matrix from loaded channel
@@ -326,10 +339,14 @@ creating figures.
 Limitations
 ===========
 
-EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. ``pop_limo``,
-``pop_limoresults``, ``std_limo``, ``std_limoresults``, and
-``std_readfilelimo`` raise clear ``NotImplementedError`` messages rather than
-creating placeholder LIMO results.
+The standalone layer does not silently read version-dependent MATLAB LIMO
+``.mat`` structures. Convert them explicitly or use LIMO in MATLAB;
+``std_readfilelimo`` accepts only EEGPrep-owned ``.npz`` output. First-level
+and group bootstrap, TFCE correction, factorial repeated-measures designs,
+and LIMO's result plotting/report interface remain explicit unsupported
+boundaries. WLS follows LIMO's PCOut residual projection and uses one robust
+observation weight across the fitted channel/time grid. IRLS uses feature-wise
+Tukey-bisquare weights.
 
 ``std_dipplot`` does not compute dipole models: localize components first with
 the EEGPrep DIPFIT workflow. The broader FieldTrip-dependent
