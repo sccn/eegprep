@@ -6762,13 +6762,13 @@
       "eegprep_equivalent": "src/eegprep/functions/statistics/statcondfieldtrip.py",
       "gap_category": "5_statistics_package",
       "status": "implemented",
-      "rationale": "Implemented as a standalone analytic and permutation backend for the maintained paired/unpaired t-test and unpaired one-way ANOVA contract, including pointwise and max-statistic corrections. FieldTrip structure conversion and cluster machinery remain explicit unsupported boundaries.",
+      "rationale": "Implemented as a standalone analytic and permutation backend for the maintained paired/unpaired t-test and unpaired one-way ANOVA contract, including pointwise, max-statistic, and explicit-adjacency max-cluster-mass corrections. Automatic FieldTrip structure conversion and neighbour construction remain explicit unsupported boundaries.",
       "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by deterministic SciPy references and the active calls in the current eeglab_tests statcondfieldtrip wrapper; the wrapper's kmean guard typo is not reproduced."
+      "test_notes": "Covered by deterministic SciPy references, seeded Monte Carlo tests, exhaustively enumerated paired and unpaired cluster-null fixtures, and the active calls in the current eeglab_tests statcondfieldtrip wrapper; the wrapper's kmean guard typo is not reproduced."
     },
     {
       "eeglab_path": "functions/statistics/surrogdistrib.m",

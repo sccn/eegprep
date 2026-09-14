@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Sequence
+from itertools import combinations, product
 
 import numpy as np
 import pytest
+from scipy import sparse
 from scipy import stats as scipy_stats
 
 from eegprep.functions.statistics import StatcondFieldtripResult, statcondfieldtrip
@@ -15,6 +17,10 @@ from tests.eeglab_tests import eeglab_test
 
 STATCONDFIELDTRIP_SCRIPT = "unittesting_statistics/statcondfieldtrip/test_statcondfieldtrip.m"
 STATCONDFIELDTRIP_WRAPPER = "unittesting_statistics/statcondfieldtrip/statistics_statcondfieldtrip_wrapperTest.m"
+
+# Cluster-policy oracle: fieldtrip/fieldtrip@8e2307d7e7284c6870a5d12e244d9dc95a1faae3,
+# ft_statistics_montecarlo.m and private/clusterstat.m. The exhaustive fixtures
+# below independently check its label-exchangeability and maxsum principles.
 
 
 def _reference_conditions() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -184,6 +190,185 @@ def test_statcondfieldtrip_montecarlo_max_correction_is_seeded_and_familywise():
     np.testing.assert_array_equal(result.raw_pvalue, pointwise_expected)
 
 
+def test_statcondfieldtrip_exact_paired_cluster_null_is_exhaustively_checkable():
+    first = np.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [-2.0, -3.0, -4.0]])
+    second = np.zeros_like(first)
+    adjacency = sparse.csr_matrix([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+
+    result = statcondfieldtrip(
+        [first, second],
+        paired="on",
+        method="montecarlo",
+        naccu="all",
+        mcorrect="cluster",
+        neighbours=adjacency,
+        clusteralpha=0.2,
+        alpha=0.25,
+    )
+
+    critical = scipy_stats.t.isf(0.1, df=2)
+    np.testing.assert_allclose(result.stat, np.sqrt(3) * np.array([2.0, 3.0, -3.0]))
+    np.testing.assert_allclose(result.cluster_critical_value, critical)
+    np.testing.assert_allclose(np.sort(result.cluster_null), [0.0] * 6 + [5 * np.sqrt(3)] * 2, atol=1e-14)
+    np.testing.assert_allclose(result.raw_pvalue, [0.25, 0.25, 0.25])
+    np.testing.assert_allclose(result.pvalue, [0.25, 0.25, 0.25])
+    np.testing.assert_array_equal(result.mask, [True, True, True])
+    np.testing.assert_array_equal(result.cluster_labels, [1, 1, 2])
+    assert result.exact is True
+    assert [(cluster.sign, cluster.indices) for cluster in result.clusters] == [
+        (1, (0, 1)),
+        (-1, (2,)),
+    ]
+    np.testing.assert_allclose([cluster.mass for cluster in result.clusters], [5 * np.sqrt(3), 3 * np.sqrt(3)])
+    np.testing.assert_allclose([cluster.pvalue for cluster in result.clusters], [0.25, 0.25])
+
+    # Three paired cases have exactly 2**3 label-swap assignments. Independent
+    # enumeration confirms that only the unchanged and globally swapped designs
+    # cross the two-sided threshold, so the exact cluster probability is 2/8.
+    exhaustive = []
+    for signs in product((-1.0, 1.0), repeat=3):
+        statistic = scipy_stats.ttest_1samp(first * np.asarray(signs), 0.0, axis=-1).statistic
+        masses = [0.0]
+        if np.all(statistic[:2] >= critical):
+            masses.append(np.sum(statistic[:2]))
+        if np.all(statistic[:2] <= -critical):
+            masses.append(-np.sum(statistic[:2]))
+        if statistic[2] >= critical:
+            masses.append(statistic[2])
+        if statistic[2] <= -critical:
+            masses.append(-statistic[2])
+        exhaustive.append(max(masses))
+    np.testing.assert_allclose(np.sort(result.cluster_null), np.sort(exhaustive), atol=1e-14)
+
+
+def test_statcondfieldtrip_exact_unpaired_clusters_preserve_group_sizes():
+    first = np.array([[5.0, 4.0], [6.0, 5.0]])
+    second = np.array([[1.0, 2.0], [2.0, 3.0]])
+
+    result = statcondfieldtrip(
+        [first, second],
+        paired="off",
+        method="permutation",
+        naccu="all",
+        mcorrect="cluster",
+        neighbours=np.array([[0, 1], [1, 0]], dtype=bool),
+        clustercritval=1.0,
+        alpha=1 / 3,
+    )
+
+    expected_mass = 6 * np.sqrt(2)
+    np.testing.assert_allclose(result.stat, [3 * np.sqrt(2), 3 * np.sqrt(2)])
+    np.testing.assert_allclose(np.sort(result.cluster_null), [0.0] * 4 + [expected_mass] * 2, atol=1e-14)
+    np.testing.assert_allclose(result.pvalue, [1 / 3, 1 / 3])
+    np.testing.assert_array_equal(result.mask, [True, True])
+    assert result.surrogate.shape == (2, 6)
+
+    pooled = np.concatenate([first, second], axis=-1)
+    exhaustive = []
+    for selected in combinations(range(4), 2):
+        remaining = tuple(index for index in range(4) if index not in selected)
+        statistic = scipy_stats.ttest_ind(
+            pooled[:, selected],
+            pooled[:, remaining],
+            axis=-1,
+            equal_var=True,
+        ).statistic
+        exhaustive.append(np.sum(np.abs(statistic)) if np.all(np.abs(statistic) >= 1.0) else 0.0)
+    np.testing.assert_allclose(result.cluster_null, exhaustive, atol=1e-14)
+
+
+def test_statcondfieldtrip_exact_one_way_clusters_use_right_tailed_f_mass():
+    conditions = [
+        np.array([[4.0, 5.0], [5.0, 6.0]]),
+        np.array([[2.0, 3.0], [2.5, 3.5]]),
+        np.array([[0.0, 1.0], [0.5, 1.5]]),
+    ]
+    result = statcondfieldtrip(
+        conditions,
+        paired="off",
+        method="montecarlo",
+        naccu="all",
+        mcorrect="cluster",
+        neighbours=np.array([[0, 1], [1, 0]]),
+        clusteralpha=0.2,
+    )
+
+    pooled = np.concatenate(conditions, axis=-1)
+    critical = scipy_stats.f.isf(0.2, dfn=2, dfd=3)
+    exhaustive = []
+    for first_group in combinations(range(6), 2):
+        after_first = tuple(index for index in range(6) if index not in first_group)
+        for second_group in combinations(after_first, 2):
+            third_group = tuple(index for index in after_first if index not in second_group)
+            statistic = scipy_stats.f_oneway(
+                pooled[:, first_group],
+                pooled[:, second_group],
+                pooled[:, third_group],
+                axis=-1,
+            ).statistic
+            exhaustive.append(np.sum(statistic[statistic >= critical]))
+
+    assert result.surrogate.shape == (2, 90)
+    assert all(cluster.sign == 1 for cluster in result.clusters)
+    np.testing.assert_allclose(result.cluster_critical_value, critical)
+    np.testing.assert_allclose(result.cluster_null, exhaustive, rtol=1e-13, atol=1e-13)
+
+
+def test_statcondfieldtrip_cluster_result_is_explicit_when_no_cluster_forms():
+    generator = np.random.default_rng(946)
+    first = generator.normal(size=(3, 5))
+    second = generator.normal(size=(3, 5))
+
+    result = statcondfieldtrip(
+        [first, second],
+        paired="off",
+        method="montecarlo",
+        naccu=15,
+        mcorrect="cluster",
+        neighbours=np.zeros((3, 3)),
+        clustercritval=1e6,
+        rng=22,
+    )
+
+    np.testing.assert_array_equal(result.pvalue, np.ones(3))
+    np.testing.assert_array_equal(result.mask, np.zeros(3, dtype=bool))
+    np.testing.assert_array_equal(result.cluster_labels, np.zeros(3, dtype=int))
+    np.testing.assert_array_equal(result.cluster_null, np.zeros(15))
+    assert result.clusters == ()
+
+
+def test_statcondfieldtrip_cluster_montecarlo_is_seeded_and_uses_plus_one():
+    generator = np.random.default_rng(945)
+    first = generator.normal(size=(4, 8))
+    second = first + np.array([0.9, 0.7, -0.8, -0.7])[:, None] + generator.normal(scale=0.3, size=(4, 8))
+    adjacency = np.array(
+        [
+            [0, 1, 0, 0],
+            [1, 0, 1, 0],
+            [0, 1, 0, 1],
+            [0, 0, 1, 0],
+        ]
+    )
+    kwargs = {
+        "paired": "on",
+        "method": "montecarlo",
+        "naccu": 63,
+        "mcorrect": "cluster",
+        "neighbours": adjacency,
+        "clustercritval": 1.5,
+    }
+
+    result = statcondfieldtrip([first, second], rng=71, **kwargs)
+    repeated = statcondfieldtrip([first, second], rng=71, **kwargs)
+    changed_seed = statcondfieldtrip([first, second], rng=72, **kwargs)
+
+    np.testing.assert_array_equal(result.surrogate, repeated.surrogate)
+    np.testing.assert_array_equal(result.cluster_null, repeated.cluster_null)
+    assert not np.array_equal(result.cluster_null, changed_seed.cluster_null)
+    np.testing.assert_allclose(result.pvalue * 64, np.round(result.pvalue * 64), atol=1e-13)
+    assert result.exact is False
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
@@ -194,13 +379,55 @@ def test_statcondfieldtrip_montecarlo_max_correction_is_seeded_and_familywise():
         ({"naccu": 1.5}, "naccu"),
         ({"mcorrect": "max"}, "max correction"),
         ({"mcorrect": "cluster"}, "cluster correction"),
-        ({"neighbours": [{"label": "Cz"}]}, "spatial-neighbour"),
+        ({"neighbours": [{"label": "Cz"}]}, "neighbours"),
     ],
 )
 def test_statcondfieldtrip_rejects_invalid_or_unavailable_inference_options(kwargs, message):
     first, second, _ = _reference_conditions()
     with pytest.raises((ValueError, NotImplementedError), match=message):
         statcondfieldtrip([first, second], paired="on", **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({}, "explicit neighbours"),
+        ({"neighbours": np.zeros((3, 3))}, "shape"),
+        ({"neighbours": np.array([[0, 1], [0, 0]])}, "symmetric"),
+        ({"neighbours": np.ones((2, 2)), "clusterstatistic": "maxsize"}, "maxsum"),
+        (
+            {"neighbours": np.ones((2, 2)), "clusterthreshold": "nonparametric_common"},
+            "parametric",
+        ),
+        ({"neighbours": np.ones((2, 2)), "clustercritval": 0.0}, "clustercritval"),
+    ],
+)
+def test_statcondfieldtrip_cluster_backend_rejects_ambiguous_policies(kwargs, message):
+    first = np.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]])
+    second = np.zeros_like(first)
+    with pytest.raises((TypeError, ValueError, NotImplementedError), match=message):
+        statcondfieldtrip(
+            [first, second],
+            paired="on",
+            method="montecarlo",
+            naccu=4,
+            mcorrect="cluster",
+            **kwargs,
+        )
+
+
+def test_statcondfieldtrip_exact_randomization_limit_is_explicit():
+    first = np.arange(17.0)[None, :]
+    second = first + np.linspace(0.0, 1.0, 17)[None, :]
+    with pytest.raises(ValueError, match="131072 permutations"):
+        statcondfieldtrip(
+            [first, second],
+            paired="on",
+            method="montecarlo",
+            naccu="all",
+            mcorrect="cluster",
+            neighbours=np.zeros((1, 1)),
+        )
 
 
 def test_statcondfieldtrip_rejects_designs_disabled_by_the_maintained_wrapper():
@@ -223,4 +450,5 @@ def test_statcondfieldtrip_remains_a_package_callable_after_submodule_import():
     module = importlib.import_module("eegprep.functions.statistics.statcondfieldtrip")
 
     assert statistics.statcondfieldtrip is module.statcondfieldtrip
+    assert statistics.StatcondFieldtripCluster is module.StatcondFieldtripCluster
     assert statistics.StatcondFieldtripResult is module.StatcondFieldtripResult
