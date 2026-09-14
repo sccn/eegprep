@@ -7578,17 +7578,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_dipplot.m",
       "eeglab_name": "std_dipplot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_dipplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "external_dependency_skip",
-      "rationale": "Dipole plotting depends on DIPFIT/dipole model outputs outside EEGPrep core.",
-      "responsible_phase": "phase_6",
+      "status": "implemented",
+      "rationale": "EEGPrep selects already-localized DIPFIT models through 1-based STUDY cluster membership, computes inspectable centroids, and renders standalone matplotlib views without EEGLAB or FieldTrip at runtime.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
+      "test_notes": "The current std_dipplot wrapper method is provenance-linked to behavioral tests that assert selected dataset/component indices, bilateral coordinates, moments, residual variance, centroids, plot labels, and the joined and centroid modes."
     },
     {
       "eeglab_path": "functions/studyfunc/std_editset.m",
