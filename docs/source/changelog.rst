@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone ``openbdf`` and ``readbdf`` record-level BDF access. The
+  reader decodes signed 24-bit samples, supports physical calibration and
+  variable per-channel sample counts, and correctly infers unknown record
+  counts from three-byte BDF samples.
 - ``MemmapData`` now covers current EEGLAB ``mmo`` construction, logical
   indexing over normal and transposed files, copy-on-write mutation, resizing,
   and deletion. Disk-backed EEG data remains disk-backed through rejection,
