@@ -31,12 +31,14 @@ Implemented STUDY actions:
 Component ERP, spectrum, ERSP, and ITC clustering inputs are cached on the
 parent `STUDY.cluster[0]` entry by `pop_precomp`.
 
-LIMO result computation and browsing are not silently emulated. `pop_limo`,
-`pop_limoresults`, `std_limo`, `std_limoresults`, and `std_readfilelimo`
-report that standalone EEGPrep does not run EEGLAB's external LIMO toolbox
-workflow. `std_dipplot` plots existing `EEG.dipfit.model` values by STUDY
-cluster and returns its selected coordinates, moments, residual variances, and
-centroids for inspection. The broader `std_dipoleclusters` workflow remains
-behind the DIPFIT/FieldTrip backend boundary.
+`pop_limo` fits standalone first-level OLS, robust WLS, and IRLS models from
+the active design. `pop_limoresults` computes core contrasts and group
+statistics; `std_readfilelimo` reloads EEGPrep's versioned `.npz` output.
+Bootstrap, TFCE, MATLAB LIMO `.mat` interchange, and the external result
+plotting interface remain explicit boundaries. `std_dipplot` plots existing
+`EEG.dipfit.model` values by STUDY cluster and returns selected coordinates,
+moments, residual variances, and centroids. The broader
+`std_dipoleclusters` workflow remains behind the DIPFIT/FieldTrip backend
+boundary.
 
 See also: POP_STUDY, POP_PRECOMP, POP_CHANPLOT, POP_LOADSTUDY, POP_SAVESTUDY, POP_PRECLUST, POP_CLUST, POP_CLUSTEDIT, STD_PAC
