@@ -186,6 +186,43 @@ def _reference_grid() -> tuple[tuple[np.ndarray, ...], tuple[np.ndarray, ...]]:
     )
 
 
+def _unpaired_factor_order_grid() -> tuple[tuple[np.ndarray, ...], tuple[np.ndarray, ...]]:
+    return (
+        (
+            np.array([1, 2, 4, 3, 5], dtype=float),
+            np.array([2, 2, 3, 5, 4], dtype=float),
+            np.array([3, 4, 2, 5, 6], dtype=float),
+        ),
+        (
+            np.array([2, 3, 1, 4, 5], dtype=float),
+            np.array([4, 2, 5, 3, 6], dtype=float),
+            np.array([5, 6, 3, 7, 4], dtype=float),
+        ),
+    )
+
+
+def _assert_unpaired_two_way_matlab_golden() -> None:
+    result = statcond(_unpaired_factor_order_grid(), method="param", paired="off")
+
+    # Direct MATLAB output from EEGLAB 8ac485f is positionally columns,
+    # rows, interaction for the unpaired branch. Map those values to the
+    # documented factor meanings instead of preserving the positional defect.
+    matlab_statistics = (2.40845084190369, 1.14084577560425, 0.295774638652802)
+    matlab_dfs = ((2, 24), (1, 24), (2, 24))
+    matlab_pvalues = (0.111369788646698, 0.296099960803986, 0.746627926826477)
+    expected_statistics = TwoWayEffects(matlab_statistics[1], matlab_statistics[0], matlab_statistics[2])
+    expected_dfs = TwoWayEffects(matlab_dfs[1], matlab_dfs[0], matlab_dfs[2])
+    expected_pvalues = TwoWayEffects(matlab_pvalues[1], matlab_pvalues[0], matlab_pvalues[2])
+
+    assert isinstance(result.stat, TwoWayEffects)
+    assert result.df == expected_dfs
+    assert isinstance(result.pvalue, TwoWayEffects)
+    for actual, expected in zip(result.stat, expected_statistics, strict=True):
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-7)
+    for actual, expected in zip(result.pvalue, expected_pvalues, strict=True):
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-7)
+
+
 def _assert_effects(result: StatcondResult, expected: tuple[TwoWayEffects, TwoWayEffects, TwoWayEffects]) -> None:
     expected_statistics, expected_dfs, expected_pvalues = expected
     assert isinstance(result.stat, TwoWayEffects)
@@ -241,11 +278,9 @@ def test_statcond_unpaired_one_way_anova_matches_independent_reference():
 
 @eeglab_test(STATCOND_REGRESSION, "test_6")
 @eeglab_test(STATCOND_CLASS, "unpaired2Anova")
-def test_statcond_unpaired_two_way_anova_matches_independent_reference():
-    # t_statcond.mat records the first two effects in column/row order here,
-    # contrary to statcond.m's documented row/column order and its paired
-    # branch. Check the mathematical factors rather than copying that defect.
+def test_statcond_unpaired_two_way_anova_uses_documented_factor_order():
     _assert_unpaired_two_way_reference()
+    _assert_unpaired_two_way_matlab_golden()
 
 
 def _dimensional_conditions() -> tuple[tuple[tuple[np.ndarray, ...], tuple[int, ...]], ...]:

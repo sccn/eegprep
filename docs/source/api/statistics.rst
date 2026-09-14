@@ -31,6 +31,20 @@ at a time.
    eegprep.functions.statistics.anova2_cell
    eegprep.functions.statistics.anova2rm_cell
 
+Two-way factor order
+--------------------
+
+``statcond`` represents every two-way result computed from condition arrays as
+``TwoWayEffects(rows, columns, interaction)``. Attribute access and iteration
+use that order for paired and unpaired designs, including statistics, degrees
+of freedom, p-values, and nonparametric outputs.
+
+This deliberately resolves an inconsistency in EEGLAB's MATLAB implementation.
+Although ``statcond`` documents rows, columns, and interaction, its unpaired
+branch forwards ``anova2_cell`` outputs in columns, rows, and interaction order.
+When translating positional unpaired MATLAB results, EEGPrep's ``rows`` value
+therefore corresponds to the second MATLAB cell and ``columns`` to the first.
+
 Multiple Comparisons and Surrogates
 ===================================
 
