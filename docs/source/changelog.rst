@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_interp`` now accepts MATLAB-loaded object arrays of channel locations when
+  restoring a full montage. ``pop_editeventfield`` now reads values from delimited
+  text files, accepts MATLAB colon expressions for event indices, rebuilds ``urevent``
+  after ``delold='yes'``, and ignores invalid rename/description requests like EEGLAB.
 - ``pop_reref`` now accepts EEGLAB's ``method='standard'`` option explicitly. Other
   rereferencing methods fail clearly instead of being silently treated as standard,
   and NumPy 2's spurious finite-matrix warnings no longer leak from average reference.
