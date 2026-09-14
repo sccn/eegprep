@@ -423,8 +423,9 @@ def test_std_erpplot_channel_output_matches_direct_epoch_average():
 
     _study, erpdata, erptimes, figure = std_erpplot(study, alleeg, channels=[1])
 
-    expected = np.stack([np.mean(eeg["data"][0], axis=1) for eeg in alleeg])
-    np.testing.assert_allclose(erpdata[0], expected, atol=1e-12)
+    expected = {eeg["condition"]: np.mean(eeg["data"][0], axis=1) for eeg in alleeg}
+    for condition, cell in zip(["standard", "target"], erpdata):
+        np.testing.assert_allclose(cell[:, 0], expected[condition], atol=1e-12)
     np.testing.assert_allclose(erptimes, alleeg[0]["times"], atol=1e-12)
     assert len(figure.axes[0].lines) == 1
     plt.close(figure)
@@ -441,7 +442,8 @@ def test_std_erpplot_component_output_matches_direct_scaled_activation_average()
     for eeg in alleeg:
         scale = float(np.sqrt(np.mean(np.asarray(eeg["icawinv"])[:, 1] ** 2)))
         expected.append(np.mean(component_activations(eeg)[1], axis=1) * scale)
-    np.testing.assert_allclose(erpdata[0][:, 0, :], np.stack(expected), atol=1e-12)
+    np.testing.assert_allclose(erpdata[0][:, 0], expected[1], atol=1e-12)
+    np.testing.assert_allclose(erpdata[1][:, 0], expected[0], atol=1e-12)
     np.testing.assert_allclose(erptimes, alleeg[0]["times"], atol=1e-12)
     plt.close(figure)
 
@@ -453,9 +455,8 @@ def test_std_specplot_channel_output_preserves_known_oscillation_peak():
 
     _study, specdata, frequencies, figure = std_specplot(study, alleeg, channels=[1])
 
-    assert frequencies[int(np.argmax(specdata[0][0]))] == 8.0
-    assert frequencies[int(np.argmax(specdata[0][1]))] == 8.0
-    assert np.isfinite(specdata[0]).all()
+    assert all(frequencies[int(np.argmax(cell[:, 0]))] == 8.0 for cell in specdata)
+    assert all(np.isfinite(cell).all() for cell in specdata)
     plt.close(figure)
 
 
@@ -466,9 +467,8 @@ def test_std_specplot_component_output_preserves_known_activation_peak():
 
     _study, specdata, frequencies, figure = std_specplot(study, alleeg, clusters=1, components=[3])
 
-    assert frequencies[int(np.argmax(specdata[0][0, 0]))] == 12.0
-    assert frequencies[int(np.argmax(specdata[0][1, 0]))] == 12.0
-    assert np.isfinite(specdata[0]).all()
+    assert all(frequencies[int(np.argmax(cell[:, 0]))] == 12.0 for cell in specdata)
+    assert all(np.isfinite(cell).all() for cell in specdata)
     plt.close(figure)
 
 
@@ -486,10 +486,12 @@ def test_std_erspplot_channel_output_matches_precomputed_axes_and_cache():
 
     _study, erspdata, times, frequencies, figure = std_erspplot(study, alleeg, channels=[1])
 
-    np.testing.assert_allclose(erspdata[0], study["changrp"][0]["erspdata"])
+    raw = np.asarray(study["changrp"][0]["erspdata"])
+    np.testing.assert_allclose(erspdata[0][..., 0], raw[1])
+    np.testing.assert_allclose(erspdata[1][..., 0], raw[0])
     np.testing.assert_allclose(times, study["changrp"][0]["ersptimes"])
     np.testing.assert_allclose(frequencies, study["changrp"][0]["erspfreqs"])
-    assert np.isfinite(erspdata[0]).all()
+    assert all(np.isfinite(cell).all() for cell in erspdata)
     plt.close(figure)
 
 
@@ -507,8 +509,9 @@ def test_std_erspplot_component_output_selects_the_requested_component():
 
     _study, erspdata, times, frequencies, figure = std_erspplot(study, alleeg, clusters=1, components=[2])
 
-    expected = np.asarray(study["cluster"][0]["erspdata"])[:, 1:2]
-    np.testing.assert_allclose(erspdata[0], expected)
-    assert erspdata[0].shape == (2, 1, frequencies.size, times.size)
-    assert np.isfinite(erspdata[0]).all()
+    expected = np.asarray(study["cluster"][0]["erspdata"])[:, 1]
+    np.testing.assert_allclose(erspdata[0][..., 0], expected[1])
+    np.testing.assert_allclose(erspdata[1][..., 0], expected[0])
+    assert all(cell.shape == (frequencies.size, times.size, 1) for cell in erspdata)
+    assert all(np.isfinite(cell).all() for cell in erspdata)
     plt.close(figure)
