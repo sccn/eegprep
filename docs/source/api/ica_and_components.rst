@@ -26,7 +26,7 @@ Decomposition, component classification, and component measures.
    eegprep.icaproj
    eegprep.icavar
    eegprep.iclabel
+   eegprep.iclabel_async
    eegprep.optimal_kmeans
    eegprep.picard
    eegprep.robust_kmeans
-

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --docopt-wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] -- [script args...]`;
+const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --docopt-wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-model PATH --onnxruntime-web-module PATH] -- [script args...]`;
 const PYODIDE_PACKAGES = [
   "certifi",
   "charset-normalizer",
@@ -59,7 +59,18 @@ function parseArguments(argv) {
   const result = { scriptArgs };
   for (let index = 0; index < options.length; index += 1) {
     const option = options[index];
-    if (!["--pyodide-module", "--wheel", "--docopt-wheel", "--script", "--sample-data-dir", "--output"].includes(option)) {
+    if (
+      ![
+        "--pyodide-module",
+        "--wheel",
+        "--docopt-wheel",
+        "--script",
+        "--sample-data-dir",
+        "--output",
+        "--iclabel-model",
+        "--onnxruntime-web-module",
+      ].includes(option)
+    ) {
       throw new Error(`Unknown option: ${option}`);
     }
     const value = options[index + 1];
@@ -73,6 +84,9 @@ function parseArguments(argv) {
     if (!result[required]) {
       throw new Error(`Missing required option --${required.replaceAll("_", "-")}`);
     }
+  }
+  if (Boolean(result.iclabel_model) !== Boolean(result.onnxruntime_web_module)) {
+    throw new Error("--iclabel-model and --onnxruntime-web-module must be provided together");
   }
   return result;
 }
@@ -109,11 +123,26 @@ async function main() {
 
   await pyodide.loadPackage(["micropip", ...PYODIDE_PACKAGES]);
 
+  if (args.iclabel_model) {
+    const ortModule = await import(pathToFileURL(args.onnxruntime_web_module).href);
+    const ort = ortModule.default ?? ortModule;
+    ort.env.wasm.wasmPaths = `${dirname(args.onnxruntime_web_module)}/`;
+    const bridgeModule = await import(new URL("./iclabel_web_bridge.mjs", import.meta.url).href);
+    const bridge = bridgeModule.createIcLabelWebBridge(ort, new Uint8Array(readFileSync(args.iclabel_model)));
+    globalThis.eegprep_iclabel_web = bridge;
+    pyodide.globals.set("eegprep_iclabel_web", bridge);
+  }
+
   const scriptPath = "/tmp/eegprep-script.py";
   copyToPyodide(pyodide, args.script, scriptPath);
 
   if (args.sample_data_dir) {
-    const sampleData = ["eeglab_data.set", "eeglab_data.fdt"];
+    const sampleData = [
+      "eeglab_data.set",
+      "eeglab_data.fdt",
+      "eeglab_data_with_ica_tmp.set",
+      "eeglab_data_with_ica_tmp.fdt",
+    ];
     pyodide.FS.mkdirTree("/tmp/eegprep-sample-data");
     for (const name of sampleData) {
       copyToPyodide(pyodide, `${args.sample_data_dir}/${name}`, `/tmp/eegprep-sample-data/${name}`);

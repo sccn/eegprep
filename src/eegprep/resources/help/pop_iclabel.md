@@ -5,6 +5,8 @@ Usage:
     EEG = pop_iclabel(EEG)
     EEG = pop_iclabel(EEG, 'default')
     EEG, command = pop_iclabel(EEG, 'default', return_com=True)
+    EEG = await pop_iclabel_async(EEG, 'default')
+    EEG, command = await pop_iclabel_async(EEG, 'default', return_com=True)
 
 Inputs:
 
@@ -27,6 +29,12 @@ Behavior:
   `iclabel` extra (`eegprep[iclabel]`) to run it. The EEGLAB `lite` and `beta`
   network artifacts are explicit MATLAB/Octave passthrough choices and raise
   a clear limitation when requested with the standalone Python engine.
+- In Pyodide/Emscripten, use `await iclabel_async(EEG)` or
+  `await pop_iclabel_async(EEG, 'default')`. The synchronous `iclabel` and
+  `pop_iclabel` entry points fail fast because ONNX Runtime Web is asynchronous.
+- The browser host must register EEGPrep's ONNX Runtime Web bridge before
+  calling the async entry point. A host may run the Pyodide environment in a
+  Web Worker to keep the UI responsive.
 
 Example:
 
@@ -37,3 +45,6 @@ Notes:
 
 - ICLabel class probabilities are ordered as Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, and Other.
 - This wrapper uses EEGPrep's packaged ICLabel implementation and does not require an EEGLAB checkout at runtime.
+- Async history commands are replayable from `eegprep-console`; for example,
+  use `await eegh(1)` when the selected history entry contains
+  `pop_iclabel_async`.

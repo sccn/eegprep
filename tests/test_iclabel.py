@@ -1,11 +1,63 @@
 import os
 import unittest
+from unittest import mock
+
 import numpy as np
 from eegprep import ICL_feature_extractor, iclabel, pop_loadset
 from eegprep.utils.testing import has_optional_dependency
 
+import eegprep.plugins.ICLabel.iclabel as iclabel_module
+import eegprep.plugins.ICLabel.iclabel_net_onnx as iclabel_onnx_module
+
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
+
+
+def _async_eeg():
+    return {
+        'data': np.zeros((2, 20), dtype=np.float32),
+        'nbchan': 2,
+        'pnts': 20,
+        'trials': 1,
+        'srate': 100,
+        'icaweights': np.eye(2),
+        'icasphere': np.eye(2),
+        'icawinv': np.eye(2),
+        'icachansind': np.arange(2),
+        'etc': {},
+    }
+
+
+class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
+    async def test_native_async_entry_point_uses_shared_postprocessing(self):
+        eeg = _async_eeg()
+        network_output = np.arange(28, dtype=np.float32).reshape(4, 7, 1, 1)
+        features = tuple(np.zeros((4, 1), dtype=np.float32) for _ in range(3))
+
+        with (
+            mock.patch.object(iclabel_module, '_prepare_features', return_value=features) as prepare,
+            mock.patch(
+                'eegprep.plugins.ICLabel.iclabel_net_onnx.run_iclabel_net_async',
+                new=mock.AsyncMock(return_value=network_output),
+            ) as run,
+        ):
+            output = await iclabel_module.iclabel_async(eeg)
+
+        prepare.assert_called_once()
+        run.assert_awaited_once_with(*features)
+        classification = output['etc']['ic_classification']['ICLabel']['classifications']
+        self.assertEqual(classification.shape, (1, 7))
+        self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
+
+    def test_sync_entry_point_fails_fast_under_emscripten(self):
+        with mock.patch.object(iclabel_module, '_IS_EMSCRIPTEN', True):
+            with self.assertRaisesRegex(RuntimeError, r'use await iclabel_async\(\.\.\.\)'):
+                iclabel_module.iclabel(None)
+
+    def test_sync_onnx_backend_fails_fast_under_emscripten(self):
+        with mock.patch.object(iclabel_onnx_module, '_IS_EMSCRIPTEN', True):
+            with self.assertRaisesRegex(RuntimeError, r'use await run_iclabel_net_async\(\.\.\.\)'):
+                iclabel_onnx_module.run_iclabel_net(None, None, None)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

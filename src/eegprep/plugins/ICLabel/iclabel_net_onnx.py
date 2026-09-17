@@ -7,11 +7,13 @@ runs it through onnxruntime so ICLabel classification does not require torch.
 """
 
 import os
+import sys
 
 import numpy as np
 
 _INPUT_NAMES = ('image', 'psdmed', 'autocorr')
 _OUTPUT_NAME = 'output'
+_IS_EMSCRIPTEN = sys.platform == 'emscripten'
 
 _session = None
 
@@ -47,6 +49,10 @@ def run_iclabel_net(image, psdmed, autocorr):
     numpy.ndarray
         Network output, shaped like the torch model's output.
     """
+    if _IS_EMSCRIPTEN:
+        raise RuntimeError(
+            "ICLabel synchronous ONNX execution is unavailable under Emscripten; use await run_iclabel_net_async(...)."
+        )
     session = _get_session()
     inputs = {
         _INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
@@ -55,3 +61,16 @@ def run_iclabel_net(image, psdmed, autocorr):
     }
     (output,) = session.run([_OUTPUT_NAME], inputs)
     return output
+
+
+if _IS_EMSCRIPTEN:
+    from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async as _run_iclabel_net_async
+else:
+
+    async def _run_iclabel_net_async(image, psdmed, autocorr):
+        return run_iclabel_net(image, psdmed, autocorr)
+
+
+async def run_iclabel_net_async(image, psdmed, autocorr):
+    """Run the platform-selected ICLabel backend asynchronously."""
+    return await _run_iclabel_net_async(image, psdmed, autocorr)

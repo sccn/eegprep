@@ -220,7 +220,7 @@ jobs:
           uv pip list
 
   pyodide:
-    name: Pyodide harness and ICA benchmark
+    name: Pyodide harness, ICA benchmark, and ICLabel browser parity
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -242,7 +242,7 @@ jobs:
 
       - name: Install benchmark dependencies
         run: |
-          uv sync --python 3.11 --group dev
+          uv sync --python 3.11 --group dev --extra iclabel
 
       - name: Build EEGPrep wheel from the working tree
         run: |
@@ -271,6 +271,37 @@ jobs:
             --script tools/pyodide/smoke.py \
             --sample-data-dir sample_data \
             2>&1 | tee pyodide-artifacts/pyodide-smoke.log
+
+      - name: Run native ICLabel parity reference
+        env:
+          MNE_CONFIGDIR: ${{ runner.temp }}/mne
+        run: |
+          uv run --no-sync python tools/pyodide/iclabel_parity.py \
+            --platform native \
+            --sample-data-dir sample_data \
+            > pyodide-artifacts/iclabel-native.json
+
+      - name: Run browser ICLabel parity through Pyodide
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --iclabel-web \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/iclabel_parity.py \
+            --sample-data-dir sample_data \
+            --output pyodide-artifacts/iclabel-pyodide.json \
+            -- --platform pyodide \
+            2>&1 | tee pyodide-artifacts/iclabel-pyodide.log
+
+      - name: Compare ICLabel browser parity
+        run: |
+          set -o pipefail
+          uv run --no-sync python tools/pyodide/compare_iclabel.py \
+            --native pyodide-artifacts/iclabel-native.json \
+            --pyodide pyodide-artifacts/iclabel-pyodide.json \
+            --report pyodide-artifacts/iclabel-parity.md \
+            | tee pyodide-artifacts/iclabel-parity.json
 
       - name: Run native ICA and matmul benchmark
         env:
@@ -309,5 +340,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pyodide-phase-2-output
+          name: pyodide-phase-2-and-phase-5-output
           path: pyodide-artifacts

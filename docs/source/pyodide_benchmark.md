@@ -1,4 +1,4 @@
-# Pyodide browser execution and Phase 2 benchmark
+# Pyodide browser execution, Phase 2 benchmark, and Phase 5 ICLabel parity
 
 This page records the Phase 2 gate for the [browser epic](https://github.com/sccn/eegprep/issues/324).
 The harness installs a wheel built from the working tree under Pyodide, runs a
@@ -61,7 +61,31 @@ does not change either production ICA implementation.
 
 The following tables are generated from the native and Pyodide JSON reports
 with `tools/pyodide/compare_benchmarks.py`. The raw reports and loader logs are
-also uploaded by CI as the `pyodide-phase-2-output` artifact.
+also uploaded by CI as the `pyodide-phase-2-and-phase-5-output` artifact.
+
+## Phase 5 browser ICLabel
+
+The same harness can run the packaged default ICLabel model through ONNX
+Runtime Web:
+
+```bash
+tools/pyodide/run_pyodide.sh \
+  --iclabel-web \
+  --wheel pyodide-artifacts/eegprep-*.whl \
+  --script tools/pyodide/iclabel_parity.py \
+  --sample-data-dir sample_data \
+  --output pyodide-artifacts/iclabel-pyodide.json \
+  -- --platform pyodide
+```
+
+The Node host loads the pinned `onnxruntime-web` package, registers the
+asynchronous bridge, and passes the packaged `iclabel.onnx` bytes into the
+Pyodide runtime. The Python `iclabel_async`/`pop_iclabel_async` APIs never
+import native `onnxruntime` on Emscripten. CI compares the browser result with
+a native `onnxruntime` reference using `rtol=1e-4` and `atol=1e-5`, the
+established ICLabel parity tolerance. The bridge defaults to ONNX Runtime
+Web's WASM execution provider with one thread; concurrency across independent
+jobs remains a host/Web Worker concern.
 
 ### ICA
 
