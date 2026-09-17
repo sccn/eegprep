@@ -1,0 +1,57 @@
+"""onnxruntime backend for the packaged ICLabel default network.
+
+This is the runtime counterpart to :mod:`iclabel_net` (the torch definition
+used only to build and export the network). It loads ``iclabel.onnx``, the
+packaged artifact produced by ``tools/iclabel/export_iclabel_onnx.py``, and
+runs it through onnxruntime so ICLabel classification does not require torch.
+"""
+
+import os
+
+import numpy as np
+
+_INPUT_NAMES = ('image', 'psdmed', 'autocorr')
+_OUTPUT_NAME = 'output'
+
+_session = None
+
+
+def _get_session():
+    global _session
+    if _session is not None:
+        return _session
+    try:
+        import onnxruntime as ort
+    except ImportError as e:
+        raise ImportError(
+            f"onnxruntime is not installed in your environment ({e}). "
+            f"To include onnxruntime, install eegprep as eegprep[iclabel] or "
+            f"eegprep[all]."
+        ) from e
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(base_dir, 'iclabel.onnx')
+    _session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+    return _session
+
+
+def run_iclabel_net(image, psdmed, autocorr):
+    """Run the packaged ICLabel network through onnxruntime.
+
+    Parameters
+    ----------
+    image, psdmed, autocorr : numpy.ndarray
+        NCHW float32 arrays, matching the torch ``ICLabelNet.forward`` inputs.
+
+    Returns
+    -------
+    numpy.ndarray
+        Network output, shaped like the torch model's output.
+    """
+    session = _get_session()
+    inputs = {
+        _INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
+        _INPUT_NAMES[1]: np.asarray(psdmed, dtype=np.float32),
+        _INPUT_NAMES[2]: np.asarray(autocorr, dtype=np.float32),
+    }
+    (output,) = session.run([_OUTPUT_NAME], inputs)
+    return output

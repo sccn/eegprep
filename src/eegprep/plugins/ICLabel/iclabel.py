@@ -1,7 +1,6 @@
 """ICLabel module for classifying independent components in EEG data."""
 
 from copy import deepcopy
-import os
 
 import numpy as np
 
@@ -51,21 +50,12 @@ def iclabel(EEG, algorithm='default', engine=None):
     elif engine is None:
         if algorithm != 'default':
             raise NotImplementedError(
-                "EEGPrep standalone Python ICLabel only ships the default network (netICL.mat). "
+                "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
                 f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
                 "and an EEGLAB ICLabel checkout that provides that artifact."
             )
-        try:
-            import torch
-        except ImportError as e:
-            raise ImportError(
-                f"PyTorch is not installed in your environment ({e}). "
-                f"To include torch, install eegprep as eegprep[all] or "
-                f"install the torch package manually (see Getting Started "
-                f"on pytorch.org for specifics for your platform)."
-            ) from e
 
-        from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+        from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
         from eegprep import ICL_feature_extractor
 
         # ICLABEL Extract ICLabel features from an EEG dataset.
@@ -81,19 +71,13 @@ def iclabel(EEG, algorithm='default', engine=None):
         # print('Feature 1 shape:', features[1].shape)
         # print('Feature 2 shape:', features[2].shape)
 
-        # Load the ICLabelNet model
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(base_dir, 'netICL.mat')
-        model = ICLabelNet(data_path)
+        # Convert the features to NCHW arrays, matching the network's inputs
+        image = np.transpose(features[0], (3, 2, 0, 1))
+        psdmed = np.transpose(features[1], (3, 2, 0, 1))
+        autocorr = np.transpose(features[2], (3, 2, 0, 1))
 
-        # Convert the features to torch tensors
-        image = torch.tensor(features[0]).permute(-1, 2, 0, 1)
-        psdmed = torch.tensor(features[1]).permute(-1, 2, 0, 1)
-        autocorr = torch.tensor(features[2]).permute(-1, 2, 0, 1)
-
-        # Get the output from the model
-        output = model(image, psdmed, autocorr)
-        output_np = output.detach().numpy()
+        # Get the output from the packaged ONNX network
+        output_np = run_iclabel_net(image, psdmed, autocorr)
         output_np = output_np.T  # Transpose the array
         output_np = np.reshape(output_np, (-1, 4), order='F')  # Reshape to have 4 columns
         output_np = np.mean(output_np, axis=1)  # Compute the mean along the second axis (columns)
