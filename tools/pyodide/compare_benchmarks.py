@@ -52,6 +52,8 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
             raise ValueError(f"Missing successful {algorithm} timing")
         ica[algorithm] = {
             "native_median_seconds": native_summary["median_seconds"],
+            "native_median_iterations": native_summary["median_iterations"],
+            "native_all_converged": native_summary["all_converged"],
             "pyodide_median_seconds": pyodide_summary["median_seconds"],
             "pyodide_median_iterations": pyodide_summary["median_iterations"],
             "pyodide_all_converged": pyodide_summary["all_converged"],
@@ -108,12 +110,13 @@ def _markdown(comparison: dict[str, Any]) -> str:
         "",
         "## ICA",
         "",
-        "| Algorithm | Native median (s) | Pyodide median (s) | Pyodide median iterations | Pyodide converged |",
-        "| --- | ---: | ---: | ---: | :---: |",
+        "| Algorithm | Native median (s) | Native median iterations | Native converged | Pyodide median (s) | Pyodide median iterations | Pyodide converged |",
+        "| --- | ---: | ---: | :---: | ---: | ---: | :---: |",
     ]
     for algorithm, result in comparison["ica"].items():
         lines.append(
-            f"| {algorithm} | {result['native_median_seconds']:.6f} | {result['pyodide_median_seconds']:.6f} | "
+            f"| {algorithm} | {result['native_median_seconds']:.6f} | {result['native_median_iterations']:.1f} | "
+            f"{result['native_all_converged']} | {result['pyodide_median_seconds']:.6f} | "
             f"{result['pyodide_median_iterations']:.1f} | {result['pyodide_all_converged']} |"
         )
     lines.extend(

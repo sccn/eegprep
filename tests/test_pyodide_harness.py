@@ -76,7 +76,11 @@ def test_compare_reports_applies_convergence_and_blas_gates():
             "runica_block": 49,
             "thread_count": 1,
             "ica": {
-                "runica": {"median_seconds": runica_seconds, "median_iterations": 100, "all_converged": True},
+                "runica": {
+                    "median_seconds": runica_seconds,
+                    "median_iterations": 100,
+                    "all_converged": True,
+                },
                 "picard": {
                     "median_seconds": picard_seconds,
                     "median_iterations": 50,
@@ -89,6 +93,8 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     comparison = compare_reports(report("native", 10.0, 5.0, True), report("pyodide", 20.0, 4.0, True))
 
     assert comparison["ica"]["runica"]["pyodide_speed_ratio"] == 2.0
+    assert comparison["ica"]["runica"]["native_median_iterations"] == 100
+    assert comparison["ica"]["runica"]["native_all_converged"] is True
     assert comparison["decisions"]["picard_browser_default_retained"] is True
     assert comparison["decisions"]["phase3_recommended"] is False
 

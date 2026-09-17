@@ -64,10 +64,10 @@ also uploaded by CI as the `pyodide-phase-2-output` artifact.
 
 ### ICA
 
-| Algorithm | Native median (s) | Pyodide median (s) | Pyodide median iterations | Pyodide converged |
-| --- | ---: | ---: | ---: | :---: |
-| runica | 86.900706 | 351.139361 | 512.0 | false |
-| picard | 7.699578 | 65.949396 | 511.0 | false |
+| Algorithm | Native median (s) | Native median iterations | Native converged | Pyodide median (s) | Pyodide median iterations | Pyodide converged |
+| --- | ---: | ---: | :---: | ---: | ---: | :---: |
+| runica | 86.900706 | 512.0 | false | 351.139361 | 512.0 | false |
+| picard | 7.699578 | 511.0 | false | 65.949396 | 511.0 | false |
 
 ### Matrix multiplication
 
