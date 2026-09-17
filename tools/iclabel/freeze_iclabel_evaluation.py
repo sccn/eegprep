@@ -59,24 +59,32 @@ def _download_recording(manifest: Mapping[str, object], recording: Mapping[str, 
     partial_path = path.with_name(path.name + ".part")
     for url_index, url in enumerate(urls):
         request = Request(url, headers={"User-Agent": "EEGPrep-ICLabel-evaluation/1"})
-        print(f"DOWNLOAD {recording['source_path']} <- {url}", flush=True)
-        try:
-            with urlopen(request, timeout=180) as response, partial_path.open("wb") as handle:
-                while chunk := response.read(_CHUNK_SIZE):
-                    handle.write(chunk)
-        except HTTPError as error:
-            partial_path.unlink(missing_ok=True)
-            if url_index == 0 and error.code in (403, 404):
-                print(f"FALLBACK public OpenNeuro S3 after NEMAR HTTP {error.code}", flush=True)
-                continue
-            raise
-        try:
-            _verify_recording(partial_path, recording)
-        except Exception:
-            partial_path.unlink(missing_ok=True)
-            raise
-        os.replace(partial_path, path)
-        return
+        for attempt in range(3):
+            print(f"DOWNLOAD {recording['source_path']} <- {url}", flush=True)
+            try:
+                with urlopen(request, timeout=180) as response, partial_path.open("wb") as handle:
+                    while chunk := response.read(_CHUNK_SIZE):
+                        handle.write(chunk)
+            except HTTPError as error:
+                partial_path.unlink(missing_ok=True)
+                if url_index == 0 and error.code in (403, 404):
+                    print(f"FALLBACK public OpenNeuro S3 after NEMAR HTTP {error.code}", flush=True)
+                    break
+                raise
+            try:
+                _verify_recording(partial_path, recording)
+            except ValueError:
+                partial_path.unlink(missing_ok=True)
+                if attempt < 2:
+                    print("RETRY after checksum mismatch", flush=True)
+                    continue
+                if url_index == 0:
+                    print("FALLBACK public OpenNeuro S3 after NEMAR checksum mismatch", flush=True)
+                    break
+                raise
+            os.replace(partial_path, path)
+            return
+    raise RuntimeError(f"Unable to download a checksum-valid object for {recording['source_path']}")
 
 
 def _feature_archive_is_valid(path: Path) -> bool:
