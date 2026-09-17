@@ -1,3 +1,4 @@
+import sys
 import unittest
 import numpy as np
 from unittest.mock import patch
@@ -535,20 +536,16 @@ class TestAsrProcess(unittest.TestCase):
         # Create larger data that might trigger splitting
         large_data = np.random.randn(self.n_channels, 5000) * 0.5
 
-        with patch('psutil.virtual_memory') as mock_vm:
-            # Mock low available memory to trigger splitting
-            mock_vm.return_value.free = 50 * 1024**2  # 50 MB
+        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as log:
+            cleaned_data, new_state = asr_process(
+                large_data,
+                self.srate,
+                self.state,
+                max_mem=10,  # Low memory limit, forces splitting into blocks
+            )
 
-            with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as log:
-                cleaned_data, new_state = asr_process(
-                    large_data,
-                    self.srate,
-                    self.state,
-                    max_mem=10,  # Low memory limit
-                )
-
-            # Check that splitting was logged
-            self.assertTrue(any('blocks' in msg for msg in log.output))
+        # Check that splitting was logged
+        self.assertTrue(any('blocks' in msg for msg in log.output))
 
         # Check output
         self.assertEqual(cleaned_data.shape, large_data.shape)
@@ -556,14 +553,23 @@ class TestAsrProcess(unittest.TestCase):
 
     def test_memory_error_handling(self):
         """Test error handling when memory is insufficient."""
-        with patch('psutil.virtual_memory') as mock_vm:
-            # Mock extremely low memory
-            mock_vm.return_value.free = 1024  # 1 KB
+        with self.assertRaises(RuntimeError) as cm:
+            asr_process(self.test_data, self.srate, self.state, max_mem=0.001)
 
-            with self.assertRaises(RuntimeError) as cm:
-                asr_process(self.test_data, self.srate, self.state, max_mem=0.001)
+        self.assertIn('Not enough memory', str(cm.exception))
 
-            self.assertIn('Not enough memory', str(cm.exception))
+    def test_default_max_mem_works_without_psutil(self):
+        """max_mem=None must resolve to the fixed default without importing psutil.
+
+        psutil has no WebAssembly build, so this path must not import it (e.g. under
+        Pyodide). Block the real import (rather than mocking asr_process's logic) to prove
+        no code path reaches for psutil.
+        """
+        with patch.dict(sys.modules, {'psutil': None}):
+            cleaned_data, new_state = asr_process(self.test_data, self.srate, self.state, max_mem=None)
+
+        self.assertEqual(cleaned_data.shape, self.test_data.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
     def test_rank_deficient_covariance_produces_sane_output(self):
         """Process genuinely rank-deficient data (singular covariance).
