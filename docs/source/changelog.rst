@@ -10,6 +10,23 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Installing ``eegprep`` no longer pulls ``oct2py``, ``psutil``, or ``pyedflib``.
+  The Octave parity engine now needs ``eegprep[eeglab]`` and the system-RAM helper in
+  ``num_jobs_from_reservation`` now needs ``eegprep[sys]``; both raise an ``ImportError``
+  naming the extra when it is missing, and ``eegprep[all]`` still installs everything.
+  ``pyedflib`` was unused by the package and is gone from every published install.
+  This removes the last base dependencies that have no WebAssembly build, so the base
+  requirement set can resolve under Pyodide.
+- ``asr_process`` now resolves ``max_mem=None`` to a fixed 64 MB instead of probing free
+  system RAM through ``psutil``.
+  This matches the ``maxmem=64`` default that ``asr_calibrate`` and ``clean_asr`` already
+  use, so the whole ASR pipeline assumes one memory budget and block sizes no longer vary
+  with the machine's free memory.
+  ``clean_asr`` already passed 64, so the standard cleaning pipeline is unchanged; only
+  direct ``asr_process(..., max_mem=None)`` calls see different block splitting, and
+  because the reconstruction matrix is refreshed on a per-block grid their output changes
+  accordingly.
+  Pass ``max_mem`` explicitly to pin the previous behavior.
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is
