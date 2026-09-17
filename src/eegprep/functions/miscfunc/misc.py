@@ -207,7 +207,8 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
             import psutil
         except ImportError:
             raise ImportError(
-                "psutil is required to determine available system RAM. Please install it with 'uv pip install psutil'."
+                "psutil is required to determine available system RAM. "
+                "Install it with 'pip install eegprep[sys]' (or 'uv pip install eegprep[sys]')."
             )
         avail_amt = psutil.virtual_memory().available
         unit = reserve[-2:].upper()
