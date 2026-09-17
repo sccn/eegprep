@@ -139,9 +139,10 @@ preserves event display state through the ``scroll_event`` option.
 Network Availability
 ====================
 
-The standalone Python engine ships the default ICLabel network
-(``netICL.mat``). EEGLAB ``lite`` and ``beta`` network artifacts are not
-bundled in the Python package; requesting them with ``engine=None`` raises a
-clear limitation. They can still be requested through ``engine="matlab"`` or
-``engine="octave"`` when that runtime has an EEGLAB ICLabel checkout with those
-artifacts.
+The standalone Python engine ships the default ICLabel network as an ONNX
+artifact (``iclabel.onnx``) and classifies components through `onnxruntime`;
+install the ``iclabel`` extra (``eegprep[iclabel]``) to run it. EEGLAB
+``lite`` and ``beta`` network artifacts are not bundled in the Python
+package; requesting them with ``engine=None`` raises a clear limitation.
+They can still be requested through ``engine="matlab"`` or ``engine="octave"``
+when that runtime has an EEGLAB ICLabel checkout with those artifacts.

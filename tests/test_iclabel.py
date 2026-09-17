@@ -14,8 +14,8 @@ class TestICLabelEngines(unittest.TestCase):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
     def test_basic(self):
-        if not has_optional_dependency('torch'):
-            self.skipTest("PyTorch is not installed; install eegprep[torch] to run ICLabel parity")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel parity")
 
         features_python = ICL_feature_extractor(self.EEG, True)
         print(f"\n{'=' * 60}")
@@ -65,6 +65,68 @@ class TestICLabelEngines(unittest.TestCase):
 
         # Max abs diff: 3.37e-06, Max rel diff: 4.25e-05
         self.assertTrue(np.allclose(res1, res2, rtol=1e-4, atol=1e-5), 'ICLabel results differ beyond tolerance')
+
+
+class TestICLabelOnnxExport(unittest.TestCase):
+    """Cross-check the packaged iclabel.onnx artifact against the torch network it was exported from."""
+
+    def setUp(self):
+        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
+
+    def test_onnx_matches_torch_on_sample_data(self):
+        if not has_optional_dependency('torch'):
+            self.skipTest("PyTorch is not installed; install eegprep[torch] to run the ONNX-vs-torch cross-check")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel classification")
+
+        import torch
+
+        from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+
+        mat_path = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
+        model = ICLabelNet(mat_path)
+        model.eval()
+
+        features = ICL_feature_extractor(self.EEG, True)
+        features[0] = np.single(
+            np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
+        )
+        features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
+        features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
+
+        image = np.transpose(features[0], (3, 2, 0, 1))
+        psdmed = np.transpose(features[1], (3, 2, 0, 1))
+        autocorr = np.transpose(features[2], (3, 2, 0, 1))
+
+        with torch.no_grad():
+            torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
+
+        def postprocess(output):
+            out = output.T
+            out = np.reshape(out, (-1, 4), order='F')
+            out = np.mean(out, axis=1)
+            out = np.reshape(out, (7, -1), order='F')
+            return out.T
+
+        torch_final = postprocess(torch_out)
+
+        EEG_onnx = iclabel(self.EEG, algorithm='default', engine=None)
+        onnx_final = EEG_onnx['etc']['ic_classification']['ICLabel']['classifications']
+
+        diff = np.abs(torch_final - onnx_final)
+        print(f"\nONNX vs torch max abs diff: {diff.max():.2e}, mean abs diff: {diff.mean():.2e}")
+
+        # Measured on this sample_data dataset while building the export
+        # (tools/iclabel/export_iclabel_onnx.py): max abs diff 1.43e-06, max
+        # rel diff 2.59e-05, from ordinary float32 op-ordering differences
+        # between eager torch execution and onnxruntime's fused CPU kernels.
+        # That is the same order of magnitude as the Python-vs-MATLAB gap
+        # tolerated above (~3.4e-06 abs / ~4.3e-05 rel), so this test reuses
+        # that already-established tolerance instead of introducing a new one.
+        self.assertTrue(
+            np.allclose(torch_final, onnx_final, rtol=1e-4, atol=1e-5),
+            'ONNX and torch ICLabel outputs differ beyond tolerance',
+        )
 
 
 if __name__ == '__main__':

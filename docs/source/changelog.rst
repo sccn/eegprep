@@ -27,6 +27,14 @@ Unreleased
   because the reconstruction matrix is refreshed on a per-block grid their output changes
   accordingly.
   Pass ``max_mem`` explicitly to pin the previous behavior.
+- ICLabel (``iclabel``/``pop_iclabel``) now classifies the default network through
+  ``onnxruntime`` instead of torch. The package ships ``iclabel.onnx`` in place of
+  ``netICL.mat``; install the new ``iclabel`` extra (``eegprep[iclabel]``) to run
+  classification. torch is now needed only to regenerate the ONNX artifact from
+  ``netICL.mat`` (``tools/iclabel/export_iclabel_onnx.py``), not to run ICLabel.
+  Classification results are numerically unchanged (verified against the previous
+  torch path, MATLAB parity fixtures, and mne-icalabel's independently exported
+  network on ``sample_data``).
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is
