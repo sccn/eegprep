@@ -23,13 +23,15 @@ def test_frozen_manifest_is_subject_balanced_and_calibration_disjoint():
     calibration_subjects = [item["subject"] for item in calibration["recordings"]]
 
     assert evaluation_subjects == sorted(set(evaluation_subjects))
-    assert calibration_subjects == evaluation_subjects
+    assert calibration_subjects == sorted(set(calibration_subjects))
+    assert set(evaluation_subjects).isdisjoint(calibration_subjects)
     assert all(item["component_indices"] == list(range(31)) for item in evaluation["recordings"])
     assert all(item["component_indices"] == list(range(31)) for item in calibration["recordings"])
     assert {item["source_path"] for item in evaluation["recordings"]}.isdisjoint(
         item["source_path"] for item in calibration["recordings"]
     )
     assert manifest["selection_policy"]["confidence_based_filtering"] is False
+    assert manifest["selection_policy"]["subject_disjoint"] is True
     assert manifest["selection_policy"]["recordings_per_subject"] == 1
 
 

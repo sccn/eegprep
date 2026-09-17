@@ -68,6 +68,8 @@ def _validate_frozen_manifest(manifest: Mapping[str, Any]) -> None:
         raise ValueError("ICLabel evaluation selection cannot use label filtering")
     if policy.get("selection_declared_before_quantized_evaluation") is not True:
         raise ValueError("ICLabel evaluation selection must be declared before quantized evaluation")
+    if policy.get("subject_disjoint") is not True:
+        raise ValueError("ICLabel evaluation and calibration subjects must be disjoint")
 
     splits = {}
     for split_name in ("evaluation", "calibration"):
@@ -90,8 +92,14 @@ def _validate_frozen_manifest(manifest: Mapping[str, Any]) -> None:
     calibration_subjects = [recording["subject"] for recording in splits["calibration"]]
     if evaluation_subjects != sorted(set(evaluation_subjects)):
         raise ValueError("ICLabel evaluation subjects must be unique and sorted")
-    if calibration_subjects != evaluation_subjects:
-        raise ValueError("ICLabel calibration must cover the same subjects")
+    if calibration_subjects != sorted(set(calibration_subjects)):
+        raise ValueError("ICLabel calibration subjects must be unique and sorted")
+    if set(evaluation_subjects).intersection(calibration_subjects):
+        raise ValueError("ICLabel evaluation and calibration subjects must be disjoint")
+    if policy.get("evaluation_subjects") != evaluation_subjects:
+        raise ValueError("ICLabel evaluation subject policy does not match its recordings")
+    if policy.get("calibration_subjects") != calibration_subjects:
+        raise ValueError("ICLabel calibration subject policy does not match its recordings")
     evaluation_paths = {recording["source_path"] for recording in splits["evaluation"]}
     calibration_paths = {recording["source_path"] for recording in splits["calibration"]}
     if evaluation_paths.intersection(calibration_paths):
