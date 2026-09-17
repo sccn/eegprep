@@ -66,7 +66,7 @@ def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
             "calibrated": {
                 "artifact": "iclabel_int8_calibrated.onnx",
                 "top1_agreement": 0.99,
-                "keep_reject_agreement": 0.99,
+                "keep_reject_agreement": 0.98,
             },
         }
     }
@@ -77,6 +77,7 @@ def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
     assert select_default_artifact(report) == "iclabel_int8_weight_only.onnx"
 
     report["candidates"]["weight_only"]["keep_reject_agreement"] = 0.98
+    report["candidates"]["calibrated"]["keep_reject_agreement"] = 0.99
     assert select_default_artifact(report) == "iclabel_int8_calibrated.onnx"
 
 

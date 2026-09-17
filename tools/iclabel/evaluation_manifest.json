@@ -54,6 +54,12 @@
     "additional_filtering_or_resampling": "none",
     "network_inputs": "The saved float32 features are expanded and transposed with the same four-way augmentation and NCHW conversion used by iclabel.py. Quantization does not alter feature extraction, normalization, augmentation, or softmax."
   },
+  "generation": {
+    "script": "tools/iclabel/freeze_iclabel_evaluation.py",
+    "command": "MNE_DONTWRITE_HOME=true OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run --no-sync python -m tools.iclabel.freeze_iclabel_evaluation --manifest tools/iclabel/evaluation_manifest.json --data-dir <DATA_DIR> --output-dir tools/iclabel",
+    "data_directory_layout": "The script stores verified public .set objects below <DATA_DIR>/<split>/<source_path> and resumable per-recording feature checkpoints below <DATA_DIR>/features/<split>/<subject>.npz.",
+    "resume_rule": "Existing recordings are accepted only when their manifest size and MD5 match; existing feature checkpoints are accepted only when their expected float32 shapes and finiteness checks pass."
+  },
   "evaluation": {
     "component_count": 434,
     "recordings": [

@@ -65,6 +65,8 @@ def _validate_frozen_manifest(manifest: Mapping[str, Any]) -> None:
         if not isinstance(split, Mapping) or not isinstance(split.get("recordings"), list):
             raise ValueError(f"ICLabel manifest is missing {split_name} recordings")
         splits[split_name] = split["recordings"]
+        if split.get("component_count") != len(split["recordings"]) * 31:
+            raise ValueError(f"ICLabel {split_name} component_count does not match its recordings")
         for recording in split["recordings"]:
             if not isinstance(recording, Mapping):
                 raise ValueError(f"ICLabel {split_name} recording must be an object")
