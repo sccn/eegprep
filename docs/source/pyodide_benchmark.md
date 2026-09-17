@@ -53,8 +53,9 @@ fixed seed. The matrix benchmark uses the two runica products:
 * `(64, 64) @ (64, 64)` for the square weight update.
 
 Picard is measured through its underlying `picard(..., return_n_iter=True)` API
-with the same options as EEGPrep's `eeg_picard` wrapper. The benchmark does not
-change either production ICA implementation.
+with the same algorithmic options as EEGPrep's `eeg_picard` wrapper; benchmark
+output is quiet and includes the underlying iteration telemetry. The benchmark
+does not change either production ICA implementation.
 
 ## Measured results
 
