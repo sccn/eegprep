@@ -16,6 +16,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from urllib.parse import quote
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import numpy as np
@@ -50,21 +51,32 @@ def _download_recording(manifest: Mapping[str, object], recording: Mapping[str, 
         return
 
     dataset = manifest["dataset"]
-    url_template = str(dataset["s3_object_url_template"])
-    url = url_template.format(git_annex_key=quote(str(recording["git_annex_key"]), safe=""))
+    urls = [
+        str(dataset["s3_object_url_template"]).format(git_annex_key=quote(str(recording["git_annex_key"]), safe="")),
+        str(dataset["openneuro_s3_url_template"]).format(source_path=quote(str(recording["source_path"]), safe="/")),
+    ]
     path.parent.mkdir(parents=True, exist_ok=True)
     partial_path = path.with_name(path.name + ".part")
-    request = Request(url, headers={"User-Agent": "EEGPrep-ICLabel-evaluation/1"})
-    print(f"DOWNLOAD {recording['source_path']} <- {url}", flush=True)
-    with urlopen(request, timeout=180) as response, partial_path.open("wb") as handle:
-        while chunk := response.read(_CHUNK_SIZE):
-            handle.write(chunk)
-    try:
-        _verify_recording(partial_path, recording)
-    except Exception:
-        partial_path.unlink(missing_ok=True)
-        raise
-    os.replace(partial_path, path)
+    for url_index, url in enumerate(urls):
+        request = Request(url, headers={"User-Agent": "EEGPrep-ICLabel-evaluation/1"})
+        print(f"DOWNLOAD {recording['source_path']} <- {url}", flush=True)
+        try:
+            with urlopen(request, timeout=180) as response, partial_path.open("wb") as handle:
+                while chunk := response.read(_CHUNK_SIZE):
+                    handle.write(chunk)
+        except HTTPError as error:
+            partial_path.unlink(missing_ok=True)
+            if url_index == 0 and error.code in (403, 404):
+                print(f"FALLBACK public OpenNeuro S3 after NEMAR HTTP {error.code}", flush=True)
+                continue
+            raise
+        try:
+            _verify_recording(partial_path, recording)
+        except Exception:
+            partial_path.unlink(missing_ok=True)
+            raise
+        os.replace(partial_path, path)
+        return
 
 
 def _feature_archive_is_valid(path: Path) -> bool:

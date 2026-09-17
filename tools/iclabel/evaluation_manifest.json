@@ -15,7 +15,8 @@
     "mirror_commit": "5cadd7d16423313a103ba24655e31245ffba8a4e",
     "nemar_zarr_source_commit": "a8ebb56c5a2c4ee91a30d0b0d29072b3271d4384",
     "source_pointer_url_template": "https://raw.githubusercontent.com/nemarDatasets/on002680/5cadd7d16423313a103ba24655e31245ffba8a4e/{source_path}",
-    "s3_object_url_template": "https://nemar.s3.us-east-2.amazonaws.com/on002680/objects/{git_annex_key}"
+    "s3_object_url_template": "https://nemar.s3.us-east-2.amazonaws.com/on002680/objects/{git_annex_key}",
+    "openneuro_s3_url_template": "https://s3.amazonaws.com/openneuro.org/ds002680/{source_path}"
   },
   "selection_policy": {
     "subjects": [
