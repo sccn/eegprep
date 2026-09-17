@@ -36,17 +36,11 @@ PYODIDE_LOCK_URL = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/py
 PYPI_JSON_URL = "https://pypi.org/pypi/{name}/{version}/json"
 HTTP_TIMEOUT_S = 30
 
-# Pre-existing gaps this script finds but that issue #374 did not scope in: not oct2py, psutil,
-# or pyedflib, and fixing them would require changing pybids's own dependency tree, which is an
-# explicit non-goal of this phase. Tracked here instead of silently failing the phase gate.
-KNOWN_GAPS = {
-    "docopt": (
-        "sdist-only, no wheel on PyPI. Pulled in via pybids -> num2words, which declares docopt "
-        "as an unconditional dependency even though it is only imported by num2words's CLI entry "
-        "point (never invoked by pybids or eegprep). Needs a decision on num2words/pybids, not "
-        "something phase 1 should fix by itself."
-    ),
-}
+# The live Phase 2 harness builds this exact sdist into a local universal wheel before asking
+# micropip to resolve eegprep. Keep the package out of ``KNOWN_GAPS`` so the static check cannot
+# accidentally turn a known local transport into a silent exception.
+KNOWN_GAPS: dict[str, str] = {}
+LOCAL_WHEEL_PACKAGES = {"docopt"}
 
 
 def _fetch_json(url: str) -> dict:
@@ -163,14 +157,24 @@ def main() -> int:
             source = "pyodide-lock"
         elif result.universal_wheel:
             source = f"pypi wheel: {result.universal_wheel}"
+        elif result.name in LOCAL_WHEEL_PACKAGES:
+            source = "local pure-Python wheel built by the Phase 2 harness"
         elif result.name in KNOWN_GAPS:
             source = f"NOT FOUND, known gap: {KNOWN_GAPS[result.name]}"
         else:
             source = "NOT FOUND (no Pyodide build, no pure-Python wheel)"
-        status = "known-gap" if not result.ok and result.name in KNOWN_GAPS else ("ok" if result.ok else "FAIL")
+        status = (
+            "ok"
+            if result.ok or result.name in LOCAL_WHEEL_PACKAGES
+            else ("known-gap" if result.name in KNOWN_GAPS else "FAIL")
+        )
         print(f"[{status}] {result.name}=={result.version}: {source}")
 
-    failures = [result for result in results if not result.ok and result.name not in KNOWN_GAPS]
+    failures = [
+        result
+        for result in results
+        if not result.ok and result.name not in KNOWN_GAPS and result.name not in LOCAL_WHEEL_PACKAGES
+    ]
     known = [result for result in results if not result.ok and result.name in KNOWN_GAPS]
     print(
         f"\nChecked {len(results)} base packages against Pyodide {PYODIDE_VERSION}: "

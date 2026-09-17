@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ master, develop, epic/324-pyodide-browser ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, develop, epic/324-pyodide-browser ]
 
 env:
   # Set MATLAB batch licensing token for private repos or when using MATLAB Engine
@@ -218,3 +218,96 @@ jobs:
         if: always()
         run: |
           uv pip list
+
+  pyodide:
+    name: Pyodide harness and ICA benchmark
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Python 3.11
+        run: |
+          uv python install 3.11
+
+      - name: Install benchmark dependencies
+        run: |
+          uv sync --python 3.11 --group dev
+
+      - name: Build EEGPrep wheel from the working tree
+        run: |
+          mkdir -p pyodide-artifacts
+          uv build --wheel --out-dir pyodide-artifacts
+
+      - name: Build the locked docopt wheel
+        run: |
+          uv run --no-sync python tools/pyodide/prepare_docopt_wheel.py \
+            --output-dir pyodide-artifacts/docopt
+
+      - name: Validate Node runner argument handling
+        run: |
+          if output=$(node tools/pyodide/run_pyodide.mjs --not-a-real-option 2>&1); then
+            echo "The runner accepted an invalid option" >&2
+            exit 1
+          fi
+          grep -q "Usage:" <<< "$output"
+
+      - name: Run Pyodide sample-data smoke test
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/smoke.py \
+            --sample-data-dir sample_data \
+            2>&1 | tee pyodide-artifacts/pyodide-smoke.log
+
+      - name: Run native ICA and matmul benchmark
+        env:
+          MNE_CONFIGDIR: ${{ runner.temp }}/mne
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          VECLIB_MAXIMUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
+        run: |
+          uv run --no-sync python tools/pyodide/benchmark.py \
+            --platform native \
+            > pyodide-artifacts/benchmark-native.json
+
+      - name: Run Pyodide ICA and matmul benchmark
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/benchmark.py \
+            --output pyodide-artifacts/benchmark-pyodide.json \
+            -- --platform pyodide \
+            2>&1 | tee pyodide-artifacts/benchmark-pyodide.log
+
+      - name: Compare benchmark gates
+        run: |
+          set -o pipefail
+          uv run --no-sync python tools/pyodide/compare_benchmarks.py \
+            --native pyodide-artifacts/benchmark-native.json \
+            --pyodide pyodide-artifacts/benchmark-pyodide.json \
+            --report pyodide-artifacts/benchmark-comparison.md \
+            | tee pyodide-artifacts/benchmark-comparison.json
+
+      - name: Upload Pyodide raw output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyodide-phase-2-output
+          path: pyodide-artifacts

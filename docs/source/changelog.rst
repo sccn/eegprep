@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added a pinned Pyodide 0.29.5 harness and CI gate that installs the working-tree
+  wheel, runs a continuous sample-data smoke pipeline, and records one-thread
+  ``runica``/Picard and runica-shaped BLAS benchmarks. See :doc:`pyodide_benchmark`;
+  Pyodide Web Workers are documented as the browser responsiveness and independent-job
+  concurrency boundary, not as intra-ICA threading.
 - Installing ``eegprep`` no longer pulls ``oct2py``, ``psutil``, or ``pyedflib``.
   The Octave parity engine now needs ``eegprep[eeglab]`` and the system-RAM helper in
   ``num_jobs_from_reservation`` now needs ``eegprep[sys]``; both raise an ``ImportError``

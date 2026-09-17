@@ -90,6 +90,7 @@ Manual
    development
    releasing
    changelog
+   pyodide_benchmark
 
 Five-Minute Script
 ==================
