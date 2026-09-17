@@ -43,8 +43,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Export-only: regenerates iclabel.onnx from netICL.mat via
+# tools/iclabel/export_iclabel_onnx.py. Not required to run ICLabel
+# classification; see the iclabel extra for that.
 torch = [
-  "torch>=2.0"
+  "torch>=2.0",
+  "onnx>=1.14",
+]
+iclabel = [
+  "onnxruntime>=1.18",
 ]
 gui = [
   "pyqtgraph>=0.13.7",
@@ -67,6 +74,7 @@ docs = [
 ]
 all = [
   "eegprep[torch]",
+  "eegprep[iclabel]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
@@ -205,15 +213,15 @@ exclude = ["eegprep.eeglab*"]
   "resources/**/*.xyz",
   "plugins/**/*.json",
   "plugins/**/*.locs",
-  "plugins/**/*.mat",
   "plugins/**/*.md",
+  "plugins/**/*.onnx",
   "plugins/**/*.sfp",
   "plugins/**/*.tsv",
   "plugins/**/*.txt",
 ]
 
 [tool.setuptools.exclude-package-data]
-"eegprep" = ["bin/*", "eeglab/**"]
+"eegprep" = ["bin/*", "eeglab/**", "plugins/ICLabel/netICL.mat"]
 
 [tool.setuptools.dynamic]
 version = { attr = "eegprep.__version__" }
