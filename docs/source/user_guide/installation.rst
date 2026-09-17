@@ -110,6 +110,38 @@ For CPU-only PyTorch:
 
     uv add torch --index-url https://download.pytorch.org/whl/cpu
 
+MATLAB/Octave Parity Helpers
+-----------------------------
+
+``eeglab_eeg_checkset``, ``clean_drifts``, and other helpers in
+``eeglabcompat`` can call into a real EEGLAB installation through Octave for
+development and parity testing. This path needs ``oct2py``, which is not
+installed by default because it pulls in several packages with no
+WebAssembly build. Install it with the ``eeglab`` extra:
+
+.. code-block:: bash
+
+    uv add "eegprep[eeglab]"
+
+Without this extra, calling ``get_eeglab('OCT')`` raises an ``ImportError``
+naming this extra.
+
+System-Aware Parallel Jobs
+---------------------------
+
+``bids_preproc``'s ``ReservePerJob`` argument can size the number of
+parallel jobs from available system RAM (for example ``"4GB"``). This needs
+``psutil``, which is not installed by default. Install it with the ``sys``
+extra:
+
+.. code-block:: bash
+
+    uv add "eegprep[sys]"
+
+Without this extra, a memory-based ``ReservePerJob`` reservation raises an
+``ImportError`` naming this extra. CPU-based reservations (for example
+``"2CPU"``) do not need it.
+
 AMICA
 -----
 
@@ -162,7 +194,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[iclabel,gui,docs]"
+    uv add "eegprep[iclabel,gui,docs,eeglab,sys]"
 
 Verification
 ============

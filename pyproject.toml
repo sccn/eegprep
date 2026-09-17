@@ -30,11 +30,8 @@ dependencies = [
   "mne>=1.10.0",
   "neo>=0.14.2",
   "numpy>=1.20",
-  "oct2py>=5.5.0",
   "packaging>=23.0",
-  "psutil>=7.0.0",
   "pybids>=0.4",
-  "pyedflib>=0.1.42",
   "pyyaml>=6.0",
   "python-picard>=0.8,<0.9",
   "scipy>=1.7.0",
@@ -72,12 +69,20 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
+eeglab = [
+  "oct2py>=5.5.0",
+]
+sys = [
+  "psutil>=7.0.0",
+]
 all = [
   "eegprep[torch]",
   "eegprep[iclabel]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
+  "eegprep[eeglab]",
+  "eegprep[sys]",
 ]
 
 [project.scripts]
@@ -92,6 +97,9 @@ dev = [
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
   "pytest>=8.0",
+  # Used only to write synthetic EDF fixtures in tests/test_bids_load_frombids_helpers.py;
+  # eegprep itself reads EDF through mne/neo and never imports pyedflib.
+  "pyedflib>=0.1.42",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
   "ruff>=0.15.14",

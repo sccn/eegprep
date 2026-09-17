@@ -50,8 +50,8 @@ lean package with:
 uv add eegprep
 ```
 
-To install all optional extras, including GUI, console, docs, and classifier
-dependencies, use:
+To install all optional extras, including GUI, console, docs, classifier,
+MATLAB/Octave parity, and system-aware job scheduling dependencies, use:
 
 ```bash
 uv add "eegprep[all]"
