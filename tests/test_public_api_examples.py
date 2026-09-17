@@ -26,8 +26,8 @@ def test_public_api_and_plugins_example_runs() -> None:
 
 # One illustration script per user guide section. These run for real against
 # sample_data/, so a failure here means the documented workflow is broken.
-# plot_reject_artifacts.py calls ICLabel, which needs the torch extra and raises
-# ImportError without it rather than skipping; install eegprep[torch] to run.
+# plot_reject_artifacts.py calls ICLabel, which needs the iclabel extra and raises
+# ImportError without it rather than skipping; install eegprep[iclabel] to run.
 USER_GUIDE_EXAMPLES = (
     "plot_quickstart_tour.py",
     "plot_data_structures.py",
@@ -70,7 +70,7 @@ def test_package_resources_cover_public_workflows() -> None:
     assert package.joinpath("resources/skills/eegprep-cli.md").is_file()
     assert package.joinpath("resources/headplot/colin27headmesh.mat").is_file()
     assert package.joinpath("resources/montages/standard-10-5-342ch.locs").is_file()
-    assert package.joinpath("plugins/ICLabel/netICL.mat").is_file()
+    assert package.joinpath("plugins/ICLabel/iclabel.onnx").is_file()
 
 
 def test_browser_help_and_docs_do_not_describe_eegbrowser_as_excluded() -> None:
@@ -141,7 +141,7 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
         "resources/headplot/mheadnew.transform",
         "resources/headplot/mheadnew.xyz",
         "resources/montages/standard-10-5-342ch.locs",
-        "plugins/ICLabel/netICL.mat",
+        "plugins/ICLabel/iclabel.onnx",
     } <= packaged
     assert "eeglab/**" in excluded
     assert not any(path.startswith("eeglab/") for path in packaged)
