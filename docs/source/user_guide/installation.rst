@@ -74,6 +74,21 @@ Optional Dependencies
 
 eegprep has several optional dependencies that enable additional functionality:
 
+ICLabel (component classification)
+-----------------------------------
+
+``pop_iclabel``/``iclabel`` classify independent components through a
+packaged ONNX network run with `onnxruntime`. Install the ``iclabel`` extra
+to enable it:
+
+.. code-block:: bash
+
+    uv add "eegprep[iclabel]"
+
+PyTorch is not required to run ICLabel classification; it is only needed to
+regenerate ``iclabel.onnx`` from ``netICL.mat`` during development (see
+``tools/iclabel/export_iclabel_onnx.py``).
+
 PyTorch (for GPU acceleration)
 ------------------------------
 
@@ -147,7 +162,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[torch,gui,docs]"
+    uv add "eegprep[iclabel,gui,docs]"
 
 Verification
 ============

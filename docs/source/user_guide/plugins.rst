@@ -121,9 +121,10 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network. ``lite`` and
-``beta`` network requests require MATLAB or Octave with an EEGLAB ICLabel
-checkout that provides those artifacts.
+The standalone Python engine ships the default ICLabel network as an ONNX
+artifact and classifies through `onnxruntime` (``eegprep[iclabel]``). ``lite``
+and ``beta`` network requests require MATLAB or Octave with an EEGLAB
+ICLabel checkout that provides those artifacts.
 
 .. code-block:: python
 
