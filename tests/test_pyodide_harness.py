@@ -1,16 +1,9 @@
-import subprocess
-from pathlib import Path
-
 import pytest
 
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.prepare_docopt_wheel import verify_sha256
-
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-RUNNER = REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs"
 
 
 def test_docopt_hash_check_rejects_modified_sdist(tmp_path):
@@ -99,16 +92,3 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["matmul"][0]["blas_speedup_over_numpy"] == 2.0
     assert comparison["decisions"]["picard_browser_default_retained"] is True
     assert comparison["decisions"]["phase3_recommended"] is False
-
-
-def test_pyodide_runner_rejects_invalid_arguments():
-    result = subprocess.run(
-        ["node", str(RUNNER), "--not-a-real-option"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode != 0
-    assert "Usage:" in result.stderr

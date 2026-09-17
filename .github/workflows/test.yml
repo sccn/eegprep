@@ -254,6 +254,14 @@ jobs:
           uv run --no-sync python tools/pyodide/prepare_docopt_wheel.py \
             --output-dir pyodide-artifacts/docopt
 
+      - name: Validate Node runner argument handling
+        run: |
+          if output=$(node tools/pyodide/run_pyodide.mjs --not-a-real-option 2>&1); then
+            echo "The runner accepted an invalid option" >&2
+            exit 1
+          fi
+          grep -q "Usage:" <<< "$output"
+
       - name: Run Pyodide sample-data smoke test
         run: |
           set -o pipefail
