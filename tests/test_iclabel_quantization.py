@@ -43,7 +43,7 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
         ]
     )
     candidate = teacher.copy()
-    candidate[3] = [0.35, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
+    candidate[3] = [0.55, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
 
     metrics = compare_predictions(teacher, candidate)
 
@@ -55,7 +55,7 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
     assert metrics["per_class_agreement"]["Other"]["agreement"] == pytest.approx(0.0)
 
 
-def test_artifact_selection_falls_back_to_float32_until_gate_passes():
+def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
     report = {
         "candidates": {
             "weight_only": {
@@ -75,6 +75,9 @@ def test_artifact_selection_falls_back_to_float32_until_gate_passes():
 
     report["candidates"]["weight_only"]["keep_reject_agreement"] = 0.99
     assert select_default_artifact(report) == "iclabel_int8_weight_only.onnx"
+
+    report["candidates"]["weight_only"]["keep_reject_agreement"] = 0.98
+    assert select_default_artifact(report) == "iclabel_int8_calibrated.onnx"
 
 
 def test_thresholds_remain_the_existing_open_interval_defaults():
