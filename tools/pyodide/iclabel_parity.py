@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -16,16 +17,15 @@ DATASET_NAME = "eeglab_data_with_ica_tmp.set"
 CLASS_COUNT = 7
 
 
-def _classifications(eeg: dict, platform: str) -> np.ndarray:
+async def _classifications(eeg: dict, platform: str) -> np.ndarray:
     if platform == "native":
         from eegprep.plugins.ICLabel.iclabel import iclabel
 
         classified = iclabel(eeg)
     else:
         from eegprep.plugins.ICLabel.iclabel import iclabel_async
-        from pyodide.ffi import run_sync
 
-        classified = run_sync(iclabel_async(eeg))
+        classified = await iclabel_async(eeg)
     classifications = np.asarray(
         classified["etc"]["ic_classification"]["ICLabel"]["classifications"],
         dtype=np.float32,
@@ -37,11 +37,11 @@ def _classifications(eeg: dict, platform: str) -> np.ndarray:
     return classifications
 
 
-def run_parity(platform: str, sample_data_dir: Path) -> dict:
+async def _run_parity(platform: str, sample_data_dir: Path) -> dict:
     """Classify the same sample dataset on one platform and return JSON data."""
     dataset_path = sample_data_dir / DATASET_NAME
     eeg = pop_loadset(dataset_path)
-    classifications = _classifications(eeg, platform)
+    classifications = await _classifications(eeg, platform)
     return {
         "schema_version": 1,
         "platform": platform,
@@ -49,6 +49,11 @@ def run_parity(platform: str, sample_data_dir: Path) -> dict:
         "shape": list(classifications.shape),
         "classifications": classifications.tolist(),
     }
+
+
+def run_parity(platform: str, sample_data_dir: Path) -> dict:
+    """Classify the same sample dataset on one platform and return JSON data."""
+    return asyncio.run(_run_parity(platform, sample_data_dir))
 
 
 def main() -> int:

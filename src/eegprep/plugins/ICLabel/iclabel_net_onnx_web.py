@@ -12,8 +12,8 @@ import numpy as np
 
 async def run_iclabel_net_async(image, psdmed, autocorr):
     """Run ICLabel through the host's asynchronous ONNX Runtime Web bridge."""
-    from js import eegprep_iclabel_web
-    from pyodide.ffi import to_js
+    from js import eegprep_iclabel_web  # ty: ignore[unresolved-import]
+    from pyodide.ffi import to_js  # ty: ignore[unresolved-import]
 
     image = np.ascontiguousarray(image, dtype=np.float32)
     psdmed = np.ascontiguousarray(psdmed, dtype=np.float32)
