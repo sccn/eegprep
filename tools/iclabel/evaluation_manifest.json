@@ -289,9 +289,9 @@
         "subject": "sub-015",
         "source_path": "sub-015/ses-02/eeg/sub-015_ses-02_task-gonogo_run-1_eeg.set",
         "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
-        "git_annex_key": "MD5E-s28665632--e9c0e5d197370de316e185e3bdcfee3.set",
+        "git_annex_key": "MD5E-s28665632--e9c0e5d197370de316e185e3bdcfee3e.set",
         "size_bytes": 28665632,
-        "md5": "e9c0e5d197370de316e185e3bdcfee3"
+        "md5": "e9c0e5d197370de316e185e3bdcfee3e"
       }
     ]
   }
