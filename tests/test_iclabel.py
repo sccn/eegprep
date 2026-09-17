@@ -120,7 +120,7 @@ class TestICLabelEngines(unittest.TestCase):
 
 
 class TestICLabelOnnxExport(unittest.TestCase):
-    """Cross-check the packaged iclabel.onnx artifact against the torch network it was exported from."""
+    """Cross-check the preserved float32 ONNX reference against its torch source."""
 
     def setUp(self):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
@@ -162,8 +162,15 @@ class TestICLabelOnnxExport(unittest.TestCase):
 
         torch_final = postprocess(torch_out)
 
-        EEG_onnx = iclabel(self.EEG, algorithm='default', engine=None)
-        onnx_final = EEG_onnx['etc']['ic_classification']['ICLabel']['classifications']
+        import onnxruntime as ort
+
+        float32_path = os.path.join(
+            os.path.dirname(__file__), '..', 'tools', 'iclabel', 'artifacts', 'iclabel_float32.onnx'
+        )
+        (onnx_output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
+            ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
+        )
+        onnx_final = postprocess(onnx_output)
 
         diff = np.abs(torch_final - onnx_final)
         print(f"\nONNX vs torch max abs diff: {diff.max():.2e}, mean abs diff: {diff.mean():.2e}")

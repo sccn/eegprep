@@ -1,11 +1,17 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 from tools.iclabel.quantize_iclabel_onnx import (
+    DEFAULT_CALIBRATED_ARTIFACT,
     DEFAULT_FLOAT32_ARTIFACT,
     DEFAULT_FROZEN_MANIFEST,
+    DEFAULT_EVALUATION_FEATURES,
+    DEFAULT_WEIGHT_ONLY_ARTIFACT,
     compare_predictions,
+    evaluate_artifacts,
     load_frozen_manifest,
     quantize_calibrated,
     quantize_weight_only,
@@ -98,6 +104,43 @@ def test_thresholds_remain_the_existing_open_interval_defaults():
     np.testing.assert_equal(DEFAULT_ICFLAG_THRESHOLDS, expected)
 
 
+def test_packaged_artifact_matches_the_gate_selected_candidate():
+    package_artifact = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+    assert package_artifact.read_bytes() == DEFAULT_WEIGHT_ONLY_ARTIFACT.read_bytes()
+
+
+def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
+    pytest.importorskip("onnxruntime")
+
+    report = evaluate_artifacts(
+        DEFAULT_FLOAT32_ARTIFACT,
+        DEFAULT_EVALUATION_FEATURES,
+        {"weight_only": DEFAULT_WEIGHT_ONLY_ARTIFACT, "calibrated": DEFAULT_CALIBRATED_ARTIFACT},
+    )
+
+    assert report["float32_reference"]["sample_count"] == 217
+    assert report["float32_reference"]["top1_agreement"] == pytest.approx(1.0)
+    assert report["float32_reference"]["keep_reject_agreement"] == pytest.approx(1.0)
+    assert report["default_artifact"] == "iclabel_int8_weight_only.onnx"
+
+    expected_counts = {
+        "Brain": 18,
+        "Muscle": 1,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Channel Noise": 0,
+        "Other": 193,
+    }
+    for candidate_name, expected_top1 in (("weight_only", 1.0), ("calibrated", 213 / 217)):
+        candidate = report["candidates"][candidate_name]
+        assert candidate["gate_pass"] is True
+        assert candidate["top1_agreement"] == pytest.approx(expected_top1)
+        assert candidate["keep_reject_agreement"] == pytest.approx(1.0)
+        assert candidate["teacher_class_distribution"] == expected_counts
+        assert set(candidate["per_class_agreement"]) == set(expected_counts)
+
+
 def test_weight_only_quantization_preserves_float_io_and_softmax(tmp_path):
     onnx = pytest.importorskip("onnx")
     ort = pytest.importorskip("onnxruntime")
@@ -126,8 +169,8 @@ def test_weight_only_quantization_preserves_float_io_and_softmax(tmp_path):
 
 
 def test_calibrated_quantization_consumes_float_feature_inputs(tmp_path):
-    pytest.importorskip("onnx")
-    pytest.importorskip("onnxruntime")
+    onnx = pytest.importorskip("onnx")
+    ort = pytest.importorskip("onnxruntime")
 
     rng = np.random.default_rng(379)
     calibration_inputs = {
@@ -141,3 +184,15 @@ def test_calibrated_quantization_consumes_float_feature_inputs(tmp_path):
 
     assert output_path.exists()
     assert output_path.stat().st_size < DEFAULT_FLOAT32_ARTIFACT.stat().st_size
+    model = onnx.load(output_path)
+    input_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.input}
+    output_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.output}
+    assert set(input_types.values()) == {onnx.TensorProto.FLOAT}
+    assert set(output_types.values()) == {onnx.TensorProto.FLOAT}
+    assert any(node.op_type == "Softmax" for node in model.graph.node)
+    (output,) = ort.InferenceSession(str(output_path), providers=["CPUExecutionProvider"]).run(
+        ["output"], calibration_inputs
+    )
+    assert output.shape == (4, 7, 1, 1)
+    assert np.isfinite(output).all()
+    np.testing.assert_allclose(output.sum(axis=1), 1.0, rtol=1e-5, atol=1e-6)

@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Export-only: regenerates iclabel.onnx from netICL.mat via
+# Export-only: regenerates the float32 ICLabel reference from netICL.mat via
 # tools/iclabel/export_iclabel_onnx.py. Not required to run ICLabel
 # classification; see the iclabel extra for that.
 torch = [

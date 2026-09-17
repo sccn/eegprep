@@ -86,8 +86,13 @@ to enable it:
     uv add "eegprep[iclabel]"
 
 PyTorch is not required to run ICLabel classification; it is only needed to
-regenerate ``iclabel.onnx`` from ``netICL.mat`` during development (see
-``tools/iclabel/export_iclabel_onnx.py``).
+regenerate the preserved float32 reference
+``tools/iclabel/artifacts/iclabel_float32.onnx`` from ``netICL.mat`` during
+development (see ``tools/iclabel/export_iclabel_onnx.py``). The package's
+``iclabel.onnx`` is the Phase 6 gate-selected weight-only int8 artifact (about
+2.93 MB); the quantization and frozen-set evaluation workflow is documented in
+``tools/iclabel/quantize_iclabel_onnx.py`` and
+``tools/iclabel/evaluation_manifest.json``.
 
 PyTorch (for GPU acceleration)
 ------------------------------

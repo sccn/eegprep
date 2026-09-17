@@ -2,7 +2,7 @@
 
 This is the runtime counterpart to :mod:`iclabel_net` (the torch definition
 used only to build and export the network). It loads ``iclabel.onnx``, the
-packaged artifact produced by ``tools/iclabel/export_iclabel_onnx.py``, and
+selected packaged artifact produced by the Phase 6 quantization pipeline, and
 runs it through onnxruntime so ICLabel classification does not require torch.
 """
 

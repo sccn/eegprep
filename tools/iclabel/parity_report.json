@@ -1,0 +1,226 @@
+{
+  "candidates": {
+    "calibrated": {
+      "artifact": "iclabel_int8_calibrated.onnx",
+      "candidate_class_distribution": {
+        "Brain": 16,
+        "Channel Noise": 0,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Muscle": 2,
+        "Other": 194
+      },
+      "gate_pass": true,
+      "keep_reject_agreement": 1.0,
+      "per_class_agreement": {
+        "Brain": {
+          "agreement": 0.8333333333333334,
+          "count": 18
+        },
+        "Channel Noise": {
+          "agreement": null,
+          "count": 0
+        },
+        "Eye": {
+          "agreement": 1.0,
+          "count": 5
+        },
+        "Heart": {
+          "agreement": null,
+          "count": 0
+        },
+        "Line Noise": {
+          "agreement": null,
+          "count": 0
+        },
+        "Muscle": {
+          "agreement": 1.0,
+          "count": 1
+        },
+        "Other": {
+          "agreement": 0.9948186528497409,
+          "count": 193
+        }
+      },
+      "sample_count": 217,
+      "sha256": "a98fdb146678daf74c588898e477ff3af234a682449a1712e4e96d3af01974b1",
+      "size_bytes": 2970375,
+      "teacher_class_distribution": {
+        "Brain": 18,
+        "Channel Noise": 0,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Muscle": 1,
+        "Other": 193
+      },
+      "top1_agreement": 0.9815668202764977
+    },
+    "weight_only": {
+      "artifact": "iclabel_int8_weight_only.onnx",
+      "candidate_class_distribution": {
+        "Brain": 18,
+        "Channel Noise": 0,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Muscle": 1,
+        "Other": 193
+      },
+      "gate_pass": true,
+      "keep_reject_agreement": 1.0,
+      "per_class_agreement": {
+        "Brain": {
+          "agreement": 1.0,
+          "count": 18
+        },
+        "Channel Noise": {
+          "agreement": null,
+          "count": 0
+        },
+        "Eye": {
+          "agreement": 1.0,
+          "count": 5
+        },
+        "Heart": {
+          "agreement": null,
+          "count": 0
+        },
+        "Line Noise": {
+          "agreement": null,
+          "count": 0
+        },
+        "Muscle": {
+          "agreement": 1.0,
+          "count": 1
+        },
+        "Other": {
+          "agreement": 1.0,
+          "count": 193
+        }
+      },
+      "sample_count": 217,
+      "sha256": "8c0537d299e8776eef418d4a697547ad0b317902d656f69f64440169c564d8e3",
+      "size_bytes": 2932897,
+      "teacher_class_distribution": {
+        "Brain": 18,
+        "Channel Noise": 0,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Muscle": 1,
+        "Other": 193
+      },
+      "top1_agreement": 1.0
+    }
+  },
+  "class_names": [
+    "Brain",
+    "Muscle",
+    "Eye",
+    "Heart",
+    "Line Noise",
+    "Channel Noise",
+    "Other"
+  ],
+  "default_artifact": "iclabel_int8_weight_only.onnx",
+  "float32_reference": {
+    "artifact": "iclabel_float32.onnx",
+    "candidate_class_distribution": {
+      "Brain": 18,
+      "Channel Noise": 0,
+      "Eye": 5,
+      "Heart": 0,
+      "Line Noise": 0,
+      "Muscle": 1,
+      "Other": 193
+    },
+    "keep_reject_agreement": 1.0,
+    "per_class_agreement": {
+      "Brain": {
+        "agreement": 1.0,
+        "count": 18
+      },
+      "Channel Noise": {
+        "agreement": null,
+        "count": 0
+      },
+      "Eye": {
+        "agreement": 1.0,
+        "count": 5
+      },
+      "Heart": {
+        "agreement": null,
+        "count": 0
+      },
+      "Line Noise": {
+        "agreement": null,
+        "count": 0
+      },
+      "Muscle": {
+        "agreement": 1.0,
+        "count": 1
+      },
+      "Other": {
+        "agreement": 1.0,
+        "count": 193
+      }
+    },
+    "sample_count": 217,
+    "sha256": "1f16c67ebdbd8e6a30759ab628b61b693a0c4011e35a20e538acbebc1d4ebce4",
+    "size_bytes": 11626631,
+    "teacher_class_distribution": {
+      "Brain": 18,
+      "Channel Noise": 0,
+      "Eye": 5,
+      "Heart": 0,
+      "Line Noise": 0,
+      "Muscle": 1,
+      "Other": 193
+    },
+    "top1_agreement": 1.0
+  },
+  "gate": {
+    "minimum_keep_reject_agreement": 0.99,
+    "minimum_top1_agreement": 0.95
+  },
+  "manifest": "evaluation_manifest.json",
+  "quantization": {
+    "calibrated": "ONNX Runtime static per-channel Conv QDQ with MinMax calibration and float model I/O",
+    "feature_dtype": "float32",
+    "input_normalization_and_augmentation": "unchanged from iclabel.py",
+    "output_softmax": "unchanged from the float32 graph",
+    "weight_only": "per-output-channel int8 Conv weights with float DequantizeLinear before Conv"
+  },
+  "thresholds": [
+    [
+      null,
+      null
+    ],
+    [
+      0.9,
+      1.0
+    ],
+    [
+      0.9,
+      1.0
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ]
+}

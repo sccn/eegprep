@@ -26,6 +26,14 @@ Unreleased
   ``pyedflib`` was unused by the package and is gone from every published install.
   This removes the last base dependencies that have no WebAssembly build, so the base
   requirement set can resolve under Pyodide.
+- ICLabel now ships a gate-selected weight-only int8 ONNX artifact (2,932,897
+  bytes) while retaining a reproducible float32 reference and calibrated int8
+  candidate under ``tools/iclabel/artifacts/``. On the frozen, subject-disjoint
+  217-component real-data evaluation set, the shipped artifact matched the
+  float32 teacher on 100% of top-1 labels and 100% of existing
+  ``pop_icflag`` keep-or-reject decisions; the calibrated candidate measured
+  98.1567% and 100%, respectively. Feature extraction, normalization,
+  augmentation, softmax, class set, and rejection thresholds are unchanged.
 - ``asr_process`` now resolves ``max_mem=None`` to a fixed 64 MB instead of probing free
   system RAM through ``psutil``.
   This matches the ``maxmem=64`` default that ``asr_calibrate`` and ``clean_asr`` already
