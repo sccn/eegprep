@@ -95,6 +95,8 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["ica"]["runica"]["pyodide_speed_ratio"] == 2.0
     assert comparison["ica"]["runica"]["native_median_iterations"] == 100
     assert comparison["ica"]["runica"]["native_all_converged"] is True
+    assert comparison["matmul"][0]["native_blas_speedup_over_numpy"] == 2.0
+    assert comparison["matmul"][0]["blas_speedup_over_numpy"] == 2.0
     assert comparison["decisions"]["picard_browser_default_retained"] is True
     assert comparison["decisions"]["phase3_recommended"] is False
 

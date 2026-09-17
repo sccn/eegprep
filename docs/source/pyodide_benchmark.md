@@ -71,12 +71,12 @@ also uploaded by CI as the `pyodide-phase-2-output` artifact.
 
 ### Matrix multiplication
 
-| runica product | dtype | NumPy `@` median (s) | SciPy BLAS | BLAS median (s) | BLAS speedup |
-| --- | --- | ---: | --- | ---: | ---: |
-| activation | float64 | 0.000239 | dgemm | 0.000106 | 2.26x |
-| activation | float32 | 0.000251 | sgemm | 0.000246 | 1.02x |
-| weight_update | float64 | 0.000308 | dgemm | 0.000127 | 2.43x |
-| weight_update | float32 | 0.000311 | sgemm | 0.000150 | 2.07x |
+| runica product | dtype | Native NumPy `@` (s) | Native BLAS (s) | Native speedup | Pyodide NumPy `@` (s) | Pyodide BLAS (s) | Pyodide speedup |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| activation | float64 | 0.000016 | 0.000018 | 0.88x | 0.000239 | 0.000106 | 2.26x |
+| activation | float32 | 0.000009 | 0.000015 | 0.62x | 0.000251 | 0.000246 | 1.02x |
+| weight_update | float64 | 0.000011 | 0.000018 | 0.61x | 0.000308 | 0.000127 | 2.43x |
+| weight_update | float32 | 0.000008 | 0.000015 | 0.53x | 0.000311 | 0.000150 | 2.07x |
 
 ### Decisions
 

@@ -73,14 +73,21 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
     phase3_gate_results = []
     for case in REQUIRED_MATMUL_CASES:
         for dtype, blas_name in (("float64", "dgemm"), ("float32", "sgemm")):
+            native_numpy_result = _matmul_lookup(native, case, dtype, "numpy_matmul")
+            native_blas_result = _matmul_lookup(native, case, dtype, blas_name)
             numpy_result = _matmul_lookup(pyodide, case, dtype, "numpy_matmul")
             blas_result = _matmul_lookup(pyodide, case, dtype, blas_name)
+            native_speedup = native_numpy_result["median_seconds"] / native_blas_result["median_seconds"]
             speedup = numpy_result["median_seconds"] / blas_result["median_seconds"]
             phase3_gate_results.append(speedup >= BLAS_SPEEDUP_GATE)
             matmul.append(
                 {
                     "case": case,
                     "dtype": dtype,
+                    "native_numpy_median_seconds": native_numpy_result["median_seconds"],
+                    "native_blas": blas_name,
+                    "native_blas_median_seconds": native_blas_result["median_seconds"],
+                    "native_blas_speedup_over_numpy": native_speedup,
                     "numpy_median_seconds": numpy_result["median_seconds"],
                     "blas": blas_name,
                     "blas_median_seconds": blas_result["median_seconds"],
@@ -124,14 +131,16 @@ def _markdown(comparison: dict[str, Any]) -> str:
             "",
             "## Matrix multiplication",
             "",
-            "| runica product | dtype | NumPy @ median (s) | SciPy BLAS | BLAS median (s) | BLAS speedup |",
-            "| --- | --- | ---: | --- | ---: | ---: |",
+            "| runica product | dtype | Native NumPy @ (s) | Native BLAS (s) | Native speedup | Pyodide NumPy @ (s) | Pyodide BLAS (s) | Pyodide speedup |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for result in comparison["matmul"]:
         lines.append(
-            f"| {result['case']} | {result['dtype']} | {result['numpy_median_seconds']:.6f} | {result['blas']} | "
-            f"{result['blas_median_seconds']:.6f} | {result['blas_speedup_over_numpy']:.2f}x |"
+            f"| {result['case']} | {result['dtype']} | {result['native_numpy_median_seconds']:.6f} | "
+            f"{result['native_blas_median_seconds']:.6f} | {result['native_blas_speedup_over_numpy']:.2f}x | "
+            f"{result['numpy_median_seconds']:.6f} | {result['blas_median_seconds']:.6f} | "
+            f"{result['blas_speedup_over_numpy']:.2f}x |"
         )
     decisions = comparison["decisions"]
     lines.extend(
