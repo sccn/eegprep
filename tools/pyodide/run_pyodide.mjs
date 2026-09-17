@@ -177,14 +177,21 @@ await micropip.install(
   const scriptCode = `
 import os
 import runpy
+import inspect
 import sys
 ${args.sample_data_dir ? 'os.environ["EEGPREP_SAMPLE_DATA"] = "/tmp/eegprep-sample-data"' : ""}
 sys.argv = ${JSON.stringify([scriptPath, ...args.scriptArgs])}
 try:
-    runpy.run_path(${JSON.stringify(scriptPath)}, run_name="__main__")
+    script_globals = runpy.run_path(${JSON.stringify(scriptPath)}, run_name="__main__")
 except SystemExit as exc:
     if exc.code not in (None, 0):
         raise
+else:
+    async_result = script_globals.get("__eegprep_async_result__")
+    if inspect.isawaitable(async_result):
+        result = await async_result
+        if result not in (None, 0):
+            raise SystemExit(result)
 `;
   try {
     await pyodide.runPythonAsync(scriptCode);

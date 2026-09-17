@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import sys
 
 import numpy as np
 
@@ -56,7 +57,7 @@ def run_parity(platform: str, sample_data_dir: Path) -> dict:
     return asyncio.run(_run_parity(platform, sample_data_dir))
 
 
-def main() -> int:
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--platform", choices=("native", "pyodide"), required=True)
     parser.add_argument(
@@ -64,10 +65,23 @@ def main() -> int:
         type=Path,
         default=Path(os.environ.get("EEGPREP_SAMPLE_DATA", "sample_data")),
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+async def _async_main() -> int:
+    args = _parse_args()
+    print(json.dumps(await _run_parity(args.platform, args.sample_data_dir), sort_keys=True))
+    return 0
+
+
+def main() -> int:
+    args = _parse_args()
     print(json.dumps(run_parity(args.platform, args.sample_data_dir), sort_keys=True))
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if sys.platform == "emscripten":
+        __eegprep_async_result__ = _async_main()
+    else:
+        raise SystemExit(main())
