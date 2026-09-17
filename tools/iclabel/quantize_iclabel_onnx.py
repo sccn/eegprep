@@ -11,6 +11,7 @@ softmax.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -36,6 +37,15 @@ DEFAULT_ARTIFACT_DIR = Path(__file__).with_name("artifacts")
 DEFAULT_WEIGHT_ONLY_ARTIFACT = DEFAULT_ARTIFACT_DIR / "iclabel_int8_weight_only.onnx"
 DEFAULT_CALIBRATED_ARTIFACT = DEFAULT_ARTIFACT_DIR / "iclabel_int8_calibrated.onnx"
 DEFAULT_REPORT = Path(__file__).with_name("parity_report.json")
+_HASH_CHUNK_SIZE = 1024 * 1024
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(_HASH_CHUNK_SIZE), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def load_frozen_manifest(path: Path = DEFAULT_FROZEN_MANIFEST) -> dict[str, Any]:
@@ -326,9 +336,17 @@ def evaluate_artifacts(
             "minimum_top1_agreement": MIN_TOP1_AGREEMENT,
             "minimum_keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
         },
+        "quantization": {
+            "feature_dtype": "float32",
+            "input_normalization_and_augmentation": "unchanged from iclabel.py",
+            "output_softmax": "unchanged from the float32 graph",
+            "weight_only": "per-output-channel int8 Conv weights with float DequantizeLinear before Conv",
+            "calibrated": "ONNX Runtime static per-channel Conv QDQ with MinMax calibration and float model I/O",
+        },
         "float32_reference": {
             "artifact": Path(float32_artifact).name,
             "size_bytes": Path(float32_artifact).stat().st_size,
+            "sha256": _sha256(float32_artifact),
             **compare_predictions(teacher, teacher, thresholds),
         },
         "candidates": {},
@@ -338,6 +356,7 @@ def evaluate_artifacts(
         report["candidates"][name] = {
             "artifact": Path(artifact).name,
             "size_bytes": Path(artifact).stat().st_size,
+            "sha256": _sha256(artifact),
             "gate_pass": parity_gate_passes(metrics),
             **metrics,
         }
