@@ -194,6 +194,33 @@ class LazyWorkspaceExport:
         return f"<EEGPrep export {self.name}>"
 
 
+class ConsoleAsyncFunction(LazyWorkspaceExport):
+    """Console wrapper that rejects stale results from public async functions."""
+
+    def __init__(
+        self,
+        name: str,
+        bridge: EEGPrepConsoleWorkspace,
+        value: Any | None = None,
+        resolver: Callable[[], Any] | None = None,
+    ) -> None:
+        super().__init__(name, value=value, resolver=resolver)
+        self.bridge = bridge
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        target_state = self.bridge.session.dataset_state_token()
+        return self._call_async(target_state, *args, **kwargs)
+
+    async def _call_async(self, target_state: tuple[Any, ...], *args: Any, **kwargs: Any) -> Any:
+        result = await self.resolve()(*args, **kwargs)
+        if not self.bridge.session.dataset_state_unchanged(target_state):
+            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+        return result
+
+    def __repr__(self) -> str:
+        return f"<EEGPrep console async function {self.name}>"
+
+
 class ConsolePopFunction(LazyWorkspaceExport):
     """Console wrapper that stores ``pop_*`` EEG outputs back into the session."""
 
@@ -209,7 +236,8 @@ class ConsolePopFunction(LazyWorkspaceExport):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.name == "pop_iclabel_async":
-            return self._call_async(*args, **kwargs)
+            target_state = self.bridge.session.dataset_state_token()
+            return self._call_async(target_state, *args, **kwargs)
         function = self.resolve()
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
@@ -258,14 +286,16 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 self.bridge._pop_updated_session = True
                 self.bridge.pull_from_session()
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
+        eeg_result, result_command = _extract_pop_eeg_and_command(result)
+        if not result_command and eeg_result is self.bridge.session.EEG:
+            self.bridge.session.notify_changed(dataset_changed=True)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
-    async def _call_async(self, *args: Any, **kwargs: Any) -> Any:
+    async def _call_async(self, target_state: tuple[Any, ...], *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
         call_kwargs = dict(kwargs)
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
-        target_state = self.bridge.session.dataset_state_token()
         result = await function(*args, **call_kwargs)
         if not self.bridge.session.dataset_state_unchanged(target_state):
             raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
@@ -284,6 +314,8 @@ class ConsoleEEGPrepModule:
     def __getattr__(self, name: str) -> Any:
         if name.startswith("pop_"):
             return self._bridge.pop_wrapper(name)
+        if name == "iclabel_async":
+            return self._bridge.async_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
         return getattr(eegprep, name)
@@ -362,6 +394,8 @@ class EEGPrepConsoleWorkspace:
         self.namespace: dict[str, Any] = {}
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
+        self._wrapped_async_exports: dict[str, ConsoleAsyncFunction] = {}
+        self._export_values = dict(exports or {})
         self._syncing = False
         self._pop_updated_session = False
         self._pop_needs_source_history = False
@@ -387,6 +421,7 @@ class EEGPrepConsoleWorkspace:
         """Mirror session state into the console namespace."""
         self.namespace["eegprep"] = self._eegprep_proxy
         self.namespace.update(self._wrapped_pop_exports)
+        self.namespace.update(self._wrapped_async_exports)
         self.namespace["EEG"] = self.session.EEG
         self.namespace["ALLEEG"] = self.session.ALLEEG
         self.namespace["CURRENTSET"] = self.session.current_set_value()
@@ -550,6 +585,10 @@ class EEGPrepConsoleWorkspace:
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
                 self.namespace[name] = wrapped
+            elif name == "iclabel_async":
+                wrapped = ConsoleAsyncFunction(name, self, None if exports is None else exports[name])
+                self._wrapped_async_exports[name] = wrapped
+                self.namespace[name] = wrapped
             else:
                 self.namespace[name] = LazyWorkspaceExport(name, None if exports is None else exports[name])
 
@@ -569,6 +608,15 @@ class EEGPrepConsoleWorkspace:
             resolver = pop_function.load if pop_function is not None else None
             wrapped = ConsolePopFunction(name, self, resolver=resolver)
             self._wrapped_pop_exports[name] = wrapped
+        return wrapped
+
+    def async_wrapper(self, name: str) -> ConsoleAsyncFunction:
+        """Return the console-aware wrapper for a public async function."""
+        wrapped = self._wrapped_async_exports.get(name)
+        if wrapped is None:
+            value = self._export_values.get(name)
+            wrapped = ConsoleAsyncFunction(name, self, value=value)
+            self._wrapped_async_exports[name] = wrapped
         return wrapped
 
     def _session_changed(self, _session: EEGPrepSession) -> None:
@@ -592,6 +640,8 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[local_name] = self._eegprep_proxy
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
+            elif export_name == "iclabel_async":
+                self.namespace[local_name] = self.async_wrapper(export_name)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True

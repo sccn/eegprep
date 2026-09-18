@@ -6,6 +6,8 @@ import numpy as np
 from eegprep import ICL_feature_extractor, iclabel, pop_loadset
 from eegprep.utils.testing import has_optional_dependency
 
+from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
+from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 import eegprep.plugins.ICLabel.iclabel as iclabel_module
 import eegprep.plugins.ICLabel.iclabel_net_onnx as iclabel_onnx_module
 
@@ -90,6 +92,12 @@ def _reference_postprocess(output):
     output = np.mean(output, axis=1)
     output = np.reshape(output, (7, -1), order='F')
     return output.T
+
+
+def test_postprocess_matches_independent_reference():
+    output = np.arange(56, dtype=np.float32).reshape(4, 7, 2, 1)
+
+    np.testing.assert_array_equal(iclabel_module._postprocess_network_output(output), _reference_postprocess(output))
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -209,7 +217,16 @@ class TestICLabelRuntime(unittest.TestCase):
         self.assertEqual(classifications.shape[1], 7)
         self.assertTrue(np.isfinite(classifications).all())
         self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
+        difference = np.abs(classifications - reference)
+        self.assertLess(float(difference.max()), 1e-2)
+        self.assertLess(float(difference.mean()), 1e-3)
         np.testing.assert_array_equal(classifications.argmax(axis=1), reference.argmax(axis=1))
+
+        def rejection_flags(probabilities):
+            labelled = {'etc': {'ic_classification': {'ICLabel': {'classifications': probabilities}}}}
+            return eeg_icflag(labelled, DEFAULT_ICFLAG_THRESHOLDS)['reject']['gcompreject']
+
+        np.testing.assert_array_equal(rejection_flags(classifications), rejection_flags(reference))
 
 
 if __name__ == '__main__':

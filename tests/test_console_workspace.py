@@ -247,6 +247,69 @@ def test_console_async_iclabel_pop_updates_shared_session_once():
     workspace.close()
 
 
+def test_console_async_iclabel_captures_state_before_coroutine_starts():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_pop(eeg, *, return_com=False):
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
+    pending = workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"])
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(pending)
+
+    assert session.EEG["setname"] == "second"
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+def test_console_iclabel_async_export_captures_state_before_coroutine_starts():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    assert workspace.namespace["eegprep"].iclabel_async is workspace.namespace["iclabel_async"]
+    pending = workspace.namespace["iclabel_async"](workspace.namespace["EEG"])
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(pending)
+
+    assert session.EEG["setname"] == "second"
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+def test_console_in_place_pop_result_marks_dataset_changed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    token = session.dataset_state_token()
+
+    def save_in_place(eeg):
+        eeg["saved"] = "yes"
+        return eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_saveset": save_in_place})
+    workspace.namespace["pop_saveset"](workspace.namespace["EEG"])
+
+    assert not session.dataset_state_unchanged(token)
+    assert session.EEG["saved"] == "yes"
+    workspace.close()
+
+
 def test_console_async_iclabel_pop_preserves_ordered_dataset_selection():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)

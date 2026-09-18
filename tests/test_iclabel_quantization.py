@@ -16,12 +16,25 @@ from tools.iclabel.quantize_iclabel_onnx import (
     evaluate_artifacts,
     load_frozen_manifest,
     load_verified_feature_archive,
+    network_inputs_from_features,
     parity_gate_passes,
     predict_features,
     quantize_calibrated,
     quantize_weight_only,
     select_default_artifact,
 )
+
+
+def _reference_network_inputs(features):
+    topo, psdmed, autocorr = features
+    topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
+    psdmed = np.single(np.tile(psdmed, (1, 1, 1, 4)))
+    autocorr = np.single(np.tile(autocorr, (1, 1, 1, 4)))
+    return {
+        "image": np.transpose(topo, (3, 2, 0, 1)),
+        "psdmed": np.transpose(psdmed, (3, 2, 0, 1)),
+        "autocorr": np.transpose(autocorr, (3, 2, 0, 1)),
+    }
 
 
 def test_frozen_manifest_is_subject_balanced_and_calibration_disjoint():
@@ -78,6 +91,16 @@ def test_frozen_feature_archive_hash_is_verified(tmp_path):
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         load_verified_feature_archive(mutated, manifest, "evaluation")
+
+
+def test_quantization_inputs_match_independent_reference_transform():
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    actual = network_inputs_from_features(features)
+    expected = _reference_network_inputs(features)
+
+    for name in expected:
+        np.testing.assert_array_equal(actual[name], expected[name])
 
 
 def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
