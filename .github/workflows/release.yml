@@ -135,8 +135,11 @@ jobs:
           fi
 
           # Packaged data the runtime needs.
-          if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" = "0" ]; then
-            echo "::error::ICLabel weights (netICL.mat) missing from the wheel"; exit 1
+          if [ "$(unzip -l "$whl" | grep -c 'iclabel.onnx' || true)" = "0" ]; then
+            echo "::error::ICLabel network (iclabel.onnx) missing from the wheel"; exit 1
+          fi
+          if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" != "0" ]; then
+            echo "::error::ICLabel weights (netICL.mat) should not ship in the wheel; export iclabel.onnx instead"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1

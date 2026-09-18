@@ -74,6 +74,26 @@ Optional Dependencies
 
 eegprep has several optional dependencies that enable additional functionality:
 
+ICLabel (component classification)
+-----------------------------------
+
+``pop_iclabel``/``iclabel`` classify independent components through a
+packaged ONNX network run with `onnxruntime`. Install the ``iclabel`` extra
+to enable it:
+
+.. code-block:: bash
+
+    uv add "eegprep[iclabel]"
+
+PyTorch is not required to run ICLabel classification; it is only needed to
+regenerate the preserved float32 reference
+``tools/iclabel/artifacts/iclabel_float32.onnx`` from ``netICL.mat`` during
+development (see ``tools/iclabel/export_iclabel_onnx.py``). The package's
+``iclabel.onnx`` is the Phase 6 gate-selected weight-only int8 artifact (about
+2.93 MB); the quantization and frozen-set evaluation workflow is documented in
+``tools/iclabel/quantize_iclabel_onnx.py`` and
+``tools/iclabel/evaluation_manifest.json``.
+
 PyTorch (for GPU acceleration)
 ------------------------------
 
@@ -94,6 +114,38 @@ For CPU-only PyTorch:
 .. code-block:: bash
 
     uv add torch --index-url https://download.pytorch.org/whl/cpu
+
+MATLAB/Octave Parity Helpers
+-----------------------------
+
+``eeglab_eeg_checkset``, ``clean_drifts``, and other helpers in
+``eeglabcompat`` can call into a real EEGLAB installation through Octave for
+development and parity testing. This path needs ``oct2py``, which is not
+installed by default because it pulls in several packages with no
+WebAssembly build. Install it with the ``eeglab`` extra:
+
+.. code-block:: bash
+
+    uv add "eegprep[eeglab]"
+
+Without this extra, calling ``get_eeglab('OCT')`` raises an ``ImportError``
+naming this extra.
+
+System-Aware Parallel Jobs
+---------------------------
+
+``bids_preproc``'s ``ReservePerJob`` argument can size the number of
+parallel jobs from available system RAM (for example ``"4GB"``). This needs
+``psutil``, which is not installed by default. Install it with the ``sys``
+extra:
+
+.. code-block:: bash
+
+    uv add "eegprep[sys]"
+
+Without this extra, a memory-based ``ReservePerJob`` reservation raises an
+``ImportError`` naming this extra. CPU-based reservations (for example
+``"2CPU"``) do not need it.
 
 AMICA
 -----
@@ -147,7 +199,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[torch,gui,docs]"
+    uv add "eegprep[iclabel,gui,docs,eeglab,sys]"
 
 Verification
 ============

@@ -1,12 +1,17 @@
 """ICLabel module for classifying independent components in EEG data."""
 
 from copy import deepcopy
-import os
+import sys
 
 import numpy as np
 
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
+_IS_EMSCRIPTEN = sys.platform == 'emscripten'
+SYNC_UNAVAILABLE_MESSAGE = (
+    'ICLabel synchronous entry points are unavailable under Emscripten; '
+    'use await iclabel_async(...) or await pop_iclabel_async(...).'
+)
 
 
 def iclabel(EEG, algorithm='default', engine=None):
@@ -30,90 +35,104 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
+    if _IS_EMSCRIPTEN:
+        raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
+    return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
+
+
+async def iclabel_async(EEG, algorithm='default', engine=None):
+    """Apply ICLabel through an awaitable native or browser backend.
+
+    The browser backend is selected once when the ICLabel module is loaded and
+    awaits the ONNX Runtime Web Promise. Native callers may use this entry
+    point as an asynchronous spelling of the same pure processing operation.
+    """
     algorithm = _normalize_algorithm(algorithm)
     EEG = deepcopy(EEG)
 
-    # Check if using MATLAB or Octave implementation
+    if engine in ['matlab', 'octave']:
+        if _IS_EMSCRIPTEN:
+            raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
+        return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
+    if engine is not None:
+        raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
+    if algorithm != 'default':
+        raise NotImplementedError(
+            "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
+            f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
+            "and an EEGLAB ICLabel checkout that provides that artifact."
+        )
+
+    from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net_async
+
+    image, psdmed, autocorr = _prepare_features(EEG)
+    output_np = await run_iclabel_net_async(image, psdmed, autocorr)
+    return _attach_classification(EEG, output_np, algorithm)
+
+
+def _iclabel_sync(EEG, algorithm='default', engine=None):
+    algorithm = _normalize_algorithm(algorithm)
+    EEG = deepcopy(EEG)
+
     if engine in ['matlab', 'octave']:
         from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
-        # Determine which engine to use
         runtime = 'MAT' if engine == 'matlab' else 'OCT'
         eeglab = get_eeglab(runtime=runtime)
-
-        # Run ICLabel using MATLAB/Octave, passing the algorithm parameter
         if algorithm == 'default':
             return eeglab.iclabel(EEG)
-        else:
-            return eeglab.iclabel(EEG, algorithm)
-
-    # Default Python implementation
-    elif engine is None:
-        if algorithm != 'default':
-            raise NotImplementedError(
-                "EEGPrep standalone Python ICLabel only ships the default network (netICL.mat). "
-                f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
-                "and an EEGLAB ICLabel checkout that provides that artifact."
-            )
-        try:
-            import torch
-        except ImportError as e:
-            raise ImportError(
-                f"PyTorch is not installed in your environment ({e}). "
-                f"To include torch, install eegprep as eegprep[all] or "
-                f"install the torch package manually (see Getting Started "
-                f"on pytorch.org for specifics for your platform)."
-            ) from e
-
-        from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
-        from eegprep import ICL_feature_extractor
-
-        # ICLABEL Extract ICLabel features from an EEG dataset.
-        features = ICL_feature_extractor(EEG, True)
-
-        # Equivalent of MATLAB code reshaping
-        features[0] = np.single(
-            np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
-        )
-        features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
-        features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-        # print('Feature 0 shape:', features[0].shape)
-        # print('Feature 1 shape:', features[1].shape)
-        # print('Feature 2 shape:', features[2].shape)
-
-        # Load the ICLabelNet model
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(base_dir, 'netICL.mat')
-        model = ICLabelNet(data_path)
-
-        # Convert the features to torch tensors
-        image = torch.tensor(features[0]).permute(-1, 2, 0, 1)
-        psdmed = torch.tensor(features[1]).permute(-1, 2, 0, 1)
-        autocorr = torch.tensor(features[2]).permute(-1, 2, 0, 1)
-
-        # Get the output from the model
-        output = model(image, psdmed, autocorr)
-        output_np = output.detach().numpy()
-        output_np = output_np.T  # Transpose the array
-        output_np = np.reshape(output_np, (-1, 4), order='F')  # Reshape to have 4 columns
-        output_np = np.mean(output_np, axis=1)  # Compute the mean along the second axis (columns)
-        output_np = np.reshape(output_np, (7, -1), order='F')  # Reshape to have 7 rows
-        output_np = output_np.T  # Transpose back
-
-        if 'ic_classification' not in EEG['etc']:
-            EEG['etc']['ic_classification'] = {}
-        if 'ICLabel' not in EEG['etc']['ic_classification']:
-            EEG['etc']['ic_classification']['ICLabel'] = {}
-
-        EEG['etc']['ic_classification']['ICLabel']['classes'] = np.array(
-            ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'], dtype=object
-        )
-        EEG['etc']['ic_classification']['ICLabel']['classifications'] = output_np
-        EEG['etc']['ic_classification']['ICLabel']['version'] = algorithm
-
-        return EEG
-    else:
+        return eeglab.iclabel(EEG, algorithm)
+    if engine is not None:
         raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
+    if algorithm != 'default':
+        raise NotImplementedError(
+            "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
+            f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
+            "and an EEGLAB ICLabel checkout that provides that artifact."
+        )
+
+    from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
+
+    image, psdmed, autocorr = _prepare_features(EEG)
+    output_np = run_iclabel_net(image, psdmed, autocorr)
+    return _attach_classification(EEG, output_np, algorithm)
+
+
+def _prepare_features(EEG):
+    from eegprep import ICL_feature_extractor
+
+    features = ICL_feature_extractor(EEG, True)
+    features[0] = np.single(
+        np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
+    )
+    features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
+    features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
+
+    return (
+        np.transpose(features[0], (3, 2, 0, 1)),
+        np.transpose(features[1], (3, 2, 0, 1)),
+        np.transpose(features[2], (3, 2, 0, 1)),
+    )
+
+
+def _attach_classification(EEG, output_np, algorithm):
+    output_np = output_np.T
+    output_np = np.reshape(output_np, (-1, 4), order='F')
+    output_np = np.mean(output_np, axis=1)
+    output_np = np.reshape(output_np, (7, -1), order='F')
+    output_np = output_np.T
+
+    if 'ic_classification' not in EEG['etc']:
+        EEG['etc']['ic_classification'] = {}
+    if 'ICLabel' not in EEG['etc']['ic_classification']:
+        EEG['etc']['ic_classification']['ICLabel'] = {}
+
+    EEG['etc']['ic_classification']['ICLabel']['classes'] = np.array(
+        ['Brain', 'Muscle', 'Eye', 'Heart', 'Line Noise', 'Channel Noise', 'Other'], dtype=object
+    )
+    EEG['etc']['ic_classification']['ICLabel']['classifications'] = output_np
+    EEG['etc']['ic_classification']['ICLabel']['version'] = algorithm
+    return EEG
 
 
 def _normalize_algorithm(algorithm):

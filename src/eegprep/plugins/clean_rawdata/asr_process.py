@@ -10,6 +10,12 @@ from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
 
+# Fixed memory budget (MB) used when max_mem is not given. Matches the maxmem=64 default
+# already used by asr_calibrate() and clean_asr() elsewhere in this plugin, so the whole ASR
+# pipeline assumes the same memory budget without probing the runtime environment (psutil is
+# an optional dependency and has no WebAssembly build).
+DEFAULT_MAX_MEM_MB = 64
+
 
 def asr_process(
     data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False
@@ -37,8 +43,8 @@ def asr_process(
                                   Max: window_len * srate. Default: 32.
         max_dims (float or int, optional): Maximum dimensions/fraction of dimensions to remove.
                                          Default: 0.66 (fraction).
-        max_mem (int, optional): Maximum memory in MB for processing large chunks. Process in one block if None.
-                                 Default: None.
+        max_mem (int, optional): Maximum memory in MB for processing large chunks.
+                                 Default: None, which resolves to DEFAULT_MAX_MEM_MB (64 MB).
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
     Returns
@@ -60,10 +66,7 @@ def asr_process(
     if lookahead is None:
         lookahead = window_len / 2
     if max_mem is None:
-        # use at most half of available memory
-        import psutil
-
-        max_mem = psutil.virtual_memory().free / 1024**2 / 2
+        max_mem = DEFAULT_MAX_MEM_MB
 
     # Ensure window length is adequate
     window_len = max(window_len, 1.5 * C / srate)
@@ -108,15 +111,7 @@ def asr_process(
     # Calculate number of splits for memory management
 
     if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
-        logger.warning(
-            "Memory too low, increasing it (rejection block size now "
-            "depends on available memory so it might not be fully reproducible)..."
-        )
-        import psutil
-
-        max_mem = psutil.virtual_memory().free / 1024**2 / 2
-        if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
-            raise RuntimeError('Not enough memory')
+        raise RuntimeError('Not enough memory')
 
     # Calculate memory bytes needed (following reference implementation formula)
     bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5

@@ -4,8 +4,14 @@ from typing import Optional
 
 import numpy as np
 
-from ....functions.adminfunc.eeglabcompat import get_eeglab
 from .sphericalSplineInterpolate import sphericalSplineInterpolate
+
+
+def get_eeglab(*args, **kwargs):
+    """Load the EEGLAB bridge only when a MATLAB or Octave path needs it."""
+    from ....functions.adminfunc.eeglabcompat import get_eeglab as load_eeglab
+
+    return load_eeglab(*args, **kwargs)
 
 
 def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:

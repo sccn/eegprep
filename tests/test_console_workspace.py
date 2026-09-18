@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 from contextlib import redirect_stderr
 import io
 import importlib
@@ -87,6 +88,13 @@ def _fake_pop_reref(EEG, ref, *, return_com=False):
 def _fake_pop_without_command(eeg, *, return_com=False):
     output = dict(eeg, setname="no-history-command")
     return (output, "") if return_com else output
+
+
+async def _fake_pop_iclabel_async(eeg, icversion="default", *, return_com=False):
+    del icversion
+    output = dict(eeg, setname="async-iclabel")
+    command = "EEG = await pop_iclabel_async(EEG, 'default');"
+    return (output, command) if return_com else output
 
 
 def _fake_pop_topoplot(eeg, *, return_com=False):
@@ -221,6 +229,75 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
     finally:
         EEG_OPTIONS.clear()
         EEG_OPTIONS.update(old_options)
+
+
+def test_console_async_iclabel_pop_updates_shared_session_once():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": _fake_pop_iclabel_async})
+
+    result = asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+    workspace.after_execute("await pop_iclabel_async(EEG)")
+
+    assert result.eeg is session.EEG
+    assert session.EEG["setname"] == "async-iclabel"
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM == ["EEG = await pop_iclabel_async(EEG, 'default');"]
+    assert workspace.namespace["LASTCOM"] == session.LASTCOM
+    workspace.close()
+
+
+def test_console_async_iclabel_pop_preserves_ordered_dataset_selection():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve([2, 1])
+
+    async def fake_pop(eeg, *, return_com=False):
+        output = [dict(item, setname=f"updated-{item['setname']}") for item in eeg]
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
+    asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+    workspace.after_execute("await pop_iclabel_async(EEG)")
+
+    assert session.CURRENTSET == [2, 1]
+    assert [session.ALLEEG[index - 1]["setname"] for index in session.CURRENTSET] == ["updated-second", "updated-first"]
+    assert session.ALLCOM == ["EEG = await pop_iclabel_async(EEG, 'default');"]
+    workspace.close()
+
+
+def test_console_async_iclabel_history_replay_awaits_without_duplicate_history():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    session.add_history("EEG = await pop_iclabel_async(EEG, 'default');")
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": _fake_pop_iclabel_async})
+
+    replayed = asyncio.run(workspace.namespace["eegh"](1))
+
+    assert replayed == "EEG = await pop_iclabel_async(EEG, 'default');"
+    assert session.EEG["setname"] == "async-iclabel"
+    assert session.ALLCOM == ["EEG = await pop_iclabel_async(EEG, 'default');"]
+    workspace.close()
+
+
+def test_console_async_iclabel_failure_does_not_mutate_session():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def failing_pop(_eeg, *, return_com=False):
+        del return_com
+        raise RuntimeError("browser inference failed")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": failing_pop})
+    with pytest.raises(RuntimeError, match="browser inference failed"):
+        asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+
+    assert session.EEG["setname"] == "demo"
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM == []
+    workspace.close()
 
 
 def test_console_currentset_reassignment_preserves_both_datasets():

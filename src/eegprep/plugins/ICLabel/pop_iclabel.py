@@ -6,7 +6,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.plugins.ICLabel.iclabel import iclabel
+from eegprep.plugins.ICLabel.iclabel import SYNC_UNAVAILABLE_MESSAGE, _IS_EMSCRIPTEN, iclabel, iclabel_async
 
 
 _VERSIONS = ("default", "lite", "beta")
@@ -22,6 +22,59 @@ def pop_iclabel(
     return_com: bool = False,
 ):
     """Classify independent components using ICLabel."""
+    if _IS_EMSCRIPTEN:
+        raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
+    return _pop_iclabel_sync(
+        EEG,
+        icversion=icversion,
+        gui=gui,
+        renderer=renderer,
+        engine=engine,
+        return_com=return_com,
+    )
+
+
+async def pop_iclabel_async(
+    EEG,
+    icversion: str | None = None,
+    *,
+    gui: bool | None = None,
+    renderer=None,
+    engine=None,
+    return_com: bool = False,
+):
+    """Classify independent components through an awaitable ICLabel backend."""
+    if EEG is None:
+        return (None, "") if return_com else None
+    if gui is None:
+        gui = icversion is None
+    if gui:
+        result = _run_gui(renderer=renderer)
+        if result is None:
+            return (EEG, "") if return_com else EEG
+        icversion = result["icversion"]
+    icversion = "default" if icversion is None else str(icversion).lower()
+    if icversion not in _VERSIONS:
+        raise ValueError("icversion must be one of 'default', 'lite', or 'beta'")
+    if isinstance(EEG, list):
+        output = [await pop_iclabel_async(item, icversion, gui=False, engine=engine) for item in EEG]
+        command = _history_command(icversion, asynchronous=True)
+        return (output, command) if return_com else output
+    _require_ica(EEG)
+    output = await iclabel_async(EEG, algorithm=icversion, engine=engine)
+    command = _history_command(icversion, asynchronous=True)
+    return (output, command) if return_com else output
+
+
+def _pop_iclabel_sync(
+    EEG,
+    *,
+    icversion: str | None,
+    gui: bool | None,
+    renderer,
+    engine,
+    return_com: bool,
+):
     if EEG is None:
         return (None, "") if return_com else None
     if gui is None:
@@ -75,5 +128,6 @@ def _require_ica(EEG):
         raise ValueError("ICLabel requires an ICA decomposition. Run pop_runica first.")
 
 
-def _history_command(icversion):
-    return f"EEG = pop_iclabel(EEG, '{icversion}');"
+def _history_command(icversion, *, asynchronous=False):
+    await_prefix = "await " if asynchronous else ""
+    return f"EEG = {await_prefix}pop_iclabel{'' if not asynchronous else '_async'}(EEG, '{icversion}');"

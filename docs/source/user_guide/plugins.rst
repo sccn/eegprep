@@ -121,15 +121,27 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network. ``lite`` and
-``beta`` network requests require MATLAB or Octave with an EEGLAB ICLabel
-checkout that provides those artifacts.
+The standalone Python engine ships the default ICLabel network as an ONNX
+artifact and classifies through `onnxruntime` (``eegprep[iclabel]``). ``lite``
+and ``beta`` network requests require MATLAB or Octave with an EEGLAB
+ICLabel checkout that provides those artifacts.
 
 .. code-block:: python
 
    EEG, com = pop_iclabel(EEG, "default", return_com=True)
    stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
    EEG, com = pop_icflag(EEG, return_com=True)
+
+In a Pyodide/Emscripten browser runtime, use the asynchronous entry point and
+await the ONNX Runtime Web-backed operation:
+
+.. code-block:: python
+
+   EEG, com = await pop_iclabel_async(EEG, "default", return_com=True)
+
+The browser host supplies the ONNX Runtime Web bridge. The synchronous
+``iclabel`` and ``pop_iclabel`` entry points are intentionally unavailable in
+that runtime; native Python behavior is unchanged.
 
 Review components visually with ``pop_viewprops`` before removing them.
 

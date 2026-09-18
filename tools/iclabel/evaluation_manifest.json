@@ -1,0 +1,208 @@
+{
+  "status": "frozen",
+  "frozen_on": "2026-09-17",
+  "purpose": "Held-out subject-disjoint real independent components for ICLabel float32 versus int8 parity.",
+  "dataset": {
+    "nemar_dataset_id": "on002680",
+    "openneuro_source_id": "ds002680",
+    "nemar_version": "v1.0.0",
+    "nemar_doi": "10.82901/nemar.on002680.v1.0.0",
+    "openneuro_doi": "10.18112/openneuro.ds002680.v1.2.0",
+    "license": "CC0",
+    "catalog_url": "https://api.nemar.org/datasets/on002680",
+    "dataset_url": "https://nemar.org/dataset/on002680",
+    "mirror_repository": "https://github.com/nemarDatasets/on002680",
+    "mirror_commit": "5cadd7d16423313a103ba24655e31245ffba8a4e",
+    "nemar_zarr_source_commit": "a8ebb56c5a2c4ee91a30d0b0d29072b3271d4384",
+    "source_pointer_url_template": "https://raw.githubusercontent.com/nemarDatasets/on002680/5cadd7d16423313a103ba24655e31245ffba8a4e/{source_path}",
+    "s3_object_url_template": "https://nemar.s3.us-east-2.amazonaws.com/on002680/objects/{git_annex_key}",
+    "openneuro_s3_url_template": "https://s3.amazonaws.com/openneuro.org/ds002680/{source_path}"
+  },
+  "selection_policy": {
+    "subjects": [
+      "sub-002",
+      "sub-003",
+      "sub-004",
+      "sub-005",
+      "sub-006",
+      "sub-007",
+      "sub-008",
+      "sub-009",
+      "sub-010",
+      "sub-011",
+      "sub-012",
+      "sub-013",
+      "sub-014",
+      "sub-015"
+    ],
+    "evaluation_subjects": ["sub-002", "sub-003", "sub-004", "sub-005", "sub-006", "sub-007", "sub-008"],
+    "calibration_subjects": ["sub-009", "sub-010", "sub-011", "sub-012", "sub-013", "sub-014", "sub-015"],
+    "recordings_per_subject": 1,
+    "evaluation_session": "ses-01",
+    "calibration_session": "ses-01",
+    "run": "run-1",
+    "subject_disjoint": true,
+    "component_indices_are_zero_based": true,
+    "confidence_based_filtering": false,
+    "label_based_selection": false,
+    "selection_declared_before_quantized_evaluation": true,
+    "selection_bias_mitigation": "One complete recording is selected per subject in each split, seven subjects are equally represented per split, and every component emitted by the fixed ICA solve is retained. Evaluation and calibration subjects are disjoint. A pre-freeze audit found the session-01 and session-02 signal matrices identical for sampled subjects, so session identity is not treated as independence. No component or subject is selected or removed using float32 probabilities, labels, thresholds, or quantization results."
+  },
+  "preprocessing": {
+    "input_format": "Public NEMAR EEGLAB .set recordings with embedded data.",
+    "loader": "eegprep.pop_loadset",
+    "ica": "eegprep.functions.popfunc.eeg_runica.eeg_runica(EEG, extended=1, seed=379, rndreset='off', maxsteps=512, verbose=False)",
+    "ica_component_order": "eeg_runica output order; no post-hoc label- or confidence-based reordering",
+    "thread_policy": "OPENBLAS_NUM_THREADS=1, OMP_NUM_THREADS=1, MKL_NUM_THREADS=1",
+    "feature_extraction": "eegprep.plugins.ICLabel.ICL_feature_extractor.ICL_feature_extractor(EEG, True)",
+    "additional_filtering_or_resampling": "none",
+    "network_inputs": "The saved float32 features are expanded and transposed with the same four-way augmentation and NCHW conversion used by iclabel.py. Quantization does not alter feature extraction, normalization, augmentation, or softmax."
+  },
+  "generation": {
+    "script": "tools/iclabel/freeze_iclabel_evaluation.py",
+    "command": "MNE_DONTWRITE_HOME=true OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run --no-sync python -m tools.iclabel.freeze_iclabel_evaluation --manifest tools/iclabel/evaluation_manifest.json --data-dir <DATA_DIR> --output-dir tools/iclabel",
+    "data_directory_layout": "The script stores verified public .set objects below <DATA_DIR>/<split>/<source_path> and resumable per-recording feature checkpoints below <DATA_DIR>/features/<split>/<subject>.npz.",
+    "resume_rule": "Existing recordings are accepted only when their manifest size and MD5 match; existing feature checkpoints are accepted only when their expected float32 shapes and finiteness checks pass."
+  },
+  "evaluation": {
+    "component_count": 217,
+    "feature_archive": {
+      "path": "tools/iclabel/evaluation_features.npz",
+      "sha256": "dbb2c0cc063d29ab2e8e59fafb0f474df780a458ac17be9d4732abc0233c8b44",
+      "dtype": "float32",
+      "teacher_class_distribution": {
+        "Brain": 18,
+        "Muscle": 1,
+        "Eye": 5,
+        "Heart": 0,
+        "Line Noise": 0,
+        "Channel Noise": 0,
+        "Other": 193
+      }
+    },
+    "recordings": [
+      {
+        "subject": "sub-002",
+        "source_path": "sub-002/ses-01/eeg/sub-002_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27111528--f1afdab0abe67a78c043024e339847e1.set",
+        "size_bytes": 27111528,
+        "md5": "f1afdab0abe67a78c043024e339847e1"
+      },
+      {
+        "subject": "sub-003",
+        "source_path": "sub-003/ses-01/eeg/sub-003_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s29796960--5fb386464fa9ba3e5721784fe4866e08.set",
+        "size_bytes": 29796960,
+        "md5": "5fb386464fa9ba3e5721784fe4866e08"
+      },
+      {
+        "subject": "sub-004",
+        "source_path": "sub-004/ses-01/eeg/sub-004_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27130536--4957f1826c4a31181a733a045ad458a2.set",
+        "size_bytes": 27130536,
+        "md5": "4957f1826c4a31181a733a045ad458a2"
+      },
+      {
+        "subject": "sub-005",
+        "source_path": "sub-005/ses-01/eeg/sub-005_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s28284024--cabd9de4fa7aec31f848a4360d9c3865.set",
+        "size_bytes": 28284024,
+        "md5": "cabd9de4fa7aec31f848a4360d9c3865"
+      },
+      {
+        "subject": "sub-006",
+        "source_path": "sub-006/ses-01/eeg/sub-006_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27214856--ca68281bf7ec06dd1aa4d7591bb92db5.set",
+        "size_bytes": 27214856,
+        "md5": "ca68281bf7ec06dd1aa4d7591bb92db5"
+      },
+      {
+        "subject": "sub-007",
+        "source_path": "sub-007/ses-01/eeg/sub-007_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s32855400--537ecaa9169e6ce82d980f0f1a2f3968.set",
+        "size_bytes": 32855400,
+        "md5": "537ecaa9169e6ce82d980f0f1a2f3968"
+      },
+      {
+        "subject": "sub-008",
+        "source_path": "sub-008/ses-01/eeg/sub-008_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27967984--fa74eef298dea1a89109dc816506cd49.set",
+        "size_bytes": 27967984,
+        "md5": "fa74eef298dea1a89109dc816506cd49"
+      }
+    ]
+  },
+  "calibration": {
+    "component_count": 217,
+    "feature_archive": {
+      "path": "tools/iclabel/calibration_features.npz",
+      "sha256": "6d5ee10f8c2a62a336e3f6372e686e00adad763b3d25f92728477a025e7d9c77",
+      "dtype": "float32"
+    },
+    "recordings": [
+      {
+        "subject": "sub-009",
+        "source_path": "sub-009/ses-01/eeg/sub-009_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s29952960--fa3a60a1cab32edea706089d767ed6c2.set",
+        "size_bytes": 29952960,
+        "md5": "fa3a60a1cab32edea706089d767ed6c2"
+      },
+      {
+        "subject": "sub-010",
+        "source_path": "sub-010/ses-01/eeg/sub-010_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s28014160--e4506f8a5f506fed93dd18d47ce3235c.set",
+        "size_bytes": 28014160,
+        "md5": "e4506f8a5f506fed93dd18d47ce3235c"
+      },
+      {
+        "subject": "sub-011",
+        "source_path": "sub-011/ses-01/eeg/sub-011_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s31064192--99357f6d192139929b44b3373cc8e33e.set",
+        "size_bytes": 31064192,
+        "md5": "99357f6d192139929b44b3373cc8e33e"
+      },
+      {
+        "subject": "sub-012",
+        "source_path": "sub-012/ses-01/eeg/sub-012_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s28173976--8e009a8be773b494bde2403155062f5b.set",
+        "size_bytes": 28173976,
+        "md5": "8e009a8be773b494bde2403155062f5b"
+      },
+      {
+        "subject": "sub-013",
+        "source_path": "sub-013/ses-01/eeg/sub-013_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27891160--e33fa885e4b28ff90348e0b9ecf6d746.set",
+        "size_bytes": 27891160,
+        "md5": "e33fa885e4b28ff90348e0b9ecf6d746"
+      },
+      {
+        "subject": "sub-014",
+        "source_path": "sub-014/ses-01/eeg/sub-014_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s27532304--0f4427a4694ac72648a7fc428a6d8b0f.set",
+        "size_bytes": 27532304,
+        "md5": "0f4427a4694ac72648a7fc428a6d8b0f"
+      },
+      {
+        "subject": "sub-015",
+        "source_path": "sub-015/ses-01/eeg/sub-015_ses-01_task-gonogo_run-1_eeg.set",
+        "component_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+        "git_annex_key": "MD5E-s28665632--dcea224b0a2fbeed595b3ea1ea336d13.set",
+        "size_bytes": 28665632,
+        "md5": "dcea224b0a2fbeed595b3ea1ea336d13"
+      }
+    ]
+  }
+}
