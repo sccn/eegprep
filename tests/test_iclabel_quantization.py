@@ -15,6 +15,9 @@ from tools.iclabel.quantize_iclabel_onnx import (
     compare_predictions,
     evaluate_artifacts,
     load_frozen_manifest,
+    load_verified_feature_archive,
+    parity_gate_passes,
+    predict_features,
     quantize_calibrated,
     quantize_weight_only,
     select_default_artifact,
@@ -65,6 +68,18 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
     assert metrics["per_class_agreement"]["Other"]["agreement"] == pytest.approx(0.0)
 
 
+def test_frozen_feature_archive_hash_is_verified(tmp_path):
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    with np.load(DEFAULT_EVALUATION_FEATURES, allow_pickle=False) as archive:
+        features = {name: np.asarray(archive[name]).copy() for name in ("topo", "psd", "autocorr")}
+    features["topo"][0, 0, 0, 0] += 1.0
+    mutated = tmp_path / "evaluation_features.npz"
+    np.savez(mutated, **features)
+
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        load_verified_feature_archive(mutated, manifest, "evaluation")
+
+
 def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
     report = {
         "candidates": {
@@ -111,6 +126,18 @@ def test_packaged_artifact_matches_the_gate_selected_candidate():
     assert package_artifact.read_bytes() == DEFAULT_WEIGHT_ONLY_ARTIFACT.read_bytes()
 
 
+def test_packaged_default_artifact_passes_the_semantic_gate():
+    pytest.importorskip("onnxruntime")
+
+    package_artifact = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    teacher = predict_features(DEFAULT_FLOAT32_ARTIFACT, features)
+    candidate = predict_features(package_artifact, features)
+
+    assert parity_gate_passes(compare_predictions(teacher, candidate))
+
+
 def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
     pytest.importorskip("onnxruntime")
 
@@ -123,6 +150,11 @@ def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
     assert report["float32_reference"]["sample_count"] == 217
     assert report["float32_reference"]["top1_agreement"] == pytest.approx(1.0)
     assert report["float32_reference"]["keep_reject_agreement"] == pytest.approx(1.0)
+    assert report["feature_archives"]["evaluation"] == {
+        "path": "tools/iclabel/evaluation_features.npz",
+        "sha256": "dbb2c0cc063d29ab2e8e59fafb0f474df780a458ac17be9d4732abc0233c8b44",
+        "component_count": 217,
+    }
     assert report["default_artifact"] == "iclabel_int8_weight_only.onnx"
 
     expected_counts = {

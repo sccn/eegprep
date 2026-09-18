@@ -49,9 +49,9 @@ Unreleased
   ``netICL.mat``; install the new ``iclabel`` extra (``eegprep[iclabel]``) to run
   classification. torch is now needed only to regenerate the ONNX artifact from
   ``netICL.mat`` (``tools/iclabel/export_iclabel_onnx.py``), not to run ICLabel.
-  Classification results are numerically unchanged (verified against the previous
-  torch path, MATLAB parity fixtures, and mne-icalabel's independently exported
-  network on ``sample_data``).
+  The preserved float32 reference remains the probability-parity artifact for the
+  previous torch and MATLAB paths; the shipped int8 artifact is validated separately
+  by the frozen top-1 and keep-or-reject semantic gate.
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is

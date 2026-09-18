@@ -77,6 +77,11 @@ def _validate_frozen_manifest(manifest: Mapping[str, Any]) -> None:
         if not isinstance(split, Mapping) or not isinstance(split.get("recordings"), list):
             raise ValueError(f"ICLabel manifest is missing {split_name} recordings")
         splits[split_name] = split["recordings"]
+        feature_archive = split.get("feature_archive")
+        if not isinstance(feature_archive, Mapping):
+            raise ValueError(f"ICLabel manifest is missing {split_name} feature archive metadata")
+        if not isinstance(feature_archive.get("path"), str) or not isinstance(feature_archive.get("sha256"), str):
+            raise ValueError(f"ICLabel {split_name} feature archive metadata must include path and sha256")
         if split.get("component_count") != len(split["recordings"]) * 31:
             raise ValueError(f"ICLabel {split_name} component_count does not match its recordings")
         for recording in split["recordings"]:
@@ -111,6 +116,38 @@ def load_feature_archive(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray
     with np.load(path, allow_pickle=False) as archive:
         features = tuple(np.asarray(archive[name], dtype=np.float32) for name in ("topo", "psd", "autocorr"))
     _validate_feature_arrays(features)
+    return features
+
+
+def load_verified_feature_archive(
+    path: Path,
+    manifest: Mapping[str, Any],
+    split_name: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Load a feature archive only when its frozen hash and count match the manifest."""
+    split = manifest.get(split_name)
+    if not isinstance(split, Mapping):
+        raise ValueError(f"ICLabel manifest is missing {split_name}")
+    feature_archive = split.get("feature_archive")
+    if not isinstance(feature_archive, Mapping):
+        raise ValueError(f"ICLabel manifest is missing {split_name} feature archive metadata")
+    expected_sha256 = feature_archive.get("sha256")
+    if not isinstance(expected_sha256, str):
+        raise ValueError(f"ICLabel {split_name} feature archive metadata is missing sha256")
+    path = Path(path)
+    actual_sha256 = _sha256(path)
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            f"ICLabel {split_name} feature archive SHA-256 mismatch: expected {expected_sha256}, got {actual_sha256}"
+        )
+    features = load_feature_archive(path)
+    expected_component_count = split.get("component_count")
+    actual_component_count = features[0].shape[3]
+    if actual_component_count != expected_component_count:
+        raise ValueError(
+            f"ICLabel {split_name} feature archive has {actual_component_count} components; "
+            f"expected {expected_component_count}"
+        )
     return features
 
 
@@ -332,12 +369,20 @@ def evaluate_artifacts(
     manifest: Path = DEFAULT_FROZEN_MANIFEST,
 ) -> dict[str, Any]:
     """Evaluate candidates against the float32 teacher on the frozen archive."""
-    load_frozen_manifest(manifest)
-    features = load_feature_archive(evaluation_features)
+    frozen_manifest = load_frozen_manifest(manifest)
+    features = load_verified_feature_archive(evaluation_features, frozen_manifest, "evaluation")
+    evaluation_archive = frozen_manifest["evaluation"]["feature_archive"]
     teacher = predict_features(float32_artifact, features)
     thresholds = np.asarray(DEFAULT_ICFLAG_THRESHOLDS, dtype=float)
     report: dict[str, Any] = {
         "manifest": str(Path(manifest).name),
+        "feature_archives": {
+            "evaluation": {
+                "path": str(evaluation_archive["path"]),
+                "sha256": str(evaluation_archive["sha256"]),
+                "component_count": int(features[0].shape[3]),
+            }
+        },
         "class_names": list(CLASS_NAMES),
         "thresholds": [[None if np.isnan(value) else float(value) for value in row] for row in thresholds],
         "gate": {
@@ -382,8 +427,8 @@ def main() -> None:
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     args = parser.parse_args()
 
-    load_frozen_manifest(args.manifest)
-    calibration_features = load_feature_archive(args.calibration_features)
+    frozen_manifest = load_frozen_manifest(args.manifest)
+    calibration_features = load_verified_feature_archive(args.calibration_features, frozen_manifest, "calibration")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     weight_only = quantize_weight_only(args.float32_artifact, args.output_dir / DEFAULT_WEIGHT_ONLY_ARTIFACT.name)
     calibrated = quantize_calibrated(
@@ -397,6 +442,12 @@ def main() -> None:
         {"weight_only": weight_only, "calibrated": calibrated},
         args.manifest,
     )
+    calibration_archive = frozen_manifest["calibration"]["feature_archive"]
+    report["feature_archives"]["calibration"] = {
+        "path": str(calibration_archive["path"]),
+        "sha256": str(calibration_archive["sha256"]),
+        "component_count": int(calibration_features[0].shape[3]),
+    }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2, sort_keys=True)

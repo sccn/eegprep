@@ -125,6 +125,18 @@
     "Other"
   ],
   "default_artifact": "iclabel_int8_weight_only.onnx",
+  "feature_archives": {
+    "calibration": {
+      "component_count": 217,
+      "path": "tools/iclabel/calibration_features.npz",
+      "sha256": "6d5ee10f8c2a62a336e3f6372e686e00adad763b3d25f92728477a025e7d9c77"
+    },
+    "evaluation": {
+      "component_count": 217,
+      "path": "tools/iclabel/evaluation_features.npz",
+      "sha256": "dbb2c0cc063d29ab2e8e59fafb0f474df780a458ac17be9d4732abc0233c8b44"
+    }
+  },
   "float32_reference": {
     "artifact": "iclabel_float32.onnx",
     "candidate_class_distribution": {
