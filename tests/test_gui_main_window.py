@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import inspect
 import os
 import logging
@@ -1995,3 +1996,38 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertEqual(dispatcher.actions, [("pop_loadset", window.window)])
         self.assertEqual(branding_calls, ["branding"])
         window.window.close()
+
+    def test_gui_main_window_schedules_async_menu_action(self):
+        from eegprep.functions.guifunc.main_window import EEGPrepMainWindow
+
+        async def run():
+            class AsyncDispatcher:
+                def __init__(self):
+                    self.calls = []
+                    self.completed = False
+
+                def dispatch_gui(self, action_id, parent):
+                    self.calls.append((action_id, parent))
+
+                    async def complete():
+                        self.completed = True
+
+                    return complete()
+
+            window = EEGPrepMainWindow.__new__(EEGPrepMainWindow)
+            dispatcher = AsyncDispatcher()
+            window.window = object()
+            window.dispatcher = dispatcher
+            window._queue_application_branding = lambda: None
+            window._async_menu_tasks = set()
+            try:
+                window._dispatch_menu_action("pop_iclabel")
+
+                self.assertEqual(dispatcher.calls, [("pop_iclabel", window.window)])
+                self.assertFalse(dispatcher.completed)
+                await asyncio.sleep(0)
+                self.assertTrue(dispatcher.completed)
+            finally:
+                window._async_menu_tasks.clear()
+
+        asyncio.run(run())

@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added the asynchronous Pyodide/Emscripten ICLabel path through pinned ONNX
+  Runtime Web. ``iclabel_async`` and ``pop_iclabel_async`` preserve the native
+  post-processing, console history, and GUI/console session synchronization;
+  browser execution is gated by native-to-browser classification parity.
 - Added a pinned Pyodide 0.29.5 harness and CI gate that installs the working-tree
   wheel, runs a continuous sample-data smoke pipeline, and records one-thread
   ``runica``/Picard and runica-shaped BLAS benchmarks. See :doc:`pyodide_benchmark`;

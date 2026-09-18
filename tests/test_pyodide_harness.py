@@ -3,6 +3,7 @@ import pytest
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
+from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
 from tools.pyodide.prepare_docopt_wheel import verify_sha256
 
 
@@ -92,3 +93,42 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["matmul"][0]["blas_speedup_over_numpy"] == 2.0
     assert comparison["decisions"]["picard_browser_default_retained"] is True
     assert comparison["decisions"]["phase3_recommended"] is False
+
+
+def test_compare_iclabel_reports_applies_established_numeric_tolerance():
+    native = {
+        "schema_version": 1,
+        "platform": "native",
+        "dataset": "eeglab_data_with_ica_tmp.set",
+        "shape": [2, 7],
+        "classifications": [[0.1] * 7, [0.9] * 7],
+    }
+    pyodide = {
+        **native,
+        "platform": "pyodide",
+        "classifications": [[0.1 + 1e-6] * 7, [0.9 - 1e-6] * 7],
+    }
+
+    comparison = compare_iclabel_reports(native, pyodide)
+
+    assert comparison["allclose"] is True
+    assert comparison["max_absolute_difference"] <= 1e-5
+
+
+def test_compare_iclabel_reports_rejects_shape_mismatch():
+    native = {
+        "schema_version": 1,
+        "platform": "native",
+        "dataset": "sample.set",
+        "shape": [1, 7],
+        "classifications": [[0.1] * 7],
+    }
+    pyodide = {
+        **native,
+        "platform": "pyodide",
+        "shape": [2, 7],
+        "classifications": [[0.1] * 7, [0.9] * 7],
+    }
+
+    with pytest.raises(ValueError, match="shapes differ"):
+        compare_iclabel_reports(native, pyodide)

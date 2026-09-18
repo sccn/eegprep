@@ -208,6 +208,8 @@ class ConsolePopFunction(LazyWorkspaceExport):
         self.bridge = bridge
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        if self.name == "pop_iclabel_async":
+            return self._call_async(*args, **kwargs)
         function = self.resolve()
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
@@ -258,6 +260,14 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
+    async def _call_async(self, *args: Any, **kwargs: Any) -> Any:
+        function = self.resolve()
+        call_kwargs = dict(kwargs)
+        if _accepts_return_com(function) and "return_com" not in call_kwargs:
+            call_kwargs["return_com"] = True
+        result = await function(*args, **call_kwargs)
+        return self.bridge.accept_pop_result(result, args, kwargs)
+
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
 
@@ -288,7 +298,7 @@ class ConsoleEegh:
     def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
         self.bridge = bridge
 
-    def __call__(self, command: Any = None, *args: Any) -> str:
+    def __call__(self, command: Any = None, *args: Any) -> Any:
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":
@@ -309,6 +319,8 @@ class ConsoleEegh:
                 return ""
             history_command = session.history_command_at(value)
             if history_command:
+                if "await " in history_command:
+                    return self.bridge.execute_history_command_async(history_command)
                 self.bridge.execute_history_command(history_command)
             return history_command
         session = self.bridge.session
@@ -590,6 +602,16 @@ class EEGPrepConsoleWorkspace:
         source = _console_python_command(command)
         exec(source, self.namespace)
         self.after_execute(source)
+
+    async def execute_history_command_async(self, command: str) -> str:
+        """Execute an awaitable EEGLAB history command through the console namespace."""
+        source = _console_python_command(command)
+        code = compile(source, "<eegprep-history>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        result = eval(code, self.namespace)  # noqa: S307 - executing trusted session history
+        if inspect.isawaitable(result):
+            await result
+        self.after_execute(source)
+        return command
 
     def _refresh(self) -> None:
         if self.refresh is not None:
