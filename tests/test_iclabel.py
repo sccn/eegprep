@@ -107,6 +107,8 @@ class TestICLabelEngines(unittest.TestCase):
         print(f"Python autocorr max: {np.max(features_python[2]):.6f}, min: {np.min(features_python[2]):.6f}")
         print(f"{'=' * 60}\n")
 
+        # Keep probability-level MATLAB parity against the preserved float32 reference;
+        # the package default int8 artifact is covered by the semantic gate tests.
         EEG_matlab = iclabel(self.EEG, algorithm='default', engine='matlab')
 
         res1 = _float32_classifications(self.EEG).flatten()

@@ -136,6 +136,7 @@ def load_verified_feature_archive(
         raise ValueError(f"ICLabel {split_name} feature archive metadata is missing sha256")
     path = Path(path)
     actual_sha256 = _sha256(path)
+    # Fail closed: gate metrics are only meaningful for the exact frozen input.
     if actual_sha256 != expected_sha256:
         raise ValueError(
             f"ICLabel {split_name} feature archive SHA-256 mismatch: expected {expected_sha256}, got {actual_sha256}"
