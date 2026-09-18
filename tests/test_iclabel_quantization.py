@@ -117,6 +117,20 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
     assert metrics["keep_reject_agreement"] == pytest.approx(0.0)
 
 
+@pytest.mark.parametrize(
+    ("probability_drift", "expected"),
+    ((MAX_PROBABILITY_ABS_DIFF, True), (np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), False)),
+)
+def test_probability_gate_boundary_is_inclusive(probability_drift, expected):
+    metrics = {
+        "top1_agreement": MIN_TOP1_AGREEMENT,
+        "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
+        "max_probability_abs_diff": probability_drift,
+    }
+
+    assert parity_gate_passes(metrics) is expected
+
+
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
     manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
     with np.load(DEFAULT_EVALUATION_FEATURES, allow_pickle=False) as archive:
@@ -237,6 +251,7 @@ def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
         assert candidate["keep_reject_agreement"] >= MIN_KEEP_REJECT_AGREEMENT
         assert candidate["teacher_class_distribution"] == expected_counts
         assert set(candidate["per_class_agreement"]) == set(expected_counts)
+    assert report["candidates"]["calibrated"]["max_probability_abs_diff"] > MAX_PROBABILITY_ABS_DIFF
 
 
 def test_weight_only_matches_full_frozen_probabilities_and_threshold_boundaries():

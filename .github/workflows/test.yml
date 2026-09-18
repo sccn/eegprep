@@ -142,7 +142,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --python ${{ matrix.python-version }} --all-extras --group dev
+          uv sync --python "${{ matrix.python-version }}" --all-extras --group dev
 
       - name: Set up MATLAB
         if: steps.matlab-availability.outputs.available == 'true'
@@ -165,8 +165,8 @@ jobs:
           print(candidates[-1])
           PY
           )
-          echo "MATLAB_ROOT=$MATLAB_ROOT" >> $GITHUB_ENV
-          echo "$MATLAB_ROOT/bin" >> $GITHUB_PATH
+          echo "MATLAB_ROOT=$MATLAB_ROOT" >> "$GITHUB_ENV"
+          echo "$MATLAB_ROOT/bin" >> "$GITHUB_PATH"
 
       - name: Install Python MATLAB Engine
         if: steps.matlab-availability.outputs.available == 'true'
@@ -369,5 +369,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pyodide-phase-2-and-phase-5-output
+          name: pyodide-phase-2-through-phase-6-output
           path: pyodide-artifacts

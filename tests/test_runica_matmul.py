@@ -7,6 +7,9 @@ import numpy as np
 from eegprep.functions.sigprocfunc import runica_matmul
 
 
+runica_module = importlib.import_module("eegprep.functions.sigprocfunc.runica")
+
+
 def test_runica_matmul_backends_agree():
     rng = np.random.default_rng(376)
     left = rng.standard_normal((7, 11))
@@ -35,6 +38,20 @@ def test_runica_matmul_selects_dgemm_on_emscripten(monkeypatch):
     finally:
         monkeypatch.setattr(sys, "platform", original_platform)
         importlib.reload(runica_matmul)
+
+
+def test_runica_consumer_reads_the_selected_backend_module(monkeypatch):
+    original_platform = sys.platform
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    try:
+        selected = importlib.reload(runica_matmul)
+        consumer = importlib.reload(runica_module)
+        assert consumer._runica_matmul is selected
+        assert consumer._runica_matmul.runica_matmul is selected._blas_matmul
+    finally:
+        monkeypatch.setattr(sys, "platform", original_platform)
+        importlib.reload(runica_matmul)
+        importlib.reload(runica_module)
 
 
 def test_runica_import_does_not_eagerly_load_mne():

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,55 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
 FDT_DTYPE = np.dtype("<f4")
+
+
+class _MutationTrackedArray(np.ndarray):
+    """Array view that invokes a callback after an in-place write."""
+
+    _on_mutation: Callable[[], None] | None
+
+    def __array_finalize__(self, source: Any) -> None:
+        self._on_mutation = getattr(source, "_on_mutation", None)
+
+    def _notify(self) -> None:
+        if self._on_mutation is not None:
+            self._on_mutation()
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        super().__setitem__(key, value)
+        self._notify()
+
+    def fill(self, value: Any) -> None:
+        super().fill(value)
+        self._notify()
+
+    def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
+        outputs = kwargs.get("out")
+        mutating_input = inputs[0] if method == "at" and inputs else None
+        tracked_outputs = outputs and any(isinstance(output, _MutationTrackedArray) for output in outputs)
+        if outputs:
+            kwargs["out"] = tuple(
+                np.asarray(output) if isinstance(output, _MutationTrackedArray) else output for output in outputs
+            )
+        inputs = tuple(np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in inputs)
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+        if method == "at" and isinstance(mutating_input, _MutationTrackedArray):
+            mutating_input._notify()
+        elif method == "__call__" and tracked_outputs:
+            for output in outputs:
+                if isinstance(output, _MutationTrackedArray):
+                    output._notify()
+        return result
+
+    def __array_function__(self, function: Any, types: Any, args: Any, kwargs: Any) -> Any:  # ty: ignore[invalid-method-override]
+        if function is np.copyto and args and isinstance(args[0], _MutationTrackedArray):
+            converted_args = tuple(
+                np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in args
+            )
+            result = np.copyto(*converted_args, **kwargs)
+            args[0]._notify()
+            return result
+        return super().__array_function__(function, types, args, kwargs)
 
 
 class MemmapData:
@@ -68,7 +118,12 @@ class MemmapData:
     @property
     def T(self) -> np.ndarray:
         """Return a transposed array view."""
-        return self._memmap().T
+        return self._tracked_view(self._memmap().T)
+
+    def fill(self, value: Any) -> None:
+        """Fill the mapped data and advance its mutation revision."""
+        self._memmap().fill(value)
+        self._mark_mutated()
 
     def flush(self) -> None:
         """Flush pending writes to the backing file."""
@@ -92,7 +147,11 @@ class MemmapData:
 
     def reshape(self, *shape: Any, **kwargs: Any) -> np.ndarray:
         """Return a reshaped view using NumPy's reshape semantics."""
-        return self._memmap().reshape(*shape, **kwargs)
+        return self._tracked_view(self._memmap().reshape(*shape, **kwargs))
+
+    def transpose(self, *axes: Any) -> np.ndarray:
+        """Return a transposed view that preserves mutation tracking."""
+        return self._tracked_view(self._memmap().transpose(*axes))
 
     def astype(self, *args: Any, **kwargs: Any) -> np.ndarray:
         """Return a typed array using NumPy's astype semantics."""
@@ -107,25 +166,29 @@ class MemmapData:
         return self._memmap().mean(*args, **kwargs)
 
     def __array__(self, dtype: np.dtype | str | None = None, copy: bool | None = None) -> np.ndarray:
-        array = np.asarray(self._memmap())
+        array = self._memmap()
         if dtype is not None:
-            return array.astype(dtype, copy=bool(copy))
+            if np.dtype(dtype) != self._dtype or copy:
+                return np.asarray(array, dtype=dtype).copy()
+            return self._tracked_view(array)
         if copy:
-            return array.copy()
-        return array
+            return np.asarray(array).copy()
+        return self._tracked_view(array)
 
     def __getitem__(self, key: Any) -> Any:
-        return self._memmap()[key]
+        value = self._memmap()[key]
+        return self._tracked_view(value) if isinstance(value, np.ndarray) else value
 
     def __setitem__(self, key: Any, value: Any) -> None:
         self._memmap()[key] = value
-        self._mutation_revision += 1
+        self._mark_mutated()
 
     def __len__(self) -> int:
         return len(self._memmap())
 
     def __iter__(self) -> Any:
-        return iter(self._memmap())
+        for index in range(len(self)):
+            yield self[index]
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._memmap(), name)
@@ -151,6 +214,14 @@ class MemmapData:
                 order=self.order,
             )
         return self._array
+
+    def _mark_mutated(self) -> None:
+        self._mutation_revision += 1
+
+    def _tracked_view(self, array: np.ndarray) -> np.ndarray:
+        tracked: _MutationTrackedArray = array.view(_MutationTrackedArray)
+        tracked._on_mutation = self._mark_mutated
+        return tracked
 
 
 class OffloadedData:

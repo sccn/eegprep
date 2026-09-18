@@ -260,6 +260,7 @@ def test_console_async_iclabel_captures_state_before_coroutine_starts():
 
     workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
     pending = workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"])
+    workspace.after_execute("pending = pop_iclabel_async(EEG)")
     session.retrieve(2)
 
     with pytest.raises(RuntimeError, match="session changed"):
@@ -344,6 +345,57 @@ def test_console_imported_eegprep_module_uses_freshness_wrapper():
     workspace.close()
 
 
+def test_console_imported_iclabel_submodule_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec(
+        "from eegprep.plugins.ICLabel.iclabel import iclabel_async as classify\npending = classify(EEG)",
+        workspace.namespace,
+    )
+    assert isinstance(workspace.namespace["classify"], console_module.ConsoleAsyncFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_imported_pop_iclabel_submodule_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_pop(eeg, *, return_com=False):
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
+    exec(
+        "from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async as classify\npending = classify(EEG)",
+        workspace.namespace,
+    )
+    assert isinstance(workspace.namespace["classify"], console_module.ConsolePopFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
 def test_console_wildcard_eegprep_import_uses_freshness_wrapper():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)
@@ -398,6 +450,106 @@ def test_console_async_iclabel_discards_result_after_in_place_console_edit():
     assert session.EEG["data"][0, 0] == 99.0
     assert session.EEG["markers"] == [{"latency": 1.0}]
     assert session.ALLCOM == []
+
+
+def test_console_concurrent_async_iclabel_calls_keep_shared_mutation_watch():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        first_release = asyncio.Event()
+        second_release = asyncio.Event()
+        call_number = 0
+
+        async def classify(eeg):
+            nonlocal call_number
+            call_number += 1
+            current_call = call_number
+            if current_call == 2:
+                started.set()
+            await (first_release if current_call == 1 else second_release).wait()
+            return dict(eeg)
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": classify})
+        first = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        second = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        first_release.set()
+        await first
+        workspace.namespace["EEG"]["setname"] = "edited-during-second-call"
+        second_release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await second
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-during-second-call"
+
+
+def test_console_async_iclabel_rejects_alleeg_alias_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["ALLEEG"][0]["setname"] = "edited-through-alleeg"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-through-alleeg"
+    assert session.ALLCOM == []
+
+
+def test_console_async_iclabel_history_sync_keeps_mutation_watch():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["eegh"]("plot(EEG);", workspace.namespace["EEG"])
+        workspace.namespace["EEG"]["setname"] = "edited-after-history"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-after-history"
+    assert session.ALLCOM == ["plot(EEG);"]
 
 
 def test_console_async_iclabel_tracks_in_place_multi_dataset_edit():
@@ -464,6 +616,37 @@ def test_console_cancelled_pop_does_not_mark_dataset_changed():
 
     assert session.dataset_state_unchanged(token)
     workspace.close()
+
+
+def test_console_async_iclabel_ignores_noop_dataset_pop():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="classified")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        token = session.dataset_state_token()
+        workspace.namespace["EEG"].pop("missing", None)
+        assert session.dataset_state_unchanged(token)
+        release.set()
+        try:
+            await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "classified"
 
 
 def test_console_async_iclabel_pop_preserves_ordered_dataset_selection():
