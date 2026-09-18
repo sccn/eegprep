@@ -113,6 +113,37 @@ def test_dataset_state_token_changes_when_session_notifies():
     assert not session.dataset_state_unchanged(token)
 
 
+def test_dataset_state_token_ignores_history_only_changes():
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+    token = session.dataset_state_token()
+
+    session.add_history("plot(EEG);")
+
+    assert session.dataset_state_unchanged(token)
+
+
+def test_dataset_state_token_detects_saved_dataset_mutations():
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+    token = session.dataset_state_token()
+
+    session.mark_current_saved()
+
+    assert not session.dataset_state_unchanged(token)
+
+
+def test_dataset_state_token_detects_selected_slot_replacement_without_notification():
+    session = EEGPrepSession()
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+    token = session.dataset_state_token()
+    replacement = create_test_eeg(n_channels=2, n_samples=8)
+    session.ALLEEG[0] = replacement
+    session.EEG = replacement
+
+    assert not session.dataset_state_unchanged(token)
+
+
 def test_dataset_index_normalization_accepts_canonical_empty_values():
     assert normalize_dataset_indices(0) == []
     assert normalize_dataset_indices([0]) == []

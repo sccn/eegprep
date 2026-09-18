@@ -67,7 +67,7 @@ To develop or build documentation from source, include the docs extra:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs
+    uv sync --group dev --extra docs --extra iclabel
 
 Optional Dependencies
 =====================
@@ -177,7 +177,7 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs
+    uv sync --group dev --extra docs --extra iclabel
     uv run --no-sync sphinx-build -b html docs/source docs/_build/html
 
 The ``docs/Makefile`` target is also available:

@@ -1458,7 +1458,7 @@ class MenuActionDispatcher:
         if command:
             self.session.echo_command(command)
             self.session.add_history(command, notify=False)
-            self.session.notify_changed()
+            self.session.notify_changed(dataset_changed=True)
             self._refresh()
 
     def _select_study_set(self, parent: Any | None) -> None:

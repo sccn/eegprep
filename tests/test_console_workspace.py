@@ -320,6 +320,68 @@ def test_console_async_iclabel_discards_result_after_session_changes():
     workspace.close()
 
 
+def test_console_async_iclabel_discards_result_after_in_place_dataset_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        session.mark_current_saved()
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "demo"
+    assert session.EEG["saved"] == "yes"
+    assert session.ALLCOM == []
+
+
+def test_console_async_iclabel_allows_history_change_during_inference():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="classified")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        session.add_history("plot(EEG);")
+        release.set()
+        try:
+            await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "classified"
+    assert session.ALLCOM == ["plot(EEG);", "EEG = await pop_iclabel_async(EEG, 'default');"]
+
+
 def test_console_currentset_reassignment_preserves_both_datasets():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)

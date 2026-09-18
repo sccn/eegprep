@@ -61,7 +61,7 @@ class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
 
 
 def _float32_classifications(eeg):
-    image, psdmed, autocorr = iclabel_module._prepare_features(eeg)
+    image, psdmed, autocorr = _reference_network_inputs(eeg)
     import onnxruntime as ort
 
     float32_path = os.path.join(
@@ -70,7 +70,26 @@ def _float32_classifications(eeg):
     (output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
         ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
     )
-    return iclabel_module._postprocess_network_output(output)
+    return _reference_postprocess(output)
+
+
+def _reference_network_inputs(eeg):
+    """Build ICLabel inputs independently from the production helpers."""
+    features = ICL_feature_extractor(eeg, True)
+    features[0] = np.single(
+        np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
+    )
+    features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
+    features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
+    return tuple(np.transpose(feature, (3, 2, 0, 1)) for feature in features)
+
+
+def _reference_postprocess(output):
+    output = output.T
+    output = np.reshape(output, (-1, 4), order='F')
+    output = np.mean(output, axis=1)
+    output = np.reshape(output, (7, -1), order='F')
+    return output.T
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -153,12 +172,12 @@ class TestICLabelOnnxExport(unittest.TestCase):
         model = ICLabelNet(mat_path)
         model.eval()
 
-        image, psdmed, autocorr = iclabel_module._prepare_features(self.EEG)
+        image, psdmed, autocorr = _reference_network_inputs(self.EEG)
 
         with torch.no_grad():
             torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
 
-        torch_final = iclabel_module._postprocess_network_output(torch_out)
+        torch_final = _reference_postprocess(torch_out)
 
         onnx_final = _float32_classifications(self.EEG)
 
@@ -185,10 +204,12 @@ class TestICLabelRuntime(unittest.TestCase):
 
         output = iclabel(eeg)
         classifications = output['etc']['ic_classification']['ICLabel']['classifications']
+        reference = _float32_classifications(eeg)
 
         self.assertEqual(classifications.shape[1], 7)
         self.assertTrue(np.isfinite(classifications).all())
         self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
+        np.testing.assert_array_equal(classifications.argmax(axis=1), reference.argmax(axis=1))
 
 
 if __name__ == '__main__':

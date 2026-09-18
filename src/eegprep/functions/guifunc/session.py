@@ -141,7 +141,7 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
-    _revision: int = field(default=0, init=False, repr=False)
+    _dataset_revision: int = field(default=0, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -199,18 +199,30 @@ class EEGPrepSession:
         for listener in list(self._command_echo_listeners):
             listener(command)
 
-    def notify_changed(self) -> None:
+    def notify_changed(self, *, dataset_changed: bool = False) -> None:
         """Notify listeners that session-backed state changed."""
-        self._revision += 1
+        if dataset_changed:
+            self._mark_dataset_changed()
         for listener in list(self._listeners):
             listener(self)
 
-    def dataset_state_token(self) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
+    def _mark_dataset_changed(self) -> None:
+        self._dataset_revision += 1
+
+    def dataset_state_token(self) -> tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
         """Return a token for rejecting stale asynchronous dataset results."""
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
-        return self._revision, tuple(self.CURRENTSET), tuple(id(dataset) for dataset in current)
+        selected_slots = tuple(
+            id(self.ALLEEG[index - 1]) if 1 <= index <= len(self.ALLEEG) else 0 for index in self.CURRENTSET
+        )
+        return (
+            self._dataset_revision,
+            tuple(self.CURRENTSET),
+            selected_slots,
+            tuple(id(dataset) for dataset in current),
+        )
 
-    def dataset_state_unchanged(self, token: tuple[int, tuple[int, ...], tuple[int, ...]]) -> bool:
+    def dataset_state_unchanged(self, token: tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]]) -> bool:
         """Return whether dataset state still matches a captured async token."""
         return self.dataset_state_token() == token
 
@@ -268,7 +280,7 @@ class EEGPrepSession:
         if mark_saved:
             self.mark_current_saved()
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
         return stored_index
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
@@ -278,7 +290,7 @@ class EEGPrepSession:
         eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, selection if use_vector else selection[0])
         self.EEG = eeg
         self.CURRENTSET = normalize_dataset_indices(current, allow_empty=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
         return eeg
 
     def apply_workspace_state(
@@ -340,7 +352,7 @@ class EEGPrepSession:
             self.CURRENTSTUDY = int(currentstudy or 0)
 
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=dataset_changed)
 
     def delete_current(self) -> None:
         """Delete the current dataset selection from memory.
@@ -359,7 +371,7 @@ class EEGPrepSession:
             return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
 
     def clear_all(self) -> None:
         """Clear all datasets and study state."""
@@ -368,7 +380,8 @@ class EEGPrepSession:
         self.CURRENTSET = []
         self.STUDY = None
         self.CURRENTSTUDY = 0
-        self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
+        self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];", notify=False)
+        self.notify_changed(dataset_changed=True)
 
     def set_study(
         self,
@@ -396,7 +409,7 @@ class EEGPrepSession:
                 self.EEG = eeg_emptyset()
             offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=alleeg is not None)
 
     def _resolve_workspace_eeg(
         self,
@@ -482,6 +495,7 @@ class EEGPrepSession:
             if 1 <= index <= len(self.ALLEEG):
                 self.ALLEEG[index - 1]["saved"] = "yes"
         offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
+        self._mark_dataset_changed()
 
     def menu_statuses(self) -> set[str]:
         """Return EEGLAB-style menu status tokens for the current state."""
