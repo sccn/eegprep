@@ -1,10 +1,11 @@
-"""Export the ICLabel default network to ONNX.
+"""Export the reproducible float32 ICLabel default network to ONNX.
 
-Offline, developer-only tool: it produces ``iclabel.onnx``, the artifact
-shipped in place of ``netICL.mat`` starting with issue #377. This script is
-not installed with the ``eegprep`` package.
+Offline, developer-only tool: it produces the float32 reference artifact
+``tools/iclabel/artifacts/iclabel_float32.onnx`` by default. The selected
+artifact is copied to the package filename ``iclabel.onnx`` only after the
+Phase 6 parity gate passes. This script is not installed with the package.
 
-Regenerate the packaged artifact after changing ``netICL.mat`` or
+Regenerate the float32 reference after changing ``netICL.mat`` or
 ``iclabel_net.py``:
 
     uv sync --group dev --extra torch
@@ -37,8 +38,9 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ICLABEL_DIR = REPO_ROOT / 'src' / 'eegprep' / 'plugins' / 'ICLabel'
+ICLABEL_ARTIFACT_DIR = REPO_ROOT / 'tools' / 'iclabel' / 'artifacts'
 DEFAULT_MAT_PATH = ICLABEL_DIR / 'netICL.mat'
-DEFAULT_ONNX_PATH = ICLABEL_DIR / 'iclabel.onnx'
+DEFAULT_ONNX_PATH = ICLABEL_ARTIFACT_DIR / 'iclabel_float32.onnx'
 
 # Pinned per issue #377. The network only uses Conv2d, LeakyReLU, Softmax,
 # Concat, and Reshape, all supported since opset 7-9, so the choice is driven
@@ -57,6 +59,7 @@ def export(mat_path: Path = DEFAULT_MAT_PATH, onnx_path: Path = DEFAULT_ONNX_PAT
     """Export the ICLabel default network to ``onnx_path`` with a pinned opset."""
     model = ICLabelNet(str(mat_path))
     model.eval()
+    onnx_path.parent.mkdir(parents=True, exist_ok=True)
 
     dummy_inputs = tuple(torch.zeros(shape, dtype=torch.float32) for shape in _INPUT_SHAPES)
     dynamic_axes = {name: {0: 'batch'} for name in (*INPUT_NAMES, *OUTPUT_NAMES)}

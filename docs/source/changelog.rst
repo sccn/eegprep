@@ -26,6 +26,14 @@ Unreleased
   ``pyedflib`` was unused by the package and is gone from every published install.
   This removes the last base dependencies that have no WebAssembly build, so the base
   requirement set can resolve under Pyodide.
+- ICLabel now ships a gate-selected weight-only int8 ONNX artifact (2,932,897
+  bytes) while retaining a reproducible float32 reference and calibrated int8
+  candidate under ``tools/iclabel/artifacts/``. On the frozen, subject-disjoint
+  217-component real-data evaluation set, the shipped artifact matched the
+  float32 teacher on 100% of top-1 labels and 100% of existing
+  ``pop_icflag`` keep-or-reject decisions; the calibrated candidate measured
+  98.1567% and 100%, respectively. Feature extraction, normalization,
+  augmentation, softmax, class set, and rejection thresholds are unchanged.
 - ``asr_process`` now resolves ``max_mem=None`` to a fixed 64 MB instead of probing free
   system RAM through ``psutil``.
   This matches the ``maxmem=64`` default that ``asr_calibrate`` and ``clean_asr`` already
@@ -41,9 +49,9 @@ Unreleased
   ``netICL.mat``; install the new ``iclabel`` extra (``eegprep[iclabel]``) to run
   classification. torch is now needed only to regenerate the ONNX artifact from
   ``netICL.mat`` (``tools/iclabel/export_iclabel_onnx.py``), not to run ICLabel.
-  Classification results are numerically unchanged (verified against the previous
-  torch path, MATLAB parity fixtures, and mne-icalabel's independently exported
-  network on ``sample_data``).
+  The preserved float32 reference remains the probability-parity artifact for the
+  previous torch and MATLAB paths; the shipped int8 artifact is validated separately
+  by the frozen top-1 and keep-or-reject semantic gate.
 - ``pop_autorej`` (Tools > Automatic epoch rejection) now runs EEGLAB's probability loop
   exactly: a pass rejects its flagged epochs only when they are fewer than ``maxrej``
   percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is

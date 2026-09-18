@@ -60,6 +60,32 @@ class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
                 iclabel_onnx_module.run_iclabel_net(None, None, None)
 
 
+def _float32_classifications(eeg):
+    features = ICL_feature_extractor(eeg, True)
+    features[0] = np.single(
+        np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
+    )
+    features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
+    features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
+
+    image = np.transpose(features[0], (3, 2, 0, 1))
+    psdmed = np.transpose(features[1], (3, 2, 0, 1))
+    autocorr = np.transpose(features[2], (3, 2, 0, 1))
+    import onnxruntime as ort
+
+    float32_path = os.path.join(
+        os.path.dirname(__file__), '..', 'tools', 'iclabel', 'artifacts', 'iclabel_float32.onnx'
+    )
+    (output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
+        ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
+    )
+    output = output.T
+    output = np.reshape(output, (-1, 4), order='F')
+    output = np.mean(output, axis=1)
+    output = np.reshape(output, (7, -1), order='F')
+    return output.T
+
+
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestICLabelEngines(unittest.TestCase):
     def setUp(self):
@@ -81,10 +107,11 @@ class TestICLabelEngines(unittest.TestCase):
         print(f"Python autocorr max: {np.max(features_python[2]):.6f}, min: {np.min(features_python[2]):.6f}")
         print(f"{'=' * 60}\n")
 
-        EEG_python = iclabel(self.EEG, algorithm='default', engine=None)
+        # Keep probability-level MATLAB parity against the preserved float32 reference;
+        # the package default int8 artifact is covered by the semantic gate tests.
         EEG_matlab = iclabel(self.EEG, algorithm='default', engine='matlab')
 
-        res1 = EEG_python['etc']['ic_classification']['ICLabel']['classifications'].flatten()
+        res1 = _float32_classifications(self.EEG).flatten()
         res2 = EEG_matlab['etc']['ic_classification']['ICLabel']['classifications'].flatten()
 
         # Diagnostic output
@@ -120,7 +147,7 @@ class TestICLabelEngines(unittest.TestCase):
 
 
 class TestICLabelOnnxExport(unittest.TestCase):
-    """Cross-check the packaged iclabel.onnx artifact against the torch network it was exported from."""
+    """Cross-check the preserved float32 ONNX reference against its torch source."""
 
     def setUp(self):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
@@ -162,8 +189,7 @@ class TestICLabelOnnxExport(unittest.TestCase):
 
         torch_final = postprocess(torch_out)
 
-        EEG_onnx = iclabel(self.EEG, algorithm='default', engine=None)
-        onnx_final = EEG_onnx['etc']['ic_classification']['ICLabel']['classifications']
+        onnx_final = _float32_classifications(self.EEG)
 
         diff = np.abs(torch_final - onnx_final)
         print(f"\nONNX vs torch max abs diff: {diff.max():.2e}, mean abs diff: {diff.mean():.2e}")
