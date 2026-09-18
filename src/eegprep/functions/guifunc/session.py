@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import numpy as np
@@ -15,7 +15,7 @@ from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
-from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
+from eegprep.functions.adminfunc.storage import MemmapData, offload_storedisk_datasets
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -36,58 +36,33 @@ def has_eeg_data(eeg: Any) -> bool:
     return True
 
 
-def _dataset_fingerprint(value: Any) -> bytes:
-    """Return a content fingerprint for mutable dataset state."""
-    digest = hashlib.blake2b(digest_size=16)
-    _update_dataset_fingerprint(digest, value, set())
-    return digest.digest()
-
-
-def _update_dataset_fingerprint(digest: Any, value: Any, active: set[int]) -> None:
-    if value is None or isinstance(value, (bool, int, float, str, bytes, np.generic)):
-        digest.update(repr((type(value).__name__, value)).encode("utf-8", "backslashreplace"))
-        return
-    if isinstance(value, np.ndarray):
-        marker = id(value)
-        if marker in active:
-            digest.update(f"cycle:{marker}".encode())
-            return
-        active.add(marker)
-        try:
-            digest.update(f"ndarray:{value.dtype}:{value.shape}".encode())
-            if value.dtype.hasobject:
-                for item in value.flat:
-                    _update_dataset_fingerprint(digest, item, active)
-            else:
-                digest.update(np.ascontiguousarray(value).view(np.uint8).tobytes())
-        finally:
-            active.remove(marker)
-        return
-    if isinstance(value, dict):
-        marker = id(value)
-        if marker in active:
-            digest.update(f"cycle:{marker}".encode())
-            return
-        active.add(marker)
-        try:
-            digest.update(f"dict:{len(value)}".encode())
-            for key, item in sorted(value.items(), key=lambda entry: repr(entry[0])):
-                _update_dataset_fingerprint(digest, key, active)
-                _update_dataset_fingerprint(digest, item, active)
-        finally:
-            active.remove(marker)
-        return
-    if isinstance(value, (list, tuple)):
-        digest.update(f"{type(value).__name__}:{len(value)}".encode())
-        for item in value:
-            _update_dataset_fingerprint(digest, item, active)
-        return
-    if isinstance(value, (set, frozenset)):
-        digest.update(f"{type(value).__name__}:{len(value)}".encode())
-        for item in sorted(value, key=repr):
-            _update_dataset_fingerprint(digest, item, active)
-        return
-    digest.update(repr((type(value).__module__, type(value).__qualname__, value)).encode("utf-8", "backslashreplace"))
+def _dataset_storage_token(dataset: Any) -> tuple[Any, ...] | None:
+    """Return a cheap mutation token for file-backed EEG data."""
+    if not isinstance(dataset, dict):
+        return None
+    data = dataset.get("data")
+    if isinstance(data, MemmapData):
+        path = data.path
+        revision = data.mutation_revision
+    elif isinstance(data, np.memmap):
+        filename = data.filename
+        path = Path(filename) if filename else None
+        revision = 0
+    else:
+        return None
+    try:
+        stat = path.stat() if path is not None else None
+    except OSError:
+        stat = None
+    return (
+        type(data).__name__,
+        str(path) if path is not None else None,
+        tuple(int(size) for size in data.shape),
+        np.dtype(data.dtype).str,
+        revision,
+        None if stat is None else stat.st_mtime_ns,
+        None if stat is None else stat.st_size,
+    )
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
@@ -264,6 +239,10 @@ class EEGPrepSession:
     def _mark_dataset_changed(self) -> None:
         self._dataset_revision += 1
 
+    def mark_dataset_changed(self) -> None:
+        """Advance the dataset freshness revision after an observed mutation."""
+        self._mark_dataset_changed()
+
     def dataset_state_token(self) -> tuple[Any, ...]:
         """Return a token for rejecting stale asynchronous dataset results."""
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
@@ -282,7 +261,7 @@ class EEGPrepSession:
             tuple(self.CURRENTSET),
             selected_slots,
             tuple(id(dataset) for dataset in current),
-            _dataset_fingerprint(tuple(tracked_datasets)),
+            tuple(_dataset_storage_token(dataset) for dataset in tracked_datasets),
         )
 
     def dataset_state_unchanged(self, token: tuple[Any, ...]) -> bool:

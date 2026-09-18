@@ -33,6 +33,7 @@ class MemmapData:
         self.mode = mode
         self.order = order
         self._array: np.memmap | None = None
+        self._mutation_revision = 0
 
     @property
     def filename(self) -> str:
@@ -58,6 +59,11 @@ class MemmapData:
     def size(self) -> int:
         """Return the total sample count."""
         return int(np.prod(self._shape))
+
+    @property
+    def mutation_revision(self) -> int:
+        """Return the in-process write revision for this mapped dataset."""
+        return self._mutation_revision
 
     @property
     def T(self) -> np.ndarray:
@@ -113,6 +119,7 @@ class MemmapData:
 
     def __setitem__(self, key: Any, value: Any) -> None:
         self._memmap()[key] = value
+        self._mutation_revision += 1
 
     def __len__(self) -> int:
         return len(self._memmap())

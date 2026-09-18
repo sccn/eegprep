@@ -56,12 +56,13 @@ To install eegprep from source for development:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution. The development
-environment includes the GUI and console runtime dependencies, so a fresh
-checkout can immediately launch ``uv run eegprep-console --full``.
+environment includes the GUI, console, and ICLabel runtime dependencies, so a
+fresh checkout can immediately launch ``uv run eegprep-console --full`` and
+run the ICLabel quickstart.
 
 To develop or build documentation from source, include the docs extra:
 

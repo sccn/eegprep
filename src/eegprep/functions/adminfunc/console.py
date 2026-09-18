@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
@@ -40,6 +41,7 @@ _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-
 _ALLEEG_ASSIGNMENT_PATTERN = re.compile(r"^\s*ALLEEG\s*=")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_TRACKED_MISSING = object()
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_autorej",
     "pop_eegthresh",
@@ -196,6 +198,199 @@ class LazyWorkspaceExport:
         return f"<EEGPrep export {self.name}>"
 
 
+class _TrackedArray(np.ndarray):
+    """Array view that advances freshness when console code writes through it."""
+
+    _on_mutation: Callable[[], None] | None
+
+    def __array_finalize__(self, source: Any) -> None:
+        self._on_mutation = getattr(source, "_on_mutation", None)
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        super().__setitem__(key, value)
+        if self._on_mutation is not None:
+            self._on_mutation()
+
+    def fill(self, value: Any) -> None:
+        super().fill(value)
+        if self._on_mutation is not None:
+            self._on_mutation()
+
+    def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
+        outputs = kwargs.get("out")
+        tracked_outputs = outputs and any(isinstance(output, _TrackedArray) for output in outputs)
+        if outputs:
+            kwargs["out"] = tuple(
+                np.asarray(output) if isinstance(output, _TrackedArray) else output for output in outputs
+            )
+        inputs = tuple(np.asarray(value) if isinstance(value, _TrackedArray) else value for value in inputs)
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+        if method == "__call__" and tracked_outputs:
+            for output in outputs:
+                if isinstance(output, _TrackedArray) and output._on_mutation is not None:
+                    output._on_mutation()
+        return result
+
+
+class _TrackedList(list[Any]):
+    """List view that keeps nested console edits connected to the dataset."""
+
+    def __init__(self, source: list[Any], on_mutation: Callable[[], None]) -> None:
+        super().__init__(source)
+        self._source = source
+        self._on_mutation = on_mutation
+
+    @property
+    def source(self) -> list[Any]:
+        return self._source
+
+    def __getitem__(self, index: Any) -> Any:
+        value = super().__getitem__(index)
+        return value if isinstance(index, slice) else _tracked_value(value, self._on_mutation)
+
+    def __iter__(self) -> Iterator[Any]:
+        for value in super().__iter__():
+            yield _tracked_value(value, self._on_mutation)
+
+    def _sync(self) -> None:
+        self._source[:] = list.__iter__(self)
+        self._on_mutation()
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        super().__setitem__(index, _unwrap_tracked(value))
+        self._sync()
+
+    def __delitem__(self, index: Any) -> None:
+        super().__delitem__(index)
+        self._sync()
+
+    def append(self, value: Any) -> None:
+        super().append(_unwrap_tracked(value))
+        self._sync()
+
+    def extend(self, values: Any) -> None:
+        super().extend(_unwrap_tracked(value) for value in values)
+        self._sync()
+
+    def insert(self, index: Any, value: Any) -> None:
+        super().insert(index, _unwrap_tracked(value))
+        self._sync()
+
+    def pop(self, index: Any = -1) -> Any:
+        value = super().pop(index)
+        self._sync()
+        return _tracked_value(value, self._on_mutation)
+
+    def remove(self, value: Any) -> None:
+        super().remove(_unwrap_tracked(value))
+        self._sync()
+
+    def clear(self) -> None:
+        super().clear()
+        self._sync()
+
+    def reverse(self) -> None:
+        super().reverse()
+        self._sync()
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        super().sort(*args, **kwargs)
+        self._sync()
+
+    def __iadd__(self, values: Any) -> _TrackedList:
+        super().__iadd__([_unwrap_tracked(value) for value in values])
+        self._sync()
+        return self
+
+    def __imul__(self, count: Any) -> Any:
+        super().__imul__(count)
+        self._sync()
+        return self
+
+
+class _TrackedDataset(dict[str, Any]):
+    """Console-only dataset view that advances freshness on mutable edits."""
+
+    _NON_DATASET_FIELDS = frozenset({"history"})
+
+    def __init__(self, source: dict[str, Any], on_mutation: Callable[[], None]) -> None:
+        super().__init__(source)
+        self._source = source
+        self._on_mutation = on_mutation
+
+    @property
+    def source(self) -> dict[str, Any]:
+        return self._source
+
+    def __getitem__(self, key: str) -> Any:
+        return _tracked_value(super().__getitem__(key), self._on_mutation)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return _tracked_value(super().get(key, default), self._on_mutation)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        value = _unwrap_tracked(value)
+        super().__setitem__(key, value)
+        self._source[key] = value
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+
+    def __delitem__(self, key: str) -> None:
+        super().__delitem__(key)
+        del self._source[key]
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        updates = dict(*args, **kwargs)
+        for key, value in updates.items():
+            self[key] = value
+
+    def clear(self) -> None:
+        super().clear()
+        self._source.clear()
+        self._on_mutation()
+
+    def pop(self, key: str, default: Any = _TRACKED_MISSING) -> Any:
+        if default is _TRACKED_MISSING:
+            value = super().pop(key)
+            self._source.pop(key)
+        else:
+            value = super().pop(key, default)
+            self._source.pop(key, default)
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+        return value
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        if key in self:
+            return self[key]
+        self[key] = default
+        return default
+
+
+def _tracked_value(value: Any, on_mutation: Callable[[], None]) -> Any:
+    if isinstance(value, dict) and not isinstance(value, _TrackedDataset):
+        return _TrackedDataset(value, on_mutation)
+    if isinstance(value, list) and not isinstance(value, _TrackedList):
+        return _TrackedList(value, on_mutation)
+    if isinstance(value, np.ndarray) and not isinstance(value, _TrackedArray):
+        tracked = value.view(_TrackedArray)
+        tracked._on_mutation = on_mutation
+        return tracked
+    return value
+
+
+def _unwrap_tracked(value: Any) -> Any:
+    if isinstance(value, _TrackedDataset):
+        return value.source
+    if isinstance(value, _TrackedList):
+        return value.source
+    if isinstance(value, _TrackedArray):
+        return value.view(np.ndarray)
+    return value
+
+
 class ConsoleAsyncFunction(LazyWorkspaceExport):
     """Console wrapper that rejects stale results from public async functions."""
 
@@ -211,13 +406,24 @@ class ConsoleAsyncFunction(LazyWorkspaceExport):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         target_state = self.bridge.session.dataset_state_token()
-        return self._call_async(target_state, *args, **kwargs)
+        watch = self.bridge.begin_async_dataset_watch(args, kwargs)
+        args, kwargs = self.bridge.unwrap_async_call(args, kwargs)
+        return self._call_async(target_state, watch, *args, **kwargs)
 
-    async def _call_async(self, target_state: tuple[Any, ...], *args: Any, **kwargs: Any) -> Any:
-        result = await self.resolve()(*args, **kwargs)
-        if not self.bridge.session.dataset_state_unchanged(target_state):
-            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
-        return result
+    async def _call_async(
+        self,
+        target_state: tuple[Any, ...],
+        watch: tuple[Any, _TrackedDataset | _TrackedList] | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        try:
+            result = await self.resolve()(*args, **kwargs)
+            if not self.bridge.session.dataset_state_unchanged(target_state):
+                raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+            return result
+        finally:
+            self.bridge.end_async_dataset_watch(watch)
 
     def __repr__(self) -> str:
         return f"<EEGPrep console async function {self.name}>"
@@ -239,12 +445,11 @@ class ConsolePopFunction(LazyWorkspaceExport):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.name == "pop_iclabel_async":
             target_state = self.bridge.session.dataset_state_token()
-            return self._call_async(target_state, *args, **kwargs)
+            watch = self.bridge.begin_async_dataset_watch(args, kwargs)
+            args, kwargs = self.bridge.unwrap_async_call(args, kwargs)
+            return self._call_async(target_state, watch, *args, **kwargs)
         function = self.resolve()
         call_kwargs = dict(kwargs)
-        target_state = (
-            self.bridge.session.dataset_state_token() if self.name in _IN_PLACE_DATASET_POP_FUNCTIONS else None
-        )
         recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
             source_eeg = _first_call_eeg_argument(args, call_kwargs)
@@ -294,23 +499,30 @@ class ConsolePopFunction(LazyWorkspaceExport):
         eeg_result, result_command = _extract_pop_eeg_and_command(result)
         if (
             self.name in _IN_PLACE_DATASET_POP_FUNCTIONS
-            and target_state is not None
             and not result_command
             and eeg_result is self.bridge.session.EEG
-            and not self.bridge.session.dataset_state_unchanged(target_state)
         ):
             self.bridge.session.notify_changed(dataset_changed=True)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
-    async def _call_async(self, target_state: tuple[Any, ...], *args: Any, **kwargs: Any) -> Any:
-        function = self.resolve()
-        call_kwargs = dict(kwargs)
-        if _accepts_return_com(function) and "return_com" not in call_kwargs:
-            call_kwargs["return_com"] = True
-        result = await function(*args, **call_kwargs)
-        if not self.bridge.session.dataset_state_unchanged(target_state):
-            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
-        return self.bridge.accept_pop_result(result, args, kwargs)
+    async def _call_async(
+        self,
+        target_state: tuple[Any, ...],
+        watch: tuple[Any, _TrackedDataset | _TrackedList] | None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        try:
+            function = self.resolve()
+            call_kwargs = dict(kwargs)
+            if _accepts_return_com(function) and "return_com" not in call_kwargs:
+                call_kwargs["return_com"] = True
+            result = await function(*args, **call_kwargs)
+            if not self.bridge.session.dataset_state_unchanged(target_state):
+                raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+            return self.bridge.accept_pop_result(result, args, kwargs)
+        finally:
+            self.bridge.end_async_dataset_watch(watch)
 
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
@@ -376,7 +588,7 @@ class ConsoleEegh:
         else:
             session.clear_last_command()
         if args and isinstance(args[0], dict):
-            eegh(normalized, args[0])
+            eegh(normalized, _unwrap_tracked(args[0]))
         self.bridge.pull_from_session()
         return normalized
 
@@ -638,6 +850,33 @@ class EEGPrepConsoleWorkspace:
             self._wrapped_async_exports[name] = wrapped
         return wrapped
 
+    def begin_async_dataset_watch(
+        self, args: tuple[Any, ...], kwargs: Mapping[str, Any]
+    ) -> tuple[Any, _TrackedDataset | _TrackedList] | None:
+        source = _unwrap_tracked(_first_call_eeg_argument(args, kwargs))
+        if (
+            source is not self.session.EEG
+            or not isinstance(source, (dict, list))
+            or self.namespace.get("EEG") is not source
+        ):
+            return None
+        tracked = _tracked_value(source, self.session.mark_dataset_changed)
+        self.namespace["EEG"] = tracked
+        return source, tracked
+
+    def unwrap_async_call(
+        self, args: tuple[Any, ...], kwargs: Mapping[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        return tuple(_unwrap_tracked(arg) for arg in args), {
+            key: _unwrap_tracked(value) for key, value in kwargs.items()
+        }
+
+    def end_async_dataset_watch(self, watch: tuple[Any, _TrackedDataset | _TrackedList] | None) -> None:
+        if watch is not None:
+            source, tracked = watch
+            if self.namespace.get("EEG") is tracked:
+                self.namespace["EEG"] = source
+
     def _session_changed(self, _session: EEGPrepSession) -> None:
         if not self._syncing:
             self.pull_from_session()
@@ -672,7 +911,9 @@ class EEGPrepConsoleWorkspace:
     ) -> Any:
         module = self._builtin_import(name, globals, locals, fromlist, level)
         eegprep_exports = set(getattr(eegprep, "__all__", ()))
-        if name == "eegprep" and fromlist and any(item in eegprep_exports for item in fromlist):
+        if name == "eegprep" and (
+            not fromlist or (fromlist and all(item == "*" or item in eegprep_exports for item in fromlist))
+        ):
             return self._eegprep_proxy
         return module
 

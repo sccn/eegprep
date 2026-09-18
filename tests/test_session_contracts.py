@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
 from tests.fixtures import (
     assert_eeg_fields_close,
@@ -140,6 +141,23 @@ def test_dataset_state_token_detects_selected_slot_replacement_without_notificat
     replacement = create_test_eeg(n_channels=2, n_samples=8)
     session.ALLEEG[0] = replacement
     session.EEG = replacement
+
+    assert not session.dataset_state_unchanged(token)
+
+
+def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
+    path = tmp_path / "data.fdt"
+    backing = np.memmap(path, dtype="float32", mode="w+", shape=(2, 2), order="F")
+    backing[:] = [[1.0, 2.0], [3.0, 4.0]]
+    backing.flush()
+
+    eeg = create_test_eeg(n_channels=2, n_samples=2)
+    eeg["data"] = MemmapData(path, (2, 2), mode="r+")
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    token = session.dataset_state_token()
+
+    session.EEG["data"][0, 0] = 9.0
 
     assert not session.dataset_state_unchanged(token)
 

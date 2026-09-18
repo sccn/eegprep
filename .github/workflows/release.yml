@@ -146,6 +146,11 @@ jobs:
           if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
             echo "::error::Packaged ICLabel network differs from the source artifact"; exit 1
           fi
+          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["candidates"]["weight_only"]["sha256"])')
+          report_default_artifact=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["default_artifact"])')
+          if [ "$report_default_artifact" != "iclabel_int8_weight_only.onnx" ] || [ "$source_model_sha256" != "$report_model_sha256" ]; then
+            echo "::error::Source ICLabel network does not match the committed parity report"; exit 1
+          fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1
           fi
@@ -178,7 +183,31 @@ jobs:
           probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
           assert probabilities.ndim == 2 and probabilities.shape[1] == 7
           assert np.isfinite(probabilities).all()
-          print('installed-wheel ICLabel smoke test passed')
+
+      - name: Smoke test the built sdist
+        run: |
+          set -euo pipefail
+          uv venv --python 3.11 /tmp/relcheck-sdist
+          sdist=$(ls dist/*.tar.gz)
+          VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "$sdist" onnxruntime
+          VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
+          import eegprep
+          from importlib.resources import files
+          import numpy as np
+
+          print('installed from sdist', eegprep.__version__)
+          model = files('eegprep.plugins.ICLabel').joinpath('iclabel.onnx')
+          assert model.is_file(), 'installed ICLabel model is missing'
+          assert model.read_bytes(), 'installed ICLabel model is empty'
+          from eegprep.functions.popfunc.pop_loadset import pop_loadset
+          from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+
+          eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
+          labeled = pop_iclabel(eeg, 'default')
+          probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
+          assert np.isfinite(probabilities).all()
+          print('installed-sdist ICLabel smoke test passed')
 
           from eegprep.plugins.clean_rawdata.private.yulewalk import yulewalk
           f = np.concatenate((np.array([0,2,3,13,16,40,80])*2.0/258, [1.0]))
