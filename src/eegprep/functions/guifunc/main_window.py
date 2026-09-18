@@ -235,7 +235,7 @@ class EEGPrepMainWindow:
     def _schedule_async_menu_action(self, awaitable: Any) -> None:
         """Schedule an async menu action on the active browser event loop."""
         try:
-            task = asyncio.ensure_future(awaitable)
+            task = asyncio.get_running_loop().create_task(awaitable)
         except RuntimeError:
             if inspect.iscoroutine(awaitable):
                 awaitable.close()
