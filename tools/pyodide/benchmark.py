@@ -15,6 +15,7 @@ from scipy.linalg import blas as scipy_blas
 from threadpoolctl import threadpool_limits
 
 from eegprep.functions.sigprocfunc.runica import runica
+from eegprep.functions.sigprocfunc.runica_matmul import BACKEND as RUNICA_MATMUL_BACKEND
 
 
 SEED = 375
@@ -141,7 +142,7 @@ def _ica_summary(
                     seconds=seconds,
                     iterations=iterations,
                     converged=converged,
-                    backend="numpy" if name == "runica" else "picard",
+                    backend=RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
                 )
             )
         except Exception as exc:  # Keep the raw failure visible before failing the gate.
@@ -154,7 +155,7 @@ def _ica_summary(
                     seconds=0.0,
                     iterations=None,
                     converged=None,
-                    backend="numpy" if name == "runica" else "picard",
+                    backend=RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
                     error=f"{type(exc).__name__}: {exc}",
                 )
             )
@@ -162,7 +163,7 @@ def _ica_summary(
     successful = [record for record in records if record["error"] is None]
     return {
         "algorithm": name,
-        "backend": "numpy" if name == "runica" else "picard",
+        "backend": RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
         "warmup_runs": WARMUP_RUNS,
         "measured_runs": MEASURED_RUNS,
         "runs": records,
