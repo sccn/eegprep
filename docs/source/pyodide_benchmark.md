@@ -1,6 +1,7 @@
-# Pyodide browser execution, Phase 2 benchmark, and Phase 5 ICLabel parity
+# Pyodide browser execution, Phase 2/3 benchmark, and Phase 5 ICLabel parity
 
-This page records the Phase 2 gate for the [browser epic](https://github.com/sccn/eegprep/issues/324).
+This page records the Phase 2 gate and the Phase 3 runica backend decision for
+the [browser epic](https://github.com/sccn/eegprep/issues/324).
 The harness installs a wheel built from the working tree under Pyodide, runs a
 real continuous-data smoke pipeline, and measures the ICA and matrix products
 that determine whether later browser work is worthwhile.
@@ -16,6 +17,11 @@ Pyodide-compatible pure Python versions `mne==1.10.0`, `sympy==1.14.0`, and
 leaving EEGPrep's published dependency ranges unchanged.
 The smoke install completed successfully with this closure; no additional
 sdist-only blocker surfaced in the live harness.
+
+EEGPrep's ICA implementations do not use MNE. In particular, importing and
+running `runica` does not eagerly import MNE. The current published dependency
+closure still includes MNE for EEG file and interoperability paths; removing
+that browser-install dependency is a separate packaging task.
 
 Pyodide does not provide pthread support, so one Pyodide instance cannot run
 four or eight Python threads for a single ICA call. The benchmark therefore
@@ -55,7 +61,10 @@ fixed seed. The matrix benchmark uses the two runica products:
 Picard is measured through its underlying `picard(..., return_n_iter=True)` API
 with the same algorithmic options as EEGPrep's `eeg_picard` wrapper; benchmark
 output is quiet and includes the underlying iteration telemetry. The benchmark
-does not change either production ICA implementation.
+does not change either production ICA implementation. `runica` casts its input
+to float64, so Phase 3 selects one matrix-product helper at import time: native
+platforms retain NumPy `@`, while Emscripten uses SciPy `dgemm`. Picard remains
+unchanged.
 
 ## Measured results
 
@@ -91,17 +100,17 @@ jobs remains a host/Web Worker concern.
 
 | Algorithm | Native median (s) | Native median iterations | Native converged | Pyodide median (s) | Pyodide median iterations | Pyodide converged |
 | --- | ---: | ---: | :---: | ---: | ---: | :---: |
-| runica | 86.900706 | 512.0 | false | 351.139361 | 512.0 | false |
-| picard | 7.699578 | 511.0 | false | 65.949396 | 511.0 | false |
+| runica | 84.859703 | 512.0 | false | 204.447027 | 512.0 | false |
+| picard | 6.825637 | 511.0 | false | 65.385375 | 511.0 | false |
 
 ### Matrix multiplication
 
 | runica product | dtype | Native NumPy `@` (s) | Native BLAS (s) | Native speedup | Pyodide NumPy `@` (s) | Pyodide BLAS (s) | Pyodide speedup |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| activation | float64 | 0.000016 | 0.000018 | 0.88x | 0.000239 | 0.000106 | 2.26x |
-| activation | float32 | 0.000009 | 0.000015 | 0.62x | 0.000251 | 0.000246 | 1.02x |
-| weight_update | float64 | 0.000011 | 0.000018 | 0.61x | 0.000308 | 0.000127 | 2.43x |
-| weight_update | float32 | 0.000008 | 0.000015 | 0.53x | 0.000311 | 0.000150 | 2.07x |
+| activation | float64 | 0.000012 | 0.000017 | 0.69x | 0.000244 | 0.000099 | 2.46x |
+| activation | float32 | 0.000006 | 0.000014 | 0.40x | 0.000242 | 0.000264 | 0.91x |
+| weight_update | float64 | 0.000008 | 0.000018 | 0.46x | 0.000332 | 0.000125 | 2.66x |
+| weight_update | float32 | 0.000005 | 0.000015 | 0.34x | 0.000317 | 0.000154 | 2.06x |
 
 ### Decisions
 
@@ -113,7 +122,14 @@ convergence and timings, not on the code path alone.
 For this run, Picard was much faster in wall-clock time but emitted its
 non-convergence warning at 511 iterations; runica also reached the 512-step
 cap. The conservative browser-default gate therefore returns **false** for
-Picard. The BLAS gate also returns **false**: the float32 activation product
-was only 1.02x faster with `sgemm`, below the 1.2x threshold. Phase 3 should
-remain a documentation/follow-up decision rather than a production helper
-based on this measurement.
+Picard. The original all-dtypes BLAS gate also returns **false**: the float32
+activation product was 0.91x with `sgemm`, below the 1.2x threshold.
+
+Phase 3 adopts the narrower production-relevant decision. Because `runica`
+already operates on float64 data, its Emscripten hot-loop products use
+`scipy.linalg.blas.dgemm`; the measured float64 speedups were 2.46x for
+activation and 2.66x for the weight update. Native execution retains NumPy
+`@`, and Picard is not monkeypatched or distributed across workers. The
+comparison script intentionally retains the universal all-dtypes gate, so its
+`phase3_recommended` field remains **false** even though the float64-only
+implementation is now covered and benchmarked.
