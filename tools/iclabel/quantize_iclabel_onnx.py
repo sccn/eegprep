@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
+from eegprep.plugins.ICLabel.iclabel import _postprocess_network_output, _prepare_network_inputs
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 
 
@@ -169,14 +170,11 @@ def _validate_feature_arrays(features: Sequence[np.ndarray]) -> None:
 def network_inputs_from_features(features: Sequence[np.ndarray]) -> dict[str, np.ndarray]:
     """Apply the unchanged ICLabel augmentation and NCHW conversion."""
     _validate_feature_arrays(features)
-    topo, psd, autocorr = features
-    topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
-    psd = np.single(np.tile(psd, (1, 1, 1, 4)))
-    autocorr = np.single(np.tile(autocorr, (1, 1, 1, 4)))
+    topo, psd, autocorr = _prepare_network_inputs(features)
     return {
-        "image": np.transpose(topo, (3, 2, 0, 1)),
-        "psdmed": np.transpose(psd, (3, 2, 0, 1)),
-        "autocorr": np.transpose(autocorr, (3, 2, 0, 1)),
+        "image": topo,
+        "psdmed": psd,
+        "autocorr": autocorr,
     }
 
 
@@ -191,11 +189,7 @@ def _run_network(model_path: Path, inputs: Mapping[str, np.ndarray]) -> np.ndarr
 def predict_features(model_path: Path, features: Sequence[np.ndarray]) -> np.ndarray:
     """Run an ICLabel artifact and return one 7-class row per component."""
     output = _run_network(model_path, network_inputs_from_features(features))
-    output = output.T
-    output = np.reshape(output, (-1, 4), order="F")
-    output = np.mean(output, axis=1)
-    output = np.reshape(output, (7, -1), order="F")
-    return output.T
+    return _postprocess_network_output(output)
 
 
 def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.ndarray:

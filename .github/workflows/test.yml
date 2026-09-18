@@ -242,12 +242,41 @@ jobs:
 
       - name: Install benchmark dependencies
         run: |
-          uv sync --python 3.11 --group dev --extra iclabel
+          uv sync --python 3.11 --group dev --extra iclabel --extra torch
 
       - name: Build EEGPrep wheel from the working tree
         run: |
           mkdir -p pyodide-artifacts
           uv build --wheel --out-dir pyodide-artifacts
+
+      - name: Regenerate and validate ICLabel quantized artifacts
+        run: |
+          set -euo pipefail
+          candidate_dir="$RUNNER_TEMP/iclabel-quantized"
+          report_path="$candidate_dir/parity_report.json"
+          uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \
+            --output-dir "$candidate_dir" \
+            --report "$report_path" \
+            > pyodide-artifacts/iclabel-quantization.log
+          uv run --no-sync python - "$report_path" "$candidate_dir/iclabel_int8_weight_only.onnx" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          report = json.loads(Path(sys.argv[1]).read_text())
+          selected = report["default_artifact"]
+          if selected != "iclabel_int8_weight_only.onnx":
+              raise SystemExit(f"unexpected selected ICLabel artifact: {selected}")
+          if not report["candidates"]["weight_only"]["gate_pass"]:
+              raise SystemExit("regenerated weight-only ICLabel artifact failed its parity gate")
+          generated = Path(sys.argv[2]).read_bytes()
+          shipped = Path("src/eegprep/plugins/ICLabel/iclabel.onnx").read_bytes()
+          if generated != shipped:
+              raise SystemExit("shipped iclabel.onnx differs from the regenerated selected artifact")
+          committed = json.loads(Path("tools/iclabel/parity_report.json").read_text())
+          if report["candidates"]["weight_only"]["sha256"] != committed["candidates"]["weight_only"]["sha256"]:
+              raise SystemExit("committed ICLabel parity report is stale relative to regenerated artifact")
+          PY
 
       - name: Build the locked docopt wheel
         run: |

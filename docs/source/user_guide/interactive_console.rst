@@ -103,6 +103,9 @@ recommended for UI responsiveness. The async history command is recorded with
 
    await eegh(1)
 
+If the shared session changes while classification is running, EEGPrep discards
+the stale result instead of committing it to a different dataset selection.
+
 In-place Workspace Edits
 ========================
 

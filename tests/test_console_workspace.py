@@ -300,6 +300,26 @@ def test_console_async_iclabel_failure_does_not_mutate_session():
     workspace.close()
 
 
+def test_console_async_iclabel_discards_result_after_session_changes():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+
+    async def stale_pop(eeg, *, return_com=False):
+        session.store_current(_demo_eeg("second"), new=True)
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+
+    assert session.EEG["setname"] == "second"
+    assert session.CURRENTSET == [2]
+    assert session.ALLCOM == []
+    workspace.close()
+
+
 def test_console_currentset_reassignment_preserves_both_datasets():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)

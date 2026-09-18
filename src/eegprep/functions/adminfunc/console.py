@@ -265,7 +265,10 @@ class ConsolePopFunction(LazyWorkspaceExport):
         call_kwargs = dict(kwargs)
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
+        target_state = self.bridge.session.dataset_state_token()
         result = await function(*args, **call_kwargs)
+        if not self.bridge.session.dataset_state_unchanged(target_state):
+            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:

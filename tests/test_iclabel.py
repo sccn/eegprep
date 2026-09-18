@@ -61,16 +61,7 @@ class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
 
 
 def _float32_classifications(eeg):
-    features = ICL_feature_extractor(eeg, True)
-    features[0] = np.single(
-        np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
-    )
-    features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
-    features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-
-    image = np.transpose(features[0], (3, 2, 0, 1))
-    psdmed = np.transpose(features[1], (3, 2, 0, 1))
-    autocorr = np.transpose(features[2], (3, 2, 0, 1))
+    image, psdmed, autocorr = iclabel_module._prepare_features(eeg)
     import onnxruntime as ort
 
     float32_path = os.path.join(
@@ -79,11 +70,7 @@ def _float32_classifications(eeg):
     (output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
         ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
     )
-    output = output.T
-    output = np.reshape(output, (-1, 4), order='F')
-    output = np.mean(output, axis=1)
-    output = np.reshape(output, (7, -1), order='F')
-    return output.T
+    return iclabel_module._postprocess_network_output(output)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -166,28 +153,12 @@ class TestICLabelOnnxExport(unittest.TestCase):
         model = ICLabelNet(mat_path)
         model.eval()
 
-        features = ICL_feature_extractor(self.EEG, True)
-        features[0] = np.single(
-            np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
-        )
-        features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
-        features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-
-        image = np.transpose(features[0], (3, 2, 0, 1))
-        psdmed = np.transpose(features[1], (3, 2, 0, 1))
-        autocorr = np.transpose(features[2], (3, 2, 0, 1))
+        image, psdmed, autocorr = iclabel_module._prepare_features(self.EEG)
 
         with torch.no_grad():
             torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
 
-        def postprocess(output):
-            out = output.T
-            out = np.reshape(out, (-1, 4), order='F')
-            out = np.mean(out, axis=1)
-            out = np.reshape(out, (7, -1), order='F')
-            return out.T
-
-        torch_final = postprocess(torch_out)
+        torch_final = iclabel_module._postprocess_network_output(torch_out)
 
         onnx_final = _float32_classifications(self.EEG)
 
@@ -205,6 +176,19 @@ class TestICLabelOnnxExport(unittest.TestCase):
             np.allclose(torch_final, onnx_final, rtol=1e-4, atol=1e-5),
             'ONNX and torch ICLabel outputs differ beyond tolerance',
         )
+
+
+@unittest.skipUnless(has_optional_dependency('onnxruntime'), "install eegprep[iclabel] to run ICLabel runtime coverage")
+class TestICLabelRuntime(unittest.TestCase):
+    def test_default_entry_point_uses_packaged_onnx_runtime(self):
+        eeg = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
+
+        output = iclabel(eeg)
+        classifications = output['etc']['ic_classification']['ICLabel']['classifications']
+
+        self.assertEqual(classifications.shape[1], 7)
+        self.assertTrue(np.isfinite(classifications).all())
+        self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
 
 
 if __name__ == '__main__':

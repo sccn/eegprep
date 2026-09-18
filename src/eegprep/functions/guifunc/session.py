@@ -141,6 +141,7 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
+    _revision: int = field(default=0, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -200,8 +201,18 @@ class EEGPrepSession:
 
     def notify_changed(self) -> None:
         """Notify listeners that session-backed state changed."""
+        self._revision += 1
         for listener in list(self._listeners):
             listener(self)
+
+    def dataset_state_token(self) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
+        """Return a token for rejecting stale asynchronous dataset results."""
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        return self._revision, tuple(self.CURRENTSET), tuple(id(dataset) for dataset in current)
+
+    def dataset_state_unchanged(self, token: tuple[int, tuple[int, ...], tuple[int, ...]]) -> bool:
+        """Return whether dataset state still matches a captured async token."""
+        return self.dataset_state_token() == token
 
     def current_eeg(self) -> dict[str, Any] | list[dict[str, Any]]:
         """Return the current EEG selection."""

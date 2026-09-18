@@ -91,8 +91,23 @@ NODE_ARGS=(
   --script "$SCRIPT_PATH"
 )
 if [[ "$ICLABEL_WEB" == true ]]; then
+  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel.onnx"
+  uv run --no-sync python - "$WHEEL_PATH" "$ICLABEL_MODEL_PATH" <<'PY'
+import sys
+import zipfile
+
+wheel_path, output_path = sys.argv[1:]
+model_name = "eegprep/plugins/ICLabel/iclabel.onnx"
+with zipfile.ZipFile(wheel_path) as wheel:
+    try:
+        model = wheel.read(model_name)
+    except KeyError as exc:
+        raise SystemExit(f"Wheel is missing {model_name}") from exc
+with open(output_path, "wb") as handle:
+    handle.write(model)
+PY
   NODE_ARGS+=(
-    --iclabel-model "$REPO_ROOT/src/eegprep/plugins/ICLabel/iclabel.onnx"
+    --iclabel-model "$ICLABEL_MODEL_PATH"
     --onnxruntime-web-module "$NPM_PREFIX/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs"
   )
 fi

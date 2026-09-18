@@ -104,6 +104,15 @@ def test_currentset_empty_single_and_multiple_console_values():
     assert session.current_set_value() == [1, 2]
 
 
+def test_dataset_state_token_changes_when_session_notifies():
+    session = EEGPrepSession()
+    token = session.dataset_state_token()
+
+    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+
+    assert not session.dataset_state_unchanged(token)
+
+
 def test_dataset_index_normalization_accepts_canonical_empty_values():
     assert normalize_dataset_indices(0) == []
     assert normalize_dataset_indices([0]) == []

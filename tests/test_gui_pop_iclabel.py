@@ -162,7 +162,7 @@ class PopIclabelGuiTests(unittest.TestCase):
             mock.patch.object(menu_actions_module, "_IS_EMSCRIPTEN", True),
             mock.patch.object(pop_iclabel_module, "pop_iclabel_async", side_effect=classify),
         ):
-            with self.assertRaisesRegex(RuntimeError, "selected dataset changed"):
+            with self.assertRaisesRegex(RuntimeError, "session changed"):
                 asyncio.run(dispatcher.dispatch_gui("pop_iclabel"))
 
         self.assertIs(session.ALLEEG[0], original)
