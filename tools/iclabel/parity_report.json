@@ -11,7 +11,9 @@
         "Muscle": 2,
         "Other": 194
       },
-      "gate_pass": true,
+      "gate_pass": false,
+      "max_probability_abs_diff": 0.09521264,
+      "mean_probability_abs_diff": 0.0058981734,
       "keep_reject_agreement": 1.0,
       "per_class_agreement": {
         "Brain": {
@@ -69,6 +71,8 @@
         "Other": 193
       },
       "gate_pass": true,
+      "max_probability_abs_diff": 0.013459265,
+      "mean_probability_abs_diff": 0.00080229656,
       "keep_reject_agreement": 1.0,
       "per_class_agreement": {
         "Brain": {
@@ -148,6 +152,8 @@
       "Muscle": 1,
       "Other": 193
     },
+    "max_probability_abs_diff": 0.0,
+    "mean_probability_abs_diff": 0.0,
     "keep_reject_agreement": 1.0,
     "per_class_agreement": {
       "Brain": {
@@ -195,7 +201,8 @@
   },
   "gate": {
     "minimum_keep_reject_agreement": 0.99,
-    "minimum_top1_agreement": 0.95
+    "minimum_top1_agreement": 0.95,
+    "maximum_probability_abs_diff": 0.015
   },
   "manifest": "evaluation_manifest.json",
   "quantization": {

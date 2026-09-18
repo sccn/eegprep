@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import contextvars
 import importlib
 import inspect
@@ -48,6 +49,7 @@ _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_rejspec",
     "pop_rejtrend",
 }
+_IN_PLACE_DATASET_POP_FUNCTIONS = frozenset({"pop_saveset"})
 
 
 class ConsolePopResult:
@@ -240,6 +242,9 @@ class ConsolePopFunction(LazyWorkspaceExport):
             return self._call_async(target_state, *args, **kwargs)
         function = self.resolve()
         call_kwargs = dict(kwargs)
+        target_state = (
+            self.bridge.session.dataset_state_token() if self.name in _IN_PLACE_DATASET_POP_FUNCTIONS else None
+        )
         recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
             source_eeg = _first_call_eeg_argument(args, call_kwargs)
@@ -287,7 +292,13 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 self.bridge.pull_from_session()
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         eeg_result, result_command = _extract_pop_eeg_and_command(result)
-        if not result_command and eeg_result is self.bridge.session.EEG:
+        if (
+            self.name in _IN_PLACE_DATASET_POP_FUNCTIONS
+            and target_state is not None
+            and not result_command
+            and eeg_result is self.bridge.session.EEG
+            and not self.bridge.session.dataset_state_unchanged(target_state)
+        ):
             self.bridge.session.notify_changed(dataset_changed=True)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
@@ -392,6 +403,7 @@ class EEGPrepConsoleWorkspace:
         self.command_echo = command_echo
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self.namespace: dict[str, Any] = {}
+        self._builtin_import = builtins.__import__
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
         self._wrapped_async_exports: dict[str, ConsoleAsyncFunction] = {}
@@ -570,7 +582,14 @@ class EEGPrepConsoleWorkspace:
         return ConsolePopResult(self.session.EEG, command, updated=True)
 
     def _bind_base_namespace(self) -> None:
-        self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
+        self.namespace.update(
+            {
+                "eegprep": self._eegprep_proxy,
+                "session": self.session,
+                "window": self.window,
+                "__builtins__": {**vars(builtins), "__import__": self._console_import},
+            }
+        )
         self.namespace.update(_CONSOLE_COMMAND_EXPORTS)
         self.namespace["eegh"] = ConsoleEegh(self)
 
@@ -642,6 +661,20 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[local_name] = self.pop_wrapper(export_name)
             elif export_name == "iclabel_async":
                 self.namespace[local_name] = self.async_wrapper(export_name)
+
+    def _console_import(
+        self,
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> Any:
+        module = self._builtin_import(name, globals, locals, fromlist, level)
+        eegprep_exports = set(getattr(eegprep, "__all__", ()))
+        if name == "eegprep" and fromlist and any(item in eegprep_exports for item in fromlist):
+            return self._eegprep_proxy
+        return module
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
@@ -1607,7 +1640,7 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
                     aliases[alias.asname or "eegprep"] = "eegprep"
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
-                if alias.name.startswith("pop_"):
+                if alias.name.startswith("pop_") or alias.name == "iclabel_async":
                     aliases[alias.asname or alias.name] = alias.name
     return aliases
 

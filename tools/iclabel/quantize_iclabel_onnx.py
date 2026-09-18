@@ -20,13 +20,13 @@ from typing import Any
 import numpy as np
 
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
-from eegprep.plugins.ICLabel.iclabel import _postprocess_network_output, _prepare_network_inputs
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 
 
 CLASS_NAMES = ("Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise", "Other")
 MIN_TOP1_AGREEMENT = 0.95
 MIN_KEEP_REJECT_AGREEMENT = 0.99
+MAX_PROBABILITY_ABS_DIFF = 0.015
 _INPUT_NAMES = ("image", "psdmed", "autocorr")
 _OUTPUT_NAME = "output"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -168,13 +168,16 @@ def _validate_feature_arrays(features: Sequence[np.ndarray]) -> None:
 
 
 def network_inputs_from_features(features: Sequence[np.ndarray]) -> dict[str, np.ndarray]:
-    """Apply the unchanged ICLabel augmentation and NCHW conversion."""
+    """Build the frozen quantization inputs independently of runtime ICLabel."""
     _validate_feature_arrays(features)
-    topo, psd, autocorr = _prepare_network_inputs(features)
+    topo, psd, autocorr = features
+    topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
+    psd = np.single(np.tile(psd, (1, 1, 1, 4)))
+    autocorr = np.single(np.tile(autocorr, (1, 1, 1, 4)))
     return {
-        "image": topo,
-        "psdmed": psd,
-        "autocorr": autocorr,
+        "image": np.transpose(topo, (3, 2, 0, 1)),
+        "psdmed": np.transpose(psd, (3, 2, 0, 1)),
+        "autocorr": np.transpose(autocorr, (3, 2, 0, 1)),
     }
 
 
@@ -189,7 +192,10 @@ def _run_network(model_path: Path, inputs: Mapping[str, np.ndarray]) -> np.ndarr
 def predict_features(model_path: Path, features: Sequence[np.ndarray]) -> np.ndarray:
     """Run an ICLabel artifact and return one 7-class row per component."""
     output = _run_network(model_path, network_inputs_from_features(features))
-    return _postprocess_network_output(output)
+    output = output.T
+    output = np.reshape(output, (-1, 4), order="F")
+    output = np.mean(output, axis=1)
+    return np.reshape(output, (7, -1), order="F").T
 
 
 def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
@@ -202,7 +208,7 @@ def compare_predictions(
     candidate: np.ndarray,
     thresholds: np.ndarray = DEFAULT_ICFLAG_THRESHOLDS,
 ) -> dict[str, Any]:
-    """Compare class labels and exact ICLabel keep/reject decisions."""
+    """Compare probabilities, class labels, and ICLabel keep/reject decisions."""
     teacher = np.asarray(teacher, dtype=float)
     candidate = np.asarray(candidate, dtype=float)
     if teacher.shape != candidate.shape or teacher.ndim != 2 or teacher.shape[1] != len(CLASS_NAMES):
@@ -225,6 +231,8 @@ def compare_predictions(
 
     return {
         "sample_count": int(teacher.shape[0]),
+        "max_probability_abs_diff": float(np.max(np.abs(teacher - candidate))),
+        "mean_probability_abs_diff": float(np.mean(np.abs(teacher - candidate))),
         "top1_agreement": float(np.mean(teacher_labels == candidate_labels)),
         "keep_reject_agreement": float(np.mean(teacher_reject == candidate_reject)),
         "teacher_class_distribution": {
@@ -238,10 +246,11 @@ def compare_predictions(
 
 
 def parity_gate_passes(metrics: Mapping[str, Any]) -> bool:
-    """Return whether the issue #379 top-1 and keep/reject gates pass."""
+    """Return whether the frozen probability and semantic parity gates pass."""
     return (
         float(metrics["top1_agreement"]) >= MIN_TOP1_AGREEMENT
         and float(metrics["keep_reject_agreement"]) >= MIN_KEEP_REJECT_AGREEMENT
+        and float(metrics["max_probability_abs_diff"]) <= MAX_PROBABILITY_ABS_DIFF
     )
 
 
@@ -383,6 +392,7 @@ def evaluate_artifacts(
         "gate": {
             "minimum_top1_agreement": MIN_TOP1_AGREEMENT,
             "minimum_keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
+            "maximum_probability_abs_diff": MAX_PROBABILITY_ABS_DIFF,
         },
         "quantization": {
             "feature_dtype": "float32",

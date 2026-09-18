@@ -31,9 +31,11 @@ Unreleased
   candidate under ``tools/iclabel/artifacts/``. On the frozen, subject-disjoint
   217-component real-data evaluation set, the shipped artifact matched the
   float32 teacher on 100% of top-1 labels and 100% of existing
-  ``pop_icflag`` keep-or-reject decisions; the calibrated candidate measured
-  98.1567% and 100%, respectively. Feature extraction, normalization,
-  augmentation, softmax, class set, and rejection thresholds are unchanged.
+  ``pop_icflag`` keep-or-reject decisions, with a maximum probability drift of
+  0.01346 and a mean drift of 0.00080. The calibrated candidate measured
+  98.1567% and 100%, respectively, but exceeded the 0.015 maximum probability
+  drift gate. Feature extraction, normalization, augmentation, softmax, class
+  set, and rejection thresholds are unchanged.
 - ``asr_process`` now resolves ``max_mem=None`` to a fixed 64 MB instead of probing free
   system RAM through ``psutil``.
   This matches the ``maxmem=64`` default that ``asr_calibrate`` and ``clean_asr`` already

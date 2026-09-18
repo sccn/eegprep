@@ -147,11 +147,12 @@ softmax remain unchanged. On the frozen 217-component, subject-disjoint
 evaluation set recorded in ``tools/iclabel/evaluation_manifest.json``, the
 shipped artifact agreed with the preserved float32 teacher on all 217 top-1
 labels and all 217 keep-or-reject decisions under the existing
-``pop_icflag`` thresholds (100% and 100%). The calibrated int8 candidate also
-passed the fixed gate (98.1567% top-1 and 100% keep-or-reject), but the smaller
-weight-only candidate is shipped. These are measured parity results on the
-frozen set, not a general accuracy claim. The reproducible float32 reference,
-both int8 candidates, and the complete report are retained under
+``pop_icflag`` thresholds (100% and 100%), with a maximum probability drift of
+0.01346. The calibrated int8 candidate measured 98.1567% top-1 and 100%
+keep-or-reject but exceeded the fixed 0.015 probability-drift gate, so the
+smaller weight-only candidate is shipped. These are measured parity results on
+the frozen set, not a general accuracy claim. The reproducible float32
+reference, both int8 candidates, and the complete report are retained under
 ``tools/iclabel/``.
 
 EEGLAB ``lite`` and ``beta`` network artifacts are not bundled in the Python

@@ -293,6 +293,66 @@ def test_console_iclabel_async_export_captures_state_before_coroutine_starts():
     workspace.close()
 
 
+@pytest.mark.parametrize(
+    ("import_line", "local_name"),
+    [
+        ("from eegprep import iclabel_async", "iclabel_async"),
+        ("from eegprep import iclabel_async as classify", "classify"),
+    ],
+)
+def test_console_imported_iclabel_async_uses_freshness_wrapper(import_line, local_name):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec(f"{import_line}\npending = {local_name}(EEG)", workspace.namespace)
+    assert isinstance(workspace.namespace[local_name], console_module.ConsoleAsyncFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_async_iclabel_discards_result_after_in_place_console_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["EEG"].update({"setname": "edited"})
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited"
+    assert session.ALLCOM == []
+
+
 def test_console_in_place_pop_result_marks_dataset_changed():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -307,6 +367,21 @@ def test_console_in_place_pop_result_marks_dataset_changed():
 
     assert not session.dataset_state_unchanged(token)
     assert session.EEG["saved"] == "yes"
+    workspace.close()
+
+
+def test_console_cancelled_pop_does_not_mark_dataset_changed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    token = session.dataset_state_token()
+
+    def cancelled_pop(eeg, *, return_com=False):
+        return (eeg, "") if return_com else eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_rmbase": cancelled_pop})
+    workspace.namespace["pop_rmbase"](workspace.namespace["EEG"])
+
+    assert session.dataset_state_unchanged(token)
     workspace.close()
 
 
@@ -1516,6 +1591,27 @@ def test_console_restores_pop_wrappers_after_from_import():
     workspace.after_execute("from eegprep import pop_reref")
 
     assert workspace.namespace["pop_reref"] is original_wrapper
+
+
+@pytest.mark.parametrize(
+    ("import_line", "local_name"),
+    [
+        ("from eegprep import iclabel_async", "iclabel_async"),
+        ("from eegprep import iclabel_async as classify", "classify"),
+    ],
+)
+def test_console_restores_imported_iclabel_async_wrappers(import_line, local_name):
+    session = EEGPrepSession()
+
+    async def fake_iclabel(eeg):
+        return eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    workspace.namespace[local_name] = fake_iclabel
+    workspace.after_execute(import_line)
+
+    assert isinstance(workspace.namespace[local_name], console_module.ConsoleAsyncFunction)
+    workspace.close()
 
 
 def test_console_restores_aliased_pop_wrapper_after_from_import():

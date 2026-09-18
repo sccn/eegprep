@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
@@ -33,6 +34,60 @@ def has_eeg_data(eeg: Any) -> bool:
     if isinstance(data, list):
         return len(data) > 0
     return True
+
+
+def _dataset_fingerprint(value: Any) -> bytes:
+    """Return a content fingerprint for mutable dataset state."""
+    digest = hashlib.blake2b(digest_size=16)
+    _update_dataset_fingerprint(digest, value, set())
+    return digest.digest()
+
+
+def _update_dataset_fingerprint(digest: Any, value: Any, active: set[int]) -> None:
+    if value is None or isinstance(value, (bool, int, float, str, bytes, np.generic)):
+        digest.update(repr((type(value).__name__, value)).encode("utf-8", "backslashreplace"))
+        return
+    if isinstance(value, np.ndarray):
+        marker = id(value)
+        if marker in active:
+            digest.update(f"cycle:{marker}".encode())
+            return
+        active.add(marker)
+        try:
+            digest.update(f"ndarray:{value.dtype}:{value.shape}".encode())
+            if value.dtype.hasobject:
+                for item in value.flat:
+                    _update_dataset_fingerprint(digest, item, active)
+            else:
+                digest.update(np.ascontiguousarray(value).view(np.uint8).tobytes())
+        finally:
+            active.remove(marker)
+        return
+    if isinstance(value, dict):
+        marker = id(value)
+        if marker in active:
+            digest.update(f"cycle:{marker}".encode())
+            return
+        active.add(marker)
+        try:
+            digest.update(f"dict:{len(value)}".encode())
+            for key, item in sorted(value.items(), key=lambda entry: repr(entry[0])):
+                _update_dataset_fingerprint(digest, key, active)
+                _update_dataset_fingerprint(digest, item, active)
+        finally:
+            active.remove(marker)
+        return
+    if isinstance(value, (list, tuple)):
+        digest.update(f"{type(value).__name__}:{len(value)}".encode())
+        for item in value:
+            _update_dataset_fingerprint(digest, item, active)
+        return
+    if isinstance(value, (set, frozenset)):
+        digest.update(f"{type(value).__name__}:{len(value)}".encode())
+        for item in sorted(value, key=repr):
+            _update_dataset_fingerprint(digest, item, active)
+        return
+    digest.update(repr((type(value).__module__, type(value).__qualname__, value)).encode("utf-8", "backslashreplace"))
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
@@ -209,20 +264,28 @@ class EEGPrepSession:
     def _mark_dataset_changed(self) -> None:
         self._dataset_revision += 1
 
-    def dataset_state_token(self) -> tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
+    def dataset_state_token(self) -> tuple[Any, ...]:
         """Return a token for rejecting stale asynchronous dataset results."""
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
         selected_slots = tuple(
             id(self.ALLEEG[index - 1]) if 1 <= index <= len(self.ALLEEG) else 0 for index in self.CURRENTSET
         )
+        selected_datasets = tuple(self.ALLEEG[index - 1] for index in self.CURRENTSET if 1 <= index <= len(self.ALLEEG))
+        tracked_ids: set[int] = set()
+        tracked_datasets: list[Any] = []
+        for dataset in (*current, *selected_datasets):
+            if id(dataset) not in tracked_ids:
+                tracked_ids.add(id(dataset))
+                tracked_datasets.append(dataset)
         return (
             self._dataset_revision,
             tuple(self.CURRENTSET),
             selected_slots,
             tuple(id(dataset) for dataset in current),
+            _dataset_fingerprint(tuple(tracked_datasets)),
         )
 
-    def dataset_state_unchanged(self, token: tuple[int, tuple[int, ...], tuple[int, ...], tuple[int, ...]]) -> bool:
+    def dataset_state_unchanged(self, token: tuple[Any, ...]) -> bool:
         """Return whether dataset state still matches a captured async token."""
         return self.dataset_state_token() == token
 

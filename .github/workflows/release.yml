@@ -160,7 +160,7 @@ jobs:
           set -euo pipefail
           uv venv --python 3.11 /tmp/relcheck
           wheel=$(ls dist/*.whl)
-          VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]"
+          VIRTUAL_ENV=/tmp/relcheck uv pip install "$wheel" onnxruntime
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep
           from importlib.resources import files
