@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import ctypes
 import ctypes.util
+import inspect
+import logging
 import sys
 from typing import Any
 
@@ -33,6 +36,7 @@ APP_NAME = "EEGPrep"
 _MACOS_MENU_BRANDING_RETRY_MS = 100
 COMING_SOON_SUFFIX = " (coming soon)"
 COMING_SOON_TOOLTIP = "This workflow is not available in EEGPrep yet."
+logger = logging.getLogger(__name__)
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -87,6 +91,7 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
+        self._async_menu_tasks: set[asyncio.Future[Any]] = set()
         self._build_central_widget()
         self.refresh()
 
@@ -221,9 +226,34 @@ class EEGPrepMainWindow:
 
     def _dispatch_menu_action(self, action_id: str) -> None:
         try:
-            self.dispatcher.dispatch_gui(action_id, self.window)
+            result = self.dispatcher.dispatch_gui(action_id, self.window)
+            if inspect.isawaitable(result):
+                self._schedule_async_menu_action(result)
         finally:
             self._queue_application_branding()
+
+    def _schedule_async_menu_action(self, awaitable: Any) -> None:
+        """Schedule an async menu action on the active browser event loop."""
+        try:
+            task = asyncio.ensure_future(awaitable)
+        except RuntimeError:
+            if inspect.iscoroutine(awaitable):
+                awaitable.close()
+            raise RuntimeError("Async GUI menu actions require an active event loop.") from None
+        self._async_menu_tasks.add(task)
+        task.add_done_callback(self._finish_async_menu_action)
+
+    def _finish_async_menu_action(self, task: asyncio.Future[Any]) -> None:
+        self._async_menu_tasks.discard(task)
+        if task.cancelled():
+            return
+        exception = task.exception()
+        if exception is not None:
+            logger.error(
+                "Asynchronous EEGPrep GUI menu action failed: %s",
+                exception,
+                exc_info=(type(exception), exception, exception.__traceback__),
+            )
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []
