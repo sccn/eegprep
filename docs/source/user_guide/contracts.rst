@@ -18,6 +18,19 @@ Stored EEG dictionaries are normalized through ``eeg_checkset`` or an
 invariants. If you build a dataset dictionary by hand, pass it through
 ``eeg_checkset`` before handing it to other functions.
 
+Channel locations can be normalized independently with
+``eeg_checkchanlocs``. It fills the standard location fields, converts
+compatible coordinate systems, moves fiducials and ``IGNORE`` entries to
+``EEG["chaninfo"]["nodatchans"]``, and normalizes the recorded nose direction
+to ``+X`` when the coordinates allow it.
+
+Use ``eeg_getdatact`` to extract channels, ICA activations, component-removed
+data, or component backprojections without mutating the dataset. Its selector
+arguments are 1-based at the public API boundary, while stored
+``icachansind`` values remain 0-based. The default result is always
+``(signals, samples, trials)``; ``reshape="2d"`` concatenates trials in
+column-major order for EEGLAB-compatible numerical workflows.
+
 ``event`` entries keep EEGLAB-facing ``latency`` values and, when available,
 ``urevent`` pointers back to ``urevent`` entries. ``urevent`` is the
 original-event table; functions that create, delete, or reorder events state
