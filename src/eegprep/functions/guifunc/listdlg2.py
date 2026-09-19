@@ -32,7 +32,7 @@ def _require_qt() -> tuple[Any, Any]:
 def listdlg2(
     *,
     promptstring: str = "",
-    liststring: Sequence[str],
+    liststring: Sequence[str] | str,
     selectionmode: str = "multiple",
     initialvalue: Sequence[int] | None = None,
     listsize: tuple[int, int] | None = None,
@@ -42,7 +42,8 @@ def listdlg2(
     """Open an EEGLAB-like list selector.
 
     Returns 1-based selected list positions, an OK flag, and the selected
-    display strings joined by spaces, matching EEGLAB ``listdlg2``.
+    display strings joined by spaces, matching EEGLAB ``listdlg2``. A scalar
+    string is one list item rather than a sequence of characters.
     """
     qt_core, qt_widgets = _require_qt()
 
@@ -68,7 +69,7 @@ def listdlg2(
 def build_listdlg2_dialog(
     *,
     promptstring: str = "",
-    liststring: Sequence[str],
+    liststring: Sequence[str] | str,
     selectionmode: str = "multiple",
     initialvalue: Sequence[int] | None = None,
     listsize: tuple[int, int] | None = None,
@@ -98,14 +99,14 @@ def _create_dialog(
     QtWidgets: Any,
     *,
     promptstring: str,
-    liststring: Sequence[str],
+    liststring: Sequence[str] | str,
     selectionmode: str,
     initialvalue: Sequence[int] | None,
     listsize: tuple[int, int] | None,
     name: str,
     parent: Any | None,
 ) -> tuple[Any, Any, list[str]]:
-    list_items = [str(item) for item in liststring]
+    list_items = [liststring] if isinstance(liststring, str) else [str(item) for item in liststring]
     initial = _normalise_initial(initialvalue, len(list_items), selectionmode)
     dialog = QtWidgets.QDialog(parent)
     dialog.setObjectName("listdlg2")
@@ -127,16 +128,16 @@ def _create_dialog(
 
     list_widget = QtWidgets.QListWidget(dialog)
     list_widget.setObjectName("listboxvals")
-    if selectionmode.lower() == "single" or len(list_items) == 1:
+    if selectionmode.lower() != "multiple" or len(list_items) == 1:
         list_widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
     else:
         list_widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
     for index, item_text in enumerate(list_items, start=1):
         item = QtWidgets.QListWidgetItem(item_text)
         item.setData(QtCore.Qt.UserRole, index)
+        list_widget.addItem(item)
         if index in initial:
             item.setSelected(True)
-        list_widget.addItem(item)
     list_widget.setGeometry(18, 64 if promptstring else 15, width - 36, visible_rows * 20 + 8)
 
     cancel = QtWidgets.QPushButton("Cancel", dialog)
