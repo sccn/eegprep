@@ -13,7 +13,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._ica_utils import flatten_ica_data
-from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value, is_on, parse_key_value_args
 from eegprep.functions.popfunc.eeg_amica import eeg_amica
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
@@ -289,7 +289,17 @@ def _runica_by_subject_session(datasets, icatype, options, *, reorder, chanind):
 def _subject_session_key(EEG):
     subject = EEG.get("subject")
     session = EEG.get("session")
-    return ("" if subject in (None, "") else str(subject), "" if session in (None, "") else session)
+    return (_metadata_group_value(subject, text=True), _metadata_group_value(session))
+
+
+def _metadata_group_value(value, *, text=False):
+    if is_empty_value(value):
+        return ""
+    if isinstance(value, np.ndarray):
+        value = value.item() if value.size == 1 else tuple(value.ravel().tolist())
+    elif isinstance(value, list):
+        value = tuple(value)
+    return str(value) if text else value
 
 
 def _flatten_dataset_data(EEG):
@@ -398,7 +408,11 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
     if icatype == "runica":
         return eeg_runica(EEG, sortcomps=reorder, **options)
     if icatype == "picard":
-        return eeg_picard(EEG, sortcomps=reorder, **_picard_options(options))
+        return eeg_picard(
+            EEG,
+            sortcomps=reorder,
+            **_picard_options(options, channel_count=int(EEG.get("nbchan", 0) or 0)),
+        )
     if icatype == "runamica15":
         return eeg_amica(EEG, sortcomps=reorder, **_amica_options(options))
     raise NotImplementedError(
@@ -407,12 +421,19 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
     )
 
 
-def _picard_options(options):
+def _picard_options(options, *, channel_count):
     mapped = {}
     for key, value in options.items():
         lower_key = str(key).lower()
         if lower_key == "maxiter":
             mapped["max_iter"] = value
+        elif lower_key == "pca":
+            component_count = int(value)
+            if component_count < 0:
+                component_count += channel_count
+            if component_count < 1 or component_count > channel_count:
+                raise ValueError(f"Picard PCA dimension must be within 1..{channel_count}")
+            mapped["n_components"] = component_count
         elif lower_key == "seed":
             mapped["random_state"] = int(value)
         elif lower_key == "mode":

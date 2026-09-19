@@ -14,6 +14,8 @@ from tests.eeglab_tests import eeglab_test
 
 
 ERRORDLG2_WRAPPER = "unittesting_guifunc/errordlg2/guifunc_errordlg2_wrapperTest.m"
+EEGLAB_ERROR_WRAPPER = "unittesting_adminfunc/eeglab_error/adminfunc_eeglab_error_wrapperTest.m"
+GETTEXT_WRAPPER = "unittesting_adminfunc/gettext/adminfunc_gettext_wrapperTest.m"
 INPUTDLG2_WRAPPER = "unittesting_guifunc/inputdlg2/guifunc_inputdlg2_wrapperTest.m"
 INPUTGUI_WRAPPER = "unittesting_guifunc/inputgui/guifunc_inputgui_wrapperTest.m"
 LISTDLG2_WRAPPER = "unittesting_guifunc/listdlg2/guifunc_listdlg2_wrapperTest.m"
@@ -267,7 +269,11 @@ def test_inputdlg2_rejects_mismatched_prompts_and_defaults():
 
 @eeglab_test(INPUTDLG2_WRAPPER, "test_i_pass_general")
 @eeglab_test("unittesting_guifunc/inputdlg2/i_pass_general.m", "test_i_pass_general")
+@eeglab_test(GETTEXT_WRAPPER, "test_i_pass_general")
 def test_inputdlg2_returns_answers_in_prompt_order():
+    # The current gettext payload is entirely commented out because it waits on
+    # a MATLAB global. Its maintained intent is deterministic text entry and
+    # cancellation, which EEGPrep provides through the renderer-backed dialog.
     renderer = RecordingRenderer({"answer0": "this", "answer1": "that"})
 
     answer = inputdlg2(
@@ -318,7 +324,11 @@ def qt_widgets():
 
 @eeglab_test(ERRORDLG2_WRAPPER, "test_i_pass_general")
 @eeglab_test("unittesting_guifunc/errordlg2/i_pass_general.m", "test_i_pass_general")
+@eeglab_test(EEGLAB_ERROR_WRAPPER, "test_i_pass_general")
 def test_errordlg2_builds_a_critical_message_with_requested_text(qt_widgets):
+    # eeglab_error's current test payload comments out the caught-error setup
+    # and manual OK click. Assert that its maintained endpoint is a modal,
+    # critical error message with the original explanation intact.
     _app, dialog = build_errordlg2("Explanation of error", "testcase for errordlg2")
 
     assert dialog.text() == "Explanation of error"

@@ -32,6 +32,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 
+import importlib
 import tempfile
 import unittest
 
@@ -44,7 +45,7 @@ import numpy as np
 import scipy.io
 
 from eegprep import pop_loadset, pop_saveset
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.sigprocfunc.envtopo import envtopo
 
@@ -85,11 +86,25 @@ def _matlab_options(options):
 class TestEnvtopoParity(unittest.TestCase):
     """Parity between Python and MATLAB envtopo component-contribution outputs."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
+        engine = None
         try:
-            self.eeglab = get_eeglab("MAT", auto_file_roundtrip=False)
+            matlab_engine = importlib.import_module("matlab.engine")
+            engine = matlab_engine.start_matlab()
+            eeglab_root = _resolve_eeglab_root()
+            engine.addpath(engine.genpath(str(eeglab_root)), nargout=0)
         except Exception as e:
-            self.skipTest(f"MATLAB/EEGLAB not available: {e}")
+            if engine is not None:
+                engine.quit()
+            raise unittest.SkipTest(f"MATLAB/EEGLAB not available: {e}") from e
+        cls.eeglab = engine
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.eeglab.quit()
+
+    def setUp(self):
         # Epoched ICA dataset: envtopo averages epochs and ranks IC back-projections.
         self.EEG = pop_loadset(os.path.join(local_url, "eeglab_data_epochs_ica.set"))
         data = np.asarray(self.EEG["data"], dtype=float)

@@ -17,7 +17,7 @@ def std_maketrialinfo(
     STUDY: dict[str, Any] | None,
     ALLEEG: list[dict[str, Any]] | None,
 ) -> tuple[dict[str, Any], list[list[dict[str, Any]]]]:
-    """Populate trial information from each epoch's time-locking event."""
+    """Populate STUDY and EEG trial information from each time-locking event."""
     study, datasets = sync_study_datasets(STUDY, ALLEEG)
     alltrialinfo: list[list[dict[str, Any]]] = []
     for index, eeg in enumerate(datasets):
@@ -25,6 +25,8 @@ def std_maketrialinfo(
         if not rows:
             rows = trialinfo_from_eeg(eeg)
         alltrialinfo.append(rows)
+        if rows:
+            eeg["trialinfo"] = deepcopy(rows)
         if rows and index < len(study.get("datasetinfo") or []):
             study["datasetinfo"][index]["trialinfo"] = rows
     return study, alltrialinfo

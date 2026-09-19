@@ -33,6 +33,7 @@ from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
+from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
 from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
@@ -159,6 +160,39 @@ def test_rejection_statistics_store_data_and_component_marks():
     assert not np.allclose(fft_spec_out["specdata"], spec_out["specdata"])
     assert comp_count >= 1
     assert "icarejjp" in comp_out["reject"]
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegplot/sigprocfunc_eegplot_wrapperTest.m",
+    "test_todo_bugzilla_354",
+)
+def test_eegplot_accepts_epoched_data_after_spectral_rejection_marks():
+    # The upstream TODO describes eegplot failing after abnormal-spectrum
+    # rejection, but its payload is fully commented and calls unrelated
+    # pop_biosig. Preserve the reported workflow as an executable regression.
+    eeg = _epoched_eeg()
+    marked, rejected = pop_rejspec(
+        eeg,
+        1,
+        "method",
+        "fft",
+        "elecrange",
+        [3],
+        "threshold",
+        [-10, 10],
+        "freqlimits",
+        [20, 30],
+        "eegplotreject",
+        0,
+    )
+
+    model = eegplot(marked, show=False)
+
+    assert rejected
+    assert marked["reject"]["rejfreq"].any()
+    assert model.data.mode == "epoched"
+    assert model.data.data.shape == marked["data"].shape
+    assert model.data.total_samples == marked["pnts"] * marked["trials"]
 
 
 @pytest.mark.parametrize(

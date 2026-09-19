@@ -37,6 +37,13 @@ The default GUI offers runica, robust runica, AMICA, and Picard choices.
 Standalone AMICA requires an AMICA executable configured outside the Python
 package.
 
+Picard accepts EEGLAB's PCA option through ``options``. A positive value is the
+requested component count; a negative value subtracts dimensions from the
+selected channel count. For example, ``options={"pca": -1}`` computes one
+fewer component than channels, which is useful after average referencing. The
+initial unmixing matrix is sized to the reduced decomposition while remaining
+deterministic.
+
 ICLabel Workflow
 ================
 
