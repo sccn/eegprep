@@ -90,7 +90,7 @@ def _apply_one(EEG: dict[str, Any], options: dict[str, Any]) -> tuple[dict[str, 
         raise ValueError("EEG data must be 2-D or 3-D")
     elec = one_based_indices(options.get("elec"), limit=int(out.get("nbchan", flat.shape[0])), default_all=True)
     selected = [item - 1 for item in elec]
-    threshold = parse_numeric_sequence(options.get("threshold", 5), dtype=float)
+    threshold = parse_numeric_sequence(options.get("threshold", 400), dtype=float)
     measure_name = str(options.get("measure", "kurt")).lower()
     norm = str(options.get("norm", "off")).lower() == "on"
     measure = _channel_measure(flat[selected], measure_name, threshold, norm, out, options)
