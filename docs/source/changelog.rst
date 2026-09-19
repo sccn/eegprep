@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_loadbv`` now provides a standalone BrainVision reader for binary and
+  ASCII recordings in multiplexed or vectorized orientation. It applies
+  per-channel resolutions, normalizes voltage channels to microvolts, retains
+  channel coordinates and marker metadata, supports 1-based sample/channel
+  selection and metadata-only reads, and rejects truncated or contradictory
+  files instead of returning an inconsistent EEG dataset.
 - ``pop_writeeeg`` now writes standards-compatible GDF 1.25 files with
   float64 signal samples, channel labels, rational sampling rates, and GDF
   event tables. Numeric event types round-trip through independent readers;

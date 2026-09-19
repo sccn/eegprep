@@ -88,10 +88,13 @@ EEGPrep supports multiple formats:
     from pathlib import Path
 
     import mne
-    from eegprep import bids_list_eeg_files, eeg_mne2eeg, pop_load_frombids, pop_loadset
+    from eegprep import bids_list_eeg_files, eeg_mne2eeg, pop_load_frombids, pop_loadbv, pop_loadset
 
     # Load EEGLAB .set file
     EEG = pop_loadset(Path("sample_data") / "eeglab_data.set")
+
+    # Load BrainVision through the .vhdr header
+    EEG = pop_loadbv("/path/to/recording.vhdr")
 
     # Load from a BIDS dataset
     files = bids_list_eeg_files("/path/to/bids-root", subjects=["001"])
@@ -110,7 +113,7 @@ EEGPrep supports:
 - **BIDS**: Brain Imaging Data Structure format
 - **MNE-Python**: Raw and Epochs objects
 - **EDF**: European Data Format
-- **BrainVision**: .vhdr, .vmrk, .eeg files
+- **BrainVision**: ``.vhdr`` headers with companion ``.vmrk`` and ``.eeg``/``.dat`` files
 - **Neuroscan**: .cnt files
 
 How do I apply preprocessing?
@@ -444,7 +447,7 @@ Can I use EEGPrep with other data formats?
 Yes, EEGPrep supports:
 
 - EDF (European Data Format)
-- BrainVision (.vhdr, .vmrk, .eeg)
+- BrainVision (``.vhdr`` with companion ``.vmrk`` and ``.eeg``/``.dat`` files)
 - Neuroscan (.cnt)
 - MNE-Python formats
 
