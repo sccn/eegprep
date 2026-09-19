@@ -58,8 +58,8 @@ the statistic, p-value, and mask.
 Supported designs are paired or equal-variance unpaired two-condition t-tests
 and unpaired one-way ANOVA. Analytic inference and seeded Monte Carlo
 permutation inference are available. Multiple-comparison options are ``none``,
-``bonferroni``, ``holm``, ``fdr``, and Monte Carlo ``max`` correction;
-``bonferoni`` and ``holms`` remain accepted migration spellings.
+``bonferroni``, ``holm``, ``fdr``, and Monte Carlo ``max`` or ``cluster``
+correction; ``bonferoni`` and ``holms`` remain accepted migration spellings.
 
 As in FieldTrip, Bonferroni, Holm, and FDR leave the reported pointwise
 ``pvalue`` unchanged and apply their correction to ``mask``. Monte Carlo
@@ -72,10 +72,40 @@ documented two-tailed output contract directly; FieldTrip's internal
 with a halved alpha threshold.
 
 Paired one-way and two-way ANOVA are rejected because the maintained EEGLAB
-test disables those FieldTrip paths. Cluster correction and spatial-neighbour
-inputs are also rejected: faithful cluster inference requires an explicit
-adjacency graph and cluster-forming/statistic policy. Use ``statcond`` for the
-supported paired and two-way ANOVA designs without FieldTrip correction.
+test disables those FieldTrip paths. Use ``statcond`` for the supported paired
+and two-way ANOVA designs without FieldTrip correction.
+
+Cluster correction requires ``method="montecarlo"`` and an explicit
+``neighbours`` adjacency matrix. The matrix is square and symmetric over every
+feature in C-order-flattened result space; it may be a dense NumPy array or a
+SciPy sparse matrix. Its diagonal is ignored. EEGPrep does not infer sensor,
+time, or frequency neighbours because bare condition arrays contain no axis
+metadata. Construct the complete adjacency graph before calling the function.
+For channel-only statistics, ``std_prepare_neighbors`` already returns the
+usable matrix as ``limostruct["channeighbstructmat"]``. Add time/frequency
+connectivity explicitly when those dimensions are present.
+
+The supported cluster policy is a parametric cluster-forming threshold and
+FieldTrip's default ``clusterstatistic="maxsum"``. Set ``clusteralpha`` to
+derive the critical t or F value, or provide a positive ``clustercritval``
+directly. Positive and negative t-value clusters are formed separately. The
+largest absolute cluster mass across both signs is retained for every
+permutation, giving one direct two-sided family-wise null distribution; F tests
+use their right tail. This is intentionally more explicit than FieldTrip's
+internal representation using separate one-tail probabilities and a corrected
+alpha threshold.
+
+Paired two-condition permutations swap labels independently within each case;
+unpaired permutations pool case labels and split them back into the original
+group sizes. Integer ``naccu`` values use a seedable Monte Carlo sample and the
+plus-one probability estimate. ``naccu="all"`` enumerates the complete null
+space for designs requiring at most 100,000 assignments and reports exact
+frequencies. Cluster-corrected ``pvalue`` is constant within each observed
+cluster and one outside clusters. ``cluster_labels``, ``clusters``,
+``cluster_null``, and ``cluster_critical_value`` expose the inference details.
+Automatic channel geometry, nonparametric cluster-forming thresholds,
+max-size/weighted cluster statistics, minimum-neighbour pruning, and TFCE are
+explicitly unsupported.
 
 Multiple Comparisons and Surrogates
 ===================================

@@ -30,6 +30,7 @@ _MODULES = {_module_name: import_module(f"{__name__}.{_module_name}") for _modul
 ConcatenatedData = _MODULES["concatdata"].ConcatenatedData
 FDRResult = _MODULES["fdr"].FDRResult
 StatcondResult = _MODULES["statcond"].StatcondResult
+StatcondFieldtripCluster = _MODULES["statcondfieldtrip"].StatcondFieldtripCluster
 StatcondFieldtripResult = _MODULES["statcondfieldtrip"].StatcondFieldtripResult
 SurrogateDistribution = _MODULES["surrogdistrib"].SurrogateDistribution
 TwoWayAnovaResult = _MODULES["anova2_cell"].TwoWayAnovaResult
@@ -56,6 +57,7 @@ __all__ = [
     "ConcatenatedData",
     "FDRResult",
     "StatcondResult",
+    "StatcondFieldtripCluster",
     "StatcondFieldtripResult",
     "SurrogateDistribution",
     "TwoWayAnovaResult",
