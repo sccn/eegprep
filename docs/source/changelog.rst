@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Neuroscan ``loadcnt`` and ``pop_loadcnt`` now provide standalone 16/32-bit
+  CNT import with per-channel microvolt calibration, channel-blocked reads,
+  partial sample ranges, response and boundary events, and optional ``.fdt``
+  memory mapping. The File-IO CNT action uses this reader instead of MNE's
+  ambiguous auto-detection path.
 - Current EEGLAB legacy ICA/decomposition tests now have substantive Python
   ports for PCA and whitening, Varimax/Promax rotation, component orientation,
   variance and z-score ordering, deterministic k-means, spatial channel subsets,
