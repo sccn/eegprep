@@ -382,6 +382,7 @@ def _assert_resampling_case(
     paired: str,
     naccu: int,
     seed: int,
+    arraycomp: bool,
 ) -> None:
     originals = tuple(condition.copy() for condition in conditions)
     result = statcond(
@@ -391,6 +392,7 @@ def _assert_resampling_case(
         naccu=naccu,
         rng=seed,
         return_resampling_array=True,
+        arraycomp=arraycomp,
     )
     repeated = statcond(
         conditions,
@@ -399,10 +401,11 @@ def _assert_resampling_case(
         naccu=naccu,
         rng=seed,
         return_resampling_array=True,
+        arraycomp=arraycomp,
     )
     assert isinstance(result, SurrogateDistribution)
     assert isinstance(repeated, SurrogateDistribution)
-    assert len(result) == naccu
+    assert len(result) == (naccu if arraycomp else 1)
     source_traces = np.stack([_last_feature_trace(condition) for condition in conditions])
     pooled_source = source_traces.ravel()
 
@@ -449,8 +452,9 @@ def _assert_resampling_suite() -> None:
                         conditions,
                         method=method,
                         paired=paired,
-                        naccu=10 if vectorized else 1,
+                        naccu=10,
                         seed=seed,
+                        arraycomp=vectorized,
                     )
 
 

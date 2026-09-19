@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``statcond`` now accepts EEGLAB's ``arraycomp`` switch. Batched mode returns
+  all requested resampling grids, while off mode exposes one compatibility
+  grid or computes inference iteratively to bound peak memory without changing
+  seeded statistics.
 - Added standalone ``pop_importegimat`` support for continuous and segmented
   EGI Net Station MATLAB exports, including embedded sampling rates, trial
   events and timing, empty-reference removal, packaged EGI montages, and
