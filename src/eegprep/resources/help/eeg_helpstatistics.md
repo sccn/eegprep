@@ -11,9 +11,12 @@ Implemented user-facing wrappers:
   condition tests and multiple-comparison utilities.
 - `std_limodesign`: LIMO-compatible design matrix construction for STUDY
   factors and trial metadata.
+- `std_limo` and `pop_limo`: mass-univariate OLS, PCOut-weighted WLS, and
+  Tukey-bisquare IRLS first-level models.
+- `std_limoresults` and `pop_limoresults`: contrasts, t tests, regression,
+  ANOVA/ANCOVA, repeated-measures ANOVA, and weighted summaries.
 
-External LIMO model fitting/result browsing and FieldTrip cluster-statistics
-execution remain explicit optional-backend boundaries. EEGPrep does not create
-placeholder LIMO results.
+MATLAB LIMO `.mat` interchange, bootstrap, TFCE, LIMO's plotting interface,
+and FieldTrip cluster-statistics execution remain explicit boundaries.
 
-See also: POP_SIGNALSTAT, POP_EVENTSTAT, STD_LIMODESIGN
+See also: POP_SIGNALSTAT, POP_EVENTSTAT, STD_LIMODESIGN, POP_LIMO, POP_LIMORESULTS
