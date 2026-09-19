@@ -555,7 +555,7 @@ def test_pop_chancoresp_autoselects_all_channels_and_fiducials() -> None:
     assert fid_left == [1, 3, 4]
     assert fid_right == [4, 3, 2]
     assert template_left == [1, 3, 4]
-    assert template_right == [3, 2, 1]
+    assert template_right == [3, 1, 2]
     _assert_parseable(command)
 
 

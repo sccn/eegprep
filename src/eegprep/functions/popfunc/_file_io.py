@@ -217,6 +217,8 @@ def records_to_events(
             raise ValueError("Imported event records must include a latency field")
         event = dict(record)
         event["latency"] = _latency_to_samples(event["latency"], srate=srate, timeunit=timeunit)
+        if "duration" in event and timeunit is not None and not (isinstance(timeunit, float) and math.isnan(timeunit)):
+            event["duration"] = float(event["duration"]) * float(timeunit) * float(srate)
         if "type" not in event:
             event["type"] = "event"
         events.append(event)

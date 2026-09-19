@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import mne
+import numpy as np
 import scipy.io
 
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
@@ -26,6 +27,7 @@ def pop_fileio(
     """Import a supported EEG data file with MNE/File-IO-style readers."""
     path = Path(filename)
     suffix = path.suffix.lower()
+    blockrange = kwargs.pop("blockrange", None)
     if suffix == ".set":
         eeg = pop_loadset(str(path))
     elif suffix == ".mat" and kwargs.get("dataformat") != "matlab-array":
@@ -40,6 +42,8 @@ def pop_fileio(
     else:
         reader = _reader_for_suffix(suffix)
         raw = reader(str(path), preload=True, verbose=False)
+        if blockrange is not None:
+            _crop_raw_to_blockrange(raw, blockrange)
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
     command = f"EEG = pop_fileio({format_history_value(path)});"
     eeg["history"] = command
@@ -59,8 +63,10 @@ def _mat_is_eeglab_dataset(path: Path) -> bool:
 
 
 def _reader_for_suffix(suffix: str):
-    if suffix in {".edf", ".bdf"}:
+    if suffix == ".edf":
         return mne.io.read_raw_edf
+    if suffix == ".bdf":
+        return mne.io.read_raw_bdf
     if suffix == ".gdf":
         return mne.io.read_raw_gdf
     if suffix == ".vhdr":
@@ -72,3 +78,16 @@ def _reader_for_suffix(suffix: str):
     if suffix == ".eeg":
         return mne.io.read_raw_brainvision
     raise ValueError(f"Unsupported File-IO import format: {suffix or '<none>'}")
+
+
+def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
+    values = np.asarray(blockrange, dtype=float).reshape(-1)
+    if values.size != 2 or not np.all(np.isfinite(values)):
+        raise ValueError("blockrange must contain two finite times in seconds")
+    start, stop = (float(value) for value in values)
+    if start < 0 or stop <= start:
+        raise ValueError("blockrange must satisfy 0 <= start < stop")
+    recording_stop = raw.n_times / float(raw.info["sfreq"])
+    if start >= recording_stop:
+        raise ValueError("blockrange starts after the end of the recording")
+    raw.crop(tmin=start, tmax=min(stop, recording_stop), include_tmax=False)
