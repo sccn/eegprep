@@ -436,6 +436,105 @@ def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels()
     np.testing.assert_array_equal(row_marks[2], expected_local[2])
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_1d_row",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_1d_col",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_general",
+)
+def test_jointprob_vector_orientation_and_defaults_match_upstream():
+    expected = -np.sum(np.log([2 / 3, 2 / 3, 1 / 3]))
+
+    for signal in (np.asarray([1, 1, 3]), np.asarray([[1], [1], [3]])):
+        scores, rejected = jointprob(signal)
+        np.testing.assert_allclose(scores, [[expected]])
+        np.testing.assert_array_equal(rejected, [[False]])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_3d",
+)
+def test_jointprob_three_dimensional_scores_match_upstream():
+    signal = np.empty((3, 4, 2), dtype=float)
+    signal[:, :, 0] = [[1, 1, 3, 4], [1, 2, 1, 4], [1, 2, 3, 4]]
+    signal[:, :, 1] = [[1, 2, 3, 4], [1, 2, 1, 4], [2, 2, 3, 4]]
+    expected = np.asarray(
+        [
+            [-np.sum(np.log([3 / 8, 3 / 8, 2 / 8, 2 / 8])), -np.sum(np.log([3 / 8, 1 / 8, 2 / 8, 2 / 8]))],
+            [-np.sum(np.log([4 / 8, 2 / 8, 4 / 8, 2 / 8])), -np.sum(np.log([4 / 8, 2 / 8, 4 / 8, 2 / 8]))],
+            [-np.sum(np.log([1 / 8, 3 / 8, 2 / 8, 2 / 8])), -np.sum(np.log([3 / 8, 3 / 8, 2 / 8, 2 / 8]))],
+        ]
+    )
+
+    scores, rejected = jointprob(signal)
+
+    np.testing.assert_allclose(scores, expected)
+    np.testing.assert_array_equal(rejected, np.zeros((3, 2), dtype=bool))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_threshold",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_jp_threshold",
+)
+def test_jointprob_computed_and_precomputed_thresholds_match_upstream():
+    signal = np.asarray([[1, 1, 5], [1, 2, 1], [1, 2, 5]])
+    expected = np.asarray(
+        [
+            -np.sum(np.log([2 / 3, 2 / 3, 1 / 3])),
+            -np.sum(np.log([2 / 3, 1 / 3, 2 / 3])),
+            -np.sum(np.log([1 / 3, 1 / 3, 1 / 3])),
+        ]
+    )[:, np.newaxis]
+
+    scores, rejected = jointprob(signal, 2)
+    reused, reused_rejected = jointprob(signal, 2, expected)
+
+    np.testing.assert_allclose(scores, expected)
+    np.testing.assert_allclose(reused, expected)
+    np.testing.assert_array_equal(rejected, [[False], [False], [True]])
+    np.testing.assert_array_equal(reused_rejected, rejected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_normalize_2d",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_normalize_3d",
+)
+def test_jointprob_uses_matlab_sample_standard_deviation_for_normalization():
+    signal = np.asarray([[1, 1, 3], [1, 2, 1], [1, 2, 3]])
+    raw, _ = jointprob(signal)
+
+    normalized, rejected = jointprob(signal, 0, normalize=1)
+    expected = (raw - raw.mean()) / raw.std(ddof=1)
+
+    np.testing.assert_allclose(normalized, expected)
+    np.testing.assert_array_equal(rejected, np.zeros((3, 1), dtype=bool))
+
+    trials = np.stack([signal, signal[:, ::-1]], axis=2)
+    raw_3d, _ = jointprob(trials)
+    normalized_3d, _ = jointprob(trials, 0, normalize=1)
+    expected_3d = raw_3d - raw_3d.mean(axis=1, keepdims=True)
+    std_3d = raw_3d.std(axis=1, ddof=1, keepdims=True)
+    std_3d[std_3d == 0] = 1
+    expected_3d /= std_3d
+    assert normalized_3d.shape == (3, 2)
+    np.testing.assert_allclose(normalized_3d, expected_3d)
+
+
 def test_jointprob_global_threshold_can_reject_when_local_threshold_does_not():
     data = np.array(
         [
@@ -495,6 +594,28 @@ def test_kurtosis_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
     np.testing.assert_array_equal(reject, expected_reject)
     np.testing.assert_array_equal(row_marks[0], expected_local[1])
     np.testing.assert_array_equal(row_marks[1], expected_local[2])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/rejkurt/sigprocfunc_rejkurt_wrapperTest.m",
+    "test_test_rejkurt",
+)
+def test_rejkurt_upstream_parameter_combinations_return_finite_trial_marks():
+    rng = np.random.default_rng(8)
+    signal = rng.normal(size=(8, 80, 12))
+
+    calls = (
+        (0, None, 0),
+        (2, None, 0),
+        (1.5, np.ones((8, 12)), 0),
+        (0.5, None, 1),
+        (0.5, None, 2),
+    )
+    for threshold, old_scores, normalize in calls:
+        scores, rejected = rejkurt(signal, threshold, old_scores, normalize)
+        assert scores.shape == rejected.shape == (8, 12)
+        assert np.isfinite(scores).all()
+        np.testing.assert_array_equal(rejected, np.abs(scores) > threshold if threshold else np.zeros_like(rejected))
 
 
 def test_kurtosis_global_threshold_can_reject_when_local_threshold_does_not():

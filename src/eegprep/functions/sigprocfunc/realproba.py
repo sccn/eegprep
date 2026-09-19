@@ -8,11 +8,15 @@ import numpy as np
 
 
 def realproba(data: Any, bins: int | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Compute per-sample empirical probabilities and the distribution."""
+    """Compute per-sample empirical probabilities and the distribution.
+
+    When ``bins`` is omitted, EEGLAB uses one bin per five input values,
+    rounded to the nearest integer.
+    """
     values = np.asarray(data, dtype=float)
     flat = values.ravel()
     if bins is None:
-        bins = 1000
+        bins = int(np.floor(flat.size / 5 + 0.5))
     if flat.size == 0:
         return np.asarray(values, dtype=float), np.asarray([], dtype=float)
     if int(bins) <= 0:

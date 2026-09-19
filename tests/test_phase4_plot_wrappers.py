@@ -50,6 +50,8 @@ from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
 from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.popfunc.pop_topoplot import plot_channel_locations, pop_topoplot
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.sigprocfunc.axcopy import axcopy
+from eegprep.functions.sigprocfunc.timtopo import timtopo
 from eegprep.functions.sigprocfunc.topoplot import plot_channel_location, topoplot
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot, pop_chanplot_dialog_spec
 from eegprep.functions.sigprocfunc.coregister import (
@@ -73,6 +75,12 @@ from eegprep.functions.sigprocfunc.headplot import (
     _interpolate_values,
 )
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
+from tests.eeglab_tests import eeglab_test
+
+
+_AXCOPY_SOURCE = "unittesting_sigprocfunc/axcopy/sigprocfunc_axcopy_wrapperTest.m"
+_HEADPLOT_SOURCE = "unittesting_sigprocfunc/headplot/sigprocfunc_headplot_wrapperTest.m"
+_TIMTOPO_SOURCE = "unittesting_sigprocfunc/timtopo/sigprocfunc_timtopo_wrapperTest.m"
 
 
 @pytest.fixture(scope="module")
@@ -89,6 +97,51 @@ def sample_epoch(sample_eeg):
 @pytest.fixture
 def ica_epoch():
     return create_test_eeg_with_ica(n_channels=6, n_samples=40, n_trials=4, n_components=4)
+
+
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_existing_figure")
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_general")
+def test_axcopy_enlarges_a_clicked_existing_axes() -> None:
+    figure, axes = plt.subplots()
+    axes.plot([1, 2, 3], [1, 2, 3])
+    before = set(plt.get_fignums())
+    axcopy(figure, {axes: lambda target: target.plot([1, 2, 3], [1, 2, 3])})
+    figure.canvas.draw()
+    x, y = axes.transData.transform((2, 2))
+
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, x, y, button=1)
+    )
+
+    created = set(plt.get_fignums()) - before
+    assert len(created) == 1
+    popup = plt.figure(next(iter(created)))
+    np.testing.assert_array_equal(popup.axes[0].lines[0].get_ydata(), [1, 2, 3])
+    plt.close("all")
+
+
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_one_arg")
+def test_axcopy_redraw_callback_can_create_tickless_popup() -> None:
+    figure, axes = plt.subplots()
+    axes.plot([1, 2, 3], [1, 2, 3])
+
+    def redraw(target):
+        target.plot([1, 2, 3], [1, 2, 3])
+        target.set_xticks([])
+        target.set_yticks([])
+
+    before = set(plt.get_fignums())
+    axcopy(figure, {axes: redraw})
+    figure.canvas.draw()
+    x, y = axes.transData.transform((2, 2))
+    figure.canvas.callbacks.process(
+        "button_press_event", MouseEvent("button_press_event", figure.canvas, x, y, button=1)
+    )
+
+    popup = plt.figure(next(iter(set(plt.get_fignums()) - before)))
+    assert not popup.axes[0].get_xticks().size
+    assert not popup.axes[0].get_yticks().size
+    plt.close("all")
 
 
 def test_pop_spectopo_plots_sample_data_headlessly(sample_eeg):
@@ -308,6 +361,7 @@ def test_pop_prop_plots_sample_channel_properties(sample_eeg):
     plt.close(figure)
 
 
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_general")
 def test_pop_headplot_plots_sample_latency_map_with_spline_setup(sample_eeg, tmp_path):
     eeg = deepcopy(sample_eeg)
     splinefile = tmp_path / "sample.spl"
@@ -342,6 +396,7 @@ def test_pop_headplot_does_not_mutate_caller_eeg(sample_eeg, tmp_path):
         plt.close(fig)
 
 
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_options")
 def test_pop_headplot_single_map_has_eeglab_like_title_and_surface(sample_eeg, tmp_path):
     eeg = deepcopy(sample_eeg)
     title = "ERP scalp maps of dataset: eeglab_data"
@@ -385,6 +440,7 @@ def test_headplot_setup_file_can_be_reused_for_sample_data(sample_eeg, tmp_path)
     plt.close(figure)
 
 
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_wireframe")
 def test_headplot_setup_plotmeshonly_and_orilocs_options(sample_eeg, tmp_path):
     transform = [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]
     preview_file = tmp_path / "preview.spl"
@@ -1892,6 +1948,24 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     plt.close(timtopo_fig)
     plt.close(plottopo_fig)
     plt.close(envtopo_fig)
+
+
+@eeglab_test(_TIMTOPO_SOURCE, "test_test_timtopo")
+def test_timtopo_accepts_eeglab_plotting_scenarios(sample_epoch):
+    data, times = data_time_slice(sample_epoch, None)
+    erp = np.nanmean(data, axis=2)
+    cases = (
+        {},
+        {"plottimes": [float("nan")], "title": "ERP data and scalp maps"},
+        {"plottimes": [0, 100, 200, 300]},
+        {"plottimes": [-1001, 0, 100]},
+        {"plottimes": [-1000, 0, 100, 1500]},
+    )
+    for options in cases:
+        fig = timtopo(erp, sample_epoch["chanlocs"], times=times, **options)
+        assert fig.axes[0].get_xlabel() == "Latency (ms)"
+        assert len(fig.axes) >= 2
+        plt.close(fig)
 
 
 def test_timtopo_auto_latency_uses_peak_global_power(sample_epoch):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 
 import numpy as np
+import pytest
 
 from eegprep.functions.popfunc.pop_averef import pop_averef
 from eegprep.functions.popfunc.pop_findmatchingcomps import pop_findmatchingcomps
@@ -12,6 +13,7 @@ from eegprep.functions.popfunc.pop_rejchanspec import pop_rejchanspec
 from eegprep.functions.popfunc.pop_chansel import pop_chansel_resolve
 from eegprep.functions.popfunc.pop_topochansel import pop_topochansel
 from eegprep.functions.sigprocfunc.eegthresh import eegthresh
+from eegprep.functions.sigprocfunc.entropy_rej import entropy_rej
 from eegprep.functions.sigprocfunc.ica_helpers import compvar, eeg_getica, eeg_pvaf, icaact, icaproj, icavar
 from eegprep.functions.sigprocfunc.kurt import kurt
 from eegprep.functions.sigprocfunc.realproba import realproba
@@ -223,20 +225,260 @@ def test_eeg_pvaf_maps_full_channel_selection_to_icachansind_subset():
     np.testing.assert_allclose(variances, [np.var(data[2])])
 
 
-def test_kurt_uses_eeglab_population_moment_formula():
+def test_kurt_uses_eeglab_sample_standard_deviation_formula():
     values = np.array([[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]])
     centered = values - values.mean(axis=0, keepdims=True)
-    expected = np.mean(centered**4, axis=0) / np.mean(centered**2, axis=0) ** 2 - 3.0
+    expected = np.sum(centered**4, axis=0) / np.std(values, axis=0, ddof=1) ** 4 / values.shape[0] - 3.0
 
     np.testing.assert_allclose(kurt(values), expected)
-    np.testing.assert_allclose(expected, [-1.5, -1.5])
+    np.testing.assert_allclose(expected, [-7 / 3, -7 / 3])
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/kurt/sigprocfunc_kurt_wrapperTest.m",
+    "test_pass_general",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/kurt/sigprocfunc_kurt_wrapperTest.m",
+    "test_pass_column",
+)
+def test_kurt_row_and_column_vectors_match_upstream_moment_formula():
+    values = np.arange(1.0, 10.0)
+    expected = (708.0 / (225.0 / 4.0)) / 9.0 - 3.0
+
+    assert kurt(values) == pytest.approx(expected)
+    assert kurt(values[:, np.newaxis]) == pytest.approx(expected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/kurt/sigprocfunc_kurt_wrapperTest.m",
+    "test_pass_bernoulli",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/kurt/sigprocfunc_kurt_wrapperTest.m",
+    "test_pass_positive",
+)
+def test_kurt_matches_upstream_bernoulli_cases():
+    balanced = np.concatenate([np.zeros(10_000), np.ones(10_000)])
+    sparse_zero = np.asarray([1, 1, 1, 1, 1, 1, 0, 1, 1, 1], dtype=float)
+
+    for values in (balanced, sparse_zero):
+        centered = values - values.mean()
+        expected = np.sum(centered**4) / np.std(values, ddof=1) ** 4 / values.size - 3
+        assert kurt(values) == pytest.approx(expected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/realproba/sigprocfunc_realproba_wrapperTest.m",
+    "test_pass_general",
+)
 def test_realproba_default_bin_count_matches_eeglab():
-    probabilities, distribution = realproba(np.array([0.0, 1.0]))
+    probabilities, distribution = realproba(np.array([1.0, 2.0, 3.0]))
 
-    np.testing.assert_allclose(probabilities, [0.5, 0.5])
-    assert distribution.shape == (1000,)
+    np.testing.assert_allclose(probabilities, np.ones(3))
+    np.testing.assert_allclose(distribution, np.ones(1))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/realproba/sigprocfunc_realproba_wrapperTest.m",
+    "test_pass_discrete",
+)
+def test_realproba_explicit_discretization_matches_upstream_bins():
+    probabilities, distribution = realproba(np.array([1.0, 2.0, 3.0]), 10)
+
+    expected = np.zeros(10)
+    expected[[0, 4, 9]] = 1 / 3
+    np.testing.assert_allclose(probabilities, np.full(3, 1 / 3))
+    np.testing.assert_allclose(distribution, expected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/realproba/sigprocfunc_realproba_wrapperTest.m",
+    "test_pass_equal",
+)
+def test_realproba_equal_values_have_well_defined_probabilities():
+    """Strengthen the upstream case whose constant-data assertions are disabled."""
+    probabilities, distribution = realproba(np.ones(3), 3)
+
+    np.testing.assert_allclose(probabilities, np.ones(3))
+    np.testing.assert_allclose(distribution, np.full(3, 1 / 3))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_1d",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_one_arg",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_transposed",
+)
+def test_entropy_rej_vector_orientation_and_defaults_match_upstream():
+    expected = -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3]))
+
+    for data in (np.asarray([1, 1, 2]), np.asarray([[1], [1], [2]])):
+        entropy, rejected = entropy_rej(data)
+        np.testing.assert_allclose(entropy, [[expected]])
+        np.testing.assert_array_equal(rejected, [[False]])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_2d",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_2d_norm",
+)
+def test_entropy_rej_two_dimensional_scores_and_sample_normalization_match_upstream():
+    data = np.asarray([[1, 1, 2], [1, 2, 3]])
+    expected = np.asarray(
+        [
+            -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3])),
+            -np.sum(np.full(3, 1 / 3) * np.log(np.full(3, 1 / 3))),
+        ]
+    )[:, np.newaxis]
+
+    entropy, rejected = entropy_rej(data, 3, None, 0, 1000)
+    normalized, normalized_rejected = entropy_rej(data, 3, None, 1, 1000)
+
+    np.testing.assert_allclose(entropy, expected)
+    np.testing.assert_allclose(normalized, [[-np.sqrt(2) / 2], [np.sqrt(2) / 2]])
+    np.testing.assert_array_equal(rejected, np.zeros((2, 1), dtype=bool))
+    np.testing.assert_array_equal(normalized_rejected, np.zeros((2, 1), dtype=bool))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_3d",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_3d_norm",
+)
+def test_entropy_rej_three_dimensional_trials_match_upstream():
+    data = np.empty((2, 3, 2), dtype=float)
+    data[:, :, 0] = [[1, 1, 2], [1, 2, 3]]
+    data[:, :, 1] = [[2, 1, 1], [2, 1, 3]]
+    expected_raw = np.asarray(
+        [
+            -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3])),
+            -np.sum(np.full(3, 1 / 3) * np.log(np.full(3, 1 / 3))),
+        ]
+    )
+
+    raw, _ = entropy_rej(data, 3, None, 0, 1000)
+    normalized, rejected = entropy_rej(data, 3, None, 1, 1000)
+
+    np.testing.assert_allclose(raw, [[expected_raw[0], expected_raw[0]], [expected_raw[1], expected_raw[1]]])
+    # Both trials have the same entropy per channel. The historical MATLAB test
+    # expected finite +/- values despite dividing zero deviations by zero std;
+    # EEGPrep keeps the scientifically useful finite result.
+    np.testing.assert_allclose(normalized, np.zeros((2, 2)))
+    np.testing.assert_array_equal(rejected, np.zeros((2, 2), dtype=bool))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/entropy_rej/sigprocfunc_entropy_rej_wrapperTest.m",
+    "test_pass_reject",
+)
+def test_entropy_rej_precomputed_scores_only_apply_threshold():
+    expected = -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3]))
+
+    entropy, rejected = entropy_rej([1, 1, 2], 3, [expected], 0, 1000)
+
+    np.testing.assert_allclose(entropy, [expected])
+    np.testing.assert_array_equal(rejected, [False])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_general",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_two_epochs",
+)
+def test_eegthresh_matches_upstream_selected_and_rejected_trials():
+    data = np.empty((2, 3, 5), dtype=float)
+    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]]
+    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
+
+    accepted, rejected, selected, electrodes = eegthresh(data, 3, [1, 2], 2, 13, [1, 15], 1, 15)
+
+    np.testing.assert_array_equal(accepted, [2, 3])
+    np.testing.assert_array_equal(rejected, [1, 4, 5])
+    np.testing.assert_array_equal(selected, data[:, :, [1, 2]])
+    np.testing.assert_array_equal(electrodes, [[True, True, True], [True, False, True]])
+
+    accepted_two, rejected_two, selected_two, electrodes_two = eegthresh(data[:, :, :2], 3, [1, 2], 2, 13, [1, 6], 1, 6)
+    np.testing.assert_array_equal(accepted_two, [2])
+    np.testing.assert_array_equal(rejected_two, [1])
+    np.testing.assert_array_equal(selected_two, data[:, :, [1]])
+    np.testing.assert_array_equal(electrodes_two, [[True], [True]])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_one_elec",
+)
+def test_eegthresh_preserves_all_channels_when_testing_one_electrode():
+    data = np.empty((2, 3, 5), dtype=float)
+    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 13]]
+    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
+
+    accepted, rejected, selected, electrodes = eegthresh(data, 3, [2], 2, 13, [1, 15], 1, 15)
+
+    np.testing.assert_array_equal(accepted, [2, 3, 4])
+    np.testing.assert_array_equal(rejected, [1, 5])
+    np.testing.assert_array_equal(selected, data[:, :, [1, 2, 3]])
+    np.testing.assert_array_equal(electrodes, [[True, True]])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_rej_all",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_rej_nothing",
+)
+def test_eegthresh_handles_all_and_no_rejections():
+    data = np.empty((2, 3, 5), dtype=float)
+    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]]
+    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
+
+    accepted, rejected, selected, _ = eegthresh(data, 3, [1, 2], 2, 11, [1, 15], 1, 15)
+    assert accepted.size == 0
+    np.testing.assert_array_equal(rejected, [1, 2, 3, 4, 5])
+    assert selected.shape == (2, 3, 0)
+
+    accepted, rejected, selected, electrodes = eegthresh(data, 3, [1, 2], 1, 15, [1, 15], 1, 15)
+    np.testing.assert_array_equal(accepted, [1, 2, 3, 4, 5])
+    assert rejected.size == 0
+    np.testing.assert_array_equal(selected, data)
+    assert electrodes.shape == (2, 0)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_continuous",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/eegthresh/sigprocfunc_eegthresh_wrapperTest.m",
+    "test_pass_one_epoch",
+)
+def test_eegthresh_accepts_continuous_and_single_epoch_shapes():
+    data = np.arange(12, dtype=float).reshape(2, 6)
+
+    continuous = eegthresh(data, 3, [1], -1, 20, [1, 6], 1, 6)
+    one_epoch = eegthresh(data[:, :, np.newaxis], 6, [1], -1, 20, [1, 6], 1, 6)
+
+    assert continuous[2].shape == (2, 6)
+    assert one_epoch[2].shape == (2, 6, 1)
 
 
 def test_rejection_helper_compatibility_outputs_are_eeglab_facing():
@@ -254,3 +496,30 @@ def test_rejection_helper_compatibility_outputs_are_eeglab_facing():
     assert trend_rows.shape == (1, 2)
     np.testing.assert_allclose(probabilities, [0.5, 0.5, 0.5, 0.5])
     np.testing.assert_allclose(distribution, [0.5, 0.5])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/rejtrend/sigprocfunc_rejtrend_wrapperTest.m",
+    "test_test_rejtrend",
+)
+def test_rejtrend_upstream_parameter_combinations_preserve_trial_contract():
+    rng = np.random.default_rng(14)
+    signal = rng.normal(size=(6, 1000, 9))
+    signal[0, :, 2] += np.linspace(0, 20, 1000)
+
+    for pointrange, maxslope, min_r, step in (
+        (384, 0.5, 0.3, None),
+        (384, 0.5, 1, None),
+        (384, 0.5, 0, None),
+        (384, 10, 0.3, None),
+        (1000, 0.5, 0.3, None),
+        (384, 0.5, 0.3, 2),
+        (384, 0.5, 1, 3),
+        (384, 0.5, 0, 10),
+        (384, 10, 0.3, 100),
+        (1000, 0.5, 0.3, 1),
+    ):
+        rejected, row_marks = rejtrend(signal, pointrange, maxslope, min_r, step)
+        assert rejected.shape == (9,)
+        assert row_marks.shape == (6, 9)
+        np.testing.assert_array_equal(rejected, row_marks.any(axis=0))
