@@ -6,9 +6,9 @@ from typing import Any
 
 
 SOURCE_STUDY_LIMITATION = (
-    "Standalone EEGPrep does not compute EEGLAB FieldTrip/DIPFIT STUDY source workflows from "
-    "std_dipplot or std_dipoleclusters. Run the DIPFIT/source-localization workflow first and use "
-    "the dedicated EEGPrep DIPFIT plotting helpers for dataset-level dipoles."
+    "Standalone EEGPrep does not compute the EEGLAB FieldTrip/DIPFIT STUDY source workflows used by "
+    "std_dipoleclusters. Run source localization first; std_dipplot can visualize existing "
+    "EEG.dipfit.model results by STUDY cluster."
 )
 
 

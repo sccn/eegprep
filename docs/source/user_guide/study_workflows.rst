@@ -298,6 +298,24 @@ list and a LIMO-compatible channel adjacency matrix from loaded channel
 locations. ``std_interp`` interpolates requested missing channels across
 STUDY datasets using EEGPrep's existing channel interpolation backend.
 
+Plotting localized cluster dipoles
+==================================
+
+``std_dipplot`` visualizes DIPFIT models that are already stored in each
+dataset's ``EEG["dipfit"]["model"]`` field. Cluster membership is read from
+``STUDY["cluster"]`` using EEGLAB-facing 1-based dataset and component
+indices. The function returns the exact selected models and computed cluster
+centroids alongside the figures, so positions, moments, and residual variance
+remain inspectable outside the plot.
+
+Use ``mode="joined"`` to draw selected cluster members and centroids together,
+or ``mode="centroid"`` to draw only cluster centroids. The standard
+``apart``, ``together``, ``multicolor``, and ``comps`` layouts are also
+available. ``comps`` selects 1-based positions within the cluster membership
+list, consistent with the EEGLAB ``std_plotcompdip`` convention. Set
+``plot=False`` to prepare and validate the same numerical plot inputs without
+creating figures.
+
 Limitations
 ===========
 
@@ -306,10 +324,9 @@ EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. ``pop_limo``,
 ``std_readfilelimo`` raise clear ``NotImplementedError`` messages rather than
 creating placeholder LIMO results.
 
-STUDY-level DIPFIT/FieldTrip source workflows such as ``std_dipplot`` and
-``std_dipoleclusters`` remain explicit source-backend boundaries. Use the
-dedicated EEGPrep DIPFIT helpers for dataset-level source workflows and keep
-STUDY source statistics behind a tested backend contract.
+``std_dipplot`` does not compute dipole models: localize components first with
+the EEGPrep DIPFIT workflow. The broader FieldTrip-dependent
+``std_dipoleclusters`` source workflow remains an explicit backend boundary.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.
