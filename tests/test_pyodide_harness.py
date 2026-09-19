@@ -1,3 +1,8 @@
+import shutil
+import subprocess
+import textwrap
+from pathlib import Path
+
 import pytest
 
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
@@ -132,3 +137,51 @@ def test_compare_iclabel_reports_rejects_shape_mismatch():
 
     with pytest.raises(ValueError, match="shapes differ"):
         compare_iclabel_reports(native, pyodide)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
+def test_iclabel_web_bridge_retries_failed_session_initialization():
+    script = textwrap.dedent(
+        """
+        import { createIcLabelWebBridge } from './tools/pyodide/iclabel_web_bridge.mjs';
+
+        let attempts = 0;
+        const ort = {
+          InferenceSession: {
+            create: async () => {
+              attempts += 1;
+              if (attempts === 1) throw new Error('transient model load failure');
+              return { run: async () => ({ output: { data: [1] } }) };
+            },
+          },
+          Tensor: class Tensor {
+            constructor(type, data, shape) {
+              this.type = type;
+              this.data = data;
+              this.shape = shape;
+            }
+          },
+        };
+
+        const bridge = createIcLabelWebBridge(ort, new Uint8Array());
+        const input = new Float32Array([0]);
+        const shape = [1];
+        try {
+          await bridge.run(input, shape, input, shape, input, shape);
+          throw new Error('first run unexpectedly succeeded');
+        } catch (error) {
+          if (error.message !== 'transient model load failure') throw error;
+        }
+        await bridge.run(input, shape, input, shape, input, shape);
+        if (attempts !== 2) throw new Error(`expected two session attempts, got ${attempts}`);
+        """
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module"],
+        input=script,
+        text=True,
+        capture_output=True,
+        cwd=Path(__file__).parents[1],
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

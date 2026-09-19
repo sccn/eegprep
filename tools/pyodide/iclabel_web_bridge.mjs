@@ -15,7 +15,10 @@ export function createIcLabelWebBridge(ort, modelBytes, options = {}) {
 
   const getSession = () => {
     if (sessionPromise === undefined) {
-      sessionPromise = ort.InferenceSession.create(modelBytes, sessionOptions);
+      sessionPromise = ort.InferenceSession.create(modelBytes, sessionOptions).catch((error) => {
+        sessionPromise = undefined;
+        throw error;
+      });
     }
     return sessionPromise;
   };

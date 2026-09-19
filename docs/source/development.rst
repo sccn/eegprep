@@ -68,7 +68,7 @@ Install Documentation Dependencies
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs --extra iclabel
 
 This installs:
 
@@ -307,7 +307,7 @@ acceptance criteria:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs
+    uv sync --group dev --extra docs --extra iclabel
     uv run --no-sync sphinx-build -b html docs/source docs/_build/html
 
 The ``docs/Makefile`` target remains available for local iteration:
@@ -508,7 +508,7 @@ Documentation Build Errors
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs --extra iclabel
 
 Git Conflicts
 -------------

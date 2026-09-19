@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import contextvars
 import importlib
 import inspect
@@ -13,14 +14,17 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
+from eegprep.functions.adminfunc.storage import _MutationTrackedArray
 from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
@@ -39,6 +43,26 @@ _POP_INTERP_CHANNELS_PATTERN = re.compile(r"(pop_interp\s*\(\s*EEG\s*,\s*)\[([0-
 _ALLEEG_ASSIGNMENT_PATTERN = re.compile(r"^\s*ALLEEG\s*=")
 _PYTHON_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _CONSOLE_COMMAND_EXPORTS = {"pop_newset": pop_newset}
+_TRACKED_MISSING = object()
+_CANONICAL_ASYNC_IMPORTS = {
+    "eegprep.plugins.ICLabel.iclabel": {"iclabel_async": "iclabel_async"},
+    "eegprep.plugins.ICLabel.pop_iclabel": {"pop_iclabel_async": "pop_iclabel_async"},
+}
+_CANONICAL_MODULE_CHILDREN = {
+    "eegprep": {
+        "plugins": ("eegprep.plugins", {}),
+    },
+    "eegprep.plugins": {
+        "ICLabel": ("eegprep.plugins.ICLabel", {}),
+    },
+    "eegprep.plugins.ICLabel": {
+        "iclabel": ("eegprep.plugins.ICLabel.iclabel", _CANONICAL_ASYNC_IMPORTS["eegprep.plugins.ICLabel.iclabel"]),
+        "pop_iclabel": (
+            "eegprep.plugins.ICLabel.pop_iclabel",
+            _CANONICAL_ASYNC_IMPORTS["eegprep.plugins.ICLabel.pop_iclabel"],
+        ),
+    },
+}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_autorej",
     "pop_eegthresh",
@@ -48,6 +72,7 @@ _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_rejspec",
     "pop_rejtrend",
 }
+_IN_PLACE_DATASET_POP_FUNCTIONS = frozenset({"pop_saveset"})
 
 
 class ConsolePopResult:
@@ -194,6 +219,298 @@ class LazyWorkspaceExport:
         return f"<EEGPrep export {self.name}>"
 
 
+class _TrackedList(list[Any]):
+    """List view that keeps nested console edits connected to the dataset."""
+
+    def __init__(self, source: list[Any], on_mutation: Callable[[], None]) -> None:
+        super().__init__(source)
+        self._source = source
+        self._on_mutation = on_mutation
+
+    @property
+    def source(self) -> list[Any]:
+        return self._source
+
+    def __getitem__(self, index: Any) -> Any:
+        value = super().__getitem__(index)
+        if isinstance(index, slice):
+            return _TrackedList(value, self._on_mutation)
+        return _tracked_value(value, self._on_mutation)
+
+    def copy(self) -> _TrackedList:
+        return _TrackedList(list(self), self._on_mutation)
+
+    def __iter__(self) -> Iterator[Any]:
+        for value in super().__iter__():
+            yield _tracked_value(value, self._on_mutation)
+
+    def _sync(self) -> None:
+        self._source[:] = list.__iter__(self)
+        self._on_mutation()
+
+    def __setitem__(self, index: Any, value: Any) -> None:
+        super().__setitem__(index, _unwrap_tracked(value))
+        self._sync()
+
+    def __delitem__(self, index: Any) -> None:
+        super().__delitem__(index)
+        self._sync()
+
+    def append(self, value: Any) -> None:
+        super().append(_unwrap_tracked(value))
+        self._sync()
+
+    def extend(self, values: Any) -> None:
+        super().extend(_unwrap_tracked(value) for value in values)
+        self._sync()
+
+    def insert(self, index: Any, value: Any) -> None:
+        super().insert(index, _unwrap_tracked(value))
+        self._sync()
+
+    def pop(self, index: Any = -1) -> Any:
+        value = super().pop(index)
+        self._sync()
+        return _tracked_value(value, self._on_mutation)
+
+    def remove(self, value: Any) -> None:
+        super().remove(_unwrap_tracked(value))
+        self._sync()
+
+    def clear(self) -> None:
+        super().clear()
+        self._sync()
+
+    def reverse(self) -> None:
+        super().reverse()
+        self._sync()
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        super().sort(*args, **kwargs)
+        self._sync()
+
+    def __iadd__(self, values: Any) -> _TrackedList:
+        super().__iadd__([_unwrap_tracked(value) for value in values])
+        self._sync()
+        return self
+
+    def __imul__(self, count: Any) -> Any:
+        super().__imul__(count)
+        self._sync()
+        return self
+
+
+class _TrackedDataset(dict[str, Any]):
+    """Console-only dataset view that advances freshness on mutable edits."""
+
+    _NON_DATASET_FIELDS = frozenset({"history"})
+
+    def __init__(self, source: dict[str, Any], on_mutation: Callable[[], None]) -> None:
+        super().__init__(source)
+        self._source = source
+        self._on_mutation = on_mutation
+
+    @property
+    def source(self) -> dict[str, Any]:
+        return self._source
+
+    def __getitem__(self, key: str) -> Any:
+        return _tracked_value(super().__getitem__(key), self._on_mutation)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return _tracked_value(super().get(key, default), self._on_mutation)
+
+    def copy(self) -> _TrackedDataset:
+        return _TrackedDataset(dict(self), self._on_mutation)
+
+    def items(self) -> Any:
+        for key, value in super().items():
+            yield key, _tracked_value(value, self._on_mutation)
+
+    def values(self) -> Any:
+        for value in super().values():
+            yield _tracked_value(value, self._on_mutation)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        value = _unwrap_tracked(value)
+        super().__setitem__(key, value)
+        self._source[key] = value
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+
+    def __delitem__(self, key: str) -> None:
+        super().__delitem__(key)
+        del self._source[key]
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        updates = dict(*args, **kwargs)
+        for key, value in updates.items():
+            self[key] = value
+
+    def clear(self) -> None:
+        if not self:
+            return
+        super().clear()
+        self._source.clear()
+        self._on_mutation()
+
+    def pop(self, key: str, default: Any = _TRACKED_MISSING) -> Any:
+        present = key in self
+        if default is _TRACKED_MISSING:
+            value = super().pop(key)
+            self._source.pop(key)
+        else:
+            value = super().pop(key, default)
+            self._source.pop(key, default)
+        if present and key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+        return value
+
+    def popitem(self) -> tuple[str, Any]:
+        key, value = super().popitem()
+        self._source.pop(key)
+        if key not in self._NON_DATASET_FIELDS:
+            self._on_mutation()
+        return key, value
+
+    def __ior__(self, other: Any) -> Any:
+        self.update(other)
+        return self
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        if key in self:
+            return self[key]
+        self[key] = default
+        return self[key]
+
+    def __or__(self, other: Any) -> _TrackedDataset:
+        copied = self.copy()
+        copied.update(other)
+        return copied
+
+    def __ror__(self, other: Any) -> _TrackedDataset:
+        copied = _TrackedDataset(dict(other), self._on_mutation)
+        copied.update(self)
+        return copied
+
+
+def _tracked_value(value: Any, on_mutation: Callable[[], None]) -> Any:
+    if isinstance(value, dict) and not isinstance(value, _TrackedDataset):
+        return _TrackedDataset(value, on_mutation)
+    if isinstance(value, list) and not isinstance(value, _TrackedList):
+        return _TrackedList(value, on_mutation)
+    if isinstance(value, np.ndarray) and not isinstance(value, _MutationTrackedArray):
+        tracked = value.view(_MutationTrackedArray)
+        tracked._on_mutation = on_mutation
+        return tracked
+    return value
+
+
+def _unwrap_tracked(value: Any) -> Any:
+    if isinstance(value, _TrackedDataset):
+        return value.source
+    if isinstance(value, _TrackedList):
+        return value.source
+    if isinstance(value, _MutationTrackedArray):
+        return value.view(np.ndarray)
+    return value
+
+
+@dataclass
+class _AsyncDatasetWatch:
+    """Shared wrappers and reference count for concurrent async calls."""
+
+    eeg_source: dict[str, Any] | list[dict[str, Any]]
+    eeg_tracked: _TrackedDataset | _TrackedList
+    alleeg_source: list[dict[str, Any]]
+    alleeg_tracked: _TrackedList
+    active_calls: int = 1
+
+
+class _ConsoleImportedModule:
+    """Module proxy that replaces canonical async exports with console wrappers."""
+
+    def __init__(self, module: Any, bridge: EEGPrepConsoleWorkspace, exports: Mapping[str, str]) -> None:
+        self._module = module
+        self._bridge = bridge
+        self._exports = exports
+
+    def __getattr__(self, name: str) -> Any:
+        export = self._exports.get(name)
+        if export == "iclabel_async":
+            return self._bridge.async_wrapper(export)
+        if export == "pop_iclabel_async":
+            return self._bridge.pop_wrapper(export)
+        child = _CANONICAL_MODULE_CHILDREN.get(getattr(self._module, "__name__", ""), {}).get(name)
+        if child is not None:
+            module_name, exports = child
+            return _ConsoleImportedModule(importlib.import_module(module_name), self._bridge, exports)
+        return getattr(self._module, name)
+
+    def __dir__(self) -> list[str]:
+        children = _CANONICAL_MODULE_CHILDREN.get(getattr(self._module, "__name__", ""), {})
+        return sorted(set(dir(self._module)) | set(self._exports) | set(children))
+
+
+class _ConsoleImportlib:
+    """Importlib proxy that preserves console wrappers for canonical modules."""
+
+    def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
+        self._bridge = bridge
+
+    def import_module(self, name: str, package: str | None = None) -> Any:
+        module = importlib.import_module(name, package)
+        exports = _CANONICAL_ASYNC_IMPORTS.get(name)
+        if exports:
+            return _ConsoleImportedModule(module, self._bridge, exports)
+        children = _CANONICAL_MODULE_CHILDREN.get(name)
+        if children:
+            return _ConsoleImportedModule(module, self._bridge, {})
+        return module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(importlib, name)
+
+
+class ConsoleAsyncFunction(LazyWorkspaceExport):
+    """Console wrapper that rejects stale results from public async functions."""
+
+    def __init__(
+        self,
+        name: str,
+        bridge: EEGPrepConsoleWorkspace,
+        value: Any | None = None,
+        resolver: Callable[[], Any] | None = None,
+    ) -> None:
+        super().__init__(name, value=value, resolver=resolver)
+        self.bridge = bridge
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        target_state = self.bridge.session.dataset_state_token()
+        return self._call_async(target_state, *args, **kwargs)
+
+    async def _call_async(
+        self,
+        target_state: tuple[Any, ...],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        watch = self.bridge.begin_async_dataset_watch(args, kwargs)
+        args, kwargs = self.bridge.unwrap_async_call(args, kwargs)
+        try:
+            result = await self.resolve()(*args, **kwargs)
+            if not self.bridge.session.dataset_state_unchanged(target_state):
+                raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+            return result
+        finally:
+            self.bridge.end_async_dataset_watch(watch)
+
+    def __repr__(self) -> str:
+        return f"<EEGPrep console async function {self.name}>"
+
+
 class ConsolePopFunction(LazyWorkspaceExport):
     """Console wrapper that stores ``pop_*`` EEG outputs back into the session."""
 
@@ -209,7 +526,8 @@ class ConsolePopFunction(LazyWorkspaceExport):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.name == "pop_iclabel_async":
-            return self._call_async(*args, **kwargs)
+            target_state = self.bridge.session.dataset_state_token()
+            return self._call_async(target_state, *args, **kwargs)
         function = self.resolve()
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
@@ -258,15 +576,34 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 self.bridge._pop_updated_session = True
                 self.bridge.pull_from_session()
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
+        eeg_result, result_command = _extract_pop_eeg_and_command(result)
+        if (
+            self.name in _IN_PLACE_DATASET_POP_FUNCTIONS
+            and not result_command
+            and eeg_result is self.bridge.session.EEG
+        ):
+            self.bridge.session.notify_changed(dataset_changed=True)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
-    async def _call_async(self, *args: Any, **kwargs: Any) -> Any:
-        function = self.resolve()
-        call_kwargs = dict(kwargs)
-        if _accepts_return_com(function) and "return_com" not in call_kwargs:
-            call_kwargs["return_com"] = True
-        result = await function(*args, **call_kwargs)
-        return self.bridge.accept_pop_result(result, args, kwargs)
+    async def _call_async(
+        self,
+        target_state: tuple[Any, ...],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        watch = self.bridge.begin_async_dataset_watch(args, kwargs)
+        args, kwargs = self.bridge.unwrap_async_call(args, kwargs)
+        try:
+            function = self.resolve()
+            call_kwargs = dict(kwargs)
+            if _accepts_return_com(function) and "return_com" not in call_kwargs:
+                call_kwargs["return_com"] = True
+            result = await function(*args, **call_kwargs)
+            if not self.bridge.session.dataset_state_unchanged(target_state):
+                raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+            return self.bridge.accept_pop_result(result, args, kwargs)
+        finally:
+            self.bridge.end_async_dataset_watch(watch)
 
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
@@ -281,8 +618,14 @@ class ConsoleEEGPrepModule:
     def __getattr__(self, name: str) -> Any:
         if name.startswith("pop_"):
             return self._bridge.pop_wrapper(name)
+        if name == "iclabel_async":
+            return self._bridge.async_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
+        child = _CANONICAL_MODULE_CHILDREN.get("eegprep", {}).get(name)
+        if child is not None:
+            module_name, exports = child
+            return _ConsoleImportedModule(importlib.import_module(module_name), self._bridge, exports)
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -330,7 +673,7 @@ class ConsoleEegh:
         else:
             session.clear_last_command()
         if args and isinstance(args[0], dict):
-            eegh(normalized, args[0])
+            eegh(normalized, _unwrap_tracked(args[0]))
         self.bridge.pull_from_session()
         return normalized
 
@@ -357,8 +700,13 @@ class EEGPrepConsoleWorkspace:
         self.command_echo = command_echo
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self.namespace: dict[str, Any] = {}
+        self._builtin_import = builtins.__import__
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
+        self._importlib_proxy = _ConsoleImportlib(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
+        self._wrapped_async_exports: dict[str, ConsoleAsyncFunction] = {}
+        self._export_values = dict(exports or {})
+        self._async_dataset_watch: _AsyncDatasetWatch | None = None
         self._syncing = False
         self._pop_updated_session = False
         self._pop_needs_source_history = False
@@ -375,6 +723,8 @@ class EEGPrepConsoleWorkspace:
 
     def close(self) -> None:
         """Detach this workspace from session notifications."""
+        self._async_dataset_watch = None
+        self.pull_from_session()
         self.session.remove_change_listener(self._session_changed)
         self.session.remove_command_echo_listener(self._echo_session_command)
         self.session.remove_gui_action_listener(self._gui_action_event)
@@ -384,8 +734,16 @@ class EEGPrepConsoleWorkspace:
         """Mirror session state into the console namespace."""
         self.namespace["eegprep"] = self._eegprep_proxy
         self.namespace.update(self._wrapped_pop_exports)
-        self.namespace["EEG"] = self.session.EEG
-        self.namespace["ALLEEG"] = self.session.ALLEEG
+        self.namespace.update(self._wrapped_async_exports)
+        watch = self._async_dataset_watch
+        if watch is not None and self.session.EEG is watch.eeg_source:
+            self.namespace["EEG"] = watch.eeg_tracked
+        else:
+            self.namespace["EEG"] = self.session.EEG
+        if watch is not None and self.session.ALLEEG is watch.alleeg_source:
+            self.namespace["ALLEEG"] = watch.alleeg_tracked
+        else:
+            self.namespace["ALLEEG"] = self.session.ALLEEG
         self.namespace["CURRENTSET"] = self.session.current_set_value()
         self.namespace["ALLCOM"] = self.session.ALLCOM
         self.namespace["LASTCOM"] = self.session.LASTCOM
@@ -416,7 +774,7 @@ class EEGPrepConsoleWorkspace:
         changed = False
 
         if "ALLEEG" in targets or "CURRENTSET" in targets:
-            alleeg = self.namespace.get("ALLEEG", [])
+            alleeg = _unwrap_tracked(self.namespace.get("ALLEEG", []))
             if not isinstance(alleeg, list):
                 raise ValueError("ALLEEG must be a list of EEG datasets")
             if "CURRENTSET" in targets:
@@ -435,6 +793,7 @@ class EEGPrepConsoleWorkspace:
             changed = True
 
         if eeg_changed:
+            eeg = _unwrap_tracked(eeg)
             if not _is_eeg_selection(eeg):
                 raise ValueError("EEG must be an EEG dataset dictionary or a list of EEG dataset dictionaries")
             self._store_eeg(eeg, history_command)
@@ -532,7 +891,15 @@ class EEGPrepConsoleWorkspace:
         return ConsolePopResult(self.session.EEG, command, updated=True)
 
     def _bind_base_namespace(self) -> None:
-        self.namespace.update({"eegprep": self._eegprep_proxy, "session": self.session, "window": self.window})
+        self.namespace.update(
+            {
+                "eegprep": self._eegprep_proxy,
+                "session": self.session,
+                "importlib": self._importlib_proxy,
+                "window": self.window,
+                "__builtins__": {**vars(builtins), "__import__": self._console_import},
+            }
+        )
         self.namespace.update(_CONSOLE_COMMAND_EXPORTS)
         self.namespace["eegh"] = ConsoleEegh(self)
 
@@ -546,6 +913,10 @@ class EEGPrepConsoleWorkspace:
             elif name.startswith("pop_"):
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
+                self.namespace[name] = wrapped
+            elif name == "iclabel_async":
+                wrapped = ConsoleAsyncFunction(name, self, None if exports is None else exports[name])
+                self._wrapped_async_exports[name] = wrapped
                 self.namespace[name] = wrapped
             else:
                 self.namespace[name] = LazyWorkspaceExport(name, None if exports is None else exports[name])
@@ -568,12 +939,59 @@ class EEGPrepConsoleWorkspace:
             self._wrapped_pop_exports[name] = wrapped
         return wrapped
 
+    def async_wrapper(self, name: str) -> ConsoleAsyncFunction:
+        """Return the console-aware wrapper for a public async function."""
+        wrapped = self._wrapped_async_exports.get(name)
+        if wrapped is None:
+            value = self._export_values.get(name)
+            wrapped = ConsoleAsyncFunction(name, self, value=value)
+            self._wrapped_async_exports[name] = wrapped
+        return wrapped
+
+    def begin_async_dataset_watch(self, args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> _AsyncDatasetWatch | None:
+        source = _unwrap_tracked(_first_call_eeg_argument(args, kwargs))
+        if (
+            source is not self.session.EEG
+            or not isinstance(source, (dict, list))
+            or _unwrap_tracked(self.namespace.get("EEG")) is not source
+        ):
+            return None
+        watch = self._async_dataset_watch
+        if watch is not None and watch.eeg_source is source and watch.alleeg_source is self.session.ALLEEG:
+            watch.active_calls += 1
+            self.pull_from_session()
+            return watch
+        tracked = _tracked_value(source, self.session.mark_dataset_changed)
+        alleeg_tracked = _tracked_value(self.session.ALLEEG, self.session.mark_dataset_changed)
+        if not isinstance(tracked, (_TrackedDataset, _TrackedList)) or not isinstance(alleeg_tracked, _TrackedList):
+            return None
+        watch = _AsyncDatasetWatch(source, tracked, self.session.ALLEEG, alleeg_tracked)
+        self._async_dataset_watch = watch
+        self.pull_from_session()
+        return watch
+
+    def unwrap_async_call(
+        self, args: tuple[Any, ...], kwargs: Mapping[str, Any]
+    ) -> tuple[tuple[Any, ...], dict[str, Any]]:
+        return tuple(_unwrap_tracked(arg) for arg in args), {
+            key: _unwrap_tracked(value) for key, value in kwargs.items()
+        }
+
+    def end_async_dataset_watch(self, watch: _AsyncDatasetWatch | None) -> None:
+        if watch is None or self._async_dataset_watch is not watch:
+            return
+        watch.active_calls -= 1
+        if watch.active_calls:
+            return
+        self._async_dataset_watch = None
+        self.pull_from_session()
+
     def _session_changed(self, _session: EEGPrepSession) -> None:
         if not self._syncing:
             self.pull_from_session()
 
     def _namespace_eeg_changed(self, targets: set[str]) -> bool:
-        return "EEG" in targets or self.namespace.get("EEG") is not self.session.EEG
+        return "EEG" in targets or _unwrap_tracked(self.namespace.get("EEG")) is not self.session.EEG
 
     def _history_command_for_source(self, source: str, targets: set[str]) -> str:
         lastcom = str(self.namespace.get("LASTCOM") or "").strip()
@@ -587,8 +1005,42 @@ class EEGPrepConsoleWorkspace:
         for local_name, export_name in _eegprep_import_aliases(source).items():
             if export_name == "eegprep":
                 self.namespace[local_name] = self._eegprep_proxy
+            elif export_name == "importlib":
+                self.namespace[local_name] = self._importlib_proxy
+            elif export_name.startswith("__module__:"):
+                self.namespace[local_name] = self._importlib_proxy.import_module(
+                    export_name.removeprefix("__module__:")
+                )
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
+            elif export_name == "iclabel_async":
+                self.namespace[local_name] = self.async_wrapper(export_name)
+
+    def _console_import(
+        self,
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> Any:
+        module = self._builtin_import(name, globals, locals, fromlist, level)
+        if name == "importlib":
+            return self._importlib_proxy
+        eegprep_exports = set(getattr(eegprep, "__all__", ()))
+        if name == "eegprep" and (
+            not fromlist or (fromlist and all(item == "*" or item in eegprep_exports for item in fromlist))
+        ):
+            return self._eegprep_proxy
+        canonical_exports = _CANONICAL_ASYNC_IMPORTS.get(name)
+        if canonical_exports and (not fromlist or any(item == "*" or item in canonical_exports for item in fromlist)):
+            return _ConsoleImportedModule(module, self, canonical_exports)
+        canonical_children = _CANONICAL_MODULE_CHILDREN.get(name)
+        if canonical_children and fromlist and any(item == "*" or item in canonical_children for item in fromlist):
+            return _ConsoleImportedModule(module, self, {})
+        if canonical_exports and not fromlist:
+            return _ConsoleImportedModule(module, self, canonical_exports)
+        return module
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
@@ -1552,10 +2004,36 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
             for alias in node.names:
                 if alias.name == "eegprep":
                     aliases[alias.asname or "eegprep"] = "eegprep"
+                elif alias.name == "importlib":
+                    aliases[alias.asname or "importlib"] = "importlib"
+                elif alias.name in _CANONICAL_ASYNC_IMPORTS:
+                    aliases[alias.asname or alias.name.split(".")[0]] = (
+                        "__module__:" + alias.name if alias.asname else "eegprep"
+                    )
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
-                if alias.name.startswith("pop_"):
+                if alias.name.startswith("pop_") or alias.name == "iclabel_async":
                     aliases[alias.asname or alias.name] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            export = _CANONICAL_ASYNC_IMPORTS.get(node.module or "")
+            if export:
+                for alias in node.names:
+                    if alias.name == "*":
+                        aliases.update({name: value for name, value in export.items()})
+                    elif alias.name in export:
+                        aliases[alias.asname or alias.name] = export[alias.name]
+            children = _CANONICAL_MODULE_CHILDREN.get(node.module or "")
+            if children:
+                for alias in node.names:
+                    if alias.name == "*":
+                        aliases.update(
+                            {
+                                child_name: "__module__:" + module_name
+                                for child_name, (module_name, _exports) in children.items()
+                            }
+                        )
+                    elif alias.name in children:
+                        aliases[alias.asname or alias.name] = "__module__:" + children[alias.name][0]
     return aliases
 
 

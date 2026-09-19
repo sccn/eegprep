@@ -1345,24 +1345,14 @@ class MenuActionDispatcher:
             return
         from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async
 
-        target_indices = list(self.session.selected_dataset_indices())
-        target_datasets = list(selection) if isinstance(selection, list) else [selection]
+        target_state = self.session.dataset_state_token()
         out = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
-        current_datasets = list(self.session.EEG) if isinstance(self.session.EEG, list) else [self.session.EEG]
-        selection_changed = (
-            self.session.selected_dataset_indices() != target_indices
-            or len(current_datasets) != len(target_datasets)
-            or any(current is not target for current, target in zip(current_datasets, target_datasets))
-            or any(
-                index < 1 or index > len(self.session.ALLEEG) or self.session.ALLEEG[index - 1] is not dataset
-                for index, dataset in zip(target_indices, target_datasets)
-            )
-        )
-        if selection_changed:
-            raise RuntimeError("ICLabel result discarded because the selected dataset changed while it was running.")
+        if not self.session.dataset_state_unchanged(target_state):
+            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
         eeg_out, command = out[0], out[1] if isinstance(out, tuple) and len(out) > 1 else ""
         if command:
             store_kwargs = {"command": command}
+            target_indices = list(self.session.selected_dataset_indices())
             if target_indices:
                 store_kwargs["index"] = target_indices
             self._store_current_from_gui(eeg_out, **store_kwargs)
@@ -1468,7 +1458,7 @@ class MenuActionDispatcher:
         if command:
             self.session.echo_command(command)
             self.session.add_history(command, notify=False)
-            self.session.notify_changed()
+            self.session.notify_changed(dataset_changed=True)
             self._refresh()
 
     def _select_study_set(self, parent: Any | None) -> None:

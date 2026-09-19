@@ -103,6 +103,11 @@ recommended for UI responsiveness. The async history command is recorded with
 
    await eegh(1)
 
+If the selected dataset state or selection changes while classification is
+running, EEGPrep raises ``RuntimeError`` and discards the stale result instead
+of committing it to a different dataset. History-only commands do not
+invalidate the in-flight classification.
+
 In-place Workspace Edits
 ========================
 

@@ -72,9 +72,11 @@ What the workflow does
 1. **verify** — ``ruff check``, ``ruff format --check``, ``ty check``, and the full
    test suite with ``EEGPREP_SKIP_MATLAB=1``.
 2. **build** — ``uv build``, then checks that the tag matches ``__version__``, that
-   the vendored EEGLAB checkout is absent from both artifacts, that packaged data
-   (ICLabel weights, help resources) is present, that ``twine check --strict``
-   passes, and that the built wheel installs and imports.
+   the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
+   sdist contain the selected ICLabel network (and no source ``netICL.mat``), and
+   that both artifacts match the committed Phase 6 parity-report hash. It also
+   runs ``twine check --strict`` and installs both artifacts with the ICLabel
+   extra for runtime classification and the ASR filter smoke test.
 3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
    stored in the repository.
 4. **github-release** — creates the GitHub release with the artifacts attached.

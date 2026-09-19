@@ -3,8 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
-PYODIDE_VERSION="0.29.5"
-ONNXRUNTIME_WEB_VERSION="1.30.0"
 WORKTREE_TMP=$(mktemp -d "${TMPDIR:-/tmp}/eegprep-pyodide.XXXXXX")
 trap 'rm -rf "$WORKTREE_TMP"' EXIT
 
@@ -76,11 +74,10 @@ if [[ ! -f "$DOCOPT_WHEEL_PATH" ]]; then
 fi
 
 NPM_PREFIX="$WORKTREE_TMP/npm"
-NPM_PACKAGES=("pyodide@${PYODIDE_VERSION}")
-if [[ "$ICLABEL_WEB" == true ]]; then
-  NPM_PACKAGES+=("onnxruntime-web@${ONNXRUNTIME_WEB_VERSION}")
-fi
-npm install --ignore-scripts --no-save --package-lock=false --prefix "$NPM_PREFIX" "${NPM_PACKAGES[@]}"
+mkdir -p "$NPM_PREFIX"
+cp "$REPO_ROOT/tools/pyodide/package.json" "$NPM_PREFIX/package.json"
+cp "$REPO_ROOT/tools/pyodide/package-lock.json" "$NPM_PREFIX/package-lock.json"
+npm ci --ignore-scripts --no-audit --no-fund --prefix "$NPM_PREFIX"
 PYODIDE_MODULE="$NPM_PREFIX/node_modules/pyodide/pyodide.mjs"
 
 NODE_ARGS=(
@@ -91,8 +88,23 @@ NODE_ARGS=(
   --script "$SCRIPT_PATH"
 )
 if [[ "$ICLABEL_WEB" == true ]]; then
+  ICLABEL_MODEL_PATH="$WORKTREE_TMP/iclabel.onnx"
+  uv run --no-sync python - "$WHEEL_PATH" "$ICLABEL_MODEL_PATH" <<'PY'
+import sys
+import zipfile
+
+wheel_path, output_path = sys.argv[1:]
+model_name = "eegprep/plugins/ICLabel/iclabel.onnx"
+with zipfile.ZipFile(wheel_path) as wheel:
+    try:
+        model = wheel.read(model_name)
+    except KeyError as exc:
+        raise SystemExit(f"Wheel is missing {model_name}") from exc
+with open(output_path, "wb") as handle:
+    handle.write(model)
+PY
   NODE_ARGS+=(
-    --iclabel-model "$REPO_ROOT/src/eegprep/plugins/ICLabel/iclabel.onnx"
+    --iclabel-model "$ICLABEL_MODEL_PATH"
     --onnxruntime-web-module "$NPM_PREFIX/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs"
   )
 fi

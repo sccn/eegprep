@@ -70,7 +70,10 @@ unchanged.
 
 The following tables are generated from the native and Pyodide JSON reports
 with `tools/pyodide/compare_benchmarks.py`. The raw reports and loader logs are
-also uploaded by CI as the `pyodide-phase-2-and-phase-5-output` artifact.
+also uploaded by CI as the `pyodide-phase-2-through-phase-6-output` artifact.
+That bundle includes the Phase 3 backend-selection benchmark and the Phase 6
+frozen ICLabel quantization report in addition to the Phase 2 harness and Phase
+5 browser parity evidence.
 
 ## Phase 5 browser ICLabel
 

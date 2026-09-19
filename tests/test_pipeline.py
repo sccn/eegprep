@@ -139,8 +139,8 @@ class TestPipeline(DebuggableTestCase):
         """Test iclabel component classification."""
         if not self.has_matlab_picard:
             self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
-        if not has_optional_dependency('torch'):
-            self.skipTest("PyTorch is not installed; install eegprep[torch] to run ICLabel parity")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel parity")
 
         # Prepare data: channel cleaning + burst cleaning + ICA
         EEG_py_ch, *_ = clean_artifacts(deepcopy(self.EEG), BurstCriterion='off', ChannelCriterion=0.8)
@@ -174,8 +174,8 @@ class TestPipeline(DebuggableTestCase):
         """Test the complete pipeline end-to-end."""
         if not self.has_matlab_picard:
             self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
-        if not has_optional_dependency('torch'):
-            self.skipTest("PyTorch is not installed; install eegprep[torch] to run full pipeline parity")
+        if not has_optional_dependency('onnxruntime'):
+            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run full pipeline parity")
 
         print("\n" + "=" * 80)
         print("Full Pipeline Test: clean_artifacts -> eeg_picard -> iclabel")

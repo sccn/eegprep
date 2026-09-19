@@ -66,7 +66,7 @@ If you only need documentation dependencies, sync the docs extra:
 
 .. code-block:: bash
 
-    uv sync --extra docs --group dev
+    uv sync --group dev --extra docs --extra iclabel
 
 ``uv sync`` installs:
 

@@ -68,6 +68,26 @@ def test_pop_saveset_twofiles_roundtrips_epoched_data_as_memmap(tmp_path: Path):
     assert reloaded["data"][1, 2, 1] == -123.0
 
 
+def test_memmap_common_mutation_views_advance_revision(tmp_path: Path):
+    path = tmp_path / "tracked.fdt"
+    backing = np.memmap(path, dtype="float32", mode="w+", shape=(2, 3), order="F")
+    backing[:] = np.arange(6, dtype=np.float32).reshape((2, 3))
+    backing.flush()
+    data = MemmapData(path, (2, 3), mode="r+")
+
+    data.flat[0] = 10.0
+    assert data.mutation_revision == 1
+    assert np.asarray(data).flat[0] == 10.0
+    data.ravel(order="F")[1] = 11.0
+    assert data.mutation_revision == 2
+    data.sort()
+    assert data.mutation_revision == 3
+    np.put(data, [2], [12.0])
+    assert data.mutation_revision == 4
+
+    data.close()
+
+
 def test_pop_saveset_default_single_file_keeps_data_inline(tmp_path: Path):
     data = np.arange(6, dtype=np.float32).reshape((2, 3))
     set_file = tmp_path / "inline.set"
