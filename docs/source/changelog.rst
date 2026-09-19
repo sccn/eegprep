@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- STUDY measure designs can now use categorical factors stored per trial. With
+  ``savetrials="on"``, ERP, spectrum, ERSP, and ITC plots select the matching
+  trials within each dataset and then aggregate one case per subject or
+  component. Spectrum and ERSP trials are averaged in linear power before dB
+  conversion, and ITC phases are averaged circularly.
 - ``std_dipplot`` now selects existing DIPFIT models through one-based STUDY
   cluster membership, returns their coordinates, moments, residual variances,
   and centroids, and renders joined, centroid, member, and separated views.
