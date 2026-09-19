@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone miscellaneous visualization utilities for spatial scalp-map
+  gradients, logarithmic-axis matrix images, epoched event rasters, recursive
+  Matplotlib font styling, and replayable 2-D/3-D scalp movies. Movie generation
+  returns direct RGB frames for headless notebooks and tests while
+  preserving EEGLAB's 1-based ``movieframes`` boundary and legacy camera paths.
+  Current tests for obsolete ``eegplotgold``/``eegplotsold`` and MATLAB menu
+  handle introspection instead exercise EEGPrep's maintained browser and
+  declarative menu model; MATLAB help-site builders and callback-string
+  ``textgui`` remain explicit exclusions.
 - Added a standalone ``statcondfieldtrip`` backend for paired and unpaired
   t-tests and unpaired one-way ANOVA, with analytic or seeded permutation
   inference and Bonferroni, Holm, FDR, and max-statistic correction.
