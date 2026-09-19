@@ -130,6 +130,7 @@ def envtopo(
         raise ValueError(f"envtopo: sumenv must be 'on', 'off' or 'fill', got {sumenv!r}")
     times_ms = _time_axis(timerange, n_frames)
     plot_channels = _resolve_channels(plotchans, n_chans)
+    compnums, compsplot = _legacy_component_selection(compnums, compsplot)
     candidates = _resolve_components(compnums, n_components)
     removed = _resolve_subcomps(subcomps, n_components, candidates)
 
@@ -177,6 +178,16 @@ def envtopo(
         topoplot_options=topoplot_options,
     )
     return EnvtopoResult(compvarorder, compvars, compframes, comptimes, compsplotted, metric, figure)
+
+
+def _legacy_component_selection(compnums: Any, compsplot: int) -> tuple[Any, int]:
+    """Translate EEGLAB's legacy ``compnums=-N`` spelling to top-N ranking."""
+    if _is_empty(compnums):
+        return compnums, abs(int(compsplot))
+    values = np.asarray(compnums, dtype=int).ravel()
+    if values.size == 1 and values[0] < 0:
+        return None, abs(int(values[0]))
+    return compnums, abs(int(compsplot))
 
 
 def _contributions(values, activations, maps, candidates, plot_channels, lim1, lim2, metric_mode, envmode):

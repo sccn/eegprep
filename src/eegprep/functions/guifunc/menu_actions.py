@@ -1572,7 +1572,7 @@ class MenuActionDispatcher:
         elif name == "pop_plotdata":
             from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 
-            _result, command = pop_plotdata(selection, return_com=True)
+            _result, command = pop_plotdata(selection, typeplot=0 if variant == "components" else 1, return_com=True)
         elif name == "pop_erpimage":
             from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 
