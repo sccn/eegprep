@@ -48,6 +48,21 @@ _CANONICAL_ASYNC_IMPORTS = {
     "eegprep.plugins.ICLabel.iclabel": {"iclabel_async": "iclabel_async"},
     "eegprep.plugins.ICLabel.pop_iclabel": {"pop_iclabel_async": "pop_iclabel_async"},
 }
+_CANONICAL_MODULE_CHILDREN = {
+    "eegprep": {
+        "plugins": ("eegprep.plugins", {}),
+    },
+    "eegprep.plugins": {
+        "ICLabel": ("eegprep.plugins.ICLabel", {}),
+    },
+    "eegprep.plugins.ICLabel": {
+        "iclabel": ("eegprep.plugins.ICLabel.iclabel", _CANONICAL_ASYNC_IMPORTS["eegprep.plugins.ICLabel.iclabel"]),
+        "pop_iclabel": (
+            "eegprep.plugins.ICLabel.pop_iclabel",
+            _CANONICAL_ASYNC_IMPORTS["eegprep.plugins.ICLabel.pop_iclabel"],
+        ),
+    },
+}
 _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_autorej",
     "pop_eegthresh",
@@ -218,7 +233,12 @@ class _TrackedList(list[Any]):
 
     def __getitem__(self, index: Any) -> Any:
         value = super().__getitem__(index)
-        return value if isinstance(index, slice) else _tracked_value(value, self._on_mutation)
+        if isinstance(index, slice):
+            return _TrackedList(value, self._on_mutation)
+        return _tracked_value(value, self._on_mutation)
+
+    def copy(self) -> _TrackedList:
+        return _TrackedList(list(self), self._on_mutation)
 
     def __iter__(self) -> Iterator[Any]:
         for value in super().__iter__():
@@ -300,6 +320,9 @@ class _TrackedDataset(dict[str, Any]):
     def get(self, key: str, default: Any = None) -> Any:
         return _tracked_value(super().get(key, default), self._on_mutation)
 
+    def copy(self) -> _TrackedDataset:
+        return _TrackedDataset(dict(self), self._on_mutation)
+
     def items(self) -> Any:
         for key, value in super().items():
             yield key, _tracked_value(value, self._on_mutation)
@@ -360,7 +383,17 @@ class _TrackedDataset(dict[str, Any]):
         if key in self:
             return self[key]
         self[key] = default
-        return default
+        return self[key]
+
+    def __or__(self, other: Any) -> _TrackedDataset:
+        copied = self.copy()
+        copied.update(other)
+        return copied
+
+    def __ror__(self, other: Any) -> _TrackedDataset:
+        copied = _TrackedDataset(dict(other), self._on_mutation)
+        copied.update(self)
+        return copied
 
 
 def _tracked_value(value: Any, on_mutation: Callable[[], None]) -> Any:
@@ -410,10 +443,35 @@ class _ConsoleImportedModule:
             return self._bridge.async_wrapper(export)
         if export == "pop_iclabel_async":
             return self._bridge.pop_wrapper(export)
+        child = _CANONICAL_MODULE_CHILDREN.get(getattr(self._module, "__name__", ""), {}).get(name)
+        if child is not None:
+            module_name, exports = child
+            return _ConsoleImportedModule(importlib.import_module(module_name), self._bridge, exports)
         return getattr(self._module, name)
 
     def __dir__(self) -> list[str]:
-        return sorted(set(dir(self._module)) | set(self._exports))
+        children = _CANONICAL_MODULE_CHILDREN.get(getattr(self._module, "__name__", ""), {})
+        return sorted(set(dir(self._module)) | set(self._exports) | set(children))
+
+
+class _ConsoleImportlib:
+    """Importlib proxy that preserves console wrappers for canonical modules."""
+
+    def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
+        self._bridge = bridge
+
+    def import_module(self, name: str, package: str | None = None) -> Any:
+        module = importlib.import_module(name, package)
+        exports = _CANONICAL_ASYNC_IMPORTS.get(name)
+        if exports:
+            return _ConsoleImportedModule(module, self._bridge, exports)
+        children = _CANONICAL_MODULE_CHILDREN.get(name)
+        if children:
+            return _ConsoleImportedModule(module, self._bridge, {})
+        return module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(importlib, name)
 
 
 class ConsoleAsyncFunction(LazyWorkspaceExport):
@@ -564,6 +622,10 @@ class ConsoleEEGPrepModule:
             return self._bridge.async_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
+        child = _CANONICAL_MODULE_CHILDREN.get("eegprep", {}).get(name)
+        if child is not None:
+            module_name, exports = child
+            return _ConsoleImportedModule(importlib.import_module(module_name), self._bridge, exports)
         return getattr(eegprep, name)
 
     def __dir__(self) -> list[str]:
@@ -640,6 +702,7 @@ class EEGPrepConsoleWorkspace:
         self.namespace: dict[str, Any] = {}
         self._builtin_import = builtins.__import__
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
+        self._importlib_proxy = _ConsoleImportlib(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
         self._wrapped_async_exports: dict[str, ConsoleAsyncFunction] = {}
         self._export_values = dict(exports or {})
@@ -832,6 +895,7 @@ class EEGPrepConsoleWorkspace:
             {
                 "eegprep": self._eegprep_proxy,
                 "session": self.session,
+                "importlib": self._importlib_proxy,
                 "window": self.window,
                 "__builtins__": {**vars(builtins), "__import__": self._console_import},
             }
@@ -941,6 +1005,12 @@ class EEGPrepConsoleWorkspace:
         for local_name, export_name in _eegprep_import_aliases(source).items():
             if export_name == "eegprep":
                 self.namespace[local_name] = self._eegprep_proxy
+            elif export_name == "importlib":
+                self.namespace[local_name] = self._importlib_proxy
+            elif export_name.startswith("__module__:"):
+                self.namespace[local_name] = self._importlib_proxy.import_module(
+                    export_name.removeprefix("__module__:")
+                )
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
             elif export_name == "iclabel_async":
@@ -955,13 +1025,20 @@ class EEGPrepConsoleWorkspace:
         level: int = 0,
     ) -> Any:
         module = self._builtin_import(name, globals, locals, fromlist, level)
+        if name == "importlib":
+            return self._importlib_proxy
         eegprep_exports = set(getattr(eegprep, "__all__", ()))
         if name == "eegprep" and (
             not fromlist or (fromlist and all(item == "*" or item in eegprep_exports for item in fromlist))
         ):
             return self._eegprep_proxy
         canonical_exports = _CANONICAL_ASYNC_IMPORTS.get(name)
-        if canonical_exports and fromlist and any(item in canonical_exports for item in fromlist):
+        if canonical_exports and (not fromlist or any(item == "*" or item in canonical_exports for item in fromlist)):
+            return _ConsoleImportedModule(module, self, canonical_exports)
+        canonical_children = _CANONICAL_MODULE_CHILDREN.get(name)
+        if canonical_children and fromlist and any(item == "*" or item in canonical_children for item in fromlist):
+            return _ConsoleImportedModule(module, self, {})
+        if canonical_exports and not fromlist:
             return _ConsoleImportedModule(module, self, canonical_exports)
         return module
 
@@ -1927,6 +2004,12 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
             for alias in node.names:
                 if alias.name == "eegprep":
                     aliases[alias.asname or "eegprep"] = "eegprep"
+                elif alias.name == "importlib":
+                    aliases[alias.asname or "importlib"] = "importlib"
+                elif alias.name in _CANONICAL_ASYNC_IMPORTS:
+                    aliases[alias.asname or alias.name.split(".")[0]] = (
+                        "__module__:" + alias.name if alias.asname else "eegprep"
+                    )
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
                 if alias.name.startswith("pop_") or alias.name == "iclabel_async":
@@ -1935,8 +2018,22 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
             export = _CANONICAL_ASYNC_IMPORTS.get(node.module or "")
             if export:
                 for alias in node.names:
-                    if alias.name in export:
+                    if alias.name == "*":
+                        aliases.update({name: value for name, value in export.items()})
+                    elif alias.name in export:
                         aliases[alias.asname or alias.name] = export[alias.name]
+            children = _CANONICAL_MODULE_CHILDREN.get(node.module or "")
+            if children:
+                for alias in node.names:
+                    if alias.name == "*":
+                        aliases.update(
+                            {
+                                child_name: "__module__:" + module_name
+                                for child_name, (module_name, _exports) in children.items()
+                            }
+                        )
+                    elif alias.name in children:
+                        aliases[alias.asname or alias.name] = "__module__:" + children[alias.name][0]
     return aliases
 
 

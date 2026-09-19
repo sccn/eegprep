@@ -54,6 +54,28 @@ def test_runica_consumer_reads_the_selected_backend_module(monkeypatch):
         importlib.reload(runica_module)
 
 
+def test_runica_executes_the_selected_backend(monkeypatch):
+    original_platform = sys.platform
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    try:
+        selected = importlib.reload(runica_matmul)
+        consumer = importlib.reload(runica_module)
+        calls = []
+
+        def spy(left, right):
+            calls.append((left.shape, right.shape))
+            return selected._blas_matmul(left, right)
+
+        monkeypatch.setattr(selected, "runica_matmul", spy)
+        data = np.random.default_rng(385).standard_normal((3, 100))
+        consumer.runica(data, maxsteps=1, verbose=False, rndreset="off")
+        assert calls
+    finally:
+        monkeypatch.setattr(sys, "platform", original_platform)
+        importlib.reload(runica_matmul)
+        importlib.reload(runica_module)
+
+
 def test_runica_import_does_not_eagerly_load_mne():
     result = subprocess.run(
         [

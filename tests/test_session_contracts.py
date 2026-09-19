@@ -157,7 +157,7 @@ def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
     session.store_current(eeg, new=True)
     token = session.dataset_state_token()
 
-    session.EEG["data"][:, :][0, 0] = 9.0
+    np.asarray(session.EEG["data"])[0, 0] = 9.0
 
     assert not session.dataset_state_unchanged(token)
 

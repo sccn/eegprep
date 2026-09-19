@@ -14,6 +14,27 @@ from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 FDT_DTYPE = np.dtype("<f4")
 
 
+class _MutationTrackedFlat:
+    """Flat iterator wrapper that notifies after indexed writes."""
+
+    def __init__(self, array: np.ndarray, on_mutation: Callable[[], None]) -> None:
+        self._flat = array.flat
+        self._on_mutation = on_mutation
+
+    def __getitem__(self, key: Any) -> Any:
+        return self._flat[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._flat[key] = value
+        self._on_mutation()
+
+    def __iter__(self) -> Any:
+        return iter(self._flat)
+
+    def __len__(self) -> int:
+        return len(self._flat)
+
+
 class _MutationTrackedArray(np.ndarray):
     """Array view that invokes a callback after an in-place write."""
 
@@ -33,6 +54,25 @@ class _MutationTrackedArray(np.ndarray):
     def fill(self, value: Any) -> None:
         super().fill(value)
         self._notify()
+
+    @property
+    def flat(self) -> _MutationTrackedFlat:
+        """Return a one-dimensional view that preserves write tracking."""
+        return _MutationTrackedFlat(self, self._notify)
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        super().sort(*args, **kwargs)
+        self._notify()
+
+    def partition(self, *args: Any, **kwargs: Any) -> None:
+        super().partition(*args, **kwargs)
+        self._notify()
+
+    def byteswap(self, inplace: bool = False) -> np.ndarray:
+        result = super().byteswap(inplace=inplace)
+        if inplace:
+            self._notify()
+        return result
 
     def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
         outputs = kwargs.get("out")
@@ -58,6 +98,13 @@ class _MutationTrackedArray(np.ndarray):
                 np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in args
             )
             result = np.copyto(*converted_args, **kwargs)
+            args[0]._notify()
+            return result
+        if function is np.put and args and isinstance(args[0], _MutationTrackedArray):
+            converted_args = tuple(
+                np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in args
+            )
+            result = np.put(*converted_args, **kwargs)
             args[0]._notify()
             return result
         return super().__array_function__(function, types, args, kwargs)
@@ -120,6 +167,11 @@ class MemmapData:
         """Return a transposed array view."""
         return self._tracked_view(self._memmap().T)
 
+    @property
+    def flat(self) -> _MutationTrackedFlat:
+        """Return a one-dimensional view that preserves write tracking."""
+        return _MutationTrackedFlat(self._memmap(), self._mark_mutated)
+
     def fill(self, value: Any) -> None:
         """Fill the mapped data and advance its mutation revision."""
         self._memmap().fill(value)
@@ -153,6 +205,28 @@ class MemmapData:
         """Return a transposed view that preserves mutation tracking."""
         return self._tracked_view(self._memmap().transpose(*axes))
 
+    def ravel(self, *args: Any, **kwargs: Any) -> np.ndarray:
+        """Return a flattened view or copy using NumPy's ravel semantics."""
+        return self._tracked_view(self._memmap().ravel(*args, **kwargs))
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        """Sort mapped data in place and advance its mutation revision."""
+        self._memmap().sort(*args, **kwargs)
+        self._mark_mutated()
+
+    def partition(self, *args: Any, **kwargs: Any) -> None:
+        """Partition mapped data in place and advance its mutation revision."""
+        self._memmap().partition(*args, **kwargs)
+        self._mark_mutated()
+
+    def byteswap(self, inplace: bool = False) -> np.ndarray:
+        """Byte-swap mapped data while preserving mutation tracking."""
+        result = self._memmap().byteswap(inplace=inplace)
+        if inplace:
+            self._mark_mutated()
+            return self._tracked_view(result)
+        return result
+
     def astype(self, *args: Any, **kwargs: Any) -> np.ndarray:
         """Return a typed array using NumPy's astype semantics."""
         return self._memmap().astype(*args, **kwargs)
@@ -182,6 +256,14 @@ class MemmapData:
     def __setitem__(self, key: Any, value: Any) -> None:
         self._memmap()[key] = value
         self._mark_mutated()
+
+    def __array_function__(self, function: Any, types: Any, args: Any, kwargs: Any) -> Any:
+        if function in {np.copyto, np.put} and args and args[0] is self:
+            converted_args = (self._memmap(), *args[1:])
+            result = function(*converted_args, **kwargs)
+            self._mark_mutated()
+            return result
+        return NotImplemented
 
     def __len__(self) -> int:
         return len(self._memmap())
@@ -219,6 +301,8 @@ class MemmapData:
         self._mutation_revision += 1
 
     def _tracked_view(self, array: np.ndarray) -> np.ndarray:
+        if not np.shares_memory(array, self._memmap()):
+            return array
         tracked: _MutationTrackedArray = array.view(_MutationTrackedArray)
         tracked._on_mutation = self._mark_mutated
         return tracked

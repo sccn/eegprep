@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
@@ -63,6 +64,67 @@ def _dataset_storage_token(dataset: Any) -> tuple[Any, ...] | None:
         None if stat is None else stat.st_mtime_ns,
         None if stat is None else stat.st_size,
     )
+
+
+def _dataset_content_token(dataset: Any) -> bytes:
+    """Return an authoritative token for mutable dataset content."""
+    digest = hashlib.blake2b(digest_size=16)
+    _update_dataset_digest(dataset, digest, set())
+    return digest.digest()
+
+
+def _update_dataset_digest(value: Any, digest: Any, seen: set[int]) -> None:
+    if isinstance(value, dict):
+        value_id = id(value)
+        if value_id in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(value_id)
+        digest.update(b"dict[")
+        for key in sorted(value, key=str):
+            if key == "history":
+                continue
+            _update_dataset_digest(str(key), digest, seen)
+            _update_dataset_digest(value[key], digest, seen)
+        digest.update(b"]")
+        seen.remove(value_id)
+        return
+    if isinstance(value, (list, tuple)):
+        value_id = id(value)
+        if value_id in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(value_id)
+        digest.update(b"list[")
+        for item in value:
+            _update_dataset_digest(item, digest, seen)
+        digest.update(b"]")
+        seen.remove(value_id)
+        return
+    if isinstance(value, np.ndarray):
+        digest.update(b"ndarray")
+        digest.update(np.dtype(value.dtype).str.encode())
+        digest.update(repr(tuple(value.shape)).encode())
+        if value.dtype.hasobject:
+            _update_dataset_digest(value.tolist(), digest, seen)
+        else:
+            digest.update(np.ascontiguousarray(value).tobytes())
+        return
+    if isinstance(value, MemmapData):
+        digest.update(b"MemmapData")
+        digest.update(str(value.path).encode())
+        digest.update(repr(value.mutation_revision).encode())
+        try:
+            _update_dataset_digest(np.asarray(value), digest, seen)
+        except RuntimeError:
+            digest.update(repr(value).encode())
+        return
+    if value is None or isinstance(value, (bool, int, float, complex, str, bytes)):
+        digest.update(type(value).__name__.encode())
+        digest.update(repr(value).encode())
+        return
+    digest.update(type(value).__name__.encode())
+    digest.update(repr(value).encode())
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
@@ -262,6 +324,7 @@ class EEGPrepSession:
             selected_slots,
             tuple(id(dataset) for dataset in current),
             tuple(_dataset_storage_token(dataset) for dataset in tracked_datasets),
+            tuple(_dataset_content_token(dataset) for dataset in tracked_datasets),
         )
 
     def dataset_state_unchanged(self, token: tuple[Any, ...]) -> bool:
