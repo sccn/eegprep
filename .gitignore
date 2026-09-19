@@ -114,3 +114,9 @@ docs/_build/
 docs/source/auto_examples/
 # Autosummary stub pages are build output, regenerated on every docs build.
 docs/source/api/generated/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
