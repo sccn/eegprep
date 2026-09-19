@@ -1,0 +1,6 @@
+﻿inputdlg2
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: inputdlg2

@@ -1,0 +1,6 @@
+﻿pop\_statparams
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_statparams

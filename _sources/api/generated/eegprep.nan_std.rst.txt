@@ -1,0 +1,6 @@
+﻿nan\_std
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: nan_std

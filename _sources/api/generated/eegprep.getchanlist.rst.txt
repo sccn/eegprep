@@ -1,0 +1,6 @@
+﻿getchanlist
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: getchanlist

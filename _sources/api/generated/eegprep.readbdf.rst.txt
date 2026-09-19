@@ -1,0 +1,6 @@
+﻿readbdf
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readbdf

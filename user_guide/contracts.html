@@ -530,6 +530,17 @@ first.</p>
 <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code> storage helper before other code relies on shape or type
 invariants. If you build a dataset dictionary by hand, pass it through
 <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> before handing it to other functions.</p>
+<p>Channel locations can be normalized independently with
+<code class="docutils literal notranslate"><span class="pre">eeg_checkchanlocs</span></code>. It fills the standard location fields, converts
+compatible coordinate systems, moves fiducials and <code class="docutils literal notranslate"><span class="pre">IGNORE</span></code> entries to
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;chaninfo&quot;][&quot;nodatchans&quot;]</span></code>, and normalizes the recorded nose direction
+to <code class="docutils literal notranslate"><span class="pre">+X</span></code> when the coordinates allow it.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">eeg_getdatact</span></code> to extract channels, ICA activations, component-removed
+data, or component backprojections without mutating the dataset. Its selector
+arguments are 1-based at the public API boundary, while stored
+<code class="docutils literal notranslate"><span class="pre">icachansind</span></code> values remain 0-based. The default result is always
+<code class="docutils literal notranslate"><span class="pre">(signals,</span> <span class="pre">samples,</span> <span class="pre">trials)</span></code>; <code class="docutils literal notranslate"><span class="pre">reshape=&quot;2d&quot;</span></code> concatenates trials in
+column-major order for EEGLAB-compatible numerical workflows.</p>
 <p><code class="docutils literal notranslate"><span class="pre">event</span></code> entries keep EEGLAB-facing <code class="docutils literal notranslate"><span class="pre">latency</span></code> values and, when available,
 <code class="docutils literal notranslate"><span class="pre">urevent</span></code> pointers back to <code class="docutils literal notranslate"><span class="pre">urevent</span></code> entries. <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is the
 original-event table; functions that create, delete, or reorder events state
@@ -563,7 +574,10 @@ EEGLAB’s callback behavior.</p>
 <p><code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> and the GUI share one session. GUI command echoes show
 replayable Python input before progress messages or warnings from the same
 action. <code class="docutils literal notranslate"><span class="pre">eegh</span></code> presents history newest-first like EEGLAB, while
-<code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLCOM</span></code> stays chronological internally.</p>
+<code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLCOM</span></code> stays chronological internally.
+When one command is applied to a multi-dataset selection, each selected EEG
+history records it with the <code class="docutils literal notranslate"><span class="pre">%</span> <span class="pre">multiple</span> <span class="pre">datasets</span> <span class="pre">command:</span></code> marker used by
+EEGLAB, while the session records the command once in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>.</p>
 <p>EEGPrep does not emulate EEGLAB’s one-dataset-in-memory <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code>
 behavior. Saved non-current datasets are represented by explicit offloaded disk
 handles and rehydrated through the shared storage path via <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code> and

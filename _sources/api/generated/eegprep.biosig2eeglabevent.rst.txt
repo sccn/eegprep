@@ -1,0 +1,6 @@
+﻿biosig2eeglabevent
+==================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: biosig2eeglabevent

@@ -1,0 +1,6 @@
+﻿eucl
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eucl

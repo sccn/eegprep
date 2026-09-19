@@ -1,0 +1,6 @@
+﻿readneurodat
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readneurodat

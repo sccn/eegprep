@@ -1,0 +1,6 @@
+﻿varsort
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: varsort

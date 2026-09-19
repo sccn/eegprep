@@ -1,0 +1,6 @@
+﻿unique\_cell\_string
+====================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: unique_cell_string

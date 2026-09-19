@@ -1,0 +1,6 @@
+﻿means
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: means

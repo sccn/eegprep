@@ -1,0 +1,6 @@
+﻿pop\_erpparams
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_erpparams

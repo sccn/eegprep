@@ -1,0 +1,6 @@
+﻿runpca2
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: runpca2

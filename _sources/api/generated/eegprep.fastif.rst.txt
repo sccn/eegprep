@@ -1,0 +1,6 @@
+﻿fastif
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: fastif

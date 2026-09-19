@@ -1,0 +1,6 @@
+﻿celltomat
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: celltomat

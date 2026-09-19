@@ -1,0 +1,6 @@
+﻿cbar
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: cbar

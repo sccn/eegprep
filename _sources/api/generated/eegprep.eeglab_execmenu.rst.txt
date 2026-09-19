@@ -1,0 +1,6 @@
+﻿eeglab\_execmenu
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeglab_execmenu

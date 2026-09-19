@@ -1,0 +1,6 @@
+﻿loc\_subsets
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: loc_subsets

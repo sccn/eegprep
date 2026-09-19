@@ -1,0 +1,6 @@
+﻿eeg\_matchchans
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_matchchans

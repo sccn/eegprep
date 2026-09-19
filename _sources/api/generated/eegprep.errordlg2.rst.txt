@@ -1,0 +1,6 @@
+﻿errordlg2
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: errordlg2

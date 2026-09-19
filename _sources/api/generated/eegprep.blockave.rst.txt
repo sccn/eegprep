@@ -1,0 +1,6 @@
+﻿blockave
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: blockave

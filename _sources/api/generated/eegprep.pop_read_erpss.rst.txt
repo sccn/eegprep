@@ -1,0 +1,6 @@
+﻿pop\_read\_erpss
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_read_erpss

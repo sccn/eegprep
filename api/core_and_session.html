@@ -421,18 +421,33 @@
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Core and Session</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGPrepSession.html">EEGPrepSession</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">EEG_OPTIONS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_readoptions.html">eeg_readoptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gethelpvar.html">gethelpvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.getkeyval.html">getkeyval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vararg2str.html">vararg2str</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGobj.html">EEGobj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.checkset.html">checkset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.compare.html">compare</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkset.html">eeg_checkset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkchanlocs.html">eeg_checkchanlocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkset_strict_mode.html">eeg_checkset_strict_mode</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_compare.html">eeg_compare</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_context.html">eeg_context</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_emptyset.html">eeg_emptyset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eventhist.html">eeg_eventhist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eventtypes.html">eeg_eventtypes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html">eeg_getepochevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getdatact.html">eeg_getdatact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_insertbound.html">eeg_insertbound</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_urlatency.html">eeg_urlatency</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_retrieve.html">eeg_retrieve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_store.html">eeg_store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_time2prev.html">eeg_time2prev</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegh.html">eegh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab.html">eeglab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab_execmenu.html">eeglab_execmenu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.options.html">options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.unique_cell_string.html">unique_cell_string</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="gui_and_console.html">GUI and Console</a></li>
@@ -444,6 +459,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -519,6 +535,18 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html#eegprep.EEG_OPTIONS" title="eegprep.EEG_OPTIONS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.EEG_OPTIONS</span></code></a></p></td>
 <td><p>dict() -&gt; new empty dictionary dict(mapping) -&gt; new dictionary initialized from a mapping object's     (key, value) pairs dict(iterable) -&gt; new dictionary initialized as if via:     d = {}     for k, v in iterable:         d[k] = v dict(<a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs) -&gt; new dictionary initialized with the name=value pairs     in the keyword argument list. For example:  dict(one=1, two=2).</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_readoptions.html#eegprep.eeg_readoptions" title="eegprep.eeg_readoptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_readoptions</span></code></a>(filename[, ...])</p></td>
+<td><p>Parse an EEGLAB option script into header text and option records.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.gethelpvar.html#eegprep.gethelpvar" title="eegprep.gethelpvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gethelpvar</span></code></a>(filename[, variables])</p></td>
+<td><p>Return variable descriptions and all variable names from an M-file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.getkeyval.html#eegprep.getkeyval" title="eegprep.getkeyval"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getkeyval</span></code></a>(command, variable[, mode, ...])</p></td>
+<td><p>Return an argument from an EEGLAB command-history expression.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.vararg2str.html#eegprep.vararg2str" title="eegprep.vararg2str"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.vararg2str</span></code></a>(arguments[, inputnames, ...])</p></td>
+<td><p>Return a comma-separated EEGLAB expression for function arguments.</p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.EEGobj.html#eegprep.EEGobj" title="eegprep.EEGobj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.EEGobj</span></code></a>(EEG_or_path)</p></td>
 <td><p>Wrapper class for EEG datasets stored as dictionaries.</p></td>
 </tr>
@@ -531,14 +559,38 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_checkset.html#eegprep.eeg_checkset" title="eegprep.eeg_checkset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_checkset</span></code></a>(EEG, *checks[, load_data])</p></td>
 <td><p>Validate and set up EEG dataset structure.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_checkset_strict_mode.html#eegprep.eeg_checkset_strict_mode" title="eegprep.eeg_checkset_strict_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_checkset_strict_mode</span></code></a>(enabled)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_checkchanlocs.html#eegprep.eeg_checkchanlocs" title="eegprep.eeg_checkchanlocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_checkchanlocs</span></code></a>(chans[, chaninfo])</p></td>
+<td><p>Normalize channel locations and their shared metadata.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_checkset_strict_mode.html#eegprep.eeg_checkset_strict_mode" title="eegprep.eeg_checkset_strict_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_checkset_strict_mode</span></code></a>(enabled)</p></td>
 <td><p>Context manager to control strict mode for eeg_checkset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_compare.html#eegprep.eeg_compare" title="eegprep.eeg_compare"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_compare</span></code></a>(eeg1, eeg2[, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_compare.html#eegprep.eeg_compare" title="eegprep.eeg_compare"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_compare</span></code></a>(eeg1, eeg2[, ...])</p></td>
 <td><p>Compare two EEG-like structures (or arrays) and return a difference summary.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_context.html#eegprep.eeg_context" title="eegprep.eeg_context"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_context</span></code></a>(EEG[, targets, ...])</p></td>
+<td><p>Return target-event context from the original urevent sequence.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_emptyset.html#eegprep.eeg_emptyset" title="eegprep.eeg_emptyset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_emptyset</span></code></a>()</p></td>
 <td><p>Return an empty EEG dictionary with EEGLAB core fields.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_eventhist.html#eegprep.eeg_eventhist" title="eegprep.eeg_eventhist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_eventhist</span></code></a>(events, field[, bins])</p></td>
+<td><p>Return event-field values, histogram counts, and bin labels or edges.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_eventtypes.html#eegprep.eeg_eventtypes" title="eegprep.eeg_eventtypes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_eventtypes</span></code></a>(EEG)</p></td>
+<td><p>Return event type names and counts, sorted by decreasing count.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html#eegprep.eeg_getepochevent" title="eegprep.eeg_getepochevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_getepochevent</span></code></a>(EEG, *args, **kwargs)</p></td>
+<td><p>Return a selected event-field value for each epoch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_getdatact.html#eegprep.eeg_getdatact" title="eegprep.eeg_getdatact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_getdatact</span></code></a>(EEG, *args[, ...])</p></td>
+<td><p>Return selected channel data, component activity, or a backprojection.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_insertbound.html#eegprep.eeg_insertbound" title="eegprep.eeg_insertbound"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_insertbound</span></code></a>(events, pnts, regions)</p></td>
+<td><p>Insert boundaries and adjust event latencies for removed regions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_urlatency.html#eegprep.eeg_urlatency" title="eegprep.eeg_urlatency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_urlatency</span></code></a>(events, latencies)</p></td>
+<td><p>Map current-data latencies to their original continuous positions.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_retrieve.html#eegprep.eeg_retrieve" title="eegprep.eeg_retrieve"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_retrieve</span></code></a>(ALLEEG, index)</p></td>
 <td><p>Return dataset(s) from <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> using EEGLAB-facing 1-based indices.</p></td>
@@ -546,14 +598,23 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_store.html#eegprep.eeg_store" title="eegprep.eeg_store"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_store</span></code></a>(ALLEEG, EEG[, storeSetIndex])</p></td>
 <td><p>Store EEG in <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> using EEGLAB-facing 1-based indices.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eegh.html#eegprep.eegh" title="eegprep.eegh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegh</span></code></a>([command, history])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_time2prev.html#eegprep.eeg_time2prev" title="eegprep.eeg_time2prev"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_time2prev</span></code></a>(EEG, target, previous)</p></td>
+<td><p>Return delays from target events to preceding original events.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eegh.html#eegprep.eegh" title="eegprep.eegh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegh</span></code></a>([command, history])</p></td>
 <td><p>Display or update EEGLAB-style command history.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeglab.html#eegprep.eeglab" title="eegprep.eeglab"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeglab</span></code></a>([onearg, session, show, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeglab.html#eegprep.eeglab" title="eegprep.eeglab"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeglab</span></code></a>([onearg, session, show, ...])</p></td>
 <td><p>Start the EEGPrep EEGLAB-style main window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeglab_execmenu.html#eegprep.eeglab_execmenu" title="eegprep.eeglab_execmenu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeglab_execmenu</span></code></a>(label, function, ...)</p></td>
+<td><p>Run a menu-bound <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> workflow with explicit parameters.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.options.html#eegprep.options" title="eegprep.options"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.options</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap EEG_OPTIONS.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.unique_cell_string.html#eegprep.unique_cell_string" title="eegprep.unique_cell_string"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.unique_cell_string</span></code></a>(values)</p></td>
+<td><p>Return unique string elements in first-seen order, ignoring non-strings.</p></td>
 </tr>
 </tbody>
 </table>

@@ -156,7 +156,7 @@ Epoched data: an epoched dataset reports ``trials > 1`` and
 Events: import a text table. Latencies are given in the file's own unit and
 ``timeunit`` converts them to samples (NaN means the values are samples).
 
-.. GENERATED FROM PYTHON SOURCE LINES 80-107
+.. GENERATED FROM PYTHON SOURCE LINES 80-109
 
 .. code-block:: Python
 
@@ -173,6 +173,8 @@ Events: import a text table. Latencies are given in the file's own unit and
         str(events_file),
         "timeunit",
         np.nan,
+        "append",
+        "no",
     )
     print("replaced events:", [(e["type"], e["latency"]) for e in with_events["event"]])
 
@@ -201,11 +203,11 @@ Events: import a text table. Latencies are given in the file's own unit and
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 108-109
+.. GENERATED FROM PYTHON SOURCE LINES 110-111
 
 Events: extract event onsets from a stimulus channel instead of a file.
 
-.. GENERATED FROM PYTHON SOURCE LINES 109-126
+.. GENERATED FROM PYTHON SOURCE LINES 111-128
 
 .. code-block:: Python
 
@@ -239,11 +241,11 @@ Events: extract event onsets from a stimulus channel instead of a file.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 127-128
+.. GENERATED FROM PYTHON SOURCE LINES 129-130
 
 Epoch info: attach one metadata value per epoch.
 
-.. GENERATED FROM PYTHON SOURCE LINES 128-134
+.. GENERATED FROM PYTHON SOURCE LINES 130-136
 
 .. code-block:: Python
 
@@ -261,17 +263,17 @@ Epoch info: attach one metadata value per epoch.
 
  .. code-block:: none
 
-    epoch fields: ['condition']
+    epoch fields: ['condition', 'event', 'eventcondition', 'eventduration', 'eventlatency', 'eventtype', 'eventurevent']
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 135-137
+.. GENERATED FROM PYTHON SOURCE LINES 137-139
 
 Channel locations: read a packaged montage, then load locations into a
 dataset through ``pop_chanedit``.
 
-.. GENERATED FROM PYTHON SOURCE LINES 137-157
+.. GENERATED FROM PYTHON SOURCE LINES 139-159
 
 .. code-block:: Python
 
@@ -311,11 +313,11 @@ dataset through ``pop_chanedit``.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 158-159
+.. GENERATED FROM PYTHON SOURCE LINES 160-161
 
 BIDS: export a dataset to a BIDS folder and import it back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 159-168
+.. GENERATED FROM PYTHON SOURCE LINES 161-170
 
 .. code-block:: Python
 
@@ -342,11 +344,11 @@ BIDS: export a dataset to a BIDS folder and import it back.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 169-170
+.. GENERATED FROM PYTHON SOURCE LINES 171-172
 
 Clean up the temporary directory used by this example.
 
-.. GENERATED FROM PYTHON SOURCE LINES 170-172
+.. GENERATED FROM PYTHON SOURCE LINES 172-174
 
 .. code-block:: Python
 
@@ -362,7 +364,7 @@ Clean up the temporary directory used by this example.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.218 seconds)
+   **Total running time of the script:** (0 minutes 0.232 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_import_data.py:

@@ -1,0 +1,6 @@
+﻿show\_events
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: show_events

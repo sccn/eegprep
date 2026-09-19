@@ -476,6 +476,209 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Added a source-driven developer audit for the current EEGLAB test-port
+project. It discovers all MATLAB wrapper and regression methods from the
+pinned suite, collects pytest provenance, resolves same-directory scenario
+scripts to their wrapper methods, and reports exact missing or stale ports.</p></li>
+<li><p>Ported the current EEGLAB tutorial-wrapper workflows using
+deterministic generated EEG and BIDS fixtures. Coverage now follows scalp
+movies, grouped ERP and N400-style STUDY analyses, spherical source fitting,
+all-channel time-frequency analysis, and full face-recognition and P300 BIDS
+preprocessing paths.
+Picard now accepts EEGLAB-style positive and negative PCA dimensions, and
+multi-dataset ICA grouping handles empty NumPy-backed BIDS session metadata.</p></li>
+<li><p>STUDY measure designs can now use categorical factors stored per trial. With
+<code class="docutils literal notranslate"><span class="pre">savetrials=&quot;on&quot;</span></code>, ERP, spectrum, ERSP, and ITC plots select the matching
+trials within each dataset and then aggregate one case per subject or
+component. Spectrum and ERSP trials are averaged in linear power before dB
+conversion, and ITC phases are averaged circularly.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std_dipplot</span></code> now selects existing DIPFIT models through one-based STUDY
+cluster membership, returns their coordinates, moments, residual variances,
+and centroids, and renders joined, centroid, member, and separated views.</p></li>
+<li><p>STUDY ERP, spectrum, ERSP, ITC, and scalp-map functions now arrange cached
+measures by condition and group, retain subject or component cases, return
+parametric or resampled statistics and FDR masks, reconstruct saved
+time-frequency trials, and plot grouped traces, images, and topographies.</p></li>
+<li><p>Added standalone miscellaneous visualization utilities for spatial scalp-map
+gradients, logarithmic-axis matrix images, epoched event rasters, recursive
+Matplotlib font styling, and replayable 2-D/3-D scalp movies. Movie generation
+returns direct RGB frames for headless notebooks and tests while
+preserving EEGLAB’s 1-based <code class="docutils literal notranslate"><span class="pre">movieframes</span></code> boundary and legacy camera paths.
+Current tests for obsolete <code class="docutils literal notranslate"><span class="pre">eegplotgold</span></code>/<code class="docutils literal notranslate"><span class="pre">eegplotsold</span></code> and MATLAB menu
+handle introspection instead exercise EEGPrep’s maintained browser and
+declarative menu model; MATLAB help-site builders and callback-string
+<code class="docutils literal notranslate"><span class="pre">textgui</span></code> remain explicit exclusions.</p></li>
+<li><p>Added a standalone <code class="docutils literal notranslate"><span class="pre">statcondfieldtrip</span></code> backend for paired and unpaired
+t-tests and unpaired one-way ANOVA, with analytic or seeded permutation
+inference and Bonferroni, Holm, FDR, max-statistic, and max-cluster-mass
+correction. Cluster inference uses explicit dense or sparse adjacency,
+correct paired/unpaired label exchangeability, a direct two-sided null, and
+either seeded Monte Carlo sampling or bounded exact enumeration.</p></li>
+<li><p>Added standalone <code class="docutils literal notranslate"><span class="pre">corrmap</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_corrmap</span></code> component-template
+matching for STUDY workflows. Two-pass correlation handles ICA polarity,
+searches deterministic automatic thresholds, can store matched bad
+components and child clusters, and RMS-normalizes average maps so arbitrary
+ICA scaling cannot change the second-pass template.</p></li>
+<li><p>Added a standalone first- and second-level LIMO-compatible workflow.
+<code class="docutils literal notranslate"><span class="pre">pop_limo</span></code> now fits OLS, robust WLS, and Tukey-bisquare IRLS models from
+active STUDY designs, persists safe versioned results, and exposes model
+diagnostics. Contrasts, core group tests, regression, ANOVA/ANCOVA,
+repeated-measures ANOVA, and weighted summaries are available through
+<code class="docutils literal notranslate"><span class="pre">std_limoresults</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_limoresults</span></code>. MATLAB <code class="docutils literal notranslate"><span class="pre">.mat</span></code> interchange,
+bootstrap, TFCE, and LIMO plotting remain explicit boundaries.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> now accepts EEGLAB’s <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> switch. Batched mode returns
+all requested resampling grids, while off mode exposes one compatibility
+grid or computes inference iteratively to bound peak memory without changing
+seeded statistics.</p></li>
+<li><p>Added standalone <code class="docutils literal notranslate"><span class="pre">pop_importegimat</span></code> support for continuous and segmented
+EGI Net Station MATLAB exports, including embedded sampling rates, trial
+events and timing, empty-reference removal, packaged EGI montages, and
+replayable command history. Unlike EEGLAB, segment numbering may contain
+gaps or exceed the number of file variables, and a 1 ms pre-stimulus offset
+is preserved correctly. A reference channel is removed only when all of its
+trials and samples are empty.</p></li>
+<li><p>EGI Simple Binary RAW versions 2 through 7 can now be read directly through
+<code class="docutils literal notranslate"><span class="pre">readegihdr</span></code>, <code class="docutils literal notranslate"><span class="pre">readegi</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_readsegegi</span></code>. The
+readers support 1-based frame or segment selection, A/D scaling, event
+channels, segment categories, equal-length epoched datasets, and validated
+numbered continuous-file series without requiring EEGLAB or large test
+fixtures. Multi-file imports now report a correct continuous point count
+instead of copying the zero-valued segmented header fields. Leading-edge
+events are placed on the first nonzero sample, correcting EEGLAB’s one-sample
+early event-channel conversion, and a trailing channel is removed as a
+reference only when the whole channel is empty rather than just ten samples.
+Numbered imports reject gaps before later files instead of silently dropping
+the remainder of the recording.</p></li>
+<li><p>ERPSS <code class="docutils literal notranslate"><span class="pre">.RAW</span></code> and <code class="docutils literal notranslate"><span class="pre">.RDF</span></code> import now works without the legacy compiled
+MEX decompressor. <code class="docutils literal notranslate"><span class="pre">read_erpss</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_read_erpss</span></code> support compressed
+and uncompressed little- and big-endian recordings, preserve channel labels
+and events, apply valid microvolt calibration, and fail clearly on truncated
+blocks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_loadbv</span></code> now provides a standalone BrainVision reader for binary and
+ASCII recordings in multiplexed or vectorized orientation. It applies
+per-channel resolutions, normalizes voltage channels to microvolts, retains
+channel coordinates and marker metadata, supports 1-based sample/channel
+selection and metadata-only reads, and rejects truncated or contradictory
+files instead of returning an inconsistent EEG dataset.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code> now writes standards-compatible GDF 1.25 files with
+float64 signal samples, channel labels, rational sampling rates, and GDF
+event tables. Numeric event types round-trip through independent readers;
+free-text event labels receive explicit file-local uint16 codes.</p></li>
+<li><p>Added the low-level EEGLAB plotting helpers <code class="docutils literal notranslate"><span class="pre">cbar</span></code>, <code class="docutils literal notranslate"><span class="pre">copyaxis</span></code>,
+<code class="docutils literal notranslate"><span class="pre">forcelocs</span></code>, <code class="docutils literal notranslate"><span class="pre">plotcurve</span></code>, <code class="docutils literal notranslate"><span class="pre">sbplot</span></code>, and <code class="docutils literal notranslate"><span class="pre">slider</span></code> as standalone
+Matplotlib APIs. They support partial color scales, copied scientific axes,
+exact montage rotations, confidence-region highlighting, spanning subplot
+layouts, and pannable magnified figures. <code class="docutils literal notranslate"><span class="pre">headplot</span></code> also supports its
+<code class="docutils literal notranslate"><span class="pre">example</span></code> and <code class="docutils literal notranslate"><span class="pre">cartesian</span></code> command modes, and lighting-off plots now have
+explicit wireframe coverage.</p></li>
+<li><p>Neuroscan <code class="docutils literal notranslate"><span class="pre">loadcnt</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_loadcnt</span></code> now provide standalone 16/32-bit
+CNT import with per-channel microvolt calibration, channel-blocked reads,
+partial sample ranges, response and boundary events, and optional <code class="docutils literal notranslate"><span class="pre">.fdt</span></code>
+memory mapping. The File-IO CNT action uses this reader instead of MNE’s
+ambiguous auto-detection path.</p></li>
+<li><p>Current EEGLAB legacy ICA/decomposition tests now have substantive Python
+ports for PCA and whitening, Varimax/Promax rotation, component orientation,
+variance and z-score ordering, deterministic k-means, spatial channel subsets,
+event-sequence time-warp selection, and historical <code class="docutils literal notranslate"><span class="pre">runica</span></code> entry points.
+The single maintained infomax engine backs all variants. EEGPrep corrects
+EEGLAB’s all-negative <code class="docutils literal notranslate"><span class="pre">posact</span></code> orientation, dimension-reduced <code class="docutils literal notranslate"><span class="pre">varsort</span></code>
+inverse, and multi-epoch <code class="docutils literal notranslate"><span class="pre">zica</span></code> peak-selection defects; interactive demo-only
+wrappers are covered by numerical source-recovery checks without becoming
+public APIs.</p></li>
+<li><p>Added standalone <code class="docutils literal notranslate"><span class="pre">openbdf</span></code> and <code class="docutils literal notranslate"><span class="pre">readbdf</span></code> record-level BDF access. The
+reader decodes signed 24-bit samples, supports physical calibration and
+variable per-channel sample counts, and correctly infers unknown record
+counts from three-byte BDF samples.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MemmapData</span></code> now covers current EEGLAB <code class="docutils literal notranslate"><span class="pre">mmo</span></code> construction, logical
+indexing over normal and transposed files, copy-on-write mutation, resizing,
+and deletion. Disk-backed EEG data remains disk-backed through rejection,
+epoching, baseline removal, FIR filtering, rereferencing, selection, and
+resampling without modifying the source mapping.</p></li>
+<li><p>Added standalone low-level signal and text helpers <code class="docutils literal notranslate"><span class="pre">blockave</span></code>, <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code>,
+<code class="docutils literal notranslate"><span class="pre">env</span></code>, <code class="docutils literal notranslate"><span class="pre">movav</span></code>, <code class="docutils literal notranslate"><span class="pre">loadeeg</span></code>, <code class="docutils literal notranslate"><span class="pre">loadtxt</span></code>, <code class="docutils literal notranslate"><span class="pre">parsetxt</span></code>,
+<code class="docutils literal notranslate"><span class="pre">readneurodat</span></code>, and <code class="docutils literal notranslate"><span class="pre">readtxtfile</span></code>. Legacy <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code> now supports the
+even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
+and truncated Neuroscan files retain complete sweeps without returning an
+incomplete zero-filled tail.</p></li>
+<li><p>Regular epoch generation, preceding-event timing, event alignment, BioSig
+event conversion, sphering, RMS summaries, int16 matrix reads, legacy
+lagged-regression artifact removal, ordered string selection, and
+superimposed histograms are now public standalone utilities. Their current
+EEGLAB tests now have deterministic ports, including substantive assertions
+where the MATLAB tests are commented out or ignore their own result.</p></li>
+<li><p>Added standalone numerical utilities for peak extraction, average reference,
+Gaussian/Gabor/Laplacian kernels, distance and assignment problems,
+correlation-based map matching, grouped summaries, PCA compression and
+reconstruction, interpolation, quantiles, matrix selection, and permutation
+handling. Python-facing indices are zero-based, and each function is covered
+by ports of the corresponding current EEGLAB test wrapper. Numerical edge
+contracts reject fractional indices and lossy complex casts, support MATLAB
+cell arrays loaded through SciPy, preserve complex PCA and interpolation, and
+avoid catastrophic cancellation in NaN-aware standard deviations. Grouped
+standard errors also use the finite sample count, correcting an EEGLAB helper
+defect when groups contain missing observations.</p></li>
+<li><p>Current EEGLAB visual-wrapper test ports now exercise plots through
+deterministic headless numerical and figure assertions. <code class="docutils literal notranslate"><span class="pre">pop_plotdata</span></code>
+supports channel/component mode, 1-based trial selection, trial averaging,
+and single-trial overlays; <code class="docutils literal notranslate"><span class="pre">pop_plottopo</span></code> honors its positional title and
+single-trial arguments. <code class="docutils literal notranslate"><span class="pre">pop_spectopo</span></code> supports Blackman-Harris windows and
+<code class="docutils literal notranslate"><span class="pre">blckhn</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_envtopo</span></code> accepts the legacy <code class="docutils literal notranslate"><span class="pre">compnums=-N</span></code> top-N
+shorthand. <code class="docutils literal notranslate"><span class="pre">pop_topoplot</span></code> renders signed <code class="docutils literal notranslate"><span class="pre">EEG.chanmatrix</span></code> grids even when
+channel locations are unavailable.</p></li>
+<li><p>The current EEGLAB GUI-helper tests now have deterministic Python ports.
+<code class="docutils literal notranslate"><span class="pre">supergui</span></code> builds declarative dialogs without entering a modal loop,
+<code class="docutils literal notranslate"><span class="pre">inputgui</span></code> supports a non-blocking <code class="docutils literal notranslate"><span class="pre">mode=&quot;plot&quot;</span></code> workflow and renders
+radio buttons, and <code class="docutils literal notranslate"><span class="pre">listdlg2</span></code> accepts multi-line prompts and custom OK and
+Cancel labels.</p></li>
+<li><p>Core event and channel helpers now cover EEGLAB-compatible event insertion,
+event histograms and type counts, per-epoch field extraction, boundary-aware
+original latencies and context queries, channel-type lookup and montage
+matching/merging, ERP-window amplitude, and bad-time interpolation. These
+helpers are available directly from <code class="docutils literal notranslate"><span class="pre">eegprep</span></code> and run without an EEGLAB
+checkout.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> now supports EEGLAB’s metadata-only and 1-based channel
+loading modes, while <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> applies 1-based channel and inclusive
+sample/trial selections with consistent dataset bookkeeping. <code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code>
+now writes real EDF and BDF files through the installed writer instead of
+routing unsupported BDF format names into MNE’s EDF-only exporter.</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">pop_dipparams</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_erpimparams</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_erpparams</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_erspparams</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_specparams</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_statparams</span></code> for storing
+EEGLAB-compatible STUDY plotting and statistics settings. Analysis-defining
+range changes now invalidate stale measure caches. <code class="docutils literal notranslate"><span class="pre">std_maketrialinfo</span></code> now
+derives custom fields such as reaction time from each epoch’s time-locking
+event and preserves those rows across later STUDY operations. Saving <code class="docutils literal notranslate"><span class="pre">.set</span></code>
+files now supports event dictionaries with heterogeneous custom fields by
+encoding absent struct values as MATLAB empty arrays.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> now routes channel cleaning to the location-free
+algorithm when <code class="docutils literal notranslate"><span class="pre">EEG[&quot;chanlocs&quot;]</span></code> is empty. It previously failed with an
+indexing error before the documented fallback could run.</p></li>
+<li><p>Current EEGLAB rejection-workflow test ports now cover threshold, statistical,
+spectral, trend, channel, epoch, and automatic rejection. Scripted
+<code class="docutils literal notranslate"><span class="pre">pop_rejchan</span></code> calls use EEGLAB’s default threshold of 400; the interactive
+dialog continues to default to a normalized threshold of 5.</p></li>
+<li><p>Topographic interpolation no longer leaks NumPy 2 floating-point warnings for
+finite biharmonic matrix products.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> now accepts MATLAB-loaded object arrays of channel locations when
+restoring a full montage. <code class="docutils literal notranslate"><span class="pre">pop_editeventfield</span></code> now reads values from delimited
+text files, accepts MATLAB colon expressions for event indices, rebuilds <code class="docutils literal notranslate"><span class="pre">urevent</span></code>
+after <code class="docutils literal notranslate"><span class="pre">delold='yes'</span></code>, and ignores invalid rename/description requests like EEGLAB.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> now accepts EEGLAB’s <code class="docutils literal notranslate"><span class="pre">method='standard'</span></code> option explicitly. Other
+rereferencing methods fail clearly instead of being silently treated as standard,
+and NumPy 2’s spurious finite-matrix warnings no longer leak from average reference.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_selectevent</span></code> now supports <code class="docutils literal notranslate"><span class="pre">erroronempty='off'</span></code> when a selection removes every
+epoch, returning an empty EEG instead of raising. Component <code class="docutils literal notranslate"><span class="pre">pop_topoplot</span></code> colorbars
+now use polarity labels only for scales that span zero; positive-only and negative-only
+scales show their exact numeric <code class="docutils literal notranslate"><span class="pre">maplimits</span></code> endpoints. <code class="docutils literal notranslate"><span class="pre">eeg_decodechan</span></code> now accepts
+EEGLAB’s whitespace-separated channel-name form as well as Python sequences. ICA rejection
+marks can also derive their row count from <code class="docutils literal notranslate"><span class="pre">icachansind</span></code> when stored ICA matrices are absent.</p></li>
+<li><p>Current EEGLAB admin/GUI test ports exposed and fixed three parity defects:
+<code class="docutils literal notranslate"><span class="pre">eeg_retrieve(ALLEEG,</span> <span class="pre">0)</span></code> now returns the empty no-current dataset,
+multi-dataset commands receive EEGLAB’s marker in each dataset history, and
+<code class="docutils literal notranslate"><span class="pre">listdlg2</span></code> treats a scalar string as one selectable item while preserving
+its 1-based initial selection.</p></li>
+<li><p>Compatibility helpers now cover EEGLAB key/value validation, option-file and
+help-header parsing, history-value extraction and formatting, and the generic
+<code class="docutils literal notranslate"><span class="pre">inputdlg2</span></code> and <code class="docutils literal notranslate"><span class="pre">errordlg2</span></code> dialogs without runtime access to EEGLAB.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_autorej</span></code> (Tools &gt; Automatic epoch rejection) now runs EEGLAB’s probability loop
 exactly: a pass rejects its flagged epochs only when they are fewer than <code class="docutils literal notranslate"><span class="pre">maxrej</span></code>
 percent of the remaining epochs (5% of 80 epochs is not fewer, so the threshold is

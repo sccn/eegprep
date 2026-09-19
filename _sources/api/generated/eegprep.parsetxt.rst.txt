@@ -1,0 +1,6 @@
+﻿parsetxt
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: parsetxt

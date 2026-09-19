@@ -212,7 +212,7 @@ d. Time-frequency -- Plot > Time-frequency transforms > Channel time-frequency
  .. code-block:: none
 
     ERSP (45, 200) ITC (45, 200) freqs 6.0-50.0 Hz
-    FDR-masked bins: ERSP 392, ITC 24
+    FDR-masked bins: ERSP 451, ITC 18
     curve mode ERSP (3, 200) at freqs [5.0, 10.0, 20.0]
 
 
@@ -223,13 +223,14 @@ d. Time-frequency -- Plot > Time-frequency transforms > Channel time-frequency
 e. ICA components -- Plot > Component spectra/maps/ERPs/ERP image/time-frequency
 -------------------------------------------------------------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 105-119
+.. GENERATED FROM PYTHON SOURCE LINES 105-120
 
 .. code-block:: Python
 
 
     comp_spectra = pop_spectopo(EEG, 0, EPOCH_MS, freqs=[10], icacomps=[1, 2, 3, 4, 5], plot="off")
     fig_comp_erps = pop_plotdata(EEG, components=[1, 2, 3, 4, 5], plot="off")
+    fig_selected_channels = pop_plotdata(EEG, 1, [1, 2, 3], [2, 5, 7], "Selected trials", plot="off")
     fig_envtopo, com_envtopo = pop_envtopo(EEG, [-100, 600], compnums=list(range(1, 11)), plot="off", return_com=True)
     comp_image = pop_erpimage(EEG, 0, 1, smooth=10, decimate=2, plot="off")
     comp_tf = pop_newtimef(EEG, 0, 1, EPOCH_MS, [3, 0.8], plot="off")
@@ -261,7 +262,7 @@ e. ICA components -- Plot > Component spectra/maps/ERPs/ERP image/time-frequency
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 3.548 seconds)
+   **Total running time of the script:** (0 minutes 3.563 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_plotting.py:

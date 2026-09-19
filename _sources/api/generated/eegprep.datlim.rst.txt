@@ -1,0 +1,6 @@
+﻿datlim
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: datlim

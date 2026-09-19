@@ -1,0 +1,6 @@
+﻿gauss3d
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gauss3d

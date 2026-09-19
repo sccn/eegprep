@@ -544,6 +544,12 @@ remove flagged components when review is complete.</p>
 <p>The default GUI offers runica, robust runica, AMICA, and Picard choices.
 Standalone AMICA requires an AMICA executable configured outside the Python
 package.</p>
+<p>Picard accepts EEGLAB’s PCA option through <code class="docutils literal notranslate"><span class="pre">options</span></code>. A positive value is the
+requested component count; a negative value subtracts dimensions from the
+selected channel count. For example, <code class="docutils literal notranslate"><span class="pre">options={&quot;pca&quot;:</span> <span class="pre">-1}</span></code> computes one
+fewer component than channels, which is useful after average referencing. The
+initial unmixing matrix is sized to the reduced decomposition while remaining
+deterministic.</p>
 </section>
 <section id="iclabel-workflow">
 <h2>ICLabel Workflow<a class="headerlink" href="#iclabel-workflow" title="Link to this heading">#</a></h2>

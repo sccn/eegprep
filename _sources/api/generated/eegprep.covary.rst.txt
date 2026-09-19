@@ -1,0 +1,6 @@
+﻿covary
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: covary

@@ -1,0 +1,6 @@
+﻿openbdf
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: openbdf

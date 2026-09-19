@@ -1,0 +1,6 @@
+﻿getipsph
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: getipsph

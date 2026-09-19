@@ -1,0 +1,6 @@
+﻿shuffle
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: shuffle

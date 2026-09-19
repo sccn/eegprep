@@ -1,0 +1,6 @@
+﻿pop\_loadcnt
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_loadcnt

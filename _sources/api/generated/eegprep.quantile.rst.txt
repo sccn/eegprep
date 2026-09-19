@@ -1,0 +1,6 @@
+﻿quantile
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: quantile

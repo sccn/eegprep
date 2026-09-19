@@ -1,0 +1,6 @@
+﻿runica
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: runica

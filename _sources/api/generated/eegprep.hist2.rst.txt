@@ -1,0 +1,6 @@
+﻿hist2
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: hist2

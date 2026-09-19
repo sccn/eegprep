@@ -1,0 +1,6 @@
+﻿pcexpand
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pcexpand

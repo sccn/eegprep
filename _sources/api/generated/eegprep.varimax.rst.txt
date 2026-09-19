@@ -1,0 +1,6 @@
+﻿varimax
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: varimax

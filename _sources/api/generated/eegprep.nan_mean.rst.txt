@@ -1,0 +1,6 @@
+﻿nan\_mean
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: nan_mean

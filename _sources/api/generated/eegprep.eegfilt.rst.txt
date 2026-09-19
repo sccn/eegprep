@@ -1,0 +1,6 @@
+﻿eegfilt
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegfilt

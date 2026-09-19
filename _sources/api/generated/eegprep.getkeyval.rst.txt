@@ -1,0 +1,6 @@
+﻿getkeyval
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: getkeyval

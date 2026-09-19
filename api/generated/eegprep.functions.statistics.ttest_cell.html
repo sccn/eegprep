@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="ttest2_cell" href="eegprep.functions.statistics.ttest2_cell.html" />
-    <link rel="prev" title="statcond" href="eegprep.functions.statistics.statcond.html" />
+    <link rel="prev" title="statcondfieldtrip" href="eegprep.functions.statistics.statcondfieldtrip.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -432,8 +432,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../statistics.html">Statistics</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcond.html">statcond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcondfieldtrip.html">statcondfieldtrip</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">ttest_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.ttest2_cell.html">ttest2_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.anova1_cell.html">anova1_cell</a></li>
@@ -447,6 +449,9 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.concatdata.html">concatdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.corrcoef_cell.html">corrcoef_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.teststat.html">teststat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeans_st.html">kmeans_st</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeanscluster.html">kmeanscluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.miscfunc.numdim.numdim.html">numdim</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
@@ -526,11 +531,11 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
 <li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)">int</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -548,12 +553,12 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="eegprep.functions.statistics.statcond.html"
+       href="eegprep.functions.statistics.statcondfieldtrip.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">statcond</p>
+        <p class="prev-next-title">statcondfieldtrip</p>
       </div>
     </a>
     <a class="right-next"

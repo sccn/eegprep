@@ -1,0 +1,6 @@
+﻿eeg\_context
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_context

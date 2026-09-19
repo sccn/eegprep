@@ -63,7 +63,7 @@
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="eeg_findboundaries" href="generated/eegprep.eeg_findboundaries.html" />
+    <link rel="next" title="eeg_addnewevents" href="generated/eegprep.eeg_addnewevents.html" />
     <link rel="prev" title="signalstat" href="generated/eegprep.signalstat.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -424,10 +424,17 @@
 <li class="toctree-l1"><a class="reference internal" href="bids.html">BIDS</a></li>
 <li class="toctree-l1"><a class="reference internal" href="preprocessing_and_artifacts.html">Preprocessing and Artifacts</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Epoching and Selection</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_addnewevents.html">eeg_addnewevents</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_findboundaries.html">eeg_findboundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html">eeg_getepochevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_insertbound.html">eeg_insertbound</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eeg_lat2point</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eeg_point2lat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_regepochs.html">eeg_regepochs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_urlatency.html">eeg_urlatency</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.epoch.html">epoch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eventalign.html">eventalign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eventlock.html">eventlock</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.findboundaries.html">findboundaries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.lat2point.html">lat2point</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.point2lat.html">point2lat</a></li>
@@ -438,6 +445,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -507,28 +515,49 @@
 <p>Extracting epochs, selecting data, and converting between latencies and sample points.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_findboundaries.html#eegprep.eeg_findboundaries" title="eegprep.eeg_findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_findboundaries</span></code></a>(*, EEG)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_addnewevents.html#eegprep.eeg_addnewevents" title="eegprep.eeg_addnewevents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_addnewevents</span></code></a>(EEG, ...[, ...])</p></td>
+<td><p>Add typed events and rebuild sorted, consistent event structures.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_findboundaries.html#eegprep.eeg_findboundaries" title="eegprep.eeg_findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_findboundaries</span></code></a>(*, EEG)</p></td>
 <td><p>EEG_FINDBOUNDARIES - return indices of boundary events.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_lat2point.html#eegprep.eeg_lat2point" title="eegprep.eeg_lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_lat2point</span></code></a>(lat_array, ...[, timeunit])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html#eegprep.eeg_getepochevent" title="eegprep.eeg_getepochevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_getepochevent</span></code></a>(EEG, *args, **kwargs)</p></td>
+<td><p>Return a selected event-field value for each epoch.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_insertbound.html#eegprep.eeg_insertbound" title="eegprep.eeg_insertbound"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_insertbound</span></code></a>(events, pnts, regions)</p></td>
+<td><p>Insert boundaries and adjust event latencies for removed regions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_lat2point.html#eegprep.eeg_lat2point" title="eegprep.eeg_lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_lat2point</span></code></a>(lat_array, ...[, timeunit])</p></td>
 <td><p>Convert latencies in time units (relative to per-epoch time 0) to latencies in data points assuming concatenated epochs (EEGLAB style).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat" title="eegprep.eeg_point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_point2lat</span></code></a>(lat_array[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat" title="eegprep.eeg_point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_point2lat</span></code></a>(lat_array[, ...])</p></td>
 <td><p>Convert event latencies in data points to latencies in time units (default seconds).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.epoch.html#eegprep.epoch" title="eegprep.epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.epoch</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_regepochs.html#eegprep.eeg_regepochs" title="eegprep.eeg_regepochs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_regepochs</span></code></a>(EEG, *args, **kwargs)</p></td>
+<td><p>Insert regular events and optionally extract consecutive epochs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_urlatency.html#eegprep.eeg_urlatency" title="eegprep.eeg_urlatency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_urlatency</span></code></a>(events, latencies)</p></td>
+<td><p>Map current-data latencies to their original continuous positions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.epoch.html#eegprep.epoch" title="eegprep.epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.epoch</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap pop_epoch.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.findboundaries.html#eegprep.findboundaries" title="eegprep.findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.findboundaries</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eventalign.html#eegprep.eventalign" title="eegprep.eventalign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventalign</span></code></a>(factor, a, b[, measure])</p></td>
+<td><p>Return the mean or median nearest alignment error.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eventlock.html#eegprep.eventlock" title="eegprep.eventlock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventlock</span></code></a>(data, frames_or_xvals, ...)</p></td>
+<td><p>Shift epochs so their event frames or time values align.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.findboundaries.html#eegprep.findboundaries" title="eegprep.findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.findboundaries</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_findboundaries.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.lat2point.html#eegprep.lat2point" title="eegprep.lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.lat2point</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.lat2point.html#eegprep.lat2point" title="eegprep.lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.lat2point</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_lat2point.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.point2lat.html#eegprep.point2lat" title="eegprep.point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.point2lat</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.point2lat.html#eegprep.point2lat" title="eegprep.point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.point2lat</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_point2lat.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.select.html#eegprep.select" title="eegprep.select"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.select.html#eegprep.select" title="eegprep.select"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap pop_select.</p></td>
 </tr>
 </tbody>
@@ -556,11 +585,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="generated/eegprep.eeg_findboundaries.html"
+       href="generated/eegprep.eeg_addnewevents.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">eeg_findboundaries</p>
+        <p class="prev-next-title">eeg_addnewevents</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

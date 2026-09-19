@@ -433,14 +433,18 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.bundled_plugins.html">bundled_plugins</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_multieegplot.html">eeg_multieegplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegplot.html">eegplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.errordlg2.html">errordlg2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.finputcheck.html">finputcheck</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.format_plugin_menu.html">format_plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.gui.html">gui</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.inputdlg2.html">inputdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.inputgui.html">inputgui</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.listdlg2.html">listdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.plugin_menu.html">plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.plugin_status.html">plugin_status</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pophelp.html">pophelp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.select_multiple_datasets.html">select_multiple_datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.supergui.html">supergui</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../data_loading_and_saving.html">Data Loading and Saving</a></li>
@@ -451,6 +455,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -523,15 +528,15 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="eegprep.ConsoleDatasetResult">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ConsoleDatasetResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alleeg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eeg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">currentset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.ConsoleDatasetResult" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Compact, unpackable result for dataset-list <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> calls.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>alleeg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Any</em><em>]</em><em>]</em>)</p></li>
+<li><p><strong>alleeg</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Any</em><em>]</em><em>]</em>)</p></li>
 <li><p><strong>eeg</strong> (<em>Any</em>)</p></li>
 <li><p><strong>currentset</strong> (<em>Any</em>)</p></li>
-<li><p><strong>command</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>command</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 </dl>

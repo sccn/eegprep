@@ -1,0 +1,6 @@
+﻿setfont
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: setfont

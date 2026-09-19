@@ -1,0 +1,6 @@
+﻿copyaxis
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: copyaxis

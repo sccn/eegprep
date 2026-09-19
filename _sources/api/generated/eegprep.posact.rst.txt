@@ -1,0 +1,6 @@
+﻿posact
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: posact

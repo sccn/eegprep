@@ -1,0 +1,6 @@
+﻿eventalign
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eventalign

@@ -1,0 +1,6 @@
+﻿mmo
+===
+
+.. currentmodule:: eegprep
+
+.. autofunction:: mmo

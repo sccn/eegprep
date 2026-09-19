@@ -1,0 +1,6 @@
+﻿eegmovie
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegmovie

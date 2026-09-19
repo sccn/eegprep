@@ -1,0 +1,6 @@
+﻿supergui
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: supergui

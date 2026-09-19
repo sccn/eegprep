@@ -1,0 +1,6 @@
+﻿eeg\_timeinterp
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_timeinterp

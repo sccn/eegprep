@@ -1,0 +1,6 @@
+﻿matcorr
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: matcorr

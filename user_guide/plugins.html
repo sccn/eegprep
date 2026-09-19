@@ -608,6 +608,10 @@ records when available.</p>
 <span class="n">clean_eeg</span><span class="p">,</span> <span class="n">highpass_state</span><span class="p">,</span> <span class="n">burst_state</span><span class="p">,</span> <span class="n">removed_channels</span> <span class="o">=</span> <span class="n">clean_artifacts</span><span class="p">(</span><span class="n">EEG</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Channel correlation cleaning uses the spatial reconstruction method when the
+dataset has usable <code class="docutils literal notranslate"><span class="pre">X</span></code>, <code class="docutils literal notranslate"><span class="pre">Y</span></code>, and <code class="docutils literal notranslate"><span class="pre">Z</span></code> channel coordinates. If channel
+locations are empty, <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> automatically uses the bundled
+location-free correlation method instead.</p>
 </section>
 <section id="firfilt">
 <h2>FIRFilt<a class="headerlink" href="#firfilt" title="Link to this heading">#</a></h2>

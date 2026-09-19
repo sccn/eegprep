@@ -1,0 +1,6 @@
+﻿averef
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: averef

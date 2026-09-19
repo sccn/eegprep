@@ -432,6 +432,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -441,13 +442,18 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_expevents.html">pop_expevents</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_export.html">pop_export</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_exportbids.html">pop_exportbids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.importevent.html">importevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_importdata.html">pop_importdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_importegimat.html">pop_importegimat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_importepoch.html">pop_importepoch</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_importevent.html">pop_importevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_load_frombids.html">pop_load_frombids</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_loadset.html">pop_loadset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_loadset_h5.html">pop_loadset_h5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_read_erpss.html">pop_read_erpss</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_readlocs.html">pop_readlocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_readegi.html">pop_readegi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_readsegegi.html">pop_readsegegi</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_saveh.html">pop_saveh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_saveset.html">pop_saveset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_writeeeg.html">pop_writeeeg</a></li>
@@ -550,6 +556,7 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_mergeset.html">pop_mergeset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_multifit.html">pop_multifit</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_newset.html">pop_newset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_read_erpss.html">pop_read_erpss</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_rejmenu.html">pop_rejmenu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_rmdat.html">pop_rmdat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.pop_runscript.html">pop_runscript</a></li>
@@ -632,18 +639,18 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>]</em>) – EEG dictionary, or list of EEG dictionaries.</p></li>
+<li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>]</em>) – EEG dictionary, or list of EEG dictionaries.</p></li>
 <li><p><strong>thresholds</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – 7-by-2 threshold matrix in ICLabel class order.</p></li>
-<li><p><strong>gui</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>) – Force or suppress the GUI threshold dialog.</p></li>
+<li><p><strong>gui</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>) – Force or suppress the GUI threshold dialog.</p></li>
 <li><p><strong>renderer</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em> | </em><em>None</em>) – Optional GUI renderer used by tests.</p></li>
-<li><p><strong>return_com</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Return <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">command)</span></code> when true.</p></li>
+<li><p><strong>return_com</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Return <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">command)</span></code> when true.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Updated EEG, and optionally the history command.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a> or <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)">dict</a> or <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
 </dd>
 </dl>
 </dd></dl>

@@ -1,0 +1,6 @@
+﻿readegihdr
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readegihdr

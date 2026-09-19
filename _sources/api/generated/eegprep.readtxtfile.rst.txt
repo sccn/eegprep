@@ -1,0 +1,6 @@
+﻿readtxtfile
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readtxtfile

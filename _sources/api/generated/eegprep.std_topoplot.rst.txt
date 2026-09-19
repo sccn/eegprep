@@ -1,0 +1,6 @@
+﻿std\_topoplot
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: std_topoplot

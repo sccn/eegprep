@@ -1,0 +1,6 @@
+﻿gabor2d
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gabor2d

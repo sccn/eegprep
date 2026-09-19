@@ -438,9 +438,11 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.clean_windows.html">clean_windows</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.correct_mc.html">correct_mc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.correctfit.html">correctfit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_amplitudearea.html">eeg_amplitudearea</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_eegrej.html">eeg_eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_interp.html">eeg_interp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_rejsuperpose.html">eeg_rejsuperpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_timeinterp.html">eeg_timeinterp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeglab_clean_artifacts.html">eeglab_clean_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegrej.html">eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegthresh.html">eegthresh</a></li>
@@ -467,6 +469,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -545,11 +548,11 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Data array shaped <code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">frames</span> <span class="pre">*</span> <span class="pre">epochs)</span></code> or
 <code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">frames,</span> <span class="pre">epochs)</span></code>.</p></li>
-<li><p><strong>frames</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Samples per epoch. <code class="docutils literal notranslate"><span class="pre">0</span></code> or <code class="docutils literal notranslate"><span class="pre">None</span></code> uses the full second
+<li><p><strong>frames</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Samples per epoch. <code class="docutils literal notranslate"><span class="pre">0</span></code> or <code class="docutils literal notranslate"><span class="pre">None</span></code> uses the full second
 dimension, matching EEGLAB’s default.</p></li>
 <li><p><strong>basevector</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – EEGLAB-style 1-based baseline frame indices, or <code class="docutils literal notranslate"><span class="pre">0</span></code>/
 empty for the whole epoch.</p></li>
-<li><p><strong>return_mean</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – When true, return <code class="docutils literal notranslate"><span class="pre">(dataout,</span> <span class="pre">datamean)</span></code>.</p></li>
+<li><p><strong>return_mean</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – When true, return <code class="docutils literal notranslate"><span class="pre">(dataout,</span> <span class="pre">datamean)</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>

@@ -438,9 +438,11 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.clean_windows.html">clean_windows</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.correct_mc.html">correct_mc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.correctfit.html">correctfit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_amplitudearea.html">eeg_amplitudearea</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_eegrej.html">eeg_eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_interp.html">eeg_interp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_rejsuperpose.html">eeg_rejsuperpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_timeinterp.html">eeg_timeinterp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeglab_clean_artifacts.html">eeglab_clean_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegrej.html">eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegthresh.html">eegthresh</a></li>
@@ -467,6 +469,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -550,27 +553,27 @@ long fraction of the data set – then the channel is removed.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>) – Continuous data set, assumed to be appropriately high-passed (e.g. &gt;0.5Hz or
+<li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>) – Continuous data set, assumed to be appropriately high-passed (e.g. &gt;0.5Hz or
 with a 0.5Hz - 2.0Hz transition band).</p></li>
-<li><p><strong>min_corr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum correlation between a channel and any other channel (in
+<li><p><strong>min_corr</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum correlation between a channel and any other channel (in
 a short period of time) below which the channel is considered abnormal
 for that time period. Reasonable range: 0.4 (very lax) to 0.6 (quite aggressive).</p></li>
-<li><p><strong>ignored_quantile</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Fraction of channels that need to have at least the given
+<li><p><strong>ignored_quantile</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Fraction of channels that need to have at least the given
 MinCorrelation value w.r.t. the channel under consideration. This allows
 to deal with channels or small groups of channels that measure the same
 noise source. Reasonable range: 0.05 (rather lax) to 0.2 (very tolerant re
 disconnected/shorted channels).</p></li>
-<li><p><strong>window_len</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Length of the windows (in seconds) for which correlation is computed.</p></li>
-<li><p><strong>max_broken_time</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Maximum time (either in seconds or as fraction of the
+<li><p><strong>window_len</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Length of the windows (in seconds) for which correlation is computed.</p></li>
+<li><p><strong>max_broken_time</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Maximum time (either in seconds or as fraction of the
 recording) during which a retained channel may be broken. Reasonable
 range: 0.1 (very aggressive) to 0.6 (very lax).</p></li>
-<li><p><strong>linenoise_aware</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether the operation should be performed in a line-noise
+<li><p><strong>linenoise_aware</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether the operation should be performed in a line-noise
 aware manner. If enabled, the correlation measure will not be affected
 by the presence or absence of line noise (using a temporary notch filter).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>], <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>], <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
 </dd>
 </dl>
 <section id="returns">

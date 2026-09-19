@@ -1,0 +1,6 @@
+﻿mattocell
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: mattocell

@@ -63,7 +63,7 @@
     <link rel="icon" href="../../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="eeg_eegrej" href="eegprep.eeg_eegrej.html" />
+    <link rel="next" title="eeg_amplitudearea" href="eegprep.eeg_amplitudearea.html" />
     <link rel="prev" title="correct_mc" href="eegprep.correct_mc.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -438,9 +438,11 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.clean_windows.html">clean_windows</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.correct_mc.html">correct_mc</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">correctfit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_amplitudearea.html">eeg_amplitudearea</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_eegrej.html">eeg_eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_interp.html">eeg_interp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_rejsuperpose.html">eeg_rejsuperpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_timeinterp.html">eeg_timeinterp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeglab_clean_artifacts.html">eeglab_clean_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegrej.html">eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eegthresh.html">eegthresh</a></li>
@@ -467,6 +469,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -543,14 +546,14 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>pvalue</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>pvalue</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
 <li><p><strong>allpval</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
 <li><p><strong>gamparams</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>zeromode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>zeromode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)">float</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -577,11 +580,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="eegprep.eeg_eegrej.html"
+       href="eegprep.eeg_amplitudearea.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">eeg_eegrej</p>
+        <p class="prev-next-title">eeg_amplitudearea</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

@@ -1,0 +1,6 @@
+﻿eeg\_chaninds
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_chaninds

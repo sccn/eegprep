@@ -1,0 +1,9 @@
+﻿ICADefaults
+===========
+
+.. currentmodule:: eegprep
+
+.. autoclass:: ICADefaults
+   :members:
+   :inherited-members:
+   :show-inheritance:

@@ -1,0 +1,6 @@
+﻿hungarian
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: hungarian

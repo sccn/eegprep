@@ -1,0 +1,6 @@
+﻿imagesclogy
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: imagesclogy

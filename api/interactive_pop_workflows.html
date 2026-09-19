@@ -432,6 +432,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Interactive Pop Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -441,13 +442,18 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_expevents.html">pop_expevents</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_export.html">pop_export</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_exportbids.html">pop_exportbids</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.importevent.html">importevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importdata.html">pop_importdata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importegimat.html">pop_importegimat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importepoch.html">pop_importepoch</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_importevent.html">pop_importevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_load_frombids.html">pop_load_frombids</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadset.html">pop_loadset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html">pop_loadset_h5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_read_erpss.html">pop_read_erpss</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_readlocs.html">pop_readlocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_readegi.html">pop_readegi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_readsegegi.html">pop_readsegegi</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_saveh.html">pop_saveh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_saveset.html">pop_saveset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_writeeeg.html">pop_writeeeg</a></li>
@@ -550,6 +556,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_mergeset.html">pop_mergeset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_multifit.html">pop_multifit</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_newset.html">pop_newset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_read_erpss.html">pop_read_erpss</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rejmenu.html">pop_rejmenu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_rmdat.html">pop_rmdat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_runscript.html">pop_runscript</a></li>
@@ -625,10 +632,29 @@
 <p>User-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> wrappers. Each accepts <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and returns a replayable history command.</p>
 <section id="loading-and-saving">
 <h2>Loading and Saving<a class="headerlink" href="#loading-and-saving" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> accept <code class="docutils literal notranslate"><span class="pre">blockrange=[start,</span> <span class="pre">stop]</span></code> for
+half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
+formats. <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> also accepts EEGLAB’s 1-based <code class="docutils literal notranslate"><span class="pre">channels</span></code> selection
+and inclusive <code class="docutils literal notranslate"><span class="pre">samples</span></code> and <code class="docutils literal notranslate"><span class="pre">trials</span></code> ranges. <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> supports
+metadata-only and 1-based channel loading through <code class="docutils literal notranslate"><span class="pre">loadmode</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pop_importpres</span></code> recognizes tab-delimited Presentation headers and also
+accepts EEGLAB’s positional event-type, time, and duration field names.
+<code class="docutils literal notranslate"><span class="pre">pop_read_erpss</span></code> imports uncompressed and delta-compressed ERPSS <code class="docutils literal notranslate"><span class="pre">.RAW</span></code>
+and <code class="docutils literal notranslate"><span class="pre">.RDF</span></code> recordings. Pass a sampling rate only when timing is absent from
+the recording header.
+<code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> imports continuous or equal-length segmented EGI Simple Binary
+RAW files, including event channels and segment categories. <code class="docutils literal notranslate"><span class="pre">pop_readsegegi</span></code>
+joins a numbered continuous series ending in <code class="docutils literal notranslate"><span class="pre">001.RAW</span></code>, <code class="docutils literal notranslate"><span class="pre">002.RAW</span></code>, and so
+on, and validates that acquisition headers agree before concatenating samples.
+<code class="docutils literal notranslate"><span class="pre">pop_importegimat</span></code> reads EGI Net Station MATLAB exports. Segment variables
+named <code class="docutils literal notranslate"><span class="pre">&lt;condition&gt;_Segment&lt;number&gt;</span></code> become trials with one condition event
+per trial; continuous exports are read from the <code class="docutils literal notranslate"><span class="pre">Session</span></code> variable by
+default. An embedded <code class="docutils literal notranslate"><span class="pre">samplingRate</span></code> takes precedence over the supplied rate,
+and <code class="docutils literal notranslate"><span class="pre">latpoint0</span></code> is expressed in milliseconds.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_biosig.html#eegprep.pop_biosig" title="eegprep.pop_biosig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_biosig</span></code></a>(filename, *[, return_com])</p></td>
-<td><p>Import BIOSIG-style EDF/BDF/GDF files.</p></td>
+<td><p>Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_chanedit.html#eegprep.pop_chanedit" title="eegprep.pop_chanedit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chanedit</span></code></a>(chans, *args[, gui, ...])</p></td>
 <td><p>Edit EEG channel-location metadata.</p></td>
@@ -645,11 +671,17 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_exportbids.html#eegprep.pop_exportbids" title="eegprep.pop_exportbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_exportbids</span></code></a>(EEG, output_dir, *[, ...])</p></td>
 <td><p>Export EEG dataset(s) as BIDS-like EEGLAB files and sidecars.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importdata.html#eegprep.pop_importdata" title="eegprep.pop_importdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importdata</span></code></a>(*args[, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.importevent.html#eegprep.importevent" title="eegprep.importevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.importevent</span></code></a>(event[, oldevent, srate])</p></td>
+<td><p>Import event records from a text table or in-memory rows.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importdata.html#eegprep.pop_importdata" title="eegprep.pop_importdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importdata</span></code></a>(*args[, return_com])</p></td>
 <td><p>Import data from an array or supported file into an EEG dataset.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importegimat.html#eegprep.pop_importegimat" title="eegprep.pop_importegimat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importegimat</span></code></a>(filename[, srate, ...])</p></td>
+<td><p>Import a segmented or continuous EGI Net Station MATLAB file.</p></td>
+</tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importepoch.html#eegprep.pop_importepoch" title="eegprep.pop_importepoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importepoch</span></code></a>(EEG[, filename, ...])</p></td>
-<td><p>Import per-epoch metadata from a text table.</p></td>
+<td><p>Import per-epoch metadata and construct its corresponding events.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importevent.html#eegprep.pop_importevent" title="eegprep.pop_importevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importevent</span></code></a>(EEG, *args[, return_com])</p></td>
 <td><p>Import events from a text table or record array.</p></td>
@@ -658,26 +690,51 @@
 <td><p>Load an EEG data file of a supported format from a BIDS dataset.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_loadset.html#eegprep.pop_loadset" title="eegprep.pop_loadset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadset</span></code></a>([file_path, loadmode, ...])</p></td>
-<td><p>Load EEGLAB dataset from .set or .mat file.</p></td>
+<td><p>Load an EEGLAB dataset, its metadata, or selected channels.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_loadset_h5.html#eegprep.pop_loadset_h5" title="eegprep.pop_loadset_h5"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadset_h5</span></code></a>(file_name)</p></td>
 <td><p>Load EEG data from HDF5 file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_readlocs.html#eegprep.pop_readlocs" title="eegprep.pop_readlocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_readlocs</span></code></a>([filename, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_read_erpss.html#eegprep.pop_read_erpss" title="eegprep.pop_read_erpss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_read_erpss</span></code></a>(filename[, srate, ...])</p></td>
+<td><p>Import an ERPSS recording into an EEG dictionary.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_readlocs.html#eegprep.pop_readlocs" title="eegprep.pop_readlocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_readlocs</span></code></a>([filename, return_com])</p></td>
 <td><p>Read channel locations and return an EEGPrep <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> list.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_saveh.html#eegprep.pop_saveh" title="eegprep.pop_saveh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveh</span></code></a>(allcoms[, filename, filepath])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_readegi.html#eegprep.pop_readegi" title="eegprep.pop_readegi"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_readegi</span></code></a>(filename[, datachunks, ...])</p></td>
+<td><p>Import an EGI Simple Binary file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_readsegegi.html#eegprep.pop_readsegegi" title="eegprep.pop_readsegegi"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_readsegegi</span></code></a>(filename, *[, ...])</p></td>
+<td><p>Import the contiguous <code class="docutils literal notranslate"><span class="pre">001</span></code>, <code class="docutils literal notranslate"><span class="pre">002</span></code>, .</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_saveh.html#eegprep.pop_saveh" title="eegprep.pop_saveh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveh</span></code></a>(allcoms[, filename, filepath])</p></td>
 <td><p>Save dataset or session command history to a script file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_saveset.html#eegprep.pop_saveset" title="eegprep.pop_saveset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveset</span></code></a>(EEG[, file_name])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_saveset.html#eegprep.pop_saveset" title="eegprep.pop_saveset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveset</span></code></a>(EEG[, file_name])</p></td>
 <td><p>Save EEG data to file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_writeeeg.html#eegprep.pop_writeeeg" title="eegprep.pop_writeeeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writeeeg</span></code></a>(EEG, filename, *args, ...)</p></td>
-<td><p>Write continuous EEG data to an EDF/BDF/GDF-compatible file.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_writeeeg.html#eegprep.pop_writeeeg" title="eegprep.pop_writeeeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writeeeg</span></code></a>(EEG, filename, *args, ...)</p></td>
+<td><p>Write continuous EEG data to EDF, BDF, or GDF.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+</section>
+<section id="event-and-epoch-tables">
+<h2>Event and Epoch Tables<a class="headerlink" href="#event-and-epoch-tables" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">importevent</span></code> converts standalone event tables into event dictionaries using
+the same field, delimiter, time-unit, alignment, and append rules as
+<code class="docutils literal notranslate"><span class="pre">pop_importevent</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_importevent</span></code> accepts text files or record sequences
+and stores the result on an EEG dataset. Imported latencies
+use seconds by default, <code class="docutils literal notranslate"><span class="pre">timeunit=1e-3</span></code> selects milliseconds, and
+<code class="docutils literal notranslate"><span class="pre">timeunit=numpy.nan</span></code> selects sample positions. Existing events are appended
+unless <code class="docutils literal notranslate"><span class="pre">append=&quot;no&quot;</span></code> is supplied. Alignment can anchor imported rows to the
+existing event stream and optionally compensate for small clock-rate drift;
+<code class="docutils literal notranslate"><span class="pre">indices</span></code> uses 1-based event numbers when updating selected rows.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_importepoch</span></code> accepts one row per epoch. It preserves the row metadata in
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;epoch&quot;]</span></code> and creates time-locking and latency-field events in
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;event&quot;]</span></code>. Event latencies are stored as 1-based absolute samples, and
+durations are stored as sample counts.</p>
 </section>
 <section id="preprocessing">
 <h2>Preprocessing<a class="headerlink" href="#preprocessing" title="Link to this heading">#</a></h2>
@@ -825,10 +882,10 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_newtimef.html#eegprep.pop_newtimef" title="eegprep.pop_newtimef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_newtimef</span></code></a>([EEG, typeproc, num, ...])</p></td>
 <td><p>Plot a channel or component ERSP/ITC decomposition.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_plotdata.html#eegprep.pop_plotdata" title="eegprep.pop_plotdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plotdata</span></code></a>([EEG, components, gui, ...])</p></td>
-<td><p>Plot component ERP activations in a rectangular array.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_plotdata.html#eegprep.pop_plotdata" title="eegprep.pop_plotdata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plotdata</span></code></a>([EEG, typeplot, ...])</p></td>
+<td><p>Plot channel or component activity in a rectangular/scalp array.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_plottopo.html#eegprep.pop_plottopo" title="eegprep.pop_plottopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plottopo</span></code></a>([EEG, chans, gui, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_plottopo.html#eegprep.pop_plottopo" title="eegprep.pop_plottopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_plottopo</span></code></a>([EEG, chans, ...])</p></td>
 <td><p>Plot channel ERP traces in a rectangular/scalp-like array.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_spectopo.html#eegprep.pop_spectopo" title="eegprep.pop_spectopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_spectopo</span></code></a>([EEG, dataflag, ...])</p></td>
@@ -846,6 +903,10 @@
 </tbody>
 </table>
 </div>
+<p>The low-level <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> helper accepts either one time value per sample or
+EEGLAB’s compact <code class="docutils literal notranslate"><span class="pre">[start_ms,</span> <span class="pre">frames,</span> <span class="pre">sampling_rate]</span></code> time specification.
+<code class="docutils literal notranslate"><span class="pre">newtimef</span></code> accepts EEGLAB’s default <code class="docutils literal notranslate"><span class="pre">outputformat='plot'</span></code> option; other
+output layouts are not yet implemented.</p>
 </section>
 <section id="study">
 <h2>STUDY<a class="headerlink" href="#study" title="Link to this heading">#</a></h2>
@@ -950,7 +1011,7 @@
 <td><p>Compute and plot statistics for numeric EEG event fields.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio.html#eegprep.pop_fileio" title="eegprep.pop_fileio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio</span></code></a>(filename, *[, return_com])</p></td>
-<td><p>Import a supported EEG data file with MNE/File-IO-style readers.</p></td>
+<td><p>Import an EEG file, optionally selecting 1-based channels, samples, or trials.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio_brainvision_mat.html#eegprep.pop_fileio_brainvision_mat" title="eegprep.pop_fileio_brainvision_mat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio_brainvision_mat</span></code></a>(filename, *)</p></td>
 <td><p>Import a BrainVision Analyzer MATLAB file.</p></td>
@@ -983,7 +1044,7 @@
 <td><p>Attach one imported variable value per STUDY subject.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importpres.html#eegprep.pop_importpres" title="eegprep.pop_importpres"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importpres</span></code></a>(EEG[, filename, ...])</p></td>
-<td><p>Import a Presentation LOG file using EEGPrep's generic event importer.</p></td>
+<td><p>Import a Presentation LOG file using its named event columns.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_kaiserbeta.html#eegprep.pop_kaiserbeta" title="eegprep.pop_kaiserbeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_kaiserbeta</span></code></a>([dev, gui, renderer, ...])</p></td>
 <td><p>Estimate Kaiser window beta from passband ripple.</p></td>
@@ -991,11 +1052,11 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_leadfield.html#eegprep.pop_leadfield" title="eegprep.pop_leadfield"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_leadfield</span></code></a>([EEG, gui, renderer, ...])</p></td>
 <td><p>Compute a standalone spherical leadfield for explicit source points.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_limo.html#eegprep.pop_limo" title="eegprep.pop_limo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limo</span></code></a>(*args, **kwargs)</p></td>
-<td><p>Report that standalone EEGPrep does not run external LIMO workflows.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_limo.html#eegprep.pop_limo" title="eegprep.pop_limo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limo</span></code></a>(STUDY, ALLEEG, *args[, ...])</p></td>
+<td><p>Fit first-level models for every selected STUDY dataset.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_limoresults.html#eegprep.pop_limoresults" title="eegprep.pop_limoresults"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limoresults</span></code></a>(*args, **kwargs)</p></td>
-<td><p>Report that standalone EEGPrep does not browse external LIMO results.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_limoresults.html#eegprep.pop_limoresults" title="eegprep.pop_limoresults"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_limoresults</span></code></a>(STUDY[, source, ...])</p></td>
+<td><p>Compute and retain one standalone LIMO second-level result.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_listfactors.html#eegprep.pop_listfactors" title="eegprep.pop_listfactors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_listfactors</span></code></a>(des, *args[, return_com])</p></td>
 <td><p>Return factor descriptors for one STUDY or design structure.</p></td>
@@ -1012,25 +1073,28 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_newset.html#eegprep.pop_newset" title="eegprep.pop_newset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_newset</span></code></a>(ALLEEG, EEG, CURRENTSET, ...)</p></td>
 <td><p>Store or retrieve datasets following EEGLAB's <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code> contract.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rejmenu.html#eegprep.pop_rejmenu" title="eegprep.pop_rejmenu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejmenu</span></code></a>(EEG[, icacomp, gui, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_read_erpss.html#eegprep.pop_read_erpss" title="eegprep.pop_read_erpss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_read_erpss</span></code></a>(filename[, srate, ...])</p></td>
+<td><p>Import an ERPSS recording into an EEG dictionary.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rejmenu.html#eegprep.pop_rejmenu" title="eegprep.pop_rejmenu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rejmenu</span></code></a>(EEG[, icacomp, gui, ...])</p></td>
 <td><p>Open a compact rejection menu that combines stored non-browser marks.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_rmdat.html#eegprep.pop_rmdat" title="eegprep.pop_rmdat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rmdat</span></code></a>(EEG[, events, timelims, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_rmdat.html#eegprep.pop_rmdat" title="eegprep.pop_rmdat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_rmdat</span></code></a>(EEG[, events, timelims, ...])</p></td>
 <td><p>Keep or remove continuous data around event types.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_runscript.html#eegprep.pop_runscript" title="eegprep.pop_runscript"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runscript</span></code></a>(filename[, namespace])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_runscript.html#eegprep.pop_runscript" title="eegprep.pop_runscript"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_runscript</span></code></a>(filename[, namespace])</p></td>
 <td><p>Run a Python history script selected by the user.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_signalstat.html#eegprep.pop_signalstat" title="eegprep.pop_signalstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_signalstat</span></code></a>([EEG, typeproc, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_signalstat.html#eegprep.pop_signalstat" title="eegprep.pop_signalstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_signalstat</span></code></a>([EEG, typeproc, ...])</p></td>
 <td><p>Compute and plot statistics for one channel or component.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_snapread.html#eegprep.pop_snapread" title="eegprep.pop_snapread"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_snapread</span></code></a>(filename[, gain, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_snapread.html#eegprep.pop_snapread" title="eegprep.pop_snapread"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_snapread</span></code></a>(filename[, gain, ...])</p></td>
 <td><p>Import a SnapMaster <code class="docutils literal notranslate"><span class="pre">.SMA</span></code> file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_timef.html#eegprep.pop_timef" title="eegprep.pop_timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_timef</span></code></a>([EEG, typeproc, num, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_timef.html#eegprep.pop_timef" title="eegprep.pop_timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_timef</span></code></a>([EEG, typeproc, num, ...])</p></td>
 <td><p>Run legacy <code class="docutils literal notranslate"><span class="pre">pop_timef</span></code> through EEGPrep's <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> implementation.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_writelocs.html#eegprep.pop_writelocs" title="eegprep.pop_writelocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writelocs</span></code></a>(chans[, filename, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_writelocs.html#eegprep.pop_writelocs" title="eegprep.pop_writelocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writelocs</span></code></a>(chans[, filename, ...])</p></td>
 <td><p>Write channel locations and return a replayable history command.</p></td>
 </tr>
 </tbody>
@@ -1087,6 +1151,7 @@
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#loading-and-saving">Loading and Saving</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#event-and-epoch-tables">Event and Epoch Tables</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#preprocessing">Preprocessing</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ica-and-components">ICA and Components</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting-and-review">Plotting and Review</a></li>

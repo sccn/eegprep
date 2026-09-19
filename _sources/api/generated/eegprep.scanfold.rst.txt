@@ -1,0 +1,6 @@
+﻿scanfold
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: scanfold

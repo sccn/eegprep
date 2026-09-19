@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="CallbackSpec" href="generated/eegprep.CallbackSpec.html" />
-    <link rel="prev" title="options" href="generated/eegprep.options.html" />
+    <link rel="prev" title="unique_cell_string" href="generated/eegprep.unique_cell_string.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -429,14 +429,18 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.bundled_plugins.html">bundled_plugins</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_multieegplot.html">eeg_multieegplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegplot.html">eegplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.errordlg2.html">errordlg2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.finputcheck.html">finputcheck</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.format_plugin_menu.html">format_plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gui.html">gui</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.inputdlg2.html">inputdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.inputgui.html">inputgui</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.listdlg2.html">listdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plugin_menu.html">plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plugin_status.html">plugin_status</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pophelp.html">pophelp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html">select_multiple_datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.supergui.html">supergui</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="data_loading_and_saving.html">Data Loading and Saving</a></li>
@@ -447,6 +451,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -514,6 +519,12 @@
   <section id="gui-and-console">
 <span id="api-gui-and-console"></span><h1>GUI and Console<a class="headerlink" href="#gui-and-console" title="Link to this heading">#</a></h1>
 <p>Qt dialogs, console workspace objects, and the entry points that open the graphical interface.</p>
+<p><code class="docutils literal notranslate"><span class="pre">listdlg2</span></code> accepts either a sequence of labels or one scalar string. A scalar
+string is displayed as one choice, returned selections use EEGLAB-facing
+1-based positions, and <code class="docutils literal notranslate"><span class="pre">okstring</span></code> and <code class="docutils literal notranslate"><span class="pre">cancelstring</span></code> customize the action
+labels. <code class="docutils literal notranslate"><span class="pre">inputgui(...,</span> <span class="pre">mode=&quot;plot&quot;)</span></code> opens a nonmodal preview and returns the
+application, dialog, and tagged widget mapping. <code class="docutils literal notranslate"><span class="pre">supergui</span></code> exposes the same
+renderer-level construction without showing or executing the dialog.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.CallbackSpec.html#eegprep.CallbackSpec" title="eegprep.CallbackSpec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.CallbackSpec</span></code></a>(name[, params, ...])</p></td>
@@ -543,29 +554,41 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eegplot.html#eegprep.eegplot" title="eegprep.eegplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegplot</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Open an EEGLAB-style scrolling browser for channel-major EEG data.</p></td>
 </tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.errordlg2.html#eegprep.errordlg2" title="eegprep.errordlg2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.errordlg2</span></code></a>(prompt[, title, parent])</p></td>
+<td><p>Display a modal error message and return the Qt dialog result.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.finputcheck.html#eegprep.finputcheck" title="eegprep.finputcheck"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.finputcheck</span></code></a>(arguments, fieldlist[, ...])</p></td>
+<td><p>Validate EEGLAB-style key/value arguments against field rules.</p></td>
+</tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.format_plugin_menu.html#eegprep.format_plugin_menu" title="eegprep.format_plugin_menu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.format_plugin_menu</span></code></a>([pluginlist, ...])</p></td>
 <td><p>Return a plain-text extension inventory for console display.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.gui.html#eegprep.gui" title="eegprep.gui"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gui</span></code></a>([onearg, session, show, block, ...])</p></td>
 <td><p>Start the EEGPrep GUI.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.inputgui.html#eegprep.inputgui" title="eegprep.inputgui"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.inputgui</span></code></a>(spec[, initial_values, ...])</p></td>
-<td><p>Render a dialog spec and return tagged values, or <code class="docutils literal notranslate"><span class="pre">None</span></code> on cancel.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.inputdlg2.html#eegprep.inputdlg2" title="eegprep.inputdlg2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.inputdlg2</span></code></a>(prompt, title[, numlines, ...])</p></td>
+<td><p>Prompt for one or more text values and return answers in prompt order.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.listdlg2.html#eegprep.listdlg2" title="eegprep.listdlg2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.listdlg2</span></code></a>(*[, promptstring, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.inputgui.html#eegprep.inputgui" title="eegprep.inputgui"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.inputgui</span></code></a>(-&gt; dict[str, ...)</p></td>
+<td><p>Render an EEGLAB-like dialog specification.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.listdlg2.html#eegprep.listdlg2" title="eegprep.listdlg2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.listdlg2</span></code></a>(*[, promptstring, ...])</p></td>
 <td><p>Open an EEGLAB-like list selector.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.plugin_menu.html#eegprep.plugin_menu" title="eegprep.plugin_menu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plugin_menu</span></code></a>([pluginlist, parent, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.plugin_menu.html#eegprep.plugin_menu" title="eegprep.plugin_menu"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plugin_menu</span></code></a>([pluginlist, parent, ...])</p></td>
 <td><p>Show or return the EEGPrep Extension Manager inventory.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.plugin_status.html#eegprep.plugin_status" title="eegprep.plugin_status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plugin_status</span></code></a>(pluginname, *[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.plugin_status.html#eegprep.plugin_status" title="eegprep.plugin_status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plugin_status</span></code></a>(pluginname, *[, ...])</p></td>
 <td><p>Return EEGLAB-style installed status for EEGPrep extensions.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pophelp.html#eegprep.pophelp" title="eegprep.pophelp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pophelp</span></code></a>(function_name[, nonmatlab, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pophelp.html#eegprep.pophelp" title="eegprep.pophelp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pophelp</span></code></a>(function_name[, nonmatlab, ...])</p></td>
 <td><p>Open an EEGLAB-like help browser for a function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html#eegprep.select_multiple_datasets" title="eegprep.select_multiple_datasets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select_multiple_datasets</span></code></a>(session[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html#eegprep.select_multiple_datasets" title="eegprep.select_multiple_datasets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select_multiple_datasets</span></code></a>(session[, ...])</p></td>
 <td><p>Select multiple datasets in <code class="docutils literal notranslate"><span class="pre">session</span></code> using EEGLAB-facing indices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.supergui.html#eegprep.supergui" title="eegprep.supergui"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.supergui</span></code></a>(spec[, initial_values, ...])</p></td>
+<td><p>Build a dialog without entering its modal event loop.</p></td>
 </tr>
 </tbody>
 </table>
@@ -583,12 +606,12 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="generated/eegprep.options.html"
+       href="generated/eegprep.unique_cell_string.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">options</p>
+        <p class="prev-next-title">unique_cell_string</p>
       </div>
     </a>
     <a class="right-next"

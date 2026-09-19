@@ -1,0 +1,6 @@
+﻿gradmap
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gradmap

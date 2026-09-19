@@ -63,8 +63,8 @@
     <link rel="icon" href="../../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Filtering and Signal Processing" href="../filtering_and_signal_processing.html" />
-    <link rel="prev" title="picard" href="eegprep.picard.html" />
+    <link rel="next" title="runica" href="eegprep.runica.html" />
+    <link rel="prev" title="promax" href="eegprep.promax.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -430,6 +430,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../epoching_and_selection.html">Epoching and Selection</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../ica_and_components.html">ICA and Components</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.ICL_feature_extractor.html">ICL_feature_extractor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.ICADefaults.html">ICADefaults</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.compvar.html">compvar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_amica.html">eeg_amica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_autocorr.html">eeg_autocorr</a></li>
@@ -444,17 +445,30 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_rpsd.html">eeg_rpsd</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_runica.html">eeg_runica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.icaact.html">icaact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.icadefs.html">icadefs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.icaproj.html">icaproj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.icavar.html">icavar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.iclabel.html">iclabel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.optimal_kmeans.html">optimal_kmeans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.picard.html">picard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.posact.html">posact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.promax.html">promax</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">robust_kmeans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runica.html">runica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runica_ml2.html">runica_ml2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runica_mlb.html">runica_mlb</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runicalowmem.html">runicalowmem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runpca.html">runpca</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.runpca2.html">runpca2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.varimax.html">varimax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.varsort.html">varsort</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.zica.html">zica</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -532,15 +546,15 @@
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>clus_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>STD</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>MAXiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>random_state</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>clus_num</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>STD</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>MAXiter</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>random_state</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -558,20 +572,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="eegprep.picard.html"
+       href="eegprep.promax.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">picard</p>
+        <p class="prev-next-title">promax</p>
       </div>
     </a>
     <a class="right-next"
-       href="../filtering_and_signal_processing.html"
+       href="eegprep.runica.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Filtering and Signal Processing</p>
+        <p class="prev-next-title">runica</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

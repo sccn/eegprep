@@ -432,6 +432,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_addvarlevel.html">std_addvarlevel</a></li>
@@ -450,6 +451,8 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_selectdataset.html">std_selectdataset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_uniformfiles.html">std_uniformfiles</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_uniformsetinds.html">std_uniformsetinds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.corrmap.html">corrmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_corrmap.html">pop_corrmap</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_apcluster.html">std_apcluster</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_centroid.html">std_centroid</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_clustplot.html">std_clustplot</a></li>
@@ -474,6 +477,14 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_readitc.html">std_readitc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_readspec.html">std_readspec</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_specplot.html">std_specplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.std_topoplot.html">std_topoplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_dipparams.html">pop_dipparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erpimparams.html">pop_erpimparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erpparams.html">pop_erpparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erspparams.html">pop_erspparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_specparams.html">pop_specparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_statparams.html">pop_statparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.std_stat.html">std_stat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_dipplot.html">std_dipplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_pacplot.html">std_pacplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_findsameica.html">std_findsameica</a></li>
@@ -566,17 +577,32 @@
 <h1>std_limoresults<a class="headerlink" href="#std-limoresults" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.std_limoresults">
-<span class="sig-name descname"><span class="pre">std_limoresults</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.std_limoresults" title="Link to this definition">#</a></dt>
-<dd><p>Report that standalone EEGPrep does not compute external LIMO results.</p>
+<span class="sig-name descname"><span class="pre">std_limoresults</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analysis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'one</span> <span class="pre">sample</span> <span class="pre">t-test'</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">contrast</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regressors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariates</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">estimator</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variances</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nboot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tfce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputfile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.std_limoresults" title="Link to this definition">#</a></dt>
+<dd><p>Compute contrasts, group tests, regressions, or central tendencies.</p>
+<p>Statistical tests operate across the first (subject) axis. <code class="docutils literal notranslate"><span class="pre">source</span></code> may
+contain arrays, in-memory first-level model dictionaries, or paths created
+by <a class="reference internal" href="eegprep.pop_limo.html#eegprep.pop_limo" title="eegprep.pop_limo"><code class="xref py py-func docutils literal notranslate"><span class="pre">pop_limo()</span></code></a>. Parameter indices follow EEGLAB’s 1-based convention.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>analysis</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>contrast</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>parameter</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>data2</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>regressors</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>groups</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>covariates</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>estimator</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>variances</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>nboot</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>tfce</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>outputfile</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>

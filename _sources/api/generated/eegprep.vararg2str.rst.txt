@@ -1,0 +1,6 @@
+﻿vararg2str
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: vararg2str

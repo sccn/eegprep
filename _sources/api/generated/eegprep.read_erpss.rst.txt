@@ -1,0 +1,6 @@
+﻿read\_erpss
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: read_erpss

@@ -1,0 +1,6 @@
+﻿eeg\_getepochevent
+==================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_getepochevent

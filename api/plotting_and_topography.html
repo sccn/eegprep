@@ -63,7 +63,7 @@
     <link rel="icon" href="../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="topoplot" href="generated/eegprep.topoplot.html" />
+    <link rel="next" title="hist2" href="generated/eegprep.hist2.html" />
     <link rel="prev" title="timewarp" href="generated/eegprep.timewarp.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -273,6 +273,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -428,11 +432,30 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Plotting and Topography</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.hist2.html">hist2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.cbar.html">cbar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.copyaxis.html">copyaxis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.forcelocs.html">forcelocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.headplot.html">headplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plotcurve.html">plotcurve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.sbplot.html">sbplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.slider.html">slider</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gradmap.html">gradmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gradplot.html">gradplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.imagesclogy.html">imagesclogy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.imagescloglog.html">imagescloglog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.show_events.html">show_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.setfont.html">setfont</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegmovie.html">eegmovie</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.headmovie.html">headmovie</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.seemovie.html">seemovie</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.topoplot.html">topoplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loc_subsets.html">loc_subsets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vis_artifacts.html">vis_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vis_artifacts_diagnostics.html">vis_artifacts_diagnostics</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -499,11 +522,70 @@
                   
   <section id="plotting-and-topography">
 <span id="api-plotting-and-topography"></span><h1>Plotting and Topography<a class="headerlink" href="#plotting-and-topography" title="Link to this heading">#</a></h1>
-<p>Scalp maps and artifact review plots.</p>
+<p>Scalp maps, curve summaries, figure-layout helpers, logarithmic image displays,
+event rasters, artifact review plots, and replayable scalp movies. Movie frames
+are returned as <code class="docutils literal notranslate"><span class="pre">uint8</span></code> RGB arrays so they can be inspected in notebooks,
+tested headlessly, encoded by downstream tools, or replayed with <code class="docutils literal notranslate"><span class="pre">seemovie</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">movieframes</span></code> argument follows EEGLAB’s 1-based public indexing
+convention.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.topoplot.html#eegprep.topoplot" title="eegprep.topoplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.topoplot</span></code></a>(datavector, chan_locs, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.hist2.html#eegprep.hist2" title="eegprep.hist2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.hist2</span></code></a>(data1, data2[, bins, ax])</p></td>
+<td><p>Plot two semi-transparent histograms on one Matplotlib axes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.cbar.html#eegprep.cbar" title="eegprep.cbar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.cbar</span></code></a>([arg, colors, minmax, grad, ...])</p></td>
+<td><p>Display a full or partial color bar, following EEGLAB <code class="docutils literal notranslate"><span class="pre">cbar</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.copyaxis.html#eegprep.copyaxis" title="eegprep.copyaxis"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.copyaxis</span></code></a>([command, source])</p></td>
+<td><p>Copy the current axes into an enlarged standalone figure.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.forcelocs.html#eegprep.forcelocs" title="eegprep.forcelocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.forcelocs</span></code></a>(chanlocs, *locations)</p></td>
+<td><p>Rotate an electrode montage to force named channels to X/Y positions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.headplot.html#eegprep.headplot" title="eegprep.headplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.headplot</span></code></a>(values[, arg1])</p></td>
+<td><p>Plot values on a spline-interpolated 3-D head mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.plotcurve.html#eegprep.plotcurve" title="eegprep.plotcurve"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.plotcurve</span></code></a>(times, data, *args[, target])</p></td>
+<td><p>Plot curves and highlight samples outside significance limits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.sbplot.html#eegprep.sbplot" title="eegprep.sbplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.sbplot</span></code></a>(rows, columns, grid_position, ...)</p></td>
+<td><p>Create an axes in one tile or across two corner tiles.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.slider.html#eegprep.slider" title="eegprep.slider"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.slider</span></code></a>(handler, horiz[, vert, ...])</p></td>
+<td><p>Add horizontal and/or vertical viewport controls to a figure.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.gradmap.html#eegprep.gradmap" title="eegprep.gradmap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gradmap</span></code></a>(maps, locations[, draw])</p></td>
+<td><p>Compute x/y gradients of one or more scalp maps at electrode sites.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.gradplot.html#eegprep.gradplot" title="eegprep.gradplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gradplot</span></code></a>(maps, locations[, draw])</p></td>
+<td><p>Compute scalp-map gradients and optionally draw their vector fields.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.imagesclogy.html#eegprep.imagesclogy" title="eegprep.imagesclogy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.imagesclogy</span></code></a>(times, freqs, data[, ...])</p></td>
+<td><p>Plot frequency-by-time values on a logarithmic y-axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.imagescloglog.html#eegprep.imagescloglog" title="eegprep.imagescloglog"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.imagescloglog</span></code></a>(times, freqs, data[, ...])</p></td>
+<td><p>Plot frequency-by-time values on logarithmic x- and y-axes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.show_events.html#eegprep.show_events" title="eegprep.show_events"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.show_events</span></code></a>(EEG, *args[, ...])</p></td>
+<td><p>Return an RGB raster showing epoch-relative event latencies.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.setfont.html#eegprep.setfont" title="eegprep.setfont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.setfont</span></code></a>(handle, *args[, handletype])</p></td>
+<td><p>Apply font properties to text in a Matplotlib figure or axes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eegmovie.html#eegprep.eegmovie" title="eegprep.eegmovie"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegmovie</span></code></a>(data[, srate, elec_locs, ...])</p></td>
+<td><p>Render channel-by-frame data as a sequence of RGB scalp-map images.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.headmovie.html#eegprep.headmovie" title="eegprep.headmovie"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.headmovie</span></code></a>(data, elec_loc[, ...])</p></td>
+<td><p>Render a 3-D scalp movie using EEGPrep's maintained <code class="docutils literal notranslate"><span class="pre">eegmovie</span></code> path.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.seemovie.html#eegprep.seemovie" title="eegprep.seemovie"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.seemovie</span></code></a>(movie[, ntimes, colormap, ...])</p></td>
+<td><p>Return an animation for an EEGPrep movie.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.topoplot.html#eegprep.topoplot" title="eegprep.topoplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.topoplot</span></code></a>(datavector, chan_locs, **kwargs)</p></td>
 <td><p>Plot a 2D topographic map of EEG data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.loc_subsets.html#eegprep.loc_subsets" title="eegprep.loc_subsets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.loc_subsets</span></code></a>(chanlocs, subset_sizes)</p></td>
+<td><p>Separate channels into maximally spaced subsets.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.vis_artifacts.html#eegprep.vis_artifacts" title="eegprep.vis_artifacts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.vis_artifacts</span></code></a>(clean_eeg[, ...])</p></td>
 <td><p>Compare a cleaned dataset against its original clean_rawdata source.</p></td>
@@ -514,6 +596,25 @@
 </tbody>
 </table>
 </div>
+<section id="low-level-eeglab-plotting-workflows">
+<h2>Low-level EEGLAB plotting workflows<a class="headerlink" href="#low-level-eeglab-plotting-workflows" title="Link to this heading">#</a></h2>
+<p>The low-level helpers retain EEGLAB’s familiar names while returning ordinary
+Matplotlib objects. <code class="docutils literal notranslate"><span class="pre">cbar</span></code> draws full or one-based partial colormap ranges;
+<code class="docutils literal notranslate"><span class="pre">copyaxis</span></code> copies the current plot into a standalone figure; and <code class="docutils literal notranslate"><span class="pre">sbplot</span></code>
+creates axes that may span opposite corners of a one-based subplot grid.
+<code class="docutils literal notranslate"><span class="pre">slider</span></code> returns its widget handles so scripts can pan or remove a magnified
+viewport without relying on hidden callback strings.</p>
+<p><code class="docutils literal notranslate"><span class="pre">plotcurve</span></code> accepts data with curves in rows or columns, plots individual and
+mean traces, and supports confidence-limit highlighting. A two-value
+<code class="docutils literal notranslate"><span class="pre">maskarray=[low,</span> <span class="pre">high]</span></code> marks samples whose comparison values fall outside
+that interval. <code class="docutils literal notranslate"><span class="pre">highlightmode=&quot;background&quot;</span></code> shades the curve axes, while
+<code class="docutils literal notranslate"><span class="pre">highlightmode=&quot;bottom&quot;</span></code> puts the significance runs in a narrow lower axes.</p>
+<p><code class="docutils literal notranslate"><span class="pre">forcelocs</span></code> rotates X/Z or Y/Z channel coordinates and refreshes the
+spherical and topographic fields after every rotation. <code class="docutils literal notranslate"><span class="pre">headplot</span></code> renders
+reusable 3-D spline maps; <code class="docutils literal notranslate"><span class="pre">headplot(&quot;example&quot;)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">headplot(&quot;cartesian&quot;)</span></code> return and print the corresponding electrode-file
+examples for interactive use.</p>
+</section>
 </section>
 
 
@@ -536,11 +637,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="generated/eegprep.topoplot.html"
+       href="generated/eegprep.hist2.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">topoplot</p>
+        <p class="prev-next-title">hist2</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -550,6 +651,24 @@
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#low-level-eeglab-plotting-workflows">Low-level EEGLAB plotting workflows</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>

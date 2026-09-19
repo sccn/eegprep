@@ -1,0 +1,6 @@
+﻿headplot
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: headplot

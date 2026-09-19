@@ -8,6 +8,26 @@ User-facing ``pop_*`` wrappers. Each accepts ``return_com=True`` and returns a r
 Loading and Saving
 ------------------
 
+``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
+half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
+formats. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
+metadata-only and 1-based channel loading through ``loadmode``.
+``pop_importpres`` recognizes tab-delimited Presentation headers and also
+accepts EEGLAB's positional event-type, time, and duration field names.
+``pop_read_erpss`` imports uncompressed and delta-compressed ERPSS ``.RAW``
+and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
+the recording header.
+``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
+RAW files, including event channels and segment categories. ``pop_readsegegi``
+joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
+on, and validates that acquisition headers agree before concatenating samples.
+``pop_importegimat`` reads EGI Net Station MATLAB exports. Segment variables
+named ``<condition>_Segment<number>`` become trials with one condition event
+per trial; continuous exports are read from the ``Session`` variable by
+default. An embedded ``samplingRate`` takes precedence over the supplied rate,
+and ``latpoint0`` is expressed in milliseconds.
+
 .. autosummary::
    :toctree: generated/
 
@@ -17,16 +37,39 @@ Loading and Saving
    eegprep.pop_expevents
    eegprep.pop_export
    eegprep.pop_exportbids
+   eegprep.importevent
    eegprep.pop_importdata
+   eegprep.pop_importegimat
    eegprep.pop_importepoch
    eegprep.pop_importevent
    eegprep.pop_load_frombids
    eegprep.pop_loadset
    eegprep.pop_loadset_h5
+   eegprep.pop_read_erpss
    eegprep.pop_readlocs
+   eegprep.pop_readegi
+   eegprep.pop_readsegegi
    eegprep.pop_saveh
    eegprep.pop_saveset
    eegprep.pop_writeeeg
+
+Event and Epoch Tables
+----------------------
+
+``importevent`` converts standalone event tables into event dictionaries using
+the same field, delimiter, time-unit, alignment, and append rules as
+``pop_importevent``. ``pop_importevent`` accepts text files or record sequences
+and stores the result on an EEG dataset. Imported latencies
+use seconds by default, ``timeunit=1e-3`` selects milliseconds, and
+``timeunit=numpy.nan`` selects sample positions. Existing events are appended
+unless ``append="no"`` is supplied. Alignment can anchor imported rows to the
+existing event stream and optionally compensate for small clock-rate drift;
+``indices`` uses 1-based event numbers when updating selected rows.
+
+``pop_importepoch`` accepts one row per epoch. It preserves the row metadata in
+``EEG["epoch"]`` and creates time-locking and latency-field events in
+``EEG["event"]``. Event latencies are stored as 1-based absolute samples, and
+durations are stored as sample counts.
 
 Preprocessing
 -------------
@@ -97,6 +140,11 @@ Plotting and Review
    eegprep.pop_topochansel
    eegprep.pop_topoplot
 
+The low-level ``erpimage`` helper accepts either one time value per sample or
+EEGLAB's compact ``[start_ms, frames, sampling_rate]`` time specification.
+``newtimef`` accepts EEGLAB's default ``outputformat='plot'`` option; other
+output layouts are not yet implemented.
+
 STUDY
 -----
 
@@ -161,6 +209,7 @@ Other
    eegprep.pop_mergeset
    eegprep.pop_multifit
    eegprep.pop_newset
+   eegprep.pop_read_erpss
    eegprep.pop_rejmenu
    eegprep.pop_rmdat
    eegprep.pop_runscript
@@ -168,4 +217,3 @@ Other
    eegprep.pop_snapread
    eegprep.pop_timef
    eegprep.pop_writelocs
-

@@ -1,0 +1,6 @@
+﻿loadeeg
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: loadeeg

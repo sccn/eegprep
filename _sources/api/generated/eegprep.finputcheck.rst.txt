@@ -1,0 +1,6 @@
+﻿finputcheck
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: finputcheck

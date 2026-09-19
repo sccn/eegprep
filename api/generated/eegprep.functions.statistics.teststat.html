@@ -63,7 +63,7 @@
     <link rel="icon" href="../../_static/logo.jpg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="STUDY Workflows" href="../study_workflows.html" />
+    <link rel="next" title="kmeans_st" href="eegprep.kmeans_st.html" />
     <link rel="prev" title="corrcoef_cell" href="eegprep.functions.statistics.corrcoef_cell.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -432,8 +432,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../statistics.html">Statistics</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcond.html">statcond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcondfieldtrip.html">statcondfieldtrip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.ttest_cell.html">ttest_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.ttest2_cell.html">ttest2_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.anova1_cell.html">anova1_cell</a></li>
@@ -447,6 +449,9 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.concatdata.html">concatdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.corrcoef_cell.html">corrcoef_cell</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">teststat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeans_st.html">kmeans_st</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeanscluster.html">kmeanscluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.miscfunc.numdim.numdim.html">numdim</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
@@ -523,10 +528,10 @@
 <dd><p>Run deterministic smoke checks for the EEGPrep statistics package.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
+<dd class="field-odd"><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)">float</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -553,11 +558,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="../study_workflows.html"
+       href="eegprep.kmeans_st.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">STUDY Workflows</p>
+        <p class="prev-next-title">kmeans_st</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

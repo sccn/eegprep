@@ -1,0 +1,6 @@
+﻿matsel
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: matsel

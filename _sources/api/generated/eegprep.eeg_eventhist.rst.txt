@@ -1,0 +1,6 @@
+﻿eeg\_eventhist
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_eventhist

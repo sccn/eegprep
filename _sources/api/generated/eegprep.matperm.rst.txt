@@ -1,0 +1,6 @@
+﻿matperm
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: matperm

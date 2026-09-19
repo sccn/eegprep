@@ -1,0 +1,6 @@
+﻿pcsquash
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pcsquash

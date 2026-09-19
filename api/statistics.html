@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="statcond" href="generated/eegprep.functions.statistics.statcond.html" />
-    <link rel="prev" title="vis_artifacts_diagnostics" href="generated/eegprep.vis_artifacts_diagnostics.html" />
+    <link rel="prev" title="shuffle" href="generated/eegprep.shuffle.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -432,8 +432,10 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Statistics</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.statcond.html">statcond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.statcondfieldtrip.html">statcondfieldtrip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.ttest_cell.html">ttest_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.ttest2_cell.html">ttest2_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.anova1_cell.html">anova1_cell</a></li>
@@ -447,6 +449,9 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.concatdata.html">concatdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.corrcoef_cell.html">corrcoef_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.statistics.teststat.html">teststat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.kmeans_st.html">kmeans_st</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.kmeanscluster.html">kmeanscluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.functions.miscfunc.numdim.numdim.html">numdim</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
@@ -520,32 +525,108 @@ noted otherwise, condition arrays use their final axis for cases, subjects, or
 surrogate replications.</p>
 <section id="condition-tests">
 <h2>Condition Tests<a class="headerlink" href="#condition-tests" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">statcond(...,</span> <span class="pre">return_resampling_array=True)</span></code> returns a
+<code class="docutils literal notranslate"><span class="pre">SurrogateDistribution</span></code>. With <code class="docutils literal notranslate"><span class="pre">arraycomp=&quot;on&quot;</span></code> (the default), it contains
+<code class="docutils literal notranslate"><span class="pre">naccu</span></code> condition grids; every condition keeps its original feature and case
+shape. <code class="docutils literal notranslate"><span class="pre">arraycomp=&quot;off&quot;</span></code> returns one grid and is compatible with EEGLAB’s
+incremental resampling contract. For ordinary statistical results, the off
+mode still computes all <code class="docutils literal notranslate"><span class="pre">naccu</span></code> statistics while holding one resampled grid
+at a time.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.statcond.html#eegprep.functions.statistics.statcond" title="eegprep.functions.statistics.statcond"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.statcond</span></code></a>(data, *)</p></td>
 <td><p>Compare condition arrays using EEGLAB-style t-tests or ANOVAs.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest_cell.html#eegprep.functions.statistics.ttest_cell" title="eegprep.functions.statistics.ttest_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest_cell</span></code></a>(a[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.statcondfieldtrip.html#eegprep.functions.statistics.statcondfieldtrip" title="eegprep.functions.statistics.statcondfieldtrip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.statcondfieldtrip</span></code></a>(data, *)</p></td>
+<td><p>Compare conditions using the supported <code class="docutils literal notranslate"><span class="pre">statcondfieldtrip</span></code> contract.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest_cell.html#eegprep.functions.statistics.ttest_cell" title="eegprep.functions.statistics.ttest_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest_cell</span></code></a>(a[, ...])</p></td>
 <td><p>Compute paired t-statistics across the case axis.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest2_cell.html#eegprep.functions.statistics.ttest2_cell" title="eegprep.functions.statistics.ttest2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest2_cell</span></code></a>(a)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.ttest2_cell.html#eegprep.functions.statistics.ttest2_cell" title="eegprep.functions.statistics.ttest2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.ttest2_cell</span></code></a>(a)</p></td>
 <td><p>Compute unpaired t-statistics across the case axis.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1_cell.html#eegprep.functions.statistics.anova1_cell" title="eegprep.functions.statistics.anova1_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1_cell</span></code></a>(data, *)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1_cell.html#eegprep.functions.statistics.anova1_cell" title="eegprep.functions.statistics.anova1_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1_cell</span></code></a>(data, *)</p></td>
 <td><p>Compute one-way unpaired ANOVA F-statistics across condition arrays.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1rm_cell.html#eegprep.functions.statistics.anova1rm_cell" title="eegprep.functions.statistics.anova1rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1rm_cell</span></code></a>(data, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova1rm_cell.html#eegprep.functions.statistics.anova1rm_cell" title="eegprep.functions.statistics.anova1rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova1rm_cell</span></code></a>(data, *)</p></td>
 <td><p>Compute one-way repeated-measures ANOVA F-statistics.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2_cell.html#eegprep.functions.statistics.anova2_cell" title="eegprep.functions.statistics.anova2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2_cell</span></code></a>(data, *)</p></td>
-<td><p>Compute balanced two-way unpaired ANOVA F-statistics.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2_cell.html#eegprep.functions.statistics.anova2_cell" title="eegprep.functions.statistics.anova2_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2_cell</span></code></a>(data, *)</p></td>
+<td><p>Compute balanced two-way unpaired ANOVA with named factor results.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2rm_cell.html#eegprep.functions.statistics.anova2rm_cell" title="eegprep.functions.statistics.anova2rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2rm_cell</span></code></a>(data, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.functions.statistics.anova2rm_cell.html#eegprep.functions.statistics.anova2rm_cell" title="eegprep.functions.statistics.anova2rm_cell"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.statistics.anova2rm_cell</span></code></a>(data, *)</p></td>
 <td><p>Compute two-way repeated-measures ANOVA F-statistics.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<section id="two-way-factor-order">
+<h3>Two-way factor order<a class="headerlink" href="#two-way-factor-order" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> represents every two-way result computed from condition arrays as
+<code class="docutils literal notranslate"><span class="pre">TwoWayEffects(rows,</span> <span class="pre">columns,</span> <span class="pre">interaction)</span></code>. Attribute access and iteration
+use that order for paired and unpaired designs, including statistics, degrees
+of freedom, p-values, and nonparametric outputs.</p>
+<p>This deliberately resolves an inconsistency in EEGLAB’s MATLAB implementation.
+Although <code class="docutils literal notranslate"><span class="pre">statcond</span></code> documents rows, columns, and interaction, its unpaired
+branch forwards <code class="docutils literal notranslate"><span class="pre">anova2_cell</span></code> outputs in columns, rows, and interaction order.
+When translating positional unpaired MATLAB results, EEGPrep’s <code class="docutils literal notranslate"><span class="pre">rows</span></code> value
+therefore corresponds to the second MATLAB cell and <code class="docutils literal notranslate"><span class="pre">columns</span></code> to the first.</p>
+</section>
+<section id="fieldtrip-style-inference">
+<h3>FieldTrip-style inference<a class="headerlink" href="#fieldtrip-style-inference" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">statcondfieldtrip</span></code> is a standalone Python backend for the scientifically
+active behavior in EEGLAB’s FieldTrip wrapper. It accepts condition arrays
+directly and does not require MATLAB, EEGLAB, or FieldTrip at runtime. Cases
+occupy the final axis by default; all preceding feature axes are preserved in
+the statistic, p-value, and mask.</p>
+<p>Supported designs are paired or equal-variance unpaired two-condition t-tests
+and unpaired one-way ANOVA. Analytic inference and seeded Monte Carlo
+permutation inference are available. Multiple-comparison options are <code class="docutils literal notranslate"><span class="pre">none</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bonferroni</span></code>, <code class="docutils literal notranslate"><span class="pre">holm</span></code>, <code class="docutils literal notranslate"><span class="pre">fdr</span></code>, and Monte Carlo <code class="docutils literal notranslate"><span class="pre">max</span></code> or <code class="docutils literal notranslate"><span class="pre">cluster</span></code>
+correction; <code class="docutils literal notranslate"><span class="pre">bonferoni</span></code> and <code class="docutils literal notranslate"><span class="pre">holms</span></code> remain accepted migration spellings.</p>
+<p>As in FieldTrip, Bonferroni, Holm, and FDR leave the reported pointwise
+<code class="docutils literal notranslate"><span class="pre">pvalue</span></code> unchanged and apply their correction to <code class="docutils literal notranslate"><span class="pre">mask</span></code>. Monte Carlo
+probabilities use a plus-one estimate, so finite randomization runs cannot
+report zero probability. Max-statistic correction returns family-wise
+corrected probabilities and masks; two-condition tests use absolute t values
+for conventional two-sided inference. This fulfills the EEGLAB wrapper’s
+documented two-tailed output contract directly; FieldTrip’s internal
+<code class="docutils literal notranslate"><span class="pre">correcttail='alpha'</span></code> representation instead pairs a one-tail probability
+with a halved alpha threshold.</p>
+<p>Paired one-way and two-way ANOVA are rejected because the maintained EEGLAB
+test disables those FieldTrip paths. Use <code class="docutils literal notranslate"><span class="pre">statcond</span></code> for the supported paired
+and two-way ANOVA designs without FieldTrip correction.</p>
+<p>Cluster correction requires <code class="docutils literal notranslate"><span class="pre">method=&quot;montecarlo&quot;</span></code> and an explicit
+<code class="docutils literal notranslate"><span class="pre">neighbours</span></code> adjacency matrix. The matrix is square and symmetric over every
+feature in C-order-flattened result space; it may be a dense NumPy array or a
+SciPy sparse matrix. Its diagonal is ignored. EEGPrep does not infer sensor,
+time, or frequency neighbours because bare condition arrays contain no axis
+metadata. Construct the complete adjacency graph before calling the function.
+For channel-only statistics, <code class="docutils literal notranslate"><span class="pre">std_prepare_neighbors</span></code> already returns the
+usable matrix as <code class="docutils literal notranslate"><span class="pre">limostruct[&quot;channeighbstructmat&quot;]</span></code>. Add time/frequency
+connectivity explicitly when those dimensions are present.</p>
+<p>The supported cluster policy is a parametric cluster-forming threshold and
+FieldTrip’s default <code class="docutils literal notranslate"><span class="pre">clusterstatistic=&quot;maxsum&quot;</span></code>. Set <code class="docutils literal notranslate"><span class="pre">clusteralpha</span></code> to
+derive the critical t or F value, or provide a positive <code class="docutils literal notranslate"><span class="pre">clustercritval</span></code>
+directly. Positive and negative t-value clusters are formed separately. The
+largest absolute cluster mass across both signs is retained for every
+permutation, giving one direct two-sided family-wise null distribution; F tests
+use their right tail. This is intentionally more explicit than FieldTrip’s
+internal representation using separate one-tail probabilities and a corrected
+alpha threshold.</p>
+<p>Paired two-condition permutations swap labels independently within each case;
+unpaired permutations pool case labels and split them back into the original
+group sizes. Integer <code class="docutils literal notranslate"><span class="pre">naccu</span></code> values use a seedable Monte Carlo sample and the
+plus-one probability estimate. <code class="docutils literal notranslate"><span class="pre">naccu=&quot;all&quot;</span></code> enumerates the complete null
+space for designs requiring at most 100,000 assignments and reports exact
+frequencies. Cluster-corrected <code class="docutils literal notranslate"><span class="pre">pvalue</span></code> is constant within each observed
+cluster and one outside clusters. <code class="docutils literal notranslate"><span class="pre">cluster_labels</span></code>, <code class="docutils literal notranslate"><span class="pre">clusters</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cluster_null</span></code>, and <code class="docutils literal notranslate"><span class="pre">cluster_critical_value</span></code> expose the inference details.
+Automatic channel geometry, nonparametric cluster-forming thresholds,
+max-size/weighted cluster statistics, minimum-neighbour pruning, and TFCE are
+explicitly unsupported.</p>
+</section>
 </section>
 <section id="multiple-comparisons-and-surrogates">
 <h2>Multiple Comparisons and Surrogates<a class="headerlink" href="#multiple-comparisons-and-surrogates" title="Link to this heading">#</a></h2>
@@ -584,6 +665,35 @@ surrogate replications.</p>
 </table>
 </div>
 </section>
+<section id="clustering">
+<h2>Clustering<a class="headerlink" href="#clustering" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code> and <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> operate on observations in rows and return
+zero-based labels. Supply <code class="docutils literal notranslate"><span class="pre">random_state</span></code> for reproducible random starts.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.kmeans_st.html#eegprep.kmeans_st" title="eegprep.kmeans_st"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kmeans_st</span></code></a>(data, clusters[, ...])</p></td>
+<td><p>Partition observations into clusters with minimum within-cluster SSE.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.kmeanscluster.html#eegprep.kmeanscluster" title="eegprep.kmeanscluster"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kmeanscluster</span></code></a>(data[, clusters, ...])</p></td>
+<td><p>Cluster row-wise observations using EEGLAB's simple k-means contract.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="effective-dimensionality">
+<h2>Effective Dimensionality<a class="headerlink" href="#effective-dimensionality" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">numdim</span></code> evaluates zero eigenvalue entropy terms by their analytic limit,
+so exactly rank-deficient inputs return a finite effective dimension.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.functions.miscfunc.numdim.numdim.html#eegprep.functions.miscfunc.numdim.numdim" title="eegprep.functions.miscfunc.numdim.numdim"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.functions.miscfunc.numdim.numdim</span></code></a>(data)</p></td>
+<td><p>Estimate a lower bound on the number of discrete sources in the data.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </section>
 
 
@@ -597,12 +707,12 @@ surrogate replications.</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="generated/eegprep.vis_artifacts_diagnostics.html"
+       href="generated/eegprep.shuffle.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">vis_artifacts_diagnostics</p>
+        <p class="prev-next-title">shuffle</p>
       </div>
     </a>
     <a class="right-next"
@@ -633,9 +743,15 @@ surrogate replications.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#condition-tests">Condition Tests</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#condition-tests">Condition Tests</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#two-way-factor-order">Two-way factor order</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fieldtrip-style-inference">FieldTrip-style inference</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multiple-comparisons-and-surrogates">Multiple Comparisons and Surrogates</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-helpers">Data Helpers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clustering">Clustering</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#effective-dimensionality">Effective Dimensionality</a></li>
 </ul>
   </nav></div>
 

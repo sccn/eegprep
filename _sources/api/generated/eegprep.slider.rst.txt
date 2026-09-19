@@ -1,0 +1,6 @@
+﻿slider
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: slider

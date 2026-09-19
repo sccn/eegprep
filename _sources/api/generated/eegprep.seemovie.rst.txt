@@ -1,0 +1,6 @@
+﻿seemovie
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: seemovie

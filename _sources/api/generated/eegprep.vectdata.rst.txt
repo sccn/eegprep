@@ -1,0 +1,6 @@
+﻿vectdata
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: vectdata

@@ -434,9 +434,11 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.clean_windows.html">clean_windows</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.correct_mc.html">correct_mc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.correctfit.html">correctfit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_amplitudearea.html">eeg_amplitudearea</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eeg_eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eeg_interp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_rejsuperpose.html">eeg_rejsuperpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_timeinterp.html">eeg_timeinterp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab_clean_artifacts.html">eeglab_clean_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegrej.html">eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegthresh.html">eegthresh</a></li>
@@ -463,6 +465,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -565,14 +568,20 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.correctfit.html#eegprep.correctfit" title="eegprep.correctfit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.correctfit</span></code></a>(pvalue, *[, allpval, ...])</p></td>
 <td><p>Return a gamma-fit corrected p-value and fitted parameters.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_eegrej.html#eegprep.eeg_eegrej" title="eegprep.eeg_eegrej"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_eegrej</span></code></a>(EEG, regions)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_amplitudearea.html#eegprep.eeg_amplitudearea" title="eegprep.eeg_amplitudearea"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_amplitudearea</span></code></a>(EEG, channels, ...)</p></td>
+<td><p>Return signed mean ERP amplitude within a millisecond window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_eegrej.html#eegprep.eeg_eegrej" title="eegprep.eeg_eegrej"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_eegrej</span></code></a>(EEG, regions)</p></td>
 <td><p>Reject EEG data segments specified by regions.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_interp.html#eegprep.eeg_interp" title="eegprep.eeg_interp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_interp</span></code></a>(EEG, bad_chans[, method, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_interp.html#eegprep.eeg_interp" title="eegprep.eeg_interp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_interp</span></code></a>(EEG, bad_chans[, method, ...])</p></td>
 <td><p>Interpolate missing or bad EEG channels using spherical spline.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_rejsuperpose.html#eegprep.eeg_rejsuperpose" title="eegprep.eeg_rejsuperpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rejsuperpose</span></code></a>(EEG, typerej, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_rejsuperpose.html#eegprep.eeg_rejsuperpose" title="eegprep.eeg_rejsuperpose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rejsuperpose</span></code></a>(EEG, typerej, ...)</p></td>
 <td><p>Combine stored rejection marks into <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejglobal</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_timeinterp.html#eegprep.eeg_timeinterp" title="eegprep.eeg_timeinterp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_timeinterp</span></code></a>(EEG, samples, *[, ...])</p></td>
+<td><p>Spline-interpolate bad samples using neighboring activity.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeglab_clean_artifacts.html#eegprep.eeglab_clean_artifacts" title="eegprep.eeglab_clean_artifacts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeglab_clean_artifacts</span></code></a>(EEG[, ...])</p></td>
 <td><p>Clean artifacts from EEG data using EEGLAB's clean_artifacts.</p></td>
@@ -634,6 +643,9 @@
 </tbody>
 </table>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">realproba</span></code> follows EEGLAB’s default discretization of one probability bin
+per five input values, rounded to the nearest integer. Pass <code class="docutils literal notranslate"><span class="pre">bins</span></code> explicitly
+when a fixed histogram resolution is required.</p>
 </section>
 
 

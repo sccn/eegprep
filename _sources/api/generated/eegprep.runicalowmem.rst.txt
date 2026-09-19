@@ -1,0 +1,6 @@
+﻿runicalowmem
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: runicalowmem

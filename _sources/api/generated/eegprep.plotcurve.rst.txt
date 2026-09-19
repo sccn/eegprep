@@ -1,0 +1,6 @@
+﻿plotcurve
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: plotcurve

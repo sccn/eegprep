@@ -1,0 +1,6 @@
+﻿importevent
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: importevent

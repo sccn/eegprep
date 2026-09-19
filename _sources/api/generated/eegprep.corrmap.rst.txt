@@ -1,0 +1,6 @@
+﻿corrmap
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: corrmap

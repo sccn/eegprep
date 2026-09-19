@@ -1,0 +1,6 @@
+﻿gauss
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gauss

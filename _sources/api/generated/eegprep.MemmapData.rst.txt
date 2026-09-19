@@ -1,0 +1,9 @@
+﻿MemmapData
+==========
+
+.. currentmodule:: eegprep
+
+.. autoclass:: MemmapData
+   :members:
+   :inherited-members:
+   :show-inheritance:

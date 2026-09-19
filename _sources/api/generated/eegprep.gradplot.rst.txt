@@ -1,0 +1,6 @@
+﻿gradplot
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gradplot

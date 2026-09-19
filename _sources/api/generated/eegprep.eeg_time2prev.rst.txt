@@ -1,0 +1,6 @@
+﻿eeg\_time2prev
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_time2prev

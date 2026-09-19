@@ -1,0 +1,6 @@
+﻿eeg\_insertbound
+================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_insertbound

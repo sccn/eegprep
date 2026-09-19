@@ -1,0 +1,6 @@
+﻿kmeans\_st
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: kmeans_st

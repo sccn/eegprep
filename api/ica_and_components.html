@@ -426,6 +426,7 @@
 <li class="toctree-l1"><a class="reference internal" href="epoching_and_selection.html">Epoching and Selection</a></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">ICA and Components</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html">ICL_feature_extractor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.ICADefaults.html">ICADefaults</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.compvar.html">compvar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_amica.html">eeg_amica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eeg_autocorr</a></li>
@@ -440,17 +441,30 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_rpsd.html">eeg_rpsd</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_runica.html">eeg_runica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icaact.html">icaact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icadefs.html">icadefs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icaproj.html">icaproj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icavar.html">icavar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.iclabel.html">iclabel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.optimal_kmeans.html">optimal_kmeans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.picard.html">picard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.posact.html">posact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.promax.html">promax</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.robust_kmeans.html">robust_kmeans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica.html">runica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica_ml2.html">runica_ml2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica_mlb.html">runica_mlb</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runicalowmem.html">runicalowmem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runpca.html">runpca</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runpca2.html">runpca2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.varimax.html">varimax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.varsort.html">varsort</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.zica.html">zica</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -518,52 +532,63 @@
   <section id="ica-and-components">
 <span id="api-ica-and-components"></span><h1>ICA and Components<a class="headerlink" href="#ica-and-components" title="Link to this heading">#</a></h1>
 <p>Decomposition, component classification, and component measures.</p>
+<p>Low-level decomposition helpers accept channel/component-major matrices. The
+<code class="docutils literal notranslate"><span class="pre">runica_ml2</span></code>, <code class="docutils literal notranslate"><span class="pre">runica_mlb</span></code>, and <code class="docutils literal notranslate"><span class="pre">runicalowmem</span></code> compatibility names all
+delegate to the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> implementation, preventing numerical
+drift between historical copies of the infomax engine. <code class="docutils literal notranslate"><span class="pre">varsort</span></code> and <code class="docutils literal notranslate"><span class="pre">zica</span></code>
+return zero-based component and sample indices.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html#eegprep.ICL_feature_extractor" title="eegprep.ICL_feature_extractor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.ICL_feature_extractor</span></code></a>(EEG[, ...])</p></td>
 <td><p>Extract features for ICLabel classification.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.compvar.html#eegprep.compvar" title="eegprep.compvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.compvar</span></code></a>(data, act, winv, compnums)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.ICADefaults.html#eegprep.ICADefaults" title="eegprep.ICADefaults"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.ICADefaults</span></code></a>(ICABINARY[, ...])</p></td>
+<td><p>Stable constants historically introduced by EEGLAB's <code class="docutils literal notranslate"><span class="pre">icadefs</span></code> script.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.compvar.html#eegprep.compvar" title="eegprep.compvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.compvar</span></code></a>(data, act, winv, compnums)</p></td>
 <td><p>Back-project components and compute percent variance accounted for.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_amica.html#eegprep.eeg_amica" title="eegprep.eeg_amica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_amica</span></code></a>(EEG[, posact, sortcomps, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_amica.html#eegprep.eeg_amica" title="eegprep.eeg_amica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_amica</span></code></a>(EEG[, posact, sortcomps, ...])</p></td>
 <td><p>Perform ICA decomposition using AMICA (Adaptive Mixture ICA).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr.html#eegprep.eeg_autocorr" title="eegprep.eeg_autocorr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr</span></code></a>(EEG[, pct_data])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr.html#eegprep.eeg_autocorr" title="eegprep.eeg_autocorr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr</span></code></a>(EEG[, pct_data])</p></td>
 <td><p>Compute autocorrelation of ICA components.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html#eegprep.eeg_autocorr_fftw" title="eegprep.eeg_autocorr_fftw"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr_fftw</span></code></a>(EEG[, pct_data])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr_fftw.html#eegprep.eeg_autocorr_fftw" title="eegprep.eeg_autocorr_fftw"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr_fftw</span></code></a>(EEG[, pct_data])</p></td>
 <td><p>Compute autocorrelation of EEG ICA components using FFT.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html#eegprep.eeg_autocorr_welch" title="eegprep.eeg_autocorr_welch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr_welch</span></code></a>(EEG[, pct_data])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_autocorr_welch.html#eegprep.eeg_autocorr_welch" title="eegprep.eeg_autocorr_welch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_autocorr_welch</span></code></a>(EEG[, pct_data])</p></td>
 <td><p>Compute autocorrelation of EEG ICA components using Welch method.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_getica.html#eegprep.eeg_getica" title="eegprep.eeg_getica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_getica</span></code></a>(EEG[, comp])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_getica.html#eegprep.eeg_getica" title="eegprep.eeg_getica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_getica</span></code></a>(EEG[, comp])</p></td>
 <td><p>Return stored or recomputed ICA component activations.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_icalabelstat.html#eegprep.eeg_icalabelstat" title="eegprep.eeg_icalabelstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_icalabelstat</span></code></a>(EEG[, threshold, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_icalabelstat.html#eegprep.eeg_icalabelstat" title="eegprep.eeg_icalabelstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_icalabelstat</span></code></a>(EEG[, threshold, ...])</p></td>
 <td><p>Return and optionally print ICLabel class statistics.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_icflag.html#eegprep.eeg_icflag" title="eegprep.eeg_icflag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_icflag</span></code></a>(EEG, thresholds)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_icflag.html#eegprep.eeg_icflag" title="eegprep.eeg_icflag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_icflag</span></code></a>(EEG, thresholds)</p></td>
 <td><p>Flag independent components based on ICLabel classification probabilities.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_picard.html#eegprep.eeg_picard" title="eegprep.eeg_picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_picard</span></code></a>(EEG[, engine, posact, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_picard.html#eegprep.eeg_picard" title="eegprep.eeg_picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_picard</span></code></a>(EEG[, engine, posact, ...])</p></td>
 <td><p>Perform ICA decomposition using Picard algorithm.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_pv.html#eegprep.eeg_pv" title="eegprep.eeg_pv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pv</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_pv.html#eegprep.eeg_pv" title="eegprep.eeg_pv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pv</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
 <td><p>Compatibility alias for <code class="docutils literal notranslate"><span class="pre">eeg_pvaf</span></code> using legacy positional options.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_pvaf.html#eegprep.eeg_pvaf" title="eegprep.eeg_pvaf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pvaf</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_pvaf.html#eegprep.eeg_pvaf" title="eegprep.eeg_pvaf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_pvaf</span></code></a>(EEG[, comps, artcomps, ...])</p></td>
 <td><p>Compute percent variance accounted for by ICA component projections.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd" title="eegprep.eeg_rpsd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rpsd</span></code></a>(EEG[, nfreqs, pct_data])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_rpsd.html#eegprep.eeg_rpsd" title="eegprep.eeg_rpsd"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_rpsd</span></code></a>(EEG[, nfreqs, pct_data])</p></td>
 <td><p>Compute relative power spectral density for ICA components.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_runica.html#eegprep.eeg_runica" title="eegprep.eeg_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_runica</span></code></a>(EEG[, posact, sortcomps])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_runica.html#eegprep.eeg_runica" title="eegprep.eeg_runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_runica</span></code></a>(EEG[, posact, sortcomps])</p></td>
 <td><p>Perform ICA decomposition using runica (infomax) algorithm.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icaact.html#eegprep.icaact" title="eegprep.icaact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaact</span></code></a>(data, weights[, datamean])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icaact.html#eegprep.icaact" title="eegprep.icaact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaact</span></code></a>(data, weights[, datamean])</p></td>
 <td><p>Compute ICA activation waveforms from channel data and weights.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.icadefs.html#eegprep.icadefs" title="eegprep.icadefs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icadefs</span></code></a>()</p></td>
+<td><p>Return platform-aware ICA defaults without mutating process globals.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.icaproj.html#eegprep.icaproj" title="eegprep.icaproj"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.icaproj</span></code></a>(data, weights, compindex[, ...])</p></td>
 <td><p>Back-project selected ICA components into channel space.</p></td>
@@ -580,8 +605,41 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.picard.html#eegprep.picard" title="eegprep.picard"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.picard</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_picard.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.posact.html#eegprep.posact" title="eegprep.posact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.posact</span></code></a>(data, weights[, sphere])</p></td>
+<td><p>Flip ICA components whose negative samples have the larger RMS.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.promax.html#eegprep.promax" title="eegprep.promax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.promax</span></code></a>(data[, n_components, ...])</p></td>
+<td><p>Return oblique Promax and orthogonal Varimax row rotations.</p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.robust_kmeans.html#eegprep.robust_kmeans" title="eegprep.robust_kmeans"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.robust_kmeans</span></code></a>(data, clus_num[, STD, ...])</p></td>
 <td><p>Cluster rows and iteratively mark distant rows as outliers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, **kwargs)</p></td>
+<td><p>Perform Independent Component Analysis (ICA) decomposition using infomax.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
+<td><p>Run the ML2 infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
+<td><p>Run the MLB infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, **kwargs)</p></td>
+<td><p>Run infomax ICA through EEGPrep's single maintained ICA engine.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>
+<td><p>Decompose channel-major data into principal components.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runpca2.html#eegprep.runpca2" title="eegprep.runpca2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca2</span></code></a>(data[, n_components, symmetric])</p></td>
+<td><p>Whiten channel-major data from its channel covariance matrix.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.varimax.html#eegprep.varimax" title="eegprep.varimax"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varimax</span></code></a>(data[, tolerance, reorder, ...])</p></td>
+<td><p>Rotate matrix rows toward a sparse, orthogonal simple structure.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.varsort.html#eegprep.varsort" title="eegprep.varsort"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.varsort</span></code></a>(activations, weights, sphere)</p></td>
+<td><p>Return zero-based component order and descending projected power.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.zica.html#eegprep.zica" title="eegprep.zica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.zica</span></code></a>(activations[, frames, ...])</p></td>
+<td><p>Z-score ICA activations from repeated within-epoch baseline frames.</p></td>
 </tr>
 </tbody>
 </table>

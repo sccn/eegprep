@@ -1,0 +1,6 @@
+﻿writegdf
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: writegdf

@@ -1,0 +1,6 @@
+﻿pop\_corrmap
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_corrmap

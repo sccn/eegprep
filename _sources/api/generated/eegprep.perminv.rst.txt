@@ -1,0 +1,6 @@
+﻿perminv
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: perminv

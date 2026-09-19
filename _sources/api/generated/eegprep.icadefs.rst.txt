@@ -1,0 +1,6 @@
+﻿icadefs
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: icadefs

@@ -531,14 +531,16 @@ capture EEGLAB UI controls with <code class="docutils literal notranslate"><span
 displayed.</p>
 <section id="eeg-movies-and-visual-workflow-boundaries">
 <h2>EEG Movies and Visual Workflow Boundaries<a class="headerlink" href="#eeg-movies-and-visual-workflow-boundaries" title="Link to this heading">#</a></h2>
-<p>EEGLAB’s tutorial movie scripts, such as <code class="docutils literal notranslate"><span class="pre">make_eeg_movie.m</span></code>, are treated as
-visual workflow references for this epic rather than standalone EEGPrep runtime
-features. EEGPrep owns static plots, ERP images, time-frequency wrappers, GUI
-dialog rendering, and the visual parity capture tooling described here. It does
-not currently ship an EEGLAB-compatible EEG movie generator or a persistent
-movie-authoring UI. Use the plotting wrappers documented in
-<a class="reference internal" href="preprocessing_pipeline.html#preprocessing-pipeline"><span class="std std-ref">Preprocessing Pipeline</span></a> for analysis figures, and use this page’s capture
-tools for reviewable GUI evidence.</p>
+<p>EEGPrep’s <code class="docutils literal notranslate"><span class="pre">eegmovie</span></code>, <code class="docutils literal notranslate"><span class="pre">headmovie</span></code>, and <code class="docutils literal notranslate"><span class="pre">seemovie</span></code> helpers support the
+analysis path used by EEGLAB’s <code class="docutils literal notranslate"><span class="pre">make_eeg_movie.m</span></code> tutorial. <code class="docutils literal notranslate"><span class="pre">eegmovie</span></code>
+renders replayable 2-D or 3-D scalp frames and returns RGB arrays directly, so
+headless tests and notebooks can inspect or encode them without screen capture.
+The public <code class="docutils literal notranslate"><span class="pre">movieframes</span></code> boundary remains 1-based. EEGPrep does not provide a
+persistent movie-authoring UI or bundle a video encoder; pass the RGB frames to
+the image or video writer appropriate for the surrounding workflow.</p>
+<p>The visual parity tooling on this page remains focused on interactive dialogs
+and desktop state, where fixed rendering conditions are needed for meaningful
+side-by-side comparison.</p>
 <p>Install the optional EEGPREP GUI dependencies before capturing Python dialogs:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>gui<span class="w"> </span>--group<span class="w"> </span>dev
 </pre></div>

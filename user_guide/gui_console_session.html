@@ -632,6 +632,35 @@ it has a session to update.</p>
 </div>
 <p>Use explicit assignment in scripts, notebooks, tests, and batch jobs.</p>
 </section>
+<section id="run-registered-menus-without-dialogs">
+<h2>Run Registered Menus Without Dialogs<a class="headerlink" href="#run-registered-menus-without-dialogs" title="Link to this heading">#</a></h2>
+<p>Automation and parity checks can run a real registered menu workflow against
+the same session without opening Qt dialogs. Pass the exact menu label, its
+registered <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> function, and explicit parameters:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEGPrepSession</span><span class="p">,</span> <span class="n">eeglab_execmenu</span>
+
+<span class="n">session</span> <span class="o">=</span> <span class="n">EEGPrepSession</span><span class="p">()</span>
+<span class="n">eeglab_execmenu</span><span class="p">(</span>
+    <span class="s2">&quot;From ASCII/float file or MATLAB array&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pop_importdata&quot;</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;dataformat&quot;</span><span class="p">:</span> <span class="s2">&quot;array&quot;</span><span class="p">,</span> <span class="s2">&quot;srate&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">},</span>
+    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">eeglab_execmenu</span><span class="p">(</span>
+    <span class="s2">&quot;Change sampling rate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pop_resample&quot;</span><span class="p">,</span>
+    <span class="p">[</span><span class="mi">64</span><span class="p">],</span>
+    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">eeglab_execmenu</span></code> verifies that the label and function identify the same
+declarative menu item, calls only an explicit set of noninteractive workflows,
+and updates <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> as
+one session operation. It never evaluates callback or history strings. For a
+deterministic replay, retain the label/function/parameter triples and dispatch
+them in the same order into a fresh <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code>.</p>
+</section>
 <section id="history-you-can-reuse">
 <h2>History You Can Reuse<a class="headerlink" href="#history-you-can-reuse" title="Link to this heading">#</a></h2>
 <p>After a GUI action:</p>
@@ -730,6 +759,7 @@ and Study plotting menus need an active <code class="docutils literal notranslat
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#daily-workflow">Daily Workflow</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-stays-synchronized">What Stays Synchronized</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-eegprep-implements-it">How EEGPrep Implements It</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-registered-menus-without-dialogs">Run Registered Menus Without Dialogs</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-you-can-reuse">History You Can Reuse</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#practical-rules">Practical Rules</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting-state">Troubleshooting State</a></li>

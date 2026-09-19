@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="std_pacplot" href="eegprep.std_pacplot.html" />
-    <link rel="prev" title="std_specplot" href="eegprep.std_specplot.html" />
+    <link rel="prev" title="std_stat" href="eegprep.std_stat.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.0" />
@@ -432,6 +432,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../statistics.html">Statistics</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_addvarlevel.html">std_addvarlevel</a></li>
@@ -450,6 +451,8 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_selectdataset.html">std_selectdataset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_uniformfiles.html">std_uniformfiles</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_uniformsetinds.html">std_uniformsetinds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.corrmap.html">corrmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_corrmap.html">pop_corrmap</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_apcluster.html">std_apcluster</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_centroid.html">std_centroid</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_clustplot.html">std_clustplot</a></li>
@@ -474,6 +477,14 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_readitc.html">std_readitc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_readspec.html">std_readspec</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_specplot.html">std_specplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.std_topoplot.html">std_topoplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_dipparams.html">pop_dipparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erpimparams.html">pop_erpimparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erpparams.html">pop_erpparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_erspparams.html">pop_erspparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_specparams.html">pop_specparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.pop_statparams.html">pop_statparams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.std_stat.html">std_stat</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">std_dipplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_pacplot.html">std_pacplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.std_findsameica.html">std_findsameica</a></li>
@@ -566,17 +577,42 @@
 <h1>std_dipplot<a class="headerlink" href="#std-dipplot" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.std_dipplot">
-<span class="sig-name descname"><span class="pre">std_dipplot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.std_dipplot" title="Link to this definition">#</a></dt>
-<dd><p>Report the standalone boundary for STUDY-level source plotting.</p>
+<span class="sig-name descname"><span class="pre">std_dipplot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">STUDY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ALLEEG</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clusters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dipcolor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dipsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.std_dipplot" title="Link to this definition">#</a></dt>
+<dd><p>Select and plot localized components from one or more STUDY clusters.</p>
+<p>This standalone workflow consumes existing <code class="docutils literal notranslate"><span class="pre">EEG[&quot;dipfit&quot;][&quot;model&quot;]</span></code>
+entries; it does not run source localization. Cluster, dataset, and
+component indices are EEGLAB-facing and therefore 1-based. <code class="docutils literal notranslate"><span class="pre">comps</span></code>
+selects positions within each cluster’s component list, matching EEGLAB’s
+<code class="docutils literal notranslate"><span class="pre">std_plotcompdip</span></code> convention rather than selecting component numbers.</p>
+<p>The returned selection dictionaries expose <code class="docutils literal notranslate"><span class="pre">dipoles</span></code> and <code class="docutils literal notranslate"><span class="pre">centroid</span></code>.
+Each dipole records its study-set index, ALLEEG index, component number,
+subject, <code class="docutils literal notranslate"><span class="pre">posxyz</span></code>, <code class="docutils literal notranslate"><span class="pre">momxyz</span></code>, and residual variance <code class="docutils literal notranslate"><span class="pre">rv</span></code>. Modes
+<code class="docutils literal notranslate"><span class="pre">joined</span></code> and <code class="docutils literal notranslate"><span class="pre">centroid</span></code> implement the intent of the current EEGLAB test
+calls, which the pinned MATLAB implementation otherwise silently ignores.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><strong>STUDY</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>) – STUDY dictionary containing cluster membership.</p></li>
+<li><p><strong>ALLEEG</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Loaded EEG dataset dictionaries with DIPFIT models.</p></li>
+<li><p><strong>clusters</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – 1-based cluster indices or <code class="docutils literal notranslate"><span class="pre">&quot;all&quot;</span></code>. The parent cluster is
+excluded from <code class="docutils literal notranslate"><span class="pre">&quot;all&quot;</span></code> as in EEGLAB.</p></li>
+<li><p><strong>comps</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Optional 1-based positions within each selected cluster.</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – <code class="docutils literal notranslate"><span class="pre">&quot;apart&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;together&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;multicolor&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;joined&quot;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&quot;centroid&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;comps&quot;</span></code>.</p></li>
+<li><p><strong>dipcolor</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Optional color or one color per selected cluster.</p></li>
+<li><p><strong>dipsize</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Optional marker size or one size per selected cluster.</p></li>
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to create matplotlib figures.</p></li>
+<li><p><strong>return_com</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Append a replayable Python command to the result.</p></li>
 <li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
 <li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>None</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(STUDY,</span> <span class="pre">selections,</span> <span class="pre">figures)</span></code> and, when requested, the command.
+<code class="docutils literal notranslate"><span class="pre">STUDY.cluster[*].dipole</span></code> is updated with each selected centroid.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>, …]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -594,12 +630,12 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="eegprep.std_specplot.html"
+       href="eegprep.std_stat.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">std_specplot</p>
+        <p class="prev-next-title">std_stat</p>
       </div>
     </a>
     <a class="right-next"

@@ -1,0 +1,6 @@
+﻿laplac2d
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: laplac2d

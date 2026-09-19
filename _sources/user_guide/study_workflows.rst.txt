@@ -101,15 +101,84 @@ Precompute and plot STUDY measures:
    STUDY, erpdata, erptimes, fig = std_erpplot(STUDY, ALLEEG, channels=[1])
    STUDY, itcdata, itctimes, itcfreqs = std_readitc(STUDY, ALLEEG, channels=[1])
 
+Plot functions arrange these caches into the selected design before returning
+them. A one-factor design returns a list with one array per factor level. A
+two-factor design returns ``data[condition][group]``. Samples are the leading
+axes and subjects or cluster members are on the last axis; for example, ERP
+cells are ``times x cases`` and ERSP cells are ``frequencies x times x cases``.
+This matches the cell organization used by EEGLAB while keeping the arrays
+directly usable from NumPy.
+
 Channel measures are stored in ``STUDY.changrp``. Component measures are stored
 on the parent ``STUDY.cluster[0]`` entry so preclustering can read the same
 cached arrays. Cached measure fields follow EEGLAB names such as ``erpdata``,
 ``specdata``, ``erspdata``, and ``itcdata``. The selected ``design`` is recorded
-in each measure group's metadata. EEGPrep stores dataset-level averages in the
-current standalone cache rather than EEGLAB sidecar measure files.
+in each measure group's metadata. EEGPrep stores dataset-level averages, and
+optionally single-trial values, in the current standalone cache rather than
+EEGLAB sidecar measure files.
 ``pop_chanplot`` reads cached channel and component measures through the same
 ``std_readdata``/``std_erpplot``/``std_erspplot`` cache contract used by scripts,
 so GUI and console plots slice axes and cached channel groups consistently.
+
+Tutorial-scale workflows
+------------------------
+
+The current EEGLAB tutorial-wrapper workflows are covered end to end with
+deterministic generated signals. This includes grouped ERP statistics and
+topographies, component preclustering for an N400-style study, all-channel
+time-frequency analysis, scalp movies, and a generated P300 BIDS pipeline from
+export/import through filtering, average reference, rank-reduced Picard ICA,
+component rejection, epoching, and STUDY plotting. Generated fixtures keep
+ordinary CI independent of large tutorial downloads while retaining numerical
+assertions at each processing boundary.
+
+Two optional boundaries remain explicit. ``pop_iclabel`` needs the ICLabel
+model runtime; callers that already have compatible seven-class probabilities
+can use ``pop_icflag`` and ``pop_subcomp`` independently. Dataset-level
+spherical DIPFIT fitting and leadfield construction run standalone, while
+MRI/BEM/LORETA workflows that require FieldTrip fail clearly until an external
+source-analysis backend is configured.
+
+Store reusable plot and statistics choices on the STUDY before plotting:
+
+.. code-block:: python
+
+   from eegprep import pop_erpparams, pop_statparams
+
+   STUDY = pop_erpparams(STUDY, timerange=[-200, 800], plotconditions="together")
+   STUDY = pop_statparams(STUDY, condstats="on", method="perm", naccu=2000)
+
+Pass ``return_stats=True`` to ``std_erpplot``, ``std_specplot``,
+``std_erspplot``, or ``std_itcplot`` to receive ``pgroup``, ``pcond``, and
+``pinter`` before the returned figure. These are p-values when ``threshold``
+is NaN and numeric significance masks when a finite ``threshold`` is set,
+matching EEGLAB's output contract. A sequence of thresholds produces EEGLAB's
+graded masks. ``mcorrect="fdr"`` applies
+Benjamini-Hochberg correction.
+The same masks are attached to ``fig.eegprep_plot_metadata["statistics"]`` so
+downstream reporting code can inspect exactly what the plot highlighted.
+
+Use ``savetrials="on"`` when a design factor varies between trials within one
+dataset. The measure plots select trials from ``datasetinfo[*]["trialinfo"]``
+and aggregate them within each subject before forming condition and group
+cells. ``erpdatatrials`` stores baseline-corrected amplitudes;
+``specdatatrials`` stores linear spectral density; ``erspdatatrials`` stores
+linear, baseline-corrected power; and ``itcdatatrials`` stores phase in radians.
+Spectrum and ERSP power are averaged before conversion to decibels, while ITC
+uses circular phase averaging. These EEGPrep-owned cache fields remain
+independent of an EEGLAB installation. A trial-level design without matching
+single-trial caches raises an error instructing you to rerun ``std_precomp``
+with ``savetrials="on"`` instead of silently grouping dataset averages.
+
+For component clusters, ``std_topoplot`` draws polarity-aligned centroid or
+member scalp maps and caches ``topo``, ``topoall``, and ``topopol`` on each
+plotted cluster.
+
+The corresponding ``pop_erpimparams``, ``pop_erspparams``, ``pop_specparams``,
+and ``pop_dipparams`` functions store settings under ``STUDY["etc"]`` using
+EEGLAB field names. Changing an ERP time range, spectrum frequency range, or
+ERSP/ITC time-frequency range invalidates the affected cached measure fields;
+run ``pop_precomp(..., recompute="on")`` before plotting them again.
 
 Use ``std_checkfiles``, ``std_checkdatasession``, ``std_uniformfiles``, and
 ``std_uniformsetinds`` to audit loaded dataset consistency and cached measure
@@ -135,7 +204,9 @@ Select datasets or trials from STUDY metadata:
 These helpers return EEGLAB-facing 1-based dataset and trial indices. Trial
 metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
 ``{"factor": [values...]}`` dictionaries; STUDY selectors normalize both forms
-before matching factor levels and numerical ranges. Use ``std_substudy`` or
+before matching factor levels and numerical ranges. ``std_maketrialinfo`` uses
+each epoch's time-locking event, including custom fields such as reaction time,
+and later STUDY synchronization preserves those derived rows. Use ``std_substudy`` or
 ``std_rmdat`` when a workflow needs to remove datasets; EEGPrep remaps STUDY
 references and invalidates cached measure arrays after membership changes.
 
@@ -242,29 +313,63 @@ surrogate-tail convention with FDR correction available through the statistics
 module. These definitions are intentionally not collapsed when they answer
 different inferential questions.
 
-The feasible in-package LIMO-compatible layer is design preparation:
-``std_limodesign`` builds categorical and continuous matrices from
-``pop_listfactors`` output and trial metadata, including interaction and split
-regressor descriptions. It can write ``categorical_variables.txt`` and
-``continuous_variables.txt`` for downstream analysis code.
+EEGPrep provides a standalone LIMO-compatible path from design preparation to
+core hierarchical statistics. ``std_limodesign`` builds categorical and
+continuous matrices from ``pop_listfactors`` output and trial metadata,
+including interaction and split-regressor descriptions. ``pop_limo`` uses the
+active STUDY design to fit mass-univariate OLS, LIMO PCOut-weighted WLS, or
+Tukey-bisquare IRLS models to epoched channel or component data. The
+returned model dictionaries contain betas, fitted values, residuals, R²,
+residual variance, standard errors, t statistics, p values, robust weights,
+and their exact design matrix.
+
+Pass ``outputdir`` to ``pop_limo`` to write versioned ``.npz`` model files.
+These files never require pickle and can be reopened with
+``std_readfilelimo``. ``std_limoresults`` and ``pop_limoresults`` compute and
+store first-level contrasts, one-sample, paired and Welch two-sample tests,
+mass-univariate regression, one-way ANOVA, ANCOVA, repeated-measures ANOVA,
+and mean or inverse-variance-weighted summaries. Group statistics always use
+the first axis as subjects; first-level parameter selection remains 1-based at
+the EEGLAB-facing boundary.
 
 ``std_prepare_neighbors`` creates a distance-based FieldTrip-like neighbor
 list and a LIMO-compatible channel adjacency matrix from loaded channel
 locations. ``std_interp`` interpolates requested missing channels across
 STUDY datasets using EEGPrep's existing channel interpolation backend.
 
+Plotting localized cluster dipoles
+==================================
+
+``std_dipplot`` visualizes DIPFIT models that are already stored in each
+dataset's ``EEG["dipfit"]["model"]`` field. Cluster membership is read from
+``STUDY["cluster"]`` using EEGLAB-facing 1-based dataset and component
+indices. The function returns the exact selected models and computed cluster
+centroids alongside the figures, so positions, moments, and residual variance
+remain inspectable outside the plot.
+
+Use ``mode="joined"`` to draw selected cluster members and centroids together,
+or ``mode="centroid"`` to draw only cluster centroids. The standard
+``apart``, ``together``, ``multicolor``, and ``comps`` layouts are also
+available. ``comps`` selects 1-based positions within the cluster membership
+list, consistent with the EEGLAB ``std_plotcompdip`` convention. Set
+``plot=False`` to prepare and validate the same numerical plot inputs without
+creating figures.
+
 Limitations
 ===========
 
-EEGPrep does not silently emulate EEGLAB's external LIMO toolbox. ``pop_limo``,
-``pop_limoresults``, ``std_limo``, ``std_limoresults``, and
-``std_readfilelimo`` raise clear ``NotImplementedError`` messages rather than
-creating placeholder LIMO results.
+The standalone layer does not silently read version-dependent MATLAB LIMO
+``.mat`` structures. Convert them explicitly or use LIMO in MATLAB;
+``std_readfilelimo`` accepts only EEGPrep-owned ``.npz`` output. First-level
+and group bootstrap, TFCE correction, factorial repeated-measures designs,
+and LIMO's result plotting/report interface remain explicit unsupported
+boundaries. WLS follows LIMO's PCOut residual projection and uses one robust
+observation weight across the fitted channel/time grid. IRLS uses feature-wise
+Tukey-bisquare weights.
 
-STUDY-level DIPFIT/FieldTrip source workflows such as ``std_dipplot`` and
-``std_dipoleclusters`` remain explicit source-backend boundaries. Use the
-dedicated EEGPrep DIPFIT helpers for dataset-level source workflows and keep
-STUDY source statistics behind a tested backend contract.
+``std_dipplot`` does not compute dipole models: localize components first with
+the EEGPrep DIPFIT workflow. The broader FieldTrip-dependent
+``std_dipoleclusters`` source workflow remains an explicit backend boundary.
 
 See the :ref:`interactive_console` guide for mixed GUI plus console usage and
 the :ref:`gui_help_menus` guide for menu inventory behavior.

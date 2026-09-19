@@ -1,0 +1,6 @@
+﻿gethelpvar
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: gethelpvar

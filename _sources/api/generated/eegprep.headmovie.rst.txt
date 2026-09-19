@@ -1,0 +1,6 @@
+﻿headmovie
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: headmovie

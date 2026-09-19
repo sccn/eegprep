@@ -538,10 +538,13 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_list_eeg_files</span><span class="p">,</span> <span class="n">eeg_mne2eeg</span><span class="p">,</span> <span class="n">pop_load_frombids</span><span class="p">,</span> <span class="n">pop_loadset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">bids_list_eeg_files</span><span class="p">,</span> <span class="n">eeg_mne2eeg</span><span class="p">,</span> <span class="n">pop_load_frombids</span><span class="p">,</span> <span class="n">pop_loadbv</span><span class="p">,</span> <span class="n">pop_loadset</span>
 
 <span class="c1"># Load EEGLAB .set file</span>
 <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;sample_data&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;eeglab_data.set&quot;</span><span class="p">)</span>
+
+<span class="c1"># Load BrainVision through the .vhdr header</span>
+<span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadbv</span><span class="p">(</span><span class="s2">&quot;/path/to/recording.vhdr&quot;</span><span class="p">)</span>
 
 <span class="c1"># Load from a BIDS dataset</span>
 <span class="n">files</span> <span class="o">=</span> <span class="n">bids_list_eeg_files</span><span class="p">(</span><span class="s2">&quot;/path/to/bids-root&quot;</span><span class="p">,</span> <span class="n">subjects</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;001&quot;</span><span class="p">])</span>
@@ -561,7 +564,7 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <li><p><strong>BIDS</strong>: Brain Imaging Data Structure format</p></li>
 <li><p><strong>MNE-Python</strong>: Raw and Epochs objects</p></li>
 <li><p><strong>EDF</strong>: European Data Format</p></li>
-<li><p><strong>BrainVision</strong>: .vhdr, .vmrk, .eeg files</p></li>
+<li><p><strong>BrainVision</strong>: <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> headers with companion <code class="docutils literal notranslate"><span class="pre">.vmrk</span></code> and <code class="docutils literal notranslate"><span class="pre">.eeg</span></code>/<code class="docutils literal notranslate"><span class="pre">.dat</span></code> files</p></li>
 <li><p><strong>Neuroscan</strong>: .cnt files</p></li>
 </ul>
 </section>
@@ -860,7 +863,7 @@ uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;mne[
 <p>Yes, EEGPrep supports:</p>
 <ul class="simple">
 <li><p>EDF (European Data Format)</p></li>
-<li><p>BrainVision (.vhdr, .vmrk, .eeg)</p></li>
+<li><p>BrainVision (<code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> with companion <code class="docutils literal notranslate"><span class="pre">.vmrk</span></code> and <code class="docutils literal notranslate"><span class="pre">.eeg</span></code>/<code class="docutils literal notranslate"><span class="pre">.dat</span></code> files)</p></li>
 <li><p>Neuroscan (.cnt)</p></li>
 <li><p>MNE-Python formats</p></li>
 </ul>

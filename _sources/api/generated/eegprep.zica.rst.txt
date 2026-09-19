@@ -1,0 +1,6 @@
+﻿zica
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: zica

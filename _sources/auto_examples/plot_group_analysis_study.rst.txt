@@ -215,12 +215,13 @@ Precompute channel ERP and spectrum measures
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 89-91
+.. GENERATED FROM PYTHON SOURCE LINES 89-92
 
-Read the cached ERP for one channel without opening a figure. Cells are
-``(subjects, times)``; drop ``noplot`` to get a Matplotlib figure back.
+Read the cached ERP for one channel without opening a figure. A one-factor
+design returns one ``(times, subjects)`` cell per level; drop ``noplot`` to
+get a Matplotlib figure back.
 
-.. GENERATED FROM PYTHON SOURCE LINES 91-96
+.. GENERATED FROM PYTHON SOURCE LINES 92-97
 
 .. code-block:: Python
 
@@ -237,18 +238,18 @@ Read the cached ERP for one channel without opening a figure. Cells are
 
  .. code-block:: none
 
-    erp cells: 1 cell shape: (4, 384)
+    erp cells: 2 cell shape: (384, 2)
     times: -1000.0 .. 1992.2 ms
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 97-99
+.. GENERATED FROM PYTHON SOURCE LINES 98-100
 
 Component measures, preclustering array, and k-means clustering
 (``Study > Precompute component measures``, ``Study > PCA clustering``).
 
-.. GENERATED FROM PYTHON SOURCE LINES 99-111
+.. GENERATED FROM PYTHON SOURCE LINES 100-112
 
 .. code-block:: Python
 
@@ -273,17 +274,17 @@ Component measures, preclustering array, and k-means clustering
  .. code-block:: none
 
     clusters: ['ParentCluster', 'Cls 1', 'Cls 2', 'Cls 3']
-    cluster sizes: [128, 52, 56, 20]
+    cluster sizes: [128, 56, 20, 52]
 
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 112-114
+.. GENERATED FROM PYTHON SOURCE LINES 113-115
 
 Save and reload the ``.study`` file (``File > Save current study as`` and
 ``File > Load existing study``).
 
-.. GENERATED FROM PYTHON SOURCE LINES 114-121
+.. GENERATED FROM PYTHON SOURCE LINES 115-122
 
 .. code-block:: Python
 
@@ -311,7 +312,7 @@ Save and reload the ``.study`` file (``File > Save current study as`` and
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.006 seconds)
+   **Total running time of the script:** (0 minutes 3.039 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_group_analysis_study.py:

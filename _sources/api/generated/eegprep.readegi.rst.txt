@@ -1,0 +1,6 @@
+﻿readegi
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: readegi

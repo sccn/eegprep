@@ -1,0 +1,6 @@
+﻿loadcnt
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: loadcnt

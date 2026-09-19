@@ -1,0 +1,6 @@
+﻿loadtxt
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: loadtxt

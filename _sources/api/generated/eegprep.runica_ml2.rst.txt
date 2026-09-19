@@ -1,0 +1,6 @@
+﻿runica\_ml2
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: runica_ml2

@@ -1,0 +1,6 @@
+﻿kmeanscluster
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: kmeanscluster

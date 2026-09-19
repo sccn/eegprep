@@ -1,0 +1,6 @@
+﻿eeg\_mergechan
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_mergechan

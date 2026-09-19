@@ -1,0 +1,6 @@
+﻿sbplot
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: sbplot

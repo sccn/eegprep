@@ -432,8 +432,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../statistics.html">Statistics</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcond.html">statcond</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.statcondfieldtrip.html">statcondfieldtrip</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.ttest_cell.html">ttest_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.ttest2_cell.html">ttest2_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.anova1_cell.html">anova1_cell</a></li>
@@ -447,6 +449,9 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.concatdata.html">concatdata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.corrcoef_cell.html">corrcoef_cell</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.functions.statistics.teststat.html">teststat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeans_st.html">kmeans_st</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.kmeanscluster.html">kmeanscluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.functions.miscfunc.numdim.numdim.html">numdim</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../study_workflows.html">STUDY Workflows</a></li>
@@ -520,12 +525,15 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.functions.statistics.anova2_cell">
 <span class="sig-name descname"><span class="pre">anova2_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.functions.statistics.anova2_cell" title="Link to this definition">#</a></dt>
-<dd><p>Compute balanced two-way unpaired ANOVA F-statistics.</p>
+<dd><p>Compute balanced two-way unpaired ANOVA with named factor results.</p>
+<p>The returned effects are consistently named <code class="docutils literal notranslate"><span class="pre">rows</span></code>, <code class="docutils literal notranslate"><span class="pre">columns</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">interaction</span></code>. This avoids relying on the positional output order of the
+corresponding MATLAB helper.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

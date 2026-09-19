@@ -1,0 +1,6 @@
+﻿shortread
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: shortread

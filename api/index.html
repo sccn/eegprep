@@ -428,6 +428,7 @@
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="time_frequency.html">Time-Frequency</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -498,18 +499,33 @@ see its functions.</p>
 <li class="toctree-l1"><a class="reference internal" href="core_and_session.html">Core and Session</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGPrepSession.html">EEGPrepSession</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">EEG_OPTIONS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_readoptions.html">eeg_readoptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gethelpvar.html">gethelpvar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.getkeyval.html">getkeyval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vararg2str.html">vararg2str</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGobj.html">EEGobj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.checkset.html">checkset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.compare.html">compare</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkset.html">eeg_checkset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkchanlocs.html">eeg_checkchanlocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_checkset_strict_mode.html">eeg_checkset_strict_mode</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_compare.html">eeg_compare</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_context.html">eeg_context</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_emptyset.html">eeg_emptyset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eventhist.html">eeg_eventhist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eventtypes.html">eeg_eventtypes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html">eeg_getepochevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getdatact.html">eeg_getdatact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_insertbound.html">eeg_insertbound</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_urlatency.html">eeg_urlatency</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_retrieve.html">eeg_retrieve</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_store.html">eeg_store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_time2prev.html">eeg_time2prev</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegh.html">eegh</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab.html">eeglab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab_execmenu.html">eeglab_execmenu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.options.html">options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.unique_cell_string.html">unique_cell_string</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="gui_and_console.html">GUI and Console</a><ul>
@@ -522,39 +538,67 @@ see its functions.</p>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.bundled_plugins.html">bundled_plugins</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_multieegplot.html">eeg_multieegplot</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegplot.html">eegplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.errordlg2.html">errordlg2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.finputcheck.html">finputcheck</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.format_plugin_menu.html">format_plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gui.html">gui</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.inputdlg2.html">inputdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.inputgui.html">inputgui</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.listdlg2.html">listdlg2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plugin_menu.html">plugin_menu</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plugin_status.html">plugin_status</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pophelp.html">pophelp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.select_multiple_datasets.html">select_multiple_datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.supergui.html">supergui</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="data_loading_and_saving.html">Data Loading and Saving</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.biosig2eeglabevent.html">biosig2eeglabevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.cart2topo.html">cart2topo</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.chancenter.html">chancenter</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.convertlocs.html">convertlocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.coregister.html">coregister</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.decodechan.html">decodechan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg2mne.html">eeg2mne</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_chaninds.html">eeg_chaninds</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_decodechan.html">eeg_decodechan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eeg2mne.html">eeg_eeg2mne</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg.html">eeg_mne2eeg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_mne2eeg_epochs.html">eeg_mne2eeg_epochs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_matchchans.html">eeg_matchchans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_mergechan.html">eeg_mergechan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_mergelocs.html">eeg_mergelocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.floatread.html">floatread</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.floatwrite.html">floatwrite</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loadcnt.html">loadcnt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loadeeg.html">loadeeg</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loadtxt.html">loadtxt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loadset.html">loadset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.MemmapData.html">MemmapData</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.mmo.html">mmo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.getchanlist.html">getchanlist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.mne2eeg.html">mne2eeg</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.mne2eeg_epochs.html">mne2eeg_epochs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.openbdf.html">openbdf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.parsetxt.html">parsetxt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadbv.html">pop_loadbv</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pop_loadcnt.html">pop_loadcnt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readbdf.html">readbdf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.read_erpss.html">read_erpss</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readegi.html">readegi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readegihdr.html">readegihdr</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readeetraklocs.html">readeetraklocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readegilocs.html">readegilocs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readelp.html">readelp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readlocs.html">readlocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readneurodat.html">readneurodat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.readtxtfile.html">readtxtfile</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.saveset.html">saveset</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.snapread.html">snapread</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.shortread.html">shortread</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.writelocs.html">writelocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.writegdf.html">writegdf</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_loading_and_saving.html#brainvision-recordings">BrainVision recordings</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="bids.html">BIDS</a><ul>
@@ -574,9 +618,11 @@ see its functions.</p>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.clean_windows.html">clean_windows</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.correct_mc.html">correct_mc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.correctfit.html">correctfit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_amplitudearea.html">eeg_amplitudearea</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_eegrej.html">eeg_eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_interp.html">eeg_interp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_rejsuperpose.html">eeg_rejsuperpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_timeinterp.html">eeg_timeinterp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeglab_clean_artifacts.html">eeglab_clean_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegrej.html">eegrej</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegthresh.html">eegthresh</a></li>
@@ -599,10 +645,17 @@ see its functions.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="epoching_and_selection.html">Epoching and Selection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_addnewevents.html">eeg_addnewevents</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_findboundaries.html">eeg_findboundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html">eeg_getepochevent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_insertbound.html">eeg_insertbound</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eeg_lat2point</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eeg_point2lat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_regepochs.html">eeg_regepochs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_urlatency.html">eeg_urlatency</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.epoch.html">epoch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eventalign.html">eventalign</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eventlock.html">eventlock</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.findboundaries.html">findboundaries</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.lat2point.html">lat2point</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.point2lat.html">point2lat</a></li>
@@ -611,6 +664,7 @@ see its functions.</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ica_and_components.html">ICA and Components</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html">ICL_feature_extractor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.ICADefaults.html">ICADefaults</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.compvar.html">compvar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_amica.html">eeg_amica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_autocorr.html">eeg_autocorr</a></li>
@@ -625,29 +679,48 @@ see its functions.</p>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_rpsd.html">eeg_rpsd</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_runica.html">eeg_runica</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icaact.html">icaact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icadefs.html">icadefs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icaproj.html">icaproj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.icavar.html">icavar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.iclabel.html">iclabel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.optimal_kmeans.html">optimal_kmeans</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.picard.html">picard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.posact.html">posact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.promax.html">promax</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.robust_kmeans.html">robust_kmeans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica.html">runica</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica_ml2.html">runica_ml2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runica_mlb.html">runica_mlb</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runicalowmem.html">runicalowmem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runpca.html">runpca</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.runpca2.html">runpca2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.varimax.html">varimax</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.varsort.html">varsort</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.zica.html">zica</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="filtering_and_signal_processing.html">Filtering and Signal Processing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.blockave.html">blockave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt.html">dftfilt</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt2.html">dftfilt2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.dftfilt3.html">dftfilt3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegfilt.html">eegfilt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.env.html">env</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.fir_filterdcpadded.html">fir_filterdcpadded</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.firfiltreport.html">firfiltreport</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.firfiltsplit.html">firfiltsplit</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.firgauss.html">firgauss</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.firws.html">firws</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.firwsord.html">firwsord</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.getipsph.html">getipsph</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.invfirwsord.html">invfirwsord</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.invkaiserbeta.html">invkaiserbeta</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.kaiserbeta.html">kaiserbeta</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.minphaserceps.html">minphaserceps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.movav.html">movav</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plotfresp.html">plotfresp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.rmart.html">rmart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.rmsave.html">rmsave</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.windows.html">windows</a></li>
 </ul>
 </li>
@@ -661,6 +734,7 @@ see its functions.</p>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimefitc.html">newtimefitc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html">newtimefpowerunit</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html">newtimeftrialbaseln</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.make_timewarp.html">make_timewarp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pac.html">pac</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pac_cont.html">pac_cont</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html">tf_cycle_calc</a></li>
@@ -670,27 +744,57 @@ see its functions.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.hist2.html">hist2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.cbar.html">cbar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.copyaxis.html">copyaxis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.forcelocs.html">forcelocs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.headplot.html">headplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.plotcurve.html">plotcurve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.sbplot.html">sbplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.slider.html">slider</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gradmap.html">gradmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gradplot.html">gradplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.imagesclogy.html">imagesclogy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.imagescloglog.html">imagescloglog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.show_events.html">show_events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.setfont.html">setfont</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eegmovie.html">eegmovie</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.headmovie.html">headmovie</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.seemovie.html">seemovie</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.topoplot.html">topoplot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.loc_subsets.html">loc_subsets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vis_artifacts.html">vis_artifacts</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vis_artifacts_diagnostics.html">vis_artifacts_diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plotting_and_topography.html#low-level-eeglab-plotting-workflows">Low-level EEGLAB plotting workflows</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="numerical_utilities.html#indexing-and-compatibility">Indexing and compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerical_utilities.html#peaks-summaries-and-transforms">Peaks, summaries, and transforms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerical_utilities.html#matching-and-component-projections">Matching and component projections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="numerical_utilities.html#low-level-compatibility-helpers">Low-level compatibility helpers</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="statistics.html#condition-tests">Condition Tests</a></li>
 <li class="toctree-l2"><a class="reference internal" href="statistics.html#multiple-comparisons-and-surrogates">Multiple Comparisons and Surrogates</a></li>
 <li class="toctree-l2"><a class="reference internal" href="statistics.html#data-helpers">Data Helpers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="statistics.html#clustering">Clustering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="statistics.html#effective-dimensionality">Effective Dimensionality</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="study_workflows.html#study-setup-and-validation">Study Setup and Validation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="study_workflows.html#clustering">Clustering</a></li>
 <li class="toctree-l2"><a class="reference internal" href="study_workflows.html#measures">Measures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="study_workflows.html#plot-and-statistics-parameters">Plot and Statistics Parameters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="study_workflows.html#plotting">Plotting</a></li>
 <li class="toctree-l2"><a class="reference internal" href="study_workflows.html#other">Other</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="interactive_pop_workflows.html#loading-and-saving">Loading and Saving</a></li>
+<li class="toctree-l2"><a class="reference internal" href="interactive_pop_workflows.html#event-and-epoch-tables">Event and Epoch Tables</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interactive_pop_workflows.html#preprocessing">Preprocessing</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interactive_pop_workflows.html#ica-and-components">ICA and Components</a></li>
 <li class="toctree-l2"><a class="reference internal" href="interactive_pop_workflows.html#plotting-and-review">Plotting and Review</a></li>

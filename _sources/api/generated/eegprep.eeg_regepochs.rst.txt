@@ -1,0 +1,6 @@
+﻿eeg\_regepochs
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_regepochs

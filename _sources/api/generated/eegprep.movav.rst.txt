@@ -1,0 +1,6 @@
+﻿movav
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: movav

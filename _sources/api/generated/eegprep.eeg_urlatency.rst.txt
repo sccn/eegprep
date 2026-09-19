@@ -1,0 +1,6 @@
+﻿eeg\_urlatency
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_urlatency

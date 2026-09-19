@@ -541,6 +541,66 @@ this environment.</p>
 </section>
 <section id="running-tests">
 <h2>Running Tests<a class="headerlink" href="#running-tests" title="Link to this heading">#</a></h2>
+<section id="porting-the-current-eeglab-tests">
+<h3>Porting The Current EEGLAB Tests<a class="headerlink" href="#porting-the-current-eeglab-tests" title="Link to this heading">#</a></h3>
+<p>Ports of the upstream MATLAB tests use only the current
+<a class="reference external" href="https://github.com/sccn/eeglab_tests">sccn/eeglab_tests</a> repository. The
+older <code class="docutils literal notranslate"><span class="pre">sccn/eeglab-testcases</span></code> repository is stale and must not be used.
+EEGPrep currently pins <code class="docutils literal notranslate"><span class="pre">eeglab_tests</span></code> commit
+<code class="docutils literal notranslate"><span class="pre">ff605546f3f70868916fb8d49c007472b3257b50</span></code> and the EEGLAB submodule commit
+<code class="docutils literal notranslate"><span class="pre">8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</span></code>.</p>
+<p>Translate the behavior and assertions of each MATLAB scenario into the closest
+existing pytest module. Decorate the Python test with its upstream path and
+test name so coverage remains traceable without a separate conversion matrix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">tests.eeglab_tests</span><span class="w"> </span><span class="kn">import</span> <span class="n">eeglab_test</span>
+
+<span class="nd">@eeglab_test</span><span class="p">(</span><span class="s2">&quot;regression_tests/t_pop_selectevent.m&quot;</span><span class="p">,</span> <span class="s2">&quot;testRetainsMatchingEpochs&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_pop_selectevent_retains_matching_epochs</span><span class="p">():</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>One Python test may carry more than one decorator when it genuinely covers
+multiple equivalent upstream scenarios. Do not combine tests merely to reduce
+the number of ports. Preserve input shapes, dtypes, empty values, indexing,
+warnings, errors, and all scientifically relevant output fields. Use a live
+MATLAB comparison when practical or small expected data generated from the
+pinned suite when ordinary CI must run without MATLAB.</p>
+<p>When a faithful port exposes missing behavior or a defect, keep the failing
+scenario visible and create a Bead for the implementation work. Pure MATLAB
+runtime behavior may be excluded only with a concrete technical rationale.
+Never replace an applicable assertion with a no-crash smoke test or broaden a
+numerical tolerance simply to make the port pass.</p>
+<p>Before declaring the port complete, clone the current suite at its pinned
+commit and run the source-driven audit:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eeglab_tests.git<span class="w"> </span>/tmp/eeglab_tests
+git<span class="w"> </span>-C<span class="w"> </span>/tmp/eeglab_tests<span class="w"> </span>checkout<span class="w"> </span>ff605546f3f70868916fb8d49c007472b3257b50
+git<span class="w"> </span>-C<span class="w"> </span>/tmp/eeglab_tests<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>eeglab
+uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tools.eeglab_test_port_audit<span class="w"> </span>/tmp/eeglab_tests
+</pre></div>
+</div>
+<p>The command discovers wrapper and regression methods directly from MATLAB,
+collects <code class="docutils literal notranslate"><span class="pre">eeglab_test</span></code> metadata through pytest, and prints every missing or
+stale reference. Pass <code class="docutils literal notranslate"><span class="pre">--json</span></code> for automation. It deliberately rejects the
+old <code class="docutils literal notranslate"><span class="pre">eeglab-testcases</span></code> repository, a checkout at another commit, and
+provenance that does not exist in the pinned suite.</p>
+<section id="tutorial-wrapper-provenance">
+<h4>Tutorial-wrapper provenance<a class="headerlink" href="#tutorial-wrapper-provenance" title="Link to this heading">#</a></h4>
+<p>The tutorial-wrapper ports additionally pin
+<code class="docutils literal notranslate"><span class="pre">sccn/eeglab-tutorial-scripts</span></code> commit
+<code class="docutils literal notranslate"><span class="pre">58bf12dd53e894dd3ee1285946563cd94999db16</span></code>. The four tutorial references
+<code class="docutils literal notranslate"><span class="pre">plot_study_erp</span></code>, <code class="docutils literal notranslate"><span class="pre">source_reconstruction_advanced</span></code>,
+<code class="docutils literal notranslate"><span class="pre">source_reconstruction_eeg</span></code>, and <code class="docutils literal notranslate"><span class="pre">time_freq_all_elec</span></code> are MATLAB Live
+Scripts (<code class="docutils literal notranslate"><span class="pre">.mlx</span></code>) in that commit; they are not missing source files. MATLAB
+can execute them, while Octave cannot execute the Live Script format.</p>
+<p>Although <code class="docutils literal notranslate"><span class="pre">tutorial2_wrapperTest.test_bids_process_face_experiment</span></code> has an
+entirely commented wrapper body, its referenced Live Script is preserved as a
+generated-data port rather than an empty test. The face-recognition and active
+P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
+trial-level STUDY designs, precomputation, and ERP plotting without checking the
+upstream tutorial datasets into the package. The full EEGLAB datasets remain
+useful for separate MATLAB parity runs.</p>
+</section>
+</section>
 <section id="test-discovery">
 <h3>Test Discovery<a class="headerlink" href="#test-discovery" title="Link to this heading">#</a></h3>
 <p>Tests are located in the <code class="docutils literal notranslate"><span class="pre">tests/</span></code> directory. Run all tests:</p>
@@ -1008,6 +1068,10 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-tests">Running Tests</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#porting-the-current-eeglab-tests">Porting The Current EEGLAB Tests</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorial-wrapper-provenance">Tutorial-wrapper provenance</a></li>
+</ul>
+</li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous Integration</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-pipeline-parity-harness">Full-Pipeline Parity Harness</a><ul class="nav section-nav flex-column">

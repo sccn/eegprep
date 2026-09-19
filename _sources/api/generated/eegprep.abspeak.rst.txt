@@ -1,0 +1,6 @@
+﻿abspeak
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: abspeak

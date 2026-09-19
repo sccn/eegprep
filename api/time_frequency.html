@@ -436,6 +436,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimefitc.html">newtimefitc</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimefpowerunit.html">newtimefpowerunit</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html">newtimeftrialbaseln</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.make_timewarp.html">make_timewarp</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pac.html">pac</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.pac_cont.html">pac_cont</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html">tf_cycle_calc</a></li>
@@ -445,6 +446,7 @@
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="plotting_and_topography.html">Plotting and Topography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="numerical_utilities.html">Numerical Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="study_workflows.html">STUDY Workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interactive_pop_workflows.html">Interactive Pop Workflows</a></li>
@@ -541,22 +543,25 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html#eegprep.newtimeftrialbaseln" title="eegprep.newtimeftrialbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimeftrialbaseln</span></code></a>(power, timesout, *)</p></td>
 <td><p>Apply trial-level divisive or standardized baseline correction.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pac.html#eegprep.pac" title="eegprep.pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac</span></code></a>(X, Y, srate, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.make_timewarp.html#eegprep.make_timewarp" title="eegprep.make_timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.make_timewarp</span></code></a>(eeg, event_sequence, *)</p></td>
+<td><p>Select epochs containing an ordered event sequence.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pac.html#eegprep.pac" title="eegprep.pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac</span></code></a>(X, Y, srate, **kwargs)</p></td>
 <td><p>Compute phase-amplitude coupling from epoched signals.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pac_cont.html#eegprep.pac_cont" title="eegprep.pac_cont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac_cont</span></code></a>(X, Y, srate, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pac_cont.html#eegprep.pac_cont" title="eegprep.pac_cont"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac_cont</span></code></a>(X, Y, srate, **kwargs)</p></td>
 <td><p>Compute sliding-window phase-amplitude coupling from continuous data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html#eegprep.tf_cycle_calc" title="eegprep.tf_cycle_calc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.tf_cycle_calc</span></code></a>([freqs, width, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.tf_cycle_calc.html#eegprep.tf_cycle_calc" title="eegprep.tf_cycle_calc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.tf_cycle_calc</span></code></a>([freqs, width, ...])</p></td>
 <td><p>Calculate Morlet wavelet cycles from temporal or spectral width.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timef.html#eegprep.timef" title="eegprep.timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timef</span></code></a>(data, frames, tlimits, srate)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timef.html#eegprep.timef" title="eegprep.timef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timef</span></code></a>(data, frames, tlimits, srate)</p></td>
 <td><p>Compute legacy <code class="docutils literal notranslate"><span class="pre">timef</span></code> outputs using EEGPrep's <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> core.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timefreq.html#eegprep.timefreq" title="eegprep.timefreq"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timefreq</span></code></a>(data, srate, *[, frames, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timefreq.html#eegprep.timefreq" title="eegprep.timefreq"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timefreq</span></code></a>(data, srate, *[, frames, ...])</p></td>
 <td><p>Return EEGLAB-like spectral estimates for each trial.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.timewarp.html#eegprep.timewarp" title="eegprep.timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timewarp</span></code></a>(ev_latency, new_latency)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.timewarp.html#eegprep.timewarp" title="eegprep.timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.timewarp</span></code></a>(ev_latency, new_latency)</p></td>
 <td><p>Return the linear interpolation matrix that warps event latencies.</p></td>
 </tr>
 </tbody>

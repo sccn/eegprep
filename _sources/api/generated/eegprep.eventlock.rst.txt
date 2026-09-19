@@ -1,0 +1,6 @@
+﻿eventlock
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eventlock

@@ -1,0 +1,6 @@
+﻿mapcorr
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: mapcorr

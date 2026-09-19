@@ -561,6 +561,26 @@ the full sidecar into memory:</p>
 separate data file exists to map. Mutating a <code class="docutils literal notranslate"><span class="pre">MemmapData</span></code> value writes to the
 <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar; use normal EEGPrep save/history workflows when the dataset
 metadata should be marked clean.</p>
+<p><code class="docutils literal notranslate"><span class="pre">MemmapData</span></code> uses zero-based NumPy indices against the logical
+<code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">samples[,</span> <span class="pre">trials])</span></code> shape. Copies made with <code class="docutils literal notranslate"><span class="pre">copy.copy</span></code> or
+<code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> share the sidecar until one copy is written, then use a
+private copy-on-write sidecar so processing a copied EEG does not mutate its
+source. <code class="docutils literal notranslate"><span class="pre">resize</span></code> retains the overlapping region and fills new samples with
+zeros by default; <code class="docutils literal notranslate"><span class="pre">delete</span></code> removes indices along a selected logical axis.</p>
+<p>EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
+rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,
+selection, and resampling. Each result gets its own writable temporary mapping,
+while the original dataset and sidecar remain unchanged.</p>
+<p>For direct construction, <code class="docutils literal notranslate"><span class="pre">mmo</span></code> is the compact EEGLAB-compatible entry point:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">mmo</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">mmo</span><span class="p">(</span><span class="s2">&quot;subject01.fdt&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">30000</span><span class="p">),</span> <span class="n">writable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">blank</span> <span class="o">=</span> <span class="n">mmo</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">30000</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">transposed=True</span></code> for files physically stored as
+<code class="docutils literal notranslate"><span class="pre">(samples,</span> <span class="pre">trials,</span> <span class="pre">channels)</span></code>. Indexing still uses the logical channels-first
+shape; storage orientation never changes the public shape or index order.</p>
 </section>
 <section id="storedisk-sessions">
 <h2>Storedisk Sessions<a class="headerlink" href="#storedisk-sessions" title="Link to this heading">#</a></h2>
@@ -574,18 +594,24 @@ retrieve the dataset first:</p>
 <span class="n">EEG</span><span class="p">,</span> <span class="n">ALLEEG</span><span class="p">,</span> <span class="n">CURRENTSET</span> <span class="o">=</span> <span class="n">eeg_retrieve</span><span class="p">(</span><span class="n">ALLEEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Calling <code class="docutils literal notranslate"><span class="pre">eeg_retrieve(ALLEEG,</span> <span class="pre">0)</span></code> represents the no-current-dataset state: it
+returns an empty EEG dataset and <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span> <span class="pre">==</span> <span class="pre">0</span></code> without deleting or
+renumbering <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>.</p>
 <p>The GUI, <code class="docutils literal notranslate"><span class="pre">EEGPrepSession</span></code>, and <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> use the same
 <code class="docutils literal notranslate"><span class="pre">eeg_store</span></code>/<code class="docutils literal notranslate"><span class="pre">eeg_retrieve</span></code> path, so <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>,
 history, and dataset menus stay synchronized. Unsaved resident datasets cannot
 be offloaded; save them first or keep <code class="docutils literal notranslate"><span class="pre">option_storedisk</span></code> disabled.</p>
 </section>
-<section id="current-limitations">
-<h2>Current Limitations<a class="headerlink" href="#current-limitations" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> supports full dataset loading for Phase 5. EEGLAB channel-only
-and <code class="docutils literal notranslate"><span class="pre">loadmode=&quot;info&quot;</span></code> paths fail clearly instead of pretending data is
-available. Derived caches such as <code class="docutils literal notranslate"><span class="pre">icaact</span></code> are not managed by a separate
-lazy-storage layer, and EEGPrep does not provide multi-process write
-coordination for shared <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> files.</p>
+<section id="selective-loading">
+<h2>Selective Loading<a class="headerlink" href="#selective-loading" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">pop_loadset(path,</span> <span class="pre">loadmode=&quot;info&quot;)</span></code> loads metadata without loading sample
+data. <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;]</span></code> contains the saved sidecar filename or <code class="docutils literal notranslate"><span class="pre">&quot;in</span> <span class="pre">set</span> <span class="pre">file&quot;</span></code>
+so callers can tell where the samples live. Passing an integer or sequence as
+<code class="docutils literal notranslate"><span class="pre">loadmode</span></code> loads those 1-based channels and clears ICA fields that no longer
+describe the selected channel matrix.</p>
+<p>Derived caches such as <code class="docutils literal notranslate"><span class="pre">icaact</span></code> are not managed by a separate lazy-storage
+layer, and EEGPrep does not provide multi-process write coordination for shared
+<code class="docutils literal notranslate"><span class="pre">.fdt</span></code> files.</p>
 </section>
 </section>
 
@@ -639,7 +665,7 @@ coordination for shared <code class="docutils literal notranslate"><span class="
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#two-file-set-fdt-datasets">Two-File <code class="docutils literal notranslate"><span class="pre">.set</span></code> / <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> Datasets</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#memory-mapped-data">Memory-Mapped Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#storedisk-sessions">Storedisk Sessions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#current-limitations">Current Limitations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selective-loading">Selective Loading</a></li>
 </ul>
   </nav></div>
 

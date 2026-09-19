@@ -1,0 +1,6 @@
+﻿pop\_dipparams
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_dipparams

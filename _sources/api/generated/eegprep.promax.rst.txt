@@ -1,0 +1,6 @@
+﻿promax
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: promax

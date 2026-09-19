@@ -1,0 +1,6 @@
+﻿rmsave
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: rmsave

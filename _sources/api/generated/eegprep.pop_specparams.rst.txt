@@ -1,0 +1,6 @@
+﻿pop\_specparams
+===============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_specparams

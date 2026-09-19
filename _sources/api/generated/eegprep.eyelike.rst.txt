@@ -1,0 +1,6 @@
+﻿eyelike
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eyelike

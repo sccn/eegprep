@@ -601,15 +601,74 @@ metadata and shapes.</p>
 <span class="n">STUDY</span><span class="p">,</span> <span class="n">itcdata</span><span class="p">,</span> <span class="n">itctimes</span><span class="p">,</span> <span class="n">itcfreqs</span> <span class="o">=</span> <span class="n">std_readitc</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">ALLEEG</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 </pre></div>
 </div>
+<p>Plot functions arrange these caches into the selected design before returning
+them. A one-factor design returns a list with one array per factor level. A
+two-factor design returns <code class="docutils literal notranslate"><span class="pre">data[condition][group]</span></code>. Samples are the leading
+axes and subjects or cluster members are on the last axis; for example, ERP
+cells are <code class="docutils literal notranslate"><span class="pre">times</span> <span class="pre">x</span> <span class="pre">cases</span></code> and ERSP cells are <code class="docutils literal notranslate"><span class="pre">frequencies</span> <span class="pre">x</span> <span class="pre">times</span> <span class="pre">x</span> <span class="pre">cases</span></code>.
+This matches the cell organization used by EEGLAB while keeping the arrays
+directly usable from NumPy.</p>
 <p>Channel measures are stored in <code class="docutils literal notranslate"><span class="pre">STUDY.changrp</span></code>. Component measures are stored
 on the parent <code class="docutils literal notranslate"><span class="pre">STUDY.cluster[0]</span></code> entry so preclustering can read the same
 cached arrays. Cached measure fields follow EEGLAB names such as <code class="docutils literal notranslate"><span class="pre">erpdata</span></code>,
 <code class="docutils literal notranslate"><span class="pre">specdata</span></code>, <code class="docutils literal notranslate"><span class="pre">erspdata</span></code>, and <code class="docutils literal notranslate"><span class="pre">itcdata</span></code>. The selected <code class="docutils literal notranslate"><span class="pre">design</span></code> is recorded
-in each measure group’s metadata. EEGPrep stores dataset-level averages in the
-current standalone cache rather than EEGLAB sidecar measure files.
+in each measure group’s metadata. EEGPrep stores dataset-level averages, and
+optionally single-trial values, in the current standalone cache rather than
+EEGLAB sidecar measure files.
 <code class="docutils literal notranslate"><span class="pre">pop_chanplot</span></code> reads cached channel and component measures through the same
 <code class="docutils literal notranslate"><span class="pre">std_readdata</span></code>/<code class="docutils literal notranslate"><span class="pre">std_erpplot</span></code>/<code class="docutils literal notranslate"><span class="pre">std_erspplot</span></code> cache contract used by scripts,
 so GUI and console plots slice axes and cached channel groups consistently.</p>
+<section id="tutorial-scale-workflows">
+<h3>Tutorial-scale workflows<a class="headerlink" href="#tutorial-scale-workflows" title="Link to this heading">#</a></h3>
+<p>The current EEGLAB tutorial-wrapper workflows are covered end to end with
+deterministic generated signals. This includes grouped ERP statistics and
+topographies, component preclustering for an N400-style study, all-channel
+time-frequency analysis, scalp movies, and a generated P300 BIDS pipeline from
+export/import through filtering, average reference, rank-reduced Picard ICA,
+component rejection, epoching, and STUDY plotting. Generated fixtures keep
+ordinary CI independent of large tutorial downloads while retaining numerical
+assertions at each processing boundary.</p>
+<p>Two optional boundaries remain explicit. <code class="docutils literal notranslate"><span class="pre">pop_iclabel</span></code> needs the ICLabel
+model runtime; callers that already have compatible seven-class probabilities
+can use <code class="docutils literal notranslate"><span class="pre">pop_icflag</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_subcomp</span></code> independently. Dataset-level
+spherical DIPFIT fitting and leadfield construction run standalone, while
+MRI/BEM/LORETA workflows that require FieldTrip fail clearly until an external
+source-analysis backend is configured.</p>
+<p>Store reusable plot and statistics choices on the STUDY before plotting:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_erpparams</span><span class="p">,</span> <span class="n">pop_statparams</span>
+
+<span class="n">STUDY</span> <span class="o">=</span> <span class="n">pop_erpparams</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">timerange</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">200</span><span class="p">,</span> <span class="mi">800</span><span class="p">],</span> <span class="n">plotconditions</span><span class="o">=</span><span class="s2">&quot;together&quot;</span><span class="p">)</span>
+<span class="n">STUDY</span> <span class="o">=</span> <span class="n">pop_statparams</span><span class="p">(</span><span class="n">STUDY</span><span class="p">,</span> <span class="n">condstats</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;perm&quot;</span><span class="p">,</span> <span class="n">naccu</span><span class="o">=</span><span class="mi">2000</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">return_stats=True</span></code> to <code class="docutils literal notranslate"><span class="pre">std_erpplot</span></code>, <code class="docutils literal notranslate"><span class="pre">std_specplot</span></code>,
+<code class="docutils literal notranslate"><span class="pre">std_erspplot</span></code>, or <code class="docutils literal notranslate"><span class="pre">std_itcplot</span></code> to receive <code class="docutils literal notranslate"><span class="pre">pgroup</span></code>, <code class="docutils literal notranslate"><span class="pre">pcond</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">pinter</span></code> before the returned figure. These are p-values when <code class="docutils literal notranslate"><span class="pre">threshold</span></code>
+is NaN and numeric significance masks when a finite <code class="docutils literal notranslate"><span class="pre">threshold</span></code> is set,
+matching EEGLAB’s output contract. A sequence of thresholds produces EEGLAB’s
+graded masks. <code class="docutils literal notranslate"><span class="pre">mcorrect=&quot;fdr&quot;</span></code> applies
+Benjamini-Hochberg correction.
+The same masks are attached to <code class="docutils literal notranslate"><span class="pre">fig.eegprep_plot_metadata[&quot;statistics&quot;]</span></code> so
+downstream reporting code can inspect exactly what the plot highlighted.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">savetrials=&quot;on&quot;</span></code> when a design factor varies between trials within one
+dataset. The measure plots select trials from <code class="docutils literal notranslate"><span class="pre">datasetinfo[*][&quot;trialinfo&quot;]</span></code>
+and aggregate them within each subject before forming condition and group
+cells. <code class="docutils literal notranslate"><span class="pre">erpdatatrials</span></code> stores baseline-corrected amplitudes;
+<code class="docutils literal notranslate"><span class="pre">specdatatrials</span></code> stores linear spectral density; <code class="docutils literal notranslate"><span class="pre">erspdatatrials</span></code> stores
+linear, baseline-corrected power; and <code class="docutils literal notranslate"><span class="pre">itcdatatrials</span></code> stores phase in radians.
+Spectrum and ERSP power are averaged before conversion to decibels, while ITC
+uses circular phase averaging. These EEGPrep-owned cache fields remain
+independent of an EEGLAB installation. A trial-level design without matching
+single-trial caches raises an error instructing you to rerun <code class="docutils literal notranslate"><span class="pre">std_precomp</span></code>
+with <code class="docutils literal notranslate"><span class="pre">savetrials=&quot;on&quot;</span></code> instead of silently grouping dataset averages.</p>
+<p>For component clusters, <code class="docutils literal notranslate"><span class="pre">std_topoplot</span></code> draws polarity-aligned centroid or
+member scalp maps and caches <code class="docutils literal notranslate"><span class="pre">topo</span></code>, <code class="docutils literal notranslate"><span class="pre">topoall</span></code>, and <code class="docutils literal notranslate"><span class="pre">topopol</span></code> on each
+plotted cluster.</p>
+<p>The corresponding <code class="docutils literal notranslate"><span class="pre">pop_erpimparams</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_erspparams</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_specparams</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">pop_dipparams</span></code> functions store settings under <code class="docutils literal notranslate"><span class="pre">STUDY[&quot;etc&quot;]</span></code> using
+EEGLAB field names. Changing an ERP time range, spectrum frequency range, or
+ERSP/ITC time-frequency range invalidates the affected cached measure fields;
+run <code class="docutils literal notranslate"><span class="pre">pop_precomp(...,</span> <span class="pre">recompute=&quot;on&quot;)</span></code> before plotting them again.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">std_checkfiles</span></code>, <code class="docutils literal notranslate"><span class="pre">std_checkdatasession</span></code>, <code class="docutils literal notranslate"><span class="pre">std_uniformfiles</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">std_uniformsetinds</span></code> to audit loaded dataset consistency and cached measure
 shapes before saving or plotting group-level results. <code class="docutils literal notranslate"><span class="pre">std_savedat</span></code> writes
@@ -631,7 +690,9 @@ workflow needs a durable array file outside the <code class="docutils literal no
 <p>These helpers return EEGLAB-facing 1-based dataset and trial indices. Trial
 metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
 <code class="docutils literal notranslate"><span class="pre">{&quot;factor&quot;:</span> <span class="pre">[values...]}</span></code> dictionaries; STUDY selectors normalize both forms
-before matching factor levels and numerical ranges. Use <code class="docutils literal notranslate"><span class="pre">std_substudy</span></code> or
+before matching factor levels and numerical ranges. <code class="docutils literal notranslate"><span class="pre">std_maketrialinfo</span></code> uses
+each epoch’s time-locking event, including custom fields such as reaction time,
+and later STUDY synchronization preserves those derived rows. Use <code class="docutils literal notranslate"><span class="pre">std_substudy</span></code> or
 <code class="docutils literal notranslate"><span class="pre">std_rmdat</span></code> when a workflow needs to remove datasets; EEGPrep remaps STUDY
 references and invalidates cached measure arrays after membership changes.</p>
 <p><code class="docutils literal notranslate"><span class="pre">std_findsameica</span></code> groups matching ICA decompositions within each subject.
@@ -655,6 +716,7 @@ identical test fixtures across subjects.</p>
 created cluster’s algorithm provenance. Infinite <code class="docutils literal notranslate"><span class="pre">outliers</span></code> keeps the plain
 k-means path. In both cases command history remains pasteable in
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>.</p>
+</section>
 </section>
 <section id="dipfit-source-localization">
 <h2>DIPFIT Source Localization<a class="headerlink" href="#dipfit-source-localization" title="Link to this heading">#</a></h2>
@@ -725,26 +787,57 @@ and statistics helpers such as <code class="docutils literal notranslate"><span 
 surrogate-tail convention with FDR correction available through the statistics
 module. These definitions are intentionally not collapsed when they answer
 different inferential questions.</p>
-<p>The feasible in-package LIMO-compatible layer is design preparation:
-<code class="docutils literal notranslate"><span class="pre">std_limodesign</span></code> builds categorical and continuous matrices from
-<code class="docutils literal notranslate"><span class="pre">pop_listfactors</span></code> output and trial metadata, including interaction and split
-regressor descriptions. It can write <code class="docutils literal notranslate"><span class="pre">categorical_variables.txt</span></code> and
-<code class="docutils literal notranslate"><span class="pre">continuous_variables.txt</span></code> for downstream analysis code.</p>
+<p>EEGPrep provides a standalone LIMO-compatible path from design preparation to
+core hierarchical statistics. <code class="docutils literal notranslate"><span class="pre">std_limodesign</span></code> builds categorical and
+continuous matrices from <code class="docutils literal notranslate"><span class="pre">pop_listfactors</span></code> output and trial metadata,
+including interaction and split-regressor descriptions. <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code> uses the
+active STUDY design to fit mass-univariate OLS, LIMO PCOut-weighted WLS, or
+Tukey-bisquare IRLS models to epoched channel or component data. The
+returned model dictionaries contain betas, fitted values, residuals, R²,
+residual variance, standard errors, t statistics, p values, robust weights,
+and their exact design matrix.</p>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">outputdir</span></code> to <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code> to write versioned <code class="docutils literal notranslate"><span class="pre">.npz</span></code> model files.
+These files never require pickle and can be reopened with
+<code class="docutils literal notranslate"><span class="pre">std_readfilelimo</span></code>. <code class="docutils literal notranslate"><span class="pre">std_limoresults</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_limoresults</span></code> compute and
+store first-level contrasts, one-sample, paired and Welch two-sample tests,
+mass-univariate regression, one-way ANOVA, ANCOVA, repeated-measures ANOVA,
+and mean or inverse-variance-weighted summaries. Group statistics always use
+the first axis as subjects; first-level parameter selection remains 1-based at
+the EEGLAB-facing boundary.</p>
 <p><code class="docutils literal notranslate"><span class="pre">std_prepare_neighbors</span></code> creates a distance-based FieldTrip-like neighbor
 list and a LIMO-compatible channel adjacency matrix from loaded channel
 locations. <code class="docutils literal notranslate"><span class="pre">std_interp</span></code> interpolates requested missing channels across
 STUDY datasets using EEGPrep’s existing channel interpolation backend.</p>
 </section>
+<section id="plotting-localized-cluster-dipoles">
+<h2>Plotting localized cluster dipoles<a class="headerlink" href="#plotting-localized-cluster-dipoles" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">std_dipplot</span></code> visualizes DIPFIT models that are already stored in each
+dataset’s <code class="docutils literal notranslate"><span class="pre">EEG[&quot;dipfit&quot;][&quot;model&quot;]</span></code> field. Cluster membership is read from
+<code class="docutils literal notranslate"><span class="pre">STUDY[&quot;cluster&quot;]</span></code> using EEGLAB-facing 1-based dataset and component
+indices. The function returns the exact selected models and computed cluster
+centroids alongside the figures, so positions, moments, and residual variance
+remain inspectable outside the plot.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">mode=&quot;joined&quot;</span></code> to draw selected cluster members and centroids together,
+or <code class="docutils literal notranslate"><span class="pre">mode=&quot;centroid&quot;</span></code> to draw only cluster centroids. The standard
+<code class="docutils literal notranslate"><span class="pre">apart</span></code>, <code class="docutils literal notranslate"><span class="pre">together</span></code>, <code class="docutils literal notranslate"><span class="pre">multicolor</span></code>, and <code class="docutils literal notranslate"><span class="pre">comps</span></code> layouts are also
+available. <code class="docutils literal notranslate"><span class="pre">comps</span></code> selects 1-based positions within the cluster membership
+list, consistent with the EEGLAB <code class="docutils literal notranslate"><span class="pre">std_plotcompdip</span></code> convention. Set
+<code class="docutils literal notranslate"><span class="pre">plot=False</span></code> to prepare and validate the same numerical plot inputs without
+creating figures.</p>
+</section>
 <section id="limitations">
 <h2>Limitations<a class="headerlink" href="#limitations" title="Link to this heading">#</a></h2>
-<p>EEGPrep does not silently emulate EEGLAB’s external LIMO toolbox. <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code>,
-<code class="docutils literal notranslate"><span class="pre">pop_limoresults</span></code>, <code class="docutils literal notranslate"><span class="pre">std_limo</span></code>, <code class="docutils literal notranslate"><span class="pre">std_limoresults</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">std_readfilelimo</span></code> raise clear <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> messages rather than
-creating placeholder LIMO results.</p>
-<p>STUDY-level DIPFIT/FieldTrip source workflows such as <code class="docutils literal notranslate"><span class="pre">std_dipplot</span></code> and
-<code class="docutils literal notranslate"><span class="pre">std_dipoleclusters</span></code> remain explicit source-backend boundaries. Use the
-dedicated EEGPrep DIPFIT helpers for dataset-level source workflows and keep
-STUDY source statistics behind a tested backend contract.</p>
+<p>The standalone layer does not silently read version-dependent MATLAB LIMO
+<code class="docutils literal notranslate"><span class="pre">.mat</span></code> structures. Convert them explicitly or use LIMO in MATLAB;
+<code class="docutils literal notranslate"><span class="pre">std_readfilelimo</span></code> accepts only EEGPrep-owned <code class="docutils literal notranslate"><span class="pre">.npz</span></code> output. First-level
+and group bootstrap, TFCE correction, factorial repeated-measures designs,
+and LIMO’s result plotting/report interface remain explicit unsupported
+boundaries. WLS follows LIMO’s PCOut residual projection and uses one robust
+observation weight across the fitted channel/time grid. IRLS uses feature-wise
+Tukey-bisquare weights.</p>
+<p><code class="docutils literal notranslate"><span class="pre">std_dipplot</span></code> does not compute dipole models: localize components first with
+the EEGPrep DIPFIT workflow. The broader FieldTrip-dependent
+<code class="docutils literal notranslate"><span class="pre">std_dipoleclusters</span></code> source workflow remains an explicit backend boundary.</p>
 <p>See the <a class="reference internal" href="interactive_console.html#interactive-console"><span class="std std-ref">Interactive Console</span></a> guide for mixed GUI plus console usage and
 the <a class="reference internal" href="gui_help_menus.html#gui-help-menus"><span class="std std-ref">GUI and Help Menus</span></a> guide for menu inventory behavior.</p>
 </section>
@@ -798,11 +891,15 @@ the <a class="reference internal" href="gui_help_menus.html#gui-help-menus"><spa
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#gui-plus-console-flow">GUI Plus Console Flow</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implemented-workflows">Implemented Workflows</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#implemented-workflows">Implemented Workflows</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorial-scale-workflows">Tutorial-scale workflows</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dipfit-source-localization">DIPFIT Source Localization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#session-synchronization">Session Synchronization</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-notes">Integration Notes</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pac-limo-design-and-neighbors">PAC, LIMO Design, And Neighbors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting-localized-cluster-dipoles">Plotting localized cluster dipoles</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#limitations">Limitations</a></li>
 </ul>
   </nav></div>

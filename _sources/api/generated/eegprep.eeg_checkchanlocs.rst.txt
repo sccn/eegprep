@@ -1,0 +1,6 @@
+﻿eeg\_checkchanlocs
+==================
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_checkchanlocs

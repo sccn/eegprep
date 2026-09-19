@@ -1,0 +1,6 @@
+﻿rmart
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: rmart

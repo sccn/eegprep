@@ -1,0 +1,6 @@
+﻿make\_timewarp
+==============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: make_timewarp

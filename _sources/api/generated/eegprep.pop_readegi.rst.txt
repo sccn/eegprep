@@ -1,0 +1,6 @@
+﻿pop\_readegi
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: pop_readegi
