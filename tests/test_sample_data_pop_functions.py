@@ -520,7 +520,9 @@ def test_pop_importevent_replaces_sample_events_from_table(tmp_path, sample_eeg)
     events_file = tmp_path / "events.tsv"
     events_file.write_text("type\tlatency\tduration\nnewstim\t10\t0\n", encoding="utf-8")
 
-    imported, command = pop_importevent(sample_eeg, "event", events_file, "timeunit", np.nan, return_com=True)
+    imported, command = pop_importevent(
+        sample_eeg, "event", events_file, "timeunit", np.nan, "append", "no", return_com=True
+    )
 
     assert len(imported["event"]) == 1
     assert imported["event"][0]["type"] == "newstim"
@@ -561,7 +563,8 @@ def test_pop_importepoch_updates_sample_epoch_metadata(tmp_path, sample_eeg):
 
     assert len(imported["epoch"]) == epoched["trials"]
     assert imported["epoch"][0]["condition"] == "square_1"
-    assert imported["event"].size == 0
+    assert imported["event"].size == epoched["trials"]
+    assert all(event["type"] == "TLE" for event in imported["event"])
     assert "pop_importepoch" in command
 
 

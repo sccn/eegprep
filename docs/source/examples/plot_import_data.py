@@ -90,6 +90,8 @@ with_events = eegprep.pop_importevent(
     str(events_file),
     "timeunit",
     np.nan,
+    "append",
+    "no",
 )
 print("replaced events:", [(e["type"], e["latency"]) for e in with_events["event"]])
 

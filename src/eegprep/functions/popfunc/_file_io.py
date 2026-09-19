@@ -6,6 +6,7 @@ import csv
 import json
 import math
 from pathlib import Path
+import re
 from typing import Any
 
 import mne
@@ -183,11 +184,12 @@ def read_table_records(
     *,
     fields: list[str] | tuple[str, ...] | None = None,
     skipline: int = 0,
+    delimiter: str | int | None = None,
 ) -> list[dict[str, Any]]:
     """Read a simple CSV/TSV/whitespace table into record dictionaries."""
     path = Path(filename)
     with path.open(newline="", encoding="utf-8") as stream:
-        rows = [row for row in _read_rows(stream, path.suffix.lower()) if row]
+        rows = [row for row in _read_rows(stream, path.suffix.lower(), delimiter) if row]
     rows = rows[int(skipline) :]
     if not rows:
         return []
@@ -308,7 +310,13 @@ def json_safe(value: Any) -> Any:
     return value
 
 
-def _read_rows(stream: Any, suffix: str) -> list[list[str]]:
+def _read_rows(stream: Any, suffix: str, delimiter: str | int | None) -> list[list[str]]:
+    if delimiter is not None:
+        delimiters = chr(delimiter) if isinstance(delimiter, int) else str(delimiter)
+        if len(delimiters) == 1:
+            return [row for row in csv.reader(stream, delimiter=delimiters)]
+        pattern = f"[{re.escape(delimiters)}]+"
+        return [re.split(pattern, line.strip()) for line in stream if line.strip()]
     if suffix == ".csv":
         return [row for row in csv.reader(stream)]
     if suffix == ".tsv":
