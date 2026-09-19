@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Added standalone ``corrmap`` and ``pop_corrmap`` component-template
+  matching for STUDY workflows. Two-pass correlation handles ICA polarity,
+  searches deterministic automatic thresholds, can store matched bad
+  components and child clusters, and RMS-normalizes average maps so arbitrary
+  ICA scaling cannot change the second-pass template.
 - ``statcond`` now accepts EEGLAB's ``arraycomp`` switch. Batched mode returns
   all requested resampling grids, while off mode exposes one compatibility
   grid or computes inference iteratively to bound peak memory without changing
