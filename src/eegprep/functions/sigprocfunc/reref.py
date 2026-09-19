@@ -91,7 +91,11 @@ def reref(
         dt = original_dtype
         refmatrix = np.eye(n, dtype=dt) - np.ones((n, n), dtype=dt) / dt.type(n)
         block = np.ascontiguousarray(work[chansin_array, :].astype(dt).T)
-        work[chansin_array, :] = (block @ refmatrix).T
+        # NumPy 2 can report spurious floating-point warnings for this finite
+        # float32 BLAS product. The result remains finite and is the deliberate
+        # MATLAB-order accumulation above, so contain only those matmul flags.
+        with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            work[chansin_array, :] = (block @ refmatrix).T
         mean_data = None
 
     if locs is not None:

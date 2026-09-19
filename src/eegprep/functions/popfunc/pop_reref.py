@@ -34,6 +34,7 @@ _VALID_OPTIONS = {
     "refica",
     "interpchan",
     "huber",
+    "method",
 }
 
 
@@ -62,7 +63,8 @@ def pop_reref(
         renderer: Optional GUI renderer for tests.
         return_com: Return ``(EEG, command)`` when true.
         **kwargs: Options such as ``exclude``, ``keepref``, ``refloc``,
-            ``refica``, and ``huber``.
+            ``refica``, ``huber``, and ``method``. Only EEGLAB's standard
+            rereferencing method is currently supported.
 
     Returns:
         dict or tuple: Re-referenced EEG, and optionally the EEGLAB-style
@@ -294,6 +296,9 @@ def _validate_eeg(EEG: dict) -> None:
 
 
 def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, Any]:
+    method = str(options.get("method", "standard")).lower()
+    if method != "standard":
+        raise ValueError("EEGPrep currently supports only method='standard'")
     ref_indices = _resolve_channels(EEG, ref)
     exclude_indices = _resolve_channels(EEG, options.get("exclude", []))
     refica = str(options.get("refica", "on")).lower()

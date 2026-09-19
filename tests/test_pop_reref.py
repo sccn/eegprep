@@ -19,9 +19,47 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
+from tests.eeglab_tests import eeglab_test
 import importlib
 
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_pass_bugzilla_270")
+def test_pop_reref_current_suite_standard_method_with_multiple_references():
+    eeg = {
+        "data": np.arange(1, 61, dtype=float).reshape(3, 20),
+        "nbchan": 3,
+        "pnts": 20,
+        "trials": 1,
+        "srate": 1.0,
+        "xmin": 0.0,
+        "xmax": 2.0,
+        "times": np.arange(20, dtype=float),
+        "chanlocs": [{"labels": f"Ch{index + 1}"} for index in range(3)],
+        "event": [],
+        "urevent": [],
+        "epoch": [],
+        "icaweights": np.array([]),
+        "icasphere": np.array([]),
+        "icawinv": np.array([]),
+        "icaact": np.array([]),
+        "icachansind": np.array([], dtype=int),
+    }
+
+    output = pop_reref(eeg, [0, 1], "method", "standard")
+
+    expected_reference = eeg["data"][[0, 1]].mean(axis=0)
+    np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
+def test_pop_reref_current_suite_average_reference_workflow():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+
+    output = pop_reref(eeg, [])
+
+    np.testing.assert_allclose(output["data"].mean(axis=0), 0, atol=1e-5)
 
 
 class PopRerefIcaRegressionTests(unittest.TestCase):

@@ -4,6 +4,7 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.popfunc.pop_resample import pop_resample
+from tests.eeglab_tests import eeglab_test
 
 
 def _continuous_eeg():
@@ -89,6 +90,81 @@ class PopResamplePythonTests(unittest.TestCase):
         self.assertEqual(out["urevent"], [])
         self.assertAlmostEqual(out["event"][0]["latency"], 13.5)
         self.assertAlmostEqual(out["event"][0]["duration"], 1.0)
+
+
+def _epoched_resample_eeg():
+    eeg = _continuous_eeg()
+    eeg["data"] = np.arange(80, dtype=np.float32).reshape(2, 20, 2)
+    eeg["trials"] = 2
+    eeg["event"] = [
+        {"type": "stim", "latency": 6.0, "duration": 10.0, "epoch": 1},
+        {"type": "resp", "latency": 26.0, "duration": 20.0, "epoch": 2},
+    ]
+    eeg["urevent"] = []
+    return eeg
+
+
+@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_test_pop_resample")
+def test_pop_resample_current_suite_epoched_and_continuous_rates():
+    for eeg in (_epoched_resample_eeg(), _continuous_eeg()):
+        low_rate = pop_resample(eeg, 10)
+        high_rate = pop_resample(eeg, 1000)
+
+        assert low_rate["srate"] == 10
+        assert high_rate["srate"] == 1000
+        assert low_rate["trials"] == eeg["trials"]
+        assert high_rate["trials"] == eeg["trials"]
+
+
+@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_test_pop_resample2")
+def test_pop_resample_current_suite_preserves_event_duration_seconds():
+    epoched = _epoched_resample_eeg()
+    continuous = _continuous_eeg()
+    continuous["event"] = [
+        {"type": "stim", "latency": 6.0, "duration": 10000.0},
+        {"type": "resp", "latency": 16.0, "duration": 20000.0},
+    ]
+    continuous["urevent"] = []
+
+    for eeg, expected_seconds in ((epoched, [0.1, 0.2]), (continuous, [100.0, 200.0])):
+        for rate in (10, 1000):
+            output = pop_resample(eeg, rate)
+            durations = np.asarray([event["duration"] for event in output["event"]])
+            np.testing.assert_allclose(durations / output["srate"], expected_seconds)
+
+
+@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_testcase_boundary")
+def test_pop_resample_current_suite_preserves_half_sample_boundaries():
+    eeg = {
+        "data": np.zeros((1, 10000), dtype=np.float32),
+        "nbchan": 1,
+        "pnts": 10000,
+        "trials": 1,
+        "srate": 500.0,
+        "xmin": 0.0,
+        "xmax": 19.998,
+        "times": np.arange(10000, dtype=float) / 500 * 1000,
+        "setname": "boundary resampling",
+        "event": [
+            {"type": "boundary", "latency": 0.5},
+            {"type": "boundary", "latency": 500.5},
+        ],
+        "urevent": [],
+        "epoch": [],
+        "chanlocs": [],
+        "icaweights": np.array([]),
+        "icasphere": np.array([]),
+        "icawinv": np.array([]),
+        "icaact": np.array([]),
+        "icachansind": np.array([], dtype=int),
+    }
+
+    for rate in (200, 250, 300, 350, 450, 550, 600, 650, 700):
+        output = pop_resample(eeg, rate)
+        np.testing.assert_allclose(
+            [output["event"][0]["latency"], output["event"][1]["latency"]],
+            [0.5, rate + 0.5],
+        )
 
 
 if __name__ == "__main__":

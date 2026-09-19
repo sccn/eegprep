@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_reref`` now accepts EEGLAB's ``method='standard'`` option explicitly. Other
+  rereferencing methods fail clearly instead of being silently treated as standard,
+  and NumPy 2's spurious finite-matrix warnings no longer leak from average reference.
 - ``pop_selectevent`` now supports ``erroronempty='off'`` when a selection removes every
   epoch, returning an empty EEG instead of raising. Component ``pop_topoplot`` colorbars
   now use polarity labels only for scales that span zero; positive-only and negative-only

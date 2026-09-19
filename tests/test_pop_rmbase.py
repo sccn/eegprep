@@ -12,6 +12,7 @@ from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase, pop_rmbase_dialog_spec
 from eegprep.functions.sigprocfunc.rmbase import rmbase
+from tests.eeglab_tests import eeglab_test
 
 try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
@@ -357,6 +358,30 @@ def test_pop_rmbase_sample_data_zeroes_selected_baseline_channels_without_warnin
     np.testing.assert_allclose(np.nanmean(out["data"][1, :20]), 0, atol=1e-5)
     np.testing.assert_allclose(out["data"][2], eeg["data"][2])
     assert command == ("EEG = pop_rmbase( EEG, [], [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20], [1 2]);")
+
+
+@eeglab_test("unittesting_popfunc/pop_rmbase/popfunc_pop_rmbase_wrapperTest.m", "test_test_pop_rmbase")
+def test_pop_rmbase_current_suite_time_point_and_whole_epoch_baselines():
+    eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
+
+    by_time, time_command = pop_rmbase(eeg, [-1000, 0], return_com=True)
+    by_point, point_command = pop_rmbase(eeg, [], range(1, 51), return_com=True)
+    whole_epoch, whole_command = pop_rmbase(eeg, [], [], return_com=True)
+    time_wins = pop_rmbase(eeg, [-1000, 0], range(1, 52))
+
+    times = np.asarray(eeg["times"])
+    baseline = np.flatnonzero((times >= -1000) & (times <= 0))
+    data = eeg["data"][0, :, 1]
+    expected_time = (data.astype(np.float64) - np.mean(data[baseline], dtype=np.float64)).astype(data.dtype)
+    expected_point = (data.astype(np.float64) - np.mean(data[:50], dtype=np.float64)).astype(data.dtype)
+    expected_whole = (data.astype(np.float64) - np.mean(data, dtype=np.float64)).astype(data.dtype)
+    np.testing.assert_array_equal(by_time["data"][0, :, 1], expected_time)
+    np.testing.assert_array_equal(by_point["data"][0, :, 1], expected_point)
+    np.testing.assert_array_equal(whole_epoch["data"][0, :, 1], expected_whole)
+    np.testing.assert_array_equal(time_wins["data"], by_time["data"])
+    assert "[-1000 0]" in time_command
+    assert "[1 2 3" in point_command
+    assert "[], []" in whole_command
 
 
 class _CancelRenderer:
