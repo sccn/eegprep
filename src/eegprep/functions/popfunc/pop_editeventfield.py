@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
+import re
 from typing import Any
 
 import numpy as np
@@ -35,7 +37,9 @@ def pop_editeventfield(
 
     User-facing event indices are 1-based, matching EEGLAB. Event latencies
     passed through the ``latency`` field are interpreted as seconds by default
-    and converted to EEGLAB sample latencies.
+    and converted to EEGLAB sample latencies. Field values may be sequences,
+    scalars, or paths to delimited text files; ``skipline`` and ``delim``
+    control file parsing.
     """
     if not isinstance(EEG, dict):
         raise ValueError("pop_editeventfield: EEG must be a dataset dictionary")
@@ -146,8 +150,14 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
     )
     option_map = {str(key).lower(): value for key, value in options}
     indices_value = option_map.get("indices")
-    delold = str(option_map.get("delold", "no")).lower() in {"yes", "on", "1", "true"}
+    delold_value = str(option_map.get("delold", "no")).lower()
+    if delold_value not in {"yes", "no", "on", "off", "1", "0", "true", "false"}:
+        return output
+    delold = delold_value in {"yes", "on", "1", "true"}
+    replace_events = delold
     timeunit = float(option_map.get("timeunit", 1) or 1)
+    skipline = int(option_map.get("skipline", 0) or 0)
+    delim = str(option_map.get("delim", "") or "")
     srate = float(output.get("srate", 1) or 1)
 
     for key, value in options:
@@ -176,7 +186,7 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             _convert_field_type(events, key_text[:-4], str(value))
             continue
         if delold:
-            values = _coerce_field_values(value)
+            values = _coerce_field_values(value, skipline=skipline, delim=delim)
             events = [{} for _item in values]
             indices = list(range(len(values)))
             eventdescription = [""]
@@ -185,7 +195,7 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             indices = normalize_event_indices(indices_value, len(events), allow_empty=True)
             if not indices:
                 indices = list(range(len(events))) if events else []
-            values = _coerce_field_values(value)
+            values = _coerce_field_values(value, skipline=skipline, delim=delim)
             if not indices:
                 indices = list(range(len(values)))
             while len(events) < max(indices, default=-1) + 1:
@@ -196,10 +206,17 @@ def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[
             _update_matching_urevent(output, events[event_index], key_text)
         _ensure_description_slot(eventdescription, event_field_names(events, include_urevent=True), key_text)
 
+    if replace_events:
+        output["urevent"] = []
+        for index, event in enumerate(events):
+            urevent = deepcopy(event)
+            urevent.pop("urevent", None)
+            output["urevent"].append(urevent)
+            event["urevent"] = index
     output["event"] = sort_events(events)
     output["eventdescription"] = eventdescription
     output["saved"] = "no"
-    return eeg_checkset(output)
+    return eeg_checkset(output, "eventconsistency")
 
 
 def _ordered_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> list[tuple[str, Any]]:
@@ -232,11 +249,11 @@ def _description_list(value: Any, fields: list[str]) -> list[str]:
 
 def _rename_field(events: list[dict[str, Any]], rename: str, eventdescription: list[str]) -> None:
     if "->" not in rename:
-        raise ValueError("rename must use 'old->new' syntax")
+        return
     old, new = [part.strip() for part in rename.split("->", 1)]
     fields = event_field_names(events, include_urevent=True)
     if old not in fields:
-        raise ValueError(f"event field not found: {old}")
+        return
     for event in events:
         if old in event:
             event[new] = event.pop(old)
@@ -256,6 +273,8 @@ def _set_description(
     description: str,
 ) -> None:
     fields = event_field_names(events, include_urevent=True)
+    if field not in fields:
+        return
     _ensure_description_slot(eventdescription, fields, field)
     fields = event_field_names(events, include_urevent=True)
     eventdescription[fields.index(field)] = description
@@ -288,7 +307,12 @@ def _delete_field(events: list[dict[str, Any]], field: str, eventdescription: li
             eventdescription.pop(index)
 
 
-def _coerce_field_values(value: Any) -> list[Any]:
+def _coerce_field_values(value: Any, *, skipline: int, delim: str) -> list[Any]:
+    if isinstance(value, (str, Path)) and Path(value).is_file():
+        lines = Path(value).read_text(encoding="utf-8").splitlines()[skipline:]
+        text = "\n".join(lines)
+        tokens = re.split(f"[{re.escape(delim)}]+", text) if delim else text.split()
+        return [_to_number(token) for token in tokens if token]
     if isinstance(value, np.ndarray):
         return value.ravel().tolist()
     if isinstance(value, tuple):

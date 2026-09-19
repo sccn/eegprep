@@ -10,6 +10,8 @@ from scipy.interpolate import RBFInterpolator, griddata
 from scipy.special import lpmv
 from copy import deepcopy
 
+from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+
 
 def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
     """Interpolate missing or bad EEG channels using spherical spline.
@@ -70,12 +72,19 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     original_data_shape = EEG['data'].shape
 
     # ensure channel locations present
-    locs = EEG['chanlocs']
+    locs = chanlocs_as_list(EEG['chanlocs'])
+    EEG['chanlocs'] = locs
     # check if locs is null or empty
     if locs is None or len(locs) == 0:
         raise RuntimeError("Channel locations required for interpolation")
     if 'X' not in locs[0] or 'Y' not in locs[0] or 'Z' not in locs[0]:
         raise RuntimeError("Channel locations required for interpolation")
+
+    # MATLAB-loaded channel-location structures are commonly object arrays.
+    # Normalize them before distinguishing structures from numeric indices.
+    candidate_chanlocs = chanlocs_as_list(bad_chans) if isinstance(bad_chans, (dict, list, tuple, np.ndarray)) else []
+    if candidate_chanlocs and isinstance(candidate_chanlocs[0], dict):
+        bad_chans = candidate_chanlocs
 
     # convert bad_chans from labels to indices if needed
     # Handle empty lists first

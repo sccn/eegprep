@@ -8,7 +8,10 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary
-from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty
+from eegprep.functions.miscfunc.value_parsing import (
+    is_empty_value as _is_empty,
+    parse_numeric_sequence,
+)
 
 
 def events_as_list(events: Any) -> list[dict[str, Any]]:
@@ -107,7 +110,7 @@ def _as_flat_list(value: Any) -> list[Any]:
     if isinstance(value, np.ndarray):
         return value.ravel().tolist()
     if isinstance(value, (str, bytes)):
-        return [int(token) for token in str(value).strip().strip("[]").replace(",", " ").split() if token]
+        return parse_numeric_sequence(value, dtype=int)
     if isinstance(value, Iterable):
         return list(value)
     return [value]
