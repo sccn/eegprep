@@ -35,33 +35,8 @@ def pop_importevent(
     event_source = options.get("event", options.get("filename"))
     if event_source is None:
         raise ValueError("pop_importevent requires an event file or event records")
-    fields = _fields(options.get("fields"))
-    records = _load_records(event_source, fields, options)
     old_events = events_to_records(EEG.get("event"))
-    indices = _event_indices(options.get("indices"), len(old_events))
-    append = _is_on(options.get("append", "yes")) or bool(indices)
-    latency_present = any("latency" in record for record in records)
-    if not latency_present and any("latency" in event for event in old_events):
-        append = False
-
-    align = _align_value(options)
-    if not math.isnan(align):
-        _validate_alignment(align, old_events, len(records))
-        if append:
-            logger.warning("pop_importevent: alignment and append were both requested; applying EEGLAB behavior")
-
-    events, imported_indices = _merge_records(old_events, records, append=append, indices=indices)
-    _recompute_latencies(
-        events,
-        imported_indices,
-        old_events,
-        srate=float(EEG.get("srate", 1) or 1),
-        timeunit=_timeunit(options),
-        align=align,
-        optimalign=_is_on(options.get("optimalign", "on")),
-        optimoffset=_is_on(options.get("optimoffset", "off")),
-        optimmeas=str(options.get("optimmeas", "mean")).lower(),
-    )
+    events = _import_event_records(event_source, old_events, float(EEG.get("srate", 1) or 1), options)
 
     out = deepcopy(EEG)
     out["event"] = events
@@ -74,6 +49,42 @@ def pop_importevent(
     command = _history_command(event_source, options)
     out["history"] = _append_history(out.get("history", ""), command)
     return (out, command) if return_com else out
+
+
+def _import_event_records(
+    event_source: Any,
+    oldevent: Any,
+    srate: float,
+    options: dict[str, Any],
+) -> list[dict[str, Any]]:
+    fields = _fields(options.get("fields"))
+    records = _load_records(event_source, fields, options)
+    old_events = events_to_records(oldevent)
+    indices = _event_indices(options.get("indices"), len(old_events))
+    append = _is_on(options.get("append", "yes")) or bool(indices)
+    latency_present = any("latency" in record for record in records)
+    if not latency_present and any("latency" in event for event in old_events):
+        append = False
+
+    align = _align_value(options)
+    if not math.isnan(align):
+        _validate_alignment(align, old_events, len(records))
+        if append:
+            logger.warning("importevent: alignment and append were both requested; applying EEGLAB behavior")
+
+    events, imported_indices = _merge_records(old_events, records, append=append, indices=indices)
+    _recompute_latencies(
+        events,
+        imported_indices,
+        old_events,
+        srate=float(srate),
+        timeunit=_timeunit(options),
+        align=align,
+        optimalign=_is_on(options.get("optimalign", "on")),
+        optimoffset=_is_on(options.get("optimoffset", "off")),
+        optimmeas=str(options.get("optimmeas", "mean")).lower(),
+    )
+    return events
 
 
 def _load_records(event_source: Any, fields: list[str] | None, options: dict[str, Any]) -> list[dict[str, Any]]:

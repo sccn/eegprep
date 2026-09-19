@@ -55,7 +55,7 @@ def pop_newset(
 
     eeg_to_store = _apply_dataset_metadata(EEG, options)
     if _should_save(options.get("saveold", False)) and CURRENTSET:
-        _save_existing_datasets(alleeg, CURRENTSET)
+        _save_existing_datasets(alleeg, CURRENTSET, options.get("saveold"))
     saved_new = _should_save(options.get("savenew", False))
     if saved_new:
         _save_new_dataset(eeg_to_store, options.get("savenew"))
@@ -196,13 +196,21 @@ def _first_currentset(CURRENTSET: int | list[int] | tuple[int, ...] | None) -> i
     return int(CURRENTSET) if CURRENTSET else None
 
 
-def _save_existing_datasets(ALLEEG: list[dict[str, Any]], CURRENTSET: Any) -> None:
+def _save_existing_datasets(ALLEEG: list[dict[str, Any]], CURRENTSET: Any, target: Any) -> None:
     indices = list(CURRENTSET) if isinstance(CURRENTSET, (list, tuple)) else [CURRENTSET]
+    explicit_target = isinstance(target, (str, Path)) and str(target).strip().lower() not in {
+        "",
+        "on",
+        "yes",
+        "true",
+    }
+    if explicit_target and len(indices) != 1:
+        raise ValueError("saveold with multiple datasets requires each dataset to have filename metadata")
     for index in indices:
         if not index:
             continue
         dataset = ALLEEG[int(index) - 1]
-        filename = _dataset_filename(dataset)
+        filename = str(target) if explicit_target else _dataset_filename(dataset)
         if filename is None:
             raise ValueError("saveold requires the existing dataset to have filename and filepath")
         pop_saveset(dataset, filename)
@@ -211,8 +219,8 @@ def _save_existing_datasets(ALLEEG: list[dict[str, Any]], CURRENTSET: Any) -> No
 def _save_new_dataset(EEG: dict[str, Any] | list[dict[str, Any]], target: Any) -> None:
     if isinstance(EEG, list):
         raise ValueError("savenew for multiple datasets requires explicit per-dataset paths")
-    if isinstance(target, str) and target.lower() not in {"on", "yes", "true"}:
-        filename = target
+    if isinstance(target, (str, Path)) and str(target).lower() not in {"on", "yes", "true"}:
+        filename = str(target)
     else:
         filename = _dataset_filename(EEG)
     if filename is None:
