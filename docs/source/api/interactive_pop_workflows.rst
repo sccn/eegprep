@@ -10,8 +10,11 @@ Loading and Saving
 
 ``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. ``pop_importpres`` recognizes tab-delimited Presentation headers and
-also accepts EEGLAB's positional event-type, time, and duration field names.
+formats. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
+metadata-only and 1-based channel loading through ``loadmode``.
+``pop_importpres`` recognizes tab-delimited Presentation headers and also
+accepts EEGLAB's positional event-type, time, and duration field names.
 
 .. autosummary::
    :toctree: generated/
