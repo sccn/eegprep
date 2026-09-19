@@ -155,6 +155,7 @@ _LAZY_EXPORTS = {
     "eeg_urlatency": ("eegprep.functions.popfunc.eeg_urlatency", "eeg_urlatency"),
     "eegh": ("eegprep.functions.adminfunc.eegh", "eegh"),
     "eeglab": ("eegprep.functions.adminfunc.eeglab", "eeglab"),
+    "eeglab_execmenu": ("eegprep.functions.adminfunc.eeglab_execmenu", "eeglab_execmenu"),
     "errordlg2": ("eegprep.functions.guifunc.errordlg2", "errordlg2"),
     "eeglab_clean_artifacts": ("eegprep.functions.adminfunc.eeglabcompat", "clean_artifacts"),
     "eegrej": ("eegprep.functions.sigprocfunc.eegrej", "eegrej"),

@@ -415,13 +415,16 @@
     {
       "eeglab_path": "functions/adminfunc/eeglab_execmenu.m",
       "eeglab_name": "eeglab_execmenu",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/adminfunc/eeglab_execmenu.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "MATLAB-specific path, help-generation, GUI shim, compatibility, or deployment behavior that should not be recreated in standalone EEGPrep runtime code.",
+      "status": "implemented",
+      "rationale": "EEGPrep exposes a safe session-bound dispatcher for registered menu labels and explicit noninteractive parameters without reproducing EEGLAB's global-workspace callback evaluation.",
       "responsible_phase": "none",
-      "user_facing_surface": [],
-      "test_notes": "No runtime parity tests required; validation should continue proving package code does not depend on the vendored EEGLAB tree."
+      "user_facing_surface": [
+        "api",
+        "console"
+      ],
+      "test_notes": "Current eeglab_tests workflow coverage verifies menu/function resolution, state synchronization, file and metadata operations, numerical resampling, and deterministic structured replay."
     },
     {
       "eeglab_path": "functions/adminfunc/eeglab_new.m",
