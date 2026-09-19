@@ -43,3 +43,14 @@ Data Helpers
    eegprep.functions.statistics.concatdata
    eegprep.functions.statistics.corrcoef_cell
    eegprep.functions.statistics.teststat
+
+Effective Dimensionality
+========================
+
+``numdim`` evaluates zero eigenvalue entropy terms by their analytic limit,
+so exactly rank-deficient inputs return a finite effective dimension.
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.functions.miscfunc.numdim.numdim
