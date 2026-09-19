@@ -48,6 +48,13 @@ Unreleased
   float64 signal samples, channel labels, rational sampling rates, and GDF
   event tables. Numeric event types round-trip through independent readers;
   free-text event labels receive explicit file-local uint16 codes.
+- Added the low-level EEGLAB plotting helpers ``cbar``, ``copyaxis``,
+  ``forcelocs``, ``plotcurve``, ``sbplot``, and ``slider`` as standalone
+  Matplotlib APIs. They support partial color scales, copied scientific axes,
+  exact montage rotations, confidence-region highlighting, spanning subplot
+  layouts, and pannable magnified figures. ``headplot`` also supports its
+  ``example`` and ``cartesian`` command modes, and lighting-off plots now have
+  explicit wireframe coverage.
 - Neuroscan ``loadcnt`` and ``pop_loadcnt`` now provide standalone 16/32-bit
   CNT import with per-channel microvolt calibration, channel-blocked reads,
   partial sample ranges, response and boundary events, and optional ``.fdt``
