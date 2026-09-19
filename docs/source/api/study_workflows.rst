@@ -66,6 +66,19 @@ Measures
    eegprep.std_readspec
    eegprep.std_specplot
 
+Plot and Statistics Parameters
+------------------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   eegprep.pop_dipparams
+   eegprep.pop_erpimparams
+   eegprep.pop_erpparams
+   eegprep.pop_erspparams
+   eegprep.pop_specparams
+   eegprep.pop_statparams
+
 Plotting
 --------
 
@@ -100,4 +113,3 @@ Other
    eegprep.std_selectdesign
    eegprep.std_selsubject
    eegprep.std_substudy
-

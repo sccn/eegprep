@@ -196,7 +196,7 @@ def flatten_dict(data):
     """
     # Flatten each dictionary and collect the fields and types
     flat_data = [flatten_dict_sub(item) for item in data]
-    fields = list(flat_data[0].keys())
+    fields = list(dict.fromkeys(field for item in flat_data for field in item))
     dtypes = []
     has_object = False
 
@@ -204,7 +204,7 @@ def flatten_dict(data):
     # Check ALL values per field (not just the first) to handle mixed types
     # e.g., event type can be numeric (2) for regular events and 'boundary' for boundary events
     for field in fields:
-        all_values = [item[field] for item in flat_data]
+        all_values = [item.get(field, default_empty) for item in flat_data]
         has_seq = any(isinstance(v, (list, np.ndarray)) for v in all_values)
         if has_seq:
             dtypes.append((field, 'O'))
@@ -218,14 +218,14 @@ def flatten_dict(data):
     # (scipy.io.savemat handles mixed typed/object recarrays poorly)
     if has_object:
         dtype = np.dtype([(f, 'O') for f in fields])
-        data_tuples = [tuple(_matlab_double(item[field]) for field in fields) for item in flat_data]
+        data_tuples = [tuple(_matlab_double(item.get(field, default_empty)) for field in fields) for item in flat_data]
     else:
         dtype = np.dtype(dtypes)
         data_tuples = []
         for item in flat_data:
             row = []
             for field, (_, dt) in zip(fields, dtypes):
-                val = item[field]
+                val = item.get(field, default_empty)
                 if dt == np.float64:
                     row.append(float(val))
                 else:
