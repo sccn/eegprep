@@ -22,6 +22,11 @@ the recording header.
 RAW files, including event channels and segment categories. ``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.
+``pop_importegimat`` reads EGI Net Station MATLAB exports. Segment variables
+named ``<condition>_Segment<number>`` become trials with one condition event
+per trial; continuous exports are read from the ``Session`` variable by
+default. An embedded ``samplingRate`` takes precedence over the supplied rate,
+and ``latpoint0`` is expressed in milliseconds.
 
 .. autosummary::
    :toctree: generated/
@@ -34,6 +39,7 @@ on, and validates that acquisition headers agree before concatenating samples.
    eegprep.pop_exportbids
    eegprep.importevent
    eegprep.pop_importdata
+   eegprep.pop_importegimat
    eegprep.pop_importepoch
    eegprep.pop_importevent
    eegprep.pop_load_frombids
