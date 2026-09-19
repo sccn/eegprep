@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_writeeeg`` now writes standards-compatible GDF 1.25 files with
+  float64 signal samples, channel labels, rational sampling rates, and GDF
+  event tables. Numeric event types round-trip through independent readers;
+  free-text event labels receive explicit file-local uint16 codes.
 - Neuroscan ``loadcnt`` and ``pop_loadcnt`` now provide standalone 16/32-bit
   CNT import with per-channel microvolt calibration, channel-blocked reads,
   partial sample ranges, response and boundary events, and optional ``.fdt``
@@ -79,8 +83,7 @@ Unreleased
   loading modes, while ``pop_fileio`` applies 1-based channel and inclusive
   sample/trial selections with consistent dataset bookkeeping. ``pop_writeeeg``
   now writes real EDF and BDF files through the installed writer instead of
-  routing unsupported BDF/GDF format names into MNE's EDF-only exporter; GDF
-  output fails explicitly until a compatible writer is available.
+  routing unsupported BDF format names into MNE's EDF-only exporter.
 - Added ``pop_dipparams``, ``pop_erpimparams``, ``pop_erpparams``,
   ``pop_erspparams``, ``pop_specparams``, and ``pop_statparams`` for storing
   EEGLAB-compatible STUDY plotting and statistics settings. Analysis-defining
