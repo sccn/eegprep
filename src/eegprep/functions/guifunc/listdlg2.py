@@ -31,12 +31,14 @@ def _require_qt() -> tuple[Any, Any]:
 
 def listdlg2(
     *,
-    promptstring: str = "",
+    promptstring: Sequence[str] | str = "",
     liststring: Sequence[str] | str,
     selectionmode: str = "multiple",
     initialvalue: Sequence[int] | None = None,
     listsize: tuple[int, int] | None = None,
     name: str = "",
+    okstring: str = "Ok",
+    cancelstring: str = "Cancel",
     parent: Any | None = None,
 ) -> tuple[list[int], int, str]:
     """Open an EEGLAB-like list selector.
@@ -56,6 +58,8 @@ def listdlg2(
         initialvalue=initialvalue,
         listsize=listsize,
         name=name,
+        okstring=okstring,
+        cancelstring=cancelstring,
         parent=parent,
     )
 
@@ -68,12 +72,14 @@ def listdlg2(
 
 def build_listdlg2_dialog(
     *,
-    promptstring: str = "",
+    promptstring: Sequence[str] | str = "",
     liststring: Sequence[str] | str,
     selectionmode: str = "multiple",
     initialvalue: Sequence[int] | None = None,
     listsize: tuple[int, int] | None = None,
     name: str = "",
+    okstring: str = "Ok",
+    cancelstring: str = "Cancel",
     parent: Any | None = None,
 ) -> tuple[Any, Any]:
     """Build a listdlg2 dialog without executing it, for visual capture tests."""
@@ -89,6 +95,8 @@ def build_listdlg2_dialog(
         initialvalue=initialvalue,
         listsize=listsize,
         name=name,
+        okstring=okstring,
+        cancelstring=cancelstring,
         parent=parent,
     )
     return app, dialog
@@ -98,30 +106,39 @@ def _create_dialog(
     QtCore: Any,
     QtWidgets: Any,
     *,
-    promptstring: str,
+    promptstring: Sequence[str] | str,
     liststring: Sequence[str] | str,
     selectionmode: str,
     initialvalue: Sequence[int] | None,
     listsize: tuple[int, int] | None,
     name: str,
+    okstring: str,
+    cancelstring: str,
     parent: Any | None,
 ) -> tuple[Any, Any, list[str]]:
     list_items = [liststring] if isinstance(liststring, str) else [str(item) for item in liststring]
+    prompt_text = promptstring if isinstance(promptstring, str) else "\n".join(str(line) for line in promptstring)
     initial = _normalise_initial(initialvalue, len(list_items), selectionmode)
     dialog = QtWidgets.QDialog(parent)
     dialog.setObjectName("listdlg2")
     dialog.setWindowTitle(name)
     _apply_listdlg_style(dialog)
+    cancel = QtWidgets.QPushButton(cancelstring, dialog)
+    ok = QtWidgets.QPushButton(okstring, dialog)
+    cancel_width = max(62, cancel.sizeHint().width())
+    ok_width = max(62, ok.sizeHint().width())
     visible_rows = min(max(len(list_items), 1), 10)
     if listsize is not None:
         width, height = listsize
     else:
-        width = max(176, min(420, 12 * max((len(item) for item in list_items), default=0) + 64))
+        list_width = min(420, 12 * max((len(item) for item in list_items), default=0) + 64)
+        button_width = 54 + cancel_width + ok_width
+        width = max(176, list_width, button_width)
         height = 115 + visible_rows * 19
     dialog.resize(width, height)
 
-    if promptstring:
-        label = QtWidgets.QLabel(promptstring, dialog)
+    if prompt_text:
+        label = QtWidgets.QLabel(prompt_text, dialog)
         label.setObjectName("prompt")
         label.setAlignment(QtCore.Qt.AlignLeft)
         label.setGeometry(18, 15, width - 36, 40)
@@ -138,17 +155,15 @@ def _create_dialog(
         list_widget.addItem(item)
         if index in initial:
             item.setSelected(True)
-    list_widget.setGeometry(18, 64 if promptstring else 15, width - 36, visible_rows * 20 + 8)
+    list_widget.setGeometry(18, 64 if prompt_text else 15, width - 36, visible_rows * 20 + 8)
 
-    cancel = QtWidgets.QPushButton("Cancel", dialog)
-    ok = QtWidgets.QPushButton("Ok", dialog)
     cancel.setObjectName("cancel")
     ok.setObjectName("ok")
     cancel.clicked.connect(dialog.reject)
     ok.clicked.connect(dialog.accept)
     button_y = height - 33
-    cancel.setGeometry(18, button_y, 62, 18)
-    ok.setGeometry(width - 80, button_y, 62, 18)
+    cancel.setGeometry(18, button_y, cancel_width, 18)
+    ok.setGeometry(width - 18 - ok_width, button_y, ok_width, 18)
     return dialog, list_widget, list_items
 
 
@@ -189,7 +204,6 @@ def _apply_listdlg_style(dialog: Any) -> None:
             background: {EEGLAB_BUTTON_BACKGROUND};
             border: 1px solid {EEGLAB_CONTROL_BORDER};
             min-width: 62px;
-            max-width: 62px;
             min-height: 18px;
             max-height: 18px;
             padding: 0;

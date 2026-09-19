@@ -39,6 +39,7 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("pop_reref.md"))
 
+    @eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
     @eeglab_test("unittesting_guifunc/pophelp/test_pophelp.m", "test_test_pophelp")
     def test_pophelp_accepts_function_name_with_or_without_matlab_suffix(self):
         plain_text, plain_source = pophelp_text("pop_editoptions")

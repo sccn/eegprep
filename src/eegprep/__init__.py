@@ -333,6 +333,7 @@ _LAZY_EXPORTS = {
     "pop_writelocs": ("eegprep.functions.popfunc.pop_writelocs", "pop_writelocs"),
     "pop_xfirws": ("eegprep.plugins.firfilt.pop_xfirws", "pop_xfirws"),
     "pophelp": ("eegprep.functions.guifunc.pophelp", "pophelp"),
+    "supergui": ("eegprep.functions.guifunc.supergui", "supergui"),
     "readegilocs": ("eegprep.functions.sigprocfunc.readegilocs", "readegilocs"),
     "readelp": ("eegprep.functions.sigprocfunc.readlocs", "readelp"),
     "readeetraklocs": ("eegprep.functions.sigprocfunc.readlocs", "readeetraklocs"),
