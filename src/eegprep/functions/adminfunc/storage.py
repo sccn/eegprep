@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import shutil
+import tempfile
 from typing import Any
 
 import numpy as np
@@ -13,8 +15,32 @@ from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 FDT_DTYPE = np.dtype("<f4")
 
 
+class _BackingFile:
+    """Reference-counted backing path shared by copy-on-write handles."""
+
+    def __init__(self, path: Path, *, temporary: bool = False) -> None:
+        self.path = path
+        self.temporary = temporary
+        self.references = 0
+
+    def acquire(self) -> None:
+        self.references += 1
+
+    def release(self) -> None:
+        self.references -= 1
+        if self.references == 0 and self.temporary:
+            self.path.unlink(missing_ok=True)
+
+
 class MemmapData:
-    """NumPy-compatible handle for EEGLAB ``.fdt`` data stored on disk."""
+    """NumPy-compatible handle for channel-major EEG data stored on disk.
+
+    Indexing always uses the logical EEG shape and normal zero-based NumPy
+    indices. ``transposed=True`` maps EEGLAB ``.dat``-style storage whose
+    physical axes are ``(samples, trials, channels)`` without exposing that
+    layout to callers. Explicit and deep copies share the backing file until a
+    copy is mutated, at which point that handle gets a private temporary file.
+    """
 
     __array_priority__ = 1000
 
@@ -26,18 +52,122 @@ class MemmapData:
         dtype: np.dtype | str = FDT_DTYPE,
         mode: str = "r+",
         order: str = "F",
+        transposed: bool = False,
+        temporary: bool = False,
+        debug: bool = False,
+        _backing: _BackingFile | None = None,
     ) -> None:
-        self.path = Path(filename)
         self._shape = tuple(int(item) for item in shape)
+        if not self._shape or any(item <= 0 for item in self._shape):
+            raise ValueError("Memory-mapped data dimensions must be positive")
         self._dtype = np.dtype(dtype)
+        if mode not in {"r", "r+", "c"}:
+            raise ValueError("MemmapData mode must be 'r', 'r+', or 'c'")
+        if order not in {"C", "F"}:
+            raise ValueError("MemmapData order must be 'C' or 'F'")
         self.mode = mode
         self.order = order
+        self.transposed = bool(transposed)
+        if self.transposed and len(self._shape) not in {2, 3}:
+            raise ValueError("Transposed storage requires a two- or three-dimensional shape")
+        self.debug = bool(debug)
+        self.type = "mmo"
+        self._backing = _backing or _BackingFile(Path(filename), temporary=temporary)
+        self._backing.acquire()
+        self._released = False
         self._array: np.memmap | None = None
+        self._validate_backing_file()
+
+    @classmethod
+    def empty(
+        cls,
+        shape: tuple[int, ...],
+        *,
+        filename: str | Path | None = None,
+        dtype: np.dtype | str = FDT_DTYPE,
+        order: str = "F",
+        transposed: bool = False,
+        temporary: bool | None = None,
+        fill_value: float = 0.0,
+    ) -> "MemmapData":
+        """Create a writable disk-backed array initialized to ``fill_value``."""
+        normalized_shape = tuple(int(item) for item in shape)
+        if not normalized_shape or any(item <= 0 for item in normalized_shape):
+            raise ValueError("Memory-mapped data dimensions must be positive")
+        if transposed and len(normalized_shape) not in {2, 3}:
+            raise ValueError("Transposed storage requires a two- or three-dimensional shape")
+        path, owns_file = _output_mapping_path(filename)
+        if temporary is None:
+            temporary = owns_file
+        physical_shape = _physical_shape(normalized_shape, transposed)
+        mapped = np.memmap(path, dtype=np.dtype(dtype), mode="w+", shape=physical_shape, order=order)
+        mapped[...] = fill_value
+        mapped.flush()
+        mmap_handle = getattr(mapped, "_mmap", None)
+        del mapped
+        if mmap_handle is not None:
+            mmap_handle.close()
+        return cls(
+            path,
+            normalized_shape,
+            dtype=dtype,
+            mode="r+",
+            order=order,
+            transposed=transposed,
+            temporary=bool(temporary),
+        )
+
+    @classmethod
+    def from_array(
+        cls,
+        data: Any,
+        *,
+        filename: str | Path | None = None,
+        dtype: np.dtype | str = FDT_DTYPE,
+        order: str = "F",
+        transposed: bool = False,
+        temporary: bool | None = None,
+    ) -> "MemmapData":
+        """Write an array to disk and return a logical memory-mapped view."""
+        array = np.asarray(data, dtype=np.dtype(dtype))
+        if array.ndim == 0 or any(item <= 0 for item in array.shape):
+            raise ValueError("Memory-mapped data must have positive dimensions")
+        output = cls.empty(
+            tuple(array.shape),
+            filename=filename,
+            dtype=dtype,
+            order=order,
+            transposed=transposed,
+            temporary=temporary,
+        )
+        output._memmap()[...] = array
+        output.flush()
+        return output
 
     @property
     def filename(self) -> str:
         """Return the backing file path as a string."""
         return str(self.path)
+
+    @property
+    def path(self) -> Path:
+        """Return the backing file path."""
+        return self._backing.path
+
+    @property
+    def dataFile(self) -> str:
+        """Return the backing path using EEGLAB's ``mmo`` field name."""
+        return self.filename
+
+    @property
+    def dimensions(self) -> tuple[int, ...]:
+        """Return the logical dimensions using EEGLAB's ``mmo`` field name."""
+        return self.shape
+
+    @property
+    def writable(self) -> bool:
+        """Return whether writes are permitted for this handle."""
+        return self.mode != "r"
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -66,7 +196,9 @@ class MemmapData:
 
     def flush(self) -> None:
         """Flush pending writes to the backing file."""
-        self._memmap().flush()
+        self._memmap()
+        if self._array is not None:
+            self._array.flush()
 
     def close(self) -> None:
         """Flush and release the backing memory map handle."""
@@ -75,14 +207,86 @@ class MemmapData:
             return
         self._array = None
         array.flush()
-        mmap_handle = getattr(array, "_mmap", None)
-        del array
-        if mmap_handle is not None:
-            mmap_handle.close()
+        # Do not close ``array._mmap`` directly: NumPy slices can retain views
+        # of this map after the handle object is replaced inside an EEG dict.
+        # Releasing our reference lets NumPy close the OS map once every view
+        # is gone and avoids invalidating those still-live arrays.
 
     def copy(self, order: str = "C") -> np.ndarray:
         """Return an in-memory copy of the mapped data."""
         return np.array(self._memmap(), copy=True, order=order)
+
+    def mapped_copy(self) -> "MemmapData":
+        """Return an independent writable disk-backed copy."""
+        copied = self.__copy__()
+        copied._detach_for_write()
+        return copied
+
+    def resize(self, shape: tuple[int, ...], *, fill_value: float = 0.0) -> None:
+        """Resize this mapping, retaining the overlapping logical data region.
+
+        Resizing writes a private replacement sidecar. The original sidecar is
+        never resized underneath another handle.
+        """
+        new_shape = tuple(int(item) for item in shape)
+        if not new_shape or any(item <= 0 for item in new_shape):
+            raise ValueError("Memory-mapped data dimensions must be positive")
+        if len(new_shape) != self.ndim:
+            raise ValueError("Resizing cannot change the number of dimensions")
+        if self.transposed and len(new_shape) not in {2, 3}:
+            raise ValueError("Transposed storage requires a two- or three-dimensional shape")
+        replacement = MemmapData.empty(
+            new_shape,
+            dtype=self.dtype,
+            order=self.order,
+            transposed=self.transposed,
+            fill_value=fill_value,
+        )
+        common_region = tuple(slice(0, min(self.shape[axis], new_shape[axis])) for axis in range(self.ndim))
+        replacement[common_region] = self[common_region]
+        self._adopt(replacement)
+
+    def delete(self, indices: Any, *, axis: int | None = None) -> None:
+        """Delete logical indices and replace the sidecar with the smaller data.
+
+        ``axis=None`` follows MATLAB's column-major linear deletion. Matrix
+        results become row vectors, while column-vector inputs remain columns.
+        """
+        if axis is None:
+            flat = np.asarray(self).reshape(-1, order="F")
+            result = np.delete(flat, indices)
+            if self.ndim == 2 and self.shape[1] == 1:
+                result = result.reshape((-1, 1), order="F")
+            else:
+                result = result.reshape((1, -1), order="F")
+        else:
+            normalized_axis = int(axis)
+            if normalized_axis < -self.ndim or normalized_axis >= self.ndim:
+                raise ValueError(f"axis {normalized_axis} is out of bounds for array of dimension {self.ndim}")
+            result = np.delete(np.asarray(self), indices, axis=normalized_axis)
+        if result.size == 0:
+            raise ValueError("MemmapData cannot represent an empty mapping")
+        replacement = MemmapData.from_array(
+            result,
+            dtype=self.dtype,
+            order=self.order,
+            transposed=self.transposed and result.ndim in {2, 3},
+        )
+        self._adopt(replacement)
+
+    def change_file(self, filename: str | Path, *, writable: bool = False) -> None:
+        """Move a private mapping, or copy a shared mapping, to ``filename``."""
+        target = Path(filename)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        self.flush()
+        source = self.path
+        shared = self._backing.references > 1
+        self.close()
+        if shared:
+            shutil.copyfile(source, target)
+        else:
+            shutil.move(source, target)
+        self._replace_backing(_BackingFile(target), mode="r+" if writable else "r")
 
     def reshape(self, *shape: Any, **kwargs: Any) -> np.ndarray:
         """Return a reshaped view using NumPy's reshape semantics."""
@@ -112,6 +316,9 @@ class MemmapData:
         return self._memmap()[key]
 
     def __setitem__(self, key: Any, value: Any) -> None:
+        if not self.writable:
+            raise ValueError("assignment destination is read-only")
+        self._detach_for_write()
         self._memmap()[key] = value
 
     def __len__(self) -> int:
@@ -124,7 +331,16 @@ class MemmapData:
         return getattr(self._memmap(), name)
 
     def __copy__(self) -> "MemmapData":
-        return MemmapData(self.path, self._shape, dtype=self._dtype, mode=self.mode, order=self.order)
+        return MemmapData(
+            self.path,
+            self._shape,
+            dtype=self._dtype,
+            mode=self.mode,
+            order=self.order,
+            transposed=self.transposed,
+            debug=self.debug,
+            _backing=self._backing,
+        )
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "MemmapData":
         copied = self.__copy__()
@@ -132,18 +348,130 @@ class MemmapData:
         return copied
 
     def __repr__(self) -> str:
-        return f"MemmapData(path={str(self.path)!r}, shape={self._shape!r}, dtype={self._dtype})"
+        return (
+            f"MemmapData(path={str(self.path)!r}, shape={self._shape!r}, "
+            f"dtype={self._dtype}, transposed={self.transposed})"
+        )
 
-    def _memmap(self) -> np.memmap:
+    def __del__(self) -> None:
+        if getattr(self, "_released", True):
+            return
+        try:
+            self.close()
+        finally:
+            self._backing.release()
+            self._released = True
+
+    def _memmap(self) -> np.ndarray:
         if self._array is None:
             self._array = np.memmap(
                 self.path,
                 dtype=self._dtype,
                 mode=self.mode,
-                shape=self._shape,
+                shape=_physical_shape(self._shape, self.transposed),
                 order=self.order,
             )
-        return self._array
+        if not self.transposed:
+            return self._array
+        if self.ndim == 2:
+            return self._array.transpose(1, 0)
+        return self._array.transpose(2, 0, 1)
+
+    def _validate_backing_file(self) -> None:
+        if not self.path.exists():
+            raise FileNotFoundError(f"Memory-mapped data file not found: {self.path}")
+        expected = self.size * self.dtype.itemsize
+        actual = self.path.stat().st_size
+        if actual == 0:
+            raise ValueError(f"Memory-mapped data file is empty: {self.path}")
+        if actual != expected:
+            raise ValueError(f"Memory-mapped data file has {actual} bytes, expected {expected}")
+
+    def _detach_for_write(self) -> None:
+        if self._backing.references <= 1:
+            return
+        self.flush()
+        new_path, _owns_file = _output_mapping_path(None)
+        shutil.copyfile(self.path, new_path)
+        self.close()
+        self._replace_backing(_BackingFile(new_path, temporary=True), mode="r+")
+
+    def _adopt(self, replacement: "MemmapData") -> None:
+        replacement.flush()
+        self.close()
+        self._shape = replacement.shape
+        self._dtype = replacement.dtype
+        self.order = replacement.order
+        self.transposed = replacement.transposed
+        self._replace_backing(replacement._backing, mode="r+")
+
+    def _replace_backing(self, backing: _BackingFile, *, mode: str) -> None:
+        old_backing = self._backing
+        backing.acquire()
+        self._backing = backing
+        self.mode = mode
+        self._array = None
+        old_backing.release()
+
+
+def _physical_shape(shape: tuple[int, ...], transposed: bool) -> tuple[int, ...]:
+    if not transposed:
+        return shape
+    if len(shape) == 2:
+        return (shape[1], shape[0])
+    if len(shape) == 3:
+        return (shape[1], shape[2], shape[0])
+    raise ValueError("Transposed storage requires a two- or three-dimensional shape")
+
+
+def _output_mapping_path(filename: str | Path | None) -> tuple[Path, bool]:
+    if filename is not None:
+        path = Path(filename)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path, False
+    temporary = tempfile.NamedTemporaryFile(prefix="eegprep-mmo-", suffix=".fdt", delete=False)
+    path = Path(temporary.name)
+    temporary.close()
+    return path, True
+
+
+def mmo(
+    data_file: str | Path | None,
+    dimensions: tuple[int, ...],
+    writable: bool = True,
+    transposed: bool = False,
+    debug: bool = False,
+) -> MemmapData:
+    """Construct an EEGLAB-compatible memory-mapped EEG data handle.
+
+    ``dimensions`` are always logical channel-major dimensions. Passing
+    ``data_file=None`` creates a temporary zero-filled sidecar.
+    """
+    shape = tuple(int(item) for item in dimensions)
+    if data_file is None or str(data_file) == "":
+        result = MemmapData.empty(shape, transposed=transposed)
+        result.debug = bool(debug)
+        return result
+    return MemmapData(
+        data_file,
+        shape,
+        mode="r+" if writable else "r",
+        order="F",
+        transposed=transposed,
+        debug=debug,
+    )
+
+
+def mapped_output_like(source: Any, data: Any) -> Any:
+    """Keep a derived EEG data array disk-backed when its source was mapped."""
+    if not isinstance(source, MemmapData) or isinstance(data, MemmapData):
+        return data
+    return MemmapData.from_array(
+        data,
+        dtype=source.dtype,
+        order=source.order,
+        transposed=source.transposed,
+    )
 
 
 class OffloadedData:

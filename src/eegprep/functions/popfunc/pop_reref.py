@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import (
@@ -108,6 +109,7 @@ def pop_reref(
         ref = []
 
     _validate_eeg(EEG)
+    source_data = EEG["data"]
     EEG_out: dict[str, Any] = copy.deepcopy(EEG)
     resolved = _resolve_options(EEG_out, ref, options)
 
@@ -143,6 +145,7 @@ def pop_reref(
 
     _normalise_checkset_types(EEG_out)
     EEG_out = eeg_checkset(EEG_out)
+    EEG_out["data"] = mapped_output_like(source_data, EEG_out["data"])
     com = _history_command(ref, resolved["history_options"])
     return (EEG_out, com) if return_com else EEG_out
 
