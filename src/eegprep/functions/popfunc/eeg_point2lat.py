@@ -49,7 +49,7 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
     if lat_array.size != epoch_array.size:
         if epoch_array.size != 1:
             raise ValueError("eeg_point2lat: latency and epoch arrays must have the same length")
-        epoch_array = np.ones(lat_array.shape, dtype=float) * float(epoch_array)
+        epoch_array = np.ones(lat_array.shape, dtype=float) * epoch_array.item()
 
     timewin = np.atleast_1d(np.array(timewin, dtype=float)) * float(timeunit)
     if timewin.size != 2:

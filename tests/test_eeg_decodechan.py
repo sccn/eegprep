@@ -3,6 +3,7 @@ import unittest
 
 # Bring in the function under test
 from eegprep import eeg_decodechan
+from tests.eeglab_tests import eeglab_test
 
 
 class TestEEGDecodeChan(unittest.TestCase):
@@ -77,6 +78,16 @@ class TestEEGDecodeChan(unittest.TestCase):
     def test_non_iterable_chanstr_raises_typeerror(self):
         with self.assertRaises(TypeError):
             eeg_decodechan(self.chanlocs, 123)
+
+    @eeglab_test("unittesting_popfunc/eeg_decodechan/popfunc_eeg_decodechan_wrapperTest.m", "test_test_eeg_decodechan")
+    def test_cell_and_space_separated_channel_labels_match(self):
+        cell_indices, cell_labels = eeg_decodechan(self.chanlocs, ["cz", "pz", "fz"])
+        text_indices, text_labels = eeg_decodechan(self.chanlocs, "cz pz fz")
+
+        self.assertEqual(cell_indices, [0, 1, 2])
+        self.assertEqual(cell_labels, ["Fz", "Cz", "Pz"])
+        self.assertEqual(text_indices, cell_indices)
+        self.assertEqual(text_labels, cell_labels)
 
 
 if __name__ == "__main__":
