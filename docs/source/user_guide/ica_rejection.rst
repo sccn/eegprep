@@ -158,3 +158,40 @@ EEGLAB ``lite`` and ``beta`` network artifacts are not bundled in the Python
 package; requesting them with ``engine=None`` raises a clear limitation. They
 can still be requested through ``engine="matlab"`` or ``engine="octave"``
 when that runtime has an EEGLAB ICLabel checkout with those artifacts.
+
+Why Not 4 Bits
+--------------
+
+A 4-bit artifact was built and measured rather than assumed. It works, and it is
+still not what ships. ``tools/iclabel/quantize_iclabel_int4.py`` regenerates
+``iclabel_int4_block32.onnx``: asymmetric uint4 Conv weights with the scale
+blocked in groups of 32 input channels, which is the finest-grained scheme a
+portable ONNX graph can express for a network that is entirely ``Conv``. It
+measures 1,931,262 bytes against 2,932,897 for the shipped int8 artifact, and it
+clears the same frozen gate at 100% top-1 and 100% keep-or-reject agreement.
+
+Three measurements argue against promoting it:
+
+* **The size target is already met.** Every one of the network's 2,903,817
+  parameters is a Conv weight, so int8 achieves a clean 3.96x reduction with
+  nothing left over to dilute it. Dropping to 4 bits saves a further 1.0 MB of
+  artifact and 0.74 MB of wheel (7.82 MB to 7.08 MB), on top of the 8.2 MB that
+  int8 already removed.
+* **It costs compatibility.** int4 tensors and blocked ``DequantizeLinear`` are
+  opset 21 constructs. onnxruntime 1.18 refuses the graph with
+  ``MLDataType for: tensor(uint4) is not currently registered``, so shipping it
+  would raise the floor declared in ``pyproject.toml`` from 1.18 to 1.19.
+* **It buys no speed.** Weight-only 4-bit dequantizes to float before the same
+  float ``Conv``. Measured under ONNX Runtime Web, 868 augmented rows took
+  3,214 ms at int4 against 3,043 ms at float32.
+
+It also perturbs the probabilities more: a maximum absolute change of 4.5e-2
+against the float32 teacher, versus 1.3e-2 for int8, on the same components.
+That bought no measured label accuracy, and it consumes more of the margin that
+separates the top two classes.
+
+The finding worth keeping is that ONNX Runtime Web can execute this graph today.
+``tools/iclabel/check_iclabel_ort_web.mjs`` demonstrates it against the pinned
+``onnxruntime-web`` build. If ICLabel ever needs to be materially smaller in the
+browser, the path is open and measured; it is simply not worth its compatibility
+cost while int8 already sits under the target.
