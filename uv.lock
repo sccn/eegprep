@@ -658,7 +658,6 @@ dependencies = [
     { name = "python-picard" },
     { name = "pyyaml" },
     { name = "scipy" },
-    { name = "sympy" },
     { name = "threadpoolctl" },
 ]
 
@@ -762,7 +761,6 @@ requires-dist = [
     { name = "sphinx-gallery", marker = "extra == 'docs'", specifier = ">=0.14.0" },
     { name = "sphinx-togglebutton", marker = "extra == 'docs'", specifier = ">=0.3.0" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=7.1.0" },
-    { name = "sympy", specifier = ">=1.14.0" },
     { name = "threadpoolctl", specifier = ">=3.6.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
