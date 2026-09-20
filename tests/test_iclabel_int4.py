@@ -107,6 +107,18 @@ def test_quantize_int4_emits_a_blocked_four_bit_graph_with_float_io(tmp_path):
     ]
     assert len(blocked) == len(layers)
 
+    # Each DequantizeLinear must precede the Conv that consumes it. Keying the
+    # rewrite on protobuf object identity rather than position silently breaks
+    # this on some protobuf builds, so assert the ordering directly.
+    positions = {}
+    for position, node in enumerate(model.graph.node):
+        for name in node.output:
+            positions[name] = position
+    for position, node in enumerate(model.graph.node):
+        for name in node.input:
+            if name in positions:
+                assert positions[name] < position, f"{name} is produced after the node consuming it"
+
     # Every Conv weight worth quantizing must actually be quantized, so a
     # future threshold change cannot quietly leave the big layers in float.
     assert all(layer["parameters"] >= MIN_PARAMS_TO_QUANTIZE for layer in layers)

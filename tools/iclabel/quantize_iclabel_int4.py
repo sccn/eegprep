@@ -143,10 +143,15 @@ def quantize_int4(
     initializers = {initializer.name: initializer for initializer in model.graph.initializer}
     replaced: set[str] = set()
     added = []
+    # Keyed by position in graph_nodes, not by id(): iterating a protobuf
+    # repeated field can hand back fresh Python wrappers each time, so object
+    # identity is not stable across two passes and the DequantizeLinear can end
+    # up placed after the Conv that consumes it.
+    graph_nodes = list(model.graph.node)
     dequant_nodes: dict[int, Any] = {}
     layers: list[dict[str, Any]] = []
 
-    for node in list(model.graph.node):
+    for index, node in enumerate(graph_nodes):
         if node.op_type != "Conv" or len(node.input) < 2:
             continue
         weight_name = node.input[1]
@@ -172,7 +177,7 @@ def quantize_int4(
                 numpy_helper.from_array(zero_point.astype(ml_dtypes.uint4), name=zero_point_name),
             ]
         )
-        dequant_nodes[id(node)] = helper.make_node(
+        dequant_nodes[index] = helper.make_node(
             "DequantizeLinear",
             [code_name, scale_name, zero_point_name],
             [dequant_name],
@@ -200,15 +205,17 @@ def quantize_int4(
     model.graph.initializer.extend(kept + added)
 
     ordered = []
-    for node in list(model.graph.node):
-        dequant = dequant_nodes.get(id(node))
+    for index, node in enumerate(graph_nodes):
+        dequant = dequant_nodes.get(index)
         if dequant is not None:
             ordered.append(dequant)
         ordered.append(node)
     del model.graph.node[:]
     model.graph.node.extend(ordered)
 
-    onnx.checker.check_model(model)
+    # full_check enforces topological ordering, which is exactly what a
+    # misplaced DequantizeLinear breaks.
+    onnx.checker.check_model(model, full_check=True)
     model_output.parent.mkdir(parents=True, exist_ok=True)
     onnx.save(model, str(model_output))
     return layers
