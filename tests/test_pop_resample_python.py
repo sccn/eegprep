@@ -1,9 +1,14 @@
+import math
 import unittest
 
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.popfunc.pop_resample import pop_resample
+from eegprep.functions.popfunc.pop_resample import (
+    RATIO_TOLERANCE,
+    _resample_ratio,
+    pop_resample,
+)
 from tests.eeglab_tests import eeglab_test
 
 
@@ -165,6 +170,122 @@ def test_pop_resample_current_suite_preserves_half_sample_boundaries():
             [output["event"][0]["latency"], output["event"][1]["latency"]],
             [0.5, rate + 0.5],
         )
+
+
+class ResampleRatioTests(unittest.TestCase):
+    """The ratio that drives both the resampling and the event latencies.
+
+    EEGLAB computes it as ``rat(freq/EEG.srate, 1e-12)`` (pop_resample.m line
+    119). This used to be ported as ``sympy.nsimplify``, which is not the same
+    function: it looks for a simple symbolic expression, not a rational one,
+    and returns an irrational when no simple fraction is close enough. The
+    numerator of such an expression truncates silently under ``int()``, so the
+    ratio came back small, wrong, and unflagged.
+    """
+
+    # Sampling rates that are not integers are the whole point: every pair here
+    # with a whole-number source rate was already handled correctly, and every
+    # pair with a fractional one was not.
+    INTEGER_RATES = {
+        (250, 1000): (1, 4),
+        (256, 512): (1, 2),
+        (500, 2048): (125, 512),
+        (128, 1000): (16, 125),
+        (1000, 1024): (125, 128),
+        (44100, 48000): (147, 160),
+        (96, 128): (3, 4),
+    }
+    FRACTIONAL_RATES = {
+        (999.9, 2000): (9999, 20000),
+        (1023.4, 2000): (5117, 10000),
+        (250, 999.9): (2500, 9999),
+        (128, 512.03): (12800, 51203),
+    }
+
+    def test_whole_number_rates_are_unchanged(self):
+        """The fix must not move the ratios that were already right."""
+        for (freq, srate), expected in self.INTEGER_RATES.items():
+            with self.subTest(freq=freq, srate=srate):
+                self.assertEqual(_resample_ratio(freq, srate), expected)
+
+    def test_fractional_rates_are_exact(self):
+        """Each of these came back truncated, by up to 16.7 percent."""
+        for (freq, srate), expected in self.FRACTIONAL_RATES.items():
+            with self.subTest(freq=freq, srate=srate):
+                self.assertEqual(_resample_ratio(freq, srate), expected)
+
+    def test_every_ratio_lands_inside_the_tolerance(self):
+        """The property the pairs above are examples of.
+
+        Stated as a property rather than a table so that a future change of
+        method has to hold the invariant for rates nobody wrote down. An
+        implementation that returns something other than a ratio fails here for
+        the same reason it failed in the field: the number it returns is not
+        the number it was asked for.
+        """
+        sources = [250, 256, 500, 512, 1000, 1024, 2000, 2048, 5000, 999.9, 1023.4, 512.03]
+        targets = [100, 125, 128, 200, 250, 256, 500, 512]
+
+        for srate in sources:
+            for freq in targets:
+                if freq >= srate:
+                    continue
+                with self.subTest(freq=freq, srate=srate):
+                    p, q = _resample_ratio(freq, srate)
+                    self.assertGreater(q, 0)
+                    self.assertAlmostEqual(p / q, freq / srate, delta=RATIO_TOLERANCE)
+
+    def test_a_fractional_rate_resamples_through_the_whole_pipeline(self):
+        """The end-to-end test that the defect actually fails.
+
+        The test below deliberately uses whole-number rates, and so passes
+        against the old implementation too: it says nothing about this fix. This
+        one drives `pop_resample` itself at a fractional source rate, where the
+        old ratio was 21/84 and the correct one is 2560/9999, and asserts the
+        sample count that follows from the correct one.
+
+        It runs through the `scipy` engine on purpose. The `poly` engine builds
+        an anti-aliasing filter whose length scales with the denominator, and an
+        exact ratio for a fractional rate has a large one, so the faithful
+        engine would make this test cost seconds. The `scipy` engine consumes
+        the same p and q through `ceil(n * p / q)`, which is what is being
+        checked here.
+        """
+        eeg = _continuous_eeg()
+        eeg["srate"] = 999.9
+        eeg["data"] = np.zeros((2, 2000), dtype=np.float32)
+        eeg["pnts"] = 2000
+        eeg["event"] = []
+        eeg["urevent"] = []
+        eeg["icaact"] = np.zeros((2, 2000, 1), dtype=np.float32)
+
+        output = pop_resample(eeg, 256, engine="scipy")
+
+        p, q = _resample_ratio(256, 999.9)
+        self.assertEqual((p, q), (2560, 9999))
+        self.assertEqual(output["pnts"], math.ceil(2000 * p / q))
+        self.assertEqual(output["srate"], 256)
+
+    def test_the_resampled_rate_matches_the_data(self):
+        """The invariant the defect broke: the label and the samples agree.
+
+        pop_resample stamps ``srate`` with the rate it was asked for whatever
+        the ratio turned out to be, so a wrong ratio produced a recording whose
+        declared rate and sample count disagreed, with nothing to notice it.
+        Whole-number rates keep this cheap; the ratio tests above are where the
+        fractional ones are covered, because an exact fractional ratio means a
+        denominator in the thousands and an anti-aliasing filter to match.
+        """
+        eeg = _continuous_eeg()
+        eeg["event"] = []
+        duration = eeg["pnts"] / eeg["srate"]
+
+        for rate in (50, 200, 250):
+            with self.subTest(rate=rate):
+                output = pop_resample(dict(eeg), rate)
+
+                self.assertEqual(output["srate"], rate)
+                self.assertAlmostEqual(output["pnts"] / output["srate"], duration, delta=1 / rate)
 
 
 if __name__ == "__main__":

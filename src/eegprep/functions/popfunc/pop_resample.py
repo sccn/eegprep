@@ -6,7 +6,6 @@ import math
 from math import ceil, floor, gcd
 
 import numpy as np
-import sympy as sp
 from scipy import signal
 from scipy.signal import resample, resample_poly
 from scipy.signal.windows import kaiser
@@ -167,6 +166,15 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
 
     logger.info("resampling data %g Hz", float(freq))
     p, q = _resample_ratio(freq, EEG["srate"])
+    if max(p, q) > _LARGE_RATIO_WARNING_THRESHOLD:
+        logger.warning(
+            "resampling %g Hz to %g Hz needs the ratio %d/%d; the anti-aliasing filter "
+            "scales with that denominator, so this will be slow",
+            float(EEG["srate"]),
+            float(freq),
+            p,
+            q,
+        )
     ratio = p / q
     source_data = EEG["data"]
     data = np.asarray(source_data)
@@ -208,10 +216,73 @@ def resample_eeg(EEG, freq, method='poly', fc=0.9, df=0.2):
     return output
 
 
+# The tolerance EEGLAB resamples with: pop_resample.m line 119,
+# `[p,q] = rat(freq/EEG.srate, 1e-12)`. A looser 1e-4 is written on the line
+# above it and commented "not used right now", so this is a deliberate choice
+# upstream rather than an accident, and matching it is what keeps a resampled
+# recording identical to the one EEGLAB would have produced.
+RATIO_TOLERANCE = 1e-12
+
+# The continued fraction of a double is finite and short, about forty terms at
+# worst. The bound is a guard against a pathological float, not a tuning knob.
+_MAX_CONTINUED_FRACTION_TERMS = 64
+
+# _resample_poly_segment sets its anti-aliasing filter's transition width to
+# df / max(p, q), so the filter length grows with the ratio. An exact ratio for
+# a fractional sampling rate can be large: 128 Hz from a 512.03 Hz recording is
+# 12800/51203, which builds a filter of about 1.64 million taps and takes some
+# seconds per minute of 64-channel data, against milliseconds for a whole-number
+# pair of the same magnitude. That cost is EEGLAB's, inherited with its 1e-12
+# tolerance, and it is correct rather than a defect. It is worth a line in the
+# log so that a resample which appears to hang has a visible reason.
+_LARGE_RATIO_WARNING_THRESHOLD = 10_000
+
+
+def _rational_within(value, tolerance):
+    """Approximate `value` by a fraction, within `tolerance`.
+
+    MATLAB's ``rat``, which is what EEGLAB calls here. It matters that the
+    result is a RATIO: this used to be ``sympy.nsimplify``, which looks for a
+    simple symbolic expression rather than a rational one and is free to return
+    an irrational when no simple fraction is close enough. Taking the numerator
+    of such an expression and calling ``int()`` on it truncates silently, so a
+    2000 Hz recording resampled to 999.9 Hz was resampled by 5/12 rather than
+    9999/20000, a 16.7 percent error, and then labeled 999.9 Hz regardless.
+
+    The continued fraction for `value` is expanded one term at a time and the
+    search stops at the first convergent inside `tolerance`, which is what
+    ``rat`` does and which returns the SMALLEST denominator that will do. That
+    matters here beyond tidiness: the denominator sets the anti-aliasing filter
+    length in ``_resample_poly_segment``, so a larger one than necessary is
+    paid for in filter taps.
+
+    It terminates because the continued fraction of a float is finite: a double
+    is itself a ratio of integers, so the expansion is exact within about forty
+    terms and the loop bound is never reached in practice.
+    """
+    numerator, previous_numerator = floor(value), 1
+    denominator, previous_denominator = 1, 0
+    remainder = value
+
+    for _ in range(_MAX_CONTINUED_FRACTION_TERMS):
+        if abs(numerator / denominator - value) <= tolerance:
+            return int(numerator), int(denominator)
+        fractional_part = remainder - floor(remainder)
+        if fractional_part == 0:
+            break
+        remainder = 1.0 / fractional_part
+        term = floor(remainder)
+        numerator, previous_numerator = term * numerator + previous_numerator, numerator
+        denominator, previous_denominator = (
+            term * denominator + previous_denominator,
+            denominator,
+        )
+
+    return int(numerator), int(denominator)
+
+
 def _resample_ratio(freq, srate):
-    rational_approx = sp.nsimplify(float(freq) / float(srate), tolerance=1e-12)
-    p, q = rational_approx.as_numer_denom()
-    return int(p), int(q)
+    return _rational_within(float(freq) / float(srate), RATIO_TOLERANCE)
 
 
 def _segment_bounds(EEG, old_pnts):
