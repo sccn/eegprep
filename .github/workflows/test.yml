@@ -237,8 +237,25 @@ jobs:
         working-directory: packages/eegprep-lean
         env:
           PYTHONPATH: src
+        shell: bash
         run: |
           uv run --no-sync --project ../.. pytest tests -m "not network"
+
+      # The store and window modules need the zarr extra, and skip without it, so the
+      # step above proves only that they skip. This installs it so they actually run.
+      # zarr is not added to the dev environment because the base install must keep
+      # working with nothing present, which the step above is what verifies.
+      - name: Run eegprep-lean tests with the zarr extra
+        if: always()
+        working-directory: packages/eegprep-lean
+        # bash on every OS, as the steps above do. The default shell on windows-latest
+        # is PowerShell, where a trailing backslash is not a line continuation but a
+        # command to run, and `Failed to spawn: \` is the only clue you get -- printed
+        # after a fully green test run.
+        shell: bash
+        run: |
+          uv run --isolated --with 'zarr==3.4.0' --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
 
       - name: Display installed packages
         if: always()

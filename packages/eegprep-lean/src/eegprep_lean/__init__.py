@@ -41,8 +41,42 @@ from .transport import (
 
 __version__ = "0.1.0.dev0"
 
+#: Names that live behind the ``zarr`` extra. Resolved on first use rather than imported
+#: here, because importing them would make the base install require zarr, and the base
+#: install exists precisely to require nothing.
+_ZARR_EXTRA = {
+    "NemarHttpStore": "eegprep_lean.store",
+    "ReadOnlyStoreError": "eegprep_lean.store",
+    "Window": "eegprep_lean.window",
+    "open_array": "eegprep_lean.store",
+    "read_window": "eegprep_lean.window",
+    "to_physical": "eegprep_lean.window",
+}
+
+
+def __getattr__(name: str):
+    """Load a zarr-backed name on demand, and say which extra supplies it if it is absent."""
+    module_name = _ZARR_EXTRA.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    import importlib
+
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as err:
+        raise ImportError(
+            f"{name} needs the zarr extra: pip install 'eegprep-lean[zarr]'. In a browser, "
+            'micropip.install("zarr==3.4.0", deps=False), because zarr pins numcodecs and '
+            "numcodecs publishes no emscripten wheel at any version."
+        ) from err
+    return getattr(module, name)
+
+
 __all__ = [
     "SUPPORTED_FORMAT_VERSION",
+    "NemarHttpStore",
+    "ReadOnlyStoreError",
+    "Window",
     "ChannelGroup",
     "DatasetIndex",
     "IndexError_",
@@ -55,6 +89,9 @@ __all__ = [
     "UrllibTransport",
     "__version__",
     "default_transport",
+    "open_array",
     "read_index",
+    "read_window",
     "running_in_pyodide",
+    "to_physical",
 ]
