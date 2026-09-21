@@ -37,10 +37,12 @@ Behavior:
   softmax are unchanged. On the frozen 217-component, subject-disjoint set in
   `tools/iclabel/evaluation_manifest.json`, the shipped artifact agreed with
   the preserved float32 teacher on 100% of top-1 labels and 100% of existing
-  `pop_icflag` keep-or-reject decisions. The calibrated int8 candidate measured
-  98.1567% top-1 and 100% keep-or-reject; the smaller weight-only candidate is
-  the shipped default. These are measured frozen-set parity results, not a
-  general accuracy claim. The EEGLAB `lite` and `beta` network artifacts are
+  `pop_icflag` keep-or-reject decisions, with a maximum probability drift of
+  0.01346. The calibrated candidate measured 98.1567% top-1 and 100%
+  keep-or-reject but exceeded the frozen 0.015 probability-drift gate; the
+  smaller weight-only candidate is the shipped default. These are measured
+  frozen-set parity results, not a general accuracy claim. The EEGLAB `lite`
+  and `beta` network artifacts are
   explicit MATLAB/Octave passthrough choices and raise a clear limitation when
   requested with the standalone Python engine.
 

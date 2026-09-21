@@ -10,18 +10,32 @@ from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_FROZEN_MANIFEST,
     DEFAULT_EVALUATION_FEATURES,
     DEFAULT_WEIGHT_ONLY_ARTIFACT,
+    MAX_PROBABILITY_ABS_DIFF,
     MIN_KEEP_REJECT_AGREEMENT,
     MIN_TOP1_AGREEMENT,
     compare_predictions,
     evaluate_artifacts,
     load_frozen_manifest,
     load_verified_feature_archive,
+    network_inputs_from_features,
     parity_gate_passes,
     predict_features,
     quantize_calibrated,
     quantize_weight_only,
     select_default_artifact,
 )
+
+
+def _reference_network_inputs(features):
+    topo, psdmed, autocorr = features
+    topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
+    psdmed = np.single(np.tile(psdmed, (1, 1, 1, 4)))
+    autocorr = np.single(np.tile(autocorr, (1, 1, 1, 4)))
+    return {
+        "image": np.transpose(topo, (3, 2, 0, 1)),
+        "psdmed": np.transpose(psdmed, (3, 2, 0, 1)),
+        "autocorr": np.transpose(autocorr, (3, 2, 0, 1)),
+    }
 
 
 def test_frozen_manifest_is_subject_balanced_and_calibration_disjoint():
@@ -62,10 +76,59 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
 
     assert metrics["top1_agreement"] == pytest.approx(0.75)
     assert metrics["keep_reject_agreement"] == pytest.approx(1.0)
+    assert metrics["max_probability_abs_diff"] == pytest.approx(0.50)
+    assert metrics["mean_probability_abs_diff"] == pytest.approx(0.8 / 28)
     assert metrics["per_class_agreement"]["Brain"]["count"] == 1
     assert metrics["per_class_agreement"]["Brain"]["agreement"] == pytest.approx(1.0)
     assert metrics["per_class_agreement"]["Other"]["count"] == 1
     assert metrics["per_class_agreement"]["Other"]["agreement"] == pytest.approx(0.0)
+
+
+def test_compare_predictions_exposes_rejection_threshold_boundaries():
+    teacher = np.array(
+        [
+            [0.9001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0999],
+            [0.0, 0.9999, 0.0, 0.0, 0.0, 0.0, 0.0001],
+            [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.1],
+        ]
+    )
+    candidate = np.array(
+        [
+            [0.8999, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1001],
+            [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.9001, 0.0, 0.0, 0.0, 0.0999],
+        ]
+    )
+    thresholds = np.array(
+        [
+            [0.9, 1.0],
+            [0.9, 1.0],
+            [0.9, 1.0],
+            [np.nan, np.nan],
+            [np.nan, np.nan],
+            [np.nan, np.nan],
+            [np.nan, np.nan],
+        ]
+    )
+
+    metrics = compare_predictions(teacher, candidate, thresholds)
+
+    assert metrics["top1_agreement"] == pytest.approx(1.0)
+    assert metrics["keep_reject_agreement"] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(
+    ("probability_drift", "expected"),
+    ((MAX_PROBABILITY_ABS_DIFF, True), (np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), False)),
+)
+def test_probability_gate_boundary_is_inclusive(probability_drift, expected):
+    metrics = {
+        "top1_agreement": MIN_TOP1_AGREEMENT,
+        "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
+        "max_probability_abs_diff": probability_drift,
+    }
+
+    assert parity_gate_passes(metrics) is expected
 
 
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
@@ -80,6 +143,16 @@ def test_frozen_feature_archive_hash_is_verified(tmp_path):
         load_verified_feature_archive(mutated, manifest, "evaluation")
 
 
+def test_quantization_inputs_match_independent_reference_transform():
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    actual = network_inputs_from_features(features)
+    expected = _reference_network_inputs(features)
+
+    for name in expected:
+        np.testing.assert_array_equal(actual[name], expected[name])
+
+
 def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
     report = {
         "candidates": {
@@ -87,11 +160,13 @@ def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
                 "artifact": "iclabel_int8_weight_only.onnx",
                 "top1_agreement": 0.99,
                 "keep_reject_agreement": 0.98,
+                "max_probability_abs_diff": 0.01,
             },
             "calibrated": {
                 "artifact": "iclabel_int8_calibrated.onnx",
                 "top1_agreement": 0.99,
                 "keep_reject_agreement": 0.98,
+                "max_probability_abs_diff": 0.01,
             },
         }
     }
@@ -156,6 +231,7 @@ def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
         "component_count": 217,
     }
     assert report["default_artifact"] == "iclabel_int8_weight_only.onnx"
+    assert report["gate"]["maximum_probability_abs_diff"] == MAX_PROBABILITY_ABS_DIFF
 
     expected_counts = {
         "Brain": 18,
@@ -170,11 +246,27 @@ def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
     # int8 activations; the fixed promotion thresholds are the portable gate.
     for candidate_name in ("weight_only", "calibrated"):
         candidate = report["candidates"][candidate_name]
-        assert candidate["gate_pass"] is True
+        assert candidate["gate_pass"] is (candidate_name == "weight_only")
         assert candidate["top1_agreement"] >= MIN_TOP1_AGREEMENT
         assert candidate["keep_reject_agreement"] >= MIN_KEEP_REJECT_AGREEMENT
         assert candidate["teacher_class_distribution"] == expected_counts
         assert set(candidate["per_class_agreement"]) == set(expected_counts)
+    assert report["candidates"]["calibrated"]["max_probability_abs_diff"] > MAX_PROBABILITY_ABS_DIFF
+
+
+def test_weight_only_matches_full_frozen_probabilities_and_threshold_boundaries():
+    pytest.importorskip("onnxruntime")
+
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    teacher = predict_features(DEFAULT_FLOAT32_ARTIFACT, features)
+    candidate = predict_features(DEFAULT_WEIGHT_ONLY_ARTIFACT, features)
+    metrics = compare_predictions(teacher, candidate, DEFAULT_ICFLAG_THRESHOLDS)
+
+    assert teacher.shape == (217, 7)
+    assert metrics["max_probability_abs_diff"] <= MAX_PROBABILITY_ABS_DIFF
+    assert metrics["mean_probability_abs_diff"] <= 0.001
+    assert metrics["keep_reject_agreement"] == pytest.approx(1.0)
 
 
 def test_weight_only_quantization_preserves_float_io_and_softmax(tmp_path):

@@ -153,19 +153,33 @@ class PopIclabelGuiTests(unittest.TestCase):
         session.store_current(_eeg("first"), new=True)
         original = session.ALLEEG[0]
 
-        async def classify(_selection, *, renderer=None, return_com=False):
-            session.store_current(_eeg("second"), new=True)
-            return (dict(original, setname="classified"), "EEG = await pop_iclabel_async(EEG, 'default');")
-
         dispatcher = MenuActionDispatcher(session)
-        with (
-            mock.patch.object(menu_actions_module, "_IS_EMSCRIPTEN", True),
-            mock.patch.object(pop_iclabel_module, "pop_iclabel_async", side_effect=classify),
-        ):
-            with self.assertRaisesRegex(RuntimeError, "selected dataset changed"):
-                asyncio.run(dispatcher.dispatch_gui("pop_iclabel"))
+
+        async def scenario():
+            started = asyncio.Event()
+            release = asyncio.Event()
+
+            async def classify(_selection, *, renderer=None, return_com=False):
+                started.set()
+                await release.wait()
+                return (dict(original, setname="classified"), "EEG = await pop_iclabel_async(EEG, 'default');")
+
+            with (
+                mock.patch.object(menu_actions_module, "_IS_EMSCRIPTEN", True),
+                mock.patch.object(pop_iclabel_module, "pop_iclabel_async", side_effect=classify),
+            ):
+                task = asyncio.create_task(dispatcher.dispatch_gui("pop_iclabel"))
+                await started.wait()
+                session.mark_current_saved()
+                session.store_current(_eeg("second"), new=True)
+                release.set()
+                with self.assertRaisesRegex(RuntimeError, "session changed"):
+                    await task
+
+        asyncio.run(scenario())
 
         self.assertIs(session.ALLEEG[0], original)
+        self.assertEqual(session.ALLEEG[0]["saved"], "yes")
         self.assertEqual(session.ALLEEG[1]["setname"], "second")
         self.assertEqual(session.ALLCOM, [])
 

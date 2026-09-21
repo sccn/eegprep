@@ -8,7 +8,7 @@ Phase 6 parity gate passes. This script is not installed with the package.
 Regenerate the float32 reference after changing ``netICL.mat`` or
 ``iclabel_net.py``:
 
-    uv sync --group dev --extra torch
+    uv sync --group dev --extra torch --extra iclabel
     uv run --no-sync python tools/iclabel/export_iclabel_onnx.py
 
 Provenance: the exported graph is ``ICLabelNet.forward`` (three convolutional

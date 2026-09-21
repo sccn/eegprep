@@ -247,6 +247,502 @@ def test_console_async_iclabel_pop_updates_shared_session_once():
     workspace.close()
 
 
+def test_console_async_iclabel_captures_state_before_coroutine_starts():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_pop(eeg, *, return_com=False):
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
+    pending = workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"])
+    workspace.after_execute("pending = pop_iclabel_async(EEG)")
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(pending)
+
+    assert session.EEG["setname"] == "second"
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+def test_console_iclabel_async_export_captures_state_before_coroutine_starts():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    assert workspace.namespace["eegprep"].iclabel_async is workspace.namespace["iclabel_async"]
+    pending = workspace.namespace["iclabel_async"](workspace.namespace["EEG"])
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(pending)
+
+    assert session.EEG["setname"] == "second"
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+@pytest.mark.parametrize(
+    ("import_line", "local_name"),
+    [
+        ("from eegprep import iclabel_async", "iclabel_async"),
+        ("from eegprep import iclabel_async as classify", "classify"),
+    ],
+)
+def test_console_imported_iclabel_async_uses_freshness_wrapper(import_line, local_name):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec(f"{import_line}\npending = {local_name}(EEG)", workspace.namespace)
+    assert isinstance(workspace.namespace[local_name], console_module.ConsoleAsyncFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_imported_eegprep_module_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec("import eegprep as ep\npending = ep.iclabel_async(EEG)", workspace.namespace)
+    assert isinstance(workspace.namespace["ep"], console_module.ConsoleEEGPrepModule)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_imported_iclabel_submodule_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec(
+        "from eegprep.plugins.ICLabel.iclabel import iclabel_async as classify\npending = classify(EEG)",
+        workspace.namespace,
+    )
+    assert isinstance(workspace.namespace["classify"], console_module.ConsoleAsyncFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_imported_pop_iclabel_submodule_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_pop(eeg, *, return_com=False):
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": fake_pop})
+    exec(
+        "from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async as classify\npending = classify(EEG)",
+        workspace.namespace,
+    )
+    assert isinstance(workspace.namespace["classify"], console_module.ConsolePopFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+def test_console_wildcard_eegprep_import_uses_freshness_wrapper():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    exec("from eegprep import *\npending = iclabel_async(EEG)", workspace.namespace)
+    assert isinstance(workspace.namespace["iclabel_async"], console_module.ConsoleAsyncFunction)
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pending"])
+
+    assert session.EEG["setname"] == "second"
+    workspace.close()
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import eegprep.plugins.ICLabel.iclabel as mod\npending = mod.iclabel_async(EEG)",
+        "from eegprep.plugins.ICLabel import iclabel\npending = iclabel.iclabel_async(EEG)",
+        "import importlib\nmod = importlib.import_module('eegprep.plugins.ICLabel.iclabel')\npending = mod.iclabel_async(EEG)",
+        "from eegprep.plugins.ICLabel.iclabel import *\npending = iclabel_async(EEG)",
+        "import eegprep.plugins.ICLabel.iclabel\npending = eegprep.plugins.ICLabel.iclabel.iclabel_async(EEG)",
+    ],
+)
+def test_console_canonical_iclabel_import_forms_use_freshness_wrapper(source):
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve(1)
+
+    async def fake_iclabel(eeg, *, algorithm="default", engine=None):
+        del algorithm, engine
+        return dict(eeg, setname="stale-result")
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    try:
+        exec(source, workspace.namespace)
+        assert asyncio.iscoroutine(workspace.namespace["pending"])
+        session.retrieve(2)
+
+        with pytest.raises(RuntimeError, match="session changed"):
+            asyncio.run(workspace.namespace["pending"])
+
+        assert session.EEG["setname"] == "second"
+    finally:
+        workspace.close()
+
+
+def test_console_async_iclabel_rejects_raw_session_alias_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg):
+            started.set()
+            await release.wait()
+            return dict(eeg, setname="stale-result")
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        session.EEG["setname"] = "edited-through-session"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-through-session"
+
+
+def test_console_async_iclabel_tracks_nested_copy_slice_and_setdefault_edits():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg):
+            started.set()
+            await release.wait()
+            return dict(eeg, setname="stale-result")
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["EEG"]["event"] = [{"latency": 1.0}]
+        workspace.namespace["EEG"]["event"][0:1][0]["latency"] = 2.0
+        workspace.namespace["EEG"].copy()["event"][0]["latency"] = 3.0
+        workspace.namespace["EEG"].setdefault("etc", {})["edited"] = True
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["event"] == [{"latency": 3.0}]
+    assert session.EEG["etc"] == {"edited": True}
+
+
+def test_console_async_iclabel_discards_result_after_in_place_console_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["EEG"]["data"][0, 0] = 99.0
+        workspace.namespace["EEG"]["markers"] = []
+        workspace.namespace["EEG"]["markers"].append({"latency": 1.0})
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["data"][0, 0] == 99.0
+    assert session.EEG["markers"] == [{"latency": 1.0}]
+    assert session.ALLCOM == []
+
+
+def test_console_concurrent_async_iclabel_calls_keep_shared_mutation_watch():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        first_release = asyncio.Event()
+        second_release = asyncio.Event()
+        call_number = 0
+
+        async def classify(eeg):
+            nonlocal call_number
+            call_number += 1
+            current_call = call_number
+            if current_call == 2:
+                started.set()
+            await (first_release if current_call == 1 else second_release).wait()
+            return dict(eeg)
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": classify})
+        first = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        second = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        first_release.set()
+        await first
+        workspace.namespace["EEG"]["setname"] = "edited-during-second-call"
+        second_release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await second
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-during-second-call"
+
+
+def test_console_async_iclabel_rejects_alleeg_alias_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["ALLEEG"][0]["setname"] = "edited-through-alleeg"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-through-alleeg"
+    assert session.ALLCOM == []
+
+
+def test_console_async_iclabel_history_sync_keeps_mutation_watch():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["eegh"]("plot(EEG);", workspace.namespace["EEG"])
+        workspace.namespace["EEG"]["setname"] = "edited-after-history"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "edited-after-history"
+    assert session.ALLCOM == ["plot(EEG);"]
+
+
+def test_console_async_iclabel_tracks_in_place_multi_dataset_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+    session.store_current(_demo_eeg("second"), new=True)
+    session.retrieve([1, 2])
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = [dict(item, setname="stale-result") for item in eeg]
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["EEG"][1]["setname"] = "edited"
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert [item["setname"] for item in session.EEG] == ["first", "edited"]
+    assert session.ALLCOM == []
+
+
+def test_console_in_place_pop_result_marks_dataset_changed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    token = session.dataset_state_token()
+
+    def save_in_place(eeg):
+        eeg["saved"] = "yes"
+        return eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_saveset": save_in_place})
+    workspace.namespace["pop_saveset"](workspace.namespace["EEG"])
+
+    assert not session.dataset_state_unchanged(token)
+    assert session._dataset_revision == 2
+    assert session.EEG["saved"] == "yes"
+    workspace.close()
+
+
+def test_console_cancelled_pop_does_not_mark_dataset_changed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    token = session.dataset_state_token()
+
+    def cancelled_pop(eeg, *, return_com=False):
+        return (eeg, "") if return_com else eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_rmbase": cancelled_pop})
+    workspace.namespace["pop_rmbase"](workspace.namespace["EEG"])
+
+    assert session.dataset_state_unchanged(token)
+    workspace.close()
+
+
+def test_console_async_iclabel_ignores_noop_dataset_pop():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="classified")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        token = session.dataset_state_token()
+        workspace.namespace["EEG"].pop("missing", None)
+        assert session.dataset_state_unchanged(token)
+        release.set()
+        try:
+            await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "classified"
+
+
 def test_console_async_iclabel_pop_preserves_ordered_dataset_selection():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)
@@ -298,6 +794,88 @@ def test_console_async_iclabel_failure_does_not_mutate_session():
     assert session.CURRENTSET == [1]
     assert session.ALLCOM == []
     workspace.close()
+
+
+def test_console_async_iclabel_discards_result_after_session_changes():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg("first"), new=True)
+
+    async def stale_pop(eeg, *, return_com=False):
+        session.store_current(_demo_eeg("second"), new=True)
+        output = dict(eeg, setname="stale-result")
+        command = "EEG = await pop_iclabel_async(EEG, 'default');"
+        return (output, command) if return_com else output
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+    with pytest.raises(RuntimeError, match="session changed"):
+        asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+
+    assert session.EEG["setname"] == "second"
+    assert session.CURRENTSET == [2]
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+def test_console_async_iclabel_discards_result_after_in_place_dataset_edit():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def stale_pop(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="stale-result")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": stale_pop})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        session.mark_current_saved()
+        release.set()
+        try:
+            with pytest.raises(RuntimeError, match="session changed"):
+                await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "demo"
+    assert session.EEG["saved"] == "yes"
+    assert session.ALLCOM == []
+
+
+def test_console_async_iclabel_allows_history_change_during_inference():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+
+    async def scenario():
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(eeg, *, return_com=False):
+            started.set()
+            await release.wait()
+            output = dict(eeg, setname="classified")
+            command = "EEG = await pop_iclabel_async(EEG, 'default');"
+            return (output, command) if return_com else output
+
+        workspace = EEGPrepConsoleWorkspace(session, exports={"pop_iclabel_async": classify})
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"]))
+        await started.wait()
+        workspace.namespace["eegh"]("plot(EEG);", workspace.namespace["EEG"])
+        release.set()
+        try:
+            await task
+        finally:
+            workspace.close()
+
+    asyncio.run(scenario())
+    assert session.EEG["setname"] == "classified"
+    assert session.ALLCOM == ["plot(EEG);", "EEG = await pop_iclabel_async(EEG, 'default');"]
 
 
 def test_console_currentset_reassignment_preserves_both_datasets():
@@ -1371,6 +1949,27 @@ def test_console_restores_pop_wrappers_after_from_import():
     workspace.after_execute("from eegprep import pop_reref")
 
     assert workspace.namespace["pop_reref"] is original_wrapper
+
+
+@pytest.mark.parametrize(
+    ("import_line", "local_name"),
+    [
+        ("from eegprep import iclabel_async", "iclabel_async"),
+        ("from eegprep import iclabel_async as classify", "classify"),
+    ],
+)
+def test_console_restores_imported_iclabel_async_wrappers(import_line, local_name):
+    session = EEGPrepSession()
+
+    async def fake_iclabel(eeg):
+        return eeg
+
+    workspace = EEGPrepConsoleWorkspace(session, exports={"iclabel_async": fake_iclabel})
+    workspace.namespace[local_name] = fake_iclabel
+    workspace.after_execute(import_line)
+
+    assert isinstance(workspace.namespace[local_name], console_module.ConsoleAsyncFunction)
+    workspace.close()
 
 
 def test_console_restores_aliased_pop_wrapper_after_from_import():
