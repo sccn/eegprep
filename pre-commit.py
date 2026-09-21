@@ -1,10 +1,9 @@
 #!/bin/sh
 "exec" "uv" "run" "--script" "$0" "$@"
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.12"
 # dependencies = [
 #     "pyyaml",
-#     "tomli; python_version < '3.11'",
 # ]
 # ///
 #
@@ -50,13 +49,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - only used on Python 3.10
-    try:
-        import tomli as tomllib
-    except ModuleNotFoundError:
-        tomllib = None  # type: ignore[assignment]
+import tomllib
 
 try:
     import yaml
@@ -309,7 +302,6 @@ def check_merge_conflicts(files: list[pathlib.Path], fix: bool) -> int:
 def check_config_syntax(files: list[pathlib.Path], fix: bool) -> int:
     del fix
     errors = []
-    warned_missing_toml = False
     warned_missing_yaml = False
     for file_path in files:
         suffix = file_path.suffix.lower()
@@ -317,11 +309,6 @@ def check_config_syntax(files: list[pathlib.Path], fix: bool) -> int:
             if suffix == ".json":
                 json.loads(file_path.read_text(encoding="utf-8"))
             elif suffix == ".toml":
-                if tomllib is None:
-                    if not warned_missing_toml:
-                        echo("  Warning: tomli is not installed; skipping TOML syntax checks")
-                        warned_missing_toml = True
-                    continue
                 with file_path.open("rb") as handle:
                     tomllib.load(handle)
             elif suffix in {".yaml", ".yml"}:

@@ -12,7 +12,7 @@ Prerequisites
 System Requirements
 -------------------
 
-- **Python**: 3.11 or higher
+- **Python**: 3.12 or higher
 - **Git**: For version control
 - **uv**: Default package and environment manager
 
@@ -54,7 +54,7 @@ Install the default development environment:
 
 .. code-block:: bash
 
-    uv python install 3.11
+    uv python install 3.12
     uv sync --group dev
 
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the

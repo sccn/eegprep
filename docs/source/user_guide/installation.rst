@@ -11,7 +11,7 @@ System Requirements
 
 Before installing eegprep, ensure your system meets the following requirements:
 
-- **Python**: 3.10 or higher
+- **Python**: 3.12 or higher
 - **uv**: Default package and environment manager for source installs and development
 - **pip**: Optional fallback for published package installs
 - **conda**: Optional environment manager when required by a local setup

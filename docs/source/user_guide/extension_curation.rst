@@ -83,7 +83,7 @@ JSON file in a directory.
          "version": "1.0.0",
          "api_version": "1",
          "eegprep_requires": ">=0.2",
-         "python_requires": ">=3.10",
+         "python_requires": ">=3.12",
          "license": "BSD-3-Clause",
          "maintainer": {"name": "SCCN", "email": "maintainers@example.org"},
          "docs_url": "https://example.org/eegprep-ext-example",
