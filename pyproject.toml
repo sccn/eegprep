@@ -25,11 +25,11 @@ keywords = ["eeg", "preprocessing", "EEGLAB"]
 dependencies = [
   "colorama>=0.4.6",
   "eeglabio>=0.1.2",
-  "h5py>=3.3.0",
-  "matplotlib>=3.4.0",
+  "h5py>=3.12.1",
+  "matplotlib>=3.8.0",
   "mne>=1.10.0",
   "neo>=0.14.2",
-  "numpy>=1.20",
+  "numpy>=2.1.0",
   "oct2py>=5.5.0",
   "packaging>=23.0",
   "psutil>=7.0.0",
@@ -37,8 +37,12 @@ dependencies = [
   "pyedflib>=0.1.42",
   "pyyaml>=6.0",
   "python-picard>=0.8,<0.9",
-  "scipy>=1.7.0",
-  "threadpoolctl>=3.6.0",
+  # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
+  # making a browser install impossible. macOS needs more: scipy built before
+  # 1.16.3 fails to dlopen on current macOS with a zero-fill section error.
+  "scipy>=1.14.1; sys_platform != 'darwin'",
+  "scipy>=1.16.3; sys_platform == 'darwin'",
+  "threadpoolctl>=3.5.0",
 ]
 
 [project.optional-dependencies]
