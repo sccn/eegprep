@@ -25,12 +25,14 @@ keywords = ["eeg", "preprocessing", "EEGLAB"]
 dependencies = [
   "colorama>=0.4.6",
   "eeglabio>=0.1.2",
-  # The h5py, matplotlib, numpy and threadpoolctl floors here, and the scipy
-  # floors below, are capped by what Pyodide 0.29.5 ships for a browser install.
-  # Raising one past Pyodide's shipped version breaks eegprep in the browser, so
-  # check against the Pyodide release before bumping any of them.
-  # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1,
-  # threadpoolctl 3.5.0. tests/test_browser_dependency_floors.py enforces this.
+  # h5py, matplotlib and numpy here, and scipy below, publish no pure-Python wheel,
+  # so in a browser only Pyodide's bundled build is available and micropip cannot
+  # substitute another version. Their floors are therefore a ceiling: raising one
+  # past what Pyodide ships makes the install impossible, not merely larger.
+  # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1.
+  # threadpoolctl is bundled too but is pure Python, so micropip can fetch any
+  # version from PyPI and its floor is not constrained this way.
+  # tests/test_browser_dependency_floors.py enforces the distinction.
   "h5py>=3.12.1",
   "matplotlib>=3.8.0",
   "mne>=1.10.0",
