@@ -478,7 +478,7 @@
 <section id="system-requirements">
 <h3>System Requirements<a class="headerlink" href="#system-requirements" title="Link to this heading">#</a></h3>
 <ul class="simple">
-<li><p><strong>Python</strong>: 3.11 or higher</p></li>
+<li><p><strong>Python</strong>: 3.12 or higher</p></li>
 <li><p><strong>Git</strong>: For version control</p></li>
 <li><p><strong>uv</strong>: Default package and environment manager</p></li>
 </ul>
@@ -516,7 +516,7 @@
 <section id="create-the-uv-environment">
 <h3>Create the uv Environment<a class="headerlink" href="#create-the-uv-environment" title="Link to this heading">#</a></h3>
 <p>Install the default development environment:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>python<span class="w"> </span>install<span class="w"> </span><span class="m">3</span>.11
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>python<span class="w"> </span>install<span class="w"> </span><span class="m">3</span>.12
 uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
 </pre></div>
 </div>
@@ -679,7 +679,7 @@ improvement. It is not wired up today.</p>
 <h4>Running it<a class="headerlink" href="#running-it" title="Link to this heading">#</a></h4>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eegprep_parity_test
 <span class="nb">cd</span><span class="w"> </span>eegprep_parity_test
-uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.11<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.12<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
 pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MATLABROOT</span><span class="s2">/extern/engines/python&quot;</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_EEGLAB_ROOT</span><span class="o">=</span>/path/to/eeglab
@@ -1152,7 +1152,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
     <br/>
   </p>
 </div>

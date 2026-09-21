@@ -504,7 +504,7 @@
 <h1>ExtensionSourceType<a class="headerlink" href="#extensionsourcetype" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="eegprep.ExtensionSourceType">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ExtensionSourceType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.ExtensionSourceType" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">ExtensionSourceType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.ExtensionSourceType" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></a></p>
 <p>Source category declared by an extension.</p>
 <dl class="py attribute">
@@ -913,9 +913,8 @@ such as “def” or “class”.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="eegprep.ExtensionSourceType.isprintable">
 <span class="sig-name descname"><span class="pre">isprintable</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.ExtensionSourceType.isprintable" title="Link to this definition">#</a></dt>
-<dd><p>Return True if the string is printable, False otherwise.</p>
-<p>A string is printable if all of its characters are considered printable in
-repr() or if it is empty.</p>
+<dd><p>Return True if all characters in the string are printable, False otherwise.</p>
+<p>A character is printable if repr() may use it in its output.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1107,7 +1106,7 @@ must be a string, whose characters will be mapped to None in the result.</p>
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.0.4.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
     <br/>
   </p>
 </div>
