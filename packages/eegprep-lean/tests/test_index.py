@@ -10,6 +10,7 @@ prove exactly nothing about that.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -338,3 +339,60 @@ class TestAgainstTheLiveHost:
 
         assert response.status == 206, "a 200 means the range was ignored and a whole shard is coming"
         assert len(response.body) == 128
+
+
+class TestExtras:
+    """The lazy loader in ``__init__``, which is what a base install meets first.
+
+    Every ImportError here is one the interpreter actually raised. Which branch runs
+    depends on what is installed, and CI runs this file in four tiers (nothing, zarr,
+    plot, both), so between them every branch is exercised.
+    """
+
+    EXTRA_PACKAGES = (("zarr", "zarr", "NemarHttpStore"), ("plot", "matplotlib", "plot_window"))
+
+    def test_a_name_that_exists_nowhere_is_an_attribute_error(self) -> None:
+        import eegprep_lean
+
+        with pytest.raises(AttributeError, match="no attribute"):
+            eegprep_lean.not_a_real_name
+
+    def test_a_missing_extra_names_the_extra_and_how_to_get_it(self) -> None:
+        import eegprep_lean
+
+        checked = 0
+        for extra, package, attribute in self.EXTRA_PACKAGES:
+            if importlib.util.find_spec(package) is not None:
+                continue
+            checked += 1
+            with pytest.raises(ImportError, match=f"needs the {extra} extra"):
+                getattr(eegprep_lean, attribute)
+        if checked == 0:
+            pytest.skip("both extras are installed in this tier")
+
+    def test_a_genuinely_absent_extra_is_recognized_as_such(self) -> None:
+        import eegprep_lean
+
+        checked = 0
+        for extra, package, _ in self.EXTRA_PACKAGES:
+            if importlib.util.find_spec(package) is not None:
+                continue
+            checked += 1
+            with pytest.raises(ImportError) as caught:
+                importlib.import_module(package)
+            assert eegprep_lean._is_missing_extra(caught.value, extra)
+        if checked == 0:
+            pytest.skip("both extras are installed in this tier")
+
+    def test_an_unrelated_import_error_is_not_blamed_on_the_extra(self) -> None:
+        """A bug inside store.py or plot.py raises ImportError too, and calling that a
+        missing extra sends the reader off to install something they already have while
+        the real error stays buried in the cause."""
+        import eegprep_lean
+
+        with pytest.raises(ImportError) as caught:
+            importlib.import_module("a_module_that_does_not_exist_anywhere")
+
+        assert caught.value.name == "a_module_that_does_not_exist_anywhere"
+        assert not eegprep_lean._is_missing_extra(caught.value, "plot")
+        assert not eegprep_lean._is_missing_extra(caught.value, "zarr")

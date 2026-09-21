@@ -74,6 +74,24 @@ _EXTRA_HINTS = {
 }
 
 
+#: The top-level packages each extra actually installs. Used to tell "the extra is not
+#: installed" apart from "the module that needed it is broken", which look identical from
+#: outside and have opposite answers.
+_EXTRA_ROOTS = {
+    "zarr": frozenset({"zarr", "numpy"}),
+    "plot": frozenset({"matplotlib", "numpy"}),
+}
+
+
+def _is_missing_extra(err: ImportError, extra: str) -> bool:
+    """True when this ImportError is the extra being absent, rather than a bug in here.
+
+    ``ImportError.name`` is the module that could not be imported, which the interpreter
+    sets for both a missing module and a missing name within one.
+    """
+    return (err.name or "").split(".")[0] in _EXTRA_ROOTS[extra]
+
+
 def __getattr__(name: str):
     """Load a name from its extra on demand, and say which extra supplies it if absent."""
     entry = _EXTRA_NAMES.get(name)
@@ -85,6 +103,11 @@ def __getattr__(name: str):
     try:
         module = importlib.import_module(module_name)
     except ImportError as err:
+        # Only when the extra itself is what is missing. An ImportError from inside our
+        # own module is a bug here, and reporting it as a missing extra sends the reader
+        # off to install something they already have while the real error is buried.
+        if not _is_missing_extra(err, extra):
+            raise
         raise ImportError(f"{name} needs the {extra} extra: {_EXTRA_HINTS[extra]}") from err
     return getattr(module, name)
 
