@@ -1,6 +1,8 @@
 """Read a window of samples, in physical units.
 
-Needs the ``zarr`` extra.
+:func:`read_window` needs the ``zarr`` extra; :class:`Window` and :func:`to_physical` do
+not, and zarr is imported inside the function rather than here so that the ``plot`` extra
+is installable and usable on its own.
 
 NEMAR stores level-0 signal as ``int16`` with a per-channel ``scale`` and ``offset``, and
 the array itself carries the conversion as ``physical = digital * scale + offset``. The
@@ -33,7 +35,6 @@ from typing import Any
 import numpy as np
 
 from .index import ChannelGroup, DatasetIndex, IndexError_, Store
-from .store import open_array
 from .transport import Transport
 
 #: What the array declares its conversion to be. Checked rather than assumed: if a future
@@ -138,6 +139,10 @@ async def read_window(
     # eight is an ordinary thing to do, and the window reports what it actually holds.
     stop = min(start_sample + n_samples, chosen.n_samples)
     wanted = _resolve_channels(channels, chosen.n_channels)
+
+    # Imported here, not at module scope, so this module needs only numpy: see the
+    # module docstring.
+    from .store import open_array
 
     array = await open_array(index.level0_url(store, chosen), transport=transport)
     # Zarr's asynchronous getitem does basic indexing only, so a list of channels is not

@@ -41,57 +41,77 @@ from .transport import (
 
 __version__ = "0.1.0.dev0"
 
-#: Names that live behind the ``zarr`` extra. Resolved on first use rather than imported
-#: here, because importing them would make the base install require zarr, and the base
-#: install exists precisely to require nothing.
-_ZARR_EXTRA = {
-    "NemarHttpStore": "eegprep_lean.store",
-    "ReadOnlyStoreError": "eegprep_lean.store",
-    "Window": "eegprep_lean.window",
-    "open_array": "eegprep_lean.store",
-    "read_window": "eegprep_lean.window",
-    "to_physical": "eegprep_lean.window",
+#: Names supplied by an extra, and which extra supplies each. Resolved on first use
+#: rather than imported here, because importing them would make the base install require
+#: their dependencies, and the base install exists precisely to require none.
+_EXTRA_NAMES = {
+    "NemarHttpStore": ("eegprep_lean.store", "zarr"),
+    "ReadOnlyStoreError": ("eegprep_lean.store", "zarr"),
+    "open_array": ("eegprep_lean.store", "zarr"),
+    "read_window": ("eegprep_lean.window", "zarr"),
+    # numpy, not zarr: window.py imports zarr only inside read_window, so these two work
+    # under the plot extra alone.
+    "Window": ("eegprep_lean.window", "plot"),
+    "to_physical": ("eegprep_lean.window", "plot"),
+    "default_spacing": ("eegprep_lean.plot", "plot"),
+    "plot_window": ("eegprep_lean.plot", "plot"),
+    "to_png": ("eegprep_lean.plot", "plot"),
+}
+
+#: What to tell someone who has the name but not the dependency. The browser line is the
+#: part worth keeping: zarr's `numcodecs>=0.14` pin is metadata, and numcodecs publishes
+#: no emscripten wheel at any version, so a normal resolve fails on a dependency these
+#: stores never use at runtime.
+_EXTRA_HINTS = {
+    "zarr": (
+        "pip install 'eegprep-lean[zarr]'. In a browser, "
+        'micropip.install("zarr==3.4.0", deps=False), because zarr pins numcodecs and '
+        "numcodecs publishes no emscripten wheel at any version."
+    ),
+    "plot": (
+        "pip install 'eegprep-lean[plot]'. In a browser, micropip.install(\"matplotlib\"), which Pyodide bundles."
+    ),
 }
 
 
 def __getattr__(name: str):
-    """Load a zarr-backed name on demand, and say which extra supplies it if it is absent."""
-    module_name = _ZARR_EXTRA.get(name)
-    if module_name is None:
+    """Load a name from its extra on demand, and say which extra supplies it if absent."""
+    entry = _EXTRA_NAMES.get(name)
+    if entry is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, extra = entry
     import importlib
 
     try:
         module = importlib.import_module(module_name)
     except ImportError as err:
-        raise ImportError(
-            f"{name} needs the zarr extra: pip install 'eegprep-lean[zarr]'. In a browser, "
-            'micropip.install("zarr==3.4.0", deps=False), because zarr pins numcodecs and '
-            "numcodecs publishes no emscripten wheel at any version."
-        ) from err
+        raise ImportError(f"{name} needs the {extra} extra: {_EXTRA_HINTS[extra]}") from err
     return getattr(module, name)
 
 
 __all__ = [
     "SUPPORTED_FORMAT_VERSION",
-    "NemarHttpStore",
-    "ReadOnlyStoreError",
-    "Window",
     "ChannelGroup",
     "DatasetIndex",
     "IndexError_",
+    "NemarHttpStore",
     "PyfetchTransport",
+    "ReadOnlyStoreError",
     "Response",
     "Store",
     "Transport",
     "TransportError",
     "UnsupportedFormatVersion",
     "UrllibTransport",
+    "Window",
     "__version__",
+    "default_spacing",
     "default_transport",
     "open_array",
+    "plot_window",
     "read_index",
     "read_window",
     "running_in_pyodide",
     "to_physical",
+    "to_png",
 ]

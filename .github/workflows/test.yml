@@ -230,7 +230,7 @@ jobs:
       # with lint as its only gate. Run from its own directory so its pyproject supplies
       # the `network` marker, with src on the path because the package is deliberately
       # not installed into this environment: it must keep working with no dependencies.
-      # The network tier is excluded here and covered by the scheduled live job, so a
+      # The network tier is excluded here and runs in lean-live.yml on a schedule, so a
       # NEMAR outage cannot turn every unrelated pull request red.
       - name: Run eegprep-lean tests
         if: always()
@@ -255,6 +255,18 @@ jobs:
         shell: bash
         run: |
           uv run --isolated --with 'zarr==3.4.0' --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
+
+      # And the plot extra on its own, not alongside zarr. window.py imports zarr inside
+      # read_window rather than at module scope precisely so this tier stands alone, and
+      # a stray module-scope import would otherwise only show up in a browser, where the
+      # zarr install is the awkward one.
+      - name: Run eegprep-lean tests with the plot extra
+        if: always()
+        working-directory: packages/eegprep-lean
+        shell: bash
+        run: |
+          uv run --isolated --with matplotlib --with pytest \
             python -m pytest tests -m "not network" -p no:cacheprovider
 
       - name: Display installed packages
