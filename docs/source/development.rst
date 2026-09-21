@@ -244,7 +244,7 @@ Running it
 
     git clone https://github.com/sccn/eegprep_parity_test
     cd eegprep_parity_test
-    uv venv --python 3.11 .venv && source .venv/bin/activate
+    uv venv --python 3.12 .venv && source .venv/bin/activate
     pip install -r requirements.txt
     pip install "$MATLABROOT/extern/engines/python"
     export EEGPREP_EEGLAB_ROOT=/path/to/eeglab

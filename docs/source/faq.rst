@@ -10,7 +10,8 @@ Installation FAQ
 What Python versions does EEGPrep support?
 ------------------------------------------
 
-EEGPrep supports Python 3.12 and higher. We recommend using Python 3.12 or 3.13 for development.
+EEGPrep supports Python 3.12 and higher.
+We recommend using Python 3.12 or 3.13 for development.
 
 How do I install EEGPrep?
 -------------------------
