@@ -55,13 +55,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install Python 3.11
+      - name: Install Python 3.12
         run: |
-          uv python install 3.11
+          uv python install 3.12
 
       - name: Install dependencies
         run: |
-          uv sync --python 3.11 --all-extras --group dev
+          uv sync --python 3.12 --all-extras --group dev
 
       - name: Run Ruff lint
         run: |
@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
         include:
           # Test on macOS and Windows for Python 3.12 only
           - os: macos-latest
@@ -172,7 +172,18 @@ jobs:
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
-          uv pip install "${MATLAB_ROOT}/extern/engines/python"
+          # Each MATLAB release ships one engine build covering a fixed set of Python
+          # versions, and R2024b stops at 3.12:
+          #   "MATLAB Engine for Python supports Python version 3.9, 3.10, 3.11, and
+          #    3.12, but your version of Python is 3.13"
+          # A Python version the pinned release does not cover is not a CI failure. It
+          # means the MATLAB parity tests cannot run, which the availability check below
+          # already handles by falling through to the plain pytest step. Letting the
+          # install decide keeps this working automatically once a newer MATLAB release
+          # covers the version, instead of encoding a compatibility table here.
+          if ! uv pip install "${MATLAB_ROOT}/extern/engines/python"; then
+            echo "MATLAB engine does not support Python ${{ matrix.python-version }}; MATLAB parity tests will be skipped"
+          fi
 
       - name: Check MATLAB Engine availability
         id: matlab-engine-availability

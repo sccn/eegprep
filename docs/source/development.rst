@@ -12,7 +12,7 @@ Prerequisites
 System Requirements
 -------------------
 
-- **Python**: 3.11 or higher
+- **Python**: 3.12 or higher
 - **Git**: For version control
 - **uv**: Default package and environment manager
 
@@ -54,7 +54,7 @@ Install the default development environment:
 
 .. code-block:: bash
 
-    uv python install 3.11
+    uv python install 3.12
     uv sync --group dev
 
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
@@ -244,7 +244,7 @@ Running it
 
     git clone https://github.com/sccn/eegprep_parity_test
     cd eegprep_parity_test
-    uv venv --python 3.11 .venv && source .venv/bin/activate
+    uv venv --python 3.12 .venv && source .venv/bin/activate
     pip install -r requirements.txt
     pip install "$MATLABROOT/extern/engines/python"
     export EEGPREP_EEGLAB_ROOT=/path/to/eeglab

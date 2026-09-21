@@ -56,7 +56,7 @@ Create the uv-managed development environment:
 
 .. code-block:: bash
 
-    uv python install 3.11
+    uv python install 3.12
     uv sync --group dev
 
 Install Dependencies
