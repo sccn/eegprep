@@ -158,6 +158,17 @@ class DatasetIndex:
         chosen = group or store.group()
         return f"{self.contract_base}{store.zarr}/{chosen.name}/0"
 
+    def group_url(self, store: Store, group: ChannelGroup | None = None) -> str:
+        """The channel group's own directory, whose ``zarr.json`` carries the channel
+        labels, their units and the rate the recording was acquired at.
+
+        The parent of :meth:`level0_url`. The level-0 array has the dequantization
+        constants but not the unit they produce, so this is where a caller that needs to
+        label an axis has to look.
+        """
+        chosen = group or store.group()
+        return f"{self.contract_base}{store.zarr}/{chosen.name}"
+
     def view_url(self, store: Store, level: int, group: ChannelGroup | None = None) -> str:
         """A downsampled view's URL, from ``layout.view``.
 

@@ -20,6 +20,8 @@ to offer here.
     url = index.level0_url(store)
 """
 
+from .channels import Channel, GroupMetadata, read_group_metadata
+from .extras import EXTRA_HINTS, EXTRA_ROOTS, is_missing_extra, missing_extra_error
 from .index import (
     SUPPORTED_FORMAT_VERSION,
     ChannelGroup,
@@ -41,57 +43,74 @@ from .transport import (
 
 __version__ = "0.1.0.dev0"
 
-#: Names that live behind the ``zarr`` extra. Resolved on first use rather than imported
-#: here, because importing them would make the base install require zarr, and the base
-#: install exists precisely to require nothing.
-_ZARR_EXTRA = {
-    "NemarHttpStore": "eegprep_lean.store",
-    "ReadOnlyStoreError": "eegprep_lean.store",
-    "Window": "eegprep_lean.window",
-    "open_array": "eegprep_lean.store",
-    "read_window": "eegprep_lean.window",
-    "to_physical": "eegprep_lean.window",
+#: Names supplied by an extra, and which extra supplies each. Resolved on first use
+#: rather than imported here, because importing them would make the base install require
+#: their dependencies, and the base install exists precisely to require none.
+_EXTRA_NAMES = {
+    "NemarHttpStore": ("eegprep_lean.store", "zarr"),
+    "ReadOnlyStoreError": ("eegprep_lean.store", "zarr"),
+    "open_array": ("eegprep_lean.store", "zarr"),
+    "read_window": ("eegprep_lean.window", "zarr"),
+    # numpy, not zarr: window.py imports zarr only inside read_window, so these two work
+    # under the plot extra alone.
+    "Window": ("eegprep_lean.window", "plot"),
+    "to_physical": ("eegprep_lean.window", "plot"),
+    "default_spacing": ("eegprep_lean.plot", "plot"),
+    "plot_window": ("eegprep_lean.plot", "plot"),
+    "to_png": ("eegprep_lean.plot", "plot"),
 }
 
 
 def __getattr__(name: str):
-    """Load a zarr-backed name on demand, and say which extra supplies it if it is absent."""
-    module_name = _ZARR_EXTRA.get(name)
-    if module_name is None:
+    """Load a name from its extra on demand, and say which extra supplies it if absent."""
+    entry = _EXTRA_NAMES.get(name)
+    if entry is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, extra = entry
     import importlib
 
     try:
         module = importlib.import_module(module_name)
     except ImportError as err:
-        raise ImportError(
-            f"{name} needs the zarr extra: pip install 'eegprep-lean[zarr]'. In a browser, "
-            'micropip.install("zarr==3.4.0", deps=False), because zarr pins numcodecs and '
-            "numcodecs publishes no emscripten wheel at any version."
-        ) from err
+        # Only when the extra itself is what is missing. An ImportError from inside our
+        # own module is a bug here, and reporting it as a missing extra sends the reader
+        # off to install something they already have while the real error is buried.
+        if not is_missing_extra(err, extra):
+            raise
+        raise missing_extra_error(name, extra, err) from err
     return getattr(module, name)
 
 
 __all__ = [
+    "EXTRA_HINTS",
+    "EXTRA_ROOTS",
     "SUPPORTED_FORMAT_VERSION",
-    "NemarHttpStore",
-    "ReadOnlyStoreError",
-    "Window",
+    "Channel",
     "ChannelGroup",
     "DatasetIndex",
+    "GroupMetadata",
     "IndexError_",
+    "NemarHttpStore",
     "PyfetchTransport",
+    "ReadOnlyStoreError",
     "Response",
     "Store",
     "Transport",
     "TransportError",
     "UnsupportedFormatVersion",
     "UrllibTransport",
+    "Window",
     "__version__",
+    "default_spacing",
     "default_transport",
+    "is_missing_extra",
+    "missing_extra_error",
     "open_array",
+    "plot_window",
+    "read_group_metadata",
     "read_index",
     "read_window",
     "running_in_pyodide",
     "to_physical",
+    "to_png",
 ]
