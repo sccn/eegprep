@@ -17,6 +17,7 @@ from tests.fixtures import (
     fresh_sample_eeg,
     fresh_session_with_sample,
 )
+from tests.eeglab_tests import eeglab_test
 
 
 def test_sample_data_satisfies_core_eeg_contract():
@@ -58,6 +59,7 @@ def test_sample_data_satisfies_core_eeg_contract():
     assert np.asarray(eeg["icachansind"]).dtype.kind in {"i", "u"}
 
 
+@eeglab_test("unittesting_adminfunc/eeg_global/pass_general.m", "test_pass_general")
 def test_sample_session_and_console_namespace_stay_synced():
     command = "EEG = pop_loadset('eeglab_data.set');"
     session = fresh_session_with_sample(command)

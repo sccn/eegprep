@@ -25,6 +25,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.sigprocfunc.envtopo import _resolve_subcomps, envtopo
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import create_test_eeg_with_ica
 
 pytestmark = pytest.mark.parity
@@ -77,6 +78,7 @@ def _ica_dataset(seed, *, n_components=4):
 # --------------------------------------------------------------------------- #
 # Closed-form anchor: hand-built input whose ranking is obvious by design.
 # --------------------------------------------------------------------------- #
+@eeglab_test("unittesting_sigprocfunc/envtopo/sigprocfunc_envtopo_wrapperTest.m", "test_test_envtopo")
 def test_closed_form_ranking_and_peak_frames():
     """Three orthonormal maps with activation powers 9:4:1 rank as [1, 2, 3]."""
     frames = 5

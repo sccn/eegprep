@@ -1,12 +1,15 @@
-# POP_LIMO - LIMO limitation
+# POP_LIMO - Fit first-level LIMO models
 
-EEGPrep does not implement EEGLAB's external LIMO toolbox workflow.
+`pop_limo(STUDY, ALLEEG, ...)` fits the active STUDY design to every
+selected subject's epoched data. Supported methods are ordinary least squares
+(`OLS`), LIMO PCOut-weighted least squares (`WLS`), and feature-wise
+Tukey-bisquare iteratively reweighted least squares (`IRLS`). Use `timelim` to
+select milliseconds and `outputdir` to save safe, versioned `.npz` models.
 
-Calling `pop_limo` raises a clear `NotImplementedError` instead of creating
-placeholder LIMO files or pretending external MATLAB behavior is available.
-Use EEGPrep's standalone statistics helpers and `std_limodesign` for
-in-package analyses and LIMO-compatible design matrices, or run LIMO in
-EEGLAB/MATLAB when you need the external LIMO model-fitting and result
-browsing workflow.
+The returned models include the exact design, parameter names, betas, fitted
+values, residuals, R², residual variance, standard errors, t and p values, and
+robust weights. Channel and component time-domain models are supported.
+Bootstrap, TFCE, non-time-domain measures, and MATLAB LIMO `.mat` interchange
+remain explicit unsupported boundaries.
 
 See also: POP_LIMORESULTS, STD_LIMODESIGN, EEG_HELPSTATISTICS

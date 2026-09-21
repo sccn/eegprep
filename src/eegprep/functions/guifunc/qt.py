@@ -215,6 +215,9 @@ class QtDialogRenderer:
         elif style == "checkbox":
             widget = QtWidgets.QCheckBox(control.string)
             widget.setChecked(bool(value))
+        elif style in {"radio", "radiobutton"}:
+            widget = QtWidgets.QRadioButton(control.string)
+            widget.setChecked(bool(value))
         elif style == "popupmenu":
             widget = QtWidgets.QComboBox()
             widget.addItems([item.strip() for item in control.string.split("|")])
@@ -433,14 +436,14 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
             color: {EEGLAB_TEXT};
             font-size: 16px;
         }}
-        QLabel, QCheckBox, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {{
+        QLabel, QCheckBox, QRadioButton, QPushButton, QLineEdit, QTextEdit, QComboBox, QListWidget {{
             font-size: 16px;
         }}
-        QLabel, QCheckBox {{
+        QLabel, QCheckBox, QRadioButton {{
             color: {EEGLAB_TEXT};
             background: transparent;
         }}
-        QLabel:disabled, QCheckBox:disabled {{
+        QLabel:disabled, QCheckBox:disabled, QRadioButton:disabled {{
             color: {EEGLAB_DISABLED_TEXT};
         }}
         QLineEdit {{
@@ -532,10 +535,10 @@ def _apply_eeglab_style(dialog: Any, spec: DialogSpec) -> None:
             min-height: 102px;
             max-height: 102px;
         }}
-        QCheckBox {{
+        QCheckBox, QRadioButton {{
             spacing: 4px;
         }}
-        QCheckBox::indicator {{
+        QCheckBox::indicator, QRadioButton::indicator {{
             width: 13px;
             height: 13px;
         }}
@@ -634,7 +637,7 @@ def _apply_widget_size_policy(QtWidgets: Any, widget: Any, style: str) -> None:
     if style == "textarea":
         widget.setSizePolicy(policy.Expanding, policy.Expanding)
         return
-    if style in {"text", "checkbox"}:
+    if style in {"text", "checkbox", "radio", "radiobutton"}:
         widget.setMinimumWidth(0)
         widget.setSizePolicy(policy.Expanding, policy.Fixed)
 

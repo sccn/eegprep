@@ -130,9 +130,9 @@ Primary references:
 
 ## Dependencies
 
-- Python support starts at 3.10 per `pyproject.toml`.
+- Python support starts at 3.12 per `pyproject.toml`.
 - `uv` is the default package and environment manager for development, CI, and agent workflows.
-- `.python-version` sets the default development interpreter to Python 3.11.
+- `.python-version` sets the default development interpreter to Python 3.12.
 - Use `uv sync --group dev` after cloning or when dependencies change.
 - Use `uv run python ...` for Python commands so tests run inside the project environment.
 - Do not add dependencies for tiny helpers. If a dependency is justified, update `pyproject.toml`, docs, and any CI/install notes.

@@ -11,7 +11,7 @@ def eeg_decodechan(
 
     Supports:
       - chanlocs as a list-like of dicts, or a dict with key "chanlocs".
-      - chanstr as an iterable of strings and/or integers.
+      - chanstr as an iterable of strings/integers or a space-separated string.
       - Matching on the specified field (e.g., "labels" or "type").
       - Numeric 0-based indices as input (returned directly after validation).
       - Empty chanlocs with purely numeric input (indices passthrough).
@@ -20,8 +20,9 @@ def eeg_decodechan(
     ----------
     chanlocs : list of dict or dict
         Channel locations or {'chanlocs': [...]}
-    chanstr : iterable
-        Channel identifiers (strings or ints)
+    chanstr : iterable or str
+        Channel identifiers (strings or ints). A string contains
+        whitespace-separated channel names.
     field : str, optional
         Field to match on (default 'labels')
     ignoremissing : bool, optional
@@ -44,10 +45,13 @@ def eeg_decodechan(
     nchan = len(chanlocs)
 
     # Normalize chanstr into a flat Python list
-    try:
-        seq = list(chanstr)
-    except Exception as e:
-        raise TypeError("chanstr must be an iterable of strings/integers") from e
+    if isinstance(chanstr, str):
+        seq = chanstr.split()
+    else:
+        try:
+            seq = list(chanstr)
+        except Exception as e:
+            raise TypeError("chanstr must be an iterable of strings/integers") from e
 
     # Detect numeric-only request (ints or strings that are pure integers)
     numeric_req = []

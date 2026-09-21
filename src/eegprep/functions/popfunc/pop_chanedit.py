@@ -19,6 +19,7 @@ from eegprep.functions.sigprocfunc.writelocs import writelocs
 
 
 _CHANNEL_FIELDS = ("labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type", "ref")
+_LOCATION_FIELDS = ("theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius")
 
 
 def pop_chanedit(
@@ -266,11 +267,19 @@ def _apply_chanedit(
             _convert_locations(chanlocs, value)
         elif key == "load":
             chanlocs = _read_chanloc_file(value)
+        elif key == "lookup":
+            chanlocs = _lookup_chanlocs(chanlocs, value)
+            chaninfo["filename"] = str(_channel_location_path(value))
+            lookup_name = chaninfo["filename"].lower()
+            chaninfo["nosedir"] = "+Y" if "standard_10" in lookup_name and lookup_name.endswith(".elc") else "+X"
         elif key == "save":
             _write_chanloc_file(value, chanlocs)
         elif key == "headrad":
             for chan in chanlocs:
                 chan["sph_radius"] = float(value)
+        elif key == "shrink":
+            if chanlocs:
+                chanlocs[0]["shrink"] = float(value)
         elif key == "settype":
             indices, chan_type = _index_value_args(value, len(chanlocs))
             for index in indices:
@@ -358,8 +367,42 @@ def _cart_to_all(chan: dict[str, Any]) -> None:
 
 
 def _read_chanloc_file(value: Any) -> list[dict[str, Any]]:
-    path = Path(value[0] if isinstance(value, (list, tuple)) else value)
-    return readlocs(path)
+    if isinstance(value, (list, tuple)):
+        path = Path(value[0])
+        return readlocs(path, *value[1:])
+    return readlocs(Path(value))
+
+
+def _lookup_chanlocs(chanlocs: list[dict[str, Any]], value: Any) -> list[dict[str, Any]]:
+    template = _read_chanloc_file(value)
+    by_label: dict[str, dict[str, Any]] = {}
+    for channel in template:
+        label = str(channel.get("labels") or "")
+        if label.strip():
+            by_label.setdefault(label.casefold(), channel)
+    looked_up: list[dict[str, Any]] = []
+    for index, channel in enumerate(chanlocs):
+        label = str(channel.get("labels") or "")
+        output = {
+            "labels": label,
+            "datachan": channel.get("datachan", True),
+            "type": channel.get("type", ""),
+            "urchan": index,
+            "ref": "",
+        }
+        match = by_label.get(label.casefold())
+        if match is not None:
+            output.update({field: match[field] for field in _LOCATION_FIELDS if field in match})
+            if _is_blank(output["type"]) and not _is_blank(match.get("type")):
+                output["type"] = match["type"]
+        looked_up.append(output)
+    return looked_up
+
+
+def _channel_location_path(value: Any) -> Path:
+    if isinstance(value, (list, tuple)) and value:
+        value = value[0]
+    return Path(value)
 
 
 def _write_chanloc_file(value: Any, chanlocs: list[dict[str, Any]]) -> None:

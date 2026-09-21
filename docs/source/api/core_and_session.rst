@@ -10,16 +10,30 @@ Dataset containers, validation, and the shared session that the GUI and ``eegpre
 
    eegprep.EEGPrepSession
    eegprep.EEG_OPTIONS
+   eegprep.eeg_readoptions
+   eegprep.gethelpvar
+   eegprep.getkeyval
+   eegprep.vararg2str
    eegprep.EEGobj
    eegprep.checkset
    eegprep.compare
    eegprep.eeg_checkset
+   eegprep.eeg_checkchanlocs
    eegprep.eeg_checkset_strict_mode
    eegprep.eeg_compare
+   eegprep.eeg_context
    eegprep.eeg_emptyset
+   eegprep.eeg_eventhist
+   eegprep.eeg_eventtypes
+   eegprep.eeg_getepochevent
+   eegprep.eeg_getdatact
+   eegprep.eeg_insertbound
+   eegprep.eeg_urlatency
    eegprep.eeg_retrieve
    eegprep.eeg_store
+   eegprep.eeg_time2prev
    eegprep.eegh
    eegprep.eeglab
+   eegprep.eeglab_execmenu
    eegprep.options
-
+   eegprep.unique_cell_string

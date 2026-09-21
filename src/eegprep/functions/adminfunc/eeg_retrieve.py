@@ -13,7 +13,11 @@ def eeg_retrieve(
     ALLEEG: list[dict[str, Any]] | None,
     index: int | list[int] | tuple[int, ...],
 ) -> tuple[dict[str, Any] | list[dict[str, Any]], list[dict[str, Any]], int | list[int]]:
-    """Return dataset(s) from ``ALLEEG`` using EEGLAB-facing 1-based indices."""
+    """Return dataset(s) from ``ALLEEG`` using EEGLAB-facing 1-based indices.
+
+    Scalar index ``0`` returns an empty EEG dataset and leaves ``ALLEEG``
+    unchanged, matching EEGLAB's no-current-dataset state.
+    """
     alleeg = [] if ALLEEG is None else list(ALLEEG)
     if isinstance(index, (list, tuple)):
         indices = [int(item) for item in index]
@@ -41,7 +45,9 @@ def _is_occupied(alleeg: list[dict[str, Any]], index: int) -> bool:
 
 
 def _dataset_at(alleeg: list[dict[str, Any]], index: int) -> dict[str, Any]:
-    if index < 1:
+    if index == 0:
+        return eeg_emptyset()
+    if index < 0:
         raise ValueError("EEGLAB dataset indices are 1-based")
     try:
         dataset = alleeg[index - 1]

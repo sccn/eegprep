@@ -44,6 +44,8 @@ def spectopo(
     winsize: int | None = None,
     overlap: int = 0,
     nfft: int | None = None,
+    wintype: str = "hamming",
+    blckhn: int = 2,
 ):
     """Compute and optionally plot channel/component log power spectra.
 
@@ -60,6 +62,8 @@ def spectopo(
         winsize=winsize,
         overlap=overlap,
         nfft=nfft,
+        wintype=wintype,
+        blckhn=blckhn,
     )
     figure = None
     if str(plot).lower() != "off":
@@ -85,6 +89,8 @@ def compute_spectra(
     overlap: int = 0,
     nfft: int | None = None,
     mapnorm: Any = None,
+    wintype: str = "hamming",
+    blckhn: int = 2,
 ) -> tuple[np.ndarray, np.ndarray, None]:
     """Return Welch spectra in dB as ``channels x frequencies``.
 
@@ -126,11 +132,21 @@ def compute_spectra(
             epochs = epochs[:, :keep, :]
             pnts = keep
 
+    window_type = str(wintype).strip().lower()
+    if window_type not in {"hamming", "blackmanharris"}:
+        raise ValueError("wintype must be 'hamming' or 'blackmanharris'")
     nperseg = int(winsize or min(round(srate), pnts))
+    if window_type == "blackmanharris":
+        divisor = int(blckhn)
+        if divisor <= 0:
+            raise ValueError("blckhn must be a positive integer")
+        nperseg = int(np.floor(nperseg / divisor + 0.5))
     nperseg = max(1, min(nperseg, pnts))
     noverlap = max(0, min(int(overlap), nperseg - 1))
-    # symmetric Hamming + no detrend to match MATLAB pwelch
-    window = get_window("hamming", nperseg, fftbins=False)
+    # EEGLAB uses symmetric windows and disables detrending in pwelch.
+    window = get_window(window_type, nperseg, fftbins=False)
+    if window_type == "blackmanharris":
+        nfft = 1 << int(np.ceil(np.log2(nperseg)))
     freqs = None
     psd_sum: np.ndarray | None = None
     for index in range(trials):

@@ -19,5 +19,9 @@ ALLEEG, EEG, CURRENTSET, LASTCOM = pop_newset(ALLEEG, EEG, CURRENTSET, "setname"
 ALLEEG, EEG, CURRENTSET, LASTCOM = pop_newset(ALLEEG, EEG, CURRENTSET, "retrieve", 2)
 ```
 
+`saveold` and `savenew` accept explicit `.set` file paths. With
+`saveold="on"`, the current dataset's `filename` and `filepath` metadata
+select the destination.
+
 EEGPrep uses EEGLAB-facing 1-based dataset indices for `CURRENTSET`. Python
 array indices inside EEG data remain 0-based.

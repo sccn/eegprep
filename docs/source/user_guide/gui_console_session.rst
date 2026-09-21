@@ -123,6 +123,38 @@ Normal Python scripts keep normal Python semantics:
 
 Use explicit assignment in scripts, notebooks, tests, and batch jobs.
 
+Run Registered Menus Without Dialogs
+====================================
+
+Automation and parity checks can run a real registered menu workflow against
+the same session without opening Qt dialogs. Pass the exact menu label, its
+registered ``pop_*`` function, and explicit parameters:
+
+.. code-block:: python
+
+   from eegprep import EEGPrepSession, eeglab_execmenu
+
+   session = EEGPrepSession()
+   eeglab_execmenu(
+       "From ASCII/float file or MATLAB array",
+       "pop_importdata",
+       {"data": data, "dataformat": "array", "srate": 100},
+       session=session,
+   )
+   eeglab_execmenu(
+       "Change sampling rate",
+       "pop_resample",
+       [64],
+       session=session,
+   )
+
+``eeglab_execmenu`` verifies that the label and function identify the same
+declarative menu item, calls only an explicit set of noninteractive workflows,
+and updates ``EEG``, ``ALLEEG``, ``CURRENTSET``, ``LASTCOM``, and ``ALLCOM`` as
+one session operation. It never evaluates callback or history strings. For a
+deterministic replay, retain the label/function/parameter triples and dispatch
+them in the same order into a fresh ``EEGPrepSession``.
+
 History You Can Reuse
 =====================
 

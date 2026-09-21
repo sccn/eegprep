@@ -573,6 +573,10 @@ class MenuActionDispatcher:
                 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
 
                 eeg_out, command = pop_fileio_brainvision_mat(filename, return_com=True)
+            elif action == "pop_fileio_brainvision":
+                from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
+
+                eeg_out, command = pop_loadbv(filename, return_com=True)
             else:
                 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 
@@ -637,7 +641,7 @@ class MenuActionDispatcher:
             else:
                 from eegprep.functions.popfunc.pop_importevent import pop_importevent
 
-                eeg_out, command = pop_importevent(selection, "event", filename, return_com=True)
+                eeg_out, command = pop_importevent(selection, "event", filename, "append", "no", return_com=True)
         self._store_current_from_gui(eeg_out, command=command)
         self._refresh()
 
@@ -1615,7 +1619,7 @@ class MenuActionDispatcher:
         elif name == "pop_plotdata":
             from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 
-            _result, command = pop_plotdata(selection, return_com=True)
+            _result, command = pop_plotdata(selection, typeplot=0 if variant == "components" else 1, return_com=True)
         elif name == "pop_erpimage":
             from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 

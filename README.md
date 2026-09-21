@@ -6,7 +6,7 @@
 
 [![Tests](https://github.com/sccn/eegprep/actions/workflows/test.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/test.yml)
 [![Documentation Status](https://github.com/sccn/eegprep/actions/workflows/docs.yml/badge.svg)](https://github.com/sccn/eegprep/actions/workflows/docs.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
 
 EEGPrep is an EEGLAB-compatible, Python-native toolkit for loading, cleaning,

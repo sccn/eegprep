@@ -183,8 +183,8 @@ def test_study_menu_actions_owned_by_epic_are_implemented():
     }
 
 
-def test_limo_entry_points_report_standalone_limitation():
-    with pytest.raises(NotImplementedError, match="does not implement EEGLAB's external LIMO toolbox"):
+def test_limo_entry_points_require_an_active_study_design():
+    with pytest.raises(ValueError, match="valid active STUDY design"):
         pop_limo({}, [])
 
 

@@ -415,13 +415,16 @@
     {
       "eeglab_path": "functions/adminfunc/eeglab_execmenu.m",
       "eeglab_name": "eeglab_execmenu",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/adminfunc/eeglab_execmenu.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "MATLAB-specific path, help-generation, GUI shim, compatibility, or deployment behavior that should not be recreated in standalone EEGPrep runtime code.",
+      "status": "implemented",
+      "rationale": "EEGPrep exposes a safe session-bound dispatcher for registered menu labels and explicit noninteractive parameters without reproducing EEGLAB's global-workspace callback evaluation.",
       "responsible_phase": "none",
-      "user_facing_surface": [],
-      "test_notes": "No runtime parity tests required; validation should continue proving package code does not depend on the vendored EEGLAB tree."
+      "user_facing_surface": [
+        "api",
+        "console"
+      ],
+      "test_notes": "Current eeglab_tests workflow coverage verifies menu/function resolution, state synchronization, file and metadata operations, numerical resampling, and deterministic structured replay."
     },
     {
       "eeglab_path": "functions/adminfunc/eeglab_new.m",
@@ -5031,15 +5034,15 @@
     {
       "eeglab_path": "functions/sigprocfunc/cbar.m",
       "eeglab_name": "cbar",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/cbar.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "Phase 7 triage classified this as MATLAB figure/GUI/runtime support not reached by EEGPrep Qt, matplotlib, console, or tested preprocessing workflows.",
+      "status": "implemented",
+      "rationale": "EEGPrep provides standalone vertical, horizontal, positive, full-colormap, partial-colormap, and labelled Matplotlib color bars.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "No runtime port; covered by parity matrix validation and absence from menu/action workflows."
+      "test_notes": "Covered by all five current eeglab_tests cbar wrapper methods in tests/test_sigprocfunc_plotting_eeglab_tests.py, with artist arrays, layout, orientation, and ticks asserted."
     },
     {
       "eeglab_path": "functions/sigprocfunc/celltomat.m",
@@ -5148,15 +5151,15 @@
     {
       "eeglab_path": "functions/sigprocfunc/copyaxis.m",
       "eeglab_name": "copyaxis",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/copyaxis.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "Phase 7 triage classified this as MATLAB figure/GUI/runtime support not reached by EEGPrep Qt, matplotlib, console, or tested preprocessing workflows.",
+      "status": "implemented",
+      "rationale": "EEGPrep copies current or explicit Matplotlib axes into standalone figures, preserving common scientific line/image content and axes metadata.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "No runtime port; covered by parity matrix validation and absence from menu/action workflows."
+      "test_notes": "Covered by the current copyaxis wrapper method in tests/test_sigprocfunc_plotting_eeglab_tests.py with line, image, labels, limits, styles, and legend assertions."
     },
     {
       "eeglab_path": "functions/sigprocfunc/coregister.m",
@@ -5465,21 +5468,16 @@
     {
       "eeglab_path": "functions/sigprocfunc/forcelocs.m",
       "eeglab_name": "forcelocs",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/forcelocs.py",
       "gap_category": "7_file_format_channel_location",
-      "status": "stale_skip",
-      "rationale": "Manual channel-rotation GUI helper has no in-scope caller or deterministic workflow; Phase 2 covers recentering and coordinate conversion through pop_chancenter/convertlocs.",
+      "status": "implemented",
+      "rationale": "EEGPrep performs deterministic X-Z and Y-Z whole-montage rotations and refreshes Cartesian, spherical, BESA, and topographic coordinate fields.",
       "responsible_phase": "none",
-      "user_facing_surface": [],
-      "test_notes": "No runtime parity test required for stale helper classification; matrix validator enforces stale policy fields.",
-      "stale_policy": {
-        "menu_reachable": false,
-        "documented_user_api": false,
-        "called_by_in_scope_workflow": false,
-        "required_by_parity_tests": false,
-        "needed_as_phase_helper": false,
-        "likely_user_alias": false
-      }
+      "user_facing_surface": [
+        "helper",
+        "file_channel"
+      ],
+      "test_notes": "Covered by both current forcelocs wrapper methods in tests/test_sigprocfunc_plotting_eeglab_tests.py against their exact expected 3-D and derived coordinate values."
     },
     {
       "eeglab_path": "functions/sigprocfunc/gettempfolder.m",
@@ -5508,12 +5506,12 @@
       "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/headplot.py",
       "gap_category": "3_unsupported_options",
       "status": "implemented",
-      "rationale": "Phase 5 implemented plotmeshonly head/sphere preview and orilocs setup behavior for standalone headplot spline setup.",
+      "rationale": "EEGPrep implements standalone spline setup and 3-D rendering, mesh/original-location options, wireframe lighting-off mode, and the spherical/cartesian example commands.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py spline reuse, plotmeshonly preview, orilocs metadata, sample headplot rendering, GUI setup replay, and MATLAB parity tests when available."
+      "test_notes": "All five current headplot wrapper methods carry provenance across tests/test_phase4_plot_wrappers.py and tests/test_sigprocfunc_plotting_eeglab_tests.py; spline/interpolation MATLAB parity tests run when available."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icaact.m",
@@ -5873,15 +5871,15 @@
     {
       "eeglab_path": "functions/sigprocfunc/plotcurve.m",
       "eeglab_name": "plotcurve",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/plotcurve.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "Phase 7 triage classified this as MATLAB figure/GUI/runtime support not reached by EEGPrep Qt, matplotlib, console, or tested preprocessing workflows.",
+      "status": "implemented",
+      "rationale": "EEGPrep provides standalone multi-curve, mean, error-band, significance-region, labelled, marker, and scalp-inset plotting on Matplotlib axes.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "No runtime port; covered by parity matrix validation and absence from menu/action workflows."
+      "test_notes": "The current plotcurve wrapper's eight active cases are covered together in tests/test_sigprocfunc_plotting_eeglab_tests.py with numerical line, mean, mask-region, marker, label, legend, and limit assertions."
     },
     {
       "eeglab_path": "functions/sigprocfunc/plotdata.m",
@@ -6298,15 +6296,15 @@
     {
       "eeglab_path": "functions/sigprocfunc/sbplot.m",
       "eeglab_name": "sbplot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/sbplot.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "Phase 7 triage classified this as MATLAB figure/GUI/runtime support not reached by EEGPrep Qt, matplotlib, console, or tested preprocessing workflows.",
+      "status": "implemented",
+      "rationale": "EEGPrep creates non-destructive Matplotlib axes in one-based grid cells or spanning opposite corner cells, including tiling within explicit parent bounds.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "No runtime port; covered by parity matrix validation and absence from menu/action workflows."
+      "test_notes": "The current sbplot wrapper's grid, spanning, property, and parent-axis cases are covered in tests/test_sigprocfunc_plotting_eeglab_tests.py with concrete bounds and face-color assertions."
     },
     {
       "eeglab_path": "functions/sigprocfunc/shuffle.m",
@@ -6345,15 +6343,15 @@
     {
       "eeglab_path": "functions/sigprocfunc/slider.m",
       "eeglab_name": "slider",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/slider.py",
       "gap_category": "1_long_tail_helper_coverage",
-      "status": "matlab_runtime_skip",
-      "rationale": "Phase 7 triage classified this as MATLAB figure/GUI/runtime support not reached by EEGPrep Qt, matplotlib, console, or tested preprocessing workflows.",
+      "status": "implemented",
+      "rationale": "EEGPrep adds Matplotlib horizontal/vertical viewport widgets, applies EEGLAB's magnification transform, and supports exact layout restoration and optional dismissal suppression.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "No runtime port; covered by parity matrix validation and absence from menu/action workflows."
+      "test_notes": "The current slider wrapper's four active control combinations are covered in tests/test_sigprocfunc_plotting_eeglab_tests.py with widget, panning, magnification, suppression, and restoration assertions."
     },
     {
       "eeglab_path": "functions/sigprocfunc/snapread.m",
@@ -6761,16 +6759,16 @@
     {
       "eeglab_path": "functions/statistics/statcondfieldtrip.m",
       "eeglab_name": "statcondfieldtrip",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/statistics/statcondfieldtrip.py",
       "gap_category": "5_statistics_package",
-      "status": "external_dependency_skip",
-      "rationale": "Depends on an external MATLAB toolbox, plugin, or web/path integration outside this core parity epic.",
-      "responsible_phase": "none",
+      "status": "implemented",
+      "rationale": "Implemented as a standalone analytic and permutation backend for the maintained paired/unpaired t-test and unpaired one-way ANOVA contract, including pointwise, max-statistic, and explicit-adjacency max-cluster-mass corrections. Automatic FieldTrip structure conversion and neighbour construction remain explicit unsupported boundaries.",
+      "responsible_phase": "phase_3",
       "user_facing_surface": [
         "helper",
         "statistics"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies a real Python dependency and reclassifies the row."
+      "test_notes": "Covered by deterministic SciPy references, seeded Monte Carlo tests, exhaustively enumerated paired and unpaired cluster-null fixtures, and the active calls in the current eeglab_tests statcondfieldtrip wrapper; the wrapper's kmean guard typo is not reproduced."
     },
     {
       "eeglab_path": "functions/statistics/surrogdistrib.m",
@@ -7580,17 +7578,16 @@
     {
       "eeglab_path": "functions/studyfunc/std_dipplot.m",
       "eeglab_name": "std_dipplot",
-      "eegprep_equivalent": null,
+      "eegprep_equivalent": "src/eegprep/functions/studyfunc/std_dipplot.py",
       "gap_category": "4_study_group_depth",
-      "status": "external_dependency_skip",
-      "rationale": "Dipole plotting depends on DIPFIT/dipole model outputs outside EEGPrep core.",
-      "responsible_phase": "phase_6",
+      "status": "implemented",
+      "rationale": "EEGPrep selects already-localized DIPFIT models through 1-based STUDY cluster membership, computes inspectable centroids, and renders standalone matplotlib views without EEGLAB or FieldTrip at runtime.",
+      "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "study"
       ],
-      "test_notes": "No standalone parity test required unless a later phase supplies the external dependency and reclassifies this row.",
-      "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
+      "test_notes": "The current std_dipplot wrapper method is provenance-linked to behavioral tests that assert selected dataset/component indices, bilateral coordinates, moments, residual variance, centroids, plot labels, and the joined and centroid modes."
     },
     {
       "eeglab_path": "functions/studyfunc/std_editset.m",

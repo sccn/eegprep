@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,6 +15,7 @@ from eegprep.functions.statistics._shared import (
     effect_map,
     normalize_method,
     paired_flag,
+    rng_from_seed,
 )
 from eegprep.functions.statistics.anova1_cell import anova1_cell
 from eegprep.functions.statistics.anova1rm_cell import anova1rm_cell
@@ -29,7 +30,13 @@ from eegprep.functions.statistics.ttest_cell import ttest_cell
 
 @dataclass(frozen=True)
 class StatcondResult:
-    """Result returned by :func:`statcond`."""
+    """Result returned by :func:`statcond`.
+
+    For a two-way design computed from condition arrays, the ``stat``, ``df``,
+    and ``pvalue`` fields are :class:`TwoWayEffects` in row, column, and
+    interaction order. Effect-valued nonparametric outputs follow the same
+    order.
+    """
 
     stat: Any
     df: Any
@@ -63,6 +70,7 @@ def statcond(
     surrog: Any = None,
     stats: Any = None,
     return_resampling_array: bool = False,
+    arraycomp: str | bool = True,
 ) -> StatcondResult | SurrogateDistribution:
     """Compare condition arrays using EEGLAB-style t-tests or ANOVAs.
 
@@ -84,11 +92,21 @@ def statcond(
         stats: Observed statistic to pair with ``surrog``.
         return_resampling_array: Return surrogate condition grids instead of
             computing statistics.
+        arraycomp: ``True``/``"on"`` batches all resamples. ``False``/``"off"``
+            computes one resample at a time and, with
+            ``return_resampling_array=True``, returns one grid as in EEGLAB.
+
+    Returns:
+        A :class:`StatcondResult`, or a :class:`SurrogateDistribution` when
+        ``return_resampling_array`` is true. Computed two-way result fields use
+        named ``rows``, ``columns``, and ``interaction`` effects in that order
+        for both paired and unpaired designs.
     """
 
     method_name = normalize_method(mode or method)
     grid = condition_grid(data, axis=axis, min_cases=2)
     paired_flag_value = paired_flag(grid, paired)
+    arraycomp_flag_value = _arraycomp_flag(arraycomp)
     if return_resampling_array:
         if method_name == "param":
             raise ValueError("return_resampling_array requires 'perm' or 'bootstrap'")
@@ -96,7 +114,7 @@ def statcond(
             grid,
             method=method_name,
             pairing="on" if paired_flag_value else "off",
-            naccu=naccu,
+            naccu=naccu if arraycomp_flag_value else 1,
             rng=rng,
         )
 
@@ -134,6 +152,7 @@ def statcond(
             variance=variance,
             forceanova=forceanova,
             rng=rng,
+            arraycomp=arraycomp_flag_value,
         )
         empirical_tail = "one" if statistic_kind.startswith("f") else tail
         pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, empirical_tail)
@@ -199,14 +218,22 @@ def _compute_surrogate_statistics(
     variance: str,
     forceanova: bool,
     rng: np.random.Generator | int | None,
+    arraycomp: bool,
 ) -> Any:
-    distribution = surrogdistrib(
-        grid,
-        method=method,
-        pairing="on" if paired else "off",
-        naccu=naccu,
-        rng=rng,
-    )
+    pairing = "on" if paired else "off"
+    if arraycomp:
+        distribution: Iterable[Any] = surrogdistrib(
+            grid,
+            method=method,
+            pairing=pairing,
+            naccu=naccu,
+            rng=rng,
+        ).samples
+    else:
+        generator = rng_from_seed(rng)
+        distribution = (
+            surrogdistrib(grid, method=method, pairing=pairing, naccu=1, rng=generator).samples[0] for _ in range(naccu)
+        )
     stats = []
     for sample in distribution:
         sample_stat, _sample_df, _kind = _compute_statistic(
@@ -257,6 +284,17 @@ def _ci_tail(tail: str) -> str:
     if tail_name == "left":
         return "lower"
     return tail_name
+
+
+def _arraycomp_flag(value: str | bool) -> bool:
+    if isinstance(value, str):
+        normalized = value.lower()
+        if normalized not in {"on", "off"}:
+            raise ValueError("arraycomp must be 'on', 'off', True, or False")
+        return normalized == "on"
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    raise ValueError("arraycomp must be 'on', 'off', True, or False")
 
 
 __all__ = ["StatcondResult", "TwoWayEffects", "statcond"]

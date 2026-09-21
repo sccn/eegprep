@@ -247,6 +247,7 @@ def runica(data, **kwargs):
     # Initialize all parameters with defaults
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
+    posactflag = DEFAULT_POSACTFLAG
     verbose = DEFAULT_VERBOSE
 
     # Heuristic defaults that depend on data size
@@ -277,6 +278,8 @@ def runica(data, **kwargs):
     wts_passed = 0 if isinstance(weights, int) and weights == 0 else 1
 
     ncomps = kwargs_lower.get('ncomps', chans)
+    if ncomps is None or np.asarray(ncomps).size == 0:
+        ncomps = chans
     biasflag = DEFAULT_BIASFLAG
 
     interrupt = kwargs_lower.get('interrupt', DEFAULT_INTERRUPT)
@@ -370,6 +373,7 @@ def runica(data, **kwargs):
         posact_val = kwargs_lower['posact']
         if posact_val not in ['on', 'off']:
             raise ValueError('runica(): posact value must be on or off')
+        posactflag = posact_val
 
     # =========================================================================
     # 3. SPECIAL PARAMETER ADJUSTMENTS
@@ -1358,6 +1362,17 @@ def runica(data, **kwargs):
     sortvar = np.argsort(meanvar)
     windex = sortvar[::-1]  # order large to small
     meanvar = meanvar[windex]
+
+    # EEGLAB's ``posact`` convention orients each component so its largest
+    # absolute activation is positive. Flip the component map first, then
+    # reconstruct the unmixing matrix exactly as runica.m does.
+    if posactflag == 'on':
+        peak_frames = np.argmax(np.abs(activations_unsorted), axis=1)
+        peak_values = activations_unsorted[np.arange(ncomps), peak_frames]
+        flip = np.sign(peak_values) < 0
+        if np.any(flip):
+            winv[:, flip] *= -1
+            weights = _matmul(finite_pinv(winv, solver=pinv), np.linalg.inv(sphere))
 
     # =========================================================================
     # Permute activations and reorder weights (MATLAB lines 1521-1528)

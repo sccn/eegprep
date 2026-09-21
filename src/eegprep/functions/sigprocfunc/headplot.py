@@ -42,6 +42,46 @@ MAPLIMIT_PADDING = 1.1
 # spline system. This is intentionally not a diagonal ridge; keep it for
 # numerical parity with EEGLAB history/setup replays.
 EEGLAB_SPLINE_LAMBDA = 0.1
+HEADPLOT_SPHERICAL_EXAMPLE = """
+Example of a headplot() electrode angles file (spherical coords.)
+Fields:  chan_num cor_deg horiz_deg channel_name
+
+           1        -90     -72        Fp1.
+           2         90      72        Fp2.
+           3        -62     -57        F3..
+           4         62      57        F4..
+           5        -45       0        C3..
+           6         45       0        C4..
+           7       -118       2        A1..
+           8        118      -2        A2..
+           9        -62      57        P3..
+           10        62     -57        P4..
+           11       -90      72        O1..
+           12        90     -72        O2..
+           13       -90     -36        F7..
+           14        90      36        F8..
+           15       -90       0        T3..
+           16        90       0        T4..
+           17       -90      36        T5..
+           18        90     -36        T6..
+           19        45      90        Fz..
+           20         0       0        Cz..
+           21        45     -90        Pz..
+
+A 90 deg coronal rotation points to right ear, -90 to left.
+A positive horizontal rotation is counterclockwise from above.
+Use pol2sph() to convert from topoplot() format to spherical.
+Channel names should have 4 chars (. = space).
+See also: headplot('cartesian')
+""".lstrip()
+HEADPLOT_CARTESIAN_EXAMPLE = """
+Example of a headplot() electrode location file (cartesian coords.)
+Fields:  chan_num  x        y        z      channel_name
+
+           1       0.4528   0.8888  -0.0694       Fp1.
+Channel names should have 4 chars (. = space).
+See also: headplot('example')
+""".lstrip()
 
 
 @dataclass(frozen=True)
@@ -75,18 +115,32 @@ class HeadplotSpline:
     headplot_version: int
 
 
-def headplot(values: Any, arg1: Any, **kwargs: Any):
+def headplot(values: Any, arg1: Any = None, **kwargs: Any):
     """Plot values on a spline-interpolated 3-D head mesh.
 
     Args:
         values: One data value per electrode, or one value per original channel
             when the spline stores channel indices.
         arg1: Path to a ``.spl`` file created by :func:`headplot_setup`.
+            Omit this for the ``"example"`` and ``"cartesian"`` commands.
         **kwargs: EEGLAB-style options including ``meshfile``, ``title``,
             ``maplimits``, ``electrodes``, ``labels``, ``view`` and ``cbar``.
     """
-    if isinstance(values, str) and values.lower() == "setup":
-        return headplot_setup(arg1, kwargs.pop("splinefile"), **kwargs)
+    if isinstance(values, str):
+        command = values.lower()
+        if command == "setup":
+            if arg1 is None or "splinefile" not in kwargs:
+                raise ValueError("headplot setup requires channel locations and splinefile")
+            return headplot_setup(arg1, kwargs.pop("splinefile"), **kwargs)
+        if command in {"example", "demo"}:
+            print(HEADPLOT_SPHERICAL_EXAMPLE, end="")
+            return HEADPLOT_SPHERICAL_EXAMPLE
+        if command == "cartesian":
+            print(HEADPLOT_CARTESIAN_EXAMPLE, end="")
+            return HEADPLOT_CARTESIAN_EXAMPLE
+        raise ValueError(f"Unknown headplot command: {values}")
+    if arg1 is None:
+        raise ValueError("headplot requires a spline file")
     spline = load_headplot_spline(arg1)
     data = _values_for_spline(values, spline)
     mesh = load_headplot_mesh(kwargs.get("meshfile") or spline.meshfile or DEFAULT_MESH)
@@ -718,6 +772,8 @@ def _is_on(value: str | bool) -> bool:
 __all__ = [
     "HeadplotMesh",
     "HeadplotSpline",
+    "HEADPLOT_CARTESIAN_EXAMPLE",
+    "HEADPLOT_SPHERICAL_EXAMPLE",
     "MAPLIMIT_PADDING",
     "default_headplot_transform",
     "default_headplot_mesh_transform",

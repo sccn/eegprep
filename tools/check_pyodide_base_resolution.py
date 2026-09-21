@@ -18,10 +18,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-try:
-    import tomllib  # ty: ignore[unresolved-import]
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib  # ty: ignore[unresolved-import]
+import tomllib
 
 from packaging.markers import Marker
 from packaging.utils import canonicalize_name

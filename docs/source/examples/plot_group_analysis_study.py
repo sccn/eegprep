@@ -86,8 +86,9 @@ print("cached channel groups:", len(STUDY["changrp"]))
 print("cached fields:", sorted(k for k in STUDY["changrp"][0] if k.endswith("data")))
 
 # %%
-# Read the cached ERP for one channel without opening a figure. Cells are
-# ``(subjects, times)``; drop ``noplot`` to get a Matplotlib figure back.
+# Read the cached ERP for one channel without opening a figure. A one-factor
+# design returns one ``(times, subjects)`` cell per level; drop ``noplot`` to
+# get a Matplotlib figure back.
 
 STUDY, erpdata, erptimes, _ = std_erpplot(STUDY, ALLEEG, channels=[1], noplot="on")
 print("erp cells:", len(erpdata), "cell shape:", erpdata[0].shape)

@@ -7,5 +7,12 @@ custom fields. Event indices are 1-based. Continuous data keeps boundary events
 when deleting non-selected events, matching EEGLAB's expectation that boundaries
 preserve discontinuity information.
 
+Latency ranges are expressed in seconds for continuous data and milliseconds
+relative to epoch onset for epoched data.
+
+Epoch selection raises when every epoch would be removed. Pass
+`erroronempty="off"` to allow an empty result instead; the returned EEG then has
+zero trials, empty data, and no events.
+
 The function returns selected event indices for programmatic calls, and returns
 an EEG plus replayable command when `return_com=True`.

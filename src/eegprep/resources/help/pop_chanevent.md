@@ -13,6 +13,9 @@ EEG, com = pop_chanevent(EEG, [1, 2], "edge", "leading", return_com=True)
 Channel indices are EEGLAB-style 1-based values. Continuous 2-D datasets are
 supported. Options can delete the event channel after import, replace existing
 events, append to existing events, and compute event durations from leading and
-trailing edges.
+trailing edges. `edgelen` fuses transitions separated by fewer than the given
+number of samples. Binary channels use `typename` (default `chanN`) as their
+event type; multivalued channels retain the value at each transition unless
+`nbtype` requests a named type.
 
 See also: POP_IMPORTEVENT

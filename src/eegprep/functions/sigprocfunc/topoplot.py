@@ -57,7 +57,10 @@ def griddata_v4(x, y, v, xq, yq):
     g_q[d_q == 0] = 0  # Handle Green's function at zero
 
     # Weights is (L,), g_q is (M, N, L) -> vq is (M, N)
-    vq = g_q @ weights
+    # NumPy 2 may expose spurious BLAS floating-point flags for this finite
+    # product; preserve the computed values without leaking those flags.
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        vq = g_q @ weights
 
     return vq
 
