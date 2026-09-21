@@ -25,6 +25,12 @@ keywords = ["eeg", "preprocessing", "EEGLAB"]
 dependencies = [
   "colorama>=0.4.6",
   "eeglabio>=0.1.2",
+  # The h5py, matplotlib, numpy and threadpoolctl floors here, and the scipy
+  # floors below, are capped by what Pyodide 0.29.5 ships for a browser install.
+  # Raising one past Pyodide's shipped version breaks eegprep in the browser, so
+  # check against the Pyodide release before bumping any of them.
+  # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1,
+  # threadpoolctl 3.5.0. tests/test_browser_dependency_floors.py enforces this.
   "h5py>=3.12.1",
   "matplotlib>=3.8.0",
   "mne>=1.10.0",
@@ -115,7 +121,7 @@ required-environments = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 extend-exclude = [
   "pre-commit.py",

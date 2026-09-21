@@ -365,6 +365,22 @@ def test_unsupported_eegprep_version_is_reported() -> None:
     assert "requires EEGPrep >=999.0" in _messages(report)
 
 
+def test_unsupported_python_version_is_reported() -> None:
+    report = validate_catalog_entries([_catalog_entry(python_requires=">=99.0")])
+
+    assert not report.ok
+    assert "Extension requires Python >=99.0" in _messages(report)
+
+
+def test_malformed_python_requires_reports_single_field_error() -> None:
+    report = validate_catalog_entries([_catalog_entry(python_requires="not-a-spec")])
+
+    assert not report.ok
+    assert [issue.field for issue in report.errors] == ["python_requires"]
+    assert report.errors[0].message == "Must be a simple version specifier"
+    assert "Extension requires Python not-a-spec" not in _messages(report)
+
+
 def test_malformed_eegprep_requires_reports_single_field_error() -> None:
     report = validate_catalog_entries([_catalog_entry(eegprep_requires="not-a-spec")])
 
@@ -406,7 +422,10 @@ def _catalog_entry(**overrides: Any) -> dict[str, Any]:
         "version": "1.0.0",
         "api_version": "1",
         "eegprep_requires": ">=0.2",
-        "python_requires": ">=3.12",
+        # Deliberately far below any interpreter this suite runs on. The happy path
+        # must not depend on the project's Python floor, or every floor bump breaks
+        # an unrelated fixture. The floor itself is covered by the two tests below.
+        "python_requires": ">=3.0",
         "license": "BSD-3-Clause",
         "maintainer": {"name": "SCCN", "email": "maintainers@example.org"},
         "docs_url": "https://example.org/docs",
