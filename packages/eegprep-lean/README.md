@@ -11,8 +11,8 @@ and what this package guarantees, and where it deliberately differs from EEGPrep
 [contract][contract].
 
 **Status: under construction.**
-The index reader works against the live archive.
-Reading array data is not implemented yet.
+Reading an index and a window of signal works against the live archive.
+Plotting and preprocessing are not implemented yet.
 
 ## Install
 
@@ -34,15 +34,24 @@ version, so a normal resolve fails on a dependency these stores never use at run
 ## Use
 
 ```python
-from eegprep_lean import read_index
+from eegprep_lean import read_index, read_window
 
 index = await read_index("nm000103")
 store = index.store("sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_eeg.set")
-group = store.group()          # 129 channels at 250 Hz
-url = index.level0_url(store)  # full resolution, built from the contract's own layout
+
+window = await read_window(
+    index, store, start_sample=2500, n_samples=500, channels=[0, 1, 2]
+)
+window.data.shape   # (3, 500), physical units
+window.times_s[0]   # 10.0, seconds into the recording, not into the window
 ```
 
-## Two things that will surprise you
+`read_window` needs the `zarr` extra.
+It reads only the chunks the window spans:
+the store is sharded, so a one-second window of one channel costs a shard index read and
+one inner chunk, not the whole 7 MB shard.
+
+## Three things that will surprise you
 
 **Everything that touches the network is `async`, and there is no synchronous wrapper.**
 Not a style choice.
@@ -57,6 +66,15 @@ This package does not follow it.
 is allowed to move, and a client holding the bucket URL is holding something that was
 never promised to keep working, while making its reads invisible to the archive serving
 them.
+
+**The physical units are not knowable from here.**
+The array declares its conversion, `physical = digital * scale + offset`, per channel,
+but not the units that conversion produces;
+the index reports only that a `channels.tsv` sidecar supplied them.
+So a window holds values in the recording's own units and does not claim to know which.
+Assuming microvolts is the kind of guess that is right often enough to go unquestioned
+and wrong quietly when it is not.
+Large offsets are normal: level 0 is raw signal before referencing or filtering.
 
 ## Tests
 
