@@ -55,6 +55,31 @@ separate data file exists to map. Mutating a ``MemmapData`` value writes to the
 ``.fdt`` sidecar; use normal EEGPrep save/history workflows when the dataset
 metadata should be marked clean.
 
+``MemmapData`` uses zero-based NumPy indices against the logical
+``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
+``copy.deepcopy`` share the sidecar until one copy is written, then use a
+private copy-on-write sidecar so processing a copied EEG does not mutate its
+source. ``resize`` retains the overlapping region and fills new samples with
+zeros by default; ``delete`` removes indices along a selected logical axis.
+
+EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
+rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,
+selection, and resampling. Each result gets its own writable temporary mapping,
+while the original dataset and sidecar remain unchanged.
+
+For direct construction, ``mmo`` is the compact EEGLAB-compatible entry point:
+
+.. code-block:: python
+
+   from eegprep import mmo
+
+   data = mmo("subject01.fdt", (64, 30000), writable=True)
+   blank = mmo(None, (64, 30000))
+
+Pass ``transposed=True`` for files physically stored as
+``(samples, trials, channels)``. Indexing still uses the logical channels-first
+shape; storage orientation never changes the public shape or index order.
+
 Storedisk Sessions
 ==================
 
@@ -70,16 +95,24 @@ retrieve the dataset first:
    ALLEEG, EEG, CURRENTSET = eeg_store(ALLEEG, EEG, 0)
    EEG, ALLEEG, CURRENTSET = eeg_retrieve(ALLEEG, 1)
 
+Calling ``eeg_retrieve(ALLEEG, 0)`` represents the no-current-dataset state: it
+returns an empty EEG dataset and ``CURRENTSET == 0`` without deleting or
+renumbering ``ALLEEG``.
+
 The GUI, ``EEGPrepSession``, and ``eegprep-console`` use the same
 ``eeg_store``/``eeg_retrieve`` path, so ``EEG``, ``ALLEEG``, ``CURRENTSET``,
 history, and dataset menus stay synchronized. Unsaved resident datasets cannot
 be offloaded; save them first or keep ``option_storedisk`` disabled.
 
-Current Limitations
-===================
+Selective Loading
+=================
 
-``pop_loadset`` supports full dataset loading for Phase 5. EEGLAB channel-only
-and ``loadmode="info"`` paths fail clearly instead of pretending data is
-available. Derived caches such as ``icaact`` are not managed by a separate
-lazy-storage layer, and EEGPrep does not provide multi-process write
-coordination for shared ``.fdt`` files.
+``pop_loadset(path, loadmode="info")`` loads metadata without loading sample
+data. ``EEG["data"]`` contains the saved sidecar filename or ``"in set file"``
+so callers can tell where the samples live. Passing an integer or sequence as
+``loadmode`` loads those 1-based channels and clears ICA fields that no longer
+describe the selected channel matrix.
+
+Derived caches such as ``icaact`` are not managed by a separate lazy-storage
+layer, and EEGPrep does not provide multi-process write coordination for shared
+``.fdt`` files.

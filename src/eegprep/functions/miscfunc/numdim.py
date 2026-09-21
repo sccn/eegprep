@@ -26,8 +26,10 @@ def numdim(data: Any) -> float:
     eigenvalues = np.linalg.eigvals(b)  # MATLAB: [v d] = eig(b);
     weights = (eigenvalues / np.sum(eigenvalues)).astype(complex)
     # Complex log mirrors MATLAB's real(exp(...)): tiny/negative eigenvalues
-    # from finite precision contribute ~0 instead of producing NaN.
-    lambda_ = np.exp(-np.sum(weights * np.log(weights)))
+    # from finite precision contribute ~0 instead of producing NaN. Exact
+    # zero weights have the entropy limit 0*log(0) == 0.
+    nonzero_weights = weights != 0
+    lambda_ = np.exp(-np.sum(weights[nonzero_weights] * np.log(weights[nonzero_weights])))
     return float(np.real(lambda_))
 
 

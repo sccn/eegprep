@@ -26,7 +26,6 @@ from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_erpplot import std_erpplot
 from eegprep.functions.studyfunc.std_erspplot import std_erspplot
 from eegprep.functions.studyfunc.std_dipoleclusters import std_dipoleclusters
-from eegprep.functions.studyfunc.std_dipplot import std_dipplot
 from eegprep.functions.studyfunc.std_interp import std_interp
 from eegprep.functions.studyfunc.std_itcplot import std_itcplot
 from eegprep.functions.studyfunc.std_limodesign import std_limodesign
@@ -183,23 +182,24 @@ def test_study_measure_roundtrip_and_std_plot_helpers(tmp_path):
     study, itcdata, itctimes, itcfreqs, itcfig = std_itcplot(study, alleeg, channels=[1])
     plotted, plot_command, plotfig = pop_chanplot(study, alleeg, channels=["Ch1"], measure="erp", return_com=True)
 
-    assert erpdata[0].shape[0] == 2
+    assert len(erpdata) == 2
+    assert all(cell.shape == (erptimes.size, 1) for cell in erpdata)
     assert erptimes[0] >= 0
-    assert specdata[0].shape[0] == 2
-    assert specfreqs.size == specdata[0].shape[1]
-    assert erspdata[0].shape == itcdata[0].shape
+    assert len(specdata) == 2
+    assert all(cell.shape == (specfreqs.size, 1) for cell in specdata)
+    assert all(ersp.shape == itc.shape for ersp, itc in zip(erspdata, itcdata))
     assert ersptimes.size == itctimes.size
     assert erspfreqs.size == itcfreqs.size
     assert erpcom.startswith("STUDY, ERPDATA, ERPTIMES, FIGURE = std_erpplot(")
     namespace = {"STUDY": study, "ALLEEG": alleeg, "std_erpplot": std_erpplot}
     exec(erpcom, namespace)
     assert isinstance(namespace["STUDY"], dict)
-    assert namespace["ERPDATA"][0].shape == erpdata[0].shape
+    assert [cell.shape for cell in namespace["ERPDATA"]] == [cell.shape for cell in erpdata]
     assert erspcom.startswith("STUDY, ERSPDATA, ERSPTIMES, ERSPFREQS, FIGURE = std_erspplot(")
     namespace = {"STUDY": study, "ALLEEG": alleeg, "std_erspplot": std_erspplot}
     exec(erspcom, namespace)
     assert isinstance(namespace["STUDY"], dict)
-    assert namespace["ERSPDATA"][0].shape == erspdata[0].shape
+    assert [cell.shape for cell in namespace["ERSPDATA"]] == [cell.shape for cell in erspdata]
     assert plotted["etc"]["last_chanplot"]["channels"] == [1]
     assert "channels=['Ch1']" in plot_command
 
@@ -354,7 +354,8 @@ def test_child_cluster_measure_reads_slice_parent_component_cache():
 
     _study, erpdata, _times, figure, _command = std_erpplot(study, alleeg, clusters=[2], noplot="on", return_com=True)
 
-    assert erpdata[0].shape == (len(child["comps"]), first["pnts"])
+    assert all(cell.shape[0] == first["pnts"] for cell in erpdata)
+    assert sum(cell.shape[-1] for cell in erpdata) == len(child["comps"])
     assert figure is None
     with pytest.raises(ValueError, match="subject filter requires"):
         std_readerp(study, alleeg, clusters=[2], subject="S01")
@@ -559,8 +560,6 @@ def test_std_interp_adds_requested_missing_channels_without_dropping_existing():
     assert eegprep.std_interp is std_interp
 
 
-def test_source_dependent_study_helpers_report_explicit_boundary():
-    with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
-        std_dipplot({}, [])
+def test_source_dependent_dipoleclusters_reports_explicit_boundary():
     with pytest.raises(NotImplementedError, match="FieldTrip/DIPFIT STUDY source workflows"):
         std_dipoleclusters({}, [])

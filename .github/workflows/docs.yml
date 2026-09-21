@@ -39,10 +39,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv python install 3.11
+          uv python install 3.12
           # ICLabel runs through the packaged ONNX network and raises ImportError
           # without its runtime extra rather than degrading to a skip.
-          uv sync --python 3.11 --extra docs --extra iclabel
+          uv sync --python 3.12 --extra docs --extra iclabel
 
       - name: Build HTML documentation
         run: |

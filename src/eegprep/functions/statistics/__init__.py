@@ -16,6 +16,7 @@ _THIN_MODULES = (
     "stat_surrogate_ci",
     "stat_surrogate_pvals",
     "statcond",
+    "statcondfieldtrip",
     "surrogdistrib",
     "teststat",
     "ttest2_cell",
@@ -29,6 +30,8 @@ _MODULES = {_module_name: import_module(f"{__name__}.{_module_name}") for _modul
 ConcatenatedData = _MODULES["concatdata"].ConcatenatedData
 FDRResult = _MODULES["fdr"].FDRResult
 StatcondResult = _MODULES["statcond"].StatcondResult
+StatcondFieldtripCluster = _MODULES["statcondfieldtrip"].StatcondFieldtripCluster
+StatcondFieldtripResult = _MODULES["statcondfieldtrip"].StatcondFieldtripResult
 SurrogateDistribution = _MODULES["surrogdistrib"].SurrogateDistribution
 TwoWayAnovaResult = _MODULES["anova2_cell"].TwoWayAnovaResult
 TwoWayEffects = _MODULES["statcond"].TwoWayEffects
@@ -42,6 +45,7 @@ fdr = _MODULES["fdr"].fdr
 stat_surrogate_ci = _MODULES["stat_surrogate_ci"].stat_surrogate_ci
 stat_surrogate_pvals = _MODULES["stat_surrogate_pvals"].stat_surrogate_pvals
 statcond = _MODULES["statcond"].statcond
+statcondfieldtrip = _MODULES["statcondfieldtrip"].statcondfieldtrip
 surrogdistrib = _MODULES["surrogdistrib"].surrogdistrib
 teststat = _MODULES["teststat"].teststat
 ttest2_cell = _MODULES["ttest2_cell"].ttest2_cell
@@ -53,6 +57,8 @@ __all__ = [
     "ConcatenatedData",
     "FDRResult",
     "StatcondResult",
+    "StatcondFieldtripCluster",
+    "StatcondFieldtripResult",
     "SurrogateDistribution",
     "TwoWayAnovaResult",
     "TwoWayEffects",
@@ -66,6 +72,7 @@ __all__ = [
     "stat_surrogate_ci",
     "stat_surrogate_pvals",
     "statcond",
+    "statcondfieldtrip",
     "surrogdistrib",
     "teststat",
     "ttest2_cell",

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "eegprep-ext-optional-dependency"
 version = "0.1.0"
 description = "EEGPrep extension example for optional dependencies and packaged model data"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = ["eegprep>=0.2.23"]
 
 [project.optional-dependencies]

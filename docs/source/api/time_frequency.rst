@@ -17,10 +17,10 @@ Time-frequency decomposition, coherence, phase-amplitude coupling, and time warp
    eegprep.newtimefitc
    eegprep.newtimefpowerunit
    eegprep.newtimeftrialbaseln
+   eegprep.make_timewarp
    eegprep.pac
    eegprep.pac_cont
    eegprep.tf_cycle_calc
    eegprep.timef
    eegprep.timefreq
    eegprep.timewarp
-

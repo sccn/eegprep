@@ -373,6 +373,8 @@ def _as_rows_points_trials(signal: np.ndarray) -> np.ndarray:
     if arr.ndim == 1:
         arr = arr.reshape(1, arr.size, 1)
     elif arr.ndim == 2:
+        if arr.shape[1] == 1:
+            arr = arr.T
         arr = arr[:, :, np.newaxis]
     elif arr.ndim != 3:
         raise ValueError("Signal must be 1-D, 2-D, or 3-D")

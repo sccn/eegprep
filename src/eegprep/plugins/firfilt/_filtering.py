@@ -9,6 +9,7 @@ import numpy as np
 from scipy.signal import filtfilt, firls, firwin, lfilter, minimum_phase, remez
 from scipy.signal import windows as signal_windows
 
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
@@ -133,7 +134,7 @@ def design_eegfilt_legacy(
     bands, desired = _legacy_firls_shape(nyquist, locutoff, hicutoff, trans)
     if revfilt:
         desired = [1.0 - value for value in desired]
-    return np.asarray(firls(order + 1, bands, desired, fs=2.0), dtype=float), order
+    return _legacy_firls(order + 1, bands, desired), order
 
 
 def design_firws(
@@ -214,6 +215,7 @@ def apply_fir_filter(
     b = np.asarray(coefficients, dtype=float).ravel()
     if b.size % 2 != 1:
         raise ValueError("Filter order is not even.")
+    source_data = EEG["data"]
     output = deepcopy(EEG)
     data = np.asarray(output["data"])
     if data.ndim not in {2, 3}:
@@ -232,7 +234,8 @@ def apply_fir_filter(
         window = np.ix_(channel_indices, np.arange(start, stop))
         filtered[window] = _filter_segment(b, filtered[window], causal=causal, usefftfilt=usefftfilt)
 
-    output["data"] = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    output["data"] = mapped_output_like(source_data, filtered_data)
     output["icaact"] = np.array([])
     output["saved"] = "no"
     return output
@@ -249,6 +252,7 @@ def apply_eegfilt_legacy(
     b = np.asarray(coefficients, dtype=float).ravel()
     if b.size < 2:
         raise ValueError("Filter coefficients are required")
+    source_data = EEG["data"]
     output = deepcopy(EEG)
     data = np.asarray(output["data"])
     if data.ndim not in {2, 3}:
@@ -267,7 +271,8 @@ def apply_eegfilt_legacy(
         if segment.shape[1] <= order * 3 and not causal:
             raise ValueError("epochframes must be at least 3 times the filtorder.")
         filtered[:, start:stop] = _legacy_filter_segment(b, segment, causal=causal)
-    output["data"] = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
+    output["data"] = mapped_output_like(source_data, filtered_data)
     output["icaact"] = np.array([])
     output["saved"] = "no"
     return output
@@ -327,7 +332,11 @@ def _filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool, usefftf
 def _legacy_filter_segment(b: np.ndarray, segment: np.ndarray, *, causal: bool) -> np.ndarray:
     if causal:
         return lfilter(b, [1.0], segment, axis=1)
-    return filtfilt(b, [1.0], segment, axis=1)
+    # MATLAB filtfilt and eegfilt require three times the filter *order*;
+    # SciPy's default uses three times the coefficient count instead. Pass the
+    # MATLAB-compatible edge length explicitly so the shortest valid EEGLAB
+    # epochs are accepted.
+    return filtfilt(b, [1.0], segment, axis=1, padlen=3 * (b.size - 1))
 
 
 def _continuous_bounds(EEG: dict[str, Any], pnts: int) -> np.ndarray:
@@ -412,6 +421,37 @@ def _legacy_firls_shape(
         bands = [minfreq, hicutoff / nyquist, hicutoff * (1.0 + transition) / nyquist, 1.0]
         desired = [1.0, 1.0, 0.0, 0.0]
     return bands, desired
+
+
+def _legacy_firls(numtaps: int, bands: list[float], desired: list[float]) -> np.ndarray:
+    """Design MATLAB-compatible type-I or type-II least-squares coefficients."""
+    if numtaps % 2:
+        return np.asarray(firls(numtaps, bands, desired, fs=2.0), dtype=float)
+
+    band_pairs = np.asarray(bands, dtype=float).reshape(-1, 2)
+    desired_pairs = np.asarray(desired, dtype=float).reshape(-1, 2)
+    half = numtaps // 2
+
+    # A symmetric even-length FIR has the zero-phase response
+    # sum(a[k] * cos((k + 1/2) * omega)). Integrate that basis exactly
+    # over each piecewise-linear desired band, as MATLAB firls does.
+    integer_orders = np.arange(2 * half, dtype=float)[:, None, None]
+    integrals = np.diff(np.sinc(band_pairs * integer_orders) * band_pairs, axis=2)[:, :, 0]
+    q = np.sum(integrals, axis=1)
+    indices = np.arange(half)
+    gram = 0.5 * (q[np.abs(indices[:, None] - indices[None, :])] + q[indices[:, None] + indices[None, :] + 1])
+
+    cosine_orders = (np.arange(half, dtype=float) + 0.5)[:, None, None]
+    slopes = np.diff(desired_pairs, axis=1) / np.diff(band_pairs, axis=1)
+    intercepts = desired_pairs[:, [0]] - band_pairs[:, [0]] * slopes
+    projection = band_pairs * (slopes * band_pairs + intercepts) * np.sinc(band_pairs * cosine_orders)
+    projection += slopes * np.cos(cosine_orders * np.pi * band_pairs) / (np.pi * cosine_orders) ** 2
+    target = np.sum(np.diff(projection, axis=2)[:, :, 0], axis=1)
+    try:
+        amplitudes = np.linalg.solve(gram, target)
+    except np.linalg.LinAlgError:
+        amplitudes = np.linalg.lstsq(gram, target, rcond=None)[0]
+    return np.concatenate([amplitudes[::-1], amplitudes]) / 2.0
 
 
 def _legacy_fir1(order: int, srate: float, locutoff: float, hicutoff: float) -> np.ndarray:

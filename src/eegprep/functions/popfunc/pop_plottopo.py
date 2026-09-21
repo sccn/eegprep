@@ -13,15 +13,17 @@ from eegprep.functions.popfunc.plot_utils import (
     history_command,
     numeric_vector,
     parse_plot_options_text,
-    selected_indices,
     show_figures,
 )
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.sigprocfunc.plottopo import plottopo
 
 
 def pop_plottopo(
     EEG: dict[str, Any] | None = None,
     chans: Any = None,
+    plottitle: str = "",
+    singletrials: int = 0,
     *args: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
@@ -35,39 +37,35 @@ def pop_plottopo(
     """
     if EEG is None:
         return (None, "") if return_com else None
+    options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     if gui is None:
-        gui = chans is None and not kwargs
+        gui = chans is None and not options
     if gui:
         result = _run_gui(EEG, renderer=renderer)
         if result is None:
             return (None, "") if return_com else None
         chans = result["chans"]
-        kwargs.update(result["options"])
-    command_kwargs = dict(kwargs)
-    data, times = data_time_slice(EEG, kwargs.pop("timerange", None))
-    singletrials = bool(kwargs.pop("singletrials", False))
-    rect = bool(kwargs.pop("rect", False))
-    plot_options = parse_plot_options_text(kwargs.pop("options", ""))
-    ydir = int(plot_options.pop("ydir", kwargs.pop("ydir", -1)))
-    if singletrials:
-        selected = selected_indices(chans, data.shape[0])
-        plot_data = data[selected, :, :].transpose(0, 2, 1).reshape(selected.size * data.shape[2], data.shape[1])
-        plot_channels = None
-        chanlocs = []
-    else:
-        plot_data = np.nanmean(data, axis=2)
-        plot_channels = chans
-        chanlocs = EEG.get("chanlocs", [])
+        plottitle = result["plottitle"]
+        singletrials = int(result["singletrials"])
+        options.update(result["options"])
+    command_options = dict(options)
+    data, times = data_time_slice(EEG, options.pop("timerange", None))
+    rect = bool(options.pop("rect", False))
+    plot_options = parse_plot_options_text(options.pop("options", ""))
+    ydir = int(plot_options.pop("ydir", options.pop("ydir", -1)))
+    title = str(options.pop("title", plottitle or EEG.get("setname") or "Channel ERPs"))
+    plot_data = data if bool(singletrials) else np.nanmean(data, axis=2)
     figure = plottopo(
         plot_data,
         times=times,
-        chanlocs=chanlocs,
-        channels=plot_channels,
-        title=str(kwargs.pop("title", EEG.get("setname") or "Channel ERPs")),
+        chanlocs=EEG.get("chanlocs", []),
+        channels=chans,
+        title=title,
         ydir=ydir,
         rect=rect,
+        singletrials=bool(singletrials),
     )
-    command = history_command("pop_plottopo", chans, **command_kwargs)
+    command = history_command("pop_plottopo", chans, plottitle, int(bool(singletrials)), **command_options)
     show_figures(figure, plot=plot)
     return (figure, command) if return_com else figure
 
@@ -86,7 +84,7 @@ def pop_plottopo_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("text", "Plot in rect. array"),
             ControlSpec("checkbox", "(set=yes)", tag="rect", value=False),
             ControlSpec("text", "Other plot options (see help)"),
-            ControlSpec("edit", tag="options", value="'ydir', -1"),
+            ControlSpec("edit", tag="options", value="'ydir', 1"),
         ),
         geometry=((1, 1), (1, 1), (1, 1), (1, 1), (1, 1)),
         function_name="pop_plottopo",
@@ -102,9 +100,9 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
         return None
     return {
         "chans": numeric_vector(result.get("chans", []), dtype=int).tolist(),
+        "plottitle": str(result.get("title", "") or ""),
+        "singletrials": bool(result.get("singletrials", False)),
         "options": {
-            "title": str(result.get("title", "") or ""),
-            "singletrials": bool(result.get("singletrials", False)),
             "rect": bool(result.get("rect", False)),
             "options": str(result.get("options", "") or ""),
         },

@@ -29,9 +29,13 @@ from eegprep.functions.sigprocfunc.eegplot import (
     winrej_to_array,
 )
 from tests.fixtures import create_test_eeg, matlab_engine_available
+from tests.eeglab_tests import eeglab_test
 
 
 SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+_EEGPLOT_SOURCE = "unittesting_sigprocfunc/eegplot/sigprocfunc_eegplot_wrapperTest.m"
+_EEGPLOT2EVENT_SOURCE = "unittesting_sigprocfunc/eegplot2event/sigprocfunc_eegplot2event_wrapperTest.m"
+_EEGPLOT2TRIAL_SOURCE = "unittesting_sigprocfunc/eegplot2trial/sigprocfunc_eegplot2trial_wrapperTest.m"
 
 
 def test_parse_eegplot_options_accepts_eeglab_key_value_pairs() -> None:
@@ -50,6 +54,8 @@ def test_eegplot_rejects_internal_plotdata2_option() -> None:
         eegplot(np.zeros((1, 10)), plotdata2="on", show=False)
 
 
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_one_arg")
 def test_continuous_data_normalization_defaults_and_bounds() -> None:
     data = np.arange(20, dtype=float).reshape(2, 10)
     model = build_eegplot_model(data, srate=10, winlength=0.4, spacing=2, show=False)
@@ -67,6 +73,7 @@ def test_empty_spacing_uses_eeglab_default_spacing() -> None:
     assert model.state.spacing == pytest.approx(1.0)
 
 
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_epochs")
 def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None:
     data = np.zeros((1, 4, 3), dtype=float)
     data[0, :, 0] = [1, 2, 3, 4]
@@ -117,6 +124,7 @@ def test_spectral_and_overlay_inputs_are_normalized_together() -> None:
     np.testing.assert_array_equal(model.data.flat_data2, overlay[:, 2:7])
 
 
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_noui")
 def test_noui_option_sets_publication_state_without_showing_qt() -> None:
     model = build_eegplot_model(np.zeros((2, 10)), spacing=1, noui="on", show=False)
 
@@ -181,6 +189,11 @@ def test_trial2eegplot_converts_epoch_and_channel_marks() -> None:
     np.testing.assert_array_equal(rows[:, 5:], [[1, 0], [0, 1]])
 
 
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_color")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorin")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorout")
 def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None:
     rows = np.array(
         [
@@ -199,6 +212,12 @@ def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None
     np.testing.assert_array_equal(excluded_rows, [[False, False, False], [False, True, False]])
 
 
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorin")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorout")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_notfound")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_one_arg")
 def test_eegplot2event_converts_continuous_marks_for_eeg_eegrej() -> None:
     rows = np.array([[2.2, 5.8, 0.7, 1.0, 0.9, 1], [8, 9, 0.1, 0.2, 0.3, 1]])
 

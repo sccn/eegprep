@@ -12,7 +12,7 @@ Prerequisites
 System Requirements
 -------------------
 
-- **Python**: 3.11 or higher
+- **Python**: 3.12 or higher
 - **Git**: For version control
 - **uv**: Default package and environment manager
 
@@ -54,7 +54,7 @@ Install the default development environment:
 
 .. code-block:: bash
 
-    uv python install 3.11
+    uv python install 3.12
     uv sync --group dev
 
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
@@ -78,6 +78,76 @@ This installs:
 
 Running Tests
 =============
+
+Porting The Current EEGLAB Tests
+--------------------------------
+
+Ports of the upstream MATLAB tests use only the current
+`sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
+older ``sccn/eeglab-testcases`` repository is stale and must not be used.
+EEGPrep currently pins ``eeglab_tests`` commit
+``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
+``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
+
+Translate the behavior and assertions of each MATLAB scenario into the closest
+existing pytest module. Decorate the Python test with its upstream path and
+test name so coverage remains traceable without a separate conversion matrix:
+
+.. code-block:: python
+
+    from tests.eeglab_tests import eeglab_test
+
+    @eeglab_test("regression_tests/t_pop_selectevent.m", "testRetainsMatchingEpochs")
+    def test_pop_selectevent_retains_matching_epochs():
+        ...
+
+One Python test may carry more than one decorator when it genuinely covers
+multiple equivalent upstream scenarios. Do not combine tests merely to reduce
+the number of ports. Preserve input shapes, dtypes, empty values, indexing,
+warnings, errors, and all scientifically relevant output fields. Use a live
+MATLAB comparison when practical or small expected data generated from the
+pinned suite when ordinary CI must run without MATLAB.
+
+When a faithful port exposes missing behavior or a defect, keep the failing
+scenario visible and create a Bead for the implementation work. Pure MATLAB
+runtime behavior may be excluded only with a concrete technical rationale.
+Never replace an applicable assertion with a no-crash smoke test or broaden a
+numerical tolerance simply to make the port pass.
+
+Before declaring the port complete, clone the current suite at its pinned
+commit and run the source-driven audit:
+
+.. code-block:: bash
+
+    git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
+    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests submodule update --init eeglab
+    uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
+
+The command discovers wrapper and regression methods directly from MATLAB,
+collects ``eeglab_test`` metadata through pytest, and prints every missing or
+stale reference. Pass ``--json`` for automation. It deliberately rejects the
+old ``eeglab-testcases`` repository, a checkout at another commit, and
+provenance that does not exist in the pinned suite.
+
+Tutorial-wrapper provenance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The tutorial-wrapper ports additionally pin
+``sccn/eeglab-tutorial-scripts`` commit
+``58bf12dd53e894dd3ee1285946563cd94999db16``. The four tutorial references
+``plot_study_erp``, ``source_reconstruction_advanced``,
+``source_reconstruction_eeg``, and ``time_freq_all_elec`` are MATLAB Live
+Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
+can execute them, while Octave cannot execute the Live Script format.
+
+Although ``tutorial2_wrapperTest.test_bids_process_face_experiment`` has an
+entirely commented wrapper body, its referenced Live Script is preserved as a
+generated-data port rather than an empty test. The face-recognition and active
+P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
+trial-level STUDY designs, precomputation, and ERP plotting without checking the
+upstream tutorial datasets into the package. The full EEGLAB datasets remain
+useful for separate MATLAB parity runs.
 
 Test Discovery
 --------------
@@ -174,7 +244,7 @@ Running it
 
     git clone https://github.com/sccn/eegprep_parity_test
     cd eegprep_parity_test
-    uv venv --python 3.11 .venv && source .venv/bin/activate
+    uv venv --python 3.12 .venv && source .venv/bin/activate
     pip install -r requirements.txt
     pip install "$MATLABROOT/extern/engines/python"
     export EEGPREP_EEGLAB_ROOT=/path/to/eeglab

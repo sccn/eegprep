@@ -18,6 +18,7 @@ from eegprep.functions.popfunc.pop_rejspec import pop_rejspec_dialog_spec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend_dialog_spec
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops, pop_viewprops_dialog_spec
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import create_test_eeg
 
 
@@ -37,6 +38,20 @@ def _epoched_ica_eeg():
 
 
 class RejectionDialogTests(unittest.TestCase):
+    @eeglab_test("unittesting_adminfunc/pop_rejmenu/test_pop_rejmenu.m", "test_test_pop_rejmenu")
+    def test_rejection_menu_builds_data_and_component_dialogs(self):
+        eeg = _epoched_ica_eeg()
+
+        data_spec = pop_rejmenu_dialog_spec(eeg, 1)
+        component_spec = pop_rejmenu_dialog_spec(eeg, 0)
+
+        self.assertEqual(data_spec.title, "Reject trials using data statistics - pop_rejmenu()")
+        self.assertEqual(component_spec.title, "Reject trials using component activity statistics - pop_rejmenu()")
+        self.assertEqual(controls_by_tag(data_spec)["threshelec"].value, "1:3")
+        self.assertEqual(controls_by_tag(component_spec)["threshelec"].value, "1:3")
+        self.assertEqual(controls_by_tag(data_spec)["scrollmanual"].string, "Scroll Data")
+        self.assertEqual(controls_by_tag(component_spec)["scrollmanual"].string, "Scroll Acts.")
+
     def test_dialog_specs_keep_eeglab_source_and_key_defaults(self):
         eeg = _epoched_ica_eeg()
         specs = [

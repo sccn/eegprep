@@ -16,6 +16,11 @@ from eegprep.functions.statistics.fdr import FDRResult, fdr
 from eegprep.functions.statistics.stat_surrogate_ci import stat_surrogate_ci
 from eegprep.functions.statistics.stat_surrogate_pvals import stat_surrogate_pvals
 from eegprep.functions.statistics.statcond import StatcondResult, statcond
+from eegprep.functions.statistics.statcondfieldtrip import (
+    StatcondFieldtripCluster,
+    StatcondFieldtripResult,
+    statcondfieldtrip,
+)
 from eegprep.functions.statistics.surrogdistrib import SurrogateDistribution, surrogdistrib
 from eegprep.functions.statistics.teststat import teststat
 from eegprep.functions.statistics.ttest2_cell import ttest2_cell
@@ -25,6 +30,8 @@ __all__ = [
     "ConcatenatedData",
     "FDRResult",
     "StatcondResult",
+    "StatcondFieldtripCluster",
+    "StatcondFieldtripResult",
     "SurrogateDistribution",
     "TwoWayAnovaResult",
     "TwoWayEffects",
@@ -38,6 +45,7 @@ __all__ = [
     "stat_surrogate_ci",
     "stat_surrogate_pvals",
     "statcond",
+    "statcondfieldtrip",
     "surrogdistrib",
     "teststat",
     "ttest2_cell",

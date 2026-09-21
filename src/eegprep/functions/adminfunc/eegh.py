@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 
-def eegh(command: Any = None, history: list[str] | dict[str, Any] | None = None) -> str:
+def eegh(
+    command: Any = None,
+    history: list[str] | dict[str, Any] | list[dict[str, Any]] | None = None,
+) -> str:
     """Display or update EEGLAB-style command history.
 
     Args:
@@ -18,15 +21,19 @@ def eegh(command: Any = None, history: list[str] | dict[str, Any] | None = None)
         The normalized command, rendered history text, or matched history item.
     """
     if isinstance(command, str) and command.strip().lower() == "find":
-        return _find_history(history if isinstance(history, list) else [], None)
+        return _find_history(history if _is_command_history(history) else [], None)
     if command is None:
-        return _render_history(history if isinstance(history, list) else [])
+        return _render_history(history if _is_command_history(history) else [])
     if isinstance(command, (int, float)) and not isinstance(command, bool):
-        return _numeric_history(command, history if isinstance(history, list) else [])
+        return _numeric_history(command, history if _is_command_history(history) else [])
     normalized = "" if command is None else str(command).strip()
     if not normalized:
         return ""
-    if isinstance(history, list):
+    if _is_eeg_collection(history):
+        multiple_command = f"% multiple datasets command: {normalized}"
+        for eeg in history:
+            _append_eeg_history(eeg, multiple_command)
+    elif isinstance(history, list):
         _append_history(history, normalized)
     elif isinstance(history, dict):
         _append_eeg_history(history, normalized)
@@ -42,6 +49,14 @@ def _append_history(history: list[str], command: str) -> None:
     if history and history[-1] == command:
         return
     history.append(command)
+
+
+def _is_command_history(history: Any) -> bool:
+    return isinstance(history, list) and not any(isinstance(item, dict) for item in history)
+
+
+def _is_eeg_collection(history: Any) -> bool:
+    return isinstance(history, list) and bool(history) and all(isinstance(item, dict) for item in history)
 
 
 def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:

@@ -262,7 +262,7 @@ def _draw_continuous_erp_image(container: Any, samples: np.ndarray, srate: float
 
 def _draw_spectrum(ax: Any, EEG: dict[str, Any], spectrum_input: np.ndarray, spec_opt: Any, mapnorm: Any) -> None:
     """Draw the activity power spectrum from raw per-epoch data (spectopo)."""
-    spec_options = parse_plot_options_text(spec_opt)
+    spec_options = dict(spec_opt) if isinstance(spec_opt, dict) else parse_plot_options_text(spec_opt)
     spectra, freqs, _std = compute_spectra(
         spectrum_input,
         int(EEG.get("pnts", spectrum_input.shape[1]) or spectrum_input.shape[1]),
@@ -271,6 +271,8 @@ def _draw_spectrum(ax: Any, EEG: dict[str, Any], spectrum_input: np.ndarray, spe
         overlap=_first_int(spec_options.get("overlap")) or 0,
         nfft=_first_int(spec_options.get("nfft")),
         mapnorm=mapnorm,
+        wintype=str(spec_options.get("wintype", "hamming")),
+        blckhn=_first_int(spec_options.get("blckhn")) or 2,
     )
     ax.plot(freqs, spectra[0], color=EEGLAB_RED)
     # Match spectopo: x-limits from the requested band, y-limits hugging the data in that

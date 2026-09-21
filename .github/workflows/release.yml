@@ -39,8 +39,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install Python 3.11
-        run: uv python install 3.11
+      - name: Install Python 3.12
+        run: uv python install 3.12
 
       - name: Install Linux GUI runtime libraries
         # PySide6 needs these to import at all; without them the GUI tests fail
@@ -62,7 +62,7 @@ jobs:
           echo "QT_QPA_PLATFORM=offscreen" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: uv sync --python 3.11 --all-extras --group dev
+        run: uv sync --python 3.12 --all-extras --group dev
 
       - name: Run Ruff lint
         run: uv run --no-sync ruff check .
@@ -95,8 +95,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install Python 3.11
-        run: uv python install 3.11
+      - name: Install Python 3.12
+        run: uv python install 3.12
 
       - name: Build sdist and wheel
         # `uv build`, not `python -m build`: the repo's build/ output directory
@@ -175,7 +175,7 @@ jobs:
         run: |
           # shellcheck disable=SC1087
           set -euo pipefail
-          uv venv --python 3.11 /tmp/relcheck
+          uv venv --python 3.12 /tmp/relcheck
           wheel=$(ls dist/*.whl)
           VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
@@ -208,7 +208,7 @@ jobs:
         run: |
           # shellcheck disable=SC1087
           set -euo pipefail
-          uv venv --python 3.11 /tmp/relcheck-sdist
+          uv venv --python 3.12 /tmp/relcheck-sdist
           sdist=$(ls dist/*.tar.gz)
           VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
