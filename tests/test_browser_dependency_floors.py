@@ -30,13 +30,25 @@ PYPROJECT_PATH = Path(__file__).resolve().parents[1] / "pyproject.toml"
 # the version and this table together when the target release moves.
 PYODIDE_VERSION = "0.29.5"
 PYODIDE_PYTHON = "3.13.2"
-PYODIDE_SHIPS = {
+
+# Packages Pyodide bundles that publish NO pure-Python wheel on PyPI. micropip cannot substitute
+# a different version for these, so the bundled build is the only one a browser can have and the
+# declared constraint has to be satisfiable by it. This is the set that makes a floor a ceiling.
+PYODIDE_COMPILED = {
     "h5py": "3.13.0",
     "matplotlib": "3.8.4",
     "numpy": "2.2.5",
     "scipy": "1.14.1",
+}
+
+# Also bundled, but pure Python, so micropip can pull any version straight from PyPI and a floor
+# above the bundled one costs an extra download rather than breaking the install. Recorded so the
+# distinction is explicit, and deliberately not enforced.
+PYODIDE_PURE_PYTHON = {
     "threadpoolctl": "3.5.0",
 }
+
+PYODIDE_SHIPS = {**PYODIDE_COMPILED, **PYODIDE_PURE_PYTHON}
 
 # A packaging marker environment describing Pyodide's interpreter, so a dependency guarded by
 # a marker is evaluated the way the browser would evaluate it. Pyodide reports
@@ -79,26 +91,26 @@ def _declared_floor(requirement: Requirement) -> Version:
     return max(floors)
 
 
-@pytest.mark.parametrize("package", sorted(PYODIDE_SHIPS))
+@pytest.mark.parametrize("package", sorted(PYODIDE_COMPILED))
 def test_floor_does_not_exceed_what_pyodide_ships(package: str) -> None:
     requirement = _requirements_active_in_pyodide().get(package)
-    assert requirement is not None, f"{package} is no longer a base dependency; drop it from PYODIDE_SHIPS"
+    assert requirement is not None, f"{package} is no longer a base dependency; drop it from PYODIDE_COMPILED"
 
     floor = _declared_floor(requirement)
-    shipped = Version(PYODIDE_SHIPS[package])
+    shipped = Version(PYODIDE_COMPILED[package])
     assert floor <= shipped, (
         f"{package}>={floor} is above the {shipped} that Pyodide {PYODIDE_VERSION} ships, "
         f"so a browser install cannot satisfy it"
     )
 
 
-@pytest.mark.parametrize("package", sorted(PYODIDE_SHIPS))
+@pytest.mark.parametrize("package", sorted(PYODIDE_COMPILED))
 def test_pyodide_version_satisfies_the_whole_specifier(package: str) -> None:
     """The floor is not the only bound; an upper bound can exclude Pyodide's build too."""
     requirement = _requirements_active_in_pyodide().get(package)
-    assert requirement is not None, f"{package} is no longer a base dependency; drop it from PYODIDE_SHIPS"
+    assert requirement is not None, f"{package} is no longer a base dependency; drop it from PYODIDE_COMPILED"
 
-    shipped = PYODIDE_SHIPS[package]
+    shipped = PYODIDE_COMPILED[package]
     assert requirement.specifier.contains(shipped, prereleases=True), (
         f"Pyodide {PYODIDE_VERSION} ships {package} {shipped}, which {requirement} excludes"
     )
@@ -124,7 +136,7 @@ def test_the_darwin_scipy_floor_stays_out_of_the_browser() -> None:
         and requirement.marker.evaluate(darwin)
     ]
     assert darwin_floors, "the darwin-specific scipy floor is gone; update or remove this test"
-    assert max(darwin_floors) > Version(PYODIDE_SHIPS["scipy"]), (
+    assert max(darwin_floors) > Version(PYODIDE_COMPILED["scipy"]), (
         "the darwin scipy floor no longer exceeds Pyodide's build, so the marker split may be "
         "unnecessary; confirm before removing this test"
     )
@@ -133,5 +145,5 @@ def test_the_darwin_scipy_floor_stays_out_of_the_browser() -> None:
         for raw in _project()["dependencies"]
         if (requirement := Requirement(raw)).name == "scipy"
         and requirement.marker is not None
-        and _declared_floor(requirement) > Version(PYODIDE_SHIPS["scipy"])
+        and _declared_floor(requirement) > Version(PYODIDE_COMPILED["scipy"])
     ), "a scipy floor above Pyodide's build is active under Pyodide"
