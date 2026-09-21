@@ -20,6 +20,8 @@ to offer here.
     url = index.level0_url(store)
 """
 
+from .channels import Channel, GroupMetadata, read_group_metadata
+from .extras import EXTRA_HINTS, EXTRA_ROOTS, is_missing_extra, missing_extra_error
 from .index import (
     SUPPORTED_FORMAT_VERSION,
     ChannelGroup,
@@ -58,39 +60,6 @@ _EXTRA_NAMES = {
     "to_png": ("eegprep_lean.plot", "plot"),
 }
 
-#: What to tell someone who has the name but not the dependency. The browser line is the
-#: part worth keeping: zarr's `numcodecs>=0.14` pin is metadata, and numcodecs publishes
-#: no emscripten wheel at any version, so a normal resolve fails on a dependency these
-#: stores never use at runtime.
-_EXTRA_HINTS = {
-    "zarr": (
-        "pip install 'eegprep-lean[zarr]'. In a browser, "
-        'micropip.install("zarr==3.4.0", deps=False), because zarr pins numcodecs and '
-        "numcodecs publishes no emscripten wheel at any version."
-    ),
-    "plot": (
-        "pip install 'eegprep-lean[plot]'. In a browser, micropip.install(\"matplotlib\"), which Pyodide bundles."
-    ),
-}
-
-
-#: The top-level packages each extra actually installs. Used to tell "the extra is not
-#: installed" apart from "the module that needed it is broken", which look identical from
-#: outside and have opposite answers.
-_EXTRA_ROOTS = {
-    "zarr": frozenset({"zarr", "numpy"}),
-    "plot": frozenset({"matplotlib", "numpy"}),
-}
-
-
-def _is_missing_extra(err: ImportError, extra: str) -> bool:
-    """True when this ImportError is the extra being absent, rather than a bug in here.
-
-    ``ImportError.name`` is the module that could not be imported, which the interpreter
-    sets for both a missing module and a missing name within one.
-    """
-    return (err.name or "").split(".")[0] in _EXTRA_ROOTS[extra]
-
 
 def __getattr__(name: str):
     """Load a name from its extra on demand, and say which extra supplies it if absent."""
@@ -106,16 +75,20 @@ def __getattr__(name: str):
         # Only when the extra itself is what is missing. An ImportError from inside our
         # own module is a bug here, and reporting it as a missing extra sends the reader
         # off to install something they already have while the real error is buried.
-        if not _is_missing_extra(err, extra):
+        if not is_missing_extra(err, extra):
             raise
-        raise ImportError(f"{name} needs the {extra} extra: {_EXTRA_HINTS[extra]}") from err
+        raise missing_extra_error(name, extra, err) from err
     return getattr(module, name)
 
 
 __all__ = [
+    "EXTRA_HINTS",
+    "EXTRA_ROOTS",
     "SUPPORTED_FORMAT_VERSION",
+    "Channel",
     "ChannelGroup",
     "DatasetIndex",
+    "GroupMetadata",
     "IndexError_",
     "NemarHttpStore",
     "PyfetchTransport",
@@ -130,8 +103,11 @@ __all__ = [
     "__version__",
     "default_spacing",
     "default_transport",
+    "is_missing_extra",
+    "missing_extra_error",
     "open_array",
     "plot_window",
+    "read_group_metadata",
     "read_index",
     "read_window",
     "running_in_pyodide",

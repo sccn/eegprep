@@ -10,11 +10,14 @@ page rather than a window to show. :func:`to_png` does that step. A test asserts
 stays unimported, because importing it anywhere in this module would be invisible
 natively and fatal in the browser.
 
-**The y-axis deliberately carries no unit.** The array declares ``scale`` and ``offset``
-but not what they produce, and the index only reports that a ``channels.tsv`` sidecar
-supplied them, so a plot that labeled the axis microvolts would be guessing. Amplitude is
-shown as a scale bar of stated size instead, which is honest about magnitude without
-inventing a name for it.
+**The unit comes from the window, and is omitted when the window has none.** A
+:class:`~eegprep_lean.window.Window` read through :func:`~eegprep_lean.window.read_window`
+carries the unit its channels declare, and the scale bar names it. When the window spans
+channels that do not agree on one, or holds stored counts rather than converted values,
+there is nothing to name and the bar says so rather than guessing. An earlier version of
+this module asserted units were unknowable; that was wrong, and it came from reading the
+level-0 array, which carries the conversion but not the unit it produces. They are on the
+channel group, and :mod:`eegprep_lean.channels` reads them.
 
 **Traces are demeaned for display by default.** Level-0 channels carry per-channel DC
 offsets in the thousands, and they differ between channels by more than the signal spans,
@@ -44,8 +47,10 @@ SPACING_PERCENTILES = (0.5, 99.5)
 #: derived from. 1.0 would have neighboring traces touch at their extremes.
 SPACING_HEADROOM = 1.2
 
-#: Used when every channel is flat, where a data-derived spacing would be zero and stack
-#: every trace on one line.
+#: Used when the median channel is flat, where a data-derived spacing would be zero and
+#: stack every trace on one line. The median, not every channel: a group where half the
+#: channels are flat still lands here, which is the right answer, because the spacing rule
+#: below follows the median by design.
 FALLBACK_SPACING = 1.0
 
 
@@ -63,15 +68,16 @@ def default_spacing(data: np.ndarray) -> float:
     return amplitude * SPACING_HEADROOM if amplitude > 0 else FALLBACK_SPACING
 
 
-def _resolve_labels(labels: Sequence[str] | None, channels: tuple[int, ...]) -> list[str]:
-    """Row labels, defaulting to the channel indices the window actually holds.
+def _resolve_labels(labels: Sequence[str] | None, window: Window) -> list[str]:
+    """Row labels: the caller's, else the window's own, else the channel indices.
 
-    Channel *names* are not knowable here: they are in neither the array attributes nor
-    the index, only in the recording's ``channels.tsv``. A caller that has read it passes
-    them in; nothing invents them.
+    The window's labels come from the channel group, which is where the recording's own
+    names live. Falling back to indices only when the group did not supply them keeps a
+    plot from showing ``0, 1, 2`` for a recording that calls them ``E1, E2, E3``.
     """
+    channels = window.channels
     if labels is None:
-        return [str(channel) for channel in channels]
+        return list(window.labels) if window.labels else [str(channel) for channel in channels]
     labels = list(labels)
     if len(labels) != len(channels):
         raise ValueError(
@@ -104,7 +110,7 @@ def plot_window(
     data = np.asarray(window.data, dtype=np.float64)
     if data.ndim != 2:
         raise ValueError(f"expected a channels-by-samples window, got shape {data.shape}")
-    row_labels = _resolve_labels(labels, window.channels)
+    row_labels = _resolve_labels(labels, window)
 
     if demean:
         data = data - data.mean(axis=1, keepdims=True)
@@ -129,22 +135,40 @@ def plot_window(
     # a caller draws on top.
     ax.set_xlabel("time (s)")
     ax.set_ylabel("channel")
-    ax.set_title(f"{window.group_name}, {window.rate:g} Hz")
+    # Says when level 0 is not the rate the recording was acquired at, because a reader
+    # who assumes it is has silently lost half the bandwidth they think they have.
+    title = f"{window.group_name}, {window.rate:g} Hz"
+    if window.was_resampled:
+        title += f" (resampled from {window.original_rate:g} Hz)"
+    ax.set_title(title)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
 
     if scalebar:
-        _draw_scalebar(ax, times, baselines[-1] - 1.3 * step, step, window.physical)
+        _draw_scalebar(ax, times, baselines[-1] - 1.3 * step, step, _amplitude_word(window))
     return ax
 
 
-def _draw_scalebar(ax: Axes, times: np.ndarray, bottom: float, step: float, physical: bool) -> None:
+def _amplitude_word(window: Window) -> str:
+    """What the scale bar's number is measured in.
+
+    ``counts`` for stored integers, the channels' own unit when they agree on one, and
+    ``units`` when they do not. Never a modality default: magnetoencephalography is a
+    Tesla-based unit, not a voltage, so a per-modality guess is wrong by a factor nobody
+    notices on a plot.
+    """
+    if not window.physical:
+        return "counts"
+    return window.unit or "units"
+
+
+def _draw_scalebar(ax: Axes, times: np.ndarray, bottom: float, step: float, word: str) -> None:
     """A bar one trace-spacing tall, labeled with its size.
 
-    This is how amplitude is stated when the unit is not knowable: the reader learns how
-    big a deflection is without the plot claiming to know what it is measured in. The
-    word changes with what was read, because stored counts and converted values are not
-    the same quantity and a bar labeled the same way for both would conflate them.
+    This is how amplitude is stated on a stacked plot, where the axis carries channel
+    names rather than a scale: the reader learns how big a deflection is without the plot
+    needing a second axis for it. The word changes with what was read, because stored
+    counts and converted values are not the same quantity.
     """
     span = float(times[-1]) - float(times[0])
     x = float(times[-1]) - 0.02 * span if span > 0 else float(times[-1])
@@ -152,7 +176,7 @@ def _draw_scalebar(ax: Axes, times: np.ndarray, bottom: float, step: float, phys
     ax.text(
         x - 0.01 * span,
         bottom + step / 2,
-        f"{step:.3g} {'units' if physical else 'counts'}",
+        f"{step:.3g} {word}",
         ha="right",
         va="center",
         fontsize="small",

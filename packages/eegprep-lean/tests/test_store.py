@@ -228,6 +228,13 @@ class TestAgainstTheLiveArchive:
         # Read from sample 2500 at 250 Hz, so the window starts ten seconds in.
         assert physical.times_s[0] == pytest.approx(10.0)
 
+        # The only place read_window's composition of a Window is exercised: nothing
+        # offline builds one through it, because that needs a real sharded zarr store.
+        assert physical.unit == "uV", "the channel group declares the unit; it is not a guess"
+        assert digital.unit is None, "stored counts are not in the channel's unit"
+        assert physical.labels is not None and physical.labels[:3] == ("E1", "E2", "E3")
+        assert physical.original_rate == 500.0 and physical.was_resampled
+
         assert digital.data.dtype == np.int16, "physical=False returns the stored counts"
         assert physical.data.dtype == np.float64
         # The conversion must actually have happened. Equal arrays would mean scale 1 and

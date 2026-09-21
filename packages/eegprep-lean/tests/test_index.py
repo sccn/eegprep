@@ -10,6 +10,7 @@ prove exactly nothing about that.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import importlib.util
 import json
 from dataclasses import replace
@@ -345,8 +346,10 @@ class TestExtras:
     """The lazy loader in ``__init__``, which is what a base install meets first.
 
     Every ImportError here is one the interpreter actually raised. Which branch runs
-    depends on what is installed, and CI runs this file in four tiers (nothing, zarr,
-    plot, both), so between them every branch is exercised.
+    depends on what is installed, and test.yml runs the offline suite in four tiers
+    (nothing, zarr alone, plot alone, both), so between them every branch is exercised.
+    The "both" tier is where these particular tests skip, and it is there for the
+    cross-extra paths the other three cannot reach.
     """
 
     EXTRA_PACKAGES = (("zarr", "zarr", "NemarHttpStore"), ("plot", "matplotlib", "plot_window"))
@@ -380,9 +383,61 @@ class TestExtras:
             checked += 1
             with pytest.raises(ImportError) as caught:
                 importlib.import_module(package)
-            assert eegprep_lean._is_missing_extra(caught.value, extra)
+            assert eegprep_lean.is_missing_extra(caught.value, extra)
         if checked == 0:
             pytest.skip("both extras are installed in this tier")
+
+    #: Which extra supplies each lazily loaded name, written out here rather than read
+    #: from the table under test. Reading the table would make any remapping of it agree
+    #: with its own expectation, which is the failure mode this file already carries a
+    #: warning about.
+    EXPECTED_EXTRA = {
+        "NemarHttpStore": "zarr",
+        "ReadOnlyStoreError": "zarr",
+        "open_array": "zarr",
+        "read_window": "zarr",
+        "Window": "plot",
+        "to_physical": "plot",
+        "default_spacing": "plot",
+        "plot_window": "plot",
+        "to_png": "plot",
+    }
+
+    def test_the_table_lists_exactly_the_names_expected(self) -> None:
+        """A name added to the table without being added here is a name whose extra
+        nothing checks."""
+        import eegprep_lean
+
+        assert set(eegprep_lean._EXTRA_NAMES) == set(self.EXPECTED_EXTRA)
+
+    def test_each_name_is_behind_the_extra_that_supplies_it(self) -> None:
+        import eegprep_lean
+
+        for name, extra in self.EXPECTED_EXTRA.items():
+            assert eegprep_lean._EXTRA_NAMES[name][1] == extra, f"{name} is behind the wrong extra"
+
+    def test_every_lazy_name_resolves_or_names_its_own_extra(self) -> None:
+        """The whole point of the table in ``__init__``, checked entry by entry.
+
+        Both branches, in whichever tier this runs: when the module imports, the name
+        must resolve to the real object, and when it does not, the error must name the
+        extra that actually supplies it. Importing from the submodule directly, which is
+        what every other test does, never touches this path, so a wrong extra label in
+        the table would reach a reader before it reached a test.
+        """
+        import eegprep_lean
+
+        for name, extra in self.EXPECTED_EXTRA.items():
+            module_name = eegprep_lean._EXTRA_NAMES[name][0]
+            try:
+                module = importlib.import_module(module_name)
+            except ImportError:
+                with pytest.raises(ImportError, match=f"needs the {extra} extra"):
+                    getattr(eegprep_lean, name)
+            else:
+                assert getattr(eegprep_lean, name) is getattr(module, name), (
+                    f"eegprep_lean.{name} is not {module_name}.{name}"
+                )
 
     def test_an_unrelated_import_error_is_not_blamed_on_the_extra(self) -> None:
         """A bug inside store.py or plot.py raises ImportError too, and calling that a
@@ -394,5 +449,5 @@ class TestExtras:
             importlib.import_module("a_module_that_does_not_exist_anywhere")
 
         assert caught.value.name == "a_module_that_does_not_exist_anywhere"
-        assert not eegprep_lean._is_missing_extra(caught.value, "plot")
-        assert not eegprep_lean._is_missing_extra(caught.value, "zarr")
+        assert not eegprep_lean.is_missing_extra(caught.value, "plot")
+        assert not eegprep_lean.is_missing_extra(caught.value, "zarr")

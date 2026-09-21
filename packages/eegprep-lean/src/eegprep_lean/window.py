@@ -14,12 +14,17 @@ the numbers are the right shape, the right dtype and the wrong magnitude, and a 
 them looks like EEG. So :func:`read_window` converts by default and a caller has to ask
 for ``physical=False`` in as many words.
 
-**What physical units these are is not knowable from here.** The array declares the
-conversion but not its units, and the index reports only that a ``channels.tsv`` sidecar
-supplied them. So a :class:`Window` holds values in the recording's own units and does
-not claim to know which; a caller that needs to label an axis has to read that sidecar.
-Saying so is the point. Assuming microvolts is the kind of guess that is right often
-enough to go unquestioned and wrong quietly when it is not.
+**The unit lives on the channel, and this reads it.** The level-0 array carries the
+conversion but not the unit it produces, which is why looking only at the array suggests
+units are unknowable. They are not: each entry of the channel group's ``channels`` array
+declares its own ``unit``, and :mod:`eegprep_lean.channels` reads them. A window reports
+a unit only when every channel in it agrees on one, because the store contract says to
+read the unit from the channel rather than assume one per modality, and
+magnetoencephalography is a Tesla-based unit rather than a voltage.
+
+**Level 0 is not always the rate the recording was acquired at.** The store resamples it
+to ``min(native rate, modality cap)``, 250 Hz for electroencephalography, so a 500 Hz
+recording arrives here at 250 Hz. :attr:`Window.original_rate` says what it was.
 
 Large offsets are normal and not a sign of a broken conversion: level-0 is raw signal
 before referencing or filtering, so a per-channel DC offset of thousands of units is what
@@ -34,6 +39,8 @@ from typing import Any
 
 import numpy as np
 
+from .channels import GroupMetadata, read_group_metadata
+from .extras import is_missing_extra, missing_extra_error
 from .index import ChannelGroup, DatasetIndex, IndexError_, Store
 from .transport import Transport
 
@@ -49,9 +56,8 @@ class Window:
     data: np.ndarray
     """Channels by samples.
 
-    In the recording's own physical units unless ``physical=False`` was asked for, in
-    which case these are the stored integer counts. Which physical units is not recorded
-    in the array or the index; see this module's docstring.
+    In the unit named by :attr:`unit` unless ``physical=False`` was asked for, in which
+    case these are the stored integer counts.
     """
 
     channels: tuple[int, ...]
@@ -63,6 +69,27 @@ class Window:
     rate: float
     group_name: str
     physical: bool
+
+    labels: tuple[str, ...] | None = None
+    """Channel labels in row order, or None when the group did not supply all of them."""
+
+    unit: str | None = None
+    """The unit these rows share, or None when they do not share one.
+
+    None is a real answer, not a gap: a window spanning channels of different units has
+    no single unit, and naming one would be wrong for some of its rows.
+    """
+
+    original_rate: float = 0.0
+    """The rate the recording was acquired at, when it differs from :attr:`rate`.
+
+    Level 0 is resampled to ``min(native rate, modality cap)``, so this is how a caller
+    learns that 250 Hz of electroencephalography came from a 500 Hz recording.
+    """
+
+    @property
+    def was_resampled(self) -> bool:
+        return bool(self.original_rate) and self.original_rate != self.rate
 
     @property
     def n_samples(self) -> int:
@@ -118,13 +145,30 @@ async def read_window(
     channels: Sequence[int] | slice | None = None,
     group: ChannelGroup | None = None,
     physical: bool = True,
+    metadata: GroupMetadata | None = None,
     transport: Transport | None = None,
 ) -> Window:
     """Read ``n_samples`` from ``start_sample``, converted to physical units.
 
     Reads only the chunks the window spans: the array is sharded, and Zarr fetches the
     shard index and then the inner chunks the slice touches, rather than the whole store.
+
+    Also fetches the channel group's metadata, for the labels and the unit, unless a
+    caller passes one they already hold. That is one small document per call, and the
+    alternative is a window that cannot say what it is measured in.
     """
+    # First, before validating anything else: a caller without the zarr extra should be
+    # told that, not told their arguments are wrong, and not handed a bare
+    # ModuleNotFoundError from inside another module at the end of a real read. The
+    # import is here rather than at module scope so this module needs only numpy, which
+    # is what lets the plot tier stand alone.
+    try:
+        from .store import open_array
+    except ImportError as err:
+        if not is_missing_extra(err, "zarr"):
+            raise
+        raise missing_extra_error("read_window", "zarr", err) from err
+
     chosen = group or store.group()
     if n_samples <= 0:
         raise IndexError_(f"n_samples must be positive, got {n_samples}")
@@ -140,10 +184,6 @@ async def read_window(
     stop = min(start_sample + n_samples, chosen.n_samples)
     wanted = _resolve_channels(channels, chosen.n_channels)
 
-    # Imported here, not at module scope, so this module needs only numpy: see the
-    # module docstring.
-    from .store import open_array
-
     array = await open_array(index.level0_url(store, chosen), transport=transport)
     # Zarr's asynchronous getitem does basic indexing only, so a list of channels is not
     # a selection it accepts. Read the contiguous span that covers them and take the rows
@@ -154,6 +194,9 @@ async def read_window(
     digital = np.asarray(span)[[channel - first for channel in wanted], :]
 
     data = to_physical(digital, dict(array.metadata.attributes), wanted) if physical else np.asarray(digital)
+
+    if metadata is None:
+        metadata = await read_group_metadata(index, store, chosen, transport=transport)
     return Window(
         data=data,
         channels=wanted,
@@ -161,4 +204,9 @@ async def read_window(
         rate=chosen.rate,
         group_name=chosen.name,
         physical=physical,
+        labels=metadata.labels(wanted),
+        # Only when the values are in it. Stored counts are not in the channel's unit,
+        # and carrying the unit alongside them would invite exactly that conflation.
+        unit=metadata.unit(wanted) if physical else None,
+        original_rate=metadata.original_rate,
     )

@@ -269,6 +269,17 @@ jobs:
           uv run --isolated --with matplotlib --with pytest \
             python -m pytest tests -m "not network" -p no:cacheprovider
 
+      # Both extras, which is the install a real session has. The three tiers above each
+      # prove a tier stands alone; this one is the only place the cross-extra paths run,
+      # such as reading a window and then plotting it.
+      - name: Run eegprep-lean tests with both extras
+        if: always()
+        working-directory: packages/eegprep-lean
+        shell: bash
+        run: |
+          uv run --isolated --with 'zarr==3.4.0' --with matplotlib --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
+
       - name: Display installed packages
         if: always()
         run: |
