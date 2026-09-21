@@ -1,0 +1,42 @@
+name: eegprep-lean contract tests
+
+# The network tier of eegprep-lean, against the live archive.
+#
+# Separate from Tests, and deliberately not run on pull requests. What these tests check
+# is conformance to a contract another team serves at zarr.nemar.org, so they fail when
+# that host has an outage or changes shape -- neither of which is a reason to turn an
+# unrelated pull request red. Run on a schedule instead, where a failure means what it
+# says: the contract and this reader have diverged.
+#
+# The same reasoning is why there is no stand-in for the host here. A fixture that always
+# agreed with this reader would prove nothing about the thing under test.
+
+on:
+  schedule:
+    # 07:00 UTC daily, a few hours before European working hours.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Read the live archive
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run the network tier with both extras
+        working-directory: packages/eegprep-lean
+        shell: bash
+        # Both extras together: the window tests need zarr, and the plot test needs
+        # matplotlib as well because it renders what it read.
+        run: |
+          uv run --isolated --with 'zarr==3.4.0' --with matplotlib --with pytest \
+            python -m pytest tests -m network -p no:cacheprovider
