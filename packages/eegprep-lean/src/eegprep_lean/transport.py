@@ -75,6 +75,19 @@ def _range_header(start: int | None, end: int | None) -> str | None:
     return f"bytes={int(start)}-{int(end)}"
 
 
+def _check_ranged(response: Response, *, url: str, ranged: bool) -> Response:
+    """Refuse a ranged request that was answered in full.
+
+    A ``200`` to a ``Range`` request is a success to HTTP and a failure here: the server
+    ignored the range and is sending the whole object. For a shard that is megabytes
+    nobody asked for, and worse, a caller that slices the result by the offsets it
+    requested reads the wrong bytes and gets plausible numbers out. Fail instead.
+    """
+    if ranged and response.status != 206:
+        raise TransportError("range request was answered in full", url=url, status=response.status)
+    return response
+
+
 class UrllibTransport:
     """Native transport: ``urllib`` on a worker thread.
 
@@ -99,11 +112,12 @@ class UrllibTransport:
             # non-browser client is expected to do: zarr.nemar.org is the contract and
             # where the bytes physically come from is its business, not ours.
             with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
-                return Response(status=response.status, body=response.read())
+                result = Response(status=response.status, body=response.read())
         except urllib.error.HTTPError as err:
             raise TransportError("request failed", url=url, status=err.code) from err
         except urllib.error.URLError as err:
             raise TransportError(f"request failed: {err.reason}", url=url) from err
+        return _check_ranged(result, url=url, ranged=range_value is not None)
 
 
 class PyfetchTransport:
@@ -128,7 +142,11 @@ class PyfetchTransport:
             raise TransportError(f"request failed: {err}", url=url) from err
         if response.status >= 400:  # pragma: no cover - browser only
             raise TransportError("request failed", url=url, status=response.status)
-        return Response(status=response.status, body=await response.bytes())
+        return _check_ranged(
+            Response(status=response.status, body=await response.bytes()),
+            url=url,
+            ranged=range_value is not None,
+        )
 
 
 def running_in_pyodide() -> bool:

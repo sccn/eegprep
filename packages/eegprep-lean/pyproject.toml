@@ -47,7 +47,14 @@ plot = ["matplotlib>=3.8.0"]
 # Filter and resample. scipy is another 16.4 MB, and its floor is likewise a ceiling:
 # Pyodide 0.29.5 ships 1.14.1 and publishes no pure-Python wheel, so no other version is
 # reachable in a browser.
-preprocess = ["scipy>=1.14.1"]
+# The darwin split mirrors eegprep's, and is needed here for the same reason: this
+# package installs natively as well as in a browser, and scipy built before 1.16.3 fails
+# to dlopen on current macOS with a zero-fill section error. Pyodide reports
+# sys_platform == "emscripten", so the browser takes the 1.14.1 branch.
+preprocess = [
+  "scipy>=1.14.1; sys_platform != 'darwin'",
+  "scipy>=1.16.3; sys_platform == 'darwin'",
+]
 
 [project.urls]
 Homepage = "https://github.com/sccn/eegprep"

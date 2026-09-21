@@ -111,7 +111,13 @@ class Store:
             raise IndexError_(f"no channel group {name!r} in {self.path} (has: {available})")
         if len(self.groups) == 1:
             return self.groups[0]
-        available = ", ".join(g.name for g in self.groups) or "none"
+        if not self.groups:
+            raise IndexError_(
+                f"{self.path} declares no channel groups, so there is nothing to read. "
+                "The index lists this store, which means conversion produced no readable "
+                "stream rather than that the recording is missing."
+            )
+        available = ", ".join(g.name for g in self.groups)
         raise IndexError_(
             f"{self.path} has {len(self.groups)} channel groups and no name was given; "
             f"they are the same recording at different rates, so pick one: {available}"
