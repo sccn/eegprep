@@ -23,7 +23,7 @@
 #
 # Checks currently run:
 #   - Python syntax parsing for *.py files.
-#   - JSON, TOML, YAML syntax parsing when dependencies are available.
+#   - JSON, TOML and YAML syntax parsing.
 #   - Jupyter notebooks have no code-cell outputs or execution counts.
 #   - Text files contain no merge conflict markers.
 #   - Text files contain no trailing whitespace.
@@ -53,8 +53,15 @@ import tomllib
 
 try:
     import yaml
-except ModuleNotFoundError:
-    yaml = None  # type: ignore[assignment]
+except ModuleNotFoundError:  # pragma: no cover - only when run outside uv
+    # pyyaml is declared in this script's inline dependencies, so uv installs it
+    # before the body runs. Reaching here means the script was started without
+    # uv, and skipping the YAML checks would let the run report OK having
+    # checked nothing. Fail loudly instead.
+    sys.exit(
+        "PyYAML is missing. Run this script through uv so its declared "
+        "dependencies are installed: uv run --script pre-commit.py"
+    )
 
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parent
@@ -302,7 +309,6 @@ def check_merge_conflicts(files: list[pathlib.Path], fix: bool) -> int:
 def check_config_syntax(files: list[pathlib.Path], fix: bool) -> int:
     del fix
     errors = []
-    warned_missing_yaml = False
     for file_path in files:
         suffix = file_path.suffix.lower()
         try:
@@ -312,11 +318,6 @@ def check_config_syntax(files: list[pathlib.Path], fix: bool) -> int:
                 with file_path.open("rb") as handle:
                     tomllib.load(handle)
             elif suffix in {".yaml", ".yml"}:
-                if yaml is None:
-                    if not warned_missing_yaml:
-                        echo("  Warning: PyYAML is not installed; skipping YAML syntax checks")
-                        warned_missing_yaml = True
-                    continue
                 yaml.safe_load(file_path.read_text(encoding="utf-8"))
         except Exception as error:
             errors.append((file_path, error))
