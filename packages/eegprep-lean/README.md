@@ -19,13 +19,15 @@ Preprocessing is not implemented yet.
 
 | install | packages | download | what it buys |
 |---|---|---|---|
-| `eegprep-lean` | 1 | this package | read the index and the channel list: what a dataset holds, at what rate, in what units |
+| `eegprep-lean` | 1 | 26 KB | read the index and the channel list: what a dataset holds, at what rate, in what units |
 | `eegprep-lean[zarr]` | 12 | 4.2 MB | and read a window of signal |
 | `eegprep-lean[zarr,plot]` | 22 | 14.0 MB | and draw it |
 | `eegprep-lean[zarr,plot,preprocess]` | 23 | 30.4 MB | and filter and resample it |
 
 ADR 0069's measurements against the Pyodide 0.29.5 distribution,
 counting packages as micropip installs them there, transitive dependencies included.
+The base row is this package's own wheel, which is pure Python and declares no
+dependencies, so it is the whole cost of that tier.
 The rows are cumulative, each adding to the one above it,
 which is why the last row names `plot` as well:
 30.4 MB was measured with matplotlib present,
