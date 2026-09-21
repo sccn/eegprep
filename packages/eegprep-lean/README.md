@@ -48,6 +48,22 @@ anything.
 
 ## Use
 
+With nothing installed but this package, you can ask what a dataset holds:
+
+```python
+from eegprep_lean import read_group_metadata, read_index
+
+index = await read_index("nm000103")
+store = index.stores[0]
+
+group = await read_group_metadata(index, store)
+group.rate, group.original_rate     # 250.0, 500.0: level 0 is resampled
+group.channels[0].label             # "E1"
+group.channels[0].unit              # "uV"
+```
+
+Reading a window of signal needs the `zarr` extra:
+
 ```python
 from eegprep_lean import read_index, read_window
 
@@ -59,7 +75,6 @@ window.data.shape  # (3, 500), physical units
 window.times_s[0]  # 10.0, seconds into the recording, not into the window
 ```
 
-`read_window` needs the `zarr` extra.
 The window carries the channel labels and the unit the group declares,
 so `window.unit` is `"uV"` here and `window.labels` is `("E1", "E2", "E3")`,
 read from the store rather than assumed.
