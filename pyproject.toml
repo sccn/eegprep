@@ -150,6 +150,7 @@ root = ["."]
 [tool.ty.src]
 include = [
   "src/eegprep",
+  "packages/eegprep-lean/src/eegprep_lean",
   "scripts",
   "tools",
 ]

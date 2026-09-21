@@ -114,3 +114,8 @@ docs/_build/
 docs/source/auto_examples/
 # Autosummary stub pages are build output, regenerated on every docs build.
 docs/source/api/generated/
+
+# eegprep-lean is a library, not an application: it declares floors and does not pin a
+# resolution. A lockfile here also resolves every extra, which misreports a package whose
+# base is deliberately empty.
+packages/*/uv.lock

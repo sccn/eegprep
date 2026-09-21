@@ -225,6 +225,21 @@ jobs:
         run: |
           uv run --no-sync pytest tests
 
+      # eegprep-lean is a second distribution in this repo (ADR 0069) and the root
+      # suite's `testpaths = ["tests"]` does not reach it, so without this step it ships
+      # with lint as its only gate. Run from its own directory so its pyproject supplies
+      # the `network` marker, with src on the path because the package is deliberately
+      # not installed into this environment: it must keep working with no dependencies.
+      # The network tier is excluded here and covered by the scheduled live job, so a
+      # NEMAR outage cannot turn every unrelated pull request red.
+      - name: Run eegprep-lean tests
+        if: always()
+        working-directory: packages/eegprep-lean
+        env:
+          PYTHONPATH: src
+        run: |
+          uv run --no-sync --project ../.. pytest tests -m "not network"
+
       - name: Display installed packages
         if: always()
         run: |
