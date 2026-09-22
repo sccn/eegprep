@@ -1,7 +1,8 @@
 """HTTP transport for the browser and for everywhere else.
 
-Two implementations of one small interface, because the browser and a workstation
-disagree about how a request is made and there is no portable answer.
+Three implementations of one small interface. The browser and a workstation disagree
+about how a request is made and there is no portable answer, and a sandbox may disagree
+with both.
 
 In Pyodide there is no socket layer and no thread to run one on, so a request has to go
 through the host's own ``fetch``, reached as ``pyodide.http.pyfetch``. Off Pyodide there
@@ -9,6 +10,12 @@ is no ``pyfetch``, so the request goes through ``urllib`` on a worker thread, wh
 the caller's ``await`` honest without pulling in an async HTTP stack. Adding one would
 cost more download than the reader itself, which is the thing this package exists to
 avoid.
+
+A host that owns the interpreter can also own the network. A sandboxed browser runtime
+may remove ``pyodide.http`` and offer its own client instead, one that enforces what the
+code may reach. :class:`FetchTransport` reads through such a client, and
+:func:`set_default_transport` is how the host makes it the default, so reader code written
+without a ``transport=`` argument still works there.
 
 Only ``GET`` is needed, and only ever with a byte range. Nothing here writes.
 """
@@ -58,6 +65,18 @@ class Transport(Protocol):
     """Fetch bytes, optionally a byte range, and never block the event loop."""
 
     async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response: ...
+
+
+class Fetch(Protocol):
+    """A host's HTTP client, as :class:`FetchTransport` calls it.
+
+    One ``GET``, returning the status and the body whatever the status was. It raises
+    when no response arrived at all, and a request the host refuses must raise too,
+    never answer with a status of its own: the store reads 403, 404 and 416 as a key
+    that does not exist, so a refusal dressed as a 403 would pass for absence.
+    """
+
+    async def __call__(self, url: str, *, headers: dict[str, str]) -> tuple[int, bytes]: ...
 
 
 def _range_header(start: int | None, end: int | None) -> str | None:
@@ -149,6 +168,56 @@ class PyfetchTransport:
         )
 
 
+class FetchTransport:
+    """Transport over a client the host supplies, for a runtime that owns the network.
+
+    Sends ``Range`` and nothing else. In a browser another header risks a CORS preflight
+    or is dropped, and ``User-Agent`` is both, depending on the browser; the host's
+    client is also free to refuse headers it does not recognize. ``Range`` itself is
+    safelisted only as ``bytes=N-M``, so the suffix form the shard index is read with
+    still costs a preflight, which the NEMAR hosts answer. Deadlines are the host's too,
+    since the client it supplies is the thing that can enforce one.
+
+    Nothing redirects here. A host client may follow a redirect, raise on one, or hand
+    back the ``3xx`` itself; the last must not be read as data, so only a ``2xx`` is.
+    """
+
+    def __init__(self, fetch: Fetch) -> None:
+        self.fetch = fetch
+
+    async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
+        range_value = _range_header(start, end)
+        headers = {"Range": range_value} if range_value else {}
+        try:
+            result = await self.fetch(url, headers=headers)
+        except Exception as err:
+            raise TransportError(f"request failed: {err}", url=url) from err
+        # Outside the try: a client that breaks its own contract fails as itself, not
+        # as a request that failed.
+        status, body = result
+        if not 200 <= status < 300:
+            raise TransportError("request failed", url=url, status=status)
+        # A host client may hand back a bytes-like buffer rather than bytes; Response
+        # promises bytes.
+        return _check_ranged(Response(status=status, body=bytes(body)), url=url, ranged=range_value is not None)
+
+
+#: Set by :func:`set_default_transport`, and consulted before the platform is.
+_host_default: Transport | None = None
+
+
+def set_default_transport(transport: Transport | None) -> None:
+    """Choose what :func:`default_transport` returns, for a host that owns the network.
+
+    Meant to be called once, by the runtime that owns the interpreter, before any reader
+    code runs: a sandbox that removes ``pyodide.http`` registers a transport over its own
+    client here, so ``await open_array(url)`` works unchanged. An explicit ``transport=``
+    argument still wins everywhere, and ``None`` restores platform selection.
+    """
+    global _host_default
+    _host_default = transport
+
+
 def running_in_pyodide() -> bool:
     """True when this interpreter is Pyodide's.
 
@@ -159,7 +228,13 @@ def running_in_pyodide() -> bool:
 
 
 def default_transport(*, timeout_s: float = DEFAULT_TIMEOUT_S) -> Transport:
-    """The transport that can actually work here."""
+    """The transport that can actually work here.
+
+    The host's, when one was set with :func:`set_default_transport`, returned as it is:
+    ``timeout_s`` applies only to the platform transports.
+    """
+    if _host_default is not None:
+        return _host_default
     if running_in_pyodide():
         return PyfetchTransport(timeout_s=timeout_s)
     return UrllibTransport(timeout_s=timeout_s)
