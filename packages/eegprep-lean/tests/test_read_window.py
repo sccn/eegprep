@@ -43,6 +43,7 @@ from zarr.storage import LocalStore  # noqa: E402
 
 from eegprep_lean.channels import read_group_metadata  # noqa: E402
 from eegprep_lean.index import ChannelGroup, DatasetIndex, IndexError_, Store  # noqa: E402
+from eegprep_lean.transport import FetchTransport, set_default_transport  # noqa: E402
 from eegprep_lean.window import read_window  # noqa: E402
 
 # The store's geometry and constants, written out so an assertion can disagree with the
@@ -474,3 +475,19 @@ class TestFetching:
 
         assert without == 0, "metadata was supplied, so the group document was not needed"
         assert with_fetch == 1
+
+
+class TestAHostTransport:
+    def test_a_registered_transport_serves_a_read_that_names_none(self, served, host_fetch, host_default) -> None:
+        """The browser case end to end. A sandboxed runtime registers its own client once,
+        and a read written with no ``transport=`` argument, as NEMAR's recipe is, goes
+        through it: shard index, inner chunk and metadata alike."""
+        index, store, _ = served
+        set_default_transport(FetchTransport(host_fetch))
+
+        window = read(index, store, start_sample=0, n_samples=2, physical=False)
+
+        assert window.data.tolist() == [[_digital(c, s) for s in (0, 1)] for c in range(N_CHANNELS)]
+        ranges = [headers.get("Range", "") for _, headers in host_fetch.seen]
+        assert any(spec.startswith("bytes=-") for spec in ranges), "the shard index did not go through the host"
+        assert any(re.fullmatch(r"bytes=\d+-\d+", spec) for spec in ranges), "nor did the inner chunk"

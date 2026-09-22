@@ -98,6 +98,27 @@ the thousands that differ between channels by more than the signal spans;
 without it every trace is a flat line at its own level.
 That never touches the window, and `demean=False` draws the values as they are.
 
+## In a runtime that owns the network
+
+In a plain Pyodide, reads go through `pyodide.http.pyfetch`.
+A sandboxed runtime may remove that module and offer its own client instead,
+one that enforces what executed code is allowed to reach.
+The runtime registers a transport over that client once, before any reader code runs,
+and everything above works unchanged:
+
+```python
+import eegprep_lean
+
+# `client` is the host's: awaited as client(url, headers=...), returning (status, body)
+eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(client))
+```
+
+`FetchTransport` sends `Range` and no other header, and applies the same checks as the
+built-in transports: a status of 400 or more is a `TransportError`,
+and so is a range request answered in full.
+An explicit `transport=` argument still wins over the registered default,
+and `set_default_transport(None)` restores platform selection.
+
 ## Five things that will surprise you
 
 **Everything that touches the network is `async`, and there is no synchronous wrapper.**

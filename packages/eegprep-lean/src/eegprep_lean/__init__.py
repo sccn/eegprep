@@ -32,6 +32,7 @@ from .index import (
     read_index,
 )
 from .transport import (
+    FetchTransport,
     PyfetchTransport,
     Response,
     Transport,
@@ -39,6 +40,7 @@ from .transport import (
     UrllibTransport,
     default_transport,
     running_in_pyodide,
+    set_default_transport,
 )
 
 __version__ = "0.1.0.dev0"
@@ -88,6 +90,7 @@ __all__ = [
     "Channel",
     "ChannelGroup",
     "DatasetIndex",
+    "FetchTransport",
     "GroupMetadata",
     "IndexError_",
     "NemarHttpStore",
@@ -111,6 +114,7 @@ __all__ = [
     "read_index",
     "read_window",
     "running_in_pyodide",
+    "set_default_transport",
     "to_physical",
     "to_png",
 ]
