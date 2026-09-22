@@ -43,7 +43,7 @@ from .transport import (
     set_default_transport,
 )
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0.dev1"
 
 #: Names supplied by an extra, and which extra supplies each. Resolved on first use
 #: rather than imported here, because importing them would make the base install require
