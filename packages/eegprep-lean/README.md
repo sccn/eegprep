@@ -113,9 +113,12 @@ import eegprep_lean
 eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(client))
 ```
 
-`FetchTransport` sends `Range` and no other header, and applies the same checks as the
-built-in transports: a status of 400 or more is a `TransportError`,
+`FetchTransport` sends `Range` and no other header,
+and accepts only a `2xx`:
+any other status is a `TransportError`, a redirect included, since it follows none,
 and so is a range request answered in full.
+A request the host refuses must raise rather than answer with a status of its own,
+because the store reads 403, 404 and 416 as a key that does not exist.
 An explicit `transport=` argument still wins over the registered default,
 and `set_default_transport(None)` restores platform selection.
 

@@ -1,7 +1,8 @@
 """HTTP transport for the browser and for everywhere else.
 
-Several implementations of one small interface, because the browser and a workstation
-disagree about how a request is made and there is no portable answer.
+Three implementations of one small interface. The browser and a workstation disagree
+about how a request is made and there is no portable answer, and a sandbox may disagree
+with both.
 
 In Pyodide there is no socket layer and no thread to run one on, so a request has to go
 through the host's own ``fetch``, reached as ``pyodide.http.pyfetch``. Off Pyodide there
@@ -70,7 +71,9 @@ class Fetch(Protocol):
     """A host's HTTP client, as :class:`FetchTransport` calls it.
 
     One ``GET``, returning the status and the body whatever the status was. It raises
-    only when no response arrived at all.
+    when no response arrived at all, and a request the host refuses must raise too,
+    never answer with a status of its own: the store reads 403, 404 and 416 as a key
+    that does not exist, so a refusal dressed as a 403 would pass for absence.
     """
 
     async def __call__(self, url: str, *, headers: dict[str, str]) -> tuple[int, bytes]: ...
@@ -168,10 +171,15 @@ class PyfetchTransport:
 class FetchTransport:
     """Transport over a client the host supplies, for a runtime that owns the network.
 
-    Sends ``Range`` and nothing else. In a browser any other header either triggers a
-    CORS preflight or is dropped, and ``User-Agent`` is both, depending on the browser;
-    the host's client is also free to refuse headers it does not recognize. Deadlines
-    are the host's too, since the client it supplies is the thing that can enforce one.
+    Sends ``Range`` and nothing else. In a browser another header risks a CORS preflight
+    or is dropped, and ``User-Agent`` is both, depending on the browser; the host's
+    client is also free to refuse headers it does not recognize. ``Range`` itself is
+    safelisted only as ``bytes=N-M``, so the suffix form the shard index is read with
+    still costs a preflight, which the NEMAR hosts answer. Deadlines are the host's too,
+    since the client it supplies is the thing that can enforce one.
+
+    Nothing redirects here. A host client may follow a redirect, raise on one, or hand
+    back the ``3xx`` itself; the last must not be read as data, so only a ``2xx`` is.
     """
 
     def __init__(self, fetch: Fetch) -> None:
@@ -181,11 +189,16 @@ class FetchTransport:
         range_value = _range_header(start, end)
         headers = {"Range": range_value} if range_value else {}
         try:
-            status, body = await self.fetch(url, headers=headers)
+            result = await self.fetch(url, headers=headers)
         except Exception as err:
             raise TransportError(f"request failed: {err}", url=url) from err
-        if status >= 400:
+        # Outside the try: a client that breaks its own contract fails as itself, not
+        # as a request that failed.
+        status, body = result
+        if not 200 <= status < 300:
             raise TransportError("request failed", url=url, status=status)
+        # A host client may hand back a bytes-like buffer rather than bytes; Response
+        # promises bytes.
         return _check_ranged(Response(status=status, body=bytes(body)), url=url, ranged=range_value is not None)
 
 
