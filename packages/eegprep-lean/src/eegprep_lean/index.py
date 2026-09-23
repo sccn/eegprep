@@ -188,14 +188,22 @@ async def read_index(
     dataset_id: str,
     *,
     transport: Transport | None = None,
+    index_url: str | None = None,
 ) -> DatasetIndex:
     """Fetch and validate a dataset's Zarr index.
+
+    ``index_url``, when given, is fetched in place of the ``INDEX_URL_TEMPLATE`` default.
+    It names the index document itself (``.../zarr/index.json``), not ``contract_base``:
+    ``contract_base`` is still read from the fetched document, never derived from this
+    argument, so a caller pointed at a dev or staging deployment gets that deployment's
+    own ``contract_base`` back rather than production's. ``None`` (the default) keeps
+    today's behavior unchanged.
 
     Raises :class:`UnsupportedFormatVersion` for an index this reader does not implement,
     rather than reading it as though it were the current shape.
     """
     client = transport or default_transport()
-    url = INDEX_URL_TEMPLATE.format(dataset_id=dataset_id)
+    url = index_url if index_url is not None else INDEX_URL_TEMPLATE.format(dataset_id=dataset_id)
     response = await client.get(url)
     try:
         document = json.loads(response.body)
