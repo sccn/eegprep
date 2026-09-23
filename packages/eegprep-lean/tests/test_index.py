@@ -13,7 +13,11 @@ import asyncio
 import importlib
 import importlib.util
 import json
+import re
+import threading
+from collections.abc import Iterator
 from dataclasses import replace
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -71,6 +75,43 @@ def _read(document: dict) -> tuple[DatasetIndex, ReplayTransport]:
     transport = ReplayTransport(json.dumps(document).encode())
     index = asyncio.run(read_index(LIVE_DATASET, transport=transport))
     return index, transport
+
+
+class _IndexHandler(BaseHTTPRequestHandler):
+    """Serves one fixed body at any path, and records what was asked for."""
+
+    body: bytes
+    requested: list[str]
+
+    def do_GET(self) -> None:  # noqa: N802 - name fixed by BaseHTTPRequestHandler
+        type(self).requested.append(self.path)
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(self.body)))
+        self.end_headers()
+        self.wfile.write(self.body)
+
+    def log_message(self, *args: object) -> None:
+        """Quiet. The default writes every request to stderr."""
+
+
+@pytest.fixture
+def served_document() -> Iterator[tuple[str, list[str]]]:
+    """The real captured index document, served over real HTTP on loopback.
+
+    Real bytes over a real socket, the same pattern ``test_transport.py`` and
+    ``test_read_window.py`` use for their own servers: nothing at the network boundary
+    is stood in for here.
+    """
+    requested: list[str] = []
+    handler = type("Handler", (_IndexHandler,), {"body": FIXTURE.read_bytes(), "requested": requested})
+    server = HTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", requested
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 class TestContractConformance:
@@ -172,6 +213,73 @@ class TestContractConformance:
 
         assert index.contract_base.endswith("/")
         assert "zarr//" not in index.level0_url(index.stores[0])
+
+
+class TestIndexUrlOverride:
+    """``index_url`` names the document to fetch. ``contract_base`` still comes from the
+    document itself, never from this argument, which is the point: a dev or staging
+    deployment's index names its own ``contract_base``, and this reader must return
+    that, not production's."""
+
+    CUSTOM_URL = "https://staging.example.test/nm000103/zarr/index.json"
+
+    def test_an_explicit_index_url_is_fetched_instead_of_the_template(self) -> None:
+        transport = ReplayTransport(json.dumps(_document()).encode())
+
+        index = asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
+        assert transport.requested == [self.CUSTOM_URL]
+        assert index.contract_base == CONTRACT_BASE
+
+    def test_none_keeps_the_template_unchanged(self) -> None:
+        """The default argument value, spelled out: behaves exactly like omitting it."""
+        transport = ReplayTransport(json.dumps(_document()).encode())
+
+        asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=None))
+
+        assert transport.requested == ["https://zarr.nemar.org/nm000103/zarr/index.json"]
+
+    def test_an_index_url_for_another_dataset_is_refused(self) -> None:
+        """A supplied URL can name another dataset's index, and reading it would return
+        that dataset's recordings under this one's name."""
+        transport = ReplayTransport(json.dumps({**_document(), "dataset_id": "nm000999"}).encode())
+
+        with pytest.raises(IndexError_, match=r"'nm000999', not 'nm000103'"):
+            asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
+    def test_an_explicit_index_urls_error_names_that_url_not_the_template(self) -> None:
+        transport = ReplayTransport(b"<html>503 Service Unavailable</html>")
+
+        with pytest.raises(IndexError_, match=re.escape(self.CUSTOM_URL)):
+            asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
+    def test_reads_a_real_format_3_document_from_the_given_index_url(self, served_document) -> None:
+        """Against a real server on loopback, not a stand-in: proves the fetch itself
+        happens against ``index_url``, not merely that the code branches on it."""
+        base_url, requested = served_document
+
+        index = asyncio.run(read_index(LIVE_DATASET, index_url=f"{base_url}/index.json"))
+
+        assert requested == ["/index.json"]
+        assert index.format_version == 3
+        assert index.contract_base == CONTRACT_BASE
+        assert index.store_count == 3522
+        assert len(index.stores) == 2
+
+    def test_the_default_path_still_uses_the_template(
+        self, served_document: tuple[str, list[str]], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No ``index_url`` given: ``read_index`` still builds the request from
+        ``INDEX_URL_TEMPLATE``, against a real server rather than a recorded stand-in."""
+        import eegprep_lean.index as index_module
+
+        base_url, requested = served_document
+        monkeypatch.setattr(index_module, "INDEX_URL_TEMPLATE", base_url + "/{dataset_id}/index.json")
+
+        index = asyncio.run(read_index(LIVE_DATASET))
+
+        assert requested == [f"/{LIVE_DATASET}/index.json"]
+        assert index.contract_base == CONTRACT_BASE
 
 
 class TestViewLevels:
