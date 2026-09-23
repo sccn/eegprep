@@ -62,6 +62,9 @@ def clean_channels(
     EEG['data'] = np.asarray(EEG['data'], dtype=np.float64)
     C, S = EEG['data'].shape
     Fs = EEG['srate']
+    chanlocs = EEG.get('chanlocs')
+    if chanlocs is None or len(chanlocs) == 0:
+        raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
 
     # handle fractions or absolute values
     if subset_size >= 1:

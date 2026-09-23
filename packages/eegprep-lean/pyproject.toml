@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eegprep-lean"
+version = "0.1.0.dev2"
+description = "The browser runtime for EEGPrep: read a NEMAR recording without installing EEGPrep"
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
+authors = [{ name = "SCCN" }]
+keywords = ["eeg", "zarr", "pyodide", "browser", "NEMAR"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: OS Independent",
+]
+
+# Pyodide 0.29.5 bundles CPython 3.13.2 and a browser cannot be told to run a different
+# interpreter, so this is a ceiling as much as a floor. It matches eegprep's own floor;
+# the two must not drift, because eegprep will depend on this package (ADR 0069).
+requires-python = ">=3.12"
+
+# Deliberately empty. The base tier is "read a window of data", and it reads through
+# stdlib `urllib` natively and the host's `fetch` in a browser. Every dependency here is
+# download a session pays for before it sees anything, which is the whole reason this
+# distribution exists separately from eegprep. See the tiers below before adding one.
+dependencies = []
+
+[project.optional-dependencies]
+# The tiers from ADR 0069, each adding to the one below it. Measured against the
+# Pyodide 0.29.5 distribution: base 4.2 MB, plot 14.0 MB, preprocess 30.4 MB.
+#
+# zarr is not in the base because the base has to stay small enough to be worth calling
+# lean; a caller that only needs the index and the layout never pays for it.
+zarr = [
+  # Pinned: zarr 3 installs under Pyodide only as
+  # `micropip.install("zarr==3.4.0", deps=False)`. Its `numcodecs>=0.14` pin is metadata,
+  # and numcodecs publishes no emscripten wheel at any version, so a normal resolve fails
+  # on a dependency these stores do not use at runtime.
+  "zarr>=3.4.0",
+]
+# Draw what was read. matplotlib is 9.8 MB of the download and is deliberately not in the
+# base: it arrives when a plot is actually asked for. Floor bounded by what Pyodide ships
+# (3.8.4); see eegprep's tests/test_browser_dependency_floors.py.
+plot = ["matplotlib>=3.8.0"]
+# Filter and resample. scipy is another 16.4 MB, and its floor is likewise a ceiling:
+# Pyodide 0.29.5 ships 1.14.1 and publishes no pure-Python wheel, so no other version is
+# reachable in a browser.
+# The darwin split mirrors eegprep's, and is needed here for the same reason: this
+# package installs natively as well as in a browser, and scipy built before 1.16.3 fails
+# to dlopen on current macOS with a zero-fill section error. Pyodide reports
+# sys_platform == "emscripten", so the browser takes the 1.14.1 branch.
+preprocess = [
+  "scipy>=1.14.1; sys_platform != 'darwin'",
+  "scipy>=1.16.3; sys_platform == 'darwin'",
+]
+
+[project.urls]
+Homepage = "https://github.com/sccn/eegprep"
+Issues = "https://github.com/sccn/eegprep/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+markers = [
+  # Reaches zarr.nemar.org. Real requests against a live public dataset, because the
+  # thing under test IS conformance to a contract another team serves: a stand-in that
+  # always agrees with this reader would prove nothing about that.
+  "network: requires network access to the NEMAR Zarr host",
+]

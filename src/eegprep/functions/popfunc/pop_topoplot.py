@@ -8,12 +8,14 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc.plot_utils import component_map_data, show_figures
+from eegprep.functions.popfunc.plot_utils import component_map_data, component_maps as ica_component_maps, show_figures
 from eegprep.functions.popfunc.plot_utils import history_command as plot_history_command
 from eegprep.functions.popfunc._pop_utils import is_on as _is_on
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args, parse_numeric_sequence, parse_text_tokens
@@ -81,6 +83,7 @@ def pop_topoplot(
         plotdip = 0
     options = parse_key_value_args(option_args, kwargs, lowercase_kwargs=True)
     options = _normalise_topoplot_options(EEG, options)
+    channel_matrix = _channel_matrix(EEG)
     items_array = _parse_numeric_sequence(items)
     if items_array.size == 0:
         raise ValueError("Nothing to plot; provide at least one latency or component index")
@@ -91,7 +94,11 @@ def pop_topoplot(
         maps, labels = _erp_maps(EEG, items_array)
         plot_chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     elif typeplot == 0:
-        maps, labels, plot_chanlocs = _component_maps(EEG, items_array)
+        if channel_matrix is None:
+            maps, labels, plot_chanlocs = _component_maps(EEG, items_array)
+        else:
+            maps, labels = _component_maps_without_locations(EEG, items_array)
+            plot_chanlocs = []
     else:
         raise ValueError("typeplot must be 1 for ERP maps or 0 for component maps")
 
@@ -106,6 +113,7 @@ def pop_topoplot(
         rowcols=rowcols_array,
         options=plot_options,
         component=typeplot == 0,
+        channel_matrix=channel_matrix,
     )
     command = _history_command(typeplot, items_array, topotitle, rowcols_array, int(bool(plotdip)), options)
 
@@ -234,6 +242,7 @@ def _plot_map_pages(
     rowcols: tuple[int, int],
     options: dict[str, Any],
     component: bool = False,
+    channel_matrix: np.ndarray | None = None,
 ) -> list[Any]:
     rows, cols = rowcols
     per_page = rows * cols
@@ -251,7 +260,10 @@ def _plot_map_pages(
                 ax.axis("off")
                 continue
             # pop_topoplot owns the colorbar so it can label component maps by polarity.
-            topoplot(values, chanlocs, axes=ax, colorbar=False, maplimits=maplimits, **options)
+            if channel_matrix is None:
+                topoplot(values, chanlocs, axes=ax, colorbar=False, maplimits=maplimits, **options)
+            else:
+                _plot_channel_grid(ax, values, channel_matrix, maplimits=maplimits, options=options)
             if ax.images:
                 colorbar_image = ax.images[-1]
                 plotted_axes.append(ax)
@@ -263,22 +275,48 @@ def _plot_map_pages(
             fig.text(0.5, 0.02, topotitle, ha="center", va="bottom", fontweight="bold")
         fig.tight_layout(rect=(0, 0.05, 1, 1) if topotitle else (0, 0, 1, 1))
         if colorbar and colorbar_image is not None:
-            _add_map_colorbar(fig, colorbar_image, plotted_axes, component=component)
+            _add_map_colorbar(
+                fig,
+                colorbar_image,
+                plotted_axes,
+                component=component,
+                maplimits=maplimits,
+            )
         figures.append(fig)
     return figures
 
 
-def _add_map_colorbar(fig: Any, image: Any, axes: list[Any], *, component: bool) -> None:
-    """Draw the shared scalp-map colorbar, marking component maps with -/0/+ polarity labels."""
-    cbar = fig.colorbar(image, ax=axes, shrink=0.7)
-    if component:
-        low, high = image.get_clim()
+def _add_map_colorbar(
+    fig: Any,
+    image: Any,
+    axes: list[Any],
+    *,
+    component: bool,
+    maplimits: Any,
+) -> None:
+    """Draw the shared scalp-map colorbar using EEGLAB's displayed limits."""
+    limits = _numeric_maplimits(maplimits)
+    mappable = image
+    if limits is not None:
+        mappable = ScalarMappable(norm=Normalize(vmin=limits[0], vmax=limits[1]), cmap=image.get_cmap())
+        mappable.set_array([])
+    cbar = fig.colorbar(mappable, ax=axes, shrink=0.7)
+    low, high = cbar.mappable.get_clim()
+    if component and low < 0 < high:
         cbar.set_ticks([low, 0.0, high])
         cbar.set_ticklabels(["-", "0", "+"])
 
 
+def _numeric_maplimits(maplimits: Any) -> tuple[float, float] | None:
+    if isinstance(maplimits, str) or maplimits is None:
+        return None
+    values = np.asarray(maplimits, dtype=float).ravel()
+    if values.size < 2 or not np.all(np.isfinite(values[:2])):
+        return None
+    return float(values[0]), float(values[1])
+
+
 def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.ndarray | None], list[str]]:
-    _require_chanlocs(EEG)
     data = np.asarray(EEG.get("data"))
     if data.ndim == 2:
         data = data[:, :, np.newaxis]
@@ -318,6 +356,74 @@ def _component_maps(
         # EEGLAB titles inverted-polarity maps with the negative component index.
         labels.append(f"IC {int(component)}")
     return maps, labels, chanlocs
+
+
+def _component_maps_without_locations(
+    EEG: dict[str, Any], components: np.ndarray
+) -> tuple[list[np.ndarray | None], list[str]]:
+    icawinv = ica_component_maps(EEG)
+    maps = []
+    labels = []
+    for component in components:
+        if np.isnan(component):
+            maps.append(None)
+            labels.append("")
+            continue
+        index = int(abs(component))
+        if index < 1 or index > icawinv.shape[1]:
+            raise ValueError(f"component index {index} is outside available ICA components")
+        values = icawinv[:, index - 1]
+        maps.append(-values if component < 0 else values)
+        labels.append(f"IC {int(component)}")
+    return maps, labels
+
+
+def _plot_channel_grid(
+    ax: Any,
+    values: np.ndarray,
+    channel_matrix: np.ndarray,
+    *,
+    maplimits: Any,
+    options: dict[str, Any],
+) -> None:
+    flat_values = np.asarray(values, dtype=float).reshape(-1)
+    grid_values = np.full(channel_matrix.shape, np.nan, dtype=float)
+    nonzero = channel_matrix != 0
+    indices = np.abs(channel_matrix[nonzero]) - 1
+    if indices.size and np.max(indices) >= flat_values.size:
+        raise ValueError("EEG.chanmatrix references channels unavailable in the plotted map")
+    grid_values[nonzero] = flat_values[indices] * np.sign(channel_matrix[nonzero])
+    low, high = _grid_maplimits(grid_values, maplimits)
+    colormap = plt.get_cmap(options.get("colormap") or "turbo").copy()
+    colormap.set_bad("white" if _is_on(options.get("whitebk", "off")) else ax.get_facecolor())
+    ax.imshow(
+        np.ma.masked_invalid(grid_values),
+        cmap=colormap,
+        vmin=low,
+        vmax=high,
+        origin="upper",
+        interpolation="nearest",
+        aspect="equal",
+    )
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+
+def _grid_maplimits(values: np.ndarray, maplimits: Any) -> tuple[float, float]:
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return -1.0, 1.0
+    numeric = _numeric_maplimits(maplimits)
+    if numeric is not None:
+        return numeric
+    setting = str(maplimits or "absmax").lower()
+    if setting == "absmax":
+        limit = float(np.max(np.abs(finite)))
+        return (-limit, limit) if limit else (-1.0, 1.0)
+    if setting in {"maxmin", "minmax"}:
+        low, high = float(np.min(finite)), float(np.max(finite))
+        return (low, high) if high > low else (low - 1.0, high + 1.0)
+    raise ValueError("topoplot maplimits must be 'absmax', 'maxmin', or [min max]")
 
 
 def _latency_positions(EEG: dict[str, Any], latencies_ms: np.ndarray) -> np.ndarray:
@@ -424,9 +530,26 @@ def _require_ica(EEG: dict[str, Any]) -> None:
 
 
 def _validate_topoplot_inputs(EEG: dict[str, Any], typeplot: int) -> None:
-    _require_chanlocs(EEG)
+    channel_matrix = _channel_matrix(EEG)
+    if channel_matrix is None:
+        _require_chanlocs(EEG)
     if typeplot == 0:
         _require_ica(EEG)
+
+
+def _channel_matrix(EEG: dict[str, Any]) -> np.ndarray | None:
+    if "chanmatrix" not in EEG:
+        return None
+    matrix = np.asarray(EEG.get("chanmatrix"), dtype=float)
+    if matrix.size == 0:
+        raise ValueError("EEG.chanmatrix is empty")
+    if matrix.ndim != 2 or not np.all(np.isfinite(matrix)) or not np.all(matrix == np.trunc(matrix)):
+        raise ValueError("EEG.chanmatrix must be a finite 2-D matrix of channel indices")
+    matrix = matrix.astype(int)
+    channel_count = int(EEG.get("nbchan", np.asarray(EEG.get("data")).shape[0]) or 0)
+    if np.max(np.abs(matrix), initial=0) > channel_count:
+        raise ValueError(f"EEG.chanmatrix indices must be within -{channel_count}..{channel_count}")
+    return matrix
 
 
 def _is_plotdip_value(value: Any) -> bool:

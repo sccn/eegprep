@@ -18,9 +18,16 @@ from eegprep.functions.popfunc.plot_utils import (
 )
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_text_tokens
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import (
+    as_alleeg_list,
+    build_python_call,
+    ensure_study,
+    trialinfo_from_eeg,
+)
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.timefreqfunc.newtimef import newtimef
+from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
+from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbaseln
 
 
 MEASURE_NAMES = ("erp", "spec", "ersp", "itc")
@@ -37,6 +44,7 @@ def std_precomp(
     ersp: str | bool = "off",
     itc: str | bool = "off",
     scalp: str | bool = "off",
+    savetrials: str | bool = "off",
     allcomps: str | bool = "off",
     recompute: str | bool = "off",
     design: int | None = None,
@@ -49,26 +57,29 @@ def std_precomp(
     """Precompute ERP, spectrum, ERSP, and ITC measures for a STUDY.
 
     Measures are stored directly in ``STUDY.changrp`` for channels and in the
-    parent ``STUDY.cluster`` entry for components. Field names follow EEGLAB's
-    cached-measure names while avoiding EEGLAB sidecar files at runtime.
+    parent ``STUDY.cluster`` entry for components. ``savetrials='on'`` also
+    retains baseline-corrected ERP trials, linear spectral/ERSP trial power,
+    and ITC phase. Field names follow EEGLAB's cached-measure names without
+    runtime sidecar dependencies.
     """
     datasets = as_alleeg_list(ALLEEG)
     if not datasets:
         raise ValueError("std_precomp requires ALLEEG datasets")
-    study, datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     erp = options.pop("erp", erp)
     spec = options.pop("spec", spec)
     ersp = options.pop("ersp", ersp)
     itc = options.pop("itc", itc)
     scalp = options.pop("scalp", scalp)
+    savetrials = options.pop("savetrials", savetrials)
     allcomps = options.pop("allcomps", allcomps)
     recompute = options.pop("recompute", recompute)
     design = options.pop("design", design if design is not None else study.get("currentdesign") or 1)
     erpparams = options.pop("erpparams", erpparams)
     specparams = options.pop("specparams", specparams)
     erspparams = options.pop("erspparams", erspparams)
-    ignored = {"interp", "savetrials", "rmicacomps", "rmclust", "cell", "erpim", "erpimparams"}
+    ignored = {"interp", "rmicacomps", "rmclust", "cell", "erpim", "erpimparams"}
     ignored_present = sorted(key for key in options if key in ignored)
     if ignored_present:
         logger.warning("std_precomp: ignoring EEGLAB-only option(s): %s", ", ".join(ignored_present))
@@ -92,6 +103,7 @@ def std_precomp(
             erpparams=_params_dict(erpparams),
             specparams=_params_dict(specparams),
             erspparams=_params_dict(erspparams),
+            savetrials=is_on(savetrials),
         )
     else:
         cluster = _precompute_components(
@@ -107,6 +119,7 @@ def std_precomp(
             erpparams=_params_dict(erpparams),
             specparams=_params_dict(specparams),
             erspparams=_params_dict(erspparams),
+            savetrials=is_on(savetrials),
         )
         clusters = list(study.get("cluster") or [])
         if not clusters:
@@ -131,6 +144,7 @@ def std_precomp(
         erpparams=erpparams,
         specparams=specparams,
         erspparams=erspparams,
+        savetrials=savetrials,
     )
     return (study, datasets, command) if return_com else (study, datasets)
 
@@ -146,6 +160,7 @@ def _precompute_channels(
     erpparams: dict[str, Any],
     specparams: dict[str, Any],
     erspparams: dict[str, Any],
+    savetrials: bool,
 ) -> list[dict[str, Any]]:
     labels = channel_labels(datasets[0])
     selected = _channel_indices(chanorcomp, labels)
@@ -167,36 +182,89 @@ def _precompute_channels(
             },
         }
         if "erp" in computed:
-            if _keep_cached(prior, "erpdata", force):
-                _carry(entry, prior, ("erpdata", "erptimes"))
+            erp_cached = _keep_cached(prior, "erpdata", force) and (not savetrials or "erpdatatrials" in prior)
+            if erp_cached:
+                _carry(entry, prior, ("erpdata", "erptimes", "erpdatatrials", "erptrialinfo"))
             else:
-                entry["erpdata"], entry["erptimes"] = _channel_erp(datasets, channel_index, erpparams)
+                erpdata, erptimes, erptrials = _channel_erp(datasets, channel_index, erpparams)
+                entry["erpdata"], entry["erptimes"] = erpdata, erptimes
+                if savetrials:
+                    entry["erpdatatrials"] = erptrials
+                    entry["erptrialinfo"] = _trialinfo_metadata(datasets, erptrials)
         if "spec" in computed:
-            if _keep_cached(prior, "specdata", force):
-                _carry(entry, prior, ("specdata", "specfreqs"))
+            spec_cached = _keep_cached(prior, "specdata", force) and (not savetrials or "specdatatrials" in prior)
+            if spec_cached:
+                _carry(entry, prior, ("specdata", "specfreqs", "specdatatrials", "spectrialinfo"))
             else:
-                entry["specdata"], entry["specfreqs"] = _channel_spec(datasets, channel_index, specparams)
-        ersp_cached = _keep_cached(prior, "erspdata", force) if "ersp" in computed else True
-        itc_cached = _keep_cached(prior, "itcdata", force) if "itc" in computed else True
+                specdata, specfreqs, spectrials = _channel_spec(datasets, channel_index, specparams)
+                entry["specdata"], entry["specfreqs"] = specdata, specfreqs
+                if savetrials:
+                    entry["specdatatrials"] = spectrials
+                    entry["spectrialinfo"] = _trialinfo_metadata(datasets, spectrials)
+        ersp_cached = (
+            _keep_cached(prior, "erspdata", force) and (not savetrials or "erspdatatrials" in prior)
+            if "ersp" in computed
+            else True
+        )
+        itc_cached = (
+            _keep_cached(prior, "itcdata", force) and (not savetrials or "itcdatatrials" in prior)
+            if "itc" in computed
+            else True
+        )
         if ("ersp" in computed and not ersp_cached) or ("itc" in computed and not itc_cached):
-            tf = _channel_time_frequency(datasets, channel_index, erspparams)
+            tf = _channel_time_frequency(datasets, channel_index, erspparams, savetrials=savetrials)
         else:
             tf = None
         if "ersp" in computed:
             if ersp_cached:
-                _carry(entry, prior, ("erspdata", "ersptimes", "erspfreqs", "erspbase"))
+                _carry(
+                    entry,
+                    prior,
+                    (
+                        "erspdata",
+                        "ersptimes",
+                        "erspfreqs",
+                        "erspbase",
+                        "erspdatatrials",
+                        "erspsubjinds",
+                        "ersptrialinfo",
+                    ),
+                )
             else:
                 entry["erspdata"] = tf["erspdata"]
                 entry["ersptimes"] = tf["times"]
                 entry["erspfreqs"] = tf["freqs"]
                 entry["erspbase"] = tf["powbase"]
+                if savetrials:
+                    entry["erspdatatrials"] = tf["erspdatatrials"]
+                    entry["erspsubjinds"] = tf["subjinds"]
+                    entry["ersptrialinfo"] = tf["trialinfo"]
         if "itc" in computed:
             if itc_cached:
-                _carry(entry, prior, ("itcdata", "itctimes", "itcfreqs"))
+                _carry(
+                    entry,
+                    prior,
+                    ("itcdata", "itctimes", "itcfreqs", "itcdatatrials", "itcsubjinds", "itctrialinfo"),
+                )
             else:
                 entry["itcdata"] = tf["itcdata"]
                 entry["itctimes"] = tf["times"]
                 entry["itcfreqs"] = tf["freqs"]
+                if savetrials:
+                    entry["itcdatatrials"] = tf["itcdatatrials"]
+                    entry["itcsubjinds"] = tf["subjinds"]
+                    entry["itctrialinfo"] = tf["trialinfo"]
+        if savetrials:
+            trial_cache = {}
+            if "erp" in computed:
+                trial_cache["erpdatatrials"] = "baseline-corrected amplitude"
+            if "spec" in computed:
+                trial_cache["specdatatrials"] = "linear power spectral density"
+            if "ersp" in computed:
+                trial_cache["erspdatatrials"] = "linear baseline-corrected power"
+            if "itc" in computed:
+                trial_cache["itcdatatrials"] = "phase radians"
+            entry["measureinfo"]["trial_cache"] = trial_cache
         groups.append(entry)
     return groups
 
@@ -215,6 +283,7 @@ def _precompute_components(
     erpparams: dict[str, Any],
     specparams: dict[str, Any],
     erspparams: dict[str, Any],
+    savetrials: bool,
 ) -> dict[str, Any]:
     try:
         activations = [component_activations(eeg) for eeg in datasets]
@@ -239,54 +308,101 @@ def _precompute_components(
     if scalp:
         cluster["topo"] = _component_topographies(datasets, selected, selection_mask)
     if "erp" in computed:
-        if _keep_cached(cached, "erpdata", force):
-            _carry(cluster, cached, ("erpdata", "erptimes"))
+        erp_cached = _keep_cached(cached, "erpdata", force) and (not savetrials or "erpdatatrials" in cached)
+        if erp_cached:
+            _carry(cluster, cached, ("erpdata", "erptimes", "erpdatatrials", "erptrialinfo"))
         else:
-            cluster["erpdata"], cluster["erptimes"] = _component_erp(
-                datasets, activations, selected, selection_mask, erpparams
-            )
+            erpdata, erptimes, erptrials = _component_erp(datasets, activations, selected, selection_mask, erpparams)
+            cluster["erpdata"], cluster["erptimes"] = erpdata, erptimes
+            if savetrials:
+                cluster["erpdatatrials"] = erptrials
+                cluster["erptrialinfo"] = _component_trialinfo_metadata(datasets, erptrials)
     if "spec" in computed:
-        if _keep_cached(cached, "specdata", force):
-            _carry(cluster, cached, ("specdata", "specfreqs"))
+        spec_cached = _keep_cached(cached, "specdata", force) and (not savetrials or "specdatatrials" in cached)
+        if spec_cached:
+            _carry(cluster, cached, ("specdata", "specfreqs", "specdatatrials", "spectrialinfo"))
         else:
-            cluster["specdata"], cluster["specfreqs"] = _component_spec(
+            specdata, specfreqs, spectrials = _component_spec(
                 datasets, activations, selected, selection_mask, specparams
             )
-    ersp_cached = _keep_cached(cached, "erspdata", force) if "ersp" in computed else True
-    itc_cached = _keep_cached(cached, "itcdata", force) if "itc" in computed else True
+            cluster["specdata"], cluster["specfreqs"] = specdata, specfreqs
+            if savetrials:
+                cluster["specdatatrials"] = spectrials
+                cluster["spectrialinfo"] = _component_trialinfo_metadata(datasets, spectrials)
+    ersp_cached = (
+        _keep_cached(cached, "erspdata", force) and (not savetrials or "erspdatatrials" in cached)
+        if "ersp" in computed
+        else True
+    )
+    itc_cached = (
+        _keep_cached(cached, "itcdata", force) and (not savetrials or "itcdatatrials" in cached)
+        if "itc" in computed
+        else True
+    )
     if ("ersp" in computed and not ersp_cached) or ("itc" in computed and not itc_cached):
-        tf = _component_time_frequency(datasets, activations, selected, selection_mask, erspparams)
+        tf = _component_time_frequency(
+            datasets, activations, selected, selection_mask, erspparams, savetrials=savetrials
+        )
     else:
         tf = None
     if "ersp" in computed:
         if ersp_cached:
-            _carry(cluster, cached, ("erspdata", "ersptimes", "erspfreqs", "erspbase"))
+            _carry(
+                cluster,
+                cached,
+                ("erspdata", "ersptimes", "erspfreqs", "erspbase", "erspdatatrials", "erspsubjinds", "ersptrialinfo"),
+            )
         else:
             cluster["erspdata"] = tf["erspdata"]
             cluster["ersptimes"] = tf["times"]
             cluster["erspfreqs"] = tf["freqs"]
             cluster["erspbase"] = tf["powbase"]
+            if savetrials:
+                cluster["erspdatatrials"] = tf["erspdatatrials"]
+                cluster["erspsubjinds"] = tf["subjinds"]
+                cluster["ersptrialinfo"] = tf["trialinfo"]
     if "itc" in computed:
         if itc_cached:
-            _carry(cluster, cached, ("itcdata", "itctimes", "itcfreqs"))
+            _carry(
+                cluster,
+                cached,
+                ("itcdata", "itctimes", "itcfreqs", "itcdatatrials", "itcsubjinds", "itctrialinfo"),
+            )
         else:
             cluster["itcdata"] = tf["itcdata"]
             cluster["itctimes"] = tf["times"]
             cluster["itcfreqs"] = tf["freqs"]
+            if savetrials:
+                cluster["itcdatatrials"] = tf["itcdatatrials"]
+                cluster["itcsubjinds"] = tf["subjinds"]
+                cluster["itctrialinfo"] = tf["trialinfo"]
+    if savetrials:
+        trial_cache = {}
+        if "erp" in computed:
+            trial_cache["erpdatatrials"] = "baseline-corrected amplitude"
+        if "spec" in computed:
+            trial_cache["specdatatrials"] = "linear power spectral density"
+        if "ersp" in computed:
+            trial_cache["erspdatatrials"] = "linear baseline-corrected power"
+        if "itc" in computed:
+            trial_cache["itcdatatrials"] = "phase radians"
+        cluster["measureinfo"]["trial_cache"] = trial_cache
     return cluster
 
 
 def _channel_erp(
     datasets: list[dict[str, Any]], channel_index: int, params: dict[str, Any]
-) -> tuple[list[list[float]], list[float]]:
+) -> tuple[list[list[float]], list[float], list[Any]]:
     times = _shared_times(datasets)
     baseline = params.get("rmbase")
     values = []
+    trials = []
     for eeg in datasets:
         data = eeg_epoch_data(eeg)[channel_index, :, :]
         data = _remove_baseline(data, times, baseline)
         values.append(np.nanmean(data, axis=1))
-    return np.asarray(values, dtype=float).tolist(), times.tolist()
+        trials.append(data)
+    return np.asarray(values, dtype=float).tolist(), times.tolist(), [item.tolist() for item in trials]
 
 
 def _component_erp(
@@ -295,42 +411,50 @@ def _component_erp(
     selected: np.ndarray,
     selection_mask: np.ndarray,
     params: dict[str, Any],
-) -> tuple[list[Any], list[float]]:
+) -> tuple[list[Any], list[float], list[Any]]:
     times = _shared_times(datasets)
     baseline = params.get("rmbase")
     values = []
+    trials = []
     for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
         maps = np.asarray(eeg.get("icawinv", []), dtype=float)
         dataset_values = []
+        dataset_trials = []
         for component_position, component_index in enumerate(selected):
             if not selection_mask[dataset_index, component_position]:
                 dataset_values.append(np.full(times.shape, np.nan))
+                dataset_trials.append(None)
                 continue
             scale = _component_scale(maps, int(component_index))
             data = _remove_baseline(acts[component_index, :, :], times, baseline)
             dataset_values.append(np.nanmean(data, axis=1) * scale)
+            dataset_trials.append(data * scale)
         values.append(np.asarray(dataset_values, dtype=float))
-    return np.asarray(values, dtype=float).tolist(), times.tolist()
+        trials.append(dataset_trials)
+    return (
+        np.asarray(values, dtype=float).tolist(),
+        times.tolist(),
+        [[None if item is None else item.tolist() for item in dataset] for dataset in trials],
+    )
 
 
 def _channel_spec(
     datasets: list[dict[str, Any]], channel_index: int, params: dict[str, Any]
-) -> tuple[list[list[float]], list[float]]:
+) -> tuple[list[list[float]], list[float], list[Any]]:
     spectra = []
+    trials = []
     freqs = None
     for eeg in datasets:
         data = eeg_epoch_data(eeg)[channel_index : channel_index + 1, :, :]
-        spectrum, frequency_values, _specstd = compute_spectra(
-            data,
-            int(eeg.get("pnts", data.shape[1]) or data.shape[1]),
-            float(eeg.get("srate", 1.0) or 1.0),
-            winsize=_optional_int(params.get("winsize")),
-            overlap=_optional_int(params.get("overlap"), default=0),
-            nfft=_optional_int(params.get("nfft")),
-        )
+        trial_power, frequency_values = _single_trial_spectra(data, eeg, params)
         freqs = _check_axis(freqs, frequency_values, "spectrum frequencies")
-        spectra.append(spectrum[0])
-    return np.asarray(spectra, dtype=float).tolist(), np.asarray(freqs, dtype=float).tolist()
+        spectra.append(_power_to_db(np.nanmean(trial_power, axis=-1))[0])
+        trials.append(trial_power[0])
+    return (
+        np.asarray(spectra, dtype=float).tolist(),
+        np.asarray(freqs, dtype=float).tolist(),
+        [item.tolist() for item in trials],
+    )
 
 
 def _component_spec(
@@ -339,39 +463,70 @@ def _component_spec(
     selected: np.ndarray,
     selection_mask: np.ndarray,
     params: dict[str, Any],
-) -> tuple[list[Any], list[float]]:
+) -> tuple[list[Any], list[float], list[Any]]:
     spectra: list[list[np.ndarray | None]] = []
+    trials: list[list[np.ndarray | None]] = []
     freqs = None
     for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
         dataset_values = []
+        dataset_trials = []
         for component_position, component_index in enumerate(selected):
             if not selection_mask[dataset_index, component_position]:
                 dataset_values.append(None)
+                dataset_trials.append(None)
                 continue
-            spectrum, frequency_values, _specstd = compute_spectra(
+            trial_power, frequency_values = _single_trial_spectra(
                 acts[component_index : component_index + 1, :, :],
-                int(eeg.get("pnts", acts.shape[1]) or acts.shape[1]),
-                float(eeg.get("srate", 1.0) or 1.0),
-                winsize=_optional_int(params.get("winsize")),
-                overlap=_optional_int(params.get("overlap"), default=0),
-                nfft=_optional_int(params.get("nfft")),
+                eeg,
+                params,
             )
             freqs = _check_axis(freqs, frequency_values, "spectrum frequencies")
-            dataset_values.append(np.asarray(spectrum[0], dtype=float))
+            dataset_values.append(_power_to_db(np.nanmean(trial_power, axis=-1))[0])
+            dataset_trials.append(trial_power[0])
         spectra.append(dataset_values)
+        trials.append(dataset_trials)
     if freqs is None:
         raise ValueError("component spectrum precompute has no selected components")
-    return _fill_missing_component_rows(spectra, len(freqs)).tolist(), np.asarray(freqs, dtype=float).tolist()
+    return (
+        _fill_missing_component_rows(spectra, len(freqs)).tolist(),
+        np.asarray(freqs, dtype=float).tolist(),
+        [[None if item is None else item.tolist() for item in dataset] for dataset in trials],
+    )
+
+
+def _single_trial_spectra(
+    data: np.ndarray, eeg: dict[str, Any], params: dict[str, Any]
+) -> tuple[np.ndarray, np.ndarray]:
+    powers = []
+    freqs = None
+    for trial_index in range(data.shape[-1]):
+        spectrum, frequency_values, _specstd = compute_spectra(
+            data[:, :, trial_index : trial_index + 1],
+            int(eeg.get("pnts", data.shape[1]) or data.shape[1]),
+            float(eeg.get("srate", 1.0) or 1.0),
+            winsize=_optional_int(params.get("winsize")),
+            overlap=_optional_int(params.get("overlap"), default=0),
+            nfft=_optional_int(params.get("nfft")),
+        )
+        freqs = _check_axis(freqs, frequency_values, "spectrum frequencies")
+        powers.append(10.0 ** (np.asarray(spectrum, dtype=float) / 10.0))
+    return np.stack(powers, axis=-1), np.asarray(freqs, dtype=float)
+
+
+def _power_to_db(power: np.ndarray) -> np.ndarray:
+    return 10.0 * np.log10(np.maximum(power, np.finfo(float).tiny))
 
 
 def _channel_time_frequency(
-    datasets: list[dict[str, Any]], channel_index: int, params: dict[str, Any]
+    datasets: list[dict[str, Any]], channel_index: int, params: dict[str, Any], *, savetrials: bool
 ) -> dict[str, Any]:
     values = []
     itc_values = []
     powbase_values = []
     times = None
     freqs = None
+    trial_power = []
+    trial_phase = []
     for eeg in datasets:
         result = _newtimef(eeg_epoch_data(eeg)[channel_index, :, :], eeg, params)
         times = _check_axis(times, result.times, "time-frequency times")
@@ -379,13 +534,19 @@ def _channel_time_frequency(
         values.append(result.ersp)
         itc_values.append(np.abs(result.itc))
         powbase_values.append(result.powbase)
-    return {
+        if savetrials:
+            trial_power.append(_baseline_corrected_trial_power(result, params))
+            trial_phase.append(np.angle(result.tfdata))
+    output = {
         "erspdata": np.asarray(values, dtype=float).tolist(),
         "itcdata": np.asarray(itc_values, dtype=float).tolist(),
         "powbase": np.asarray(powbase_values, dtype=float).tolist(),
         "times": np.asarray(times, dtype=float).tolist(),
         "freqs": np.asarray(freqs, dtype=float).tolist(),
     }
+    if savetrials:
+        output.update(_trial_cache_metadata(datasets, trial_power, trial_phase))
+    return output
 
 
 def _component_time_frequency(
@@ -394,21 +555,29 @@ def _component_time_frequency(
     selected: np.ndarray,
     selection_mask: np.ndarray,
     params: dict[str, Any],
+    *,
+    savetrials: bool,
 ) -> dict[str, Any]:
     values: list[list[np.ndarray | None]] = []
     itc_values: list[list[np.ndarray | None]] = []
     powbase_values: list[list[np.ndarray | None]] = []
     times = None
     freqs = None
+    trial_power: list[list[np.ndarray | None]] = []
+    trial_phase: list[list[np.ndarray | None]] = []
     for dataset_index, (eeg, acts) in enumerate(zip(datasets, activations)):
         dataset_ersp = []
         dataset_itc = []
         dataset_powbase = []
+        dataset_trial_power = []
+        dataset_trial_phase = []
         for component_position, component_index in enumerate(selected):
             if not selection_mask[dataset_index, component_position]:
                 dataset_ersp.append(None)
                 dataset_itc.append(None)
                 dataset_powbase.append(None)
+                dataset_trial_power.append(None)
+                dataset_trial_phase.append(None)
                 continue
             result = _newtimef(acts[component_index, :, :], eeg, params)
             times = _check_axis(times, result.times, "time-frequency times")
@@ -416,19 +585,113 @@ def _component_time_frequency(
             dataset_ersp.append(result.ersp)
             dataset_itc.append(np.abs(result.itc))
             dataset_powbase.append(result.powbase)
+            if savetrials:
+                dataset_trial_power.append(_baseline_corrected_trial_power(result, params))
+                dataset_trial_phase.append(np.angle(result.tfdata))
         values.append(dataset_ersp)
         itc_values.append(dataset_itc)
         powbase_values.append(dataset_powbase)
+        if savetrials:
+            trial_power.append(dataset_trial_power)
+            trial_phase.append(dataset_trial_phase)
     if times is None or freqs is None:
         raise ValueError("component time-frequency precompute has no selected components")
     tf_shape = (len(freqs), len(times))
-    return {
+    output = {
         "erspdata": _fill_missing_component_rows(values, tf_shape).tolist(),
         "itcdata": _fill_missing_component_rows(itc_values, tf_shape).tolist(),
         "powbase": _fill_missing_component_rows(powbase_values, len(freqs)).tolist(),
         "times": np.asarray(times, dtype=float).tolist(),
         "freqs": np.asarray(freqs, dtype=float).tolist(),
     }
+    if savetrials:
+        output.update(_component_trial_cache_metadata(datasets, trial_power, trial_phase))
+    return output
+
+
+def _baseline_corrected_trial_power(result: Any, params: dict[str, Any]) -> np.ndarray:
+    power = np.abs(result.tfdata) ** 2
+    baseline = params.get("baseline", 0)
+    basenorm = str(params.get("basenorm", "off"))
+    trialbase = str(params.get("trialbase", "off"))
+    corrected = newtimeftrialbaseln(
+        power,
+        result.times,
+        baseline=baseline,
+        basenorm=basenorm,
+        trialbase=trialbase,
+    )
+    corrected, _indices, _base = newtimefbaseln(
+        corrected,
+        result.times,
+        baseline=baseline,
+        basenorm=basenorm,
+        trialbase=trialbase,
+        singletrials="on",
+    )
+    return np.asarray(corrected, dtype=float)
+
+
+def _trial_cache_metadata(
+    datasets: list[dict[str, Any]], trial_power: list[np.ndarray], trial_phase: list[np.ndarray]
+) -> dict[str, Any]:
+    return {
+        "erspdatatrials": [values.tolist() for values in trial_power],
+        "itcdatatrials": [values.tolist() for values in trial_phase],
+        "subjinds": [list(range(1, values.shape[-1] + 1)) for values in trial_power],
+        "trialinfo": [_dataset_trialinfo(eeg, values.shape[-1]) for eeg, values in zip(datasets, trial_power)],
+    }
+
+
+def _trialinfo_metadata(datasets: list[dict[str, Any]], trial_values: list[Any]) -> list[list[dict[str, Any]]]:
+    return [_dataset_trialinfo(eeg, np.asarray(values).shape[-1]) for eeg, values in zip(datasets, trial_values)]
+
+
+def _component_trialinfo_metadata(
+    datasets: list[dict[str, Any]], trial_values: list[list[Any | None]]
+) -> list[list[dict[str, Any]]]:
+    return [
+        _dataset_trialinfo(eeg, _first_serialized_trial_count(dataset)) for eeg, dataset in zip(datasets, trial_values)
+    ]
+
+
+def _first_serialized_trial_count(dataset: list[Any | None]) -> int:
+    return next((np.asarray(values).shape[-1] for values in dataset if values is not None), 0)
+
+
+def _component_trial_cache_metadata(
+    datasets: list[dict[str, Any]],
+    trial_power: list[list[np.ndarray | None]],
+    trial_phase: list[list[np.ndarray | None]],
+) -> dict[str, Any]:
+    return {
+        "erspdatatrials": [
+            [None if values is None else values.tolist() for values in dataset] for dataset in trial_power
+        ],
+        "itcdatatrials": [
+            [None if values is None else values.tolist() for values in dataset] for dataset in trial_phase
+        ],
+        "subjinds": [
+            [None if values is None else list(range(1, values.shape[-1] + 1)) for values in dataset]
+            for dataset in trial_power
+        ],
+        "trialinfo": [
+            _dataset_trialinfo(eeg, _first_trial_count(dataset)) for eeg, dataset in zip(datasets, trial_power)
+        ],
+    }
+
+
+def _first_trial_count(dataset: list[np.ndarray | None]) -> int:
+    return next((values.shape[-1] for values in dataset if values is not None), 0)
+
+
+def _dataset_trialinfo(eeg: dict[str, Any], count: int) -> list[dict[str, Any]]:
+    rows = eeg.get("trialinfo")
+    if not isinstance(rows, list) or not rows:
+        rows = trialinfo_from_eeg(eeg)
+    return [
+        deepcopy(rows[index]) if index < len(rows) and isinstance(rows[index], dict) else {} for index in range(count)
+    ]
 
 
 def _component_scale(maps: np.ndarray, component_index: int) -> float:
@@ -692,6 +955,7 @@ def _history_command(
     erpparams: Any,
     specparams: Any,
     erspparams: Any,
+    savetrials: Any,
 ) -> str:
     kwargs: dict[str, Any] = {name: "on" if name in computed else "off" for name in MEASURE_NAMES}
     kwargs["design"] = design
@@ -701,6 +965,8 @@ def _history_command(
         kwargs["scalp"] = "on"
     if is_on(recompute):
         kwargs["recompute"] = "on"
+    if is_on(savetrials):
+        kwargs["savetrials"] = "on"
     if erpparams:
         kwargs["erpparams"] = erpparams
     if specparams:

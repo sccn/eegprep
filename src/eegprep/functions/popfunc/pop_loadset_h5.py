@@ -3,7 +3,7 @@
 import h5py
 import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.popfunc._file_io import normalize_icachansind
+from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 
 
 def pop_loadset_h5(file_name):
@@ -292,6 +292,8 @@ def pop_loadset_h5(file_name):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
+    # Before eeg_checkset, which copies event.urevent into epoch.eventurevent.
+    ur_indices_to_zero_based(EEG)
     EEG = eeg_checkset(EEG)
 
     return EEG

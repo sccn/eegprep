@@ -7,12 +7,18 @@ from pathlib import Path
 from typing import Any
 
 from eegprep.functions.popfunc._file_io import events_to_records
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, is_empty_value
 
 
 def pop_expevents(EEG: dict[str, Any], filename: str | Path) -> str:
-    """Export ``EEG.event`` as a tab-delimited text file."""
+    """Export ``EEG.event`` as a tab-delimited text file.
+
+    The ``urevent`` column is written 1-based to match EEGLAB's export.
+    """
     events = events_to_records(EEG.get("event"))
+    for event in events:
+        if not is_empty_value(event.get("urevent")):
+            event["urevent"] = int(event["urevent"]) + 1
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = sorted({key for event in events for key in event}) if events else ["type", "latency"]

@@ -326,7 +326,8 @@ def _read_neo_events(io: Any, ext: str, times_sec: np.ndarray, numeric_null: Any
             f"Unsupported file format for event extraction: {ext}. Supported formats are .edf, .bdf, .vhdr."
         )
 
-    event_latencies = np.searchsorted(times_sec, all_times)
+    # 1-based sample indices (EEGLAB convention), same rounding as the events.tsv path
+    event_latencies = np.searchsorted(times_sec, all_times) + 1
     event_durations = np.array(all_durations, dtype=float)
     urevents = np.arange(len(all_times))
     return np.array(

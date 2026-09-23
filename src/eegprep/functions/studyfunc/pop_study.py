@@ -63,7 +63,7 @@ def pop_study(
         raise ValueError("pop_study requires at least one loaded dataset")
     study, datasets, _edit_command = std_editset(
         study,
-        datasets,
+        ALLEEG,
         name=name if name is not None else study.get("name", "EEGPrep study"),
         task=task if task is not None else study.get("task", ""),
         notes=notes if notes is not None else study.get("notes", ""),
@@ -96,8 +96,7 @@ def pop_study(
 def pop_study_dialog_spec(STUDY: dict[str, Any] | None, ALLEEG: list[dict[str, Any]] | None) -> DialogSpec:
     """Return the EEGLAB-like STUDY metadata dialog spec."""
     study = ensure_study(STUDY)
-    datasets = as_alleeg_list(ALLEEG)
-    checked, _datasets = std_checkset(study, datasets)
+    checked, datasets = std_checkset(study, ALLEEG)
     title = (
         "Create a new STUDY set -- pop_study()"
         if not STUDY or not STUDY.get("datasetinfo")

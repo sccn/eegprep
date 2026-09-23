@@ -9,6 +9,7 @@ bd.sock.startlock
 sync-state.json
 last-touched
 .exclusive-lock
+interactions.jsonl
 
 # Daemon runtime (lock, log, pid)
 daemon.*

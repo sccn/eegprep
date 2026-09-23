@@ -1466,6 +1466,28 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
 
+    def test_file_menu_brainvision_dispatch_uses_pop_loadbv(self):
+        session = EEGPrepSession()
+        dispatcher = MenuActionDispatcher(session)
+        imported = _demo_eeg()
+        imported["setname"] = "brainvision"
+        command = "EEG = pop_loadbv('/tmp', 'recording.vhdr');"
+        qt_widgets = _fake_qt_widgets(open_file="/tmp/recording.vhdr")
+
+        with (
+            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
+            mock.patch(
+                "eegprep.functions.popfunc.pop_loadbv.pop_loadbv",
+                return_value=(imported, command),
+            ) as loadbv,
+        ):
+            dispatcher.dispatch("pop_fileio_brainvision")
+
+        loadbv.assert_called_once_with("/tmp/recording.vhdr", return_com=True)
+        self.assertEqual(session.EEG["setname"], "brainvision")
+        self.assertEqual(session.CURRENTSET, [1])
+        self.assertEqual(session.ALLCOM[-1], command)
+
     def test_file_menu_import_uses_native_file_dialog_by_default(self):
         captured = {}
 

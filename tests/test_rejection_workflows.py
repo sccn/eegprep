@@ -33,7 +33,9 @@ from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
+from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
@@ -74,19 +76,42 @@ def _reference_trend_marks(
     return row_marks
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_eegthresh/popfunc_pop_eegthresh_wrapperTest.m",
+    "test_test_pop_eegthresh",
+)
 def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
     eeg = _epoched_eeg()
 
     out, com = pop_eegthresh(eeg, 1, [1], -10, 10, 0, 0.79, 0, 0, return_com=True)
+    component_out, component_rejected = pop_eegthresh(eeg, 0, [1], -10, 10, 0, 0.79, 1, 0)
 
     assert out["reject"]["rejthresh"].tolist() == [False, True, False, False, False]
     assert out["reject"]["rejthreshE"][0].tolist() == [False, True, False, False, False]
+    assert component_rejected == [2]
+    assert component_out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
     assert _console_python_command(com) == (
         "EEG = pop_eegthresh(EEG, icacomp=1, elecrange=[1], negthresh=[-10], "
         "posthresh=[10], starttime=[0], endtime=[0.79], superpose=0, reject=0)"
     )
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_jointprob/popfunc_pop_jointprob_wrapperTest.m",
+    "test_test_pop_jointprob",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejkurt/popfunc_pop_rejkurt_wrapperTest.m",
+    "test_test_pop_rejkurt",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejspec/popfunc_pop_rejspec_wrapperTest.m",
+    "test_test_pop_rejspec",
+)
+@eeglab_test(
+    "unittesting_popfunc/pop_rejtrend/popfunc_pop_rejtrend_wrapperTest.m",
+    "test_test_pop_rejtrend",
+)
 def test_rejection_statistics_store_data_and_component_marks():
     eeg = _epoched_eeg()
 
@@ -135,6 +160,39 @@ def test_rejection_statistics_store_data_and_component_marks():
     assert not np.allclose(fft_spec_out["specdata"], spec_out["specdata"])
     assert comp_count >= 1
     assert "icarejjp" in comp_out["reject"]
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/eegplot/sigprocfunc_eegplot_wrapperTest.m",
+    "test_todo_bugzilla_354",
+)
+def test_eegplot_accepts_epoched_data_after_spectral_rejection_marks():
+    # The upstream TODO describes eegplot failing after abnormal-spectrum
+    # rejection, but its payload is fully commented and calls unrelated
+    # pop_biosig. Preserve the reported workflow as an executable regression.
+    eeg = _epoched_eeg()
+    marked, rejected = pop_rejspec(
+        eeg,
+        1,
+        "method",
+        "fft",
+        "elecrange",
+        [3],
+        "threshold",
+        [-10, 10],
+        "freqlimits",
+        [20, 30],
+        "eegplotreject",
+        0,
+    )
+
+    model = eegplot(marked, show=False)
+
+    assert rejected
+    assert marked["reject"]["rejfreq"].any()
+    assert model.data.mode == "epoched"
+    assert model.data.data.shape == marked["data"].shape
+    assert model.data.total_samples == marked["pnts"] * marked["trials"]
 
 
 @pytest.mark.parametrize(
@@ -435,6 +493,105 @@ def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels()
     np.testing.assert_array_equal(row_marks[2], expected_local[2])
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_1d_row",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_1d_col",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_general",
+)
+def test_jointprob_vector_orientation_and_defaults_match_upstream():
+    expected = -np.sum(np.log([2 / 3, 2 / 3, 1 / 3]))
+
+    for signal in (np.asarray([1, 1, 3]), np.asarray([[1], [1], [3]])):
+        scores, rejected = jointprob(signal)
+        np.testing.assert_allclose(scores, [[expected]])
+        np.testing.assert_array_equal(rejected, [[False]])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_3d",
+)
+def test_jointprob_three_dimensional_scores_match_upstream():
+    signal = np.empty((3, 4, 2), dtype=float)
+    signal[:, :, 0] = [[1, 1, 3, 4], [1, 2, 1, 4], [1, 2, 3, 4]]
+    signal[:, :, 1] = [[1, 2, 3, 4], [1, 2, 1, 4], [2, 2, 3, 4]]
+    expected = np.asarray(
+        [
+            [-np.sum(np.log([3 / 8, 3 / 8, 2 / 8, 2 / 8])), -np.sum(np.log([3 / 8, 1 / 8, 2 / 8, 2 / 8]))],
+            [-np.sum(np.log([4 / 8, 2 / 8, 4 / 8, 2 / 8])), -np.sum(np.log([4 / 8, 2 / 8, 4 / 8, 2 / 8]))],
+            [-np.sum(np.log([1 / 8, 3 / 8, 2 / 8, 2 / 8])), -np.sum(np.log([3 / 8, 3 / 8, 2 / 8, 2 / 8]))],
+        ]
+    )
+
+    scores, rejected = jointprob(signal)
+
+    np.testing.assert_allclose(scores, expected)
+    np.testing.assert_array_equal(rejected, np.zeros((3, 2), dtype=bool))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_threshold",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_jp_threshold",
+)
+def test_jointprob_computed_and_precomputed_thresholds_match_upstream():
+    signal = np.asarray([[1, 1, 5], [1, 2, 1], [1, 2, 5]])
+    expected = np.asarray(
+        [
+            -np.sum(np.log([2 / 3, 2 / 3, 1 / 3])),
+            -np.sum(np.log([2 / 3, 1 / 3, 2 / 3])),
+            -np.sum(np.log([1 / 3, 1 / 3, 1 / 3])),
+        ]
+    )[:, np.newaxis]
+
+    scores, rejected = jointprob(signal, 2)
+    reused, reused_rejected = jointprob(signal, 2, expected)
+
+    np.testing.assert_allclose(scores, expected)
+    np.testing.assert_allclose(reused, expected)
+    np.testing.assert_array_equal(rejected, [[False], [False], [True]])
+    np.testing.assert_array_equal(reused_rejected, rejected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_normalize_2d",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/jointprob/sigprocfunc_jointprob_wrapperTest.m",
+    "test_pass_normalize_3d",
+)
+def test_jointprob_uses_matlab_sample_standard_deviation_for_normalization():
+    signal = np.asarray([[1, 1, 3], [1, 2, 1], [1, 2, 3]])
+    raw, _ = jointprob(signal)
+
+    normalized, rejected = jointprob(signal, 0, normalize=1)
+    expected = (raw - raw.mean()) / raw.std(ddof=1)
+
+    np.testing.assert_allclose(normalized, expected)
+    np.testing.assert_array_equal(rejected, np.zeros((3, 1), dtype=bool))
+
+    trials = np.stack([signal, signal[:, ::-1]], axis=2)
+    raw_3d, _ = jointprob(trials)
+    normalized_3d, _ = jointprob(trials, 0, normalize=1)
+    expected_3d = raw_3d - raw_3d.mean(axis=1, keepdims=True)
+    std_3d = raw_3d.std(axis=1, ddof=1, keepdims=True)
+    std_3d[std_3d == 0] = 1
+    expected_3d /= std_3d
+    assert normalized_3d.shape == (3, 2)
+    np.testing.assert_allclose(normalized_3d, expected_3d)
+
+
 def test_jointprob_global_threshold_can_reject_when_local_threshold_does_not():
     data = np.array(
         [
@@ -496,6 +653,28 @@ def test_kurtosis_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
     np.testing.assert_array_equal(row_marks[1], expected_local[2])
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/rejkurt/sigprocfunc_rejkurt_wrapperTest.m",
+    "test_test_rejkurt",
+)
+def test_rejkurt_upstream_parameter_combinations_return_finite_trial_marks():
+    rng = np.random.default_rng(8)
+    signal = rng.normal(size=(8, 80, 12))
+
+    calls = (
+        (0, None, 0),
+        (2, None, 0),
+        (1.5, np.ones((8, 12)), 0),
+        (0.5, None, 1),
+        (0.5, None, 2),
+    )
+    for threshold, old_scores, normalize in calls:
+        scores, rejected = rejkurt(signal, threshold, old_scores, normalize)
+        assert scores.shape == rejected.shape == (8, 12)
+        assert np.isfinite(scores).all()
+        np.testing.assert_array_equal(rejected, np.abs(scores) > threshold if threshold else np.zeros_like(rejected))
+
+
 def test_kurtosis_global_threshold_can_reject_when_local_threshold_does_not():
     rng = np.random.default_rng(0)
     data = rng.normal(size=(2, 12, 2))
@@ -521,6 +700,10 @@ def test_trend_marks_match_reference_window_loop():
     np.testing.assert_array_equal(reject, expected.any(axis=0))
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_rejepoch/popfunc_pop_rejepoch_wrapperTest.m",
+    "test_test_pop_rejepoch",
+)
 def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
     eeg = _epoched_eeg()
     eeg["reject"]["rejmanual"] = np.array([False, True, False, False, True])
@@ -554,6 +737,95 @@ def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families
     assert marked["reject"]["rejglobal"].tolist() == [False, True, True, False, False]
     assert marked["reject"]["rejglobalE"].shape == (4, 5)
     assert not marked["reject"]["rejglobalE"].any()
+
+
+def _suite_rejection_eeg(*, trials=5, components=False):
+    eeg = create_test_eeg(n_channels=2, n_samples=100, n_trials=trials)
+    eeg["reject"] = {}
+    if components:
+        eeg["icachansind"] = np.array([0, 1])
+    return eeg
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_empty")
+def test_eeg_rejsuperpose_current_suite_empty_marks():
+    eeg = _suite_rejection_eeg()
+
+    output = eeg_rejsuperpose(eeg, 1, 0, 0, 0, 0, 0, 0, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.zeros(5, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.zeros((2, 5), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_zero")
+def test_eeg_rejsuperpose_current_suite_zero_marks():
+    eeg = _suite_rejection_eeg()
+    eeg["reject"].update(
+        {
+            "rejmanual": np.zeros(5, dtype=bool),
+            "rejfreq": np.zeros(5, dtype=bool),
+            "rejmanualE": np.zeros((2, 5), dtype=bool),
+            "rejfreqE": np.zeros((2, 5), dtype=bool),
+        }
+    )
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.zeros(5, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.zeros((2, 5), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_general")
+def test_eeg_rejsuperpose_current_suite_selected_mark_families():
+    eeg = _suite_rejection_eeg()
+    eeg["reject"].update(
+        {
+            "rejmanual": np.array([0, 0, 0, 1, 0], dtype=bool),
+            "rejfreq": np.array([1, 0, 0, 1, 0], dtype=bool),
+            "rejmanualE": np.array([[0, 0, 0, 1, 0], [0, 1, 0, 0, 0]], dtype=bool),
+            "rejfreqE": np.array([[0, 0, 0, 0, 1], [0, 0, 0, 0, 1]], dtype=bool),
+        }
+    )
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 0, 0, 0, 0, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], [1, 0, 0, 1, 0])
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], [[0, 0, 0, 1, 1], [0, 1, 0, 0, 1]])
+
+
+def _all_rejection_marks(prefix=""):
+    marks = {}
+    for index, name in enumerate(("rejmanual", "rejthresh", "rejconst", "rejjp", "rejkurt", "rejfreq")):
+        trial_marks = np.zeros(6, dtype=bool)
+        trial_marks[index] = True
+        row_marks = np.zeros((2, 6), dtype=bool)
+        row_marks[0, index] = True
+        row_marks[1, 5 - index] = True
+        marks[f"{prefix}{name}"] = trial_marks
+        marks[f"{prefix}{name}E"] = row_marks
+    return marks
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_all")
+def test_eeg_rejsuperpose_current_suite_all_data_mark_families():
+    eeg = _suite_rejection_eeg(trials=6)
+    eeg["reject"] = _all_rejection_marks()
+
+    output = eeg_rejsuperpose(eeg, 1, 1, 1, 1, 1, 1, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.ones(6, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.ones((2, 6), dtype=bool))
+
+
+@eeglab_test("unittesting_popfunc/eeg_rejsuperpose/popfunc_eeg_rejsuperpose_wrapperTest.m", "test_pass_all_ica")
+def test_eeg_rejsuperpose_current_suite_all_component_mark_families():
+    eeg = _suite_rejection_eeg(trials=6, components=True)
+    eeg["reject"] = _all_rejection_marks("ica")
+
+    output = eeg_rejsuperpose(eeg, 0, 1, 1, 1, 1, 1, 1, 0)
+
+    np.testing.assert_array_equal(output["reject"]["rejglobal"], np.ones(6, dtype=bool))
+    np.testing.assert_array_equal(output["reject"]["rejglobalE"], np.ones((2, 6), dtype=bool))
 
 
 @pytest.mark.matlab
@@ -674,6 +946,52 @@ def test_channel_and_continuous_rejection_work_on_sample_data_without_ica():
         pop_eegthresh(sample, 0, [1], -10, 10, 0, 1)
 
 
+@eeglab_test(
+    "unittesting_popfunc/pop_rejchan/popfunc_pop_rejchan_wrapperTest.m",
+    "test_test_pop_rejchan",
+)
+def test_pop_rejchan_current_suite_probability_and_kurtosis_options():
+    rng = np.random.default_rng(91)
+    eeg = create_test_eeg(n_channels=5, n_samples=40, n_trials=3, srate=100)
+    eeg["data"] = rng.normal(size=(5, 40, 3))
+    options = (
+        ([2, 4, 5], [5], "kurt", "off"),
+        ([1, 2, 3, 4, 5], [5], "kurt", "off"),
+        ([2, 4, 5], [5, 5, 5], "kurt", "off"),
+        ([2, 4, 5], [5], "prob", "off"),
+        ([1, 2, 3, 4, 5], [5], "kurt", "on"),
+        ([1, 2, 3, 4, 5], [5], "prob", "off"),
+        ([1, 2, 3, 4, 5], [5, 1], "kurt", "off"),
+        ([1, 2, 3, 4], [5], "kurt", "on"),
+    )
+
+    for channels, threshold, measure_name, norm in options:
+        out, rejected, measure = pop_rejchan(
+            eeg,
+            "elec",
+            channels,
+            "threshold",
+            threshold,
+            "measure",
+            measure_name,
+            "norm",
+            norm,
+            "indexonly",
+            "on",
+        )
+        assert measure.shape == (len(channels),)
+        assert np.isfinite(measure).all()
+        assert set(rejected).issubset(channels)
+        assert out["nbchan"] == eeg["nbchan"]
+
+    removal_eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
+    removal_eeg["data"] = np.zeros((2, 20))
+    removal_eeg["data"][0, 10] = 100
+    removed, rejected, _measure = pop_rejchan(removal_eeg, "measure", "std", "threshold", 5)
+    assert rejected == [1]
+    assert removed["nbchan"] == 1
+
+
 def test_rejection_component_threshold_recomputes_stale_stored_icaact():
     eeg = _epoched_eeg()
     eeg["icaweights"] = 2.0 * np.eye(4)
@@ -686,14 +1004,14 @@ def test_rejection_component_threshold_recomputes_stale_stored_icaact():
     assert out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
 
 
-def test_pop_rejchan_default_threshold_matches_gui_zscore_default():
+def test_pop_rejchan_scripted_default_threshold_matches_eeglab():
     eeg = create_test_eeg(n_channels=2, n_samples=20, n_trials=1, srate=100)
     eeg["data"] = np.zeros((2, 20))
     eeg["data"][0, 10] = 100
 
     _out, rejected_channels, _measure = pop_rejchan(eeg, "measure", "std", "indexonly", "on")
 
-    assert rejected_channels == [1]
+    assert rejected_channels == []
 
 
 def test_pop_rejcont_history_replays_effectful_mode_and_overlap_options():

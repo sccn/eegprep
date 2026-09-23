@@ -10,6 +10,10 @@ result, com = pop_spectopo(EEG, dataflag=1, freqs=[6, 10, 22], return_com=True)
 `dataflag=1` plots channel spectra. `dataflag=0` plots component spectra and
 requires ICA activations or ICA weights.
 
+Use `wintype="hamming"` (the default) or `wintype="blackmanharris"`. For a
+Blackman-Harris analysis, `blckhn` divides the requested/default window length
+before the next-power-of-two FFT length is chosen, matching EEGLAB.
+
 For `dataflag=0`, the spectra panel overlays the bold black RMS-power curve of
 the channel data, marks the analysis frequency with a vertical line, and draws
 the scalp maps of the `nicamaps` components with the most power at that

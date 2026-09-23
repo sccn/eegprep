@@ -52,9 +52,11 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             'tol': 1e-7,  # Match MATLAB python_defaults
             'centering': True,  # Center data before ICA
             'whiten': True,  # Whiten data (PCA)
-            'w_init': np.eye(data.shape[0]),  # Identity init for reproducibility
         }
         params.update(kwargs)
+        if 'w_init' not in params:
+            n_components = params.get('n_components') or data.shape[0]
+            params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
         weighting_matrix, unmixing_matrix, sources = picard(data, **params)
 

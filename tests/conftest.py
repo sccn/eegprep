@@ -53,6 +53,7 @@ GUI_FILE_SUFFIXES = (
     "tests/test_gui_long_task.py",
     "tests/test_gui_main_window.py",
     "tests/test_eegplot_gui.py",
+    "tests/test_guifunc_primitives.py",
 )
 GUI_NODEID_PARTS = ("::test_gui_",)
 

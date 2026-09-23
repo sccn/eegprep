@@ -139,10 +139,14 @@ def readeetraklocs(filename: str | Path) -> list[dict[str, Any]]:
     rows = _read_text_rows(Path(filename), 0)
     labels_at = _first_row(rows, "Labels")
     positions_at = _first_row(rows, "Positions")
-    if labels_at is None or positions_at is None or labels_at <= positions_at:
+    if labels_at is None or positions_at is None:
         raise ValueError("Could not find 'Labels' and 'Positions' sections")
-    position_rows = rows[positions_at + 1 : labels_at]
-    label_rows = rows[labels_at + 1 :]
+    if positions_at < labels_at:
+        position_rows = rows[positions_at + 1 : labels_at]
+        label_rows = rows[labels_at + 1 :]
+    else:
+        label_rows = rows[labels_at + 1 : positions_at]
+        position_rows = rows[positions_at + 1 :]
     labels = [item for row in label_rows for item in row]
     locs = []
     for index, row in enumerate(position_rows):
@@ -355,7 +359,7 @@ def _canonical_field(field: str) -> str:
 
 def _parse_channel_value(field: str, value: str) -> Any:
     if field == "labels" or field == "type":
-        return str(value)
+        return str(value).strip("'\"")
     return _coerce_value(value)
 
 

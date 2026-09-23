@@ -77,6 +77,7 @@ def test_independent_variable_selection_and_trialinfo_queries_are_1_based():
     assert rare_trials == [[1, 3], [3], [1, 2]]
     assert rt_trials == [1, 3]
     assert rt_values == [[320.0, 370.0]]
+    assert [eeg["trialinfo"] for eeg in alleeg] == alltrialinfo
     assert [row["condition"] for row in combined] == ["target", "target", "target"]
     assert [row["type"] for row in combined] == ["rare", "standard", "rare"]
 

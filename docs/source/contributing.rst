@@ -49,6 +49,20 @@ Fork and Clone
 Development Environment
 =======================
 
+Project Task Tracking
+---------------------
+
+We use Beads (``bd``) to track project tasks, dependencies, and handoffs. It is a
+development tool, not an EEGPrep runtime dependency. The local Dolt database runs
+in embedded mode without a server. Public bug reports still belong in GitHub
+Issues.
+
+In a fresh clone, install Beads and run ``bd bootstrap`` from the repository root
+to recover the shared task database, then ``bd ready`` to find available work. Follow the
+`repository setup guide <https://github.com/sccn/eegprep/blob/develop/.beads/README.md>`_
+for installation, coding-agent hooks, and explicit task synchronization. A code
+commit or ``git push`` does not synchronize the task database.
+
 Virtual Environment Setup
 --------------------------
 
@@ -56,7 +70,7 @@ Create the uv-managed development environment:
 
 .. code-block:: bash
 
-    uv python install 3.11
+    uv python install 3.12
     uv sync --group dev
 
 Install Dependencies

@@ -14,6 +14,7 @@ from eegprep.functions.popfunc.pop_topoplot import (
     pop_topoplot_dialog_spec,
 )
 from eegprep.functions.sigprocfunc.topoplot import topoplot
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 
 
@@ -143,6 +144,111 @@ def test_pop_topoplot_component_colorbar_uses_polarity_labels():
     assert len(erp_labels) >= 2
     assert all(_is_numeric_label(label) for label in erp_labels)
     plt.close(erp_figs[0])
+
+
+def _component_colorbar(limits, components=2, *, eeg=None):
+    eeg = eeg or create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=3)
+    options = {"maplimits": limits} if limits is not None else {}
+    figures = pop_topoplot(
+        eeg,
+        typeplot=0,
+        items=components,
+        topotitle="Component",
+        rowcols=[],
+        electrodes="off",
+        **options,
+    )
+    figure = figures[0]
+    figure.canvas.draw()
+    return figure, figure.axes[-1]
+
+
+def _assert_component_colorbar_scale(limits, components, *, signed):
+    figure, colorbar = _component_colorbar(limits, components)
+    ticks = np.asarray(colorbar.get_yticks(), dtype=float)
+    assert np.all(np.isfinite(ticks))
+    assert np.all(np.diff(ticks) > 0)
+    labels = [label.get_text() for label in colorbar.get_yticklabels()]
+    if signed:
+        assert labels == ["-", "0", "+"]
+        np.testing.assert_allclose(ticks[1], 0.0, atol=1e-12)
+    else:
+        values = np.asarray([float(label.replace("−", "-")) for label in labels])
+        np.testing.assert_allclose(values[[0, -1]], limits, atol=1e-12)
+    plt.close(figure)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testPositiveLimits")
+def test_pop_topoplot_component_colorbar_with_positive_limits_is_numeric():
+    _assert_component_colorbar_scale([1, 2], 2, signed=False)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testNegativeLimits")
+def test_pop_topoplot_component_colorbar_with_negative_limits_is_numeric():
+    _assert_component_colorbar_scale([-2, -1], 2, signed=False)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testSymmetricLimits")
+def test_pop_topoplot_component_colorbar_with_symmetric_limits_is_signed():
+    _assert_component_colorbar_scale([-2, 2], 2, signed=True)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testAsymmetricLimits")
+def test_pop_topoplot_component_colorbar_with_asymmetric_limits_maps_zero():
+    _assert_component_colorbar_scale([-1, 3], 2, signed=True)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testZeroLowerEndpoint")
+def test_pop_topoplot_component_colorbar_with_zero_lower_endpoint_is_numeric():
+    _assert_component_colorbar_scale([0, 2], 2, signed=False)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testZeroUpperEndpoint")
+def test_pop_topoplot_component_colorbar_with_zero_upper_endpoint_is_numeric():
+    _assert_component_colorbar_scale([-2, 0], 2, signed=False)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testMultiplePositiveMaps")
+def test_pop_topoplot_multiple_component_maps_share_positive_numeric_colorbar():
+    _assert_component_colorbar_scale([1, 2], [1, 2], signed=False)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testMultipleSymmetricMaps")
+def test_pop_topoplot_multiple_component_maps_share_signed_colorbar():
+    _assert_component_colorbar_scale([-2, 2], [1, 2], signed=True)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testDefaultLimits")
+def test_pop_topoplot_default_component_colorbar_has_signed_labels():
+    figure, colorbar = _component_colorbar(None)
+
+    ticks = np.asarray(colorbar.get_yticks(), dtype=float)
+    assert np.all(np.diff(ticks) > 0)
+    assert [label.get_text() for label in colorbar.get_yticklabels()] == ["-", "0", "+"]
+    plt.close(figure)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testZeroComponent")
+def test_pop_topoplot_zero_component_colorbar_has_increasing_ticks():
+    eeg = create_test_eeg_with_ica(n_channels=6, n_samples=30, n_components=3)
+    eeg["icawinv"][:, 1] = 0
+
+    figure, colorbar = _component_colorbar(None, eeg=eeg)
+
+    assert np.all(np.diff(np.asarray(colorbar.get_yticks(), dtype=float)) > 0)
+    plt.close(figure)
+
+
+@eeglab_test("regression_tests/t_pop_topoplot_colorbar.m", "testUnrelatedAxesUnchanged")
+def test_pop_topoplot_component_colorbar_does_not_change_unrelated_axes():
+    unrelated_figure, unrelated_axes = plt.subplots()
+    unrelated_axes.set_yticks([10, 20, 30])
+
+    figure, _ = _component_colorbar([-2, 2])
+
+    np.testing.assert_array_equal(unrelated_axes.get_yticks(), [10, 20, 30])
+    plt.close(figure)
+    plt.close(unrelated_figure)
 
 
 def test_pop_topoplot_plots_component_maps_with_inverted_and_blank_items():

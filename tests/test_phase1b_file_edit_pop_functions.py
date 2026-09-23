@@ -22,16 +22,21 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
+from tests.eeglab_tests import eeglab_test
 from tests.fixtures import SAMPLE_DATASET_PATH, matlab_engine_available
-
-EEGLAB_REFERENCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "eegprep" / "eeglab"
 
 
 def eeglab_reference_available() -> bool:
-    return (
-        (EEGLAB_REFERENCE_ROOT / "functions" / "popfunc" / "pop_selectevent.m").exists()
-        and (EEGLAB_REFERENCE_ROOT / "functions" / "popfunc" / "pop_mergeset.m").exists()
-        and (EEGLAB_REFERENCE_ROOT / "plugins" / "clean_rawdata" / "private").is_dir()
+    repo_root = Path(__file__).resolve().parents[1]
+    candidates = []
+    if os.environ.get("EEGPREP_EEGLAB_ROOT"):
+        candidates.append(Path(os.environ["EEGPREP_EEGLAB_ROOT"]).expanduser())
+    candidates.append(repo_root / "src" / "eegprep" / "eeglab")
+    return any(
+        (candidate / "functions" / "popfunc" / "pop_selectevent.m").exists()
+        and (candidate / "functions" / "popfunc" / "pop_mergeset.m").exists()
+        and (candidate / "plugins" / "clean_rawdata" / "private").is_dir()
+        for candidate in candidates
     )
 
 
@@ -61,8 +66,8 @@ def _eeg(setname: str = "demo") -> dict:
         "urchanlocs": [],
         "chaninfo": {},
         "event": [
-            {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1},
-            {"type": "resp", "latency": 50.0, "duration": 0.0, "urevent": 2},
+            {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0},
+            {"type": "resp", "latency": 50.0, "duration": 0.0, "urevent": 1},
         ],
         "urevent": [
             {"type": "stim", "latency": 10.0, "duration": 0.0},
@@ -96,6 +101,7 @@ def test_pop_editeventfield_adds_renames_deletes_fields_and_updates_urevent():
     assert eeg["event"][0].get("condition") is None
     assert [event["condition"] for event in out["event"]] == ["target", "button"]
     assert out["urevent"][0]["condition"] == "target"
+    assert out["urevent"][1]["condition"] == "button"
     assert "pop_editeventfield" in command
     _assert_python_echo_is_parseable(command)
 
@@ -105,6 +111,31 @@ def test_pop_editeventfield_adds_renames_deletes_fields_and_updates_urevent():
 
     deleted = pop_editeventfield(renamed, "trialtype", [])
     assert "trialtype" not in deleted["event"][0]
+
+
+def test_pop_editeventfield_updates_urevent_pointed_to_by_loaded_event():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    values = [f"tag{index}" for index in range(len(eeg["event"]))]
+
+    out = pop_editeventfield(eeg, "tag", values)
+
+    for event in out["event"]:
+        assert out["urevent"][event["urevent"]]["tag"] == event["tag"]
+
+
+def test_pop_editeventvals_append_continues_zero_based_urevent_numbering():
+    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
+    n_events = len(eeg["event"])
+    n_urevents = len(eeg["urevent"])
+
+    # Value list follows the dataset's field order: type, position, latency.
+    out = pop_editeventvals(eeg, "append", [n_events, "new", 2, 100.0])
+
+    assert len(out["event"]) == n_events + 1
+    new_event = next(event for event in out["event"] if event["type"] == "new")
+    assert new_event["urevent"] == n_urevents
+    assert len(out["urevent"]) == n_urevents + 1
+    assert out["urevent"][new_event["urevent"]]["type"] == "new"
 
 
 def test_pop_editeventvals_change_insert_delete_and_sort_events():
@@ -130,8 +161,8 @@ def test_pop_editeventvals_change_insert_delete_and_sort_events():
 
 def test_pop_editeventvals_insert_preserves_existing_urevent_links():
     eeg = _eeg()
-    eeg["event"][0]["urevent"] = 2
-    eeg["event"][1]["urevent"] = 1
+    eeg["event"][0]["urevent"] = 1
+    eeg["event"][1]["urevent"] = 0
     eeg["urevent"] = [
         {"type": "resp", "latency": 50.0, "duration": 0.0},
         {"type": "stim", "latency": 10.0, "duration": 0.0},
@@ -139,7 +170,7 @@ def test_pop_editeventvals_insert_preserves_existing_urevent_links():
 
     inserted = pop_editeventvals(eeg, "insert", [2, "new", 25.0, 0.0, 99])
 
-    assert [event["urevent"] for event in inserted["event"]] == [2, 3, 1]
+    assert [event["urevent"] for event in inserted["event"]] == [1, 2, 0]
     assert [event["type"] for event in inserted["urevent"]] == ["resp", "stim", "new"]
 
 
@@ -178,8 +209,8 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
     eeg["trials"] = 2
     eeg["times"] = np.arange(50, dtype=float)
     eeg["event"] = [
-        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1, "epoch": 1},
-        {"type": "resp", "latency": 60.0, "duration": 0.0, "urevent": 2, "epoch": 2},
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0, "epoch": 1},
+        {"type": "resp", "latency": 60.0, "duration": 0.0, "urevent": 1, "epoch": 2},
     ]
 
     out, selected = pop_selectevent(
@@ -201,7 +232,7 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
 
 def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
     eeg = _eeg()
-    eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 3})
+    eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 2})
     eeg["urevent"].append({"type": -99, "latency": 25.0, "duration": 0.0})
     old = EEG_OPTIONS["option_boundary99"]
     EEG_OPTIONS["option_boundary99"] = 1
@@ -212,6 +243,149 @@ def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events(
 
     assert selected == [1, 2]
     assert [event["type"] for event in out["event"]] == ["stim", -99]
+
+
+def _selection_regression_eeg() -> dict:
+    eeg = _eeg("selection regression")
+    eeg.update(
+        {
+            "data": np.arange(1, 41, dtype=np.float32).reshape((1, 10, 4), order="F"),
+            "nbchan": 1,
+            "pnts": 10,
+            "trials": 4,
+            "srate": 1000.0,
+            "xmin": 0.0,
+            "xmax": 0.009,
+            "times": np.arange(10, dtype=float),
+            "chanlocs": [eeg["chanlocs"][0]],
+            "event": [],
+            "urevent": [],
+            "epoch": [],
+        }
+    )
+    for trial in range(1, 5):
+        event_type = "target" if trial % 2 else "other"
+        eeg["event"].extend(
+            [
+                {"type": event_type, "latency": (trial - 1) * 10 + 3, "epoch": trial},
+                {"type": "distractor", "latency": (trial - 1) * 10 + 7, "epoch": trial},
+            ]
+        )
+    return eeg
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testRetainsMatchingEpochs")
+def test_pop_selectevent_retains_matching_epochs():
+    eeg = _selection_regression_eeg()
+
+    selected, _ = pop_selectevent(eeg, "type", "target", "deleteepochs", "on")
+
+    assert selected["trials"] == 2
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]])
+    assert len(selected["event"]) == 4
+    assert [event["epoch"] for event in selected["event"]] == [1, 1, 2, 2]
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionErrorsByDefault")
+def test_pop_selectevent_empty_selection_errors_by_default():
+    with pytest.raises(ValueError, match="empty|Empty"):
+        pop_selectevent(_selection_regression_eeg(), "type", "absent", "deleteepochs", "on")
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionAllowed")
+def test_pop_selectevent_empty_selection_can_be_allowed():
+    selected, _ = pop_selectevent(
+        _selection_regression_eeg(),
+        "type",
+        "absent",
+        "deleteepochs",
+        "on",
+        "erroronempty",
+        "off",
+    )
+
+    assert selected["data"].size == 0
+    assert len(selected["event"]) == 0
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testInverseEpochSelection")
+def test_pop_selectevent_can_invert_epoch_selection():
+    eeg = _selection_regression_eeg()
+
+    selected, _ = pop_selectevent(
+        eeg,
+        "type",
+        "target",
+        "deleteepochs",
+        "on",
+        "invertepochs",
+        "on",
+    )
+
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [1, 3]])
+    assert selected["trials"] == 2
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testDeleteUnselectedEvents")
+def test_pop_selectevent_deletes_unselected_events_when_requested():
+    selected, _ = pop_selectevent(
+        _selection_regression_eeg(),
+        "type",
+        "target",
+        "deleteepochs",
+        "on",
+        "deleteevents",
+        "on",
+    )
+
+    assert [event["type"] for event in selected["event"]] == ["target", "target"]
+    assert [event["epoch"] for event in selected["event"]] == [1, 2]
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testKeepEpochsWhenDeletingOnlyEvents")
+def test_pop_selectevent_keeps_epochs_when_deleting_only_events():
+    eeg = _selection_regression_eeg()
+
+    selected, _ = pop_selectevent(
+        eeg,
+        "type",
+        "target",
+        "deleteepochs",
+        "off",
+        "deleteevents",
+        "on",
+    )
+
+    np.testing.assert_array_equal(selected["data"], eeg["data"])
+    assert len(selected["event"]) == 2
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testExplicitErrorOptionWithNonemptySelection")
+def test_pop_selectevent_explicit_error_option_allows_nonempty_selection():
+    eeg = _selection_regression_eeg()
+
+    selected, _ = pop_selectevent(
+        eeg,
+        "type",
+        "target",
+        "deleteepochs",
+        "on",
+        "erroronempty",
+        "on",
+    )
+
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]])
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testDatasetArray")
+def test_pop_selectevent_applies_selection_to_dataset_lists():
+    eeg = _selection_regression_eeg()
+
+    selected, _ = pop_selectevent([eeg, deepcopy(eeg)], "type", "target", "deleteepochs", "on")
+
+    assert [dataset["trials"] for dataset in selected] == [2, 2]
+    np.testing.assert_array_equal(selected[0]["data"], eeg["data"][:, :, [0, 2]])
+    np.testing.assert_array_equal(selected[1]["data"], eeg["data"][:, :, [0, 2]])
 
 
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
@@ -228,7 +402,7 @@ def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
 
 def test_pop_rmdat_uses_numeric_boundary99_to_limit_windows():
     eeg = _eeg()
-    eeg["event"].insert(1, {"type": -99, "latency": 15.0, "duration": 0.0, "urevent": 3})
+    eeg["event"].insert(1, {"type": -99, "latency": 15.0, "duration": 0.0, "urevent": 2})
     old = EEG_OPTIONS["option_boundary99"]
     try:
         EEG_OPTIONS["option_boundary99"] = 1
@@ -244,8 +418,8 @@ def test_pop_rmdat_uses_numeric_boundary99_to_limit_windows():
 def test_pop_rmdat_matches_sorted_event_behavior_when_events_are_unsorted():
     unsorted_eeg = _eeg()
     unsorted_eeg["event"] = [
-        {"type": "stim", "latency": 50.0, "duration": 0.0, "urevent": 2},
-        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 1},
+        {"type": "stim", "latency": 50.0, "duration": 0.0, "urevent": 1},
+        {"type": "stim", "latency": 10.0, "duration": 0.0, "urevent": 0},
     ]
     sorted_eeg = deepcopy(unsorted_eeg)
     sorted_eeg["event"] = list(reversed(unsorted_eeg["event"]))
@@ -406,6 +580,31 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     assert alleeg[2]["setname"] == "first"
     assert "LASTCOM" in command
     _assert_python_echo_is_parseable(command)
+
+
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_pass_set_out")
+def test_pop_copyset_current_suite_overwrites_requested_output_slot():
+    first = _eeg("first")
+    second = _eeg("second")
+
+    alleeg, eeg, current_set = pop_copyset([first, second], 2, 1)
+
+    assert current_set == 1
+    assert eeg["setname"] == "second"
+    assert alleeg[0]["setname"] == "second"
+    assert alleeg[1]["setname"] == "second"
+
+
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_test_pop_copyset")
+def test_pop_copyset_current_suite_supports_copy_and_same_slot_copy():
+    eeg = _eeg("source")
+
+    alleeg, copied, current_set = pop_copyset([eeg, deepcopy(eeg)], 1, 2)
+    alleeg, copied, current_set = pop_copyset(alleeg, 1, 1)
+
+    assert current_set == 1
+    assert copied["setname"] == "source"
+    assert [dataset["setname"] for dataset in alleeg] == ["source", "source"]
 
 
 def test_pop_mergeset_continuous_offsets_events_and_inserts_boundary():

@@ -19,6 +19,15 @@ pop_topoplot(EEG, typeplot=0, items=[1, -2, float("nan"), 3], topotitle="IC maps
 
 Additional `topoplot` options can be passed as keyword arguments, for example
 `electrodes="on"`, `colorbar="off"`, or `maplimits=[-5, 5]`.
+Component colorbars use `-`, `0`, and `+` labels only when their limits span
+both negative and positive values. One-sided scales retain numeric labels and
+the exact requested endpoints.
+
+When `EEG["chanmatrix"]` is present, maps use its rectangular signed channel
+grid instead of interpolated channel locations. Positive entries select the
+corresponding 1-based channel, negative entries invert its value, and zero
+entries leave a blank cell. This mode also works when `EEG["chanlocs"]` is
+empty.
 
 DIPFIT dipole overlays and 3-D head plots are handled by later Phase 4 work.
 

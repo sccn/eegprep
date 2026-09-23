@@ -11,7 +11,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import numeric_vector
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study, merged_chanlocs
+from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study, merged_chanlocs
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 
 
@@ -31,7 +31,7 @@ def std_interp(
     method = str(options.pop("method", method) or "spherical")
     if options:
         raise ValueError(f"Unknown std_interp option(s): {', '.join(sorted(options))}")
-    study, datasets = std_checkset(ensure_study(STUDY), as_alleeg_list(ALLEEG))
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     if not datasets:
         raise ValueError("std_interp requires ALLEEG datasets")
     all_locs = merged_chanlocs(datasets)

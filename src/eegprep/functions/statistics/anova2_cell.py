@@ -10,7 +10,12 @@ from eegprep.functions.statistics._shared import TwoWayAnovaResult, anova_values
 
 
 def anova2_cell(data: Any, *, axis: int = -1) -> TwoWayAnovaResult:
-    """Compute balanced two-way unpaired ANOVA F-statistics."""
+    """Compute balanced two-way unpaired ANOVA with named factor results.
+
+    The returned effects are consistently named ``rows``, ``columns``, and
+    ``interaction``. This avoids relying on the positional output order of the
+    corresponding MATLAB helper.
+    """
 
     stacked = two_way_stack(data, axis=axis, name="anova2_cell")
     values = anova_values(stacked)

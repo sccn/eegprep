@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, ensure_study, sync_datasetinfo, trialinfo_from_eeg
+from eegprep.functions.studyfunc._study_utils import sync_study_datasets, trialinfo_from_eeg
 
 
 EVENT_TRIALINFO_EXCLUDE = {"latency", "urevent", "epoch"}
@@ -17,15 +17,16 @@ def std_maketrialinfo(
     STUDY: dict[str, Any] | None,
     ALLEEG: list[dict[str, Any]] | None,
 ) -> tuple[dict[str, Any], list[list[dict[str, Any]]]]:
-    """Populate ``STUDY.datasetinfo[*].trialinfo`` from loaded EEG metadata."""
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(ensure_study(STUDY), datasets)
+    """Populate STUDY and EEG trial information from each time-locking event."""
+    study, datasets = sync_study_datasets(STUDY, ALLEEG)
     alltrialinfo: list[list[dict[str, Any]]] = []
     for index, eeg in enumerate(datasets):
-        rows = trialinfo_from_eeg(eeg)
+        rows = _trialinfo_from_events(eeg)
         if not rows:
-            rows = _trialinfo_from_events(eeg)
+            rows = trialinfo_from_eeg(eeg)
         alltrialinfo.append(rows)
+        if rows:
+            eeg["trialinfo"] = deepcopy(rows)
         if rows and index < len(study.get("datasetinfo") or []):
             study["datasetinfo"][index]["trialinfo"] = rows
     return study, alltrialinfo
@@ -36,21 +37,34 @@ def _trialinfo_from_events(eeg: dict[str, Any]) -> list[dict[str, Any]]:
     if trials <= 1:
         return []
     events = _event_rows(eeg.get("event"))
-    by_epoch: dict[int, dict[str, Any]] = {}
+    by_epoch: dict[int, list[dict[str, Any]]] = {}
     for event in events:
         epoch = _event_epoch(event)
-        if epoch is None or epoch in by_epoch:
+        if epoch is None:
             continue
-        row = {
-            key: deepcopy(value)
-            for key, value in event.items()
-            if key not in EVENT_TRIALINFO_EXCLUDE and not _empty_value(value) and not isinstance(value, dict)
-        }
-        if row:
-            by_epoch[epoch] = row
-    if not by_epoch:
+        by_epoch.setdefault(epoch, []).append(event)
+    if set(by_epoch) != set(range(1, trials + 1)):
         return []
-    return [by_epoch.get(epoch, {}) for epoch in range(1, trials + 1)]
+    rows = []
+    for epoch in range(1, trials + 1):
+        event = min(by_epoch[epoch], key=lambda item: _time_lock_distance(item, epoch, eeg))
+        rows.append(
+            {
+                key: deepcopy(value)
+                for key, value in event.items()
+                if key not in EVENT_TRIALINFO_EXCLUDE and not _empty_value(value) and not isinstance(value, dict)
+            }
+        )
+    return rows if any(rows) else []
+
+
+def _time_lock_distance(event: dict[str, Any], epoch: int, eeg: dict[str, Any]) -> float:
+    latency = float(event.get("latency", np.inf))
+    pnts = int(eeg.get("pnts", 0) or 0)
+    srate = float(eeg.get("srate", 1.0) or 1.0)
+    xmin = float(eeg.get("xmin", 0.0) or 0.0)
+    zero_latency = (epoch - 1) * pnts - xmin * srate + 1.0
+    return abs(latency - zero_latency)
 
 
 def _event_rows(value: Any) -> list[dict[str, Any]]:

@@ -4,6 +4,7 @@ import numpy as np
 
 from eegprep import pop_adjustevents
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from tests.eeglab_tests import eeglab_test
 
 
 def demo_eeg():
@@ -159,6 +160,49 @@ class PopAdjustEventsTests(unittest.TestCase):
         out = pop_adjustevents(eeg, gui=True, renderer=Renderer())
 
         self.assertIs(out, eeg)
+
+
+def _assert_current_adjustevents_workflow(eeg):
+    original = np.asarray([event["latency"] for event in eeg["event"]])
+
+    shifted_ms = pop_adjustevents(eeg, "addms", 20)
+    selected_ms = pop_adjustevents(eeg, "addms", 20, "eventtypes", ["resp"])
+    shifted_samples = pop_adjustevents(eeg, "addsamples", 30)
+    selected_samples = pop_adjustevents(eeg, "addsamples", 30, "eventtypes", ["resp"])
+
+    np.testing.assert_array_equal(
+        [event["latency"] for event in shifted_ms["event"]],
+        original + 20 / 1000 * eeg["srate"],
+    )
+    np.testing.assert_array_equal(
+        [event["latency"] for event in shifted_samples["event"]],
+        original + 30,
+    )
+    assert selected_ms["event"][1]["latency"] == original[1] + 20 / 1000 * eeg["srate"]
+    assert selected_samples["event"][1]["latency"] == original[1] + 30
+    assert selected_ms["event"][0]["latency"] == original[0]
+    assert selected_samples["event"][0]["latency"] == original[0]
+
+
+@eeglab_test(
+    "unittesting_popfunc/pop_adjustevents/popfunc_pop_adjustevents_wrapperTest.m",
+    "test_test_pop_adjustevents1",
+)
+def test_pop_adjustevents_current_suite_epoched_workflow():
+    eeg = demo_eeg()
+    eeg["data"] = eeg["data"].reshape(1, 500, 2)
+    eeg["pnts"] = 500
+    eeg["trials"] = 2
+
+    _assert_current_adjustevents_workflow(eeg)
+
+
+@eeglab_test(
+    "unittesting_popfunc/pop_adjustevents/popfunc_pop_adjustevents_wrapperTest.m",
+    "test_test_pop_adjustevents2",
+)
+def test_pop_adjustevents_current_suite_continuous_workflow():
+    _assert_current_adjustevents_workflow(demo_eeg())
 
 
 if __name__ == "__main__":

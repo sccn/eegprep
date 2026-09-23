@@ -459,9 +459,11 @@ class EEGPrepSession:
         if not command:
             return
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
-        for eeg in current:
-            if isinstance(eeg, dict):
-                eegh(command, eeg)
+        if len(current) > 1:
+            eegh(command, current)
+            return
+        if current and isinstance(current[0], dict):
+            eegh(command, current[0])
 
     def mark_current_saved(self) -> None:
         """Mark the current dataset selection as saved in EEG and ALLEEG."""

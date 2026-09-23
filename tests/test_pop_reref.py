@@ -17,11 +17,93 @@ import scipy.io
 sys.path.insert(0, 'src')
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.functions.sigprocfunc.reref import reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
+from tests.eeglab_tests import eeglab_test
 import importlib
 
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_pass_bugzilla_270")
+def test_pop_reref_current_suite_standard_method_with_multiple_references():
+    eeg = {
+        "data": np.arange(1, 61, dtype=float).reshape(3, 20),
+        "nbchan": 3,
+        "pnts": 20,
+        "trials": 1,
+        "srate": 1.0,
+        "xmin": 0.0,
+        "xmax": 2.0,
+        "times": np.arange(20, dtype=float),
+        "chanlocs": [{"labels": f"Ch{index + 1}"} for index in range(3)],
+        "event": [],
+        "urevent": [],
+        "epoch": [],
+        "icaweights": np.array([]),
+        "icasphere": np.array([]),
+        "icawinv": np.array([]),
+        "icaact": np.array([]),
+        "icachansind": np.array([], dtype=int),
+    }
+
+    output = pop_reref(eeg, [0, 1], "method", "standard")
+
+    expected_reference = eeg["data"][[0, 1]].mean(axis=0)
+    np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
+def test_pop_reref_current_suite_average_reference_workflow():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+
+    output = pop_reref(eeg, [])
+
+    np.testing.assert_allclose(output["data"].mean(axis=0), 0, atol=1e-5)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m",
+    "test_test_reref",
+)
+def test_low_level_reref_upstream_continuous_and_epoched_contracts():
+    rng = np.random.default_rng(42)
+    locs = [{"labels": f"Ch{index + 1}"} for index in range(32)]
+
+    for data in (rng.normal(size=(32, 200)), rng.normal(size=(32, 40, 5))):
+        average, *_ = reref(data, [], keepref="on")
+        explicit_average, *_ = reref(data, np.arange(32), keepref="on")
+        np.testing.assert_allclose(average, explicit_average, rtol=1e-12, atol=1e-12)
+
+        removed, *_ = reref(data, [1, 4, 25], keepref="off")
+        assert removed.shape == (29, *data.shape[1:])
+
+        kept, *_ = reref(data, [4], keepref="on")
+        assert kept.shape == data.shape
+        np.testing.assert_allclose(kept[4], 0, atol=1e-12)
+
+        excluded, out_locs, *_ = reref(
+            data,
+            [1, 4, 25],
+            exclude=[0, 31],
+            keepref="off",
+            elocs=locs,
+        )
+        assert excluded.shape == (29, *data.shape[1:])
+        np.testing.assert_array_equal(excluded[[0, -1]], data[[0, 31]])
+        assert len(out_locs) == 29
+
+    restored, restored_locs, *_ = reref(
+        data,
+        [1, 4, 25],
+        exclude=[0, 31],
+        keepref="off",
+        elocs=locs,
+        refloc={"labels": "old-reference"},
+    )
+    assert restored.shape == (30, *data.shape[1:])
+    assert len(restored_locs) == 30
 
 
 class PopRerefIcaRegressionTests(unittest.TestCase):

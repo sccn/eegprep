@@ -8,7 +8,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args
 from eegprep.functions.popfunc.plot_utils import parse_plot_options_text, python_literal
-from eegprep.functions.studyfunc._study_utils import as_alleeg_list, build_python_call, ensure_study
+from eegprep.functions.studyfunc._study_utils import build_python_call, ensure_study
 from eegprep.functions.studyfunc.std_checkset import std_checkset
 from eegprep.functions.studyfunc.std_precomp import std_precomp
 
@@ -24,8 +24,7 @@ def pop_precomp(
     **kwargs: Any,
 ) -> Any:
     """Precompute STUDY channel or component measures."""
-    datasets = as_alleeg_list(ALLEEG)
-    study, datasets = std_checkset(ensure_study(STUDY), datasets)
+    study, datasets = std_checkset(ensure_study(STUDY), ALLEEG)
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     gui = options.pop("gui", gui)
     use_gui = is_on(gui) if gui is not None else False

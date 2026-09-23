@@ -105,6 +105,7 @@ print(f"curve mode ERSP {tf_curves.ersp.shape} at freqs {np.round(tf_curves.freq
 
 comp_spectra = pop_spectopo(EEG, 0, EPOCH_MS, freqs=[10], icacomps=[1, 2, 3, 4, 5], plot="off")
 fig_comp_erps = pop_plotdata(EEG, components=[1, 2, 3, 4, 5], plot="off")
+fig_selected_channels = pop_plotdata(EEG, 1, [1, 2, 3], [2, 5, 7], "Selected trials", plot="off")
 fig_envtopo, com_envtopo = pop_envtopo(EEG, [-100, 600], compnums=list(range(1, 11)), plot="off", return_com=True)
 comp_image = pop_erpimage(EEG, 0, 1, smooth=10, decimate=2, plot="off")
 comp_tf = pop_newtimef(EEG, 0, 1, EPOCH_MS, [3, 0.8], plot="off")

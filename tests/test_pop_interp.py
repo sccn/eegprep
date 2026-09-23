@@ -8,6 +8,8 @@ from eegprep import pop_interp
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from tests.eeglab_tests import eeglab_test
 
 
 def _eeg(n_channels=8, n_points=50, trials=1):
@@ -42,6 +44,22 @@ def _eeg(n_channels=8, n_points=50, trials=1):
             }
         )
     return eeg
+
+
+@eeglab_test("unittesting_popfunc/pop_interp/popfunc_pop_interp_wrapperTest.m", "test_test_pop_interp")
+def test_pop_interp_current_suite_sample_channel_workflows():
+    eeg = pop_loadset("sample_data/eeglab_data.set")
+    eeg["data"] = eeg["data"][:, :1000]
+    eeg["pnts"] = 1000
+
+    for method in ("spherical", "invdist"):
+        interpolated = pop_interp(eeg, list(range(16)), method)
+        unchanged = pop_interp(eeg, [], method)
+
+        assert interpolated["data"].shape == eeg["data"].shape
+        assert np.isfinite(interpolated["data"]).all()
+        np.testing.assert_array_equal(interpolated["data"][16:], eeg["data"][16:])
+        np.testing.assert_array_equal(unchanged["data"], eeg["data"])
 
 
 class PopInterpTests(unittest.TestCase):

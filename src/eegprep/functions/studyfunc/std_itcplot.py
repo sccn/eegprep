@@ -8,7 +8,7 @@ from eegprep.functions.studyfunc._std_measureplot import std_measureplot
 
 
 def std_itcplot(STUDY: dict[str, Any], ALLEEG: list[dict[str, Any]] | None, *args: Any, **kwargs: Any):
-    """Read and plot precomputed STUDY ITC measures."""
+    """Plot precomputed ITCs grouped by the selected STUDY design."""
     return std_measureplot(STUDY, ALLEEG, "itc", *args, **kwargs)
 
 

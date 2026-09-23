@@ -3,8 +3,10 @@ import numpy as np
 import os
 import tempfile
 import shutil
+import copy
 from eegprep.functions.eegobj.eegobj import EEGobj
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from tests.eeglab_tests import eeglab_test
 
 
 # Helper function to create a dummy EEG dictionary
@@ -41,6 +43,24 @@ class TestEEGobj(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
+
+    @eeglab_test("unittesting_adminfunc/eegobj/eegobj_simpletests.m", "test_eegobj_simpletests")
+    def test_collection_assignment_and_field_mutation_use_python_list_semantics(self):
+        first = EEGobj(create_test_eeg(n_channels=2, n_samples=3))
+        datasets = [first]
+
+        datasets.append(EEGobj(copy.deepcopy(first.EEG)))
+        datasets.extend(EEGobj(copy.deepcopy(first.EEG)) for _ in range(2))
+        del datasets[:3]
+        datasets.extend(EEGobj(copy.deepcopy(first.EEG)) for _ in range(3))
+        datasets[1].filename = "test"
+        datasets[0].chanlocs[0]["labels"] = "E1"
+        datasets.append(EEGobj(copy.deepcopy(datasets[0].EEG)))
+        datasets.pop()
+
+        self.assertEqual(len(datasets), 4)
+        self.assertEqual(datasets[1].filename, "test")
+        self.assertEqual(datasets[0].chanlocs[0]["labels"], "E1")
 
     def test_init_from_dict_and_repr(self):
         eeg = create_test_eeg()

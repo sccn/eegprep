@@ -6,6 +6,8 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import mapped_output_like
+from eegprep.functions.miscfunc.misc import finite_pinv
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -60,6 +62,7 @@ def _pop_select_apply(EEG, **kwargs):
     -------
     EEG_out, com
     """
+    source_data = EEG.get("data")
     EEG = copy.deepcopy(EEG)
     # shallow options with MATLAB-compatible aliases
     g = {
@@ -80,6 +83,7 @@ def _pop_select_apply(EEG, **kwargs):
         'sort': kwargs.get('sort', None),
         'sorttrial': kwargs.get('sorttrial', 'on'),
         'checkchans': kwargs.get('checkchans', 'on'),
+        'erroronempty': kwargs.get('erroronempty', 'on'),
     }
 
     # alias normalization
@@ -92,9 +96,6 @@ def _pop_select_apply(EEG, **kwargs):
         if isinstance(x, np.ndarray) and x.size == 0:
             return False
         return True
-
-    # Track whether notime came directly from rmtime (to match MATLAB boundary adjustment logic)
-    notime_from_rmtime = _has_content(g['rmtime'])
 
     if _has_content(g['rmtrial']):
         g['notrial'] = g['rmtrial']
@@ -146,7 +147,7 @@ def _pop_select_apply(EEG, **kwargs):
         keep = np.setdiff1d(trial_set, notrial_set, assume_unique=False)
         keep.sort()
         g['trial'] = keep.tolist()
-        if len(g['trial']) == 0:
+        if len(g['trial']) == 0 and str(g['erroronempty']).lower() == 'on':
             fname = _get('filename', '<EEG>')
             raise ValueError(f'Error: dataset {fname} is empty')
     else:
@@ -157,7 +158,7 @@ def _pop_select_apply(EEG, **kwargs):
         _, idx = np.unique(trial_seq, return_index=True)
         g['trial'] = trial_seq[np.sort(idx)].tolist()
 
-    if min(g['trial']) < 1 or max(g['trial']) > trials:
+    if g['trial'] and (min(g['trial']) < 1 or max(g['trial']) > trials):
         raise ValueError('Wrong trial range')
 
     # 2) Channel selection by name or type, with mutual exclusion
@@ -402,25 +403,20 @@ def _pop_select_apply(EEG, **kwargs):
                 if cur < xmax:
                     bounds.append([cur, xmax])
                 notime_mat = np.array(bounds, dtype=float) if bounds else np.empty((0, 2))
+                # EEGLAB shifts the interior edges of the derived complement by one
+                # sample so the kept samples are exactly [t0, t1]. User-supplied
+                # notime/nopoint/rmtime/rmpoint ranges are passed through unchanged.
+                for i in range(notime_mat.shape[0]):
+                    if notime_mat[i, 0] != xmin:
+                        notime_mat[i, 0] += 1.0 / srate
+                    if notime_mat[i, 1] != xmax:
+                        notime_mat[i, 1] -= 1.0 / srate
 
             # now reject notime_mat intervals from continuous data
             if notime_mat.size:
-                # EEGLAB only adjusts interior edges when notime was derived from time, not when it came from rmtime
-                if notime_from_rmtime:
-                    # Skip boundary adjustment when notime came directly from rmtime
-                    adjusted = notime_mat.copy()
-                else:
-                    # EEGLAB adjusts interior edges by +/- one sample; replicate
-                    adjusted = notime_mat.copy()
-                    for i in range(adjusted.shape[0]):
-                        # shift interior boundaries off-sample
-                        if adjusted[i, 0] != xmin:
-                            adjusted[i, 0] += 1.0 / srate
-                        if adjusted[i, 1] != xmax:
-                            adjusted[i, 1] -= 1.0 / srate
                 # map to 1-based sample indices
-                nbtimes = adjusted.size
-                pts, _ = eeg_lat2point(adjusted.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
+                nbtimes = notime_mat.size
+                pts, _ = eeg_lat2point(notime_mat.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
                 pts = pts.reshape((-1, 2))
                 # drop empty ranges
                 keep_rows = (pts[:, 1] - pts[:, 0]) != 0
@@ -507,7 +503,7 @@ def _pop_select_apply(EEG, **kwargs):
         for ch in icachansind:
             if ch in chan_idx_list:
                 newinds.append(chan_idx_list.index(ch))
-        EEG['icachansind'] = newinds
+        EEG['icachansind'] = np.asarray(newinds, dtype=int)
     else:
         icasphere = EEG.get('icasphere')
         if _has_content(icasphere):
@@ -524,7 +520,7 @@ def _pop_select_apply(EEG, **kwargs):
                 EEG['icawinv'] = icawinv[np.array(icachans, dtype=int), :]
                 # recompute weights/sphere as in MATLAB
                 iw = EEG['icawinv']
-                EEG['icaweights'] = np.linalg.pinv(iw)
+                EEG['icaweights'] = finite_pinv(iw)
                 EEG['icasphere'] = np.eye(EEG['icaweights'].shape[1])
 
     if _has_content(EEG.get('specicaact')):
@@ -573,6 +569,7 @@ def _pop_select_apply(EEG, **kwargs):
 
     # Call eeg_checkset to ensure consistency after modifications
     EEG = eeg_checkset(EEG)
+    EEG["data"] = mapped_output_like(source_data, EEG["data"])
 
     return EEG
 

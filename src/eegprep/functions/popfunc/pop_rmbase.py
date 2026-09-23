@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import round_mat
@@ -175,8 +176,9 @@ def _apply_pop_rmbase_one(
     chanlist: Any,
 ) -> tuple[dict[str, Any], list[int], list[int] | None]:
     _validate_eeg(EEG)
+    source_data = EEG["data"]
     output = deepcopy(EEG)
-    data = np.asarray(output["data"])
+    data = np.array(output["data"], copy=True)
     nbchan = int(output.get("nbchan", data.shape[0]))
     pnts = int(output.get("pnts", data.shape[1]))
     trials = int(output.get("trials", data.shape[2] if data.ndim == 3 else 1))
@@ -195,7 +197,7 @@ def _apply_pop_rmbase_one(
     else:
         data[channel_indices, :, :] = rmbase(data[channel_indices, :, :], pnts, baseline_indices + 1)
 
-    output["data"] = data
+    output["data"] = mapped_output_like(source_data, data)
     output["nbchan"] = nbchan
     output["pnts"] = pnts
     output["trials"] = trials

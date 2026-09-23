@@ -5,6 +5,7 @@ import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.sigprocfunc.epoch import epoch  # Python translation under test
+from tests.eeglab_tests import eeglab_test
 
 
 def _ml_list_of_arrays_to_0_based(list_of_arrays):
@@ -26,6 +27,103 @@ def _ml_list_of_arrays_to_0_based(list_of_arrays):
             a = np.asarray(arr).astype(int) - 1
             out.append(a)
     return out
+
+
+def _upstream_epoch_data():
+    return np.arange(1, 41, dtype=float).reshape(2, 20)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_general",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_no_srate",
+)
+def test_epoch_upstream_default_and_explicit_sampling_rate_match_exact_slices():
+    data = _upstream_epoch_data()
+    events = [2, 5, 6, 9, 12, 18]
+    expected = np.stack([data[:, event - 2 : event + 2] for event in events], axis=2)
+
+    explicit = epoch(data, events, [-1, 3], srate=1, verbose="off")
+    default = epoch(data, events, [-1, 3], verbose="off")
+
+    for result in (explicit, default):
+        epoched, newtime, indices, allevents, latencies, reallim = result
+        np.testing.assert_array_equal(epoched, expected)
+        np.testing.assert_array_equal(newtime, [-1, 2])
+        np.testing.assert_array_equal(indices, np.arange(6))
+        assert allevents == []
+        assert latencies == []
+        np.testing.assert_array_equal(reallim, [-1, 2])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_boundary",
+)
+def test_epoch_upstream_boundary_case_drops_only_out_of_bounds_window():
+    data = _upstream_epoch_data()
+
+    epoched, newtime, indices, *_ = epoch(data, [2, 5, 6, 9, 12, 19], [-1, 3], srate=1, verbose="off")
+
+    np.testing.assert_array_equal(
+        epoched, np.stack([data[:, event - 2 : event + 2] for event in [2, 5, 6, 9, 12]], axis=2)
+    )
+    np.testing.assert_array_equal(newtime, [-1, 2])
+    np.testing.assert_array_equal(indices, np.arange(5))
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_valuelim",
+)
+def test_epoch_upstream_value_limits_filter_on_all_channels():
+    data = _upstream_epoch_data()
+
+    epoched, newtime, indices, *_ = epoch(
+        data,
+        [2, 5, 6, 9, 12, 18],
+        [-1, 3],
+        srate=1,
+        valuelim=[7, 35],
+        verbose="off",
+    )
+
+    expected = np.stack([data[:, 7:11], data[:, 10:14]], axis=2)
+    np.testing.assert_array_equal(epoched, expected)
+    np.testing.assert_array_equal(newtime, [-1, 2])
+    np.testing.assert_array_equal(indices, [3, 4])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_allevents",
+)
+def test_epoch_upstream_rereferences_all_events_with_zero_based_indices():
+    data = _upstream_epoch_data()
+
+    epoched, newtime, indices, event_indices, event_latencies, _ = epoch(
+        data,
+        [2, 5, 6, 9, 12, 18],
+        [-1, 3],
+        srate=1,
+        allevents=[2, 5, 6, 9, 10, 12, 17, 18],
+        verbose="off",
+    )
+
+    np.testing.assert_array_equal(
+        epoched, np.stack([data[:, event - 2 : event + 2] for event in [2, 5, 6, 9, 12, 18]], axis=2)
+    )
+    np.testing.assert_array_equal(newtime, [-1, 2])
+    np.testing.assert_array_equal(indices, np.arange(6))
+    expected_indices = [[0], [1, 2], [1, 2], [3, 4], [5], [6, 7]]
+    expected_latencies = [[0], [0, 1], [-1, 0], [0, 1], [0], [-1, 0]]
+    for actual, expected in zip(event_indices, expected_indices):
+        np.testing.assert_array_equal(actual, expected)
+    for actual, expected in zip(event_latencies, expected_latencies):
+        np.testing.assert_array_equal(actual, expected)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

@@ -2,10 +2,7 @@ import unittest
 from importlib import resources
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+import tomllib
 
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
@@ -16,6 +13,7 @@ from eegprep.functions.popfunc.pop_chansel import (
     pop_chansel_selected_string,
 )
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
+from tests.eeglab_tests import eeglab_test
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +35,16 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("POP_REREF", text)
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("pop_reref.md"))
+
+    @eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
+    @eeglab_test("unittesting_guifunc/pophelp/test_pophelp.m", "test_test_pophelp")
+    def test_pophelp_accepts_function_name_with_or_without_matlab_suffix(self):
+        plain_text, plain_source = pophelp_text("pop_editoptions")
+        matlab_text, matlab_source = pophelp_text("pop_editoptions.m")
+
+        self.assertEqual(matlab_text, plain_text)
+        self.assertEqual(matlab_source, plain_source)
+        self.assertIn("POP_EDITOPTIONS", plain_text.upper())
 
     def test_pophelp_reads_pop_interp_packaged_resource(self):
         text, source_path = pophelp_text("pop_interp")
@@ -76,11 +84,29 @@ class PopHelpAndChanSelTests(unittest.TestCase):
                 self.assertIn(spec.function_name.upper(), text)
                 self.assertIn("resources/help", Path(source_path).as_posix())
 
+    @eeglab_test("unittesting_adminfunc/eeg_helpadmin/test_eeg_helpadmin.m", "test_test_eeg_helpadmin")
+    @eeglab_test("unittesting_adminfunc/eeg_helphelp/pass_general.m", "test_pass_general")
+    @eeglab_test("unittesting_adminfunc/eeg_helpmenu/pass_general.m", "test_pass_general")
+    @eeglab_test("unittesting_adminfunc/eeg_helppop/pass_general.m", "test_pass_general")
+    @eeglab_test("unittesting_adminfunc/eeg_helpsigproc/pass_general.m", "test_pass_general")
+    @eeglab_test("unittesting_adminfunc/eeg_helpstudy/pass_general.m", "test_pass_general")
     def test_help_resources_are_packaged_importlib_resources(self):
         help_files = resources.files("eegprep.resources.help")
 
+        for function_name in (
+            "eeg_helpadmin",
+            "eeg_helphelp",
+            "eeg_helpmenu",
+            "eeg_helppop",
+            "eeg_helpsigproc",
+            "eeg_helpstudy",
+        ):
+            with self.subTest(function_name=function_name):
+                text, source_path = pophelp_text(function_name)
+                self.assertTrue(help_files.joinpath(f"{function_name}.md").is_file())
+                self.assertTrue(text.strip())
+                self.assertTrue(source_path.endswith(f"{function_name}.md"))
         self.assertTrue(help_files.joinpath("eegprep.md").is_file())
-        self.assertTrue(help_files.joinpath("eeg_helpadmin.md").is_file())
         self.assertIn("EEGPrep", help_files.joinpath("eegprep.md").read_text(encoding="utf-8"))
 
     def test_help_resources_are_declared_as_package_data(self):

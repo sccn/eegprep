@@ -11,6 +11,7 @@ import pytest
 from scipy import io as scipy_io
 from scipy import stats as scipy_stats
 
+from tests.eeglab_tests import eeglab_test
 from eegprep.functions.statistics import (
     TwoWayEffects,
     anova1_cell,
@@ -45,6 +46,34 @@ def test_fdr_matches_bh_and_by_thresholds():
     npt.assert_array_equal(bh.mask, [True, True, True, False])
     assert by.threshold == pytest.approx(0.01)
     npt.assert_array_equal(by.mask, [True, True, False, False])
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/fdr/sigprocfunc_fdr_wrapperTest.m",
+    "test_test_fdr",
+)
+def test_fdr_upstream_call_forms_preserve_threshold_and_mask_shapes():
+    pvals = np.asarray(
+        [
+            [1.0, 0.2385, 0.4182, 0.0611],
+            [0.2385, 1.0, 0.4502, 0.0049],
+            [0.4182, 0.4502, 1.0, 0.0001],
+            [0.0611, 0.0049, 0.0001, 1.0],
+        ]
+    )
+
+    default = fdr(pvals)
+    assert np.asarray(default.threshold).shape == pvals.shape
+    assert default.mask.shape == pvals.shape
+
+    for q in (0.8, 0.05, 0.5):
+        result = fdr(pvals, q)
+        assert np.isscalar(result.threshold)
+        npt.assert_array_equal(result.mask, pvals <= result.threshold)
+
+    nonparametric = fdr(pvals, 0.5, "nonParametric")
+    assert nonparametric.threshold <= fdr(pvals, 0.5).threshold
+    npt.assert_array_equal(nonparametric.mask, pvals <= nonparametric.threshold)
 
 
 def test_fdr_uses_finite_pvalues_for_threshold_denominator():
@@ -101,6 +130,10 @@ def test_ttest_helpers_match_scipy_statistics():
     assert pooled_df == 19
 
 
+@eeglab_test(
+    "unittesting_sigprocfunc/concatdata/sigprocfunc_concatdata_wrapperTest.m",
+    "test_test_concatdata",
+)
 def test_corrcoef_and_concatdata_contracts():
     first = np.array([[1, 2, 3, 4], [1, 3, 5, 7]], dtype=float)
     second = np.array([[4, 3, 2, 1], [2, 4, 6, 8]], dtype=float)
@@ -200,6 +233,22 @@ def test_nonparametric_statcond_and_surrogdistrib_are_seeded():
     npt.assert_allclose(first_result.pvalue, second_result.pvalue)
     assert len(surrogates) == 3
     assert all(sample[0][0].shape == first.shape for sample in surrogates)
+
+
+def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():
+    rng = np.random.default_rng(30)
+    data = [rng.normal(size=(3, 8)), rng.normal(size=(3, 8))]
+
+    batched = statcond(data, method="perm", paired="on", naccu=12, rng=42, arraycomp="on")
+    iterative = statcond(data, method="perm", paired="on", naccu=12, rng=42, arraycomp="off")
+
+    npt.assert_array_equal(iterative.surrogate, batched.surrogate)
+    npt.assert_array_equal(iterative.pvalue, batched.pvalue)
+
+
+def test_statcond_rejects_unknown_arraycomp_mode():
+    with pytest.raises(ValueError, match="arraycomp"):
+        statcond([np.arange(4), np.arange(4)], arraycomp="sometimes")
 
 
 def test_statcond_supplied_surrogates_return_alpha_ci_and_mask():

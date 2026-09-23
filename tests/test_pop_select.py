@@ -8,6 +8,7 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from tests.fixtures import SAMPLE_DATASET_PATH
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -130,6 +131,81 @@ class TestPopSelectParity(unittest.TestCase):
         min_pnts = min(EEG_py_out['pnts'], EEG_mat_out['pnts'])
         self.assertTrue(
             np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True)
+        )
+
+    def test_parity_nopoint_continuous(self):
+        if int(self.EEG_py.get('trials', 1)) > 1:
+            self.skipTest("Dataset is epoched; skipping continuous nopoint parity test")
+
+        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), nopoint=[276, 525])
+        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'nopoint', np.array([276.0, 525.0]))
+
+        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
+        # pre-existing boundary events carry NaN duration, so compare NaN-aware
+        np.testing.assert_array_equal(np.array(_boundary_events(EEG_py_out)), np.array(_boundary_events(EEG_mat_out)))
+        self.assertTrue(np.allclose(EEG_py_out['data'], EEG_mat_out['data'], atol=1e-7, equal_nan=True))
+
+
+def _boundary_events(EEG):
+    """Return (latency, duration) pairs of boundary events, in order."""
+    return [(float(ev['latency']), float(ev['duration'])) for ev in EEG['event'] if str(ev.get('type')) == 'boundary']
+
+
+class TestPopSelectContinuousRemoval(unittest.TestCase):
+    """Sample-exact removal/keep semantics on continuous data.
+
+    Expected values were confirmed against EEGLAB pop_select on
+    sample_data/eeglab_data.set (30504 samples, 128 Hz). Point ranges are
+    1-based and inclusive at both ends; a boundary event sits half a sample
+    before the first removed sample with duration equal to the removed count.
+    """
+
+    def setUp(self):
+        self.EEG = pop_loadset(str(SAMPLE_DATASET_PATH))
+        self.assertEqual(self.EEG['pnts'], 30504)
+
+    def _check(self, EEG_out, pnts, boundaries):
+        self.assertEqual(EEG_out['pnts'], pnts)
+        self.assertEqual(EEG_out['data'].shape[1], pnts)
+        self.assertEqual(_boundary_events(EEG_out), boundaries)
+
+    def test_nopoint_removes_inclusive_range(self):
+        for key in ('nopoint', 'rmpoint'):
+            EEG_out = pop_select(copy.deepcopy(self.EEG), **{key: [276, 525]})
+            self._check(EEG_out, 30254, [(275.5, 250.0)])
+
+    def test_nopoint_first_and_last_samples(self):
+        EEG_out = pop_select(copy.deepcopy(self.EEG), nopoint=[1, 10])
+        self._check(EEG_out, 30494, [(0.5, 10.0)])
+        np.testing.assert_array_equal(EEG_out['data'], self.EEG['data'][:, 10:])
+
+        EEG_out = pop_select(copy.deepcopy(self.EEG), nopoint=[30495, 30504])
+        self._check(EEG_out, 30494, [(30494.5, 10.0)])
+        np.testing.assert_array_equal(EEG_out['data'], self.EEG['data'][:, :30494])
+
+    def test_nopoint_two_regions(self):
+        EEG_out = pop_select(copy.deepcopy(self.EEG), nopoint=[[100, 200], [300, 400]])
+        self._check(EEG_out, 30302, [(99.5, 101.0), (198.5, 101.0)])
+
+    def test_notime_removes_inclusive_range(self):
+        for key in ('notime', 'rmtime'):
+            EEG_out = pop_select(copy.deepcopy(self.EEG), **{key: [2.15, 4.1]})
+            self._check(EEG_out, 30253, [(275.5, 251.0)])
+
+    def test_point_and_time_keep_range(self):
+        EEG_out = pop_select(copy.deepcopy(self.EEG), point=[276, 525])
+        self._check(EEG_out, 250, [(0.5, 275.0), (250.5, 29979.0)])
+
+        EEG_out = pop_select(copy.deepcopy(self.EEG), time=[2.15, 4.1])
+        self._check(EEG_out, 251, [(0.5, 275.0), (251.5, 29978.0)])
+
+    def test_point_keeps_exactly_what_nopoint_removes(self):
+        a, b = 276, 525
+        kept = pop_select(copy.deepcopy(self.EEG), point=[a, b])['data']
+        rest = pop_select(copy.deepcopy(self.EEG), nopoint=[a, b])['data']
+        np.testing.assert_array_equal(kept, self.EEG['data'][:, a - 1 : b])
+        np.testing.assert_array_equal(
+            np.concatenate([rest[:, : a - 1], kept, rest[:, a - 1 :]], axis=1), self.EEG['data']
         )
 
 

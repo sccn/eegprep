@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
@@ -393,3 +394,65 @@ def test_std_findgroupvars_requires_one_unique_value_within_each_subject():
     }
 
     assert std_findgroupvars(study) == ["group"]
+
+
+def test_std_checkset_drops_the_datasetinfo_row_of_a_deleted_dataset():
+    # Deleting a dataset leaves an empty ALLEEG slot. Its STUDY row must go with it instead
+    # of shifting onto the next dataset, as std_editset.m removes both arrays together.
+    study, alleeg = pop_study(
+        None,
+        [
+            _eeg("one", subject="S01", condition="a"),
+            _eeg("two", subject="S02", condition="b"),
+            _eeg("three", subject="S03", condition="c"),
+        ],
+        name="Gaps",
+    )
+    alleeg, _command = pop_delset(alleeg, [2])
+
+    checked, datasets = std_checkset(study, alleeg)
+
+    rows = [(info["index"], info["setname"], info["subject"], info["condition"]) for info in checked["datasetinfo"]]
+    assert rows == [(1, "one", "S01", "a"), (2, "three", "S03", "c")]
+    assert [eeg["setname"] for eeg in datasets] == ["one", "three"]
+
+
+def test_pop_study_edit_keeps_metadata_with_its_dataset_after_a_delete():
+    study, alleeg = pop_study(
+        None,
+        [_eeg("one", subject="S01"), _eeg("two", subject="S02"), _eeg("three", subject="S03")],
+        name="Gaps",
+    )
+    alleeg, _command = pop_delset(alleeg, [1])
+
+    edited, edited_alleeg = pop_study(study, alleeg, name="Edited")
+
+    rows = [(info["index"], info["setname"], info["subject"]) for info in edited["datasetinfo"]]
+    assert rows == [(1, "two", "S02"), (2, "three", "S03")]
+    assert [eeg["setname"] for eeg in edited_alleeg] == ["two", "three"]
+
+
+def test_std_checkset_keeps_positional_rows_when_a_dataset_is_appended():
+    # Without a deleted slot the rows still pair by position, so a new dataset gets a new row.
+    study, alleeg = pop_study(None, [_eeg("one", subject="S01"), _eeg("two", subject="S02")], name="Grow")
+    alleeg.append(_eeg("three"))
+
+    checked, _datasets = std_checkset(study, alleeg)
+
+    rows = [(info["setname"], info["subject"]) for info in checked["datasetinfo"]]
+    assert rows == [("one", "S01"), ("two", "S02"), ("three", "S3")]
+
+
+def test_pop_savestudy_after_a_delete_writes_each_dataset_with_its_own_metadata(tmp_path):
+    study, alleeg = pop_study(
+        None,
+        [_eeg("one", subject="S01"), _eeg("two", subject="S02"), _eeg("three", subject="S03")],
+        name="Gaps",
+    )
+    alleeg, _command = pop_delset(alleeg, [2])
+
+    pop_savestudy(study, alleeg, filename="gaps.study", filepath=tmp_path)
+    reloaded, _alleeg = pop_loadstudy("gaps.study", filepath=tmp_path, load_datasets="off")
+
+    rows = [(info["index"], info["setname"], info["subject"]) for info in reloaded["datasetinfo"]]
+    assert rows == [(1, "one", "S01"), (2, "three", "S03")]

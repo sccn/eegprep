@@ -85,6 +85,29 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
             logger.error(f"Failed to copy {srcpath} to {dstpath}: {e}")
 
 
+def _write_events_tsv(EEG: dict, fpath: str) -> None:
+    """Write EEG['event'] to a BIDS events.tsv (onset/duration in seconds).
+
+    Event latencies are 1-based samples (latency 1 = first sample) and may be
+    fractional; durations are in samples. For epoched data, latencies are
+    concatenated across epochs, so onsets are relative to the start of the
+    concatenated epoched array.
+    """
+    have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
+    columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
+    srate = EEG['srate']
+    with open(fpath, 'w') as fp:
+        print('\t'.join(columns), file=fp)
+        for e in EEG['event']:
+            ev_type = e['type']
+            ev_time = (e['latency'] - 1) / srate
+            ev_dur = (e.get('duration') or 0.0) / srate
+            if np.isnan(ev_dur):
+                ev_dur = 0.0
+            row = [ev_time, ev_dur, ev_type] + ([ev_type] if have_hed_column else [])
+            print('\t'.join(str(r) for r in row), file=fp)
+
+
 def _legacy_override(new_and_name: Tuple[Any, str], old_and_name: Tuple[Any, str], default: Any):
     """Handle overrides with values from legacy parameters and a default if both the new and legacy parameter are None."""
     new, new_name = new_and_name
@@ -1011,23 +1034,7 @@ def bids_preproc(
                 # rewrite the events file
                 if len(EEG['event']):
                     fpath_events = gen_derived_fpath(fn, outputdir=OutputDir, suffix='events', extension='.tsv')
-                    have_hed_column = EEG['etc'].get('event_column', None) == 'HED'
-                    columns = ['onset', 'duration', 'trial_type'] + (['HED'] if have_hed_column else [])
-                    with open(fpath_events, 'w') as fp:
-                        print('\t'.join(columns), file=fp)
-                        times, srate = EEG['times'], EEG['srate']
-                        for e in EEG['event']:
-                            ev_type = e['type']
-                            try:
-                                ev_time = times[e['latency']] / 1000.0  # in ms
-                            except IndexError:
-                                logger.error(f'out-of-bounds event {ev_type} at lat {e["latency"]}; ignoring')
-                                continue
-                            ev_dur = e.get('duration', 0.0) / srate
-                            if np.isnan(ev_dur):
-                                ev_dur = 0.0
-                            row = [ev_time, ev_dur, ev_type] + ([ev_type] if have_hed_column else [])
-                            print('\t'.join(str(r) for r in row), file=fp)
+                    _write_events_tsv(EEG, fpath_events)
 
                 # rewrite the channels file
                 fpath_channels = gen_derived_fpath(fn, outputdir=OutputDir, suffix='channels', extension='.tsv')

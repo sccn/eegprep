@@ -6,6 +6,7 @@ import csv
 import json
 import math
 from pathlib import Path
+import re
 from typing import Any
 
 import mne
@@ -32,6 +33,23 @@ def normalize_icachansind(value: Any, *, matlab_one_based: bool) -> np.ndarray:
     if matlab_one_based:
         indices = indices - 1
     return indices.flatten().astype(int)
+
+
+def ur_indices_to_zero_based(EEG: dict[str, Any]) -> None:
+    """Convert MATLAB 1-based ``chanlocs.urchan`` and ``event.urevent`` pointers to 0-based in place.
+
+    Called before ``eeg_checkset`` (which derives ``epoch.eventurevent`` from
+    ``event.urevent``), so the fields may still be missing or empty.
+    """
+    chanlocs = EEG.get('chanlocs')
+    if chanlocs is not None and len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
+        for chanloc in chanlocs:
+            chanloc['urchan'] = chanloc['urchan'] - 1
+    events = EEG.get('event')
+    if events is not None and len(events) > 0 and 'urevent' in events[0]:
+        for event in events:
+            if 'urevent' in event and event['urevent'] is not None:
+                event['urevent'] = event['urevent'] - 1
 
 
 def infer_dataformat(filename: str | Path | None, dataformat: str | None = None) -> str:
@@ -166,11 +184,12 @@ def read_table_records(
     *,
     fields: list[str] | tuple[str, ...] | None = None,
     skipline: int = 0,
+    delimiter: str | int | None = None,
 ) -> list[dict[str, Any]]:
     """Read a simple CSV/TSV/whitespace table into record dictionaries."""
     path = Path(filename)
     with path.open(newline="", encoding="utf-8") as stream:
-        rows = [row for row in _read_rows(stream, path.suffix.lower()) if row]
+        rows = [row for row in _read_rows(stream, path.suffix.lower(), delimiter) if row]
     rows = rows[int(skipline) :]
     if not rows:
         return []
@@ -200,6 +219,8 @@ def records_to_events(
             raise ValueError("Imported event records must include a latency field")
         event = dict(record)
         event["latency"] = _latency_to_samples(event["latency"], srate=srate, timeunit=timeunit)
+        if "duration" in event and timeunit is not None and not (isinstance(timeunit, float) and math.isnan(timeunit)):
+            event["duration"] = float(event["duration"]) * float(timeunit) * float(srate)
         if "type" not in event:
             event["type"] = "event"
         events.append(event)
@@ -289,7 +310,13 @@ def json_safe(value: Any) -> Any:
     return value
 
 
-def _read_rows(stream: Any, suffix: str) -> list[list[str]]:
+def _read_rows(stream: Any, suffix: str, delimiter: str | int | None) -> list[list[str]]:
+    if delimiter is not None:
+        delimiters = chr(delimiter) if isinstance(delimiter, int) else str(delimiter)
+        if len(delimiters) == 1:
+            return [row for row in csv.reader(stream, delimiter=delimiters)]
+        pattern = f"[{re.escape(delimiters)}]+"
+        return [re.split(pattern, line.strip()) for line in stream if line.strip()]
     if suffix == ".csv":
         return [row for row in csv.reader(stream)]
     if suffix == ".tsv":

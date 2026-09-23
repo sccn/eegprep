@@ -19,11 +19,16 @@ import scipy.io
 from eegprep.functions.sigprocfunc.runica import runica
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from tests.eeglab_tests import eeglab_test
+
+
+_RUNICA_SOURCE = "unittesting_sigprocfunc/runica/sigprocfunc_runica_wrapperTest.m"
 
 
 class TestRunicaFunctionality(unittest.TestCase):
     """Test runica functionality without MATLAB dependency."""
 
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_general")
     def test_basic_ica(self):
         """Test basic ICA decomposition with default parameters."""
         # Set seed for reproducibility
@@ -59,6 +64,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         # The float64 input array passed by the caller must be untouched.
         self.assertTrue(np.array_equal(data, original))
 
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_extended")
     def test_extended_ica(self):
         """Test extended-ICA mode."""
         np.random.seed(42)
@@ -90,6 +96,7 @@ class TestRunicaFunctionality(unittest.TestCase):
         self.assertTrue(np.isfinite(signs).all())
         self.assertFalse([warning for warning in captured if "matmul" in str(warning.message)])
 
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_pca")
     def test_pca_reduction(self):
         """Test PCA dimension reduction."""
         np.random.seed(42)
@@ -166,15 +173,99 @@ class TestRunicaFunctionality(unittest.TestCase):
         # Bias should be non-zero after training
         self.assertTrue(np.any(bias != 0))
 
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_extended_nobias")
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_general_nobias")
     def test_bias_off(self):
         """Test with bias='off'."""
         np.random.seed(42)
         data = np.random.randn(5, 500)
 
-        w, s, cv, bias, sg, lr = runica(data, bias='off', maxsteps=5, verbose=False, rndreset='off')
+        for extended in (0, 1):
+            _w, _s, _cv, bias, _sg, _lr = runica(
+                data,
+                bias="off",
+                extended=extended,
+                maxsteps=5,
+                verbose=False,
+                rndreset="off",
+            )
+            self.assertTrue(np.all(bias == 0))
 
-        # Bias should remain zero
-        self.assertTrue(np.all(bias == 0))
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_ncomps")
+    def test_empty_ncomps_uses_all_channels(self):
+        rng = np.random.default_rng(5)
+
+        weights, sphere, *_ = runica(
+            rng.standard_normal((3, 400)),
+            ncomps=[],
+            maxsteps=2,
+            verbose=False,
+            rndreset="off",
+        )
+
+        self.assertEqual(weights.shape, (3, 3))
+        self.assertEqual(sphere.shape, (3, 3))
+
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_extended_noise10dB")
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_extended_noise20dB")
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_general_noise10dB")
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_general_noise20dB")
+    def test_noisy_two_source_mixtures_produce_finite_full_rank_decompositions(self):
+        rng = np.random.default_rng(6)
+        sources = np.vstack(
+            [
+                np.sin(np.linspace(0, 50, 1000)),
+                np.sin(np.linspace(0, 37, 1000) + 5),
+            ]
+        )
+        mixed = np.array([[1, -2], [1.73, 3.41]]) @ sources
+
+        for extended in (0, 1):
+            for signal_to_noise_db in (10, 20):
+                noise = rng.standard_normal(mixed.shape)
+                scale = np.sqrt(np.mean(mixed**2) / np.mean(noise**2) / 10 ** (signal_to_noise_db / 10))
+                weights, sphere, *_ = runica(
+                    mixed + noise * scale,
+                    extended=extended,
+                    verbose=False,
+                    rndreset="off",
+                )
+                unmixing = weights @ sphere
+                self.assertTrue(np.isfinite(unmixing).all())
+                self.assertEqual(np.linalg.matrix_rank(unmixing), 2)
+
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_posact")
+    def test_posact_orients_largest_absolute_activation_positive(self):
+        sources = np.vstack(
+            [
+                np.sin(np.linspace(0, 50, 1000)),
+                np.sin(np.linspace(0, 37, 1000) + 5),
+            ]
+        )
+        data = np.vstack([sources[0] - 2 * sources[1], 1.73 * sources[0] + 3.41 * sources[1]])
+
+        weights, sphere, *_ = runica(data, posact="on", extended=1, verbose=False, rndreset="off")
+        activations = weights @ sphere @ data
+        peak_frames = np.argmax(np.abs(activations), axis=1)
+
+        self.assertTrue(np.all(activations[np.arange(activations.shape[0]), peak_frames] >= 0))
+
+    @eeglab_test(_RUNICA_SOURCE, "test_pass_weights")
+    def test_initial_weights_are_accepted_without_changing_output_contract(self):
+        rng = np.random.default_rng(4)
+        data = rng.standard_normal((3, 600))
+        initial = np.array([[1.0, 0.1, 0.0], [0.0, 1.0, 0.1], [0.1, 0.0, 1.0]])
+
+        weights, sphere, compvars, bias, signs, lrates = runica(
+            data, weights=initial, maxsteps=2, verbose=False, rndreset="off"
+        )
+
+        self.assertEqual(weights.shape, (3, 3))
+        self.assertEqual(sphere.shape, (3, 3))
+        self.assertTrue(np.isfinite(compvars).all())
+        self.assertTrue(np.isfinite(bias).all())
+        self.assertTrue(np.isfinite(signs).all())
+        self.assertGreater(len(lrates), 0)
 
     def test_momentum(self):
         """Test momentum parameter."""

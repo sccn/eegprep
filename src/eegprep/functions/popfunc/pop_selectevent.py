@@ -261,11 +261,12 @@ def _apply_selectevent_one(EEG: dict[str, Any], options: dict[str, Any]) -> tupl
         if str(options.get("invertepochs", "off")).lower() == "on":
             all_epochs = set(range(1, int(output.get("trials", 1) or 1) + 1))
             epochs = sorted(all_epochs - set(epochs))
-        if not epochs:
+        erroronempty = str(options.get("erroronempty", "on")).lower()
+        if not epochs and erroronempty == "on":
             raise ValueError("Empty dataset: all epochs have been removed")
         if deleteevents:
             output["event"] = [events[index] for index in selected_indices]
-        output = pop_select(output, "trial", epochs)
+        output = pop_select(output, "trial", epochs, "erroronempty", erroronempty)
     elif deleteevents:
         output["event"] = [events[index] for index in selected_indices]
     else:
@@ -305,10 +306,20 @@ def _matching_indices(
 def _comparison_value(EEG: dict[str, Any], event: dict[str, Any], field: str) -> float:
     value = float(event.get(field, np.nan))
     if field == "latency":
+        if int(EEG.get("trials", 1) or 1) > 1:
+            return float(
+                eeg_point2lat(
+                    value,
+                    event.get("epoch", 1),
+                    float(EEG.get("srate", 1)),
+                    [float(EEG.get("xmin", 0)) * 1000, float(EEG.get("xmax", 0)) * 1000],
+                    1e-3,
+                )[0]
+            )
         return float(
             eeg_point2lat(
                 value, event.get("epoch", 1), float(EEG.get("srate", 1)), [EEG.get("xmin", 0), EEG.get("xmax", 0)]
-            )
+            )[0]
         )
     if field == "duration":
         scale = float(EEG.get("srate", 1)) / (1000 if int(EEG.get("trials", 1) or 1) > 1 else 1)

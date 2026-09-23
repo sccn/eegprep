@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import (
@@ -34,6 +35,7 @@ _VALID_OPTIONS = {
     "refica",
     "interpchan",
     "huber",
+    "method",
 }
 
 
@@ -62,7 +64,8 @@ def pop_reref(
         renderer: Optional GUI renderer for tests.
         return_com: Return ``(EEG, command)`` when true.
         **kwargs: Options such as ``exclude``, ``keepref``, ``refloc``,
-            ``refica``, and ``huber``.
+            ``refica``, ``huber``, and ``method``. Only EEGLAB's standard
+            rereferencing method is currently supported.
 
     Returns:
         dict or tuple: Re-referenced EEG, and optionally the EEGLAB-style
@@ -106,6 +109,7 @@ def pop_reref(
         ref = []
 
     _validate_eeg(EEG)
+    source_data = EEG["data"]
     EEG_out: dict[str, Any] = copy.deepcopy(EEG)
     resolved = _resolve_options(EEG_out, ref, options)
 
@@ -141,6 +145,7 @@ def pop_reref(
 
     _normalise_checkset_types(EEG_out)
     EEG_out = eeg_checkset(EEG_out)
+    EEG_out["data"] = mapped_output_like(source_data, EEG_out["data"])
     com = _history_command(ref, resolved["history_options"])
     return (EEG_out, com) if return_com else EEG_out
 
@@ -294,6 +299,9 @@ def _validate_eeg(EEG: dict) -> None:
 
 
 def _resolve_options(EEG: dict, ref: Any, options: dict[str, Any]) -> dict[str, Any]:
+    method = str(options.get("method", "standard")).lower()
+    if method != "standard":
+        raise ValueError("EEGPrep currently supports only method='standard'")
     ref_indices = _resolve_channels(EEG, ref)
     exclude_indices = _resolve_channels(EEG, options.get("exclude", []))
     refica = str(options.get("refica", "on")).lower()

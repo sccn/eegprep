@@ -55,13 +55,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install Python 3.11
+      - name: Install Python 3.12
         run: |
-          uv python install 3.11
+          uv python install 3.12
 
       - name: Install dependencies
         run: |
-          uv sync --python 3.11 --all-extras --group dev
+          uv sync --python 3.12 --all-extras --group dev
 
       - name: Run Ruff lint
         run: |
@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
         include:
           # Test on macOS and Windows for Python 3.12 only
           - os: macos-latest
@@ -172,7 +172,18 @@ jobs:
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
-          uv pip install "${MATLAB_ROOT}/extern/engines/python"
+          # Each MATLAB release ships one engine build covering a fixed set of Python
+          # versions, and R2024b stops at 3.12:
+          #   "MATLAB Engine for Python supports Python version 3.9, 3.10, 3.11, and
+          #    3.12, but your version of Python is 3.13"
+          # A Python version the pinned release does not cover is not a CI failure. It
+          # means the MATLAB parity tests cannot run, which the availability check below
+          # already handles by falling through to the plain pytest step. Letting the
+          # install decide keeps this working automatically once a newer MATLAB release
+          # covers the version, instead of encoding a compatibility table here.
+          if ! uv pip install "${MATLAB_ROOT}/extern/engines/python"; then
+            echo "MATLAB engine does not support Python ${{ matrix.python-version }}; MATLAB parity tests will be skipped"
+          fi
 
       - name: Check MATLAB Engine availability
         id: matlab-engine-availability
@@ -213,6 +224,61 @@ jobs:
         if: steps.matlab-engine-availability.outputs.available != 'true'
         run: |
           uv run --no-sync pytest tests
+
+      # eegprep-lean is a second distribution in this repo (ADR 0069) and the root
+      # suite's `testpaths = ["tests"]` does not reach it, so without this step it ships
+      # with lint as its only gate. Run from its own directory so its pyproject supplies
+      # the `network` marker, with src on the path because the package is deliberately
+      # not installed into this environment: it must keep working with no dependencies.
+      # The network tier is excluded here and runs in lean-live.yml on a schedule, so a
+      # NEMAR outage cannot turn every unrelated pull request red.
+      - name: Run eegprep-lean tests
+        if: always()
+        working-directory: packages/eegprep-lean
+        env:
+          PYTHONPATH: src
+        shell: bash
+        run: |
+          uv run --no-sync --project ../.. pytest tests -m "not network"
+
+      # The store and window modules need the zarr extra, and skip without it, so the
+      # step above proves only that they skip. This installs it so they actually run.
+      # zarr is not added to the dev environment because the base install must keep
+      # working with nothing present, which the step above is what verifies.
+      - name: Run eegprep-lean tests with the zarr extra
+        if: always()
+        working-directory: packages/eegprep-lean
+        # bash on every OS, as the steps above do. The default shell on windows-latest
+        # is PowerShell, where a trailing backslash is not a line continuation but a
+        # command to run, and `Failed to spawn: \` is the only clue you get -- printed
+        # after a fully green test run.
+        shell: bash
+        run: |
+          uv run --isolated --with 'zarr==3.4.0' --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
+
+      # And the plot extra on its own, not alongside zarr. window.py imports zarr inside
+      # read_window rather than at module scope precisely so this tier stands alone, and
+      # a stray module-scope import would otherwise only show up in a browser, where the
+      # zarr install is the awkward one.
+      - name: Run eegprep-lean tests with the plot extra
+        if: always()
+        working-directory: packages/eegprep-lean
+        shell: bash
+        run: |
+          uv run --isolated --with matplotlib --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
+
+      # Both extras, which is the install a real session has. The three tiers above each
+      # prove a tier stands alone; this one is the only place the cross-extra paths run,
+      # such as reading a window and then plotting it.
+      - name: Run eegprep-lean tests with both extras
+        if: always()
+        working-directory: packages/eegprep-lean
+        shell: bash
+        run: |
+          uv run --isolated --with 'zarr==3.4.0' --with matplotlib --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
 
       - name: Display installed packages
         if: always()

@@ -32,7 +32,7 @@ class TimeFrequencyResult:
 
     ersp: np.ndarray
     itc: np.ndarray
-    powbase: np.ndarray
+    powbase: np.ndarray  # EEGLAB mbase: dB only with log scale, a baseline, and trialbase off; else absolute power
     times: np.ndarray
     freqs: np.ndarray
     tfdata: np.ndarray
@@ -101,12 +101,15 @@ def newtimef(
     timewarpidx: Any = None,
     vert: Any = None,
     verbose: str = "off",
+    outputformat: str = "plot",
 ) -> TimeFrequencyResult:
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
     if str(boottype).lower() != "shuffle":
         raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
+    if str(outputformat).lower() != "plot":
+        raise NotImplementedError("newtimef only implements outputformat='plot'")
     if not _is_on(plotphase):
         plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
     if freqs is None and freqrange is not None:
@@ -257,10 +260,24 @@ def newtimef(
             elocs=elocs,
             caption=caption,
         )
+    # Mirror newtimefbaseln's `disabled` check so powbase units always track ersp: a multi-window
+    # (nested-list) baseline flattens cleanly, `[]` stays enabled, and only NaN/None disables.
+    base_vec = np.asarray(baseline, dtype=float).reshape(-1)
+    baseline_on = not (base_vec.size and np.isnan(base_vec[0]))
+    powbase_out = np.asarray(powbase_array, dtype=float)
+    if (
+        scale_mode == "log"
+        and str(trialbase).lower() == "off"
+        and baseline_on
+        and powbase_out.size
+        and np.isfinite(powbase_out.reshape(-1)[0])
+    ):
+        # EEGLAB newtimef.m:1399 returns the baseline power spectrum in dB for log scale (trialbase off).
+        powbase_out = 10.0 * np.log10(powbase_out)
     return TimeFrequencyResult(
         ersp,
         itc,
-        np.asarray(powbase_array).squeeze(),
+        powbase_out.squeeze(),
         decomp.times,
         decomp.freqs,
         tfdata,

@@ -24,9 +24,6 @@ def angtimewarp(ev_latency: Any, new_latency: Any, angdata: Any) -> np.ndarray:
     if ev_frames[0] != 1:
         ev_frames = np.sort(np.concatenate([ev_frames, np.asarray([1], dtype=int)]))
         new_frames = np.sort(np.concatenate([new_frames, np.asarray([1], dtype=int)]))
-    if np.any(np.diff(ev_frames) == 0) or np.any(np.diff(new_frames) == 0):
-        raise ValueError("timewarp event latencies must be unique after adding the synchronized first frame")
-
     angles = np.asarray(angdata, dtype=float).ravel()
     old_count = int(np.max(ev_frames))
     if angles.size < old_count:

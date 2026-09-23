@@ -6,10 +6,9 @@ from copy import deepcopy
 from typing import Any
 
 from eegprep.functions.studyfunc._study_utils import (
-    as_alleeg_list,
     build_python_call,
     ensure_study,
-    sync_datasetinfo,
+    sync_study_datasets,
     variable_values,
 )
 from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
@@ -23,8 +22,7 @@ def std_rebuilddesign(
     return_com: bool = False,
 ) -> Any:
     """Refresh STUDY design variables after dataset metadata changes."""
-    datasets = as_alleeg_list(ALLEEG)
-    study = sync_datasetinfo(deepcopy(ensure_study(STUDY)), datasets)
+    study, datasets = sync_study_datasets(deepcopy(ensure_study(STUDY)), ALLEEG)
     designs = list(study.get("design") or [])
     indices = range(1, len(designs) + 1) if designind is None else [int(designind)]
     for index in indices:
