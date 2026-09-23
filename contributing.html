@@ -512,6 +512,18 @@
 </section>
 <section id="development-environment">
 <h2>Development Environment<a class="headerlink" href="#development-environment" title="Link to this heading">#</a></h2>
+<section id="project-task-tracking">
+<h3>Project Task Tracking<a class="headerlink" href="#project-task-tracking" title="Link to this heading">#</a></h3>
+<p>We use Beads (<code class="docutils literal notranslate"><span class="pre">bd</span></code>) to track project tasks, dependencies, and handoffs. It is a
+development tool, not an EEGPrep runtime dependency. The local Dolt database runs
+in embedded mode without a server. Public bug reports still belong in GitHub
+Issues.</p>
+<p>In a fresh clone, install Beads and run <code class="docutils literal notranslate"><span class="pre">bd</span> <span class="pre">bootstrap</span></code> from the repository root
+to recover the shared task database, then <code class="docutils literal notranslate"><span class="pre">bd</span> <span class="pre">ready</span></code> to find available work. Follow the
+<a class="reference external" href="https://github.com/sccn/eegprep/blob/develop/.beads/README.md">repository setup guide</a>
+for installation, coding-agent hooks, and explicit task synchronization. A code
+commit or <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">push</span></code> does not synchronize the task database.</p>
+</section>
 <section id="virtual-environment-setup">
 <h3>Virtual Environment Setup<a class="headerlink" href="#virtual-environment-setup" title="Link to this heading">#</a></h3>
 <p>Create the uv-managed development environment:</p>
@@ -848,6 +860,7 @@ make<span class="w"> </span>html
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-environment">Development Environment</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#project-task-tracking">Project Task Tracking</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#virtual-environment-setup">Virtual Environment Setup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#install-dependencies">Install Dependencies</a></li>
 </ul>
