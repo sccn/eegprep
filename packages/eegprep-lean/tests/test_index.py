@@ -239,6 +239,14 @@ class TestIndexUrlOverride:
 
         assert transport.requested == ["https://zarr.nemar.org/nm000103/zarr/index.json"]
 
+    def test_an_index_url_for_another_dataset_is_refused(self) -> None:
+        """A supplied URL can name another dataset's index, and reading it would return
+        that dataset's recordings under this one's name."""
+        transport = ReplayTransport(json.dumps({**_document(), "dataset_id": "nm000999"}).encode())
+
+        with pytest.raises(IndexError_, match=r"'nm000999', not 'nm000103'"):
+            asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
     def test_an_explicit_index_urls_error_names_that_url_not_the_template(self) -> None:
         transport = ReplayTransport(b"<html>503 Service Unavailable</html>")
 

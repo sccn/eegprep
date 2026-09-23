@@ -197,7 +197,8 @@ async def read_index(
     ``contract_base`` is still read from the fetched document, never derived from this
     argument, so a caller pointed at a dev or staging deployment gets that deployment's
     own ``contract_base`` back rather than production's. ``None`` (the default) keeps
-    today's behavior unchanged.
+    today's behavior unchanged. A document fetched from ``index_url`` that declares a
+    different ``dataset_id`` is refused.
 
     Raises :class:`UnsupportedFormatVersion` for an index this reader does not implement,
     rather than reading it as though it were the current shape.
@@ -220,6 +221,13 @@ async def read_index(
         raise IndexError_(f"index at {url} declares no contract_base")
     if not contract_base.endswith("/"):
         contract_base = f"{contract_base}/"
+
+    # A URL built from the template cannot name another dataset's index, but one the
+    # caller supplies can, and reading it would return another dataset's recordings
+    # under this one's name.
+    declared = document.get("dataset_id")
+    if index_url is not None and declared is not None and str(declared) != dataset_id:
+        raise IndexError_(f"index at {url} is for {declared!r}, not {dataset_id!r}")
 
     return DatasetIndex(
         dataset_id=str(document.get("dataset_id", dataset_id)),
