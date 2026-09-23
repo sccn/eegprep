@@ -7,8 +7,10 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
-Unreleased
-==========
+Version 0.4.0
+=============
+
+*Released 2026-09-23*
 
 - Added a source-driven developer audit for the current EEGLAB test-port
   project. It discovers all MATLAB wrapper and regression methods from the
