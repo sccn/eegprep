@@ -119,3 +119,6 @@ docs/source/api/generated/
 # resolution. A lockfile here also resolves every extra, which misreports a package whose
 # base is deliberately empty.
 packages/*/uv.lock
+
+# Beads credentials must never be committed. Other local state is ignored in .beads/.
+.beads-credential-key
