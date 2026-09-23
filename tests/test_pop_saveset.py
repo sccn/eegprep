@@ -170,6 +170,29 @@ class TestPopSaveset(unittest.TestCase):
         self.assertIsInstance(ep.eventtype, str)
         self.assertEqual(np.ndim(ep.eventlatency), 0)
         self.assertEqual(np.ndim(ep.eventurevent), 0)
+
+    def test_saveset_events_with_heterogeneous_fields(self):
+        # Events need not share fields: clean_artifacts with BurstRejection adds
+        # boundary events carrying 'duration' to events that lack it.  MATLAB
+        # struct arrays share one field set, so missing values are saved as [].
+        EEG = pop_loadset(os.path.join(local_url, 'eeglab_data.set'))
+        base = [{k: v for k, v in ev.items() if k != 'duration'} for ev in EEG['event']]
+        for with_duration in (0, len(base) - 1):  # extra field on the first or on a later event
+            events = [dict(ev) for ev in base]
+            events[with_duration]['duration'] = 12.0
+            EEG['event'] = np.array(events, dtype=object)
+            with self.subTest(with_duration=with_duration), tempfile.TemporaryDirectory() as tmp:
+                out = os.path.join(tmp, 'mixed_fields.set')
+                pop_saveset(EEG, out)
+                reloaded = pop_loadset(out)
+
+                self.assertEqual(len(reloaded['event']), len(events))
+                self.assertEqual(reloaded['event'][with_duration]['duration'], 12.0)
+                other = 1 if with_duration == 0 else 0
+                self.assertEqual(np.size(reloaded['event'][other]['duration']), 0)
+                np.testing.assert_allclose(
+                    [ev['latency'] for ev in reloaded['event']], [ev['latency'] for ev in events]
+                )
         # """Test basic resampling functionality with different engines"""
         # # Apply resampling with different engines
         # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')
