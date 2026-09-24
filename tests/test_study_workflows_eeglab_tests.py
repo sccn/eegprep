@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import shutil
 
 import matplotlib
 
@@ -337,7 +338,121 @@ def test_reference_std_makedesign(eeglab_backend, eeglab_sample_study):
         assert designs["cell"][0, 1].size == 8
 
 
+@pytest.fixture
+def writable_n400_study(eeglab_suite_root, tmp_path):
+    # Original precompute calls create/overwrite measure caches beside datasets.
+    return Path(shutil.copytree(eeglab_suite_root / "unittesting_studyfunc/teststudy", tmp_path / "teststudy"))
+
+
+def _read_writable_n400(backend, directory):
+    study, alleeg = backend("pop_loadstudy", filename="n400clustedit.study", filepath=str(directory), nargout=2)
+    study = backend("std_checkset", study, alleeg)
+    assert Path(study["filepath"]).is_relative_to(directory)
+    assert all(Path(path).is_relative_to(directory) for path in alleeg["filepath"].ravel())
+    return study, alleeg
+
+
+@pytest.mark.slow
 @_reference("std_precomp", "test_test_std_precomp")
+def test_reference_std_precomp(eeglab_backend, writable_n400_study):
+    for design_phase in (0, 1):
+        # Source reloads the original STUDY between the two pairs of calls.
+        study, alleeg = _read_writable_n400(eeglab_backend, writable_n400_study)
+        if design_phase:
+            study = eeglab_backend(
+                "std_makedesign",
+                study,
+                alleeg,
+                1.0,
+                "variable1",
+                "condition",
+                "variable2",
+                "",
+                "name",
+                "STUDY.design 1",
+                "values1",
+                _cell_row("non-synonyms", "synonyms"),
+                "subjselect",
+                _cell_row("S02", "S07", "S08", "S10"),
+            )
+            study = eeglab_backend(
+                "std_makedesign",
+                study,
+                alleeg,
+                2.0,
+                "variable1",
+                "condition",
+                "variable2",
+                "",
+                "name",
+                "Design 2 test",
+                "values1",
+                _cell_row("non-synonyms", _cell_row("non-synonyms", "synonyms")),
+                "subjselect",
+                _cell_row("S02"),
+            )
+            study["currentdesign"] = np.array([[2.0]])
+            study = eeglab_backend("std_selectdesign", study, alleeg, 2.0)
+        for selection in ("components", "channels"):
+            ersp_parameters = ["cycles", np.array([[3.0, 0.8]]), "nfreqs", 2.0, "timesout", 30.0]
+            if not design_phase:
+                ersp_parameters.extend(("verbose", "off"))
+            kwargs = {"scalp": "on"} if selection == "components" else {}
+            study, alleeg = eeglab_backend(
+                "std_precomp",
+                study,
+                alleeg,
+                selection,
+                recompute="on",
+                erp="on",
+                spec="on",
+                specparams=_cell_row("specmode", "fft"),
+                ersp="on",
+                erspparams=_cell_row(*ersp_parameters),
+                itc="on",
+                nargout=2,
+                **kwargs,
+            )
+
+
+@pytest.mark.slow
+@_reference("std_preclust", "test_test_std_preclust")
+def test_reference_std_preclust(eeglab_backend, writable_n400_study):
+    study, alleeg = _read_writable_n400(eeglab_backend, writable_n400_study)
+    study, alleeg = eeglab_backend(
+        "std_precomp",
+        study,
+        alleeg,
+        "components",
+        savetrials="on",
+        recompute="on",
+        interp="on",
+        erp="on",
+        spec="on",
+        specparams=_cell_row("specmode", "fft"),
+        scalp="on",
+        ersp="on",
+        itc="on",
+        erspparams=_cell_row("ntimesout", 12.0, "nfreqs", 10.0, "verbose", "off"),
+        nargout=2,
+    )
+    empty = np.empty((0, 0))
+    eeglab_backend(
+        "std_preclust",
+        study,
+        alleeg,
+        1.0,
+        _cell_row("spec", "npca", 10.0, "norm", 1.0, "weight", 1.0, "freqrange", np.array([[3.0, 25.0]])),
+        _cell_row("erp", "npca", 10.0, "norm", 1.0, "weight", 1.0, "timewindow", empty),
+        _cell_row("scalp", "npca", 10.0, "norm", 1.0, "weight", 1.0, "abso", 1.0),
+        _cell_row("dipoles", "norm", 1.0, "weight", 10.0),
+        _cell_row("ersp", "npca", 10.0, "freqrange", empty, "timewindow", empty, "norm", 1.0, "weight", 1.0),
+        _cell_row("itc", "npca", 10.0, "freqrange", empty, "timewindow", empty, "norm", 1.0, "weight", 1.0),
+        _cell_row("finaldim", "npca", 10.0),
+        nargout=2,
+    )
+
+
 def test_std_precomp_computes_channel_and_component_erp_spectrum_ersp_and_itc():
     study, alleeg = _study_pair()
     tf_params = {"cycles": 0, "nfreqs": 8, "timesout": 8}
@@ -378,7 +493,6 @@ def test_std_precomp_computes_channel_and_component_erp_spectrum_ersp_and_itc():
     assert channel["specfreqs"][peak] == 6.0
 
 
-@_reference("std_preclust", "test_test_std_preclust")
 def test_std_preclust_combines_all_current_measure_families_and_final_pca():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(
@@ -434,7 +548,6 @@ def test_pop_clust_runs_current_kmeanscluster_scenario_with_ten_clusters():
     assert study["cluster"][0]["child"] == [cluster["name"] for cluster in children]
 
 
-@_reference("std_selectdesign", "test_test_std_selectdesign")
 def test_std_selectdesign_scans_generated_designs_without_corrupting_component_membership():
     study, alleeg = _study_pair()
     study = std_makedesign(study, alleeg, 2, variable1="subject", values1=["S01"], name="S01")
@@ -446,6 +559,45 @@ def test_std_selectdesign_scans_generated_designs_without_corrupting_component_m
         selected = std_selectdesign(study, alleeg, design_index)
         assert selected["currentdesign"] == design_index
         assert (selected["cluster"][0]["sets"], selected["cluster"][0]["comps"]) == original_pairs
+
+
+@pytest.mark.parametrize("eeglab_sample_study", [("teststudy2", "stern2s.study")], indirect=True)
+@_reference("std_selectdesign", "test_test_std_selectdesign")
+def test_reference_std_selectdesign(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    version = eeglab_backend("eeg_getversion")
+    for design_index in range(study["design"].size):
+        design = study["design"].ravel()[design_index]
+        skip_design = False
+        if version.startswith("9"):
+            for variable in design["variable"].ravel():
+                values = variable["value"]
+                if any(np.asarray(value).dtype == object for value in values.ravel()):
+                    skip_design = True
+                if (
+                    values.size
+                    and np.asarray(values.flat[0]).dtype.kind in "biufc"
+                    and any(np.asarray(value).size > 1 for value in values.ravel())
+                ):
+                    skip_design = True
+            if any(cell["trials"].flat[0].size == 0 for cell in design["cell"].ravel()):
+                skip_design = True
+        if skip_design:
+            continue
+        study = eeglab_backend("std_selectdesign", study, alleeg, float(design_index + 1))
+        # The original asserts membership only for EEGLAB <=13; current
+        # reference versions exercise every design as a workflow smoke test.
+        prefix = version[:2]
+        if prefix.rstrip(".").isdigit() and float(prefix) <= 13:
+            for cluster in study["cluster"].ravel():
+                for indices, sets in zip(cluster["allinds"].ravel(), cluster["setinds"].ravel(), strict=True):
+                    for component, dataset_index in zip(indices.ravel(), sets.ravel(), strict=True):
+                        selected_set = study["design"]["cell"].ravel()[design_index].ravel()[int(dataset_index) - 1]
+                        columns = np.flatnonzero(cluster["comps"].ravel() == component)
+                        dataset = selected_set["dataset"]
+                        assert dataset.size == 0 or np.isin(dataset, cluster["sets"][:, columns]).any(), (
+                            "Clusters corrupted"
+                        )
 
 
 @_reference("std_erpplot", "test_test_stderpplot2")
