@@ -184,6 +184,7 @@ def collect_pytest_references(repo_root: Path) -> tuple[CollectedReference, ...]
             "-m",
             "pytest",
             "--collect-only",
+            "--eeglab-backend=python",
             "--quiet",
             "--disable-warnings",
             "-p",

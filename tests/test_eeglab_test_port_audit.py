@@ -306,6 +306,27 @@ def _write_pytest_fixture(repo_root: Path, suite_commit: str) -> None:
     (package_root / "__init__.py").write_text('AUDIT_SENTINEL = "requested checkout"\n', encoding="utf-8")
     tests_root = repo_root / "tests"
     tests_root.mkdir(parents=True)
+    (tests_root / "conftest.py").write_text(
+        textwrap.dedent(
+            """\
+            import pytest
+
+            def pytest_addoption(parser):
+                parser.addoption("--eeglab-backend", choices=("python", "matlab"), default=None)
+
+            @pytest.fixture
+            def eeglab_backend():
+                raise AssertionError("provenance collection must not execute the backend")
+
+            def pytest_collection_modifyitems(config, items):
+                if config.getoption("--eeglab-backend") is None:
+                    deselected = [item for item in items if "eeglab_backend" in item.fixturenames]
+                    config.hook.pytest_deselected(items=deselected)
+                    items[:] = [item for item in items if item not in deselected]
+            """
+        ),
+        encoding="utf-8",
+    )
     (tests_root / "test_ports.py").write_text(
         textwrap.dedent(
             f"""\
@@ -332,7 +353,7 @@ def _write_pytest_fixture(repo_root: Path, suite_commit: str) -> None:
                 pass
 
             @eeglab_test("unittesting_miscfunc/example/example_wrapperTest.m", "test_beta")
-            def test_wrapper_provenance():
+            def test_wrapper_provenance(eeglab_backend):
                 pass
 
             @eeglab_test("regression_tests/t_regression.m", "testRegression")
