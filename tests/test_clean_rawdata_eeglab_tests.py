@@ -165,7 +165,8 @@ def _assert_isequal(first, second):
     if isinstance(first, np.ndarray):
         assert isinstance(second, np.ndarray)
         assert first.shape == second.shape
-        assert first.dtype.names == second.dtype.names
+        assert (first.dtype.names is None) == (second.dtype.names is None)
+        assert set(first.dtype.names or ()) == set(second.dtype.names or ())
         assert (first.dtype == object) == (second.dtype == object)
         if first.dtype.names:
             for field in first.dtype.names:
@@ -190,6 +191,10 @@ def test_isequal_assertion_matches_matlab(eeglab_matlab_engine, eeglab_backend):
         (np.array([[True]]), np.array([[1.0]])),
         ({"value": np.array([[1.0]])}, cells),
         ({"value": np.array([[1.0]])}, {"value": np.array([[1.0]])}),
+        (
+            np.array([[(1.0, 2.0), (3.0, 4.0)]], dtype=[("x", object), ("y", object)]),
+            np.array([[(2.0, 1.0), (4.0, 3.0)]], dtype=[("y", object), ("x", object)]),
+        ),
     ]
     for first, second in comparisons:
         equal = bool(eeglab_backend("isequal", first, second).item())

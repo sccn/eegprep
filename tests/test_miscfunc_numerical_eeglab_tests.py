@@ -39,6 +39,140 @@ def _source(name: str) -> str:
     return f"unittesting_miscfunc/{name}/miscfunc_{name}_wrapperTest.m"
 
 
+@eeglab_test(_source("hungarian"), "test_pass_equal")
+@eeglab_test(_source("hungarian"), "test_pass_general")
+@eeglab_test(_source("hungarian"), "test_pass_hard_one")
+@eeglab_test(_source("hungarian"), "test_pass_hard_three")
+@eeglab_test(_source("hungarian"), "test_pass_hard_two")
+@eeglab_test(_source("hungarian"), "test_pass_ideal")
+@eeglab_test(_source("hungarian"), "test_pass_negative")
+@eeglab_test(_source("hungarian"), "test_pass_zeros")
+def test_reference_hungarian(eeglab_backend):
+    cases = [
+        ([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], [1, 2, 3, 4], 10),
+        ([[1, 1, 1, 2], [3, 2, 4, 1], [4, 4, 2, 4], [2, 3, 3, 3]], [4, 1, 3, 2], 6),
+        ([[4, 2, 4, 1], [2, 4, 1, 3], [1, 1, 3, 4], [3, 3, 2, 2]], [3, 1, 2, 4], 6),
+        ([[3, 1, 1, 4], [1, 3, 2, 1], [2, 2, 3, 2], [4, 4, 4, 3]], [2, 3, 1, 4], 7),
+        ([[3, 2, 3, 2], [2, 1, 2, 1], [1, 4, 1, 3], [4, 3, 4, 4]], [2, 4, 3, 1], 8),
+        ([[1, 3, 2, 2], [3, 2, 4, 1], [4, 4, 1, 4], [2, 1, 3, 3]], [1, 4, 3, 2], 4),
+        ([[-1, 1, 1, 2], [3, 2, 4, -1], [4, 4, -2, 4], [-2, 3, 3, 3]], [4, 1, 3, 2], -4),
+        (np.zeros((4, 4)), [1, 2, 3, 4], 0),
+    ]
+    for data, assignment, cost in cases:
+        actual_assignment, actual_cost = eeglab_backend("hungarian", np.array(data, dtype=float), nargout=2)
+        _assert_near(actual_assignment, [assignment])
+        _assert_near(actual_cost, [[float(cost)]])
+
+
+@eeglab_test(_source("pcsquash"), "test_pass_column_vector")
+@eeglab_test(_source("pcsquash"), "test_pass_general")
+@eeglab_test(_source("pcsquash"), "test_pass_row_vector")
+def test_reference_pcsquash(eeglab_backend):
+    first = 0.5 * np.sqrt(2 - np.sqrt(2))
+    second = 0.5 * np.sqrt(2 + np.sqrt(2))
+    cases = [
+        ([[1.0], [3.0]], ([[0.0, 1.0], [1.0, 0.0]], [[0.0, 0.0]], [[0.0], [0.0]], [[1.0, 3.0]])),
+        ([[1.0, 2.0, 3.0]], ([[1.0]], [[2 / 3]], [[-1.0, 0.0, 1.0]], [[2.0]])),
+        (
+            [[1, 2, 3, 4, 5], [-2, 0, 2, -1, 6]],
+            (
+                [[first, -second], [second, first]],
+                [[5 + 3 * np.sqrt(2), 5 - 3 * np.sqrt(2)]],
+                [
+                    [-2 * first - 3 * second, -first - second, second, first - 2 * second, 2 * first + 5 * second],
+                    [2 * second - 3 * first, second - first, first, -second - 2 * first, -2 * second + 5 * first],
+                ],
+                [[3.0, 1.0]],
+            ),
+        ),
+    ]
+    for data, expected_outputs in cases:
+        outputs = eeglab_backend("pcsquash", np.array(data, dtype=float), nargout=4)
+        for actual, expected in zip(outputs, expected_outputs, strict=True):
+            _assert_near(actual, expected)
+
+
+@eeglab_test(_source("matperm"), "test_pass_general")
+def test_reference_matperm(eeglab_backend):
+    first = np.arange(1.0, 10.0).reshape(3, 3)
+    second = first[[1, 0, 2]]
+    indices = np.array([[2.0], [1.0], [3.0]])
+    reordered, permutation = eeglab_backend(
+        "matperm", first, second, indices, np.array([[1.0], [2.0], [3.0]]), np.ones((3, 1)), nargout=2
+    )
+    _assert_near(reordered, second)
+    _assert_near(permutation, indices)
+
+
+@eeglab_test(_source("means"), "test_test_means")
+def test_reference_means(eeglab_backend):
+    rng = np.random.default_rng(1)
+    for shape, output_shape in (((32, 100), (1, 100)), ((32, 1), (1, 1)), ((1, 100), (1, 100))):
+        mean_values, _error, _variance, _groups = eeglab_backend("means", rng.random(shape), nargout=4)
+        assert mean_values.shape == output_shape
+    groups = np.tile(np.array([[1.0, 2.0, 3.0, 4.0]]), 8)
+    mean_values, _error, _variance, _groups = eeglab_backend("means", rng.random((32, 100)), groups, nargout=4)
+    assert mean_values.shape == (4, 100)
+
+
+@eeglab_test(_source("matcorr"), "test_pass_general")
+@eeglab_test(_source("matcorr"), "test_pass_mean")
+@eeglab_test(_source("matcorr"), "test_pass_method_hungarian")
+@eeglab_test(_source("matcorr"), "test_pass_method_vam")
+@eeglab_test(_source("matcorr"), "test_pass_not_square")
+@eeglab_test(_source("matcorr"), "test_pass_not_square_hungarian")
+@eeglab_test(_source("matcorr"), "test_pass_num_rows")
+@eeglab_test(_source("matcorr"), "test_pass_weights")
+def test_reference_matcorr(eeglab_backend):
+    square = np.arange(1.0, 10.0).reshape(3, 3)
+    changed_mean = np.array([[5, 3, 1], [9, 4, 8], [3, 4, 8]], dtype=float)
+    rectangular = np.array([[1, 2, 3], [7, 8, 9], [4, 5, 6], [1, 5, 9]], dtype=float)
+    cases = [
+        (square, square[[1, 0, 2]], ()),
+        (changed_mean, changed_mean[[1, 0, 2]], (1.0,)),
+        (square, square[[1, 0, 2]], (0.0, 0.0)),
+        (square, square[[1, 0, 2]], (0.0, 1.0)),
+        (rectangular, rectangular[[2, 3, 0, 1]], ()),
+        (rectangular, rectangular[[2, 3, 0, 1]], (0.0, 0.0)),
+    ]
+    for first, second, options in cases:
+        correlation, ix, iy, correlations = eeglab_backend("matcorr", first, second, *options, nargout=4)
+        x_rows, y_rows = ix.astype(int).ravel() - 1, iy.astype(int).ravel() - 1
+        _assert_near(first[x_rows], second[y_rows])
+        assert len(np.unique(ix)) == ix.size
+        assert len(np.unique(iy)) == iy.size
+        for index in range(3):
+            _assert_near(correlations[x_rows[index], y_rows[index]], 1.0)
+        assert np.all(correlation <= 1)
+    rows = np.array([[1, 2, 3], [7, 8, 9], [4, 5, 6], [11, 12, 13]], dtype=float)
+    eeglab_backend("matcorr", rows, square[[1, 0, 2]], nargout=4)
+    weights = np.array([[1, 0.4, 0.6], [0.5, 0.8, 1], [0.2, 1, 0.9]])
+    correlation, ix, iy, _matrix = eeglab_backend("matcorr", square, square[[1, 0, 2]], 0.0, 2.0, weights, nargout=4)
+    assert len(np.unique(ix)) == ix.size
+    assert len(np.unique(iy)) == iy.size
+    assert np.all(correlation >= 0)
+
+
+@eeglab_test(_source("mapcorr"), "test_test_mapcorr")
+def test_reference_mapcorr(eeglab_backend, eeglab_suite_root):
+    first_locations = eeglab_backend(
+        "pop_readlocs", str(eeglab_suite_root / "eeglab/sample_locs/Standard-10-10-Cap33.ced")
+    )
+    eeglab_backend("pop_readlocs", str(eeglab_suite_root / "eeglab/sample_locs/Standard-10-20-Cap25.locs"))
+    rng = np.random.default_rng(1)
+    first, second = rng.random((33, 100)), rng.random((33, 100))
+    eeglab_backend("mapcorr", first.T, second.T, first_locations, first_locations, nargout=4)
+    eeglab_backend("mapcorr", first.T, second.T, first_locations, first_locations, 0.0, 0.0, 0.0, nargout=4)
+
+
+@eeglab_test(_source("scanfold"), "test_test_scanfold")
+def test_reference_scanfold(eeglab_backend, eeglab_suite_root):
+    reference = str(eeglab_suite_root / "eeglab")
+    eeglab_backend("scanfold", reference, nargout=2)
+    eeglab_backend("scanfold", reference, np.array([["plugins"]], dtype=object), 100.0, nargout=2)
+    eeglab_backend("scanfold", reference, np.array([["plugins"]], dtype=object), 1.0, nargout=2)
+
+
 @eeglab_test(_source("gabor2d"), "test_pass_cut")
 @eeglab_test(_source("gabor2d"), "test_pass_general")
 @eeglab_test(_source("gabor2d"), "test_pass_rotated")
@@ -425,15 +559,7 @@ def test_python_regression_gauss3d_honors_anisotropic_shape_peak_and_cut():
         gauss3d(3, 3, 3.5)
 
 
-@eeglab_test(_source("hungarian"), "test_pass_equal")
-@eeglab_test(_source("hungarian"), "test_pass_general")
-@eeglab_test(_source("hungarian"), "test_pass_hard_one")
-@eeglab_test(_source("hungarian"), "test_pass_hard_three")
-@eeglab_test(_source("hungarian"), "test_pass_hard_two")
-@eeglab_test(_source("hungarian"), "test_pass_ideal")
-@eeglab_test(_source("hungarian"), "test_pass_negative")
-@eeglab_test(_source("hungarian"), "test_pass_zeros")
-def test_current_hungarian_finds_known_global_minima_with_unique_assignments():
+def test_python_regression_hungarian_finds_known_global_minima_with_unique_assignments():
     cases = [
         ([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], 10),
         ([[1, 1, 1, 2], [3, 2, 4, 1], [4, 4, 2, 4], [2, 3, 3, 3]], 6),
@@ -473,8 +599,7 @@ def test_python_regression_laplac2d_honors_peak_location_scale_and_cut():
     assert 0 < np.count_nonzero(material_cut) < material_cut.size
 
 
-@eeglab_test(_source("mapcorr"), "test_test_mapcorr")
-def test_current_mapcorr_aligns_values_by_channel_label_before_matching():
+def test_python_regression_mapcorr_aligns_values_by_channel_label_before_matching():
     first_channels = [{"labels": name} for name in ["Fz", "Cz", "Pz"]]
     second_channels = [{"labels": name} for name in ["Pz", "Fz", "Cz", "Oz"]]
     first = np.asarray([[1, 2, 3], [4, -2, 0]], dtype=float)
@@ -492,15 +617,7 @@ def test_current_mapcorr_aligns_values_by_channel_label_before_matching():
         mapcorr(first, second, first_channels, [{"labels": "Pz"}] * 4)
 
 
-@eeglab_test(_source("matcorr"), "test_pass_general")
-@eeglab_test(_source("matcorr"), "test_pass_mean")
-@eeglab_test(_source("matcorr"), "test_pass_method_hungarian")
-@eeglab_test(_source("matcorr"), "test_pass_method_vam")
-@eeglab_test(_source("matcorr"), "test_pass_not_square")
-@eeglab_test(_source("matcorr"), "test_pass_not_square_hungarian")
-@eeglab_test(_source("matcorr"), "test_pass_num_rows")
-@eeglab_test(_source("matcorr"), "test_pass_weights")
-def test_current_matcorr_matches_permuted_rows_across_methods_and_rectangular_inputs():
+def test_python_regression_matcorr_matches_permuted_rows_across_methods_and_rectangular_inputs():
     first = np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
     second = first[[1, 0, 2]]
     for method in (0, 1, 2):
@@ -520,8 +637,7 @@ def test_current_matcorr_matches_permuted_rows_across_methods_and_rectangular_in
     np.testing.assert_allclose(weighted[3], matcorr(first, second)[3] * weights)
 
 
-@eeglab_test(_source("matperm"), "test_pass_general")
-def test_current_matperm_reorders_rows_and_corrects_component_polarity():
+def test_python_regression_matperm_reorders_rows_and_corrects_component_polarity():
     first = np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     second = np.asarray([[4, 5, 6], [-1, -2, -3], [7, 8, 9]])
     output, permutation = matperm(first, second, [1, 0, 2], [0, 1, 2], [1, -1, 1])
@@ -531,8 +647,7 @@ def test_current_matperm_reorders_rows_and_corrects_component_polarity():
         matperm(first, second, [0.9], [0], [1])
 
 
-@eeglab_test(_source("means"), "test_test_means")
-def test_current_means_computes_groupwise_statistics_along_observations():
+def test_python_regression_means_computes_groupwise_statistics_along_observations():
     values = np.asarray([[1, 2], [3, np.nan], [5, 6], [7, 10]], dtype=float)
     group_means, standard_errors, variances, group_ids = means(values, [2, 1, 2, 1])
     np.testing.assert_array_equal(group_ids, [1, 2])
@@ -569,10 +684,7 @@ def test_python_regression_pcexpand_accepts_row_or_column_mean_vectors():
     np.testing.assert_allclose(pcexpand(projections, vectors, [[2], [1]]), expected)
 
 
-@eeglab_test(_source("pcsquash"), "test_pass_column_vector")
-@eeglab_test(_source("pcsquash"), "test_pass_general")
-@eeglab_test(_source("pcsquash"), "test_pass_row_vector")
-def test_current_pcsquash_orders_components_and_roundtrips_through_pcexpand():
+def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pcexpand():
     for data in (np.asarray([[1, 3]]).T, np.asarray([[1, 2, 3, 4, 5], [-2, 0, 2, -1, 6]]), np.asarray([1, 2, 3])):
         vectors, eigenvalues, compressed, data_mean = pcsquash(data)
         expected = np.asarray(data, dtype=float)
@@ -606,8 +718,7 @@ def test_python_regression_perminv_returns_zero_based_inverse_permutation():
         perminv([0.9, 1.1])
 
 
-@eeglab_test(_source("scanfold"), "test_test_scanfold")
-def test_current_scanfold_respects_ignored_directories_and_depth(tmp_path):
+def test_python_regression_scanfold_respects_ignored_directories_and_depth(tmp_path):
     (tmp_path / "root.m").write_text("function root", encoding="utf-8")
     (tmp_path / "readme.txt").write_text("not MATLAB", encoding="utf-8")
     nested = tmp_path / "nested"
