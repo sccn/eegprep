@@ -33,7 +33,6 @@ def _write_edf_family(path: Path, data: np.ndarray, srate: int, *, bdf: bool = F
     assert highlevel.write_edf(str(path), data, headers, file_type=file_type)
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
 def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> None:
     srate = 8
     data = np.vstack(
@@ -61,10 +60,6 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
     assert cropped["history"] == command
 
 
-@eeglab_test(
-    f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m",
-    "test_test_pop_biosig_timerange",
-)
 def test_pop_biosig_adjacent_edf_timeranges_are_sample_continuous(tmp_path: Path) -> None:
     srate = 256
     samples = np.arange(61 * srate, dtype=float)
@@ -265,7 +260,6 @@ def test_pop_chanevent_covers_the_upstream_33_case_option_matrix() -> None:
     assert default["data"].shape == (1, trigger.size)
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_importpres/binary_pop_importpres_wrapperTest.m", "test_test_pop_importpres")
 def test_pop_importpres_covers_the_upstream_five_call_forms(tmp_path: Path) -> None:
     filename = tmp_path / "experiment.LOG"
     filename.write_text(
@@ -348,7 +342,6 @@ def _write_snapmaster(path: Path) -> np.ndarray:
     return values[1:]
 
 
-@eeglab_test(f"{BINARY_SUITE}/snapread/binary_snapread_wrapperTest.m", "test_test_snapread")
 def test_snapread_reads_default_and_seeked_binary_frames(tmp_path: Path) -> None:
     filename = tmp_path / "TEST.SMA"
     expected = _write_snapmaster(filename)
@@ -367,7 +360,6 @@ def test_snapread_reads_default_and_seeked_binary_frames(tmp_path: Path) -> None
     assert '"NCHAN%"=3' in header
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_snapread/binary_pop_snapread_wrapperTest.m", "test_test_pop_snapread")
 def test_pop_snapread_applies_each_upstream_gain_and_builds_eeg_metadata(tmp_path: Path) -> None:
     filename = tmp_path / "TEST.SMA"
     expected = _write_snapmaster(filename)
@@ -386,3 +378,52 @@ def test_pop_snapread_applies_each_upstream_gain_and_builds_eeg_metadata(tmp_pat
     assert [event["latency"] for event in gain_one["event"]] == [3, 401]
     assert [event["type"] for event in gain_one["event"]] == [1, 1]
     assert gain_one["history"] == command
+
+
+@eeglab_test(f"{BINARY_SUITE}/snapread/binary_snapread_wrapperTest.m", "test_test_snapread")
+def test_upstream_snapread_original_recording_and_offsets(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/SMA/TEST.SMA")
+    # The upstream calls request one output. MATLAB removes the event channel
+    # only when requesting three or more outputs, so preserve nargout here.
+    complete = eeglab_backend("snapread", filename)
+    after_400 = eeglab_backend("snapread", filename, 400.0)
+    after_one = eeglab_backend("snapread", filename, 1.0)
+    np.testing.assert_array_equal(after_400, complete[:, 400:])
+    np.testing.assert_array_equal(after_one, complete[:, 1:])
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_snapread/binary_pop_snapread_wrapperTest.m", "test_test_pop_snapread")
+def test_upstream_pop_snapread_original_recording_and_gains(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/SMA/TEST.SMA")
+    default = eeglab_backend("pop_snapread", filename)
+    gain_400 = eeglab_backend("pop_snapread", filename, 400.0)
+    gain_one = eeglab_backend("pop_snapread", filename, 1.0)
+    np.testing.assert_array_equal(gain_400["data"], gain_one["data"] * 400)
+    np.testing.assert_array_equal(default["data"], gain_one["data"])
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
+def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/BDF/jo1_3.bdf"
+    eeglab_backend("pop_biosig", str(filename), "blockrange", np.array([[1.0, 10.0]]))
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig_timerange")
+def test_upstream_pop_biosig_original_edf_overlap(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/BDF/5038.edf")
+    first = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[0.0, 30.0]]))
+    second = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[29.0, 60.0]]))
+    np.testing.assert_array_equal(first["data"][0, -256:], second["data"][0, :256])
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_importpres/binary_pop_importpres_wrapperTest.m", "test_test_pop_importpres")
+def test_upstream_pop_importpres_original_recording_and_log(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/SMA"
+    eeg = eeglab_backend("pop_snapread", str(directory / "TEST.SMA"), 400.0)
+    log = str(directory / "TEST.LOG")
+    eeglab_backend("pop_importpres", eeg, log)
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None")
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "Duration")
+    options = ("timeunit", 1.0, "append", "no", "indices", np.empty((0, 0)), "align", 0.0, "optimalign", "on")
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None", 0.0, *options)
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None", 0.0, "skipline", 5.0, *options)

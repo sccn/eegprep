@@ -28,7 +28,6 @@ def _segmented_fixture(path: Path, *, trials: int = 3, pnts: int = 12) -> list[n
     return segments
 
 
-@eeglab_test(UPSTREAM_WRAPPER, "test_test_pop_importegimat")
 def test_pop_importegimat_loads_segmented_netstation_export(tmp_path: Path) -> None:
     """Turn the upstream assertion-free smoke call into an observable contract."""
     path = tmp_path / "segmented_matlab.mat"
@@ -215,3 +214,15 @@ def test_pop_importegimat_rejects_invalid_inputs(
 def test_pop_importegimat_requires_an_existing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="EGI MATLAB file not found"):
         pop_importegimat(tmp_path / "missing.mat")
+
+
+@eeglab_test(UPSTREAM_WRAPPER, "test_test_pop_importegimat")
+def test_upstream_pop_importegimat_original_recording(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/EGI/segmented_matlab.mat"
+    eeg = eeglab_backend("pop_importegimat", str(filename))
+    assert eeg["data"].size > 0
+    assert eeg["data"].shape == (
+        int(np.asarray(eeg["nbchan"]).item()),
+        int(np.asarray(eeg["pnts"]).item()),
+        int(np.asarray(eeg["trials"]).item()),
+    )
