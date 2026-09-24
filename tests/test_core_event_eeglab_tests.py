@@ -26,7 +26,84 @@ from eegprep import (
     getchanlist,
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
+
+
+@eeglab_test(
+    "unittesting_popfunc/eeg_amplitudearea/popfunc_eeg_amplitudearea_wrapperTest.m",
+    "test_test_eeg_amplitudearea",
+)
+def test_reference_amplitudearea_preserves_both_epoched_workflows(eeglab_backend):
+    datasets = (
+        [[[1, 1, 2, 2], [1, 1, 2, 2], [1, 1, 2, 2]], [[2, 2, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1]]],
+        [[[1, 4, 13, 16], [2, 5, 14, 17], [3, 6, 15, 18]], [[7, 10, 19, 22], [8, 11, 20, 23], [9, 12, 21, 24]]],
+    )
+    for data in datasets:
+        eeg = eeglab_backend("eeg_emptyset")
+        eeg.update(nbchan=2.0, pnts=3.0, trials=4.0, srate=1.0, xmin=0.0, xmax=2.0, data=np.array(data, dtype=float))
+        eeg = eeglab_backend("eeg_checkset", eeg)
+        # The original source checks successful execution, not an invented numeric oracle.
+        eeglab_backend("eeg_amplitudearea", eeg, np.array([[1.0, 2.0]]), 1.0, 0.0, 3.0, nargout=2)
+
+
+@eeglab_test("unittesting_popfunc/eeg_chaninds/popfunc_eeg_chaninds_wrapperTest.m", "test_test_eeg_chaninds")
+def test_reference_chaninds_uses_original_epoched_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    labels = "FPz EOG1 F3 Fz F4 EOG2 FC5 FC1 FC2 FC6 T7 C3 C4 Cz T8 CP5 CP1 CP2 CP6 P7 P3 Pz P4 P8 PO7 PO3 POz PO4 PO8 O1 Oz O2".split()
+    mixed = "T8 CP5 CP1 P3 Pz P4 P8 O1 Oz O2 FPz EOG1 F3 Fz F4 EOG2 FC5 FC1 FC6 Cz".split()
+    for selection in (["P7"], labels, mixed):
+        eeglab_backend("eeg_chaninds", eeg, np.array([selection], dtype=object))
+
+
+@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
+def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend, eeglab_suite_root):
+    data = np.arange(1, 16, dtype=float).reshape(3, 5)
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(nbchan=3.0, pnts=4.0, trials=1.0, srate=1.0, xmin=0.0, xmax=3.0, data=data)
+    result = eeglab_backend("eeg_eegrej", eeg, np.empty((0, 0)))
+    assert_matlab_near(result["data"], data)
+    assert_matlab_near(result["event"], np.empty((0, 0)))
+    # The source deliberately includes both consistent and inconsistent pnts metadata.
+    for pnts in (5.0, 4.0):
+        eeg["pnts"] = pnts
+        result = eeglab_backend("eeg_eegrej", eeg, np.array([[2.0, 3.0]]))
+        assert_matlab_near(result["data"], data[:, [0, 3, 4]])
+        assert set(result["event"]) == {"type", "duration", "latency"}
+        assert result["event"]["type"] == "boundary"
+        assert_matlab_near(result["event"]["duration"], [[2.0]])
+        assert_matlab_near(result["event"]["latency"], [[1.5]])
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
+
+
+@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_testcase_eegrej")
+def test_reference_eegrej_boundary_events_follow_original_regression(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(pnts=10000.0, data=np.zeros((1, 10000)), srate=500.0)
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    cases = (
+        ([999.0, 1000.0, 2000.0, 2001.0], [1000.0, 2000.0], ["mrk1", "boundary", "mrk4"], [999.0, 999.5, 1000.0]),
+        ([1.0, 1000.0, 1001.0], [1.0, 1000.0], ["boundary", "mrk3"], [0.5, 1.0]),
+        ([8999.0, 9000.0, 10000.0], [9000.0, 10000.0], ["mrk1", "boundary"], None),
+    )
+    for latencies, interval, expected_types, expected_latencies in cases:
+        eeg["event"] = np.array(
+            [[(f"mrk{index}", latency) for index, latency in enumerate(latencies, start=1)]],
+            dtype=[("type", object), ("latency", object)],
+        )
+        result = eeglab_backend("eeg_eegrej", eeg, np.array([interval]))
+        events = result["event"]
+        assert events.shape == (1, len(expected_types))
+        assert events["type"][0].tolist() == expected_types
+        if expected_latencies is not None:
+            np.testing.assert_array_equal([latency.item() for latency in events["latency"][0]], expected_latencies)
+
+
+@eeglab_test("unittesting_popfunc/eeg_timeinterp/popfunc_eeg_timeinterp_wrapperTest.m", "test_test_eeg_timeinterp")
+def test_reference_timeinterp_preserves_original_recording_and_interval(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeg["data"][0, 99:1000] = 0
+    eeglab_backend("eeg_timeinterp", eeg, np.arange(100.0, 1001.0)[None, :])
 
 
 def _epoched_event_eeg(*, durations: bool = False, include_event_epochs: bool = True) -> dict:
@@ -152,10 +229,6 @@ def test_eeg_addnewevents_current_suite_documented_calls_are_functional():
         assert merged["urevent"][event["urevent"]]["type"] == event["type"]
 
 
-@eeglab_test(
-    "unittesting_popfunc/eeg_amplitudearea/popfunc_eeg_amplitudearea_wrapperTest.m",
-    "test_test_eeg_amplitudearea",
-)
 def test_eeg_amplitudearea_current_suite_epoched_cases():
     data = np.zeros((2, 3, 4))
     data[0] = [[1, 1, 2, 2], [1, 1, 2, 2], [1, 1, 2, 2]]
@@ -181,7 +254,6 @@ def test_eeg_amplitudearea_current_suite_epoched_cases():
     np.testing.assert_allclose(truncated_interval, [0.75], atol=1e-12)
 
 
-@eeglab_test("unittesting_popfunc/eeg_chaninds/popfunc_eeg_chaninds_wrapperTest.m", "test_test_eeg_chaninds")
 def test_eeg_chaninds_current_suite_label_forms():
     labels = "FPz EOG1 F3 Fz F4 EOG2 FC5 FC1 FC2 FC6 T7 C3 C4 Cz T8 CP5 CP1 CP2 CP6 P7 P3 Pz P4 P8 PO7 PO3 POz PO4 PO8 O1 Oz O2".split()
     eeg = {"chanlocs": [{"labels": label} for label in labels]}
@@ -240,7 +312,6 @@ def test_eeg_context_current_suite_six_context_cases():
     np.testing.assert_allclose(boundary_result[1], [[2], [np.nan], [6]], equal_nan=True)
 
 
-@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
 def test_eeg_eegrej_current_suite_empty_and_middle_regions():
     data = np.arange(1, 16, dtype=float).reshape(3, 5)
     eeg = {"data": data, "nbchan": 3, "pnts": 5, "trials": 1, "srate": 1, "xmin": 0, "xmax": 4, "event": []}
@@ -251,7 +322,6 @@ def test_eeg_eegrej_current_suite_empty_and_middle_regions():
     assert output["event"] == [{"type": "boundary", "latency": 1.5, "duration": 2.0}]
 
 
-@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_testcase_eegrej")
 def test_eeg_eegrej_current_suite_endpoint_event_regression():
     eeg = {"data": np.zeros((1, 10000)), "pnts": 10000, "srate": 500, "trials": 1, "xmin": 0, "xmax": 19.998}
     cases = [
@@ -453,7 +523,6 @@ def test_eeg_mergelocs_current_suite_three_overlap_shapes():
     assert [loc["labels"] for loc in subset] == list("ABCDEFGHIJ") and not warning
 
 
-@eeglab_test("unittesting_popfunc/eeg_timeinterp/popfunc_eeg_timeinterp_wrapperTest.m", "test_test_eeg_timeinterp")
 def test_eeg_timeinterp_current_suite_continuous_sample_workflow():
     sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
     eeg = pop_loadset(sample)
