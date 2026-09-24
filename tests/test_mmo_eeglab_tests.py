@@ -216,6 +216,108 @@ def test_upstream_mmo_original_helper_construction(request, mmo_backend, eeglab_
         _python_mmo(pascal(8).astype(float), eeglab_working_directory, False)
 
 
+_MMO_PREPROCESSING = (
+    "continuous_rejection",
+    "continuous_epoch",
+    "continuous_epoch_after_rejection",
+    "continuous_baseline",
+    "continuous_baseline_after_rejection",
+    "continuous_filter",
+    "continuous_filter_after_rejection",
+    "continuous_rereference",
+    "continuous_select",
+    "continuous_resample",
+    "continuous_resample_after_rejection",
+    "epoched_baseline",
+    "epoched_filter",
+    "epoched_rereference",
+    "epoched_select",
+    "epoched_resample",
+)
+
+
+def _original_mmo_preprocessing(name):
+    rejection = np.empty((0, 0))
+    if name.endswith("_after_rejection"):
+        rejection = np.array([[4000.0, 10000.0]])
+        name = name.removesuffix("_after_rejection")
+    operation = name.split("_", 1)[1]
+    arguments = {
+        "rejection": (np.array([[1.0, 10000.0]]),),
+        "epoch": (
+            np.array([["square"]], dtype=object),
+            np.array([[-1.0, 2.0]]),
+            "newname",
+            "Continuous EEG Data epochs",
+            "epochinfo",
+            "yes",
+        ),
+        "baseline": (np.empty((0, 0)), np.arange(1.0, 11.0)[None, :]),
+        "filter": ("ftype", "highpass", "fcutoff", 3.0, "wtype", "blackman", "forder", 118.0),
+        "rereference": (np.empty((0, 0)),),
+        "select": ("channel", np.arange(1.0, 11.0)[None, :], "point", np.arange(1.0, 21.0)[None, :]),
+        "resample": (64.0,),
+    }[operation]
+    if name == "epoched_select":
+        arguments += ("trial", np.arange(1.0, 11.0)[None, :])
+    function = {
+        "rejection": "eeg_eegrej",
+        "epoch": "pop_epoch",
+        "baseline": "pop_rmbase",
+        "filter": "pop_firws",
+        "rereference": "pop_reref",
+        "select": "pop_select",
+        "resample": "pop_resample",
+    }[operation]
+    return function, arguments, rejection
+
+
+@pytest.mark.parametrize("workflow", _MMO_PREPROCESSING)
+@eeglab_test(UPSTREAM, "test_check_eeglab_mmo")
+def test_upstream_mmo_original_preprocessing(
+    request,
+    mmo_backend,
+    eeglab_suite_root,
+    eeglab_options_directory,
+    eeglab_working_directory,
+    workflow,
+):
+    filename = "eeglab_data_epochs_ica.set" if workflow.startswith("epoched_") else "eeglab_data.set"
+    filename = str(eeglab_suite_root / "eeglab/sample_data" / filename)
+    function, arguments, rejection = _original_mmo_preprocessing(workflow)
+    results = []
+    for enabled in (1.0, 0.0):
+        mmo_backend("pop_editoptions", option_memmapdata=enabled)
+        clear_events = workflow == "continuous_rejection" and bool(enabled)
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            cells = np.empty((1, len(arguments)), dtype=object)
+            for index, value in enumerate(arguments):
+                cells[0, index] = value
+            values, mapped = mmo_backend(
+                "eegprep_test_mmo_preprocess",
+                filename,
+                function,
+                cells,
+                rejection,
+                clear_events,
+                nargout=2,
+            )
+            mapped = bool(np.asarray(mapped).item())
+        else:
+            eeg = mmo_backend("pop_loadset", filename)
+            if clear_events:
+                eeg["event"] = []
+            if rejection.size:
+                eeg = mmo_backend("eeg_eegrej", eeg, rejection)
+            output = mmo_backend(function, eeg, *arguments)
+            mapped = isinstance(output["data"], MemmapData)
+            values = np.asarray(output["data"])
+        if enabled:
+            assert mapped, "object should be an MMO"
+        results.append(values)
+    np.testing.assert_array_equal(results[0], results[1])
+
+
 def _data(shape: tuple[int, ...]) -> np.ndarray:
     values = np.arange(1, int(np.prod(shape)) + 1, dtype=np.float32)
     return values.reshape(shape, order="F")
