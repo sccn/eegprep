@@ -15,6 +15,7 @@ from tests.eeglab_tests import eeglab_test
 
 STATCOND_CLASS = "unittesting_statistics/statcond/statcondTest.m"
 STATCOND_REGRESSION = "regression_tests/t_statcond.m"
+STATCOND_WRAPPER = "unittesting_statistics/statcond/statistics_statcond_wrapperTest.m"
 
 
 @pytest.fixture(scope="module")
@@ -649,6 +650,21 @@ for _design, _suffix in (("t", "TTest"), ("one-way", "1Anova"), ("two-way", "2An
 )
 @eeglab_test(STATCOND_CLASS, "shuffleAndPermutation")
 def test_reference_statcond_shuffle_and_permutation(eeglab_backend, feature_shape, n_conditions, arraycomp):
+    sa1, sa2, sa3, sa4 = _reference_shuffle_arrays(eeglab_backend, feature_shape, n_conditions, arraycomp)
+    for value in sa1[:2]:
+        assert value.dtype == np.float32  # Source verifyEqual expects single.
+        np.testing.assert_array_equal(np.remainder(value, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+    means = np.mean(sa2, axis=0)
+    assert means.dtype == np.float32
+    # Source repeats the same two sa1 checks in its permutation section.
+    np.testing.assert_array_equal(np.round(means - means[0]), np.arange(10))
+    assert all(np.unique(value).size == 10 for value in sa2[:2])
+    assert all(np.unique(value).size > 3 for value in sa3[:2])
+    assert all(np.unique(value).size == 10 for value in sa4[:2])
+    assert np.floor(np.mean(np.mean(sa4, axis=0))) in (55, 372)
+
+
+def _reference_shuffle_arrays(eeglab_backend, feature_shape, n_conditions, arraycomp):
     conditions = _resampling_conditions(feature_shape, n_conditions)
     data = _matlab_cells([conditions])
     arrays = []
@@ -669,15 +685,111 @@ def test_reference_statcond_shuffle_and_permutation(eeglab_backend, feature_shap
                 value = value[-1, -1, -1, :]
             traces.append(value.ravel())
         arrays.append(traces)
-    sa1, sa2, sa3, sa4 = arrays
-    for value in sa1[:2]:
-        assert value.dtype == np.float32  # Source verifyEqual expects single.
-        np.testing.assert_array_equal(np.remainder(value, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
-    means = np.mean(sa2, axis=0)
-    assert means.dtype == np.float32
-    # Source repeats the same two sa1 checks in its permutation section.
-    np.testing.assert_array_equal(np.round(means - means[0]), np.arange(10))
-    assert all(np.unique(value).size == 10 for value in sa2[:2])
-    assert all(np.unique(value).size > 3 for value in sa3[:2])
-    assert all(np.unique(value).size == 10 for value in sa4[:2])
-    assert np.floor(np.mean(np.mean(sa4, axis=0))) in (55, 372)
+    return arrays
+
+
+def _legacy_assertsame(*values):
+    # Source's early return checks only the first argument when it has >2
+    # entries. Preserve this blind spot; the newer class separately checks df/p.
+    if len(values[0]) > 2:
+        for index in range(len(values[0]) - 1):
+            _legacy_assertsame(values[0][index : index + 2])
+        return
+    for value in values:
+        assert not abs(value[0] - value[1]) > abs(np.mean(value)) * 0.01
+
+
+@eeglab_test(STATCOND_WRAPPER, "test_test_statcond")
+def test_reference_legacy_statcond_workflow(eeglab_backend):
+    if (
+        not eeglab_backend("license", "checkout", "statistics_toolbox").item()
+        or not eeglab_backend("exist", "kmeans", "file").item()
+    ):
+        return
+    rng = np.random.default_rng(114)
+    t_data = [rng.random((1, 10)), rng.random((1, 10)) + 0.5]
+    anova_data = [
+        [rng.random((1, 10)), rng.random((1, 10)), rng.random((1, 10)) + 0.2],
+        [rng.random((1, 10)), rng.random((1, 10)) + 0.2, rng.random((1, 10))],
+    ]
+    for paired, design in (
+        ("on", "t"),
+        ("off", "t"),
+        ("on", "one-way"),
+        ("on", "two-way"),
+        ("off", "one-way"),
+        ("off", "two-way"),
+    ):
+        rows = [t_data] if design == "t" else anova_data[:1] if design == "one-way" else anova_data
+        kwargs = {"variance": "homogenous"} if design == "t" and paired == "off" else {}
+        statistic, df, pvalue, _surrogate = eeglab_backend(
+            "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=4, **kwargs
+        )
+        if design == "t":
+            reference = (
+                scipy_stats.ttest_rel(*t_data, axis=-1)
+                if paired == "on"
+                else scipy_stats.ttest_ind(*t_data, axis=-1, equal_var=True)
+            )
+            expected = reference.statistic, (9.0 if paired == "on" else 18.0,), reference.pvalue
+        elif design == "one-way":
+            if paired == "on":
+                expected = _one_way_repeated_reference(anova_data[0])
+            else:
+                reference = scipy_stats.f_oneway(*anova_data[0], axis=-1)
+                expected = reference.statistic, (2.0, 27.0), reference.pvalue
+        else:
+            reference = (
+                _two_way_repeated_reference(anova_data) if paired == "on" else _two_way_unpaired_reference(anova_data)
+            )
+            expected = tuple(value.interaction for value in reference)
+            statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
+        pairs = [np.array([statistic.flat[0], np.asarray(expected[0]).flat[0]], dtype=statistic.dtype)]
+        pairs.extend(
+            np.array([actual, value], dtype=df.dtype) for actual, value in zip(df.flat, expected[1], strict=True)
+        )
+        pairs.append(np.array([pvalue.flat[0], np.asarray(expected[2]).flat[0]], dtype=pvalue.dtype))
+        _legacy_assertsame(*pairs)
+
+    conditions = [
+        [rng.random((*shape, 10)) + offset for offset in (0, 0.5, 0)] for shape in ((1,), (10,), (5, 10), (2, 5, 10))
+    ]
+    indices = ((0,), (3,), (1, 3), (0, 1, 3))
+    for arrays, index in zip(conditions[1:], indices[1:], strict=True):
+        for source, target in zip(conditions[0], arrays, strict=True):
+            target[index] = source[0]
+    for design in ("t", "one-way", "two-way"):
+        for paired in ("on", "off"):
+            values = []
+            for arrays, index in zip(conditions, indices, strict=True):
+                rows = (
+                    [arrays[:2]]
+                    if design == "t"
+                    else [arrays]
+                    if design == "one-way"
+                    else [[arrays[0] / 2, arrays[1], arrays[2]], arrays]
+                )
+                kwargs = {"variance": "homogenous"} if design == "t" and paired == "off" else {}
+                statistic, df, pvalue = eeglab_backend(
+                    "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=3, **kwargs
+                )
+                if design == "two-way":
+                    statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
+                feature = () if statistic.size == 1 else index
+                values.append((np.asarray(statistic[feature]).flat[0], df, np.asarray(pvalue[feature]).flat[0]))
+            _legacy_assertsame(
+                np.array([value[0] for value in values]),
+                np.concatenate([value[1].ravel() for value in values]),
+                np.array([value[2] for value in values]),
+            )
+    for arraycomp in ("on", "off"):
+        for feature_shape, n_conditions in (((1,), 2), ((1,), 3), ((10,), 2), ((10,), 3), ((9, 8), 2), ((9, 8), 3)):
+            sa1, sa2, sa3, sa4 = _reference_shuffle_arrays(eeglab_backend, feature_shape, n_conditions, arraycomp)
+            for value in sa1[:2]:
+                np.testing.assert_array_equal(np.remainder(value, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+            means = np.mean(sa2, axis=0)
+            np.testing.assert_array_equal(np.round(means - means[0]), np.arange(10))
+            assert all(np.unique(value).size == 10 for value in sa2[:2])
+            assert all(np.unique(value).size > 3 for value in sa3[:2])
+            assert all(np.unique(value).size == 10 for value in sa4[:2])
+            assert np.floor(np.mean(np.mean(sa4, axis=0))) in (55, 372)
