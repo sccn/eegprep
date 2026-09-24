@@ -23,7 +23,6 @@ from eegprep import (
     eeg_mergelocs,
     eeg_timeinterp,
     eeg_urlatency,
-    getchanlist,
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
@@ -106,6 +105,34 @@ def test_reference_timeinterp_preserves_original_recording_and_interval(eeglab_b
     eeglab_backend("eeg_timeinterp", eeg, np.arange(100.0, 1001.0)[None, :])
 
 
+def _reference_merge_locations(eeglab_backend, eeglab_suite_root, function):
+    root = eeglab_suite_root / "eeglab"
+    locations = eeglab_backend("pop_readlocs", str(root / "sample_data/eeglab_chan32.locs"))
+    eeglab_backend(function, locations[:, :1], locations[:, 1:2])
+    locations = eeglab_backend("pop_readlocs", str(root / "sample_locs/GSN64v2_0.sfp"))
+    eeglab_backend(function, locations[:, :10], locations[:, 4:15])
+    first = eeglab_backend("pop_readlocs", str(root / "sample_locs/Standard-10-10-Cap33.locs"))
+    second = eeglab_backend("pop_readlocs", str(root / "sample_locs/Standard-10-20-Cap25.locs"), "filetype", "loc")
+    eeglab_backend(function, first, second)
+
+
+@eeglab_test("unittesting_popfunc/eeg_mergechan/popfunc_eeg_mergechan_wrapperTest.m", "test_test_eeg_mergechan")
+def test_reference_mergechan_uses_original_montages(eeglab_backend, eeglab_suite_root):
+    _reference_merge_locations(eeglab_backend, eeglab_suite_root, "eeg_mergechan")
+
+
+@eeglab_test("unittesting_popfunc/eeg_mergelocs/popfunc_eeg_mergelocs_wrapperTest.m", "test_test_eeg_mergelocs")
+def test_reference_mergelocs_uses_original_montages(eeglab_backend, eeglab_suite_root):
+    _reference_merge_locations(eeglab_backend, eeglab_suite_root, "eeg_mergelocs")
+
+
+def _reference_typed_locations():
+    return np.array(
+        [[(kind, float(index), float(index + 1), float(index + 2)) for index, kind in enumerate("hello", start=1)]],
+        dtype=[("type", object), ("X", object), ("Y", object), ("Z", object)],
+    )
+
+
 def _epoched_event_eeg(*, durations: bool = False, include_event_epochs: bool = True) -> dict:
     event_types = ["square", "square", "rt", "square", "rt"]
     latencies = [2, 5, 5.3, 8, 8.4]
@@ -186,10 +213,6 @@ def _matching_locations() -> tuple[list[dict], list[dict]]:
         {"labels": "2_3", "X": 0, "Y": -1, "Z": 0, "sph_radius": 1},
     ]
     return big, small
-
-
-def _typed_locations() -> list[dict]:
-    return [{"type": value, "X": index, "Y": index + 1, "Z": index + 2} for index, value in enumerate("hello", start=1)]
 
 
 @eeglab_test(
@@ -501,7 +524,6 @@ def test_eeg_matchchans_current_suite_noplot_case():
         eeg_matchchans(big, small, "noplot")
 
 
-@eeglab_test("unittesting_popfunc/eeg_mergechan/popfunc_eeg_mergechan_wrapperTest.m", "test_test_eeg_mergechan")
 def test_eeg_mergechan_current_suite_three_overlap_shapes():
     first = [{"labels": label} for label in "ABCDEFGHIJ"]
     second = [{"labels": label} for label in "EFGHIJKLMNO"]
@@ -511,7 +533,6 @@ def test_eeg_mergechan_current_suite_three_overlap_shapes():
     assert [loc["labels"] for loc in eeg_mergechan(first, subset)] == list("ABCDEFGHIJ")
 
 
-@eeglab_test("unittesting_popfunc/eeg_mergelocs/popfunc_eeg_mergelocs_wrapperTest.m", "test_test_eeg_mergelocs")
 def test_eeg_mergelocs_current_suite_three_overlap_shapes():
     first = [{"labels": label} for label in "ABCDEFGHIJ"]
     second = [{"labels": label} for label in "EFGHIJKLMNO"]
@@ -549,7 +570,6 @@ def test_eeg_timeinterp_current_suite_continuous_sample_workflow():
     np.testing.assert_array_equal(selected_electrode["data"][1, 7:12], np.zeros(5))
 
 
-@eeglab_test("unittesting_popfunc/eeg_urlatency/popfunc_eeg_urlatency_wrapperTest.m", "test_pass_general")
 def test_eeg_urlatency_current_suite_boundary_durations():
     events = [
         {"type": "boundary", "duration": 2, "latency": 1.5},
@@ -560,27 +580,44 @@ def test_eeg_urlatency_current_suite_boundary_durations():
     np.testing.assert_allclose(eeg_urlatency(events, [1, 6, 10]), [1, 11, 16])
 
 
-@eeglab_test("unittesting_popfunc/eeg_urlatency/popfunc_eeg_urlatency_wrapperTest.m", "test_pass_no_duration")
 def test_eeg_urlatency_current_suite_missing_duration():
     events = [{"type": "boundary", "latency": latency} for latency in [1.5, 5.5, 9.5]]
     assert np.isnan(eeg_urlatency(events, 9))
 
 
+@eeglab_test("unittesting_popfunc/eeg_urlatency/popfunc_eeg_urlatency_wrapperTest.m", "test_pass_general")
+def test_reference_urlatency_boundary_durations(eeglab_backend):
+    events = np.array(
+        [[("boundary", 2.0, 1.5), ("boundary", 3.0, 5.5), ("boundary", 1.0, 9.5)]],
+        dtype=[("type", object), ("duration", object), ("latency", object)],
+    )
+    assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[14.0]])
+
+
+@eeglab_test("unittesting_popfunc/eeg_urlatency/popfunc_eeg_urlatency_wrapperTest.m", "test_pass_no_duration")
+def test_reference_urlatency_missing_duration(eeglab_backend):
+    events = np.array(
+        [[("boundary", 1.5), ("boundary", 5.5), ("boundary", 9.5)]], dtype=[("type", object), ("latency", object)]
+    )
+    assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[np.nan]])
+
+
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")
-def test_getchanlist_current_suite_multiple_types_and_missing_type():
-    assert getchanlist(_typed_locations(), ["e", "f"]) == [1]
+def test_reference_getchanlist_multiple_types_and_missing_type(eeglab_backend):
+    result = eeglab_backend("getchanlist", _reference_typed_locations(), np.array([["e", "f"]], dtype=object))
+    assert_matlab_near(result, [[2.0]])
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_general")
-def test_getchanlist_current_suite_case_insensitive_type():
-    assert getchanlist(_typed_locations(), "L") == [2, 3]
+def test_reference_getchanlist_case_insensitive_type(eeglab_backend):
+    assert_matlab_near(eeglab_backend("getchanlist", _reference_typed_locations(), "L"), [[3.0, 4.0]])
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_no_match")
-def test_getchanlist_current_suite_no_match():
-    assert getchanlist(_typed_locations(), "a") == []
+def test_reference_getchanlist_no_match(eeglab_backend):
+    assert eeglab_backend("getchanlist", _reference_typed_locations(), "a").size == 0
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_one_arg")
-def test_getchanlist_current_suite_default_all_channels():
-    assert getchanlist(_typed_locations()) == [0, 1, 2, 3, 4]
+def test_reference_getchanlist_default_all_channels(eeglab_backend):
+    assert_matlab_near(eeglab_backend("getchanlist", _reference_typed_locations()), [[1.0, 2.0, 3.0, 4.0, 5.0]])
