@@ -539,7 +539,10 @@ def _matlab_cells(rows):
 
 def _assert_class_same(actual, expected):
     # statcondTest.verifySame uses RelTol=1e-2, without an absolute tolerance.
-    np.testing.assert_allclose(np.asarray(actual).ravel(), np.asarray(expected).ravel(), rtol=1e-2, atol=0)
+    actual, expected = np.asarray(actual), np.asarray(expected)
+    assert actual.shape == expected.shape
+    assert actual.dtype == expected.dtype
+    np.testing.assert_allclose(actual, expected, rtol=1e-2, atol=0)
 
 
 def _statcond_class_vector_test(name, paired, design):
@@ -557,7 +560,7 @@ def _statcond_class_vector_test(name, paired, design):
                 if paired == "on"
                 else scipy_stats.ttest_ind(*rows[0], axis=-1, equal_var=True)
             )
-            expected = reference.statistic, 9 if paired == "on" else 18, reference.pvalue
+            expected = reference.statistic, 9.0 if paired == "on" else 18.0, reference.pvalue
         else:
             # Source anova_a contains six independently generated arrays.
             rows = [
@@ -578,8 +581,14 @@ def _statcond_class_vector_test(name, paired, design):
                 reference = _two_way_repeated_reference(rows) if paired == "on" else _two_way_unpaired_reference(rows)
                 expected = tuple(value.interaction for value in reference)
                 statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
-        for actual, reference in zip((statistic, df, pvalue), expected, strict=True):
+        # Source vector tests compare scalar F/t and p values, and each df
+        # entry separately; ANOVA explicitly converts F and p to double.
+        if design != "t":
+            statistic, pvalue = statistic.astype(float), pvalue.astype(float)
+        _assert_class_same(statistic.flat[0], np.asarray(expected[0]).flat[0])
+        for actual, reference in zip(df.flat, np.asarray(expected[1], dtype=float).flat, strict=True):
             _assert_class_same(actual, reference)
+        _assert_class_same(pvalue.flat[0], np.asarray(expected[2]).flat[0])
 
     return test
 
@@ -610,10 +619,13 @@ def _statcond_class_dimension_test(name, paired, design):
             # MATLAB indexes scalar / vector / matrix / 3-D statistic maps.
             feature_index = () if statistic.size == 1 else index
             current = (
-                statistic.item() if not feature_index else statistic[feature_index],
+                np.asarray(statistic if not feature_index else statistic[feature_index]).flat[0],
                 df,
-                pvalue.item() if not feature_index else pvalue[feature_index],
+                np.asarray(pvalue if not feature_index else pvalue[feature_index]).flat[0],
             )
+            if design == "two-way":
+                # Source compares interaction df entries individually here.
+                current = (current[0], df[0, 0], df[0, 1], current[2])
             if baseline is None:
                 baseline = current
             else:
@@ -659,8 +671,11 @@ def test_reference_statcond_shuffle_and_permutation(eeglab_backend, feature_shap
         arrays.append(traces)
     sa1, sa2, sa3, sa4 = arrays
     for value in sa1[:2]:
+        assert value.dtype == np.float32  # Source verifyEqual expects single.
         np.testing.assert_array_equal(np.remainder(value, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
     means = np.mean(sa2, axis=0)
+    assert means.dtype == np.float32
+    # Source repeats the same two sa1 checks in its permutation section.
     np.testing.assert_array_equal(np.round(means - means[0]), np.arange(10))
     assert all(np.unique(value).size == 10 for value in sa2[:2])
     assert all(np.unique(value).size > 3 for value in sa3[:2])
