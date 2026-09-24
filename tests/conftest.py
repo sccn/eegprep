@@ -7,11 +7,13 @@ from functools import partial
 import importlib
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
-from tests.eeglab_tests import upstream_references
+from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
+from tools.eeglab_test_port_audit import validate_suite_checkout
 
 
 def _preload_matlab_libstdcxx() -> None:
@@ -49,6 +51,23 @@ def pytest_addoption(parser):
         default=os.environ.get("EEGPREP_EEGLAB_ROOT"),
         help="Explicit EEGLAB reference checkout containing eeglab.m.",
     )
+    group.addoption(
+        "--eeglab-suite-root",
+        help="Pinned eeglab_tests checkout; defaults to the parent of --eeglab-root.",
+    )
+
+
+@pytest.fixture(scope="session")
+def eeglab_suite_root(request):
+    root = request.config.getoption("--eeglab-suite-root")
+    if not root:
+        reference = request.config.getoption("--eeglab-root")
+        if not reference:
+            pytest.fail("Reference datasets require --eeglab-suite-root or --eeglab-root", pytrace=False)
+        root = Path(reference).parent
+    root = Path(root).resolve()
+    validate_suite_checkout(root)
+    return root
 
 
 @pytest.fixture(scope="session")
@@ -58,6 +77,11 @@ def eeglab_matlab_engine(request):
         pytest.fail("MATLAB contracts require --eeglab-root pointing to an EEGLAB checkout", pytrace=False)
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
         pytest.fail("Explicit MATLAB contracts conflict with EEGPREP_SKIP_MATLAB=1", pytrace=False)
+    revision = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    if revision != EEGLAB_TESTS_EEGLAB_COMMIT:
+        pytest.fail(f"EEGLAB is at {revision}; expected pinned {EEGLAB_TESTS_EEGLAB_COMMIT}", pytrace=False)
     # The private cache prevents reusing an engine configured for another root.
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("EEGPREP_EEGLAB_ROOT", str(Path(root).resolve()))

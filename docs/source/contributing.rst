@@ -173,6 +173,12 @@ are failures in this lane, not successful skips. Selecting a provenance-tagged
 test that still calls Python directly is a collection error, preventing it from
 being reported as MATLAB validation.
 
+Tests using original datasets obtain them through ``eeglab_suite_root``. Set
+``--eeglab-suite-root=/path/to/eeglab_tests`` if this is not the parent of
+``--eeglab-root``. The fixture verifies the suite and EEGLAB Git revisions before
+using the data. Download the original Git LFS files rather than replacing them
+with generated recordings. The MATLAB backend also checks its EEGLAB revision.
+
 The ``eeglab_backend`` fixture calls the selected implementation by name, for
 example ``eeglab_backend("eeg_point2lat", points, epochs, srate, limits)``.
 Resolve functions through this fixture rather than importing EEGPrep functions

@@ -66,6 +66,21 @@ def test_required_matlab_mode_fails_without_reference(pytester, tmp_path):
     result.stdout.fnmatch_lines(["*MATLAB contracts require --eeglab-root*"])
 
 
+def test_reference_datasets_require_an_explicit_checkout(pytester, monkeypatch):
+    monkeypatch.delenv("EEGPREP_EEGLAB_ROOT", raising=False)
+    _isolated_suite(pytester, "def test_source_data(eeglab_suite_root):\n    raise AssertionError('must not run')")
+    result = pytester.runpytest_subprocess()
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*Reference datasets require --eeglab-suite-root or --eeglab-root*"])
+
+
+def test_reference_datasets_reject_missing_checkout(pytester, tmp_path):
+    _isolated_suite(pytester, "def test_source_data(eeglab_suite_root):\n    raise AssertionError('must not run')")
+    result = pytester.runpytest_subprocess(f"--eeglab-suite-root={tmp_path / 'absent'}")
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*EEGLAB test checkout does not exist*"])
+
+
 def test_matlab_gate_honors_explicit_test_selection(pytester):
     _isolated_suite(
         pytester,
