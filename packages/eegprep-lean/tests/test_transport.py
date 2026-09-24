@@ -5,13 +5,12 @@ Nothing here is stubbed. ``UrllibTransport`` makes genuine requests over a socke
 rather than asserted: a 404 is produced by a server deciding to send one, and a refused
 connection by there being nothing to connect to.
 
-``FetchTransport`` is held to the same contract by the same tests, parametrized over
-both, through a host client that makes real requests (``conftest.HostFetch``). Only what
-is specific to a host's client has tests of its own.
-
-``PyfetchTransport`` cannot be exercised here. It needs ``pyodide.http``, which exists
-only in a browser, so it ships covered by the Pyodide harness rather than by this file.
-Saying so plainly is better than three ``no cover`` pragmas implying it was considered.
+``FetchTransport`` and ``PyfetchTransport`` are held to the same contract by the same
+tests, parametrized over all three, through host clients that make real requests
+(``conftest.HostFetch`` for ``FetchTransport``, ``conftest.FakePyfetch`` for
+``PyfetchTransport``, installed at ``sys.modules["pyodide.http"]`` so
+``PyfetchTransport.get`` runs its real code path off Pyodide). Only what is specific to a
+given client has tests of its own.
 """
 
 from __future__ import annotations
@@ -101,11 +100,13 @@ def base_url():
         server.server_close()
 
 
-@pytest.fixture(params=["urllib", "fetch"])
-def transport(request: pytest.FixtureRequest, host_fetch) -> Transport:
+@pytest.fixture(params=["urllib", "fetch", "pyfetch"])
+def transport(request: pytest.FixtureRequest, host_fetch, pyodide_http) -> Transport:
     """Each transport that can run here, held to one contract."""
     if request.param == "fetch":
         return FetchTransport(host_fetch)
+    if request.param == "pyfetch":
+        return PyfetchTransport()
     return UrllibTransport(timeout_s=10)
 
 
@@ -159,8 +160,9 @@ class TestFailures:
         assert _get(transport, f"{base_url}/ignores-range").status == 200
 
     def test_http_error_carries_its_status(self, base_url: str, transport: Transport) -> None:
-        """For FetchTransport this is the only place a 404 becomes the TransportError the
-        store maps to absence, since the host's client returns a status, not an error."""
+        """For FetchTransport and PyfetchTransport this is the only place a 404 becomes
+        the TransportError the store maps to absence, since the host's client returns a
+        status, not an error."""
         with pytest.raises(TransportError) as caught:
             _get(transport, f"{base_url}/missing")
 
@@ -224,6 +226,26 @@ class TestFetchTransport:
 
         assert type(response.body) is bytes
         assert response.body == b"payload"
+
+
+class TestPyfetchTransport:
+    """What is specific to the browser transport: what ``pyodide.http.pyfetch`` is asked
+    to send. This is the regression check for #419: a script-set ``User-Agent`` here
+    turned every read into a CORS-preflighted request in Safari and Firefox, which
+    ``zarr.nemar.org`` refuses."""
+
+    def test_only_range_is_sent_and_never_user_agent(self, base_url: str, pyodide_http) -> None:
+        transport = PyfetchTransport()
+
+        _get(transport, f"{base_url}/data", start=10, end=19)
+        _get(transport, f"{base_url}/data", end=16)
+        _get(transport, f"{base_url}/data")
+
+        assert [headers for _, headers in pyodide_http.seen] == [
+            {"Range": "bytes=10-19"},
+            {"Range": "bytes=-16"},
+            {},
+        ]
 
 
 class TestPlatformSelection:
