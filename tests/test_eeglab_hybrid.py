@@ -223,3 +223,15 @@ def test_matlab_function_errors_are_not_skipped_or_retried_on_python(eeglab_matl
 def test_backend_dispatch_executes_real_reference_function(eeglab_backend):
     data = np.array([[1.0, 2.0, 3.0], [4.0, 8.0, 12.0]])
     np.testing.assert_array_equal(eeglab_backend("rmbase", data), [[-1, 0, 1], [-4, 0, 4]])
+
+
+def test_workflow_directory_contains_relative_outputs(eeglab_working_directory):
+    assert Path.cwd() == eeglab_working_directory
+    Path("workflow.txt").write_text("isolated original workflow", encoding="utf-8")
+    assert (eeglab_working_directory / "workflow.txt").read_text(encoding="utf-8") == "isolated original workflow"
+
+
+def test_matlab_workflow_directory_matches_python(eeglab_working_directory, eeglab_matlab_engine):
+    Path("relative.txt").write_text("original relative path", encoding="utf-8")
+    assert Path(eeglab_matlab_engine.pwd()) == eeglab_working_directory
+    assert call_matlab(eeglab_matlab_engine, "fileread", "relative.txt") == "original relative path"

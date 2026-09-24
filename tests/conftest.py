@@ -108,6 +108,22 @@ def eeglab_backend(request):
     return call_python
 
 
+@pytest.fixture
+def eeglab_working_directory(eeglab_backend, request, tmp_path, monkeypatch):
+    """Keep relative input/output workflows in an isolated backend directory."""
+    monkeypatch.chdir(tmp_path)
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        yield tmp_path
+        return
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    previous = engine.pwd()
+    engine.cd(str(tmp_path), nargout=0)
+    try:
+        yield tmp_path
+    finally:
+        engine.cd(previous, nargout=0)
+
+
 SLOW_NODEID_PARTS = (
     "tests/test_eeg_amica.py::",
     "tests/test_runamica.py::TestRunamicaIntegration::",
