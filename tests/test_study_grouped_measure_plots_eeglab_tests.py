@@ -193,7 +193,6 @@ def test_std_erpplot_groups_design_cells_and_returns_statistics_and_masks():
     plt.close(together)
 
 
-@_reference("std_erspplot", "test_test_std_erspplot")
 def test_std_erspplot_supports_clusters_subject_panels_and_channel_topographies():
     study, alleeg = _factorial_study()
     tf_params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
@@ -257,7 +256,6 @@ def test_std_erspplot_component_saved_trials_reproduce_the_cached_ersp():
     plt.close(figure)
 
 
-@_reference("std_itcplot", "test_test_std_itcplot")
 def test_std_itcplot_supports_centroids_component_panels_channels_and_subjects():
     study, alleeg = _factorial_study()
     tf_params = {"cycles": 0, "nfreqs": 4, "timesout": 4, "baseline": np.nan}
@@ -285,7 +283,6 @@ def test_std_itcplot_supports_centroids_component_panels_channels_and_subjects()
     plt.close(channel_figure)
 
 
-@_reference("std_specplot", "test_test_std_specplot")
 def test_std_specplot_supports_clusters_fdr_subject_traces_and_channel_topography():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, "channels", spec="on", recompute="on")
@@ -348,6 +345,18 @@ def test_std_specplot_group_and_condition_layout_controls_preserve_design_cells(
 
 
 @_reference("std_topoplot", "test_test_std_topoplot")
+def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    for options in (
+        {"clusters": "all", "mode": "centroid"},
+        {"clusters": 3.0, "mode": "centroid"},
+        {"clusters": 3.0, "mode": "comps"},
+        {"clusters": 3.0, "comps": 4.0},
+    ):
+        eeglab_backend("std_topoplot", study, alleeg, **options, nargout=0)
+        eeglab_backend("close", nargout=0)
+
+
 def test_std_topoplot_draws_all_centroids_component_maps_and_selected_members():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, "components", erp="on", scalp="on", recompute="on")
