@@ -1,12 +1,18 @@
-"""Substantive generated-data ports of the current EEGLAB LIMO tests."""
+"""Original LIMO workflows and separately retained generated Python checks."""
 
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
+import matplotlib
 import numpy as np
 import pytest
 from scipy import stats
+
+matplotlib.use("Agg")
+
+from matplotlib import pyplot as plt
 
 import eegprep
 from eegprep.functions.studyfunc._limo_io import save_limo_result
@@ -22,6 +28,350 @@ from tests.eeglab_tests import eeglab_test
 
 
 LIMO_WRAPPER = "unittesting_limo/limo_wrapperTest.m"
+FACE_EVENTS = tuple(
+    f"{face}_{repetition}"
+    for face in ("famous", "scrambled", "unfamiliar")
+    for repetition in ("new", "second_early", "second_late")
+)
+
+
+def _cell_row(*values):
+    result = np.empty((1, len(values)), dtype=object)
+    result[0] = values
+    return result
+
+
+@pytest.fixture
+def limo_source_directory(request, eeglab_suite_root, eeglab_options_directory, monkeypatch, tmp_path):
+    """The original BIDS subjects, copied before any preprocessing writes."""
+    directory = Path(shutil.copytree(eeglab_suite_root / "ds002718", tmp_path / "ds002718"))
+    monkeypatch.chdir(directory)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # The options fixture restores the original MATLAB directory afterward.
+        request.getfixturevalue("eeglab_matlab_engine").cd(str(directory), nargout=0)
+    return directory
+
+
+def _limo_cd(request, monkeypatch, directory):
+    monkeypatch.chdir(directory)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        request.getfixturevalue("eeglab_matlab_engine").cd(str(directory), nargout=0)
+
+
+def _limo_graphics(request, operation, *args, **kwargs):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        options = [value for pair in kwargs.items() for value in pair]
+        engine.feval(operation, *args, *options, nargout=0)
+    elif operation == "subplot":
+        plt.subplot(*(int(value) for value in args))
+    else:
+        getattr(plt, operation)(*args, **kwargs)
+
+
+@eeglab_test(LIMO_WRAPPER, "limo_test1")
+def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source_directory, request, monkeypatch):
+    """Full original 18-subject pipeline; completion is its smoke oracle."""
+    call = eeglab_backend
+    empty = np.empty((0, 0))
+    call("pop_editoptions", option_storedisk=1.0, nargout=0)
+    study, alleeg = call(
+        "pop_importbids",
+        str(limo_source_directory),
+        "bidsevent",
+        "on",
+        "bidschanloc",
+        "on",
+        "studyName",
+        "Face_detection",
+        "outputdir",
+        str(limo_source_directory / "derivatives2"),
+        "eventtype",
+        "trial_type",
+        nargout=2,
+    )
+    alleeg = call("pop_select", alleeg, "nochannel", _cell_row("EEG061", "EEG062", "EEG063", "EEG064"))
+    eeg = call(
+        "pop_clean_rawdata",
+        alleeg,
+        "FlatlineCriterion",
+        5.0,
+        "ChannelCriterion",
+        0.8,
+        "LineNoiseCriterion",
+        2.5,
+        "Highpass",
+        np.array([[0.25, 0.75]]),
+        "BurstCriterion",
+        "off",
+        "WindowCriterion",
+        "off",
+        "BurstRejection",
+        "off",
+        "Distance",
+        "Euclidian",
+        "WindowCriterionTolerances",
+        "off",
+    )
+    eeg = call("pop_reref", eeg, empty, "interpchan", empty)
+    eeg = call("pop_runica", eeg, "icatype", "runica", "concatcond", "on", "options", _cell_row("pca", -1.0))
+    eeg = call("pop_iclabel", eeg, "default")
+    thresholds = np.full((7, 2), np.nan)
+    thresholds[1:3] = [0.8, 1.0]
+    eeg = call("pop_icflag", eeg, thresholds)
+    eeg = call("pop_subcomp", eeg, empty, 0.0)
+    eeg = call(
+        "pop_clean_rawdata",
+        eeg,
+        "FlatlineCriterion",
+        "off",
+        "ChannelCriterion",
+        "off",
+        "LineNoiseCriterion",
+        "off",
+        "Highpass",
+        "off",
+        "BurstCriterion",
+        20.0,
+        "WindowCriterion",
+        0.25,
+        "BurstRejection",
+        "on",
+        "Distance",
+        "Euclidian",
+        "WindowCriterionTolerances",
+        np.array([[-np.inf, 7.0]]),
+    )
+    eeg = call("pop_epoch", eeg, _cell_row(*FACE_EVENTS), np.array([[-0.5, 1.0]]), "epochinfo", "yes")
+    eeg = call("eeg_checkset", eeg)
+    eeg = call("pop_saveset", eeg, "savemode", "resave")
+    alleeg = eeg
+    study = call("std_checkset", study, alleeg)
+    study, eeg = call(
+        "std_precomp",
+        study,
+        eeg,
+        np.empty((0, 0), dtype=object),
+        "savetrials",
+        "on",
+        "interp",
+        "on",
+        "recompute",
+        "on",
+        "erp",
+        "on",
+        "erpparams",
+        _cell_row("rmbase", np.array([[-200.0, 0.0]])),
+        "spec",
+        "off",
+        "ersp",
+        "off",
+        "itc",
+        "off",
+        nargout=2,
+    )
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # The script's workspace assignments are GUI setup, not processing.
+        for name, value in (
+            ("STUDY", study),
+            ("ALLEEG", alleeg),
+            ("EEG", eeg),
+            ("CURRENTSTUDY", 1.0),
+            ("CURRENTSET", np.arange(1.0, 19.0)[None, :]),
+        ):
+            call("assignin", "base", name, value, nargout=0)
+    call("eeglab", "redraw", nargout=0)
+    study = call(
+        "std_makedesign",
+        study,
+        alleeg,
+        1.0,
+        "name",
+        "FaceRepetition",
+        "delfiles",
+        "off",
+        "defaultdesign",
+        "off",
+        "variable1",
+        "type",
+        "values1",
+        _cell_row(*FACE_EVENTS),
+        "vartype1",
+        "categorical",
+        "subjselect",
+        _cell_row(*(f"sub-{index:03d}" for index in range(2, 20))),
+    )
+    study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
+    study = call(
+        "pop_limo",
+        study,
+        alleeg,
+        "method",
+        "WLS",
+        "measure",
+        "daterp",
+        "timelim",
+        np.array([[-50.0, 650.0]]),
+        "erase",
+        "on",
+        "splitreg",
+        "off",
+        "interaction",
+        "off",
+    )
+    study_path = Path(study["filepath"])
+    assert study_path.is_relative_to(limo_source_directory)
+    analysis_path = study_path / "2-ways-ANOVA"
+    analysis_path.mkdir()
+    _limo_cd(request, monkeypatch, analysis_path)
+    chanlocs = str(study_path / "limo_gp_level_chanlocs.mat")
+    model_path = study_path / f"LIMO_{study['filename'][:-6]}"
+    model_name = "FaceRepetition_GLM_Channels_Time_WLS.txt"
+    parameters = tuple(np.arange(start, start + 3, dtype=float)[None, :] for start in (1, 4, 7))
+    call(
+        "limo_random_select",
+        "Repeated Measures ANOVA",
+        chanlocs,
+        "LIMOfiles",
+        _cell_row(str(study_path / "LIMO_Face_detection" / f"Beta_files_{model_name}")),
+        "analysis_type",
+        "Full scalp analysis",
+        "parameters",
+        _cell_row(*parameters),
+        "factor names",
+        _cell_row("face", "repetition"),
+        "type",
+        "Channels",
+        "nboot",
+        1000.0,
+        "tfce",
+        0.0,
+        "skip design check",
+        "yes",
+        nargout=0,
+    )
+    erp_path = analysis_path / "ERPs"
+    erp_path.mkdir()
+    _limo_cd(request, monkeypatch, erp_path)
+    files = str(model_path / f"LIMO_files_{model_name}")
+    # The original output spelling 'srambled_faces' is intentional here.
+    names = tuple(str(erp_path / name) for name in ("famous_faces", "srambled_faces", "unfamiliar_faces"))
+    limo_file = str(analysis_path / "LIMO.mat")
+    for estimator, suffix, title in (
+        ("Mean", "mean", "Mean Face types at channel 50"),
+        ("Weighted mean", "Weighted mean", "Weighted mean Face types at channel 50"),
+    ):
+        for parameter, name in zip(parameters, names, strict=True):
+            call("limo_central_tendency_and_ci", files, parameter, chanlocs, estimator, "Mean", empty, name, nargout=0)
+        call(
+            "limo_add_plots",
+            _cell_row(*(f"{name}_Mean_of_{suffix}.mat" for name in names)),
+            limo_file,
+            "channel",
+            50.0,
+            nargout=0,
+        )
+        _limo_graphics(request, "title", title)
+    _limo_graphics(request, "figure")
+    for index, (name, face) in enumerate(zip(names, ("Famous", "srambled", "unfamiliar"), strict=True), 1):
+        _limo_graphics(request, "subplot", 1.0, 3.0, float(index))
+        call(
+            "limo_add_plots",
+            _cell_row(f"{name}_Mean_of_mean.mat", f"{name}_Mean_of_Weighted mean.mat"),
+            limo_file,
+            "channel",
+            50.0,
+            "figure",
+            "hold",
+            nargout=0,
+        )
+        _limo_graphics(request, "title", f"mean and weighed mean {face} Faces", fontsize=12.0)
+    _limo_graphics(request, "figure")
+    for subject in range(1, 19):
+        _limo_graphics(request, "subplot", 3.0, 6.0, float(subject))
+        call(
+            "limo_add_plots",
+            _cell_row(
+                *(f"{name}_single_subjects_{suffix}.mat" for name in names for suffix in ("Mean", "Weighted mean"))
+            ),
+            limo_file,
+            "variable",
+            float(subject),
+            "channel",
+            50.0,
+            "figure",
+            "hold",
+            nargout=0,
+        )
+        _limo_graphics(request, "title", f"subject: {subject}", fontsize=12.0)
+    _limo_cd(request, monkeypatch, analysis_path)
+    _, _, files = call("limo_get_files", empty, empty, empty, str(model_path / f"LIMO_files_{model_name}"), nargout=3)
+    contrast = {
+        "LIMO_files": files,
+        "mat": np.array(
+            [
+                [1.0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0.0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+                [0.0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
+            ]
+        ),
+    }
+    call("limo_batch", "contrast only", empty, contrast, nargout=0)
+    names = []
+    for index, face in enumerate(("famous_faces", "scrambled_faces", "unfamiliar_faces"), 1):
+        directory = analysis_path / face
+        directory.mkdir()
+        _limo_cd(request, monkeypatch, directory)
+        call(
+            "limo_random_select",
+            "one sample t-test",
+            chanlocs,
+            "LIMOfiles",
+            _cell_row(str(model_path / f"con_{index}_files_{model_name}")),
+            "analysis_type",
+            "Full scalp analysis",
+            "type",
+            "Channels",
+            "nboot",
+            0.0,
+            "tfce",
+            0.0,
+            nargout=0,
+        )
+        names.append(str(directory / face))
+        call("limo_central_tendency_and_ci", str(directory / "Yr.mat"), "Mean", 50.0, names[-1], nargout=0)
+        _limo_cd(request, monkeypatch, analysis_path)
+    call("limo_add_plots", _cell_row(*(f"{name}_Mean.mat" for name in names)), limo_file, "channel", 50.0, nargout=0)
+    _limo_graphics(request, "title", "Means at channel 50")
+    for face, output in (("famous", "diff_to_famous"), ("unfamiliar", "diff_to_unfamiliar")):
+        call(
+            "limo_plot_difference",
+            str(analysis_path / f"{face}_faces" / "Yr.mat"),
+            str(analysis_path / "scrambled_faces" / "Yr.mat"),
+            "LIMO",
+            limo_file,
+            "type",
+            "paired",
+            "percent",
+            20.0,
+            "alpha",
+            0.05,
+            "fig",
+            "on",
+            "name",
+            str(analysis_path / output),
+            nargout=0,
+        )
+    call(
+        "limo_add_plots",
+        _cell_row(*(str(analysis_path / name) for name in ("diff_to_famous", "diff_to_unfamiliar"))),
+        limo_file,
+        "channel",
+        50.0,
+        nargout=0,
+    )
+    _limo_graphics(request, "title", "Mean differences at channel 50")
+    call("limo_eeg", 5.0, limo_file, nargout=0)
 
 
 def _limo_eeg(subject_index: int) -> dict:
@@ -74,9 +424,8 @@ def _limo_eeg(subject_index: int) -> dict:
     }
 
 
-@eeglab_test(LIMO_WRAPPER, "limo_test1")
 def test_limo_preprocessing_statistics_workflow_fits_wls_and_repeated_measures(tmp_path: Path):
-    """Port the maintained preprocessing/statistics script using generated data."""
+    """Additional generated Python regression, not the original LIMO workflow."""
     datasets = [_limo_eeg(index) for index in range(1, 7)]
     study, alleeg = pop_study(None, datasets, name="Generated face study")
     study, _trialinfo = std_maketrialinfo(study, alleeg)
@@ -167,9 +516,8 @@ def test_limo_preprocessing_statistics_workflow_fits_wls_and_repeated_measures(t
     ]
 
 
-@eeglab_test(LIMO_WRAPPER, "limo_test2")
 def test_limo_integration_covers_first_level_contrasts_and_core_group_models(tmp_path: Path):
-    """Port the maintained first-/second-level integration script numerically."""
+    """Additional generated Python regression, not the original integration script."""
     rng = np.random.default_rng(44)
     trials = 30
     condition = np.tile([0.0, 1.0], trials // 2)
