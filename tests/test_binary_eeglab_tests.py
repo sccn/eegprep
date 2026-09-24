@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyedflib
 import pytest
@@ -623,11 +624,36 @@ def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, eeglab_suit
 
 
 @eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig_timerange")
-def test_upstream_pop_biosig_original_edf_overlap(eeglab_backend, eeglab_suite_root):
+def test_upstream_pop_biosig_original_edf_overlap(request, eeglab_backend, eeglab_suite_root):
     filename = str(eeglab_suite_root / "unittesting_binary/testfiles/BDF/5038.edf")
     first = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[0.0, 30.0]]))
     second = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[29.0, 60.0]]))
     np.testing.assert_array_equal(first["data"][0, -256:], second["data"][0, :256])
+    chunks = (first["data"][0:1, -256:], second["data"][0:1, :256])
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        eeglab_backend("figure", nargout=0)
+        try:
+            eeglab_backend("subplot", 2.0, 1.0, 1.0, nargout=0)
+            eeglab_backend("imagesc", chunks[0], nargout=0)
+            eeglab_backend("title", "Overlapping of 2 EEG chunks", "FontSize", 14.0, nargout=0)
+            eeglab_backend("ylabel", "Chunk 1", nargout=0)
+            eeglab_backend("subplot", 2.0, 1.0, 2.0, nargout=0)
+            eeglab_backend("imagesc", chunks[1], nargout=0)
+            eeglab_backend("ylabel", "Chunk 2", nargout=0)
+            eeglab_backend("grid", "on", nargout=0)
+        finally:
+            eeglab_backend("close", nargout=0)
+    else:
+        figure, axes = plt.subplots(2, 1)
+        try:
+            axes[0].imshow(chunks[0], aspect="auto")
+            axes[0].set_title("Overlapping of 2 EEG chunks", fontsize=14)
+            axes[0].set_ylabel("Chunk 1")
+            axes[1].imshow(chunks[1], aspect="auto")
+            axes[1].set_ylabel("Chunk 2")
+            axes[1].grid(True)
+        finally:
+            plt.close(figure)
 
 
 @eeglab_test(f"{BINARY_SUITE}/pop_importpres/binary_pop_importpres_wrapperTest.m", "test_test_pop_importpres")
