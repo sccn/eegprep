@@ -1,10 +1,12 @@
-"""Ports of the current EEGLAB ``statcond`` MATLAB tests."""
+"""Faithful reference contracts and additional Python ``statcond`` checks."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
 import numpy as np
+import pytest
+from scipy.io import loadmat
 from scipy import stats as scipy_stats
 
 from eegprep.functions.statistics import StatcondResult, SurrogateDistribution, TwoWayEffects, statcond
@@ -12,8 +14,67 @@ from tests.eeglab_tests import eeglab_test
 
 
 STATCOND_CLASS = "unittesting_statistics/statcond/statcondTest.m"
-STATCOND_WRAPPER = "unittesting_statistics/statcond/statistics_statcond_wrapperTest.m"
 STATCOND_REGRESSION = "regression_tests/t_statcond.m"
+
+
+@pytest.fixture(scope="module")
+def statcond_regression_data(eeglab_suite_root):
+    # mat_dtype=True restores MATLAB classes; never squeeze cells or dimensions.
+    return loadmat(eeglab_suite_root / "regression_tests/t_statcond.mat", mat_dtype=True)
+
+
+@pytest.fixture
+def seeded_statcond(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        request.getfixturevalue("eeglab_matlab_engine").rng("default", nargout=0)
+    else:
+        np.random.seed(0)
+    return eeglab_backend
+
+
+def _assert_matlab_value(actual, expected, *, atol, rtol):
+    assert actual.shape == expected.shape
+    assert actual.dtype == expected.dtype
+    if expected.dtype == object:
+        for index in np.ndindex(expected.shape):
+            _assert_matlab_value(actual[index], expected[index], atol=atol, rtol=rtol)
+    else:
+        np.testing.assert_allclose(actual, expected, atol=atol, rtol=rtol)
+
+
+def _statcond_regression_test(number):
+    @eeglab_test(STATCOND_REGRESSION, f"test_{number}")
+    def test(seeded_statcond, statcond_regression_data):
+        fixture = statcond_regression_data
+        arguments = list(fixture["inputs"][0, number - 1][0])
+        # This spelling correction is performed by t_statcond.TestClassSetup.
+        for index, value in enumerate(arguments[1:], start=1):
+            if value.dtype.kind in "US":
+                arguments[index] = value.item()
+        for index in range(1, len(arguments) - 1, 2):
+            if arguments[index] == "variance":
+                arguments[index + 1] = arguments[index + 1].replace("homogeneous", "homogenous")
+        nargout = 4 if number <= 6 else 3 if number <= 30 else 1
+        actual = seeded_statcond("statcond", *arguments, nargout=nargout)
+        if nargout > 1:
+            outputs = np.empty((1, nargout), dtype=object)
+            for index, output in enumerate(actual):
+                outputs[0, index] = output
+            actual = outputs
+        reference = fixture[f"test_{number}"]
+        _assert_matlab_value(
+            actual,
+            reference["value"][0, 0],
+            atol=reference["absTol"][0, 0].item(),
+            rtol=reference["relTol"][0, 0].item(),
+        )
+
+    return test
+
+
+# Keep one collected test and exact provenance per native regression method.
+for _case_number in range(1, 79):
+    globals()[f"test_reference_statcond_regression_{_case_number:02d}"] = _statcond_regression_test(_case_number)
 
 
 def _reference_conditions() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -246,38 +307,26 @@ def _assert_unpaired_two_way_reference() -> None:
     _assert_effects(statcond(grid, method="param", paired="off"), _two_way_unpaired_reference(grid))
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_1")
-@eeglab_test(STATCOND_CLASS, "pairedTTest")
 def test_statcond_paired_t_matches_independent_reference():
     _assert_paired_t_reference()
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_2")
-@eeglab_test(STATCOND_CLASS, "unpairedTTest")
 def test_statcond_unpaired_t_matches_independent_reference():
     _assert_unpaired_t_reference()
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_3")
-@eeglab_test(STATCOND_CLASS, "paired1Anova")
 def test_statcond_paired_one_way_anova_matches_independent_reference():
     _assert_paired_one_way_reference()
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_4")
-@eeglab_test(STATCOND_CLASS, "paired2Anova")
 def test_statcond_paired_two_way_anova_matches_independent_reference():
     _assert_paired_two_way_reference()
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_5")
-@eeglab_test(STATCOND_CLASS, "unpaired1Anova")
 def test_statcond_unpaired_one_way_anova_matches_independent_reference():
     _assert_unpaired_one_way_reference()
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_6")
-@eeglab_test(STATCOND_CLASS, "unpaired2Anova")
 def test_statcond_unpaired_two_way_anova_uses_documented_factor_order():
     _assert_unpaired_two_way_reference()
     _assert_unpaired_two_way_matlab_golden()
@@ -342,56 +391,26 @@ def _assert_dimension_invariance(*, paired: str, design: str) -> None:
             assert result.df == baseline.df
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_10")
-@eeglab_test(STATCOND_REGRESSION, "test_9")
-@eeglab_test(STATCOND_REGRESSION, "test_8")
-@eeglab_test(STATCOND_REGRESSION, "test_7")
-@eeglab_test(STATCOND_CLASS, "pairedDimTTest")
 def test_statcond_paired_t_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="on", design="t")
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_14")
-@eeglab_test(STATCOND_REGRESSION, "test_13")
-@eeglab_test(STATCOND_REGRESSION, "test_12")
-@eeglab_test(STATCOND_REGRESSION, "test_11")
-@eeglab_test(STATCOND_CLASS, "unpairedDimTTest")
 def test_statcond_unpaired_t_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="off", design="t")
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_18")
-@eeglab_test(STATCOND_REGRESSION, "test_17")
-@eeglab_test(STATCOND_REGRESSION, "test_16")
-@eeglab_test(STATCOND_REGRESSION, "test_15")
-@eeglab_test(STATCOND_CLASS, "pairedDim1Anova")
 def test_statcond_paired_one_way_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="on", design="one-way")
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_22")
-@eeglab_test(STATCOND_REGRESSION, "test_21")
-@eeglab_test(STATCOND_REGRESSION, "test_20")
-@eeglab_test(STATCOND_REGRESSION, "test_19")
-@eeglab_test(STATCOND_CLASS, "unpairedDim1Anova")
 def test_statcond_unpaired_one_way_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="off", design="one-way")
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_26")
-@eeglab_test(STATCOND_REGRESSION, "test_25")
-@eeglab_test(STATCOND_REGRESSION, "test_24")
-@eeglab_test(STATCOND_REGRESSION, "test_23")
-@eeglab_test(STATCOND_CLASS, "pairedDim2Anova")
 def test_statcond_paired_two_way_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="on", design="two-way")
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_30")
-@eeglab_test(STATCOND_REGRESSION, "test_29")
-@eeglab_test(STATCOND_REGRESSION, "test_28")
-@eeglab_test(STATCOND_REGRESSION, "test_27")
-@eeglab_test(STATCOND_CLASS, "unpairedDim2Anova")
 def test_statcond_unpaired_two_way_is_invariant_across_feature_dimensions():
     _assert_dimension_invariance(paired="off", design="two-way")
 
@@ -493,61 +512,11 @@ def _assert_resampling_suite() -> None:
                     )
 
 
-@eeglab_test(STATCOND_REGRESSION, "test_78")
-@eeglab_test(STATCOND_REGRESSION, "test_77")
-@eeglab_test(STATCOND_REGRESSION, "test_76")
-@eeglab_test(STATCOND_REGRESSION, "test_75")
-@eeglab_test(STATCOND_REGRESSION, "test_74")
-@eeglab_test(STATCOND_REGRESSION, "test_73")
-@eeglab_test(STATCOND_REGRESSION, "test_72")
-@eeglab_test(STATCOND_REGRESSION, "test_71")
-@eeglab_test(STATCOND_REGRESSION, "test_70")
-@eeglab_test(STATCOND_REGRESSION, "test_69")
-@eeglab_test(STATCOND_REGRESSION, "test_68")
-@eeglab_test(STATCOND_REGRESSION, "test_67")
-@eeglab_test(STATCOND_REGRESSION, "test_66")
-@eeglab_test(STATCOND_REGRESSION, "test_65")
-@eeglab_test(STATCOND_REGRESSION, "test_64")
-@eeglab_test(STATCOND_REGRESSION, "test_63")
-@eeglab_test(STATCOND_REGRESSION, "test_62")
-@eeglab_test(STATCOND_REGRESSION, "test_61")
-@eeglab_test(STATCOND_REGRESSION, "test_60")
-@eeglab_test(STATCOND_REGRESSION, "test_59")
-@eeglab_test(STATCOND_REGRESSION, "test_58")
-@eeglab_test(STATCOND_REGRESSION, "test_57")
-@eeglab_test(STATCOND_REGRESSION, "test_56")
-@eeglab_test(STATCOND_REGRESSION, "test_55")
-@eeglab_test(STATCOND_REGRESSION, "test_54")
-@eeglab_test(STATCOND_REGRESSION, "test_53")
-@eeglab_test(STATCOND_REGRESSION, "test_52")
-@eeglab_test(STATCOND_REGRESSION, "test_51")
-@eeglab_test(STATCOND_REGRESSION, "test_50")
-@eeglab_test(STATCOND_REGRESSION, "test_49")
-@eeglab_test(STATCOND_REGRESSION, "test_48")
-@eeglab_test(STATCOND_REGRESSION, "test_47")
-@eeglab_test(STATCOND_REGRESSION, "test_46")
-@eeglab_test(STATCOND_REGRESSION, "test_45")
-@eeglab_test(STATCOND_REGRESSION, "test_44")
-@eeglab_test(STATCOND_REGRESSION, "test_43")
-@eeglab_test(STATCOND_REGRESSION, "test_42")
-@eeglab_test(STATCOND_REGRESSION, "test_41")
-@eeglab_test(STATCOND_REGRESSION, "test_40")
-@eeglab_test(STATCOND_REGRESSION, "test_39")
-@eeglab_test(STATCOND_REGRESSION, "test_38")
-@eeglab_test(STATCOND_REGRESSION, "test_37")
-@eeglab_test(STATCOND_REGRESSION, "test_36")
-@eeglab_test(STATCOND_REGRESSION, "test_35")
-@eeglab_test(STATCOND_REGRESSION, "test_34")
-@eeglab_test(STATCOND_REGRESSION, "test_33")
-@eeglab_test(STATCOND_REGRESSION, "test_32")
-@eeglab_test(STATCOND_REGRESSION, "test_31")
-@eeglab_test(STATCOND_CLASS, "shuffleAndPermutation")
 def test_statcond_resampling_preserves_assignment_invariants():
     _assert_resampling_suite()
 
 
-@eeglab_test(STATCOND_WRAPPER, "test_test_statcond")
-def test_legacy_statcond_suite_workflow_is_preserved():
+def test_additional_statcond_python_workflow():
     _assert_paired_t_reference()
     _assert_unpaired_t_reference()
     _assert_paired_one_way_reference()
@@ -558,3 +527,142 @@ def test_legacy_statcond_suite_workflow_is_preserved():
         for design in ("t", "one-way", "two-way"):
             _assert_dimension_invariance(paired=paired, design=design)
     _assert_resampling_suite()
+
+
+def _matlab_cells(rows):
+    cells = np.empty((len(rows), len(rows[0])), dtype=object)
+    for row_index, row in enumerate(rows):
+        for column_index, value in enumerate(row):
+            cells[row_index, column_index] = value
+    return cells
+
+
+def _assert_class_same(actual, expected):
+    # statcondTest.verifySame uses RelTol=1e-2, without an absolute tolerance.
+    np.testing.assert_allclose(np.asarray(actual).ravel(), np.asarray(expected).ravel(), rtol=1e-2, atol=0)
+
+
+def _statcond_class_vector_test(name, paired, design):
+    @eeglab_test(STATCOND_CLASS, name)
+    def test(eeglab_backend):
+        rng = np.random.default_rng(114)
+        if design == "t":
+            rows = [[rng.random((1, 10)), rng.random((1, 10)) + 0.5]]
+            kwargs = {"variance": "homogenous"} if paired == "off" else {}
+            statistic, df, pvalue, _surrogate = eeglab_backend(
+                "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=4, **kwargs
+            )
+            reference = (
+                scipy_stats.ttest_rel(*rows[0], axis=-1)
+                if paired == "on"
+                else scipy_stats.ttest_ind(*rows[0], axis=-1, equal_var=True)
+            )
+            expected = reference.statistic, 9 if paired == "on" else 18, reference.pvalue
+        else:
+            # Source anova_a contains six independently generated arrays.
+            rows = [
+                [rng.random((1, 10)), rng.random((1, 10)), rng.random((1, 10)) + 0.2],
+                [rng.random((1, 10)), rng.random((1, 10)) + 0.2, rng.random((1, 10))],
+            ]
+            data = rows[:1] if design == "one-way" else rows
+            statistic, df, pvalue, _surrogate = eeglab_backend(
+                "statcond", _matlab_cells(data), mode="param", verbose="off", paired=paired, nargout=4
+            )
+            if design == "one-way":
+                if paired == "on":
+                    expected = _one_way_repeated_reference(rows[0])
+                else:
+                    reference = scipy_stats.f_oneway(*rows[0], axis=-1)
+                    expected = reference.statistic, (2, 27), reference.pvalue
+            else:
+                reference = _two_way_repeated_reference(rows) if paired == "on" else _two_way_unpaired_reference(rows)
+                expected = tuple(value.interaction for value in reference)
+                statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
+        for actual, reference in zip((statistic, df, pvalue), expected, strict=True):
+            _assert_class_same(actual, reference)
+
+    return test
+
+
+def _statcond_class_dimension_test(name, paired, design):
+    @eeglab_test(STATCOND_CLASS, name)
+    def test(eeglab_backend):
+        rng = np.random.default_rng(518)
+        conditions = [
+            [rng.random((*shape, 10)) + offset for offset in (0, 0.5, 0)]
+            for shape in ((1,), (10,), (5, 10), (2, 5, 10))
+        ]
+        indices = ((0,), (3,), (1, 3), (0, 1, 3))
+        for arrays, index in zip(conditions[1:], indices[1:], strict=True):
+            for source, target in zip(conditions[0], arrays, strict=True):
+                target[index] = source[0]
+        baseline = None
+        for arrays, index in zip(conditions, indices, strict=True):
+            rows = [arrays[:2]] if design == "t" else [arrays]
+            if design == "two-way":
+                rows = [[arrays[0] / 2, arrays[1], arrays[2]], arrays]
+            kwargs = {"variance": "homogenous"} if design == "t" and paired == "off" else {}
+            statistic, df, pvalue = eeglab_backend(
+                "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=3, **kwargs
+            )
+            if design == "two-way":
+                statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
+            # MATLAB indexes scalar / vector / matrix / 3-D statistic maps.
+            feature_index = () if statistic.size == 1 else index
+            current = (
+                statistic.item() if not feature_index else statistic[feature_index],
+                df,
+                pvalue.item() if not feature_index else pvalue[feature_index],
+            )
+            if baseline is None:
+                baseline = current
+            else:
+                for actual, reference in zip(current, baseline, strict=True):
+                    _assert_class_same(actual, reference)
+
+    return test
+
+
+for _design, _suffix in (("t", "TTest"), ("one-way", "1Anova"), ("two-way", "2Anova")):
+    for _paired, _prefix in (("on", "paired"), ("off", "unpaired")):
+        _name = f"{_prefix}{_suffix}"
+        globals()[f"test_reference_statcond_{_name}"] = _statcond_class_vector_test(_name, _paired, _design)
+        _name = f"{_prefix}Dim{_suffix}"
+        globals()[f"test_reference_statcond_{_name}"] = _statcond_class_dimension_test(_name, _paired, _design)
+
+
+@pytest.mark.parametrize("arraycomp", ["on", "off"])
+@pytest.mark.parametrize(
+    "feature_shape,n_conditions", [((1,), 2), ((1,), 3), ((10,), 2), ((10,), 3), ((9, 8), 2), ((9, 8), 3)]
+)
+@eeglab_test(STATCOND_CLASS, "shuffleAndPermutation")
+def test_reference_statcond_shuffle_and_permutation(eeglab_backend, feature_shape, n_conditions, arraycomp):
+    conditions = _resampling_conditions(feature_shape, n_conditions)
+    data = _matlab_cells([conditions])
+    arrays = []
+    for mode, paired in (("bootstrap", "on"), ("perm", "on"), ("bootstrap", "off"), ("perm", "off")):
+        kwargs = {} if arraycomp == "on" else {"arraycomp": "off"}
+        result = eeglab_backend(
+            "statcond", data, mode=mode, verbose="off", paired=paired, returnresamplingarray="on", naccu=10.0, **kwargs
+        )
+        traces = []
+        for value in result.ravel():
+            # Preserve the source's ndims branches, including its selection
+            # of the last replicate when arraycomp adds a resampling dimension.
+            if value.ndim == 2 and value.shape[1] > 1:
+                value = value[-1, :]
+            elif value.ndim == 3:
+                value = value[-1, -1, :]
+            elif value.ndim == 4:
+                value = value[-1, -1, -1, :]
+            traces.append(value.ravel())
+        arrays.append(traces)
+    sa1, sa2, sa3, sa4 = arrays
+    for value in sa1[:2]:
+        np.testing.assert_array_equal(np.remainder(value, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+    means = np.mean(sa2, axis=0)
+    np.testing.assert_array_equal(np.round(means - means[0]), np.arange(10))
+    assert all(np.unique(value).size == 10 for value in sa2[:2])
+    assert all(np.unique(value).size > 3 for value in sa3[:2])
+    assert all(np.unique(value).size == 10 for value in sa4[:2])
+    assert np.floor(np.mean(np.mean(sa4, axis=0))) in (55, 372)
