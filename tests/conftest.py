@@ -87,8 +87,14 @@ def eeglab_matlab_engine(request):
         patch.setenv("EEGPREP_EEGLAB_ROOT", str(Path(root).resolve()))
         compat = importlib.import_module("eegprep.functions.adminfunc.eeglabcompat")
         engine = compat.get_eeglab("MAT", auto_file_roundtrip=False, _cache={})
-    engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
     try:
+        engine.addpath(str(Path(root).resolve()), str(Path(root).resolve() / "functions"), nargout=0)
+        # Use the reference's initialization to activate installed workflow plugins.
+        # Unlike add_plugins.m, this does not install missing plugins.
+        directory = engine.pwd()
+        engine.eeglab("nogui", nargout=0)
+        engine.cd(directory, nargout=0)
+        engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
         yield engine
     finally:
         engine.quit()

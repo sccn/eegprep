@@ -11,6 +11,7 @@ from tests.eeglab_tests import (
     EEGLAB_TESTS_EEGLAB_COMMIT,
     EEGLAB_TESTS_REPOSITORY,
     STALE_EEGLAB_TESTS_REPOSITORY,
+    assert_matlab_near,
     eeglab_test,
     load_matlab_test_fixture,
     upstream_references,
@@ -78,3 +79,16 @@ def test_load_matlab_test_fixture_preserves_shape_and_dtype(tmp_path: Path) -> N
     assert loaded["values"].shape == (2, 3)
     assert loaded["values"].dtype == np.float32
     np.testing.assert_array_equal(loaded["values"], expected)
+
+
+def test_matlab_near_keeps_absolute_tolerance_and_nan_semantics():
+    assert_matlab_near([[0.0001, np.nan, np.inf]], [[0, np.nan, np.inf]])
+    with pytest.raises(AssertionError):
+        assert_matlab_near([[100000.001]], [[100000.0]])
+    with pytest.raises(AssertionError):
+        assert_matlab_near([[np.nan]], [[0.0]])
+
+
+def test_matlab_near_rejects_broadcasting_rows_into_columns():
+    with pytest.raises(AssertionError, match="\\(2, 1\\) != \\(1, 2\\)"):
+        assert_matlab_near([[1], [2]], [[1, 2]])
