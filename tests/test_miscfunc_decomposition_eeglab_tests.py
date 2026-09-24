@@ -25,6 +25,82 @@ from tests.eeglab_tests import assert_matlab_near as _assert_near
 MISC_ROOT = "unittesting_miscfunc"
 
 
+@eeglab_test(f"{MISC_ROOT}/kmeans_st/miscfunc_kmeans_st_wrapperTest.m", "test_test_kmeans_st")
+def test_reference_kmeans_st(eeglab_backend):
+    rng = np.random.default_rng(1)
+    data = rng.standard_normal((100, 2)) + rng.random((100, 2))
+    eeglab_backend("kmeans_st", data, 2.0, nargout=3)
+    eeglab_backend("kmeans_st", data, 2.0, 100.0, nargout=3)
+    eeglab_backend("kmeans_st", data, 20.0, 10.0, nargout=3)
+
+
+@eeglab_test(f"{MISC_ROOT}/make_timewarp/miscfunc_make_timewarp_wrapperTest.m", "test_test_make_timewarp")
+def test_reference_make_timewarp(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    sequence = np.array([["square", "rt"]], dtype=object)
+    eeglab_backend("make_timewarp", eeg, sequence)
+    eeglab_backend(
+        "make_timewarp", eeg, sequence, "baselineLatency", 0.0, "maxSTDForAbsolute", 3.0, "maxSTDForRelative", 2.0
+    )
+    eeglab_backend(
+        "make_timewarp", eeg, sequence, "baselineLatency", 0.0, "maxSTDForAbsolute", 0.6, "maxSTDForRelative", 0.4
+    )
+    eeglab_backend(
+        "make_timewarp",
+        eeg,
+        sequence,
+        "baselineLatency",
+        0.0,
+        "eventConditions",
+        np.array([["latency < 20000", "latency >1000"]], dtype=object),
+        "maxSTDForAbsolute",
+        3.0,
+        "maxSTDForRelative",
+        2.0,
+    )
+
+
+@eeglab_test(f"{MISC_ROOT}/runicalowmem/miscfunc_runicalowmem_wrapperTest.m", "test_test_runicalowmem")
+def test_reference_runicalowmem(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("runicalowmem", eeg["data"], "extended", 1.0, nargout=2)
+    eeglab_backend("runicalowmem", eeg["data"], nargout=2)
+
+
+@eeglab_test(f"{MISC_ROOT}/loc_subsets/miscfunc_loc_subsets_wrapperTest.m", "test_test_loc_subsets")
+def test_reference_loc_subsets(eeglab_backend, eeglab_suite_root, request):
+    locations = eeglab_backend("pop_readlocs", str(eeglab_suite_root / "eeglab/sample_locs/GSN256.sfp"))
+    mandatory = np.empty((1, 2), dtype=object)
+    mandatory[0, 0] = np.arange(1.0, 11.0)[None, :]
+    mandatory[0, 1] = np.arange(20.0, 31.0)[None, :]
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    for extra in ((), (mandatory,)):
+        try:
+            eeglab_backend("loc_subsets", locations, np.array([[32, 60, 100]], dtype=float), True, True, *extra)
+        finally:
+            if matlab:
+                eeglab_backend("close", nargout=0)
+                eeglab_backend("close", nargout=0)
+            else:
+                plt.close()
+                plt.close()
+
+
+@eeglab_test(f"{MISC_ROOT}/testica/miscfunc_testica_wrapperTest.m", "test_test_testica")
+def test_reference_testica(eeglab_backend, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    for arguments in ((32.0, 100.0), (32.0, 100.0, 64.0), (20.0, 1000.0, 64.0, -0.05, 1.2)):
+        try:
+            eeglab_backend("testica", *arguments)
+        finally:
+            if matlab:
+                eeglab_backend("close", nargout=0)
+                eeglab_backend("close", nargout=0)
+            else:
+                plt.close()
+                plt.close()
+
+
 @eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_general")
 @eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_maxit")
 @eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_ncomps_small")
@@ -105,8 +181,7 @@ def test_reference_zica(eeglab_backend, eeglab_suite_root):
     eeglab_backend("zica", activations, 3813.0, np.arange(1000.0, 2001.0)[None, :], nargout=5)
 
 
-@eeglab_test(f"{MISC_ROOT}/kmeans_st/miscfunc_kmeans_st_wrapperTest.m", "test_test_kmeans_st")
-def test_kmeans_st_current_suite_cluster_counts_restarts_and_sse():
+def test_python_regression_kmeans_st_cluster_counts_restarts_and_sse():
     rng = np.random.default_rng(10)
     observations = np.vstack((rng.normal((-3, 0), 0.15, (100, 2)), rng.normal((3, 0), 0.15, (100, 2))))
 
@@ -133,8 +208,7 @@ def test_kmeans_st_current_suite_cluster_counts_restarts_and_sse():
     assert np.isfinite(many_sse)
 
 
-@eeglab_test(f"{MISC_ROOT}/loc_subsets/miscfunc_loc_subsets_wrapperTest.m", "test_test_loc_subsets")
-def test_loc_subsets_current_suite_balances_spatial_sets_and_honors_mandatory_channels():
+def test_python_regression_loc_subsets_balances_spatial_sets_and_honors_mandatory_channels():
     angles = np.linspace(0, 2 * np.pi, 12, endpoint=False)
     chanlocs = [
         {"labels": f"E{index + 1}", "X": np.cos(angle), "Y": np.sin(angle), "Z": 0.2 * (-1) ** index}
@@ -176,8 +250,7 @@ def _timewarp_eeg() -> dict:
     }
 
 
-@eeglab_test(f"{MISC_ROOT}/make_timewarp/miscfunc_make_timewarp_wrapperTest.m", "test_test_make_timewarp")
-def test_make_timewarp_current_suite_default_outlier_and_condition_calls():
+def test_python_regression_make_timewarp_default_outlier_and_condition_calls():
     eeg = _timewarp_eeg()
     default = make_timewarp(eeg, ["square", "rt"])
     broad = make_timewarp(
@@ -274,14 +347,7 @@ def test_python_regression_promax_current_suite_one_component_rotation_is_identi
     np.testing.assert_array_equal(orthogonal, [[1.0]])
 
 
-@eeglab_test(f"{MISC_ROOT}/icademo/miscfunc_icademo_wrapperTest.m", "test_pass_general")
-@eeglab_test(f"{MISC_ROOT}/runicalowmem/miscfunc_runicalowmem_wrapperTest.m", "test_test_runicalowmem")
-@eeglab_test(f"{MISC_ROOT}/testica/miscfunc_testica_wrapperTest.m", "test_test_testica")
-def test_runicalowmem_current_suite_recovers_deterministic_independent_sources():
-    # The current icademo body is entirely commented, while testica is an
-    # interactive plot benchmark without accuracy assertions. This numerical
-    # recovery check preserves their scientific intent without porting obsolete
-    # pause-driven demos as public APIs.
+def test_python_regression_runicalowmem_recovers_deterministic_independent_sources():
     rng = np.random.default_rng(4)
     samples = 3000
     sources = np.vstack(

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 from scipy.signal import freqz
 
 from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, parsetxt, readneurodat, readtxtfile
@@ -122,7 +123,32 @@ def test_python_regression_blockave_equal_weights_matches_current_suite() -> Non
 
 
 @eeglab_test(f"{SIGPROC}/eegfilt/sigprocfunc_eegfilt_wrapperTest.m", "test_pass_general")
-def test_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
+def test_reference_eegfilt(eeglab_backend, request):
+    data = np.zeros((2, 48))
+    data[0, 0] = 1
+    data[1, ::2] = np.arange(1.0, 25.0)
+    filtered = eeglab_backend("eegfilt", data, 1.0, 0.17, 0.4)
+    times = np.arange(1.0, 49.0)[None, :]
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    try:
+        for channel in (0, 1):
+            signals = np.vstack((data[channel], filtered[channel]))
+            if matlab:
+                if channel:
+                    eeglab_backend("figure", nargout=0)
+                eeglab_backend("plot", times, signals, nargout=0)
+            else:
+                if channel:
+                    plt.figure()
+                plt.plot(times.ravel(), signals.T)
+    finally:
+        if matlab:
+            eeglab_backend("close", "all", nargout=0)
+        else:
+            plt.close("all")
+
+
+def test_python_regression_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
     data = np.asarray(
         [
             [1, *([0] * 47)],

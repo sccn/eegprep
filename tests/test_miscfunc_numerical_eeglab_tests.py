@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -751,7 +752,41 @@ def test_python_regression_uniquef_returns_stable_counts_and_zero_based_first_in
 
 
 @eeglab_test(_source("vectdata"), "test_test_vectdata")
-def test_current_vectdata_interpolates_and_smooths_with_explicit_v4_exclusion():
+def test_reference_vectdata(eeglab_backend, request):
+    times = np.linspace(-20, 20, 81)[None, :]
+    dense_times = np.linspace(-20, 20, 4001)[None, :]
+    values = np.sin(times)
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    for options in (
+        ("method", "linear"),
+        ("method", "cubic"),
+        ("method", "v4"),
+        ("method", "nearest"),
+        ("method", "linear", "avgtype", "gauss"),
+        ("method", "linear", "avgtype", "gauss", "border", "on"),
+    ):
+        interpolated, _timesout = eeglab_backend(
+            "vectdata", values, times, "timesout", dense_times, *options, nargout=2
+        )
+        try:
+            if matlab:
+                eeglab_backend("axis", np.array([[-20, 20, -2, 2]], dtype=float), nargout=0)
+                eeglab_backend("hold", "on", nargout=0)
+                eeglab_backend("plot", times, values, nargout=0)
+                eeglab_backend("hold", "on", nargout=0)
+                eeglab_backend("plot", dense_times, interpolated + 0.5, "r", nargout=0)
+            else:
+                plt.axis([-20, 20, -2, 2])
+                plt.plot(times.ravel(), values.ravel())
+                plt.plot(dense_times.ravel(), interpolated.ravel() + 0.5, "r")
+        finally:
+            if matlab:
+                eeglab_backend("close", nargout=0)
+            else:
+                plt.close()
+
+
+def test_python_regression_vectdata_interpolates_and_smooths_with_explicit_v4_exclusion():
     times = np.arange(-20, 20.5, 0.5)
     values = np.sin(times)
     dense_times = np.linspace(-20, 20, 4001)

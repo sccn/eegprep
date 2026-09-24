@@ -18,6 +18,20 @@ from tests.eeglab_tests import assert_matlab_near as _assert_near
 SIGPROC_ROOT = "unittesting_sigprocfunc"
 
 
+@eeglab_test(f"{SIGPROC_ROOT}/icadefs/sigprocfunc_icadefs_wrapperTest.m", "test_pass_general")
+def test_reference_icadefs(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        defaults = eeglab_backend("eegprep_test_icadefs")
+        binary, sampling_rate = defaults["ICABINARY"], defaults["DEFAULT_SRATE"]
+    else:
+        defaults = eeglab_backend("icadefs")
+        binary, sampling_rate = defaults.ICABINARY, defaults.DEFAULT_SRATE
+    assert np.asarray(binary).size
+    if isinstance(binary, str):
+        assert binary
+    assert np.asarray(sampling_rate).size
+
+
 def test_python_regression_icadefs_current_suite_has_platform_binary_and_sampling_defaults():
     defaults = icadefs()
     assert defaults.ICABINARY in {"ica_linux", "ica_osx", "binica.exe"}
