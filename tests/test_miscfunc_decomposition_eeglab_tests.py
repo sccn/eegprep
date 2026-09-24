@@ -19,9 +19,90 @@ from eegprep.functions.miscfunc.varimax import varimax
 from eegprep.functions.miscfunc.varsort import varsort
 from eegprep.functions.miscfunc.zica import zica
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near as _assert_near
 
 
 MISC_ROOT = "unittesting_miscfunc"
+
+
+@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_general")
+@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_maxit")
+@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_ncomps_small")
+@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_row_vector")
+def test_reference_promax(eeglab_backend):
+    data = np.array([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
+    eeglab_backend("promax", data, nargout=2)
+    eeglab_backend("promax", data, 0.0, 2.0, nargout=2)
+    eeglab_backend("promax", data, 2.0, nargout=2)
+    rotation, vectors = eeglab_backend("promax", np.array([[-1, 0, 1, 92]], dtype=float), nargout=2)
+    _assert_near(rotation, [[1.0]])
+    _assert_near(vectors, [[1.0]])
+
+
+@eeglab_test(f"{MISC_ROOT}/runpca/miscfunc_runpca_wrapperTest.m", "test_pass_simple_pca")
+def test_reference_runpca(eeglab_backend):
+    data = np.array([np.arange(8), np.arange(8)], dtype=float)
+    components, eigenvectors, singular = eeglab_backend("runpca", data.T, nargout=3)
+    # The source concatenates these outputs but comments out its comparison.
+    np.hstack((eigenvectors.T, components, singular))
+
+
+@eeglab_test(f"{MISC_ROOT}/runpca2/miscfunc_runpca2_wrapperTest.m", "test_test_runpca2")
+def test_reference_runpca2(eeglab_backend, eeglab_suite_root):
+    data = np.array(
+        [
+            [2, 5, 3, 6, 7, 2, 6, 8, 1, 2],
+            [6, 1, 10, 234, 3, 5, 464, 3, 2, 5],
+            [1, 1, 1, 1, 3, 5, 1, 1, 4, 5],
+            [4, 23456, 2, 3, 1, 1, 34, 2, 3, 5],
+            [20, 30, 10, 10, 34, 10, 30, 20, 30, 10],
+        ],
+        dtype=float,
+    )
+    eeglab_backend("runpca2", data, nargout=3)
+    components, _vectors, _singular = eeglab_backend("runpca2", data, 3.0, nargout=3)
+    assert components.shape[0] == 3
+    eeglab_backend("runpca", data, 3.0, 1.0, nargout=3)
+    data = np.random.default_rng(1).random((32, 100))
+    eeglab_backend("runpca2", data, nargout=3)
+    components, _vectors, _singular = eeglab_backend("runpca2", data, 26.0, nargout=3)
+    assert components.shape[0] == 26
+    eeglab_backend("runpca", data, 26.0, 1.0, nargout=3)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("runpca2", eeg["data"], nargout=3)
+    components, _vectors, _singular = eeglab_backend("runpca2", eeg["data"], 26.0, nargout=3)
+    assert components.shape[0] == 26
+    eeglab_backend("runpca2", eeg["data"], 26.0, 1.0, nargout=3)
+
+
+@eeglab_test(f"{MISC_ROOT}/varimax/miscfunc_varimax_wrapperTest.m", "test_test_varimax")
+def test_reference_varimax(eeglab_backend):
+    data = np.random.default_rng(1).random((32, 100))
+    eeglab_backend("varimax", data)
+    eeglab_backend("varimax", data, 0.01, 1.0, nargout=2)
+    eeglab_backend("varimax", data, 0.01, "reorder", nargout=2)
+
+
+@eeglab_test(f"{MISC_ROOT}/varsort/miscfunc_varsort_wrapperTest.m", "test_test_varsort")
+def test_reference_varsort(eeglab_backend, eeglab_suite_root):
+    rng = np.random.default_rng(1)
+    data = rng.random((32, 100))
+    weights, sphere, _variances, _bias, _signs, _lrates, activations = eeglab_backend("runica", data, nargout=7)
+    eeglab_backend("varsort", activations, weights, sphere, nargout=2)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    data = eeg["data"][rng.permutation(32)]
+    weights, sphere, _variances, _bias, _signs, _lrates, activations = eeglab_backend("runica", data, nargout=7)
+    eeglab_backend("varsort", activations, weights, sphere, nargout=2)
+
+
+@eeglab_test(f"{MISC_ROOT}/zica/miscfunc_zica_wrapperTest.m", "test_test_zica")
+def test_reference_zica(eeglab_backend, eeglab_suite_root):
+    data = np.random.default_rng(1).random((32, 100))
+    *_outputs, activations = eeglab_backend("runica", data, nargout=7)
+    eeglab_backend("zica", activations, 0.0, 0.0, nargout=5)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    *_outputs, activations = eeglab_backend("runica", eeg["data"], nargout=7)
+    eeglab_backend("zica", activations, 3813.0, np.arange(1000.0, 2001.0)[None, :], nargout=5)
 
 
 @eeglab_test(f"{MISC_ROOT}/kmeans_st/miscfunc_kmeans_st_wrapperTest.m", "test_test_kmeans_st")
@@ -130,16 +211,14 @@ def test_make_timewarp_current_suite_default_outlier_and_condition_calls():
     assert conditioned["event_sequence"] == ["square", "rt"]
 
 
-@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_column_vector")
-def test_promax_current_suite_singular_column_vector_is_finite():
+def test_python_regression_promax_current_suite_singular_column_vector_is_finite():
     rotation, orthogonal = promax(np.asarray([[1.0], [2.0], [3.0]]))
     assert rotation.shape == orthogonal.shape == (3, 3)
     assert np.all(np.isfinite(rotation))
     assert np.all(np.isfinite(orthogonal))
 
 
-@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_general")
-def test_promax_current_suite_general_rotation_contract():
+def test_python_regression_promax_current_suite_general_rotation_contract():
     data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
     rotation, orthogonal = promax(data)
     assert rotation.shape == orthogonal.shape == (3, 3)
@@ -148,8 +227,7 @@ def test_promax_current_suite_general_rotation_contract():
     assert np.all(np.isfinite(finite_matmul(rotation, data)))
 
 
-@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_maxit")
-def test_promax_current_suite_iteration_limit_is_deterministic():
+def test_python_regression_promax_current_suite_iteration_limit_is_deterministic():
     data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
     first = promax(data, max_iterations=2)
     second = promax(data, max_iterations=2)
@@ -157,8 +235,7 @@ def test_promax_current_suite_iteration_limit_is_deterministic():
     np.testing.assert_allclose(first[1], second[1], rtol=0, atol=0)
 
 
-@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_ncomps_small")
-def test_promax_current_suite_reduced_rotation_operates_on_original_channels():
+def test_python_regression_promax_current_suite_reduced_rotation_operates_on_original_channels():
     data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
     rotation, orthogonal = promax(data, n_components=2)
     assert rotation.shape == orthogonal.shape == (2, 3)
@@ -191,8 +268,7 @@ def test_promax_current_suite_reduced_rotation_operates_on_original_channels():
     )
 
 
-@eeglab_test(f"{MISC_ROOT}/promax/miscfunc_promax_wrapperTest.m", "test_pass_row_vector")
-def test_promax_current_suite_one_component_rotation_is_identity():
+def test_python_regression_promax_current_suite_one_component_rotation_is_identity():
     rotation, orthogonal = promax(np.asarray([[-1.0, 0.0, 1.0, 92.0]]))
     np.testing.assert_array_equal(rotation, [[1.0]])
     np.testing.assert_array_equal(orthogonal, [[1.0]])
@@ -244,8 +320,7 @@ def test_runicalowmem_current_suite_recovers_deterministic_independent_sources()
     assert np.all(np.isfinite(standard_sphere))
 
 
-@eeglab_test(f"{MISC_ROOT}/runpca/miscfunc_runpca_wrapperTest.m", "test_pass_simple_pca")
-def test_runpca_current_suite_rank_one_data_reconstructs_and_orders_variance():
+def test_python_regression_runpca_current_suite_rank_one_data_reconstructs_and_orders_variance():
     data = np.vstack((np.arange(8, dtype=float), np.arange(8, dtype=float)))
     centered = data - np.mean(data, axis=1, keepdims=True)
     components, mixing, singular = runpca(data)
@@ -255,8 +330,7 @@ def test_runpca_current_suite_rank_one_data_reconstructs_and_orders_variance():
     assert singular[1, 1] < 1e-14
 
 
-@eeglab_test(f"{MISC_ROOT}/runpca2/miscfunc_runpca2_wrapperTest.m", "test_test_runpca2")
-def test_runpca2_current_suite_full_reduced_and_large_channel_cases():
+def test_python_regression_runpca2_current_suite_full_reduced_and_large_channel_cases():
     upstream_data = np.asarray(
         [
             [2, 5, 3, 6, 7, 2, 6, 8, 1, 2],
@@ -315,8 +389,7 @@ def _varimax_criterion(data: np.ndarray) -> float:
     return float(np.sum(np.mean(data**4, axis=1) - np.mean(data**2, axis=1) ** 2))
 
 
-@eeglab_test(f"{MISC_ROOT}/varimax/miscfunc_varimax_wrapperTest.m", "test_test_varimax")
-def test_varimax_current_suite_default_tolerance_and_reorder_modes():
+def test_python_regression_varimax_current_suite_default_tolerance_and_reorder_modes():
     data = np.random.default_rng(7).normal(size=(32, 100))
     default_rotation, default_data = varimax(data)
     numeric_rotation, numeric_data = varimax(data, 1e-2, True)
@@ -357,8 +430,7 @@ def test_varimax_current_suite_default_tolerance_and_reorder_modes():
     )
 
 
-@eeglab_test(f"{MISC_ROOT}/varsort/miscfunc_varsort_wrapperTest.m", "test_test_varsort")
-def test_varsort_current_suite_orders_projected_component_power_and_supports_reduction():
+def test_python_regression_varsort_current_suite_orders_projected_component_power_and_supports_reduction():
     activations = np.asarray([[1.0, -1.0, 1.0, -1.0], [4.0, -4.0, 4.0, -4.0]])
     weights = np.asarray([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
     sphere = np.eye(3)
@@ -371,8 +443,7 @@ def test_varsort_current_suite_orders_projected_component_power_and_supports_red
     np.testing.assert_allclose(square_power, [4.0, 1.0], rtol=1e-14, atol=1e-14)
 
 
-@eeglab_test(f"{MISC_ROOT}/zica/miscfunc_zica_wrapperTest.m", "test_test_zica")
-def test_zica_current_suite_continuous_and_epoched_baselines_use_true_global_peaks():
+def test_python_regression_zica_current_suite_continuous_and_epoched_baselines_use_true_global_peaks():
     activations = np.asarray(
         [
             [1, -1, 1, -1, 1, -1, 1, -20],
