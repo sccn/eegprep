@@ -143,6 +143,50 @@ Run tests with verbose output:
 
     uv run pytest -v tests/test_clean_artifacts.py
 
+Reference Tests Against MATLAB
+------------------------------
+
+Reference-contract tests use Python assertions with an explicitly selected
+backend. Ordinary ``pytest`` runs deselect these tests; deselection is not
+validation. Keep their inputs, workflows, and expectations faithful to the
+current ``sccn/eeglab_tests`` suite even when EEGPrep lacks the corresponding
+feature. Provenance decorators identify source scenarios, but do not prove
+behavioral equivalence or MATLAB code coverage.
+
+Use the reference revisions recorded in ``tests/eeglab_tests/__init__.py``.
+Initialize the suite's EEGLAB submodule and its plugin submodules, download the
+required Git LFS datasets, and install MATLAB Engine for the installed MATLAB
+release into the development environment. MATLAB, plugins, and reference data
+are development dependencies only; EEGPrep users do not need them.
+
+Select a migrated test module and run it against the pinned EEGLAB checkout:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest path/to/test_module.py \
+        --eeglab-backend=matlab --eeglab-root=/path/to/eeglab_tests/eeglab
+
+``--no-sync`` preserves MATLAB Engine when it was installed separately from the
+project dependencies. ``EEGPREP_EEGLAB_ROOT`` can supply the reference path in
+place of ``--eeglab-root``. Missing MATLAB, reference files, or required plugins
+are failures in this lane, not successful skips. Selecting a provenance-tagged
+test that still calls Python directly is a collection error, preventing it from
+being reported as MATLAB validation.
+
+The ``eeglab_backend`` fixture calls the selected implementation by name, for
+example ``eeglab_backend("eeg_point2lat", points, epochs, srate, limits)``.
+Resolve functions through this fixture rather than importing EEGPrep functions
+at collection time. The MATLAB lane uses independent MAT-file transport, not
+EEGPrep's dataset readers or writers. Preserve numeric types and array shapes;
+make any MATLAB/Python indexing conversion explicit in the test.
+
+The same tests can be selected with ``--eeglab-backend=python`` later to expose
+implementation gaps. A missing Python feature must fail honestly; it is not a
+reason to change the reference expectation, skip a case, or weaken a tolerance.
+Report source accounting, live MATLAB results, and unresolved blockers
+separately. Neither a source-count match nor a passing subset establishes full
+suite validation.
+
 Writing Tests
 -------------
 
