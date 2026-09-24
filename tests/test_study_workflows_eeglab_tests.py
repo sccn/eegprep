@@ -1,4 +1,4 @@
-"""Generated-fixture ports of current EEGLAB STUDY workflow tests."""
+"""Original STUDY workflows and additional generated-fixture Python tests."""
 
 from __future__ import annotations
 
@@ -267,7 +267,6 @@ def test_std_editset_loads_generated_sets_assigns_metadata_and_removes_a_dataset
     assert study["design"][0]["variable"][0]["value"] == ["ignore", "probe"]
 
 
-@_reference("std_makedesign", "test_test_std_makedesign")
 def test_std_makedesign_preserves_subject_selection_and_combined_factor_levels():
     datasets = []
     for subject in ("S02", "S07", "S08", "S10"):
@@ -303,6 +302,39 @@ def test_std_makedesign_preserves_subject_selection_and_combined_factor_levels()
     assert study["design"][0]["cases"]["value"] == selected_subjects
     assert study["design"][1]["cases"]["value"] == selected_subjects
     assert study["design"][1]["variable"][0]["value"][1] == ["non-synonyms", "synonyms"]
+
+
+def _cell_row(*values):
+    cells = np.empty((1, len(values)), dtype=object)
+    for index, value in enumerate(values):
+        cells[0, index] = value
+    return cells
+
+
+@_reference("std_makedesign", "test_test_std_makedesign")
+def test_reference_std_makedesign(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    subjects = _cell_row("S02", "S07", "S08", "S10")
+    for index, name, values in (
+        (1.0, "STUDY.design 1", _cell_row("non-synonyms", "synonyms")),
+        (2.0, "Design 2 test", _cell_row("non-synonyms", _cell_row("non-synonyms", "synonyms"))),
+    ):
+        study = eeglab_backend(
+            "std_makedesign",
+            study,
+            alleeg,
+            index,
+            "name",
+            name,
+            variable1="condition",
+            variable2="",
+            values1=values,
+            subjselect=subjects,
+        )
+    designs = study["design"]
+    if "cell" in designs.dtype.names:
+        assert designs["cell"][0, 0].size == 8
+        assert designs["cell"][0, 1].size == 8
 
 
 @_reference("std_precomp", "test_test_std_precomp")

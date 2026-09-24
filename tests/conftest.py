@@ -70,6 +70,20 @@ def eeglab_suite_root(request):
     return root
 
 
+@pytest.fixture(params=[("teststudy", "n400clustedit.study")])
+def eeglab_sample_study(request, eeglab_backend, eeglab_suite_root):
+    """Load fresh source STUDY state as readsamplestudy/readsamplestudy2 do."""
+    directory, filename = request.param
+    study, alleeg = eeglab_backend(
+        "pop_loadstudy",
+        filename=filename,
+        filepath=str(eeglab_suite_root / "unittesting_studyfunc" / directory),
+        nargout=2,
+    )
+    study = eeglab_backend("std_checkset", study, alleeg)
+    return study, alleeg
+
+
 @pytest.fixture(scope="session")
 def eeglab_matlab_engine(request):
     root = request.config.getoption("--eeglab-root")

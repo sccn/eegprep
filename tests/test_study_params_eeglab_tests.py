@@ -1,8 +1,10 @@
-"""Ports of current EEGLAB STUDY plotting-parameter tests."""
+"""Original STUDY parameter workflows and additional Python cache checks."""
 
 from __future__ import annotations
 
 import ast
+
+import numpy as np
 
 import eegprep
 from eegprep.functions.studyfunc.pop_dipparams import pop_dipparams
@@ -48,7 +50,6 @@ def _study_with_cached_measures() -> dict:
     }
 
 
-@_reference("pop_dipparams", "test_test_pop_dipparams")
 def test_pop_dipparams_stores_every_current_eeglab_test_option():
     study = _study_with_cached_measures()
     cases = (
@@ -77,7 +78,6 @@ def test_pop_dipparams_stores_every_current_eeglab_test_option():
     }
 
 
-@_reference("pop_erpimparams", "test_test_pop_erpimparams")
 def test_pop_erpimparams_stores_tested_ranges_and_invalidates_erpimage_cache():
     study = _study_with_cached_measures()
     for key, value in (
@@ -94,7 +94,6 @@ def test_pop_erpimparams_stores_tested_ranges_and_invalidates_erpimage_cache():
         assert not {"erpimdata", "erpimtimes", "erpimtrials", "erpimevents"}.intersection(collection[0])
 
 
-@_reference("pop_erpparams", "test_test_pop_erpparams")
 def test_pop_erpparams_stores_every_current_option_and_invalidates_erp_cache():
     study = _study_with_cached_measures()
     cases = (
@@ -123,7 +122,6 @@ def test_pop_erpparams_stores_every_current_option_and_invalidates_erp_cache():
         assert "erptimes" not in collection[0]
 
 
-@_reference("pop_erspparams", "test_test_pop_erspparams")
 def test_pop_erspparams_stores_every_current_option_and_invalidates_time_frequency_cache():
     study = _study_with_cached_measures()
     cases = (
@@ -152,7 +150,6 @@ def test_pop_erspparams_stores_every_current_option_and_invalidates_time_frequen
         )
 
 
-@_reference("pop_specparams", "test_test_pop_specparams")
 def test_pop_specparams_stores_every_current_option_and_invalidates_spectrum_cache():
     study = _study_with_cached_measures()
     cases = (
@@ -179,7 +176,6 @@ def test_pop_specparams_stores_every_current_option_and_invalidates_spectrum_cac
         assert "specfreqs" not in collection[0]
 
 
-@_reference("pop_statparams", "test_test_pop_statparams")
 def test_pop_statparams_stores_common_eeglab_and_fieldtrip_namespaces():
     study = _study_with_cached_measures()
     cases = (
@@ -236,3 +232,131 @@ def test_study_parameter_functions_are_public_and_history_replays_empty_values()
 
     assert namespace["STUDY"]["etc"]["erpparams"] == updated["etc"]["erpparams"]
     assert "timerange=[]" in command
+
+
+# Keep each source's option order: later calls operate on the modified STUDY.
+_PARAMETER_CASES = {
+    "dip": [
+        (key, value) for key in ("axistight", "projimg", "projlines", "density", "centrline") for value in ("on", "off")
+    ],
+    "erpim": [
+        ("topotime", 100),
+        ("topotime", [50, 100]),
+        ("timerange", [0, 200]),
+        ("timerange", [-100, 200]),
+        ("colorlimits", [0, 200]),
+    ],
+    "erp": [
+        ("topotime", 100),
+        ("topotime", [100, 200]),
+        ("topotime", []),
+        ("filter", 20),
+        ("filter", []),
+        ("timerange", [-100, 200]),
+        ("timerange", []),
+        ("ylim", [0, 20]),
+        ("plotgroups", "together"),
+        ("plotgroups", "apart"),
+        ("plotconditions", "together"),
+        ("plotconditions", "apart"),
+        ("averagechan", "on"),
+        ("averagechan", "off"),
+    ],
+    "ersp": [
+        ("timerange", [-100, 400]),
+        ("freqrange", [2, 60]),
+        ("ersplim", [1, 20]),
+        ("itclim", [0, 1]),
+        ("itclim", [0, 2]),
+        ("topotime", 100),
+        ("topotime", [100, 200]),
+        ("topofreq", 10),
+        ("topofreq", [8, 12]),
+        ("subbaseline", "on"),
+        ("subbaseline", "off"),
+        ("maskdata", "on"),
+        ("maskdata", "off"),
+    ],
+    "spec": [
+        ("topofreq", 10),
+        ("topofreq", [8, 12]),
+        ("freqrange", [2, 60]),
+        ("ylim", [0, 20]),
+        ("plotgroups", "together"),
+        ("plotgroups", "apart"),
+        ("plotconditions", "together"),
+        ("plotconditions", "apart"),
+        ("subtractsubjectmean", "on"),
+        ("subtractsubjectmean", "off"),
+        ("averagechan", "on"),
+        ("averagechan", "off"),
+    ],
+    "stat": [
+        ("groupstats", "on"),
+        ("groupstats", "off"),
+        ("condstats", "on"),
+        ("condstats", "off"),
+        ("singletrials", "on"),
+        ("singletrials", "off"),
+        ("mode", "eeglab"),
+        ("mode", "fieldtrip"),
+        ("method", "param"),
+        ("method", "perm"),
+        ("method", "bootstrap"),
+        ("naccu", 2000),
+        ("alpha", 0.5),
+        ("mcorrect", "fdr"),
+        ("mcorrect", "holms"),
+        ("mcorrect", "bonferoni"),
+        ("mcorrect", "none"),
+        ("fieldtripmethod", "analytic"),
+        ("fieldtripmethod", "montecarlo"),
+        ("fieldtripnaccu", 2000),
+        ("fieldtripalpha", 0.5),
+        ("fieldtripmcorrect", "cluster"),
+        ("fieldtripmcorrect", "max"),
+        ("fieldtripmcorrect", "fdr"),
+        ("fieldtripmcorrect", "holms"),
+        ("fieldtripmcorrect", "bonferoni"),
+        ("fieldtripmcorrect", "none"),
+        ("fieldtripclusterparam", []),
+        ("fieldtripchannelneighbor", []),
+        ("fieldtripchannelneighborparam", []),
+    ],
+}
+
+
+def _reference_parameter_workflow(kind):
+    function = f"pop_{kind}params"
+
+    @_reference(function, f"test_test_{function}")
+    def test(eeglab_backend, eeglab_sample_study):
+        study, _alleeg = eeglab_sample_study
+        failures = []
+        for index, (option, value) in enumerate(_PARAMETER_CASES[kind]):
+            if not isinstance(value, str):
+                value = np.asarray(value, dtype=float)
+                value = value.reshape(1, -1) if value.size else np.empty((0, 0))
+            study = eeglab_backend(function, study, option, value)
+            if kind == "stat":
+                params = study["etc"]["statistics"]
+                if index < 8:
+                    actual = params[option]
+                elif index < 17:
+                    actual = params["eeglab"][option]
+                else:
+                    actual = params["fieldtrip"][option[9:]]
+            else:
+                actual = study["etc"][f"{kind}params"][option]
+            # Source isequal compares exact dimensions/values, not tolerances.
+            if not np.array_equal(actual, value):
+                failures.append(option)
+        if kind == "stat":
+            eeglab_backend(function, study, "default", nargout=0)
+        assert not failures, f"{function} failed original parameter checks: {failures}"
+
+    return test
+
+
+for _kind in _PARAMETER_CASES:
+    globals()[f"test_reference_pop_{_kind}params"] = _reference_parameter_workflow(_kind)
