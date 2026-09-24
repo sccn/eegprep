@@ -7,6 +7,7 @@ from functools import partial
 import importlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 
 import pytest
@@ -82,6 +83,13 @@ def eeglab_sample_study(request, eeglab_backend, eeglab_suite_root):
     )
     study = eeglab_backend("std_checkset", study, alleeg)
     return study, alleeg
+
+
+@pytest.fixture(params=["teststudy"])
+def eeglab_writable_study(request, eeglab_suite_root, tmp_path):
+    """Copy the original STUDY tree before workflows write measure caches."""
+    source = eeglab_suite_root / "unittesting_studyfunc" / request.param
+    return Path(shutil.copytree(source, tmp_path / request.param))
 
 
 @pytest.fixture(scope="session")
