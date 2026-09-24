@@ -9,7 +9,7 @@ import pytest
 from scipy.signal import freqz
 
 from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, parsetxt, readneurodat, readtxtfile
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
 SIGPROC = "unittesting_sigprocfunc"
@@ -163,7 +163,79 @@ def _numeric_text(rows: int = 5, columns: int = 6) -> str:
     return "\n".join(" ".join(str(value) for value in row) for row in values) + "\n"
 
 
+def _source_loadtxt(eeglab_backend, eeglab_suite_root, filename, *options):
+    source = eeglab_suite_root / "unittesting_sigprocfunc/loadtxt" / filename
+    return eeglab_backend("loadtxt", str(source), *options)
+
+
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_convert_force")
+def test_upstream_loadtxt_force(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "convert_force.txt", "convert", "force")
+    expected = np.arange(1.0, 31.0).reshape(5, 6).reshape(1, -1, order="F")
+    assert_matlab_near(result, expected)
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_convert_off")
+def test_upstream_loadtxt_conversion_off(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "convert_off.txt", "convert", "off")
+    np.testing.assert_array_equal(result, np.arange(1, 31).astype(str).reshape(5, 6))
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_general")
+def test_upstream_loadtxt_general(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "general.txt")
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_negative_skipline")
+def test_upstream_loadtxt_negative_skipline(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "negative_skipline.txt", "skipline", -4.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_nlines")
+def test_upstream_loadtxt_nlines(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "nlines.txt", "nlines", 3.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 19.0).reshape(3, 6))
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_skipline")
+def test_upstream_loadtxt_skipline(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "skipline.txt", "skipline", 4.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_text")
+def test_upstream_loadtxt_text(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "text.txt")
+    expected = np.arange(1.0, 31.0).reshape(5, 6).astype(object)
+    expected[0, 2] = "three"
+    np.testing.assert_array_equal(result, expected)
+
+
+@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_verbose")
+def test_upstream_loadtxt_verbose(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "verbose.txt", "verbose", "on")
+    np.testing.assert_array_equal(result, np.arange(1.0, 34.0).reshape(11, 3))
+
+
+@eeglab_test(f"{SIGPROC}/readneurodat/sigprocfunc_readneurodat_wrapperTest.m", "test_pass_general")
+def test_upstream_readneurodat_original_file(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/readneurodat/test.dat"
+    locations, labels, _theta, _phi = eeglab_backend("readneurodat", str(path), nargout=4)
+    np.testing.assert_array_equal(locations["labels"], labels)
+
+
+@eeglab_test(f"{SIGPROC}/readtxtfile/sigprocfunc_readtxtfile_wrapperTest.m", "test_test_readtxtfile")
+def test_upstream_readtxtfile_original_location_files(eeglab_backend, eeglab_suite_root):
+    for path in (
+        "sample_locs/Standard-10-10-Cap33.ced",
+        "sample_locs/Standard-10-20-Cap25.locs",
+        "sample_data/eeglab_chan32.locs",
+    ):
+        eeglab_backend("readtxtfile", str(eeglab_suite_root / "eeglab" / path))
+
+
 def test_loadtxt_force_conversion_matches_current_suite_column_order(tmp_path: Path) -> None:
     source = tmp_path / "convert_force.txt"
     source.write_text(_numeric_text(), encoding="utf-8")
@@ -171,7 +243,6 @@ def test_loadtxt_force_conversion_matches_current_suite_column_order(tmp_path: P
     np.testing.assert_allclose(result, np.arange(1, 31).reshape(5, 6).reshape(-1, order="F"))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_convert_off")
 def test_loadtxt_conversion_off_matches_current_suite_strings(tmp_path: Path) -> None:
     source = tmp_path / "convert_off.txt"
     source.write_text(_numeric_text(), encoding="utf-8")
@@ -179,7 +250,6 @@ def test_loadtxt_conversion_off_matches_current_suite_strings(tmp_path: Path) ->
     np.testing.assert_array_equal(result, np.arange(1, 31).astype(str).reshape(5, 6))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_general")
 def test_loadtxt_general_numeric_cells_match_current_suite(tmp_path: Path) -> None:
     source = tmp_path / "general.txt"
     source.write_text(_numeric_text(), encoding="utf-8")
@@ -187,7 +257,6 @@ def test_loadtxt_general_numeric_cells_match_current_suite(tmp_path: Path) -> No
     np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_negative_skipline")
 def test_loadtxt_negative_skipline_counts_only_nonempty_lines(tmp_path: Path) -> None:
     source = tmp_path / "negative_skipline.txt"
     source.write_text("this\n\nlines\n\nare\n\nempty\n\n" + _numeric_text(), encoding="utf-8")
@@ -195,7 +264,6 @@ def test_loadtxt_negative_skipline_counts_only_nonempty_lines(tmp_path: Path) ->
     np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_nlines")
 def test_loadtxt_nlines_limits_nonempty_rows(tmp_path: Path) -> None:
     source = tmp_path / "nlines.txt"
     source.write_text(_numeric_text(), encoding="utf-8")
@@ -203,7 +271,6 @@ def test_loadtxt_nlines_limits_nonempty_rows(tmp_path: Path) -> None:
     np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 19).reshape(3, 6))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_skipline")
 def test_loadtxt_positive_skipline_counts_physical_lines(tmp_path: Path) -> None:
     source = tmp_path / "skipline.txt"
     source.write_text("\n\n\n\n" + _numeric_text(), encoding="utf-8")
@@ -211,7 +278,6 @@ def test_loadtxt_positive_skipline_counts_physical_lines(tmp_path: Path) -> None
     np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_text")
 def test_loadtxt_mixed_text_and_numbers_match_current_suite(tmp_path: Path) -> None:
     source = tmp_path / "text.txt"
     source.write_text(_numeric_text().replace("3", "three", 1), encoding="utf-8")
@@ -221,7 +287,6 @@ def test_loadtxt_mixed_text_and_numbers_match_current_suite(tmp_path: Path) -> N
     assert result[4, 5] == 30.0
 
 
-@eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_verbose")
 def test_loadtxt_verbose_mode_reports_and_returns_current_suite_table(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -256,7 +321,6 @@ def test_parsetxt_delimiter_only_input_matches_current_suite() -> None:
     assert parsetxt(" , \" ' \t,' , ") == []
 
 
-@eeglab_test(f"{SIGPROC}/readneurodat/sigprocfunc_readneurodat_wrapperTest.m", "test_pass_general")
 def test_readneurodat_labels_and_coordinates_match_current_suite(tmp_path: Path) -> None:
     source = tmp_path / "test.dat"
     source.write_text(
@@ -307,7 +371,6 @@ def _write_neuroscan_eeg(
     return first, second
 
 
-@eeglab_test(f"{SIGPROC}/loadeeg/sigprocfunc_loadeeg_wrapperTest.m", "test_pass_bugzilla_456")
 def test_loadeeg_discards_incomplete_truncated_sweep(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     source = tmp_path / "bugzilla_456.eeg"
     first, _second = _write_neuroscan_eeg(source, truncate_second=True)
@@ -328,7 +391,6 @@ def test_loadeeg_discards_incomplete_truncated_sweep(tmp_path: Path, caplog: pyt
     assert "incomplete data were discarded" in caplog.text
 
 
-@eeglab_test(f"{SIGPROC}/readtxtfile/sigprocfunc_readtxtfile_wrapperTest.m", "test_test_readtxtfile")
 def test_readtxtfile_reads_current_suite_location_file_variants(tmp_path: Path) -> None:
     paths = [tmp_path / "cap33.ced", tmp_path / "cap25.locs", tmp_path / "chan32.locs"]
     contents = ["Number\tlabels\n1\tFz\n", "1 0.0 0.5 Fz\r\n2 0.0 0.0 Cz\r\n", "1 -18 0.35 Fp1"]
