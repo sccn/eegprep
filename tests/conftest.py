@@ -92,6 +92,50 @@ def eeglab_writable_study(request, eeglab_suite_root, tmp_path):
     return Path(shutil.copytree(source, tmp_path / request.param))
 
 
+@pytest.fixture
+def eeglab_options_directory(request, eeglab_backend, tmp_path):
+    """Isolate the reference's documented EEGOPTION_PATH configuration hook."""
+    directory = tmp_path / "eeglab_options"
+    directory.mkdir()
+    if request.config.getoption("--eeglab-backend") == "python":
+        options = importlib.import_module("eegprep.functions.adminfunc.eeg_options").EEG_OPTIONS
+        original_options = options.copy()
+        try:
+            yield directory
+        finally:
+            options.clear()
+            options.update(original_options)
+        return
+
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    original_path, original_directory = engine.path(), engine.pwd()
+    original_icadefs = engine.which("icadefs")
+    home_options = Path.home() / "eeg_options.m"
+    original_home = home_options.read_bytes() if home_options.exists() else None
+    if original_home is not None:
+        shutil.copyfile(home_options, directory / "eeg_options.m")
+    # icadefs explicitly permits a project-local copy. Run the pinned original
+    # unchanged, overriding only where user preference writes are stored.
+    wrapper = directory / "icadefs.m"
+    original_script = original_icadefs.replace("'", "''")
+    options_path = str(directory).replace("'", "''")
+    wrapper.write_text(
+        f"run('{original_script}');\nEEGOPTION_PATH = '{options_path}';\n",
+        encoding="utf-8",
+    )
+    try:
+        engine.addpath(str(directory), "-begin", nargout=0)
+        engine.eval("clear icadefs eeg_options; icadefs;", nargout=0)
+        assert engine.which("icadefs") == str(wrapper)
+        assert engine.workspace["EEGOPTION_PATH"] == str(directory)
+        yield directory
+    finally:
+        engine.path(original_path, nargout=0)
+        engine.cd(original_directory, nargout=0)
+        engine.eval("clear icadefs eeg_options; eeglab_options;", nargout=0)
+        assert (home_options.read_bytes() if home_options.exists() else None) == original_home
+
+
 @pytest.fixture(scope="session")
 def eeglab_matlab_engine(request):
     root = request.config.getoption("--eeglab-root")

@@ -105,6 +105,24 @@ def test_python_mode_collects_then_fails_missing_capability(pytester):
     result.stdout.fnmatch_lines(["*AttributeError*eeglab_missing_function*"])
 
 
+def test_python_options_are_restored_after_each_contract(pytester):
+    _isolated_suite(
+        pytester,
+        """
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+original = EEG_OPTIONS.copy()
+def test_changes(eeglab_backend, eeglab_options_directory):
+    value = 1 - original['option_storedisk']
+    eeglab_backend('pop_editoptions', option_storedisk=value)
+    assert EEG_OPTIONS['option_storedisk'] == value
+def test_restored():
+    assert EEG_OPTIONS == original
+""",
+    )
+    result = pytester.runpytest_subprocess("--eeglab-backend=python")
+    result.assert_outcomes(passed=2)
+
+
 @pytest.mark.parametrize(
     ("dtype", "matlab_class"),
     [
@@ -235,3 +253,16 @@ def test_matlab_workflow_directory_matches_python(eeglab_working_directory, eegl
     Path("relative.txt").write_text("original relative path", encoding="utf-8")
     assert Path(eeglab_matlab_engine.pwd()) == eeglab_working_directory
     assert call_matlab(eeglab_matlab_engine, "fileread", "relative.txt") == "original relative path"
+
+
+def test_matlab_options_file_is_scratch_only(eeglab_matlab_engine, eeglab_backend, eeglab_options_directory):
+    home_options = Path.home() / "eeg_options.m"
+    original_home = home_options.read_bytes() if home_options.exists() else None
+    eeglab_backend("pop_editoptions", option_storedisk=1.0, nargout=0)
+    options_file = eeglab_options_directory / "eeg_options.m"
+    assert options_file.is_file()
+    assert "option_storedisk = 1" in options_file.read_text(encoding="utf-8")
+    eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
+    assert eeglab_matlab_engine.workspace["option_storedisk"] == 1
+    assert eeglab_matlab_engine.workspace["EEGOPTION_PATH"] == str(eeglab_options_directory)
+    assert (home_options.read_bytes() if home_options.exists() else None) == original_home
