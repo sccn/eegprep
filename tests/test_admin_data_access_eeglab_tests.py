@@ -1,4 +1,4 @@
-"""Behavioral ports of current EEGLAB administrative data-access tests."""
+"""Original EEGLAB administrative workflows and supplemental regressions."""
 
 from __future__ import annotations
 
@@ -11,6 +11,101 @@ from eegprep import eeg_checkchanlocs, eeg_getdatact
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from tests.eeglab_tests import eeglab_test
+
+
+def _assert_source_locations(checked, original, labels):
+    np.testing.assert_array_equal(checked["data"], original["data"])
+    assert [location["labels"] for location in np.asarray(checked["chanlocs"]).flat] == labels
+    assert checked["chaninfo"]["nosedir"] == "+X"
+
+
+@eeglab_test(
+    "unittesting_adminfunc/eeg_checkchanlocs/adminfunc_eeg_checkchanlocs_wrapperTest.m",
+    "test_test_eeg_checkchanlocs",
+)
+@eeglab_test("unittesting_adminfunc/eeg_checkchanlocs/test_eeg_checkchanlocs.m", "test_eeg_checkchanlocs")
+def test_upstream_eeg_checkchanlocs_original_continuous_and_epoched_recordings(eeglab_backend, eeglab_suite_root):
+    sample_data = eeglab_suite_root / "eeglab/sample_data"
+    continuous = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data.set"))
+    assert np.asarray(continuous["data"]).shape == (32, 30504)
+    locations = np.asarray(continuous["chanlocs"])
+    labels = [location["labels"] for location in locations.flat]
+
+    checked = eeglab_backend("eeg_checkchanlocs", continuous)
+    _assert_source_locations(checked, continuous, labels)
+
+    # MATLAB struct growth fills every other existing field with []. Keep each
+    # backend's native struct-array or list-of-dictionaries representation.
+    if locations.dtype.names:
+        extra = np.empty(2, dtype=locations.dtype)
+        for field in locations.dtype.names:
+            extra[field].fill(np.empty((0, 0)))
+        extra["labels"] = "test"
+        continuous["chanlocs"] = np.concatenate((locations.ravel(), extra))
+    else:
+        continuous["chanlocs"] = [*locations, {"labels": "test"}, {"labels": "test"}]
+
+    checked = eeglab_backend("eeg_checkchanlocs", continuous)
+    _assert_source_locations(checked, continuous, [*labels, "test", "test"])
+
+    epoched = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data_epochs_ica.set"))
+    assert np.asarray(epoched["data"]).shape == (32, 384, 80)
+    checked = eeglab_backend("eeg_checkchanlocs", epoched)
+    _assert_source_locations(
+        checked, epoched, [location["labels"] for location in np.asarray(epoched["chanlocs"]).flat]
+    )
+
+
+@eeglab_test(
+    "unittesting_adminfunc/eeg_getdatact/adminfunc_eeg_getdatact_wrapperTest.m",
+    "test_test_eeg_getdatact",
+)
+@eeglab_test("unittesting_adminfunc/eeg_getdatact/test_eeg_getdatact.m", "test_eeg_getdatact")
+def test_upstream_eeg_getdatact_original_recordings_and_eight_calls(eeglab_backend, eeglab_suite_root):
+    sample_data = eeglab_suite_root / "eeglab/sample_data"
+    continuous = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data.set"))
+    continuous_data = np.asarray(continuous["data"])
+    assert continuous_data.shape == (32, 30504)
+    channels = np.array([[1.0, 10.0, 32.0]])
+
+    # MATLAB drops a trailing singleton trial dimension; restore it only for
+    # assertions so both backends retain the source's default reshape option.
+    signal = eeglab_backend("eeg_getdatact", continuous)
+    np.testing.assert_array_equal(np.atleast_3d(signal), continuous_data[:, :, None])
+
+    signal = eeglab_backend("eeg_getdatact", continuous, "channel", channels, "trialindices", 1.0, "verbose", "on")
+    np.testing.assert_array_equal(np.atleast_3d(signal), continuous_data[[0, 9, 31], :, None])
+
+    signal = eeglab_backend("eeg_getdatact", continuous, "channel", channels, "trialindices", 1.0, "verbose", "off")
+    np.testing.assert_array_equal(np.atleast_3d(signal), continuous_data[[0, 9, 31], :, None])
+
+    epoched = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data_epochs_ica.set"))
+    epoched_data = np.asarray(epoched["data"])
+    assert epoched_data.shape == (32, 384, 80)
+
+    signal = eeglab_backend("eeg_getdatact", epoched)
+    np.testing.assert_array_equal(signal, epoched_data)
+
+    signal = eeglab_backend("eeg_getdatact", epoched, "channel", channels, "trialindices", 1.0, "verbose", "on")
+    np.testing.assert_array_equal(np.atleast_3d(signal), epoched_data[[0, 9, 31], :, :1])
+
+    signal = eeglab_backend(
+        "eeg_getdatact", epoched, "channel", channels, "trialindices", np.arange(1.0, 31.0)[None, :], "verbose", "on"
+    )
+    np.testing.assert_array_equal(signal, epoched_data[[0, 9, 31], :, :30])
+
+    signal = eeglab_backend(
+        "eeg_getdatact", epoched, "component", np.array([[5.0, 8.0, 20.0]]), "trialindices", 1.0, "verbose", "on"
+    )
+    assert np.atleast_3d(signal).shape == (3, 384, 1)
+    assert np.all(np.isfinite(signal))
+
+    signal = eeglab_backend(
+        "eeg_getdatact", epoched, "rmcomps", np.arange(1.0, 21.0)[None, :], "trialindices", 1.0, "verbose", "on"
+    )
+    assert np.atleast_3d(signal).shape == (32, 384, 1)
+    assert np.all(np.isfinite(signal))
+    assert not np.array_equal(np.atleast_3d(signal), epoched_data[:, :, :1])
 
 
 def _eeg(*, epoched: bool = False) -> dict:
@@ -51,10 +146,6 @@ def _eeg(*, epoched: bool = False) -> dict:
     }
 
 
-@eeglab_test(
-    "unittesting_adminfunc/eeg_checkchanlocs/adminfunc_eeg_checkchanlocs_wrapperTest.m",
-    "test_test_eeg_checkchanlocs",
-)
 def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_locations(caplog):
     continuous = eeg_checkchanlocs(_eeg())
     assert [location["labels"] for location in continuous["chanlocs"]] == ["Fz", "Cz", "Pz"]
@@ -79,10 +170,6 @@ def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_lo
     assert [location["labels"] for location in epoched["chanlocs"]] == ["Fz", "Cz", "Pz"]
 
 
-@eeglab_test(
-    "unittesting_adminfunc/eeg_getdatact/adminfunc_eeg_getdatact_wrapperTest.m",
-    "test_test_eeg_getdatact",
-)
 def test_current_eeg_getdatact_channel_component_trial_and_removal_cases():
     continuous = _eeg()
     np.testing.assert_array_equal(eeg_getdatact(continuous), continuous["data"][:, :, None])
