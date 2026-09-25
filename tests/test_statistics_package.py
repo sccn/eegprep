@@ -52,6 +52,17 @@ def test_fdr_matches_bh_and_by_thresholds():
     "unittesting_sigprocfunc/fdr/sigprocfunc_fdr_wrapperTest.m",
     "test_test_fdr",
 )
+def test_reference_fdr_original_correlated_random_data(eeglab_backend, request):
+    data = np.random.default_rng().standard_normal((30, 4))
+    data[:, 3] = data.sum(axis=1)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        _, probabilities = eeglab_backend("corrcoef", data, nargout=2)
+    else:
+        probabilities = scipy_stats.pearsonr(data.T[:, None, :], data.T[None, :, :], axis=-1).pvalue
+    for options in ((), (0.8,), (0.05,), (0.5,), (0.5, "nonParametric")):
+        eeglab_backend("fdr", probabilities, *options, nargout=2)
+
+
 def test_fdr_upstream_call_forms_preserve_threshold_and_mask_shapes():
     pvals = np.asarray(
         [

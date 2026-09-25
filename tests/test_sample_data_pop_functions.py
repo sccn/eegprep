@@ -64,7 +64,7 @@ from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
 SAMPLE_SET = Path("sample_data/eeglab_data.set")
@@ -170,6 +170,13 @@ def test_pop_select_keeps_named_sample_channels(sample_eeg):
 
 
 @eeglab_test("unittesting_popfunc/pop_select/popfunc_pop_select_wrapperTest.m", "test_test_pop_select")
+def test_reference_select_original_time_trials_and_channel(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend(
+        "pop_select", eeg, "time", np.array([[0.5, 1.0]]), "notrial", np.array([[2.0, 3.0, 4.0]]), "nochannel", 31.0
+    )
+
+
 def test_pop_select_current_suite_combines_time_trial_and_channel_selection():
     eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
 
@@ -471,6 +478,22 @@ def test_pop_icflag_flags_sample_components_with_iclabel_probabilities(sample_ee
 
 @eeglab_test("unittesting_popfunc/pop_expica/popfunc_pop_expica_wrapperTest.m", "test_pass_inv_file")
 @eeglab_test("unittesting_popfunc/pop_expica/popfunc_pop_expica_wrapperTest.m", "test_pass_weights_file")
+def test_reference_expica_original_recording_and_ascii_outputs(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory
+):
+    for mode, filename in (("inv", "test_inv.ica.txt"), ("weights", "test_weights.ica.txt")):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "unittesting_popfunc/pop_expica/test_ica.set"), "")
+        command = eeglab_backend("pop_expica", eeg, mode, filename)
+        path = eeglab_working_directory / filename
+        # Preserve the source's conditional oracle: a cancelled operation did
+        # not verify exported values; do not claim it did by adding assertions.
+        if np.asarray(command).size and command != "":
+            data = np.loadtxt(path, ndmin=2)
+            expected = eeg["icawinv"] if mode == "inv" else eeg["icaweights"] @ eeg["icasphere"]
+            assert_matlab_near(data, expected)
+        path.unlink(missing_ok=True)
+
+
 def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
     weights_file = tmp_path / "sample_weights.tsv"
     inverse_file = tmp_path / "sample_inverse.tsv"
@@ -710,6 +733,18 @@ def test_pop_studywizard_builds_study_from_saved_sample_set(tmp_path, sample_eeg
 
 
 @eeglab_test("unittesting_popfunc/pop_saveh/popfunc_pop_saveh_wrapperTest.m", "test_test_pop_saveh")
+def test_reference_saveh_original_global_and_recording_history(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory
+):
+    commands = np.array([[f"command {index};"] for index in range(1, 5)], dtype=object)
+    filename = "eeglabhist.m"
+    eeglab_backend("pop_saveh", commands, filename, str(eeglab_working_directory), nargout=0)
+    (eeglab_working_directory / filename).unlink(missing_ok=True)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend("pop_saveh", eeg["history"], filename, str(eeglab_working_directory), nargout=0)
+    (eeglab_working_directory / filename).unlink(missing_ok=True)
+
+
 def test_pop_saveh_writes_sample_history_commands(tmp_path):
     command = pop_saveh(
         ["EEG = pop_fileio('sample_data/eeglab_data.set');", "EEG = pop_reref( EEG, []);"],
