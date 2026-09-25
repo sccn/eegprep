@@ -14,7 +14,7 @@ Primary references:
 - `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
 - `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
-- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and bundled `netICL.mat`.
+- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and the bundled `iclabel.onnx` network (exported from `netICL.mat` via `tools/iclabel/export_iclabel_onnx.py`).
 - `src/eegprep/plugins/firfilt/`: Python ports of the EEGLAB firfilt plugin helpers.
 - `src/eegprep/functions/miscfunc/`: EEGLAB-style miscellaneous helpers, including format conversion and numerical utilities.
 - `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.

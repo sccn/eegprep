@@ -12,6 +12,7 @@ on:
   pull_request:
     branches:
       - develop
+      - epic/324-pyodide-browser
     paths:
       - 'docs/**'
       - 'src/**'
@@ -39,9 +40,9 @@ jobs:
       - name: Install dependencies
         run: |
           uv python install 3.12
-          # The torch extra is required: gallery examples call ICLabel, which
-          # raises ImportError without it rather than degrading to a skip.
-          uv sync --python 3.12 --extra docs --extra torch
+          # ICLabel runs through the packaged ONNX network and raises ImportError
+          # without its runtime extra rather than degrading to a skip.
+          uv sync --python 3.12 --extra docs --extra iclabel
 
       - name: Build HTML documentation
         run: |

@@ -82,6 +82,32 @@ Assignment-style calls also work:
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
 
+Browser ICLabel
+===============
+
+When the console is hosted inside a Pyodide/Emscripten browser runtime, ICLabel
+uses the asynchronous ONNX Runtime Web path. Run it with ``await`` so the
+result is committed to the same GUI/console session:
+
+.. code-block:: python
+
+   EEG = await pop_iclabel_async(EEG, "default")
+
+The browser-specific synchronous calls ``pop_iclabel`` and ``iclabel`` fail
+fast with an instruction to use their async counterparts. A browser host must
+register the ONNX Runtime Web bridge; placing Pyodide in a Web Worker is
+recommended for UI responsiveness. The async history command is recorded with
+``await`` and can be replayed with:
+
+.. code-block:: python
+
+   await eegh(1)
+
+If the selected dataset state or selection changes while classification is
+running, EEGPrep raises ``RuntimeError`` and discards the stale result instead
+of committing it to a different dataset. History-only commands do not
+invalidate the in-flight classification.
+
 In-place Workspace Edits
 ========================
 

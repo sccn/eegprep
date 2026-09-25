@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Callable
 from pathlib import Path
 import shutil
 import tempfile
@@ -13,6 +14,102 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
 FDT_DTYPE = np.dtype("<f4")
+
+
+class _MutationTrackedFlat:
+    """Flat iterator wrapper that notifies after indexed writes."""
+
+    def __init__(self, array: np.ndarray, on_mutation: Callable[[], None]) -> None:
+        self._flat = array.flat
+        self._on_mutation = on_mutation
+
+    def __getitem__(self, key: Any) -> Any:
+        return self._flat[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._flat[key] = value
+        self._on_mutation()
+
+    def __iter__(self) -> Any:
+        return iter(self._flat)
+
+    def __len__(self) -> int:
+        return len(self._flat)
+
+
+class _MutationTrackedArray(np.ndarray):
+    """Array view that invokes a callback after an in-place write."""
+
+    _on_mutation: Callable[[], None] | None
+
+    def __array_finalize__(self, source: Any) -> None:
+        self._on_mutation = getattr(source, "_on_mutation", None)
+
+    def _notify(self) -> None:
+        if self._on_mutation is not None:
+            self._on_mutation()
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        super().__setitem__(key, value)
+        self._notify()
+
+    def fill(self, value: Any) -> None:
+        super().fill(value)
+        self._notify()
+
+    @property
+    def flat(self) -> _MutationTrackedFlat:
+        """Return a one-dimensional view that preserves write tracking."""
+        return _MutationTrackedFlat(self, self._notify)
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        super().sort(*args, **kwargs)
+        self._notify()
+
+    def partition(self, *args: Any, **kwargs: Any) -> None:
+        super().partition(*args, **kwargs)
+        self._notify()
+
+    def byteswap(self, inplace: bool = False) -> np.ndarray:
+        result = super().byteswap(inplace=inplace)
+        if inplace:
+            self._notify()
+        return result
+
+    def __array_ufunc__(self, ufunc: Any, method: str, *inputs: Any, **kwargs: Any) -> Any:
+        outputs = kwargs.get("out")
+        mutating_input = inputs[0] if method == "at" and inputs else None
+        tracked_outputs = outputs and any(isinstance(output, _MutationTrackedArray) for output in outputs)
+        if outputs:
+            kwargs["out"] = tuple(
+                np.asarray(output) if isinstance(output, _MutationTrackedArray) else output for output in outputs
+            )
+        inputs = tuple(np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in inputs)
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+        if method == "at" and isinstance(mutating_input, _MutationTrackedArray):
+            mutating_input._notify()
+        elif method == "__call__" and tracked_outputs:
+            for output in outputs:
+                if isinstance(output, _MutationTrackedArray):
+                    output._notify()
+        return result
+
+    def __array_function__(self, function: Any, types: Any, args: Any, kwargs: Any) -> Any:  # ty: ignore[invalid-method-override]
+        if function is np.copyto and args and isinstance(args[0], _MutationTrackedArray):
+            converted_args = tuple(
+                np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in args
+            )
+            result = np.copyto(*converted_args, **kwargs)
+            args[0]._notify()
+            return result
+        if function is np.put and args and isinstance(args[0], _MutationTrackedArray):
+            converted_args = tuple(
+                np.asarray(value) if isinstance(value, _MutationTrackedArray) else value for value in args
+            )
+            result = np.put(*converted_args, **kwargs)
+            args[0]._notify()
+            return result
+        return super().__array_function__(function, types, args, kwargs)
 
 
 class _BackingFile:
@@ -30,6 +127,22 @@ class _BackingFile:
         self.references -= 1
         if self.references == 0 and self.temporary:
             self.path.unlink(missing_ok=True)
+
+
+def _unwrap_memmap_data(value: Any) -> Any:
+    """Replace MemmapData handles with their mapped arrays, including inside containers.
+
+    Nested handles have to be unwrapped too. Leaving one inside a list would make numpy
+    dispatch straight back into ``MemmapData.__array_function__`` and recurse forever on
+    calls like ``np.concatenate([mapped_a, mapped_b])``.
+    """
+    if isinstance(value, MemmapData):
+        return value._memmap()
+    if isinstance(value, dict):
+        return {key: _unwrap_memmap_data(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_unwrap_memmap_data(item) for item in value)
+    return value
 
 
 class MemmapData:
@@ -76,6 +189,7 @@ class MemmapData:
         self._backing.acquire()
         self._released = False
         self._array: np.memmap | None = None
+        self._mutation_revision = 0
         self._validate_backing_file()
 
     @classmethod
@@ -190,9 +304,24 @@ class MemmapData:
         return int(np.prod(self._shape))
 
     @property
+    def mutation_revision(self) -> int:
+        """Return the in-process write revision for this mapped dataset."""
+        return self._mutation_revision
+
+    @property
     def T(self) -> np.ndarray:
         """Return a transposed array view."""
-        return self._memmap().T
+        return self._tracked_view(self._memmap().T)
+
+    @property
+    def flat(self) -> _MutationTrackedFlat:
+        """Return a one-dimensional view that preserves write tracking."""
+        return _MutationTrackedFlat(self._memmap(), self._mark_mutated)
+
+    def fill(self, value: Any) -> None:
+        """Fill the mapped data and advance its mutation revision."""
+        self._memmap().fill(value)
+        self._mark_mutated()
 
     def flush(self) -> None:
         """Flush pending writes to the backing file."""
@@ -290,7 +419,33 @@ class MemmapData:
 
     def reshape(self, *shape: Any, **kwargs: Any) -> np.ndarray:
         """Return a reshaped view using NumPy's reshape semantics."""
-        return self._memmap().reshape(*shape, **kwargs)
+        return self._tracked_view(self._memmap().reshape(*shape, **kwargs))
+
+    def transpose(self, *axes: Any) -> np.ndarray:
+        """Return a transposed view that preserves mutation tracking."""
+        return self._tracked_view(self._memmap().transpose(*axes))
+
+    def ravel(self, *args: Any, **kwargs: Any) -> np.ndarray:
+        """Return a flattened view or copy using NumPy's ravel semantics."""
+        return self._tracked_view(self._memmap().ravel(*args, **kwargs))
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        """Sort mapped data in place and advance its mutation revision."""
+        self._memmap().sort(*args, **kwargs)
+        self._mark_mutated()
+
+    def partition(self, *args: Any, **kwargs: Any) -> None:
+        """Partition mapped data in place and advance its mutation revision."""
+        self._memmap().partition(*args, **kwargs)
+        self._mark_mutated()
+
+    def byteswap(self, inplace: bool = False) -> np.ndarray:
+        """Byte-swap mapped data while preserving mutation tracking."""
+        result = self._memmap().byteswap(inplace=inplace)
+        if inplace:
+            self._mark_mutated()
+            return self._tracked_view(result)
+        return result
 
     def astype(self, *args: Any, **kwargs: Any) -> np.ndarray:
         """Return a typed array using NumPy's astype semantics."""
@@ -305,27 +460,46 @@ class MemmapData:
         return self._memmap().mean(*args, **kwargs)
 
     def __array__(self, dtype: np.dtype | str | None = None, copy: bool | None = None) -> np.ndarray:
-        array = np.asarray(self._memmap())
+        array = self._memmap()
         if dtype is not None:
-            return array.astype(dtype, copy=bool(copy))
+            if np.dtype(dtype) != self._dtype or copy:
+                return np.asarray(array, dtype=dtype).copy()
+            return self._tracked_view(array)
         if copy:
-            return array.copy()
-        return array
+            return np.asarray(array).copy()
+        return self._tracked_view(array)
 
     def __getitem__(self, key: Any) -> Any:
-        return self._memmap()[key]
+        value = self._memmap()[key]
+        return self._tracked_view(value) if isinstance(value, np.ndarray) else value
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not self.writable:
             raise ValueError("assignment destination is read-only")
         self._detach_for_write()
         self._memmap()[key] = value
+        self._mark_mutated()
+
+    def __array_function__(self, function: Any, types: Any, args: Any, kwargs: Any) -> Any:
+        if function in {np.copyto, np.put} and args and args[0] is self:
+            converted_args = (self._memmap(), *args[1:])
+            result = function(*converted_args, **kwargs)
+            self._mark_mutated()
+            return result
+        # Defining this method opts the type into numpy's dispatch protocol, which means
+        # NotImplemented here does not fall back, it raises: every numpy function other than
+        # the two above would fail on a MemmapData. That defeats a handle whose whole purpose
+        # is to stand in for an array, and np.size(data) in pop_reref is one caller of many.
+        # Delegate to the mapped array instead. The two mutating calls this class tracks are
+        # handled above, and writes through a returned view are tracked by _tracked_view.
+        return function(*_unwrap_memmap_data(args), **_unwrap_memmap_data(kwargs))
 
     def __len__(self) -> int:
         return len(self._memmap())
 
     def __iter__(self) -> Any:
-        return iter(self._memmap())
+        for index in range(len(self)):
+            yield self[index]
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._memmap(), name)
@@ -412,6 +586,16 @@ class MemmapData:
         self.mode = mode
         self._array = None
         old_backing.release()
+
+    def _mark_mutated(self) -> None:
+        self._mutation_revision += 1
+
+    def _tracked_view(self, array: np.ndarray) -> np.ndarray:
+        if not np.shares_memory(array, self._memmap()):
+            return array
+        tracked: _MutationTrackedArray = array.view(_MutationTrackedArray)
+        tracked._on_mutation = self._mark_mutated
+        return tracked
 
 
 def _physical_shape(shape: tuple[int, ...], transposed: bool) -> tuple[int, ...]:

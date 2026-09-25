@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import sys
 import webbrowser
 from collections.abc import Callable, Mapping
 from functools import wraps
@@ -22,6 +23,7 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 logger = logging.getLogger(__name__)
+_IS_EMSCRIPTEN = sys.platform == "emscripten"
 
 
 def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -275,11 +277,33 @@ class MenuActionDispatcher:
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self._long_tasks: list[LongTaskHandle] = []
 
-    def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
+    def dispatch_gui(self, action: str, parent: Any | None = None) -> Any:
         """Run a menu action from Qt and show user-facing errors."""
+        if _IS_EMSCRIPTEN and action.partition(":")[0] == "pop_iclabel":
+            return self.dispatch_gui_async(action, parent)
         with self.session.gui_action(action):
             try:
                 self.dispatch(action, parent)
+            except Exception as exc:
+                logger.exception("EEGPrep GUI menu action failed: %s", action)
+                if parent is None:
+                    raise
+                self._warn(parent, str(exc))
+
+    async def dispatch_gui_async(
+        self,
+        action: str,
+        parent: Any | None = None,
+        *,
+        renderer: Any | None = None,
+    ) -> None:
+        """Run the browser ICLabel menu action while awaiting its Promise backend."""
+        if action.partition(":")[0] != "pop_iclabel":
+            self.dispatch_gui(action, parent)
+            return
+        with self.session.gui_action(action):
+            try:
+                await self._run_pop_iclabel_async(parent, renderer=renderer)
             except Exception as exc:
                 logger.exception("EEGPrep GUI menu action failed: %s", action)
                 if parent is None:
@@ -1319,6 +1343,25 @@ class MenuActionDispatcher:
                 self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
 
+    async def _run_pop_iclabel_async(self, parent: Any | None, *, renderer: Any | None = None) -> None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=True)
+        if selection is None:
+            return
+        from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async
+
+        target_state = self.session.dataset_state_token()
+        out = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
+        if not self.session.dataset_state_unchanged(target_state):
+            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+        eeg_out, command = out[0], out[1] if isinstance(out, tuple) and len(out) > 1 else ""
+        if command:
+            store_kwargs = {"command": command}
+            target_indices = list(self.session.selected_dataset_indices())
+            if target_indices:
+                store_kwargs["index"] = target_indices
+            self._store_current_from_gui(eeg_out, **store_kwargs)
+            self._refresh()
+
     def _run_pop_runica_long_task(
         self,
         selection: Any,
@@ -1419,7 +1462,7 @@ class MenuActionDispatcher:
         if command:
             self.session.echo_command(command)
             self.session.add_history(command, notify=False)
-            self.session.notify_changed()
+            self.session.notify_changed(dataset_changed=True)
             self._refresh()
 
     def _select_study_set(self, parent: Any | None) -> None:

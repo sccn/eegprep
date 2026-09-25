@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import numpy as np
@@ -14,7 +16,7 @@ from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
-from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
+from eegprep.functions.adminfunc.storage import MemmapData, offload_storedisk_datasets
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -33,6 +35,96 @@ def has_eeg_data(eeg: Any) -> bool:
     if isinstance(data, list):
         return len(data) > 0
     return True
+
+
+def _dataset_storage_token(dataset: Any) -> tuple[Any, ...] | None:
+    """Return a cheap mutation token for file-backed EEG data."""
+    if not isinstance(dataset, dict):
+        return None
+    data = dataset.get("data")
+    if isinstance(data, MemmapData):
+        path = data.path
+        revision = data.mutation_revision
+    elif isinstance(data, np.memmap):
+        filename = data.filename
+        path = Path(filename) if filename else None
+        revision = 0
+    else:
+        return None
+    try:
+        stat = path.stat() if path is not None else None
+    except OSError:
+        stat = None
+    return (
+        type(data).__name__,
+        str(path) if path is not None else None,
+        tuple(int(size) for size in data.shape),
+        np.dtype(data.dtype).str,
+        revision,
+        None if stat is None else stat.st_mtime_ns,
+        None if stat is None else stat.st_size,
+    )
+
+
+def _dataset_content_token(dataset: Any) -> bytes:
+    """Return an authoritative token for mutable dataset content."""
+    digest = hashlib.blake2b(digest_size=16)
+    _update_dataset_digest(dataset, digest, set())
+    return digest.digest()
+
+
+def _update_dataset_digest(value: Any, digest: Any, seen: set[int]) -> None:
+    if isinstance(value, dict):
+        value_id = id(value)
+        if value_id in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(value_id)
+        digest.update(b"dict[")
+        for key in sorted(value, key=str):
+            if key == "history":
+                continue
+            _update_dataset_digest(str(key), digest, seen)
+            _update_dataset_digest(value[key], digest, seen)
+        digest.update(b"]")
+        seen.remove(value_id)
+        return
+    if isinstance(value, (list, tuple)):
+        value_id = id(value)
+        if value_id in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(value_id)
+        digest.update(b"list[")
+        for item in value:
+            _update_dataset_digest(item, digest, seen)
+        digest.update(b"]")
+        seen.remove(value_id)
+        return
+    if isinstance(value, np.ndarray):
+        digest.update(b"ndarray")
+        digest.update(np.dtype(value.dtype).str.encode())
+        digest.update(repr(tuple(value.shape)).encode())
+        if value.dtype.hasobject:
+            _update_dataset_digest(value.tolist(), digest, seen)
+        else:
+            digest.update(np.ascontiguousarray(value).tobytes())
+        return
+    if isinstance(value, MemmapData):
+        digest.update(b"MemmapData")
+        digest.update(str(value.path).encode())
+        digest.update(repr(value.mutation_revision).encode())
+        try:
+            _update_dataset_digest(np.asarray(value), digest, seen)
+        except RuntimeError:
+            digest.update(repr(value).encode())
+        return
+    if value is None or isinstance(value, (bool, int, float, complex, str, bytes)):
+        digest.update(type(value).__name__.encode())
+        digest.update(repr(value).encode())
+        return
+    digest.update(type(value).__name__.encode())
+    digest.update(repr(value).encode())
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
@@ -141,6 +233,7 @@ class EEGPrepSession:
     _listeners: list[Callable[["EEGPrepSession"], None]] = field(default_factory=list, init=False, repr=False)
     _command_echo_listeners: list[Callable[[str], None]] = field(default_factory=list, init=False, repr=False)
     _gui_action_listeners: list[Callable[[str, str], None]] = field(default_factory=list, init=False, repr=False)
+    _dataset_revision: int = field(default=0, init=False, repr=False)
 
     def add_change_listener(self, listener: Callable[["EEGPrepSession"], None]) -> None:
         """Register a callback that runs after session state changes."""
@@ -198,10 +291,45 @@ class EEGPrepSession:
         for listener in list(self._command_echo_listeners):
             listener(command)
 
-    def notify_changed(self) -> None:
+    def notify_changed(self, *, dataset_changed: bool = False) -> None:
         """Notify listeners that session-backed state changed."""
+        if dataset_changed:
+            self._mark_dataset_changed()
         for listener in list(self._listeners):
             listener(self)
+
+    def _mark_dataset_changed(self) -> None:
+        self._dataset_revision += 1
+
+    def mark_dataset_changed(self) -> None:
+        """Advance the dataset freshness revision after an observed mutation."""
+        self._mark_dataset_changed()
+
+    def dataset_state_token(self) -> tuple[Any, ...]:
+        """Return a token for rejecting stale asynchronous dataset results."""
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        selected_slots = tuple(
+            id(self.ALLEEG[index - 1]) if 1 <= index <= len(self.ALLEEG) else 0 for index in self.CURRENTSET
+        )
+        selected_datasets = tuple(self.ALLEEG[index - 1] for index in self.CURRENTSET if 1 <= index <= len(self.ALLEEG))
+        tracked_ids: set[int] = set()
+        tracked_datasets: list[Any] = []
+        for dataset in (*current, *selected_datasets):
+            if id(dataset) not in tracked_ids:
+                tracked_ids.add(id(dataset))
+                tracked_datasets.append(dataset)
+        return (
+            self._dataset_revision,
+            tuple(self.CURRENTSET),
+            selected_slots,
+            tuple(id(dataset) for dataset in current),
+            tuple(_dataset_storage_token(dataset) for dataset in tracked_datasets),
+            tuple(_dataset_content_token(dataset) for dataset in tracked_datasets),
+        )
+
+    def dataset_state_unchanged(self, token: tuple[Any, ...]) -> bool:
+        """Return whether dataset state still matches a captured async token."""
+        return self.dataset_state_token() == token
 
     def current_eeg(self) -> dict[str, Any] | list[dict[str, Any]]:
         """Return the current EEG selection."""
@@ -257,7 +385,7 @@ class EEGPrepSession:
         if mark_saved:
             self.mark_current_saved()
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
         return stored_index
 
     def retrieve(self, indices: int | list[int]) -> dict[str, Any] | list[dict[str, Any]]:
@@ -267,7 +395,7 @@ class EEGPrepSession:
         eeg, self.ALLEEG, current = eeg_retrieve(self.ALLEEG, selection if use_vector else selection[0])
         self.EEG = eeg
         self.CURRENTSET = normalize_dataset_indices(current, allow_empty=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
         return eeg
 
     def apply_workspace_state(
@@ -329,7 +457,7 @@ class EEGPrepSession:
             self.CURRENTSTUDY = int(currentstudy or 0)
 
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=dataset_changed)
 
     def delete_current(self) -> None:
         """Delete the current dataset selection from memory.
@@ -348,7 +476,7 @@ class EEGPrepSession:
             return
         self.CURRENTSET = []
         self.EEG = eeg_emptyset()
-        self.notify_changed()
+        self.notify_changed(dataset_changed=True)
 
     def clear_all(self) -> None:
         """Clear all datasets and study state."""
@@ -357,7 +485,8 @@ class EEGPrepSession:
         self.CURRENTSET = []
         self.STUDY = None
         self.CURRENTSTUDY = 0
-        self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];")
+        self.add_history("STUDY = []; CURRENTSTUDY = 0; ALLEEG = []; EEG=[]; CURRENTSET=[];", notify=False)
+        self.notify_changed(dataset_changed=True)
 
     def set_study(
         self,
@@ -385,7 +514,7 @@ class EEGPrepSession:
                 self.EEG = eeg_emptyset()
             offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
         self.add_history(command, notify=False)
-        self.notify_changed()
+        self.notify_changed(dataset_changed=alleeg is not None)
 
     def _resolve_workspace_eeg(
         self,
@@ -473,6 +602,7 @@ class EEGPrepSession:
             if 1 <= index <= len(self.ALLEEG):
                 self.ALLEEG[index - 1]["saved"] = "yes"
         offload_storedisk_datasets(self.ALLEEG, set(self.CURRENTSET))
+        self._mark_dataset_changed()
 
     def menu_statuses(self) -> set[str]:
         """Return EEGLAB-style menu status tokens for the current state."""

@@ -441,7 +441,7 @@
       "status": "implemented",
       "responsible_phase": "phase_6",
       "phase_issue": "#163 ICLabel, viewprops, and visual diagnostics completion",
-      "rationale": "EEGPrep has standalone ICLabel feature extraction, default netICL classification, ICLabel flagging, label statistics, menu wiring, and history-capable pop wrappers. The default Python network is packaged; EEGLAB lite/beta artifacts are explicit MATLAB/Octave passthrough choices and raise a clear standalone limitation instead of being silently ignored.",
+      "rationale": "EEGPrep has standalone ICLabel feature extraction, default network classification, ICLabel flagging, label statistics, menu wiring, and history-capable pop wrappers. The default network is packaged as iclabel.onnx and classified through onnxruntime; EEGLAB lite/beta artifacts are explicit MATLAB/Octave passthrough choices and raise a clear standalone limitation instead of being silently ignored.",
       "user_facing_surface": [
         "Tools > Classify components using ICLabel",
         "iclabel",
