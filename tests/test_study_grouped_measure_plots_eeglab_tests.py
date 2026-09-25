@@ -77,7 +77,10 @@ def _assert_measure(actual, expected, tolerance=1e-4, sign_tolerance=None):
     difference = np.all(np.abs(np.asarray(actual) - expected) < tolerance)
     if sign_tolerance is not None:
         difference = difference or np.all(np.abs(np.asarray(actual) + expected) < sign_tolerance)
-    assert difference
+    assert difference, (
+        f"Maximum absolute difference {np.max(np.abs(np.asarray(actual) - expected))}; "
+        f"tolerance {tolerance}; shapes {np.shape(actual)}, {np.shape(expected)}"
+    )
 
 
 def _text(value):
@@ -136,14 +139,18 @@ def _cached_trials(cache, condition):
     )
 
 
-def _spectral_oracle(data, srate):
+def _spectral_oracle(backend, request, data, srate):
     # test_stdspecplot3/4: per-trial detrend, symmetric hamming2, FFT,
     # remove DC, then mean the single-trial log powers (not log mean power).
-    detrended = detrend(data, axis=1)
+    # MATLAB's single-precision FFT and SciPy's differ beyond the source's
+    # strict 1e-4 assertion. Validate the MATLAB lane with its own primitives.
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    detrended = backend("eegprep_test_detrend_trials", data) if native else detrend(data, axis=1)
     points = data.shape[1]
-    window = (0.54 - 0.46 * np.cos(2 * np.pi * np.arange(points) / (points - 1))).astype(data.dtype)
-    detrended *= window.reshape((1, points) + (1,) * (data.ndim - 2))
-    transformed = fft(detrended, axis=1)
+    window = 0.54 - 0.46 * np.cos(2 * np.pi * np.arange(points) / (points - 1))
+    # MATLAB rounds the mixed single/double product, not the double window.
+    windowed = (detrended * window.reshape((1, points) + (1,) * (data.ndim - 2))).astype(data.dtype)
+    transformed = backend("fft", windowed, np.empty((0, 0)), 2.0) if native else fft(windowed, axis=1)
     frequencies = np.linspace(0, srate / 2, points // 2)[None, 1:]
     power = 10 * np.log10(np.abs(transformed[:, 1 : points // 2]) ** 2)
     return power.mean(axis=2) if power.ndim > 2 else power, frequencies
@@ -483,7 +490,9 @@ def test_reference_std_specplot_channel_cache(eeglab_backend, eeglab_writable_st
             cached = cache[f"chan{channel_index + 1}"][:, :trials].mean(axis=1, keepdims=True).T
             plotted = values[:, cases].T
             eeg = _channel_oracle_eeg(eeglab_backend, alleeg, locations)
-            recomputed, oracle_frequencies = _spectral_oracle(eeg["data"], np.asarray(eeg["srate"]).item())
+            recomputed, oracle_frequencies = _spectral_oracle(
+                eeglab_backend, request, eeg["data"], np.asarray(eeg["srate"]).item()
+            )
             labels = _cell_row(*(location["labels"] for location in _records(eeg["chanlocs"])))
             channel_index = int(_strmatch(channel, labels).item())
             _assert_measure(frequencies, oracle_frequencies)
@@ -521,7 +530,9 @@ def test_reference_std_specplot_component_cache(eeglab_backend, eeglab_writable_
         cached = cache[f"comp{int(component)}"][:, _cached_trials(cache, condition)].mean(axis=1, keepdims=True).T
         trials = np.arange(1.0, np.asarray(eeg["trials"]).item() + 1)[None, :]
         data = eeglab_backend("eeg_getdatact", eeg, "component", component, "trialindices", trials)
-        recomputed, oracle_frequencies = _spectral_oracle(data, np.asarray(eeg["srate"]).item())
+        recomputed, oracle_frequencies = _spectral_oracle(
+            eeglab_backend, request, data, np.asarray(eeg["srate"]).item()
+        )
         _assert_measure(frequencies, oracle_frequencies, tolerance=1e-3, sign_tolerance=1e-4)
         _assert_measure(cached, plotted, tolerance=1e-3, sign_tolerance=1e-4)
         _assert_measure(cached, recomputed, tolerance=1e-3, sign_tolerance=1e-4)
