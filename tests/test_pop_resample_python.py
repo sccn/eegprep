@@ -110,6 +110,46 @@ def _epoched_resample_eeg():
 
 
 @eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_test_pop_resample")
+def test_reference_pop_resample_original_epoched_and_continuous_recordings(eeglab_backend, eeglab_suite_root):
+    for filename in ("eeglab_data_epochs_ica.set", "eeglab_data.set"):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
+        eeglab_backend("pop_resample", eeg, 10.0)
+        eeglab_backend("pop_resample", eeg, 1000.0)
+
+
+@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_test_pop_resample2")
+def test_reference_pop_resample_original_event_duration_seconds(eeglab_backend, eeglab_suite_root):
+    flags = []
+    for filename, duration in (("eeglab_data_epochs_ica.set", 0.1), ("eeglab_data.set", 100.0)):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
+        events = np.asarray(eeg["event"])
+        durations = np.full((1, events.size), duration)
+        durations[0, [event["type"] == "rt" for event in events.flat]] *= 2
+        eeg = eeglab_backend("pop_editeventfield", eeg, "duration", durations)
+        for rate in (10.0, 1000.0):
+            output = eeglab_backend("pop_resample", eeg, rate)
+            output_durations = np.array(
+                [[np.asarray(event["duration"]).item() for event in np.asarray(output["event"]).flat]]
+            )
+            flags.append(np.array_equal(output_durations / output["srate"], durations))
+    assert sum(flags) == len(flags)
+
+
+@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_testcase_boundary")
+def test_reference_pop_resample_original_half_sample_boundary_workflow(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg["pnts"] = 10000.0
+    eeg["data"] = np.zeros((1, 10000))
+    eeg["srate"] = 500.0
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    eeg["event"] = np.array([[("boundary", 0.5), ("boundary", 500.5)]], dtype=[("type", object), ("latency", object)])
+    for rate in (200.0, 250.0, 300.0, 350.0, 450.0, 550.0, 600.0, 650.0, 700.0):
+        output = eeglab_backend("pop_resample", eeg, rate)
+        events = np.asarray(output["event"]).flat
+        assert np.asarray(events[0]["latency"]).item() == 0.5
+        assert np.asarray(events[1]["latency"]).item() == rate + 0.5
+
+
 def test_pop_resample_current_suite_epoched_and_continuous_rates():
     for eeg in (_epoched_resample_eeg(), _continuous_eeg()):
         low_rate = pop_resample(eeg, 10)
@@ -121,7 +161,6 @@ def test_pop_resample_current_suite_epoched_and_continuous_rates():
         assert high_rate["trials"] == eeg["trials"]
 
 
-@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_test_pop_resample2")
 def test_pop_resample_current_suite_preserves_event_duration_seconds():
     epoched = _epoched_resample_eeg()
     continuous = _continuous_eeg()
@@ -138,7 +177,6 @@ def test_pop_resample_current_suite_preserves_event_duration_seconds():
             np.testing.assert_allclose(durations / output["srate"], expected_seconds)
 
 
-@eeglab_test("unittesting_popfunc/pop_resample/popfunc_pop_resample_wrapperTest.m", "test_testcase_boundary")
 def test_pop_resample_current_suite_preserves_half_sample_boundaries():
     eeg = {
         "data": np.zeros((1, 10000), dtype=np.float32),
