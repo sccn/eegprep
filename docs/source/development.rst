@@ -130,6 +130,76 @@ stale reference. Pass ``--json`` for automation. It deliberately rejects the
 old ``eeglab-testcases`` repository, a checkout at another commit, and
 provenance that does not exist in the pinned suite.
 
+Explicit MATLAB support paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Backend-neutral contracts run with ``--eeglab-backend=matlab`` and an explicit
+``--eeglab-root``. The test session initializes the pinned EEGLAB checkout and
+its already installed plugins without installing anything. Optional upstream
+dependency files can live outside that checkout: pass their directory using
+``--eeglab-support-path PATH``. The directory must exist. This option is
+repeatable; each directory is added at the beginning of the session's MATLAB
+path after EEGLAB plugin initialization, so the last directory takes precedence
+over earlier support directories and installed plugins. Subdirectories are not
+added recursively. The session quits its engine on teardown; it never calls
+``savepath`` or changes the package runtime, reference source, or user options.
+
+Two upstream packaging gaps encountered with the pinned suite have been
+validated using source-exact files in an ignored local directory:
+
+* JSONio bundled with ``bids-matlab-tools8.0``/``EEG-BIDS`` lacks an Apple
+  Silicon MEX. Official JSONio commit
+  ``e6c5b3ea16142e8e428aa254fc042dfad6011c30`` adds
+  ``jsonread.mexmaca64`` (Git blob
+  ``396b1d429c4887446c1c0a20b4e6f457942abe1b``). The bundled ``jsonread.c``
+  has blob ``fa7902c4a5bbb74ddd02e76ed423a781602b33b6``, identical to the
+  preceding official revision ``82d835d17348b0d060e8af881da308b897a627ff``.
+  The Apple Silicon commit changes only that C file's header comment, not
+  parser logic; ``jsmn.c`` and ``jsmn.h`` are unchanged. This binary is for
+  native Apple Silicon MATLAB only.
+* ``Fileio260210/private/ft_datatype_sens.m`` calls the absent
+  ``ft_deleteopt``. That caller's blob
+  ``c66bdfebf2528518981ef75dc257d5b15c9da403`` exactly matches official
+  FieldTrip revision ``efdd7db8bf5623e580c8f12f81bb57b325662e29``.
+  The matching revision's ``utilities/ft_deleteopt.m`` has blob
+  ``2eebd35ca862eac7001bb3d01e49250501e849ff``. Use that original helper,
+  not a replacement implementation. Its ``removefields`` dependency is
+  already supplied by the installed FieldTrip utilities.
+
+For that Apple Silicon setup, download the two pinned files explicitly from
+their official repositories. From the main EEGPrep checkout (not a temporary
+worktree), run:
+
+.. code-block:: bash
+
+    mkdir -p .notes/reference/matlab-test-dependencies
+    curl --fail --location https://raw.githubusercontent.com/gllmflndn/JSONio/e6c5b3ea16142e8e428aa254fc042dfad6011c30/jsonread.mexmaca64 \
+      --output .notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+    curl --fail --location https://raw.githubusercontent.com/fieldtrip/fieldtrip/efdd7db8bf5623e580c8f12f81bb57b325662e29/utilities/ft_deleteopt.m \
+      --output .notes/reference/matlab-test-dependencies/ft_deleteopt.m
+    git hash-object .notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+    git hash-object .notes/reference/matlab-test-dependencies/ft_deleteopt.m
+
+Check that the two printed hashes match the blobs above before execution.
+No downloads occur automatically in pytest. Run the non-GUI parser/BIDS
+metadata smoke and the original Fileio contract with normal test selection:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest \
+      tests/test_eeglab_hybrid.py::test_matlab_bids_metadata_loaders \
+      tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options \
+      --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      --eeglab-suite-root=/absolute/path/to/eeglab_tests \
+      --eeglab-support-path=/absolute/path/to/eegprep/.notes/reference/matlab-test-dependencies
+
+The metadata smoke calls the actual JSONio parser and original BIDS loaders on
+``ds002718`` metadata. The Fileio source contract only requires its three
+original calls to complete; it does not establish numerical or channel-location
+correctness, and existing import warnings remain visible. These checks do not
+validate LIMO preprocessing, bootstraps, or GUI workflows.
+
 Tutorial-wrapper provenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

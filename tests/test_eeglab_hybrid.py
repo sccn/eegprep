@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,35 @@ def test_required_matlab_mode_fails_without_reference(pytester, tmp_path):
     result = pytester.runpytest_subprocess("--eeglab-backend=matlab", f"--eeglab-root={tmp_path / 'absent'}")
     result.assert_outcomes(errors=1)
     result.stdout.fnmatch_lines(["*MATLAB contracts require --eeglab-root*"])
+
+
+@pytest.mark.parametrize("kind", ["missing", "file"])
+def test_support_path_rejects_non_directories(pytester, tmp_path, kind):
+    directory = tmp_path / kind
+    if kind == "file":
+        directory.write_text("not a directory", encoding="utf-8")
+    _isolated_suite(pytester, "def test_never_runs():\n    raise AssertionError('must not run')")
+    result = pytester.runpytest_subprocess(f"--eeglab-support-path={directory}")
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
+    result.stderr.fnmatch_lines(["*--eeglab-support-path requires an existing directory*"])
+
+
+def test_support_paths_resolve_relative_directories_in_option_order(pytester):
+    first, second = pytester.path / "first support", pytester.path / "second support"
+    first.mkdir()
+    second.mkdir()
+    _isolated_suite(
+        pytester,
+        f"""
+from pathlib import Path
+def test_paths(request):
+    assert request.config.getoption('--eeglab-support-path') == [Path({str(first)!r}), Path({str(second)!r})]
+""",
+    )
+    result = pytester.runpytest_subprocess(
+        "--eeglab-support-path=first support", "--eeglab-support-path=second support"
+    )
+    result.assert_outcomes(passed=1)
 
 
 def test_reference_datasets_require_an_explicit_checkout(pytester, monkeypatch):
@@ -183,6 +213,26 @@ def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
 
 def test_matlab_reference_figures_stay_off_desktop(eeglab_matlab_engine):
     assert call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "figure_visibility") == "off"
+
+
+def test_matlab_bids_metadata_loaders(eeglab_matlab_engine, eeglab_suite_root):
+    """Exercise native JSONio and BIDS setup on the original 18-subject metadata."""
+    directory = eeglab_suite_root / "ds002718"
+    description = directory / "dataset_description.json"
+    expected = json.loads(description.read_text(encoding="utf-8"))
+    # Call JSONio directly: newer bids_loadfile versions may use jsondecode.
+    parsed = call_matlab(eeglab_matlab_engine, "jsonread", str(description))
+    assert parsed["Name"] == expected["Name"]
+    loaded = call_matlab(eeglab_matlab_engine, "bids_loadfile", str(description))
+    assert loaded["Name"] == expected["Name"]
+    participants = directory / "participants.json"
+    assert call_matlab(eeglab_matlab_engine, "bids_loadfile", str(participants)) == json.loads(
+        participants.read_text(encoding="utf-8")
+    )
+    table = directory / "participants.tsv"
+    loaded = call_matlab(eeglab_matlab_engine, "bids_loadfile", str(table))
+    assert loaded.shape == (19, 3)
+    np.testing.assert_array_equal(loaded[:, 0], [line.split("\t")[0] for line in table.read_text().splitlines()])
 
 
 @pytest.mark.parametrize("trials", [1, 3])

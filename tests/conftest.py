@@ -39,6 +39,13 @@ def _preload_matlab_libstdcxx() -> None:
 _preload_matlab_libstdcxx()
 
 
+def _eeglab_support_directory(value):
+    directory = Path(value).expanduser().resolve()
+    if not directory.is_dir():
+        raise pytest.UsageError(f"--eeglab-support-path requires an existing directory: {value}")
+    return directory
+
+
 def pytest_addoption(parser):
     group = parser.getgroup("EEGLAB reference contracts")
     group.addoption(
@@ -55,6 +62,14 @@ def pytest_addoption(parser):
     group.addoption(
         "--eeglab-suite-root",
         help="Pinned eeglab_tests checkout; defaults to the parent of --eeglab-root.",
+    )
+    group.addoption(
+        "--eeglab-support-path",
+        action="append",
+        default=[],
+        type=_eeglab_support_directory,
+        metavar="PATH",
+        help="Session-local MATLAB support directory, added after plugins; repeatable, last path takes precedence.",
     )
 
 
@@ -162,6 +177,8 @@ def eeglab_matlab_engine(request):
         directory = engine.pwd()
         engine.eeglab("nogui", nargout=0)
         engine.cd(directory, nargout=0)
+        for support_path in request.config.getoption("--eeglab-support-path"):
+            engine.addpath(str(support_path), "-begin", nargout=0)
         engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
         yield engine
     finally:
