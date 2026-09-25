@@ -23,7 +23,7 @@ from eegprep import (
 )
 from eegprep.functions.sigprocfunc.floatread import floatread
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
-from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_test
 
 
 @eeglab_test("unittesting_sigprocfunc/eventalign/sigprocfunc_eventalign_wrapperTest.m", "test_fail_no_arg")
@@ -104,6 +104,55 @@ def _continuous_eeg(channels: int, points: int, sampling_rate: float) -> dict:
     "unittesting_miscfunc/eeg_regepochs/miscfunc_eeg_regepochs_wrapperTest.m",
     "test_check_number_trials",
 )
+def test_reference_regepochs_original_trial_count(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        srate=500.0,
+        data=np.random.default_rng().random((1, 40 * 500)),
+        epoch=0.0,
+        trials=1.0,
+        nbchan=1.0,
+        pnts=float(40 * 500),
+    )
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    results = [
+        eeglab_backend(
+            "eeg_regepochs",
+            eeg,
+            "eventtype",
+            "temp",
+            "extractepochs",
+            "on",
+            "recurrence",
+            1.0,
+            "limits",
+            np.array([limits]),
+        )
+        for limits in ([0.0, 1.0], [0.5, 0.8])
+    ]
+    assert all(np.asarray(result["trials"]).item() == 40 for result in results)
+
+
+@eeglab_test(
+    "unittesting_miscfunc/eeg_regepochs/miscfunc_eeg_regepochs_wrapperTest.m",
+    "test_pass_general",
+)
+def test_reference_regepochs_original_default_smoke(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        nbchan=2.0,
+        pnts=10.0,
+        trials=1.0,
+        srate=3.0,
+        xmin=0.0,
+        xmax=3.0,
+        data=np.array([[1, 1, 1, 1, 1, 1, 2, 2, 2, 3], [2, 1, 1, 2, 1, 1, 2, 1, 1, 2]], dtype=float),
+        urevent=np.empty((0, 0)),
+    )
+    # Source constructs a separate cEEG but never uses it as input or an oracle.
+    eeglab_backend("eeg_regepochs", eeg)
+
+
 def test_eeg_regepochs_current_suite_preserves_all_regular_trials():
     eeg = _continuous_eeg(1, 40 * 500, 500)
 
@@ -137,10 +186,6 @@ def test_eeg_regepochs_current_suite_preserves_all_regular_trials():
     np.testing.assert_array_equal(offset["data"][0, :, 0], eeg["data"][0, 250:400])
 
 
-@eeglab_test(
-    "unittesting_miscfunc/eeg_regepochs/miscfunc_eeg_regepochs_wrapperTest.m",
-    "test_pass_general",
-)
 def test_eeg_regepochs_current_suite_default_and_event_only_workflows():
     eeg = _continuous_eeg(2, 10, 3)
     eeg["xmax"] = 3
@@ -163,10 +208,7 @@ def test_eeg_regepochs_current_suite_default_and_event_only_workflows():
     assert {event["condition"] for event in event_only["urevent"]} == {"rest"}
 
 
-@eeglab_test(
-    "unittesting_miscfunc/eeg_time2prev/miscfunc_eeg_time2prev_wrapperTest.m",
-    "test_pass_general",
-)
+# The corresponding MATLAB pass_general body is entirely commented out.
 def test_eeg_time2prev_current_suite_returns_positive_delays_and_zero_based_indices():
     urevents = [
         {"type": "square", "latency": 5},
@@ -209,6 +251,22 @@ def test_python_regression_getipsph_full_and_reduced_sphering():
     "unittesting_miscfunc/hist2/miscfunc_hist2_wrapperTest.m",
     "test_test_hist2",
 )
+@pytest.mark.gui
+def test_reference_hist2_original_distributions(eeglab_backend, request):
+    rng = np.random.default_rng()
+    eeglab_backend(
+        "hist2",
+        rng.standard_normal((10000, 1)),
+        rng.random((10000, 1)),
+        np.linspace(-4.0, 4.0, 81)[None, :],
+        nargout=0,
+    )
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        eeglab_backend("close", nargout=0)
+    else:
+        plt.close()
+
+
 def test_hist2_current_suite_uses_shared_bin_centers_and_complete_counts():
     figure, axes = plt.subplots()
     try:
@@ -248,6 +306,24 @@ def test_python_regression_rmart_writes_selected_channels_and_reduces_triggered_
     "unittesting_miscfunc/rmsave/miscfunc_rmsave_wrapperTest.m",
     "test_test_rmsave",
 )
+def test_reference_rmsave_original_blocks(eeglab_backend):
+    data = np.array(
+        [
+            [2, 5, 3, 6, 7, 2, 6, 8, 1, 2],
+            [6, 1, 10, 234, 3, 5, 464, 3, 2, 5],
+            [1, 1, 1, 1, 3, 5, 1, 1, 4, 5],
+            [4, 23456, 2, 3, 1, 1, 34, 2, 3, 5],
+            [20, 30, 10, 10, 34, 10, 30, 20, 30, 10],
+        ],
+        dtype=float,
+    )
+    for block, expected in ((10.0, [[5.0, 1.0]]), (5.0, [[5.0, 2.0]])):
+        result = eeglab_backend("rmsave", data, block)
+        assert_matlab_near(np.array([result.shape]), expected)
+    result = eeglab_backend("rmsave", np.random.default_rng().random((32, 100)), 25.0)
+    assert_matlab_near(np.array([result.shape]), [[32.0, 4.0]])
+
+
 def test_rmsave_current_suite_block_shapes_and_values():
     data = np.array(
         [
@@ -272,6 +348,22 @@ def test_rmsave_current_suite_block_shapes_and_values():
     "unittesting_miscfunc/shortread/miscfunc_shortread_wrapperTest.m",
     "test_test_shortread",
 )
+def test_reference_shortread_original_two_million_samples(eeglab_backend, eeglab_working_directory):
+    data = np.fix(np.random.default_rng().random((200, 10000)) * 100.0)
+    filename = eeglab_working_directory / "test_short"
+    data.astype(np.int16).ravel(order="F").tofile(filename)
+    for size, offset, expected in (
+        ([200.0, 10000.0], 0.0, [200.0, 10000.0]),
+        ([200.0, np.inf], 0.0, [200.0, 10000.0]),
+        ([100.0, 10.0], 0.0, [100.0, 10.0]),
+        ([100.0, 10.0], 1999000.0, [100.0, 10.0]),
+        ([20.0, np.inf], 200.0, [20.0, 99990.0]),
+    ):
+        result = eeglab_backend("shortread", "test_short", np.array([size]), np.empty((0, 0)), offset)
+        assert_matlab_near(np.array([result.shape]), np.array([expected]))
+    filename.unlink()
+
+
 def test_shortread_current_suite_finite_inferred_and_offset_shapes(tmp_path):
     data = np.arange(2000, dtype=np.int16).reshape(20, 100, order="F")
     path = tmp_path / "test_short"
@@ -288,6 +380,24 @@ def test_shortread_current_suite_finite_inferred_and_offset_shapes(tmp_path):
     "unittesting_miscfunc/uniqe_cell_string/miscfunc_uniqe_cell_string_wrapperTest.m",
     "test_test_uniqe_cell_string",
 )
+def test_reference_unique_cell_string_original_mixed_cells(eeglab_backend):
+    values = np.empty((1, 7), dtype=object)
+    values[0] = [
+        {"name": "haha", "func": "lazy"},
+        "We ",
+        np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
+        235.3443,
+        "are ",
+        "strings.",
+        np.array([[" Not", "including me!"]], dtype=object),
+    ]
+    result = eeglab_backend("unique_cell_string", values)
+    assert_matlab_near(np.array([result.shape]), [[1.0, 3.0]])
+    assert result[0, 0] == "We "
+    assert result[0, 1] == "are "
+    assert result[0, 2] == "strings."
+
+
 def test_unique_cell_string_current_suite_ignores_non_strings_and_preserves_order():
     values = [{"name": "haha", "func": "lazy"}, "We ", np.arange(6).reshape(3, 2), 235.3443]
     values.extend(["are ", "strings.", [" Not", "including me!"], "are "])
@@ -298,6 +408,35 @@ def test_unique_cell_string_current_suite_ignores_non_strings_and_preserves_orde
     "unittesting_sigprocfunc/biosig2eeglabevent/sigprocfunc_biosig2eeglabevent_wrapperTest.m",
     "test_pass_all_set",
 )
+def test_reference_biosig_all_fields(eeglab_backend):
+    data, expected = _reference_biosig_case(all_fields=True)
+    assert_matlab_equal(eeglab_backend("biosig2eeglabevent", data), expected)
+
+
+@eeglab_test(
+    "unittesting_sigprocfunc/biosig2eeglabevent/sigprocfunc_biosig2eeglabevent_wrapperTest.m",
+    "test_pass_some_set",
+)
+def test_reference_biosig_partial_fields(eeglab_backend):
+    data, expected = _reference_biosig_case(all_fields=False)
+    assert_matlab_equal(eeglab_backend("biosig2eeglabevent", data), expected)
+
+
+def _reference_biosig_case(*, all_fields):
+    latencies = (1.0, 2.1, 6.294, 10.2, 42.943)
+    durations = (0.03, 1.02, 3.0, 0.45, 1.9)
+    data = {"POS": np.array([latencies]), "DUR": np.array([durations])}
+    fields = ["latency", "duration"]
+    rows = [
+        (np.array([[latency]]), np.array([[duration]])) for latency, duration in zip(latencies, durations, strict=True)
+    ]
+    if all_fields:
+        data.update(TYP="abaab", CHN="52951")
+        fields = ["type", "latency", "duration", "chanindex"]
+        rows = [(kind, *row, channel) for kind, row, channel in zip("abaab", rows, "52951", strict=True)]
+    return data, np.array([rows], dtype=[(field, object) for field in fields])
+
+
 def test_biosig2eeglabevent_current_suite_all_fields():
     source = {
         "TYP": ["a", "b", "a", "a", "b"],
@@ -312,10 +451,6 @@ def test_biosig2eeglabevent_current_suite_all_fields():
     assert [event["chanindex"] for event in events] == source["CHN"]
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/biosig2eeglabevent/sigprocfunc_biosig2eeglabevent_wrapperTest.m",
-    "test_pass_some_set",
-)
 def test_biosig2eeglabevent_current_suite_partial_fields_and_one_based_interval():
     source = {"POS": [1, 5, 10, 15], "DUR": [0, 8, 4, 2]}
     all_events = biosig2eeglabevent(source)
