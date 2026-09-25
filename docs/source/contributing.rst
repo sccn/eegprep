@@ -188,7 +188,11 @@ make any MATLAB/Python indexing conversion explicit in the test.
 
 Automated MATLAB figures default to invisible, and backend teardown closes
 figures after each test. Plotting computations still execute; these runs do
-not replace separate interactive or visual-parity checks.
+not replace separate interactive or visual-parity checks. Explicit GUI calls
+can override MATLAB's visibility default: the original LIMO workflows call
+``eeglab``/``eeglab redraw`` and are marked ``gui`` and ``slow``. Use
+``-m "not gui"`` when desktop windows must stay closed; those workflows then
+remain unvalidated, rather than being counted as passes.
 
 The same tests can be selected with ``--eeglab-backend=python`` later to expose
 implementation gaps. A missing Python feature must fail honestly; it is not a

@@ -405,10 +405,11 @@ def test_reference_pop_rmbase_original_baselines_and_complete_commands(eeglab_ba
         ((np.array([[-1000.0, 0.0]]), np.arange(1.0, 52.0)[None, :]), 129),
     ):
         output, command = eeglab_backend("pop_rmbase", eeg, *arguments, nargout=2)
-        # MATLAB single-minus-double arithmetic converts the mean to single
-        # before subtraction, rather than computing and rounding in double.
-        mean = np.mean(data[:baseline_stop], dtype=np.float64).astype(data.dtype)
-        np.testing.assert_array_equal(output["data"][0, :, 1], data - mean)
+        # Preserve the source's double mean through subtraction, rounding only
+        # the result to the single-precision recording's type.
+        mean = np.mean(data[:baseline_stop], dtype=np.float64)
+        expected = (data.astype(np.float64) - mean).astype(data.dtype)
+        np.testing.assert_array_equal(output["data"][0, :, 1], expected)
         commands.append(command)
 
     assert tuple(commands) in (

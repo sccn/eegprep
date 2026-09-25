@@ -94,6 +94,8 @@ def _limo_assign_groups(study):
 
 
 @eeglab_test(LIMO_WRAPPER, "limo_test1")
+@pytest.mark.slow
+@pytest.mark.gui
 def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source_directory, request, monkeypatch):
     """Full original 18-subject pipeline; completion is its smoke oracle."""
     call = eeglab_backend
@@ -399,6 +401,8 @@ def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source
 
 
 @eeglab_test(LIMO_WRAPPER, "limo_test2")
+@pytest.mark.slow
+@pytest.mark.gui
 def test_reference_limo_integration(eeglab_backend, limo_source_directory, request, monkeypatch):
     """Original limo_test_integration: 18 subjects and all nine status sections."""
     call = eeglab_backend
