@@ -89,6 +89,32 @@ def assert_matlab_near(actual, expected):
     assert np.all(within), f"Values differ by more than {MATLAB_TEST_EPSILON}:\n{actual}\n!=\n{expected}"
 
 
+def assert_matlab_equal(first, second):
+    """MATLAB isequal: exact values and shapes, with NaNs unequal."""
+    if isinstance(first, dict):
+        assert isinstance(second, dict)
+        assert first.keys() == second.keys()
+        for field in first:
+            assert_matlab_equal(first[field], second[field])
+        return
+    if isinstance(first, np.ndarray):
+        assert isinstance(second, np.ndarray)
+        assert first.shape == second.shape
+        assert (first.dtype.names is None) == (second.dtype.names is None)
+        assert set(first.dtype.names or ()) == set(second.dtype.names or ())
+        assert (first.dtype == object) == (second.dtype == object)
+        if first.dtype.names:
+            for field in first.dtype.names:
+                assert_matlab_equal(first[field], second[field])
+        elif first.dtype == object:
+            for index in np.ndindex(first.shape):
+                assert_matlab_equal(first[index], second[index])
+        else:
+            assert np.array_equal(first, second, equal_nan=False)
+        return
+    assert first == second
+
+
 def _validated_reference(source: str, test: str) -> EeglabTestReference:
     source_path = PurePosixPath(source)
     if source_path.is_absolute() or ".." in source_path.parts or source_path.suffix != ".m":

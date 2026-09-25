@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from eegprep import pop_clean_rawdata
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, eeglab_test
 from tests.fixtures import create_test_eeg
 
 
@@ -154,32 +154,6 @@ def test_python_regression_clean_rawdata_asr_rejection_is_deterministic_and_remo
     assert np.all(np.isfinite(cleaned["data"]))
 
 
-def _assert_isequal(first, second):
-    """MATLAB isequal: exact values and shapes, with NaNs unequal."""
-    if isinstance(first, dict):
-        assert isinstance(second, dict)
-        assert first.keys() == second.keys()
-        for field in first:
-            _assert_isequal(first[field], second[field])
-        return
-    if isinstance(first, np.ndarray):
-        assert isinstance(second, np.ndarray)
-        assert first.shape == second.shape
-        assert (first.dtype.names is None) == (second.dtype.names is None)
-        assert set(first.dtype.names or ()) == set(second.dtype.names or ())
-        assert (first.dtype == object) == (second.dtype == object)
-        if first.dtype.names:
-            for field in first.dtype.names:
-                _assert_isequal(first[field], second[field])
-        elif first.dtype == object:
-            for index in np.ndindex(first.shape):
-                _assert_isequal(first[index], second[index])
-        else:
-            assert np.array_equal(first, second, equal_nan=False)
-        return
-    assert first == second
-
-
 def test_isequal_assertion_matches_matlab(eeglab_matlab_engine, eeglab_backend):
     cells = np.empty((1, 1), dtype=object)
     cells[0, 0] = {"value": np.array([[1.0]])}
@@ -199,10 +173,10 @@ def test_isequal_assertion_matches_matlab(eeglab_matlab_engine, eeglab_backend):
     for first, second in comparisons:
         equal = bool(eeglab_backend("isequal", first, second).item())
         if equal:
-            _assert_isequal(first, second)
+            assert_matlab_equal(first, second)
         else:
             with pytest.raises(AssertionError):
-                _assert_isequal(first, second)
+                assert_matlab_equal(first, second)
 
 
 def _reference_clean_twice(eeglab_backend, eeglab_suite_root, *, without_locations=False, **options):
@@ -213,7 +187,7 @@ def _reference_clean_twice(eeglab_backend, eeglab_suite_root, *, without_locatio
     parameters = _ALL_OFF | options
     first = eeglab_backend("pop_clean_rawdata", eeg, **parameters)
     second = eeglab_backend("pop_clean_rawdata", eeg, **parameters)
-    _assert_isequal(first, second)
+    assert_matlab_equal(first, second)
 
 
 @eeglab_test(UPSTREAM_SUITE, "test_clean_rawdata_filtering_test")
