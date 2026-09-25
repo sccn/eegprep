@@ -173,6 +173,18 @@ def test_matlab_generated_struct_cells_logicals_and_complex(eeglab_matlab_engine
     assert returned["cell_structs"].dtype == object
 
 
+def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
+    value = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "unassigned")
+    assert value[1, 0].shape == (0, 0)
+    assert value[1, 1].shape == (1, 0)
+    assert value[0, 1]["first"][0, 1].shape == (0, 0)
+    assert value[0, 1]["second"][0, 0].shape == (0, 0)
+
+
+def test_matlab_reference_figures_stay_off_desktop(eeglab_matlab_engine):
+    assert call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "figure_visibility") == "off"
+
+
 @pytest.mark.parametrize("trials", [1, 3])
 def test_matlab_transport_eeg_without_dataset_serializers(eeglab_matlab_engine, trials):
     shape = (2, 5) if trials == 1 else (2, 5, trials)

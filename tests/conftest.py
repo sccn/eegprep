@@ -154,6 +154,8 @@ def eeglab_matlab_engine(request):
         compat = importlib.import_module("eegprep.functions.adminfunc.eeglabcompat")
         engine = compat.get_eeglab("MAT", auto_file_roundtrip=False, _cache={})
     try:
+        # Automated reference plots must not open hundreds of desktop windows.
+        engine.set(0.0, "DefaultFigureVisible", "off", nargout=0)
         engine.addpath(str(Path(root).resolve()), str(Path(root).resolve() / "functions"), nargout=0)
         # Use the reference's initialization to activate installed workflow plugins.
         # Unlike add_plugins.m, this does not install missing plugins.
@@ -170,8 +172,13 @@ def eeglab_matlab_engine(request):
 def eeglab_backend(request):
     """Call a named reference function on the explicitly selected backend."""
     if request.config.getoption("--eeglab-backend") == "matlab":
-        return partial(call_matlab, request.getfixturevalue("eeglab_matlab_engine"))
-    return call_python
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        try:
+            yield partial(call_matlab, engine)
+        finally:
+            engine.close("all", "force", nargout=0)
+    else:
+        yield call_python
 
 
 @pytest.fixture

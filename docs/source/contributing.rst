@@ -186,6 +186,10 @@ at collection time. The MATLAB lane uses independent MAT-file transport, not
 EEGPrep's dataset readers or writers. Preserve numeric types and array shapes;
 make any MATLAB/Python indexing conversion explicit in the test.
 
+Automated MATLAB figures default to invisible, and backend teardown closes
+figures after each test. Plotting computations still execute; these runs do
+not replace separate interactive or visual-parity checks.
+
 The same tests can be selected with ``--eeglab-backend=python`` later to expose
 implementation gaps. A missing Python feature must fail honestly; it is not a
 reason to change the reference expectation, skip a case, or weaken a tolerance.
