@@ -22,8 +22,162 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, eeglab_test
+from tests.eeglab_tests.assertions import assert_matlab_struct_near, matlab_field_concat
 from tests.fixtures import SAMPLE_DATASET_PATH, matlab_engine_available
+
+
+def _reference_selection_eeg(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        setname="selection regression",
+        nbchan=1.0,
+        srate=1000.0,
+        pnts=10.0,
+        trials=4.0,
+        xmin=0.0,
+        xmax=0.009,
+        data=np.arange(1, 41, dtype=np.float32).reshape((1, 10, 4), order="F"),
+    )
+    events = []
+    for trial in range(1, 5):
+        event_type = "target" if trial % 2 else "other"
+        events.extend(
+            [
+                (event_type, float((trial - 1) * 10 + 3), float(trial)),
+                ("distractor", float((trial - 1) * 10 + 7), float(trial)),
+            ]
+        )
+    eeg["event"] = np.array([events], dtype=[("type", object), ("latency", object), ("epoch", object)])
+    return eeglab_backend("eeg_checkset", eeg, "eventconsistency")
+
+
+def _reference_dataset_row(*datasets):
+    fields = list(datasets[0])
+    return np.array(
+        [[tuple(eeg[field] for field in fields) for eeg in datasets]], dtype=[(field, object) for field in fields]
+    )
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testRetainsMatchingEpochs")
+def test_reference_selectevent_retains_matching_epochs(eeglab_backend):
+    eeg = _reference_selection_eeg(eeglab_backend)
+    selected = eeglab_backend("pop_selectevent", eeg, "type", "target", "deleteepochs", "on")
+    np.testing.assert_array_equal(selected["trials"], np.array([[2.0]]), strict=True)
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]], strict=True)
+    assert selected["event"].size == 4
+    np.testing.assert_array_equal(
+        matlab_field_concat(selected["event"], "epoch"), np.array([[1.0, 1.0, 2.0, 2.0]]), strict=True
+    )
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionErrorsByDefault")
+def test_reference_selectevent_empty_selection_error(eeglab_backend, request):
+    args = (_reference_selection_eeg(eeglab_backend), "type", "absent", "deleteepochs", "on")
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        raised, identifier = eeglab_backend("eegprep_test_error_identifier", "pop_selectevent", *args, nargout=2)
+        assert raised.item()
+        assert np.asarray(identifier).size == 0
+    else:
+        # The source requires an error with MATLAB identifier ''. Python has no
+        # identifier analogue, and the source specifies no Python exception type.
+        with pytest.raises(Exception):
+            eeglab_backend("pop_selectevent", *args)
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionAllowed")
+def test_reference_selectevent_empty_selection_allowed(eeglab_backend):
+    selected = eeglab_backend(
+        "pop_selectevent",
+        _reference_selection_eeg(eeglab_backend),
+        "type",
+        "absent",
+        "deleteepochs",
+        "on",
+        "erroronempty",
+        "off",
+    )
+    assert selected["data"].size == 0
+    assert selected["event"].size == 0
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testInverseEpochSelection")
+def test_reference_selectevent_inverse_epochs(eeglab_backend):
+    eeg = _reference_selection_eeg(eeglab_backend)
+    selected = eeglab_backend("pop_selectevent", eeg, "type", "target", "deleteepochs", "on", "invertepochs", "on")
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [1, 3]], strict=True)
+    np.testing.assert_array_equal(selected["trials"], np.array([[2.0]]), strict=True)
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testDeleteUnselectedEvents")
+def test_reference_selectevent_delete_unselected_events(eeglab_backend):
+    selected = eeglab_backend(
+        "pop_selectevent",
+        _reference_selection_eeg(eeglab_backend),
+        "type",
+        "target",
+        "deleteepochs",
+        "on",
+        "deleteevents",
+        "on",
+    )
+    assert_matlab_equal(
+        selected["event"]["type"].reshape((1, -1), order="F"), np.array([["target", "target"]], dtype=object)
+    )
+    np.testing.assert_array_equal(matlab_field_concat(selected["event"], "epoch"), np.array([[1.0, 2.0]]), strict=True)
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testKeepEpochsWhenDeletingOnlyEvents")
+def test_reference_selectevent_keep_epochs_delete_events(eeglab_backend):
+    eeg = _reference_selection_eeg(eeglab_backend)
+    selected = eeglab_backend("pop_selectevent", eeg, "type", "target", "deleteepochs", "off", "deleteevents", "on")
+    np.testing.assert_array_equal(selected["data"], eeg["data"], strict=True)
+    assert selected["event"].size == 2
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testExplicitErrorOptionWithNonemptySelection")
+def test_reference_selectevent_explicit_error_nonempty_selection(eeglab_backend):
+    eeg = _reference_selection_eeg(eeglab_backend)
+    selected = eeglab_backend("pop_selectevent", eeg, "type", "target", "deleteepochs", "on", "erroronempty", "on")
+    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]], strict=True)
+
+
+@eeglab_test("regression_tests/t_pop_selectevent.m", "testDatasetArray")
+def test_reference_selectevent_dataset_array(eeglab_backend):
+    eeg = _reference_selection_eeg(eeglab_backend)
+    selected = eeglab_backend(
+        "pop_selectevent", _reference_dataset_row(eeg, eeg), "type", "target", "deleteepochs", "on"
+    )
+    assert selected.size == 2
+    np.testing.assert_array_equal(matlab_field_concat(selected, "trials"), np.array([[2.0, 2.0]]), strict=True)
+    np.testing.assert_array_equal(selected["data"].ravel(order="F")[0], eeg["data"][:, :, [0, 2]], strict=True)
+    np.testing.assert_array_equal(selected["data"].ravel(order="F")[1], eeg["data"][:, :, [0, 2]], strict=True)
+
+
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_test_pop_copyset")
+def test_reference_copyset_recorded_dataset_calls(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    alleeg, _, _ = eeglab_backend("pop_copyset", _reference_dataset_row(eeg, eeg), 1.0, 2.0, nargout=3)
+    eeglab_backend("pop_copyset", alleeg, 1.0, 1.0, nargout=3)
+
+
+@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_pass_set_out")
+def test_reference_copyset_original_set_out(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_popfunc/pop_copyset"
+    first = eeglab_backend("pop_loadset", str(directory / "test.set"), "")
+    second = eeglab_backend("pop_loadset", str(directory / "test_2.set"), "")
+    alleeg, eeg, current, _ = eeglab_backend("pop_copyset", _reference_dataset_row(first, second), 2.0, 1.0, nargout=4)
+    for index in range(alleeg.size):
+        position = np.unravel_index(index, alleeg.shape, order="F")
+        alleeg["history"][position] = ""
+        alleeg["saved"][position] = ""
+    eeg["history"] = eeg["saved"] = ""
+    first = {field: alleeg[field].ravel(order="F")[0] for field in alleeg.dtype.names}
+    second = {field: alleeg[field].ravel(order="F")[1] for field in alleeg.dtype.names}
+    assert_matlab_struct_near(second, first)
+    selected = {field: alleeg[field].ravel(order="F")[int(current.item()) - 1] for field in alleeg.dtype.names}
+    assert_matlab_struct_near(selected, eeg)
+    assert current.item() == 1
 
 
 def eeglab_reference_available() -> bool:
@@ -274,7 +428,6 @@ def _selection_regression_eeg() -> dict:
     return eeg
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testRetainsMatchingEpochs")
 def test_pop_selectevent_retains_matching_epochs():
     eeg = _selection_regression_eeg()
 
@@ -286,13 +439,11 @@ def test_pop_selectevent_retains_matching_epochs():
     assert [event["epoch"] for event in selected["event"]] == [1, 1, 2, 2]
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionErrorsByDefault")
 def test_pop_selectevent_empty_selection_errors_by_default():
     with pytest.raises(ValueError, match="empty|Empty"):
         pop_selectevent(_selection_regression_eeg(), "type", "absent", "deleteepochs", "on")
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testEmptySelectionAllowed")
 def test_pop_selectevent_empty_selection_can_be_allowed():
     selected, _ = pop_selectevent(
         _selection_regression_eeg(),
@@ -308,7 +459,6 @@ def test_pop_selectevent_empty_selection_can_be_allowed():
     assert len(selected["event"]) == 0
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testInverseEpochSelection")
 def test_pop_selectevent_can_invert_epoch_selection():
     eeg = _selection_regression_eeg()
 
@@ -326,7 +476,6 @@ def test_pop_selectevent_can_invert_epoch_selection():
     assert selected["trials"] == 2
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testDeleteUnselectedEvents")
 def test_pop_selectevent_deletes_unselected_events_when_requested():
     selected, _ = pop_selectevent(
         _selection_regression_eeg(),
@@ -342,7 +491,6 @@ def test_pop_selectevent_deletes_unselected_events_when_requested():
     assert [event["epoch"] for event in selected["event"]] == [1, 2]
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testKeepEpochsWhenDeletingOnlyEvents")
 def test_pop_selectevent_keeps_epochs_when_deleting_only_events():
     eeg = _selection_regression_eeg()
 
@@ -360,7 +508,6 @@ def test_pop_selectevent_keeps_epochs_when_deleting_only_events():
     assert len(selected["event"]) == 2
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testExplicitErrorOptionWithNonemptySelection")
 def test_pop_selectevent_explicit_error_option_allows_nonempty_selection():
     eeg = _selection_regression_eeg()
 
@@ -377,7 +524,6 @@ def test_pop_selectevent_explicit_error_option_allows_nonempty_selection():
     np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]])
 
 
-@eeglab_test("regression_tests/t_pop_selectevent.m", "testDatasetArray")
 def test_pop_selectevent_applies_selection_to_dataset_lists():
     eeg = _selection_regression_eeg()
 
@@ -582,7 +728,6 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     _assert_python_echo_is_parseable(command)
 
 
-@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_pass_set_out")
 def test_pop_copyset_current_suite_overwrites_requested_output_slot():
     first = _eeg("first")
     second = _eeg("second")
@@ -595,7 +740,6 @@ def test_pop_copyset_current_suite_overwrites_requested_output_slot():
     assert alleeg[1]["setname"] == "second"
 
 
-@eeglab_test("unittesting_popfunc/pop_copyset/popfunc_pop_copyset_wrapperTest.m", "test_test_pop_copyset")
 def test_pop_copyset_current_suite_supports_copy_and_same_slot_copy():
     eeg = _eeg("source")
 
