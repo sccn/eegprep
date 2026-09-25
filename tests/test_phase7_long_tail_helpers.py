@@ -448,6 +448,13 @@ def test_ica_helpers_match_simple_projection_identities():
 
 
 @eeglab_test("unittesting_popfunc/eeg_getica/popfunc_eeg_getica_wrapperTest.m", "test_test_eeg_getica")
+def test_reference_getica_original_component_selections(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend("eeg_getica", eeg)
+    eeglab_backend("eeg_getica", eeg, 1.0)
+    eeglab_backend("eeg_getica", eeg, np.array([[5.0, 26.0]]))
+
+
 def test_eeg_getica_current_suite_all_single_and_multiple_components():
     data = np.arange(48, dtype=float).reshape(6, 4, 2)
     eeg = _eeg(data)

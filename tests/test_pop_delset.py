@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.pop_delset import pop_delset
@@ -8,7 +9,23 @@ def _eeg(name: str = "demo") -> dict:
     return {"setname": name}
 
 
-@eeglab_test("unittesting_adminfunc/pop_delset/i_pass_set_in_negative.m", "test_i_pass_set_in_negative")
+@eeglab_test("unittesting_adminfunc/pop_delset/adminfunc_pop_delset_wrapperTest.m", "test_pass_set_in")
+def test_reference_delset_original_datasets(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_adminfunc/pop_delset"
+    first = eeglab_backend("pop_loadset", str(directory / "test.set"), "")
+    second = eeglab_backend("pop_loadset", str(directory / "test_2.set"), "")
+    alleeg = np.array(
+        [[tuple(first.values()), tuple(second[field] for field in first)]],
+        dtype=[(field, object) for field in first],
+    )
+    result, _ = eeglab_backend("pop_delset", alleeg, 1.0, nargout=2)
+    for field in result.dtype.names:
+        value = result[field][0, 0]
+        assert np.asarray(value).size == 0 or (isinstance(value, str) and value == "")
+
+
+# The four other upstream admin wrappers have entirely commented-out bodies.
+# These Python argument/selection tests remain supplemental regressions.
 def test_pop_delset_rejects_non_positive_indices():
     with pytest.raises(ValueError, match="1-based"):
         pop_delset([_eeg()], -1)
@@ -21,8 +38,6 @@ def test_pop_delset_rejects_missing_dataset():
         pop_delset([_eeg()], 2)
 
 
-@eeglab_test("unittesting_adminfunc/pop_delset/pass_set_in.m", "test_pass_set_in")
-@eeglab_test("unittesting_adminfunc/pop_delset/i_pass_general.m", "test_i_pass_general")
 def test_pop_delset_empties_slots_in_place_and_drops_trailing_empties():
     # EEGLAB pop_delset blanks the slot, so dataset 2 keeps its number; the emptied
     # last slot is dropped like `eeglab redraw` does.
@@ -39,8 +54,6 @@ def test_pop_delset_of_only_dataset_leaves_empty_list():
     assert alleeg == []
 
 
-@eeglab_test("unittesting_adminfunc/pop_delset/fail_alleeg_empty.m", "test_fail_alleeg_empty")
-@eeglab_test("unittesting_adminfunc/pop_delset/fail_no_arg.m", "test_fail_no_arg")
 def test_pop_delset_requires_dataset_indices():
     with pytest.raises(TypeError):
         pop_delset([_eeg()])
