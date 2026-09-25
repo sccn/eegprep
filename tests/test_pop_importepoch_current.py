@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import numpy as np
 import pytest
@@ -39,6 +40,107 @@ _EPOCH_ROWS_WITH_DURATION = [
 
 
 @eeglab_test(UPSTREAM, "test_test_pop_importepoch")
+def test_reference_importepoch_all_four_original_cases(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+    shutil.copyfile(
+        eeglab_suite_root / "unittesting_popfunc/pop_importepoch/epochinfo.txt",
+        eeglab_working_directory / "epochinfo.txt",
+    )
+    chanlocs = eeglab_backend("readlocs", str(eeglab_suite_root / "eeglab/sample_data/eeglab_chan32.locs"))
+    rng = np.random.default_rng()
+    eeg = eeglab_backend(
+        "pop_importdata",
+        "setname",
+        "UnitTesting",
+        "data",
+        rng.random((32, 256, 10)),
+        "dataformat",
+        "array",
+        "chanlocs",
+        chanlocs,
+        "nbchan",
+        32.0,
+        "pnts",
+        256.0,
+        "srate",
+        256.0,
+        "icaweights",
+        rng.random((32, 32)),
+        "icasphere",
+        rng.random((32, 32)),
+        "comments",
+        "Test Passes!",
+    )
+    eeg["trials"] = 10.0
+    fields = np.array([["epoch", "response", "rt"]], dtype=object)
+    latencyfields = np.array([["rt"]], dtype=object)
+    eeglab_backend(
+        "pop_importepoch",
+        eeg,
+        "epochinfo.txt",
+        fields,
+        "latencyfields",
+        latencyfields,
+        "timeunit",
+        0.001,
+        "headerlines",
+        np.array([[1.0]]),
+    )
+    eeglab_backend(
+        "pop_importepoch",
+        eeg,
+        "epochinfo.txt",
+        fields,
+        "typefield",
+        "response",
+        "timeunit",
+        1e-3,
+        "latencyfields",
+        latencyfields,
+        "headerlines",
+        np.array([[1.0]]),
+        "clearevents",
+        "on",
+    )
+    rows = [
+        [float(index), "Wrong" if index == 6 else "Correct", float(latency)]
+        for index, latency in enumerate((502, 477, 453, 612, 430, 525, 498, 601, 398, 573), start=1)
+    ]
+    eeglab_backend(
+        "pop_importepoch",
+        eeg,
+        np.array(rows, dtype=object),
+        fields,
+        "typefield",
+        "response",
+        "timeunit",
+        1e-3,
+        "latencyfields",
+        latencyfields,
+        "headerlines",
+        np.array([[0.0]]),
+        "clearevents",
+        "on",
+    )
+    eeglab_backend(
+        "pop_importepoch",
+        eeg,
+        np.array([row + [1.0] for row in rows], dtype=object),
+        np.array([["epoch", "response", "rt", "dr"]], dtype=object),
+        "typefield",
+        "response",
+        "durationfields",
+        np.array([["dr"]], dtype=object),
+        "timeunit",
+        1e-3,
+        "latencyfields",
+        latencyfields,
+        "headerlines",
+        np.array([[0.0]]),
+        "clearevents",
+        "on",
+    )
+
+
 @pytest.mark.parametrize("case", [1, 2, 3, 4], ids=["case-1", "case-2", "case-3", "case-4"])
 def test_current_pop_importepoch_option_cases(tmp_path: Path, case: int) -> None:
     epoch_file = _write_epoch_table(tmp_path / "epochinfo.txt")
