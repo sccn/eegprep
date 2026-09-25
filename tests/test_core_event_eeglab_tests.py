@@ -7,6 +7,7 @@ import warnings
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from eegprep import (
     eeg_addnewevents,
@@ -133,6 +134,288 @@ def _reference_typed_locations():
     )
 
 
+def _reference_epoched_events(eeglab_backend, *, duration=False, include_epoch=True):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        nbchan=2.0,
+        pnts=3.0,
+        trials=3.0,
+        srate=1.0,
+        xmin=0.0,
+        xmax=2.0,
+        data=np.array([[[1, 1, 2]] * 3, [[2, 2, 2], [1, 1, 1], [1, 1, 1]]], dtype=float),
+    )
+    fields = ["type", "position", "latency", "urevent"]
+    if duration:
+        fields.append("duration")
+    if include_epoch:
+        fields.append("epoch")
+    events = []
+    for index, (kind, latency, epoch) in enumerate(
+        zip(["square", "square", "rt", "square", "rt"], [2.0, 5.0, 5.3, 8.0, 8.4], [1.0, 2.0, 2.0, 3.0, 3.0]), start=1
+    ):
+        row = [kind, 2.0 if kind == "square" else np.empty((0, 0)), latency, float(index)]
+        if duration:
+            row.append(index / 10)
+        if include_epoch:
+            row.append(epoch)
+        events.append(tuple(row))
+    eeg["event"] = np.array([events], dtype=[(field, object) for field in fields])
+    if include_epoch:
+        epochs = []
+        for indices, latencies in (([1.0], [1000.0]), ([2.0, 3.0], [1000.0, 1300.0]), ([4.0, 5.0], [1000.0, 1400.0])):
+            positions = np.empty((1, len(indices)), dtype=object)
+            positions[0, 0] = 2.0
+            if len(indices) == 2:
+                positions[0, 1] = np.empty((0, 0))
+            epochs.append(
+                (
+                    np.array([indices]),
+                    np.array([latencies], dtype=object),
+                    positions,
+                    np.array([["square"] if len(indices) == 1 else ["square", "rt"]], dtype=object),
+                    np.array([indices], dtype=object),
+                )
+            )
+        eeg["epoch"] = np.array(
+            [epochs],
+            dtype=[
+                (field, object) for field in ("event", "eventlatency", "eventposition", "eventtype", "eventurevent")
+            ],
+        )
+    return eeg
+
+
+def _assert_reference_epoch_values(eeglab_backend, eeg, arguments, expected, all_expected):
+    values, all_values = eeglab_backend("eeg_getepochevent", eeg, *arguments, nargout=2)
+    assert_matlab_near(values, [expected])
+    # The source compares [rallepochval{:}], not the individual cell shapes.
+    concatenated = np.concatenate([value for value in all_values.flat if value.size], axis=1)
+    assert_matlab_near(concatenated, [all_expected])
+
+
+@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_duration")
+def test_reference_getepochevent_duration_old_and_new_calls(eeglab_backend):
+    eeg = _reference_epoched_events(eeglab_backend, duration=True)
+    for arguments in (("type", "rt", "fieldname", "duration"), ("rt", np.empty((0, 0)), "duration")):
+        _assert_reference_epoch_values(eeglab_backend, eeg, arguments, [np.nan, 300.0, 500.0], [300.0, 500.0])
+
+
+@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_empty_timewin")
+def test_reference_getepochevent_default_time_window(eeglab_backend):
+    _assert_reference_epoch_values(
+        eeglab_backend,
+        _reference_epoched_events(eeglab_backend),
+        ("type", "rt", "fieldname", "urevent"),
+        [np.nan, 3.0, 5.0],
+        [3.0, 5.0],
+    )
+
+
+@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_four_args")
+def test_reference_getepochevent_four_argument_window(eeglab_backend):
+    _assert_reference_epoch_values(
+        eeglab_backend,
+        _reference_epoched_events(eeglab_backend),
+        ("rt", np.array([[500.0, 1300.0]]), "urevent"),
+        [np.nan, 3.0, np.nan],
+        [3.0],
+    )
+
+
+@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_general")
+def test_reference_getepochevent_default_latency(eeglab_backend):
+    _assert_reference_epoch_values(
+        eeglab_backend, _reference_epoched_events(eeglab_backend), ("rt",), [np.nan, 1300.0, 1400.0], [1300.0, 1400.0]
+    )
+
+
+@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_no_epoch")
+def test_reference_getepochevent_without_epoch_field(eeglab_backend):
+    _assert_reference_epoch_values(
+        eeglab_backend,
+        _reference_epoched_events(eeglab_backend, include_epoch=False),
+        ("rt",),
+        [4300.0, np.nan, np.nan],
+        [4300.0, 7400.0],
+    )
+
+
+@eeglab_test("unittesting_popfunc/eeg_insertbound/popfunc_eeg_insertbound_wrapperTest.m", "test_pass_general")
+def test_reference_insertbound_original_epoched_events(eeglab_backend):
+    eeg = _reference_epoched_events(eeglab_backend)
+    eeg["event"]["latency"][0] = [1.0, 3.0, 3.3, 5.0, 5.4]
+    eeg["event"]["epoch"][0] = [1.0, 1.0, 2.0, 3.0, 3.0]
+    # The source requests both outputs but does not assert their values.
+    eeglab_backend("eeg_insertbound", eeg["event"], 12.0, np.array([[2.0, 3.0]]), nargout=2)
+
+
+@eeglab_test("unittesting_popfunc/eeg_eventtypes/popfunc_eeg_eventtypes_wrapperTest.m", "test_test_eeg_eventtypes")
+def test_reference_eventtypes_preserves_inverted_source_condition(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("eeg_emptyset")
+    kinds = ["square", "triangle", "circle", "square", "not really a triangle", "triangle", "square", "point"]
+    eeg["event"] = np.array([[(kind,) for kind in kinds]], dtype=[("type", object)])
+    types, counts = eeglab_backend("eeg_eventtypes", eeg, nargout=2)
+    expected = np.array(
+        [[kind] for kind in ["circle", "not really a triangle", "point", "square", "triangle"]], dtype=object
+    )
+    # Upstream rejects equality here (missing ~). Preserve, do not silently repair it.
+    if np.array_equal(types, expected):
+        with pytest.raises(AssertionError):
+            assert_matlab_near(counts, [[1.0], [1.0], [1.0], [3.0], [2.0]])
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("eeg_eventtypes", eeg, nargout=2)
+
+
+@eeglab_test("unittesting_popfunc/eeg_eventhist/popfunc_eeg_eventhist_wrapperTest.m", "test_test_eeg_eventhist")
+def test_reference_eventhist_original_values_and_no_output_plots(request, eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    kinds = ["square", "square", "rt", "square", "rt"]
+    eeg["event"] = np.array([[(kind,) for kind in kinds]], dtype=[("type", object)])
+    values, counts, bins = eeglab_backend("eeg_eventhist", eeg["event"], "type", nargout=3)
+    np.testing.assert_array_equal(values, np.array([[kind] for kind in kinds], dtype=object))
+    assert_matlab_near(counts, [[2.0, 3.0]])
+    np.testing.assert_array_equal(bins, np.array([["rt"], ["square"]], dtype=object))
+    if request.config.getoption("--eeglab-backend") == "python":
+        pytest.fail("The source's no-output eeg_eventhist plotting workflow has no Python entry point")
+    eeglab_backend("figure", nargout=0)
+    eeglab_backend("eeg_eventhist", eeg["event"], "type", 2.0, nargout=0)
+    eeglab_backend("close", nargout=0)
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg["event"] = np.array([[(latency,) for latency in (0.0, 0.0, 0.3, 0.0, 0.4)]], dtype=[("latency", object)])
+    # Numeric-output and nested-struct assertions are commented out upstream.
+    eeglab_backend("figure", nargout=0)
+    eeglab_backend("eeg_eventhist", eeg["event"], "latency", 3.0, nargout=0)
+    eeglab_backend("close", nargout=0)
+
+
+def _reference_context_events(eeglab_backend, epoched):
+    source = _reference_epoched_events(eeglab_backend, include_epoch=epoched)
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg["event"] = source["event"]
+    eeg["event"]["latency"][0] = [0.0, 0.0, 0.3, 0.0, 0.4] if epoched else [5.0, 8.0, 8.5, 12.0, 12.4]
+    fields = [field for field in eeg["event"].dtype.names if field != "urevent"]
+    eeg["urevent"] = np.empty((1, 5), dtype=[(field, object) for field in fields])
+    for field in fields:
+        eeg["urevent"][field] = eeg["event"][field]
+    if epoched:
+        eeg["epoch"] = source["epoch"]
+        for index, latencies in enumerate(([0.0], [0.0, 0.3], [0.0, 0.4])):
+            eeg["epoch"]["eventlatency"][0, index] = np.array([latencies], dtype=object)
+    return eeg
+
+
+@eeglab_test("unittesting_popfunc/eeg_context/popfunc_eeg_context_wrapperTest.m", "test_test_eeg_context")
+def test_reference_context_all_six_original_cases(eeglab_backend):
+    neighbors = np.array([["square", "rt"]], dtype=object)
+    targets = [[1.0, 1.0, np.nan, 1.0], [2.0, 2.0, np.nan, 1.0], [4.0, 4.0, np.nan, 1.0]]
+    single = ([[2.0], [3.0], [5.0]], [[1.0], [2.0], [2.0]], [[3000.0], [500.0], [400.0]])
+    cases = (
+        (
+            False,
+            ("square", neighbors, np.array([[1.0]]), "type", "all"),
+            targets,
+            *single,
+            [["square"], ["rt"], ["rt"]],
+        ),
+        (False, ("square", neighbors, np.array([[1.0]]), "type"), targets, *single, [["square"], ["rt"], ["rt"]]),
+        (
+            True,
+            ("square", neighbors, np.array([[1.0]]), "type"),
+            [[1.0, 1.0, 1.0, 1.0], [2.0, 2.0, 2.0, 1.0], [4.0, 4.0, 3.0, 1.0]],
+            single[0],
+            single[1],
+            [[0.0], [300.0], [400.0]],
+            [["square"], ["rt"], ["rt"]],
+        ),
+        (
+            False,
+            ("square", neighbors, np.array([[1.0, 2.0]]), "type"),
+            targets,
+            [[2.0, 3.0], [3.0, 4.0], [5.0, np.nan]],
+            [[1.0, 2.0], [2.0, 1.0], [2.0, np.nan]],
+            [[3000.0, 3500.0], [500.0, 4000.0], [400.0, np.nan]],
+            [["square", "rt"], ["rt", "square"], ["rt", None]],
+        ),
+        (
+            False,
+            ("square", neighbors, np.array([[-2.0, 1.0]]), "type"),
+            targets,
+            [[np.nan, 2.0], [np.nan, 3.0], [2.0, 5.0]],
+            [[np.nan, 1.0], [np.nan, 2.0], [1.0, 2.0]],
+            [[np.nan, 3000.0], [np.nan, 500.0], [-4000.0, 400.0]],
+            [[None, "square"], [None, "rt"], ["square", "rt"]],
+        ),
+        (
+            False,
+            (),
+            [[float(index), float(index), np.nan, 1.0] for index in range(1, 6)],
+            [[2.0], [3.0], [4.0], [5.0], [np.nan]],
+            [[1.0], [1.0], [1.0], [1.0], [np.nan]],
+            [[3000.0], [500.0], [3500.0], [400.0], [np.nan]],
+            None,
+        ),
+    )
+    for epoched, arguments, expected_targets, indices, kinds, delays, fields in cases:
+        actual = eeglab_backend(
+            "eeg_context", _reference_context_events(eeglab_backend, epoched), *arguments, nargout=6
+        )
+        for result, expected in zip(actual[:4], (expected_targets, indices, kinds, delays), strict=True):
+            assert_matlab_near(result, expected)
+        if fields is None:
+            assert_matlab_near(actual[4], np.empty((0, 0)))
+            assert_matlab_near(actual[5], np.empty((0, 0)))
+            continue
+        np.testing.assert_array_equal(actual[4], np.array([["square"]] * 3, dtype=object))
+        assert actual[5].shape == (3, len(fields[0]))
+        for row, expected_row in zip(actual[5], fields, strict=True):
+            for value, expected in zip(row, expected_row, strict=True):
+                if expected is None:
+                    assert_matlab_near(value, np.empty((0, 0)))
+                else:
+                    assert value == expected
+
+
+@eeglab_test("unittesting_popfunc/eeg_matchchans/popfunc_eeg_matchchans_wrapperTest.m", "test_pass_noplot")
+def test_reference_matchchans_original_complete_locations(eeglab_backend):
+    fields = ["labels", "theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius", "type"]
+    dtype = [(field, object) for field in fields]
+    small = np.array(
+        [
+            [
+                ("1_1", -90.0, 0.5, 0.0, 1.0, 0.0, 90.0, 0.0, 1.0, "EEG"),
+                ("1_2", 90.0, 0.5, 0.0, -1.0, 0.0, -90.0, 0.0, 1.0, "EEG"),
+            ]
+        ],
+        dtype=dtype,
+    )
+    large = np.array(
+        [
+            [
+                ("2_1", -135.0, 0.5, -np.sqrt(2) / 2, np.sqrt(2) / 2, 0.0, 135.0, 0.0, 1.0, "EEG"),
+                ("2_2", 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, "EEG"),
+                ("2_3", 90.0, 0.5, 0.0, -1.0, 0.0, -90.0, 0.0, 1.0, "EEG"),
+            ]
+        ],
+        dtype=dtype,
+    )
+    selected, distances, locations = eeglab_backend("eeg_matchchans", large, small, "noplot", nargout=3)
+    expected_distance = np.sqrt(2 - np.sqrt(2))
+    assert_matlab_near(selected, [[1.0], [3.0]])
+    assert_matlab_near(distances, [[expected_distance], [0.0]])
+    assert set(locations.dtype.names) == {*fields, "bigchan", "bigdist"}
+    # near.m compares concatenated fields of structs, not their individual shapes.
+    for field in fields:
+        if field in ("labels", "type"):
+            assert "".join(locations[field].flat) == "".join(large[field][0, [0, 2]])
+        else:
+            assert_matlab_near(
+                np.concatenate(list(locations[field].flat), axis=1), large[field][:, [0, 2]].astype(float)
+            )
+    assert_matlab_near(np.concatenate([value for value in locations["bigchan"].flat if value.size], axis=1), [[3.0]])
+    assert_matlab_near(np.concatenate(list(locations["bigdist"].flat), axis=1), [[expected_distance, 0.0]])
+
+
 def _epoched_event_eeg(*, durations: bool = False, include_event_epochs: bool = True) -> dict:
     event_types = ["square", "square", "rt", "square", "rt"]
     latencies = [2, 5, 5.3, 8, 8.4]
@@ -215,10 +498,7 @@ def _matching_locations() -> tuple[list[dict], list[dict]]:
     return big, small
 
 
-@eeglab_test(
-    "unittesting_popfunc/eeg_addnewevents/popfunc_eeg_addnewevents_wrapperTest.m",
-    "test_test_eeg_addnewevents",
-)
+# The source eeg_addnewevents body is entirely commented out; this is extra coverage.
 def test_eeg_addnewevents_current_suite_documented_calls_are_functional():
     eeg = {"event": [], "urevent": []}
     output = eeg_addnewevents(
@@ -288,7 +568,6 @@ def test_eeg_chaninds_current_suite_label_forms():
     assert {labels[index] for index in indices} == set(mixed)
 
 
-@eeglab_test("unittesting_popfunc/eeg_context/popfunc_eeg_context_wrapperTest.m", "test_test_eeg_context")
 def test_eeg_context_current_suite_six_context_cases():
     eeg = _context_eeg()
     expected_targets = np.array([[1, 1, np.nan, 1], [2, 2, np.nan, 1], [4, 4, np.nan, 1]])
@@ -379,7 +658,6 @@ def test_eeg_eegrej_current_suite_endpoint_event_regression():
         np.testing.assert_allclose([event["latency"] for event in output["event"]], expected_latencies)
 
 
-@eeglab_test("unittesting_popfunc/eeg_eventhist/popfunc_eeg_eventhist_wrapperTest.m", "test_test_eeg_eventhist")
 def test_eeg_eventhist_current_suite_string_and_numeric_fields():
     string_events = [{"type": value} for value in ["square", "square", "rt", "square", "rt"]]
     values, counts, labels = eeg_eventhist(string_events, "type")
@@ -406,7 +684,6 @@ def test_eeg_eventhist_current_suite_string_and_numeric_fields():
     np.testing.assert_array_equal(explicit_counts, [1, 1])
 
 
-@eeglab_test("unittesting_popfunc/eeg_eventtypes/popfunc_eeg_eventtypes_wrapperTest.m", "test_test_eeg_eventtypes")
 def test_eeg_eventtypes_current_suite_counts_and_order():
     values = ["square", "triangle", "circle", "square", "not really a triangle", "triangle", "square", "point"]
     types, counts = eeg_eventtypes({"event": [{"type": value} for value in values]})
@@ -415,7 +692,6 @@ def test_eeg_eventtypes_current_suite_counts_and_order():
     assert eeg_eventtypes({"event": [{"type": 1.0}, {"type": 1}, {"type": 2.5}]}) == (["1", "2.5"], [2, 1])
 
 
-@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_duration")
 def test_eeg_getepochevent_current_suite_duration_new_and_old_forms():
     eeg = _epoched_event_eeg(durations=True)
     new_values, new_all = eeg_getepochevent(eeg, "type", "rt", "fieldname", "duration")
@@ -425,7 +701,6 @@ def test_eeg_getepochevent_current_suite_duration_new_and_old_forms():
     assert new_all == [[], [300], [500]] and old_all == new_all
 
 
-@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_empty_timewin")
 def test_eeg_getepochevent_current_suite_empty_time_window():
     values, all_values = eeg_getepochevent(_epoched_event_eeg(), "type", "rt", "fieldname", "urevent")
     np.testing.assert_allclose(values, [np.nan, 2, 4], equal_nan=True)
@@ -446,7 +721,6 @@ def test_eeg_getepochevent_current_suite_empty_time_window():
     assert combined_all == [[1300], [1400]]
 
 
-@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_four_args")
 def test_eeg_getepochevent_current_suite_old_four_argument_form():
     values, all_values = eeg_getepochevent(_epoched_event_eeg(), "rt", [500, 1300], "urevent")
     np.testing.assert_allclose(values, [np.nan, 2, np.nan], equal_nan=True)
@@ -458,14 +732,12 @@ def test_eeg_getepochevent_current_suite_old_four_argument_form():
     np.testing.assert_allclose(type_values, [1000, np.nan, np.nan], equal_nan=True)
 
 
-@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_general")
 def test_eeg_getepochevent_current_suite_default_latency():
     values, all_values = eeg_getepochevent(_epoched_event_eeg(), "rt")
     np.testing.assert_allclose(values, [np.nan, 1300, 1400], equal_nan=True)
     assert all_values == [[], [1300], [1400]]
 
 
-@eeglab_test("unittesting_popfunc/eeg_getepochevent/popfunc_eeg_getepochevent_wrapperTest.m", "test_pass_no_epoch")
 def test_eeg_getepochevent_current_suite_continuous_fallback():
     eeg = _epoched_event_eeg(include_event_epochs=False)
     values, all_values = eeg_getepochevent(eeg, "rt")
@@ -473,7 +745,6 @@ def test_eeg_getepochevent_current_suite_continuous_fallback():
     assert all_values == [[4300, 7400], [], []]
 
 
-@eeglab_test("unittesting_popfunc/eeg_insertbound/popfunc_eeg_insertbound_wrapperTest.m", "test_pass_general")
 def test_eeg_insertbound_current_suite_general_case():
     eeg = _epoched_event_eeg()
     events = copy.deepcopy(eeg["event"])
@@ -505,12 +776,11 @@ def _assert_matchchans(option: str | None) -> None:
     assert locations[1]["bigchan"] == 2 and locations[1]["bigdist"] == 0
 
 
-@eeglab_test("unittesting_popfunc/eeg_matchchans/popfunc_eeg_matchchans_wrapperTest.m", "test_pass_general")
+# pass_general.m contains no executable code in the pinned source suite.
 def test_eeg_matchchans_current_suite_general_case():
     _assert_matchchans(None)
 
 
-@eeglab_test("unittesting_popfunc/eeg_matchchans/popfunc_eeg_matchchans_wrapperTest.m", "test_pass_noplot")
 def test_eeg_matchchans_current_suite_noplot_case():
     _assert_matchchans("noplot")
 
