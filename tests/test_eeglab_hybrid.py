@@ -66,6 +66,21 @@ def test_required_matlab_mode_fails_without_reference(pytester, tmp_path):
     result.stdout.fnmatch_lines(["*MATLAB contracts require --eeglab-root*"])
 
 
+def test_reference_datasets_require_an_explicit_checkout(pytester, monkeypatch):
+    monkeypatch.delenv("EEGPREP_EEGLAB_ROOT", raising=False)
+    _isolated_suite(pytester, "def test_source_data(eeglab_suite_root):\n    raise AssertionError('must not run')")
+    result = pytester.runpytest_subprocess()
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*Reference datasets require --eeglab-suite-root or --eeglab-root*"])
+
+
+def test_reference_datasets_reject_missing_checkout(pytester, tmp_path):
+    _isolated_suite(pytester, "def test_source_data(eeglab_suite_root):\n    raise AssertionError('must not run')")
+    result = pytester.runpytest_subprocess(f"--eeglab-suite-root={tmp_path / 'absent'}")
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*EEGLAB test checkout does not exist*"])
+
+
 def test_matlab_gate_honors_explicit_test_selection(pytester):
     _isolated_suite(
         pytester,
@@ -88,6 +103,24 @@ def test_python_mode_collects_then_fails_missing_capability(pytester):
     result = pytester.runpytest_subprocess("--eeglab-backend=python")
     result.assert_outcomes(failed=1)
     result.stdout.fnmatch_lines(["*AttributeError*eeglab_missing_function*"])
+
+
+def test_python_options_are_restored_after_each_contract(pytester):
+    _isolated_suite(
+        pytester,
+        """
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+original = EEG_OPTIONS.copy()
+def test_changes(eeglab_backend, eeglab_options_directory):
+    value = 1 - original['option_storedisk']
+    eeglab_backend('pop_editoptions', option_storedisk=value)
+    assert EEG_OPTIONS['option_storedisk'] == value
+def test_restored():
+    assert EEG_OPTIONS == original
+""",
+    )
+    result = pytester.runpytest_subprocess("--eeglab-backend=python")
+    result.assert_outcomes(passed=2)
 
 
 @pytest.mark.parametrize(
@@ -138,6 +171,18 @@ def test_matlab_generated_struct_cells_logicals_and_complex(eeglab_matlab_engine
     returned = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "nested", value)
     assert returned["structs"].dtype.names == ("index",)
     assert returned["cell_structs"].dtype == object
+
+
+def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
+    value = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "unassigned")
+    assert value[1, 0].shape == (0, 0)
+    assert value[1, 1].shape == (1, 0)
+    assert value[0, 1]["first"][0, 1].shape == (0, 0)
+    assert value[0, 1]["second"][0, 0].shape == (0, 0)
+
+
+def test_matlab_reference_figures_stay_off_desktop(eeglab_matlab_engine):
+    assert call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "figure_visibility") == "off"
 
 
 @pytest.mark.parametrize("trials", [1, 3])
@@ -208,3 +253,28 @@ def test_matlab_function_errors_are_not_skipped_or_retried_on_python(eeglab_matl
 def test_backend_dispatch_executes_real_reference_function(eeglab_backend):
     data = np.array([[1.0, 2.0, 3.0], [4.0, 8.0, 12.0]])
     np.testing.assert_array_equal(eeglab_backend("rmbase", data), [[-1, 0, 1], [-4, 0, 4]])
+
+
+def test_workflow_directory_contains_relative_outputs(eeglab_working_directory):
+    assert Path.cwd() == eeglab_working_directory
+    Path("workflow.txt").write_text("isolated original workflow", encoding="utf-8")
+    assert (eeglab_working_directory / "workflow.txt").read_text(encoding="utf-8") == "isolated original workflow"
+
+
+def test_matlab_workflow_directory_matches_python(eeglab_working_directory, eeglab_matlab_engine):
+    Path("relative.txt").write_text("original relative path", encoding="utf-8")
+    assert Path(eeglab_matlab_engine.pwd()) == eeglab_working_directory
+    assert call_matlab(eeglab_matlab_engine, "fileread", "relative.txt") == "original relative path"
+
+
+def test_matlab_options_file_is_scratch_only(eeglab_matlab_engine, eeglab_backend, eeglab_options_directory):
+    home_options = Path.home() / "eeg_options.m"
+    original_home = home_options.read_bytes() if home_options.exists() else None
+    eeglab_backend("pop_editoptions", option_storedisk=1.0, nargout=0)
+    options_file = eeglab_options_directory / "eeg_options.m"
+    assert options_file.is_file()
+    assert "option_storedisk = 1" in options_file.read_text(encoding="utf-8")
+    eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
+    assert eeglab_matlab_engine.workspace["option_storedisk"] == 1
+    assert eeglab_matlab_engine.workspace["EEGOPTION_PATH"] == str(eeglab_options_directory)
+    assert (home_options.read_bytes() if home_options.exists() else None) == original_home

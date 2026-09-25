@@ -1,4 +1,4 @@
-"""Generated-fixture ports of current EEGLAB STUDY workflow tests."""
+"""Original STUDY workflows and additional generated-fixture Python tests."""
 
 from __future__ import annotations
 
@@ -161,7 +161,6 @@ def _corrmap_study(*, scales: tuple[float, float] = (4.0, 0.2)) -> tuple[dict, l
     return pop_study(None, datasets, name="Generated CORRMAP study")
 
 
-@_reference("pop_corrmap", "test_test_pop_corrmap")
 def test_pop_corrmap_matches_polarity_builds_cluster_and_is_scale_invariant():
     study, alleeg = _corrmap_study()
 
@@ -238,7 +237,6 @@ def test_corrmap_aligns_labelled_montages_and_rejects_unsupported_inputs():
         corrmap(study, alleeg, 1, 1, th=0.8, ics=1, plot="on")
 
 
-@_reference("std_editset", "test_test_std_editset")
 def test_std_editset_loads_generated_sets_assigns_metadata_and_removes_a_dataset(tmp_path: Path):
     first = _deterministic_eeg("ignore", "", "")
     second = _deterministic_eeg("probe", "", "", offset=0.2)
@@ -267,7 +265,6 @@ def test_std_editset_loads_generated_sets_assigns_metadata_and_removes_a_dataset
     assert study["design"][0]["variable"][0]["value"] == ["ignore", "probe"]
 
 
-@_reference("std_makedesign", "test_test_std_makedesign")
 def test_std_makedesign_preserves_subject_selection_and_combined_factor_levels():
     datasets = []
     for subject in ("S02", "S07", "S08", "S10"):
@@ -305,7 +302,354 @@ def test_std_makedesign_preserves_subject_selection_and_combined_factor_levels()
     assert study["design"][1]["variable"][0]["value"][1] == ["non-synonyms", "synonyms"]
 
 
+def _cell_row(*values):
+    cells = np.empty((1, len(values)), dtype=object)
+    for index, value in enumerate(values):
+        cells[0, index] = value
+    return cells
+
+
+@_reference("pop_corrmap", "test_test_pop_corrmap")
+def test_reference_pop_corrmap(eeglab_backend, eeglab_sample_study):
+    version = eeglab_backend("eeg_getversion")
+    prefix = version[:2]
+    if prefix.rstrip(".").isdigit() and float(prefix) > 9:
+        study, alleeg = eeglab_sample_study
+        eeglab_backend(
+            "pop_corrmap",
+            study,
+            alleeg,
+            1.0,
+            1.0,
+            chanlocs="",
+            th="auto",
+            ics=1.0,
+            title="Cluster test2",
+            clname="test2",
+            badcomps="no",
+            resetclusters="off",
+            nargout=0,
+        )
+
+
+@_reference("std_editset", "test_test_std_editset")
+def test_reference_std_editset(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_studyfunc/teststudy2/S02"
+    # Session setup initializes EEGLAB; the pinned checkout is the source
+    # project's RootFolder, without opening its plugin-install startup hook.
+    study, alleeg = eeglab_backend(
+        "std_editset",
+        np.empty((0, 0)),
+        np.empty((0, 0)),
+        commands=_cell_row(
+            _cell_row("index", 1.0, "load", str(directory / "Ignore.set")),
+            _cell_row("index", 2.0, "load", str(directory / "Probe.set")),
+            _cell_row("index", 1.0, "subject", "S01"),
+            _cell_row("index", 2.0, "subject", "S01"),
+            _cell_row("index", 1.0, "condition", "ignore"),
+            _cell_row("index", 2.0, "condition", "probe"),
+        ),
+        updatedat="off",
+        nargout=2,
+    )
+    study = eeglab_backend(
+        "std_makedesign",
+        study,
+        alleeg,
+        1.0,
+        "variable1",
+        "condition",
+        "variable2",
+        "load",
+        "name",
+        "STUDY.design 1",
+        "values1",
+        _cell_row("ignore", "probe"),
+        "values2",
+        _cell_row(3.0, 5.0, 7.0),
+        "subjselect",
+        _cell_row("S01"),
+    )
+    eeglab_backend(
+        "std_editset",
+        study,
+        alleeg,
+        commands=_cell_row(_cell_row("remove", 2.0)),
+        updatedat="off",
+        nargout=2,
+    )
+    eeglab_backend("close", nargout=0)
+
+
+@_reference("std_makedesign", "test_test_std_makedesign")
+def test_reference_std_makedesign(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    subjects = _cell_row("S02", "S07", "S08", "S10")
+    for index, name, values in (
+        (1.0, "STUDY.design 1", _cell_row("non-synonyms", "synonyms")),
+        (2.0, "Design 2 test", _cell_row("non-synonyms", _cell_row("non-synonyms", "synonyms"))),
+    ):
+        study = eeglab_backend(
+            "std_makedesign",
+            study,
+            alleeg,
+            index,
+            "name",
+            name,
+            variable1="condition",
+            variable2="",
+            values1=values,
+            subjselect=subjects,
+        )
+    designs = study["design"]
+    if "cell" in designs.dtype.names:
+        assert designs["cell"][0, 0].size == 8
+        assert designs["cell"][0, 1].size == 8
+
+
+def _read_writable_n400(backend, directory):
+    study, alleeg = backend("pop_loadstudy", filename="n400clustedit.study", filepath=str(directory), nargout=2)
+    study = backend("std_checkset", study, alleeg)
+    assert Path(study["filepath"]).is_relative_to(directory)
+    assert all(Path(path).is_relative_to(directory) for path in alleeg["filepath"].ravel())
+    return study, alleeg
+
+
+@pytest.mark.slow
+@_reference("std_itcplot", "test_test_std_itcplot")
+def test_reference_std_itcplot(eeglab_backend, eeglab_writable_study):
+    study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
+    study = eeglab_backend("std_selectdesign", study, alleeg, 1.0)
+    for selection in ("components", "channels"):
+        study, alleeg = eeglab_backend(
+            "std_precomp",
+            study,
+            alleeg,
+            selection,
+            recompute="on",
+            interp="on",
+            itc="on",
+            erspparams=_cell_row(
+                "cycles",
+                np.array([[3.0, 0.8]]),
+                "nfreqs",
+                10.0,
+                "ntimesout",
+                10.0,
+                "baseline",
+                np.nan,
+                "verbose",
+                "off",
+            ),
+            nargout=2,
+        )
+    for options in (
+        {"clusters": 3.0, "mode": "centroid"},
+        {"clusters": 3.0, "mode": "comps"},
+        {"clusters": 3.0, "comps": 4.0},
+        {"channels": _cell_row("Cz")},
+        {"channels": _cell_row("Cz"), "plotsubjects": "on"},
+        {"channels": _cell_row("Cz"), "subject": "S02"},
+    ):
+        eeglab_backend("std_itcplot", study, alleeg, **options, nargout=0)
+        eeglab_backend("close", nargout=0)
+
+
+@pytest.mark.slow
+@_reference("std_erspplot", "test_test_std_erspplot")
+def test_reference_std_erspplot(eeglab_backend, eeglab_writable_study):
+    study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
+    labels = alleeg["chanlocs"].flat[0]["labels"].ravel()
+    channel, channels, all_channels = _cell_row(labels[15]), _cell_row(*labels[:4]), _cell_row(*labels)
+    for selection in ("channels", "components"):
+        study, alleeg = eeglab_backend(
+            "std_precomp",
+            study,
+            alleeg,
+            selection,
+            savetrials="on",
+            recompute="on",
+            interp="on",
+            ersp="on",
+            itc="on",
+            erspparams=_cell_row("ntimesout", 12.0, "nfreqs", 10.0, "verbose", "off"),
+            nargout=2,
+        )
+    for store, options in (
+        (True, {"clusters": np.array([[2.0, 3.0, 4.0]])}),
+        (True, {"channels": channels}),
+        (False, {"clusters": 2.0}),
+        (False, {"clusters": 2.0, "comps": 1.0}),
+        (False, {"channels": channel}),
+        (False, {"channels": channel, "subject": study["subject"].flat[0]}),
+        (False, {"channels": channel, "plotsubjects": "on"}),
+        (True, {"channels": all_channels, "topofreq": 5.0, "topotime": 100.0}),
+        (False, {"channels": all_channels, "condstats": "on", "topofreq": 5.0, "topotime": 100.0}),
+        (
+            False,
+            {
+                "channels": all_channels,
+                "subject": study["subject"].flat[0],
+                "topofreq": 5.0,
+                "topotime": 100.0,
+                "caxis": np.array([[-3.0, 3.0]]),
+            },
+        ),
+    ):
+        result = eeglab_backend("std_erspplot", study, alleeg, **options, nargout=int(store))
+        if store:
+            study = result
+        eeglab_backend("close", nargout=0)
+
+
+@pytest.mark.slow
+@_reference("std_specplot", "test_test_std_specplot")
+def test_reference_std_specplot(eeglab_backend, eeglab_writable_study):
+    study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
+    labels = alleeg["chanlocs"].flat[0]["labels"].ravel()
+    channel, all_channels = _cell_row(labels[15]), _cell_row(*labels)
+    for selection in ("channels", "components"):
+        kwargs = {"interp": "on"} if selection == "channels" else {}
+        study, alleeg = eeglab_backend(
+            "std_precomp",
+            study,
+            alleeg,
+            selection,
+            savetrials="on",
+            recompute="on",
+            spec="on",
+            specparams=_cell_row("specmode", "fft"),
+            nargout=2,
+            **kwargs,
+        )
+    study = eeglab_backend("pop_statparams", study, "mode", "eeglab", "method", "param")
+    for store, options in (
+        (False, {"clusters": np.array([[2.0, 3.0, 4.0, 5.0]])}),
+        (False, {"clusters": 3.0}),
+        (False, {"clusters": 3.0, "comps": 1.0}),
+        (False, {"clusters": 3.0, "condstats": "on"}),
+        (False, {"clusters": 3.0, "condstats": "on", "plotconditions": "together"}),
+        (False, {"clusters": 3.0, "condstats": "on", "plotconditions": "together", "threshold": 0.05}),
+        (
+            False,
+            {"clusters": 3.0, "condstats": "on", "plotconditions": "together", "threshold": 0.05, "mcorrect": "fdr"},
+        ),
+        (False, {"channels": channel}),
+        (False, {"channels": channel, "plotsubjects": "on"}),
+        (False, {"channels": channel, "subject": study["subject"].flat[0], "plotconditions": "together"}),
+        (False, {"channels": channel, "condstats": "on"}),
+        (True, {"channels": all_channels}),
+        (True, {"channels": all_channels, "plotconditions": "together", "condstats": "on"}),
+        (False, {"channels": all_channels, "topofreq": 5.0}),
+        (False, {"channels": all_channels, "condstats": "on", "topofreq": 5.0}),
+    ):
+        result = eeglab_backend("std_specplot", study, alleeg, **options, nargout=int(store))
+        if store:
+            study = result
+        eeglab_backend("close", nargout=0)
+
+
+@pytest.mark.slow
 @_reference("std_precomp", "test_test_std_precomp")
+def test_reference_std_precomp(eeglab_backend, eeglab_writable_study):
+    for design_phase in (0, 1):
+        # Source reloads the original STUDY between the two pairs of calls.
+        study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
+        if design_phase:
+            study = eeglab_backend(
+                "std_makedesign",
+                study,
+                alleeg,
+                1.0,
+                "variable1",
+                "condition",
+                "variable2",
+                "",
+                "name",
+                "STUDY.design 1",
+                "values1",
+                _cell_row("non-synonyms", "synonyms"),
+                "subjselect",
+                _cell_row("S02", "S07", "S08", "S10"),
+            )
+            study = eeglab_backend(
+                "std_makedesign",
+                study,
+                alleeg,
+                2.0,
+                "variable1",
+                "condition",
+                "variable2",
+                "",
+                "name",
+                "Design 2 test",
+                "values1",
+                _cell_row("non-synonyms", _cell_row("non-synonyms", "synonyms")),
+                "subjselect",
+                _cell_row("S02"),
+            )
+            study["currentdesign"] = np.array([[2.0]])
+            study = eeglab_backend("std_selectdesign", study, alleeg, 2.0)
+        for selection in ("components", "channels"):
+            ersp_parameters = ["cycles", np.array([[3.0, 0.8]]), "nfreqs", 2.0, "timesout", 30.0]
+            if not design_phase:
+                ersp_parameters.extend(("verbose", "off"))
+            kwargs = {"scalp": "on"} if selection == "components" else {}
+            study, alleeg = eeglab_backend(
+                "std_precomp",
+                study,
+                alleeg,
+                selection,
+                recompute="on",
+                erp="on",
+                spec="on",
+                specparams=_cell_row("specmode", "fft"),
+                ersp="on",
+                erspparams=_cell_row(*ersp_parameters),
+                itc="on",
+                nargout=2,
+                **kwargs,
+            )
+
+
+@pytest.mark.slow
+@_reference("std_preclust", "test_test_std_preclust")
+def test_reference_std_preclust(eeglab_backend, eeglab_writable_study):
+    study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
+    study, alleeg = eeglab_backend(
+        "std_precomp",
+        study,
+        alleeg,
+        "components",
+        savetrials="on",
+        recompute="on",
+        interp="on",
+        erp="on",
+        spec="on",
+        specparams=_cell_row("specmode", "fft"),
+        scalp="on",
+        ersp="on",
+        itc="on",
+        erspparams=_cell_row("ntimesout", 12.0, "nfreqs", 10.0, "verbose", "off"),
+        nargout=2,
+    )
+    empty = np.empty((0, 0))
+    eeglab_backend(
+        "std_preclust",
+        study,
+        alleeg,
+        1.0,
+        _cell_row("spec", "npca", 10.0, "norm", 1.0, "weight", 1.0, "freqrange", np.array([[3.0, 25.0]])),
+        _cell_row("erp", "npca", 10.0, "norm", 1.0, "weight", 1.0, "timewindow", empty),
+        _cell_row("scalp", "npca", 10.0, "norm", 1.0, "weight", 1.0, "abso", 1.0),
+        _cell_row("dipoles", "norm", 1.0, "weight", 10.0),
+        _cell_row("ersp", "npca", 10.0, "freqrange", empty, "timewindow", empty, "norm", 1.0, "weight", 1.0),
+        _cell_row("itc", "npca", 10.0, "freqrange", empty, "timewindow", empty, "norm", 1.0, "weight", 1.0),
+        _cell_row("finaldim", "npca", 10.0),
+        nargout=2,
+    )
+
+
 def test_std_precomp_computes_channel_and_component_erp_spectrum_ersp_and_itc():
     study, alleeg = _study_pair()
     tf_params = {"cycles": 0, "nfreqs": 8, "timesout": 8}
@@ -346,7 +690,6 @@ def test_std_precomp_computes_channel_and_component_erp_spectrum_ersp_and_itc():
     assert channel["specfreqs"][peak] == 6.0
 
 
-@_reference("std_preclust", "test_test_std_preclust")
 def test_std_preclust_combines_all_current_measure_families_and_final_pca():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(
@@ -390,6 +733,14 @@ def test_std_preclust_combines_all_current_measure_families_and_final_pca():
 
 
 @_reference("pop_clust", "test_test_pop_clust")
+def test_reference_pop_clust(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    study = eeglab_backend("pop_clust", study, alleeg, algorithm="kmeanscluster", clus_num=10.0)
+    # Preserve the source's kmean (not kmeans) prerequisite verbatim.
+    if eeglab_backend("license", "checkout", "statistics_toolbox").item() and eeglab_backend("exist", "kmean").item():
+        eeglab_backend("pop_clust", study, alleeg, algorithm="kmeans", clus_num=10.0, outliers=3.0)
+
+
 def test_pop_clust_runs_current_kmeanscluster_scenario_with_ten_clusters():
     study, alleeg = _study_pair(n_channels=6, n_components=6)
     study, alleeg = std_preclust(study, alleeg, 1, ["scalp", "npca", 4, "norm", 1, "weight", 1])
@@ -402,7 +753,6 @@ def test_pop_clust_runs_current_kmeanscluster_scenario_with_ten_clusters():
     assert study["cluster"][0]["child"] == [cluster["name"] for cluster in children]
 
 
-@_reference("std_selectdesign", "test_test_std_selectdesign")
 def test_std_selectdesign_scans_generated_designs_without_corrupting_component_membership():
     study, alleeg = _study_pair()
     study = std_makedesign(study, alleeg, 2, variable1="subject", values1=["S01"], name="S01")
@@ -416,7 +766,45 @@ def test_std_selectdesign_scans_generated_designs_without_corrupting_component_m
         assert (selected["cluster"][0]["sets"], selected["cluster"][0]["comps"]) == original_pairs
 
 
-@_reference("std_erpplot", "test_test_stderpplot2")
+@pytest.mark.parametrize("eeglab_sample_study", [("teststudy2", "stern2s.study")], indirect=True)
+@_reference("std_selectdesign", "test_test_std_selectdesign")
+def test_reference_std_selectdesign(eeglab_backend, eeglab_sample_study):
+    study, alleeg = eeglab_sample_study
+    version = eeglab_backend("eeg_getversion")
+    for design_index in range(study["design"].size):
+        design = study["design"].ravel()[design_index]
+        skip_design = False
+        if version.startswith("9"):
+            for variable in design["variable"].ravel():
+                values = variable["value"]
+                if any(np.asarray(value).dtype == object for value in values.ravel()):
+                    skip_design = True
+                if (
+                    values.size
+                    and np.asarray(values.flat[0]).dtype.kind in "biufc"
+                    and any(np.asarray(value).size > 1 for value in values.ravel())
+                ):
+                    skip_design = True
+            if any(cell["trials"].flat[0].size == 0 for cell in design["cell"].ravel()):
+                skip_design = True
+        if skip_design:
+            continue
+        study = eeglab_backend("std_selectdesign", study, alleeg, float(design_index + 1))
+        # The original asserts membership only for EEGLAB <=13; current
+        # reference versions exercise every design as a workflow smoke test.
+        prefix = version[:2]
+        if prefix.rstrip(".").isdigit() and float(prefix) <= 13:
+            for cluster in study["cluster"].ravel():
+                for indices, sets in zip(cluster["allinds"].ravel(), cluster["setinds"].ravel(), strict=True):
+                    for component, dataset_index in zip(indices.ravel(), sets.ravel(), strict=True):
+                        selected_set = study["design"]["cell"].ravel()[design_index].ravel()[int(dataset_index) - 1]
+                        columns = np.flatnonzero(cluster["comps"].ravel() == component)
+                        dataset = selected_set["dataset"]
+                        assert dataset.size == 0 or np.isin(dataset, cluster["sets"][:, columns]).any(), (
+                            "Clusters corrupted"
+                        )
+
+
 def test_std_erpplot_channel_output_matches_direct_epoch_average():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(study, alleeg, [1], erp="on", recompute="on")
@@ -431,7 +819,6 @@ def test_std_erpplot_channel_output_matches_direct_epoch_average():
     plt.close(figure)
 
 
-@_reference("std_erpplot", "test_test_stderpplot3")
 def test_std_erpplot_component_output_matches_direct_scaled_activation_average():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(study, alleeg, "components", erp="on", scalp="on", recompute="on")
@@ -448,7 +835,6 @@ def test_std_erpplot_component_output_matches_direct_scaled_activation_average()
     plt.close(figure)
 
 
-@_reference("std_specplot", "test_test_stdspecplot3")
 def test_std_specplot_channel_output_preserves_known_oscillation_peak():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(study, alleeg, [2], spec="on", recompute="on")
@@ -460,7 +846,6 @@ def test_std_specplot_channel_output_preserves_known_oscillation_peak():
     plt.close(figure)
 
 
-@_reference("std_specplot", "test_test_stdspecplot4")
 def test_std_specplot_component_output_preserves_known_activation_peak():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(study, alleeg, "components", spec="on", recompute="on")
@@ -472,7 +857,7 @@ def test_std_specplot_component_output_preserves_known_activation_peak():
     plt.close(figure)
 
 
-@_reference("std_erspplot", "test_test_std_erspplot2")
+# The original test_std_erspplot2 returns for EEGLAB >13; this is extra coverage.
 def test_std_erspplot_channel_output_matches_precomputed_axes_and_cache():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(
@@ -495,7 +880,7 @@ def test_std_erspplot_channel_output_matches_precomputed_axes_and_cache():
     plt.close(figure)
 
 
-@_reference("std_erspplot", "test_test_std_erspplot3")
+# The original test_std_erspplot3 returns for EEGLAB >14; this is extra coverage.
 def test_std_erspplot_component_output_selects_the_requested_component():
     study, alleeg = _study_pair()
     study, alleeg = std_precomp(

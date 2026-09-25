@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from itertools import product
 import logging
 import warnings
 from pathlib import Path
@@ -93,7 +94,6 @@ def sample_eeg_with_ica(sample_eeg_with_ica_base):
     return copy.deepcopy(sample_eeg_with_ica_base)
 
 
-@eeglab_test("eeglab_tests_wrapperTest.m", "test_readcontsamplefile")
 def test_pop_loadset_loads_eeglab_sample_data_with_core_fields(sample_eeg_base):
     assert sample_eeg_base["data"].shape == (32, 30504)
     assert sample_eeg_base["nbchan"] == 32
@@ -106,8 +106,6 @@ def test_pop_loadset_loads_eeglab_sample_data_with_core_fields(sample_eeg_base):
     assert np.issubdtype(np.asarray(sample_eeg_base["icachansind"]).dtype, np.integer)
 
 
-@eeglab_test("eeglab_tests_wrapperTest.m", "test_readepochsamplefile")
-@eeglab_test("unittesting_popfunc/pop_loadset/popfunc_pop_loadset_wrapperTest.m", "test_test_pop_loadset")
 def test_pop_loadset_current_suite_info_channel_and_eeg_modes():
     path = Path("sample_data/eeglab_data_epochs_ica.set")
     full = pop_loadset("filename", path.name, "filepath", path.parent)
@@ -138,7 +136,6 @@ def test_pop_fileio_loads_sample_set_and_records_replayable_history(sample_eeg_b
     assert command == "EEG = pop_fileio('sample_data/eeglab_data.set');"
 
 
-@eeglab_test("unittesting_popfunc/pop_fileio/popfunc_pop_fileio_wrapperTest.m", "test_test_pop_fileio")
 def test_pop_fileio_current_suite_channel_sample_and_trial_ranges():
     path = Path("sample_data/eeglab_data_epochs_ica.set")
     full = pop_fileio(path)
@@ -494,7 +491,6 @@ def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
     assert "'inv'" in inverse_command
 
 
-@eeglab_test("unittesting_popfunc/pop_export/popfunc_pop_export_wrapperTest.m", "test_test_pop_export")
 def test_pop_export_writes_sample_data_table(tmp_path, sample_eeg):
     output_file = tmp_path / "sample_export.tsv"
 
@@ -556,7 +552,6 @@ def test_pop_expevents_writes_all_sample_events(tmp_path, sample_eeg):
     assert "pop_expevents" in command
 
 
-@eeglab_test("unittesting_popfunc/pop_importdata/popfunc_pop_importdata_wrapperTest.m", "test_test_pop_importdata")
 def test_pop_importdata_loads_exported_sample_slice(tmp_path, sample_eeg):
     data_file = tmp_path / "sample_slice.tsv"
     np.savetxt(data_file, sample_eeg["data"][:2, :12], delimiter="\t")
@@ -621,7 +616,6 @@ def test_pop_importepoch_updates_sample_epoch_metadata(tmp_path, sample_eeg):
     assert "pop_importepoch" in command
 
 
-@eeglab_test("unittesting_popfunc/pop_saveset/popfunc_pop_saveset_wrapperTest.m", "test_test_pop_saveset")
 def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
     source = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
 
@@ -742,7 +736,6 @@ def test_pop_runscript_can_modify_sample_workspace_namespace(sample_eeg, tmp_pat
     assert "pop_runscript" in command
 
 
-@eeglab_test("unittesting_popfunc/pop_writeeeg/popfunc_pop_writeeeg_wrapperTest.m", "test_test_pop_writeeeg")
 def test_pop_writeeeg_current_suite_edf_bdf_and_gdf_roundtrip(tmp_path, sample_eeg):
     eeg = copy.deepcopy(sample_eeg)
     eeg["data"] = eeg["data"][:2, :256]
@@ -859,3 +852,117 @@ def test_pop_editoptions_and_bids_metadata_helpers_are_history_recording(sample_
     assert "pop_taskinfo" in task_command
     assert "pop_participantinfo" in participant_command
     assert "pop_eventinfo" in event_command
+
+
+@eeglab_test("eeglab_tests_wrapperTest.m", "test_readcontsamplefile")
+def test_upstream_readcontsamplefile(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    assert eeg["data"].shape == (32, 30504)
+    assert np.asarray(eeg["srate"]).item() == 128
+
+
+@eeglab_test("eeglab_tests_wrapperTest.m", "test_readepochsamplefile")
+@eeglab_test("unittesting_popfunc/pop_loadset/popfunc_pop_loadset_wrapperTest.m", "test_test_pop_loadset")
+def test_upstream_pop_loadset_four_modes(eeglab_backend, eeglab_suite_root):
+    directory = str(eeglab_suite_root / "eeglab/sample_data")
+    args = ("filename", "eeglab_data_epochs_ica.set", "filepath", directory)
+    full = eeglab_backend("pop_loadset", *args)
+    info = eeglab_backend("pop_loadset", *args, "loadmode", "info")
+    channel = eeglab_backend("pop_loadset", *args, "loadmode", 10.0)
+    reread = eeglab_backend("pop_loadset", "filename", "", "filepath", "", "eeg", full)
+    assert full["data"].shape == (32, 384, 80)
+    assert info["data"] == "eeglab_data_epochs_ica.fdt"
+    np.testing.assert_array_equal(channel["data"], full["data"][9:10])
+    np.testing.assert_array_equal(reread["data"], full["data"])
+
+
+@eeglab_test("unittesting_popfunc/pop_saveset/popfunc_pop_saveset_wrapperTest.m", "test_test_pop_saveset")
+def test_upstream_pop_saveset_four_roundtrips(eeglab_backend, eeglab_suite_root, tmp_path):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    # Preserve even the repeated third source call: it follows deletion of the
+    # previous file, and must not accidentally exercise resave behavior.
+    for check, mode in (("off", "onefile"), ("on", "onefile"), ("off", "onefile"), ("off", "twofiles")):
+        eeglab_backend(
+            "pop_saveset",
+            eeg,
+            "filename",
+            "testsaveset.set",
+            "filepath",
+            str(tmp_path),
+            "check",
+            check,
+            "savemode",
+            mode,
+        )
+        loaded = eeglab_backend("pop_loadset", "filename", "testsaveset.set", "filepath", str(tmp_path))
+        np.testing.assert_array_equal(loaded["data"], eeg["data"])
+        (tmp_path / "testsaveset.set").unlink()
+        if mode == "twofiles":
+            (tmp_path / "testsaveset.fdt").unlink()
+
+
+@pytest.mark.parametrize(
+    "options",
+    [None, *product(("off", "on"), ("off", "on"), ("on", "off"), ("on", "off"), ("off", "on"))],
+    ids=[f"case-{number}" for number in range(1, 34)],
+)
+@eeglab_test("unittesting_popfunc/pop_export/popfunc_pop_export_wrapperTest.m", "test_test_pop_export")
+def test_upstream_pop_export_all_33_call_forms(eeglab_backend, eeglab_suite_root, tmp_path, options):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    filename = tmp_path / "testexport.mat"
+    arguments = ()
+    if options is not None:
+        erp, transpose, elec, time, ica = options
+        arguments = (
+            "ica",
+            ica,
+            "time",
+            time,
+            "timeunit",
+            0.001,
+            "elec",
+            elec,
+            "transpose",
+            transpose,
+            "erp",
+            erp,
+            "expr",
+            "",
+            "precision",
+            4.0,
+        )
+    eeglab_backend("pop_export", eeg, str(filename), *arguments)
+    assert filename.is_file(), "EEG dataset not successfully exported"
+    filename.unlink()
+
+
+@eeglab_test("unittesting_popfunc/pop_fileio/popfunc_pop_fileio_wrapperTest.m", "test_test_pop_fileio")
+def test_upstream_pop_fileio_original_sample_options(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set")
+    eeglab_backend("pop_fileio", filename)
+    eeglab_backend(
+        "pop_fileio",
+        filename,
+        "channels",
+        np.arange(1, 33, dtype=float)[None, :],
+        "samples",
+        np.array([[1.0, 384.0]]),
+    )
+    eeglab_backend(
+        "pop_fileio",
+        filename,
+        "channels",
+        np.arange(1, 17, dtype=float)[None, :],
+        "trials",
+        np.array([[2.0, 50.0]]),
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_writeeeg/popfunc_pop_writeeeg_wrapperTest.m", "test_test_pop_writeeeg")
+def test_upstream_pop_writeeeg_original_full_recording(eeglab_backend, eeglab_suite_root, tmp_path):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    for suffix, options in (("edf", ()), ("gdf", ("TYPE", "GDF")), ("bdf", ("TYPE", "BDF"))):
+        filename = tmp_path / f"testwriteeeg.{suffix}"
+        eeglab_backend("pop_writeeeg", eeg, str(filename), *options, nargout=0)
+        assert filename.is_file()
+        filename.unlink()

@@ -25,6 +25,31 @@ from tests.eeglab_tests import eeglab_test
 
 
 @eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_test_pop_epoch")
+def test_reference_pop_epoch_original_square_event_workflow(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend(
+        "pop_epoch",
+        eeg,
+        np.array([["square"]], dtype=object),
+        np.array([[-1.0, 2.0]]),
+        "newname",
+        "ee114 continuous (h.p. 1Hz) epochs",
+        "epochinfo",
+        "yes",
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_pass_bugzilla_455")
+def test_reference_pop_epoch_original_bugzilla_455_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend(
+        "pop_loadset", "filename", str(eeglab_suite_root / "unittesting_popfunc/pop_epoch/bugzilla_455.set")
+    )
+    output = eeglab_backend("pop_epoch", eeg, np.empty((0, 0)), np.array([[-1.0, 32.0]]))
+    epoch = np.asarray(output["epoch"]).flat[96]
+    first_latency = np.asarray(epoch["eventlatency"]).flat[0]
+    assert np.asarray(first_latency).item() == 0
+
+
 def test_pop_epoch_current_suite_square_event_workflow():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 
@@ -45,7 +70,6 @@ def test_pop_epoch_current_suite_square_event_workflow():
     assert all("eventlatency" in epoch for epoch in output["epoch"])
 
 
-@eeglab_test("unittesting_popfunc/pop_epoch/popfunc_pop_epoch_wrapperTest.m", "test_pass_bugzilla_455")
 def test_pop_epoch_current_suite_late_epoch_locking_event_has_zero_latency():
     srate = 1.0
     events = [{"type": "lock", "latency": float(2 + 40 * index)} for index in range(97)]

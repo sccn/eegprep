@@ -1,4 +1,4 @@
-"""Ports of the maintained EEGLAB ``statcondfieldtrip`` wrapper test."""
+"""Additional Python statcondfieldtrip checks, not active-source test ports."""
 
 from __future__ import annotations
 
@@ -12,11 +12,6 @@ from scipy import sparse
 from scipy import stats as scipy_stats
 
 from eegprep.functions.statistics import StatcondFieldtripResult, statcondfieldtrip
-from tests.eeglab_tests import eeglab_test
-
-
-STATCONDFIELDTRIP_SCRIPT = "unittesting_statistics/statcondfieldtrip/test_statcondfieldtrip.m"
-STATCONDFIELDTRIP_WRAPPER = "unittesting_statistics/statcondfieldtrip/statistics_statcondfieldtrip_wrapperTest.m"
 
 # Cluster-policy oracle: fieldtrip/fieldtrip@8e2307d7e7284c6870a5d12e244d9dc95a1faae3,
 # ft_statistics_montecarlo.m and private/clusterstat.m. The exhaustive fixtures
@@ -92,11 +87,9 @@ def _assert_active_dimension_calls(*, paired: bool, one_way: bool) -> None:
         assert result.df == baseline.df
 
 
-@eeglab_test(STATCONDFIELDTRIP_WRAPPER, "test_test_statcondfieldtrip")
-@eeglab_test(STATCONDFIELDTRIP_SCRIPT, "test_statcondfieldtrip")
-def test_current_statcondfieldtrip_wrapper_executes_its_scientific_intent():
-    # The MATLAB script returns before these calls because its `exist('kmean')`
-    # guard contains a typo. Execute the active body rather than porting a no-op.
+def test_additional_statcondfieldtrip_vector_and_dimension_checks():
+    # The original wrapper returns at exist('kmean') before its numerical body.
+    # These generated-fixture checks are additional Python coverage only.
     _assert_active_vector_calls()
     _assert_active_dimension_calls(paired=True, one_way=False)
     _assert_active_dimension_calls(paired=False, one_way=False)

@@ -19,7 +19,7 @@ import scipy.io
 from scipy import stats
 
 import eegprep
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -535,6 +535,23 @@ def test_timewarp_rejects_unsorted_markers():
         timewarp([1, 5, 3], [1, 2, 5])
 
 
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_5point_sinus")
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_diff_start")
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_spike")
+def test_reference_angtimewarp(eeglab_backend):
+    data = np.array([[0, 1, 0, -1, 0]], dtype=float)
+    result = eeglab_backend("angtimewarp", np.array([[1, 3, 5]], dtype=float), np.array([[1, 5, 5]], dtype=float), data)
+    assert_matlab_near(result, [[0, 0.5, 1, 0.5, 0]])
+    # The source's remaining two numerical assertions are commented out.
+    eeglab_backend("angtimewarp", np.array([[2, 3, 4]], dtype=float), np.array([[1, 3, 5]], dtype=float), data)
+    eeglab_backend(
+        "angtimewarp",
+        np.array([[1, 3, 5]], dtype=float),
+        np.array([[1, 1, 5]], dtype=float),
+        np.array([[0, 5, 1000, -1000, 0]], dtype=float),
+    )
+
+
 def test_angtimewarp_interpolates_and_wraps_like_eeglab():
     angles = np.asarray([0, np.pi / 2, np.pi, -np.pi / 2, 0], dtype=float)
 
@@ -543,33 +560,19 @@ def test_angtimewarp_interpolates_and_wraps_like_eeglab():
     np.testing.assert_allclose(warped, [0, np.pi, 0, -np.pi / 3, 0], rtol=1e-12, atol=1e-12)
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_5point_sinus",
-)
-def test_angtimewarp_upstream_five_point_compression():
+def test_python_regression_angtimewarp_five_point_compression():
     warped = angtimewarp([1, 3, 5], [1, 5, 5], [0, 1, 0, -1, 0])
 
     np.testing.assert_allclose(warped, [0, 0.5, 1, 0.5, 0])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_diff_start",
-)
-def test_angtimewarp_upstream_implicit_synchronized_start():
-    """Strengthen the upstream script, whose numerical assertion is disabled."""
+def test_python_regression_angtimewarp_implicit_synchronized_start():
     warped = angtimewarp([2, 3, 4], [1, 3, 5], [0, 1, 0, -1, 0])
 
     np.testing.assert_allclose(warped, [0, 0.5, 0, -0.5, -1])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_spike",
-)
-def test_angtimewarp_upstream_repeated_marker_wraps_large_angles():
-    """Strengthen the upstream script, whose numerical assertion is disabled."""
+def test_python_regression_angtimewarp_repeated_marker_wraps_large_angles():
     warped = angtimewarp([1, 3, 5], [1, 1, 5], [0, 5, 1000, -1000, 0])
     unwrapped = np.asarray([0, 0, -1000, -500, 0], dtype=float)
     expected = np.mod(unwrapped, 2 * np.pi)

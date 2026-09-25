@@ -7,11 +7,14 @@ from functools import partial
 import importlib
 import os
 from pathlib import Path
+import shutil
+import subprocess
 
 import pytest
 
-from tests.eeglab_tests import upstream_references
+from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
+from tools.eeglab_test_port_audit import validate_suite_checkout
 
 
 def _preload_matlab_libstdcxx() -> None:
@@ -49,6 +52,88 @@ def pytest_addoption(parser):
         default=os.environ.get("EEGPREP_EEGLAB_ROOT"),
         help="Explicit EEGLAB reference checkout containing eeglab.m.",
     )
+    group.addoption(
+        "--eeglab-suite-root",
+        help="Pinned eeglab_tests checkout; defaults to the parent of --eeglab-root.",
+    )
+
+
+@pytest.fixture(scope="session")
+def eeglab_suite_root(request):
+    root = request.config.getoption("--eeglab-suite-root")
+    if not root:
+        reference = request.config.getoption("--eeglab-root")
+        if not reference:
+            pytest.fail("Reference datasets require --eeglab-suite-root or --eeglab-root", pytrace=False)
+        root = Path(reference).parent
+    root = Path(root).resolve()
+    validate_suite_checkout(root)
+    return root
+
+
+@pytest.fixture(params=[("teststudy", "n400clustedit.study")])
+def eeglab_sample_study(request, eeglab_backend, eeglab_suite_root):
+    """Load fresh source STUDY state as readsamplestudy/readsamplestudy2 do."""
+    directory, filename = request.param
+    study, alleeg = eeglab_backend(
+        "pop_loadstudy",
+        filename=filename,
+        filepath=str(eeglab_suite_root / "unittesting_studyfunc" / directory),
+        nargout=2,
+    )
+    study = eeglab_backend("std_checkset", study, alleeg)
+    return study, alleeg
+
+
+@pytest.fixture(params=["teststudy"])
+def eeglab_writable_study(request, eeglab_suite_root, tmp_path):
+    """Copy the original STUDY tree before workflows write measure caches."""
+    source = eeglab_suite_root / "unittesting_studyfunc" / request.param
+    return Path(shutil.copytree(source, tmp_path / request.param))
+
+
+@pytest.fixture
+def eeglab_options_directory(request, eeglab_backend, tmp_path):
+    """Isolate the reference's documented EEGOPTION_PATH configuration hook."""
+    directory = tmp_path / "eeglab_options"
+    directory.mkdir()
+    if request.config.getoption("--eeglab-backend") == "python":
+        options = importlib.import_module("eegprep.functions.adminfunc.eeg_options").EEG_OPTIONS
+        original_options = options.copy()
+        try:
+            yield directory
+        finally:
+            options.clear()
+            options.update(original_options)
+        return
+
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    original_path, original_directory = engine.path(), engine.pwd()
+    original_icadefs = engine.which("icadefs")
+    home_options = Path.home() / "eeg_options.m"
+    original_home = home_options.read_bytes() if home_options.exists() else None
+    if original_home is not None:
+        shutil.copyfile(home_options, directory / "eeg_options.m")
+    # icadefs explicitly permits a project-local copy. Run the pinned original
+    # unchanged, overriding only where user preference writes are stored.
+    wrapper = directory / "icadefs.m"
+    original_script = original_icadefs.replace("'", "''")
+    options_path = str(directory).replace("'", "''")
+    wrapper.write_text(
+        f"run('{original_script}');\nEEGOPTION_PATH = '{options_path}';\n",
+        encoding="utf-8",
+    )
+    try:
+        engine.addpath(str(directory), "-begin", nargout=0)
+        engine.eval("clear icadefs eeg_options; icadefs;", nargout=0)
+        assert engine.which("icadefs") == str(wrapper)
+        assert engine.workspace["EEGOPTION_PATH"] == str(directory)
+        yield directory
+    finally:
+        engine.path(original_path, nargout=0)
+        engine.cd(original_directory, nargout=0)
+        engine.eval("clear icadefs eeg_options; eeglab_options;", nargout=0)
+        assert (home_options.read_bytes() if home_options.exists() else None) == original_home
 
 
 @pytest.fixture(scope="session")
@@ -58,13 +143,26 @@ def eeglab_matlab_engine(request):
         pytest.fail("MATLAB contracts require --eeglab-root pointing to an EEGLAB checkout", pytrace=False)
     if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
         pytest.fail("Explicit MATLAB contracts conflict with EEGPREP_SKIP_MATLAB=1", pytrace=False)
+    revision = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    if revision != EEGLAB_TESTS_EEGLAB_COMMIT:
+        pytest.fail(f"EEGLAB is at {revision}; expected pinned {EEGLAB_TESTS_EEGLAB_COMMIT}", pytrace=False)
     # The private cache prevents reusing an engine configured for another root.
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("EEGPREP_EEGLAB_ROOT", str(Path(root).resolve()))
         compat = importlib.import_module("eegprep.functions.adminfunc.eeglabcompat")
         engine = compat.get_eeglab("MAT", auto_file_roundtrip=False, _cache={})
-    engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
     try:
+        # Automated reference plots must not open hundreds of desktop windows.
+        engine.set(0.0, "DefaultFigureVisible", "off", nargout=0)
+        engine.addpath(str(Path(root).resolve()), str(Path(root).resolve() / "functions"), nargout=0)
+        # Use the reference's initialization to activate installed workflow plugins.
+        # Unlike add_plugins.m, this does not install missing plugins.
+        directory = engine.pwd()
+        engine.eeglab("nogui", nargout=0)
+        engine.cd(directory, nargout=0)
+        engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
         yield engine
     finally:
         engine.quit()
@@ -74,8 +172,29 @@ def eeglab_matlab_engine(request):
 def eeglab_backend(request):
     """Call a named reference function on the explicitly selected backend."""
     if request.config.getoption("--eeglab-backend") == "matlab":
-        return partial(call_matlab, request.getfixturevalue("eeglab_matlab_engine"))
-    return call_python
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        try:
+            yield partial(call_matlab, engine)
+        finally:
+            engine.close("all", "force", nargout=0)
+    else:
+        yield call_python
+
+
+@pytest.fixture
+def eeglab_working_directory(eeglab_backend, request, tmp_path, monkeypatch):
+    """Keep relative input/output workflows in an isolated backend directory."""
+    monkeypatch.chdir(tmp_path)
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        yield tmp_path
+        return
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    previous = engine.pwd()
+    engine.cd(str(tmp_path), nargout=0)
+    try:
+        yield tmp_path
+    finally:
+        engine.cd(previous, nargout=0)
 
 
 SLOW_NODEID_PARTS = (

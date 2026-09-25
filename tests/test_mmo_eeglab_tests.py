@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.linalg import pascal
 
 from eegprep import MemmapData, mmo
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
@@ -21,6 +22,300 @@ from tests.eeglab_tests import eeglab_test
 
 
 UPSTREAM = "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m"
+
+
+@pytest.fixture
+def mmo_backend(request, eeglab_backend, eeglab_suite_root):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        yield eeglab_backend
+        return
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    original_path = engine.path()
+    # transposeindices is a test-suite helper, not in the EEGLAB checkout.
+    engine.addpath(str(eeglab_suite_root / "unittesting_adminfunc/mmo"), nargout=0)
+    try:
+        yield eeglab_backend
+    finally:
+        engine.path(original_path, nargout=0)
+
+
+def _original_mmo_values(kind, transposed=False):
+    if kind == "row":
+        return np.arange(1.0, 11.0)[None, :]
+    if kind == "column":
+        return np.arange(1.0, 11.0)[:, None]
+    values = pascal(8).astype(float)
+    if transposed:
+        values[:, 0] = 2
+    if kind == "cube":
+        values = np.stack((values, values * 2), axis=2)
+    return values
+
+
+def _python_mmo(values, directory, transposed):
+    physical = np.moveaxis(values, 0, -1) if transposed else values
+    filename = directory / "testfile.fdt"
+    physical.astype(np.float32).ravel(order="F").tofile(filename)
+    return mmo(filename, values.shape, True, transposed, True)
+
+
+def _matlab_array_shape(values):
+    # MATLAB does not retain trailing singleton dimensions beyond two.
+    shape = list(values.shape)
+    while len(shape) > 2 and shape[-1] == 1:
+        shape.pop()
+    return values.reshape(shape)
+
+
+_MMO_DELETIONS = [
+    ("cube", ":,:,1", (8, 8, 2), 2, [0]),
+    ("cube", ":,:,2", (8, 8, 2), 2, [1]),
+    ("cube", ":,2", (8, 16), 1, [1]),
+    ("cube", ":,12", (8, 16), 1, [11]),
+    ("cube", "4:5,:", (8, 16), 0, [3, 4]),
+    ("cube", "4:5,:,:", (8, 8, 2), 0, [3, 4]),
+    ("cube", "4:5", (1, 128), 1, [3, 4]),
+    ("cube", "73:83", (1, 128), 1, list(range(72, 83))),
+    ("matrix", "4:5,:,:", (8, 8), 0, [3, 4]),
+    ("matrix", "4:5,:", (8, 8), 0, [3, 4]),
+    ("matrix", ":,4:5,:,:", (8, 8), 1, [3, 4]),
+    ("matrix", ":,4:5", (8, 8), 1, [3, 4]),
+    ("matrix", "4", (1, 64), 1, [3]),
+    ("matrix", "63", (1, 64), 1, [62]),
+    ("row", "[4 7]", (1, 10), 1, [3, 6]),
+    ("column", "[4 7]", (10, 1), 0, [3, 6]),
+]
+
+
+def _check_original_mmo_deletion(request, backend, directory, case, transposed):
+    kind, subscripts, view_shape, axis, indices = case
+    values = _original_mmo_values(kind, transposed)
+    expected = np.delete(values.reshape(view_shape, order="F"), indices, axis=axis)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        actual = backend("eegprep_test_mmo_assignment", values, subscripts, np.empty((0, 0)), transposed)
+    else:
+        mapped = _python_mmo(values, directory, transposed)
+        if "," not in subscripts:
+            mapped.delete(indices)
+        elif view_shape == values.shape:
+            mapped.delete(indices, axis=axis)
+        else:
+            raise NotImplementedError("EEGPrep has no public collapsed-axis mapped deletion operation")
+        actual = np.asarray(mapped)
+    np.testing.assert_array_equal(_matlab_array_shape(actual), _matlab_array_shape(expected))
+
+
+@pytest.mark.parametrize("case", _MMO_DELETIONS, ids=[f"case-{i}" for i in range(1, 17)])
+@eeglab_test(UPSTREAM, "test_checkmmo3")
+def test_upstream_mmo_original_deletions(request, mmo_backend, eeglab_working_directory, case):
+    _check_original_mmo_deletion(request, mmo_backend, eeglab_working_directory, case, False)
+
+
+@pytest.mark.parametrize("case", [_MMO_DELETIONS[i] for i in (0, 1, 5, 8, 9, 11)])
+@eeglab_test(UPSTREAM, "test_checkmmo3_transposed")
+def test_upstream_mmo_original_transposed_deletions(request, mmo_backend, eeglab_working_directory, case):
+    _check_original_mmo_deletion(request, mmo_backend, eeglab_working_directory, case, True)
+
+
+_ALL = slice(None)
+_MMO_ASSIGNMENTS = [
+    ("cube", "9,:", (9, 8, 2), (8, _ALL, _ALL)),
+    ("cube", ":,9", (8, 8, 2), (_ALL, 0, 1)),
+    ("cube", "9,9", (9, 8, 2), (8, 0, 1)),
+    ("cube", "9:12,:,:", (12, 8, 2), (slice(8, 12), _ALL, _ALL)),
+    ("cube", ":,9,:", (8, 9, 2), (_ALL, 8, _ALL)),
+    ("cube", ":,:,3", (8, 8, 3), (_ALL, _ALL, 2)),
+    ("cube", ":,9:10,3", (8, 10, 3), (_ALL, slice(8, 10), 2)),
+    ("cube", "9,9:10,3", (9, 10, 3), (8, slice(8, 10), 2)),
+    ("matrix", "9,9:10", (9, 10), (8, slice(8, 10))),
+    ("matrix", "9,:", (9, 8), (8, _ALL)),
+    ("matrix", ":,9", (8, 9), (_ALL, 8)),
+    ("row", "11", (1, 11), (0, 10)),
+    ("column", "11", (11, 1), (10, 0)),
+]
+
+
+def _check_original_mmo_assignment(request, backend, directory, case, transposed):
+    kind, subscripts, shape, key = case
+    values = _original_mmo_values(kind, transposed)
+    # The eighth transposed source case grows its INPUT to nine columns first.
+    if transposed and kind == "matrix" and subscripts == "9,:":
+        values = np.column_stack((pascal(8), np.full(8, 2.0)))
+        shape = (9, 9)
+    expected = np.zeros(shape)
+    expected[tuple(slice(0, size) for size in values.shape)] = values
+    expected[key] = 1
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        actual = backend("eegprep_test_mmo_assignment", values, subscripts, 1.0, transposed)
+    else:
+        mapped = _python_mmo(values, directory, transposed)
+        # Do not resize first: implicit indexed growth is the source contract.
+        mapped[key] = 1.0
+        actual = np.asarray(mapped)
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("case", _MMO_ASSIGNMENTS, ids=[f"case-{i}" for i in range(3, 16)])
+@eeglab_test(UPSTREAM, "test_checkmmo4")
+def test_upstream_mmo_original_assignments(request, mmo_backend, eeglab_working_directory, case):
+    _check_original_mmo_assignment(request, mmo_backend, eeglab_working_directory, case, False)
+
+
+@pytest.mark.parametrize("case", [_MMO_ASSIGNMENTS[i] for i in (0, 3, 4, 5, 6, 7, 8, 9, 10)])
+@eeglab_test(UPSTREAM, "test_checkmmo4_transposed")
+def test_upstream_mmo_original_transposed_assignments(request, mmo_backend, eeglab_working_directory, case):
+    _check_original_mmo_assignment(request, mmo_backend, eeglab_working_directory, case, True)
+
+
+@eeglab_test(UPSTREAM, "test_checkmmo")
+def test_upstream_mmo_original_workspace_copy_counts(request, mmo_backend, eeglab_working_directory):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.fail("EEGPrep does not expose the source's caller-workspace copy-count observable")
+    counts = mmo_backend("eegprep_test_mmo_copies", np.arange(1.0, 11.0)[:, None])
+    expected = np.array([[1.0, 2.0, 2.0, 2.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]])
+    # Source case 5 requires only that the nested aliases are not counted as one.
+    assert counts[0, 4] != 1
+    np.testing.assert_array_equal(np.delete(counts, 4, axis=1), np.delete(expected, 4, axis=1))
+
+
+@eeglab_test(UPSTREAM, "test_checkmmo2")
+def test_upstream_mmo_original_copy_on_write_diagnostics(request, mmo_backend, eeglab_working_directory):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.fail("EEGPrep does not emit the source's copy-on-write debug diagnostics")
+    values = np.arange(1.0, 11.0)[None, :]
+    mmo_backend("eegprep_test_mmo_copies", values)
+    messages = mmo_backend("eegprep_test_mmo_copywrites", values)
+    for message, unique in zip(messages.flat, (False, True, False, False, False, True, True), strict=True):
+        assert (message[0] == "u") == unique
+
+
+@eeglab_test(UPSTREAM, "test_checkmmo4")
+def test_upstream_mmo_original_returned_workspace(request, mmo_backend, eeglab_working_directory):
+    values = _original_mmo_values("cube")
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        actual = mmo_backend("eegprep_test_mmo_returned", values)
+        np.testing.assert_array_equal(actual, values)
+    else:
+        pytest.fail("EEGPrep does not expose the source's helper-returned workspace debug observable")
+
+
+@eeglab_test(UPSTREAM, "test_checkmmo_sub5")
+def test_upstream_mmo_original_helper_write(request, mmo_backend, eeglab_working_directory):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        mmo_backend("checkmmo_sub5", nargout=0)
+    else:
+        mapped = _python_mmo(np.arange(1.0, 11.0)[None, :], eeglab_working_directory, False)
+        mapped[0, 3] = 5.0
+
+
+@eeglab_test(UPSTREAM, "test_checkmmo_sub6")
+def test_upstream_mmo_original_helper_construction(request, mmo_backend, eeglab_working_directory):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        mmo_backend("checkmmo_sub6", nargout=0)
+    else:
+        _python_mmo(pascal(8).astype(float), eeglab_working_directory, False)
+
+
+_MMO_PREPROCESSING = (
+    "continuous_rejection",
+    "continuous_epoch",
+    "continuous_epoch_after_rejection",
+    "continuous_baseline",
+    "continuous_baseline_after_rejection",
+    "continuous_filter",
+    "continuous_filter_after_rejection",
+    "continuous_rereference",
+    "continuous_select",
+    "continuous_resample",
+    "continuous_resample_after_rejection",
+    "epoched_baseline",
+    "epoched_filter",
+    "epoched_rereference",
+    "epoched_select",
+    "epoched_resample",
+)
+
+
+def _original_mmo_preprocessing(name):
+    rejection = np.empty((0, 0))
+    if name.endswith("_after_rejection"):
+        rejection = np.array([[4000.0, 10000.0]])
+        name = name.removesuffix("_after_rejection")
+    operation = name.split("_", 1)[1]
+    arguments = {
+        "rejection": (np.array([[1.0, 10000.0]]),),
+        "epoch": (
+            np.array([["square"]], dtype=object),
+            np.array([[-1.0, 2.0]]),
+            "newname",
+            "Continuous EEG Data epochs",
+            "epochinfo",
+            "yes",
+        ),
+        "baseline": (np.empty((0, 0)), np.arange(1.0, 11.0)[None, :]),
+        "filter": ("ftype", "highpass", "fcutoff", 3.0, "wtype", "blackman", "forder", 118.0),
+        "rereference": (np.empty((0, 0)),),
+        "select": ("channel", np.arange(1.0, 11.0)[None, :], "point", np.arange(1.0, 21.0)[None, :]),
+        "resample": (64.0,),
+    }[operation]
+    if name == "epoched_select":
+        arguments += ("trial", np.arange(1.0, 11.0)[None, :])
+    function = {
+        "rejection": "eeg_eegrej",
+        "epoch": "pop_epoch",
+        "baseline": "pop_rmbase",
+        "filter": "pop_firws",
+        "rereference": "pop_reref",
+        "select": "pop_select",
+        "resample": "pop_resample",
+    }[operation]
+    return function, arguments, rejection
+
+
+@pytest.mark.parametrize("workflow", _MMO_PREPROCESSING)
+@eeglab_test(UPSTREAM, "test_check_eeglab_mmo")
+def test_upstream_mmo_original_preprocessing(
+    request,
+    mmo_backend,
+    eeglab_suite_root,
+    eeglab_options_directory,
+    eeglab_working_directory,
+    workflow,
+):
+    filename = "eeglab_data_epochs_ica.set" if workflow.startswith("epoched_") else "eeglab_data.set"
+    filename = str(eeglab_suite_root / "eeglab/sample_data" / filename)
+    function, arguments, rejection = _original_mmo_preprocessing(workflow)
+    results = []
+    for enabled in (1.0, 0.0):
+        mmo_backend("pop_editoptions", option_memmapdata=enabled)
+        clear_events = workflow == "continuous_rejection" and bool(enabled)
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            cells = np.empty((1, len(arguments)), dtype=object)
+            for index, value in enumerate(arguments):
+                cells[0, index] = value
+            values, mapped = mmo_backend(
+                "eegprep_test_mmo_preprocess",
+                filename,
+                function,
+                cells,
+                rejection,
+                clear_events,
+                nargout=2,
+            )
+            mapped = bool(np.asarray(mapped).item())
+        else:
+            eeg = mmo_backend("pop_loadset", filename)
+            if clear_events:
+                eeg["event"] = []
+            if rejection.size:
+                eeg = mmo_backend("eeg_eegrej", eeg, rejection)
+            output = mmo_backend(function, eeg, *arguments)
+            mapped = isinstance(output["data"], MemmapData)
+            values = np.asarray(output["data"])
+        if enabled:
+            assert mapped, "object should be an MMO"
+        results.append(values)
+    np.testing.assert_array_equal(results[0], results[1])
 
 
 def _data(shape: tuple[int, ...]) -> np.ndarray:
@@ -142,7 +437,6 @@ def _run_workflow(name: str, eeg: dict) -> dict:
     raise AssertionError(f"unknown workflow: {name}")
 
 
-@eeglab_test(UPSTREAM, "test_check_eeglab_mmo")
 def test_check_eeglab_mmo_preprocessing_preserves_mapping_and_values(tmp_path: Path):
     workflows = (
         "continuous_rejection",
@@ -182,7 +476,6 @@ def test_check_eeglab_mmo_preprocessing_preserves_mapping_and_values(tmp_path: P
         np.testing.assert_array_equal(np.asarray(mapped), source, err_msg=f"source changed in {workflow}")
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo")
 def test_checkmmo_constructs_validated_normal_and_empty_mappings(tmp_path: Path):
     values = _data((1, 10))
     path = tmp_path / "values.fdt"
@@ -216,7 +509,6 @@ def test_checkmmo_constructs_validated_normal_and_empty_mappings(tmp_path: Path)
         mmo(short, (2, 3))
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo2")
 def test_checkmmo2_copies_detach_only_when_written(tmp_path: Path):
     values = _data((2, 5))
     original = _mapping(tmp_path, "copy-on-write", values)
@@ -257,7 +549,6 @@ def _assert_deletion(
     np.testing.assert_array_equal(np.asarray(mapped), expected)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo3")
 def test_checkmmo3_deletes_axes_and_column_major_linear_indices(tmp_path: Path):
     values3 = _data((8, 8, 2))
     _assert_deletion(tmp_path, "trial-first", values3, 0, axis=2, transposed=False)
@@ -274,7 +565,6 @@ def test_checkmmo3_deletes_axes_and_column_major_linear_indices(tmp_path: Path):
     _assert_deletion(tmp_path, "column-vector", _data((10, 1)), [3, 6], axis=None, transposed=False)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo3_transposed")
 def test_checkmmo3_transposed_deletes_logical_axes(tmp_path: Path):
     values3 = _data((8, 8, 2))
     _assert_deletion(tmp_path, "transposed-trial", values3, 0, axis=2, transposed=True)
@@ -305,7 +595,6 @@ def _assert_growth(
     np.testing.assert_array_equal(np.asarray(mapped), expected)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo4")
 def test_checkmmo4_grows_normal_mappings_with_zero_fill(tmp_path: Path):
     values3 = _data((8, 8, 2))
     _assert_growth(tmp_path, "grow-row", values3, (9, 8, 2), (8, slice(None), slice(None)), 1, transposed=False)
@@ -326,7 +615,6 @@ def test_checkmmo4_grows_normal_mappings_with_zero_fill(tmp_path: Path):
     _assert_growth(tmp_path, "grow-column-vector", _data((10, 1)), (11, 1), (10, 0), 1, transposed=False)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo4_transposed")
 def test_checkmmo4_transposed_grows_logical_axes_with_zero_fill(tmp_path: Path):
     values3 = _data((8, 8, 2))
     _assert_growth(
@@ -355,7 +643,6 @@ def _copy_and_write(mapped: MemmapData, key: object, value: float) -> MemmapData
     return local
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub1")
 def test_checkmmo_sub1_nested_function_write_detaches_argument(tmp_path: Path):
     values = _data((1, 10))
     original = _mapping(tmp_path, "sub1", values)
@@ -364,7 +651,6 @@ def test_checkmmo_sub1_nested_function_write_detaches_argument(tmp_path: Path):
     assert changed[0, 3] == 5
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub2")
 def test_checkmmo_sub2_function_argument_remains_isolated_after_return(tmp_path: Path):
     values = _data((1, 10))
     original = _mapping(tmp_path, "sub2", values)
@@ -379,7 +665,6 @@ def test_checkmmo_sub2_function_argument_remains_isolated_after_return(tmp_path:
     assert changed[0, 2] == 2
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub3")
 def test_checkmmo_sub3_deepcopy_inside_mapping_preserves_value_semantics(tmp_path: Path):
     values = _data((1, 10))
     namespace = {"test": _mapping(tmp_path, "sub3", values)}
@@ -389,7 +674,6 @@ def test_checkmmo_sub3_deepcopy_inside_mapping_preserves_value_semantics(tmp_pat
     assert copied_namespace["test"][0, 4] == -1
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub4")
 def test_checkmmo_sub4_nested_container_copy_preserves_value_semantics(tmp_path: Path):
     values = _data((1, 10))
     original = _mapping(tmp_path, "sub4", values)
@@ -403,7 +687,6 @@ def _create_mapping(tmp_path: Path, name: str, values: np.ndarray) -> MemmapData
     return _mapping(tmp_path, name, values)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub5")
 def test_checkmmo_sub5_helper_created_mapping_writes_through_to_disk(tmp_path: Path):
     values = _data((1, 10))
     mapped = _create_mapping(tmp_path, "sub5", values)
@@ -414,7 +697,6 @@ def test_checkmmo_sub5_helper_created_mapping_writes_through_to_disk(tmp_path: P
     assert reopened[0, 3] == 5
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub6")
 def test_checkmmo_sub6_helper_returns_mapping_and_original_values(tmp_path: Path):
     values = _data((8, 8))
 
@@ -426,7 +708,6 @@ def test_checkmmo_sub6_helper_returns_mapping_and_original_values(tmp_path: Path
     np.testing.assert_array_equal(np.asarray(mapped), original)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub7")
 def test_checkmmo_sub7_helper_maps_caller_supplied_multidimensional_data(tmp_path: Path):
     values = _data((8, 8, 2))
     mapped = _create_mapping(tmp_path, "sub7", values)
@@ -435,7 +716,6 @@ def test_checkmmo_sub7_helper_maps_caller_supplied_multidimensional_data(tmp_pat
     np.testing.assert_array_equal(np.asarray(mapped), values)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo_sub8")
 def test_checkmmo_sub8_unique_returned_mapping_mutates_without_file_replacement(tmp_path: Path):
     values = _data((8, 8))
     mapped = _create_mapping(tmp_path, "sub8", values)
@@ -446,7 +726,6 @@ def test_checkmmo_sub8_unique_returned_mapping_mutates_without_file_replacement(
     assert MemmapData(path, values.shape)[5, 0] == 5
 
 
-@eeglab_test(UPSTREAM, "test_transposeindices")
 def test_transposeindices_exposes_logical_2d_and_3d_indices(tmp_path: Path):
     values2 = _data((3, 5))
     physical2 = values2.transpose(1, 0)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyedflib
 import pytest
@@ -16,10 +17,14 @@ from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_importpres import pop_importpres
 from eegprep.functions.popfunc.pop_snapread import pop_snapread
 from eegprep.functions.sigprocfunc.snapread import snapread
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
 BINARY_SUITE = "unittesting_binary"
+
+
+def _cells(*labels):
+    return np.array([labels], dtype=object)
 
 
 def _write_edf_family(path: Path, data: np.ndarray, srate: int, *, bdf: bool = False) -> None:
@@ -33,7 +38,6 @@ def _write_edf_family(path: Path, data: np.ndarray, srate: int, *, bdf: bool = F
     assert highlevel.write_edf(str(path), data, headers, file_type=file_type)
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
 def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> None:
     srate = 8
     data = np.vstack(
@@ -61,10 +65,6 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
     assert cropped["history"] == command
 
 
-@eeglab_test(
-    f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m",
-    "test_test_pop_biosig_timerange",
-)
 def test_pop_biosig_adjacent_edf_timeranges_are_sample_continuous(tmp_path: Path) -> None:
     srate = 256
     samples = np.arange(61 * srate, dtype=float)
@@ -84,6 +84,225 @@ CHANCORRESP_SOURCE = f"{BINARY_SUITE}/pop_chancoresp/binary_pop_chancoresp_wrapp
 
 
 @eeglab_test(CHANCORRESP_SOURCE, "test_pass_autoselect_fiducials")
+def test_upstream_chancoresp_fiducials(eeglab_backend):
+    left, right = eeglab_backend(
+        "pop_chancoresp",
+        _cells("Nz", "lpa", "rpa", "x"),
+        _cells("nZ", "rpa", "lpa", "x"),
+        "gui",
+        "off",
+        "autoselect",
+        "fiducials",
+        nargout=2,
+    )
+    assert_matlab_near(left, np.array([[1.0, 2.0, 3.0]]))
+    assert_matlab_near(right, np.array([[1.0, 3.0, 2.0]]))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_autoselect_none")
+def test_upstream_chancoresp_none(eeglab_backend):
+    left, right = eeglab_backend(
+        "pop_chancoresp",
+        _cells("a", "b", "c"),
+        _cells("a", "x", "b"),
+        "gui",
+        "off",
+        "autoselect",
+        "none",
+        nargout=2,
+    )
+    assert_matlab_near(left, np.empty((0, 0)))
+    assert_matlab_near(right, np.empty((0, 0)))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_chanlists_not_empty")
+def test_upstream_chancoresp_explicit_pairs(eeglab_backend):
+    left, right = eeglab_backend(
+        "pop_chancoresp",
+        _cells("a", "b"),
+        _cells("x", "y"),
+        "gui",
+        "off",
+        "chanlist1",
+        np.array([[1.0, 2.0]]),
+        "chanlist2",
+        np.array([[2.0, 1.0]]),
+        nargout=2,
+    )
+    assert_matlab_near(left, np.array([[1.0, 2.0]]))
+    assert_matlab_near(right, np.array([[2.0, 1.0]]))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_clear")
+def test_upstream_chancoresp_clear(eeglab_backend):
+    text1, text2, left, right = eeglab_backend(
+        "pop_chancoresp",
+        "clear",
+        _cells("a", "b", "c"),
+        _cells("a", "b", "x"),
+        nargout=4,
+    )
+    np.testing.assert_array_equal(text1, _cells(" 1 -   a", " 2 -   b", " 3 -   c"))
+    np.testing.assert_array_equal(text2, _cells(" 1 -   a", " 2 -   b", " 3 -   x"))
+    assert_matlab_near(left, np.empty((0, 0)))
+    assert_matlab_near(right, np.empty((0, 0)))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_invalid_fiducials")
+def test_upstream_chancoresp_invalid_fiducials(eeglab_backend):
+    left, right = eeglab_backend(
+        "pop_chancoresp",
+        _cells("x"),
+        _cells("x"),
+        "gui",
+        "off",
+        "autoselect",
+        "fiducials",
+        nargout=2,
+    )
+    assert_matlab_near(left, np.empty((0, 0)))
+    assert_matlab_near(right, np.empty((0, 0)))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_labels_only")
+def test_upstream_chancoresp_labels(eeglab_backend):
+    left, right = eeglab_backend(
+        "pop_chancoresp",
+        _cells("a", "b", "c"),
+        _cells("a", "x", "b"),
+        "gui",
+        "off",
+        nargout=2,
+    )
+    assert_matlab_near(left, np.array([[1.0, 2.0]]))
+    assert_matlab_near(right, np.array([[1.0, 3.0]]))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_pair")
+def test_upstream_chancoresp_pair(eeglab_backend):
+    text1, text2, left, right = eeglab_backend(
+        "pop_chancoresp",
+        "pair",
+        2.0,
+        3.0,
+        _cells("a", "b", "c"),
+        _cells("a", "b", "x"),
+        np.empty((0, 0)),
+        np.empty((0, 0)),
+        "",
+        "",
+        nargout=4,
+    )
+    assert text1 == " 2 -   b   ->  3 -   x"
+    assert text2 == " 3 -   x   ->  2 -   b"
+    assert_matlab_near(left, np.array([[2.0]]))
+    assert_matlab_near(right, np.array([[3.0]]))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_pass_unpair")
+def test_upstream_chancoresp_unpair(eeglab_backend):
+    text1, text2, left, right = eeglab_backend(
+        "pop_chancoresp",
+        "unpair",
+        2.0,
+        3.0,
+        _cells("a", "b", "c"),
+        _cells("a", "b", "x"),
+        np.array([[1.0, 2.0, 3.0]]),
+        np.array([[1.0, 3.0, 2.0]]),
+        "",
+        "",
+        nargout=4,
+    )
+    assert text1 == " 2 -   b"
+    assert text2 == " 3 -   x"
+    assert_matlab_near(left, np.array([[1.0, 3.0]]))
+    assert_matlab_near(right, np.array([[1.0, 2.0]]))
+
+
+@eeglab_test(CHANCORRESP_SOURCE, "test_test_pop_chancoresp")
+def test_upstream_chancoresp_original_39_calls(eeglab_backend, eeglab_suite_root):
+    directory = str(eeglab_suite_root / "unittesting_binary/testfiles/BVA")
+    locations = [
+        eeglab_backend("pop_loadbv", directory, filename)["chanlocs"]
+        for filename in (
+            "brainvision_genericdataformat_binarymultiplexed_int16.vhdr",
+            "EEGLAB_export.vhdr",
+            "BVA_withchanlocs.vhdr",
+        )
+    ]
+    pairs = (
+        (np.arange(1.0, 17.0)[None, :], np.arange(1.0, 17.0)[None, :]),
+        (np.arange(1.0, 17.0)[None, :], np.arange(17.0, 33.0)[None, :]),
+        (np.array([[1.0, 2.0, 3.0, 4.0, 5.0]]), np.array([[17.0, 6.0, 1.0, 30.0, 5.0]])),
+    )
+    for second in locations:
+        eeglab_backend("pop_chancoresp", locations[0], second, "gui", "off", nargout=2)
+        for mode in ("none", "all", "fiducials"):
+            eeglab_backend("pop_chancoresp", locations[0], second, "gui", "off", "autoselect", mode, nargout=2)
+        for mode in ("none", "all", "fiducials"):
+            for left, right in pairs:
+                eeglab_backend(
+                    "pop_chancoresp",
+                    locations[0],
+                    second,
+                    "gui",
+                    "off",
+                    "autoselect",
+                    mode,
+                    "chanlist1",
+                    left,
+                    "chanlist2",
+                    right,
+                    nargout=2,
+                )
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_chanevent/binary_pop_chanevent_wrapperTest.m", "test_test_pop_chanevent")
+def test_upstream_chanevent_original_recording_and_33_calls(eeglab_backend, eeglab_suite_root):
+    path = str(eeglab_suite_root / "unittesting_binary/testfiles/EGI/2epoc1flt.raw")
+    eeglab_backend("pop_readegi", path)
+    header, trials, events, _ = eeglab_backend("readegi", path, nargout=4)
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg["data"] = np.concatenate((trials, events), axis=0)
+    event_channel = float(trials.shape[0] + 1)
+    event_code = str(np.asarray(header["eventcode"]).reshape(-1)[0])
+    for delevent in ("on", "off"):
+        for delchan in ("on", "off"):
+            for edgelen, edge, duration in (
+                (1.0, "both", "off"),
+                (1.0, "leading", "off"),
+                (1.0, "trailing", "off"),
+                (10.0, "both", "off"),
+                (10.0, "leading", "off"),
+                (10.0, "trailing", "off"),
+                (1.0, "leading", "on"),
+                (10.0, "leading", "on"),
+            ):
+                eeglab_backend(
+                    "pop_chanevent",
+                    eeg,
+                    event_channel,
+                    "edge",
+                    edge,
+                    "edgelen",
+                    edgelen,
+                    "oper",
+                    "",
+                    "duration",
+                    duration,
+                    "delchan",
+                    delchan,
+                    "delevent",
+                    delevent,
+                    "nbtype",
+                    np.nan,
+                    "typename",
+                    event_code,
+                )
+    eeglab_backend("pop_chanevent", eeg, event_channel)
+
+
 def test_pop_chancoresp_autoselects_fiducials_case_insensitively() -> None:
     left, right = pop_chancoresp(
         ["Nz", "lpa", "rpa", "x"],
@@ -98,7 +317,6 @@ def test_pop_chancoresp_autoselects_fiducials_case_insensitively() -> None:
     assert right == [1, 3, 2]
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_autoselect_none")
 def test_pop_chancoresp_autoselect_none_returns_no_pairs() -> None:
     assert pop_chancoresp(["a", "b", "c"], ["a", "x", "b"], "gui", "off", "autoselect", "none") == (
         [],
@@ -106,7 +324,6 @@ def test_pop_chancoresp_autoselect_none_returns_no_pairs() -> None:
     )
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_chanlists_not_empty")
 def test_pop_chancoresp_preserves_explicit_pairs() -> None:
     result = pop_chancoresp(
         ["a", "b"],
@@ -122,7 +339,6 @@ def test_pop_chancoresp_preserves_explicit_pairs() -> None:
     assert result == ([1, 2], [2, 1])
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_clear")
 def test_pop_chancoresp_clear_returns_unpaired_display_rows() -> None:
     left, right = pop_chancoresp("clear", ["a", "b", "c"], ["a", "b", "x"])
 
@@ -130,28 +346,24 @@ def test_pop_chancoresp_clear_returns_unpaired_display_rows() -> None:
     assert right == [" 1 -   a", " 2 -   b", " 3 -   x"]
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_invalid_fiducials")
 def test_pop_chancoresp_invalid_fiducials_return_no_pairs() -> None:
     result = pop_chancoresp(["x"], ["x"], "gui", "off", "autoselect", "fiducials")
 
     assert result == ([], [])
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_labels_only")
 def test_pop_chancoresp_pairs_matching_labels_by_default() -> None:
     result = pop_chancoresp(["a", "b", "c"], ["a", "x", "b"], "gui", "off")
 
     assert result == ([1, 2], [1, 3])
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_pair")
 def test_pop_chancoresp_pair_updates_text_and_correspondences() -> None:
     result = pop_chancoresp("pair", 2, 3, ["a", "b", "c"], ["a", "b", "x"], [], [], "", "")
 
     assert result == (" 2 -   b   ->  3 -   x", " 3 -   x   ->  2 -   b", [2], [3])
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_pass_unpair")
 def test_pop_chancoresp_unpair_removes_correspondence_and_updates_text() -> None:
     result = pop_chancoresp(
         "unpair",
@@ -168,7 +380,6 @@ def test_pop_chancoresp_unpair_removes_correspondence_and_updates_text() -> None
     assert result == (" 2 -   b", " 3 -   x", [1, 3], [1, 2])
 
 
-@eeglab_test(CHANCORRESP_SOURCE, "test_test_pop_chancoresp")
 def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
     first = ["Nz", "LPA", "RPA", *[f"E{index}" for index in range(4, 33)]]
     same = list(first)
@@ -209,7 +420,6 @@ def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
                 assert result == (left, right)
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_chanevent/binary_pop_chanevent_wrapperTest.m", "test_test_pop_chanevent")
 def test_pop_chanevent_covers_the_upstream_33_case_option_matrix() -> None:
     trigger = np.array([0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0], dtype=float)
     eeg = eeg_from_data(
@@ -265,7 +475,6 @@ def test_pop_chanevent_covers_the_upstream_33_case_option_matrix() -> None:
     assert default["data"].shape == (1, trigger.size)
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_importpres/binary_pop_importpres_wrapperTest.m", "test_test_pop_importpres")
 def test_pop_importpres_covers_the_upstream_five_call_forms(tmp_path: Path) -> None:
     filename = tmp_path / "experiment.LOG"
     filename.write_text(
@@ -348,7 +557,6 @@ def _write_snapmaster(path: Path) -> np.ndarray:
     return values[1:]
 
 
-@eeglab_test(f"{BINARY_SUITE}/snapread/binary_snapread_wrapperTest.m", "test_test_snapread")
 def test_snapread_reads_default_and_seeked_binary_frames(tmp_path: Path) -> None:
     filename = tmp_path / "TEST.SMA"
     expected = _write_snapmaster(filename)
@@ -367,7 +575,6 @@ def test_snapread_reads_default_and_seeked_binary_frames(tmp_path: Path) -> None
     assert '"NCHAN%"=3' in header
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_snapread/binary_pop_snapread_wrapperTest.m", "test_test_pop_snapread")
 def test_pop_snapread_applies_each_upstream_gain_and_builds_eeg_metadata(tmp_path: Path) -> None:
     filename = tmp_path / "TEST.SMA"
     expected = _write_snapmaster(filename)
@@ -386,3 +593,77 @@ def test_pop_snapread_applies_each_upstream_gain_and_builds_eeg_metadata(tmp_pat
     assert [event["latency"] for event in gain_one["event"]] == [3, 401]
     assert [event["type"] for event in gain_one["event"]] == [1, 1]
     assert gain_one["history"] == command
+
+
+@eeglab_test(f"{BINARY_SUITE}/snapread/binary_snapread_wrapperTest.m", "test_test_snapread")
+def test_upstream_snapread_original_recording_and_offsets(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/SMA/TEST.SMA")
+    # The upstream calls request one output. MATLAB removes the event channel
+    # only when requesting three or more outputs, so preserve nargout here.
+    complete = eeglab_backend("snapread", filename)
+    after_400 = eeglab_backend("snapread", filename, 400.0)
+    after_one = eeglab_backend("snapread", filename, 1.0)
+    np.testing.assert_array_equal(after_400, complete[:, 400:])
+    np.testing.assert_array_equal(after_one, complete[:, 1:])
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_snapread/binary_pop_snapread_wrapperTest.m", "test_test_pop_snapread")
+def test_upstream_pop_snapread_original_recording_and_gains(eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/SMA/TEST.SMA")
+    default = eeglab_backend("pop_snapread", filename)
+    gain_400 = eeglab_backend("pop_snapread", filename, 400.0)
+    gain_one = eeglab_backend("pop_snapread", filename, 1.0)
+    np.testing.assert_array_equal(gain_400["data"], gain_one["data"] * 400)
+    np.testing.assert_array_equal(default["data"], gain_one["data"])
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
+def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/BDF/jo1_3.bdf"
+    eeglab_backend("pop_biosig", str(filename), "blockrange", np.array([[1.0, 10.0]]))
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig_timerange")
+def test_upstream_pop_biosig_original_edf_overlap(request, eeglab_backend, eeglab_suite_root):
+    filename = str(eeglab_suite_root / "unittesting_binary/testfiles/BDF/5038.edf")
+    first = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[0.0, 30.0]]))
+    second = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[29.0, 60.0]]))
+    np.testing.assert_array_equal(first["data"][0, -256:], second["data"][0, :256])
+    chunks = (first["data"][0:1, -256:], second["data"][0:1, :256])
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        eeglab_backend("figure", nargout=0)
+        try:
+            eeglab_backend("subplot", 2.0, 1.0, 1.0, nargout=0)
+            eeglab_backend("imagesc", chunks[0], nargout=0)
+            eeglab_backend("title", "Overlapping of 2 EEG chunks", "FontSize", 14.0, nargout=0)
+            eeglab_backend("ylabel", "Chunk 1", nargout=0)
+            eeglab_backend("subplot", 2.0, 1.0, 2.0, nargout=0)
+            eeglab_backend("imagesc", chunks[1], nargout=0)
+            eeglab_backend("ylabel", "Chunk 2", nargout=0)
+            eeglab_backend("grid", "on", nargout=0)
+        finally:
+            eeglab_backend("close", nargout=0)
+    else:
+        figure, axes = plt.subplots(2, 1)
+        try:
+            axes[0].imshow(chunks[0], aspect="auto")
+            axes[0].set_title("Overlapping of 2 EEG chunks", fontsize=14)
+            axes[0].set_ylabel("Chunk 1")
+            axes[1].imshow(chunks[1], aspect="auto")
+            axes[1].set_ylabel("Chunk 2")
+            axes[1].grid(True)
+        finally:
+            plt.close(figure)
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_importpres/binary_pop_importpres_wrapperTest.m", "test_test_pop_importpres")
+def test_upstream_pop_importpres_original_recording_and_log(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/SMA"
+    eeg = eeglab_backend("pop_snapread", str(directory / "TEST.SMA"), 400.0)
+    log = str(directory / "TEST.LOG")
+    eeglab_backend("pop_importpres", eeg, log)
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None")
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "Duration")
+    options = ("timeunit", 1.0, "append", "no", "indices", np.empty((0, 0)), "align", 0.0, "optimalign", "on")
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None", 0.0, *options)
+    eeglab_backend("pop_importpres", eeg, log, "Event Type", "Time", "None", 0.0, "skipline", 5.0, *options)
