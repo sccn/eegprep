@@ -394,6 +394,39 @@ def test_pop_rmbase_sample_data_zeroes_selected_baseline_channels_without_warnin
 
 
 @eeglab_test("unittesting_popfunc/pop_rmbase/popfunc_pop_rmbase_wrapperTest.m", "test_test_pop_rmbase")
+def test_reference_pop_rmbase_original_baselines_and_complete_commands(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    data = eeg["data"][0, :, 1]
+    commands = []
+    for arguments, baseline_stop in (
+        ((np.array([[-1000.0, 0.0]]),), 129),
+        ((np.empty((0, 0)), np.arange(1.0, 51.0)[None, :]), 50),
+        ((np.empty((0, 0)), np.empty((0, 0))), data.size),
+        ((np.array([[-1000.0, 0.0]]), np.arange(1.0, 52.0)[None, :]), 129),
+    ):
+        output, command = eeglab_backend("pop_rmbase", eeg, *arguments, nargout=2)
+        # MATLAB single-minus-double arithmetic converts the mean to single
+        # before subtraction, rather than computing and rounding in double.
+        mean = np.mean(data[:baseline_stop], dtype=np.float64).astype(data.dtype)
+        np.testing.assert_array_equal(output["data"][0, :, 1], data - mean)
+        commands.append(command)
+
+    assert tuple(commands) in (
+        (
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[],[]);",
+            "EEG = pop_rmbase( EEG, [],[1:50] ,[]);",
+            "EEG = pop_rmbase( EEG, [],[],[]);",
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[],[]);",
+        ),
+        (
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[]);",
+            "EEG = pop_rmbase( EEG, [],[1:50] );",
+            "EEG = pop_rmbase( EEG, [],[]);",
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[]);",
+        ),
+    )
+
+
 def test_pop_rmbase_current_suite_time_point_and_whole_epoch_baselines():
     eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
 

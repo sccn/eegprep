@@ -27,6 +27,26 @@ eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_c
 
 
 @eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_pass_bugzilla_270")
+def test_reference_pop_reref_original_bugzilla_270_input(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        nbchan=3.0,
+        pnts=20.0,
+        trials=1.0,
+        srate=1.0,
+        xmin=0.0,
+        xmax=2.0,
+        data=np.arange(1.0, 61.0).reshape(3, 20),
+    )
+    eeglab_backend("pop_reref", eeg, np.array([[1.0, 2.0]]), "method", "standard")
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
+def test_reference_pop_reref_original_average_reference_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("pop_reref", eeg, np.empty((0, 0)))
+
+
 def test_pop_reref_current_suite_standard_method_with_multiple_references():
     eeg = {
         "data": np.arange(1, 61, dtype=float).reshape(3, 20),
@@ -54,7 +74,6 @@ def test_pop_reref_current_suite_standard_method_with_multiple_references():
     np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
 
 
-@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
 def test_pop_reref_current_suite_average_reference_workflow():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 
