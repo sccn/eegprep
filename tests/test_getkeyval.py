@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+
 import numpy as np
 import pytest
 
@@ -120,8 +122,21 @@ def test_reference_getkeyval_original_presence_cases(eeglab_backend):
 
 
 @eeglab_test(GETKEYVAL_WRAPPER, "test_pass_num_key_array")
-def test_reference_getkeyval_original_evaluated_matrix(eeglab_backend):
+def test_reference_getkeyval_original_evaluated_matrix(request, eeglab_backend):
     command = "testfunction('key', 'val', 'foo', [['foo'];['bar']], 'eeglab', 'test');"
     result = eeglab_backend("getkeyval", command, 4.0, "")
     expected = "[['foo'];['bar']]"
-    np.testing.assert_array_equal(eeglab_backend("eval", result), eeglab_backend("eval", expected))
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        np.testing.assert_array_equal(eeglab_backend("eval", result), eeglab_backend("eval", expected))
+    else:
+        np.testing.assert_array_equal(_character_matrix(result), _character_matrix(expected))
+
+
+def _character_matrix(expression):
+    # Only the quoted character rows in this source oracle need evaluation.
+    rows = expression.strip()[1:-1].split(";")
+    return np.array([list(ast.literal_eval(row.strip().removeprefix("[").removesuffix("]"))) for row in rows])
+
+
+def test_getkeyval_matrix_oracle_accepts_equivalent_row_brackets():
+    np.testing.assert_array_equal(_character_matrix("[['foo'];['bar']]"), _character_matrix("['foo';'bar']"))
