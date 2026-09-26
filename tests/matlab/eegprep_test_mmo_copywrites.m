@@ -1,6 +1,8 @@
 function messages = eegprep_test_mmo_copywrites(values)
-% The Python caller first runs the checkmmo setup that creates testfile2.fdt.
+% checkmmo2 expects the second file left by checkmmo. Supply only that fixture,
+% not the unrelated twelve-step copy-count workflow.
 floatwrite(values, 'testfile.fdt');
+floatwrite(values, 'testfile2.fdt');
 test = mmo('testfile.fdt', [1 10], true, false, true);
 testcheck = mmo('testfile2.fdt', [1 10], true, false, true);
 a.test3 = test;

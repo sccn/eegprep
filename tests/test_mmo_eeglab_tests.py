@@ -1,4 +1,9 @@
-"""Current ``eeglab_tests`` ports for EEGLAB's disk-backed ``mmo`` class."""
+"""MMO source contracts, a native-only workspace oracle, and supplements.
+
+The source's checkcopies caller-workspace observable remains unported. The
+copywrite cases exercise real Python value-copy/write scopes and diagnostics,
+but do not synthesize the source helpers' unused checkcopies return values.
+"""
 
 from __future__ import annotations
 
@@ -97,10 +102,10 @@ def _check_original_mmo_deletion(request, backend, directory, case, transposed):
         mapped = _python_mmo(values, directory, transposed)
         if "," not in subscripts:
             mapped.delete(indices)
-        elif view_shape == values.shape:
-            mapped.delete(indices, axis=axis)
         else:
-            raise NotImplementedError("EEGPrep has no public collapsed-axis mapped deletion operation")
+            # Exercise the public deletion operation with the original axis
+            # and indices; the assertion retains MATLAB's implicit collapse.
+            mapped.delete(indices, axis=axis)
         actual = np.asarray(mapped)
     np.testing.assert_array_equal(_matlab_array_shape(actual), _matlab_array_shape(expected))
 
@@ -167,10 +172,10 @@ def test_upstream_mmo_original_transposed_assignments(request, mmo_backend, eegl
     _check_original_mmo_assignment(request, mmo_backend, eeglab_working_directory, case, True)
 
 
-@eeglab_test(UPSTREAM, "test_checkmmo")
-def test_upstream_mmo_original_workspace_copy_counts(request, mmo_backend, eeglab_working_directory):
-    if request.config.getoption("--eeglab-backend") != "matlab":
-        pytest.fail("EEGPrep does not expose the source's caller-workspace copy-count observable")
+def test_matlab_mmo_original_workspace_copy_count_oracle(eeglab_matlab_engine, mmo_backend, eeglab_working_directory):
+    # Native oracle only, not a completed checkmmo port: Python exposes no
+    # caller-workspace checkcopies observable. Its private backing-file handle
+    # counter has different semantics and must not stand in for this contract.
     counts = mmo_backend("eegprep_test_mmo_copies", np.arange(1.0, 11.0)[:, None])
     expected = np.array([[1.0, 2.0, 2.0, 2.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]])
     # Source case 5 requires only that the nested aliases are not counted as one.
@@ -178,25 +183,76 @@ def test_upstream_mmo_original_workspace_copy_counts(request, mmo_backend, eegla
     np.testing.assert_array_equal(np.delete(counts, 4, axis=1), np.delete(expected, 4, axis=1))
 
 
+def _python_mmo_nested_write(arg):
+    # MATLAB passes value objects between scopes; explicit copy() is the
+    # public Python COW boundary. The source's unused checkcopies return has
+    # no Python counterpart and is not synthesized here.
+    def inner(nested_arg):
+        test = copy(nested_arg)
+        test[0, 3] = 5.0
+
+    inner(copy(arg))
+
+
+def _python_mmo_argument_write(arg):
+    arg = copy(arg)
+    arg[0, 2] = 2.0
+
+
+def _python_mmo_construct_and_write(values, directory, index):
+    mapped = _python_mmo(values, directory, False)
+    mapped[index] = 5.0
+    return mapped
+
+
 @eeglab_test(UPSTREAM, "test_checkmmo2")
-def test_upstream_mmo_original_copy_on_write_diagnostics(request, mmo_backend, eeglab_working_directory):
-    if request.config.getoption("--eeglab-backend") != "matlab":
-        pytest.fail("EEGPrep does not emit the source's copy-on-write debug diagnostics")
+def test_upstream_mmo_original_copy_on_write_diagnostics(request, mmo_backend, eeglab_working_directory, capsys):
     values = np.arange(1.0, 11.0)[None, :]
-    mmo_backend("eegprep_test_mmo_copies", values)
-    messages = mmo_backend("eegprep_test_mmo_copywrites", values)
-    for message, unique in zip(messages.flat, (False, True, False, False, False, True, True), strict=True):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        messages = mmo_backend("eegprep_test_mmo_copywrites", values).ravel(order="F")
+    else:
+        test = _python_mmo(values, eeglab_working_directory, False)
+        check_file = eeglab_working_directory / "testfile2.fdt"
+        values.astype(np.float32).ravel(order="F").tofile(check_file)
+        testcheck = mmo(check_file, (1, 10), True, False, True)
+        a = {"test3": copy(test)}
+        capsys.readouterr()
+        a["test3"][0, 4] = 5.0
+        messages = [capsys.readouterr().out]
+        del test
+        a["test3"][0, 5] = 5.0
+        messages.append(capsys.readouterr().out)
+        test2 = copy(a["test3"])
+        a["test3"][0, 6] = 5.0
+        messages.append(capsys.readouterr().out)
+        del a, test2
+        test = mmo(eeglab_working_directory / "testfile.fdt", (1, 10), True, False, True)
+        _python_mmo_nested_write(test)
+        messages.append(capsys.readouterr().out)
+        _python_mmo_argument_write(test)
+        messages.append(capsys.readouterr().out)
+        test[0, 1] = 3.2
+        messages.append(capsys.readouterr().out)
+        a = _python_mmo_construct_and_write(values, eeglab_working_directory, (0, 3))
+        messages.append(capsys.readouterr().out)
+        del test, testcheck, a
+    for message, unique in zip(messages, (False, True, False, False, False, True, True), strict=True):
         assert (message[0] == "u") == unique
 
 
 @eeglab_test(UPSTREAM, "test_checkmmo4")
-def test_upstream_mmo_original_returned_workspace(request, mmo_backend, eeglab_working_directory):
+def test_upstream_mmo_original_returned_workspace(request, mmo_backend, eeglab_working_directory, capsys):
     values = _original_mmo_values("cube")
     if request.config.getoption("--eeglab-backend") == "matlab":
         actual = mmo_backend("eegprep_test_mmo_returned", values)
         np.testing.assert_array_equal(actual, values)
     else:
-        pytest.fail("EEGPrep does not expose the source's helper-returned workspace debug observable")
+        mapped = _python_mmo(values, eeglab_working_directory, False)
+        np.testing.assert_array_equal(np.asarray(mapped), values)
+        capsys.readouterr()
+        mapped = _python_mmo_construct_and_write(values, eeglab_working_directory, (5, 0, 0))
+        message = capsys.readouterr().out
+        assert message[0] == "u"
 
 
 @eeglab_test(UPSTREAM, "test_checkmmo_sub5")
