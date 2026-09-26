@@ -109,8 +109,9 @@ MATLAB comparison when practical or small expected data generated from the
 pinned suite when ordinary CI must run without MATLAB.
 
 When a faithful port exposes missing behavior or a defect, keep the failing
-scenario visible and create a Bead for the implementation work. Pure MATLAB
-runtime behavior may be excluded only with a concrete technical rationale.
+scenario visible and record it in Beads without changing runtime capabilities
+as part of the test port. Excluding pure MATLAB runtime behavior requires an
+explicitly agreed scope decision and a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.
 
@@ -129,6 +130,41 @@ collects ``eeglab_test`` metadata through pytest, and prints every missing or
 stale reference. Pass ``--json`` for automation. It deliberately rejects the
 old ``eeglab-testcases`` repository, a checkout at another commit, and
 provenance that does not exist in the pinned suite.
+
+Source fidelity and graphical validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Source-reference counts are not execution results or scientific coverage.
+Backend-dispatched contracts must still be checked against the actual source
+body and executed against the pinned MATLAB reference. Keep generated-data
+Python regression tests as separate supplements; they are not substitutes for
+the source recording, workload, call sequence, or assertions. A source wrapper
+whose body is entirely commented out or immediately returns is inactive, not a
+successful behavioral test. Such definitions remain visible in the inventory
+without attaching misleading provenance to a different Python scenario.
+
+Mark every contract that creates plots, windows, dialogs, or graphical
+callbacks with ``gui``, even when MATLAB figures would be invisible. This
+allows explicitly deferred graphical validation to remain excluded using
+``-m "not gui"``. Collecting those contracts or checking their syntax does not
+validate their runtime behavior. Modal Python dialogs may require interaction;
+do not substitute a mock renderer or invent accept/cancel actions to make an
+original interactive workflow automatic.
+
+MATLAB-specific graphics objects, caller workspaces, and object arrays sometimes
+require small test-only native boundaries. Keep the workflow and assertions in
+Python and dispatch actual EEGLAB processing functions. Translate ordinary
+language operations such as file deletion or closing a figure using real
+Python APIs, not nonexistent EEGPrep counterparts to MATLAB builtins. Do not
+replace a missing operation with a fabricated failure or a passing assertion
+that the feature is absent.
+
+Preserve the limitations of the source oracle too: a no-assertion smoke test
+does not establish numerical correctness, and a legacy wrapper that ignores a
+returned failure status does not establish that its operation succeeded.
+Record source failures and unresolved language-specific observables separately
+instead of weakening comparisons or counting a native-only diagnostic as a
+completed Python port.
 
 Explicit MATLAB support paths
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
