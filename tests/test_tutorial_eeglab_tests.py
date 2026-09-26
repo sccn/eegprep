@@ -49,7 +49,7 @@ from eegprep.functions.studyfunc.std_preclust import std_preclust
 from eegprep.functions.studyfunc.std_precomp import std_precomp
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.dipfit._fitting import leadfield_matrix
-from eegprep.plugins.dipfit._utils import DIPFITUnavailableError
+from eegprep.plugins.dipfit._utils import DIPFITUnavailableError, STANDARD_TEMPLATES
 from eegprep.plugins.dipfit.pop_dipfit_loreta import pop_dipfit_loreta
 from eegprep.plugins.dipfit.pop_dipfit_settings import pop_dipfit_settings
 from eegprep.plugins.dipfit.pop_dipplot import pop_dipplot
@@ -58,7 +58,7 @@ from eegprep.plugins.dipfit.pop_multifit import pop_multifit
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import eeglab_test, load_matlab_test_fixture
 from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
 from tests.test_eeg_store import _source_dataset_row
@@ -121,6 +121,434 @@ def _tutorial_title(backend, request, title):
 
 def _tutorial_timerange(eeg):
     return np.asarray([eeg["xmin"], eeg["xmax"]]).reshape(1, 2)
+
+
+def _tutorial_cd(backend, request, monkeypatch, directory):
+    monkeypatch.chdir(directory)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("cd", str(directory), nargout=0)
+
+
+def _tutorial_load(backend, request, filename):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        return backend("load", "-mat", filename)
+    return load_matlab_test_fixture(filename)
+
+
+def _tutorial_hold(backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("hold", "on", nargout=0)
+    # Matplotlib already retains artists on the current axes.
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_plot_study_erp")
+def test_reference_tutorial_plot_study_erp(
+    eeglab_backend, eeglab_writable_study, eeglab_working_directory, request, monkeypatch
+):
+    backend = eeglab_backend
+    _tutorial_cd(backend, request, monkeypatch, eeglab_writable_study)
+    window = _tutorial_start(backend, request)
+    close_reference_gui(backend, request, window=window.window if window else None)
+    filename = eeglab_writable_study / "n400.study"
+    if not filename.is_file():
+        backend(
+            "warndlg2",
+            "Now select the n400.study file. Download the data from\nhttps://eeglab.org/tutorials/tutorial_data.html (5 subject study)",
+            nargout=0,
+        )
+        study, alleeg = backend("pop_loadstudy", nargout=2)
+    else:
+        _tutorial_cd(backend, request, monkeypatch, filename.parent)
+        study, alleeg = backend("pop_loadstudy", str(filename), nargout=2)
+    study, alleeg = backend(
+        "std_precomp",
+        study,
+        alleeg,
+        np.empty((0, 0), dtype=object),
+        "savetrials",
+        "on",
+        "interp",
+        "on",
+        "recompute",
+        "on",
+        "erp",
+        "on",
+        "erpparams",
+        _cell_row("rmbase", np.array([[-300.0, 0.0]])),
+        nargout=2,
+    )
+    study = backend("pop_statparams", study, "condstats", "on", "method", "perm", "mcorrect", "fdr", "alpha", 0.01)
+    timerange_min, timerange_max = -300.0, 1320.0
+    study = backend("pop_erpparams", study, "plotconditions", "together")
+    study, erpdata, erptimes = backend(
+        "std_erpplot",
+        study,
+        alleeg,
+        "channels",
+        _cell_row("Fz"),
+        "design",
+        1.0,
+        "timerange",
+        np.array([[timerange_min, timerange_max]]),
+        nargout=3,
+    )
+    backend(
+        "std_plotcurve", erptimes, erpdata, "plotconditions", "together", "plotstderr", "on", "figure", "on", nargout=0
+    )
+    backend(
+        "std_plotcurve",
+        erptimes,
+        erpdata,
+        "plotconditions",
+        "together",
+        "plotsubjects",
+        "on",
+        "figure",
+        "on",
+        nargout=0,
+    )
+    backend(
+        "std_plotcurve",
+        erptimes,
+        erpdata,
+        "plotdiff",
+        "on",
+        "plotconditions",
+        "together",
+        "figure",
+        "on",
+        "legend",
+        _cell_row("cond1", "cond2"),
+        nargout=0,
+    )
+    study = backend("pop_erpparams", study, "topotime", np.array([[1200.0, 1500.0]]))
+    backend(
+        "std_erpplot",
+        study,
+        alleeg,
+        "channels",
+        _cell_row(
+            "Fp1",
+            "Fpz",
+            "Fp2",
+            "AF3",
+            "AF4",
+            "F7",
+            "F5",
+            "F3",
+            "F1",
+            "Fz",
+            "F2",
+            "F4",
+            "F6",
+            "F8",
+            "FC5",
+            "FC3",
+            "FC1",
+            "FCz",
+            "FC2",
+            "FC4",
+            "FC6",
+            "T7",
+            "C5",
+            "C3",
+            "C1",
+            "Cz",
+            "C2",
+            "C4",
+            "C6",
+            "T8",
+            "CP1",
+            "CPz",
+            "CP2",
+            "CP4",
+            "CP6",
+            "TP8",
+            "P7",
+            "P5",
+            "P3",
+            "P1",
+            "Pz",
+            "P2",
+            "P4",
+            "P6",
+            "P8",
+            "PO5",
+            "PO3",
+            "PO1",
+            "POz",
+            "PO2",
+            "PO4",
+            "PO6",
+            "O1",
+            "Oz",
+            "O2",
+            "LO1",
+            "IO1",
+            "SO1",
+            "LO2",
+            "TP7",
+            "CP5",
+        ),
+        "design",
+        1.0,
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_source_reconstruction_eeg")
+def test_reference_tutorial_source_reconstruction_eeg(eeglab_backend, eeglab_suite_root, request):
+    backend = eeglab_backend
+    window = _tutorial_start(backend, request)
+    close_reference_gui(backend, request, window=window.window if window else None)
+    eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        model = backend("eegprep_test_tutorial_dipfitdefs")
+    else:
+        # The Python package stores dipfitdefs' metadata as real template data.
+        template = STANDARD_TEMPLATES[1]
+        model = {key: Path(getattr(template, key)).name for key in ("hdmfile", "mrifile", "chanfile")}
+        model["coordformat"] = template.coordformat
+    eeg = backend(
+        "pop_dipfit_settings",
+        eeg,
+        "hdmfile",
+        model["hdmfile"],
+        "coordformat",
+        model["coordformat"],
+        "mrifile",
+        model["mrifile"],
+        "chanfile",
+        model["chanfile"],
+        "coord_transform",
+        np.array([[0.83215, -15.6287, 2.4114, 0.081214, 0.00093739, -1.5732, 1.1742, 1.0601, 1.1485]]),
+        "chansel",
+        np.arange(1.0, 33.0).reshape(1, -1),
+    )
+    latency = 0.100
+    pt100 = int(np.floor(np.asarray((latency - eeg["xmin"]) * eeg["srate"]).item() + 0.5))
+    erp = np.mean(eeg["data"], axis=2)
+    dipole, _model, tmpeeg = backend(
+        "dipfit_erpeeg",
+        erp[:, pt100 - 1 : pt100],
+        eeg["chanlocs"],
+        "settings",
+        eeg["dipfit"],
+        "threshold",
+        100.0,
+        nargout=3,
+    )
+    backend("pop_dipplot", tmpeeg, 1.0, "normlen", "on", nargout=0)
+    _tutorial_figure(backend, request)
+    rv = np.asarray(_records(dipole)[0]["rv"]).item() * 100.0
+    backend(
+        "pop_topoplot", tmpeeg, 0.0, 1.0, f"ERP 100ms, fit with a single dipole (RV {rv:.2g}%)", 0.0, 1.0, nargout=0
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_source_reconstruction_advanced")
+def test_reference_tutorial_source_reconstruction_advanced(eeglab_backend, eeglab_suite_root, request):
+    backend = eeglab_backend
+    window = _tutorial_start(backend, request)
+    close_reference_gui(backend, request, window=window.window if window else None)
+    eeglab_path = eeglab_suite_root / "eeglab"
+    bem_path = eeglab_path / "plugins" / "dipfit" / "standard_BEM"
+    eeg = backend("pop_loadset", str(eeglab_path / "sample_data" / "eeglab_data_epochs_ica.set"))
+    eeg = backend(
+        "pop_dipfit_settings",
+        eeg,
+        "hdmfile",
+        str(bem_path / "standard_vol.mat"),
+        "coordformat",
+        "MNI",
+        "mrifile",
+        str(bem_path / "standard_mri.mat"),
+        "chanfile",
+        str(bem_path / "elec" / "standard_1005.elc"),
+        "coord_transform",
+        np.array([[0.83215, -15.6287, 2.4114, 0.081214, 0.00093739, -1.5732, 1.1742, 1.0601, 1.1485]]),
+        "chansel",
+        np.arange(1.0, 33.0).reshape(1, -1),
+    )
+    data_pre = backend("eeglab2fieldtrip", eeg, "preprocessing", "dipfit")
+    cfg = {"channel": _cell_row("all", "-EOG1"), "reref": "yes", "refchannel": _cell_row("all", "-EOG1")}
+    data_pre = backend("ft_preprocessing", cfg, data_pre)
+    vol = _tutorial_load(backend, request, eeg["dipfit"]["hdmfile"])
+    cfg = {
+        "elec": data_pre["elec"],
+        "headmodel": vol["vol"],
+        "resolution": 10.0,
+        "unit": "mm",
+        "channel": _cell_row("all"),
+    }
+    sourcemodel = backend("ft_prepare_leadfield", cfg)
+    cfg = {"covariance": "yes", "covariancewindow": np.array([[np.asarray(eeg["xmin"]).item(), 0.0]])}
+    data_avg = backend("ft_timelockanalysis", cfg, data_pre)
+    cfg = {"method": "eloreta", "sourcemodel": sourcemodel, "headmodel": vol["vol"]}
+    source = backend("ft_sourceanalysis", cfg, data_avg)
+    source_proj = backend("ft_sourcedescriptives", {"projectmom": "yes", "flipori": "yes"}, source)
+    source_proj = backend("ft_math", {"parameter": "mom", "operation": "abs"}, source_proj)
+    _tutorial_figure(backend, request)
+    backend("ft_sourceplot", {"method": "ortho", "funparameter": "mom"}, source_proj, nargout=0)
+    mri = _tutorial_load(backend, request, eeg["dipfit"]["mrifile"])
+    mri = backend("ft_volumereslice", [], mri["mri"])
+    cfg = {"downsample": 2.0, "parameter": "pow"}
+    source["oridimord"] = "pos"
+    source["momdimord"] = "pos"
+    source_int = backend("ft_sourceinterpolate", cfg, source, mri)
+    backend("ft_sourceplot", {"method": "slice", "funparameter": "pow"}, source_int, nargout=0)
+    _ft_ver, ft_path = backend("ft_version", nargout=2)
+    sourcemodel = backend("ft_read_headshape", str(Path(ft_path) / "template" / "sourcemodel" / "cortex_8196.surf.gii"))
+    leadfield = backend("ft_prepare_leadfield", {"grid": sourcemodel, "headmodel": vol["vol"]}, data_avg)
+    cfg = {"method": "mne", "grid": leadfield, "headmodel": vol["vol"], "mne": {"lambda": 3.0, "scalesourcecov": "yes"}}
+    source = backend("ft_sourceanalysis", cfg, data_avg)
+    cfg = {
+        "funparameter": "pow",
+        "maskparameter": "pow",
+        "method": "surface",
+        "latency": 0.4,
+        "opacitylim": np.array([[0.0, 200.0]]),
+    }
+    backend("ft_sourceplot", cfg, source, nargout=0)
+    boundaries = _records(_records(vol["vol"])[0]["bnd"])
+    for index in (2, 1, 0):
+        _tutorial_hold(backend, request)
+        backend(
+            "ft_plot_mesh", boundaries[index], "facecolor", "red", "facealpha", 0.05, "edgecolor", "none", nargout=0
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL2_WRAPPER, "test_bids_p300")
+def test_reference_tutorial_bids_p300(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, eeglab_options_directory, request, monkeypatch
+):
+    backend = eeglab_backend
+    # Full source tree: pop_importbids and storedisk mode create derivative files.
+    filepath = Path(shutil.copytree(eeglab_suite_root / "ds003061", eeglab_working_directory / "ds003061"))
+    _tutorial_cd(backend, request, monkeypatch, filepath)
+    _tutorial_start(backend, request)
+    if not (filepath / "task-P300_events.json").is_file():
+        raise RuntimeError(
+            "Download the data from https://openneuro.org/datasets/ds003061/ and go to the downloaded folder"
+        )
+    if request.config.getoption("--eeglab-backend") == "matlab" and not backend("which", "picard"):
+        raise RuntimeError(
+            "The source PICARD dependency must be installed before this GUI tutorial; tests do not download plugins"
+        )
+    backend("pop_editoptions", "option_storedisk", 1.0, nargout=0)
+    study, alleeg = backend(
+        "pop_importbids", str(filepath), "studyName", "Oddball", "subjects", np.array([[1.0, 2.0]]), nargout=2
+    )
+    alleeg = backend(
+        "pop_select",
+        alleeg,
+        "nochannel",
+        _cell_row(
+            "EXG1",
+            "EXG2",
+            "EXG3",
+            "EXG4",
+            "EXG5",
+            "EXG6",
+            "EXG7",
+            "EXG8",
+            "GSR1",
+            "GSR2",
+            "Erg1",
+            "Erg2",
+            "Resp",
+            "Plet",
+            "Temp",
+        ),
+    )
+    alleeg = backend("pop_reref", alleeg, [])
+    alleeg = backend(
+        "pop_clean_rawdata",
+        alleeg,
+        "FlatlineCriterion",
+        5.0,
+        "ChannelCriterion",
+        0.87,
+        "LineNoiseCriterion",
+        4.0,
+        "Highpass",
+        np.array([[0.25, 0.75]]),
+        "BurstCriterion",
+        20.0,
+        "WindowCriterion",
+        0.25,
+        "BurstRejection",
+        "on",
+        "Distance",
+        "Euclidian",
+        "WindowCriterionTolerances",
+        np.array([[-np.inf, 7.0]]),
+        "fusechanrej",
+        1.0,
+    )
+    alleeg = backend("pop_reref", alleeg, [], "interpchan", [])
+    backend("plugin_askinstall", "picard", "picard", 1.0, nargout=0)
+    alleeg = backend("pop_runica", alleeg, "icatype", "picard", "concatcond", "on", "options", _cell_row("pca", -1.0))
+    alleeg = backend("pop_iclabel", alleeg, "default")
+    alleeg = backend("pop_icflag", alleeg, ICLABEL_THRESHOLDS.copy())
+    alleeg = backend(
+        "pop_epoch", alleeg, _cell_row("oddball_with_reponse", "standard"), np.array([[-1.0, 2.0]]), "epochinfo", "yes"
+    )
+    alleeg = backend("eeg_checkset", alleeg)
+    alleeg = backend("pop_rmbase", alleeg, np.array([[-1000.0, 0.0]]), [])
+    study = backend("std_maketrialinfo", study, alleeg)
+    study = backend(
+        "std_makedesign",
+        study,
+        alleeg,
+        1.0,
+        "name",
+        "STUDY.design 1",
+        "delfiles",
+        "off",
+        "defaultdesign",
+        "off",
+        "variable1",
+        "type",
+        "values1",
+        _cell_row("oddball_with_reponse", "standard"),
+        "vartype1",
+        "categorical",
+        "subjselect",
+        study["subject"],
+    )
+    study, alleeg = backend(
+        "std_precomp",
+        study,
+        alleeg,
+        np.empty((0, 0), dtype=object),
+        "savetrials",
+        "on",
+        "rmicacomps",
+        "on",
+        "interp",
+        "on",
+        "recompute",
+        "on",
+        "erp",
+        "on",
+        nargout=2,
+    )
+    study = backend("pop_erpparams", study, "topotime", 350.0)
+    chanlocs = backend("eeg_mergelocs", *(dataset["chanlocs"] for dataset in _records(alleeg)))
+    study = backend(
+        "std_erpplot",
+        study,
+        alleeg,
+        "channels",
+        _cell_row(*(channel["labels"] for channel in _records(chanlocs))),
+        "design",
+        1.0,
+    )
+    backend("pop_editoptions", "option_storedisk", 0.0, nargout=0)
 
 
 @pytest.mark.gui
@@ -793,7 +1221,6 @@ def test_make_eeg_movie_smooths_an_erp_and_renders_2d_and_3d_frames():
     plt.close("all")
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_plot_study_erp")
 def test_plot_study_erp_precomputes_grouped_conditions_statistics_and_topographies():
     study, alleeg = _tutorial_study()
     study = pop_erpparams(study, timerange=[-200, 800], plotconditions="together")
@@ -847,7 +1274,6 @@ def test_plot_study_erp_precomputes_grouped_conditions_statistics_and_topographi
     plt.close(topo_figure)
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_source_reconstruction_eeg")
 def test_source_reconstruction_eeg_localizes_an_erp_topography_and_plots_the_result():
     eeg, true_source = _known_source_eeg()
     latency_index = int(np.argmin(np.abs(np.asarray(eeg["times"]) - 100.0)))
@@ -868,7 +1294,6 @@ def test_source_reconstruction_eeg_localizes_an_erp_topography_and_plots_the_res
     plt.close("all")
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_source_reconstruction_advanced")
 def test_source_reconstruction_advanced_builds_a_forward_model_and_exposes_fieldtrip_boundary():
     eeg, _true_source = _known_source_eeg()
     eeg = pop_dipfit_settings(eeg, model="standardBEM")
@@ -1114,7 +1539,6 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
     plt.close(figure)
 
 
-@eeglab_test(TUTORIAL2_WRAPPER, "test_bids_p300")
 def test_bids_p300_runs_generated_import_clean_ica_epoch_and_study_pipeline(tmp_path: Path):
     bids_root = tmp_path / "generated_p300"
     first_root, first_export_command = pop_exportbids(
