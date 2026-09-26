@@ -559,6 +559,7 @@ def test_reference_std_specplot(eeglab_backend, eeglab_writable_study, request):
 
 
 @pytest.mark.slow
+@pytest.mark.gui  # The original STUDY/precomputation chain can open MATLAB dialogs.
 @_reference("std_precomp", "test_test_std_precomp")
 def test_reference_std_precomp(eeglab_backend, eeglab_writable_study):
     for design_phase in (0, 1):
@@ -622,6 +623,7 @@ def test_reference_std_precomp(eeglab_backend, eeglab_writable_study):
 
 
 @pytest.mark.slow
+@pytest.mark.gui  # Preserve the original precomputation options, including dialog paths.
 @_reference("std_preclust", "test_test_std_preclust")
 def test_reference_std_preclust(eeglab_backend, eeglab_writable_study):
     study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
