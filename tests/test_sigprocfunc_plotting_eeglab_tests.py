@@ -17,6 +17,7 @@ from eegprep.functions.sigprocfunc.plotcurve import plotcurve
 from eegprep.functions.sigprocfunc.sbplot import DEFAULT_AXES_POSITION, sbplot
 from eegprep.functions.sigprocfunc.slider import slider
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.assertions import assert_matlab_struct_near
 
 
 SIGPROC = "unittesting_sigprocfunc"
@@ -24,6 +25,80 @@ SIGPROC = "unittesting_sigprocfunc"
 
 def _source(name: str) -> str:
     return f"{SIGPROC}/{name}/sigprocfunc_{name}_wrapperTest.m"
+
+
+def _source_force_locations(rows, *, besa=False):
+    fields = ("theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius")
+    if besa:
+        fields += ("sph_theta_besa", "sph_phi_besa")
+    result = np.empty((1, 4), dtype=[(field, object) for field in ("labels", *fields, "type")])
+    for index, row in enumerate(rows):
+        result["labels"][0, index] = "abcd"[index]
+        result["type"][0, index] = "EEG"
+        for field, value in zip(fields, row, strict=True):
+            result[field][0, index] = np.array([[value]], dtype=float)
+    return result
+
+
+@eeglab_test(_source("forcelocs"), "test_pass_x")
+@eeglab_test(_source("forcelocs"), "test_pass_y")
+def test_reference_forcelocs_complete_original_coordinates(eeglab_backend, subtests):
+    root2 = np.sqrt(2)
+    angle5 = np.degrees(np.arccos(np.sqrt(1 / 5)))
+    angle58 = np.degrees(np.arccos(np.sqrt(5 / 8)))
+    angle38 = np.degrees(np.arccos(np.sqrt(3 / 8)))
+    angle45 = np.degrees(np.arccos(np.sqrt(4 / 5)))
+    angle13 = np.degrees(np.arccos(np.sqrt(1 / 3)))
+    angle23 = np.degrees(np.arccos(np.sqrt(2 / 3)))
+    original = [
+        [-135, 0.5, -root2 / 2, root2 / 2, 0, 135, 0, 1],
+        [0, 0.5, 1, 0, 0, 0, 0, 1],
+        [90, 0.5, 0, -1, 0, -90, 0, 1],
+        [45, 0.5, root2 / 2, -root2 / 2, 0, -45, 0, 1],
+    ]
+    x_expected = [
+        [
+            -angle5,
+            0.5 + angle58 / 180,
+            root2 / 4,
+            root2 / 2,
+            -np.sqrt(6) / 4,
+            angle5,
+            -angle58,
+            1,
+            angle38 - 180,
+            -angle45,
+        ],
+        [-180, 1 / 6, -0.5, 0, np.sqrt(12) / 4, 180, 60, 1, -30, 90],
+        [90, 0.5, 0, -1, 0, -90, 0, 1, 90, 0],
+        [
+            180 - angle5,
+            0.5 - angle58 / 180,
+            -root2 / 4,
+            -root2 / 2,
+            np.sqrt(6) / 4,
+            angle5 - 180,
+            angle58,
+            1,
+            angle38,
+            -angle45,
+        ],
+    ]
+    y_original = [row.copy() for row in original]
+    y_original[0] = [-135, 0.25, -0.5, 0.5, root2 / 2, 135, 45, 1]
+    y_expected = [
+        [-120, 0.5, -0.5, np.sqrt(12) / 4, 0, 120, 0, 1, -90, 30],
+        [0, 0.5, 1, 0, 0, 0, 0, 1, 90, 90],
+        [90, 0.5 - angle13 / 180, 0, -np.sqrt(1 / 3), np.sqrt(2 / 3), -90, angle13, 1, angle23, 0],
+        [30, 0.5 - angle23 / 180, root2 / 2, -np.sqrt(2 / 3) / 2, np.sqrt(1 / 3), -30, angle23, 1, angle13, 60],
+    ]
+    for axis, rows, constraint, expected in (
+        ("x", original, [-0.5, "x", "b"], x_expected),
+        ("y", y_original, [1.0, "y", "a"], y_expected),
+    ):
+        with subtests.test(source=axis):
+            actual = eeglab_backend("forcelocs", _source_force_locations(rows), np.array([constraint], dtype=object))
+            assert_matlab_struct_near(_source_force_locations(expected, besa=True), actual)
 
 
 @eeglab_test(_source("cbar"), "test_pass_general")
@@ -133,7 +208,6 @@ def _x_rotation_locs() -> list[dict[str, float | str]]:
     ]
 
 
-@eeglab_test(_source("forcelocs"), "test_pass_x")
 def test_forcelocs_rotates_xz_plane_and_refreshes_all_coordinate_systems() -> None:
     original = _x_rotation_locs()
 
@@ -153,7 +227,6 @@ def test_forcelocs_rotates_xz_plane_and_refreshes_all_coordinate_systems() -> No
     assert original[1]["X"] == 1.0
 
 
-@eeglab_test(_source("forcelocs"), "test_pass_y")
 def test_forcelocs_rotates_yz_plane_and_matches_eeglab_expected_montage() -> None:
     original = _x_rotation_locs()
     original[0].update({"X": -0.5, "Y": 0.5, "Z": np.sqrt(2) / 2})

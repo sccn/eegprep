@@ -29,13 +29,76 @@ from eegprep.functions.sigprocfunc.eegplot import (
     winrej_to_array,
 )
 from tests.fixtures import create_test_eeg, matlab_engine_available
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
 SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
 _EEGPLOT_SOURCE = "unittesting_sigprocfunc/eegplot/sigprocfunc_eegplot_wrapperTest.m"
 _EEGPLOT2EVENT_SOURCE = "unittesting_sigprocfunc/eegplot2event/sigprocfunc_eegplot2event_wrapperTest.m"
 _EEGPLOT2TRIAL_SOURCE = "unittesting_sigprocfunc/eegplot2trial/sigprocfunc_eegplot2trial_wrapperTest.m"
+
+
+def _reference_plot_eeg(backend, *, epoched=False):
+    eeg = backend("eeg_emptyset")
+    eeg.update(srate=1.0, xmin=0.0)
+    if epoched:
+        eeg.update(nbchan=2.0, pnts=3.0, trials=3.0, xmax=2.0)
+        eeg["data"] = np.array([[[1, 1, 2]] * 3, [[2, 2, 2], [1, 1, 1], [1, 1, 1]]], dtype=float)
+    else:
+        eeg.update(nbchan=3.0, pnts=5.0, trials=1.0, xmax=3.0)
+        eeg["data"] = np.arange(1.0, 16.0).reshape(3, 5)
+    return eeg
+
+
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_color")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorin")
+@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorout")
+def test_reference_eegplot2trial_original_marks(eeglab_backend, subtests):
+    regions = np.array(
+        [[3, 6, 0.8345, 1, 0.9560, 0, 0], [6, 9, 1, 0.8345, 0.9560, 0, 0], [0, 3, 0.8345, 0.9560, 1, 0, 0]],
+        dtype=float,
+    )
+    same_color = regions[:2].copy()
+    same_color[1, 2:5] = same_color[0, 2:5]
+    for name, marks, options, expected in (
+        ("general", regions[:1], (), [[0, 1, 0]]),
+        ("multiple", same_color, (), [[0, 1, 1]]),
+        ("multiple_color", regions, (regions[2:3, 2:5], regions[1:2, 2:5]), [[1, 0, 0]]),
+        ("multiple_colorin", regions[:2], (regions[1:2, 2:5],), [[0, 0, 1]]),
+        ("multiple_colorout", regions, (np.empty((0, 0)), regions[1:2, 2:5]), [[1, 1, 0]]),
+    ):
+        with subtests.test(source=name):
+            eeg = _reference_plot_eeg(eeglab_backend, epoched=True)
+            trials, electrodes = eeglab_backend("eegplot2trial", marks, eeg["pnts"], eeg["trials"], *options, nargout=2)
+            assert_matlab_near(trials, np.array(expected, dtype=float))
+            assert_matlab_near(electrodes, np.zeros((2, 3)))
+
+
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorin")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorout")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_notfound")
+@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_one_arg")
+def test_reference_eegplot2event_original_marks(eeglab_backend, subtests):
+    regions = np.array([[4.0082, 5, 0.8345, 1, 0.9560, 0, 0, 0], [2.5, 3.4, 1, 0.8345, 0.9560, 0, 0, 0]])
+    events = np.array([[5, 1, 4, 5, 0.8345, 1, 0.9560], [5, 1, 3, 3, 1, 0.8345, 0.9560]])
+    default = events[:1].copy()
+    default[0, 0] = -1.0
+    for name, marks, options, expected in (
+        ("general", regions[:1], (5.0,), events[:1]),
+        ("multiple_events", regions, (5.0,), events),
+        ("multiple_events_colorin", regions, (5.0, regions[1:2, 2:5]), events[1:2]),
+        ("multiple_events_colorout", regions, (5.0, np.empty((0, 0)), regions[1:2, 2:5]), events[:1]),
+        ("multiple_events_notfound", regions, (5.0, np.array([[0.8345, 0.9560, 1.0]])), np.empty((0, 0))),
+        ("one_arg", regions[:1], (), default),
+    ):
+        with subtests.test(source=name):
+            if name in ("general", "one_arg"):
+                _reference_plot_eeg(eeglab_backend)
+            assert_matlab_near(eeglab_backend("eegplot2event", marks, *options), expected)
 
 
 def test_parse_eegplot_options_accepts_eeglab_key_value_pairs() -> None:
@@ -189,11 +252,6 @@ def test_trial2eegplot_converts_epoch_and_channel_marks() -> None:
     np.testing.assert_array_equal(rows[:, 5:], [[1, 0], [0, 1]])
 
 
-@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_general")
-@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple")
-@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_color")
-@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorin")
-@eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_multiple_colorout")
 def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None:
     rows = np.array(
         [
@@ -212,12 +270,6 @@ def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None
     np.testing.assert_array_equal(excluded_rows, [[False, False, False], [False, True, False]])
 
 
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_general")
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events")
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorin")
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_colorout")
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_multiple_events_notfound")
-@eeglab_test(_EEGPLOT2EVENT_SOURCE, "test_pass_one_arg")
 def test_eegplot2event_converts_continuous_marks_for_eeg_eegrej() -> None:
     rows = np.array([[2.2, 5.8, 0.7, 1.0, 0.9, 1], [8, 9, 0.1, 0.2, 0.3, 1]])
 
