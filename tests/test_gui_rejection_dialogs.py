@@ -2,6 +2,7 @@ import unittest
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
@@ -19,6 +20,7 @@ from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend_dialog_spec
 from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps_dialog_spec
 from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops, pop_viewprops_dialog_spec
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import create_test_eeg
 
 
@@ -37,8 +39,21 @@ def _epoched_ica_eeg():
     return eeg
 
 
+@pytest.mark.gui
+@eeglab_test("unittesting_adminfunc/pop_rejmenu/adminfunc_pop_rejmenu_wrapperTest.m", "test_test_pop_rejmenu")
+def test_reference_rejection_menu_original_sample(eeglab_backend, request, eeglab_suite_root):
+    """Python's modal menu requires real interaction in the deferred GUI phase.
+
+    No acceptance/cancellation is fabricated: the original MATLAB menu is
+    nonmodal, whereas the Python call returns only after its dialog is closed.
+    """
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    for mode in (0.0, 1.0):
+        eeglab_backend("pop_rejmenu", eeg, mode, nargout=0)
+        close_reference_gui(eeglab_backend, request)
+
+
 class RejectionDialogTests(unittest.TestCase):
-    @eeglab_test("unittesting_adminfunc/pop_rejmenu/test_pop_rejmenu.m", "test_test_pop_rejmenu")
     def test_rejection_menu_builds_data_and_component_dialogs(self):
         eeg = _epoched_ica_eeg()
 
