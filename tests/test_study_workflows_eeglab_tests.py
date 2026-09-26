@@ -12,7 +12,9 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 import numpy as np
 import pytest
+from scipy.cluster import vq
 
+import eegprep
 from eegprep.functions.popfunc.plot_utils import component_activations
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_clust import pop_clust
@@ -740,11 +742,19 @@ def test_std_preclust_combines_all_current_measure_families_and_final_pca():
 
 
 @_reference("pop_clust", "test_test_pop_clust")
-def test_reference_pop_clust(eeglab_backend, eeglab_sample_study):
+def test_reference_pop_clust(eeglab_backend, eeglab_sample_study, request):
     study, alleeg = eeglab_sample_study
     study = eeglab_backend("pop_clust", study, alleeg, algorithm="kmeanscluster", clus_num=10.0)
-    # Preserve the source's kmean (not kmeans) prerequisite verbatim.
-    if eeglab_backend("license", "checkout", "statistics_toolbox").item() and eeglab_backend("exist", "kmean").item():
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        available = (
+            eeglab_backend("license", "checkout", "statistics_toolbox").item()
+            and eeglab_backend("exist", "kmean").item()
+        )
+    else:
+        # There is no MATLAB license on Python. Preserve the source's misspelled
+        # kmean query in the real public/library namespaces, not corrected kmeans.
+        available = any(getattr(module, "kmean", None) is not None for module in (eegprep, vq))
+    if available:
         eeglab_backend("pop_clust", study, alleeg, algorithm="kmeans", clus_num=10.0, outliers=3.0)
 
 

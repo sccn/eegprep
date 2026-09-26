@@ -699,9 +699,65 @@ def _legacy_assertsame(*values):
         assert not abs(value[0] - value[1]) > abs(np.mean(value)) * 0.01
 
 
+@pytest.fixture
+def legacy_statcond_oracle_path(request, eeglab_suite_root):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        yield
+        return
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    original_path = engine.path()
+    try:
+        # This standalone oracle is identical to the local copy in test_statcond.
+        engine.addpath(str(eeglab_suite_root / "unittesting_statistics" / "statcond"), nargout=0)
+        yield
+    finally:
+        engine.path(original_path, nargout=0)
+
+
+def _legacy_matlab_reference(eeglab_backend, t_data, anova_data, paired, design):
+    if design == "t":
+        _h, pvalue, _interval, statistics = eeglab_backend("ttest" if paired == "on" else "ttest2", *t_data, nargout=4)
+        return statistics["tstat"], (statistics["df"].item(),), pvalue
+
+    if paired == "on":
+        z, o, t = np.zeros((10, 1)), np.ones((10, 1)), np.full((10, 1), 2.0)
+        rows = anova_data[:1] if design == "one-way" else anova_data
+        statistics = eeglab_backend(
+            "rm_anova2",
+            np.concatenate([value.T for row in rows for value in row]),
+            np.tile(np.arange(1.0, 11.0)[:, None], (3 * len(rows), 1)),
+            np.concatenate([o, o, o] if design == "one-way" else [o, o, o, z, z, z]),
+            np.concatenate([z, o, t] * len(rows)),
+            _matlab_cells([["a", "b"]]),
+        )
+        effect_row, error_row = (2, 5) if design == "one-way" else (3, 6)
+    elif design == "one-way":
+        _pvalue, statistics = eeglab_backend(
+            "anova1",
+            np.concatenate([value.T for value in anova_data[0]], axis=1),
+            np.empty((0, 0), dtype=object),
+            "off",
+            nargout=2,
+        )
+        effect_row, error_row = 1, 2
+    else:
+        _pvalue, statistics = eeglab_backend(
+            "anova2", np.block([[value.T for value in row] for row in anova_data]), 10.0, "off", nargout=2
+        )
+        effect_row, error_row = 3, 4
+    return (
+        statistics[effect_row, 4],
+        (statistics[effect_row, 2].item(), statistics[error_row, 2].item()),
+        statistics[effect_row, 5],
+    )
+
+
 @eeglab_test(STATCOND_WRAPPER, "test_test_statcond")
-def test_reference_legacy_statcond_workflow(eeglab_backend):
-    if (
+def test_reference_legacy_statcond_workflow(eeglab_backend, request, legacy_statcond_oracle_path):
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    # MATLAB's licensed toolbox prerequisite has no Python licensing analogue;
+    # SciPy, imported above, supplies the independent Python statistical oracles.
+    if native and (
         not eeglab_backend("license", "checkout", "statistics_toolbox").item()
         or not eeglab_backend("exist", "kmeans", "file").item()
     ):
@@ -725,7 +781,9 @@ def test_reference_legacy_statcond_workflow(eeglab_backend):
         statistic, df, pvalue, _surrogate = eeglab_backend(
             "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=4, **kwargs
         )
-        if design == "t":
+        if native:
+            expected = _legacy_matlab_reference(eeglab_backend, t_data, anova_data, paired, design)
+        elif design == "t":
             reference = (
                 scipy_stats.ttest_rel(*t_data, axis=-1)
                 if paired == "on"
@@ -743,6 +801,7 @@ def test_reference_legacy_statcond_workflow(eeglab_backend):
                 _two_way_repeated_reference(anova_data) if paired == "on" else _two_way_unpaired_reference(anova_data)
             )
             expected = tuple(value.interaction for value in reference)
+        if design == "two-way":
             statistic, df, pvalue = (value[0, 2] for value in (statistic, df, pvalue))
         pairs = [np.array([statistic.flat[0], np.asarray(expected[0]).flat[0]], dtype=statistic.dtype)]
         pairs.extend(
