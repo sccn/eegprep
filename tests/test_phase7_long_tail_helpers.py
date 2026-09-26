@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from scipy.stats import pearsonr
@@ -374,10 +375,41 @@ def test_pop_icathresh_sets_component_rejection_flags():
     assert command == "EEG = pop_icathresh(EEG, [4 4 10], 'current', 25, 0);"
 
 
-@eeglab_test(
-    "unittesting_popfunc/pop_rejchanspec/popfunc_pop_rejchanspec_wrapperTest.m",
-    "test_test_pop_rejchanspec",
-)
+@pytest.mark.gui
+@eeglab_test("unittesting_popfunc/pop_rejchanspec/popfunc_pop_rejchanspec_wrapperTest.m", "test_test_pop_rejchanspec")
+def test_reference_rejchanspec_original_workflow(eeglab_backend, eeglab_suite_root, request):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    channels = np.arange(1.0, 33.0)[None, :]
+    for selected, frequencies, threshold_kind, threshold, average, histogram in (
+        (channels, [[35.0, 64.0]], "stdthresh", [[5.0]], "off", "off"),
+        (channels, [[35.0, 64.0]], "stdthresh", [[5.0]], "on", "on"),
+        (np.array([[2.0, 4.0, 5.0]]), [[35.0, 64.0]], "stdthresh", [[5.0]], "off", "off"),
+        (channels, [[2.0, 100.0]], "stdthresh", [[5.0]], "off", "off"),
+        (channels, [[35.0, 64.0]], "absthresh", [[1.0, 5.0]], "off", "off"),
+        (channels, [[35.0, 64.0]], "stdthresh", [[5.0, 1.0, 2.0]], "off", "off"),
+    ):
+        eeglab_backend(
+            "pop_rejchanspec",
+            eeg,
+            "elec",
+            selected,
+            "freqlims",
+            np.array(frequencies),
+            threshold_kind,
+            np.array(threshold),
+            "averef",
+            average,
+            "plothist",
+            histogram,
+            nargout=0,
+        )
+        if histogram == "on":
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                request.getfixturevalue("eeglab_matlab_engine").close(nargout=0)
+            else:
+                plt.close()
+
+
 def test_pop_rejchanspec_rejects_spectral_outlier_and_returns_history():
     eeg = _eeg(np.zeros((3, 8)))
     specdata = np.array([[1.0, 2.0, 1.0], [1.0, 50.0, 1.0], [1.0, 2.0, 1.0]])

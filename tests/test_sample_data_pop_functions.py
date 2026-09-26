@@ -759,7 +759,20 @@ def test_pop_saveh_writes_sample_history_commands(tmp_path):
     assert "pop_saveh" in command
 
 
+@pytest.mark.gui
 @eeglab_test("unittesting_popfunc/pop_runscript/popfunc_pop_runscript_wrapperTest.m", "test_test_pop_runscript")
+def test_reference_runscript_original_sample_script(eeglab_backend, eeglab_suite_root, request):
+    # readcontsamplefile runs in the base workspace here and opens/redraws EEGLAB.
+    eeglab_backend("pop_runscript", str(eeglab_suite_root / "readcontsamplefile.m"), nargout=0)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        engine.close(nargout=0)
+        engine.eval("clear global;", nargout=0)
+    else:
+        plt.close()
+    eeglab_backend("pop_runscript", "notexist.mm", nargout=0)
+
+
 def test_pop_runscript_can_modify_sample_workspace_namespace(sample_eeg, tmp_path):
     script_file = tmp_path / "rename_sample.py"
     namespace = {"EEG": sample_eeg}

@@ -19,6 +19,23 @@ from tests.fixtures import (
 from tests.eeglab_tests import eeglab_test
 
 
+@eeglab_test("unittesting_adminfunc/eeg_global/adminfunc_eeg_global_wrapperTest.m", "test_pass_general")
+def test_reference_global_workspace_declarations(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        exists = eeglab_backend("eegprep_source_eeg_global")
+    else:
+        workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
+        names = ("EEG", "ALLEEG", "CURRENTSET", "LASTCOM", "ALLCOM")
+        try:
+            for name in names:
+                workspace.namespace.pop(name, None)
+            workspace.pull_from_session()
+            exists = [[name in workspace.namespace for name in names]]
+        finally:
+            workspace.close()
+    assert np.all(exists)
+
+
 def test_sample_data_satisfies_core_eeg_contract():
     eeg = fresh_sample_eeg()
     data = eeg["data"]
@@ -58,7 +75,6 @@ def test_sample_data_satisfies_core_eeg_contract():
     assert np.asarray(eeg["icachansind"]).dtype.kind in {"i", "u"}
 
 
-@eeglab_test("unittesting_adminfunc/eeg_global/pass_general.m", "test_pass_general")
 def test_sample_session_and_console_namespace_stay_synced():
     command = "EEG = pop_loadset('eeglab_data.set');"
     session = fresh_session_with_sample(command)

@@ -7,6 +7,7 @@ import runpy
 from importlib.resources import files
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from tests.eeglab_tests import eeglab_test
@@ -18,13 +19,37 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEHTML_OUTPUT_WRAPPER = "unittesting_miscfunc/makehtml/output/miscfunc_makehtml_output_wrapperTest.m"
 
 
-@eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_Contents")
+@pytest.mark.gui
 @eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_eeglab")
+def test_reference_generated_documentation_menu(eeglab_backend, eeglab_suite_root, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        previous = engine.pwd()
+        try:
+            # Resolve the generated help-menu stub, not the main EEGLAB launcher.
+            engine.cd(str(eeglab_suite_root / "unittesting_miscfunc/makehtml/output"), nargout=0)
+            eeglab_backend("eeglab", nargout=0)
+        finally:
+            engine.cd(previous, nargout=0)
+    else:
+        title = "(Click on blue text for help)"
+        eeglab_backend(
+            "textgui",
+            np.array([["Contents.m", "eeglab.m"]], dtype=object),
+            np.array([["pophelp('Contents.m');", "pophelp('eeglab.m');"]], dtype=object),
+            "fontsize",
+            15.0,
+            "fontname",
+            "times",
+            "linesperpage",
+            18.0,
+            "title",
+            np.array(["Test".ljust(len(title)), title]),
+            nargout=0,
+        )
+
+
 def test_public_api_and_plugins_example_runs() -> None:
-    # These MATLAB methods execute generated documentation stubs: Contents.m is
-    # comments only and eeglab.m opens callback-string help links. EEGPrep's
-    # Sphinx replacement keeps its top-level example executable against the
-    # installed public API, which is the portable behavior worth preserving.
     example = REPO_ROOT / "docs/source/examples/plot_public_api_and_plugins.py"
 
     runpy.run_path(str(example), run_name="__main__")
