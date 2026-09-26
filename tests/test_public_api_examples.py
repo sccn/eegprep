@@ -9,6 +9,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QSlider
 
 from tests.eeglab_tests import eeglab_test
 
@@ -33,7 +36,8 @@ def test_reference_generated_documentation_menu(eeglab_backend, eeglab_suite_roo
             engine.cd(previous, nargout=0)
     else:
         title = "(Click on blue text for help)"
-        eeglab_backend(
+        # Capture only this test's dialog as the Python equivalent of gcf.
+        window = eeglab_backend(
             "textgui",
             np.array([["Contents.m", "eeglab.m"]], dtype=object),
             np.array([["pophelp('Contents.m');", "pophelp('eeglab.m');"]], dtype=object),
@@ -45,8 +49,18 @@ def test_reference_generated_documentation_menu(eeglab_backend, eeglab_suite_roo
             18.0,
             "title",
             np.array(["Test".ljust(len(title)), title]),
-            nargout=0,
         )
+        defaults = eeglab_backend("icadefs")
+        palette = window.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor.fromRgbF(*defaults.BACKCOLOR))
+        window.setPalette(palette)
+        window.setAutoFillBackground(True)
+        slider_color = QColor.fromRgbF(*defaults.GUIBACKCOLOR)
+        for slider in window.findChildren(QSlider, options=Qt.FindChildOption.FindDirectChildrenOnly):
+            palette = slider.palette()
+            palette.setColor(QPalette.ColorRole.Window, slider_color)
+            slider.setPalette(palette)
+            slider.setAutoFillBackground(True)
 
 
 def test_public_api_and_plugins_example_runs() -> None:
