@@ -6,14 +6,16 @@ headmovie/pass_camera (immediate return); help2html/pass_general and pass_one_ar
 imagescloglog/i_pass_clim_xticks; imagesclogy/i_pass_clim_xticks;
 makehtml/pass_general; seemovie/test_seemovie.
 
-The active legacy eegplotgold, eegplotsold, getallmenus, gradplot and headmovie
-contracts remain unported here. Their existing Python supplements below do not
-claim source provenance. Graphical contracts require separate GUI validation.
+Legacy gradplot and headmovie helpers catch errors and return statuses that
+their wrappers ignore. Their translated statuses are recorded, not asserted as
+successful validation. All graphical contracts still require GUI validation.
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import shutil
+import warnings
 
 import matplotlib
 
@@ -23,7 +25,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.menu_spec import menu_item, menu_to_inventory
+from eegprep.functions.guifunc.qt import _require_qt
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.miscfunc.eegmovie import eegmovie
 from eegprep.functions.miscfunc.gradmap import gradmap
 from eegprep.functions.miscfunc.gradplot import gradplot
@@ -36,15 +41,321 @@ from eegprep.functions.miscfunc.show_events import show_events
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.sigprocfunc.headplot import headplot_setup
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
+EEGPLOTGOLD = "unittesting_miscfunc/eegplotgold/miscfunc_eegplotgold_wrapperTest.m"
+EEGPLOTSOLD = "unittesting_miscfunc/eegplotsold/miscfunc_eegplotsold_wrapperTest.m"
+GETALLMENUS = "unittesting_miscfunc/getallmenus/miscfunc_getallmenus_wrapperTest.m"
 GRADMAP = "unittesting_miscfunc/gradmap/miscfunc_gradmap_wrapperTest.m"
+GRADPLOT = "unittesting_miscfunc/gradplot/miscfunc_gradplot_wrapperTest.m"
+HEADMOVIE = "unittesting_miscfunc/headmovie/miscfunc_headmovie_wrapperTest.m"
 HELPFOREXE = "unittesting_miscfunc/helpforexe/miscfunc_helpforexe_wrapperTest.m"
 IMAGESCLOGLOG = "unittesting_miscfunc/imagescloglog/miscfunc_imagescloglog_wrapperTest.m"
 IMAGESCLOGY = "unittesting_miscfunc/imagesclogy/miscfunc_imagesclogy_wrapperTest.m"
 SETFONT = "unittesting_miscfunc/setfont/miscfunc_setfont_wrapperTest.m"
 SHOW_EVENTS = "unittesting_miscfunc/show_events/miscfunc_show_events_wrapperTest.m"
 TEXTGUI = "unittesting_miscfunc/textgui/miscfunc_textgui_wrapperTest.m"
+
+
+@contextmanager
+def _source_global_data(request, eeglab_backend, data):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        engine.eval("global data;", nargout=0)
+        try:
+            eeglab_backend("assignin", "base", "data", data, nargout=0)
+            yield None
+        finally:
+            engine.eval("clear global data;", nargout=0)
+        return
+    workspace = EEGPrepConsoleWorkspace(EEGPrepSession())
+    workspace.namespace["data"] = data
+    try:
+        yield workspace
+    finally:
+        del workspace.namespace["data"]
+        workspace.close()
+
+
+@pytest.mark.gui
+@eeglab_test(EEGPLOTGOLD, "test_pass_all_args")
+@eeglab_test(EEGPLOTGOLD, "test_pass_general")
+@eeglab_test(EEGPLOTGOLD, "test_pass_no_chanlocs")
+@eeglab_test(EEGPLOTGOLD, "test_pass_no_title")
+def test_reference_eegplotgold(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request):
+    shutil.copyfile(
+        eeglab_suite_root / "unittesting_miscfunc/eegplotgold/test.locs", eeglab_working_directory / "test.locs"
+    )
+    for arguments in (
+        (0.0, "test.locs", "eegplotgold.m - Testcase", 0.0, 10.0),
+        (1.0, "test.locs"),
+        (1.0,),
+        (1.0, "test.locs", 0.0),
+    ):
+        eeg = eeglab_backend("eeg_emptyset")
+        eeg.update(nbchan=3.0, pnts=5.0, trials=1.0, srate=1.0, xmin=0.0, xmax=3.0)
+        data = np.arange(1.0, 16.0).reshape(3, 5)
+        with _source_global_data(request, eeglab_backend, data) as workspace:
+            if workspace is None:
+                eeglab_backend("eegplotgold", "data", *arguments, nargout=0)
+            else:
+                workspace.namespace["arguments"] = arguments
+                workspace.execute_history_command("eegprep.eegplotgold('data', *arguments)")
+        close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(EEGPLOTSOLD, "test_pass_all_args")
+@eeglab_test(EEGPLOTSOLD, "test_pass_general")
+@eeglab_test(EEGPLOTSOLD, "test_pass_one_arg")
+def test_reference_eegplotsold(eeglab_backend, eeglab_working_directory, request):
+    # tc_emptyset's other fields never leave the source helper. Its source data
+    # and srate are the only EEG fields passed to eegplotsold. The source folder
+    # supplies no test.locs; retain that literal input without inventing a file.
+    data = np.arange(1.0, 16.0).reshape(3, 5)
+    for arguments in (
+        (1.0, "test.locs", "eegplotsold - Testcase", 300.0, 10.0, "y", 0.0, np.array([[2.0, 3.0]])),
+        (1.0,),
+        (),
+    ):
+        eeglab_backend("eegplotsold", data, *arguments, nargout=0)
+        close_reference_gui(eeglab_backend, request)
+
+
+def _source_near(first, second):
+    try:
+        assert_matlab_near(first, second)
+    except AssertionError:
+        return False
+    return True
+
+
+@pytest.mark.gui
+@eeglab_test(GRADPLOT, "test_fail_no_arg")
+@eeglab_test(GRADPLOT, "test_pass_center")
+@eeglab_test(GRADPLOT, "test_pass_center_file")
+@eeglab_test(GRADPLOT, "test_pass_corner")
+def test_reference_gradplot_ignored_statuses(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, record_property
+):
+    shutil.copyfile(
+        eeglab_suite_root / "unittesting_miscfunc/gradplot/test.locs", eeglab_working_directory / "test.locs"
+    )
+    center, locations = _center_gradient_input()
+    corner = np.array([[3.0], [4.0], [5.0], [2.0], [3.0], [4.0], [1.0], [2.0], [3.0]])
+    x = np.array([[1.0, 1, 1, 0, 0, 0, -1, -1, -1]]) / 2
+    y = np.array([[-1.0, 0, 1, -1, 0, 1, -1, 0, 1]]) / 2
+    for case, arguments in (
+        ("fail_no_arg", ()),
+        ("pass_center", (center[:, None], locations[None, :], 1.0)),
+        ("pass_center_file", (center[:, None], "test.locs", 1.0)),
+        ("pass_corner", (corner, x + 1j * y, 1.0)),
+    ):
+        status = -1  # tc_notpassed; the wrapper never checks this return value.
+        try:
+            if not arguments:
+                eeglab_backend("gradplot", nargout=0)
+                status = 1
+            else:
+                gradient_x, gradient_y = eeglab_backend("gradplot", *arguments, nargout=2)
+                valid = _source_near(max(gradient_x.shape), 9) and _source_near(max(gradient_y.shape), 9)
+                if case == "pass_corner":
+                    valid = valid and np.all(gradient_x >= 0) and np.all(gradient_y >= 0)
+                else:
+                    # Unlike gradmap, these source bodies compare a 3x1 vector
+                    # with scalar zero. near.m rejects that shape mismatch.
+                    valid = (
+                        valid
+                        and np.all(gradient_x[[0, 1, 2]] < 0)
+                        and _source_near(gradient_x[[3, 4, 5]], 0)
+                        and np.all(gradient_x[[6, 7, 8]] > 0)
+                        and np.all(gradient_y[[0, 3, 6]] > 0)
+                        and _source_near(gradient_y[[1, 4, 7]], 0)
+                        and np.all(gradient_y[[2, 5, 8]] < 0)
+                    )
+                if valid:
+                    status = 1
+        except Exception as error:
+            record_property(f"gradplot_{case}_caught_error", f"{type(error).__name__}: {error}")
+        record_property(f"gradplot_{case}_ignored_source_status", status)
+
+
+@pytest.mark.gui
+@eeglab_test(GETALLMENUS, "test_pass_general")
+def test_reference_getallmenus(eeglab_backend, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    if matlab:
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        userdata = np.empty((1, 2), dtype=object)
+        userdata[0] = [np.empty((0, 0)), np.empty((0, 0))]
+        eeglab_backend(
+            "figure",
+            "Units",
+            "points",
+            "PaperPosition",
+            np.array([[18.0, 180, 576, 432]]),
+            "PaperUnits",
+            "points",
+            "name",
+            "EEGLAB_TEST",
+            "numbertitle",
+            "off",
+            "resize",
+            "off",
+            "Position",
+            np.array([[100.0, 100, 100, 100]]),
+            "color",
+            np.array([[0.0, 1, 0]]),
+            "Tag",
+            "EEGLAB_TEST",
+            "visible",
+            "off",
+            "Userdata",
+            userdata,
+            nargout=0,
+        )
+        window = engine.double(engine.gcf())
+        eeglab_backend(
+            "uicontrol",
+            "Parent",
+            window,
+            "Units",
+            "points",
+            "BackgroundColor",
+            np.array([[1.0, 0, 0]]),
+            "ListboxTop",
+            0.0,
+            "HorizontalAlignment",
+            "left",
+            "Position",
+            np.array([[100.0, 200, 300, 400]]),
+            "Style",
+            "frame",
+            "Tag",
+            "Frame1",
+            nargout=0,
+        )
+        eeglab_backend("set", window, "MenuBar", "none", nargout=0)
+    else:
+        qt_core, qt_widgets = _require_qt()
+        app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        window = qt_widgets.QMainWindow()
+        window.setWindowTitle("EEGLAB_TEST")
+        window.setObjectName("EEGLAB_TEST")
+        points = window.logicalDpiX() / 72
+        window.setGeometry(*(round(value * points) for value in (100, 100, 100, 100)))
+        window.setFixedSize(window.size())
+        window.setStyleSheet("background-color: rgb(0, 255, 0)")
+        frame = qt_widgets.QFrame(window)
+        frame.setObjectName("Frame1")
+        frame.setGeometry(*(round(value * points) for value in (100, 200, 300, 400)))
+        frame.setStyleSheet("background-color: rgb(255, 0, 0)")
+        frame.setFrameShape(qt_widgets.QFrame.Shape.Box)
+        window.menuBar().setNativeMenuBar(False)
+    try:
+        for label in "abcdefg":
+            if matlab:
+                menu = engine.double(engine.uimenu(window, "Label", label))
+            else:
+                menu = window.menuBar().addMenu(label)
+            for child in ("aa", "ab", "ac", "ad") if label == "a" else ("da",) if label == "d" else ():
+                if matlab:
+                    engine.uimenu(menu, "Label", child, nargout=0)
+                else:
+                    menu.addAction(child)
+        tree = eeglab_backend("getallmenus", window)
+        count = engine.numel(engine.findobj(0.0)) if matlab else len(window.findChildren(qt_core.QObject)) + 2
+    finally:
+        if matlab:
+            engine.close(window, nargout=0)
+        else:
+            window.close()
+            window.deleteLater()
+            app.processEvents()
+    expected = np.array(
+        ["g", "f", "e", "d", "      da", "c", "b", "a", "      ad", "      ac", "      ab", "      aa", ""],
+        dtype="U8",
+    )
+    # MAT transport stores a character matrix as a vector of padded row strings.
+    np.testing.assert_array_equal(np.asarray(tree).reshape(-1), expected)
+    assert count >= 15
+
+
+def _source_headmovie(eeglab_backend, eeglab_suite_root, directory, request, case, record_property):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    original_path = None
+    stage = "initialisation"
+    status = -1
+    try:
+        if matlab:
+            engine = request.getfixturevalue("eeglab_matlab_engine")
+            original_path = engine.path()
+            engine.addpath(str(eeglab_suite_root / "unittesting_common/helpfunc"), nargout=0)
+            plugin = eeglab_backend("tc_getPluginDir", "dipfit")
+            if np.asarray(plugin).size == 0 or plugin == "":
+                status = 4  # tc_nottested: the source returns immediately.
+                return
+            if plugin not in engine.path():
+                engine.addpath(plugin, nargout=0)
+        # Plugin path initialization is MATLAB-only. Python uses its own
+        # headplot implementation, never MATLAB plugin code as a dependency.
+        shutil.copyfile(eeglab_suite_root / "unittesting_miscfunc/headmovie/test.locs", directory / "test.locs")
+        spline = directory / "test.spline"
+        if spline.exists():
+            spline.unlink()
+        data = np.zeros((9, 4))
+        data[:4] = np.eye(4)
+        if matlab:
+            eeglab_backend("headplot", "setup", "test.locs", "test.spline", nargout=0)
+        else:
+            eeglab_backend("headplot", "setup", "test.locs", splinefile="test.spline", nargout=0)
+        if not spline.is_file():
+            raise FileNotFoundError("headmovie: initialisation error (spline_file does not exist)")
+        stage = "validation"
+        arguments = () if case == "general" else (1.0, "testcase", np.array([[-127.0, 0, 30, 40]]))
+        movie, colormap, _minimum, _maximum = eeglab_backend(
+            "headmovie", data, "test.locs", "test.spline", *arguments, nargout=4
+        )
+        unique_colors, indices = np.unique(colormap, axis=0, return_index=True)
+        pixels = np.concatenate(list(movie["cdata"].ravel(order="F")), axis=1) if matlab else movie
+        if (
+            np.all(colormap <= 1)
+            and np.all(colormap >= 0)
+            and _source_near(unique_colors, colormap[indices])
+            and np.all(pixels <= 255)
+            and np.all(pixels >= 0)
+        ):
+            status = 1 if case == "general" else 2  # elevation is tc_notvalidated.
+        stage = "cleanup"
+        if spline.exists():
+            spline.unlink()
+    except Exception as error:
+        record_property(f"headmovie_{case}_{stage}_error", f"{type(error).__name__}: {error}")
+        if stage != "cleanup":
+            status = 4 if stage == "initialisation" else -1
+    finally:
+        if original_path is not None:
+            engine.path(original_path, nargout=0)
+        record_property(f"headmovie_{case}_ignored_source_status", status)
+
+
+@pytest.mark.gui
+@eeglab_test(HEADMOVIE, "test_pass_general")
+def test_reference_headmovie_general_ignored_status(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request, record_property
+):
+    _source_headmovie(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request, "general", record_property)
+
+
+@pytest.mark.gui
+@eeglab_test(HEADMOVIE, "test_pass_elevation")
+def test_reference_headmovie_elevation_ignored_status(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request, record_property
+):
+    _source_headmovie(
+        eeglab_backend, eeglab_suite_root, eeglab_working_directory, request, "elevation", record_property
+    )
 
 
 def _assert_source_center_gradient(gradient_x, gradient_y):
@@ -60,28 +371,28 @@ def _assert_source_center_gradient(gradient_x, gradient_y):
 
 @pytest.mark.gui
 @eeglab_test(GRADMAP, "test_pass_center")
-def test_reference_gradmap_center(eeglab_backend):
+def test_reference_gradmap_center(eeglab_backend, request):
     values, locations = _center_gradient_input()
     gradients = eeglab_backend("gradmap", values[:, None], locations[None, :], 1.0, nargout=2)
     _assert_source_center_gradient(*gradients)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.gui
 @eeglab_test(GRADMAP, "test_pass_center_file")
-def test_reference_gradmap_center_file(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+def test_reference_gradmap_center_file(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request):
     shutil.copyfile(
         eeglab_suite_root / "unittesting_miscfunc/gradmap/test.locs", eeglab_working_directory / "test.locs"
     )
     values, _locations = _center_gradient_input()
     gradients = eeglab_backend("gradmap", values[:, None], "test.locs", 1.0, nargout=2)
     _assert_source_center_gradient(*gradients)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.gui
 @eeglab_test(GRADMAP, "test_pass_corner")
-def test_reference_gradmap_corner(eeglab_backend):
+def test_reference_gradmap_corner(eeglab_backend, request):
     values = np.array([[3.0], [4.0], [5.0], [2.0], [3.0], [4.0], [1.0], [2.0], [3.0]])
     x = np.array([[1.0, 1, 1, 0, 0, 0, -1, -1, -1]]) / 2
     y = np.array([[-1.0, 0, 1, -1, 0, 1, -1, 0, 1]]) / 2
@@ -90,10 +401,10 @@ def test_reference_gradmap_corner(eeglab_backend):
     assert_matlab_near(max(gradient_y.shape), 9)
     assert np.all(gradient_x >= 0)
     assert np.all(gradient_y >= 0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
-def _source_log_images(eeglab_backend, function):
+def _source_log_images(eeglab_backend, request, function):
     times = np.arange(1.0, 5.0)[None, :]
     frequencies = np.arange(1.0, 5.0)[None, :]
     data = np.arange(1.0, 17.0).reshape(4, 4)
@@ -107,7 +418,7 @@ def _source_log_images(eeglab_backend, function):
         (empty, np.array([[2.0, 3.0, 4.0]]), np.array([[1.0, 2.0]]), "XGrid", "on"),
     ):
         eeglab_backend(function, times, frequencies, data, *arguments, nargout=0)
-        eeglab_backend("close", nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.gui
@@ -116,8 +427,8 @@ def _source_log_images(eeglab_backend, function):
 @eeglab_test(IMAGESCLOGY, "test_pass_xticks")
 @eeglab_test(IMAGESCLOGY, "test_pass_ticks")
 @eeglab_test(IMAGESCLOGY, "test_pass_varargin")
-def test_reference_imagesclogy(eeglab_backend):
-    _source_log_images(eeglab_backend, "imagesclogy")
+def test_reference_imagesclogy(eeglab_backend, request):
+    _source_log_images(eeglab_backend, request, "imagesclogy")
 
 
 @pytest.mark.gui
@@ -126,45 +437,64 @@ def test_reference_imagesclogy(eeglab_backend):
 @eeglab_test(IMAGESCLOGLOG, "test_pass_xticks")
 @eeglab_test(IMAGESCLOGLOG, "test_pass_ticks")
 @eeglab_test(IMAGESCLOGLOG, "test_pass_varargin")
-def test_reference_imagescloglog(eeglab_backend):
-    _source_log_images(eeglab_backend, "imagescloglog")
+def test_reference_imagescloglog(eeglab_backend, request):
+    _source_log_images(eeglab_backend, request, "imagescloglog")
 
 
 @eeglab_test(HELPFOREXE, "test_test_helpforexe")
-def test_reference_helpforexe(eeglab_backend, eeglab_working_directory):
-    eeglab_backend("warning", "WarnTests:convertTest", "Start to test helpforexe!", nargout=0)
-    for filename in ("eeglab.m", "helpforexe.m"):
-        eeglab_backend("helpforexe", np.array([[filename]], dtype=object), str(eeglab_working_directory), nargout=0)
-        generated = f"help_{filename}"
-        eeglab_backend("delete", generated, nargout=0)
-        assert eeglab_backend("lastwarn") != f"File '{generated}' not found.", "Help file is not correctly generated"
+def test_reference_helpforexe(eeglab_backend, eeglab_working_directory, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    with warnings.catch_warnings(record=True) as emitted:
+        warnings.simplefilter("always")
+        if matlab:
+            eeglab_backend("warning", "WarnTests:convertTest", "Start to test helpforexe!", nargout=0)
+        else:
+            warnings.warn("WarnTests:convertTest: Start to test helpforexe!", stacklevel=1)
+        for filename in ("eeglab.m", "helpforexe.m"):
+            eeglab_backend("helpforexe", np.array([[filename]], dtype=object), str(eeglab_working_directory), nargout=0)
+            generated = f"help_{filename}"
+            if matlab:
+                eeglab_backend("delete", generated, nargout=0)
+                message = eeglab_backend("lastwarn")
+            else:
+                output = eeglab_working_directory / generated
+                if output.exists():
+                    output.unlink()
+                else:
+                    warnings.warn(f"File '{generated}' not found.", stacklevel=1)
+                message = str(emitted[-1].message)
+            assert message != f"File '{generated}' not found.", "Help file is not correctly generated"
 
 
 @pytest.mark.gui
 @eeglab_test(SETFONT, "test_test_setfont")
 def test_reference_setfont(eeglab_backend, request):
-    eeglab_backend("figure", nargout=0)
-    eeglab_backend("plot", np.arange(1.0, 11.0)[None, :], nargout=0)
-    for function, text in (("xlabel", "test"), ("ylabel", "test2"), ("title", "test3")):
-        eeglab_backend(function, text, nargout=0)
     if request.config.getoption("--eeglab-backend") == "matlab":
+        eeglab_backend("figure", nargout=0)
+        eeglab_backend("plot", np.arange(1.0, 11.0)[None, :], nargout=0)
+        for function, text in (("xlabel", "test"), ("ylabel", "test2"), ("title", "test3")):
+            eeglab_backend(function, text, nargout=0)
         engine = request.getfixturevalue("eeglab_matlab_engine")
         # A numeric graphics handle crosses the existing MAT-file transport.
         figure = engine.double(engine.gcf())
     else:
-        figure = plt.gcf()
+        figure = plt.figure()
+        plt.plot(np.arange(1.0, 11.0))
+        plt.xlabel("test")
+        plt.ylabel("test2")
+        plt.title("test3")
     eeglab_backend("setfont", figure, "fontsize", 12.0, nargout=0)
     eeglab_backend("setfont", figure, "handletype", "xlabels", "fontsize", 18.0, nargout=0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.gui
 @eeglab_test(SHOW_EVENTS, "test_test_show_events")
-def test_reference_show_events(eeglab_backend, eeglab_suite_root):
+def test_reference_show_events(eeglab_backend, eeglab_suite_root, request):
     # readepochsamplefile loads this dataset when called within a test function.
     eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
     eeglab_backend("show_events", eeg)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
     time_warp = eeglab_backend(
         "make_timewarp",
         eeg,
@@ -179,33 +509,35 @@ def test_reference_show_events(eeglab_backend, eeglab_suite_root):
     eeglab_backend(
         "show_events", eeg, "eventThicknessCoef", 0.5, "eventNames", time_warp["eventSequence"], "timeWarp", time_warp
     )
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.gui
 @eeglab_test(TEXTGUI, "test_test_textgui")
-def test_reference_textgui(eeglab_backend):
+def test_reference_textgui(eeglab_backend, request):
     labels = np.array([["Test Function Covary", "Test Function Eucl"]], dtype=object)
     callbacks = np.array([["test_covary", "test_eucl"]], dtype=object)
-    eeglab_backend("textgui", labels, callbacks, nargout=0)
-    eeglab_backend("close", nargout=0)
-    eeglab_backend(
-        "textgui",
-        labels,
-        callbacks,
-        "title",
-        "Test",
-        "fontweight",
-        np.array([["light", "bold"]], dtype=object),
-        "fontsize",
-        np.array([[14.0, 16.0]], dtype=object),
-        "fontname",
-        np.array([["Courier", "Courier"]], dtype=object),
-        "lineperpage",
-        10.0,
-        nargout=0,
-    )
-    eeglab_backend("close", nargout=0)
+    for arguments in (
+        (),
+        (
+            "title",
+            "Test",
+            "fontweight",
+            np.array([["light", "bold"]], dtype=object),
+            "fontsize",
+            np.array([[14.0, 16.0]], dtype=object),
+            "fontname",
+            np.array([["Courier", "Courier"]], dtype=object),
+            "lineperpage",
+            10.0,
+        ),
+    ):
+        window = None
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            eeglab_backend("textgui", labels, callbacks, *arguments, nargout=0)
+        else:
+            window = eeglab_backend("textgui", labels, callbacks, *arguments)
+        close_reference_gui(eeglab_backend, request, window=window)
 
 
 # The remaining tests are supplemental Python behavior, not source ports.
