@@ -1,4 +1,4 @@
-"""Generated-data ports of current EEGLAB tutorial workflows.
+"""Original EEGLAB tutorial contracts and supplemental generated-data examples.
 
 Upstream suite: sccn/eeglab_tests@ff605546f3f70868916fb8d49c007472b3257b50
 EEGLAB tree: sccn/eeglab@8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba
@@ -8,6 +8,7 @@ Tutorial scripts: sccn/eeglab-tutorial-scripts@58bf12dd53e894dd3ee1285946563cd94
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import matplotlib
 
@@ -58,7 +59,10 @@ from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
+from tests.test_eeg_store import _source_dataset_row
+from tests.test_study_grouped_measure_plots_eeglab_tests import _cell_row, _records
 
 
 TUTORIAL_WRAPPER = "unittesting_tutorial/tutorial_wrapperTest.m"
@@ -76,6 +80,289 @@ ICLABEL_THRESHOLDS = np.asarray(
         [np.nan, np.nan],
     ]
 )
+
+
+def _tutorial_start(backend, request, *, outputs=0):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        state = backend("eeglab", nargout=outputs)
+        return (None, *state) if outputs else None
+    # Python's actual launcher returns its window/session rather than workspace
+    # variables. Retain this specific window, never the user's active window.
+    window = backend("eeglab")
+    request.addfinalizer(window.window.close)
+    if outputs:
+        session = window.session
+        return window, session.ALLEEG, session.EEG, session.current_set_value(), session.ALLCOM
+    return window
+
+
+def _tutorial_redraw(backend, request, window, **state):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("eegprep_test_tutorial_redraw", state, nargout=0)
+    else:
+        window.session.apply_workspace_state(**{key.lower(): value for key, value in state.items()})
+        window.refresh()
+
+
+def _tutorial_figure(backend, request, **kwargs):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("figure", nargout=0, **kwargs)
+    else:
+        figure = plt.figure(**kwargs)
+        request.addfinalizer(lambda: plt.close(figure))
+
+
+def _tutorial_title(backend, request, title):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("title", title, nargout=0)
+    else:
+        plt.title(title)
+
+
+def _tutorial_timerange(eeg):
+    return np.asarray([eeg["xmin"], eeg["xmax"]]).reshape(1, 2)
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_eeglab_history")
+def test_reference_tutorial_history(eeglab_backend, eeglab_suite_root, eeglab_options_directory, request):
+    backend = eeglab_backend
+    samples = eeglab_suite_root / "eeglab" / "sample_data"
+    window, alleeg, eeg, currentset, allcom = _tutorial_start(backend, request, outputs=4)
+    backend("pop_editoptions", "option_storedisk", 0.0, nargout=0)
+    eeg = backend("pop_loadset", "eeglab_data.set", str(samples))
+    eeg["chanlocs"] = backend(
+        "pop_chanedit",
+        eeg["chanlocs"],
+        "load",
+        _cell_row(str(samples / "eeglab_chan32.locs"), "filetype", "autodetect"),
+    )
+    alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, nargout=3)
+    eeg = backend("pop_eegfilt", eeg, 1.0, 0.0, [], np.array([[0.0]]))
+    alleeg, eeg, currentset = backend(
+        "pop_newset", alleeg, eeg, currentset, "setname", "filtered Continuous EEG Data", nargout=3
+    )
+    eeg = backend("pop_reref", eeg, [], "refstate", 0.0)
+    eeg["comments"] = backend(
+        "pop_comments", eeg["comments"], "", "Dataset was highpass filtered at 1 Hz and rereferenced.", 1.0
+    )
+    eeg = backend(
+        "pop_epoch",
+        eeg,
+        _cell_row("square"),
+        np.array([[-1.0, 2.0]]),
+        "newname",
+        "Continuous EEG Data epochs",
+        "epochinfo",
+        "yes",
+    )
+    alleeg, eeg, currentset = backend(
+        "pop_newset", alleeg, eeg, currentset, "setname", "Continuous EEG Data epochs", "overwrite", "on", nargout=3
+    )
+    eeg = backend("pop_rmbase", eeg, np.array([[-1000.0, 0.0]]))
+    eeg["comments"] = backend(
+        "pop_comments", eeg["comments"], "", "Extracted 'square' epochs [-1 2] sec, and removed baseline.", 1.0
+    )
+    alleeg, eeg = backend("eeg_store", alleeg, eeg, currentset, nargout=2)
+    _tutorial_redraw(backend, request, window, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, ALLCOM=allcom)
+
+    window, alleeg, eeg, currentset, allcom = _tutorial_start(backend, request, outputs=4)
+    eeg = backend("pop_loadset", "eeglab_data.set", str(samples))
+    eeg["chanlocs"] = backend(
+        "pop_chanedit",
+        eeg["chanlocs"],
+        "load",
+        _cell_row(str(samples / "eeglab_chan32.locs"), "filetype", "autodetect"),
+    )
+    eeg = backend("pop_eegfilt", eeg, 1.0, 0.0, [], np.array([[0.0]]))
+    eeg = backend("pop_reref", eeg, [], "refstate", 0.0)
+    eeg["comments"] = backend(
+        "pop_comments", eeg["comments"], "", "Dataset was highpass filtered at 1 Hz and rereferenced.", 1.0
+    )
+    eeg = backend(
+        "pop_epoch",
+        eeg,
+        _cell_row("square"),
+        np.array([[-1.0, 2.0]]),
+        "newname",
+        "Continuous EEG Data epochs",
+        "epochinfo",
+        "yes",
+    )
+    eeg = backend("pop_rmbase", eeg, np.array([[-1000.0, 0.0]]))
+    eeg["comments"] = backend(
+        "pop_comments", eeg["comments"], "", "Extracted 'square' epochs [-1 2] sec, and removed baseline.", 1.0
+    )
+    alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, 1.0, nargout=3)
+    _tutorial_redraw(backend, request, window, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, ALLCOM=allcom)
+    eeg = backend("pop_resample", eeg, 128.0)
+    alleeg, eeg, currentset = backend(
+        "pop_newset", alleeg, eeg, currentset, "setname", "Continuous EEG Data resampled", nargout=3
+    )
+    eeg = backend("eeg_retrieve", alleeg, 1.0)
+    currentset = 1.0
+    times = np.arange(0.0, 501.0, 100.0).reshape(1, -1)
+    backend(
+        "pop_topoplot", eeg, 1.0, times, "Topographic plot", np.array([[2.0, 3.0]]), 0.0, "electrodes", "on", nargout=0
+    )
+    pos = backend("eeg_lat2point", times / 1000.0, 1.0, eeg["srate"], _tutorial_timerange(eeg))
+    indices = np.floor(np.asarray(pos).ravel() + 0.5).astype(int) - 1
+    mean_data = np.mean(eeg["data"][:, indices, :], axis=2)
+    maxlim, minlim = np.max(mean_data), np.min(mean_data)
+    limits = np.array([[-max(maxlim, -minlim), max(maxlim, -minlim)]])
+    _tutorial_figure(backend, request)
+    for index in range(6):
+        backend("sbplot", 2.0, 3.0, float(index + 1), nargout=0)
+        backend(
+            "topoplot",
+            mean_data[:, index : index + 1],
+            eeg["chanlocs"],
+            "maplimits",
+            limits,
+            "electrodes",
+            "on",
+            "style",
+            "both",
+            nargout=0,
+        )
+        _tutorial_title(backend, request, f"{times[0, index]:g} ms")
+    backend("cbar", nargout=0)
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_event_processing_single_dataset")
+def test_reference_tutorial_event_processing_single_dataset(
+    eeglab_backend, eeglab_suite_root, eeglab_options_directory, request
+):
+    backend = eeglab_backend
+    window, alleeg, eeg, currentset, allcom = _tutorial_start(backend, request, outputs=4)
+    backend("pop_editoptions", "option_storedisk", 0.0, nargout=0)
+    eeg = backend("pop_loadset", "eeglab_data.set", str(eeglab_suite_root / "eeglab" / "sample_data"))
+    events = _records(eeg["event"])
+    for event in events:
+        event["latency"] += 10.0
+    eeg["event"] = _source_dataset_row(*events)
+    alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, currentset, nargout=3)
+    events = _records(eeg["event"])
+    nevents = len(events)
+    for index in range(nevents):
+        event = events[index]
+        if isinstance(event["type"], str) and event["type"].lower() == "square":
+            events.append(dict(event))
+            events[-1]["latency"] = event["latency"] - 0.1 * eeg["srate"]
+            events[-1]["type"] = "cue"
+    eeg["event"] = _source_dataset_row(*events)
+    eeg = backend("eeg_checkset", eeg, "eventconsistency")
+    alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, currentset, nargout=3)
+    _tutorial_redraw(backend, request, window, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, ALLCOM=allcom)
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_event_processing_study")
+def test_reference_tutorial_event_processing_study(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, eeglab_options_directory, request
+):
+    backend = eeglab_backend
+    samples = shutil.copytree(eeglab_suite_root / "eeglab" / "sample_data", eeglab_working_directory / "sample_data")
+    window, alleeg, eeg, currentset, allcom = _tutorial_start(backend, request, outputs=4)
+    backend("pop_editoptions", "option_storedisk", 0.0, nargout=0)
+    eeg = backend("pop_loadset", "eeglab_data_epochs_ica.set", str(samples))
+    alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, nargout=3)
+    commands = []
+    datasets = _records(alleeg)
+    for index, dataset in enumerate(datasets, start=1):
+        events = _records(dataset["event"])
+        for current, following in zip(events[:-1], events[1:]):
+            if (
+                current["type"].lower() == "square"
+                and following["type"].lower() == "rt"
+                and following["epoch"] == current["epoch"]
+            ):
+                # MATLAB's struct field assignment initializes other rows empty.
+                if "rt" not in events[0]:
+                    for event in events:
+                        event["rt"] = np.empty((0, 0))
+                current["rt"] = (following["latency"] - current["latency"]) / dataset["srate"] * 1000.0
+        dataset["event"] = _source_dataset_row(*events)
+        filename = str(Path(dataset["filepath"]) / f"{dataset['setname'][:-4]}_rtevents.set")
+        dataset["saved"] = "no"
+        # The original passes the complete ALLEEG array, not just dataset iDat.
+        datasets[index - 1] = backend("pop_saveset", _source_dataset_row(*datasets), filename)
+        if np.size(datasets[index - 1]["subject"]) == 0 or datasets[index - 1]["subject"] == "":
+            datasets[index - 1]["subject"] = f"S{index:02d}"
+        commands.extend(("index", float(index), "load", filename, "subject", datasets[index - 1]["subject"]))
+    study, alleeg = backend("std_editset", [], [], "commands", _cell_row(*commands), "updatedat", "off", nargout=2)
+    _tutorial_redraw(
+        backend,
+        request,
+        window,
+        ALLEEG=alleeg,
+        EEG=eeg,
+        CURRENTSET=currentset,
+        ALLCOM=allcom,
+        STUDY=study,
+        CURRENTSTUDY=True,
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_time_freq_all_elec")
+def test_reference_tutorial_time_freq_all_elec(eeglab_backend, eeglab_suite_root, request):
+    backend = eeglab_backend
+    window = _tutorial_start(backend, request)
+    close_reference_gui(backend, request, window=window.window if window else None)
+    eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))
+    for electrode in range(1, int(eeg["nbchan"]) + 1):
+        results = backend(
+            "pop_newtimef",
+            eeg,
+            1.0,
+            float(electrode),
+            _tutorial_timerange(eeg) * 1000.0,
+            np.array([[3.0, 0.5]]),
+            "maxfreq",
+            50.0,
+            "padratio",
+            16.0,
+            "plotphase",
+            "off",
+            "timesout",
+            60.0,
+            "alpha",
+            0.05,
+            "plotersp",
+            "off",
+            "plotitc",
+            "off",
+            nargout=7,
+        )
+        if electrode == 1:
+            all_results = [
+                np.zeros((*np.shape(result), int(eeg["nbchan"])), dtype=np.asarray(result).dtype) for result in results
+            ]
+        for accumulated, result in zip(all_results, results, strict=True):
+            accumulated[:, :, electrode - 1] = result
+    allersp, _allitc, _allpowbase, alltimes, allfreqs, allerspboot, _allitcboot = all_results
+    _tutorial_figure(backend, request)
+    backend(
+        "tftopo",
+        allersp,
+        alltimes[:, :, 0],
+        allfreqs[:, :, 0],
+        "mode",
+        "ave",
+        "limits",
+        np.array([[np.nan, np.nan, np.nan, 35.0, -1.5, 1.5]]),
+        "signifs",
+        allerspboot,
+        "sigthresh",
+        np.array([[6.0]]),
+        "timefreqs",
+        np.array([[400.0, 8.0], [350.0, 14.0], [500.0, 24.0], [1050.0, 11.0]]),
+        "chanlocs",
+        eeg["chanlocs"],
+        nargout=0,
+    )
 
 
 def _continuous_tutorial_eeg() -> dict:
@@ -325,7 +612,6 @@ def _add_face_type_to_bids_events(root: Path) -> None:
         path.write_text("\n".join(output) + "\n", encoding="utf-8")
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_eeglab_history")
 def test_eeglab_history_tutorial_runs_as_replayable_generated_data_pipeline():
     eeg = _continuous_tutorial_eeg()
     alleeg, eeg, currentset = eeg_store([], eeg)
@@ -400,7 +686,6 @@ def test_eeglab_history_tutorial_runs_as_replayable_generated_data_pipeline():
     plt.close(figures[0])
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_event_processing_single_dataset")
 def test_event_processing_single_dataset_shifts_events_and_adds_time_locked_cues():
     eeg = _continuous_tutorial_eeg()
     original_count = len(eeg["event"])
@@ -426,7 +711,6 @@ def test_event_processing_single_dataset_shifts_events_and_adds_time_locked_cues
     assert [event["latency"] for event in events] == sorted(event["latency"] for event in events)
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_event_processing_study")
 def test_event_processing_study_exposes_derived_reaction_time_as_a_design_variable(tmp_path: Path):
     eeg = create_test_eeg(n_channels=4, n_samples=64, n_trials=2, srate=128.0)
     eeg["setname"] = "generated_rtevents"
@@ -661,7 +945,6 @@ def test_study_script_runs_n400_measure_statistics_and_component_clustering_work
     plt.close(figure)
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_time_freq_all_elec")
 def test_time_freq_all_electrodes_preserves_trial_power_and_spatial_axes():
     eeg = _epoched_tutorial_eeg("S01", "target", subject_index=1)
     results = [
@@ -715,7 +998,7 @@ def test_time_freq_all_electrodes_preserves_trial_power_and_spatial_axes():
     plt.close(figure)
 
 
-@eeglab_test(TUTORIAL2_WRAPPER, "test_bids_process_face_experiment")
+# The upstream face-experiment wrapper contains comments only, not a workflow.
 def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_path: Path):
     bids_root = tmp_path / "generated_face_recognition"
     export_commands = []
