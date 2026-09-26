@@ -28,6 +28,7 @@ from eegprep.functions.studyfunc.std_precomp import std_precomp
 from eegprep.functions.studyfunc.std_selectdesign import std_selectdesign
 from eegprep.functions.studyfunc.std_specplot import std_specplot
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 STUDYFUNC_ROOT = "unittesting_studyfunc"
@@ -310,6 +311,7 @@ def _cell_row(*values):
 
 
 @_reference("pop_corrmap", "test_test_pop_corrmap")
+@pytest.mark.gui
 def test_reference_pop_corrmap(eeglab_backend, eeglab_sample_study):
     version = eeglab_backend("eeg_getversion")
     prefix = version[:2]
@@ -333,10 +335,12 @@ def test_reference_pop_corrmap(eeglab_backend, eeglab_sample_study):
 
 
 @_reference("std_editset", "test_test_std_editset")
-def test_reference_std_editset(eeglab_backend, eeglab_suite_root):
+@pytest.mark.gui
+def test_reference_std_editset(eeglab_backend, eeglab_suite_root, request):
     directory = eeglab_suite_root / "unittesting_studyfunc/teststudy2/S02"
-    # Session setup initializes EEGLAB; the pinned checkout is the source
-    # project's RootFolder, without opening its plugin-install startup hook.
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    window = eeglab_backend("eeglab", nargout=0 if matlab else 1)
+    # The pinned checkout is the source project's RootFolder.
     study, alleeg = eeglab_backend(
         "std_editset",
         np.empty((0, 0)),
@@ -378,7 +382,7 @@ def test_reference_std_editset(eeglab_backend, eeglab_suite_root):
         updatedat="off",
         nargout=2,
     )
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request, window=window)
 
 
 @_reference("std_makedesign", "test_test_std_makedesign")
@@ -417,7 +421,8 @@ def _read_writable_n400(backend, directory):
 
 @pytest.mark.slow
 @_reference("std_itcplot", "test_test_std_itcplot")
-def test_reference_std_itcplot(eeglab_backend, eeglab_writable_study):
+@pytest.mark.gui
+def test_reference_std_itcplot(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
     study = eeglab_backend("std_selectdesign", study, alleeg, 1.0)
     for selection in ("components", "channels"):
@@ -452,12 +457,13 @@ def test_reference_std_itcplot(eeglab_backend, eeglab_writable_study):
         {"channels": _cell_row("Cz"), "subject": "S02"},
     ):
         eeglab_backend("std_itcplot", study, alleeg, **options, nargout=0)
-        eeglab_backend("close", nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.slow
 @_reference("std_erspplot", "test_test_std_erspplot")
-def test_reference_std_erspplot(eeglab_backend, eeglab_writable_study):
+@pytest.mark.gui
+def test_reference_std_erspplot(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
     labels = alleeg["chanlocs"].flat[0]["labels"].ravel()
     channel, channels, all_channels = _cell_row(labels[15]), _cell_row(*labels[:4]), _cell_row(*labels)
@@ -499,12 +505,13 @@ def test_reference_std_erspplot(eeglab_backend, eeglab_writable_study):
         result = eeglab_backend("std_erspplot", study, alleeg, **options, nargout=int(store))
         if store:
             study = result
-        eeglab_backend("close", nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.slow
 @_reference("std_specplot", "test_test_std_specplot")
-def test_reference_std_specplot(eeglab_backend, eeglab_writable_study):
+@pytest.mark.gui
+def test_reference_std_specplot(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_writable_n400(eeglab_backend, eeglab_writable_study)
     labels = alleeg["chanlocs"].flat[0]["labels"].ravel()
     channel, all_channels = _cell_row(labels[15]), _cell_row(*labels)
@@ -546,7 +553,7 @@ def test_reference_std_specplot(eeglab_backend, eeglab_writable_study):
         result = eeglab_backend("std_specplot", study, alleeg, **options, nargout=int(store))
         if store:
             study = result
-        eeglab_backend("close", nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 @pytest.mark.slow

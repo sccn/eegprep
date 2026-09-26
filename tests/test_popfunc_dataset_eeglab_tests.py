@@ -162,6 +162,7 @@ def test_reference_eegfilt_original_recording_and_defaults(eeglab_backend, eegla
 
 
 @eeglab_test("unittesting_popfunc/pop_eventstat/popfunc_pop_eventstat_wrapperTest.m", "test_test_pop_eventstat")
+@pytest.mark.gui
 def test_reference_eventstat_all_twenty_original_calls(eeglab_backend, eeglab_suite_root, request):
     for filename in ("eeglab_data.set", "eeglab_data_epochs_ica.set"):
         eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
@@ -224,6 +225,7 @@ def test_reference_selectevent_original_recording_position_field(eeglab_backend,
 
 
 @eeglab_test("unittesting_popfunc/pop_signalstat/popfunc_pop_signalstat_wrapperTest.m", "test_test_pop_signalstat")
+@pytest.mark.gui
 def test_reference_signalstat_all_four_original_calls(eeglab_backend, eeglab_suite_root, request):
     eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
     for arguments in ((1.0, 5.0), (0.0, 5.0), (1.0, 5.0, 50.0), (0.0, 5.0, 0.5)):

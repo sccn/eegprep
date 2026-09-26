@@ -15,6 +15,7 @@ import pytest
 import eegprep
 from eegprep.functions.studyfunc.std_dipplot import std_dipplot
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 UPSTREAM = "unittesting_studyfunc/std_dipplot/studyfunc_std_dipplot_wrapperTest.m"
@@ -74,12 +75,13 @@ def _study_with_dipoles() -> tuple[dict, list[dict]]:
 
 
 @eeglab_test(UPSTREAM, "test_test_std_dipplot")
-def test_reference_std_dipplot(eeglab_backend, eeglab_sample_study):
+@pytest.mark.gui
+def test_reference_std_dipplot(eeglab_backend, eeglab_sample_study, request):
     study, alleeg = eeglab_sample_study
     eeglab_backend("std_dipplot", study, alleeg, clusters="all", mode="joined", nargout=0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
     eeglab_backend("std_dipplot", study, alleeg, clusters=3.0, mode="centroid", nargout=0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
     # The original returns here; the component calls below it are inactive.
 
 

@@ -597,16 +597,20 @@ def test_reference_prop_original_multiwindow_calls(eeglab_backend, eeglab_suite_
             for mode in modes:
                 _reference_plot(eeglab_backend, request, "pop_prop", eeg, mode, 1.0, 1.0, options)
         else:
-            _reference_figure(eeglab_backend, request)
             if matlab:
-                engine = request.getfixturevalue("eeglab_matlab_engine")
-                figure = engine.double(engine.gcf())
+                eeglab_backend("eegprep_test_prop_parent", "create", nargout=0)
             else:
-                figure = plt.gcf()
+                figure = plt.figure()
             for mode in modes:
-                _reference_plot(eeglab_backend, request, "pop_prop", eeg, mode, 1.0, figure, options)
+                if matlab:
+                    # pop_prop uses parent.Tag on modern MATLAB. A double
+                    # handle transported through MAT files changes that type.
+                    eeglab_backend("eegprep_test_prop_parent", "call", eeg, mode, 1.0, options, nargout=0)
+                    close_reference_gui(eeglab_backend, request)
+                else:
+                    _reference_plot(eeglab_backend, request, "pop_prop", eeg, mode, 1.0, figure, options)
             if matlab:
-                engine.close(figure, nargout=0)
+                eeglab_backend("eegprep_test_prop_parent", "close", nargout=0)
             else:
                 plt.close(figure)
 

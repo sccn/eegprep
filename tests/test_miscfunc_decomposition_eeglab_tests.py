@@ -68,6 +68,7 @@ def test_reference_runicalowmem(eeglab_backend, eeglab_suite_root):
 
 
 @eeglab_test(f"{MISC_ROOT}/loc_subsets/miscfunc_loc_subsets_wrapperTest.m", "test_test_loc_subsets")
+@pytest.mark.gui
 def test_reference_loc_subsets(eeglab_backend, eeglab_suite_root, request):
     locations = eeglab_backend("pop_readlocs", str(eeglab_suite_root / "eeglab/sample_locs/GSN256.sfp"))
     mandatory = np.empty((1, 2), dtype=object)
@@ -87,6 +88,7 @@ def test_reference_loc_subsets(eeglab_backend, eeglab_suite_root, request):
 
 
 @eeglab_test(f"{MISC_ROOT}/testica/miscfunc_testica_wrapperTest.m", "test_test_testica")
+@pytest.mark.gui
 def test_reference_testica(eeglab_backend, request):
     matlab = request.config.getoption("--eeglab-backend") == "matlab"
     for arguments in ((32.0, 100.0), (32.0, 100.0, 64.0), (20.0, 1000.0, 64.0, -0.05, 1.2)):

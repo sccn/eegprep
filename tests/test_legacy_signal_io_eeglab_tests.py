@@ -123,6 +123,7 @@ def test_python_regression_blockave_equal_weights_matches_current_suite() -> Non
 
 
 @eeglab_test(f"{SIGPROC}/eegfilt/sigprocfunc_eegfilt_wrapperTest.m", "test_pass_general")
+@pytest.mark.gui
 def test_reference_eegfilt(eeglab_backend, request):
     data = np.zeros((2, 48))
     data[0, 0] = 1

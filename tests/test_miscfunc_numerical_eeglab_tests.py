@@ -752,6 +752,7 @@ def test_python_regression_uniquef_returns_stable_counts_and_zero_based_first_in
 
 
 @eeglab_test(_source("vectdata"), "test_test_vectdata")
+@pytest.mark.gui
 def test_reference_vectdata(eeglab_backend, request):
     times = np.linspace(-20, 20, 81)[None, :]
     dense_times = np.linspace(-20, 20, 4001)[None, :]

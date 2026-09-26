@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from matplotlib import pyplot as plt
 
 from eegprep import (
     eeg_addnewevents,
@@ -27,6 +28,7 @@ from eegprep import (
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 @eeglab_test(
@@ -268,6 +270,7 @@ def test_reference_eventtypes_preserves_inverted_source_condition(eeglab_backend
 
 
 @eeglab_test("unittesting_popfunc/eeg_eventhist/popfunc_eeg_eventhist_wrapperTest.m", "test_test_eeg_eventhist")
+@pytest.mark.gui
 def test_reference_eventhist_original_values_and_no_output_plots(request, eeglab_backend):
     eeg = eeglab_backend("eeg_emptyset")
     kinds = ["square", "square", "rt", "square", "rt"]
@@ -276,17 +279,22 @@ def test_reference_eventhist_original_values_and_no_output_plots(request, eeglab
     np.testing.assert_array_equal(values, np.array([[kind] for kind in kinds], dtype=object))
     assert_matlab_near(counts, [[2.0, 3.0]])
     np.testing.assert_array_equal(bins, np.array([["rt"], ["square"]], dtype=object))
-    if request.config.getoption("--eeglab-backend") == "python":
-        pytest.fail("The source's no-output eeg_eventhist plotting workflow has no Python entry point")
-    eeglab_backend("figure", nargout=0)
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    if matlab:
+        eeglab_backend("figure", nargout=0)
+    else:
+        plt.figure()
     eeglab_backend("eeg_eventhist", eeg["event"], "type", 2.0, nargout=0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
     eeg = eeglab_backend("eeg_emptyset")
     eeg["event"] = np.array([[(latency,) for latency in (0.0, 0.0, 0.3, 0.0, 0.4)]], dtype=[("latency", object)])
     # Numeric-output and nested-struct assertions are commented out upstream.
-    eeglab_backend("figure", nargout=0)
+    if matlab:
+        eeglab_backend("figure", nargout=0)
+    else:
+        plt.figure()
     eeglab_backend("eeg_eventhist", eeg["event"], "latency", 3.0, nargout=0)
-    eeglab_backend("close", nargout=0)
+    close_reference_gui(eeglab_backend, request)
 
 
 def _reference_context_events(eeglab_backend, epoched):

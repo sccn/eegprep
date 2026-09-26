@@ -624,6 +624,7 @@ def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, eeglab_suit
 
 
 @eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig_timerange")
+@pytest.mark.gui
 def test_upstream_pop_biosig_original_edf_overlap(request, eeglab_backend, eeglab_suite_root):
     filename = str(eeglab_suite_root / "unittesting_binary/testfiles/BDF/5038.edf")
     first = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[0.0, 30.0]]))

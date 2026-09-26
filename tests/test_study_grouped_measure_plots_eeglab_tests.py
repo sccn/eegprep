@@ -32,6 +32,7 @@ from eegprep import (
     std_topoplot,
 )
 from tests.eeglab_tests import eeglab_test, load_matlab_test_fixture
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 STUDYFUNC_ROOT = "unittesting_studyfunc"
@@ -169,6 +170,7 @@ def _time_limits(eeg):
 
 @pytest.mark.slow
 @_reference("std_erspplot", "test_test_std_erspplot2_2")
+@pytest.mark.gui
 def test_reference_std_erspplot_channel_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     locations, channel = _measure_channels(eeglab_backend, alleeg)
@@ -288,6 +290,7 @@ def test_reference_std_erspplot_channel_cache(eeglab_backend, eeglab_writable_st
 
 @pytest.mark.slow
 @_reference("std_erspplot", "test_test_std_erspplot3_2")
+@pytest.mark.gui
 def test_reference_std_erspplot_component_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     _measure_channels(eeglab_backend, alleeg)
@@ -370,6 +373,7 @@ def test_reference_std_erspplot_component_cache(eeglab_backend, eeglab_writable_
 
 @pytest.mark.slow
 @_reference("std_erpplot", "test_test_stderpplot2")
+@pytest.mark.gui
 def test_reference_std_erpplot_channel_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     locations, channel = _measure_channels(eeglab_backend, alleeg)
@@ -413,6 +417,7 @@ def test_reference_std_erpplot_channel_cache(eeglab_backend, eeglab_writable_stu
 
 @pytest.mark.slow
 @_reference("std_erpplot", "test_test_stderpplot3")
+@pytest.mark.gui
 def test_reference_std_erpplot_component_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     _measure_channels(eeglab_backend, alleeg)  # Source also merges/selects a channel here.
@@ -455,6 +460,7 @@ def test_reference_std_erpplot_component_cache(eeglab_backend, eeglab_writable_s
 
 @pytest.mark.slow
 @_reference("std_specplot", "test_test_stdspecplot3")
+@pytest.mark.gui
 def test_reference_std_specplot_channel_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     locations, channel = _measure_channels(eeglab_backend, alleeg)
@@ -502,6 +508,7 @@ def test_reference_std_specplot_channel_cache(eeglab_backend, eeglab_writable_st
 
 @pytest.mark.slow
 @_reference("std_specplot", "test_test_stdspecplot4")
+@pytest.mark.gui
 def test_reference_std_specplot_component_cache(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     eeglab_backend("eeg_mergelocs", *(eeg["chanlocs"] for eeg in _records(alleeg)))
@@ -541,6 +548,7 @@ def test_reference_std_specplot_component_cache(eeglab_backend, eeglab_writable_
 @pytest.mark.slow
 @pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
 @_reference("std_erpplot", "test_test_std_erpplot")
+@pytest.mark.gui
 def test_reference_std_erpplot_design_sweep(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
     locations = _records(_records(alleeg)[0]["chanlocs"])[2:9]
@@ -610,6 +618,7 @@ def test_reference_std_erpplot_design_sweep(eeglab_backend, eeglab_writable_stud
 @pytest.mark.slow
 @pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
 @_reference("std_specplot", "test_test_std_specplot2")
+@pytest.mark.gui
 def test_reference_std_specplot_design_sweep(eeglab_backend, eeglab_writable_study, request):
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
     locations = _records(_records(alleeg)[0]["chanlocs"])[2:9]
@@ -967,7 +976,8 @@ def test_std_specplot_group_and_condition_layout_controls_preserve_design_cells(
 
 
 @_reference("std_topoplot", "test_test_std_topoplot")
-def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study):
+@pytest.mark.gui
+def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study, request):
     study, alleeg = eeglab_sample_study
     for options in (
         {"clusters": "all", "mode": "centroid"},
@@ -976,7 +986,7 @@ def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study):
         {"clusters": 3.0, "comps": 4.0},
     ):
         eeglab_backend("std_topoplot", study, alleeg, **options, nargout=0)
-        eeglab_backend("close", nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 def test_std_topoplot_draws_all_centroids_component_maps_and_selected_members():

@@ -15,6 +15,7 @@ import tempfile
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 import scipy.io
 
 from eegprep.functions.sigprocfunc.runica import runica
@@ -102,6 +103,7 @@ def test_reference_runica_pca(eeglab_backend):
 
 
 @eeglab_test(_RUNICA_SOURCE, "test_pass_posact")
+@pytest.mark.gui
 def test_reference_runica_posact(eeglab_backend, request):
     sources, data, tolerance = _reference_runica_mixture()
     difference, demixed = _reference_runica_comparison(eeglab_backend, sources, data, "posact", "on", "extended", 1.0)
