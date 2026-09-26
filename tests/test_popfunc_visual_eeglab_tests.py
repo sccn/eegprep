@@ -1,4 +1,8 @@
-"""Meaningful headless ports of current EEGLAB visual pop-function tests."""
+"""Original graphical source contracts and separate Python supplements.
+
+pop_chansel and both interactive pop_compareerps bodies are entirely inactive
+in the pinned suite; the supplemental tests do not claim their provenance.
+"""
 
 from __future__ import annotations
 
@@ -34,6 +38,7 @@ from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
 from eegprep.functions.sigprocfunc.eegplot import winrej_to_array
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 
@@ -41,10 +46,807 @@ def _source(name: str) -> str:
     return f"unittesting_popfunc/{name}/popfunc_{name}_wrapperTest.m"
 
 
+def _reference_sample(backend, suite_root, filename="eeglab_data_epochs_ica.set"):
+    return backend("pop_loadset", str(suite_root / "eeglab/sample_data" / filename))
+
+
+def _reference_cell(*values):
+    result = np.empty((1, len(values)), dtype=object)
+    result[0] = values
+    return result
+
+
+def _reference_figure(backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("figure", nargout=0)
+    else:
+        plt.figure()
+
+
+def _reference_plot(backend, request, function, *arguments, new_figure=False):
+    if new_figure:
+        _reference_figure(backend, request)
+    backend(function, *arguments, nargout=0)
+    close_reference_gui(backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("eeg_multieegplot"), "test_pass_continuous")
+@eeglab_test(_source("eeg_multieegplot"), "test_pass_continuous_reject")
+@eeglab_test(_source("eeg_multieegplot"), "test_pass_epochs")
+def test_reference_multieegplot_original_rejection_arrays(eeglab_backend, request, subtests):
+    for case in ("continuous", "continuous_reject", "epochs"):
+        with subtests.test(source=case):
+            eeg = eeglab_backend("eeg_emptyset")
+            eeg.update(nbchan=2.0, srate=1.0, xmin=0.0)
+            if case == "epochs":
+                eeg.update(pnts=3.0, trials=3.0, xmax=2.0)
+                eeg["data"] = np.array([[[1, 1, 2]] * 3, [[2, 2, 2], [1, 1, 1], [1, 1, 1]]], dtype=float)
+                trialrej, elecrej = np.zeros((1, 3)), np.zeros((1, 3))
+            else:
+                eeg.update(pnts=9.0, trials=1.0, xmax=8.0)
+                eeg["data"] = np.array([[1, 1, 1, 1, 1, 1, 2, 2, 2], [2, 1, 1, 2, 1, 1, 2, 1, 1]], dtype=float)
+                trialrej, elecrej = np.zeros((1, 9)), np.zeros((1, 2))
+                if case == "continuous_reject":
+                    trialrej[0, [1, 6]] = 1.0
+                    elecrej = np.ones((2, 9))
+            matlab = request.config.getoption("--eeglab-backend") == "matlab"
+            # Retain only the Python window for closing; MATLAB requested no output.
+            window = eeglab_backend("eeg_multieegplot", eeg["data"], trialrej, elecrej, nargout=0 if matlab else 1)
+            close_reference_gui(eeglab_backend, request, window=window)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_comperp"), "test_test_pop_comperp")
+def test_reference_comperp_original_dataset_selections(eeglab_backend, eeglab_suite_root, request):
+    selected = []
+    for position in (1.0, 2.0):
+        eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+        selected.append(
+            eeglab_backend("pop_selectevent", eeg, "position", position, "deleteevents", "off", "deleteepochs", "on")
+        )
+    fields = list(selected[0])
+    datasets = np.array(
+        [[tuple(eeg[field] for field in fields) for eeg in selected]], dtype=[(field, object) for field in fields]
+    )
+    for mode in (1.0, 0.0):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_comperp",
+            datasets,
+            mode,
+            np.array([[1.0, 2.0]]),
+            np.empty((0, 0)),
+            "alpha",
+            0.05,
+            "std",
+            "on",
+            "allerps",
+            "on",
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_crossf"), "test_pass_tlimits_empty")
+def test_reference_crossf_original_empty_limits(eeglab_backend, eeglab_suite_root, request):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "unittesting_popfunc/pop_crossf/test.set"), "")
+    eeglab_backend("pop_crossf", eeg, 1.0, 1.0, 2.0, np.empty((0, 0)), np.array([[3.0, 0.5]]))
+    close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_crossf"), "test_test_pop_crossf")
+def test_reference_crossf_original_channel_component_calls(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    options = (
+        "topovec",
+        eeg["icawinv"][:, [3, 8]].T,
+        "elocs",
+        eeg["chanlocs"],
+        "chaninfo",
+        eeg["chaninfo"],
+        "title",
+        "Component 4-9 Phase Coherence",
+        "alpha",
+        0.01,
+        "padratio",
+        4.0,
+    )
+    for mode, extra in ((0.0, options), (1.0, ())):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_crossf",
+            eeg,
+            mode,
+            4.0,
+            9.0,
+            np.array([[-1000.0, 2000.0]]),
+            np.array([[3.0, 0.5]]),
+            "type",
+            "phasecoher",
+            *extra,
+            new_figure=True,
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_eegplot"), "test_test_pop_eegplot")
+def test_reference_pop_eegplot_original_recordings(eeglab_backend, eeglab_suite_root, request):
+    for filename, mode in (("eeglab_data.set", 1.0), ("eeglab_data_epochs_ica.set", 0.0)):
+        eeg = _reference_sample(eeglab_backend, eeglab_suite_root, filename)
+        matlab = request.config.getoption("--eeglab-backend") == "matlab"
+        window = eeglab_backend("pop_eegplot", eeg, mode, 0.0, 0.0, nargout=0 if matlab else 1)
+        close_reference_gui(eeglab_backend, request, window=window)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_envtopo"), "test_test_pop_envtopo")
+def test_reference_envtopo_original_contribution_windows(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    for limits in ((-1000.0, 1999.7949), (200.0, 500.0)):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_envtopo",
+            eeg,
+            np.array([[-1000.0, 1999.7949]]),
+            "limcontrib",
+            np.array([limits]),
+            "compnums",
+            -7.0,
+            "title",
+            'Largest ERP components of Epoched from "ee114 continuous" dataset',
+            "electrodes",
+            "off",
+            new_figure=True,
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_headplot"), "test_test_pop_headplot")
+def test_reference_headplot_original_setup(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    setup = np.empty((1, 5), dtype=object)
+    setup[0] = [
+        "eeglab_data_epochs_ica.spl",
+        "meshfile",
+        "mheadnew.mat",
+        "transform",
+        np.array([[-0.31937, -5.9693, 13.1812, 0.050931, 0.017213, -1.5501, 1.0822, 1.0004, 0.92352]]),
+    ]
+    eeglab_backend(
+        "pop_headplot",
+        eeg,
+        1.0,
+        np.arange(0.0, 501.0, 100)[None, :],
+        "ERP scalp maps of dataset:EEG Data epochs",
+        np.array([[2.0, 3.0]]),
+        "setup",
+        setup,
+    )
+    close_reference_gui(eeglab_backend, request)
+    (eeglab_working_directory / "eeglab_data_epochs_ica.spl").unlink()
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_newcrossf"), "test_test_pop_newcrossf")
+def test_reference_newcrossf_original_recordings(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    for mode, topography, title in (
+        (1.0, np.array([[1.0, 2.0]]), "Channel FPz-EOG1 Phase Coherence"),
+        (0.0, eeg["icawinv"][:, [0, 1]].T, "Component 1-2 Phase Coherence"),
+    ):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_newcrossf",
+            eeg,
+            mode,
+            1.0,
+            2.0,
+            np.array([[-1000.0, 1992.0]]),
+            np.array([[3.0, 0.5]]),
+            "type",
+            "phasecoher",
+            "topovec",
+            topography,
+            "elocs",
+            eeg["chanlocs"],
+            "chaninfo",
+            eeg["chaninfo"],
+            "title",
+            title,
+            "padratio",
+            1.0,
+            new_figure=True,
+        )
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root, "eeglab_data.set")
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_newcrossf",
+        eeg,
+        1.0,
+        1.0,
+        2.0,
+        np.array([[0.0, 238305.0]]),
+        np.array([[3.0, 0.5]]),
+        "freqs",
+        np.arange(1.0, 51.0)[None, :],
+        "type",
+        "phasecoher",
+        "title",
+        "Channel 1-2 Phase Coherence",
+        "padratio",
+        1.0,
+        new_figure=True,
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_plotdata"), "test_test_pop_plotdata")
+def test_reference_plotdata_original_eleven_calls(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    all_trials = np.arange(1.0, 81.0)[None, :]
+    for mode, first, last, trials, title, single, polarity, limits in (
+        (1, 1, 32, all_trials, "", 0, 1, [0, 0]),
+        (0, 1, 30, all_trials, "", 0, 1, [0, 0]),
+        (1, 1, 1, np.arange(55.0, 68.0)[None, :], "", 0, 1, [0, 0]),
+        (0, 2, 7, all_trials, "", 0, 1, [0, 0]),
+        (0, 1, 30, all_trials, "test", 0, 1, [0, 0]),
+        (1, 1, 32, np.array([[2.0, 5.0, 7.0]]), "", 1, 1, [0, 0]),
+        (0, 1, 30, np.array([[2.0, 5.0, 7.0]]), "", 1, 1, [0, 0]),
+        (1, 1, 32, all_trials, "", 0, -1, [0, 0]),
+        (0, 1, 30, all_trials, "", 0, -1, [0, 0]),
+        (1, 1, 32, all_trials, "", 0, 1, [-250, 350]),
+        (0, 1, 30, all_trials, "", 0, 1, [-250, 350]),
+    ):
+        eeglab_backend(
+            "pop_plotdata",
+            eeg,
+            float(mode),
+            np.arange(float(first), last + 1)[None, :],
+            trials,
+            title,
+            float(single),
+            float(polarity),
+            np.array([limits], dtype=float),
+        )
+    close_reference_gui(eeglab_backend, request, all_figures=True)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_plottopo"), "test_test_pop_plottopo")
+def test_reference_plottopo_original_channels(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_plottopo",
+        eeg,
+        np.arange(1.0, 33.0)[None, :],
+        "ee114 continuous (h.p. 1Hz) epochs",
+        0.0,
+        new_figure=True,
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_selectcomps"), "test_test_pop_selectcomps")
+def test_reference_selectcomps_original_components(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    _reference_plot(eeglab_backend, request, "pop_selectcomps", eeg, np.arange(1.0, 31.0)[None, :])
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_timtopo"), "test_test_pop_timtopo")
+def test_reference_timtopo_original_default_latency(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_timtopo",
+        eeg,
+        np.array([[-999.9316, 1992.0513]]),
+        np.array([[np.nan]]),
+        "ERP data and scalp maps of ee114 continuous (h.p. 1Hz) epochs",
+        new_figure=True,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _close_figures():
     yield
     plt.close("all")
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_spectopo"), "test_test_pop_spectopo")
+def test_reference_spectopo_original_nine_calls(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root, "eeglab_data.set")
+    continuous = ("percent", 15.0, "freq", np.empty((0, 0)), "freqrange", np.array([[2.0, 25.0]]), "electrodes", "off")
+    for window in ((), ("wintype", "blackmanharris"), ("wintype", "blackmanharris", "blckhn", 3.0)):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_spectopo",
+            eeg,
+            1.0,
+            np.array([[0.0, 238288.3983]]),
+            "EEG",
+            *continuous,
+            *window,
+            new_figure=True,
+        )
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    components = np.arange(1.0, eeg["icaweights"].shape[0] + 1)[None, :]
+    for window in ((), ("wintype", "blackmanharris")):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_spectopo",
+            eeg,
+            1.0,
+            np.array([[0.0, 238288.3983]]),
+            "EEG",
+            "percent",
+            50.0,
+            "freq",
+            np.array([[8.0, 10.0, 12.0]]),
+            "freqrange",
+            np.array([[2.0, 25.0]]),
+            "electrodes",
+            "off",
+            *window,
+            new_figure=True,
+        )
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_spectopo",
+            eeg,
+            0.0,
+            np.array([[-1000.0, 1999.7949]]),
+            "EEG",
+            "freq",
+            10.0,
+            "plotchan",
+            0.0,
+            "icacomps",
+            components,
+            "nicamaps",
+            5.0,
+            "freqrange",
+            np.array([[2.0, 25.0]]),
+            "electrodes",
+            "off",
+            *window,
+            new_figure=True,
+        )
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_spectopo",
+            eeg,
+            0.0,
+            np.array([[-1000.0, 1999.7949]]),
+            "EEG",
+            "freq",
+            10.0,
+            "plotchan",
+            27.0,
+            "icacomps",
+            components,
+            "nicamaps",
+            6.0,
+            "icamode",
+            "sub",
+            "freqrange",
+            np.array([[2.0, 30.0]]),
+            "electrodes",
+            "off",
+            *window,
+            new_figure=True,
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_timef"), "test_test_pop_timef")
+def test_reference_timef_original_channel_component_calls(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_timef",
+        eeg,
+        1.0,
+        14.0,
+        np.array([[-1000.0, 2000.0]]),
+        np.array([[3.0, 0.5]]),
+        "type",
+        "phasecoher",
+        "topovec",
+        14.0,
+        "elocs",
+        eeg["chanlocs"],
+        "title",
+        'Channel Cz power and inter-trial phase coherence (Epoched from "ee114 continuous" dataset)',
+        "alpha",
+        0.01,
+        "padratio",
+        4.0,
+        "plotphase",
+        "off",
+        new_figure=True,
+    )
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_timef",
+        eeg,
+        0.0,
+        1.0,
+        np.array([[-1000.0, 2000.0]]),
+        np.array([[0.0]]),
+        "type",
+        "phasecoher",
+        "topovec",
+        eeg["icawinv"][:, :1],
+        "elocs",
+        eeg["chanlocs"],
+        "chaninfo",
+        eeg["chaninfo"],
+        "title",
+        'Component 1 power and inter-trial phase coherence (Epoched from "ee114 continuous" dataset)',
+        "padratio",
+        4.0,
+        "plotphase",
+        "off",
+        "maxfreq",
+        30.0,
+        new_figure=True,
+    )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_topoplot"), "test_test_pop_topoplot")
+def test_reference_pop_topoplot_original_montage_variants(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    times = np.arange(0.0, 501.0, 100)[None, :]
+    title = "ee114 continuous (h.p. 1Hz) epochs ERP"
+    _reference_plot(
+        eeglab_backend, request, "pop_topoplot", eeg, 1.0, times, title, np.array([[2.0, 3.0]]), "electrodes", "off"
+    )
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "topoplot",
+        np.empty((0, 0)),
+        eeg["chanlocs"],
+        "style",
+        "blank",
+        "electrodes",
+        "labelpoint",
+        new_figure=True,
+    )
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_topoplot",
+        eeg,
+        0.0,
+        np.arange(1.0, 13.0)[None, :],
+        "Continuous EEG Data epochs ERP",
+        np.array([[3.0, 4.0]]),
+        "electrodes",
+        "off",
+    )
+    eeglab_backend("eeg_getversion", nargout=2)
+    matrix = np.array([[11.0, 12.0, 0.0, 1.0], [13.0, 14.0, 15.0, -2.0]])
+    changed = deepcopy(eeg)
+    changed["chanmatrix"] = matrix
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_topoplot",
+        changed,
+        1.0,
+        np.array([[100.0, 200.0, 300.0, 400.0]]),
+        "EEG Data epochs",
+        np.array([[2.0, 2.0]]),
+        0.0,
+    )
+    for channel_matrix in (matrix, np.empty((0, 0))):
+        changed = deepcopy(eeg)
+        changed["chanlocs"] = np.empty((0, 0))
+        changed["chanmatrix"] = channel_matrix
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_topoplot",
+            changed,
+            1.0,
+            times,
+            title,
+            np.array([[2.0, 3.0]]),
+            "electrodes",
+            "off",
+        )
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_prop"), "test_test_pop_prop")
+def test_reference_prop_original_multiwindow_calls(eeglab_backend, eeglab_suite_root, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    legacy_handles = False
+    if matlab:
+        constants = eeglab_backend("eegprep_test_run_script", "icadefs", _reference_cell("VERS"))
+        legacy_handles = float(np.asarray(constants["VERS"]).item()) < 8.04
+    options = _reference_cell("freqrange", np.array([[2.0, 50.0]]))
+    for filename, modes in (("eeglab_data.set", (1.0,)), ("eeglab_data_epochs_ica.set", (1.0, 0.0))):
+        eeg = _reference_sample(eeglab_backend, eeglab_suite_root, filename)
+        for mode in modes:
+            for selection in (1.0, np.array([[2.0, 7.0]])):
+                eeglab_backend("pop_prop", eeg, mode, selection, 0.0, options, nargout=0)
+                close_reference_gui(eeglab_backend, request)
+                if not np.isscalar(selection):
+                    close_reference_gui(eeglab_backend, request)
+        if legacy_handles:
+            for mode in modes:
+                _reference_plot(eeglab_backend, request, "pop_prop", eeg, mode, 1.0, 1.0, options)
+        else:
+            _reference_figure(eeglab_backend, request)
+            if matlab:
+                engine = request.getfixturevalue("eeglab_matlab_engine")
+                figure = engine.double(engine.gcf())
+            else:
+                figure = plt.gcf()
+            for mode in modes:
+                _reference_plot(eeglab_backend, request, "pop_prop", eeg, mode, 1.0, figure, options)
+            if matlab:
+                engine.close(figure, nargout=0)
+            else:
+                plt.close(figure)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("pop_erpimage"), "test_test_pop_erpimage")
+def test_reference_pop_erpimage_complete_original_workflow(eeglab_backend, eeglab_suite_root, request):
+    eeg = _reference_sample(eeglab_backend, eeglab_suite_root)
+    empty = np.empty((0, 0))
+    no_events = np.empty((0, 0), dtype=object)
+    rt = _reference_cell("rt")
+    topo = _reference_cell(27.0, eeg["chanlocs"])
+    for smooth, event, field, extra in (
+        (0.0, no_events, "", ()),
+        (10.0, no_events, "", ()),
+        (10.0, rt, "latency", ()),
+        (10.0, no_events, "position", ("renorm", "yes")),
+        (10.0, rt, "position", ("renorm", "yes")),
+        (10.0, rt, "position", ("renorm", "100*x")),
+        (10.0, no_events, "", ("phasesort", np.array([[0.0, 50.0, 10.0]]))),
+    ):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_erpimage",
+            eeg,
+            1.0,
+            27.0,
+            empty,
+            "POz",
+            smooth,
+            1.0,
+            event,
+            empty,
+            field,
+            "topo",
+            topo,
+            "erp",
+            "cbar",
+            *extra,
+            new_figure=True,
+        )
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_erpimage",
+        eeg,
+        1.0,
+        27.0,
+        empty,
+        "POz",
+        10.0,
+        1.0,
+        no_events,
+        empty,
+        "",
+        "topo",
+        topo,
+        "erp",
+        "limits",
+        np.array([[-200.0, 1000.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]]),
+        "cbar",
+        "phasesort",
+        np.array([[0.0, 50.0, 9.0, 11.0]]),
+        "coher",
+        np.array([[9.0, 11.0, 0.01]]),
+        new_figure=True,
+    )
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "pop_erpimage",
+        eeg,
+        1.0,
+        27.0,
+        empty,
+        "POz",
+        10.0,
+        1.0,
+        rt,
+        empty,
+        "latency",
+        "topo",
+        topo,
+        "erp",
+        "limits",
+        np.array([[-500.0, 1500.0, np.nan, np.nan, -3.0, 3.0, np.nan, np.nan]]),
+        "cbar",
+        "phasesort",
+        np.array([[0.0, 50.0, 9.0, 11.0]]),
+        "plotamps",
+        "coher",
+        np.array([[9.0, 11.0, 0.01]]),
+        "spec",
+        np.array([[2.0, 50.0]]),
+        "vert",
+        500.0,
+        new_figure=True,
+    )
+    for projection, title in ((empty, "Comp. 6"), (27.0, "Comp. 6 -> POz")):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "pop_erpimage",
+            eeg,
+            0.0,
+            6.0,
+            projection,
+            title,
+            10.0,
+            1.0,
+            rt,
+            empty,
+            "latency",
+            "yerplabel",
+            "",
+            "topo",
+            _reference_cell(eeg["icawinv"][:, 5:6], eeg["chanlocs"]),
+            "erp",
+            "limits",
+            np.array([[-300.0, 500.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]]),
+            "cbar",
+            "phasesort",
+            np.array([[-150.0, 0.0, 9.0, 11.0]]),
+            "coher",
+            np.array([[9.0, 11.0, 0.01]]),
+            new_figure=True,
+        )
+    rng = np.random.default_rng()
+    times = (-250.0 + np.arange(200) * (1000 / 256))[None, :]
+    _reference_figure(eeglab_backend, request)
+    for position, title, extra, coherence in (
+        (1.0, "test phasesort", (), np.array([[10.0]])),
+        (2.0, "test phasesort, allamps", ("plotamps",), np.array([[10.0, 10.0, 0.05]])),
+    ):
+        eeglab_backend("sbplot", 1.0, 2.0, position, nargout=0)
+        eeglab_backend(
+            "erpimage",
+            rng.standard_normal((200, 1000)),
+            rng.standard_normal((1, 1000)),
+            times,
+            title,
+            20.0,
+            5.0,
+            "phasesort",
+            np.array([[200.0, 0.0, 10.0]]),
+            *extra,
+            "erp",
+            "cbar",
+            "coher",
+            coherence,
+            nargout=0,
+        )
+    close_reference_gui(eeglab_backend, request)
+    _reference_plot(
+        eeglab_backend,
+        request,
+        "erpimage",
+        rng.standard_normal((100, 100)),
+        np.arange(-100.0, 0.0)[None, :],
+        np.arange(-200.0, 296.0, 5)[None, :],
+        "",
+        1.0,
+        1.0,
+        "plotamps",
+        "coher",
+        np.array([[10.0, 10.0, 0.05]]),
+        new_figure=True,
+    )
+    trials = int(np.asarray(eeg["trials"]).item())
+    trial_numbers = np.arange(1.0, trials + 1)[None, :]
+    auxvar = trial_numbers.T - np.array([[200.0, 400.0, 600.0]])
+    times = np.linspace(
+        float(np.asarray(eeg["xmin"]).item()) * 1000,
+        float(np.asarray(eeg["xmax"]).item()) * 1000,
+        int(np.asarray(eeg["pnts"]).item()),
+    )[None, :]
+    _reference_figure(eeglab_backend, request)
+    for position, title, extra in (
+        (1.0, "test auxvar", ()),
+        (2.0, "test auxvar (amp sort)", ("ampsort", np.array([[100.0, 10.0, 10.0, 13.0]]))),
+        (3.0, "test auxvar (phase sort)", ("phasesort", np.array([[-100.0, 20.0, 10.0, 11.0, 30.0]]))),
+        (
+            4.0,
+            "test auxvar (amp sort)",
+            ("ampsort", np.array([[100.0, 10.0, 10.0, 13.0]]), "coher", np.array([[10.0, 11.0, 0.01]]), "plotamps"),
+        ),
+    ):
+        eeglab_backend("sbplot", 2.0, 3.0, position, nargout=0)
+        eeglab_backend(
+            "erpimage",
+            eeg["data"][0].reshape(1, -1, order="F"),
+            np.ones((1, trials)) * eeg["xmax"] * 1000,
+            times,
+            title,
+            10.0,
+            1.0,
+            "topo",
+            _reference_cell(1.0, eeg["chanlocs"]),
+            "erp",
+            "cbar",
+            "auxvar",
+            auxvar,
+            *extra,
+            nargout=0,
+        )
+    close_reference_gui(eeglab_backend, request)
+    _reference_figure(eeglab_backend, request)
+    for position, title, extra in (
+        (1.0, "ERP alone", ("erp",)),
+        (2.0, "ERP + plotamps", ("erp", "plotamps", "coher", np.array([[8.0, 12.0, 0.01]]))),
+        (3.0, "ERP + erpalpha + plotamps", ("erpalpha", 0.01, "plotamps", "coher", np.array([[8.0, 12.0, 0.01]]))),
+    ):
+        eeglab_backend("sbplot", 1.0, 3.0, position, nargout=0)
+        eeglab_backend("erpimage", eeg["data"][12], trial_numbers, eeg["times"], title, 1.0, 1.0, *extra, nargout=0)
+        if position > 1:
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                eeglab_backend("drawnow", nargout=0)
+            else:
+                plt.draw()
+    close_reference_gui(eeglab_backend, request)
+    data = rng.random((1000, 100))
+    st1 = np.arange(1.0, 101.0)[None, :] + 100
+    st2 = np.arange(1.0, 201.0, 2)[None, :] + 200
+    for extra in ((), ("align", np.inf)):
+        _reference_plot(
+            eeglab_backend,
+            request,
+            "erpimage",
+            data,
+            st1,
+            np.linspace(-300.0, 700.0, 1000)[None, :],
+            "test",
+            10.0,
+            0.0,
+            "auxvar",
+            st2,
+            *extra,
+            new_figure=True,
+        )
 
 
 @pytest.fixture
@@ -131,7 +933,6 @@ def continuous_eeg(epoched_eeg: dict) -> dict:
     return eeg
 
 
-@eeglab_test(_source("eeg_multieegplot"), "test_pass_continuous")
 def test_eeg_multieegplot_continuous_preserves_channel_major_samples() -> None:
     data = np.asarray([[1, 1, 1, 2, 2], [2, 1, 2, 1, 1]], dtype=float)
 
@@ -143,7 +944,6 @@ def test_eeg_multieegplot_continuous_preserves_channel_major_samples() -> None:
     assert model.state.xgrid is False
 
 
-@eeglab_test(_source("eeg_multieegplot"), "test_pass_continuous_reject")
 def test_eeg_multieegplot_continuous_translates_new_rejection_regions() -> None:
     model = eeg_multieegplot(np.zeros((2, 20)), [[0, 0, 3, 7]], np.ones((2, 20)), show=False)
 
@@ -153,7 +953,6 @@ def test_eeg_multieegplot_continuous_translates_new_rejection_regions() -> None:
     np.testing.assert_array_equal(rows[:, 5:], [[0, 0]])
 
 
-@eeglab_test(_source("eeg_multieegplot"), "test_pass_epochs")
 def test_eeg_multieegplot_epochs_translate_trial_and_electrode_marks() -> None:
     data = np.zeros((2, 3, 3), dtype=float)
     trial_rejection = np.asarray([0, 1, 0])
@@ -167,7 +966,6 @@ def test_eeg_multieegplot_epochs_translate_trial_and_electrode_marks() -> None:
     assert model.data.mode == "epoched"
 
 
-@eeglab_test(_source("pop_chansel"), "test_test_pop_chansel")
 def test_pop_chansel_returns_selected_indices_labels_and_text(monkeypatch: pytest.MonkeyPatch) -> None:
     seen = {}
 
@@ -187,7 +985,6 @@ def test_pop_chansel_returns_selected_indices_labels_and_text(monkeypatch: pytes
     assert pop_chansel_display_values(["Fz", "Cz"], withindex="off") == ["Fz", "Cz"]
 
 
-@eeglab_test(_source("pop_compareerps"), "test_i_pass_general")
 def test_pop_compareerps_gui_path_averages_selected_datasets(epoched_eeg: dict) -> None:
     datasets = [deepcopy(epoched_eeg), deepcopy(epoched_eeg)]
     datasets[1]["data"] = datasets[1]["data"] + 2.0
@@ -203,7 +1000,6 @@ def test_pop_compareerps_gui_path_averages_selected_datasets(epoched_eeg: dict) 
     assert command == "pop_compareerps(ALLEEG);"
 
 
-@eeglab_test(_source("pop_compareerps"), "test_i_pass_sets_chans_title")
 def test_pop_compareerps_honors_dataset_channel_subset_and_title(epoched_eeg: dict) -> None:
     datasets = [deepcopy(epoched_eeg) for _ in range(3)]
     for index, dataset in enumerate(datasets, start=1):
@@ -219,7 +1015,6 @@ def test_pop_compareerps_honors_dataset_channel_subset_and_title(epoched_eeg: di
     assert "[1 3], [2 4], 'Comparing datasets'" in command
 
 
-@eeglab_test(_source("pop_comperp"), "test_test_pop_comperp")
 def test_pop_comperp_computes_channel_and_component_differences(epoched_eeg: dict) -> None:
     first = deepcopy(epoched_eeg)
     second = deepcopy(epoched_eeg)
@@ -235,7 +1030,6 @@ def test_pop_comperp_computes_channel_and_component_differences(epoched_eeg: dic
     assert components["figure"].axes[0].lines
 
 
-@eeglab_test(_source("pop_crossf"), "test_pass_tlimits_empty")
 def test_pop_crossf_derives_time_limits_when_empty(epoched_eeg: dict) -> None:
     result, command = pop_crossf(epoched_eeg, 1, 1, 2, None, [0], timesout=8, return_com=True)
 
@@ -245,7 +1039,6 @@ def test_pop_crossf_derives_time_limits_when_empty(epoched_eeg: dict) -> None:
     assert command.startswith("pop_crossf(EEG, 1, 1, 2")
 
 
-@eeglab_test(_source("pop_crossf"), "test_test_pop_crossf")
 def test_pop_crossf_channel_and_component_paths_use_requested_signals(epoched_eeg: dict) -> None:
     limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
     channels = pop_crossf(epoched_eeg, 1, 2, 4, limits, [0], timesout=8, type="phasecoher")
@@ -256,7 +1049,6 @@ def test_pop_crossf_channel_and_component_paths_use_requested_signals(epoched_ee
     assert not np.allclose(channels.coherence, components.coherence)
 
 
-@eeglab_test(_source("pop_eegplot"), "test_test_pop_eegplot")
 def test_pop_eegplot_builds_continuous_channel_and_epoched_component_models(
     continuous_eeg: dict, epoched_eeg: dict
 ) -> None:
@@ -269,7 +1061,6 @@ def test_pop_eegplot_builds_continuous_channel_and_epoched_component_models(
     np.testing.assert_array_equal(components.data.data, epoched_eeg["icaact"])
 
 
-@eeglab_test(_source("pop_envtopo"), "test_test_pop_envtopo")
 def test_pop_envtopo_supports_legacy_negative_component_count_and_contribution_window(epoched_eeg: dict) -> None:
     limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
 
@@ -289,7 +1080,6 @@ def test_pop_envtopo_supports_legacy_negative_component_count_and_contribution_w
     assert "limcontrib=[0, 300]" in command
 
 
-@eeglab_test(_source("pop_erpimage"), "test_test_pop_erpimage")
 def test_pop_erpimage_sorts_channel_trials_and_projects_components(epoched_eeg: dict) -> None:
     channels = pop_erpimage(
         epoched_eeg,
@@ -311,7 +1101,6 @@ def test_pop_erpimage_sorts_channel_trials_and_projects_components(epoched_eeg: 
         pop_erpimage(epoched_eeg, 1, 2, phase2=0.1)
 
 
-@eeglab_test(_source("pop_headplot"), "test_test_pop_headplot")
 def test_pop_headplot_creates_reusable_spline_and_finite_3d_maps(tmp_path) -> None:
     eeg = pop_loadset(SAMPLE_DATASET_PATH)
     spline = tmp_path / "current_suite.spl"
@@ -329,7 +1118,6 @@ def test_pop_headplot_creates_reusable_spline_and_finite_3d_maps(tmp_path) -> No
     assert "setup={" in command
 
 
-@eeglab_test(_source("pop_newcrossf"), "test_test_pop_newcrossf")
 def test_pop_newcrossf_channel_and_component_coherence_are_bounded(epoched_eeg: dict) -> None:
     limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
     channels = pop_newcrossf(epoched_eeg, 1, 1, 2, limits, [0], timesout=8, type="phasecoher")
@@ -342,7 +1130,6 @@ def test_pop_newcrossf_channel_and_component_coherence_are_bounded(epoched_eeg: 
         assert result.alltf_x.shape[-1] == epoched_eeg["trials"]
 
 
-@eeglab_test(_source("pop_plotdata"), "test_test_pop_plotdata")
 def test_pop_plotdata_selects_modes_trials_averages_and_single_trial_overlays(epoched_eeg: dict) -> None:
     channel_figure, command = pop_plotdata(
         epoched_eeg,
@@ -369,7 +1156,6 @@ def test_pop_plotdata_selects_modes_trials_averages_and_single_trial_overlays(ep
     assert pop_plotdata_dialog_spec(epoched_eeg, typeplot=0).title.startswith("Component ERPs")
 
 
-@eeglab_test(_source("pop_plottopo"), "test_test_pop_plottopo")
 def test_pop_plottopo_draws_selected_channel_trial_averages(epoched_eeg: dict) -> None:
     figure, command = pop_plottopo(epoched_eeg, [1, 3, 5], "selected channels", 0, return_com=True)
     single_trials = pop_plottopo(epoched_eeg, [1, 3], "single trials", 1, rect=True)
@@ -382,7 +1168,6 @@ def test_pop_plottopo_draws_selected_channel_trial_averages(epoched_eeg: dict) -
     assert len(single_trials.axes[0].lines) == epoched_eeg["trials"] + 1
 
 
-@eeglab_test(_source("pop_prop"), "test_test_pop_prop")
 def test_pop_prop_builds_channel_and_component_property_panels(epoched_eeg: dict, continuous_eeg: dict) -> None:
     channel = pop_prop(epoched_eeg, 1, 2, 0, {"freqrange": [2, 25]}, plot="off")
     components = pop_prop(epoched_eeg, 0, [1, 3], 0, {"freqrange": [2, 25]}, plot="off")
@@ -393,7 +1178,6 @@ def test_pop_prop_builds_channel_and_component_property_panels(epoched_eeg: dict
     assert any("continu" in axis.get_title().lower() for axis in continuous.axes)
 
 
-@eeglab_test(_source("pop_selectcomps"), "test_test_pop_selectcomps")
 def test_pop_selectcomps_marks_only_requested_components_without_mutating_input(epoched_eeg: dict) -> None:
     before = set(plt.get_fignums())
     selected, command = pop_selectcomps(epoched_eeg, [1, 2, 3, 4], reject=[2, 4], plot=True, return_com=True)
@@ -406,7 +1190,6 @@ def test_pop_selectcomps_marks_only_requested_components_without_mutating_input(
     assert [axis.get_title() for axis in plt.figure(created.pop()).axes[:4]] == ["IC 1", "IC 2", "IC 3", "IC 4"]
 
 
-@eeglab_test(_source("pop_spectopo"), "test_test_pop_spectopo")
 def test_pop_spectopo_blackman_harris_matches_welch_and_component_mode(epoched_eeg: dict) -> None:
     channel = pop_spectopo(
         epoched_eeg,
@@ -447,7 +1230,6 @@ def test_pop_spectopo_blackman_harris_matches_welch_and_component_mode(epoched_e
         pop_spectopo(epoched_eeg, 0, None, "EEG", freq=[10], plotchan=0, icamode="sub", icacomps=[1, 2])
 
 
-@eeglab_test(_source("pop_timef"), "test_test_pop_timef")
 def test_pop_timef_channel_and_component_results_have_consistent_tf_arrays(epoched_eeg: dict) -> None:
     limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
     channel, channel_command = pop_timef(
@@ -463,7 +1245,6 @@ def test_pop_timef_channel_and_component_results_have_consistent_tf_arrays(epoch
     assert channel_command.startswith("pop_timef(EEG, 1, 2")
 
 
-@eeglab_test(_source("pop_timtopo"), "test_test_pop_timtopo")
 def test_pop_timtopo_nan_latency_selects_global_power_peak(epoched_eeg: dict) -> None:
     erp = epoched_eeg["data"].mean(axis=2)
     expected_index = int(np.argmax(np.sum(erp**2, axis=0)))
@@ -477,7 +1258,6 @@ def test_pop_timtopo_nan_latency_selects_global_power_peak(epoched_eeg: dict) ->
     assert "float('nan')" in command
 
 
-@eeglab_test(_source("pop_topoplot"), "test_test_pop_topoplot")
 def test_pop_topoplot_channel_and_component_maps_use_requested_layout_and_polarity(epoched_eeg: dict) -> None:
     channels = pop_topoplot(epoched_eeg, 1, [0, 100], "ERP maps", [1, 2], 0, electrodes="off", colorbar="off")
     components = pop_topoplot(epoched_eeg, 0, [1, -2], "Component maps", [1, 2], 0, electrodes="off", colorbar="off")

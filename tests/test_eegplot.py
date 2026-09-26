@@ -30,6 +30,7 @@ from eegprep.functions.sigprocfunc.eegplot import (
 )
 from tests.fixtures import create_test_eeg, matlab_engine_available
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 SAMPLE_DATASET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -48,6 +49,23 @@ def _reference_plot_eeg(backend, *, epoched=False):
         eeg.update(nbchan=3.0, pnts=5.0, trials=1.0, xmax=3.0)
         eeg["data"] = np.arange(1.0, 16.0).reshape(3, 5)
     return eeg
+
+
+@pytest.mark.gui
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_general")
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_one_arg")
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_epochs")
+@eeglab_test(_EEGPLOT_SOURCE, "test_pass_noui")
+def test_reference_eegplot_original_display_calls(eeglab_backend, request, subtests):
+    for source in ("general", "one_arg", "epochs", "noui"):
+        with subtests.test(source=source):
+            eeg = _reference_plot_eeg(eeglab_backend, epoched=source == "epochs")
+            arguments = (eeg["data"],) if source == "one_arg" else (eeg["data"], "srate", eeg["srate"])
+            if source == "noui":
+                arguments = ("noui", *arguments)
+            matlab = request.config.getoption("--eeglab-backend") == "matlab"
+            window = eeglab_backend("eegplot", *arguments, nargout=0 if matlab else 1)
+            close_reference_gui(eeglab_backend, request, window=window)
 
 
 @eeglab_test(_EEGPLOT2TRIAL_SOURCE, "test_pass_general")
@@ -117,8 +135,6 @@ def test_eegplot_rejects_internal_plotdata2_option() -> None:
         eegplot(np.zeros((1, 10)), plotdata2="on", show=False)
 
 
-@eeglab_test(_EEGPLOT_SOURCE, "test_pass_general")
-@eeglab_test(_EEGPLOT_SOURCE, "test_pass_one_arg")
 def test_continuous_data_normalization_defaults_and_bounds() -> None:
     data = np.arange(20, dtype=float).reshape(2, 10)
     model = build_eegplot_model(data, srate=10, winlength=0.4, spacing=2, show=False)
@@ -136,7 +152,6 @@ def test_empty_spacing_uses_eeglab_default_spacing() -> None:
     assert model.state.spacing == pytest.approx(1.0)
 
 
-@eeglab_test(_EEGPLOT_SOURCE, "test_pass_epochs")
 def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None:
     data = np.zeros((1, 4, 3), dtype=float)
     data[0, :, 0] = [1, 2, 3, 4]
@@ -187,7 +202,6 @@ def test_spectral_and_overlay_inputs_are_normalized_together() -> None:
     np.testing.assert_array_equal(model.data.flat_data2, overlay[:, 2:7])
 
 
-@eeglab_test(_EEGPLOT_SOURCE, "test_pass_noui")
 def test_noui_option_sets_publication_state_without_showing_qt() -> None:
     model = build_eegplot_model(np.zeros((2, 10)), spacing=1, noui="on", show=False)
 
