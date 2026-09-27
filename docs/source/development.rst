@@ -170,7 +170,21 @@ Explicit MATLAB support paths
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Backend-neutral contracts run with ``--eeglab-backend=matlab`` and an explicit
-``--eeglab-root``. The test session initializes the pinned EEGLAB checkout and
+``--eeglab-root``. The automatically assigned ``eeglab_contract`` marker selects
+tests using the backend fixture, excluding ordinary direct-Python regressions
+and transport-only harness checks. For a non-graphical, non-slow contract run:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest tests --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      -m "eeglab_contract and not gui and not slow" --junitxml=contracts.xml
+
+This is a selected run, not full acceptance: graphical and slow contracts remain
+unvalidated, and original prerequisite guards may return without exercising
+their scientific branches. Report those limits separately from pass counts.
+
+The test session initializes the pinned EEGLAB checkout and
 its already installed plugins without installing anything. Optional upstream
 dependency files can live outside that checkout: pass their directory using
 ``--eeglab-support-path PATH``. The directory must exist. This option is

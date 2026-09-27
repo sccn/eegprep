@@ -310,6 +310,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
         contract = "eeglab_backend" in getattr(item, "fixturenames", ())
         transport = "eeglab_matlab_engine" in getattr(item, "fixturenames", ())
+        if contract:
+            item.add_marker(pytest.mark.eeglab_contract)
         if backend == "matlab" and (contract or transport):
             item.add_marker(pytest.mark.matlab)
 

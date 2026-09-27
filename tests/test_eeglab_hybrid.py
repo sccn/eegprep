@@ -60,6 +60,28 @@ def test_direct():
     result.stderr.fnmatch_lines(["*still call Python directly*"])
 
 
+def test_contract_marker_selects_backend_tests_only(pytester):
+    _isolated_suite(
+        pytester,
+        """
+import numpy as np
+from tests.eeglab_tests import eeglab_test
+def test_contract(eeglab_backend):
+    np.testing.assert_array_equal(eeglab_backend('rmbase', np.array([[1., 2., 3.]])), [[-1., 0., 1.]])
+@eeglab_test('test_reference.m', 'test_direct')
+def test_direct():
+    raise AssertionError('direct Python must not be selected as a backend contract')
+def test_supplement():
+    raise AssertionError('unrelated Python regression must not run')
+""",
+    )
+    result = pytester.runpytest_subprocess("--eeglab-backend=python", "-m", "eeglab_contract")
+    result.assert_outcomes(passed=1, deselected=2)
+    result = pytester.runpytest_subprocess("--eeglab-backend=matlab", "-m", "eeglab_contract", "--collect-only")
+    assert result.ret == pytest.ExitCode.OK
+    result.stdout.fnmatch_lines(["*1/3 tests collected (2 deselected)*"])
+
+
 def test_required_matlab_mode_fails_without_reference(pytester, tmp_path):
     _isolated_suite(pytester, "def test_contract(eeglab_backend):\n    eeglab_backend('eeglab_missing_function')")
     result = pytester.runpytest_subprocess("--eeglab-backend=matlab", f"--eeglab-root={tmp_path / 'absent'}")
