@@ -1,8 +1,11 @@
-"""MMO source contracts, a native-only workspace oracle, and supplements.
+"""MMO source contracts with a narrowly approved language-specific exception.
 
-The source's checkcopies caller-workspace observable remains unported. The
-copywrite cases exercise real Python value-copy/write scopes and diagnostics,
-but do not synthesize the source helpers' unused checkcopies return values.
+Python omits only MATLAB caller-workspace/checkcopies introspection, as approved
+by the user. Real alias/copy/write workflows, data checks, and diagnostics remain
+in scope; MATLAB still executes the original count assertions. The audit reports
+this exception explicitly for checkmmo and the nested helpers of checkmmo2.
+The Python checkmmo result is execution-only, not passing count/scientific parity:
+its entire source assertion oracle consists of the approved count exclusions.
 """
 
 from __future__ import annotations
@@ -172,21 +175,46 @@ def test_upstream_mmo_original_transposed_assignments(request, mmo_backend, eegl
     _check_original_mmo_assignment(request, mmo_backend, eeglab_working_directory, case, True)
 
 
-def test_matlab_mmo_original_workspace_copy_count_oracle(eeglab_matlab_engine, mmo_backend, eeglab_working_directory):
-    # Native oracle only, not a completed checkmmo port: Python exposes no
-    # caller-workspace checkcopies observable. Its private backing-file handle
-    # counter has different semantics and must not stand in for this contract.
-    counts = mmo_backend("eegprep_test_mmo_copies", np.arange(1.0, 11.0)[:, None])
-    expected = np.array([[1.0, 2.0, 2.0, 2.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]])
-    # Source case 5 requires only that the nested aliases are not counted as one.
-    assert counts[0, 4] != 1
-    np.testing.assert_array_equal(np.delete(counts, 4, axis=1), np.delete(expected, 4, axis=1))
+@eeglab_test(UPSTREAM, "test_checkmmo")
+def test_upstream_mmo_original_workspace_copies(request, mmo_backend, eeglab_working_directory):
+    values = np.arange(1.0, 11.0)[:, None]
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        counts = mmo_backend("eegprep_test_mmo_copies", values)
+        expected = np.array([[1.0, 2.0, 2.0, 2.0, 0.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]])
+        # Source case 5 requires only that the nested aliases are not counted as one.
+        assert counts[0, 4] != 1
+        np.testing.assert_array_equal(np.delete(counts, 4, axis=1), np.delete(expected, 4, axis=1))
+        return
+
+    # Only checkcopies calls/results are excluded. Preserve the source's
+    # actual value-copy scopes and helper writes, without substituting Python
+    # private backing-file counts for the MATLAB caller-workspace observable.
+    test = _python_mmo(values.T, eeglab_working_directory, False)
+    check_file = eeglab_working_directory / "testfile2.fdt"
+    values.astype(np.float32).ravel(order="F").tofile(check_file)
+    testcheck = mmo(check_file, (1, 10))
+    test2 = copy(test)
+    del test2
+    test3 = copy(test)
+    del test3
+    a = {"mmo": copy(test)}
+    del a
+    test2 = copy(test)
+    a = {"mmo2": [copy(test), copy(test2)]}
+    del a, test2
+    _python_mmo_nested_write(test)
+    _python_mmo_argument_write(test)
+    # checkmmo_sub3 and checkmmo_sub4 share the caller scope. Each makes this
+    # assignment before its excluded count operation; case 11 assigns twice.
+    for _ in range(5):
+        test2 = copy(test)
+    del test, test2, testcheck
 
 
 def _python_mmo_nested_write(arg):
     # MATLAB passes value objects between scopes; explicit copy() is the
-    # public Python COW boundary. The source's unused checkcopies return has
-    # no Python counterpart and is not synthesized here.
+    # public Python COW boundary. Only the approved checkcopies call/return
+    # is omitted; the source's nested copy and indexed write still execute.
     def inner(nested_arg):
         test = copy(nested_arg)
         test[0, 3] = 5.0
