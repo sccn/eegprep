@@ -314,6 +314,7 @@ def _reference_context_events(eeglab_backend, epoched):
 
 
 @eeglab_test("unittesting_popfunc/eeg_context/popfunc_eeg_context_wrapperTest.m", "test_test_eeg_context")
+@pytest.mark.gui  # eeg_context unconditionally creates a MATLAB waitbar.
 def test_reference_context_all_six_original_cases(eeglab_backend):
     neighbors = np.array([["square", "rt"]], dtype=object)
     targets = [[1.0, 1.0, np.nan, 1.0], [2.0, 2.0, np.nan, 1.0], [4.0, 4.0, np.nan, 1.0]]

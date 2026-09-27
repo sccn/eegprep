@@ -145,7 +145,9 @@ without attaching misleading provenance to a different Python scenario.
 
 Mark every contract that creates plots, windows, dialogs, or graphical
 callbacks with ``gui``, even when MATLAB figures would be invisible. This
-allows explicitly deferred graphical validation to remain excluded using
+includes progress bars in numerical helpers such as ``eeg_context`` and
+browser-opening paths in either backend, even if the other backend is non-GUI.
+The marker allows explicitly deferred graphical validation to remain excluded using
 ``-m "not gui"``. Collecting those contracts or checking their syntax does not
 validate their runtime behavior. Modal Python dialogs may require interaction;
 do not substitute a mock renderer or invent accept/cancel actions to make an
@@ -183,6 +185,14 @@ and transport-only harness checks. For a non-graphical, non-slow contract run:
 This is a selected run, not full acceptance: graphical and slow contracts remain
 unvalidated, and original prerequisite guards may return without exercising
 their scientific branches. Report those limits separately from pass counts.
+The guarded statistical and legacy ERSP contracts record
+``eeglab_source_body_entered`` in each JUnit test case's ``properties``; a
+``False`` value means the original prerequisite/version guard returned before
+the scientific body. The clustering contract separately records
+``eeglab_optional_kmeans_branch_entered``, since its first clustering operation
+still runs when the optional branch is unavailable. These properties do not
+change the source guards, assertions, or pytest outcomes. A passing case with a
+false guard property is not evidence that the guarded behavior was validated.
 
 The test session initializes the pinned EEGLAB checkout and
 its already installed plugins without installing anything. Optional upstream

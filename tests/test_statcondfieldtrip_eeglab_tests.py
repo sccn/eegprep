@@ -42,6 +42,7 @@ def test_reference_statcondfieldtrip_workflow(eeglab_backend, request):
         # No MATLAB licensing analogue; retain the original misspelled name
         # when querying the actual Python public/library namespaces.
         available = any(getattr(module, "kmean", None) is not None for module in (eegprep, vq))
+    request.node.user_properties.append(("eeglab_source_body_entered", bool(available)))
     if not available:
         return
 

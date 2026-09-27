@@ -228,6 +228,7 @@ def test_reference_pop_rejchan(eeglab_backend, eeglab_suite_root):
 
 
 @eeglab_test("unittesting_popfunc/pop_jointprob/popfunc_pop_jointprob_wrapperTest.m", "test_test_pop_jointprob")
+@pytest.mark.gui  # Original vistype=1 calls open EEGPrep's browser.
 def test_reference_pop_jointprob(eeglab_backend, eeglab_suite_root):
     eeg = _source_epoch_sample(eeglab_backend, eeglab_suite_root)
     all_channels = np.arange(1.0, np.asarray(eeg["nbchan"]).item() + 1)[None, :]
@@ -242,6 +243,7 @@ def test_reference_pop_jointprob(eeglab_backend, eeglab_suite_root):
 
 
 @eeglab_test("unittesting_popfunc/pop_rejkurt/popfunc_pop_rejkurt_wrapperTest.m", "test_test_pop_rejkurt")
+@pytest.mark.gui  # Original vistype=1 calls open EEGPrep's browser.
 def test_reference_pop_rejkurt(eeglab_backend, eeglab_suite_root):
     eeg = _source_epoch_sample(eeglab_backend, eeglab_suite_root)
     for mode, count in ((1.0, 32), (0.0, 30)):

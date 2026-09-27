@@ -254,7 +254,9 @@ def _assert_legacy_component_measure(first, second):
 @pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
 @_reference("std_erspplot", "test_test_std_erspplot2")
 def test_reference_std_erspplot_legacy_channel_cache(eeglab_backend, eeglab_writable_study, request):
-    if _legacy_ersp_version_guard(eeglab_backend, 13):
+    excluded_version = _legacy_ersp_version_guard(eeglab_backend, 13)
+    request.node.user_properties.append(("eeglab_source_body_entered", not excluded_version))
+    if excluded_version:
         return
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
     locations = eeglab_backend("eeg_mergelocs", *(eeg["chanlocs"] for eeg in _records(alleeg)))
@@ -352,7 +354,9 @@ def test_reference_std_erspplot_legacy_channel_cache(eeglab_backend, eeglab_writ
 @pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
 @_reference("std_erspplot", "test_test_std_erspplot3")
 def test_reference_std_erspplot_legacy_component_cache(eeglab_backend, eeglab_writable_study, request):
-    if _legacy_ersp_version_guard(eeglab_backend, 14):
+    excluded_version = _legacy_ersp_version_guard(eeglab_backend, 14)
+    request.node.user_properties.append(("eeglab_source_body_entered", not excluded_version))
+    if excluded_version:
         return
     study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
     eeglab_backend("eeg_mergelocs", *(eeg["chanlocs"] for eeg in _records(alleeg)))

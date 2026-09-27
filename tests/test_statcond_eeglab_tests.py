@@ -757,10 +757,12 @@ def test_reference_legacy_statcond_workflow(eeglab_backend, request, legacy_stat
     native = request.config.getoption("--eeglab-backend") == "matlab"
     # MATLAB's licensed toolbox prerequisite has no Python licensing analogue;
     # SciPy, imported above, supplies the independent Python statistical oracles.
-    if native and (
-        not eeglab_backend("license", "checkout", "statistics_toolbox").item()
-        or not eeglab_backend("exist", "kmeans", "file").item()
-    ):
+    available = not native or (
+        eeglab_backend("license", "checkout", "statistics_toolbox").item()
+        and eeglab_backend("exist", "kmeans", "file").item()
+    )
+    request.node.user_properties.append(("eeglab_source_body_entered", bool(available)))
+    if not available:
         return
     rng = np.random.default_rng(114)
     t_data = [rng.random((1, 10)), rng.random((1, 10)) + 0.5]

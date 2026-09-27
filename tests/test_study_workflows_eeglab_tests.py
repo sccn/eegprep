@@ -756,6 +756,7 @@ def test_reference_pop_clust(eeglab_backend, eeglab_sample_study, request):
         # There is no MATLAB license on Python. Preserve the source's misspelled
         # kmean query in the real public/library namespaces, not corrected kmeans.
         available = any(getattr(module, "kmean", None) is not None for module in (eegprep, vq))
+    request.node.user_properties.append(("eeglab_optional_kmeans_branch_entered", bool(available)))
     if available:
         eeglab_backend("pop_clust", study, alleeg, algorithm="kmeans", clus_num=10.0, outliers=3.0)
 
