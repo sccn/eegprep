@@ -24,15 +24,17 @@ IRLS_SOURCE = "unittesting_limo/limo_zIRLS_validation_4_Arno.m"
 IRLS_SOURCE_SHA256 = "b68aa89cec465b696c86d4c6f077c5caf1d91603e4f59b0bfc337b22a1027cb8"
 IRLS_HELPER_SHA256 = "105cf817ffe6cd60009a8cb80bf5fd03e8208964fcc8d72f46629eb81513c79d"
 IRLS_CHANLOCS_ASSIGNMENT = "chanlocs = fullfile(STUDY.filepath, 'derivatives', 'limo_gp_level_chanlocs.mat');\n"
-IRLS_PATCH = Path(__file__).parents[1] / "matlab" / "limo_zIRLS_validation_4_Arno.chanlocs.patch"
+IRLS_PATCH = Path(__file__).parents[1] / "matlab" / "limo_zIRLS_validation_4_Arno.source-corrections.patch"
 RESULT_FIELDS = ("errIRLS", "ci_errIRLS", "maxIRLS", "maxci_errIRLS", "clusterIRLS", "maxcic_errIRLS")
 
 
 def prepare_irls_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Copy the pinned script/helper and apply only the approved missing input.
+    """Copy the pinned script/helper and apply only the approved input repairs.
 
     Run the corrected native script from the returned directory with a writable
-    ds002718 copy beside it. Neither the pinned source nor any algorithm changes.
+    ds002718 copy beside it. The patch supplies std_limo's channel-neighbour file
+    and uses pop_limo's returned model paths. No naming algorithm is duplicated;
+    neither the pinned source nor any scientific algorithm changes.
     """
     source_directory = directory / "unittesting_limo"
     source_directory.mkdir()

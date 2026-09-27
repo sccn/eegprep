@@ -124,9 +124,9 @@ def _irls_remove_directory(directory, study_path):
 @pytest.mark.slow
 @pytest.mark.gui
 def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, eeglab_suite_root, request):
-    """Full standalone IRLS workflow with the explicitly approved input repair.
+    """Full standalone IRLS workflow with the explicitly approved input repairs.
 
-    The native source overlay has exactly the same one-line chanlocs correction.
+    The native overlay supplies chanlocs and captures the generated model paths.
     No complete MATLAB test or validation-helper script is evaluated here.
     """
     call = eeglab_backend
@@ -292,7 +292,7 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         nargout=2,
     )
     _tutorial_redraw(call, request, window, STUDY=study, EEG=eeg)
-    study = call(
+    study, _, model_files = call(
         "pop_limo",
         study,
         alleeg,
@@ -308,22 +308,23 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         "off",
         "interaction",
         "off",
+        nargout=3,
     )
     _tutorial_redraw(call, request, window, STUDY=study)
     h0 = []
-    for subject, info in enumerate(_limo_entries(study["datasetinfo"]), 1):
+    for subject in range(1, len(_limo_entries(study["datasetinfo"])) + 1):
         logger.info("running bootstrap on subject %g", subject)
-        # Keep the source's literal model name, even if installed LIMO naming
-        # has drifted. The chanlocs assignment is the only approved correction.
-        model_path = Path(info["filepath"]) / "FaceRepetition_GLM_Channels_Time_IRLS"
-        limo = load_irls_mat(call, native, model_path / "LIMO.mat")["LIMO"]
+        # Approved input repair: consume the actual subject-ordered paths from
+        # pop_limo, rather than reproduce a version-dependent naming convention.
+        model_file = Path(_limo_entries(model_files["mat"])[subject - 1])
+        limo = load_irls_mat(call, native, model_file)["LIMO"]
         limo["design"]["bootstrap"] = 2500.0
         limo["design"]["status"] = "to do"
         model_directory = Path(limo["dir"])
         model_directory.resolve().relative_to(limo_source_directory.resolve())
         savemat(model_directory / "LIMO.mat", {"LIMO": limo}, long_field_names=True)
         _irls_remove_directory(model_directory / "H0", limo_source_directory)
-        h0.append(str(model_path / "H0"))
+        h0.append(str(model_file.parent / "H0"))
         call("limo_eeg", 4.0, limo, nargout=0)
     # User-approved missing assignment, identical to the checked native patch.
     # std_limo writes this file; no montage or adjacency is synthesized here.
@@ -334,13 +335,27 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
     savemat(directory / "results.mat", {"results": results}, long_field_names=True)
 
 
-def test_irls_native_overlay_applies_only_approved_assignment(eeglab_suite_root, tmp_path):
+def test_irls_native_overlay_applies_only_approved_input_repairs(eeglab_suite_root, tmp_path):
     original = eeglab_suite_root / IRLS_SOURCE
     before = original.read_bytes()
     directory = prepare_irls_source_overlay(eeglab_suite_root, tmp_path)
     corrected = (directory / original.name).read_text()
     assert corrected.count(IRLS_CHANLOCS_ASSIGNMENT) == 1
-    assert corrected.replace(IRLS_CHANLOCS_ASSIGNMENT, "").encode() == before
+    restored = corrected.replace(IRLS_CHANLOCS_ASSIGNMENT, "")
+    for source, replacement in (
+        ("STUDY = pop_limo(", "[STUDY,~,LIMOfiles] = pop_limo("),
+        (
+            "    LIMO = load(fullfile(STUDY.datasetinfo(s).filepath,['FaceRepetition_GLM_Channels_Time_IRLS' filesep 'LIMO.mat']));",
+            "    LIMO = load(LIMOfiles.mat{s});",
+        ),
+        (
+            "    H0iw{s} = fullfile(STUDY.datasetinfo(s).filepath,['FaceRepetition_GLM_Channels_Time_IRLS' filesep 'H0']);",
+            "    H0iw{s} = fullfile(fileparts(LIMOfiles.mat{s}), 'H0');",
+        ),
+    ):
+        assert restored.count(replacement) == 1
+        restored = restored.replace(replacement, source)
+    assert restored.encode() == before
     assert original.read_bytes() == before
     assert sha256(before).hexdigest() == IRLS_SOURCE_SHA256
     assert (directory / "limo_test_glmboot.m").read_bytes() == (
