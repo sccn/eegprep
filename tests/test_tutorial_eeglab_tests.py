@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 
 import matplotlib
 
@@ -108,6 +110,8 @@ def _tutorial_figure(backend, request, **kwargs):
     if request.config.getoption("--eeglab-backend") == "matlab":
         backend("figure", nargout=0, **kwargs)
     else:
+        if "color" in kwargs:
+            kwargs["facecolor"] = kwargs.pop("color")
         figure = plt.figure(**kwargs)
         request.addfinalizer(lambda: plt.close(figure))
 
@@ -139,6 +143,547 @@ def _tutorial_hold(backend, request):
     if request.config.getoption("--eeglab-backend") == "matlab":
         backend("hold", "on", nargout=0)
     # Matplotlib already retains artists on the current axes.
+
+
+def _tutorial_plot(backend, request, x, y):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("plot", x, y, nargout=0)
+    else:
+        plt.plot(np.asarray(x).ravel(), y)
+
+
+def _tutorial_cells(cells):
+    return list(cells.ravel(order="F")) if isinstance(cells, np.ndarray) else cells
+
+
+def _tutorial_squeeze(data):
+    # MATLAB leaves 2-D rows/columns unchanged and retains at least two axes.
+    if data.ndim <= 2:
+        return data
+    squeezed = np.squeeze(data)
+    return squeezed.reshape(-1, 1) if squeezed.ndim < 2 else squeezed
+
+
+def _tutorial_newtimef(backend, request, *args):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        return backend("pop_newtimef", *args, nargout=7)
+    result = backend("pop_newtimef", *args)
+    # The actual Python API names its outputs in a dataclass and uses 1-D
+    # vectors; these are the original MATLAB output orientations, not an oracle.
+    return (
+        result.ersp,
+        result.itc,
+        result.powbase.reshape(1, -1),
+        result.times.reshape(1, -1),
+        result.freqs.reshape(1, -1),
+        result.erspboot,
+        result.itcboot.reshape(-1, 1),
+    )
+
+
+def _tutorial_custom_precomp(backend, request, kind, study, alleeg, eeg):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("eegprep_test_tutorial_custom_precomp", kind, study, alleeg, eeg, nargout=0)
+        return
+    if kind == "baseline":
+
+        def callback(data):
+            return data - np.mean(data[:, :410, :], axis=1, keepdims=True)
+    else:
+
+        def callback(data):
+            first = _records(eeg)[0]
+            filtered = backend(
+                "eegfilt",
+                data.reshape(data.shape[0], -1, order="F"),
+                first["srate"],
+                0.0,
+                10.0,
+                first["pnts"],
+                60.0,
+                0.0,
+                "fir1",
+            )
+            return filtered.reshape(data.shape, order="F")
+
+    backend("std_precomp", study, alleeg, "channels", "customfunc", callback, "interp", "on", nargout=0)
+
+
+class _TutorialVideo:
+    """Test-side VideoWriter equivalent; never resolve it as an EEGPrep API."""
+
+    def __init__(self, backend, request, filename):
+        self.backend = backend
+        self.native = request.config.getoption("--eeglab-backend") == "matlab"
+        self.avi = sys.platform != "darwin" and sys.platform != "win32"
+        self.filename = filename + (".avi" if self.avi else ".mp4")
+        self.process = None
+        self.closed = False
+        if self.native:
+            backend(
+                "eegprep_test_tutorial_video",
+                "open",
+                self.filename,
+                "Uncompressed AVI" if self.avi else "MPEG-4",
+                nargout=0,
+            )
+        request.addfinalizer(self.close)
+
+    def write(self, movie):
+        if self.native:
+            self.backend("eegprep_test_tutorial_video", "write", movie, nargout=0)
+            return
+        for frame in movie:
+            if self.process is None:
+                executable = shutil.which("ffmpeg")
+                if executable is None:
+                    raise RuntimeError("The Python tutorial video-export boundary requires ffmpeg")
+                height, width, _channels = frame.shape
+                self.process = subprocess.Popen(
+                    [
+                        executable,
+                        "-loglevel",
+                        "error",
+                        "-y",
+                        "-f",
+                        "rawvideo",
+                        "-pix_fmt",
+                        "rgb24",
+                        "-s",
+                        f"{width}x{height}",
+                        "-r",
+                        "30",
+                        "-i",
+                        "-",
+                        "-an",
+                        "-c:v",
+                        "rawvideo" if self.avi else "libx264",
+                        "-pix_fmt",
+                        "bgr24" if self.avi else "yuv420p",
+                        self.filename,
+                    ],
+                    stdin=subprocess.PIPE,
+                )
+            self.process.stdin.write(np.ascontiguousarray(frame).tobytes())
+
+    def capture(self):
+        if self.native:
+            self.backend("eegprep_test_tutorial_video", "capture", nargout=0)
+        else:
+            figure = plt.gcf()
+            figure.canvas.draw()
+            self.write(np.asarray(figure.canvas.buffer_rgba())[None, :, :, :3])
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        if self.native:
+            self.backend("eegprep_test_tutorial_video", "close", nargout=0)
+        elif self.process is not None:
+            self.process.stdin.close()
+            if self.process.wait() != 0:
+                raise RuntimeError("ffmpeg failed to write the source tutorial movie")
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_make_eeg_movie")
+def test_reference_tutorial_make_eeg_movie(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request):
+    backend = eeglab_backend
+    window = _tutorial_start(backend, request)
+    close_reference_gui(backend, request, window=window.window if window else None)
+    eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))
+    pnts1 = backend("eeg_lat2point", -100.0 / 1000.0, 1.0, eeg["srate"], _tutorial_timerange(eeg))
+    pnts2 = backend("eeg_lat2point", 600.0 / 1000.0, 1.0, eeg["srate"], _tutorial_timerange(eeg))
+    first = int(np.floor(np.asarray(pnts1).item() + 0.5))
+    last = int(np.floor(np.asarray(pnts2).item() + 0.5))
+    # The source uses TWO subscripts on EEG.data, collapsing later dimensions.
+    # Its mean(...,3) therefore leaves this first-epoch slice unchanged.
+    scalp_erp = eeg["data"].reshape(int(eeg["nbchan"]), -1, order="F")[:, first - 1 : last].copy()
+    for channel in range(scalp_erp.shape[0]):
+        scalp_erp[channel, :] = np.convolve(scalp_erp[channel, :], np.ones(5) / 5.0, mode="same")
+    _tutorial_figure(backend, request)
+    movie, colormap = backend(
+        "eegmovie",
+        scalp_erp,
+        eeg["srate"],
+        eeg["chanlocs"],
+        "framenum",
+        "off",
+        "vert",
+        0.0,
+        "startsec",
+        -0.1,
+        "topoplotopt",
+        _cell_row("numcontour", 0.0),
+        nargout=2,
+    )
+    backend("seemovie", movie, 1.0, colormap, nargout=0)
+    video = _TutorialVideo(backend, request, "erpmovie2d")
+    video.write(movie)
+    video.close()
+    headplotparams1 = (
+        "meshfile",
+        "mheadnew.mat",
+        "transform",
+        np.array([[0.664455, -3.39403, -14.2521, -0.00241453, 0.015519, -1.55584, 11.0, 10.1455, 12.0]]),
+    )
+    _headplotparams2 = (
+        "meshfile",
+        "colin27headmesh.mat",
+        "transform",
+        np.array([[0.0, -13.0, 0.0, 0.1, 0.0, -1.57, 11.7, 12.5, 12.0]]),
+    )
+    headplotparams = headplotparams1
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("headplot", "setup", eeg["chanlocs"], "STUDY_headplot.spl", *headplotparams, nargout=0)
+    else:
+        backend(
+            "headplot",
+            "setup",
+            eeg["chanlocs"],
+            splinefile="STUDY_headplot.spl",
+            meshfile=headplotparams[1],
+            transform=headplotparams[3],
+            nargout=0,
+        )
+    close_reference_gui(backend, request)
+    _tutorial_figure(backend, request)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend(
+            "headplot",
+            scalp_erp[:, -51:-50],
+            "STUDY_headplot.spl",
+            *headplotparams,
+            "maplimits",
+            "absmax",
+            "lighting",
+            "on",
+            nargout=0,
+        )
+    else:
+        backend(
+            "headplot",
+            scalp_erp[:, -51:-50],
+            "STUDY_headplot.spl",
+            meshfile=headplotparams[1],
+            transform=headplotparams[3],
+            maplimits="absmax",
+            lighting="on",
+            nargout=0,
+        )
+    _tutorial_figure(backend, request)
+    backend("topoplot", scalp_erp[:, -51:-50], eeg["chanlocs"], nargout=0)
+    _tutorial_figure(backend, request, color="w")
+    movie, colormap = backend(
+        "eegmovie",
+        scalp_erp,
+        eeg["srate"],
+        eeg["chanlocs"],
+        "framenum",
+        "off",
+        "vert",
+        0.0,
+        "startsec",
+        -0.1,
+        "mode",
+        "3d",
+        "headplotopt",
+        _cell_row(*headplotparams, "material", "metal"),
+        "camerapath",
+        np.array([[-127.0, 2.0, 30.0, 0.0]]),
+        nargout=2,
+    )
+    backend("seemovie", movie, 1.0, colormap, nargout=0)
+    video = _TutorialVideo(backend, request, "erpmovie3d1")
+    video.write(movie)
+    video.close()
+    video = _TutorialVideo(backend, request, "erpmovietopoplot")
+    _counter = 0.0
+    for latency in np.arange(-100.0, 601.0, 10.0):
+        _tutorial_figure(backend, request)
+        backend("pop_topoplot", eeg, 1.0, latency, "My movie", [], "electrodes", "off", nargout=0)
+        video.capture()
+        close_reference_gui(backend, request)
+    video.close()
+
+
+@pytest.mark.gui
+@eeglab_test(TUTORIAL_WRAPPER, "test_study_script")
+def test_reference_tutorial_study_script(
+    eeglab_backend, eeglab_writable_study, eeglab_working_directory, request, monkeypatch
+):
+    backend = eeglab_backend
+    _tutorial_cd(backend, request, monkeypatch, eeglab_writable_study)
+    window = _tutorial_start(backend, request)
+    if not (eeglab_writable_study / "n400.study").is_file():
+        raise RuntimeError(
+            "You must change the path to the folder containing the data to run this script\nDownload the data from https://eeglab.org/tutorials/tutorial_data.html (5 subject study)"
+        )
+    commands = []
+    for condition, code in (("synonyms", 253), ("non-synonyms", 254)):
+        for subject in (2, 5, 7, 8, 10):
+            filename = eeglab_writable_study / f"s{subject:02d}" / f"syn{subject:02d}-s{code}-clean.set"
+            commands.append(
+                _cell_row(
+                    "index",
+                    float(len(commands) + 1),
+                    "load",
+                    str(filename),
+                    "subject",
+                    f"S{subject:02d}",
+                    "condition",
+                    condition,
+                )
+            )
+    commands.append(_cell_row("dipselect", 0.15))
+    study, alleeg = backend(
+        "std_editset",
+        [],
+        [],
+        "name",
+        "N400STUDY",
+        "task",
+        "Auditory task: Synonyms Vs. Non-synonyms, N400",
+        "filename",
+        "N400empty.study",
+        "filepath",
+        "./",
+        "commands",
+        _cell_row(*commands),
+        nargout=2,
+    )
+    eeg = alleeg
+    currentset = np.arange(1.0, len(_records(eeg)) + 1).reshape(1, -1)
+    _tutorial_redraw(
+        backend, request, window, STUDY=study, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, CURRENTSTUDY=1.0
+    )
+    study, alleeg = backend(
+        "std_precomp",
+        study,
+        alleeg,
+        "channels",
+        "erp",
+        "on",
+        "erpparams",
+        _cell_row("rmbase", np.array([[-200.0, 0.0]])),
+        nargout=2,
+    )
+    study = backend("std_erpplot", study, alleeg, "channels", _cell_row("Oz"))
+    study, erpdata, erptimes = backend(
+        "std_erpplot", study, alleeg, "channels", _cell_row("Oz"), "timerange", np.array([[-200.0, 1000.0]]), nargout=3
+    )
+    backend(
+        "std_plotcurve",
+        erptimes,
+        erpdata,
+        "plotconditions",
+        "together",
+        "plotstderr",
+        "on",
+        "figure",
+        "on",
+        "filter",
+        30.0,
+        nargout=0,
+    )
+    study = backend("std_erpplot", study, alleeg, "channels", _cell_row("FP1"))
+    study, erpdata, erptimes = backend(
+        "std_erpplot", study, alleeg, "channels", _cell_row("Oz"), "timerange", np.array([[-200.0, 1000.0]]), nargout=3
+    )
+    backend(
+        "std_plotcurve", erptimes, erpdata, "plotconditions", "together", "plotstderr", "on", "figure", "on", nargout=0
+    )
+    study = backend("std_erpplot", study, alleeg, "channels", _cell_row("FP1"))
+    study, erpdata, erptimes = backend(
+        "std_erpplot", study, alleeg, "channels", _cell_row("FP1"), "noplot", "on", nargout=3
+    )
+    _tutorial_figure(backend, request)
+    _tutorial_plot(backend, request, erptimes, _tutorial_cells(erpdata)[1])
+    options = (
+        "freqscale",
+        "linear",
+        "freqs",
+        np.array([[3.0, 25.0]]),
+        "nfreqs",
+        20.0,
+        "ntimesout",
+        60.0,
+        "padratio",
+        1.0,
+        "winsize",
+        64.0,
+        "baseline",
+        0.0,
+    )
+    tmpeeg = backend("eeg_checkset", _records(alleeg)[0], "loaddata")
+    _tutorial_figure(backend, request)
+    backend(
+        "pop_newtimef",
+        tmpeeg,
+        1.0,
+        1.0,
+        _tutorial_timerange(tmpeeg) * 1000.0,
+        np.array([[3.0, 0.8]]),
+        "topovec",
+        1.0,
+        "elocs",
+        tmpeeg["chanlocs"],
+        "chaninfo",
+        tmpeeg["chaninfo"],
+        "plotphase",
+        "off",
+        *options,
+        "title",
+        tmpeeg["setname"],
+        "erspmax ",
+        6.6,
+    )
+    study, alleeg = backend(
+        "std_precomp",
+        study,
+        alleeg,
+        "channels",
+        "recompute",
+        "on",
+        "ersp",
+        "on",
+        "erspparams",
+        _cell_row("cycles", np.array([[3.0, 0.8]]), "parallel", "on", *options),
+        "itc",
+        "on",
+        nargout=2,
+    )
+    study = backend(
+        "std_erspplot",
+        study,
+        alleeg,
+        "channels",
+        _cell_row(_records(tmpeeg["chanlocs"])[0]["labels"]),
+        "subject",
+        "S02",
+        "design",
+        1.0,
+    )
+    study, alleeg = backend(
+        "std_precomp",
+        study,
+        alleeg,
+        "components",
+        "erp",
+        "on",
+        "erpparams",
+        _cell_row("rmbase", np.array([[-200.0, 0.0]])),
+        "scalp",
+        "on",
+        "spec",
+        "on",
+        "specparams",
+        _cell_row("freqrange", np.array([[3.0, 50.0]]), "specmode", "fft", "logtrials", "off"),
+        "ersp",
+        "on",
+        "erspparams",
+        _cell_row("cycles", np.array([[3.0, 0.8]]), "nfreqs", 20.0, "ntimesout", 60.0),
+        "itc",
+        "on",
+        "recompute",
+        "on",
+        nargout=2,
+    )
+    study, alleeg = backend(
+        "std_preclust",
+        study,
+        alleeg,
+        1.0,
+        _cell_row("spec", "npca", 10.0, "weight", 1.0, "freqrange", np.array([[3.0, 25.0]])),
+        _cell_row("erp", "npca", 10.0, "weight", 1.0, "timewindow", np.array([[100.0, 600.0]]), "erpfilter", "20"),
+        _cell_row("dipoles", "weight", 10.0),
+        _cell_row(
+            "ersp",
+            "npca",
+            10.0,
+            "freqrange",
+            np.array([[3.0, 25.0]]),
+            "timewindow",
+            np.array([[-1600.0, 1495.0]]),
+            "weight",
+            1.0,
+            "norm",
+            1.0,
+            "weight",
+            1.0,
+        ),
+        nargout=2,
+    )
+    study = backend("pop_clust", study, alleeg, "algorithm", "kmeanscluster", "clus_num", 10.0)
+    study = backend("pop_clust", study, alleeg, "algorithm", "kmeanscluster", "clus_num", 10.0)
+    study = backend("std_topoplot", study, alleeg, "clusters", 2.0, "mode", "together")
+    study = backend("std_topoplot", study, alleeg, "clusters", 2.0, "mode", "apart")
+    study = backend("std_topoplot", study, alleeg, "clusters", 2.0, "comps", 1.0)
+    study = backend("pop_statparams", study, "condstats", "on")
+    stats_output = {"return_stats": True} if request.config.getoption("--eeglab-backend") == "python" else {}
+    study, erpdata, erptimes, _pgroup, _pcond, _pinter = backend(
+        "std_erpplot", study, alleeg, "channels", _cell_row("FP1"), nargout=6, **stats_output
+    )
+    study, erpdata, erptimes, _pgroup, _pcond, _pinter = backend(
+        "std_erpplot", study, alleeg, "clusters", 1.0, nargout=6, **stats_output
+    )
+    _tutorial_custom_precomp(backend, request, "baseline", study, alleeg, eeg)
+    _tutorial_custom_precomp(backend, request, "filter", study, alleeg, eeg)
+    first_eeg, first_alleeg = _records(eeg)[0], _records(alleeg)[0]
+    channels = _cell_row(*(channel["labels"] for channel in _records(first_alleeg["chanlocs"])))
+    _, customdata = backend("std_readdata", study, alleeg, channels=channels, design=1.0, datatype="custom", nargout=2)
+    _, erpdata = backend("std_readdata", study, alleeg, channels=channels, design=1.0, datatype="erp", nargout=2)
+    backend("std_plotcurve", first_eeg["times"], erpdata, "chanlocs", first_alleeg["chanlocs"], nargout=0)
+    if isinstance(customdata, np.ndarray):
+        for index in np.ndindex(customdata.shape):
+            customdata[index] = _tutorial_squeeze(customdata[index])
+    else:
+        customdata = [_tutorial_squeeze(data) for data in customdata]
+    backend("std_plotcurve", first_eeg["times"], customdata, "chanlocs", first_alleeg["chanlocs"], nargout=0)
+    _tutorial_figure(backend, request)
+    values = _records(_records(study["design"])[0]["variable"])[0]["value"]
+    ncond = len(_tutorial_cells(values))
+    for condition in range(ncond):
+        data = _tutorial_cells(customdata)[condition]
+        # MATLAB mean(...,3) is identity when that trailing dimension is absent.
+        mean_trials = data.mean(axis=2) if data.ndim > 2 else data
+        rms = np.sqrt(np.mean(mean_trials**2, axis=1, keepdims=True))
+        _tutorial_hold(backend, request)
+        _tutorial_plot(backend, request, first_eeg["times"], rms)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        backend("legend", values, nargout=0)
+        backend("eegprep_test_tutorial_setfont", nargout=0)
+    else:
+        plt.legend(_tutorial_cells(values))
+        backend("setfont", plt.gcf(), "fontsize", 16.0, nargout=0)
+    _, erpdata = backend(
+        "std_readdata",
+        study,
+        alleeg,
+        channels=_cell_row(_records(first_alleeg["chanlocs"])[0]["labels"]),
+        design=1.0,
+        datatype="erp",
+        nargout=2,
+    )
+    backend("std_stat", erpdata, condstats="on", mcorrect="fdr", method="permutation", nargout=0)
+    backend(
+        "std_stat",
+        erpdata,
+        condstats="on",
+        fieldtripmcorrect="cluster",
+        fieldtripmethod="montecarlo",
+        mode="fieldtrip",
+        nargout=0,
+    )
+    res = backend("statcond", erpdata)
+    if request.config.getoption("--eeglab-backend") == "python":
+        res = res.stat
+    np.shape(res)
+    res = backend("statcond", erpdata)
+    if request.config.getoption("--eeglab-backend") == "python":
+        res = res.stat
+    np.shape(res)
 
 
 @pytest.mark.gui
@@ -304,7 +849,7 @@ def test_reference_tutorial_source_reconstruction_eeg(eeglab_backend, eeglab_sui
     close_reference_gui(backend, request, window=window.window if window else None)
     eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))
     if request.config.getoption("--eeglab-backend") == "matlab":
-        model = backend("eegprep_test_tutorial_dipfitdefs")
+        model = backend("eegprep_test_tutorial_dipfitdefs", eeg)
     else:
         # The Python package stores dipfitdefs' metadata as real template data.
         template = STANDARD_TEMPLATES[1]
@@ -741,8 +1286,9 @@ def test_reference_tutorial_time_freq_all_elec(eeglab_backend, eeglab_suite_root
     close_reference_gui(backend, request, window=window.window if window else None)
     eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))
     for electrode in range(1, int(eeg["nbchan"]) + 1):
-        results = backend(
-            "pop_newtimef",
+        results = _tutorial_newtimef(
+            backend,
+            request,
             eeg,
             1.0,
             float(electrode),
@@ -762,11 +1308,11 @@ def test_reference_tutorial_time_freq_all_elec(eeglab_backend, eeglab_suite_root
             "off",
             "plotitc",
             "off",
-            nargout=7,
         )
         if electrode == 1:
             all_results = [
-                np.zeros((*np.shape(result), int(eeg["nbchan"])), dtype=np.asarray(result).dtype) for result in results
+                np.zeros((*np.shape(result), int(eeg["nbchan"])), dtype=complex if np.iscomplexobj(result) else float)
+                for result in results
             ]
         for accumulated, result in zip(all_results, results, strict=True):
             accumulated[:, :, electrode - 1] = result
@@ -1180,7 +1726,6 @@ def test_event_processing_study_exposes_derived_reaction_time_as_a_design_variab
     assert study["datasetinfo"][0]["trialinfo"] == trialinfo[0]
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_make_eeg_movie")
 def test_make_eeg_movie_smooths_an_erp_and_renders_2d_and_3d_frames():
     eeg = _epoched_tutorial_eeg("S01", "target", subject_index=1)
     window = (np.asarray(eeg["times"]) >= -100) & (np.asarray(eeg["times"]) <= 600)
@@ -1315,7 +1860,6 @@ def test_source_reconstruction_advanced_builds_a_forward_model_and_exposes_field
         pop_dipfit_loreta(with_leadfield, [1], gui=False)
 
 
-@eeglab_test(TUTORIAL_WRAPPER, "test_study_script")
 def test_study_script_runs_n400_measure_statistics_and_component_clustering_workflow():
     study, alleeg = _tutorial_study()
     study, alleeg, channel_command = std_precomp(

@@ -261,13 +261,28 @@ The tutorial-wrapper ports additionally pin
 Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
 can execute them, while Octave cannot execute the Live Script format.
 
-Although ``tutorial2_wrapperTest.test_bids_process_face_experiment`` has an
-entirely commented wrapper body, its referenced Live Script is preserved as a
-generated-data port rather than an empty test. The face-recognition and active
-P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
-trial-level STUDY designs, precomputation, and ERP plotting without checking the
-upstream tutorial datasets into the package. The full EEGLAB datasets remain
-useful for separate MATLAB parity runs.
+The ten active wrapper contracts in ``tests/test_tutorial_eeglab_tests.py``
+retain the original scripts' operation sequences, arguments, and full inputs:
+the continuous and ICA-epoched sample recordings, five-subject N400 study,
+and P300 BIDS tree (with the original subjects 1--2 selection). Workflows that
+write datasets, measure caches, spline files, or videos use isolated working
+directories and complete copies of the source input trees when needed. The
+original FieldTrip, DIPFIT, PICARD, and ICLabel dependencies remain required;
+missing Python capabilities are not converted into successful skips or
+expected failures. Python owns the workflow sequence, with small test-only
+boundaries for native caller workspaces, function handles, and video objects.
+
+All ten active tutorials start the EEGLAB GUI or create figures. They are
+marked ``gui`` and their execution is deferred and unvalidated; ordinary
+generated-data regression results do not validate these source contracts.
+Future Python video-export runs also require ``ffmpeg`` for the equivalent
+30-fps MPEG-4 or uncompressed AVI writer.
+
+``tutorial2_wrapperTest.test_bids_process_face_experiment`` is inactive because
+its entire wrapper body is commented out. It carries no source provenance and
+is not represented by a no-op passing test. The existing face-recognition and
+other generated-data workflows remain supplemental Python regressions, without
+claims that their synthetic recordings are the original source inputs.
 
 Test Discovery
 --------------
