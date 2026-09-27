@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from hashlib import sha256
+import logging
 from pathlib import Path
 import shutil
 
@@ -27,6 +29,19 @@ from eegprep.functions.studyfunc.std_maketrialinfo import std_maketrialinfo
 from eegprep.functions.studyfunc.std_makedesign import std_makedesign
 from eegprep.functions.studyfunc.std_readfilelimo import std_readfilelimo
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.limo_irls import (
+    IRLS_CHANLOCS_ASSIGNMENT,
+    IRLS_SOURCE,
+    IRLS_SOURCE_SHA256,
+    RESULT_FIELDS,
+    _matlab_max,
+    load_irls_mat,
+    matlab_binofit,
+    prepare_irls_source_overlay,
+    reference_limo_glmboot,
+)
+from tests.test_eeg_store import _source_dataset_row
+from tests.test_tutorial_eeglab_tests import _tutorial_redraw, _tutorial_start
 
 
 LIMO_WRAPPER = "unittesting_limo/limo_wrapperTest.m"
@@ -35,6 +50,7 @@ FACE_EVENTS = tuple(
     for face in ("famous", "scrambled", "unfamiliar")
     for repetition in ("new", "second_early", "second_late")
 )
+logger = logging.getLogger(__name__)
 
 
 def _cell_row(*values):
@@ -91,6 +107,278 @@ def _limo_entries(values):
 def _limo_assign_groups(study):
     for index, info in enumerate(_limo_entries(study["datasetinfo"])):
         info["group"] = "1" if index < 6 else "2" if index < 13 else "3"
+
+
+def _irls_remove_directory(directory, study_path):
+    # The source removes previous derivative/H0 results, never source recordings.
+    # Its try/catch permits absent or unremovable directories. Restrict this
+    # destructive setup to the explicit copied study before preserving that catch.
+    directory.resolve().relative_to(study_path.resolve())
+    try:
+        shutil.rmtree(directory)
+    except OSError as error:
+        logger.info("IRLS source cleanup: %s", error)
+
+
+@eeglab_test(IRLS_SOURCE, "limo_zIRLS_validation_4_Arno")
+@pytest.mark.slow
+@pytest.mark.gui
+def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, eeglab_suite_root, request):
+    """Full standalone IRLS workflow with the explicitly approved input repair.
+
+    The native source overlay has exactly the same one-line chanlocs correction.
+    No complete MATLAB test or validation-helper script is evaluated here.
+    """
+    call = eeglab_backend
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    overlay = prepare_irls_source_overlay(eeglab_suite_root, limo_source_directory.parent)
+    if native:
+        call("eegprep_test_base_workspace", "snapshot", nargout=0)
+        request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
+        call("evalin", "base", "clear variables", nargout=0)
+        call("addpath", str(overlay), nargout=0)
+    for function, message in (
+        ("eeglab", "EEGLAB is not in your path"),
+        ("pop_importbids", "EEGLAB BIDS import tools are not your path"),
+        ("limo_eeg", "LIMO tools are not in your path"),
+    ):
+        available = call("exist", f"{function}.m", "file") if native else getattr(eegprep, function, None)
+        if not available:
+            raise RuntimeError(message)
+    if native and not call("exist", "limo_test_glmboot.m", "file"):
+        raise RuntimeError("get/set limo validation tools to check type 1 error")
+    derivative_path = limo_source_directory / "derivative_IRLS"
+    _irls_remove_directory(derivative_path, limo_source_directory)
+    window, _alleeg, _eeg, _currentset, allcom = _tutorial_start(call, request, outputs=4)
+    study, alleeg = call(
+        "pop_importbids",
+        str(limo_source_directory),
+        bidsevent="on",
+        bidschanloc="on",
+        studyName="Face_detection",
+        eventtype="trial_type",
+        outputdir=str(derivative_path),
+        nargout=2,
+    )
+    study["studypath"] = str(derivative_path)
+    alleeg = call("pop_select", alleeg, "nochannel", _cell_row("EEG061", "EEG062", "EEG063", "EEG064"))
+    eeg = alleeg
+    currentset = np.arange(1.0, len(_limo_entries(eeg)) + 1).reshape(1, -1)
+    eeg = call(
+        "pop_clean_rawdata",
+        eeg,
+        "FlatlineCriterion",
+        5.0,
+        "ChannelCriterion",
+        0.8,
+        "LineNoiseCriterion",
+        4.0,
+        "Highpass",
+        np.array([[0.25, 0.75]]),
+        "BurstCriterion",
+        "off",
+        "WindowCriterion",
+        "off",
+        "BurstRejection",
+        "off",
+        "Distance",
+        "Euclidian",
+        "WindowCriterionTolerances",
+        "off",
+    )
+    eeg = call("pop_reref", eeg, np.empty((0, 0)), "interpchan", np.empty((0, 0)))
+    thresholds = np.full((7, 2), np.nan)
+    thresholds[1:3] = [0.8, 1.0]
+    processed = []
+    for dataset in _limo_entries(eeg):
+        if native:
+            dataset = {field: dataset[field] for field in dataset.dtype.names}
+        dataset = call(
+            "pop_runica",
+            dataset,
+            "icatype",
+            "picard",
+            "concatcond",
+            "on",
+            "options",
+            _cell_row("pca", float(np.asarray(dataset["nbchan"]).item()) - 1),
+        )
+        dataset = call("pop_iclabel", dataset, "default")
+        dataset = call("pop_icflag", dataset, thresholds)
+        rejected = np.asarray(dataset["reject"]["gcompreject"])
+        components = np.flatnonzero(rejected.ravel(order="F")).astype(float) + 1
+        components = (
+            components.reshape(1, -1) if rejected.ndim == 1 or rejected.shape[0] == 1 else components.reshape(-1, 1)
+        )
+        processed.append(call("pop_subcomp", dataset, components, 0.0))
+    eeg = _source_dataset_row(*processed) if native else processed
+    eeg = call(
+        "pop_clean_rawdata",
+        eeg,
+        "FlatlineCriterion",
+        "off",
+        "ChannelCriterion",
+        "off",
+        "LineNoiseCriterion",
+        "off",
+        "Highpass",
+        "off",
+        "BurstCriterion",
+        20.0,
+        "WindowCriterion",
+        0.25,
+        "BurstRejection",
+        "on",
+        "Distance",
+        "Euclidian",
+        "WindowCriterionTolerances",
+        np.array([[-np.inf, 7.0]]),
+    )
+    eeg = call("pop_epoch", eeg, _cell_row(*FACE_EVENTS), np.array([[-0.5, 1.0]]), "epochinfo", "yes")
+    eeg = call("eeg_checkset", eeg)
+    eeg = call("pop_saveset", eeg, "savemode", "resave")
+    alleeg = eeg
+    study = call("std_checkset", study, alleeg)
+    study = call(
+        "std_makedesign",
+        study,
+        eeg,
+        1.0,
+        "name",
+        "STUDY.FaceRepetition",
+        "delfiles",
+        "off",
+        "defaultdesign",
+        "off",
+        "variable1",
+        "type",
+        "values1",
+        np.empty((0, 0), dtype=object),
+    )
+    _tutorial_redraw(
+        call,
+        request,
+        window,
+        STUDY=study,
+        ALLEEG=alleeg,
+        EEG=eeg,
+        CURRENTSTUDY=1.0,
+        CURRENTSET=currentset,
+        ALLCOM=allcom,
+    )
+    study, eeg = call(
+        "std_precomp",
+        study,
+        eeg,
+        np.empty((0, 0), dtype=object),
+        "savetrials",
+        "on",
+        "interp",
+        "on",
+        "recompute",
+        "on",
+        "erp",
+        "on",
+        "erpparams",
+        _cell_row("rmbase", np.array([[-200.0, 0.0]])),
+        "spec",
+        "on",
+        "ersp",
+        "on",
+        "itc",
+        "on",
+        "specparams",
+        _cell_row("specmode", "fft", "logtrials", "off"),
+        nargout=2,
+    )
+    _tutorial_redraw(call, request, window, STUDY=study, EEG=eeg)
+    study = call(
+        "pop_limo",
+        study,
+        alleeg,
+        "method",
+        "IRLS",
+        "measure",
+        "daterp",
+        "timelim",
+        np.array([[-50.0, 650.0]]),
+        "erase",
+        "on",
+        "splitreg",
+        "off",
+        "interaction",
+        "off",
+    )
+    _tutorial_redraw(call, request, window, STUDY=study)
+    h0 = []
+    for subject, info in enumerate(_limo_entries(study["datasetinfo"]), 1):
+        logger.info("running bootstrap on subject %g", subject)
+        # Keep the source's literal model name, even if installed LIMO naming
+        # has drifted. The chanlocs assignment is the only approved correction.
+        model_path = Path(info["filepath"]) / "FaceRepetition_GLM_Channels_Time_IRLS"
+        limo = load_irls_mat(call, native, model_path / "LIMO.mat")["LIMO"]
+        limo["design"]["bootstrap"] = 2500.0
+        limo["design"]["status"] = "to do"
+        model_directory = Path(limo["dir"])
+        model_directory.resolve().relative_to(limo_source_directory.resolve())
+        savemat(model_directory / "LIMO.mat", {"LIMO": limo}, long_field_names=True)
+        _irls_remove_directory(model_directory / "H0", limo_source_directory)
+        h0.append(str(model_path / "H0"))
+        call("limo_eeg", 4.0, limo, nargout=0)
+    # User-approved missing assignment, identical to the checked native patch.
+    # std_limo writes this file; no montage or adjacency is synthesized here.
+    chanlocs = Path(study["filepath"]) / "derivatives" / "limo_gp_level_chanlocs.mat"
+    values = reference_limo_glmboot(call, native, str(chanlocs), h0, step_size=300, Nboot=1000, MinSamp=300)
+    results = dict(zip(RESULT_FIELDS, values, strict=True))
+    directory = Path(call("pwd")) if native else Path.cwd()
+    savemat(directory / "results.mat", {"results": results}, long_field_names=True)
+
+
+def test_irls_native_overlay_applies_only_approved_assignment(eeglab_suite_root, tmp_path):
+    original = eeglab_suite_root / IRLS_SOURCE
+    before = original.read_bytes()
+    directory = prepare_irls_source_overlay(eeglab_suite_root, tmp_path)
+    corrected = (directory / original.name).read_text()
+    assert corrected.count(IRLS_CHANLOCS_ASSIGNMENT) == 1
+    assert corrected.replace(IRLS_CHANLOCS_ASSIGNMENT, "").encode() == before
+    assert original.read_bytes() == before
+    assert sha256(before).hexdigest() == IRLS_SOURCE_SHA256
+    assert (directory / "limo_test_glmboot.m").read_bytes() == (
+        eeglab_suite_root / "unittesting_limo" / "limo_test_glmboot.m"
+    ).read_bytes()
+
+
+@pytest.mark.parametrize("successes, expected", [(0, (0.0, 0.975)), (1, (0.025, 1.0))])
+def test_irls_binomial_interval_retains_source_default_confidence(successes, expected):
+    estimate, interval = matlab_binofit(successes, 1)
+    assert estimate == successes
+    np.testing.assert_allclose(interval, expected, rtol=0, atol=1e-15)
+
+
+def test_irls_mat_loading_retains_singleton_frequency_axis_and_model_fields(tmp_path):
+    file = tmp_path / "H0.mat"
+    data = np.arange(48, dtype=np.float32).reshape(2, 1, 3, 2, 4)
+    savemat(file, {"H0": data, "LIMO": {"dir": str(tmp_path), "design": {"bootstrap": 2500.0, "status": "to do"}}})
+    loaded = load_irls_mat(None, False, file)
+    np.testing.assert_array_equal(loaded["H0"], data, strict=True)
+    assert loaded["LIMO"]["dir"] == str(tmp_path)
+    assert loaded["LIMO"]["design"]["status"] == "to do"
+    np.testing.assert_array_equal(loaded["LIMO"]["design"]["bootstrap"], np.array([[2500.0]]))
+
+
+@pytest.mark.parametrize(
+    "values, maximum, index",
+    [
+        ([[np.nan, 5.0], [2.0, np.nan]], 5.0, 2),
+        ([[2.0, 5.0], [5.0, np.nan]], 5.0, 1),
+        ([[np.nan, -np.inf]], -np.inf, 1),
+        ([[np.nan, np.nan]], np.nan, 0),
+    ],
+)
+def test_irls_maximum_preserves_matlab_nan_and_first_index_semantics(values, maximum, index):
+    value, position = _matlab_max(np.asarray(values))
+    np.testing.assert_equal(value, maximum)
+    assert position == index
 
 
 @eeglab_test(LIMO_WRAPPER, "limo_test1")

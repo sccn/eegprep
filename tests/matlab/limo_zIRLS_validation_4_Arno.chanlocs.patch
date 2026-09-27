@@ -1,0 +1,7 @@
+--- a/unittesting_limo/limo_zIRLS_validation_4_Arno.m
++++ b/unittesting_limo/limo_zIRLS_validation_4_Arno.m
+@@ -105,3 +105,4 @@
+ % use 1500 for the null and 1000 for testing
++chanlocs = fullfile(STUDY.filepath, 'derivatives', 'limo_gp_level_chanlocs.mat');
+ [results.errIRLS,results.ci_errIRLS,results.maxIRLS,results.maxci_errIRLS,results.clusterIRLS,results.maxcic_errIRLS] = limo_test_glmboot(chanlocs,H0iw,'step_size',300,'Nboot',1000,'MinSamp',300);
+ save results results
