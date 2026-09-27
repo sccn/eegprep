@@ -194,6 +194,32 @@ still runs when the optional branch is unavailable. These properties do not
 change the source guards, assertions, or pytest outcomes. A passing case with a
 false guard property is not evidence that the guarded behavior was validated.
 
+For the full contract selection, omit the ``not gui`` and ``not slow`` filters.
+MATLAB windows, progress dialogs, video rendering, full-recording ICA and
+multi-subject bootstraps can run for substantially longer than the numerical
+subset. Run deliberately on a machine where graphical interaction is allowed:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest tests --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      -m eeglab_contract --junitxml=all-contracts.xml
+
+Known reference findings must stay visible in that report. In the pinned
+suite, the three legacy ``erpimage`` leaves ``pass_general``, ``pass_many_args``
+and ``pass_times`` return ``tc_notpassed`` on MATLAB R2026a: they compare a
+numeric handle vector with modern cell outputs. Their original wrappers
+discard the returned status. A green wrapper therefore does not validate
+those predicates. The Python contracts retain the comparisons and fail;
+the graphics transport only removes handles the source never compares.
+
+The original ``std_topoplot`` workflow requires ``.icatopo`` files generated
+by the suite's earlier ``std_precomp`` workflow. A fresh source data checkout
+does not contain them. Its independent port creates the real scalp cache in
+a writable copy of the original STUDY, then reloads the original STUDY before
+the unchanged four plotting calls. No synthetic cache or reference-tree write
+is used.
+
 The test session initializes the pinned EEGLAB checkout and
 its already installed plugins without installing anything. Optional upstream
 dependency files can live outside that checkout: pass their directory using
@@ -282,8 +308,8 @@ missing Python capabilities are not converted into successful skips or
 expected failures. Python owns the workflow sequence, with small test-only
 boundaries for native caller workspaces, function handles, and video objects.
 
-All ten active tutorials start the EEGLAB GUI or create figures. They are
-marked ``gui`` and their execution is deferred and unvalidated; ordinary
+All ten active tutorials start the EEGLAB GUI or create figures and are
+marked ``gui``. They require explicit graphical validation; ordinary
 generated-data regression results do not validate these source contracts.
 Future Python video-export runs also require ``ffmpeg`` for the equivalent
 30-fps MPEG-4 or uncompressed AVI writer.

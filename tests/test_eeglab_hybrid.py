@@ -16,6 +16,40 @@ from tests.eeglab_tests.backend import call_matlab, call_python
 pytest_plugins = ("pytester",)
 
 
+@pytest.mark.gui
+def test_erpimage_transport_excludes_uncompared_graphics_objects(eeglab_matlab_engine):
+    data = np.array(
+        [[21, 24, 25, 28, 31, 37], [22, 25, 26, 29, 32, 38], [23, 26, 27, 30, 33, 39], [24, 27, 28, 31, 34, 40]],
+        dtype=float,
+    )
+    try:
+        outputs = call_matlab(
+            eeglab_matlab_engine,
+            "eegprep_test_erpimage_outputs",
+            "call",
+            4.0,
+            data,
+            np.empty((0, 0)),
+            np.empty((0, 0)),
+            "testcase",
+            1.0,
+            1.0,
+            "erp",
+            "cbar",
+            "noxlabel",
+        )
+        # Current MATLAB returns cells, not the numeric handle vector expected
+        # by the old test. Transport must retain that genuine mismatch.
+        compared_axes = outputs[0, 4]
+        assert compared_axes.dtype == object
+        assert compared_axes.shape == (1, 2)
+        assert all(np.isnan(value).all() for value in compared_axes.flat)
+        np.testing.assert_array_equal(outputs[0, 0], data)
+        np.testing.assert_allclose(outputs[0, 5], data.mean(axis=1)[None, :])
+    finally:
+        eeglab_matlab_engine.close("all", "force", nargout=0)
+
+
 def test_python_backend_resolves_functions_at_call_time():
     data = np.array([[1.0, 2.0, 3.0], [4.0, 8.0, 12.0]])
     np.testing.assert_array_equal(call_python("rmbase", data), [[-1, 0, 1], [-4, 0, 4]])

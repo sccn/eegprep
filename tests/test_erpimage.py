@@ -62,9 +62,9 @@ def test_reference_erpimage_trial_div(eeglab_backend):
     eeglab_backend("erpimage", _reference_erpimage_data(), np.arange(1.0, 6.0)[None, :], nargout=0)
 
 
-def _reference_erpimage_outputs(eeglab_backend, request, *args):
+def _reference_erpimage_outputs(eeglab_backend, request, *args, remaining_axes=4):
     if request.config.getoption("--eeglab-backend") == "matlab":
-        outputs = eeglab_backend("eegprep_test_erpimage_outputs", "call", *args)
+        outputs = eeglab_backend("eegprep_test_erpimage_outputs", "call", float(6 - remaining_axes), *args)
 
         def assert_axis():
             assert eeglab_backend("eegprep_test_erpimage_outputs", "axis_type").lower() == "axes"
@@ -72,7 +72,7 @@ def _reference_erpimage_outputs(eeglab_backend, request, *args):
         return tuple(outputs.ravel(order="F")), assert_axis
     outputs = list(eeglab_backend("erpimage", *args, nargout=15))
     axes = np.asarray(outputs[4], dtype=object)
-    outputs[4] = axes[..., 1:]
+    outputs[4] = axes[..., 5 - remaining_axes :]
 
     def assert_axis():
         assert isinstance(axes.ravel(order="F")[0], Axes)
@@ -103,7 +103,7 @@ def _assert_reference_erpimage_outputs(outputs, assert_axis, *, limits, erp, rem
     for index in range(4):
         assert_matlab_struct_near(expected[index], outputs[index])
     # The source compares handles 2:end, or 4:end in the three-axis case.
-    assert_matlab_struct_near(expected[4], outputs[4][..., 4 - remaining_axes :])
+    assert_matlab_struct_near(expected[4], outputs[4])
     assert_axis()
     for index in range(5, 15):
         assert_matlab_struct_near(expected[index], outputs[index])
@@ -133,6 +133,7 @@ def test_reference_erpimage_many_args(eeglab_backend, request):
         "erp",
         "cbar",
         "noxlabel",
+        remaining_axes=2,
     )
     _assert_reference_erpimage_outputs(
         outputs,

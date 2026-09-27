@@ -4,11 +4,12 @@ persistent first_axis
 switch action
     case 'call'
         outputs = cell(1, 15);
-        [outputs{:}] = erpimage(varargin{:});
+        first_compared_axis = varargin{1};
+        [outputs{:}] = erpimage(varargin{2:end});
         first_axis = outputs{5}(1);
         % The source never compares the first handle numerically. Preserve
         % the remaining handles' cell/numeric class, including modern cells.
-        outputs{5} = outputs{5}(2:end);
+        outputs{5} = outputs{5}(first_compared_axis:end);
         result = outputs;
     case 'axis_type'
         % Deliberately retain () rather than correcting the source to {}.

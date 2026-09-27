@@ -1281,8 +1281,13 @@ def test_std_specplot_group_and_condition_layout_controls_preserve_design_cells(
 
 @_reference("std_topoplot", "test_test_std_topoplot")
 @pytest.mark.gui
-def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study, request):
-    study, alleeg = eeglab_sample_study
+def test_reference_std_topoplot(eeglab_backend, eeglab_writable_study, request):
+    study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
+    # The source suite's earlier std_precomp workflow produces these files;
+    # they are not checked-in fixtures. Recreate the real scalp cache in scratch
+    # so this original plotting sequence also runs independently of test order.
+    eeglab_backend("std_precomp", study, alleeg, "components", "scalp", "on", nargout=2)
+    study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study)
     for options in (
         {"clusters": "all", "mode": "centroid"},
         {"clusters": 3.0, "mode": "centroid"},
