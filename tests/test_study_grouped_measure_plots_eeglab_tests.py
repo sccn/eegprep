@@ -31,7 +31,7 @@ from eegprep import (
     std_stat,
     std_topoplot,
 )
-from tests.eeglab_tests import eeglab_test, load_matlab_test_fixture
+from tests.eeglab_tests import assert_matlab_equal, eeglab_test, load_matlab_test_fixture
 from tests.eeglab_tests.gui import close_reference_gui
 
 
@@ -166,6 +166,299 @@ def _timef_cache_options(cache):
 
 def _time_limits(eeg):
     return np.array([[np.asarray(eeg["xmin"]).item(), np.asarray(eeg["xmax"]).item()]]) * 1000
+
+
+def _legacy_ersp_version_guard(backend, maximum):
+    version = backend("eeg_getversion")
+    try:
+        number = float(version[:2])
+    except ValueError:
+        number = np.nan  # MATLAB str2double returns NaN for nonnumeric text.
+    newer = number > maximum
+    # The source checks isnan on the comparison result, not on number.
+    if np.isnan(newer) or version[0] == "d":
+        newer = True
+    return newer
+
+
+def _legacy_ersp_skip_design(version, design):
+    if version[0] != "9":
+        return False
+    variables = _records(design["variable"])
+    skip = False
+    for variable in (variables[1], variables[0]):
+        values = variable["value"].ravel(order="F")
+        if any(np.asarray(value).dtype == object for value in values):
+            skip = True
+    for variable in variables[:2]:
+        values = variable["value"].ravel(order="F")
+        if values.size and np.asarray(values[0]).dtype.kind in "iufc":
+            if any(max(np.asarray(value).shape, default=1) > 1 for value in values):
+                skip = True
+    if any(np.asarray(cell["trials"].flat[0]).size == 0 for cell in _records(design["cell"])):
+        skip = True
+    return skip
+
+
+def _legacy_isequal(first, second):
+    try:
+        assert_matlab_equal(first, second)
+    except AssertionError:
+        return False
+    return True
+
+
+def _legacy_variable_position(value, variable):
+    if np.asarray(value).size == 0 or isinstance(value, str) and not value:
+        return 0
+    if isinstance(value, str) or np.asarray(value).dtype.kind in "US":
+        return int(_strmatch(_text(value), variable["value"]).item())
+    return int(
+        np.flatnonzero([_legacy_isequal(candidate, value) for candidate in variable["value"].ravel(order="F")]).item()
+    )
+
+
+def _legacy_index_last(value, index, dimensions):
+    # MATLAB supplies implicit trailing singleton axes, collapses any further
+    # axes into the last subscript, and omits trailing singleton output axes.
+    shape = (*value.shape, *((1,) * max(0, dimensions - value.ndim)))
+    indexed = np.take(value.reshape((*shape[: dimensions - 1], -1), order="F"), index, axis=dimensions - 1)
+    while indexed.ndim > 2 and indexed.shape[-1] == 1:
+        indexed = indexed[..., 0]
+    return indexed
+
+
+def _legacy_ersp_merge_trials(backend, alleeg, datasets, trials, *, locations=None, component=None):
+    merged = None
+    for position, dataset in enumerate(np.asarray(datasets).ravel(order="F")):
+        eeg = deepcopy(_records(alleeg)[int(dataset) - 1])
+        options = () if component is None else ("component", component)
+        eeg["data"] = backend("eeg_getdatact", eeg, *options, "trialindices", trials.ravel(order="F")[position])
+        eeg["trials"] = float(eeg["data"].shape[2] if eeg["data"].ndim > 2 else 1)
+        eeg["epoch"] = np.empty((0, 0))
+        if locations is not None and np.asarray(eeg["nbchan"]).item() < len(_records(locations)):
+            eeg = backend("eeg_interp", eeg, locations)
+        merged = eeg if merged is None else backend("pop_mergeset", merged, eeg)
+    return merged
+
+
+def _assert_legacy_component_measure(first, second):
+    first, second = np.asarray(first).ravel(order="F"), np.asarray(second).ravel(order="F")
+    # Preserve division by zero/NaN behavior in the source's relative assertion.
+    with np.errstate(divide="ignore", invalid="ignore"):
+        assert np.max(np.abs(first - second) / np.abs(first)) < 1e-3
+
+
+@pytest.mark.slow
+@pytest.mark.gui
+@pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
+@_reference("std_erspplot", "test_test_std_erspplot2")
+def test_reference_std_erspplot_legacy_channel_cache(eeglab_backend, eeglab_writable_study, request):
+    if _legacy_ersp_version_guard(eeglab_backend, 13):
+        return
+    study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
+    locations = eeglab_backend("eeg_mergelocs", *(eeg["chanlocs"] for eeg in _records(alleeg)))
+    rng = np.random.default_rng()
+    channel = _records(locations)[int(np.ceil(rng.random() * len(_records(locations)))) - 1]["labels"]
+    version = eeglab_backend("eeg_getversion")
+    cycles = np.array([[3.0, 0.8]])
+    for design_index in range(len(_records(study["design"]))):
+        design = _records(study["design"])[design_index]
+        if _legacy_ersp_skip_design(version, design):
+            continue
+        cell_index = int(np.ceil(rng.random() * len(_records(design["cell"])))) - 1
+        cell = _records(design["cell"])[cell_index]
+        datasets, trials = cell["dataset"], cell["trials"]
+        variables = _records(design["variable"])
+        positions = tuple(
+            _legacy_variable_position(value, variable)
+            for value, variable in zip(cell["value"].ravel(order="F")[:2], variables[:2], strict=True)
+        )
+        cases = _strmatch(_text(cell["case"]), design["cases"]["value"])
+        study = eeglab_backend("std_selectdesign", study, alleeg, float(design_index + 1))
+        study, alleeg = eeglab_backend(
+            "std_precomp",
+            study,
+            alleeg,
+            "channels",
+            "recompute",
+            "on",
+            "interp",
+            "on",
+            "ersp",
+            "on",
+            "erspparams",
+            _cell_row("cycles", cycles, "nfreqs", 10.0, "ntimesout", 10.0, "baseline", np.nan),
+            nargout=2,
+        )
+        study, cells, times, frequencies = eeglab_backend(
+            "std_erspplot",
+            study,
+            alleeg,
+            "channels",
+            _cell_row(channel),
+            "freqrange",
+            np.empty((0, 0)),
+            "timerange",
+            np.empty((0, 0)),
+            "subbaseline",
+            "off",
+            "topotime",
+            np.empty((0, 0)),
+            "topofreq",
+            np.empty((0, 0)),
+            nargout=4,
+        )
+        _close_measure_plot(eeglab_backend, request)
+        values = cells[positions]
+        if values.size and cases.size and np.all(cases < values.shape[1]):
+            cell = _records(_records(study["design"])[design_index]["cell"])[cell_index]
+            cache = load_matlab_test_fixture(_text(cell["filebase"]) + ".datersp")
+            channel_index = int(_strmatch(_text(channel), cache["chanlabels"]).item())
+            cached = cache[f"chan{channel_index + 1}_ersp"]
+            plotted = _legacy_index_last(values, cases, 4)
+            eeg = _legacy_ersp_merge_trials(eeglab_backend, alleeg, datasets, trials, locations=locations)
+            channel_indices = _strmatch(
+                _text(channel), _cell_row(*(loc["labels"] for loc in _records(eeg["chanlocs"])))
+            )
+            recomputed, _itc, _base, oracle_times, oracle_frequencies, _eboot, _iboot, _coefficients = eeglab_backend(
+                "newtimef",
+                eeg["data"][channel_indices],
+                eeg["pnts"],
+                _time_limits(eeg),
+                eeg["srate"],
+                cycles,
+                "freqscale",
+                "log",
+                "nfreqs",
+                10.0,
+                "ntimesout",
+                10.0,
+                "baseline",
+                np.nan,
+                "freqs",
+                np.array([[3.0, np.asarray(eeg["srate"]).item() / 2]]),
+                nargout=8,
+            )
+            _close_measure_plot(eeglab_backend, request)
+            _assert_measure(times, oracle_times, tolerance=1e-3)
+            _assert_measure(frequencies, oracle_frequencies, tolerance=1e-3)
+            _assert_measure(cached, plotted, tolerance=1e-3)
+            _assert_measure(cached, recomputed, tolerance=1e-3)
+
+
+@pytest.mark.slow
+@pytest.mark.gui
+@pytest.mark.parametrize("eeglab_writable_study", ["teststudy2"], indirect=True)
+@_reference("std_erspplot", "test_test_std_erspplot3")
+def test_reference_std_erspplot_legacy_component_cache(eeglab_backend, eeglab_writable_study, request):
+    if _legacy_ersp_version_guard(eeglab_backend, 14):
+        return
+    study, alleeg = _read_measure_study(eeglab_backend, eeglab_writable_study, "stern2s.study")
+    eeglab_backend("eeg_mergelocs", *(eeg["chanlocs"] for eeg in _records(alleeg)))
+    rng = np.random.default_rng()
+    cluster_index = int(np.ceil(rng.random() * len(_records(study["cluster"])))) - 1
+    version = eeglab_backend("eeg_getversion")
+    cycles = np.array([[3.0, 0.8]])
+    for design_index in range(len(_records(study["design"]))):
+        if _legacy_ersp_skip_design(version, _records(study["design"])[design_index]):
+            continue
+        study = eeglab_backend("std_selectdesign", study, alleeg, float(design_index + 1))
+        design = _records(study["design"])[design_index]
+        cell_index = int(np.ceil(rng.random() * len(_records(design["cell"])))) - 1
+        cell = _records(design["cell"])[cell_index]
+        cluster = _records(study["cluster"])[cluster_index]
+        dataset = np.asarray(cell["dataset"]).ravel(order="F")[0]
+        if not np.flatnonzero(cluster["sets"].ravel(order="F") == dataset).size:
+            continue
+        values = cell["value"].ravel(order="F")[:2]
+        component_offset = 0
+        for current_cell in _records(design["cell"])[: cell_index + 1]:
+            current_values = current_cell["value"].ravel(order="F")[:2]
+            if all(_legacy_isequal(a, b) for a, b in zip(current_values, values, strict=True)):
+                dataset = np.asarray(current_cell["dataset"]).ravel(order="F")[0]
+                set_indices = np.flatnonzero(cluster["sets"].T.ravel(order="F") == dataset)
+                set_indices = set_indices % cluster["sets"].shape[1]
+                if set_indices.size:
+                    component_offset += set_indices.size
+                    sets = np.full((1, set_indices.size), float(cell_index + 1))
+                    components = cluster["comps"].ravel(order="F")[set_indices][None, :]
+        positions = tuple(
+            _legacy_variable_position(value, variable)
+            for value, variable in zip(values, _records(design["variable"])[:2], strict=True)
+        )
+        all_indices, set_indices = cluster["allinds"][positions], cluster["setinds"][positions]
+        selection = slice(component_offset - components.size, component_offset)
+        _assert_legacy_component_measure(all_indices.ravel(order="F")[selection], components)
+        _assert_legacy_component_measure(set_indices.ravel(order="F")[selection], sets)
+        component_index = int(np.ceil(rng.random() * all_indices.size)) - 1
+        component = all_indices.ravel(order="F")[component_index]
+        selected_cell = int(set_indices.ravel(order="F")[component_index]) - 1
+        cell = _records(design["cell"])[selected_cell]
+        datasets, trials = cell["dataset"], cell["trials"]
+        if all(np.asarray(trial).size == 0 for trial in trials.ravel(order="F")):
+            continue
+        study, alleeg = eeglab_backend(
+            "std_precomp",
+            study,
+            alleeg,
+            "components",
+            "recompute",
+            "on",
+            "ersp",
+            "on",
+            "erspparams",
+            _cell_row("cycles", cycles, "nfreqs", 10.0, "ntimesout", 10.0, "baseline", np.nan),
+            nargout=2,
+        )
+        study, cells, times, frequencies = eeglab_backend(
+            "std_erspplot",
+            study,
+            alleeg,
+            "clusters",
+            float(cluster_index + 1),
+            "timerange",
+            np.empty((0, 0)),
+            "freqrange",
+            np.empty((0, 0)),
+            "subbaseline",
+            "off",
+            "topotime",
+            np.empty((0, 0)),
+            "topofreq",
+            np.empty((0, 0)),
+            nargout=4,
+        )
+        _close_measure_plot(eeglab_backend, request)
+        plotted = _legacy_index_last(cells[positions], component_index, 3)
+        cell = _records(_records(study["design"])[design_index]["cell"])[selected_cell]
+        cache = load_matlab_test_fixture(_text(cell["filebase"]) + ".icaersp")
+        cached = cache[f"comp{int(component)}_ersp"]
+        eeg = _legacy_ersp_merge_trials(eeglab_backend, alleeg, datasets, trials, component=component)
+        recomputed, _itc, _base, oracle_times, oracle_frequencies, _eboot, _iboot, _coefficients = eeglab_backend(
+            "newtimef",
+            eeg["data"],
+            eeg["pnts"],
+            _time_limits(eeg),
+            eeg["srate"],
+            cycles,
+            "freqscale",
+            "log",
+            "nfreqs",
+            10.0,
+            "ntimesout",
+            10.0,
+            "baseline",
+            np.nan,
+            "freqs",
+            np.array([[3.0, np.asarray(eeg["srate"]).item() / 2]]),
+            nargout=8,
+        )
+        _close_measure_plot(eeglab_backend, request)
+        _assert_legacy_component_measure(times, oracle_times)
+        _assert_legacy_component_measure(frequencies, oracle_frequencies)
+        _assert_legacy_component_measure(cached, plotted)
+        _assert_legacy_component_measure(cached, recomputed)
 
 
 @pytest.mark.slow
@@ -789,6 +1082,7 @@ def test_std_stat_fdr_preserves_undefined_samples_and_graded_thresholds():
     np.testing.assert_array_equal(masks[0], [0.0, 1.0])
 
 
+@pytest.mark.gui
 def test_std_erpplot_groups_design_cells_and_returns_statistics_and_masks():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, [1], erp="on", recompute="on")
@@ -827,6 +1121,7 @@ def test_std_erpplot_groups_design_cells_and_returns_statistics_and_masks():
     plt.close(together)
 
 
+@pytest.mark.gui
 def test_std_erspplot_supports_clusters_subject_panels_and_channel_topographies():
     study, alleeg = _factorial_study()
     tf_params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
@@ -855,6 +1150,7 @@ def test_std_erspplot_supports_clusters_subject_panels_and_channel_topographies(
     plt.close(topo_figure)
 
 
+@pytest.mark.gui
 def test_std_erspplot_channel_saved_trials_reproduce_the_cached_ersp():
     study, alleeg = _factorial_study()
     params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
@@ -870,6 +1166,7 @@ def test_std_erspplot_channel_saved_trials_reproduce_the_cached_ersp():
     plt.close(figure)
 
 
+@pytest.mark.gui
 def test_std_erspplot_component_saved_trials_reproduce_the_cached_ersp():
     study, alleeg = _factorial_study()
     for info in study["datasetinfo"]:
@@ -888,6 +1185,7 @@ def test_std_erspplot_component_saved_trials_reproduce_the_cached_ersp():
     plt.close(figure)
 
 
+@pytest.mark.gui
 def test_std_itcplot_supports_centroids_component_panels_channels_and_subjects():
     study, alleeg = _factorial_study()
     tf_params = {"cycles": 0, "nfreqs": 4, "timesout": 4, "baseline": np.nan}
@@ -915,6 +1213,7 @@ def test_std_itcplot_supports_centroids_component_panels_channels_and_subjects()
     plt.close(channel_figure)
 
 
+@pytest.mark.gui
 def test_std_specplot_supports_clusters_fdr_subject_traces_and_channel_topography():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, "channels", spec="on", recompute="on")
@@ -949,6 +1248,7 @@ def test_std_specplot_supports_clusters_fdr_subject_traces_and_channel_topograph
     plt.close(topo_figure)
 
 
+@pytest.mark.gui
 def test_std_specplot_group_and_condition_layout_controls_preserve_design_cells():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, [1], spec="on", recompute="on")
@@ -989,6 +1289,7 @@ def test_reference_std_topoplot(eeglab_backend, eeglab_sample_study, request):
         close_reference_gui(eeglab_backend, request)
 
 
+@pytest.mark.gui
 def test_std_topoplot_draws_all_centroids_component_maps_and_selected_members():
     study, alleeg = _factorial_study()
     study, alleeg = std_precomp(study, alleeg, "components", erp="on", scalp="on", recompute="on")
