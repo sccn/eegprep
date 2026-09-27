@@ -1586,6 +1586,7 @@ def _add_face_type_to_bids_events(root: Path) -> None:
         path.write_text("\n".join(output) + "\n", encoding="utf-8")
 
 
+@pytest.mark.gui
 def test_eeglab_history_tutorial_runs_as_replayable_generated_data_pipeline():
     eeg = _continuous_tutorial_eeg()
     alleeg, eeg, currentset = eeg_store([], eeg)
@@ -1726,6 +1727,7 @@ def test_event_processing_study_exposes_derived_reaction_time_as_a_design_variab
     assert study["datasetinfo"][0]["trialinfo"] == trialinfo[0]
 
 
+@pytest.mark.gui
 def test_make_eeg_movie_smooths_an_erp_and_renders_2d_and_3d_frames():
     eeg = _epoched_tutorial_eeg("S01", "target", subject_index=1)
     window = (np.asarray(eeg["times"]) >= -100) & (np.asarray(eeg["times"]) <= 600)
@@ -1766,6 +1768,7 @@ def test_make_eeg_movie_smooths_an_erp_and_renders_2d_and_3d_frames():
     plt.close("all")
 
 
+@pytest.mark.gui
 def test_plot_study_erp_precomputes_grouped_conditions_statistics_and_topographies():
     study, alleeg = _tutorial_study()
     study = pop_erpparams(study, timerange=[-200, 800], plotconditions="together")
@@ -1819,6 +1822,7 @@ def test_plot_study_erp_precomputes_grouped_conditions_statistics_and_topographi
     plt.close(topo_figure)
 
 
+@pytest.mark.gui
 def test_source_reconstruction_eeg_localizes_an_erp_topography_and_plots_the_result():
     eeg, true_source = _known_source_eeg()
     latency_index = int(np.argmin(np.abs(np.asarray(eeg["times"]) - 100.0)))
@@ -1860,6 +1864,7 @@ def test_source_reconstruction_advanced_builds_a_forward_model_and_exposes_field
         pop_dipfit_loreta(with_leadfield, [1], gui=False)
 
 
+@pytest.mark.gui
 def test_study_script_runs_n400_measure_statistics_and_component_clustering_workflow():
     study, alleeg = _tutorial_study()
     study, alleeg, channel_command = std_precomp(
@@ -1914,6 +1919,7 @@ def test_study_script_runs_n400_measure_statistics_and_component_clustering_work
     plt.close(figure)
 
 
+@pytest.mark.gui
 def test_time_freq_all_electrodes_preserves_trial_power_and_spatial_axes():
     eeg = _epoched_tutorial_eeg("S01", "target", subject_index=1)
     results = [
@@ -1968,6 +1974,7 @@ def test_time_freq_all_electrodes_preserves_trial_power_and_spatial_axes():
 
 
 # The upstream face-experiment wrapper contains comments only, not a workflow.
+@pytest.mark.gui
 def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_path: Path):
     bids_root = tmp_path / "generated_face_recognition"
     export_commands = []
@@ -2083,6 +2090,7 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
     plt.close(figure)
 
 
+@pytest.mark.gui
 def test_bids_p300_runs_generated_import_clean_ica_epoch_and_study_pipeline(tmp_path: Path):
     bids_root = tmp_path / "generated_p300"
     first_root, first_export_command = pop_exportbids(
