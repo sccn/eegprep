@@ -106,6 +106,21 @@ def _tutorial_redraw(backend, request, window, **state):
         window.refresh()
 
 
+def _tutorial_fieldtrip(request):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        return
+    engine = request.getfixturevalue("eeglab_matlab_engine")
+    implementation = engine.which("ft_freqstatistics")
+    assert implementation, "The full FieldTrip plugin is required for this tutorial"
+    previous = engine.path()
+    request.addfinalizer(lambda: engine.path(previous, nargout=0))
+    # Fileio bundles a partial FieldTrip whose ft_defaults shadows the full
+    # plugin and resolves required preproc/statfun directories incorrectly.
+    engine.addpath(str(Path(implementation).parent), "-begin", nargout=0)
+    engine.clear("ft_defaults", nargout=0)
+    engine.ft_defaults(nargout=0)
+
+
 def _tutorial_figure(backend, request, **kwargs):
     if request.config.getoption("--eeglab-backend") == "matlab":
         backend("figure", nargout=0, **kwargs)
@@ -416,6 +431,7 @@ def test_reference_tutorial_study_script(
     backend = eeglab_backend
     _tutorial_cd(backend, request, monkeypatch, eeglab_writable_study)
     window = _tutorial_start(backend, request)
+    _tutorial_fieldtrip(request)
     if not (eeglab_writable_study / "n400.study").is_file():
         raise RuntimeError(
             "You must change the path to the folder containing the data to run this script\nDownload the data from https://eeglab.org/tutorials/tutorial_data.html (5 subject study)"
@@ -897,6 +913,7 @@ def test_reference_tutorial_source_reconstruction_eeg(eeglab_backend, eeglab_sui
 def test_reference_tutorial_source_reconstruction_advanced(eeglab_backend, eeglab_suite_root, request):
     backend = eeglab_backend
     window = _tutorial_start(backend, request)
+    _tutorial_fieldtrip(request)
     close_reference_gui(backend, request, window=window.window if window else None)
     eeglab_path = eeglab_suite_root / "eeglab"
     bem_path = eeglab_path / "plugins" / "dipfit" / "standard_BEM"

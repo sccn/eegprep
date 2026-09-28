@@ -292,6 +292,20 @@ dependency installation, not a MATLAB-source correction; do not overwrite
 source files or change the pinned revision. The standalone support path alone
 is insufficient once the importer changes path precedence.
 
+The STUDY-statistics and advanced source-reconstruction tutorials require the
+full FieldTrip distribution. Fileio also bundles a partial FieldTrip whose
+``ft_defaults`` can shadow the full plugin and look for ``statfun``/``preproc``
+modules in the wrong directory. These two contracts temporarily prioritize
+the full plugin owning ``ft_freqstatistics`` after EEGLAB startup, clear its
+cached initialization and invoke its actual ``ft_defaults``. They restore the
+previous path afterward; no scientific function or option is substituted.
+
+Full LIMO validation also requires Parallel Computing Toolbox (the reference
+calls ``gcp`` during cleanup) and Image Processing Toolbox for ``bwlabeln`` in
+cluster analysis, or the reference's supported SPM alternative. A license
+entitlement alone does not install either toolbox. Record installed versions
+alongside the reference revisions; do not patch LIMO to ignore missing tools.
+
 No downloads occur automatically in pytest. Run the non-GUI parser/BIDS
 metadata smoke and the original Fileio contract with normal test selection:
 
