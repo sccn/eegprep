@@ -142,6 +142,12 @@ def run_native(
         raise ValueError("Use a writable scratch test-suite copy, not the pinned reference checkout")
     if output.is_relative_to(reference_root):
         raise ValueError("Keep coverage artifacts outside the pinned reference checkout")
+    if (
+        list(test_root.glob("*.prj"))
+        or (test_root / "resources/project").exists()
+        or (test_root / ".SimulinkProject").exists()
+    ):
+        raise ValueError("Use projectless scratch tests: omit project metadata, not scientific test sources or data")
     verify_manifest(manifest, runtime_root)
     if (test_root / "eeglab").exists():
         raise ValueError("Scratch test root must not contain a second EEGLAB tree that can shadow the frozen source")

@@ -171,6 +171,13 @@ data copied into scratch as well; this command does not download dependencies,
 rewrite source tests, approve corrections or shorten workloads. It currently
 accepts unchanged frozen test sources only, so approved LIMO source overlays
 need an explicitly recorded overlay boundary before joining this native run.
+Keep scratch tests projectless: omit only ``*.prj``, ``resources/project`` and
+legacy ``.SimulinkProject`` metadata when copying full datasets. MATLAB R2026a
+automatically attaches a ``ProjectFixture`` for project members; the upstream
+project startup adds unrelated fixture paths and runs ``add_plugins``, which
+can install unpinned plugins. Controlled initialization here replaces that
+project startup, not any scientific source test or dataset. The driver rejects
+such project metadata before MATLAB starts.
 The driver checks both reference and runtime source inventories before and
 after execution. Existing home options are copied into the test-local options
 directory; the pinned ``icadefs`` script is wrapped only to redirect

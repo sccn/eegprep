@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.eeglab_statement_coverage import REQUIRED_PLUGINS, source_inventory, verify_manifest
+from tools.eeglab_statement_coverage import REQUIRED_PLUGINS, run_native, source_inventory, verify_manifest
 
 
 def _write(root, name, text="value = 1;\n"):
@@ -79,6 +79,20 @@ def test_runtime_copy_has_identical_normalized_denominator_and_detects_edits(tmp
     _write(copied, "functions/eeg_checkset.m", "value = 3;\n")
     with pytest.raises(ValueError, match="inventory changed"):
         verify_manifest(manifest, copied)
+
+
+@pytest.mark.parametrize(
+    "metadata", ["Eeglab_tests.prj", "resources/project/Root.type.Project.xml", ".SimulinkProject/project.xml"]
+)
+def test_runner_rejects_project_metadata_before_startup(tmp_path, metadata):
+    source = _source_tree(tmp_path / "reference/eeglab")
+    manifest = {"suite_root": str(source.parent), "eeglab_root": str(source), "sources": source_inventory(source)}
+    manifest_path = _write(tmp_path, "manifest.json", json.dumps(manifest))
+    test_root = tmp_path / "tests"
+    _write(test_root, metadata)
+    with pytest.raises(ValueError, match="projectless scratch"):
+        run_native(manifest_path, test_root, [], tmp_path / "output", "must-not-start", 1, [], tmp_path / "runtime")
+    assert not (tmp_path / "output").exists()
 
 
 @pytest.mark.matlab
