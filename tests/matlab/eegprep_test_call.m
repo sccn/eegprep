@@ -1,11 +1,12 @@
 function eegprep_test_call(input_file, output_file, function_name, output_count)
 % Transport test calls without EEGLAB/EEGPrep production dataset serializers.
 loaded = load(input_file, 'arguments');
+arguments = restore_tables(loaded.arguments);
 outputs = cell(1, output_count);
 if output_count == 0
-    feval(function_name, loaded.arguments{:});
+    feval(function_name, arguments{:});
 else
-    [outputs{:}] = feval(function_name, loaded.arguments{:});
+    [outputs{:}] = feval(function_name, arguments{:});
 end
 outputs = materialize_empty_fields(outputs);
 save(output_file, 'outputs', '-v7');
@@ -15,7 +16,17 @@ function value = materialize_empty_fields(value)
 % Unassigned cells/struct fields use zero-length MAT records, which SciPy
 % reads as 1x0. Explicitly store their actual 0x0 double value, retaining
 % distinct 1x0, 0xN, typed-empty and nonempty values unchanged.
-if iscell(value)
+if istable(value)
+    % SciPy cannot decode MATLAB's opaque table storage. Carry the exact native
+    % MAT bytes instead, including variable classes and all table properties.
+    filename = [tempname '.mat'];
+    cleanup = onCleanup(@() delete(filename));
+    save(filename, 'value', '-v7');
+    file = fopen(filename, 'rb');
+    bytes = fread(file, Inf, '*uint8');
+    fclose(file);
+    value = struct('eegprep_test_table_mat_v1', bytes);
+elseif iscell(value)
     for index = 1:numel(value)
         value{index} = materialize_empty_fields(value{index});
     end
@@ -28,5 +39,31 @@ elseif isstruct(value)
     end
 elseif isa(value, 'double') && isreal(value) && ~issparse(value) && isequal(size(value), [0 0])
     value = [];
+end
+end
+
+function value = restore_tables(value)
+if isstruct(value) && isscalar(value) && ...
+        isequal(fieldnames(value), {'eegprep_test_table_mat_v1'})
+    filename = [tempname '.mat'];
+    cleanup = onCleanup(@() delete(filename));
+    file = fopen(filename, 'wb');
+    fwrite(file, value.eegprep_test_table_mat_v1, 'uint8');
+    fclose(file);
+    loaded = load(filename, 'value');
+    value = loaded.value;
+    assert(istable(value), 'eegprep_test_call:InvalidTableEnvelope', ...
+        'The table envelope must contain a native MATLAB table.');
+elseif iscell(value)
+    for index = 1:numel(value)
+        value{index} = restore_tables(value{index});
+    end
+elseif isstruct(value)
+    fields = fieldnames(value);
+    for index = 1:numel(value)
+        for field = 1:numel(fields)
+            value(index).(fields{field}) = restore_tables(value(index).(fields{field}));
+        end
+    end
 end
 end

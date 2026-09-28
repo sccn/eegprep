@@ -267,6 +267,84 @@ def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
     assert value[0, 1]["second"][0, 0].shape == (0, 0)
 
 
+def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_matlab_engine):
+    engine = eeglab_matlab_engine
+    engine.eval(
+        "transport_expected = table(uint16([2;1]), single([NaN;3]), "
+        "categorical({'second';'first'}), datetime(2020,1,[2;1]), "
+        "'VariableNames', {'count','signal','condition','date'}, 'RowNames', {'row2','row1'}); "
+        "transport_expected.Properties.Description = 'Original trial information'; "
+        "transport_expected.Properties.VariableUnits = {'count','uV','',''}; "
+        "transport_expected.Properties.VariableDescriptions = {'Trials','Voltage','Class','Recording date'}; "
+        "transport_expected.Properties.DimensionNames = {'Trial','Measurement'}; "
+        "transport_expected.Properties.UserData = struct('id', uint32(19), 'label', 'source'); "
+        "transport_expected = addprop(transport_expected, 'Provenance', 'table'); "
+        "transport_expected.Properties.CustomProperties.Provenance = 'pinned source';",
+        nargout=0,
+    )
+    table = call_matlab(engine, "evalin", "base", "transport_expected")
+    assert set(table) == {"eegprep_test_table_mat_v1"}
+    assert table["eegprep_test_table_mat_v1"].dtype == np.uint8
+    returned = call_matlab(engine, "sortrows", table, "count")
+    returned = call_matlab(engine, "head", returned, 2.0)
+    call_matlab(engine, "assignin", "base", "transport_actual", returned, nargout=0)
+    engine.eval(
+        "transport_expected = sortrows(transport_expected, 'count'); "
+        "assert(isa(transport_actual, 'table')); "
+        "assert(isequaln(transport_actual, transport_expected)); "
+        "assert(isa(transport_actual.count, 'uint16')); "
+        "assert(isa(transport_actual.signal, 'single')); "
+        "assert(iscategorical(transport_actual.condition)); "
+        "assert(isdatetime(transport_actual.date)); "
+        "assert(isequaln(transport_actual.Properties, transport_expected.Properties)); "
+        "clear transport_actual transport_expected;",
+        nargout=0,
+    )
+
+
+def test_matlab_fieldtrip_chain_preserves_original_trialinfo_table(eeglab_matlab_engine, eeglab_suite_root):
+    engine = eeglab_matlab_engine
+    dataset = eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"
+    eeg = call_matlab(engine, "pop_loadset", str(dataset))
+    data = call_matlab(engine, "eeglab2fieldtrip", eeg, "preprocessing", "none")
+    table = data["trialinfo"]
+    assert set(table) == {"eegprep_test_table_mat_v1"}
+    call_matlab(engine, "assignin", "base", "transport_expected_trialinfo", table, nargout=0)
+    call_matlab(engine, "assignin", "base", "transport_original_data", data, nargout=0)
+    # The optional Fileio plugin also ships ft_defaults. Select the full
+    # FieldTrip distribution that owns ft_preprocessing, then restore the path.
+    original_path = engine.path()
+    try:
+        fieldtrip = Path(engine.which("ft_preprocessing")).parent
+        engine.addpath(str(fieldtrip), "-begin", nargout=0)
+        engine.clear("ft_defaults", nargout=0)
+        engine.ft_defaults(nargout=0)
+        data = call_matlab(engine, "ft_preprocessing", {"reref": "yes", "refchannel": "all"}, data)
+        call_matlab(engine, "assignin", "base", "transport_actual_data", data, nargout=0)
+        engine.eval(
+            "transport_expected_data = ft_preprocessing(struct('reref','yes','refchannel','all'), "
+            "transport_original_data); "
+            "assert(isequaln(transport_actual_data.trial, transport_expected_data.trial)); "
+            "assert(isequal(cellfun(@class, transport_actual_data.trial, 'UniformOutput', false), "
+            "cellfun(@class, transport_expected_data.trial, 'UniformOutput', false))); "
+            "clear transport_actual_data transport_expected_data transport_original_data;",
+            nargout=0,
+        )
+    finally:
+        engine.path(original_path, nargout=0)
+    call_matlab(engine, "assignin", "base", "transport_actual_trialinfo", data["trialinfo"], nargout=0)
+    engine.eval(
+        "assert(istable(transport_actual_trialinfo)); "
+        "assert(isequaln(transport_actual_trialinfo, transport_expected_trialinfo)); "
+        "assert(isequaln(transport_actual_trialinfo.Properties, transport_expected_trialinfo.Properties)); "
+        "clear transport_actual_trialinfo transport_expected_trialinfo;",
+        nargout=0,
+    )
+    assert data["trial"].size == int(eeg["trials"].item())
+    for trial in data["trial"].flat:
+        assert trial.shape == eeg["data"].shape[:2]
+
+
 def test_matlab_reference_figures_stay_off_desktop(eeglab_matlab_engine):
     assert call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "figure_visibility") == "off"
 
