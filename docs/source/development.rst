@@ -408,6 +408,27 @@ checks that the pinned source remains unchanged. The Python-owned workflow uses
 the same path expressions without evaluating the complete native script.
 Ordinary integrity checks do not establish full live validation.
 
+LIMO integration source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The companion ``limo_test_integration.m`` overlay applies five separately
+approved path-only corrections: the generated derivative/list directory,
+study-prefixed GLM names, ``Gp-1`` group spelling, grouped contrast basenames
+from the first subject's returned contrast files, and the second-level
+``H0/Betas_desc-H0.mat`` filename. The Python workflow and native overlay use
+the same generated model paths. Original text-list, cell and ragged-array
+inputs, all 18 subjects, OLS/WLS models, nine status sections, 101 bootstraps,
+statistical options and assertions remain unchanged. Base-workspace STUDY
+discovery and historical cleanup are not corrected by this overlay.
+
+``prepare_limo_integration_source_overlay`` in ``tests.test_limo_eeglab_tests``
+checks the original SHA-256 before applying the exact substrings and occurrence
+counts in ``tests/matlab/limo_test_integration.source-corrections.json`` to a
+scratch copy. JSON preserves literal trailing spaces on affected source lines
+that the required whitespace checks would remove from a unified patch. An
+independent inverse regression recovers the pinned source byte-for-byte; no
+reference checkout is edited. Full live validation remains a separate check.
+
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

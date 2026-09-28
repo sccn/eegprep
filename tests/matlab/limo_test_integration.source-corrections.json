@@ -1,0 +1,92 @@
+[
+  {
+    "source": "    contrast.LIMO_files      = Model1_files.mat;",
+    "replacement": "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n    contrast.LIMO_files      = Model1_files.mat;",
+    "count": 1
+  },
+  {
+    "source": "    contrast.LIMO_files      = Model2_files.mat;",
+    "replacement": "    [~,Model2_name] = fileparts(fileparts(Model2_files.mat{1}));\n    contrast.LIMO_files      = Model2_files.mat;",
+    "count": 1
+  },
+  {
+    "source": "%% 2nd level analyses\n",
+    "replacement": "%% 2nd level analyses\nlimo_rootfiles = Model2_files.LIMO;\n",
+    "count": 1
+  },
+  {
+    "source": "'LIMO_files_Face_time_GLM_Channels_Time_WLS.txt'",
+    "replacement": "['LIMO_files_' Model2_name '.txt']",
+    "count": 1
+  },
+  {
+    "source": "STUDY.design(1).name '_GLM_Channels_Time_OLS.txt'",
+    "replacement": "Model1_name '.txt'",
+    "count": 17
+  },
+  {
+    "source": "STUDY.design(2).name '_GLM_Channels_Time_WLS.txt'",
+    "replacement": "Model2_name '.txt'",
+    "count": 8
+  },
+  {
+    "source": "'Beta_files_Gp'",
+    "replacement": "'Beta_files_Gp-'",
+    "count": 1
+  },
+  {
+    "source": "    Model1_files.con         = confiles.con;",
+    "replacement": "    Model1_files.con         = confiles.con;\n    [~,Model1_con1] = fileparts(Model1_files.con{1}{1});\n    [~,Model1_con2] = fileparts(Model1_files.con{1}{2});",
+    "count": 1
+  },
+  {
+    "source": "'Beta_files_Gp1_'",
+    "replacement": "'Beta_files_Gp-1_'",
+    "count": 1
+  },
+  {
+    "source": "'con_1_files_Gp1_'",
+    "replacement": "Model1_con1 '_files_Gp-1_'",
+    "count": 2
+  },
+  {
+    "source": "'con_2_files_Gp1_'",
+    "replacement": "Model1_con2 '_files_Gp-1_'",
+    "count": 1
+  },
+  {
+    "source": "'Beta_files_Gp2_'",
+    "replacement": "'Beta_files_Gp-2_'",
+    "count": 1
+  },
+  {
+    "source": "'con_1_files_Gp2_'",
+    "replacement": "Model1_con1 '_files_Gp-2_'",
+    "count": 2
+  },
+  {
+    "source": "'con_2_files_Gp2_'",
+    "replacement": "Model1_con2 '_files_Gp-2_'",
+    "count": 1
+  },
+  {
+    "source": "'Beta_files_Gp3_'",
+    "replacement": "'Beta_files_Gp-3_'",
+    "count": 1
+  },
+  {
+    "source": "'con_1_files_Gp3_'",
+    "replacement": "Model1_con1 '_files_Gp-3_'",
+    "count": 2
+  },
+  {
+    "source": "'con_2_files_Gp3_'",
+    "replacement": "Model1_con2 '_files_Gp-3_'",
+    "count": 1
+  },
+  {
+    "source": "'H0_Betas.mat'",
+    "replacement": "'Betas_desc-H0.mat'",
+    "count": 2
+  }
+]

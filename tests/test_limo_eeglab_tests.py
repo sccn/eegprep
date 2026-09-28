@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from hashlib import sha256
+import json
 import logging
 from pathlib import Path
 import shutil
@@ -50,6 +51,9 @@ LIMO_WRAPPER = "unittesting_limo/limo_wrapperTest.m"
 LIMO_PREPROCESSING_SOURCE = "unittesting_limo/limo_preproc_stats_hw.m"
 LIMO_PREPROCESSING_SHA256 = "36327e3c301bc8a16455331b69f487205994963021aa10ec4997ee96f05e154a"
 LIMO_PREPROCESSING_PATCH = Path(__file__).parent / "matlab" / "limo_preproc_stats_hw.source-corrections.patch"
+LIMO_INTEGRATION_SOURCE = "unittesting_limo/limo_test_integration.m"
+LIMO_INTEGRATION_SHA256 = "8ff180227af8dcdba48f8deeed3eec5ac32331db2f2d666d7dc60bd99103a6bf"
+LIMO_INTEGRATION_REPAIRS = Path(__file__).parent / "matlab" / "limo_test_integration.source-corrections.json"
 FACE_EVENTS = tuple(
     f"{face}_{repetition}"
     for face in ("famous", "scrambled", "unfamiliar")
@@ -120,6 +124,25 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
     subprocess.run(
         ["git", "apply", "--no-index", "--unidiff-zero", str(LIMO_PREPROCESSING_PATCH)], cwd=directory, check=True
     )
+    return source_directory
+
+
+def prepare_limo_integration_source_overlay(suite_root: Path, directory: Path) -> Path:
+    """Apply only the five approved integration-path repairs to a pinned copy."""
+    source = suite_root / LIMO_INTEGRATION_SOURCE
+    original = source.read_bytes()
+    if sha256(original).hexdigest() != LIMO_INTEGRATION_SHA256:
+        raise ValueError(f"LIMO integration source differs from the pinned original: {source}")
+    corrected = original.decode("utf-8")
+    # Exact substrings preserve the original trailing spaces on affected lines;
+    # a unified patch would lose those bytes in the required whitespace checks.
+    for repair in json.loads(LIMO_INTEGRATION_REPAIRS.read_text()):
+        if corrected.count(repair["source"]) != repair["count"]:
+            raise ValueError(f"LIMO integration source pattern count differs: {repair['source']}")
+        corrected = corrected.replace(repair["source"], repair["replacement"])
+    source_directory = directory / "unittesting_limo"
+    source_directory.mkdir()
+    (source_directory / source.name).write_bytes(corrected.encode("utf-8"))
     return source_directory
 
 
@@ -466,6 +489,55 @@ def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(re
     assert sha256(before).hexdigest() == LIMO_PREPROCESSING_SHA256
 
 
+def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs(request, tmp_path):
+    if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
+        pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
+    suite_root = request.getfixturevalue("eeglab_suite_root")
+    original = suite_root / LIMO_INTEGRATION_SOURCE
+    before = original.read_bytes()
+    directory = prepare_limo_integration_source_overlay(suite_root, tmp_path)
+    restored = (directory / original.name).read_text()
+    assert (
+        "    Model1_files.con         = confiles.con;\n"
+        "    [~,Model1_con1] = fileparts(Model1_files.con{1}{1});\n"
+        "    [~,Model1_con2] = fileparts(Model1_files.con{1}{2});"
+    ) in restored
+    # This inverse is independent of the JSON: unapproved edits cannot be hidden
+    # by adding another reversible replacement to the overlay description.
+    for assignment in (
+        "limo_rootfiles = Model2_files.LIMO;\n",
+        "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n",
+        "    [~,Model2_name] = fileparts(fileparts(Model2_files.mat{1}));\n",
+        "    [~,Model1_con1] = fileparts(Model1_files.con{1}{1});\n",
+        "    [~,Model1_con2] = fileparts(Model1_files.con{1}{2});\n",
+    ):
+        assert restored.count(assignment) == 1
+        restored = restored.replace(assignment, "")
+    replacements = [
+        ("['LIMO_files_' Model2_name '.txt']", "'LIMO_files_Face_time_GLM_Channels_Time_WLS.txt'", 1),
+        ("Model1_name '.txt'", "STUDY.design(1).name '_GLM_Channels_Time_OLS.txt'", 17),
+        ("Model2_name '.txt'", "STUDY.design(2).name '_GLM_Channels_Time_WLS.txt'", 8),
+        ("'Beta_files_Gp-'", "'Beta_files_Gp'", 1),
+        ("'Betas_desc-H0.mat'", "'H0_Betas.mat'", 2),
+    ]
+    for group in range(1, 4):
+        replacements.append((f"'Beta_files_Gp-{group}_'", f"'Beta_files_Gp{group}_'", 1))
+        for contrast, count in ((1, 2), (2, 1)):
+            replacements.append(
+                (
+                    f"Model1_con{contrast} '_files_Gp-{group}_'",
+                    f"'con_{contrast}_files_Gp{group}_'",
+                    count,
+                )
+            )
+    for replacement, source, count in replacements:
+        assert restored.count(replacement) == count
+        restored = restored.replace(replacement, source)
+    assert restored.encode() == before
+    assert original.read_bytes() == before
+    assert sha256(before).hexdigest() == LIMO_INTEGRATION_SHA256
+
+
 @eeglab_test(LIMO_WRAPPER, "limo_test1")
 @pytest.mark.slow
 @pytest.mark.gui
@@ -784,8 +856,9 @@ def test_reference_limo_preprocessing_and_statistics(
 @eeglab_test(LIMO_WRAPPER, "limo_test2")
 @pytest.mark.slow
 @pytest.mark.gui
-def test_reference_limo_integration(eeglab_backend, limo_source_directory, request, monkeypatch):
-    """Original limo_test_integration: 18 subjects and all nine status sections."""
+def test_reference_limo_integration(eeglab_backend, limo_source_directory, eeglab_suite_root, request, monkeypatch):
+    """Original 18-subject, nine-section integration workflow with approved path repairs."""
+    prepare_limo_integration_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
     empty = np.empty((0, 0))
     rng = np.random.default_rng()
@@ -878,7 +951,6 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             subjects,
         )
         study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
-        model_root = root / f"LIMO_{Path(study['filename']).stem}"
         # The copied source tree has no previous models to clean up.
         study, _, model1 = call(
             "pop_limo",
@@ -956,10 +1028,21 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
         confiles = call("limo_batch", "contrast only", empty, contrast)
         model2["con"] = confiles["con"]
 
+    def model_list(prefix, model):
+        # The approved overlay resolves the generated GLM name and list root
+        # from pop_limo's outputs, keeping the original text-file inputs.
+        name = Path(_limo_entries(model["mat"])[0]).parent.name
+        return str(Path(model["LIMO"]) / f"{prefix}_{name}.txt")
+
+    def grouped_contrast_list(contrast, group):
+        first_subject = _limo_entries(_limo_entries(model1["con"])[0])
+        basename = Path(first_subject[contrast - 1]).stem
+        return model_list(f"{basename}_files_Gp-{group}", model1)
+
     second_level_root = root / "2nd_level_tests"
     second_level_root.mkdir()
     _limo_cd(request, monkeypatch, second_level_root)
-    channel_vector = call("limo_best_electrodes", str(model_root / "LIMO_files_Face_time_GLM_Channels_Time_WLS.txt"))
+    channel_vector = call("limo_best_electrodes", model_list("LIMO_files", model2))
     channel_file = second_level_root / "virtual_electrode.mat"
     savemat(channel_file, {"channel_vector": channel_vector})
 
@@ -979,10 +1062,6 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             nargout=nargout,
         )
 
-    def model_list(prefix, design, method):
-        name = _limo_entries(study["design"])[design - 1]["name"]
-        return str(model_root / f"{prefix}_{name}_GLM_Channels_Time_{method}.txt")
-
     with _limo_status(statuses, "one sample t-tests"):
         second_level(
             "one_sample",
@@ -998,7 +1077,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "one_sample50",
             "one sample t-test",
             "LIMOfiles",
-            model_list("con_1_files", 2, "WLS"),
+            model_list("con_1_files", model2),
             "analysis_type",
             "1 channel/component only",
             "Channel",
@@ -1051,7 +1130,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "regressor_file",
             str(regressor_file),
             "LIMOfiles",
-            model_list("con_1_files", 2, "WLS"),
+            model_list("con_1_files", model2),
             "analysis_type",
             "1 channel/component only",
             "Channel",
@@ -1071,7 +1150,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "regressionOPT",
             "regression",
             "LIMOfiles",
-            model_list("Beta_files", 2, "WLS"),
+            model_list("Beta_files", model2),
             "parameter",
             3.0,
             "regressor_file",
@@ -1104,7 +1183,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "type",
             "Channels",
         )
-        datafiles = _cell_row(model_list("con_1_files", 1, "OLS"), model_list("con_2_files", 1, "OLS"))
+        datafiles = _cell_row(model_list("con_1_files", model1), model_list("con_2_files", model1))
         second_level(
             "paired_t-test50",
             "paired t-test",
@@ -1121,7 +1200,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "paired_t-testOPT",
             "paired t-test",
             "LIMOfiles",
-            model_list("Beta_files", 1, "OLS"),
+            model_list("Beta_files", model1),
             "analysis_type",
             "1 channel/component only",
             "Channel",
@@ -1155,7 +1234,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "type",
             "Channels",
         )
-        beta_files = _cell_row(model_list("Beta_files", 1, "OLS"), model_list("Beta_files", 2, "WLS"))
+        beta_files = _cell_row(model_list("Beta_files", model1), model_list("Beta_files", model2))
         second_level(
             "two-samples_t-testOPT",
             "two-samples t-test",
@@ -1192,7 +1271,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "skip design check",
             "yes",
         )
-        datafiles = _cell_row(*(model_list(f"con_1_files_Gp{group}", 1, "OLS") for group in range(1, 4)))
+        datafiles = _cell_row(*(grouped_contrast_list(1, group) for group in range(1, 4)))
         second_level(
             "N-Ways ANOVA50",
             "N-Ways ANOVA",
@@ -1207,7 +1286,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "skip design check",
             "yes",
         )
-        beta_files = _cell_row(*(model_list(f"Beta_files_Gp{group}", 1, "OLS") for group in range(1, 4)))
+        beta_files = _cell_row(*(model_list(f"Beta_files_Gp-{group}", model1) for group in range(1, 4)))
         second_level(
             "N-Ways ANOVAOPT",
             "N-Ways ANOVA",
@@ -1249,7 +1328,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "skip design check",
             "yes",
         )
-        for mode, beta in ((1.0, "Betas.mat"), (2.0, "H0/H0_Betas.mat")):
+        for mode, beta in ((1.0, "Betas.mat"), (2.0, "H0/Betas_desc-H0.mat")):
             directory = second_level_root / "ANCOVA"
             call(
                 "limo_contrast",
@@ -1277,7 +1356,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "skip design check",
             "yes",
         )
-        for mode, beta in ((1.0, "Betas.mat"), (2.0, "H0/H0_Betas.mat")):
+        for mode, beta in ((1.0, "Betas.mat"), (2.0, "H0/Betas_desc-H0.mat")):
             directory = second_level_root / "ANCOVA50"
             call(
                 "limo_contrast",
@@ -1313,7 +1392,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "Rep-ANOVA",
             "Repeated Measures ANOVA",
             "LIMOfiles",
-            _cell_row(model_list("Beta_files", 1, "OLS")),
+            _cell_row(model_list("Beta_files", model1)),
             "analysis_type",
             "Full scalp analysis",
             "parameters",
@@ -1340,7 +1419,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
             "GpRep-ANOVA",
             "Repeated Measures ANOVA",
             "LIMOfiles",
-            _cell_row(*(model_list(f"Beta_files_Gp{group}", 2, "WLS") for group in range(1, 4))).T,
+            _cell_row(*(model_list(f"Beta_files_Gp-{group}", model2) for group in range(1, 4))).T,
             "analysis_type",
             "Full scalp analysis",
             "parameters",
@@ -1364,9 +1443,9 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
                 nargout=0,
             )
         datafiles = _cell_row(
-            model_list("con_1_files", 1, "OLS"),
-            model_list("con_1_files", 2, "WLS"),
-            model_list("con_2_files", 1, "OLS"),
+            model_list("con_1_files", model1),
+            model_list("con_1_files", model2),
+            model_list("con_2_files", model1),
         )
         second_level(
             "Rep-ANOVA50",
@@ -1390,7 +1469,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, reque
         datafiles = np.empty((3, 2), dtype=object)
         for group in range(1, 4):
             for contrast in range(1, 3):
-                datafiles[group - 1, contrast - 1] = model_list(f"con_{contrast}_files_Gp{group}", 1, "OLS")
+                datafiles[group - 1, contrast - 1] = grouped_contrast_list(contrast, group)
         second_level(
             "GpRep-ANOVAOPT",
             "Repeated Measures ANOVA",
