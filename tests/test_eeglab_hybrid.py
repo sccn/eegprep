@@ -10,20 +10,26 @@ from typing import Any
 import numpy as np
 import pytest
 from scipy.io import savemat
+from scipy.sparse import coo_matrix, issparse
 
 from tests.eeglab_tests import assert_matlab_equal
-from tests.eeglab_tests.backend import _load_matlab_variable, call_matlab, call_python
+from tests.eeglab_tests.backend import _load_matlab_variable, _save_matlab_arguments, call_matlab, call_python
 
 
 pytest_plugins = ("pytester",)
 
 
-def _forced_sidecar_call(engine, directory, name, *args, inline_limit_bytes=1):
+def _forced_sidecar_call(
+    engine, directory, name, *args, inline_limit_bytes=1, input_limit_bytes=None, part_limit_bytes=2**28
+):
     arguments = np.empty((1, len(args)), dtype=object)
     for index, value in enumerate(args):
         arguments[0, index] = value
     input_file, output_file = directory / "input.mat", directory / "output.mat"
-    savemat(input_file, {"arguments": arguments}, long_field_names=True)
+    if input_limit_bytes is None:
+        savemat(input_file, {"arguments": arguments}, long_field_names=True)
+    else:
+        _save_matlab_arguments(input_file, arguments, input_limit_bytes, part_limit_bytes)
     engine.eegprep_test_call(str(input_file), str(output_file), name, 1.0, float(inline_limit_bytes), nargout=0)
     return _load_matlab_variable(output_file, "outputs")[0, 0]
 
@@ -234,7 +240,7 @@ def test_restored():
     ],
 )
 @pytest.mark.parametrize("shape", [(1, 3), (3, 1), (2, 3), (1, 2, 3), (0, 3), (0, 0)])
-@pytest.mark.parametrize("sidecars", [False, True])
+@pytest.mark.parametrize("sidecars", [False, "output", "both"])
 def test_matlab_transport_preserves_dtype_and_dimensions(
     eeglab_matlab_engine, tmp_path, dtype, matlab_class, shape, sidecars
 ):
@@ -243,7 +249,14 @@ def test_matlab_transport_preserves_dtype_and_dimensions(
         expected += (expected + 1) * 1j
     arguments = ("echo", expected, matlab_class, np.array([shape], dtype=float))
     if sidecars:
-        actual = _forced_sidecar_call(eeglab_matlab_engine, tmp_path, "eegprep_test_transport", *arguments)
+        actual = _forced_sidecar_call(
+            eeglab_matlab_engine,
+            tmp_path,
+            "eegprep_test_transport",
+            *arguments,
+            input_limit_bytes=1 if sidecars == "both" else None,
+            part_limit_bytes=16,
+        )
     else:
         actual = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", *arguments)
     assert actual.shape == expected.shape
@@ -297,6 +310,79 @@ def test_matlab_sidecars_cover_many_leaves_below_individual_limit(eeglab_matlab_
         np.testing.assert_array_equal(returned, original, strict=True)
 
 
+def test_matlab_input_sidecars_preserve_nested_structs_cells_and_sparse(eeglab_matlab_engine, tmp_path):
+    expected = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "fixture")
+    actual = _forced_sidecar_call(
+        eeglab_matlab_engine,
+        tmp_path,
+        "eegprep_test_transport",
+        "nested",
+        expected,
+        input_limit_bytes=1,
+        part_limit_bytes=8,
+    )
+    assert list(tmp_path.glob("input-array-*.mat"))
+    assert_matlab_equal(expected, actual)
+    sparse = coo_matrix(np.eye(3, dtype=np.float64))
+    # A sparse value stays sparse alongside spilled numerical leaves.
+    actual_sparse = _forced_sidecar_call(
+        eeglab_matlab_engine,
+        tmp_path,
+        "eegprep_test_transport",
+        "echo",
+        sparse,
+        "double",
+        np.array([[3.0, 3.0]]),
+        input_limit_bytes=1,
+    )
+    assert issparse(actual_sparse)
+    np.testing.assert_array_equal(actual_sparse.toarray(), sparse.toarray(), strict=True)
+
+
+def test_matlab_input_sidecars_cover_small_leaves_and_strided_fortran_order(eeglab_matlab_engine, tmp_path):
+    expected = np.empty((2, 5), dtype=object)
+    for index in np.ndindex(expected.shape):
+        expected[index] = (np.arange(512, dtype=np.int16).reshape(16, 32) + sum(index))[::-2, ::3]
+    actual = _forced_sidecar_call(
+        eeglab_matlab_engine, tmp_path, "deal", expected, input_limit_bytes=2048, part_limit_bytes=32
+    )
+    assert len(list(tmp_path.glob("input-array-*.mat"))) > expected.size
+    for original, returned in zip(expected.flat, actual.flat, strict=True):
+        np.testing.assert_array_equal(returned, original, strict=True)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("single_array", [False, True])
+def test_matlab_inputs_over_four_gib_remain_complete(eeglab_matlab_engine, single_array):
+    # Both the nested arguments container and one individual matrix can exceed
+    # SciPy MAT5's 32-bit byte count. Do not allocate duplicate Python leaves.
+    count = 2**32 + 3 if single_array else 2**28 + 3
+    data = np.ones((1, count), dtype=np.uint8)
+    data[0, 0], data[0, -1] = 7, 9
+    if single_array:
+        payload = data
+    else:
+        payload = np.empty((1, 17), dtype=object)
+        payload.fill(data)
+    engine = eeglab_matlab_engine
+    try:
+        call_matlab(engine, "assignin", "base", "transport_large_input", payload, nargout=0)
+        if not single_array:
+            engine.eval("assert(isequal(size(transport_large_input),[1 17]));", nargout=0)
+        engine.eval(
+            "for transport_index=1:" + ("1" if single_array else "17") + "; "
+            "transport_value=transport_large_input" + ("" if single_array else "{transport_index}") + "; "
+            f"assert(isequal(size(transport_value),[1 {count}])); "
+            "assert(isa(transport_value,'uint8')); "
+            "assert(transport_value(1)==7 && transport_value(end)==9); "
+            "for transport_offset=2:2^24:numel(transport_value)-1; "
+            "assert(all(transport_value(transport_offset:min(transport_offset+2^24-1,end-1))==1)); end; end;",
+            nargout=0,
+        )
+    finally:
+        engine.eval("clear transport_large_input transport_value transport_index transport_offset;", nargout=0)
+
+
 @pytest.mark.slow
 def test_matlab_aggregate_outputs_over_two_gib_remain_complete(eeglab_matlab_engine):
     engine = eeglab_matlab_engine
@@ -347,7 +433,10 @@ def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_mat
         table = call_matlab(engine, "evalin", "base", "transport_expected")
     assert set(table) == {"eegprep_test_table_mat_v1"}
     assert table["eegprep_test_table_mat_v1"].dtype == np.uint8
-    returned = call_matlab(engine, "sortrows", table, "count")
+    if sidecars:
+        returned = _forced_sidecar_call(engine, tmp_path, "sortrows", table, "count", input_limit_bytes=1)
+    else:
+        returned = call_matlab(engine, "sortrows", table, "count")
     returned = call_matlab(engine, "head", returned, 2.0)
     call_matlab(engine, "assignin", "base", "transport_actual", returned, nargout=0)
     engine.eval(

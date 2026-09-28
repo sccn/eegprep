@@ -4,7 +4,7 @@ if nargin < 5
     inline_limit_bytes = 2^30;
 end
 loaded = load(input_file, 'arguments');
-arguments = restore_tables(loaded.arguments);
+arguments = restore_inputs(loaded.arguments, fileparts(input_file));
 outputs = cell(1, output_count);
 if output_count == 0
     feval(function_name, arguments{:});
@@ -93,13 +93,29 @@ elseif isa(value, 'double') && isreal(value) && ~issparse(value) && isequal(size
 end
 end
 
-function value = restore_tables(value)
+function value = restore_inputs(value, directory)
 if isstruct(value) && isscalar(value) && ...
+        isequal(fieldnames(value), {'eegprep_test_array_mat_v1'; 'shape'})
+    paths = value.eegprep_test_array_mat_v1;
+    shape = value.shape;
+    offset = 0;
+    for index = 1:numel(paths)
+        loaded = load(fullfile(directory, paths{index}), 'part');
+        part = loaded.part;
+        if index == 1
+            value = zeros(shape, 'like', part);
+        end
+        value(offset + 1:offset + numel(part)) = part;
+        offset = offset + numel(part);
+    end
+    assert(offset == prod(shape), 'eegprep_test_call:InvalidArrayEnvelope', ...
+        'Array sidecars do not match the declared shape.');
+elseif isstruct(value) && isscalar(value) && ...
         isequal(fieldnames(value), {'eegprep_test_table_mat_v1'})
     filename = [tempname '.mat'];
     cleanup = onCleanup(@() delete(filename));
     file = fopen(filename, 'wb');
-    fwrite(file, value.eegprep_test_table_mat_v1, 'uint8');
+    fwrite(file, restore_inputs(value.eegprep_test_table_mat_v1, directory), 'uint8');
     fclose(file);
     loaded = load(filename, 'value');
     value = loaded.value;
@@ -107,13 +123,13 @@ if isstruct(value) && isscalar(value) && ...
         'The table envelope must contain a native MATLAB table.');
 elseif iscell(value)
     for index = 1:numel(value)
-        value{index} = restore_tables(value{index});
+        value{index} = restore_inputs(value{index}, directory);
     end
 elseif isstruct(value)
     fields = fieldnames(value);
     for index = 1:numel(value)
         for field = 1:numel(fields)
-            value(index).(fields{field}) = restore_tables(value(index).(fields{field}));
+            value(index).(fields{field}) = restore_inputs(value(index).(fields{field}), directory);
         end
     end
 end
