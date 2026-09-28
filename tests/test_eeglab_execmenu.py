@@ -33,7 +33,7 @@ def test_native_base_workspace_snapshot_restores_values_and_global_bindings(eegl
         engine.eval(
             "eegprep_contract_global = 99; clear eegprep_contract_local; "
             "global eegprep_contract_new_global; eegprep_contract_new_global = 42; "
-            "eegprep_contract_new_local = 43;",
+            "eegprep_contract_new_local = 43; clear functions;",
             nargout=0,
         )
         engine.eegprep_test_base_workspace("restore", nargout=0)
@@ -42,6 +42,7 @@ def test_native_base_workspace_snapshot_restores_values_and_global_bindings(eegl
         assert engine.eval("ismember('eegprep_contract_global', who('global'))")
         assert not engine.eval("ismember('eegprep_contract_new_global', who('global'))")
         assert not engine.eval("exist('eegprep_contract_new_local', 'var')")
+        assert not engine.mislocked("eegprep_test_base_workspace")
     finally:
         engine.eval(
             "clear global eegprep_contract_global eegprep_contract_new_global; "

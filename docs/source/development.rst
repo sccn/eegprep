@@ -460,8 +460,23 @@ from the first subject's returned contrast files, and the second-level
 ``H0/Betas_desc-H0.mat`` filename. The Python workflow and native overlay use
 the same generated model paths. Original text-list, cell and ragged-array
 inputs, all 18 subjects, OLS/WLS models, nine status sections, 101 bootstraps,
-statistical options and assertions remain unchanged. Base-workspace STUDY
-discovery and historical cleanup are not corrected by this overlay.
+statistical options and assertions remain unchanged. Historical cleanup is not
+corrected by this overlay.
+
+A separately authorized workspace-setup correction publishes the current local
+``STUDY`` into MATLAB's base workspace immediately before the original
+three-argument WLS ``limo_batch('contrast only', [], contrast)`` call. Native
+function-scope reproduction with all 18 retained models confirmed that the
+earlier no-argument ``eeglab`` call clears base/global ``STUDY`` and that LIMO's
+implicit discovery reads base, not the caller's valid local variable. The
+three-argument discovery path remains exercised; no fourth argument or runtime
+repair is substituted. The native overlay uses the existing state-only
+``eegprep_test_base_workspace`` helper with ``onCleanup``; the Python-owned
+MATLAB workflow uses the same snapshot/restore helper and a pytest finalizer.
+Both preserve the prior base/global workspace even on failure. The native
+snapshot helper remains locked until restoration because EEGLAB initialization
+executes ``clear functions``, which otherwise discards its saved state. The native
+overlay requires ``tests/matlab`` on the path, as supplied by the hybrid harness.
 
 ``prepare_limo_integration_source_overlay`` in ``tests.test_limo_eeglab_tests``
 checks the original SHA-256 before applying the exact substrings and occurrence

@@ -1,5 +1,15 @@
 [
   {
+    "source": "clear variables\n",
+    "replacement": "clear variables\neegprep_test_base_workspace('snapshot');\nworkspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
+    "count": 1
+  },
+  {
+    "source": "    confiles                 = limo_batch('contrast only',[],contrast);",
+    "replacement": "    assignin('base','STUDY',STUDY);\n    confiles                 = limo_batch('contrast only',[],contrast);",
+    "count": 1
+  },
+  {
     "source": "    contrast.LIMO_files      = Model1_files.mat;",
     "replacement": "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n    contrast.LIMO_files      = Model1_files.mat;",
     "count": 1

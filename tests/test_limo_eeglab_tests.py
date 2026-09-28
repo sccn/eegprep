@@ -132,7 +132,7 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
 
 
 def prepare_limo_integration_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply only the five approved integration-path repairs to a pinned copy."""
+    """Apply the approved path and base-STUDY setup repairs to a pinned copy."""
     source = suite_root / LIMO_INTEGRATION_SOURCE
     original = source.read_bytes()
     if sha256(original).hexdigest() != LIMO_INTEGRATION_SHA256:
@@ -494,7 +494,7 @@ def test_limo_preprocessing_native_overlay_preserves_paths_and_explicit_file_cho
     assert sha256(before).hexdigest() == LIMO_PREPROCESSING_SHA256
 
 
-def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs(request, tmp_path):
+def test_limo_integration_native_overlay_applies_only_approved_repairs(request, tmp_path):
     if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
         pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
     suite_root = request.getfixturevalue("eeglab_suite_root")
@@ -503,6 +503,14 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     directory = prepare_limo_integration_source_overlay(suite_root, tmp_path)
     restored = (directory / original.name).read_text()
     assert (
+        "clear variables\n"
+        "eegprep_test_base_workspace('snapshot');\n"
+        "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n"
+    ) in restored
+    assert (
+        "    assignin('base','STUDY',STUDY);\n    confiles                 = limo_batch('contrast only',[],contrast);"
+    ) in restored
+    assert (
         "    Model1_files.con         = confiles.con;\n"
         "    [~,Model1_con1] = fileparts(Model1_files.con{1}{1});\n"
         "    [~,Model1_con2] = fileparts(Model1_files.con{1}{2});"
@@ -510,6 +518,9 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     # This inverse is independent of the JSON: unapproved edits cannot be hidden
     # by adding another reversible replacement to the overlay description.
     for assignment in (
+        "eegprep_test_base_workspace('snapshot');\n",
+        "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
+        "    assignin('base','STUDY',STUDY);\n",
         "limo_rootfiles = Model2_files.LIMO;\n",
         "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n",
         "    [~,Model2_name] = fileparts(fileparts(Model2_files.mat{1}));\n",
@@ -518,6 +529,7 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     ):
         assert restored.count(assignment) == 1
         restored = restored.replace(assignment, "")
+    assert "confiles                 = limo_batch('contrast only',[],contrast);" in restored
     replacements = [
         ("['LIMO_files_' Model2_name '.txt']", "'LIMO_files_Face_time_GLM_Channels_Time_WLS.txt'", 1),
         ("Model1_name '.txt'", "STUDY.design(1).name '_GLM_Channels_Time_OLS.txt'", 17),
@@ -865,9 +877,13 @@ def test_reference_limo_preprocessing_and_statistics(
 @pytest.mark.slow
 @pytest.mark.gui
 def test_reference_limo_integration(eeglab_backend, limo_source_directory, eeglab_suite_root, request, monkeypatch):
-    """Original 18-subject, nine-section integration workflow with approved path repairs."""
+    """Original 18-subject, nine-section workflow with approved path/workspace setup."""
     prepare_limo_integration_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    if native:
+        call("eegprep_test_base_workspace", "snapshot", nargout=0)
+        request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
     empty = np.empty((0, 0))
     rng = np.random.default_rng()
     statuses = []
@@ -1032,6 +1048,10 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
             nargout=3,
         )
         contrast = {"LIMO_files": model2["mat"], "mat": np.array([[0.0, 0, 0, -1, 0, 1]])}
+        if native:
+            # Approved setup: native discovery reads base, not caller-local STUDY.
+            # Keep the original three-argument call and restore state at test exit.
+            call("assignin", "base", "STUDY", study, nargout=0)
         # The second call intentionally omits STUDY, as the source tests discovery.
         confiles = call("limo_batch", "contrast only", empty, contrast)
         model2["con"] = confiles["con"]
