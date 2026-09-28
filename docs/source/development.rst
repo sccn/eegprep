@@ -168,6 +168,15 @@ Record source failures and unresolved language-specific observables separately
 instead of weakening comparisons or counting a native-only diagnostic as a
 completed Python port.
 
+A user-approved Python-only exception applies to MATLAB caller-workspace and
+copy-count introspection in ``checkmmo`` and the nested helpers of ``checkmmo2``.
+Actual construction, copying, writes, data-integrity checks and debug-output
+assertions remain in scope. MATLAB retains the original count assertions.
+Because ``checkmmo``'s source oracle consists entirely of count assertions, its
+Python result records execution only, not count or scientific parity. The
+audit reports these exceptions separately without removing source definitions
+or treating unresolved diagnostic failures as passes.
+
 Explicit MATLAB support paths
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -204,6 +213,12 @@ subset. Run deliberately on a machine where graphical interaction is allowed:
     uv run --no-sync pytest tests --eeglab-backend=matlab \
       --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
       -m eeglab_contract --junitxml=all-contracts.xml
+
+For long or concurrent runs, supply a distinct ``--basetemp`` directory for
+each run if generated datasets and model files must be retained. Pytest's
+default temporary-directory retention can remove earlier runs while another
+process is still using their evidence. Use a new directory: pytest clears an
+existing ``--basetemp`` before running.
 
 Known reference findings must stay visible in that report. In the pinned
 suite, the three legacy ``erpimage`` leaves ``pass_general``, ``pass_many_args``
@@ -267,6 +282,16 @@ worktree), run:
     git hash-object .notes/reference/matlab-test-dependencies/ft_deleteopt.m
 
 Check that the two printed hashes match the blobs above before execution.
+The legacy BIDS importer prepends its own ``JSONio`` folder during import,
+and starting EEGLAB again also reorders plugin paths. For full BIDS/LIMO
+workflows on Apple Silicon, install that same verified binary alongside
+``jsonread.m`` in each active BIDS plugin's ``JSONio`` directory (both
+``EEG-BIDS`` and ``bids-matlab-tools8.0`` if both are present). A symlink to
+the verified support file is sufficient. This is an explicit local native
+dependency installation, not a MATLAB-source correction; do not overwrite
+source files or change the pinned revision. The standalone support path alone
+is insufficient once the importer changes path precedence.
+
 No downloads occur automatically in pytest. Run the non-GUI parser/BIDS
 metadata smoke and the original Fileio contract with normal test selection:
 
@@ -319,6 +344,44 @@ its entire wrapper body is commented out. It carries no source provenance and
 is not represented by a no-op passing test. The existing face-recognition and
 other generated-data workflows remain supplemental Python regressions, without
 claims that their synthetic recordings are the original source inputs.
+
+The original ``event_processing_study`` script leaves ``EEG`` unchanged after
+editing and reloading ``ALLEEG``. On the pinned reference, its final
+``eeglab redraw`` therefore opens ``pop_newset``'s dataset-change dialog.
+The source specifies no answer. A manual run that selects Cancel exercises
+that cancellation path but does not prove an unattended workflow or assert
+the resulting STUDY contents. Do not silently overwrite a dataset, synchronize
+the variables, or invent a dialog response inside the port.
+
+Standalone IRLS source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The standalone IRLS contract translates ``limo_zIRLS_validation_4_Arno.m``
+and its full ``limo_test_glmboot`` helper into Python-owned workflows and
+bootstrap-analysis loops. It retains all subjects, cleaning/PICARD/ICLabel/ASR,
+ERP/spectrum/ERSP/ITC precomputation, 2,500 null bootstraps per subject, the
+1,000-test/1,500-null split, 300-step convergence analysis, six result fields,
+``results.mat`` and native ``.fig`` exports. Collection and ordinary helper
+tests do not establish live validation of this full workflow.
+
+The approved corrections are retained separately in
+``tests/matlab/limo_zIRLS_validation_4_Arno.source-corrections.patch``. It assigns the
+otherwise undefined ``chanlocs`` variable to
+``fullfile(STUDY.filepath, 'derivatives', 'limo_gp_level_chanlocs.mat')``,
+which the reference ``std_limo`` generates. It does not invent adjacency data.
+It also captures ``pop_limo``'s third output, loads each model from
+``LIMOfiles.mat{s}``, and derives its ``H0`` directory from that returned path.
+This uses the generated model paths without duplicating version-dependent
+directory names. Scientific options, subjects and bootstrap counts are unchanged.
+``prepare_irls_source_overlay`` in ``tests.eeglab_tests.limo_irls`` verifies
+the original script/helper hashes and applies the patch only to a scratch
+copy. A corrected native run needs a writable ``ds002718`` copy beside the
+returned ``unittesting_limo`` directory. The Python contract never executes
+the complete native test script or its helper.
+
+Other source behavior remains unchanged. Full live IRLS validation is pending.
+Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
+visible failures, not replacement algorithms or differently formatted files.
 
 Test Discovery
 --------------

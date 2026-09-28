@@ -1257,7 +1257,10 @@ def test_reference_tutorial_event_processing_study(
                         event["rt"] = np.empty((0, 0))
                 current["rt"] = (following["latency"] - current["latency"]) / dataset["srate"] * 1000.0
         dataset["event"] = _source_dataset_row(*events)
-        filename = str(Path(dataset["filepath"]) / f"{dataset['setname'][:-4]}_rtevents.set")
+        # eeg_store without CURRENTSET clears filepath; MATLAB fullfile('',
+        # name) then saves relative to the isolated current directory.
+        filepath = dataset["filepath"] if np.size(dataset["filepath"]) else ""
+        filename = str(Path(filepath) / f"{dataset['setname'][:-4]}_rtevents.set")
         dataset["saved"] = "no"
         # The original passes the complete ALLEEG array, not just dataset iDat.
         datasets[index - 1] = backend("pop_saveset", _source_dataset_row(*datasets), filename)
