@@ -168,6 +168,13 @@ Record source failures and unresolved language-specific observables separately
 instead of weakening comparisons or counting a native-only diagnostic as a
 completed Python port.
 
+MATLAB tables nested in reference outputs, such as FieldTrip ``trialinfo``,
+cross the test bridge as MATLAB-written MAT bytes and are restored to native
+tables before the next call. This preserves variable classes, dimensions and
+table properties; it does not replace a table with a lossy struct or omit its
+metadata. The transport regression compares the real FieldTrip preprocessing
+chain with direct native execution using the original epoched sample dataset.
+
 A user-approved Python-only exception applies to MATLAB caller-workspace and
 copy-count introspection in ``checkmmo`` and the nested helpers of ``checkmmo2``.
 Actual construction, copying, writes, data-integrity checks and debug-output
