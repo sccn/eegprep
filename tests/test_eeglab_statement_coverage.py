@@ -95,6 +95,28 @@ def test_runner_rejects_project_metadata_before_startup(tmp_path, metadata):
     assert not (tmp_path / "output").exists()
 
 
+@pytest.mark.parametrize("same_tree", [True, False])
+def test_nested_eeglab_layout_accepts_only_the_verified_runtime_tree(tmp_path, same_tree):
+    source = _source_tree(tmp_path / "reference/eeglab")
+    _write(source, "functions/epoch.m")
+    manifest = {
+        "suite_root": str(source.parent),
+        "eeglab_root": str(source),
+        "sources": source_inventory(source),
+        "test_files": [],
+    }
+    manifest_path = _write(tmp_path, "manifest.json", json.dumps(manifest))
+    test_root = tmp_path / "tests"
+    nested_runtime = Path(shutil.copytree(source, test_root / "eeglab"))
+    runtime = nested_runtime if same_tree else Path(shutil.copytree(source, tmp_path / "other-runtime"))
+    # A matching real copy reaches the next input check without starting MATLAB.
+    # Even a byte-identical but different tree must fail the layout check.
+    message = "Select at least one" if same_tree else "not a different EEGLAB tree"
+    with pytest.raises(ValueError, match=message):
+        run_native(manifest_path, test_root, [], tmp_path / "output", "must-not-start", 1, [], runtime)
+    assert not (tmp_path / "output").exists()
+
+
 @pytest.mark.matlab
 @pytest.mark.parametrize("invalid_source", [False, True])
 def test_native_statement_metric_keeps_failures_and_never_executed_files(

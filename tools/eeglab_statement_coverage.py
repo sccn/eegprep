@@ -149,8 +149,9 @@ def run_native(
     ):
         raise ValueError("Use projectless scratch tests: omit project metadata, not scientific test sources or data")
     verify_manifest(manifest, runtime_root)
-    if (test_root / "eeglab").exists():
-        raise ValueError("Scratch test root must not contain a second EEGLAB tree that can shadow the frozen source")
+    nested_runtime = test_root / "eeglab"
+    if nested_runtime.exists() and nested_runtime.resolve() != runtime_root.resolve():
+        raise ValueError("Scratch tests/eeglab must be the verified runtime root, not a different EEGLAB tree")
     if not selected or set(selected) - set(manifest["test_files"]):
         raise ValueError("Select at least one inventoried native test file")
     for item in manifest["test_sources"]:

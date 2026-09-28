@@ -150,7 +150,10 @@ Use a separate writable copy of the entire EEGLAB tree, including sample data;
 its source hashes must match the frozen denominator. Never use hard links or
 writable data symlinks to the reference. APFS ``cp -cR`` can clone these files
 efficiently on macOS; elsewhere use an ordinary recursive copy. Do not put the
-runtime copy inside the scratch test root, where it could shadow test paths:
+runtime copy at a different path from the one supplied to the runner. Prefer
+the real copy at ``native-tests/eeglab``: native regression fixtures expect
+this original relative layout. If that directory exists, the driver requires
+it to resolve to the verified runtime root, not another EEGLAB tree:
 
 .. code-block:: bash
 
@@ -158,10 +161,10 @@ runtime copy inside the scratch test root, where it could shadow test paths:
       --suite-root /path/to/eeglab_tests --output /scratch/scope.json
     rsync -a --exclude /eeglab --exclude .git --include '*/' --include '*.m' \
       --exclude '*' /path/to/eeglab_tests/ /scratch/native-tests/
-    cp -cR /path/to/eeglab_tests/eeglab /scratch/runtime-eeglab
+    cp -cR /path/to/eeglab_tests/eeglab /scratch/native-tests/eeglab
     uv run python -m tools.eeglab_statement_coverage run \
       --manifest /scratch/scope.json --test-root /scratch/native-tests \
-      --runtime-root /scratch/runtime-eeglab \
+      --runtime-root /scratch/native-tests/eeglab \
       --test-file unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m \
       --output /scratch/coverage-run --matlab /path/to/matlab --timeout 1800
 
