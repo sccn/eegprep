@@ -171,8 +171,8 @@ it to resolve to the verified runtime root, not another EEGLAB tree:
 The output directory must be new. Add repeated ``--test-file`` and
 ``--support-path`` arguments explicitly. Dataset workflows require their real
 data copied into scratch as well; this command does not download dependencies,
-rewrite source tests, approve corrections or shorten workloads. It currently
-accepts unchanged frozen test sources only, so approved LIMO source overlays
+rewrite source tests, approve corrections or shorten workloads. Original
+suite sources must remain byte-identical, so approved LIMO source overlays
 need an explicitly recorded overlay boundary before joining this native run.
 Keep scratch tests projectless: omit only ``*.prj``, ``resources/project`` and
 legacy ``.SimulinkProject`` metadata when copying full datasets. MATLAB R2026a
@@ -181,6 +181,36 @@ project startup adds unrelated fixture paths and runs ``add_plugins``, which
 can install unpinned plugins. Controlled initialization here replaces that
 project startup, not any scientific source test or dataset. The driver rejects
 such project metadata before MATLAB starts.
+
+For newly authored native tests, add ``--additional-test-file`` for each
+self-contained MATLAB function-test file. These are EEGPrep-owned additions,
+not tests attributed to the upstream suite's pinned commit. The driver copies
+their exact bytes into the new output directory before launching MATLAB and
+records original paths, snapshot paths and SHA-256 hashes in ``run.json``.
+Subsequent edits in the working checkout cannot change an in-flight test;
+snapshot changes during execution are rejected. Original test-source hashes
+and the implementation denominator remain unchanged. Fixtures are resolved
+from the scratch suite working directory; use local functions for new helpers.
+An additions-only run can omit ``--test-file``:
+
+.. code-block:: bash
+
+    uv run python -m tools.eeglab_statement_coverage run \
+      --manifest /scratch/scope.json --test-root /scratch/native-tests \
+      --runtime-root /scratch/native-tests/eeglab \
+      --additional-test-file tests/matlab/expanded/test_eegprep_structures_expanded.m \
+      --output /scratch/added-tests-run --matlab /path/to/matlab --timeout 1800
+
+Run original selections and additions together for a combined statement union,
+or pass ``--baseline-run /scratch/completed-run`` to extend a retained native
+measurement. The latter requires identical frozen source/test manifests, the
+same runtime path and MATLAB release, and a completed baseline (not a timeout).
+It hashes the retained config, report and coverage MAT file before execution.
+MATLAB's native ``matlab.coverage.Result`` ``+`` operator forms the statement
+union; overlapping statements are counted once. The report retains the current
+batch's cases separately, links its baseline and reports newly covered
+statements. A failed baseline remains a failed validation even when all new
+cases pass. Never add independently measured covered-statement totals.
 The driver checks both reference and runtime source inventories before and
 after execution. Existing home options are copied into the test-local options
 directory; the pinned ``icadefs`` script is wrapped only to redirect
@@ -200,6 +230,18 @@ The runner explicitly reads ``matlab.coverage.Result.Invalid`` (public getter,
 hidden property in the installed R2026a API) and marks these files unmeasurable.
 They remain in the manifest; measured statement totals are not a complete
 denominator and no full-scope percentage is valid while such files remain.
+
+For the approved expansion target, use
+``--approved-unmeasurable tools/eeglab_coverage_unmeasurable.json``. On
+2026-09-28 the user approved measuring the 90% target over all 1,942 measurable
+files, with 21 pinned BioSig files retained as unmeasurable compatibility gaps.
+That approval file records each exact source hash and the MATLAB release; it
+does not mark these files covered or remove them from the 1,963-file inventory.
+``denominator_complete`` still describes the full inventory, while
+``approved_denominator_complete`` describes the approved measurable target.
+Unexpected invalid files or missing coverage results continue to fail the run.
+The measured baseline is 31,951/197,022 statements (16.217%); accepting the
+compatibility gaps does not improve that number.
 
 ``run.json`` records inputs and source hashes; the exact native runner is copied
 beside it. All selected native suite files form one batch, avoiding repeated
