@@ -123,7 +123,7 @@ def _tutorial_fieldtrip(request):
 
 def _tutorial_figure(backend, request, **kwargs):
     if request.config.getoption("--eeglab-backend") == "matlab":
-        backend("figure", nargout=0, **kwargs)
+        backend("eegprep_test_tutorial_figure", nargout=0, **kwargs)
     else:
         if "color" in kwargs:
             kwargs["facecolor"] = kwargs.pop("color")

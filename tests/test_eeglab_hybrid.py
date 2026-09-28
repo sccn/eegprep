@@ -500,6 +500,23 @@ def test_matlab_reference_figures_stay_off_desktop(eeglab_matlab_engine):
     assert call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "figure_visibility") == "off"
 
 
+@pytest.mark.gui
+def test_matlab_tutorial_figures_retain_their_plot_target_between_calls(eeglab_matlab_engine, eeglab_working_directory):
+    engine = eeglab_matlab_engine
+    visibility = call_matlab(engine, "eegprep_test_transport", "figure_visibility")
+    try:
+        engine.set(0.0, "DefaultFigureVisible", "on", nargout=0)
+        for index in range(4):
+            figure = call_matlab(engine, "eegprep_test_tutorial_figure")
+            call_matlab(engine, "plot", np.array([[0.0, 1.0]]), np.array([[index, index + 1.0]]), nargout=0)
+            axes = call_matlab(engine, "eegprep_test_gui_handle", "gca")
+            parent = call_matlab(engine, "eegprep_test_gui_handle", "get", axes, "Parent")
+            np.testing.assert_array_equal(parent, figure)
+    finally:
+        engine.close("all", "force", nargout=0)
+        engine.set(0.0, "DefaultFigureVisible", visibility, nargout=0)
+
+
 def test_matlab_bids_metadata_loaders(eeglab_matlab_engine, eeglab_suite_root):
     """Exercise native JSONio and BIDS setup on the original 18-subject metadata."""
     directory = eeglab_suite_root / "ds002718"

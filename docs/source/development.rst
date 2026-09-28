@@ -388,6 +388,11 @@ under the harness's hidden-figure default, but completes with 91 equal-sized
 frames using the original visible default. Its port temporarily enables
 visible figures for this capture workflow and restores the previous setting;
 it does not resize frames, change plotting options or patch the source.
+Native tutorial figure creation also finishes pending GUI activation and
+restores the created figure as MATLAB's current target before the next Engine
+call. Otherwise R2026a can reactivate an older docked figure between calls,
+causing later plots to reuse its colorbar axes. This test-only boundary keeps
+the source's figure selection without changing docking or plotting options.
 
 LIMO preprocessing source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
