@@ -19,3 +19,10 @@
 +chanlocs = fullfile(STUDY.filepath, 'derivatives', 'limo_gp_level_chanlocs.mat');
  [results.errIRLS,results.ci_errIRLS,results.maxIRLS,results.maxci_errIRLS,results.clusterIRLS,results.maxcic_errIRLS] = limo_test_glmboot(chanlocs,H0iw,'step_size',300,'Nboot',1000,'MinSamp',300);
  save results results
+--- a/unittesting_limo/limo_test_glmboot.m
++++ b/unittesting_limo/limo_test_glmboot.m
+@@ -65,3 +65,3 @@
+     fileindex = 1;
+-    content = dir(fullfile(H0{folder},'H0_*.mat'));
++    content = dir(fullfile(H0{folder},'*H0.mat'));
+     if isempty(content)

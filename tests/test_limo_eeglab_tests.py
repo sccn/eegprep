@@ -31,6 +31,7 @@ from eegprep.functions.studyfunc.std_readfilelimo import std_readfilelimo
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.limo_irls import (
     IRLS_CHANLOCS_ASSIGNMENT,
+    IRLS_HELPER_SHA256,
     IRLS_SOURCE,
     IRLS_SOURCE_SHA256,
     RESULT_FIELDS,
@@ -126,7 +127,8 @@ def _irls_remove_directory(directory, study_path):
 def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, eeglab_suite_root, request):
     """Full standalone IRLS workflow with the explicitly approved input repairs.
 
-    The native overlay supplies chanlocs and captures the generated model paths.
+    The native overlay supplies chanlocs, captures the generated model paths,
+    and discovers the generated H0 filenames.
     No complete MATLAB test or validation-helper script is evaluated here.
     """
     call = eeglab_backend
@@ -341,6 +343,8 @@ def test_irls_native_overlay_applies_only_approved_input_repairs(request, tmp_pa
     eeglab_suite_root = request.getfixturevalue("eeglab_suite_root")
     original = eeglab_suite_root / IRLS_SOURCE
     before = original.read_bytes()
+    original_helper = original.with_name("limo_test_glmboot.m")
+    helper_before = original_helper.read_bytes()
     directory = prepare_irls_source_overlay(eeglab_suite_root, tmp_path)
     corrected = (directory / original.name).read_text()
     assert corrected.count(IRLS_CHANLOCS_ASSIGNMENT) == 1
@@ -361,9 +365,11 @@ def test_irls_native_overlay_applies_only_approved_input_repairs(request, tmp_pa
     assert restored.encode() == before
     assert original.read_bytes() == before
     assert sha256(before).hexdigest() == IRLS_SOURCE_SHA256
-    assert (directory / "limo_test_glmboot.m").read_bytes() == (
-        eeglab_suite_root / "unittesting_limo" / "limo_test_glmboot.m"
-    ).read_bytes()
+    corrected_helper = (directory / original_helper.name).read_text()
+    assert corrected_helper.count("'*H0.mat'") == 1
+    assert corrected_helper.replace("'*H0.mat'", "'H0_*.mat'").encode() == helper_before
+    assert original_helper.read_bytes() == helper_before
+    assert sha256(helper_before).hexdigest() == IRLS_HELPER_SHA256
 
 
 @pytest.mark.parametrize("successes, expected", [(0, (0.0, 0.975)), (1, (0.025, 1.0))])

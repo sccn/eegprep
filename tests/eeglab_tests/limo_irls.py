@@ -33,8 +33,9 @@ def prepare_irls_source_overlay(suite_root: Path, directory: Path) -> Path:
 
     Run the corrected native script from the returned directory with a writable
     ds002718 copy beside it. The patch supplies std_limo's channel-neighbour file
-    and uses pop_limo's returned model paths. No naming algorithm is duplicated;
-    neither the pinned source nor any scientific algorithm changes.
+    and uses pop_limo's returned model paths. The helper's file pattern matches
+    the generated H0 filenames. Neither the pinned source nor any scientific
+    algorithm changes.
     """
     source_directory = directory / "unittesting_limo"
     source_directory.mkdir()
@@ -216,7 +217,7 @@ def reference_limo_glmboot(call, native, chanlocs, h0, *, step_size=200, Nboot=N
     results = [dict() for _ in range(6)]
     errors, max_positions, cluster_positions = {}, {}, {}
     for folder in range(len(h0) - 1, -1, -1):
-        files = sorted(Path(h0[folder]).glob("H0_*.mat"))
+        files = sorted(Path(h0[folder]).glob("*H0.mat"))
         content_names = [path.name for path in files]
         file_index = 0
         for source_index, filename in enumerate(files):
