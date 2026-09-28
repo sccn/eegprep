@@ -305,6 +305,13 @@ class _TutorialVideo:
 @eeglab_test(TUTORIAL_WRAPPER, "test_make_eeg_movie")
 def test_reference_tutorial_make_eeg_movie(eeglab_backend, eeglab_suite_root, eeglab_working_directory, request):
     backend = eeglab_backend
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        visibility = backend("eegprep_test_transport", "figure_visibility")
+        request.addfinalizer(lambda: engine.set(0.0, "DefaultFigureVisible", visibility, nargout=0))
+        # Native getframe needs the source's visible figures; hidden figures
+        # produce inconsistent frame dimensions on R2026a.
+        engine.set(0.0, "DefaultFigureVisible", "on", nargout=0)
     window = _tutorial_start(backend, request)
     close_reference_gui(backend, request, window=window.window if window else None)
     eeg = backend("pop_loadset", str(eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"))

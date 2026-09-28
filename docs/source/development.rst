@@ -382,6 +382,13 @@ that cancellation path but does not prove an unattended workflow or assert
 the resulting STUDY contents. Do not silently overwrite a dataset, synchronize
 the variables, or invent a dialog response inside the port.
 
+The movie tutorial requires visible MATLAB figures for native frame capture.
+On R2026a, the original 2-D section produces inconsistent frame dimensions
+under the harness's hidden-figure default, but completes with 91 equal-sized
+frames using the original visible default. Its port temporarily enables
+visible figures for this capture workflow and restores the previous setting;
+it does not resize frames, change plotting options or patch the source.
+
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
