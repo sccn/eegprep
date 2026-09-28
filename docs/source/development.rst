@@ -180,6 +180,11 @@ approaches MAT v7's 2 GB variable limit, the test bridge writes numerical leaves
 to per-call sidecars and reassembles their original classes and dimensions
 before deleting the temporary directory. The slow transport regression sends
 more than 2 GiB through the bridge and back to MATLAB for exact comparison.
+Large Python inputs use the same sidecars before SciPy's MAT5 writer reaches
+its container or individual-matrix size limit. Buffered Fortran-order chunks
+preserve complete values, classes and dimensions without another full-array
+copy. Separate slow checks exercise both a nested aggregate and a single
+matrix larger than 4 GiB against native MATLAB assertions.
 This is test transport, not subject selection, downsampling or a production
 dataset serializer.
 
