@@ -321,7 +321,7 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         "values1",
         np.empty((0, 0), dtype=object),
     )
-    _tutorial_redraw(
+    workspace = _tutorial_redraw(
         call,
         request,
         window,
@@ -332,6 +332,7 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         CURRENTSET=currentset,
         ALLCOM=allcom,
     )
+    study, alleeg, eeg = workspace["STUDY"], workspace["ALLEEG"], workspace["EEG"]
     study, eeg = call(
         "std_precomp",
         study,
@@ -357,7 +358,8 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         _cell_row("specmode", "fft", "logtrials", "off"),
         nargout=2,
     )
-    _tutorial_redraw(call, request, window, STUDY=study, EEG=eeg)
+    workspace = _tutorial_redraw(call, request, window, STUDY=study, EEG=eeg)
+    study, alleeg, eeg = workspace["STUDY"], workspace["ALLEEG"], workspace["EEG"]
     study, _, model_files = call(
         "pop_limo",
         study,
@@ -376,7 +378,8 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
         "off",
         nargout=3,
     )
-    _tutorial_redraw(call, request, window, STUDY=study)
+    workspace = _tutorial_redraw(call, request, window, STUDY=study)
+    study, alleeg, eeg = workspace["STUDY"], workspace["ALLEEG"], workspace["EEG"]
     h0 = []
     for subject in range(1, len(_limo_entries(study["datasetinfo"])) + 1):
         logger.info("running bootstrap on subject %g", subject)
@@ -600,6 +603,7 @@ def test_reference_limo_preprocessing_and_statistics(
         call("eegprep_test_base_workspace", "snapshot", nargout=0)
         request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
     empty = np.empty((0, 0))
+    window, _alleeg, _eeg, _currentset, allcom = _tutorial_start(call, request, outputs=4)
     call("pop_editoptions", option_storedisk=1.0, nargout=0)
     study, alleeg = call(
         "pop_importbids",
@@ -696,17 +700,18 @@ def test_reference_limo_preprocessing_and_statistics(
         "off",
         nargout=2,
     )
-    if native:
-        # The script's workspace assignments are GUI setup, not processing.
-        for name, value in (
-            ("STUDY", study),
-            ("ALLEEG", alleeg),
-            ("EEG", eeg),
-            ("CURRENTSTUDY", 1.0),
-            ("CURRENTSET", np.arange(1.0, 19.0)[None, :]),
-        ):
-            call("assignin", "base", name, value, nargout=0)
-    call("eeglab", "redraw", nargout=0)
+    workspace = _tutorial_redraw(
+        call,
+        request,
+        window,
+        STUDY=study,
+        ALLEEG=alleeg,
+        EEG=eeg,
+        CURRENTSTUDY=1.0,
+        CURRENTSET=np.arange(1.0, 19.0)[None, :],
+        ALLCOM=allcom,
+    )
+    study, alleeg, eeg = workspace["STUDY"], workspace["ALLEEG"], workspace["EEG"]
     study = call(
         "std_makedesign",
         study,
@@ -922,7 +927,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
     empty = np.empty((0, 0))
     rng = np.random.default_rng()
     statuses = []
-    call("eeglab", nargout=4)
+    window, _alleeg, _eeg, _currentset, allcom = _tutorial_start(call, request, outputs=4)
     root = limo_source_directory / "derivatives_integration"
     study, alleeg = call(
         "pop_importbids",
@@ -969,21 +974,29 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
         "off",
         nargout=2,
     )
-    if request.config.getoption("--eeglab-backend") == "matlab":
-        for name, value in (
-            ("STUDY", study),
-            ("ALLEEG", alleeg),
-            ("EEG", eeg),
-            ("CURRENTSTUDY", 1.0),
-            ("CURRENTSET", np.arange(1.0, 19.0)[None, :]),
-        ):
-            call("assignin", "base", name, value, nargout=0)
-    call("eeglab", "redraw", nargout=0)
+    workspace = _tutorial_redraw(
+        call,
+        request,
+        window,
+        STUDY=study,
+        ALLEEG=alleeg,
+        EEG=eeg,
+        CURRENTSTUDY=1.0,
+        CURRENTSET=np.arange(1.0, 19.0)[None, :],
+        ALLCOM=allcom,
+    )
+    study, alleeg, eeg = workspace["STUDY"], workspace["ALLEEG"], workspace["EEG"]
     _limo_assign_groups(study)
     study_file = root / "Face_detection.study"
     assert study_file.is_file(), "study file nout found"
     _limo_cd(request, monkeypatch, root)
-    eeg = call("eeglab")
+    # The source assigns EEG = eeglab, deliberately taking its first output
+    # (ALLEEG), rather than the second output conventionally named EEG.
+    if native:
+        eeg = call("eeglab")
+    else:
+        window = _tutorial_start(call, request)
+        eeg = window.session.ALLEEG
     study, alleeg = call("pop_loadstudy", "filename", study_file.name, "filepath", str(root), nargout=2)
     _limo_assign_groups(study)
     _limo_refresh_group_summary(study)
