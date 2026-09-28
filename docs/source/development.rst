@@ -426,6 +426,14 @@ checks that the pinned source remains unchanged. The Python-owned workflow uses
 the same path expressions without evaluating the complete native script.
 Ordinary integrity checks do not establish full live validation.
 
+The port also publishes the current ``STUDY`` before ``pop_limo`` and the
+original three-argument contrast call. Native ``limo_settings_script`` reads
+base ``STUDY`` even when its caller has a valid local value; the earlier redraw
+precedes the script's new design. These explicit assignments reproduce the
+script's current workspace instead of supplying its stale pre-design copy.
+The Python-owned workflow snapshots/restores base/global state, and the scratch
+overlay's inverse removes both assignments to recover the pinned source.
+
 The pinned preprocessing script is interactive even after all input paths are
 resolved: ``limo_add_plots`` plots its supplied files, then asks for another
 central-tendency file until Cancel is selected. The first such dialog follows

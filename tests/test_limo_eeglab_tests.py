@@ -114,7 +114,7 @@ def _limo_entries(values):
 
 
 def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply generated-path repairs and explicit optional-file cancellation."""
+    """Apply path/workspace setup repairs and explicit optional-file cancellation."""
     source = suite_root / LIMO_PREPROCESSING_SOURCE
     if sha256(source.read_bytes()).hexdigest() != LIMO_PREPROCESSING_SHA256:
         raise ValueError(f"LIMO preprocessing source differs from the pinned original: {source}")
@@ -127,6 +127,9 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
     corrected = source_directory / source.name
     text = corrected.read_text()
     assert text.count("limo_add_plots(") == 8
+    for target in ("[STUDY,~,LIMOfiles] = pop_limo(", "limo_batch('contrast only',[],contrast);"):
+        assert text.count(target) == 1
+        text = text.replace(target, "assignin('base','STUDY',STUDY);\n" + target)
     corrected.write_text(text.replace("limo_add_plots(", "eegprep_test_limo_add_plots("))
     return source_directory
 
@@ -462,6 +465,8 @@ def test_limo_preprocessing_native_overlay_preserves_paths_and_explicit_file_cho
     assert corrected.count(modelname_assignment) == 1
     assert corrected.count("eegprep_test_limo_add_plots(") == 8
     restored = corrected.replace(modelname_assignment, "").replace("eegprep_test_limo_add_plots(", "limo_add_plots(")
+    assert restored.count("assignin('base','STUDY',STUDY);\n") == 2
+    restored = restored.replace("assignin('base','STUDY',STUDY);\n", "")
     replacements = [
         ("STUDY  = pop_limo(", "[STUDY,~,LIMOfiles] = pop_limo("),
         (
@@ -566,9 +571,11 @@ def test_reference_limo_preprocessing_and_statistics(
     # this Python-owned workflow never evaluates the complete native script.
     prepare_limo_preprocessing_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
-    plot_function = (
-        "eegprep_test_limo_add_plots" if request.config.getoption("--eeglab-backend") == "matlab" else "limo_add_plots"
-    )
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    plot_function = "eegprep_test_limo_add_plots" if native else "limo_add_plots"
+    if native:
+        call("eegprep_test_base_workspace", "snapshot", nargout=0)
+        request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
     empty = np.empty((0, 0))
     call("pop_editoptions", option_storedisk=1.0, nargout=0)
     study, alleeg = call(
@@ -666,7 +673,7 @@ def test_reference_limo_preprocessing_and_statistics(
         "off",
         nargout=2,
     )
-    if request.config.getoption("--eeglab-backend") == "matlab":
+    if native:
         # The script's workspace assignments are GUI setup, not processing.
         for name, value in (
             ("STUDY", study),
@@ -698,6 +705,9 @@ def test_reference_limo_preprocessing_and_statistics(
         _cell_row(*(f"sub-{index:03d}" for index in range(2, 20))),
     )
     study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
+    if native:
+        # limo_settings_script reads base STUDY after the new design is saved.
+        call("assignin", "base", "STUDY", study, nargout=0)
     study, _, limo_files = call(
         "pop_limo",
         study,
@@ -815,6 +825,8 @@ def test_reference_limo_preprocessing_and_statistics(
             ]
         ),
     }
+    if native:
+        call("assignin", "base", "STUDY", study, nargout=0)
     call("limo_batch", "contrast only", empty, contrast, nargout=0)
     names = []
     for index, face in enumerate(("famous_faces", "scrambled_faces", "unfamiliar_faces"), 1):
