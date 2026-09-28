@@ -175,6 +175,14 @@ table properties; it does not replace a table with a lossy struct or omit its
 metadata. The transport regression compares the real FieldTrip preprocessing
 chain with direct native execution using the original epoched sample dataset.
 
+Large outputs retain their complete arrays. When the aggregate output container
+approaches MAT v7's 2 GB variable limit, the test bridge writes numerical leaves
+to per-call sidecars and reassembles their original classes and dimensions
+before deleting the temporary directory. The slow transport regression sends
+more than 2 GiB through the bridge and back to MATLAB for exact comparison.
+This is test transport, not subject selection, downsampling or a production
+dataset serializer.
+
 A user-approved Python-only exception applies to MATLAB caller-workspace and
 copy-count introspection in ``checkmmo`` and the nested helpers of ``checkmmo2``.
 Actual construction, copying, writes, data-integrity checks and debug-output
