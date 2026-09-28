@@ -309,6 +309,15 @@ double-count overlaps. There are no additional unmeasurable files. These
 results establish the first batch only, not completion of any expansion family
 or the 90% target.
 
+The corresponding 46 Python cases were also executed together through the
+live MATLAB backend: 44 pass and the same two native cases fail. The epoch
+sorting case retains five failed subchecks; the channel-order case retains its
+failed data check while still checking labels and dimensions. Pytest reports
+failed parent cases and subchecks separately, so its eight failure entries do
+not represent eight independent defects. Numeric metadata comparisons retain
+MATLAB classes and cell shapes; Python-only scalar/vector representations are
+normalized explicitly at the test boundary, not in the MATLAB lane.
+
 Source fidelity and graphical validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
