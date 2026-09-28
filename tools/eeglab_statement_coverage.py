@@ -124,6 +124,39 @@ def verify_manifest(manifest: dict, runtime_root: Path | None = None) -> None:
         raise ValueError("MATLAB source inventory changed after freeze; create and audit a new manifest")
 
 
+def _baseline_record(directory: Path, manifest: dict, runtime_root: Path) -> dict:
+    directory = directory.resolve()
+    config = json.loads((directory / "run.json").read_text())
+    report = json.loads((directory / "report.json").read_text())
+    for field in ("metric", "sources", "test_files", "test_sources"):
+        if config[field] != manifest[field]:
+            raise ValueError(f"Coverage baseline has a different frozen {field}")
+    if Path(config["eeglab_root"]).resolve() != runtime_root:
+        raise ValueError("Coverage union requires the same verified runtime path")
+    if not report["execution_complete"]:
+        raise ValueError("Coverage baseline must be a completed measurement, not a timed-out batch")
+    return {
+        "directory": str(directory),
+        "artifacts": {name: _sha256(directory / name) for name in ("run.json", "report.json", "coverage.mat")},
+        "matlab_version": report["matlab_version"],
+        "covered_statements": report["covered_statements"],
+        "native_failures": any(item["failed"] or item["incomplete"] for item in report["tests"])
+        or bool(report.get("baseline", {}).get("native_failures", False)),
+    }
+
+
+def _unmeasurable_approval(path: Path, manifest: dict) -> dict:
+    approval = json.loads(path.read_text())
+    sources = {item["path"]: item for item in manifest["sources"] if item["category"] == "statement_scope"}
+    names = [item["path"] for item in approval["sources"]]
+    if not names or len(set(names)) != len(names):
+        raise ValueError("Unmeasurable-source approval requires a nonempty list of distinct source files")
+    for item in approval["sources"]:
+        if item["path"] not in sources or sources[item["path"]]["sha256"] != item["sha256"]:
+            raise ValueError(f"Unmeasurable-source approval differs from frozen scope: {item['path']}")
+    return {**approval, "approval_file": str(path.resolve()), "approval_sha256": _sha256(path)}
+
+
 def run_native(
     manifest_path: Path,
     test_root: Path,
@@ -133,6 +166,9 @@ def run_native(
     timeout: float,
     support_paths: list[str],
     runtime_root: Path,
+    additional_tests: list[Path] | None = None,
+    baseline_run: Path | None = None,
+    approved_unmeasurable: Path | None = None,
 ) -> int:
     """Run one explicit native suite batch with a finite wall-clock bound."""
     test_root, runtime_root, output = test_root.resolve(), runtime_root.resolve(), output.resolve()
@@ -153,13 +189,36 @@ def run_native(
     nested_runtime = test_root / "eeglab"
     if nested_runtime.exists() and nested_runtime.resolve() != runtime_root.resolve():
         raise ValueError("Scratch tests/eeglab must be the verified runtime root, not a different EEGLAB tree")
-    if not selected or set(selected) - set(manifest["test_files"]):
-        raise ValueError("Select at least one inventoried native test file")
+    additional_tests = [path.resolve() for path in additional_tests or []]
+    if (not selected and not additional_tests) or set(selected) - set(manifest["test_files"]):
+        raise ValueError("Select at least one inventoried or additional native test file")
+    additional_names = [path.name for path in additional_tests]
+    if len(set(additional_names)) != len(additional_names):
+        raise ValueError("Additional native tests must have distinct filenames")
+    for path in additional_tests:
+        if not path.is_file() or path.suffix != ".m":
+            raise ValueError(f"Additional native test must be an existing .m file: {path}")
+        if path.is_relative_to(reference_root) or path.is_relative_to(runtime_root):
+            raise ValueError("Additional tests must be separate from the pinned reference and runtime source")
     for item in manifest["test_sources"]:
         copied = test_root / item["path"]
         if not copied.is_file() or not copied.resolve().is_relative_to(test_root) or _sha256(copied) != item["sha256"]:
             raise ValueError(f"Scratch test source is missing or differs from the frozen source: {copied}")
+    baseline = _baseline_record(baseline_run, manifest, runtime_root) if baseline_run else {}
+    approval = _unmeasurable_approval(approved_unmeasurable, manifest) if approved_unmeasurable else {}
     output.mkdir(parents=True, exist_ok=False)
+    additions = []
+    if additional_tests:
+        (output / "additional_tests").mkdir()
+    for path in additional_tests:
+        # Copy the exact bytes before MATLAB starts; subsequent worktree edits
+        # cannot change an in-flight test or its retained provenance.
+        content = path.read_bytes()
+        snapshot = Path("additional_tests") / path.name
+        (output / snapshot).write_bytes(content)
+        additions.append(
+            {"source": str(path), "snapshot": snapshot.as_posix(), "sha256": hashlib.sha256(content).hexdigest()}
+        )
     home_options = Path.home() / "eeg_options.m"
     home_hash = _sha256(home_options) if home_options.exists() else None
     runner = Path(__file__).with_suffix(".m")
@@ -167,6 +226,9 @@ def run_native(
         **manifest,
         "test_root": str(test_root),
         "selected": selected,
+        "additional_test_sources": additions,
+        "baseline": baseline,
+        "unmeasurable_approval": approval,
         "support_paths": support_paths,
         "output": str(output),
         "reference_eeglab_root": manifest["eeglab_root"],
@@ -213,6 +275,12 @@ def run_native(
     )
     verify_manifest(manifest)
     verify_manifest(manifest, runtime_root)
+    for item in additions:
+        if _sha256(output / item["snapshot"]) != item["sha256"]:
+            raise ValueError(f"Additional native test snapshot changed during execution: {item['snapshot']}")
+    for name, digest in baseline.get("artifacts", {}).items():
+        if _sha256(Path(baseline["directory"]) / name) != digest:
+            raise ValueError(f"Coverage baseline changed during execution: {name}")
     if not home_unchanged:
         raise ValueError("Native tests changed home eeg_options.m; preserve evidence and investigate")
     return code
@@ -228,7 +296,10 @@ def main() -> int:
     run.add_argument("--manifest", type=Path, required=True)
     run.add_argument("--test-root", type=Path, required=True)
     run.add_argument("--runtime-root", type=Path, required=True)
-    run.add_argument("--test-file", action="append", required=True)
+    run.add_argument("--test-file", action="append", default=[])
+    run.add_argument("--additional-test-file", type=Path, action="append", default=[])
+    run.add_argument("--baseline-run", type=Path)
+    run.add_argument("--approved-unmeasurable", type=Path)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--matlab", default="matlab")
     run.add_argument("--timeout", type=float, required=True)
@@ -249,6 +320,9 @@ def main() -> int:
         args.timeout,
         args.support_path,
         args.runtime_root,
+        args.additional_test_file,
+        args.baseline_run,
+        args.approved_unmeasurable,
     )
 
 

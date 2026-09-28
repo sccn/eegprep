@@ -1,0 +1,91 @@
+{
+  "approval_date": "2026-09-28",
+  "scope": "Retain these pinned compatibility gaps in the inventory but use all measurable files for the user-approved 90 percent statement target.",
+  "matlab_version": "26.1.0.3203278 (R2026a)",
+  "sources": [
+    {
+      "path": "plugins/Biosig3.8.5/NaN/inst/knnsearch.m",
+      "sha256": "557fe6635d1e4a7ea62fd1baf9051713c367c99a8d9da76d7e04d2c64c19dea6"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/NaN/inst/kurtosis.m",
+      "sha256": "8773944ff83e8a9f19fed8e679e2e47c61feac0488ca93b8e1c2a768718c1ec0"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/NaN/inst/signrank.m",
+      "sha256": "0cf3214955d36be4309e09ec0edc57aea5d157d165a132c07ef13973983b7256"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/NaN/inst/skewness.m",
+      "sha256": "3a24cb605c62013330de20d798560da7e98624ae068291ccabc43a2996f47672"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/demo/simulate_epsp.m",
+      "sha256": "1411216a841c025584ed075805af099d21f4df56c95a618cee5ef4cc4fb9cefb"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/demo/slope_evaluation.m",
+      "sha256": "cecbfdf996c308bb8fafa7c515839667b71f7fb701371be8bb063bb90454331a"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/barh.m",
+      "sha256": "f43b5a950ecfc1d8bf5841b85d2e55ee395a50cc4ff6591d0700c28adf2d928a"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/betarnd.m",
+      "sha256": "f73042e71ad227d954e0fee674a7cb2a3a61a0f415a81d4d0337f810a1155bea"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/butter.m",
+      "sha256": "96b1b2a3027f4927894b6f7565b999b0a0acc6ae070e8d833f4ebe4d08ef771a"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/datesplit.m",
+      "sha256": "0488258a1791203672e306c00820915bd4d98b0d0b74143c3af01372fcdccef7"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/datestr.m",
+      "sha256": "f85c804951cd85a9e49952b7a24bf6edb4f5b82590cf9887eaf29a62e7983775"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/datevec.m",
+      "sha256": "ad4fb85b7db010a341293e51ff8ec608dafdac3f50ca77b4b5ed474a4ea3a47e"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/freemat3.5/Contents.m",
+      "sha256": "13e4b0a4bc1c3e7beb79ef94b40b695b455a59d85f0ebd82e8ea91fa700faa82"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/freemat3.5/gcd.m",
+      "sha256": "d1bed675c93850400965c7246e9442adad9ae158ca6f0980aaf441b022173d1f"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/freqz.m",
+      "sha256": "83a7345cc5baf5f2a0074281dcd243e790b8e09a926f20acc41f5e306b7316b1"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/isdir.m",
+      "sha256": "473ce20def231f97c381ad50b3bdea9c29e2e7a0b9f4d0aa078448a9d278826e"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/rat.m",
+      "sha256": "d50ebe4c904f16580b184c3ffebcf755273aa44dbbd0c8b19d1e68d8d9e769f5"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/strfind2.m",
+      "sha256": "aa61aad3ef08f7f5da04600bdd517fe4c3968b7defdd4132ed7ba86b2371c28d"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/strfind3.m",
+      "sha256": "d1e1277e03a6c367d4b72f0ec7ed3360a4c966ae0b368d433abad6cebf3e107d"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/maybe-missing/strncmpi.m",
+      "sha256": "6fd631d0d2574bdd1f5f64fa7569cd17653175a3dacae7c96fc8756eed19b81f"
+    },
+    {
+      "path": "plugins/Biosig3.8.5/biosig/t490_EvaluationCriteria/evaluate_event_detection.m",
+      "sha256": "bf126d730dd7b21ab4fec7952c26440754aa08f09ca9b3478e9ce27752924934"
+    }
+  ]
+}

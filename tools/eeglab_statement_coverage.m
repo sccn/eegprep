@@ -6,6 +6,10 @@ import matlab.unittest.plugins.XMLPlugin;
 import matlab.unittest.plugins.codecoverage.CoverageResult;
 
 config = jsondecode(fileread(config_file));
+if ~isempty(fieldnames(config.unmeasurable_approval))
+    assert(strcmp(config.unmeasurable_approval.matlab_version, version), ...
+        'eegprep:coverage:DifferentRelease', 'Unmeasurable-source approval requires its documented MATLAB release');
+end
 scope = config.sources(strcmp({config.sources.category}, 'statement_scope'));
 source_files = fullfile(config.eeglab_root, {scope.path});
 old_path = path;
@@ -36,20 +40,33 @@ fprintf(stream, 'run(''%s'');\nEEGOPTION_PATH = ''%s'';\n', ...
 fclose(stream);
 addpath(options_directory, '-begin');
 
+original_selected = cellstr(string(config.selected));
+test_files = fullfile(config.test_root, original_selected);
+additional_labels = {};
+for index = 1:numel(config.additional_test_sources)
+    addition = config.additional_test_sources(index);
+    test_files{end+1} = fullfile(config.output, addition.snapshot);
+    additional_labels{end+1} = addition.snapshot;
+end
+selected_labels = [reshape(original_selected, 1, []), additional_labels];
+
 report = struct('metric', 'statement', 'matlab_version', version, 'execution_complete', false, ...
     'decision_coverage', 'Not collected by statement-level instrumentation', ...
     'validity_api', 'R2026a matlab.coverage.Result.Invalid (public-get, hidden property)', ...
-    'worker_coverage', config.worker_coverage, 'current_test_files', {config.selected}, ...
-    'selected_test_files', {config.selected}, ...
-    'unselected_test_files', {setdiff(config.test_files, config.selected)}, ...
+    'worker_coverage', config.worker_coverage, 'current_test_files', {selected_labels}, ...
+    'selected_test_files', {selected_labels}, ...
+    'additional_test_sources', config.additional_test_sources, ...
+    'baseline', config.baseline, ...
+    'unmeasurable_approval', config.unmeasurable_approval, ...
+    'unselected_test_files', {setdiff(config.test_files, original_selected)}, ...
     'completed_test_files', {{}}, 'tests', [], 'files', [], ...
     'scope_file_count', numel(scope), 'measurable_file_count', 0, ...
     'denominator_complete', false, 'covered_statements', 0, 'total_statements', 0);
 write_report(config.output, report);
 
-suites = cell(1, numel(config.selected));
-for index = 1:numel(config.selected)
-    current = testsuite(fullfile(config.test_root, config.selected{index}));
+suites = cell(1, numel(test_files));
+for index = 1:numel(test_files)
+    current = testsuite(test_files{index});
     assert(~isempty(current), 'eegprep:coverage:EmptySuite', 'No native TestSuite cases found');
     suites{index} = current;
 end
@@ -62,16 +79,33 @@ runner.addPlugin(XMLPlugin.producingJUnitFormat(fullfile(config.output, 'results
 runner.addPlugin(CodeCoveragePlugin.forFile(source_files, 'MetricLevel', 'statement', 'Producing', format));
 results = runner.run(suite);
 coverage = format.Result;
+batch_counts = coverageSummary(coverage, 'statement');
+report.batch_covered_statements = sum(batch_counts(:, 1));
+report.newly_covered_statements = report.batch_covered_statements;
+baseline_failed = false;
+if ~isempty(fieldnames(config.baseline))
+    assert(strcmp(config.baseline.matlab_version, version), ...
+        'eegprep:coverage:DifferentRelease', 'Coverage union requires the same MATLAB release');
+    previous = load(fullfile(config.baseline.directory, 'coverage.mat'), 'coverage');
+    assert(isequal(sort(string({previous.coverage.Filename})), sort(string({coverage.Filename}))), ...
+        'eegprep:coverage:DifferentScope', 'Coverage union requires the same source filenames');
+    % Native coverage union deduplicates statements; scalar count addition does not.
+    coverage = previous.coverage + coverage;
+    union_counts = coverageSummary(coverage, 'statement');
+    report.newly_covered_statements = sum(union_counts(:, 1)) - config.baseline.covered_statements;
+    baseline_failed = config.baseline.native_failures;
+end
 report = summarize(report, coverage, results, scope, source_files);
 save(fullfile(config.output, 'coverage.mat'), 'coverage', 'results', '-v7.3');
 report.execution_complete = true;
-report.completed_test_files = config.selected;
+report.completed_test_files = selected_labels;
 report.current_test_files = {};
 write_report(config.output, report);
-assert(report.denominator_complete, 'eegprep:coverage:UnmeasurableSources', ...
+assert(report.approved_denominator_complete, 'eegprep:coverage:UnmeasurableSources', ...
     'Unmeasurable frozen source files; inspect report.json and native warnings');
-assert(~any([results.Failed]) && ~any([results.Incomplete]), 'eegprep:coverage:NativeFailures', ...
-    'Native failures/incomplete cases retained in report.json, coverage.mat and JUnit');
+assert(~any([results.Failed]) && ~any([results.Incomplete]) && ~baseline_failed, ...
+    'eegprep:coverage:NativeFailures', ...
+    'Native failures/incomplete cases retained in current or baseline report.json, coverage.mat and JUnit');
 end
 
 function report = summarize(report, coverage, results, scope, source_files)
@@ -105,10 +139,19 @@ measurable = [files.observed] & ~[files.invalid];
 report.measurable_file_count = sum(measurable);
 report.unmeasurable_files = {files(~measurable).path};
 report.denominator_complete = all(measurable) && all(isfinite(counts(:)));
+approved = {};
+if ~isempty(fieldnames(report.unmeasurable_approval))
+    approved = {report.unmeasurable_approval.sources.path};
+end
+report.approved_unmeasurable_files = intersect(report.unmeasurable_files, approved);
+report.unapproved_unmeasurable_files = setdiff(report.unmeasurable_files, approved);
+report.approved_denominator_complete = all([files.observed]) && ...
+    isempty(report.unapproved_unmeasurable_files) && all(isfinite(counts(:)));
 report.covered_statements = sum(counts(:, 1));
 report.total_statements = sum(counts(:, 2));
 report.tests = arrayfun(@(item) struct('name', item.Name, 'passed', item.Passed, ...
-    'failed', item.Failed, 'incomplete', item.Incomplete, 'duration_seconds', item.Duration), results);
+    'failed', item.Failed, 'incomplete', item.Incomplete, 'duration_seconds', item.Duration), ...
+    results, 'UniformOutput', false);
 end
 
 function write_report(directory, report)
