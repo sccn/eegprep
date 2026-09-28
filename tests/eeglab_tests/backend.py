@@ -25,12 +25,25 @@ def call_python(name, *args, nargout=1, **kwargs):
     return result
 
 
-def _decode(value, typed):
+def _decode(value, typed, directory=None):
     if value.dtype.names and value.size:
+        if value.dtype.names == ("eegprep_test_array_mat_v1", "shape") and value.shape == (1, 1):
+            paths = _decode(value["eegprep_test_array_mat_v1"][0, 0], typed["eegprep_test_array_mat_v1"][0, 0])
+            shape = tuple(value["shape"][0, 0].astype(int).ravel())
+            result, offset = None, 0
+            for path in paths.flat:
+                part = _load_matlab_variable(Path(directory) / path, "part")
+                if result is None:
+                    result = np.empty(shape, dtype=part.dtype, order="F")
+                result.ravel(order="F")[offset : offset + part.size] = part.ravel(order="F")
+                offset += part.size
+            if result is None or offset != result.size:
+                raise AssertionError("MATLAB array sidecars do not match the declared shape")
+            return result
         decoded = np.empty(value.shape, dtype=value.dtype)
         for index in np.ndindex(value.shape):
             for field in value.dtype.names:
-                decoded[field][index] = _decode(value[field][index], typed[field][index])
+                decoded[field][index] = _decode(value[field][index], typed[field][index], directory)
         # A scalar MATLAB struct becomes a dict, never a squeezed numeric array.
         if value.shape == (1, 1):
             return {field: decoded[field][0, 0] for field in value.dtype.names}
@@ -38,11 +51,21 @@ def _decode(value, typed):
     if value.dtype == object:
         decoded = np.empty(value.shape, dtype=object)
         for index in np.ndindex(value.shape):
-            decoded[index] = _decode(value[index], typed[index])
+            decoded[index] = _decode(value[index], typed[index], directory)
         return decoded
     if value.dtype.kind in "US" and value.size == 1:
         return value.item()
     return value if np.iscomplexobj(value) else typed
+
+
+def _load_matlab_variable(filename, variable):
+    raw = loadmat(filename)[variable]
+    # MATLAB's compact MAT storage may differ from its declared numeric class.
+    # The typed read restores classes but drops complex imaginary components.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ComplexWarning)
+        typed = loadmat(filename, mat_dtype=True)[variable]
+    return _decode(raw, typed, Path(filename).parent)
 
 
 def call_matlab(engine, name, *args, nargout=1, **kwargs):
@@ -65,14 +88,7 @@ def call_matlab(engine, name, *args, nargout=1, **kwargs):
         engine.eegprep_test_call(str(input_file), str(output_file), name, float(nargout), nargout=0)
         if nargout == 0:
             return None
-        raw = loadmat(output_file)["outputs"]
-        # MATLAB can store integral-valued doubles with an integer MAT storage
-        # type. SciPy's MATLAB dtype mode restores their class and logicals,
-        # but discards imaginary components. Keep complex values from raw.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ComplexWarning)
-            typed = loadmat(output_file, mat_dtype=True)["outputs"]
-        outputs = tuple(_decode(value, kind) for value, kind in zip(raw[0], typed[0], strict=True))
+        outputs = tuple(_load_matlab_variable(output_file, "outputs")[0])
         if len(outputs) != nargout:
             raise AssertionError(f"{name} did not return {nargout} outputs")
         return outputs[0] if nargout == 1 else outputs

@@ -9,11 +9,23 @@ from typing import Any
 
 import numpy as np
 import pytest
+from scipy.io import savemat
 
-from tests.eeglab_tests.backend import call_matlab, call_python
+from tests.eeglab_tests import assert_matlab_equal
+from tests.eeglab_tests.backend import _load_matlab_variable, call_matlab, call_python
 
 
 pytest_plugins = ("pytester",)
+
+
+def _forced_sidecar_call(engine, directory, name, *args, inline_limit_bytes=1):
+    arguments = np.empty((1, len(args)), dtype=object)
+    for index, value in enumerate(args):
+        arguments[0, index] = value
+    input_file, output_file = directory / "input.mat", directory / "output.mat"
+    savemat(input_file, {"arguments": arguments}, long_field_names=True)
+    engine.eegprep_test_call(str(input_file), str(output_file), name, 1.0, float(inline_limit_bytes), nargout=0)
+    return _load_matlab_variable(output_file, "outputs")[0, 0]
 
 
 @pytest.mark.gui
@@ -222,13 +234,18 @@ def test_restored():
     ],
 )
 @pytest.mark.parametrize("shape", [(1, 3), (3, 1), (2, 3), (1, 2, 3), (0, 3), (0, 0)])
-def test_matlab_transport_preserves_dtype_and_dimensions(eeglab_matlab_engine, dtype, matlab_class, shape):
+@pytest.mark.parametrize("sidecars", [False, True])
+def test_matlab_transport_preserves_dtype_and_dimensions(
+    eeglab_matlab_engine, tmp_path, dtype, matlab_class, shape, sidecars
+):
     expected = np.arange(np.prod(shape)).reshape(shape).astype(dtype)
     if np.issubdtype(dtype, np.complexfloating):
         expected += (expected + 1) * 1j
-    actual = call_matlab(
-        eeglab_matlab_engine, "eegprep_test_transport", "echo", expected, matlab_class, np.array([shape], dtype=float)
-    )
+    arguments = ("echo", expected, matlab_class, np.array([shape], dtype=float))
+    if sidecars:
+        actual = _forced_sidecar_call(eeglab_matlab_engine, tmp_path, "eegprep_test_transport", *arguments)
+    else:
+        actual = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", *arguments)
     assert actual.shape == expected.shape
     assert actual.dtype == expected.dtype
     np.testing.assert_array_equal(actual, expected)
@@ -259,6 +276,47 @@ def test_matlab_generated_struct_cells_logicals_and_complex(eeglab_matlab_engine
     assert returned["cell_structs"].dtype == object
 
 
+def test_matlab_array_sidecars_preserve_nested_cells_and_struct_arrays(eeglab_matlab_engine, tmp_path):
+    expected = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "fixture")
+    actual = _forced_sidecar_call(eeglab_matlab_engine, tmp_path, "eegprep_test_transport", "fixture")
+    assert len(list(tmp_path.glob("*.mat"))) > 2
+    assert_matlab_equal(expected, actual)
+    for name in ("numeric", "complex", "logical", "empty"):
+        assert actual[name].dtype == expected[name].dtype
+    returned = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "nested", actual)
+    assert_matlab_equal(expected, returned)
+
+
+def test_matlab_sidecars_cover_many_leaves_below_individual_limit(eeglab_matlab_engine, tmp_path):
+    expected = np.empty((1, 10), dtype=object)
+    for index in range(expected.size):
+        expected[0, index] = np.full((1, 1024), index, dtype=np.float32)
+    actual = _forced_sidecar_call(eeglab_matlab_engine, tmp_path, "deal", expected, inline_limit_bytes=8192)
+    assert len(list(tmp_path.glob("*.mat"))) == 12
+    for original, returned in zip(expected.flat, actual.flat, strict=True):
+        np.testing.assert_array_equal(returned, original, strict=True)
+
+
+@pytest.mark.slow
+def test_matlab_aggregate_outputs_over_two_gib_remain_complete(eeglab_matlab_engine):
+    engine = eeglab_matlab_engine
+    # One shared native allocation, but a >2GiB output cell: this reproduces
+    # the container limit hit by the original full 18-subject LIMO workflow.
+    count = 2**28 + 3
+    engine.eval(f"transport_large_payload = repmat({{ones(1,{count},'uint8')}},1,9);", nargout=0)
+    try:
+        actual = call_matlab(engine, "evalin", "base", "transport_large_payload")
+        call_matlab(engine, "assignin", "base", "transport_large_received", actual, nargout=0)
+        engine.eval("assert(isequaln(transport_large_received, transport_large_payload));", nargout=0)
+    finally:
+        engine.eval("clear transport_large_payload transport_large_received;", nargout=0)
+    assert actual.shape == (1, 9)
+    for value in actual.flat:
+        assert value.shape == (1, count)
+        assert value.dtype == np.uint8
+        assert np.all(value == 1)
+
+
 def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
     value = call_matlab(eeglab_matlab_engine, "eegprep_test_transport", "unassigned")
     assert value[1, 0].shape == (0, 0)
@@ -267,7 +325,8 @@ def test_matlab_unassigned_cells_keep_zero_by_zero_shape(eeglab_matlab_engine):
     assert value[0, 1]["second"][0, 0].shape == (0, 0)
 
 
-def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_matlab_engine):
+@pytest.mark.parametrize("sidecars", [False, True])
+def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_matlab_engine, tmp_path, sidecars):
     engine = eeglab_matlab_engine
     engine.eval(
         "transport_expected = table(uint16([2;1]), single([NaN;3]), "
@@ -282,7 +341,10 @@ def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_mat
         "transport_expected.Properties.CustomProperties.Provenance = 'pinned source';",
         nargout=0,
     )
-    table = call_matlab(engine, "evalin", "base", "transport_expected")
+    if sidecars:
+        table = _forced_sidecar_call(engine, tmp_path, "evalin", "base", "transport_expected")
+    else:
+        table = call_matlab(engine, "evalin", "base", "transport_expected")
     assert set(table) == {"eegprep_test_table_mat_v1"}
     assert table["eegprep_test_table_mat_v1"].dtype == np.uint8
     returned = call_matlab(engine, "sortrows", table, "count")
