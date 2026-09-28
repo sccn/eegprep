@@ -394,9 +394,14 @@ It also captures ``pop_limo``'s third output, loads each model from
 ``LIMOfiles.mat{s}``, and derives its ``H0`` directory from that returned path.
 This uses the generated model paths without duplicating version-dependent
 directory names. Scientific options, subjects and bootstrap counts are unchanged.
+The third approved correction changes only the validation helper's discovery
+pattern from ``H0_*.mat`` to ``*H0.mat``, matching LIMO 4.1.2's generated
+``sub-*_desc-Condition_effect_1H0.mat`` files. Existing ``Betas``, ``tfce`` and
+``R2`` exclusions, variable selection and statistical calculations are unchanged.
 ``prepare_irls_source_overlay`` in ``tests.eeglab_tests.limo_irls`` verifies
 the original script/helper hashes and applies the patch only to a scratch
-copy. A corrected native run needs a writable ``ds002718`` copy beside the
+copy. Its regression reverses all approved edits to recover both pinned files
+byte-for-byte. A corrected native run needs a writable ``ds002718`` copy beside the
 returned ``unittesting_limo`` directory. The Python contract never executes
 the complete native test script or its helper.
 
