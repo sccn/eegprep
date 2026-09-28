@@ -335,7 +335,10 @@ def test_reference_limo_irls_validation(eeglab_backend, limo_source_directory, e
     savemat(directory / "results.mat", {"results": results}, long_field_names=True)
 
 
-def test_irls_native_overlay_applies_only_approved_input_repairs(eeglab_suite_root, tmp_path):
+def test_irls_native_overlay_applies_only_approved_input_repairs(request, tmp_path):
+    if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
+        pytest.skip("IRLS overlay verification requires the optional pinned EEGLAB tests checkout")
+    eeglab_suite_root = request.getfixturevalue("eeglab_suite_root")
     original = eeglab_suite_root / IRLS_SOURCE
     before = original.read_bytes()
     directory = prepare_irls_source_overlay(eeglab_suite_root, tmp_path)
