@@ -135,9 +135,10 @@ def run_native(
     runtime_root: Path,
 ) -> int:
     """Run one explicit native suite batch with a finite wall-clock bound."""
+    test_root, runtime_root, output = test_root.resolve(), runtime_root.resolve(), output.resolve()
     manifest = json.loads(manifest_path.read_text())
     verify_manifest(manifest)
-    reference_root = Path(manifest["suite_root"])
+    reference_root = Path(manifest["suite_root"]).resolve()
     if test_root.is_relative_to(reference_root) or runtime_root.is_relative_to(reference_root):
         raise ValueError("Use a writable scratch test-suite copy, not the pinned reference checkout")
     if output.is_relative_to(reference_root):
@@ -241,13 +242,13 @@ def main() -> int:
         return 0
     return run_native(
         args.manifest.resolve(),
-        args.test_root.resolve(),
+        args.test_root,
         args.test_file,
-        args.output.resolve(),
+        args.output,
         args.matlab,
         args.timeout,
         args.support_path,
-        args.runtime_root.resolve(),
+        args.runtime_root,
     )
 
 

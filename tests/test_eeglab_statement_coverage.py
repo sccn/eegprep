@@ -117,6 +117,22 @@ def test_nested_eeglab_layout_accepts_only_the_verified_runtime_tree(tmp_path, s
     assert not (tmp_path / "output").exists()
 
 
+@pytest.mark.parametrize("aliased", ["test_root", "runtime_root", "output"])
+def test_direct_runner_rejects_symlink_aliases_into_reference(tmp_path, aliased):
+    source = _source_tree(tmp_path / "reference/eeglab")
+    manifest = {"suite_root": str(source.parent), "eeglab_root": str(source), "sources": source_inventory(source)}
+    manifest_path = _write(tmp_path, "manifest.json", json.dumps(manifest))
+    alias = tmp_path / "reference_alias"
+    alias.symlink_to(source.parent, target_is_directory=True)
+    paths = {"test_root": tmp_path / "tests", "runtime_root": tmp_path / "runtime", "output": tmp_path / "output"}
+    paths[aliased] = alias
+    with pytest.raises(ValueError, match="pinned reference checkout"):
+        run_native(
+            manifest_path, paths["test_root"], [], paths["output"], "must-not-start", 1, [], paths["runtime_root"]
+        )
+    assert not (tmp_path / "output").exists()
+
+
 @pytest.mark.matlab
 @pytest.mark.parametrize("invalid_source", [False, True])
 def test_native_statement_metric_keeps_failures_and_never_executed_files(
