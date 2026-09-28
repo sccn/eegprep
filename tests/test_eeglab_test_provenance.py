@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 
 import numpy as np
 import pytest
@@ -13,8 +14,10 @@ from tests.eeglab_tests import (
     STALE_EEGLAB_TESTS_REPOSITORY,
     assert_matlab_near,
     eeglab_test,
+    expanded_matlab_test,
     load_matlab_test_fixture,
     upstream_references,
+    validate_expanded_test_source,
 )
 
 
@@ -66,6 +69,63 @@ def test_eeglab_test_rejects_duplicate_references() -> None:
 
     with pytest.raises(ValueError, match="duplicate EEGLAB test reference"):
         decorator(translated_test)
+
+
+def test_expanded_provenance_does_not_claim_original_upstream_test_revision():
+    @expanded_matlab_test("tests/matlab/expanded/test_events.m", "testBoundary", "a" * 64)
+    def translated_test():
+        pass
+
+    assert upstream_references(translated_test) == ()
+    marker = next(item for item in translated_test.pytestmark if item.name == "expanded_matlab_test")
+    assert marker.kwargs == {
+        "source": "tests/matlab/expanded/test_events.m",
+        "test": "testBoundary",
+        "sha256": "a" * 64,
+    }
+
+
+@pytest.mark.parametrize(
+    "source,test,digest",
+    [
+        ("../test_events.m", "testBoundary", "a" * 64),
+        ("regression_tests/t_statcond.m", "testBoundary", "a" * 64),
+        ("tests/matlab/expanded/test_events.m", "", "a" * 64),
+        ("tests/matlab/expanded/test_events.m", "testBoundary", "not-a-hash"),
+    ],
+)
+def test_expanded_provenance_rejects_invalid_identity(source, test, digest):
+    with pytest.raises(ValueError):
+        expanded_matlab_test(source, test, digest)
+
+
+@pytest.mark.parametrize("changed", ["missing", "content", "case", "helper", None])
+def test_expanded_source_validation_checks_bytes_and_real_native_case(tmp_path, changed):
+    source = "tests/matlab/expanded/test_events.m"
+    path = tmp_path / source
+    path.parent.mkdir(parents=True)
+    text = (
+        "function tests = test_events\ntests = functiontests(localfunctions);\nend\n"
+        "function testBoundary(testCase)\nverifyEqual(testCase, 1, 1);\nend\n"
+        "% function testMissing(testCase)\n"
+        "function helper(testCase)\nend\n"
+    )
+    path.write_text(text)
+    digest = hashlib.sha256(text.encode()).hexdigest()
+    name = "testBoundary"
+    if changed == "missing":
+        path.unlink()
+    elif changed == "content":
+        path.write_text(text + "% edited\n")
+    elif changed == "case":
+        name = "testMissing"
+    elif changed == "helper":
+        name = "helper"
+    if changed:
+        with pytest.raises(ValueError, match="source is missing|pinned hash|case does not exist"):
+            validate_expanded_test_source(tmp_path, source, name, digest)
+    else:
+        validate_expanded_test_source(tmp_path, source, name, digest)
 
 
 def test_load_matlab_test_fixture_preserves_shape_and_dtype(tmp_path: Path) -> None:

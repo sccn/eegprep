@@ -194,6 +194,7 @@ markers = [
   "visual: visual parity capture or comparison tests",
   "parity: numerical or behavioral parity tests against EEGLAB/MATLAB",
   "eeglab_contract: tests that dispatch through the explicit EEGLAB reference backend",
+  "expanded_matlab_test(source, test, sha256): port of a content-pinned EEGPrep-owned native MATLAB case",
 ]
 
 [tool.setuptools]

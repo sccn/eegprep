@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import textwrap
 from pathlib import Path
@@ -11,12 +12,47 @@ from tools.eeglab_test_port_audit import (
     CollectedReference,
     EEGLAB_TESTS_COMMIT,
     MatlabTestScenario,
+    audit_expanded_test_ports,
     audit_test_ports,
     compare_test_ports,
     discover_matlab_test_scenarios,
     format_report,
     validate_suite_checkout,
 )
+
+
+@pytest.mark.parametrize("include_second", [False, True])
+def test_expanded_audit_collects_added_cases_without_crediting_upstream_ports(tmp_path, include_second):
+    _write_pytest_fixture(tmp_path, "original-suite")
+    source = "tests/matlab/expanded/test_new.m"
+    path = tmp_path / source
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "function tests = test_new\ntests = functiontests(localfunctions);\nend\n"
+        "function testFirst(testCase)\nend\nfunction testSecond(testCase)\nend\n"
+    )
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    ports = tmp_path / "tests/test_added.py"
+    body = "import pytest\n"
+    for name in ("testFirst", "testSecond") if include_second else ("testFirst",):
+        body += (
+            f"@pytest.mark.expanded_matlab_test(source={source!r}, test={name!r}, sha256={digest!r})\n"
+            f"def test_{name}(eeglab_backend):\n"
+            "    raise AssertionError('collection must not execute a scientific test')\n"
+        )
+    ports.write_text(body)
+    report = audit_expanded_test_ports(tmp_path)
+    assert report["expected_count"] == 2
+    assert report["covered_count"] == (2 if include_second else 1)
+    assert report["ok"] is include_second
+    assert report["missing"] == ([] if include_second else [f"{source}::testSecond"])
+    assert {item["source"] for item in report["references"]} == {source}
+    assert {item["sha256"] for item in report["references"]} == {digest}
+
+
+def test_expanded_audit_does_not_accept_empty_native_inventory(tmp_path):
+    with pytest.raises(AuditInputError, match="No expanded native cases"):
+        audit_expanded_test_ports(tmp_path)
 
 
 def test_discovers_wrapper_regression_and_nonstandard_limo_methods(tmp_path: Path) -> None:

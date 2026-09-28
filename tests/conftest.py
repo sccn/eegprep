@@ -12,7 +12,7 @@ import subprocess
 
 import pytest
 
-from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
+from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references, validate_expanded_test_source
 from tests.eeglab_tests.backend import call_matlab, call_python
 from tools.eeglab_test_port_audit import validate_suite_checkout
 
@@ -302,6 +302,7 @@ def _nodeid_has_part(nodeid: str, parts: tuple[str, ...]) -> bool:
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     backend = config.getoption("--eeglab-backend")
+    validated_expansions = set()
 
     for item in items:
         nodeid = item.nodeid
@@ -314,6 +315,21 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.eeglab_contract)
         if backend == "matlab" and (contract or transport):
             item.add_marker(pytest.mark.matlab)
+
+        for reference in item.iter_markers("expanded_matlab_test"):
+            if not contract:
+                raise pytest.UsageError(f"Expanded native port must use eeglab_backend: {nodeid}")
+            identity = tuple(reference.kwargs[name] for name in ("source", "test", "sha256"))
+            if identity not in validated_expansions:
+                try:
+                    validate_expanded_test_source(Path(__file__).resolve().parents[1], *identity)
+                except ValueError as error:
+                    raise pytest.UsageError(str(error)) from error
+                validated_expansions.add(identity)
+            item.user_properties.extend(
+                [(f"expanded_matlab_{name}", value) for name, value in reference.kwargs.items()]
+                + [("expanded_matlab_eeglab_commit", EEGLAB_TESTS_EEGLAB_COMMIT)]
+            )
 
         if _nodeid_has_part(nodeid, SLOW_NODEID_PARTS):
             item.add_marker(pytest.mark.slow)

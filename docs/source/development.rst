@@ -213,6 +213,38 @@ The timeout kills only this runner's process group. A failing source test does
 not prevent measurement; it still prevents claiming successful validation.
 Neither a partial run nor this instrumentation establishes 90% coverage.
 
+New native tests and their Python ports
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+New tests authored for coverage expansion live under ``tests/matlab/expanded``.
+They are EEGPrep-owned additions, not definitions from the original pinned
+``eeglab_tests`` commit. First execute each complete native case on the pinned
+MATLAB runtime, retaining native JUnit results. Then translate its inputs,
+workflow, assertions, tolerances and side effects to a Python test using the
+existing ``eeglab_backend`` fixture. An unavailable Python capability must fail;
+do not skip it or alter the successful native workflow.
+
+Use ``expanded_matlab_test(source, test, sha256)`` from ``tests.eeglab_tests``
+for these translations. ``source`` is the repository-relative native path,
+``test`` its actual MATLAB function-test name and ``sha256`` the finalized
+native file's content hash. Collection rejects missing/changed sources,
+nonexistent native cases and ports without backend dispatch. The native path,
+case, hash and pinned EEGLAB revision are also written to Python JUnit case
+properties. These records deliberately do not count as original upstream ports.
+
+Audit completeness of the additions separately:
+
+.. code-block:: bash
+
+    uv run python -m tools.eeglab_test_port_audit --expanded --json
+    uv run pytest tests --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      -m expanded_matlab_test --junitxml=expanded-hybrid.xml
+
+The audit checks source-case representation, not assertion fidelity or passing
+execution. Retain both native and hybrid results; a collected node or a green
+ordinary Python support test is not live-MATLAB validation.
+
 Source fidelity and graphical validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

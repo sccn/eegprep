@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any, Callable, TypeVar
@@ -12,6 +13,8 @@ import pytest
 import numpy as np
 from numpy.exceptions import ComplexWarning
 from scipy.io import loadmat
+
+from tools.eeglab_test_port_audit import MatlabTestScenario, discover_matlab_test_scenarios
 
 
 EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab_tests.git"
@@ -51,6 +54,31 @@ def eeglab_test(source: str, test: str) -> Callable[[_TestCallable], _TestCallab
 def upstream_references(test_function: Callable) -> tuple[EeglabTestReference, ...]:
     """Return the upstream MATLAB tests represented by a Python test."""
     return tuple(getattr(test_function, _REFERENCE_ATTRIBUTE, ()))
+
+
+def expanded_matlab_test(source: str, test: str, sha256: str) -> Callable[[_TestCallable], _TestCallable]:
+    """Identify a port of an EEGPrep-owned native MATLAB test by content hash."""
+    _validated_reference(source, test)
+    if not PurePosixPath(source).is_relative_to("tests/matlab/expanded"):
+        raise ValueError("Expanded native tests must live under tests/matlab/expanded")
+    if len(sha256) != 64 or any(character not in "0123456789abcdef" for character in sha256):
+        raise ValueError("Expanded native tests require a lowercase SHA-256 content hash")
+
+    def decorate(test_function: _TestCallable) -> _TestCallable:
+        marked = pytest.mark.expanded_matlab_test(source=source, test=test, sha256=sha256)(test_function)
+        return pytest.mark.parity(marked)
+
+    return decorate
+
+
+def validate_expanded_test_source(repo_root: Path, source: str, test: str, sha256: str) -> None:
+    """Reject missing, changed, or nonexistent native cases before Python execution."""
+    path = repo_root / source
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != sha256:
+        raise ValueError(f"Expanded native source is missing or differs from its pinned hash: {source}")
+    cases = discover_matlab_test_scenarios(path.parent)
+    if MatlabTestScenario(path.name, test) not in cases:
+        raise ValueError(f"Expanded native case does not exist: {source}::{test}")
 
 
 def load_matlab_test_fixture(file: str | Path) -> dict[str, Any]:

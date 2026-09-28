@@ -20,6 +20,7 @@ EEGLAB_TESTS_EEGLAB_COMMIT = "8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba"
 STALE_EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab-testcases.git"
 REFERENCE_ATTRIBUTE = "__eeglab_test_references__"
 PROVENANCE_OPTION = "--eeglab-provenance-output"
+EXPANDED_OPTION = "--eeglab-expanded-provenance"
 LIMO_TEST_NAMES = frozenset({"limo_test1", "limo_test2"})
 # This scientific validation workflow is not called by a wrapper. Its helper
 # limo_test_glmboot is part of the workflow, not a separate executable test.
@@ -185,6 +186,10 @@ def validate_suite_checkout(
 
 def collect_pytest_references(repo_root: Path) -> tuple[CollectedReference, ...]:
     """Collect provenance from pytest items without executing their test bodies."""
+    return tuple(CollectedReference(**entry) for entry in _collect_pytest_records(repo_root))
+
+
+def _collect_pytest_records(repo_root: Path, *, expanded: bool = False) -> list[dict]:
     tests_root = repo_root / "tests"
     if not tests_root.is_dir():
         raise AuditInputError(f"pytest test directory does not exist: {tests_root}")
@@ -218,6 +223,8 @@ def collect_pytest_references(repo_root: Path) -> tuple[CollectedReference, ...]
             f"{PROVENANCE_OPTION}={output_path}",
             str(tests_root),
         ]
+        if expanded:
+            command.append(EXPANDED_OPTION)
         completed = subprocess.run(
             command,
             cwd=repo_root,
@@ -233,7 +240,33 @@ def collect_pytest_references(repo_root: Path) -> tuple[CollectedReference, ...]
             raise AuditInputError("pytest collection did not emit EEGLAB provenance")
         payload = json.loads(output_path.read_text(encoding="utf-8"))
 
-    return tuple(CollectedReference(**entry) for entry in payload)
+    return payload
+
+
+def audit_expanded_test_ports(repo_root: Path) -> dict:
+    """Audit added native cases separately from the original upstream inventory."""
+    directory = repo_root / "tests/matlab/expanded"
+    expected = {
+        MatlabTestScenario(f"tests/matlab/expanded/{item.source}", item.test)
+        for item in discover_matlab_test_scenarios(directory)
+    }
+    if not expected:
+        raise AuditInputError(f"No expanded native cases found: {directory}")
+    # Normal collection validates each marker's hash, actual source method,
+    # and backend fixture before this plugin serializes the selected nodes.
+    records = _collect_pytest_records(repo_root, expanded=True)
+    matched = {MatlabTestScenario(item["source"], item["test"]) for item in records}
+    missing = expected - matched
+    unexpected = matched - expected
+    return {
+        "scope": "EEGPrep-owned native MATLAB additions; not original upstream test-suite coverage",
+        "ok": not missing and not unexpected,
+        "expected_count": len(expected),
+        "covered_count": len(expected & matched),
+        "missing": [item.as_text() for item in sorted(missing)],
+        "unexpected": [item.as_text() for item in sorted(unexpected)],
+        "references": records,
+    }
 
 
 def compare_test_ports(
@@ -344,6 +377,7 @@ def format_report(report: AuditReport) -> str:
 def pytest_addoption(parser: Any) -> None:
     """Register the private output used by the collection subprocess."""
     parser.addoption(PROVENANCE_OPTION, action="store", default=None)
+    parser.addoption(EXPANDED_OPTION, action="store_true", default=False)
 
 
 def pytest_collection_finish(session: Any) -> None:
@@ -354,6 +388,10 @@ def pytest_collection_finish(session: Any) -> None:
 
     records: list[dict[str, str]] = []
     for item in session.items:
+        if session.config.getoption(EXPANDED_OPTION):
+            for reference in item.iter_markers("expanded_matlab_test"):
+                records.append({**reference.kwargs, "nodeid": str(item.nodeid)})
+            continue
         test_object = getattr(item, "obj", None)
         for reference in getattr(test_object, REFERENCE_ATTRIBUTE, ()):
             records.append(
@@ -371,12 +409,19 @@ def pytest_collection_finish(session: Any) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the audit CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("suite_checkout", type=Path, help="checkout of sccn/eeglab_tests")
+    parser.add_argument("suite_checkout", type=Path, nargs="?", help="checkout of sccn/eeglab_tests")
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", help="emit a machine-readable report")
+    parser.add_argument("--expanded", action="store_true", help="audit the EEGPrep-owned native additions separately")
     arguments = parser.parse_args(argv)
 
     try:
+        if arguments.expanded:
+            expanded = audit_expanded_test_ports(arguments.repo_root.resolve())
+            print(json.dumps(expanded, indent=2, sort_keys=True))
+            return 0 if expanded["ok"] else 1
+        if arguments.suite_checkout is None:
+            parser.error("suite_checkout is required unless --expanded is selected")
         report = audit_test_ports(arguments.suite_checkout.resolve(), arguments.repo_root.resolve())
     except AuditInputError as error:
         if arguments.json:
