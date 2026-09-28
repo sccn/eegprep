@@ -114,7 +114,7 @@ def _limo_entries(values):
 
 
 def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply the approved generated-path corrections to a pinned scratch copy."""
+    """Apply path/workspace setup repairs and explicit optional-file cancellation."""
     source = suite_root / LIMO_PREPROCESSING_SOURCE
     if sha256(source.read_bytes()).hexdigest() != LIMO_PREPROCESSING_SHA256:
         raise ValueError(f"LIMO preprocessing source differs from the pinned original: {source}")
@@ -124,11 +124,18 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
     subprocess.run(
         ["git", "apply", "--no-index", "--unidiff-zero", str(LIMO_PREPROCESSING_PATCH)], cwd=directory, check=True
     )
+    corrected = source_directory / source.name
+    text = corrected.read_text()
+    assert text.count("limo_add_plots(") == 8
+    for target in ("[STUDY,~,LIMOfiles] = pop_limo(", "limo_batch('contrast only',[],contrast);"):
+        assert text.count(target) == 1
+        text = text.replace(target, "assignin('base','STUDY',STUDY);\n" + target)
+    corrected.write_text(text.replace("limo_add_plots(", "eegprep_test_limo_add_plots("))
     return source_directory
 
 
 def prepare_limo_integration_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply only the five approved integration-path repairs to a pinned copy."""
+    """Apply the approved path and base-STUDY setup repairs to a pinned copy."""
     source = suite_root / LIMO_INTEGRATION_SOURCE
     original = source.read_bytes()
     if sha256(original).hexdigest() != LIMO_INTEGRATION_SHA256:
@@ -446,7 +453,7 @@ def test_irls_maximum_preserves_matlab_nan_and_first_index_semantics(values, max
     assert position == index
 
 
-def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(request, tmp_path):
+def test_limo_preprocessing_native_overlay_preserves_paths_and_explicit_file_choice(request, tmp_path):
     if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
         pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
     suite_root = request.getfixturevalue("eeglab_suite_root")
@@ -456,7 +463,10 @@ def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(re
     corrected = (directory / original.name).read_text()
     modelname_assignment = "[~,modelname] = fileparts(fileparts(LIMOfiles.mat{1}));\n"
     assert corrected.count(modelname_assignment) == 1
-    restored = corrected.replace(modelname_assignment, "")
+    assert corrected.count("eegprep_test_limo_add_plots(") == 8
+    restored = corrected.replace(modelname_assignment, "").replace("eegprep_test_limo_add_plots(", "limo_add_plots(")
+    assert restored.count("assignin('base','STUDY',STUDY);\n") == 2
+    restored = restored.replace("assignin('base','STUDY',STUDY);\n", "")
     replacements = [
         ("STUDY  = pop_limo(", "[STUDY,~,LIMOfiles] = pop_limo("),
         (
@@ -489,7 +499,7 @@ def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(re
     assert sha256(before).hexdigest() == LIMO_PREPROCESSING_SHA256
 
 
-def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs(request, tmp_path):
+def test_limo_integration_native_overlay_applies_only_approved_repairs(request, tmp_path):
     if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
         pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
     suite_root = request.getfixturevalue("eeglab_suite_root")
@@ -498,6 +508,14 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     directory = prepare_limo_integration_source_overlay(suite_root, tmp_path)
     restored = (directory / original.name).read_text()
     assert (
+        "clear variables\n"
+        "eegprep_test_base_workspace('snapshot');\n"
+        "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n"
+    ) in restored
+    assert (
+        "    assignin('base','STUDY',STUDY);\n    confiles                 = limo_batch('contrast only',[],contrast);"
+    ) in restored
+    assert (
         "    Model1_files.con         = confiles.con;\n"
         "    [~,Model1_con1] = fileparts(Model1_files.con{1}{1});\n"
         "    [~,Model1_con2] = fileparts(Model1_files.con{1}{2});"
@@ -505,6 +523,9 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     # This inverse is independent of the JSON: unapproved edits cannot be hidden
     # by adding another reversible replacement to the overlay description.
     for assignment in (
+        "eegprep_test_base_workspace('snapshot');\n",
+        "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
+        "    assignin('base','STUDY',STUDY);\n",
         "limo_rootfiles = Model2_files.LIMO;\n",
         "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n",
         "    [~,Model2_name] = fileparts(fileparts(Model2_files.mat{1}));\n",
@@ -513,6 +534,7 @@ def test_limo_integration_native_overlay_applies_only_five_approved_path_repairs
     ):
         assert restored.count(assignment) == 1
         restored = restored.replace(assignment, "")
+    assert "confiles                 = limo_batch('contrast only',[],contrast);" in restored
     replacements = [
         ("['LIMO_files_' Model2_name '.txt']", "'LIMO_files_Face_time_GLM_Channels_Time_WLS.txt'", 1),
         ("Model1_name '.txt'", "STUDY.design(1).name '_GLM_Channels_Time_OLS.txt'", 17),
@@ -549,6 +571,11 @@ def test_reference_limo_preprocessing_and_statistics(
     # this Python-owned workflow never evaluates the complete native script.
     prepare_limo_preprocessing_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    plot_function = "eegprep_test_limo_add_plots" if native else "limo_add_plots"
+    if native:
+        call("eegprep_test_base_workspace", "snapshot", nargout=0)
+        request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
     empty = np.empty((0, 0))
     call("pop_editoptions", option_storedisk=1.0, nargout=0)
     study, alleeg = call(
@@ -646,7 +673,7 @@ def test_reference_limo_preprocessing_and_statistics(
         "off",
         nargout=2,
     )
-    if request.config.getoption("--eeglab-backend") == "matlab":
+    if native:
         # The script's workspace assignments are GUI setup, not processing.
         for name, value in (
             ("STUDY", study),
@@ -678,6 +705,9 @@ def test_reference_limo_preprocessing_and_statistics(
         _cell_row(*(f"sub-{index:03d}" for index in range(2, 20))),
     )
     study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
+    if native:
+        # limo_settings_script reads base STUDY after the new design is saved.
+        call("assignin", "base", "STUDY", study, nargout=0)
     study, _, limo_files = call(
         "pop_limo",
         study,
@@ -743,7 +773,7 @@ def test_reference_limo_preprocessing_and_statistics(
         for parameter, name in zip(parameters, names, strict=True):
             call("limo_central_tendency_and_ci", files, parameter, chanlocs, estimator, "Mean", empty, name, nargout=0)
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(*(f"{name}_Mean_of_{suffix}.mat" for name in names)),
             limo_file,
             "channel",
@@ -755,7 +785,7 @@ def test_reference_limo_preprocessing_and_statistics(
     for index, (name, face) in enumerate(zip(names, ("Famous", "srambled", "unfamiliar"), strict=True), 1):
         _limo_graphics(request, "subplot", 1.0, 3.0, float(index))
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(f"{name}_Mean_of_mean.mat", f"{name}_Mean_of_Weighted mean.mat"),
             limo_file,
             "channel",
@@ -769,7 +799,7 @@ def test_reference_limo_preprocessing_and_statistics(
     for subject in range(1, 19):
         _limo_graphics(request, "subplot", 3.0, 6.0, float(subject))
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(
                 *(f"{name}_single_subjects_{suffix}.mat" for name in names for suffix in ("Mean", "Weighted mean"))
             ),
@@ -795,6 +825,8 @@ def test_reference_limo_preprocessing_and_statistics(
             ]
         ),
     }
+    if native:
+        call("assignin", "base", "STUDY", study, nargout=0)
     call("limo_batch", "contrast only", empty, contrast, nargout=0)
     names = []
     for index, face in enumerate(("famous_faces", "scrambled_faces", "unfamiliar_faces"), 1):
@@ -820,7 +852,7 @@ def test_reference_limo_preprocessing_and_statistics(
         names.append(str(directory / face))
         call("limo_central_tendency_and_ci", str(directory / "Yr.mat"), "Mean", 50.0, names[-1], nargout=0)
         _limo_cd(request, monkeypatch, analysis_path)
-    call("limo_add_plots", _cell_row(*(f"{name}_Mean.mat" for name in names)), limo_file, "channel", 50.0, nargout=0)
+    call(plot_function, _cell_row(*(f"{name}_Mean.mat" for name in names)), limo_file, "channel", 50.0, nargout=0)
     _limo_graphics(request, "title", "Means at channel 50")
     for face, output in (("famous", "diff_to_famous"), ("unfamiliar", "diff_to_unfamiliar")):
         call(
@@ -842,7 +874,7 @@ def test_reference_limo_preprocessing_and_statistics(
             nargout=0,
         )
     call(
-        "limo_add_plots",
+        plot_function,
         _cell_row(*(str(analysis_path / name) for name in ("diff_to_famous", "diff_to_unfamiliar"))),
         limo_file,
         "channel",
@@ -857,9 +889,13 @@ def test_reference_limo_preprocessing_and_statistics(
 @pytest.mark.slow
 @pytest.mark.gui
 def test_reference_limo_integration(eeglab_backend, limo_source_directory, eeglab_suite_root, request, monkeypatch):
-    """Original 18-subject, nine-section integration workflow with approved path repairs."""
+    """Original 18-subject, nine-section workflow with approved path/workspace setup."""
     prepare_limo_integration_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    if native:
+        call("eegprep_test_base_workspace", "snapshot", nargout=0)
+        request.addfinalizer(lambda: call("eegprep_test_base_workspace", "restore", nargout=0))
     empty = np.empty((0, 0))
     rng = np.random.default_rng()
     statuses = []
@@ -1024,6 +1060,10 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
             nargout=3,
         )
         contrast = {"LIMO_files": model2["mat"], "mat": np.array([[0.0, 0, 0, -1, 0, 1]])}
+        if native:
+            # Approved setup: native discovery reads base, not caller-local STUDY.
+            # Keep the original three-argument call and restore state at test exit.
+            call("assignin", "base", "STUDY", study, nargout=0)
         # The second call intentionally omits STUDY, as the source tests discovery.
         confiles = call("limo_batch", "contrast only", empty, contrast)
         model2["con"] = confiles["con"]

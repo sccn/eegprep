@@ -15,6 +15,8 @@ if strcmp(action, 'snapshot')
     for index = 1:numel(global_names)
         global_values{index} = read_global(global_names{index});
     end
+    % eeglab clears functions during initialization; retain this saved state.
+    mlock;
 else
     current_globals = who('global');
     for index = 1:numel(current_globals)
@@ -31,6 +33,7 @@ else
         assignin('base', base_names{index}, base_values{index});
     end
     clear base_names base_values base_globals global_names global_values;
+    munlock;
 end
 end
 

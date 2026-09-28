@@ -320,6 +320,14 @@ discard the returned status. A green wrapper therefore does not validate
 those predicates. The Python contracts retain the comparisons and fail;
 the graphics transport only removes handles the source never compares.
 
+The original ``statcond`` cases 9, 10, 13 and 14 also fail directly in native
+MATLAB R2026a with their stored zero absolute/relative tolerances. Their
+maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
+``7.81e-18`` and ``1.73e-17``; the direct fixture run passed 74 of 78 cases,
+matching the hybrid failures. These are retained reference fixture/platform
+discrepancies, not established EEGPrep defects. The original tolerances and
+failing assertions remain unchanged.
+
 The original ``std_topoplot`` workflow requires ``.icatopo`` files generated
 by the suite's earlier ``std_precomp`` workflow. A fresh source data checkout
 does not contain them. Its independent port creates the real scalp cache in
@@ -490,12 +498,37 @@ checks that the pinned source remains unchanged. The Python-owned workflow uses
 the same path expressions without evaluating the complete native script.
 Ordinary integrity checks do not establish full live validation.
 
+The port also publishes the current ``STUDY`` before ``pop_limo`` and the
+original three-argument contrast call. Native ``limo_settings_script`` reads
+base ``STUDY`` even when its caller has a valid local value; the earlier redraw
+precedes the script's new design. These explicit assignments reproduce the
+script's current workspace instead of supplying its stale pre-design copy.
+The Python-owned workflow snapshots/restores base/global state, and the scratch
+overlay's inverse removes both assignments to recover the pinned source.
+
 The pinned preprocessing script is interactive even after all input paths are
 resolved: ``limo_add_plots`` plots its supplied files, then asks for another
 central-tendency file until Cancel is selected. The first such dialog follows
-the three unweighted ERP files. Do not mistake this wait for ongoing bootstrap
-computation, supply an invented extra file, or describe a manually completed
-run as unattended validation.
+the three unweighted ERP files. Its port and scratch source overlay now use
+``eegprep_test_limo_add_plots``: the original native plotting function executes
+with every supplied file and unchanged options, while a scoped file-input
+fixture declines exactly one optional next-file request. A different prompt,
+repeated request or missing expected request fails. The original path and file
+chooser are restored even on failure. Live checks assert the actual plotted
+values and confidence-interval patches, and reject a required metadata chooser.
+This is explicit scripted file-input cancellation, not validation of clicking
+the native chooser. No extra file, computed result or plotting implementation
+is fabricated. The overlay's inverse also removes these eight wrapper names
+and recovers the original source byte-for-byte.
+
+The subsequent original per-subject plotting call exposes a separate pinned
+LIMO failure: its ``'variable'`` parser assigns the numeric subject index to
+``infile`` instead of retaining the supplied file list. ``load(file)`` then
+fails because the index is not a filename. Both the direct native call and
+the test wrapper reproduce this with the retained real six-file ERP inputs.
+The wrapper does not change this parser, suppress the error or omit the
+18-subject plotting loop. Successful optional-file cancellation therefore
+does not establish full preprocessing-workflow success.
 
 LIMO integration source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -507,8 +540,23 @@ from the first subject's returned contrast files, and the second-level
 ``H0/Betas_desc-H0.mat`` filename. The Python workflow and native overlay use
 the same generated model paths. Original text-list, cell and ragged-array
 inputs, all 18 subjects, OLS/WLS models, nine status sections, 101 bootstraps,
-statistical options and assertions remain unchanged. Base-workspace STUDY
-discovery and historical cleanup are not corrected by this overlay.
+statistical options and assertions remain unchanged. Historical cleanup is not
+corrected by this overlay.
+
+A separately authorized workspace-setup correction publishes the current local
+``STUDY`` into MATLAB's base workspace immediately before the original
+three-argument WLS ``limo_batch('contrast only', [], contrast)`` call. Native
+function-scope reproduction with all 18 retained models confirmed that the
+earlier no-argument ``eeglab`` call clears base/global ``STUDY`` and that LIMO's
+implicit discovery reads base, not the caller's valid local variable. The
+three-argument discovery path remains exercised; no fourth argument or runtime
+repair is substituted. The native overlay uses the existing state-only
+``eegprep_test_base_workspace`` helper with ``onCleanup``; the Python-owned
+MATLAB workflow uses the same snapshot/restore helper and a pytest finalizer.
+Both preserve the prior base/global workspace even on failure. The native
+snapshot helper remains locked until restoration because EEGLAB initialization
+executes ``clear functions``, which otherwise discards its saved state. The native
+overlay requires ``tests/matlab`` on the path, as supplied by the hybrid harness.
 
 ``prepare_limo_integration_source_overlay`` in ``tests.test_limo_eeglab_tests``
 checks the original SHA-256 before applying the exact substrings and occurrence
