@@ -135,7 +135,7 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
 
 
 def prepare_limo_integration_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply the approved path and base-STUDY setup repairs to a pinned copy."""
+    """Apply the approved path and STUDY setup repairs to a pinned copy."""
     source = suite_root / LIMO_INTEGRATION_SOURCE
     original = source.read_bytes()
     if sha256(original).hexdigest() != LIMO_INTEGRATION_SHA256:
@@ -156,6 +156,22 @@ def prepare_limo_integration_source_overlay(suite_root: Path, directory: Path) -
 def _limo_assign_groups(study):
     for index, info in enumerate(_limo_entries(study["datasetinfo"])):
         info["group"] = "1" if index < 6 else "2" if index < 13 else "3"
+
+
+def _limo_refresh_group_summary(study):
+    # The original std_checkset summary expression, after manual group edits.
+    study["group"] = _cell_row(*sorted({info["group"] for info in _limo_entries(study["datasetinfo"])}))
+
+
+def test_limo_group_summary_preserves_original_memberships():
+    entries = [{"subject": f"sub-{index:03d}", "group": ""} for index in range(2, 20)]
+    study = {"datasetinfo": entries, "group": _cell_row("")}
+    _limo_assign_groups(study)
+    before = [dict(info) for info in entries]
+    _limo_refresh_group_summary(study)
+    assert study["group"].tolist() == [["1", "2", "3"]]
+    assert entries == before
+    assert [sum(info["group"] == group for info in entries) for group in study["group"][0]] == [6, 7, 5]
 
 
 def _irls_remove_directory(directory, study_path):
@@ -508,12 +524,17 @@ def test_limo_integration_native_overlay_applies_only_approved_repairs(request, 
     directory = prepare_limo_integration_source_overlay(suite_root, tmp_path)
     restored = (directory / original.name).read_text()
     assert (
-        "clear variables\n"
         "eegprep_test_base_workspace('snapshot');\n"
+        "clear variables\n"
         "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n"
     ) in restored
     assert (
         "    assignin('base','STUDY',STUDY);\n    confiles                 = limo_batch('contrast only',[],contrast);"
+    ) in restored
+    for model in (1, 2):
+        assert (f"    assignin('base','STUDY',STUDY);\n    [STUDY, ~, Model{model}_files] = pop_limo") in restored
+    assert (
+        "    [STUDY.datasetinfo(14:18).group ]= deal('3');\n    STUDY.group = unique_bc({STUDY.datasetinfo.group});\n"
     ) in restored
     assert (
         "    Model1_files.con         = confiles.con;\n"
@@ -525,7 +546,7 @@ def test_limo_integration_native_overlay_applies_only_approved_repairs(request, 
     for assignment in (
         "eegprep_test_base_workspace('snapshot');\n",
         "workspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
-        "    assignin('base','STUDY',STUDY);\n",
+        "    STUDY.group = unique_bc({STUDY.datasetinfo.group});\n",
         "limo_rootfiles = Model2_files.LIMO;\n",
         "    [~,Model1_name] = fileparts(fileparts(Model1_files.mat{1}));\n",
         "    [~,Model2_name] = fileparts(fileparts(Model2_files.mat{1}));\n",
@@ -534,6 +555,8 @@ def test_limo_integration_native_overlay_applies_only_approved_repairs(request, 
     ):
         assert restored.count(assignment) == 1
         restored = restored.replace(assignment, "")
+    assert restored.count("    assignin('base','STUDY',STUDY);\n") == 3
+    restored = restored.replace("    assignin('base','STUDY',STUDY);\n", "")
     assert "confiles                 = limo_batch('contrast only',[],contrast);" in restored
     replacements = [
         ("['LIMO_files_' Model2_name '.txt']", "'LIMO_files_Face_time_GLM_Channels_Time_WLS.txt'", 1),
@@ -963,6 +986,7 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
     eeg = call("eeglab")
     study, alleeg = call("pop_loadstudy", "filename", study_file.name, "filepath", str(root), nargout=2)
     _limo_assign_groups(study)
+    _limo_refresh_group_summary(study)
 
     subjects = _cell_row(*(f"sub-{index:03d}" for index in range(2, 20)))
     with _limo_status(statuses, "categorical design + contrasts with OLS estimates"):
@@ -988,6 +1012,9 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
         )
         study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
         # The copied source tree has no previous models to clean up.
+        if native:
+            # limo_settings_script overwrites even an explicit STUDY from base.
+            call("assignin", "base", "STUDY", study, nargout=0)
         study, _, model1 = call(
             "pop_limo",
             study,
@@ -1041,6 +1068,8 @@ def test_reference_limo_integration(eeglab_backend, limo_source_directory, eegla
             subjects,
         )
         study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
+        if native:
+            call("assignin", "base", "STUDY", study, nargout=0)
         study, _, model2 = call(
             "pop_limo",
             study,
