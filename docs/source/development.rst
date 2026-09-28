@@ -248,6 +248,14 @@ discard the returned status. A green wrapper therefore does not validate
 those predicates. The Python contracts retain the comparisons and fail;
 the graphics transport only removes handles the source never compares.
 
+The original ``statcond`` cases 9, 10, 13 and 14 also fail directly in native
+MATLAB R2026a with their stored zero absolute/relative tolerances. Their
+maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
+``7.81e-18`` and ``1.73e-17``; the direct fixture run passed 74 of 78 cases,
+matching the hybrid failures. These are retained reference fixture/platform
+discrepancies, not established EEGPrep defects. The original tolerances and
+failing assertions remain unchanged.
+
 The original ``std_topoplot`` workflow requires ``.icatopo`` files generated
 by the suite's earlier ``std_precomp`` workflow. A fresh source data checkout
 does not contain them. Its independent port creates the real scalp cache in
@@ -421,9 +429,26 @@ Ordinary integrity checks do not establish full live validation.
 The pinned preprocessing script is interactive even after all input paths are
 resolved: ``limo_add_plots`` plots its supplied files, then asks for another
 central-tendency file until Cancel is selected. The first such dialog follows
-the three unweighted ERP files. Do not mistake this wait for ongoing bootstrap
-computation, supply an invented extra file, or describe a manually completed
-run as unattended validation.
+the three unweighted ERP files. Its port and scratch source overlay now use
+``eegprep_test_limo_add_plots``: the original native plotting function executes
+with every supplied file and unchanged options, while a scoped file-input
+fixture declines exactly one optional next-file request. A different prompt,
+repeated request or missing expected request fails. The original path and file
+chooser are restored even on failure. Live checks assert the actual plotted
+values and confidence-interval patches, and reject a required metadata chooser.
+This is explicit scripted file-input cancellation, not validation of clicking
+the native chooser. No extra file, computed result or plotting implementation
+is fabricated. The overlay's inverse also removes these eight wrapper names
+and recovers the original source byte-for-byte.
+
+The subsequent original per-subject plotting call exposes a separate pinned
+LIMO failure: its ``'variable'`` parser assigns the numeric subject index to
+``infile`` instead of retaining the supplied file list. ``load(file)`` then
+fails because the index is not a filename. Both the direct native call and
+the test wrapper reproduce this with the retained real six-file ERP inputs.
+The wrapper does not change this parser, suppress the error or omit the
+18-subject plotting loop. Successful optional-file cancellation therefore
+does not establish full preprocessing-workflow success.
 
 LIMO integration source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

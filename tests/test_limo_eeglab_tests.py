@@ -114,7 +114,7 @@ def _limo_entries(values):
 
 
 def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path) -> Path:
-    """Apply the approved generated-path corrections to a pinned scratch copy."""
+    """Apply generated-path repairs and explicit optional-file cancellation."""
     source = suite_root / LIMO_PREPROCESSING_SOURCE
     if sha256(source.read_bytes()).hexdigest() != LIMO_PREPROCESSING_SHA256:
         raise ValueError(f"LIMO preprocessing source differs from the pinned original: {source}")
@@ -124,6 +124,10 @@ def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path)
     subprocess.run(
         ["git", "apply", "--no-index", "--unidiff-zero", str(LIMO_PREPROCESSING_PATCH)], cwd=directory, check=True
     )
+    corrected = source_directory / source.name
+    text = corrected.read_text()
+    assert text.count("limo_add_plots(") == 8
+    corrected.write_text(text.replace("limo_add_plots(", "eegprep_test_limo_add_plots("))
     return source_directory
 
 
@@ -446,7 +450,7 @@ def test_irls_maximum_preserves_matlab_nan_and_first_index_semantics(values, max
     assert position == index
 
 
-def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(request, tmp_path):
+def test_limo_preprocessing_native_overlay_preserves_paths_and_explicit_file_choice(request, tmp_path):
     if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
         pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
     suite_root = request.getfixturevalue("eeglab_suite_root")
@@ -456,7 +460,8 @@ def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(re
     corrected = (directory / original.name).read_text()
     modelname_assignment = "[~,modelname] = fileparts(fileparts(LIMOfiles.mat{1}));\n"
     assert corrected.count(modelname_assignment) == 1
-    restored = corrected.replace(modelname_assignment, "")
+    assert corrected.count("eegprep_test_limo_add_plots(") == 8
+    restored = corrected.replace(modelname_assignment, "").replace("eegprep_test_limo_add_plots(", "limo_add_plots(")
     replacements = [
         ("STUDY  = pop_limo(", "[STUDY,~,LIMOfiles] = pop_limo("),
         (
@@ -549,6 +554,9 @@ def test_reference_limo_preprocessing_and_statistics(
     # this Python-owned workflow never evaluates the complete native script.
     prepare_limo_preprocessing_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
+    plot_function = (
+        "eegprep_test_limo_add_plots" if request.config.getoption("--eeglab-backend") == "matlab" else "limo_add_plots"
+    )
     empty = np.empty((0, 0))
     call("pop_editoptions", option_storedisk=1.0, nargout=0)
     study, alleeg = call(
@@ -743,7 +751,7 @@ def test_reference_limo_preprocessing_and_statistics(
         for parameter, name in zip(parameters, names, strict=True):
             call("limo_central_tendency_and_ci", files, parameter, chanlocs, estimator, "Mean", empty, name, nargout=0)
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(*(f"{name}_Mean_of_{suffix}.mat" for name in names)),
             limo_file,
             "channel",
@@ -755,7 +763,7 @@ def test_reference_limo_preprocessing_and_statistics(
     for index, (name, face) in enumerate(zip(names, ("Famous", "srambled", "unfamiliar"), strict=True), 1):
         _limo_graphics(request, "subplot", 1.0, 3.0, float(index))
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(f"{name}_Mean_of_mean.mat", f"{name}_Mean_of_Weighted mean.mat"),
             limo_file,
             "channel",
@@ -769,7 +777,7 @@ def test_reference_limo_preprocessing_and_statistics(
     for subject in range(1, 19):
         _limo_graphics(request, "subplot", 3.0, 6.0, float(subject))
         call(
-            "limo_add_plots",
+            plot_function,
             _cell_row(
                 *(f"{name}_single_subjects_{suffix}.mat" for name in names for suffix in ("Mean", "Weighted mean"))
             ),
@@ -820,7 +828,7 @@ def test_reference_limo_preprocessing_and_statistics(
         names.append(str(directory / face))
         call("limo_central_tendency_and_ci", str(directory / "Yr.mat"), "Mean", 50.0, names[-1], nargout=0)
         _limo_cd(request, monkeypatch, analysis_path)
-    call("limo_add_plots", _cell_row(*(f"{name}_Mean.mat" for name in names)), limo_file, "channel", 50.0, nargout=0)
+    call(plot_function, _cell_row(*(f"{name}_Mean.mat" for name in names)), limo_file, "channel", 50.0, nargout=0)
     _limo_graphics(request, "title", "Means at channel 50")
     for face, output in (("famous", "diff_to_famous"), ("unfamiliar", "diff_to_unfamiliar")):
         call(
@@ -842,7 +850,7 @@ def test_reference_limo_preprocessing_and_statistics(
             nargout=0,
         )
     call(
-        "limo_add_plots",
+        plot_function,
         _cell_row(*(str(analysis_path / name) for name in ("diff_to_famous", "diff_to_unfamiliar"))),
         limo_file,
         "channel",

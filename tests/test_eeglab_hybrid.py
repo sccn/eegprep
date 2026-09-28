@@ -517,6 +517,59 @@ def test_matlab_tutorial_figures_retain_their_plot_target_between_calls(eeglab_m
         engine.set(0.0, "DefaultFigureVisible", visibility, nargout=0)
 
 
+@pytest.mark.gui
+def test_matlab_limo_optional_file_choice_preserves_plots_and_restores_io(eeglab_matlab_engine, tmp_path):
+    engine = eeglab_matlab_engine
+    before_path = engine.path()
+    before_choice = engine.which("uigetfile")
+    filenames = np.empty((1, 2), dtype=object)
+    for index, mean in enumerate(([3.0, 4.0, 5.0], [9.0, 8.0, 7.0])):
+        values = np.asarray(mean)
+        intervals = np.stack([values - 1, values, values + 1], axis=-1)
+        filename = tmp_path / f"mean_{index}.mat"
+        savemat(
+            filename,
+            {
+                "result": {
+                    "Mean": np.stack([intervals, intervals + 20]),
+                    "limo": {"Analysis": "Time", "data": {"timevect": np.array([[0.0, 1.0, 2.0]])}},
+                }
+            },
+        )
+        filenames[0, index] = str(filename)
+    try:
+        call_matlab(engine, "eegprep_test_limo_add_plots", filenames, "channel", 1.0, nargout=0)
+        engine.eval(
+            "choice_lines=findall(gca,'Type','line'); assert(numel(choice_lines)==2,'Expected2lines, got %g',numel(choice_lines)); "
+            "assert(isequal(get(choice_lines(1),'XData'),[0 1 2]),'UnexpectedXData'); "
+            "choice_y=sortrows(cell2mat(get(choice_lines,'YData'))); "
+            "assert(isequal(choice_y,[3 4 5;9 8 7]),'UnexpectedYData: %s',mat2str(choice_y)); "
+            "assert(numel(findall(gca,'Type','patch'))==2,'Expected2intervalpatches'); "
+            "assert(~isappdata(groot,'eegprep_test_limo_file_choice'),'FixtureNotRestored');",
+            nargout=0,
+        )
+        assert engine.path() == before_path
+        assert engine.which("uigetfile") == before_choice
+        # A required metadata chooser must fail, never be treated as optional.
+        missing = tmp_path / "missing_metadata.mat"
+        savemat(missing, {"result": {"Mean": np.ones((2, 3, 3))}})
+        with pytest.raises(Exception, match="Only one optional extra-file prompt"):
+            call_matlab(
+                engine,
+                "eegprep_test_limo_add_plots",
+                np.array([[str(missing)]], dtype=object),
+                "channel",
+                1.0,
+                nargout=0,
+            )
+        assert engine.path() == before_path
+        assert engine.which("uigetfile") == before_choice
+        assert not engine.isappdata(0.0, "eegprep_test_limo_file_choice")
+    finally:
+        engine.close("all", "force", nargout=0)
+        engine.eval("clear choice_lines choice_y plotted_data;", nargout=0)
+
+
 def test_matlab_bids_metadata_loaders(eeglab_matlab_engine, eeglab_suite_root):
     """Exercise native JSONio and BIDS setup on the original 18-subject metadata."""
     directory = eeglab_suite_root / "ds002718"
