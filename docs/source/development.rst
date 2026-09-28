@@ -131,6 +131,78 @@ stale reference. Pass ``--json`` for automation. It deliberately rejects the
 old ``eeglab-testcases`` repository, a checkout at another commit, and
 provenance that does not exist in the pinned suite.
 
+Native MATLAB statement coverage
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``tools/eeglab_statement_coverage.py`` freezes the approved source denominator
+independently of test selection. It includes root/core MATLAB files, private and
+class helpers, GUI/admin functions, the named workflow plugins and importers.
+Both installed BIDS trees are included. Dependency internals (Manopt,
+MatConvNet, JSONio, LIMO external code and FieldTrip), native/opaque binaries,
+and other installed plugins are hashed and reported separately, not credited
+as covered. Downloaded plugin directories have content provenance rather than
+an invented Git revision. Missing required plugins or any subsequent source
+addition, edit or deletion invalidate the frozen inventory.
+
+For an initial, explicitly partial headless measurement, copy the native test
+sources into scratch and select existing suites that do not require datasets.
+Use a separate writable copy of the entire EEGLAB tree, including sample data;
+its source hashes must match the frozen denominator. Never use hard links or
+writable data symlinks to the reference. APFS ``cp -cR`` can clone these files
+efficiently on macOS; elsewhere use an ordinary recursive copy. Do not put the
+runtime copy inside the scratch test root, where it could shadow test paths:
+
+.. code-block:: bash
+
+    uv run python -m tools.eeglab_statement_coverage freeze \
+      --suite-root /path/to/eeglab_tests --output /scratch/scope.json
+    rsync -a --exclude /eeglab --exclude .git --include '*/' --include '*.m' \
+      --exclude '*' /path/to/eeglab_tests/ /scratch/native-tests/
+    cp -cR /path/to/eeglab_tests/eeglab /scratch/runtime-eeglab
+    uv run python -m tools.eeglab_statement_coverage run \
+      --manifest /scratch/scope.json --test-root /scratch/native-tests \
+      --runtime-root /scratch/runtime-eeglab \
+      --test-file unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m \
+      --output /scratch/coverage-run --matlab /path/to/matlab --timeout 1800
+
+The output directory must be new. Add repeated ``--test-file`` and
+``--support-path`` arguments explicitly. Dataset workflows require their real
+data copied into scratch as well; this command does not download dependencies,
+rewrite source tests, approve corrections or shorten workloads. It currently
+accepts unchanged frozen test sources only, so approved LIMO source overlays
+need an explicitly recorded overlay boundary before joining this native run.
+The driver checks both reference and runtime source inventories before and
+after execution. Existing home options are copied into the test-local options
+directory; the pinned ``icadefs`` script is wrapped only to redirect
+``EEGOPTION_PATH`` there. The home options hash must remain unchanged.
+
+The native runner follows ``eeglab_tests/example_local_test.m`` using the public
+``TestRunner`` and ``CodeCoveragePlugin.forFile`` with ``MetricLevel='statement'``.
+``CoverageResult.Result.coverageSummary(..., 'statement')`` supplies executed
+and executable statement counts; this is not Cobertura's line-rate metric.
+The live harness regression proves two statements on one line are counted
+separately and an entirely uncalled file remains in the denominator. Function
+counts and native statement locations/hit counts are retained too. Decision
+coverage is explicitly not collected. Parallel-worker hits are not yet proven
+to be collected; treat this as client-side coverage, not full parallel coverage.
+MATLAB R2026a can return invalid source files as 0/0 instead of omitting them.
+The runner explicitly reads ``matlab.coverage.Result.Invalid`` (public getter,
+hidden property in the installed R2026a API) and marks these files unmeasurable.
+They remain in the manifest; measured statement totals are not a complete
+denominator and no full-scope percentage is valid while such files remain.
+
+``run.json`` records inputs and source hashes; the exact native runner is copied
+beside it. All selected native suite files form one batch, avoiding repeated
+full-scope instrumentation/report construction. ``report.json``, ``coverage.mat``
+and ``results.xml`` retain actual results, including failures, before acceptance
+checks. The report distinguishes requested files, discovered native case names,
+executed cases, unselected files and unmeasurable source files. ``driver.json``
+and ``matlab.log`` retain timeout/error status. A timeout leaves the selected
+batch incomplete; partial-batch coverage is not recovered or claimed.
+The timeout kills only this runner's process group. A failing source test does
+not prevent measurement; it still prevents claiming successful validation.
+Neither a partial run nor this instrumentation establishes 90% coverage.
+
 Source fidelity and graphical validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
