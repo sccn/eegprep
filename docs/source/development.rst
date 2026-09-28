@@ -389,6 +389,25 @@ frames using the original visible default. Its port temporarily enables
 visible figures for this capture workflow and restores the previous setting;
 it does not resize frames, change plotting options or patch the source.
 
+LIMO preprocessing source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The separately approved ``limo_preproc_stats_hw.m`` correction captures
+``pop_limo``'s existing third output and resolves the adjacency and Beta/LIMO/
+contrast text-list paths from the generated model directory. The pinned
+reference writes these under ``derivatives2/derivatives`` with a study-prefixed
+GLM name; the original script expects the older paths. The correction preserves
+all 18 subjects, preprocessing options, text-list inputs, 1,000 second-level
+bootstraps, calculations and plots.
+
+``prepare_limo_preprocessing_source_overlay`` in
+``tests.test_limo_eeglab_tests`` verifies the original SHA-256 and applies
+``tests/matlab/limo_preproc_stats_hw.source-corrections.patch`` only to a scratch
+copy. Its integrity regression reverses the approved edits byte-for-byte and
+checks that the pinned source remains unchanged. The Python-owned workflow uses
+the same path expressions without evaluating the complete native script.
+Ordinary integrity checks do not establish full live validation.
+
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -7,6 +7,7 @@ from hashlib import sha256
 import logging
 from pathlib import Path
 import shutil
+import subprocess
 
 import matplotlib
 import numpy as np
@@ -46,6 +47,9 @@ from tests.test_tutorial_eeglab_tests import _tutorial_redraw, _tutorial_start
 
 
 LIMO_WRAPPER = "unittesting_limo/limo_wrapperTest.m"
+LIMO_PREPROCESSING_SOURCE = "unittesting_limo/limo_preproc_stats_hw.m"
+LIMO_PREPROCESSING_SHA256 = "36327e3c301bc8a16455331b69f487205994963021aa10ec4997ee96f05e154a"
+LIMO_PREPROCESSING_PATCH = Path(__file__).parent / "matlab" / "limo_preproc_stats_hw.source-corrections.patch"
 FACE_EVENTS = tuple(
     f"{face}_{repetition}"
     for face in ("famous", "scrambled", "unfamiliar")
@@ -103,6 +107,20 @@ def _limo_entries(values):
     # MATLAB cells/struct arrays retain their dimensions in the test transport;
     # Python's equivalents are lists. Index both in MATLAB's linear order.
     return values.ravel(order="F") if isinstance(values, np.ndarray) else values
+
+
+def prepare_limo_preprocessing_source_overlay(suite_root: Path, directory: Path) -> Path:
+    """Apply the approved generated-path corrections to a pinned scratch copy."""
+    source = suite_root / LIMO_PREPROCESSING_SOURCE
+    if sha256(source.read_bytes()).hexdigest() != LIMO_PREPROCESSING_SHA256:
+        raise ValueError(f"LIMO preprocessing source differs from the pinned original: {source}")
+    source_directory = directory / "unittesting_limo"
+    source_directory.mkdir()
+    shutil.copy2(source, source_directory / source.name)
+    subprocess.run(
+        ["git", "apply", "--no-index", "--unidiff-zero", str(LIMO_PREPROCESSING_PATCH)], cwd=directory, check=True
+    )
+    return source_directory
 
 
 def _limo_assign_groups(study):
@@ -405,11 +423,59 @@ def test_irls_maximum_preserves_matlab_nan_and_first_index_semantics(values, max
     assert position == index
 
 
+def test_limo_preprocessing_native_overlay_applies_only_approved_path_repairs(request, tmp_path):
+    if not (request.config.getoption("--eeglab-suite-root") or request.config.getoption("--eeglab-root")):
+        pytest.skip("LIMO overlay verification requires the optional pinned EEGLAB tests checkout")
+    suite_root = request.getfixturevalue("eeglab_suite_root")
+    original = suite_root / LIMO_PREPROCESSING_SOURCE
+    before = original.read_bytes()
+    directory = prepare_limo_preprocessing_source_overlay(suite_root, tmp_path)
+    corrected = (directory / original.name).read_text()
+    modelname_assignment = "[~,modelname] = fileparts(fileparts(LIMOfiles.mat{1}));\n"
+    assert corrected.count(modelname_assignment) == 1
+    restored = corrected.replace(modelname_assignment, "")
+    replacements = [
+        ("STUDY  = pop_limo(", "[STUDY,~,LIMOfiles] = pop_limo("),
+        (
+            "chanlocs = [STUDY.filepath filesep 'limo_gp_level_chanlocs.mat'];",
+            "chanlocs = fullfile(fileparts(LIMOfiles.LIMO), 'limo_gp_level_chanlocs.mat');",
+        ),
+        (
+            "[STUDY.filepath filesep 'LIMO_Face_detection' filesep  'Beta_files_FaceRepetition_GLM_Channels_Time_' mode '.txt']",
+            "fullfile(LIMOfiles.LIMO, ['Beta_files_' modelname '.txt'])",
+        ),
+        (
+            "[STUDY.filepath filesep 'LIMO_' STUDY.filename(1:end-6) filesep ...\n"
+            "    'LIMO_files_FaceRepetition_GLM_Channels_Time_' mode '.txt']",
+            "fullfile(LIMOfiles.LIMO, ['LIMO_files_' modelname '.txt'])",
+        ),
+    ]
+    replacements.extend(
+        (
+            "[STUDY.filepath filesep 'LIMO_' STUDY.filename(1:end-6) filesep "
+            f"'con_{index}_files_FaceRepetition_GLM_Channels_Time_' mode '.txt']",
+            f"fullfile(LIMOfiles.LIMO, ['con_{index}_files_' modelname '.txt'])",
+        )
+        for index in range(1, 4)
+    )
+    for source, replacement in replacements:
+        assert restored.count(replacement) == before.decode().count(source)
+        restored = restored.replace(replacement, source)
+    assert restored.encode() == before
+    assert original.read_bytes() == before
+    assert sha256(before).hexdigest() == LIMO_PREPROCESSING_SHA256
+
+
 @eeglab_test(LIMO_WRAPPER, "limo_test1")
 @pytest.mark.slow
 @pytest.mark.gui
-def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source_directory, request, monkeypatch):
-    """Full original 18-subject pipeline; completion is its smoke oracle."""
+def test_reference_limo_preprocessing_and_statistics(
+    eeglab_backend, limo_source_directory, eeglab_suite_root, request, monkeypatch
+):
+    """Full original pipeline with approved generated-path repairs; completion is its smoke oracle."""
+    # Keep a hash-checked native overlay for the same narrow source correction;
+    # this Python-owned workflow never evaluates the complete native script.
+    prepare_limo_preprocessing_source_overlay(eeglab_suite_root, limo_source_directory.parent)
     call = eeglab_backend
     empty = np.empty((0, 0))
     call("pop_editoptions", option_storedisk=1.0, nargout=0)
@@ -540,7 +606,7 @@ def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source
         _cell_row(*(f"sub-{index:03d}" for index in range(2, 20))),
     )
     study, eeg = call("pop_savestudy", study, eeg, "savemode", "resave", nargout=2)
-    study = call(
+    study, _, limo_files = call(
         "pop_limo",
         study,
         alleeg,
@@ -556,22 +622,25 @@ def test_reference_limo_preprocessing_and_statistics(eeglab_backend, limo_source
         "off",
         "interaction",
         "off",
+        nargout=3,
     )
     study_path = Path(study["filepath"])
     assert study_path.is_relative_to(limo_source_directory)
     analysis_path = study_path / "2-ways-ANOVA"
     analysis_path.mkdir()
     _limo_cd(request, monkeypatch, analysis_path)
-    chanlocs = str(study_path / "limo_gp_level_chanlocs.mat")
-    model_path = study_path / f"LIMO_{study['filename'][:-6]}"
-    model_name = "FaceRepetition_GLM_Channels_Time_WLS.txt"
+    # The approved native overlay uses these same returned model paths, keeping
+    # the original text-list input forms without guessing old LIMO filenames.
+    model_path = Path(limo_files["LIMO"])
+    chanlocs = str(model_path.parent / "limo_gp_level_chanlocs.mat")
+    model_name = f"{Path(_limo_entries(limo_files['mat'])[0]).parent.name}.txt"
     parameters = tuple(np.arange(start, start + 3, dtype=float)[None, :] for start in (1, 4, 7))
     call(
         "limo_random_select",
         "Repeated Measures ANOVA",
         chanlocs,
         "LIMOfiles",
-        _cell_row(str(study_path / "LIMO_Face_detection" / f"Beta_files_{model_name}")),
+        _cell_row(str(model_path / f"Beta_files_{model_name}")),
         "analysis_type",
         "Full scalp analysis",
         "parameters",
