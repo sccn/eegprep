@@ -552,12 +552,20 @@ corrected by this overlay.
 
 A separately authorized workspace-setup correction publishes the current local
 ``STUDY`` into MATLAB's base workspace immediately before the original
-three-argument WLS ``limo_batch('contrast only', [], contrast)`` call. Native
+two ``pop_limo`` model calls and the three-argument WLS
+``limo_batch('contrast only', [], contrast)`` call. Native
 function-scope reproduction with all 18 retained models confirmed that the
 earlier no-argument ``eeglab`` call clears base/global ``STUDY`` and that LIMO's
 implicit discovery reads base, not the caller's valid local variable. The
-three-argument discovery path remains exercised; no fourth argument or runtime
-repair is substituted. The native overlay uses the existing state-only
+``limo_settings_script`` called from ``limo_batch`` also overwrites an explicitly
+passed local ``STUDY`` from base before metadata export, requiring the same setup
+before both model calls. After the original post-load 6/7/5 group assignment,
+the overlay also refreshes only ``STUDY.group`` using the original
+``std_checkset`` expression ``unique_bc({STUDY.datasetinfo.group})``. The load
+checked this summary before the manual assignments, retaining an empty label; native
+LIMO requires it to emit grouped text lists. Dataset membership and order are
+unchanged. The three-argument discovery path remains exercised; no fourth
+argument or runtime repair is substituted. The native overlay uses the existing state-only
 ``eegprep_test_base_workspace`` helper with ``onCleanup``; the Python-owned
 MATLAB workflow uses the same snapshot/restore helper and a pytest finalizer.
 Both preserve the prior base/global workspace even on failure. The native

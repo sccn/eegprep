@@ -1,8 +1,18 @@
 [
   {
     "source": "clear variables\n",
-    "replacement": "clear variables\neegprep_test_base_workspace('snapshot');\nworkspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
+    "replacement": "eegprep_test_base_workspace('snapshot');\nclear variables\nworkspace_cleanup = onCleanup(@() eegprep_test_base_workspace('restore'));\n",
     "count": 1
+  },
+  {
+    "source": "    [STUDY.datasetinfo(14:18).group ]= deal('3');\n",
+    "replacement": "    [STUDY.datasetinfo(14:18).group ]= deal('3');\n    STUDY.group = unique_bc({STUDY.datasetinfo.group});\n",
+    "count": 1
+  },
+  {
+    "source": "    [STUDY, ~, Model",
+    "replacement": "    assignin('base','STUDY',STUDY);\n    [STUDY, ~, Model",
+    "count": 2
   },
   {
     "source": "    confiles                 = limo_batch('contrast only',[],contrast);",
