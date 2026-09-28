@@ -418,6 +418,13 @@ checks that the pinned source remains unchanged. The Python-owned workflow uses
 the same path expressions without evaluating the complete native script.
 Ordinary integrity checks do not establish full live validation.
 
+The pinned preprocessing script is interactive even after all input paths are
+resolved: ``limo_add_plots`` plots its supplied files, then asks for another
+central-tendency file until Cancel is selected. The first such dialog follows
+the three unweighted ERP files. Do not mistake this wait for ongoing bootstrap
+computation, supply an invented extra file, or describe a manually completed
+run as unattended validation.
+
 LIMO integration source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
