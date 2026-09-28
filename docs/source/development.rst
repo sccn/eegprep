@@ -255,6 +255,28 @@ The timeout kills only this runner's process group. A failing source test does
 not prevent measurement; it still prevents claiming successful validation.
 Neither a partial run nor this instrumentation establishes 90% coverage.
 
+The first expansion batch contains 46 native cases across structures/events,
+signal processing and real-data I/O. On the pinned MATLAB R2026a runtime,
+44 pass and two preserve newly discovered reference defects without skips or
+expected-failure markers:
+
+* Reordering epochs with ``pop_select(..., 'trial', [3 1], 'sorttrial', 'off')``
+  retains correct per-epoch data/event/urevent relationships, but the global
+  events are not sorted by ascending epoch/latency as requested by
+  ``eeg_checkset``. ``pop_editeventvals`` applies its secondary permutation,
+  then a primary permutation calculated from the original event array.
+* ``pop_loadset(..., 'loadmode', [32 1 17])`` returns data in sorted channel
+  order while the channel labels remain in requested order. The original
+  real-data subset regression preserves the data/label identity expectation.
+
+No reference or EEGPrep implementation is changed for these findings. The
+native coverage union with the earlier baseline is 32,146/197,022 statements
+(16.316%), including 195 newly exercised statements. The additions execute
+3,240 statements by themselves; adding that number to the baseline would
+double-count overlaps. There are no additional unmeasurable files. These
+results establish the first batch only, not completion of any expansion family
+or the 90% target.
+
 Source fidelity and graphical validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
