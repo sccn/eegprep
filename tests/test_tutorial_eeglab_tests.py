@@ -100,10 +100,17 @@ def _tutorial_start(backend, request, *, outputs=0):
 
 def _tutorial_redraw(backend, request, window, **state):
     if request.config.getoption("--eeglab-backend") == "matlab":
-        backend("eegprep_test_tutorial_redraw", state, nargout=0)
-    else:
-        window.session.apply_workspace_state(**{key.lower(): value for key, value in state.items()})
-        window.refresh()
+        return backend("eegprep_test_tutorial_redraw", state)
+    window.session.apply_workspace_state(**{key.lower(): value for key, value in state.items()})
+    window.refresh()
+    return {
+        "ALLEEG": window.session.ALLEEG,
+        "EEG": window.session.EEG,
+        "CURRENTSET": window.session.current_set_value(),
+        "ALLCOM": window.session.ALLCOM,
+        "STUDY": window.session.STUDY,
+        "CURRENTSTUDY": window.session.CURRENTSTUDY,
+    }
 
 
 def _tutorial_fieldtrip(request):
@@ -478,9 +485,10 @@ def test_reference_tutorial_study_script(
     )
     eeg = alleeg
     currentset = np.arange(1.0, len(_records(eeg)) + 1).reshape(1, -1)
-    _tutorial_redraw(
+    workspace = _tutorial_redraw(
         backend, request, window, STUDY=study, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, CURRENTSTUDY=1.0
     )
+    study, alleeg = workspace["STUDY"], workspace["ALLEEG"]
     study, alleeg = backend(
         "std_precomp",
         study,
@@ -1191,7 +1199,8 @@ def test_reference_tutorial_history(eeglab_backend, eeglab_suite_root, eeglab_op
         "pop_comments", eeg["comments"], "", "Extracted 'square' epochs [-1 2] sec, and removed baseline.", 1.0
     )
     alleeg, eeg, currentset = backend("eeg_store", alleeg, eeg, 1.0, nargout=3)
-    _tutorial_redraw(backend, request, window, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, ALLCOM=allcom)
+    workspace = _tutorial_redraw(backend, request, window, ALLEEG=alleeg, EEG=eeg, CURRENTSET=currentset, ALLCOM=allcom)
+    alleeg, eeg, currentset = workspace["ALLEEG"], workspace["EEG"], workspace["CURRENTSET"]
     eeg = backend("pop_resample", eeg, 128.0)
     alleeg, eeg, currentset = backend(
         "pop_newset", alleeg, eeg, currentset, "setname", "Continuous EEG Data resampled", nargout=3
