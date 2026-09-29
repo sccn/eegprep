@@ -89,6 +89,13 @@ EEGPrep currently pins ``eeglab_tests`` commit
 ``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
 ``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
 
+The current deliverable is faithful ports of these existing tests, validated
+against MATLAB. It does not include newly authored MATLAB scientific cases,
+implementation-coverage targets, or EEGPrep capability fixes. Reuse unchanged
+verified results; obtain fresh evidence for changed or previously unverified
+paths. Passing the translated tests on MATLAB validates their translation, not
+whether EEGPrep itself implements every tested workflow.
+
 Translate the behavior and assertions of each MATLAB scenario into the closest
 existing pytest module. Decorate the Python test with its upstream path and
 test name so coverage remains traceable without a separate conversion matrix:
@@ -142,6 +149,16 @@ the source recording, workload, call sequence, or assertions. A source wrapper
 whose body is entirely commented out or immediately returns is inactive, not a
 successful behavioral test. Such definitions remain visible in the inventory
 without attaching misleading provenance to a different Python scenario.
+
+The pinned inventory contains 813 definitions: 709 have Python source
+references, and 104 remain unmatched. Inspection classifies the unmatched
+definitions as 60 comment-only leaves, 27 empty functions, one commented
+tutorial body, five help-only calls, eight no-argument helper returns, two
+disabled early-return cases, and one TODO-status-only leaf. Meaningful
+interpolation and memory-mapped-object helper calls remain inside their
+parent workflow ports. The raw audit still reports the 104 unmatched entries;
+do not create dummy ports or describe this as 813 passing tests. This source
+accounting is distinct from assertion fidelity and execution evidence.
 
 Mark every contract that creates plots, windows, dialogs, or graphical
 callbacks with ``gui``, even when MATLAB figures would be invisible. This
@@ -255,6 +272,13 @@ maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
 matching the hybrid failures. These are retained reference fixture/platform
 discrepancies, not established EEGPrep defects. The original tolerances and
 failing assertions remain unchanged.
+
+Some graphical wrappers also discard failure statuses. The two ``gradplot``
+center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
+native-backed runs, despite their wrapper-level pytest passes. The headmovie
+failure is a nonscalar logical condition on the pinned R2026a runtime. These
+recorded statuses are source-oracle limitations, not successful scientific
+validation; do not change the original predicates to make the report green.
 
 The original ``std_topoplot`` workflow requires ``.icatopo`` files generated
 by the suite's earlier ``std_precomp`` workflow. A fresh source data checkout
@@ -394,6 +418,10 @@ The source specifies no answer. A manual run that selects Cancel exercises
 that cancellation path but does not prove an unattended workflow or assert
 the resulting STUDY contents. Do not silently overwrite a dataset, synchronize
 the variables, or invent a dialog response inside the port.
+The test-only redraw boundary returns the actual post-dialog workspace or
+session state so subsequent source operations use the user's real choice.
+This state transport does not select an answer or add a Cancel-only scientific
+expectation. Interactive acceptance remains a separate required check.
 
 The movie tutorial requires visible MATLAB figures for native frame capture.
 On R2026a, the original 2-D section produces inconsistent frame dimensions
