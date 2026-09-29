@@ -228,9 +228,10 @@ and transport-only harness checks. For a non-graphical, non-slow contract run:
       --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
       -m "eeglab_contract and not gui and not slow" --junitxml=contracts.xml
 
-This is a selected run, not full acceptance: graphical and slow contracts remain
-unvalidated, and original prerequisite guards may return without exercising
-their scientific branches. Report those limits separately from pass counts.
+This is a selected run, not full acceptance: graphical and slow contracts are
+not validated by this selection, and original prerequisite guards may return
+without exercising their scientific branches. Report those limits separately
+from pass counts.
 The guarded statistical and legacy ERSP contracts record
 ``eeglab_source_body_entered`` in each JUnit test case's ``properties``; a
 ``False`` value means the original prerequisite/version guard returned before
@@ -440,6 +441,12 @@ observed native workflow, not an unattended test or proof of Python GUI support.
 ``pop_studydesign`` New-variable callback currently displays an unavailable
 subdialog message; the missing workflow remains visible for later capability
 work rather than being treated as an expected successful skip.
+Keep this original manual instruction as a separate manual acceptance case.
+Automating it with a new cross-backend GUI driver is not required to preserve
+the original test, and its manual result must not be added to automated pass
+counts. The Python test's fixture closes the window during teardown, so perform
+the check while paused immediately after ``_tutorial_redraw`` returns, before
+allowing teardown to proceed.
 
 The movie tutorial requires visible MATLAB figures for native frame capture.
 On R2026a, the original 2-D section produces inconsistent frame dimensions
@@ -555,6 +562,50 @@ sections. Pinned ``limo_glm_handling`` writes subject-prefixed
 when given the original LIMO-model list. The identical native list-input call
 reproduces the failure. Preserve that input and failure: replacing the list
 with R2-file paths would bypass the workflow being ported, not validate it.
+
+Isolated LIMO implementation corrections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two implementation corrections were explicitly approved on September 29, 2026
+for an isolated reference copy only. They are separate from the test-source
+overlays above. ``tests/matlab/limo_isolated_reference_fixes.patch`` changes
+the plotting parser to assign ``'variable'`` to its existing selector ``v``
+instead of overwriting the filename list. It also makes the R2 reader use the
+mass-univariate writer's subject-prefixed filename, retaining ``R2.mat`` for
+non-BIDS and multivariate models. Numerical operations, input lists, subjects,
+bootstrap counts and assertions are unchanged. Pytest never applies this patch.
+
+The initial corrected-reference checks did not complete either workflow.
+The unchanged 18-model R2-list call reached a further native error: all models
+lack the optional ``chanlocs.urchan`` field, which the reader dereferences
+unconditionally. The six-file subject plot completed subject 1, then failed
+on subject 2 with an out-of-bounds third-dimension index. Both checks retained
+unchanged input hashes. These are additional reference findings, not evidence
+that the remaining scientific sections passed; this patch does not fix them.
+
+Keep the pinned original intact. Create an independent local clone at its
+recorded revision and copy the installed plugins/support files, excluding
+``.git`` files: the original checkout's relative submodule pointer is not
+valid at another location. Before applying the patch, verify SHA-256 values:
+
+* ``limo_add_plots.m``:
+  ``ed715d6897c3cd8792fc9860ad34465f212d236f1deb733827ac4699bbf2bba7``.
+* ``limo_best_electrodes.m``:
+  ``ab910cd979623d07a45ec9fdb293b3aa6fa7d4b15c982778942cce7f47a9af42``.
+
+Apply the patch only in that copy. Verify that these are its only source-file
+differences and that MATLAB's ``which`` resolves both functions there. A
+matching Git HEAD alone does not establish an unchanged oracle. Pass the copy
+as ``--eeglab-root`` and the original suite as ``--eeglab-suite-root``; record
+the patch and file hashes with every result. Corrected-reference results must
+remain distinct from original-reference failures.
+
+Reusing retained first-level models to execute an unchanged remaining Python
+test section provides segmented evidence, not a fresh whole-test pass. Do not
+invent successful status entries for earlier sections. Use new output
+directories and verify retained inputs are unchanged; operations such as
+``limo_batch('contrast only', ...)`` modify model directories and therefore
+require isolated input copies too.
 
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
