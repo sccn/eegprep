@@ -389,8 +389,8 @@ Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
 can execute them, while Octave cannot execute the Live Script format.
 
 The ten active wrapper contracts in ``tests/test_tutorial_eeglab_tests.py``
-retain the original scripts' operation sequences, arguments, and full inputs:
-the continuous and ICA-epoched sample recordings, five-subject N400 study,
+retain the original scripts' executable operation sequences, arguments, and
+full inputs: the continuous and ICA-epoched sample recordings, five-subject N400 study,
 and P300 BIDS tree (with the original subjects 1--2 selection). Workflows that
 write datasets, measure caches, spline files, or videos use isolated working
 directories and complete copies of the source input trees when needed. The
@@ -422,6 +422,24 @@ The test-only redraw boundary returns the actual post-dialog workspace or
 session state so subsequent source operations use the user's real choice.
 This state transport does not select an answer or add a Cancel-only scientific
 expectation. Interactive acceptance remains a separate required check.
+
+The source also includes a manual follow-up at
+``tutorial_scripts/event_processing_study.m:39-41``: open
+``STUDY > Select/Edit study design(s)``, press the lower ``New`` button under
+``Edit the independent variables for this design``, and check that ``rt`` is
+available in ``Add variable``. The Python wrapper currently stops at redraw;
+its passing result does not include this follow-up. A generated-data
+``std_makedesign`` test is not a substitute for the original menu workflow.
+Native manual validation on September 29, 2026 observed ``rt`` selectable as
+a continuous variable after explicitly canceling the stale-EEG overwrite.
+The retained dataset has 157 events with 75 numeric ``rt`` values and 82 empty
+fields; the 80 STUDY trial records contain the same 75 numeric values and
+five empty fields. The workspace was unchanged by opening and closing the
+design dialogs, and no additional design was saved. This is evidence for that
+observed native workflow, not an unattended test or proof of Python GUI support. EEGPrep's
+``pop_studydesign`` New-variable callback currently displays an unavailable
+subdialog message; the missing workflow remains visible for later capability
+work rather than being treated as an expected successful skip.
 
 The movie tutorial requires visible MATLAB figures for native frame capture.
 On R2026a, the original 2-D section produces inconsistent frame dimensions
