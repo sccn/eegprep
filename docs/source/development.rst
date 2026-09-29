@@ -530,6 +530,14 @@ that the required whitespace checks would remove from a unified patch. An
 independent inverse regression recovers the pinned source byte-for-byte; no
 reference checkout is edited. Full live validation remains a separate check.
 
+The retained full integration run completed all 18 OLS and 18 WLS models,
+with 36 OLS and 18 WLS contrasts, then failed before the seven second-level
+sections. Pinned ``limo_glm_handling`` writes subject-prefixed
+``sub-NNN_desc-R2.mat`` files, but ``limo_best_electrodes`` loads ``R2.mat``
+when given the original LIMO-model list. The identical native list-input call
+reproduces the failure. Preserve that input and failure: replacing the list
+with R2-file paths would bypass the workflow being ported, not validate it.
+
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
