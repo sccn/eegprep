@@ -569,7 +569,7 @@ Isolated LIMO implementation corrections
 Implementation corrections were explicitly approved on September 29, 2026
 for an isolated reference copy only. They are separate from the test-source
 overlays above. ``tests/matlab/limo_isolated_reference_fixes.patch`` records
-four corrections in two files:
+eight corrections in four files:
 
 * The plotting parser assigns ``'variable'`` to its existing selector ``v``
   instead of overwriting the filename list.
@@ -583,6 +583,22 @@ four corrections in two files:
 * The reader checks whether optional ``chanlocs.urchan`` metadata exists before
   reading it, matching its documented contract. The optional output retains
   its existing NaN initialization when absent; no channel mapping is invented.
+* ``limo_random_select`` unwraps a singleton inner filename cell before
+  ``fileparts``. Native ``limo_batch`` returns these nested contrast lists;
+  concatenating the cell-valued basename and extension previously turned one
+  filename into two entries. The original list shapes remain unchanged.
+* The original group-orientation warning formats its numeric group count into
+  the message instead of passing that count as a graphical window title. The
+  warning and source input orientation are retained.
+* Channel selection parses the existing numeric text as a vector, preserving
+  the supplied optimized channel indices. The scalar-only conversion previously
+  returned NaN for the original multi-subject vector.
+* Single-channel Time-domain TFCE null data retain the channel, frame and
+  bootstrap axes when selecting the existing t-statistic. The original
+  ``squeeze`` removed the channel axis, so the unchanged bootstrap loop indexed
+  a nonexistent third dimension. ``reshape`` preserves the same values as
+  ``1 x frames x bootstraps``; multi-channel and Time-Frequency branches are
+  unchanged.
 
 Numerical operations, input lists, subjects, bootstrap counts and source-test
 assertions are unchanged. Pytest never applies this patch.
@@ -598,7 +614,65 @@ channels exactly matched the original maximum-F/first-column-major-index rule
 on the retained R2 arrays. Original reference and input hashes were unchanged,
 the desktop was disabled and the private engine quit. This validates the
 corrected reader only, not the full integration workflow. The subject-axis
-correction has source/data review but still requires live plotting validation.
+correction subsequently passed live validation for all 18 subjects in
+145.29 seconds. All six actual plotted traces per subject had exactly the
+original channel-50 samples and time coordinates; retained inputs and original
+sources were unchanged. This validates that plotting segment, not the later
+preprocessing contrasts, group analyses or final results display.
+
+The remaining preprocessing segment subsequently passed in 876.21 seconds,
+executing all 43 original calls through ``limo_eeg(5, ...)``. This included
+the mean and weighted-mean plots, all 18 subject plots, contrasts, three group
+analyses, paired differences and final results display. It used isolated
+copies of retained models with path-only metadata relocation; retained inputs,
+reused 1,000-bootstrap ANOVA outputs and original sources stayed unchanged.
+An earlier segmented attempt failed in 241.65 seconds because its scratch
+session lacked the PSOM support path. The successful attempt used native
+``limo_eeg(2)`` setup to restore paths normally initialized by the omitted
+``std_limo`` stage. This is a successful remaining-segment run, not a fresh
+full preprocessing workflow pass or a rerun of the retained bootstrap stage.
+
+With the first four corrections applied, the exact seven-section integration
+tail failed in 152.20 seconds. All seven section statuses were failures:
+the first four stopped at nested contrast-file parsing, ANOVA at the warning
+title, ANCOVA at a text-input check, and repeated-measures ANOVA at optimized
+channel indexing. Some repeated-measures analyses, 101-bootstrap calculations
+and contrasts completed before that final failure; those partial outputs do
+not make the section or the full integration test pass. Retained input hashes
+and file-tree metadata were unchanged.
+
+A bounded native input probe confirmed that singleton-cell ``fileparts``
+outputs produced separate basename and extension entries, and that scalar-only
+channel parsing returned NaN. The corrected parser exactly retained the
+original scalar and 18- and 36-entry column vectors. Together with the warning
+call's verified argument mismatch, this motivated the three additional
+``limo_random_select`` corrections above. The seven-correction rerun completed
+in 1,055.19 seconds: regressions, ANOVA, ANCOVA with contrast, and
+repeated-measures ANOVA with contrast passed their original section status
+checks. One-sample, paired and two-sample t-tests failed later in the native
+single-channel TFCE bootstrap loop. The overall seven-section test failed;
+original sources, retained input hashes and file-tree metadata were unchanged.
+The eighth correction addresses that axis loss in the isolated reference only.
+Its bounded live probe passed in 60.22 seconds: it reproduced the original
+failure for all three retained t-test outputs, then compared all 303 corrected
+bootstrap TFCE vectors, each containing 176 values, exactly against the
+unchanged native TFCE algorithm. Original sources and retained inputs stayed
+unchanged. The three complete t-test sections then passed in 90.12 seconds,
+executing all nine original calls with 101 bootstraps and TFCE enabled;
+original sources, retained inputs and file-tree metadata were unchanged.
+Together with the four successful sections from the preceding run, all seven
+remaining integration sections now have successful corrected-reference
+execution evidence. The single-channel t-test correction does not alter the
+other four sections' paths. This is segmented evidence across two recorded
+runs, not a single fresh full nine-section integration pass.
+
+Source smoke-test success is not proof of every intended output. A separate,
+unchanged native contrast filename mismatch remains: ``limo_contrast`` writes
+``H0/con_1H0.mat``, while Level-2 ``limo_tfce_handling`` looks for
+``H0/con_1_desc-H0.mat``. The retained ANCOVA50 run produced the former and
+observed-data TFCE, but no contrast-null TFCE output. Its source status check
+still passed. This native limitation is recorded, not patched or counted as
+null-contrast TFCE validation; the eight corrections above do not address it.
 
 Keep the pinned original intact. Create an independent local clone at its
 recorded revision and copy the installed plugins/support files, excluding
@@ -609,9 +683,13 @@ valid at another location. Before applying the patch, verify SHA-256 values:
   ``ed715d6897c3cd8792fc9860ad34465f212d236f1deb733827ac4699bbf2bba7``.
 * ``limo_best_electrodes.m``:
   ``ab910cd979623d07a45ec9fdb293b3aa6fa7d4b15c982778942cce7f47a9af42``.
+* ``limo_random_select.m``:
+  ``fa35655e25741fe56401b52cde2f9fa520c2491d03b152a8390c16dfdfa07541``.
+* ``limo_tfce_handling.m``:
+  ``f74beb9751e6a47f2665b7640f9edb2476bb4311d8818c36d0b7010f561be1ec``.
 
 Apply the patch only in that copy. Verify that these are its only source-file
-differences and that MATLAB's ``which`` resolves both functions there. A
+differences and that MATLAB's ``which`` resolves all four functions there. A
 matching Git HEAD alone does not establish an unchanged oracle. Pass the copy
 as ``--eeglab-root`` and the original suite as ``--eeglab-suite-root``; record
 the patch and file hashes with every result. Corrected-reference results must
