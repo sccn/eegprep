@@ -566,22 +566,39 @@ with R2-file paths would bypass the workflow being ported, not validate it.
 Isolated LIMO implementation corrections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Two implementation corrections were explicitly approved on September 29, 2026
+Implementation corrections were explicitly approved on September 29, 2026
 for an isolated reference copy only. They are separate from the test-source
-overlays above. ``tests/matlab/limo_isolated_reference_fixes.patch`` changes
-the plotting parser to assign ``'variable'`` to its existing selector ``v``
-instead of overwriting the filename list. It also makes the R2 reader use the
-mass-univariate writer's subject-prefixed filename, retaining ``R2.mat`` for
-non-BIDS and multivariate models. Numerical operations, input lists, subjects,
-bootstrap counts and assertions are unchanged. Pytest never applies this patch.
+overlays above. ``tests/matlab/limo_isolated_reference_fixes.patch`` records
+four corrections in two files:
 
-The initial corrected-reference checks did not complete either workflow.
-The unchanged 18-model R2-list call reached a further native error: all models
-lack the optional ``chanlocs.urchan`` field, which the reader dereferences
-unconditionally. The six-file subject plot completed subject 1, then failed
-on subject 2 with an out-of-bounds third-dimension index. Both checks retained
-unchanged input hashes. These are additional reference findings, not evidence
-that the remaining scientific sections passed; this patch does not fix them.
+* The plotting parser assigns ``'variable'`` to its existing selector ``v``
+  instead of overwriting the filename list.
+* For explicit scalar subject selection in four-dimensional Time data with
+  one condition, the plotter selects the fourth (subject) axis, preserving
+  channel/frame dimensions. The writer saves arrays as channel, frame,
+  condition, subject; the original reader wrongly selected the condition axis.
+  Other layouts and unspecified-variable interaction are unchanged.
+* The R2 reader uses the mass-univariate writer's subject-prefixed filename,
+  retaining ``R2.mat`` for non-BIDS and multivariate models.
+* The reader checks whether optional ``chanlocs.urchan`` metadata exists before
+  reading it, matching its documented contract. The optional output retains
+  its existing NaN initialization when absent; no channel mapping is invented.
+
+Numerical operations, input lists, subjects, bootstrap counts and source-test
+assertions are unchanged. Pytest never applies this patch.
+
+The initial two-correction checks exposed the optional-field and subject-axis
+defects above. The subject plot completed subject 1 before failing on subject
+2, but even that first plot incorrectly retained all subjects. Completion alone
+was not evidence of correct subject selection. All input hashes stayed unchanged.
+
+After the optional-field correction, a bounded headless MATLAB check completed
+the unchanged 18-model-list, one-output R2 call in 13.68 seconds. All returned
+channels exactly matched the original maximum-F/first-column-major-index rule
+on the retained R2 arrays. Original reference and input hashes were unchanged,
+the desktop was disabled and the private engine quit. This validates the
+corrected reader only, not the full integration workflow. The subject-axis
+correction has source/data review but still requires live plotting validation.
 
 Keep the pinned original intact. Create an independent local clone at its
 recorded revision and copy the installed plugins/support files, excluding
@@ -606,6 +623,13 @@ invent successful status entries for earlier sections. Use new output
 directories and verify retained inputs are unchanged; operations such as
 ``limo_batch('contrast only', ...)`` modify model directories and therefore
 require isolated input copies too.
+
+The remaining integration sections are not non-graphical: TFCE creates
+waitbars, regression/ANCOVA create design figures, and the original ANOVA
+orientation can open a warning dialog. ``skip design check`` does not disable
+these operations. Defer these sections and preprocessing/IRLS graphical work
+when desktop use is disallowed; do not silently suppress their source steps
+or count an unexecuted section as passing.
 
 Standalone IRLS source correction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

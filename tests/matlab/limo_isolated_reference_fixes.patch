@@ -4,15 +4,35 @@ These are not test-source corrections or EEGPrep capability changes.
 
 --- a/plugins/LIMO4.1.2/limo_add_plots.m
 +++ b/plugins/LIMO4.1.2/limo_add_plots.m
-@@ -47,7 +47,7 @@
+@@ -35,4 +35,5 @@
+ restrict = [];
+ dimvalue = [];
+ fig      = 'new';
++variable_given = false;
+ warning  on
+@@ -47,7 +48,8 @@
              elseif strcmpi(varargin{i},'dimvalue') % for Time-Frequency
                  dimvalue  =  varargin{i+1};
              elseif strcmpi(varargin{i},'variable') % for arrays of many variables
 -                infile  = {varargin{i+1}};
 +                v  = varargin{i+1};
++                variable_given = true;
              elseif strcmpi(varargin{i},'figure') % for arrays of many variables
                  fig  = varargin{i+1};
              elseif contains(varargin{i},'LIMO.mat')
+@@ -225,7 +227,11 @@
+             Data        = squeeze(tmp);
+         end
+     else
+-        if size(tmp,1) == 1 && size(tmp,3) == 1 % only 1 channel and 1 variable not squeezed yet
++        if subjects_plot == 1 && variable_given && isnumeric(v) && isscalar(v) && ...
++                strcmpi(data.limo.Analysis,'Time') && ndims(tmp) == 4 && size(tmp,3) == 1
++            % Single-condition subject data are channels x frames x 1 x subjects.
++            Data = reshape(tmp(:,:,1,v),size(tmp,1),size(tmp,2));
++        elseif size(tmp,1) == 1 && size(tmp,3) == 1 % only 1 channel and 1 variable not squeezed yet
+             D           = squeeze(tmp(:,:,1,:));
+             Data        = nan(1,size(tmp,2),size(tmp,4));
+             Data(1,:,:) = D; clear D;
 --- a/plugins/LIMO4.1.2/limo_best_electrodes.m
 +++ b/plugins/LIMO4.1.2/limo_best_electrodes.m
 @@ -76,6 +76,13 @@
@@ -30,3 +50,10 @@ These are not test-source corrections or EEGPrep capability changes.
 +        tmp = load(fullfile(tmp.LIMO.dir,r2name));
      end
      tmp = tmp.(cell2mat(fieldnames(tmp)));
+@@ -97,5 +104,5 @@
+         LIMO = load([fileparts(name{i}) filesep 'LIMO.mat']); LIMO = LIMO.LIMO;
+-        if ~isempty(LIMO.data.chanlocs(channel_vector(i)).urchan)
++        if isfield(LIMO.data.chanlocs,'urchan') && ~isempty(LIMO.data.chanlocs(channel_vector(i)).urchan)
+             urchan_vector(i) = LIMO.data.chanlocs(channel_vector(i)).urchan;
+         end
+         fprintf('subject %g analysed \n',i);
