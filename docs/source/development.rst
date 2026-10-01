@@ -89,6 +89,13 @@ EEGPrep currently pins ``eeglab_tests`` commit
 ``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
 ``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
 
+The current deliverable is faithful ports of these existing tests, validated
+against MATLAB. It does not include newly authored MATLAB scientific cases,
+implementation-coverage targets, or EEGPrep capability fixes. Reuse unchanged
+verified results; obtain fresh evidence for changed or previously unverified
+paths. Passing the translated tests on MATLAB validates their translation, not
+whether EEGPrep itself implements every tested workflow.
+
 Translate the behavior and assertions of each MATLAB scenario into the closest
 existing pytest module. Decorate the Python test with its upstream path and
 test name so coverage remains traceable without a separate conversion matrix:
@@ -109,8 +116,9 @@ MATLAB comparison when practical or small expected data generated from the
 pinned suite when ordinary CI must run without MATLAB.
 
 When a faithful port exposes missing behavior or a defect, keep the failing
-scenario visible and create a Bead for the implementation work. Pure MATLAB
-runtime behavior may be excluded only with a concrete technical rationale.
+scenario visible and record it in Beads without changing runtime capabilities
+as part of the test port. Excluding pure MATLAB runtime behavior requires an
+explicitly agreed scope decision and a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.
 
@@ -130,6 +138,246 @@ stale reference. Pass ``--json`` for automation. It deliberately rejects the
 old ``eeglab-testcases`` repository, a checkout at another commit, and
 provenance that does not exist in the pinned suite.
 
+Source fidelity and graphical validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Source-reference counts are not execution results or scientific coverage.
+Backend-dispatched contracts must still be checked against the actual source
+body and executed against the pinned MATLAB reference. Keep generated-data
+Python regression tests as separate supplements; they are not substitutes for
+the source recording, workload, call sequence, or assertions. A source wrapper
+whose body is entirely commented out or immediately returns is inactive, not a
+successful behavioral test. Such definitions remain visible in the inventory
+without attaching misleading provenance to a different Python scenario.
+
+The pinned inventory contains 813 definitions: 709 have Python source
+references, and 104 remain unmatched. Inspection classifies the unmatched
+definitions as 60 comment-only leaves, 27 empty functions, one commented
+tutorial body, five help-only calls, eight no-argument helper returns, two
+disabled early-return cases, and one TODO-status-only leaf. Meaningful
+interpolation and memory-mapped-object helper calls remain inside their
+parent workflow ports. The raw audit still reports the 104 unmatched entries;
+do not create dummy ports or describe this as 813 passing tests. This source
+accounting is distinct from assertion fidelity and execution evidence.
+
+Mark every contract that creates plots, windows, dialogs, or graphical
+callbacks with ``gui``, even when MATLAB figures would be invisible. This
+includes progress bars in numerical helpers such as ``eeg_context`` and
+browser-opening paths in either backend, even if the other backend is non-GUI.
+The marker allows explicitly deferred graphical validation to remain excluded using
+``-m "not gui"``. Collecting those contracts or checking their syntax does not
+validate their runtime behavior. Modal Python dialogs may require interaction;
+do not substitute a mock renderer or invent accept/cancel actions to make an
+original interactive workflow automatic.
+
+MATLAB-specific graphics objects, caller workspaces, and object arrays sometimes
+require small test-only native boundaries. Keep the workflow and assertions in
+Python and dispatch actual EEGLAB processing functions. Translate ordinary
+language operations such as file deletion or closing a figure using real
+Python APIs, not nonexistent EEGPrep counterparts to MATLAB builtins. Do not
+replace a missing operation with a fabricated failure or a passing assertion
+that the feature is absent.
+
+Preserve the limitations of the source oracle too: a no-assertion smoke test
+does not establish numerical correctness, and a legacy wrapper that ignores a
+returned failure status does not establish that its operation succeeded.
+Record source failures and unresolved language-specific observables separately
+instead of weakening comparisons or counting a native-only diagnostic as a
+completed Python port.
+
+MATLAB tables nested in reference outputs, such as FieldTrip ``trialinfo``,
+cross the test bridge as MATLAB-written MAT bytes and are restored to native
+tables before the next call. This preserves variable classes, dimensions and
+table properties; it does not replace a table with a lossy struct or omit its
+metadata. The transport regression compares the real FieldTrip preprocessing
+chain with direct native execution using the original epoched sample dataset.
+
+Large outputs retain their complete arrays. When the aggregate output container
+approaches MAT v7's 2 GB variable limit, the test bridge writes numerical leaves
+to per-call sidecars and reassembles their original classes and dimensions
+before deleting the temporary directory. The slow transport regression sends
+more than 2 GiB through the bridge and back to MATLAB for exact comparison.
+Large Python inputs use the same sidecars before SciPy's MAT5 writer reaches
+its container or individual-matrix size limit. Buffered Fortran-order chunks
+preserve complete values, classes and dimensions without another full-array
+copy. Separate slow checks exercise both a nested aggregate and a single
+matrix larger than 4 GiB against native MATLAB assertions.
+This is test transport, not subject selection, downsampling or a production
+dataset serializer.
+
+A user-approved Python-only exception applies to MATLAB caller-workspace and
+copy-count introspection in ``checkmmo`` and the nested helpers of ``checkmmo2``.
+Actual construction, copying, writes, data-integrity checks and debug-output
+assertions remain in scope. MATLAB retains the original count assertions.
+Because ``checkmmo``'s source oracle consists entirely of count assertions, its
+Python result records execution only, not count or scientific parity. The
+audit reports these exceptions separately without removing source definitions
+or treating unresolved diagnostic failures as passes.
+
+Explicit MATLAB support paths
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Backend-neutral contracts run with ``--eeglab-backend=matlab`` and an explicit
+``--eeglab-root``. The automatically assigned ``eeglab_contract`` marker selects
+tests using the backend fixture, excluding ordinary direct-Python regressions
+and transport-only harness checks. For a non-graphical, non-slow contract run:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest tests --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      -m "eeglab_contract and not gui and not slow" --junitxml=contracts.xml
+
+This is a selected run, not full acceptance: graphical and slow contracts are
+not validated by this selection, and original prerequisite guards may return
+without exercising their scientific branches. Report those limits separately
+from pass counts.
+The guarded statistical and legacy ERSP contracts record
+``eeglab_source_body_entered`` in each JUnit test case's ``properties``; a
+``False`` value means the original prerequisite/version guard returned before
+the scientific body. The clustering contract separately records
+``eeglab_optional_kmeans_branch_entered``, since its first clustering operation
+still runs when the optional branch is unavailable. These properties do not
+change the source guards, assertions, or pytest outcomes. A passing case with a
+false guard property is not evidence that the guarded behavior was validated.
+
+For the full contract selection, omit the ``not gui`` and ``not slow`` filters.
+MATLAB windows, progress dialogs, video rendering, full-recording ICA and
+multi-subject bootstraps can run for substantially longer than the numerical
+subset. Run deliberately on a machine where graphical interaction is allowed:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest tests --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      -m eeglab_contract --junitxml=all-contracts.xml
+
+For long or concurrent runs, supply a distinct ``--basetemp`` directory for
+each run if generated datasets and model files must be retained. Pytest's
+default temporary-directory retention can remove earlier runs while another
+process is still using their evidence. Use a new directory: pytest clears an
+existing ``--basetemp`` before running.
+
+Known reference findings must stay visible in that report. In the pinned
+suite, the three legacy ``erpimage`` leaves ``pass_general``, ``pass_many_args``
+and ``pass_times`` return ``tc_notpassed`` on MATLAB R2026a: they compare a
+numeric handle vector with modern cell outputs. Their original wrappers
+discard the returned status. A green wrapper therefore does not validate
+those predicates. The Python contracts retain the comparisons and fail;
+the graphics transport only removes handles the source never compares.
+
+The original ``statcond`` cases 9, 10, 13 and 14 also fail directly in native
+MATLAB R2026a with their stored zero absolute/relative tolerances. Their
+maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
+``7.81e-18`` and ``1.73e-17``; the direct fixture run passed 74 of 78 cases,
+matching the hybrid failures. These are retained reference fixture/platform
+discrepancies, not established EEGPrep defects. The original tolerances and
+failing assertions remain unchanged.
+
+Some graphical wrappers also discard failure statuses. The two ``gradplot``
+center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
+native-backed runs, despite their wrapper-level pytest passes. The headmovie
+failure is a nonscalar logical condition on the pinned R2026a runtime. These
+recorded statuses are source-oracle limitations, not successful scientific
+validation; do not change the original predicates to make the report green.
+
+The original ``std_topoplot`` workflow requires ``.icatopo`` files generated
+by the suite's earlier ``std_precomp`` workflow. A fresh source data checkout
+does not contain them. Its independent port creates the real scalp cache in
+a writable copy of the original STUDY, then reloads the original STUDY before
+the unchanged four plotting calls. No synthetic cache or reference-tree write
+is used.
+
+The test session initializes the pinned EEGLAB checkout and
+its already installed plugins without installing anything. Optional upstream
+dependency files can live outside that checkout: pass their directory using
+``--eeglab-support-path PATH``. The directory must exist. This option is
+repeatable; each directory is added at the beginning of the session's MATLAB
+path after EEGLAB plugin initialization, so the last directory takes precedence
+over earlier support directories and installed plugins. Subdirectories are not
+added recursively. The session quits its engine on teardown; it never calls
+``savepath`` or changes the package runtime, reference source, or user options.
+
+Two upstream packaging gaps encountered with the pinned suite have been
+validated using source-exact files in an ignored local directory:
+
+* JSONio bundled with ``bids-matlab-tools8.0``/``EEG-BIDS`` lacks an Apple
+  Silicon MEX. Official JSONio commit
+  ``e6c5b3ea16142e8e428aa254fc042dfad6011c30`` adds
+  ``jsonread.mexmaca64`` (Git blob
+  ``396b1d429c4887446c1c0a20b4e6f457942abe1b``). The bundled ``jsonread.c``
+  has blob ``fa7902c4a5bbb74ddd02e76ed423a781602b33b6``, identical to the
+  preceding official revision ``82d835d17348b0d060e8af881da308b897a627ff``.
+  The Apple Silicon commit changes only that C file's header comment, not
+  parser logic; ``jsmn.c`` and ``jsmn.h`` are unchanged. This binary is for
+  native Apple Silicon MATLAB only.
+* ``Fileio260210/private/ft_datatype_sens.m`` calls the absent
+  ``ft_deleteopt``. That caller's blob
+  ``c66bdfebf2528518981ef75dc257d5b15c9da403`` exactly matches official
+  FieldTrip revision ``efdd7db8bf5623e580c8f12f81bb57b325662e29``.
+  The matching revision's ``utilities/ft_deleteopt.m`` has blob
+  ``2eebd35ca862eac7001bb3d01e49250501e849ff``. Use that original helper,
+  not a replacement implementation. Its ``removefields`` dependency is
+  already supplied by the installed FieldTrip utilities.
+
+For that Apple Silicon setup, download the two pinned files explicitly from
+their official repositories. From the main EEGPrep checkout (not a temporary
+worktree), run:
+
+.. code-block:: bash
+
+    mkdir -p .notes/reference/matlab-test-dependencies
+    curl --fail --location https://raw.githubusercontent.com/gllmflndn/JSONio/e6c5b3ea16142e8e428aa254fc042dfad6011c30/jsonread.mexmaca64 \
+      --output .notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+    curl --fail --location https://raw.githubusercontent.com/fieldtrip/fieldtrip/efdd7db8bf5623e580c8f12f81bb57b325662e29/utilities/ft_deleteopt.m \
+      --output .notes/reference/matlab-test-dependencies/ft_deleteopt.m
+    git hash-object .notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+    git hash-object .notes/reference/matlab-test-dependencies/ft_deleteopt.m
+
+Check that the two printed hashes match the blobs above before execution.
+The legacy BIDS importer prepends its own ``JSONio`` folder during import,
+and starting EEGLAB again also reorders plugin paths. For full BIDS/LIMO
+workflows on Apple Silicon, install that same verified binary alongside
+``jsonread.m`` in each active BIDS plugin's ``JSONio`` directory (both
+``EEG-BIDS`` and ``bids-matlab-tools8.0`` if both are present). A symlink to
+the verified support file is sufficient. This is an explicit local native
+dependency installation, not a MATLAB-source correction; do not overwrite
+source files or change the pinned revision. The standalone support path alone
+is insufficient once the importer changes path precedence.
+
+The STUDY-statistics and advanced source-reconstruction tutorials require the
+full FieldTrip distribution. Fileio also bundles a partial FieldTrip whose
+``ft_defaults`` can shadow the full plugin and look for ``statfun``/``preproc``
+modules in the wrong directory. These two contracts temporarily prioritize
+the full plugin owning ``ft_freqstatistics`` after EEGLAB startup, clear its
+cached initialization and invoke its actual ``ft_defaults``. They restore the
+previous path afterward; no scientific function or option is substituted.
+
+Full LIMO validation also requires Parallel Computing Toolbox (the reference
+calls ``gcp`` during cleanup) and Image Processing Toolbox for ``bwlabeln`` in
+cluster analysis, or the reference's supported SPM alternative. A license
+entitlement alone does not install either toolbox. Record installed versions
+alongside the reference revisions; do not patch LIMO to ignore missing tools.
+
+No downloads occur automatically in pytest. Run the non-GUI parser/BIDS
+metadata smoke and the original Fileio contract with normal test selection:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest \
+      tests/test_eeglab_hybrid.py::test_matlab_bids_metadata_loaders \
+      tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options \
+      --eeglab-backend=matlab \
+      --eeglab-root=/absolute/path/to/eeglab_tests/eeglab \
+      --eeglab-suite-root=/absolute/path/to/eeglab_tests \
+      --eeglab-support-path=/absolute/path/to/eegprep/.notes/reference/matlab-test-dependencies
+
+The metadata smoke calls the actual JSONio parser and original BIDS loaders on
+``ds002718`` metadata. The Fileio source contract only requires its three
+original calls to complete; it does not establish numerical or channel-location
+correctness, and existing import warnings remain visible. These checks do not
+validate LIMO preprocessing, bootstraps, or GUI workflows.
+
 Tutorial-wrapper provenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -141,13 +389,382 @@ The tutorial-wrapper ports additionally pin
 Scripts (``.mlx``) in that commit; they are not missing source files. MATLAB
 can execute them, while Octave cannot execute the Live Script format.
 
-Although ``tutorial2_wrapperTest.test_bids_process_face_experiment`` has an
-entirely commented wrapper body, its referenced Live Script is preserved as a
-generated-data port rather than an empty test. The face-recognition and active
-P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
-trial-level STUDY designs, precomputation, and ERP plotting without checking the
-upstream tutorial datasets into the package. The full EEGLAB datasets remain
-useful for separate MATLAB parity runs.
+The ten active wrapper contracts in ``tests/test_tutorial_eeglab_tests.py``
+retain the original scripts' executable operation sequences, arguments, and
+full inputs: the continuous and ICA-epoched sample recordings, five-subject N400 study,
+and P300 BIDS tree (with the original subjects 1--2 selection). Workflows that
+write datasets, measure caches, spline files, or videos use isolated working
+directories and complete copies of the source input trees when needed. The
+original FieldTrip, DIPFIT, PICARD, and ICLabel dependencies remain required;
+missing Python capabilities are not converted into successful skips or
+expected failures. Python owns the workflow sequence, with small test-only
+boundaries for native caller workspaces, function handles, and video objects.
+
+All ten active tutorials start the EEGLAB GUI or create figures and are
+marked ``gui``. They require explicit graphical validation; ordinary
+generated-data regression results do not validate these source contracts.
+Future Python video-export runs also require ``ffmpeg`` for the equivalent
+30-fps MPEG-4 or uncompressed AVI writer.
+
+``tutorial2_wrapperTest.test_bids_process_face_experiment`` is inactive because
+its entire wrapper body is commented out. It carries no source provenance and
+is not represented by a no-op passing test. The existing face-recognition and
+other generated-data workflows remain supplemental Python regressions, without
+claims that their synthetic recordings are the original source inputs.
+
+The original ``event_processing_study`` script leaves ``EEG`` unchanged after
+editing and reloading ``ALLEEG``. On the pinned reference, its final
+``eeglab redraw`` therefore opens ``pop_newset``'s dataset-change dialog.
+The source specifies no answer. A manual run that selects Cancel exercises
+that cancellation path but does not prove an unattended workflow or assert
+the resulting STUDY contents. Do not silently overwrite a dataset, synchronize
+the variables, or invent a dialog response inside the port.
+The test-only redraw boundary returns the actual post-dialog workspace or
+session state so subsequent source operations use the user's real choice.
+This state transport does not select an answer or add a Cancel-only scientific
+expectation. Interactive acceptance remains a separate required check.
+
+The source also includes a manual follow-up at
+``tutorial_scripts/event_processing_study.m:39-41``: open
+``STUDY > Select/Edit study design(s)``, press the lower ``New`` button under
+``Edit the independent variables for this design``, and check that ``rt`` is
+available in ``Add variable``. The Python wrapper currently stops at redraw;
+its passing result does not include this follow-up. A generated-data
+``std_makedesign`` test is not a substitute for the original menu workflow.
+Native manual validation on September 29, 2026 observed ``rt`` selectable as
+a continuous variable after explicitly canceling the stale-EEG overwrite.
+The retained dataset has 157 events with 75 numeric ``rt`` values and 82 empty
+fields; the 80 STUDY trial records contain the same 75 numeric values and
+five empty fields. The workspace was unchanged by opening and closing the
+design dialogs, and no additional design was saved. This is evidence for that
+observed native workflow, not an unattended test or proof of Python GUI support. EEGPrep's
+``pop_studydesign`` New-variable callback currently displays an unavailable
+subdialog message; the missing workflow remains visible for later capability
+work rather than being treated as an expected successful skip.
+Keep this original manual instruction as a separate manual acceptance case.
+Automating it with a new cross-backend GUI driver is not required to preserve
+the original test, and its manual result must not be added to automated pass
+counts. The Python test's fixture closes the window during teardown, so perform
+the check while paused immediately after ``_tutorial_redraw`` returns, before
+allowing teardown to proceed.
+
+The movie tutorial requires visible MATLAB figures for native frame capture.
+On R2026a, the original 2-D section produces inconsistent frame dimensions
+under the harness's hidden-figure default, but completes with 91 equal-sized
+frames using the original visible default. Its port temporarily enables
+visible figures for this capture workflow and restores the previous setting;
+it does not resize frames, change plotting options or patch the source.
+Native tutorial figure creation also finishes pending GUI activation and
+restores the created figure as MATLAB's current target before the next Engine
+call. Otherwise R2026a can reactivate an older docked figure between calls,
+causing later plots to reuse its colorbar axes. This test-only boundary keeps
+the source's figure selection without changing docking or plotting options.
+
+LIMO preprocessing source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The separately approved ``limo_preproc_stats_hw.m`` correction captures
+``pop_limo``'s existing third output and resolves the adjacency and Beta/LIMO/
+contrast text-list paths from the generated model directory. The pinned
+reference writes these under ``derivatives2/derivatives`` with a study-prefixed
+GLM name; the original script expects the older paths. The correction preserves
+all 18 subjects, preprocessing options, text-list inputs, 1,000 second-level
+bootstraps, calculations and plots.
+
+``prepare_limo_preprocessing_source_overlay`` in
+``tests.test_limo_eeglab_tests`` verifies the original SHA-256 and applies
+``tests/matlab/limo_preproc_stats_hw.source-corrections.patch`` only to a scratch
+copy. Its integrity regression reverses the approved edits byte-for-byte and
+checks that the pinned source remains unchanged. The Python-owned workflow uses
+the same path expressions without evaluating the complete native script.
+Ordinary integrity checks do not establish full live validation.
+
+The port also publishes the current ``STUDY`` before ``pop_limo`` and the
+original three-argument contrast call. Native ``limo_settings_script`` reads
+base ``STUDY`` even when its caller has a valid local value; the earlier redraw
+precedes the script's new design. These explicit assignments reproduce the
+script's current workspace instead of supplying its stale pre-design copy.
+The Python-owned workflow snapshots/restores base/global state, and the scratch
+overlay's inverse removes both assignments to recover the pinned source.
+
+The pinned preprocessing script is interactive even after all input paths are
+resolved: ``limo_add_plots`` plots its supplied files, then asks for another
+central-tendency file until Cancel is selected. The first such dialog follows
+the three unweighted ERP files. Its port and scratch source overlay now use
+``eegprep_test_limo_add_plots``: the original native plotting function executes
+with every supplied file and unchanged options, while a scoped file-input
+fixture declines exactly one optional next-file request. A different prompt,
+repeated request or missing expected request fails. The original path and file
+chooser are restored even on failure. Live checks assert the actual plotted
+values and confidence-interval patches, and reject a required metadata chooser.
+This is explicit scripted file-input cancellation, not validation of clicking
+the native chooser. No extra file, computed result or plotting implementation
+is fabricated. The overlay's inverse also removes these eight wrapper names
+and recovers the original source byte-for-byte.
+
+The subsequent original per-subject plotting call exposes a separate pinned
+LIMO failure: its ``'variable'`` parser assigns the numeric subject index to
+``infile`` instead of retaining the supplied file list. ``load(file)`` then
+fails because the index is not a filename. Both the direct native call and
+the test wrapper reproduce this with the retained real six-file ERP inputs.
+The wrapper does not change this parser, suppress the error or omit the
+18-subject plotting loop. Successful optional-file cancellation therefore
+does not establish full preprocessing-workflow success.
+
+LIMO integration source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The companion ``limo_test_integration.m`` overlay applies five separately
+approved path-only corrections: the generated derivative/list directory,
+study-prefixed GLM names, ``Gp-1`` group spelling, grouped contrast basenames
+from the first subject's returned contrast files, and the second-level
+``H0/Betas_desc-H0.mat`` filename. The Python workflow and native overlay use
+the same generated model paths. Original text-list, cell and ragged-array
+inputs, all 18 subjects, OLS/WLS models, nine status sections, 101 bootstraps,
+statistical options and assertions remain unchanged. Historical cleanup is not
+corrected by this overlay.
+
+A separately authorized workspace-setup correction publishes the current local
+``STUDY`` into MATLAB's base workspace immediately before the original
+two ``pop_limo`` model calls and the three-argument WLS
+``limo_batch('contrast only', [], contrast)`` call. Native
+function-scope reproduction with all 18 retained models confirmed that the
+earlier no-argument ``eeglab`` call clears base/global ``STUDY`` and that LIMO's
+implicit discovery reads base, not the caller's valid local variable. The
+``limo_settings_script`` called from ``limo_batch`` also overwrites an explicitly
+passed local ``STUDY`` from base before metadata export, requiring the same setup
+before both model calls. After the original post-load 6/7/5 group assignment,
+the overlay also refreshes only ``STUDY.group`` using the original
+``std_checkset`` expression ``unique_bc({STUDY.datasetinfo.group})``. The load
+checked this summary before the manual assignments, retaining an empty label; native
+LIMO requires it to emit grouped text lists. Dataset membership and order are
+unchanged. The three-argument discovery path remains exercised; no fourth
+argument or runtime repair is substituted. The native overlay uses the existing state-only
+``eegprep_test_base_workspace`` helper with ``onCleanup``; the Python-owned
+MATLAB workflow uses the same snapshot/restore helper and a pytest finalizer.
+Both preserve the prior base/global workspace even on failure. The native
+snapshot helper remains locked until restoration because EEGLAB initialization
+executes ``clear functions``, which otherwise discards its saved state. The native
+overlay requires ``tests/matlab`` on the path, as supplied by the hybrid harness.
+
+``prepare_limo_integration_source_overlay`` in ``tests.test_limo_eeglab_tests``
+checks the original SHA-256 before applying the exact substrings and occurrence
+counts in ``tests/matlab/limo_test_integration.source-corrections.json`` to a
+scratch copy. JSON preserves literal trailing spaces on affected source lines
+that the required whitespace checks would remove from a unified patch. An
+independent inverse regression recovers the pinned source byte-for-byte; no
+reference checkout is edited. Full live validation remains a separate check.
+
+The retained full integration run completed all 18 OLS and 18 WLS models,
+with 36 OLS and 18 WLS contrasts, then failed before the seven second-level
+sections. Pinned ``limo_glm_handling`` writes subject-prefixed
+``sub-NNN_desc-R2.mat`` files, but ``limo_best_electrodes`` loads ``R2.mat``
+when given the original LIMO-model list. The identical native list-input call
+reproduces the failure. Preserve that input and failure: replacing the list
+with R2-file paths would bypass the workflow being ported, not validate it.
+
+Isolated LIMO implementation corrections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Implementation corrections were explicitly approved on September 29, 2026
+for an isolated reference copy only. They are separate from the test-source
+overlays above. ``tests/matlab/limo_isolated_reference_fixes.patch`` records
+eight corrections in four files:
+
+* The plotting parser assigns ``'variable'`` to its existing selector ``v``
+  instead of overwriting the filename list.
+* For explicit scalar subject selection in four-dimensional Time data with
+  one condition, the plotter selects the fourth (subject) axis, preserving
+  channel/frame dimensions. The writer saves arrays as channel, frame,
+  condition, subject; the original reader wrongly selected the condition axis.
+  Other layouts and unspecified-variable interaction are unchanged.
+* The R2 reader uses the mass-univariate writer's subject-prefixed filename,
+  retaining ``R2.mat`` for non-BIDS and multivariate models.
+* The reader checks whether optional ``chanlocs.urchan`` metadata exists before
+  reading it, matching its documented contract. The optional output retains
+  its existing NaN initialization when absent; no channel mapping is invented.
+* ``limo_random_select`` unwraps a singleton inner filename cell before
+  ``fileparts``. Native ``limo_batch`` returns these nested contrast lists;
+  concatenating the cell-valued basename and extension previously turned one
+  filename into two entries. The original list shapes remain unchanged.
+* The original group-orientation warning formats its numeric group count into
+  the message instead of passing that count as a graphical window title. The
+  warning and source input orientation are retained.
+* Channel selection parses the existing numeric text as a vector, preserving
+  the supplied optimized channel indices. The scalar-only conversion previously
+  returned NaN for the original multi-subject vector.
+* Single-channel Time-domain TFCE null data retain the channel, frame and
+  bootstrap axes when selecting the existing t-statistic. The original
+  ``squeeze`` removed the channel axis, so the unchanged bootstrap loop indexed
+  a nonexistent third dimension. ``reshape`` preserves the same values as
+  ``1 x frames x bootstraps``; multi-channel and Time-Frequency branches are
+  unchanged.
+
+Numerical operations, input lists, subjects, bootstrap counts and source-test
+assertions are unchanged. Pytest never applies this patch.
+
+The initial two-correction checks exposed the optional-field and subject-axis
+defects above. The subject plot completed subject 1 before failing on subject
+2, but even that first plot incorrectly retained all subjects. Completion alone
+was not evidence of correct subject selection. All input hashes stayed unchanged.
+
+After the optional-field correction, a bounded headless MATLAB check completed
+the unchanged 18-model-list, one-output R2 call in 13.68 seconds. All returned
+channels exactly matched the original maximum-F/first-column-major-index rule
+on the retained R2 arrays. Original reference and input hashes were unchanged,
+the desktop was disabled and the private engine quit. This validates the
+corrected reader only, not the full integration workflow. The subject-axis
+correction subsequently passed live validation for all 18 subjects in
+145.29 seconds. All six actual plotted traces per subject had exactly the
+original channel-50 samples and time coordinates; retained inputs and original
+sources were unchanged. This validates that plotting segment, not the later
+preprocessing contrasts, group analyses or final results display.
+
+The remaining preprocessing segment subsequently passed in 876.21 seconds,
+executing all 43 original calls through ``limo_eeg(5, ...)``. This included
+the mean and weighted-mean plots, all 18 subject plots, contrasts, three group
+analyses, paired differences and final results display. It used isolated
+copies of retained models with path-only metadata relocation; retained inputs,
+reused 1,000-bootstrap ANOVA outputs and original sources stayed unchanged.
+An earlier segmented attempt failed in 241.65 seconds because its scratch
+session lacked the PSOM support path. The successful attempt used native
+``limo_eeg(2)`` setup to restore paths normally initialized by the omitted
+``std_limo`` stage. This is a successful remaining-segment run, not a fresh
+full preprocessing workflow pass or a rerun of the retained bootstrap stage.
+
+With the first four corrections applied, the exact seven-section integration
+tail failed in 152.20 seconds. All seven section statuses were failures:
+the first four stopped at nested contrast-file parsing, ANOVA at the warning
+title, ANCOVA at a text-input check, and repeated-measures ANOVA at optimized
+channel indexing. Some repeated-measures analyses, 101-bootstrap calculations
+and contrasts completed before that final failure; those partial outputs do
+not make the section or the full integration test pass. Retained input hashes
+and file-tree metadata were unchanged.
+
+A bounded native input probe confirmed that singleton-cell ``fileparts``
+outputs produced separate basename and extension entries, and that scalar-only
+channel parsing returned NaN. The corrected parser exactly retained the
+original scalar and 18- and 36-entry column vectors. Together with the warning
+call's verified argument mismatch, this motivated the three additional
+``limo_random_select`` corrections above. The seven-correction rerun completed
+in 1,055.19 seconds: regressions, ANOVA, ANCOVA with contrast, and
+repeated-measures ANOVA with contrast passed their original section status
+checks. One-sample, paired and two-sample t-tests failed later in the native
+single-channel TFCE bootstrap loop. The overall seven-section test failed;
+original sources, retained input hashes and file-tree metadata were unchanged.
+The eighth correction addresses that axis loss in the isolated reference only.
+Its bounded live probe passed in 60.22 seconds: it reproduced the original
+failure for all three retained t-test outputs, then compared all 303 corrected
+bootstrap TFCE vectors, each containing 176 values, exactly against the
+unchanged native TFCE algorithm. Original sources and retained inputs stayed
+unchanged. The three complete t-test sections then passed in 90.12 seconds,
+executing all nine original calls with 101 bootstraps and TFCE enabled;
+original sources, retained inputs and file-tree metadata were unchanged.
+Together with the four successful sections from the preceding run, all seven
+remaining integration sections now have successful corrected-reference
+execution evidence. The single-channel t-test correction does not alter the
+other four sections' paths. This is segmented evidence across two recorded
+runs, not a single fresh full nine-section integration pass.
+
+Source smoke-test success is not proof of every intended output. A separate,
+unchanged native contrast filename mismatch remains: ``limo_contrast`` writes
+``H0/con_1H0.mat``, while Level-2 ``limo_tfce_handling`` looks for
+``H0/con_1_desc-H0.mat``. The retained ANCOVA50 run produced the former and
+observed-data TFCE, but no contrast-null TFCE output. Its source status check
+still passed. This native limitation is recorded, not patched or counted as
+null-contrast TFCE validation; the eight corrections above do not address it.
+
+Keep the pinned original intact. Create an independent local clone at its
+recorded revision and copy the installed plugins/support files, excluding
+``.git`` files: the original checkout's relative submodule pointer is not
+valid at another location. Before applying the patch, verify SHA-256 values:
+
+* ``limo_add_plots.m``:
+  ``ed715d6897c3cd8792fc9860ad34465f212d236f1deb733827ac4699bbf2bba7``.
+* ``limo_best_electrodes.m``:
+  ``ab910cd979623d07a45ec9fdb293b3aa6fa7d4b15c982778942cce7f47a9af42``.
+* ``limo_random_select.m``:
+  ``fa35655e25741fe56401b52cde2f9fa520c2491d03b152a8390c16dfdfa07541``.
+* ``limo_tfce_handling.m``:
+  ``f74beb9751e6a47f2665b7640f9edb2476bb4311d8818c36d0b7010f561be1ec``.
+
+Apply the patch only in that copy. Verify that these are its only source-file
+differences and that MATLAB's ``which`` resolves all four functions there. A
+matching Git HEAD alone does not establish an unchanged oracle. Pass the copy
+as ``--eeglab-root`` and the original suite as ``--eeglab-suite-root``; record
+the patch and file hashes with every result. Corrected-reference results must
+remain distinct from original-reference failures.
+
+Reusing retained first-level models to execute an unchanged remaining Python
+test section provides segmented evidence, not a fresh whole-test pass. Do not
+invent successful status entries for earlier sections. Use new output
+directories and verify retained inputs are unchanged; operations such as
+``limo_batch('contrast only', ...)`` modify model directories and therefore
+require isolated input copies too.
+
+The remaining integration sections are not non-graphical: TFCE creates
+waitbars, regression/ANCOVA create design figures, and the original ANOVA
+orientation can open a warning dialog. ``skip design check`` does not disable
+these operations. Defer these sections and preprocessing/IRLS graphical work
+when desktop use is disallowed; do not silently suppress their source steps
+or count an unexecuted section as passing.
+
+Standalone IRLS source correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The standalone IRLS contract translates ``limo_zIRLS_validation_4_Arno.m``
+and its full ``limo_test_glmboot`` helper into Python-owned workflows and
+bootstrap-analysis loops. It retains all subjects, cleaning/PICARD/ICLabel/ASR,
+ERP/spectrum/ERSP/ITC precomputation, 2,500 null bootstraps per subject, the
+1,000-test/1,500-null split, 300-step convergence analysis, six result fields,
+``results.mat`` and native ``.fig`` exports. Collection and ordinary helper
+tests do not establish live validation of this full workflow.
+
+The approved corrections are retained separately in
+``tests/matlab/limo_zIRLS_validation_4_Arno.source-corrections.patch``. It assigns the
+otherwise undefined ``chanlocs`` variable to
+``fullfile(STUDY.filepath, 'derivatives', 'limo_gp_level_chanlocs.mat')``,
+which the reference ``std_limo`` generates. It does not invent adjacency data.
+It also captures ``pop_limo``'s third output, loads each model from
+``LIMOfiles.mat{s}``, and derives its ``H0`` directory from that returned path.
+This uses the generated model paths without duplicating version-dependent
+directory names. Scientific options, subjects and bootstrap counts are unchanged.
+The third approved correction changes only the validation helper's discovery
+pattern from ``H0_*.mat`` to ``*H0.mat``, matching LIMO 4.1.2's generated
+``sub-*_desc-Condition_effect_1H0.mat`` files. Existing ``Betas``, ``tfce`` and
+``R2`` exclusions, variable selection and statistical calculations are unchanged.
+``prepare_irls_source_overlay`` in ``tests.eeglab_tests.limo_irls`` verifies
+the original script/helper hashes and applies the patch only to a scratch
+copy. Its regression reverses all approved edits to recover both pinned files
+byte-for-byte. A corrected native run needs a writable ``ds002718`` copy beside the
+returned ``unittesting_limo`` directory. The Python contract never executes
+the complete native test script or its helper.
+
+Other source behavior remains unchanged. On September 30, 2026, the user
+stopped exhaustive IRLS execution and accepted an explicitly incomplete
+execution result for this test-porting deliverable. The full 18-subject,
+2,500-bootstrap test remains intact; it was not replaced with a smaller test.
+
+The retained-model tail ran for 48,428.80 seconds before the requested
+interruption. Channels 1--23 of the first subject completed their bootstrap
+loops; channel 24 was interrupted. This is partial execution evidence, not
+23 independently validated channel results or a passed IRLS workflow. No
+subject completed the full bootstrap stage, no H0 checkpoint was saved, and
+the subsequent error-rate analysis, confidence intervals, final six result
+fields, ``results.mat`` and figure exports were not validated by this run.
+The JUnit result records one ``InterruptedError`` failure, not a scientific
+assertion failure. The manifest records ``failed-or-interrupted``, no completed
+subjects and unchanged retained inputs; six native computation source hashes
+were also verified unchanged. The log, manifest and JUnit XML are retained
+under ``.notes/irls-retained-full.XFjjLX`` in the validation workspace.
+
+All owned runner, MATLAB and worker processes exited, and the scheduled
+monitor was removed. Full IRLS execution remains an acknowledged validation
+gap, not a requirement to rerun during this closeout. Source-test fidelity,
+classified execution evidence and this approved execution exception must not
+be summarized as an all-tests-passed result or proof of EEGPrep capability.
+Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
+visible failures, not replacement algorithms or differently formatted files.
 
 Test Discovery
 --------------

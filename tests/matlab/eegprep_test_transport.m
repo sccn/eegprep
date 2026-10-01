@@ -38,6 +38,18 @@ switch mode
         assert(isstruct(value.cells{2, 2}));
         assert(value.structs(2).index == 2);
         varargout = {value};
+    case 'unassigned'
+        value = cell(2, 2);
+        value{1, 1} = 1;
+        value{2, 2} = zeros(1, 0);
+        nested(1).first = 1;
+        nested(2).second = 2;
+        value{1, 2} = nested;
+        varargout = {value};
+    case 'figure_visibility'
+        figure_handle = figure;
+        cleanup = onCleanup(@() close(figure_handle));
+        varargout = {char(get(figure_handle, 'Visible'))};
     case 'pair'
         assert(numel(varargin) == 2, 'Equal-shaped arguments were expanded');
         varargout = {varargin{1}, varargin{2}};

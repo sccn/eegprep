@@ -5,7 +5,7 @@ import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.sigprocfunc.epoch import epoch  # Python translation under test
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_test
 
 
 def _ml_list_of_arrays_to_0_based(list_of_arrays):
@@ -41,6 +41,66 @@ def _upstream_epoch_data():
     "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
     "test_pass_no_srate",
 )
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_boundary",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_valuelim",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_allevents",
+)
+def test_reference_epoch_original_five_output_contracts(eeglab_backend, subtests):
+    data = np.arange(1.0, 41.0).reshape(2, 20)
+    events = np.array([[2.0, 5.0, 6.0, 9.0, 12.0, 18.0]])
+    first_channel = np.array(
+        [[1, 4, 5, 8, 11, 17], [2, 5, 6, 9, 12, 18], [3, 6, 7, 10, 13, 19], [4, 7, 8, 11, 14, 20]],
+        dtype=float,
+    )
+    expected_data = np.stack((first_channel, first_channel + 20.0))
+    cell_indices, cell_latencies = np.empty((1, 6), dtype=object), np.empty((1, 6), dtype=object)
+    for index, (indices, latencies) in enumerate(
+        zip(
+            ([1.0], [2.0, 3.0], [2.0, 3.0], [4.0, 5.0], [6.0], [7.0, 8.0]),
+            ([0.0], [0.0, 1.0], [-1.0, 0.0], [0.0, 1.0], [0.0], [-1.0, 0.0]),
+            strict=True,
+        )
+    ):
+        cell_indices[0, index], cell_latencies[0, index] = np.array([indices]), np.array([latencies])
+    for case in ("general", "no_srate", "boundary", "valuelim", "allevents"):
+        with subtests.test(case=case):
+            source_events = events.copy()
+            options = () if case == "no_srate" else ("srate", 1.0)
+            expected_indices = np.arange(1.0, 7.0)[:, None]
+            if case == "boundary":
+                source_events[0, -1] = 19.0
+                expected_indices = expected_indices[:-1]
+            elif case == "valuelim":
+                options += ("valuelim", np.array([[7.0, 35.0]]))
+                expected_indices = np.array([[4.0], [5.0]])
+            elif case == "allevents":
+                options += ("allevents", np.array([[2.0, 5.0, 6.0, 9.0, 10.0, 12.0, 17.0, 18.0]]))
+            epoched, newtime, indices, rerefevents, rereflatencies = eeglab_backend(
+                "epoch",
+                data,
+                source_events,
+                np.array([[-1.0, 3.0]]),
+                *options,
+                nargout=5,
+            )
+            assert_matlab_near(epoched, expected_data[:, :, expected_indices[:, 0].astype(int) - 1])
+            assert_matlab_near(newtime, [[-1.0, 2.0]])
+            assert_matlab_near(indices, expected_indices)
+            # near.m uses isequal, not numeric tolerance, for cell arguments.
+            assert_matlab_equal(rerefevents, cell_indices if case == "allevents" else np.empty((0, 0), dtype=object))
+            assert_matlab_equal(
+                rereflatencies, cell_latencies if case == "allevents" else np.empty((0, 0), dtype=object)
+            )
+
+
 def test_epoch_upstream_default_and_explicit_sampling_rate_match_exact_slices():
     data = _upstream_epoch_data()
     events = [2, 5, 6, 9, 12, 18]
@@ -59,10 +119,6 @@ def test_epoch_upstream_default_and_explicit_sampling_rate_match_exact_slices():
         np.testing.assert_array_equal(reallim, [-1, 2])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_boundary",
-)
 def test_epoch_upstream_boundary_case_drops_only_out_of_bounds_window():
     data = _upstream_epoch_data()
 
@@ -75,10 +131,6 @@ def test_epoch_upstream_boundary_case_drops_only_out_of_bounds_window():
     np.testing.assert_array_equal(indices, np.arange(5))
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_valuelim",
-)
 def test_epoch_upstream_value_limits_filter_on_all_channels():
     data = _upstream_epoch_data()
 
@@ -97,10 +149,6 @@ def test_epoch_upstream_value_limits_filter_on_all_channels():
     np.testing.assert_array_equal(indices, [3, 4])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_allevents",
-)
 def test_epoch_upstream_rereferences_all_events_with_zero_based_indices():
     data = _upstream_epoch_data()
 

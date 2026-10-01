@@ -1,4 +1,8 @@
-"""Behavioral ports of the current EEGLAB low-level plotting wrappers."""
+"""Original plotting workflows plus supplemental Python behavior tests.
+
+The source plotcurve case 9 is commented out; the other source bodies below
+are active. GUI execution of these contracts is a separate validation step.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from eegprep.functions.sigprocfunc.cbar import cbar
 from eegprep.functions.sigprocfunc.copyaxis import copyaxis
@@ -17,6 +22,8 @@ from eegprep.functions.sigprocfunc.plotcurve import plotcurve
 from eegprep.functions.sigprocfunc.sbplot import DEFAULT_AXES_POSITION, sbplot
 from eegprep.functions.sigprocfunc.slider import slider
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.assertions import assert_matlab_struct_near
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 SIGPROC = "unittesting_sigprocfunc"
@@ -26,7 +33,212 @@ def _source(name: str) -> str:
     return f"{SIGPROC}/{name}/sigprocfunc_{name}_wrapperTest.m"
 
 
+def _source_force_locations(rows, *, besa=False):
+    fields = ("theta", "radius", "X", "Y", "Z", "sph_theta", "sph_phi", "sph_radius")
+    if besa:
+        fields += ("sph_theta_besa", "sph_phi_besa")
+    result = np.empty((1, 4), dtype=[(field, object) for field in ("labels", *fields, "type")])
+    for index, row in enumerate(rows):
+        result["labels"][0, index] = "abcd"[index]
+        result["type"][0, index] = "EEG"
+        for field, value in zip(fields, row, strict=True):
+            result[field][0, index] = np.array([[value]], dtype=float)
+    return result
+
+
+@eeglab_test(_source("forcelocs"), "test_pass_x")
+@eeglab_test(_source("forcelocs"), "test_pass_y")
+def test_reference_forcelocs_complete_original_coordinates(eeglab_backend, subtests):
+    root2 = np.sqrt(2)
+    angle5 = np.degrees(np.arccos(np.sqrt(1 / 5)))
+    angle58 = np.degrees(np.arccos(np.sqrt(5 / 8)))
+    angle38 = np.degrees(np.arccos(np.sqrt(3 / 8)))
+    angle45 = np.degrees(np.arccos(np.sqrt(4 / 5)))
+    angle13 = np.degrees(np.arccos(np.sqrt(1 / 3)))
+    angle23 = np.degrees(np.arccos(np.sqrt(2 / 3)))
+    original = [
+        [-135, 0.5, -root2 / 2, root2 / 2, 0, 135, 0, 1],
+        [0, 0.5, 1, 0, 0, 0, 0, 1],
+        [90, 0.5, 0, -1, 0, -90, 0, 1],
+        [45, 0.5, root2 / 2, -root2 / 2, 0, -45, 0, 1],
+    ]
+    x_expected = [
+        [
+            -angle5,
+            0.5 + angle58 / 180,
+            root2 / 4,
+            root2 / 2,
+            -np.sqrt(6) / 4,
+            angle5,
+            -angle58,
+            1,
+            angle38 - 180,
+            -angle45,
+        ],
+        [-180, 1 / 6, -0.5, 0, np.sqrt(12) / 4, 180, 60, 1, -30, 90],
+        [90, 0.5, 0, -1, 0, -90, 0, 1, 90, 0],
+        [
+            180 - angle5,
+            0.5 - angle58 / 180,
+            -root2 / 4,
+            -root2 / 2,
+            np.sqrt(6) / 4,
+            angle5 - 180,
+            angle58,
+            1,
+            angle38,
+            -angle45,
+        ],
+    ]
+    y_original = [row.copy() for row in original]
+    y_original[0] = [-135, 0.25, -0.5, 0.5, root2 / 2, 135, 45, 1]
+    y_expected = [
+        [-120, 0.5, -0.5, np.sqrt(12) / 4, 0, 120, 0, 1, -90, 30],
+        [0, 0.5, 1, 0, 0, 0, 0, 1, 90, 90],
+        [90, 0.5 - angle13 / 180, 0, -np.sqrt(1 / 3), np.sqrt(2 / 3), -90, angle13, 1, angle23, 0],
+        [30, 0.5 - angle23 / 180, root2 / 2, -np.sqrt(2 / 3) / 2, np.sqrt(1 / 3), -30, angle23, 1, angle13, 60],
+    ]
+    for axis, rows, constraint, expected in (
+        ("x", original, [-0.5, "x", "b"], x_expected),
+        ("y", y_original, [1.0, "y", "a"], y_expected),
+    ):
+        with subtests.test(source=axis):
+            actual = eeglab_backend("forcelocs", _source_force_locations(rows), np.array([constraint], dtype=object))
+            assert_matlab_struct_near(_source_force_locations(expected, besa=True), actual)
+
+
+@pytest.mark.gui
 @eeglab_test(_source("cbar"), "test_pass_general")
+@eeglab_test(_source("cbar"), "test_pass_horiz")
+@eeglab_test(_source("cbar"), "test_pass_horiz_color")
+@eeglab_test(_source("cbar"), "test_pass_vert")
+@eeglab_test(_source("cbar"), "test_pass_vert_color")
+def test_reference_cbar_original_calls(eeglab_backend, request, subtests):
+    for args in (
+        (),
+        ("horiz",),
+        ("horiz", np.arange(33.0, 65.0)[None, :]),
+        ("vert",),
+        ("vert", np.arange(33.0, 65.0)[None, :]),
+    ):
+        with subtests.test(args=args):
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                handle = eeglab_backend("eegprep_test_gui_handle", "cbar", *args)
+                # get(h) is evaluated but its properties are not asserted upstream.
+                eeglab_backend("get", handle, nargout=0)
+            else:
+                handle = eeglab_backend("cbar", *args)
+                handle.properties()
+            close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("copyaxis"), "test_pass_no_arg")
+def test_reference_copyaxis_without_arguments(eeglab_backend, request):
+    eeglab_backend("copyaxis", nargout=0)
+    close_reference_gui(eeglab_backend, request, all_figures=True)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("plotcurve"), "test_test_plotcurve")
+def test_reference_plotcurve_original_eight_cases(eeglab_backend, request, eeglab_suite_root):
+    x = np.linspace(1.0, 10.0, 901)
+    data = np.vstack((x, np.random.default_rng().standard_normal(901), np.exp(x) / np.exp(10), np.cos(x), np.sin(x)))
+    times = np.linspace(-4.0, 5.0, 901)[None, :]
+    for options in (
+        {},
+        {},
+        {
+            "xlabel": "Time point /ms",
+            "ylabel": "EP",
+            "legend": np.array([["linear", "random", "exponential", "cos", "sin"]], dtype=object),
+            "title": "Unit testing",
+            "vert": np.array([[-3.0, -1.6, 2.2345]]),
+            "linewidth": 1.0,
+        },
+        {"maskarray": np.array([[-0.001, 0.001]])},
+        {"val2mask": 0.5},
+        {"plotmean": "on"},
+    ):
+        eeglab_backend("plotcurve", times, data, **options, nargout=0)
+        close_reference_gui(eeglab_backend, request)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    locs = eeglab_backend("pop_readlocs", str(eeglab_suite_root / "eeglab/sample_data/eeglab_chan32.locs"))
+    times = np.linspace(float(np.asarray(eeg["xmin"]).item()), float(np.asarray(eeg["xmax"]).item()), 30504)[None, :]
+    eeglab_backend(
+        "plotcurve",
+        times,
+        np.asarray(eeg["data"])[1:2, :],
+        maskarray=np.array([[-0.5, 0.5]]),
+        highlightmode="background",
+        nargout=0,
+    )
+    close_reference_gui(eeglab_backend, request)
+    eeglab_backend("plotcurve", times, eeg["data"], chanlocs=locs, nargout=0)
+    close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("sbplot"), "test_test_sbplot")
+def test_reference_sbplot_original_calls(eeglab_backend, request):
+    native = request.config.getoption("--eeglab-backend") == "matlab"
+    for rows, columns, indices, color in (
+        (3.0, 3.0, 6.0, "g"),
+        (3.0, 3.0, np.array([[7.0, 2.0]]), "r"),
+        (8.0, 7.0, 47.0, "b"),
+    ):
+        eeglab_backend("sbplot", rows, columns, indices, nargout=0)
+        values = np.random.default_rng().random((1, 10))
+        if native:
+            eeglab_backend("plot", values, color, nargout=0)
+        else:
+            plt.plot(np.arange(1, 11), values.ravel(), color)
+    close_reference_gui(eeglab_backend, request)
+    for nested in (False, True):
+        if nested:
+            if native:
+                parent = eeglab_backend("eval", "double(axes('position',[.1 .1 .8 .6]))")
+            else:
+                parent = plt.gcf().add_axes([0.1, 0.1, 0.8, 0.6])
+            eeglab_backend("sbplot", 3.0, 3.0, 3.0, "ax", parent, nargout=0)
+        else:
+            eeglab_backend("sbplot", 3.0, 3.0, 3.0, "Color", "r", nargout=0)
+        values = np.random.default_rng().random((1, 10))
+        if native:
+            eeglab_backend("hold", "on", nargout=0)
+            eeglab_backend("plot", values, nargout=0)
+        else:
+            # Matplotlib retains existing axes artists (MATLAB hold on).
+            plt.plot(np.arange(1, 11), values.ravel())
+        close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("slider"), "test_test_slider")
+def test_reference_slider_original_calls(eeglab_backend, request):
+    for args in ((0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0, 1.2, 1.2, 0.0)):
+        values = np.random.default_rng().random((1, 10))
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            eeglab_backend("plot", values, nargout=0)
+            figure = eeglab_backend("eval", "double(gcf)")
+        else:
+            plt.plot(np.arange(1, 11), values.ravel())
+            figure = plt.gcf()
+        eeglab_backend("slider", figure, *args, nargout=0)
+        close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_source("headplot"), "test_pass_cartesian")
+@eeglab_test(_source("headplot"), "test_pass_example")
+def test_reference_headplot_example_commands(eeglab_backend, request, subtests):
+    for command in ("cartesian", "example"):
+        with subtests.test(command=command):
+            eeglab_backend("headplot", command, nargout=0)
+            close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
 def test_cbar_default_is_a_tagged_vertical_full_colormap() -> None:
     figure, _source_axes = plt.subplots()
 
@@ -39,7 +251,7 @@ def test_cbar_default_is_a_tagged_vertical_full_colormap() -> None:
     plt.close(figure)
 
 
-@eeglab_test(_source("cbar"), "test_pass_horiz")
+@pytest.mark.gui
 def test_cbar_horizontal_moves_the_source_axes_and_draws_full_colormap() -> None:
     figure, source = plt.subplots()
     before = source.get_position().bounds
@@ -53,7 +265,7 @@ def test_cbar_horizontal_moves_the_source_axes_and_draws_full_colormap() -> None
     plt.close(figure)
 
 
-@eeglab_test(_source("cbar"), "test_pass_horiz_color")
+@pytest.mark.gui
 def test_cbar_horizontal_can_show_a_partial_one_based_color_range() -> None:
     figure, _source_axes = plt.subplots()
 
@@ -66,7 +278,7 @@ def test_cbar_horizontal_can_show_a_partial_one_based_color_range() -> None:
     plt.close(figure)
 
 
-@eeglab_test(_source("cbar"), "test_pass_vert")
+@pytest.mark.gui
 def test_cbar_vertical_does_not_resize_the_source_axes() -> None:
     figure, source = plt.subplots()
     before = source.get_position().bounds
@@ -79,7 +291,7 @@ def test_cbar_vertical_does_not_resize_the_source_axes() -> None:
     plt.close(figure)
 
 
-@eeglab_test(_source("cbar"), "test_pass_vert_color")
+@pytest.mark.gui
 def test_cbar_vertical_partial_range_preserves_order_and_value_ticks() -> None:
     figure, _source_axes = plt.subplots()
 
@@ -93,7 +305,7 @@ def test_cbar_vertical_partial_range_preserves_order_and_value_ticks() -> None:
     plt.close(figure)
 
 
-@eeglab_test(_source("copyaxis"), "test_pass_no_arg")
+@pytest.mark.gui
 def test_copyaxis_without_arguments_copies_current_scientific_plot() -> None:
     source_figure, source = plt.subplots()
     source.plot([0, 1, 2], [2, 1, 3], "o--", label="Pz")
@@ -133,7 +345,6 @@ def _x_rotation_locs() -> list[dict[str, float | str]]:
     ]
 
 
-@eeglab_test(_source("forcelocs"), "test_pass_x")
 def test_forcelocs_rotates_xz_plane_and_refreshes_all_coordinate_systems() -> None:
     original = _x_rotation_locs()
 
@@ -153,7 +364,6 @@ def test_forcelocs_rotates_xz_plane_and_refreshes_all_coordinate_systems() -> No
     assert original[1]["X"] == 1.0
 
 
-@eeglab_test(_source("forcelocs"), "test_pass_y")
 def test_forcelocs_rotates_yz_plane_and_matches_eeglab_expected_montage() -> None:
     original = _x_rotation_locs()
     original[0].update({"X": -0.5, "Y": 0.5, "Z": np.sqrt(2) / 2})
@@ -173,7 +383,7 @@ def test_forcelocs_rotates_yz_plane_and_matches_eeglab_expected_montage() -> Non
     np.testing.assert_allclose([result[2]["sph_theta"], result[2]["sph_phi"]], [-90.0, 54.735610317245346])
 
 
-@eeglab_test(_source("plotcurve"), "test_test_plotcurve")
+@pytest.mark.gui
 def test_plotcurve_current_wrapper_cases_have_observable_curve_and_mask_behavior() -> None:
     times = np.arange(-4.0, 5.01, 0.01)
     x = np.arange(1.0, 10.01, 0.01)
@@ -238,7 +448,7 @@ def test_plotcurve_current_wrapper_cases_have_observable_curve_and_mask_behavior
         plt.close(figure)
 
 
-@eeglab_test(_source("sbplot"), "test_test_sbplot")
+@pytest.mark.gui
 def test_sbplot_current_wrapper_cases_span_grid_and_honor_properties_and_parent() -> None:
     figure = plt.figure()
     sixth = sbplot(3, 3, 6)
@@ -266,7 +476,7 @@ def test_sbplot_current_wrapper_cases_span_grid_and_honor_properties_and_parent(
     plt.close(parent_figure)
 
 
-@eeglab_test(_source("slider"), "test_test_slider")
+@pytest.mark.gui
 def test_slider_current_wrapper_cases_create_controls_and_pan_magnified_axes() -> None:
     figure1, axis1 = plt.subplots()
     original1 = axis1.get_position().bounds
@@ -301,7 +511,6 @@ def test_slider_current_wrapper_cases_create_controls_and_pan_magnified_axes() -
         plt.close(figure)
 
 
-@eeglab_test(_source("headplot"), "test_pass_cartesian")
 def test_headplot_cartesian_command_returns_and_prints_parseable_example(capsys) -> None:
     before = set(plt.get_fignums())
 
@@ -314,7 +523,6 @@ def test_headplot_cartesian_command_returns_and_prints_parseable_example(capsys)
     assert set(plt.get_fignums()) == before
 
 
-@eeglab_test(_source("headplot"), "test_pass_example")
 def test_headplot_example_command_returns_and_prints_spherical_table(capsys) -> None:
     before = set(plt.get_fignums())
 

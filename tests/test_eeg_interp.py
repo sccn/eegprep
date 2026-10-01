@@ -20,7 +20,8 @@ from tests.eeglab_tests import eeglab_test
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
 
 
-@eeglab_test("unittesting_popfunc/eeg_interp/popfunc_eeg_interp_wrapperTest.m", "test_checkinterp")
+# The source's separate checkinterp wrapper passes no inputs and immediately
+# returns. Its meaningful assertions belong to test_eeg_interp's two calls.
 def test_current_suite_checkinterp_preserves_existing_channels_when_restoring_montage():
     eeg = pop_loadset("sample_data/eeglab_data.set")
     eeg["data"] = eeg["data"][:, :1000]
@@ -38,6 +39,45 @@ def test_current_suite_checkinterp_preserves_existing_channels_when_restoring_mo
 
 
 @eeglab_test("unittesting_popfunc/eeg_interp/popfunc_eeg_interp_wrapperTest.m", "test_test_eeg_interp")
+def test_reference_interp_original_methods_and_shuffled_montage(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "eeglab/sample_data"
+    eeg = eeglab_backend("pop_loadset", str(directory / "eeglab_data.set"))
+    eeg["chanlocs"] = eeglab_backend(
+        "pop_chanedit",
+        eeg["chanlocs"],
+        "load",
+        np.array([[str(directory / "eeglab_chan32.locs"), "filetype", ""]], dtype=object),
+        "shrink",
+        -0.1,
+    )
+    eeg["pnts"] = 1000.0
+    eeg["data"] = eeg["data"][:, :1000]
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    for method in ("spherical", "invdist"):
+        eeglab_backend("eeg_interp", eeg, np.arange(1.0, 17.0)[None, :], method)
+        eeglab_backend("eeg_interp", eeg, np.empty((0, 0)), method)
+    locations = eeg["chanlocs"]
+    eeg = eeglab_backend(
+        "pop_select", eeg, "nochannel", np.arange(1.0, float(np.asarray(eeg["nbchan"]).item()) + 1, 4)[None, :]
+    )
+    _reference_checkinterp(eeg, eeglab_backend("eeg_interp", eeg, locations))
+    shuffled = eeglab_backend("shuffle", locations)
+    _reference_checkinterp(eeg, eeglab_backend("eeg_interp", eeg, shuffled))
+
+
+def _reference_checkinterp(first, second):
+    first_labels = first["chanlocs"]["labels"].ravel(order="F").tolist()
+    second_labels = second["chanlocs"]["labels"].ravel(order="F").tolist()
+    if len(first_labels) > len(second_labels):
+        _reference_checkinterp(second, first)
+        return
+    for index, label in enumerate(first_labels):
+        matches = [other for other, candidate in enumerate(second_labels) if candidate == label]
+        if matches:
+            # checkinterp.m checks only the first sample of matching channels.
+            assert np.all(first["data"][index, 0] == second["data"][matches, 0])
+
+
 def test_eeg_interp_current_suite_sample_channel_and_montage_workflows():
     eeg = pop_loadset("sample_data/eeglab_data.set")
     eeg["data"] = eeg["data"][:, :1000]

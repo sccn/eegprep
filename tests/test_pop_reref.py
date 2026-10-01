@@ -20,13 +20,33 @@ from eegprep.functions.popfunc.pop_reref import pop_reref
 from eegprep.functions.sigprocfunc.reref import reref
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 import importlib
 
 eeg_checkset_module = importlib.import_module('eegprep.functions.adminfunc.eeg_checkset')
 
 
 @eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_pass_bugzilla_270")
+def test_reference_pop_reref_original_bugzilla_270_input(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg.update(
+        nbchan=3.0,
+        pnts=20.0,
+        trials=1.0,
+        srate=1.0,
+        xmin=0.0,
+        xmax=2.0,
+        data=np.arange(1.0, 61.0).reshape(3, 20),
+    )
+    eeglab_backend("pop_reref", eeg, np.array([[1.0, 2.0]]), "method", "standard")
+
+
+@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
+def test_reference_pop_reref_original_average_reference_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("pop_reref", eeg, np.empty((0, 0)))
+
+
 def test_pop_reref_current_suite_standard_method_with_multiple_references():
     eeg = {
         "data": np.arange(1, 61, dtype=float).reshape(3, 20),
@@ -54,7 +74,6 @@ def test_pop_reref_current_suite_standard_method_with_multiple_references():
     np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
 
 
-@eeglab_test("unittesting_popfunc/pop_reref/popfunc_pop_reref_wrapperTest.m", "test_test_pop_reref")
 def test_pop_reref_current_suite_average_reference_workflow():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 
@@ -63,11 +82,44 @@ def test_pop_reref_current_suite_average_reference_workflow():
     np.testing.assert_allclose(output["data"].mean(axis=0), 0, atol=1e-5)
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m",
-    "test_test_reref",
-)
-def test_low_level_reref_upstream_continuous_and_epoched_contracts():
+@eeglab_test("unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m", "test_test_reref")
+def test_reference_reref(eeglab_backend, eeglab_suite_root):
+    references = np.array([[2, 5, 26]], dtype=float)
+    excluded = np.array([[1, 32]], dtype=float)
+    for filename in ("eeglab_data.set", "eeglab_data_epochs_ica.set"):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
+        data = eeg["data"]
+        average = eeglab_backend("reref", data, np.empty((0, 0)), "keepref", "on")
+        explicit = eeglab_backend("reref", data, np.arange(1.0, 33.0)[None, :], "keepref", "on")
+        assert_matlab_near(average, explicit)
+        output = eeglab_backend("reref", data, references, "keepref", "off")
+        assert_matlab_near([output.shape], [[29, *data.shape[1:]]])
+        output = eeglab_backend("reref", data, 5.0, "keepref", "on")
+        assert_matlab_near([output.shape], [data.shape])
+        assert_matlab_near(output[4:5], np.zeros((1, *data.shape[1:])))
+        output = eeglab_backend("reref", data, references, "exclude", excluded, "keepref", "off")
+        assert_matlab_near([output.shape], [[29, *data.shape[1:]]])
+        assert_matlab_near(output[[0, 28]], data[[0, 31]])
+    output = eeglab_backend("reref", data, references, "exclude", excluded, "keepref", "off", "elocs", eeg["chanlocs"])
+    assert_matlab_near([output.shape], [[29, *data.shape[1:]]])
+    assert_matlab_near(output[[0, 28]], data[[0, 31]])
+    output = eeglab_backend(
+        "reref",
+        data,
+        references,
+        "exclude",
+        excluded,
+        "keepref",
+        "off",
+        "elocs",
+        eeg["chanlocs"],
+        "refloc",
+        eeg["chanlocs"][:, 1:2],
+    )
+    assert_matlab_near([output.shape], [[30, data.shape[1] * data.shape[2]]])
+
+
+def test_python_regression_low_level_reref_continuous_and_epoched_contracts():
     rng = np.random.default_rng(42)
     locs = [{"labels": f"Ch{index + 1}"} for index in range(32)]
 

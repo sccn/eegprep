@@ -4,7 +4,7 @@ import numpy as np
 
 from eegprep import pop_adjustevents
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, eeglab_test
 
 
 def demo_eeg():
@@ -188,6 +188,40 @@ def _assert_current_adjustevents_workflow(eeg):
     "unittesting_popfunc/pop_adjustevents/popfunc_pop_adjustevents_wrapperTest.m",
     "test_test_pop_adjustevents1",
 )
+def test_reference_adjustevents_epoched(eeglab_backend, eeglab_suite_root, subtests):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    _reference_adjustevents(eeglab_backend, eeg, subtests)
+
+
+@eeglab_test(
+    "unittesting_popfunc/pop_adjustevents/popfunc_pop_adjustevents_wrapperTest.m",
+    "test_test_pop_adjustevents2",
+)
+def test_reference_adjustevents_continuous(eeglab_backend, eeglab_suite_root, subtests):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    _reference_adjustevents(eeglab_backend, eeg, subtests)
+
+
+def _reference_adjustevents(eeglab_backend, eeg, subtests):
+    event_types = eeg["event"]["type"][0].tolist()
+    rt_indices = [index for index, kind in enumerate(event_types) if "rt" in kind]
+    latencies = np.concatenate(eeg["event"]["latency"][0].tolist(), axis=1)
+    for parameter, amount in (("addms", 20.0), ("addsamples", 30.0)):
+        for selected in (False, True):
+            # The source catches each case's failure and reports after all four.
+            with subtests.test(parameter=parameter, selected=selected):
+                options = ("eventtypes", np.array([["rt"]], dtype=object)) if selected else ()
+                result, _ = eeglab_backend("pop_adjustevents", eeg, parameter, amount, *options, nargout=2)
+                actual = np.concatenate(result["event"]["latency"][0].tolist(), axis=1)
+                expected = latencies
+                if selected:
+                    actual, expected = actual[:, rt_indices], expected[:, rt_indices]
+                shift = 20.0 / 1000.0 * eeg["srate"] if parameter == "addms" else 30.0
+                # Retain source subtraction before exact equality: adding to the
+                # oracle instead would change floating-point rounding behavior.
+                assert_matlab_equal(actual - shift, expected)
+
+
 def test_pop_adjustevents_current_suite_epoched_workflow():
     eeg = demo_eeg()
     eeg["data"] = eeg["data"].reshape(1, 500, 2)
@@ -197,10 +231,6 @@ def test_pop_adjustevents_current_suite_epoched_workflow():
     _assert_current_adjustevents_workflow(eeg)
 
 
-@eeglab_test(
-    "unittesting_popfunc/pop_adjustevents/popfunc_pop_adjustevents_wrapperTest.m",
-    "test_test_pop_adjustevents2",
-)
 def test_pop_adjustevents_current_suite_continuous_workflow():
     _assert_current_adjustevents_workflow(demo_eeg())
 

@@ -11,7 +11,7 @@ import pytest
 from scipy import io as scipy_io
 from scipy import stats as scipy_stats
 
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from eegprep.functions.statistics import (
     TwoWayEffects,
     anova1_cell,
@@ -52,6 +52,17 @@ def test_fdr_matches_bh_and_by_thresholds():
     "unittesting_sigprocfunc/fdr/sigprocfunc_fdr_wrapperTest.m",
     "test_test_fdr",
 )
+def test_reference_fdr_original_correlated_random_data(eeglab_backend, request):
+    data = np.random.default_rng().standard_normal((30, 4))
+    data[:, 3] = data.sum(axis=1)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        _, probabilities = eeglab_backend("corrcoef", data, nargout=2)
+    else:
+        probabilities = scipy_stats.pearsonr(data.T[:, None, :], data.T[None, :, :], axis=-1).pvalue
+    for options in ((), (0.8,), (0.05,), (0.5,), (0.5, "nonParametric")):
+        eeglab_backend("fdr", probabilities, *options, nargout=2)
+
+
 def test_fdr_upstream_call_forms_preserve_threshold_and_mask_shapes():
     pvals = np.asarray(
         [
@@ -130,10 +141,19 @@ def test_ttest_helpers_match_scipy_statistics():
     assert pooled_df == 19
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/concatdata/sigprocfunc_concatdata_wrapperTest.m",
-    "test_test_concatdata",
-)
+@eeglab_test("unittesting_sigprocfunc/concatdata/sigprocfunc_concatdata_wrapperTest.m", "test_test_concatdata")
+def test_reference_concatdata_original_arrays(eeglab_backend):
+    rng = np.random.default_rng()
+    first, second = rng.random((32, 100)), rng.random((32, 1000))
+    data = np.empty((1, 2), dtype=object)
+    data[0, 0], data[0, 1] = first, second
+    result, lengths, _dimensions = eeglab_backend("concatdata", data, nargout=3)
+    assert_matlab_near([result.shape], [[32.0, 1100.0]])
+    assert_matlab_near(result[:, :100], first)
+    assert_matlab_near(result[:, 100:1100], second)
+    assert_matlab_near(lengths, [[0.0, 100.0, 1100.0]])
+
+
 def test_corrcoef_and_concatdata_contracts():
     first = np.array([[1, 2, 3, 4], [1, 3, 5, 7]], dtype=float)
     second = np.array([[4, 3, 2, 1], [2, 4, 6, 8]], dtype=float)

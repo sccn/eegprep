@@ -4,6 +4,9 @@ from pathlib import Path
 
 import tomllib
 
+import numpy as np
+import pytest
+
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
@@ -14,9 +17,35 @@ from eegprep.functions.popfunc.pop_chansel import (
 )
 from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.gui
+@eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
+def test_reference_pophelp(eeglab_backend, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    if not matlab:
+        from PySide6.QtWidgets import QApplication
+
+        # Keep the real Python application and returned dialogs alive until
+        # the source closes them; MATLAB's pophelp itself has no output.
+        _application = QApplication.instance() or QApplication([])
+    for function in ("pop_editoptions", "pop_editoptions.m"):
+        window = eeglab_backend("pophelp", function, nargout=0 if matlab else 1)
+        close_reference_gui(eeglab_backend, request, window=window)
+
+
+@eeglab_test("unittesting_adminfunc/eeg_helphelp/adminfunc_eeg_helphelp_wrapperTest.m", "test_pass_general")
+def test_reference_eeg_helphelp(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # This one help script executes `help eeg_helphelp`; the other five
+        # category-help scripts are comment-only, not pophelp_text contracts.
+        eeglab_backend("eegprep_test_run_script", "eeg_helphelp", np.empty((1, 0), dtype=object), nargout=0)
+    else:
+        eeglab_backend("eeg_helphelp", nargout=0)
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):
@@ -36,8 +65,6 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("pop_reref.md"))
 
-    @eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
-    @eeglab_test("unittesting_guifunc/pophelp/test_pophelp.m", "test_test_pophelp")
     def test_pophelp_accepts_function_name_with_or_without_matlab_suffix(self):
         plain_text, plain_source = pophelp_text("pop_editoptions")
         matlab_text, matlab_source = pophelp_text("pop_editoptions.m")
@@ -84,12 +111,6 @@ class PopHelpAndChanSelTests(unittest.TestCase):
                 self.assertIn(spec.function_name.upper(), text)
                 self.assertIn("resources/help", Path(source_path).as_posix())
 
-    @eeglab_test("unittesting_adminfunc/eeg_helpadmin/test_eeg_helpadmin.m", "test_test_eeg_helpadmin")
-    @eeglab_test("unittesting_adminfunc/eeg_helphelp/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpmenu/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helppop/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpsigproc/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpstudy/pass_general.m", "test_pass_general")
     def test_help_resources_are_packaged_importlib_resources(self):
         help_files = resources.files("eegprep.resources.help")
 

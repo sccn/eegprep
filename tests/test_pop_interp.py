@@ -47,6 +47,25 @@ def _eeg(n_channels=8, n_points=50, trials=1):
 
 
 @eeglab_test("unittesting_popfunc/pop_interp/popfunc_pop_interp_wrapperTest.m", "test_test_pop_interp")
+def test_reference_pop_interp_original_locations_and_recording(eeglab_backend, eeglab_suite_root):
+    sample_directory = eeglab_suite_root / "eeglab/sample_data"
+    eeg = eeglab_backend("pop_loadset", str(sample_directory / "eeglab_data.set"))
+    eeg["chanlocs"] = eeglab_backend(
+        "pop_chanedit",
+        eeg["chanlocs"],
+        "load",
+        np.array([[str(sample_directory / "eeglab_chan32.locs"), "filetype", ""]], dtype=object),
+        "shrink",
+        -0.1,
+    )
+    eeg["pnts"] = 1000.0
+    eeg["data"] = eeg["data"][:, :1000]
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    for method in ("spherical", "invdist"):
+        eeglab_backend("pop_interp", eeg, np.arange(1.0, 17.0)[None, :], method)
+        eeglab_backend("pop_interp", eeg, np.empty((0, 0)), method)
+
+
 def test_pop_interp_current_suite_sample_channel_workflows():
     eeg = pop_loadset("sample_data/eeglab_data.set")
     eeg["data"] = eeg["data"][:, :1000]

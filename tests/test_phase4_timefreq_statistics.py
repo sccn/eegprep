@@ -19,7 +19,7 @@ import scipy.io
 from scipy import stats
 
 import eegprep
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -95,7 +95,172 @@ def ica_epoch():
     return create_test_eeg_with_ica(n_channels=6, n_samples=96, n_trials=5, n_components=4)
 
 
+@pytest.mark.gui
 @eeglab_test("unittesting_sigprocfunc/newtimef/sigprocfunc_newtimef_wrapperTest.m", "test_test_newtimef")
+def test_reference_newtimef_frequency_plots(eeglab_backend, request):
+    srate, frames = 1000.0, 600.0
+    times = np.arange(frames)[None, :] / srate
+    data = 0.7 * np.sin(2 * np.pi * 25 * times) + np.cos(2 * np.pi * 50 * times)
+    for cycles, frequencies in ((0.0, [[3.0, 100.0]]), (5.0, [[10.0, 100.0]])):
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            request.getfixturevalue("eeglab_matlab_engine").figure(nargout=0)
+        else:
+            plt.figure()
+        eeglab_backend(
+            "newtimef",
+            data,
+            frames,
+            np.array([[0.0, frames / srate * 1000]]),
+            srate,
+            cycles,
+            "winsize",
+            200.0,
+            "freqs",
+            np.array(frequencies),
+            "baseline",
+            np.nan,
+            nargout=0,
+        )
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            request.getfixturevalue("eeglab_matlab_engine").close(nargout=0)
+        else:
+            plt.close()
+    spectrum = np.fft.fft(data[:, :402], axis=1)
+    _frequencies = np.linspace(0, srate / 2, spectrum.shape[1] // 2)[1:]
+    _spectrum = spectrum[:, 1 : spectrum.shape[1] // 2]
+
+
+@eeglab_test("unittesting_sigprocfunc/newtimef/sigprocfunc_newtimef_wrapperTest.m", "test_test_newtimef2")
+def test_reference_newtimef_original_baseline_formulas(eeglab_backend):
+    data = np.random.default_rng().random((100, 10))
+    options = (
+        "timesout",
+        np.arange(20.0, 81.0, 10.0)[None, :] * 10,
+        "padratio",
+        1.0,
+        "winsize",
+        32.0,
+        "plotitc",
+        "off",
+        "plotersp",
+        "off",
+        "verbose",
+        "off",
+        "outputformat",
+        "plot",
+    )
+    # Literal timefreqfft/hanning formulas from the local MATLAB source helpers.
+    half_window = 0.5 * (1 - np.cos(2 * np.pi * np.arange(1, 17) / 33))
+    window = np.concatenate((half_window, half_window[::-1]))[:, None]
+    transforms = []
+    for center in (21, 31, 41):
+        segment = data[center - 16 : center + 16]
+        segment = segment - segment.mean(axis=0)
+        transforms.append(np.fft.fft(segment * window, 32, axis=0)[1:17] * 2 / 0.375 / 32)
+    first, second, third = transforms
+    power1, power2, power3 = [np.mean(np.abs(values) ** 2, axis=1, keepdims=True) for values in transforms]
+    frequencies = np.linspace(0, 50, 17)[None, 1:]
+    wavelet_frequencies = np.array([[10.0, 12.0, 14.0, 16.0, 18.0]])
+    wavelets = eeglab_backend("dftfilt3", wavelet_frequencies, 3.0, 100.0, "cycleinc", "linear")
+    tapered = []
+    for wavelet in np.asarray(wavelets, dtype=object).ravel():
+        wavelet = np.asarray(wavelet).ravel()
+        half = (wavelet.size - 1) // 2
+        segment = data[np.arange(-half, half + 1) + 30]
+        tapered.append(np.sum((segment - segment.mean(axis=0)) * wavelet[:, None], axis=0))
+    wavelet_power = np.mean(np.abs(tapered) ** 2, axis=1, keepdims=True)
+    itc_expected = np.abs(np.mean(first / np.abs(first), axis=1, keepdims=True))
+    baseline_ratio = power2 / power1
+    trial_ratio = np.mean(np.abs(second / np.abs(first)) ** 2, axis=1, keepdims=True)
+    mean_base = (power1 + power2) / 2
+    std_base = np.sqrt((power1 - mean_base) ** 2 + (power2 - mean_base) ** 2)
+    normalized = (power3 - mean_base) / std_base
+    trial_mean = np.abs(first) ** 2 / 2 + np.abs(second) ** 2 / 2
+    trial_std = np.sqrt((np.abs(first) ** 2 - trial_mean) ** 2 + (np.abs(second) ** 2 - trial_mean) ** 2)
+    trial_normalized = np.mean((np.abs(third) ** 2 - trial_mean) / trial_std, axis=1, keepdims=True)
+    arguments = (data, 100.0, np.array([[0.0, 990.0]]), 100.0, 0.0)
+    absolute, itc, _, _, actual_frequencies = eeglab_backend(
+        "newtimef",
+        *arguments,
+        "baseline",
+        np.nan,
+        "scale",
+        "abs",
+        *options,
+        nargout=5,
+    )
+    logarithmic = eeglab_backend("newtimef", *arguments, "baseline", np.nan, "scale", "log", *options)
+    baseline_abs, _, powbase_abs = eeglab_backend(
+        "newtimef",
+        *arguments,
+        "baseline",
+        250.0,
+        "scale",
+        "abs",
+        *options,
+        nargout=3,
+    )
+    baseline_log, _, powbase_log = eeglab_backend(
+        "newtimef",
+        *arguments,
+        "baseline",
+        250.0,
+        "scale",
+        "log",
+        *options,
+        nargout=3,
+    )
+    trial_abs = eeglab_backend("newtimef", *arguments, "baseline", 250.0, "scale", "abs", "trialbase", "on", *options)
+    trial_log = eeglab_backend("newtimef", *arguments, "baseline", 250.0, "scale", "log", "trialbase", "on", *options)
+    normalized_abs = eeglab_backend(
+        "newtimef", *arguments, "baseline", 350.0, "scale", "abs", "basenorm", "on", *options
+    )
+    normalized_trial = eeglab_backend(
+        "newtimef",
+        *arguments,
+        "baseline",
+        350.0,
+        "scale",
+        "abs",
+        "trialbase",
+        "on",
+        "basenorm",
+        "on",
+        *options,
+    )
+    wavelet_abs = eeglab_backend(
+        "newtimef",
+        data,
+        100.0,
+        np.array([[0.0, 990.0]]),
+        100.0,
+        3.0,
+        "baseline",
+        np.nan,
+        "scale",
+        "abs",
+        "freqs",
+        wavelet_frequencies,
+        *options,
+    )
+    for expected, actual in (
+        (frequencies, actual_frequencies),
+        (itc_expected, np.abs(itc[:, :1])),
+        (power1, absolute[:, :1]),
+        (10 * np.log10(power1), logarithmic[:, :1]),
+        (baseline_ratio, baseline_abs[:, 1:2]),
+        (power1, powbase_abs.T),
+        (10 * np.log10(baseline_ratio), baseline_log[:, 1:2]),
+        (10 * np.log10(power1), powbase_log.T),
+        (trial_ratio, trial_abs[:, 1:2]),
+        (10 * np.log10(trial_ratio), trial_log[:, 1:2]),
+        (normalized, normalized_abs[:, 2:3]),
+        (trial_normalized, normalized_trial[:, 2:3]),
+        (wavelet_power, wavelet_abs[:, 1:2]),
+    ):
+        assert np.all(np.abs(expected - actual) < 1e-8)
+
+
 def test_newtimef_synthetic_returns_deterministic_shapes():
     srate = 128
     times = np.arange(0, 1, 1 / srate)
@@ -110,7 +275,6 @@ def test_newtimef_synthetic_returns_deterministic_shapes():
     assert np.all(np.abs(result.itc) <= 1 + 1e-12)
 
 
-@eeglab_test("unittesting_sigprocfunc/newtimef/sigprocfunc_newtimef_wrapperTest.m", "test_test_newtimef2")
 def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
     data = np.random.RandomState(0).rand(100, 10)
     output_times = np.arange(20, 81, 10) * 10
@@ -535,6 +699,23 @@ def test_timewarp_rejects_unsorted_markers():
         timewarp([1, 5, 3], [1, 2, 5])
 
 
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_5point_sinus")
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_diff_start")
+@eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_spike")
+def test_reference_angtimewarp(eeglab_backend):
+    data = np.array([[0, 1, 0, -1, 0]], dtype=float)
+    result = eeglab_backend("angtimewarp", np.array([[1, 3, 5]], dtype=float), np.array([[1, 5, 5]], dtype=float), data)
+    assert_matlab_near(result, [[0, 0.5, 1, 0.5, 0]])
+    # The source's remaining two numerical assertions are commented out.
+    eeglab_backend("angtimewarp", np.array([[2, 3, 4]], dtype=float), np.array([[1, 3, 5]], dtype=float), data)
+    eeglab_backend(
+        "angtimewarp",
+        np.array([[1, 3, 5]], dtype=float),
+        np.array([[1, 1, 5]], dtype=float),
+        np.array([[0, 5, 1000, -1000, 0]], dtype=float),
+    )
+
+
 def test_angtimewarp_interpolates_and_wraps_like_eeglab():
     angles = np.asarray([0, np.pi / 2, np.pi, -np.pi / 2, 0], dtype=float)
 
@@ -543,33 +724,19 @@ def test_angtimewarp_interpolates_and_wraps_like_eeglab():
     np.testing.assert_allclose(warped, [0, np.pi, 0, -np.pi / 3, 0], rtol=1e-12, atol=1e-12)
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_5point_sinus",
-)
-def test_angtimewarp_upstream_five_point_compression():
+def test_python_regression_angtimewarp_five_point_compression():
     warped = angtimewarp([1, 3, 5], [1, 5, 5], [0, 1, 0, -1, 0])
 
     np.testing.assert_allclose(warped, [0, 0.5, 1, 0.5, 0])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_diff_start",
-)
-def test_angtimewarp_upstream_implicit_synchronized_start():
-    """Strengthen the upstream script, whose numerical assertion is disabled."""
+def test_python_regression_angtimewarp_implicit_synchronized_start():
     warped = angtimewarp([2, 3, 4], [1, 3, 5], [0, 1, 0, -1, 0])
 
     np.testing.assert_allclose(warped, [0, 0.5, 0, -0.5, -1])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m",
-    "test_pass_spike",
-)
-def test_angtimewarp_upstream_repeated_marker_wraps_large_angles():
-    """Strengthen the upstream script, whose numerical assertion is disabled."""
+def test_python_regression_angtimewarp_repeated_marker_wraps_large_angles():
     warped = angtimewarp([1, 3, 5], [1, 1, 5], [0, 5, 1000, -1000, 0])
     unwrapped = np.asarray([0, 0, -1000, -500, 0], dtype=float)
     expected = np.mod(unwrapped, 2 * np.pi)

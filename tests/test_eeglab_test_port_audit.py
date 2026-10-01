@@ -9,6 +9,7 @@ import pytest
 from tools.eeglab_test_port_audit import (
     AuditInputError,
     CollectedReference,
+    EEGLAB_TESTS_COMMIT,
     MatlabTestScenario,
     audit_test_ports,
     compare_test_ports,
@@ -227,6 +228,34 @@ def test_comparison_rejects_missing_stale_and_wrong_commit_provenance(tmp_path: 
     assert "references a source absent from the pinned suite" in messages
     assert "pins suite commit stale, expected current" in messages
     assert not report.ok
+
+
+@pytest.mark.parametrize("suite_commit", [EEGLAB_TESTS_COMMIT, "other-suite"])
+def test_mmo_scope_exception_never_exempts_missing_workflows(tmp_path: Path, suite_commit: str) -> None:
+    source = "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m"
+    wrapper = tmp_path / source
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text(
+        "function tests = adminfunc_mmo_wrapperTest\n"
+        "tests = functiontests(localfunctions);\n"
+        "function test_checkmmo(~)\n"
+        "function test_checkmmo2(~)\n"
+        "function test_checkmmo3(~)\n",
+        encoding="utf-8",
+    )
+    expected = discover_matlab_test_scenarios(tmp_path)
+    report = compare_test_ports(tmp_path, expected, [], suite_commit=suite_commit)
+
+    assert not report.ok
+    assert set(report.missing) == expected
+    assert not report.covered
+    exceptions = report.to_jsonable()["approved_scope_exceptions"]
+    if suite_commit == EEGLAB_TESTS_COMMIT:
+        assert set(exceptions) == {f"{source}::test_checkmmo", f"{source}::test_checkmmo2"}
+        assert "All seven write/diagnostic cases remain" in exceptions[f"{source}::test_checkmmo2"]
+        assert "Approved Python scope exceptions (not passes or skipped definitions)" in format_report(report)
+    else:
+        assert exceptions == {}
 
 
 def _source_fixture(root: Path) -> Path:

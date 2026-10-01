@@ -10,6 +10,18 @@ from tests.eeglab_tests import eeglab_test
 @eeglab_test(
     "unittesting_popfunc/pop_editeventvals/popfunc_pop_editeventvals_wrapperTest.m", "test_test_pop_editeventvals"
 )
+def test_reference_editeventvals_original_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend(
+        "pop_editeventvals",
+        eeg,
+        "changefield",
+        np.array([[1.0, "latency", 1.1]], dtype=object),
+        "changefield",
+        np.array([[1.0, "position", 2.0]], dtype=object),
+    )
+
+
 def test_pop_editeventvals_current_suite_changes_multiple_fields_on_one_event():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 

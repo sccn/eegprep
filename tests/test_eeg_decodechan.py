@@ -1,9 +1,17 @@
 # test_eeg_decodechan_unittest.py
 import unittest
+import numpy as np
 
 # Bring in the function under test
 from eegprep import eeg_decodechan
 from tests.eeglab_tests import eeglab_test
+
+
+@eeglab_test("unittesting_popfunc/eeg_decodechan/popfunc_eeg_decodechan_wrapperTest.m", "test_test_eeg_decodechan")
+def test_reference_decodechan_original_channel_names(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend("eeg_decodechan", eeg["chanlocs"], np.array([["cz", "pz", "fz"]], dtype=object), nargout=2)
+    eeglab_backend("eeg_decodechan", eeg["chanlocs"], "cz pz fz", nargout=2)
 
 
 class TestEEGDecodeChan(unittest.TestCase):
@@ -79,7 +87,6 @@ class TestEEGDecodeChan(unittest.TestCase):
         with self.assertRaises(TypeError):
             eeg_decodechan(self.chanlocs, 123)
 
-    @eeglab_test("unittesting_popfunc/eeg_decodechan/popfunc_eeg_decodechan_wrapperTest.m", "test_test_eeg_decodechan")
     def test_cell_and_space_separated_channel_labels_match(self):
         cell_indices, cell_labels = eeg_decodechan(self.chanlocs, ["cz", "pz", "fz"])
         text_indices, text_labels = eeg_decodechan(self.chanlocs, "cz pz fz")
