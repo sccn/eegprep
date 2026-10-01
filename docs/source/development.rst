@@ -740,7 +740,29 @@ byte-for-byte. A corrected native run needs a writable ``ds002718`` copy beside 
 returned ``unittesting_limo`` directory. The Python contract never executes
 the complete native test script or its helper.
 
-Other source behavior remains unchanged. Full live IRLS validation is pending.
+Other source behavior remains unchanged. On September 30, 2026, the user
+stopped exhaustive IRLS execution and accepted an explicitly incomplete
+execution result for this test-porting deliverable. The full 18-subject,
+2,500-bootstrap test remains intact; it was not replaced with a smaller test.
+
+The retained-model tail ran for 48,428.80 seconds before the requested
+interruption. Channels 1--23 of the first subject completed their bootstrap
+loops; channel 24 was interrupted. This is partial execution evidence, not
+23 independently validated channel results or a passed IRLS workflow. No
+subject completed the full bootstrap stage, no H0 checkpoint was saved, and
+the subsequent error-rate analysis, confidence intervals, final six result
+fields, ``results.mat`` and figure exports were not validated by this run.
+The JUnit result records one ``InterruptedError`` failure, not a scientific
+assertion failure. The manifest records ``failed-or-interrupted``, no completed
+subjects and unchanged retained inputs; six native computation source hashes
+were also verified unchanged. The log, manifest and JUnit XML are retained
+under ``.notes/irls-retained-full.XFjjLX`` in the validation workspace.
+
+All owned runner, MATLAB and worker processes exited, and the scheduled
+monitor was removed. Full IRLS execution remains an acknowledged validation
+gap, not a requirement to rerun during this closeout. Source-test fidelity,
+classified execution evidence and this approved execution exception must not
+be summarized as an all-tests-passed result or proof of EEGPrep capability.
 Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
 visible failures, not replacement algorithms or differently formatted files.
 
