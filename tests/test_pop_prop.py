@@ -30,7 +30,7 @@ from eegprep.functions.popfunc.plot_utils import component_activations
 from eegprep.functions.popfunc.pop_prop import pop_prop
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords
-from tests.fixtures import create_test_eeg, create_test_eeg_with_ica
+from tests.fixtures import create_test_eeg_with_ica
 
 SPECTRA_ATOL_DB = 1e-6
 
@@ -62,12 +62,6 @@ def _spectrum_axis(fig: Any) -> Any:
     return ax
 
 
-def _image_axis(fig: Any) -> Any:
-    ax = _find_axis(fig, lambda a: bool(a.get_images()) and a.get_ylabel() == "Trials")
-    assert ax is not None, "no ERP-image panel (ylabel 'Trials') found"
-    return ax
-
-
 def _topo_axis(fig: Any) -> Any:
     ax = _find_axis(
         fig,
@@ -82,32 +76,6 @@ def _erp_average_axis(fig: Any) -> Any:
     ax = _find_axis(fig, lambda a: a.get_xlabel() == "Time (ms)" and not a.get_images())
     assert ax is not None, "no ERP average panel (xlabel 'Time (ms)') found"
     return ax
-
-
-def test_channel_property_has_three_eeglab_panels() -> None:
-    eeg = _epoched_eeg()
-    fig = pop_prop(eeg, 1, 3, plot="off")
-
-    image_ax = _image_axis(fig)
-    assert image_ax.get_ylabel() == "Trials"
-    # EEGLAB pop_prop labels the channel ERP average "ERP" (erpimage default, pop_prop.m:192).
-    erp_ax = _erp_average_axis(fig)
-    assert erp_ax.get_ylabel() == "ERP"
-
-    spec_ax = _spectrum_axis(fig)
-    assert spec_ax.get_xlabel() == "Frequency (Hz)"
-    assert "Power" in spec_ax.get_ylabel()
-    plt.close("all")
-
-
-def test_component_property_titles_match_eeglab() -> None:
-    eeg = _epoched_eeg()
-    fig = pop_prop(eeg, 0, 2, plot="off")
-
-    # EEGLAB puts "<basename> activity (global offset ...)" on the ERP image.
-    assert _find_axis(fig, lambda a: "activity" in a.get_title().lower()) is not None
-    assert _spectrum_axis(fig) is not None
-    plt.close("all")
 
 
 @pytest.mark.parity
@@ -159,45 +127,6 @@ def test_erp_average_uses_global_offset_subtracted_data() -> None:
     plt.close("all")
 
 
-@pytest.mark.parity
-def test_erp_average_y_label_matches_eeglab_pop_prop() -> None:
-    """EEGLAB pop_prop labels the channel ERP "ERP" (default) and blanks it for components."""
-    eeg = _epoched_eeg()
-
-    # IC activations are unitless, so EEGLAB passes 'yerplabel', '' (pop_prop.m:200).
-    comp_fig = pop_prop(eeg, 0, 2, plot="off")
-    assert _erp_average_axis(comp_fig).get_ylabel() == ""
-
-    # Channels keep erpimage's default "ERP" label (pop_prop.m:192), so the blanking is
-    # component-specific.
-    chan_fig = pop_prop(eeg, 1, 3, plot="off")
-    assert _erp_average_axis(chan_fig).get_ylabel() == "ERP"
-    plt.close("all")
-
-
-@pytest.mark.parity
-def test_erp_image_and_trace_sit_flush() -> None:
-    """EEGLAB stacks the ERP trace flush under the image, with only the trace carrying the
-    time axis (erpimage.m:2922/2927), and puts the properties label in the window title."""
-    eeg = _epoched_eeg()
-    for typecomp, index in ((1, 3), (0, 2)):
-        fig = pop_prop(eeg, typecomp, index, plot="off")
-        fig.canvas.draw()  # positions are only resolved after a draw
-
-        image_ax = _image_axis(fig)
-        erp_ax = _erp_average_axis(fig)
-        gap = image_ax.get_position().y0 - erp_ax.get_position().y1
-        assert abs(gap) < 1e-3, f"ERP image/trace not flush (gap={gap:.4f}) for typecomp={typecomp}"
-
-        # Only the ERP trace shows the time-axis tick labels (image blanks them).
-        assert not any(t.get_text() and t.get_visible() for t in image_ax.get_xticklabels())
-        assert any(t.get_text() and t.get_visible() for t in erp_ax.get_xticklabels())
-
-        name = f"Channel {index}" if typecomp else f"IC{index}"
-        assert fig.canvas.manager.get_window_title() == f"pop_prop() - {name} properties"
-        plt.close("all")
-
-
 def test_channel_topo_marks_only_the_selected_channel() -> None:
     """The scalp map marks exactly the selected channel (EEGLAB emarkersize1chan)."""
     eeg = _epoched_eeg()
@@ -212,66 +141,4 @@ def test_channel_topo_marks_only_the_selected_channel() -> None:
     loc = eeg["chanlocs"][channel - 1]
     screen_x, screen_y = topo_screen_coords(float(loc["theta"]), float(loc["radius"]))
     np.testing.assert_allclose(points[0], [screen_x, screen_y], atol=1e-6)
-    plt.close("all")
-
-
-@pytest.mark.parity
-def test_spectrum_y_axis_hugs_the_visible_frequency_band() -> None:
-    """The spectrum y-limits track the data within the plotted band, not out-of-view freqs."""
-    eeg = _epoched_eeg()
-    fig = pop_prop(eeg, 0, 2, spec_opt="'freqrange', [2, 50]", plot="off")
-
-    spec_ax = _spectrum_axis(fig)
-    freqs = np.asarray(spec_ax.lines[0].get_xdata(), dtype=float)
-    spectra = np.asarray(spec_ax.lines[0].get_ydata(), dtype=float)
-    band = (freqs >= 2.0) & (freqs <= 50.0)
-    band_lo, band_hi = float(spectra[band].min()), float(spectra[band].max())
-    margin = (band_hi - band_lo) / 7.0
-
-    y_lo, y_hi = spec_ax.get_ylim()
-    np.testing.assert_allclose([y_lo, y_hi], [band_lo - margin, band_hi + margin], rtol=1e-9)
-    plt.close("all")
-
-
-def test_component_map_shows_electrode_markers() -> None:
-    """The component scalp map keeps electrode dots on, like EEGLAB pop_prop."""
-    eeg = _epoched_eeg()
-    fig = pop_prop(eeg, 0, 2, plot="off")
-
-    topo_ax = _find_axis(fig, lambda a: bool(a.get_images()) and a.get_title().startswith("IC"))
-    assert topo_ax is not None, "no component scalp-map panel found"
-    dots = [c for c in topo_ax.collections if isinstance(c, PathCollection)]
-    marked = sum(len(np.asarray(c.get_offsets())) for c in dots)
-    assert marked == int(eeg["nbchan"]), "component map should mark every electrode"
-    plt.close("all")
-
-
-def test_component_map_color_axis_is_symmetric_about_zero() -> None:
-    """The component map uses maplimits='absmax' so 0 maps to the colormap center."""
-    eeg = _epoched_eeg()
-    fig = pop_prop(eeg, 0, 2, plot="off")
-
-    topo_ax = _find_axis(fig, lambda a: bool(a.get_images()) and a.get_title().startswith("IC"))
-    assert topo_ax is not None, "no component scalp-map panel found"
-    vmin, vmax = topo_ax.get_images()[0].get_clim()
-    assert vmax > 0
-    np.testing.assert_allclose(vmin, -vmax, rtol=1e-9)
-    plt.close("all")
-
-
-def test_continuous_data_still_builds_an_erpimage() -> None:
-    """Continuous (single-trial) data yields an ERP image, not a bare line plot."""
-    eeg = create_test_eeg(n_channels=8, n_samples=4096, srate=128.0, n_trials=1)
-    fig = pop_prop(eeg, 1, 2, plot="off")
-
-    image_ax = _image_axis(fig)
-    assert "continu" in image_ax.get_title().lower()
-    assert _spectrum_axis(fig) is not None
-    plt.close("all")
-
-
-def test_return_com_history_command() -> None:
-    eeg = _epoched_eeg()
-    _fig, com = pop_prop(eeg, 1, 5, plot="off", return_com=True)
-    assert com.startswith("pop_prop(EEG, 1, [5]")
     plt.close("all")

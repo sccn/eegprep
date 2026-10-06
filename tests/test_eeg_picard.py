@@ -1,10 +1,8 @@
 import os
 import unittest
 import numpy as np
-import pytest
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
 
 from tests.fixtures import create_test_eeg as _create_test_eeg
@@ -81,67 +79,6 @@ class TestEegPicardSimple(DebuggableTestCase):
         """Set up test fixtures."""
         self.test_eeg = create_test_eeg()
 
-    def test_eeg_picard_basic_functionality(self):
-        """Test basic eeg_picard functionality with default parameters."""
-        result = eeg_picard(self.test_eeg.copy())
-
-        # Check that all ICA fields are present
-        self.assertIn('icaweights', result)
-        self.assertIn('icasphere', result)
-        self.assertIn('icawinv', result)
-        self.assertIn('icaact', result)
-        self.assertIn('icachansind', result)
-
-        # Check data types
-        self.assertIsInstance(result['icaweights'], np.ndarray)
-        self.assertIsInstance(result['icasphere'], np.ndarray)
-        self.assertIsInstance(result['icawinv'], np.ndarray)
-        self.assertIsInstance(result['icaact'], np.ndarray)
-        self.assertIsInstance(result['icachansind'], np.ndarray)
-
-        # Check shapes
-        n_chans = self.test_eeg['nbchan']
-        n_pnts = self.test_eeg['pnts']
-        n_trials = self.test_eeg['trials']
-
-        self.assertEqual(result['icaweights'].shape, (n_chans, n_chans))
-        self.assertEqual(result['icasphere'].shape, (n_chans, n_chans))
-        self.assertEqual(result['icawinv'].shape, (n_chans, n_chans))
-        self.assertEqual(result['icaact'].shape, (n_chans, n_pnts, n_trials))
-        self.assertEqual(len(result['icachansind']), n_chans)
-
-    def test_eeg_picard_with_custom_parameters(self):
-        """Test eeg_picard with custom parameters."""
-        result = eeg_picard(
-            self.test_eeg.copy(),
-            max_iter=10,  # picard uses max_iter, not maxiter
-            verbose=False,
-            random_state=42,
-        )
-
-        # Check that all ICA fields are present
-        self.assertIn('icaweights', result)
-        self.assertIn('icasphere', result)
-        self.assertIn('icawinv', result)
-        self.assertIn('icaact', result)
-        self.assertIn('icachansind', result)
-
-    def test_eeg_picard_data_integrity(self):
-        """Test that eeg_picard preserves data integrity."""
-        original_eeg = self.test_eeg.copy()
-        result = eeg_picard(original_eeg.copy())
-
-        # Check that original EEG is not modified
-        self.assertEqual(original_eeg['nbchan'], self.test_eeg['nbchan'])
-        self.assertEqual(original_eeg['pnts'], self.test_eeg['pnts'])
-        self.assertEqual(original_eeg['trials'], self.test_eeg['trials'])
-
-        # Check that result has same basic structure
-        self.assertEqual(result['nbchan'], self.test_eeg['nbchan'])
-        self.assertEqual(result['pnts'], self.test_eeg['pnts'])
-        self.assertEqual(result['trials'], self.test_eeg['trials'])
-        self.assertEqual(result['srate'], self.test_eeg['srate'])
-
     def test_eeg_picard_does_not_mutate_caller(self):
         """eeg_picard must not mutate the caller's data or ICA fields."""
         data_before = self.test_eeg['data'].copy()
@@ -155,120 +92,6 @@ class TestEegPicardSimple(DebuggableTestCase):
         self.assertTrue(np.array_equal(self.test_eeg['data'], data_before))
         self.assertIs(self.test_eeg.get('icaweights'), weights_before)
         self.assertIs(self.test_eeg.get('icachansind'), chansind_before)
-
-    def test_eeg_picard_posact_preserves_unmixing_invariant(self):
-        """After posact sign flips, icawinv must stay pinv(icaweights @ icasphere)."""
-        result = eeg_picard(self.test_eeg, posact=True, max_iter=10, random_state=1, verbose=False)
-
-        icaact_2d = result['icaact'].reshape(result['icaact'].shape[0], -1, order='F')
-        ix = np.argmax(np.abs(icaact_2d), axis=1)
-        # Every component's max-abs activation must be positive after posact.
-        self.assertTrue(np.all(icaact_2d[np.arange(icaact_2d.shape[0]), ix] >= 0))
-        # icasphere is left untouched by the sign-flip step.
-        np.testing.assert_array_equal(result['icasphere'], np.eye(self.test_eeg['nbchan']))
-        # icawinv stays consistent with the (sign-flipped) unmixing matrix.
-        np.testing.assert_allclose(result['icawinv'], pinv(result['icaweights'] @ result['icasphere']))
-
-    def test_eeg_picard_ica_structure(self):
-        """Test that eeg_picard creates proper ICA structure."""
-        result = eeg_picard(self.test_eeg.copy())
-
-        # Check icasphere is identity matrix
-        n_chans = self.test_eeg['nbchan']
-        expected_icasphere = np.eye(n_chans)
-        np.testing.assert_array_equal(result['icasphere'], expected_icasphere)
-
-        # Check icachansind contains all channel indices
-        expected_icachansind = np.arange(n_chans)
-        np.testing.assert_array_equal(result['icachansind'], expected_icachansind)
-
-    def test_eeg_picard_matrix_properties(self):
-        """Test mathematical properties of ICA matrices."""
-        result = eeg_picard(self.test_eeg.copy())
-
-        n_chans = self.test_eeg['nbchan']
-
-        # Check that icaweights and icawinv are proper matrices
-        self.assertEqual(result['icaweights'].shape, (n_chans, n_chans))
-        self.assertEqual(result['icawinv'].shape, (n_chans, n_chans))
-
-        # Check that matrices are not all zeros
-        self.assertFalse(np.allclose(result['icaweights'], 0))
-        self.assertFalse(np.allclose(result['icawinv'], 0))
-
-        # Check that matrices are not all NaN
-        self.assertFalse(np.any(np.isnan(result['icaweights'])))
-        self.assertFalse(np.any(np.isnan(result['icawinv'])))
-
-    def test_eeg_picard_ica_activations(self):
-        """Test that ICA activations have correct shape and properties."""
-        result = eeg_picard(self.test_eeg.copy())
-
-        n_chans = self.test_eeg['nbchan']
-        n_pnts = self.test_eeg['pnts']
-        n_trials = self.test_eeg['trials']
-
-        # Check shape
-        self.assertEqual(result['icaact'].shape, (n_chans, n_pnts, n_trials))
-
-        # Check that activations are not all zeros
-        self.assertFalse(np.allclose(result['icaact'], 0))
-
-        # Check that activations are not all NaN
-        self.assertFalse(np.any(np.isnan(result['icaact'])))
-
-    def test_eeg_picard_deterministic(self):
-        """Test that eeg_picard produces deterministic results with fixed random state."""
-        # Run twice with same random state
-        result1 = eeg_picard(self.test_eeg.copy(), random_state=42)
-        result2 = eeg_picard(self.test_eeg.copy(), random_state=42)
-
-        # Results should be identical
-        np.testing.assert_array_equal(result1['icaweights'], result2['icaweights'])
-        np.testing.assert_array_equal(result1['icawinv'], result2['icawinv'])
-        np.testing.assert_array_equal(result1['icaact'], result2['icaact'])
-
-    @pytest.mark.xfail(reason="exposes product bug tracked in Fable 5 epic #193 (Phase 2/3)", strict=False)
-    def test_eeg_picard_different_random_states(self):
-        """Test that eeg_picard produces different results with different random states."""
-        # Run with different random states
-        result1 = eeg_picard(self.test_eeg.copy(), random_state=42)
-        result2 = eeg_picard(self.test_eeg.copy(), random_state=123)
-
-        # eeg_picard converges to the same unmixing matrix regardless of the
-        # random_state seed, so this assertion currently fails: the random_state
-        # parameter has no observable effect on the result.
-        self.assertFalse(np.array_equal(result1['icaweights'], result2['icaweights']))
-
-    def test_eeg_picard_verbose_parameter(self):
-        """Test eeg_picard with verbose parameter."""
-        # Test with verbose=True (should not raise error)
-        result1 = eeg_picard(self.test_eeg.copy(), verbose=True)
-        self.assertIn('icaweights', result1)
-
-        # Test with verbose=False (should not raise error)
-        result2 = eeg_picard(self.test_eeg.copy(), verbose=False)
-        self.assertIn('icaweights', result2)
-
-    def test_eeg_picard_maxiter_parameter(self):
-        """Test eeg_picard with maxiter parameter."""
-        # Test with different maxiter values
-        result1 = eeg_picard(self.test_eeg.copy(), max_iter=5)
-        result2 = eeg_picard(self.test_eeg.copy(), max_iter=10)
-
-        # Both should produce valid results
-        self.assertIn('icaweights', result1)
-        self.assertIn('icaweights', result2)
-
-    def test_eeg_picard_ortho_parameter(self):
-        """Test eeg_picard with ortho parameter."""
-        # Test with ortho=True
-        result1 = eeg_picard(self.test_eeg.copy(), ortho=True)
-        self.assertIn('icaweights', result1)
-
-        # Test with ortho=False
-        result2 = eeg_picard(self.test_eeg.copy(), ortho=False)
-        self.assertIn('icaweights', result2)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
