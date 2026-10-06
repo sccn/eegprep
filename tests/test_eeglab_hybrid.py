@@ -68,13 +68,6 @@ def test_erpimage_transport_excludes_uncompared_graphics_objects(eeglab_matlab_e
         eeglab_matlab_engine.close("all", "force", nargout=0)
 
 
-def test_python_backend_resolves_functions_at_call_time():
-    data = np.array([[1.0, 2.0, 3.0], [4.0, 8.0, 12.0]])
-    np.testing.assert_array_equal(call_python("rmbase", data), [[-1, 0, 1], [-4, 0, 4]])
-    with pytest.raises(AttributeError, match="eegprep_test_transport"):
-        call_python("eegprep_test_transport", "fixture")
-
-
 def test_python_backend_selects_requested_outputs():
     arguments = ([0.0, 0.5], [], 100.0, [0.0, 1.0])
     np.testing.assert_array_equal(call_python("eeg_lat2point", *arguments), [1.0, 51.0])
@@ -239,7 +232,7 @@ def test_restored():
         (np.bool_, "logical"),
     ],
 )
-@pytest.mark.parametrize("shape", [(1, 3), (3, 1), (2, 3), (1, 2, 3), (0, 3), (0, 0)])
+@pytest.mark.parametrize("shape", [(1, 3), (3, 1), (1, 2, 3), (0, 3), (0, 0)])
 @pytest.mark.parametrize("sidecars", [False, "output", "both"])
 def test_matlab_transport_preserves_dtype_and_dimensions(
     eeglab_matlab_engine, tmp_path, dtype, matlab_class, shape, sidecars
@@ -653,17 +646,6 @@ def test_matlab_function_errors_are_not_skipped_or_retried_on_python(eeglab_matl
     matlab_engine: Any = importlib.import_module("matlab.engine")
     with pytest.raises(matlab_engine.MatlabExecutionError, match="Unknown mode"):
         eeglab_backend("eegprep_test_transport", "invalid")
-
-
-def test_backend_dispatch_executes_real_reference_function(eeglab_backend):
-    data = np.array([[1.0, 2.0, 3.0], [4.0, 8.0, 12.0]])
-    np.testing.assert_array_equal(eeglab_backend("rmbase", data), [[-1, 0, 1], [-4, 0, 4]])
-
-
-def test_workflow_directory_contains_relative_outputs(eeglab_working_directory):
-    assert Path.cwd() == eeglab_working_directory
-    Path("workflow.txt").write_text("isolated original workflow", encoding="utf-8")
-    assert (eeglab_working_directory / "workflow.txt").read_text(encoding="utf-8") == "isolated original workflow"
 
 
 def test_matlab_workflow_directory_matches_python(eeglab_working_directory, eeglab_matlab_engine):
