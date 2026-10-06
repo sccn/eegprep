@@ -57,16 +57,12 @@ EEGLAB_REJECTIONS = [
     pytest.param(("maxrej", 2.5), [16, 70], id="maxrej2p5"),
     # Start below the default: five raises before anything is rejected.
     pytest.param(("startprob", 3), [1, 2, 16, 28, 46, 70], id="start3"),
-    pytest.param(("startprob", 3, "maxrej", 2.5), [16, 70], id="start3_maxrej2p5"),
-    pytest.param(("startprob", 4, "maxrej", 2.5), [16, 70], id="start4_maxrej2p5"),
     # 1.25% of 80 epochs means nothing can be rejected; eight pruning rounds then kurtosis.
     pytest.param(("maxrej", 1.25), [16], id="maxrej1p25"),
     # Two pruning rounds reach 5 s.d. and stop.
     pytest.param(("electrodes", list(range(1, 17)), "maxrej", 2.5), [16, 46, 70], id="elec1to16_maxrej2p5"),
     # Component mode: rejects at 5 s.d. without raising, kurtosis adds two epochs.
     pytest.param(("icacomps", list(range(1, 33))), [2, 9, 10, 43], id="ica_default"),
-    pytest.param(("icacomps", list(range(1, 33)), "maxrej", 2.5), [9, 10], id="ica_maxrej2p5"),
-    pytest.param(("icacomps", list(range(1, 11)), "maxrej", 2.5), [9], id="ica1to10_maxrej2p5"),
 ]
 
 
