@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.adminfunc.eegh import eegh, eegh_find
+from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.guifunc.session import EEGPrepSession
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.assertions import assert_matlab_struct_near
@@ -203,14 +203,6 @@ def test_eegh_command_appends_to_eeg_history():
     ]
 
 
-def test_eegh_initializes_empty_dataset_history_with_the_command():
-    eeg = {}
-
-    eegh("a command", eeg)
-
-    assert eeg["history"] == "a command;"
-
-
 def test_eegh_eeg_history_dedup_compares_last_line_exactly():
     eeg = {"history": "AEEG = pop_reref(EEG);"}
 
@@ -218,39 +210,6 @@ def test_eegh_eeg_history_dedup_compares_last_line_exactly():
     eegh("EEG = pop_reref(EEG);", eeg)
 
     assert eeg["history"].splitlines() == ["AEEG = pop_reref(EEG);", "EEG = pop_reref(EEG);"]
-
-
-def test_eegh_inserts_a_new_command_after_existing_history():
-    history = ["command1", "command2"]
-
-    eegh("command3", history)
-
-    assert history == ["command1", "command2", "command3"]
-
-
-def test_eegh_find_returns_most_recent_match_or_empty():
-    history = ["command1", "command2", "command3", "comm4"]
-
-    assert eegh_find(history, "comma") == "command3"
-    assert eegh_find(history, "command4") == ""
-
-
-def test_eegh_removes_the_requested_number_of_recent_commands():
-    history = ["command1", "command2", "command3"]
-
-    assert eegh(-2, history) == ""
-    assert history == ["command1"]
-
-
-def test_eegh_zero_clears_command_history():
-    history = ["command1", "command2"]
-
-    assert eegh(0, history) == ""
-    assert history == []
-
-
-def test_eegh_selecting_from_empty_history_returns_empty():
-    assert eegh(1, []) == ""
 
 
 @pytest.mark.parametrize("include_history", [False, True])

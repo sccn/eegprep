@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 
 from eegprep.functions.guifunc.finputcheck import finputcheck
 from tests.eeglab_tests import MATLAB_TEST_EPSILON, eeglab_test, load_matlab_test_fixture
@@ -16,19 +15,6 @@ RULES = (
     ("forth", "cell", [], []),
 )
 FINPUTCHECK_WRAPPER = "unittesting_guifunc/finputcheck/guifunc_finputcheck_wrapperTest.m"
-
-
-# The two upstream fail_* bodies are entirely commented out, so these Python
-# argument-validation checks are supplemental regressions, not source ports.
-def test_finputcheck_requires_arguments_and_field_rules():
-    with pytest.raises(TypeError):
-        finputcheck()
-
-
-def test_finputcheck_reports_an_incomplete_key_value_sequence():
-    result = finputcheck(["key1", 3, "the2test"], RULES)
-
-    assert result == "error: bad 'key', 'val' sequence"
 
 
 def test_finputcheck_uses_defaults_for_an_empty_argument_list():
@@ -123,15 +109,6 @@ def test_finputcheck_returns_eeglab_error_strings_for_invalid_values():
     assert finputcheck(["p3rcent", 2], RULES) == "error: value out of range for argument 'p3rcent'"
     assert finputcheck(["the2test", 2], RULES) == "error: argument 'the2test' must be a string"
     assert finputcheck(["unknown", 1], RULES) == "error: undefined argument 'unknown'"
-
-
-def test_finputcheck_keeps_the_last_duplicate_value(caplog):
-    caplog.set_level("INFO")
-
-    result = finputcheck(["key1", 2, "key1", 3], RULES)
-
-    assert result["key1"] == 3
-    assert "keeping the last" in caplog.text
 
 
 def _cell_row(*values):

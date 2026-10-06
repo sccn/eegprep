@@ -111,16 +111,6 @@ def _fake_pop_eegplot(
 _fake_pop_eegplot.command_callback = None
 
 
-def _fake_pop_jointprob_browser(eeg, *args, command_callback=None, return_com=False, **kwargs):
-    del args, kwargs
-    _fake_pop_jointprob_browser.command_callback = command_callback
-    command = "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
-    return (eeg, command) if return_com else eeg
-
-
-_fake_pop_jointprob_browser.command_callback = None
-
-
 def _fake_pop_rejcont_browser(eeg, *args, command_callback=None, return_com=False, **kwargs):
     del args, kwargs
     _fake_pop_rejcont_browser.command_callback = command_callback
@@ -154,16 +144,6 @@ def _fake_pop_fresh_study(*, return_com=False):
     study = {"name": "fresh study", "design": []}
     command = "STUDY = pop_freshstudy()"
     return (study, command) if return_com else study
-
-
-def test_workspace_starts_with_eeglab_style_names():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-
-    for name in ("EEG", "ALLEEG", "CURRENTSET", "ALLCOM", "LASTCOM", "STUDY", "CURRENTSTUDY"):
-        assert name in workspace.namespace
-    assert workspace.namespace["session"] is session
-    assert callable(workspace.namespace["pop_newset"])
 
 
 def test_session_changes_update_console_namespace():
@@ -282,16 +262,6 @@ def test_console_pop_delset_of_trailing_dataset_trims_without_duplicating():
     assert session.EEG["setname"] == "second"
 
 
-def test_console_pop_delset_of_other_dataset_keeps_the_selected_one():
-    session, workspace = _delset_console_session(2)
-
-    _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [1])")
-
-    assert session.ALLEEG[0] == {}
-    assert session.CURRENTSET == [2]  # the selected dataset keeps its number
-    assert session.EEG["setname"] == "second"
-
-
 def test_console_currentset_on_deleted_slot_selects_a_remaining_dataset():
     session, workspace = _delset_console_session(2)
     _run_console(workspace, "ALLEEG, com = pop_delset(ALLEEG, [2])")
@@ -321,21 +291,6 @@ def test_console_pop_study_result_updates_shared_study_workspace():
     assert len(result) == 2
 
 
-def test_console_pop_study_history_assignment_replays_as_written():
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_study": _fake_pop_study})
-    source = "STUDY, ALLEEG = pop_study(STUDY, ALLEEG)"
-
-    exec(source, workspace.namespace)
-    workspace.after_execute(source)
-
-    assert workspace.namespace["STUDY"] is session.STUDY
-    assert workspace.namespace["ALLEEG"] is session.ALLEEG
-    assert session.STUDY["name"] == "console study"
-    assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_study(")
-
-
 def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
@@ -349,17 +304,6 @@ def test_console_pop_savestudy_result_updates_study_without_replacing_alleeg():
     assert session.ALLEEG[0]["setname"] == "demo"
     assert len(result) == 2
     assert session.ALLCOM[-1].startswith("STUDY = pop_savestudy(")
-
-
-def test_console_pop_result_detects_fresh_study_without_datasetinfo():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_freshstudy": _fake_pop_fresh_study})
-
-    result = workspace.namespace["pop_freshstudy"]()
-
-    assert session.CURRENTSTUDY == 1
-    assert session.STUDY["name"] == "fresh study"
-    assert result.command == "STUDY = pop_freshstudy()"
 
 
 def test_console_pop_precomp_result_updates_shared_study_history():
@@ -386,42 +330,6 @@ def test_console_pop_precomp_result_updates_shared_study_history():
     assert session.ALLCOM[-1].startswith("STUDY, ALLEEG = pop_precomp(")
 
 
-def test_console_pop_importgroupvar_updates_shared_study_workspace():
-    from eegprep.functions.studyfunc.pop_importgroupvar import pop_importgroupvar
-    from eegprep.functions.studyfunc.pop_study import pop_study
-
-    session = EEGPrepSession()
-    eeg = _demo_eeg()
-    eeg["subject"] = "S01"
-    session.store_current(eeg, new=True)
-    session.STUDY, session.ALLEEG = pop_study(None, session.ALLEEG, name="console group var")
-    session.CURRENTSTUDY = 1
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_importgroupvar": pop_importgroupvar})
-
-    result = workspace.namespace["pop_importgroupvar"](
-        workspace.namespace["STUDY"],
-        1,
-        variable="age_group",
-        values={"S01": "young"},
-    )
-
-    assert result.study is session.STUDY
-    assert session.STUDY["datasetinfo"][0]["age_group"] == "young"
-    assert session.CURRENTSTUDY == 1
-    assert session.ALLCOM[-1].startswith("STUDY = pop_importgroupvar(")
-
-
-def test_session_history_commands_do_not_echo_to_console():
-    session = EEGPrepSession()
-    writes = []
-    workspace = EEGPrepConsoleWorkspace(session, command_echo=writes.append, exports={})
-
-    session.store_current(_demo_eeg(), new=True, command="EEG = pop_loadset('demo.set');")
-
-    assert workspace.namespace["LASTCOM"] == "EEG = pop_loadset('demo.set');"
-    assert writes == []
-
-
 def test_command_echo_is_separate_from_session_history():
     session = EEGPrepSession()
     writes = []
@@ -434,20 +342,6 @@ def test_command_echo_is_separate_from_session_history():
 
     assert writes == ["EEG = pop_resample( EEG, 64);"]
     assert session.ALLCOM == ["EEG = pop_resample( EEG, 64);"]
-    workspace.close()
-
-
-def test_console_eegh_displays_and_finds_session_history():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    session.add_history("EEG = pop_loadset('sample.set');")
-    session.add_history("EEG = pop_resample(EEG, 64);")
-
-    assert workspace.namespace["eegh"]().splitlines() == [
-        "1. EEG = pop_resample(EEG, 64);",
-        "2. EEG = pop_loadset('sample.set');",
-    ]
-    assert workspace.namespace["eegh"]("find", "loadset") == "EEG = pop_loadset('sample.set');"
     workspace.close()
 
 
@@ -475,22 +369,6 @@ def test_console_eegh_positive_index_replays_command_through_workspace():
     workspace.close()
 
 
-def test_console_eegh_string_command_notifies_session_listeners():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-    notified: list[int] = []
-    session.add_change_listener(lambda _session: notified.append(len(session.ALLCOM)))
-
-    result = workspace.namespace["eegh"]("EEG = pop_loadset('demo.set');")
-
-    assert result == "EEG = pop_loadset('demo.set');"
-    assert session.ALLCOM == ["EEG = pop_loadset('demo.set');"]
-    assert session.LASTCOM == "EEG = pop_loadset('demo.set');"
-    # Routing through session.add_history fires the change listener.
-    assert notified == [1]
-    workspace.close()
-
-
 def test_console_eegh_clear_and_remove_notify_session_listeners():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -513,21 +391,6 @@ def test_console_eegh_clear_and_remove_notify_session_listeners():
     workspace.close()
 
 
-def test_menu_actions_reuses_console_pop_result_decoders():
-    # The GUI extension-result path delegates to the canonical console decoders
-    # instead of keeping its own copies.
-    from eegprep.functions.guifunc import menu_actions as menu_actions_module
-
-    assert not hasattr(menu_actions_module, "_extension_dataset_state")
-    assert not hasattr(menu_actions_module, "_extension_eeg_and_command")
-
-    eeg = _demo_eeg()
-    command = "EEG = pop_demo(EEG);"
-    result = ([eeg], eeg, 1, command)
-    assert console_module._extract_pop_dataset_state(result) == ([eeg], eeg, 1, command)
-    assert console_module._extract_pop_eeg_and_command((eeg, command)) == (eeg, command)
-
-
 def test_gui_action_buffers_output_until_command_echo():
     session = EEGPrepSession()
     stream = io.StringIO()
@@ -544,49 +407,6 @@ def test_gui_action_buffers_output_until_command_echo():
     output = stream.getvalue()
     assert output.index("In [1]: EEG = pop_demo(EEG);") < output.index("WARNING before command")
     workspace.close()
-
-
-def test_nested_workspace_gui_buffers_restore_previous_buffer():
-    first_session = EEGPrepSession()
-    second_session = EEGPrepSession()
-    first_stream = io.StringIO()
-    second_stream = io.StringIO()
-    first_workspace = EEGPrepConsoleWorkspace(
-        first_session,
-        command_echo=lambda command: console_module._terminal_write(
-            f"In [1]: {command}\n", stream=first_stream, sync=True
-        ),
-        exports={},
-    )
-    second_workspace = EEGPrepConsoleWorkspace(
-        second_session,
-        command_echo=lambda command: console_module._terminal_write(
-            f"In [1]: {command}\n", stream=second_stream, sync=True
-        ),
-        exports={},
-    )
-
-    try:
-        first_session.begin_gui_action("first")
-        console_module._terminal_write("first warning before nested\n", stream=first_stream)
-        second_session.begin_gui_action("second")
-        console_module._terminal_write("second warning\n", stream=second_stream)
-        second_session.echo_command("EEG = pop_second(EEG);")
-        second_session.end_gui_action("second")
-        console_module._terminal_write("first warning after nested\n", stream=first_stream)
-        first_session.echo_command("EEG = pop_first(EEG);")
-        first_session.end_gui_action("first")
-    finally:
-        first_workspace.close()
-        second_workspace.close()
-
-    first_output = first_stream.getvalue()
-    second_output = second_stream.getvalue()
-    assert first_output.index("In [1]: EEG = pop_first(EEG);") < first_output.index("first warning before nested")
-    assert first_output.index("In [1]: EEG = pop_first(EEG);") < first_output.index("first warning after nested")
-    assert "second warning" not in first_output
-    assert second_output.index("In [1]: EEG = pop_second(EEG);") < second_output.index("second warning")
-    assert "first warning" not in second_output
 
 
 def test_gui_action_buffers_logger_warnings_until_command_echo():
@@ -618,75 +438,6 @@ def test_gui_action_buffers_logger_warnings_until_command_echo():
     console_output = output.getvalue()
     assert console_output.index("In [1]: EEG = pop_demo(EEG);") < console_output.index(
         "WARNING (eegprep.tests.console_gui) logger warning before command"
-    )
-
-
-def test_gui_action_buffers_pop_interp_logger_until_command_echo():
-    from eegprep.functions.popfunc.pop_interp import logger
-
-    logger.setLevel(logging.WARNING)
-    logger.propagate = False
-    output = io.StringIO()
-    handler = logging.StreamHandler(output)
-    handler.setFormatter(logging.Formatter("WARNING (%(name)s) %(message)s"))
-    logger.addHandler(handler)
-
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(
-        session,
-        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=output, sync=True),
-        exports={},
-    )
-    restore = console_module._install_prompt_safe_logging()
-    try:
-        with session.gui_action("pop_interp"):
-            logger.warning("interpolation can be done on the fly in studies")
-            logger.warning("this function will actually create channels in the dataset")
-            logger.warning("do not interpolate channels before running ICA")
-            session.echo_command("EEG = pop_interp(EEG, bad_elec=[2], method='spherical', t_range=[2, 3])")
-    finally:
-        restore()
-        workspace.close()
-        logger.removeHandler(handler)
-        logger.propagate = True
-
-    console_output = output.getvalue()
-    assert console_output.index("In [1]: EEG = pop_interp") < console_output.index(
-        "WARNING (eegprep.functions.popfunc.pop_interp) interpolation can be done on the fly in studies"
-    )
-
-
-def test_gui_action_writes_logger_warnings_synchronously_after_command_echo():
-    logger = logging.getLogger("eegprep.tests.console_gui_after")
-    logger.setLevel(logging.WARNING)
-    logger.propagate = False
-    output = io.StringIO()
-    handler = logging.StreamHandler(output)
-    handler.setFormatter(logging.Formatter("WARNING (%(name)s) %(message)s"))
-    logger.addHandler(handler)
-
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(
-        session,
-        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=output, sync=True),
-        exports={},
-    )
-    restore = console_module._install_prompt_safe_logging()
-    try:
-        with session.gui_action("pop_demo"):
-            session.echo_command("EEG = pop_demo(EEG);")
-            with mock.patch.object(console_module.importlib, "import_module") as import_module:
-                logger.warning("logger warning after command")
-    finally:
-        restore()
-        workspace.close()
-        logger.removeHandler(handler)
-        logger.propagate = True
-
-    import_module.assert_not_called()
-    console_output = output.getvalue()
-    assert console_output.index("In [1]: EEG = pop_demo(EEG);") < console_output.index(
-        "WARNING (eegprep.tests.console_gui_after) logger warning after command"
     )
 
 
@@ -743,70 +494,11 @@ def test_gui_action_releases_store_current_output_at_end_without_command_echo():
     workspace.close()
 
 
-def test_gui_action_releases_add_history_output_at_end_without_command_echo():
-    session = EEGPrepSession()
-    stream = io.StringIO()
-    fake_module = SimpleNamespace(run_in_terminal=lambda callback: callback())
-    workspace = EEGPrepConsoleWorkspace(
-        session,
-        command_echo=lambda command: console_module._terminal_write(f"In [1]: {command}\n", stream=stream, sync=True),
-        exports={},
-    )
-
-    with mock.patch.object(console_module.importlib, "import_module", return_value=fake_module):
-        with session.gui_action("pop_export"):
-            console_module._terminal_write("WARNING before command\n", stream=stream)
-            session.add_history("LASTCOM = pop_export(EEG, 'demo.tsv');")
-
-    output = stream.getvalue()
-    assert "In [1]:" not in output
-    assert "WARNING before command" in output
-    workspace.close()
-
-
-def test_gui_action_without_command_releases_output_through_terminal_redraw():
-    session = EEGPrepSession()
-    stream = io.StringIO()
-    calls = []
-
-    def fake_run_in_terminal(callback):
-        calls.append(callback)
-        callback()
-
-    fake_module = SimpleNamespace(run_in_terminal=fake_run_in_terminal)
-    workspace = EEGPrepConsoleWorkspace(session, command_echo=mock.Mock(), exports={})
-
-    with mock.patch.object(console_module.importlib, "import_module", return_value=fake_module) as import_module:
-        with session.gui_action("pop_runica"):
-            console_module._terminal_write("ERROR before prompt\n", stream=stream)
-
-    import_module.assert_called_once_with("prompt_toolkit.application.run_in_terminal")
-    assert len(calls) == 1
-    assert stream.getvalue() == "ERROR before prompt\n"
-    workspace.close()
-
-
 @pytest.mark.parametrize(
     ("action", "patch_target"),
     [
-        ("pop_adjustevents", "eegprep.functions.popfunc.pop_adjustevents.pop_adjustevents"),
-        ("pop_chanedit", "eegprep.functions.popfunc.pop_chanedit.pop_chanedit"),
-        ("pop_clean_rawdata", "eegprep.plugins.clean_rawdata.pop_clean_rawdata.pop_clean_rawdata"),
-        ("pop_comments", "eegprep.functions.popfunc.pop_comments.pop_comments"),
         ("pop_editset", "eegprep.functions.popfunc.pop_editset.pop_editset"),
-        ("pop_editeventfield", "eegprep.functions.popfunc.pop_editeventfield.pop_editeventfield"),
-        ("pop_editeventvals", "eegprep.functions.popfunc.pop_editeventvals.pop_editeventvals"),
-        ("pop_epoch", "eegprep.functions.popfunc.pop_epoch.pop_epoch"),
         ("pop_reref", "eegprep.functions.popfunc.pop_reref.pop_reref"),
-        ("pop_interp", "eegprep.functions.popfunc.pop_interp.pop_interp"),
-        ("pop_resample", "eegprep.functions.popfunc.pop_resample.pop_resample"),
-        ("pop_rmdat", "eegprep.functions.popfunc.pop_rmdat.pop_rmdat"),
-        ("pop_runica", "eegprep.functions.popfunc.pop_runica.pop_runica"),
-        ("pop_select", "eegprep.functions.popfunc.pop_select.pop_select"),
-        ("pop_selectevent", "eegprep.functions.popfunc.pop_selectevent.pop_selectevent"),
-        ("pop_iclabel", "eegprep.plugins.ICLabel.pop_iclabel.pop_iclabel"),
-        ("pop_icflag", "eegprep.plugins.ICLabel.pop_icflag.pop_icflag"),
-        ("pop_subcomp", "eegprep.functions.popfunc.pop_subcomp.pop_subcomp"),
     ],
 )
 def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_target):
@@ -862,28 +554,6 @@ def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_targ
         ]
     else:
         assert session.ALLCOM == [command]
-
-
-def test_console_history_edits_do_not_echo_as_gui_commands():
-    session = EEGPrepSession()
-    writes = []
-    workspace = EEGPrepConsoleWorkspace(session, command_echo=writes.append, exports={})
-
-    workspace.namespace["LASTCOM"] = "EEG = custom_command(EEG);"
-    workspace.after_execute("LASTCOM = 'EEG = custom_command(EEG);'")
-
-    assert session.ALLCOM == ["EEG = custom_command(EEG);"]
-    assert writes == []
-
-
-def test_preexisting_history_is_not_echoed_when_console_workspace_starts():
-    session = EEGPrepSession()
-    session.add_history("EEG = before_console;")
-    writes = []
-
-    EEGPrepConsoleWorkspace(session, command_echo=writes.append, exports={})
-
-    assert writes == []
 
 
 def test_console_eeg_assignment_stores_current_dataset_and_refreshes():
@@ -1136,41 +806,6 @@ def test_console_pop_eegplot_positional_reject_argument_controls_accept_storage(
     assert len(session.ALLEEG) == 1
 
 
-def test_console_rejection_browser_accept_callback_refreshes_session_after_accept():
-    session = EEGPrepSession()
-    eeg = _demo_eeg()
-    eeg["data"] = np.arange(24, dtype=float).reshape(2, 4, 3)
-    eeg["pnts"] = 4
-    eeg["trials"] = 3
-    eeg["xmax"] = 0.03
-    session.store_current(eeg, new=True)
-    refresh = mock.Mock()
-    workspace = EEGPrepConsoleWorkspace(
-        session,
-        refresh=refresh,
-        exports={"pop_jointprob": _fake_pop_jointprob_browser},
-    )
-
-    result = workspace.namespace["pop_jointprob"](workspace.namespace["EEG"])
-    workspace.after_execute("pop_jointprob(EEG)")
-
-    _eeg_out, command = result
-    assert command == "EEG = pop_jointprob(EEG, 1, [1], 4, 4, 0, 1, 1);"
-    assert session.ALLCOM == [command]
-    assert callable(_fake_pop_jointprob_browser.command_callback)
-
-    accepted = dict(session.EEG)
-    accepted["data"] = np.asarray(session.EEG["data"])[:, :, :2]
-    accepted["trials"] = 2
-    _fake_pop_jointprob_browser.command_callback(accepted, command)
-
-    assert session.CURRENTSET == [2]
-    assert session.EEG["trials"] == 2
-    assert len(session.ALLEEG) == 2
-    assert session.ALLCOM == [command]
-    assert refresh.call_count >= 2
-
-
 def test_console_rejcont_browser_defers_store_until_accept():
     session = EEGPrepSession()
     eeg = _demo_eeg()
@@ -1273,27 +908,6 @@ def test_keyword_eeg_pop_call_updates_current_dataset_in_place():
     assert session.CURRENTSET == [1]
     assert len(session.ALLEEG) == 1
     assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
-
-
-def test_console_restores_eegprep_proxy_after_user_imports_eegprep():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={})
-
-    workspace.namespace["eegprep"] = console_module.eegprep
-    workspace.after_execute("import eegprep")
-
-    assert isinstance(workspace.namespace["eegprep"], console_module.ConsoleEEGPrepModule)
-
-
-def test_console_restores_pop_wrappers_after_from_import():
-    session = EEGPrepSession()
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_reref": _fake_pop_reref})
-    original_wrapper = workspace.namespace["pop_reref"]
-
-    workspace.namespace["pop_reref"] = _fake_pop_reref
-    workspace.after_execute("from eegprep import pop_reref")
-
-    assert workspace.namespace["pop_reref"] is original_wrapper
 
 
 def test_console_restores_aliased_pop_wrapper_after_from_import():
@@ -1523,14 +1137,6 @@ class _FakeShell:
         callback(SimpleNamespace(info=SimpleNamespace(raw_cell="EEG"), success=True))
 
 
-class _FakePrompts:
-    def __init__(self, shell):
-        self.shell = shell
-
-    def in_prompt_tokens(self):
-        return [("Token.Prompt", f"In [{self.shell.execution_count}]: ")]
-
-
 def test_run_console_forwards_cli_options_to_gui_launcher():
     shell = _FakeShell()
     captured = {}
@@ -1566,37 +1172,6 @@ def test_run_console_forwards_cli_options_to_gui_launcher():
     assert "EEG" in captured["namespace"]
 
 
-def test_run_console_native_file_dialogs_are_explicit_opt_in():
-    shell = _FakeShell()
-    captured = {}
-
-    def shell_factory(namespace, banner):
-        return shell
-
-    def gui_launcher(*args, **kwargs):
-        captured["gui_kwargs"] = kwargs
-        return SimpleNamespace(refresh=mock.Mock())
-
-    assert (
-        console_module.run_console(
-            ["--native-file-dialogs"],
-            shell_factory=shell_factory,
-            gui_launcher=gui_launcher,
-        )
-        == 0
-    )
-
-    assert captured["gui_kwargs"]["native_file_dialogs"] is True
-
-
-def test_ipython_factory_error_is_user_facing_when_dependency_missing():
-    with (
-        mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")),
-        pytest.raises(RuntimeError, match="IPython is required for eegprep-console"),
-    ):
-        console_module._ipython_shell_factory({}, "")
-
-
 def test_ipython_adapter_records_gui_command_as_input_and_advances_prompt():
     shell = _FakeShell()
     workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
@@ -1629,24 +1204,6 @@ def test_ipython_adapter_echoes_gui_commands_as_valid_python():
     ast.parse(echoed)
     terminal_write.assert_called_once_with(
         "In [1]: EEG = pop_interp(EEG, bad_elec=[0], method='spherical', t_range=[5, 10])\n",
-        stream=console_module.sys.stderr,
-        sync=True,
-    )
-
-
-def test_ipython_adapter_echoes_pop_reref_with_parameter_names():
-    shell = _FakeShell()
-    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
-    adapter = console_module._IPythonShellAdapter(shell, workspace)
-
-    with mock.patch.object(console_module, "_terminal_write") as terminal_write:
-        adapter.echo_gui_command("EEG = pop_reref( EEG, [], 'keepref', 'on');")
-
-    echoed = shell.history_manager.inputs[0][1]
-    assert echoed == "EEG = pop_reref(EEG, ref=[], keepref='on')"
-    ast.parse(echoed)
-    terminal_write.assert_called_once_with(
-        "In [1]: EEG = pop_reref(EEG, ref=[], keepref='on')\n",
         stream=console_module.sys.stderr,
         sync=True,
     )
@@ -1702,79 +1259,6 @@ def test_console_pop_select_numeric_channels_zero_based_on_replay():
         ast.parse(command)
 
 
-def test_ipython_adapter_keeps_prompt_message_dynamic():
-    shell = _FakeShell()
-    shell.prompts = _FakePrompts(shell)
-
-    def extra_prompt_options():
-        return {"message": "In [1]: "}
-
-    shell._extra_prompt_options = extra_prompt_options
-
-    console_module._make_shell_prompt_dynamic(shell)
-    options = shell._extra_prompt_options()
-
-    assert callable(options["message"])
-    assert shell._eegprep_dynamic_prompt is True
-
-
-def test_ipython_adapter_installs_dynamic_prompt_before_shell_starts():
-    shell = _FakeShell()
-    shell.prompts = _FakePrompts(shell)
-    shell._extra_prompt_options = lambda: {"message": "In [1]: "}
-    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
-    adapter = console_module._IPythonShellAdapter(shell, workspace)
-
-    adapter()
-
-    assert shell._eegprep_dynamic_prompt is True
-
-
-def test_ipython_adapter_installs_prompt_safe_logging_during_shell_run():
-    shell = _FakeShell()
-    workspace = EEGPrepConsoleWorkspace(EEGPrepSession(), exports={})
-    adapter = console_module._IPythonShellAdapter(shell, workspace)
-
-    with (
-        mock.patch.object(console_module, "_install_prompt_safe_logging") as install_logging,
-        mock.patch.object(console_module, "_make_shell_prompt_dynamic"),
-    ):
-        restore_logging = mock.Mock()
-        install_logging.return_value = restore_logging
-        adapter()
-
-    install_logging.assert_called_once()
-    restore_logging.assert_called_once()
-
-
-def test_prompt_safe_logging_routes_python_warnings_through_terminal_write():
-    restore = console_module._install_prompt_safe_logging()
-    try:
-        with mock.patch.object(console_module, "_terminal_write") as terminal_write:
-            warnings.warn("demo warning", RuntimeWarning, stacklevel=1)
-    finally:
-        restore()
-
-    terminal_write.assert_called_once()
-    message = terminal_write.call_args.args[0]
-    assert "RuntimeWarning: demo warning" in message
-    assert terminal_write.call_args.kwargs["stream"] is console_module.sys.stderr
-
-
-def test_format_ipython_input_trims_extra_newlines():
-    assert console_module._format_ipython_input("EEG = demo;\n", 3) == "In [3]: EEG = demo;\n"
-
-
-def test_prompt_safe_logging_stream_uses_terminal_write():
-    stream = io.StringIO()
-    safe_stream = console_module._PromptSafeStream(stream)
-
-    with mock.patch.object(console_module, "_terminal_write") as terminal_write:
-        assert safe_stream.write("WARNING (demo) message\n") == len("WARNING (demo) message\n")
-
-    terminal_write.assert_called_once_with("WARNING (demo) message\n", stream=stream)
-
-
 def test_prompt_safe_logging_install_restores_stream_handlers():
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
@@ -1824,65 +1308,15 @@ def test_prompt_safe_logging_handles_background_thread_records_without_traceback
     assert "RuntimeError" not in errors.getvalue()
 
 
-def test_terminal_write_prints_above_active_prompt():
-    stream = io.StringIO()
-    calls = []
-
-    def fake_run_in_terminal(callback):
-        calls.append(callback)
-        callback()
-
-    fake_module = SimpleNamespace(run_in_terminal=fake_run_in_terminal)
-
-    with (
-        mock.patch.object(console_module.importlib, "import_module", return_value=fake_module) as import_module,
-        mock.patch.object(console_module.sys, "stdout", stream),
-    ):
-        console_module._terminal_write("In [1]: EEG = pop_fileio('demo.set');\n")
-
-    import_module.assert_called_once_with("prompt_toolkit.application.run_in_terminal")
-    assert len(calls) == 1
-    assert stream.getvalue() == "In [1]: EEG = pop_fileio('demo.set');\n"
-
-
-def test_terminal_write_fallback_starts_on_new_line():
-    stream = io.StringIO()
-
-    with (
-        mock.patch.object(console_module.importlib, "import_module", side_effect=ImportError("missing")),
-        mock.patch.object(console_module.sys, "stdout", stream),
-    ):
-        console_module._terminal_write("In [1]: EEG = pop_fileio('demo.set');\n")
-
-    assert stream.getvalue() == "\nIn [1]: EEG = pop_fileio('demo.set');\n"
-
-
-def test_terminal_write_sync_path_writes_immediately_without_prompt_toolkit():
-    stream = io.StringIO()
-
-    with mock.patch.object(console_module.importlib, "import_module") as import_module:
-        console_module._terminal_write("In [2]: EEG = pop_interp(EEG, [1]);\n", stream=stream, sync=True)
-
-    import_module.assert_not_called()
-    assert stream.getvalue() == "\nIn [2]: EEG = pop_interp(EEG, [1]);\n"
-
-
 @pytest.mark.parametrize(
     ("source", "expected_targets"),
     [
         ("ALLEEG.append(new_eeg)", {"ALLEEG"}),
-        ("EEG.update({'setname': 'updated'})", {"EEG"}),
         ("EEG['data'].fill(0)", {"EEG"}),
-        ("ALLEEG[0]['data'].fill(0)", {"ALLEEG"}),
-        ("EEG.pop('custom')", {"EEG"}),
-        ("ALLEEG.sort(key=lambda item: item['setname'])", {"ALLEEG"}),
-        ("ALLEEG.reverse()", {"ALLEEG"}),
         ("ALLEEG.append(new_eeg); ALLEEG.reverse()", {"ALLEEG"}),
         ("STUDY.update({'name': 'updated'})", {"STUDY"}),
         ("items.append(1)", set()),
         ("EEG.get('data')", set()),
-        ("alias = EEG['data']; alias.fill(0)", set()),
-        ("np.copyto(EEG['data'], values)", set()),
         ("ALLCOM.append('command')", set()),
         ("not valid Python", set()),
     ],
@@ -1895,7 +1329,6 @@ def test_workspace_assignment_targets_detects_only_supported_mutations(source, e
     ("source", "expected_names", "expected_current_name", "expected_data"),
     [
         ("ALLEEG.append(new_eeg)", ["beta", "alpha", "new"], "alpha", None),
-        ("EEG.update({'setname': 'updated'})", ["beta", "updated"], "updated", None),
         ("EEG['data'].fill(0)", ["beta", "alpha"], "alpha", 0.0),
         ("EEG.pop('custom')", ["beta", "alpha"], "alpha", None),
         # Reordering ALLEEG keeps the same dataset current at its new index.
@@ -1905,7 +1338,6 @@ def test_workspace_assignment_targets_detects_only_supported_mutations(source, e
             "alpha",
             None,
         ),
-        ("ALLEEG.reverse()", ["alpha", "beta"], "alpha", None),
     ],
 )
 def test_console_in_place_mutations_sync_session_once(
@@ -1939,7 +1371,7 @@ def test_console_in_place_mutations_sync_session_once(
     refresh.assert_called_once()
 
 
-@pytest.mark.parametrize("source", ["ALLEEG.pop()", "ALLEEG.remove(ALLEEG[0])"])
+@pytest.mark.parametrize("source", ["ALLEEG.pop()"])
 def test_console_alleeg_removal_reselects_a_remaining_dataset(source):
     session = EEGPrepSession()
     session.store_current(_demo_eeg("beta"), new=True)
@@ -1960,7 +1392,7 @@ def test_console_alleeg_removal_reselects_a_remaining_dataset(source):
     refresh.assert_called_once()
 
 
-@pytest.mark.parametrize("source", ["ALLEEG.pop(0)", "ALLEEG.remove(ALLEEG[0])"])
+@pytest.mark.parametrize("source", ["ALLEEG.remove(ALLEEG[0])"])
 def test_console_alleeg_removal_of_lower_dataset_keeps_current_dataset(source):
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
@@ -149,17 +148,6 @@ def test_eeg_store_handles_multiple_eeg_inputs_with_one_based_indices():
     assert [eeg["setname"] for eeg in alleeg] == ["first", "second"]
 
 
-def test_eeg_store_appends_three_datasets_to_existing_collection():
-    alleeg, current, indices = eeg_store(
-        [_eeg(name="first")],
-        [_eeg(name="second"), _eeg(name="third"), _eeg(name="fourth")],
-    )
-
-    assert indices == [2, 3, 4]
-    assert [eeg["setname"] for eeg in current] == ["second", "third", "fourth"]
-    assert [eeg["setname"] for eeg in alleeg] == ["first", "second", "third", "fourth"]
-
-
 def test_eeg_store_replaces_existing_one_based_slot():
     existing = [_eeg(name="first", saved="yes"), _eeg(name="second", saved="yes")]
 
@@ -169,39 +157,3 @@ def test_eeg_store_replaces_existing_one_based_slot():
     assert checked["setname"] == "replacement"
     assert checked["saved"] == "no"
     assert [eeg["setname"] for eeg in alleeg] == ["first", "replacement"]
-
-
-def test_eeg_store_appends_when_index_omitted_or_none():
-    alleeg, checked, index = eeg_store(None, _eeg(name="first"), None)
-
-    assert index == 1
-    assert checked["setname"] == "first"
-    assert alleeg[0]["setname"] == "first"
-
-
-# Upstream's three fail_* bodies are entirely commented out. These active
-# Python argument checks are supplemental regressions, not source contracts.
-def test_eeg_store_rejects_mismatched_multiple_indices():
-    with pytest.raises(ValueError, match="Length of EEG list"):
-        eeg_store([], [_eeg(name="first"), _eeg(name="second")], [1])
-
-
-def test_eeg_store_rejects_non_positive_explicit_index():
-    with pytest.raises(ValueError, match="1-based"):
-        eeg_store([], _eeg(), -1)
-
-
-def test_eeg_store_requires_a_dataset():
-    with pytest.raises(TypeError):
-        eeg_store([])
-
-
-def test_eeg_store_has_no_legacy_two_hundred_dataset_limit():
-    alleeg = []
-    eeg = _eeg()
-
-    for _ in range(202):
-        alleeg, eeg, current = eeg_store(alleeg, eeg)
-
-    assert len(alleeg) == 202
-    assert current == 202

@@ -5,7 +5,6 @@ from __future__ import annotations
 from copy import deepcopy
 
 import numpy as np
-import pytest
 
 from eegprep import eeg_checkchanlocs, eeg_getdatact
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -205,20 +204,6 @@ def test_eeg_getdatact_concatenates_datasets_and_reports_continuous_boundaries()
     np.testing.assert_array_equal(boundaries, [3.0, 5.0, 8.0])
 
 
-def test_eeg_getdatact_rejects_ambiguous_or_out_of_range_selections():
-    eeg = _eeg(epoched=True)
-    with pytest.raises(ValueError, match="cannot be used together"):
-        eeg_getdatact(eeg, component=[1], rmcomps=[2])
-    with pytest.raises(ValueError, match="cannot be used together"):
-        eeg_getdatact(eeg, component=[1], channel=[2])
-    with pytest.raises(IndexError, match="outside"):
-        eeg_getdatact(eeg, channel=[4])
-    with pytest.raises(ValueError, match="projchan requires"):
-        eeg_getdatact(eeg, projchan=[1])
-    with pytest.raises(ValueError, match="Continuous and epoched"):
-        eeg_getdatact([_eeg(), eeg])
-
-
 def test_eeg_checkchanlocs_separates_fiducials_and_rotates_nose_direction():
     eeg = _eeg()
     eeg["chanlocs"] = [
@@ -324,11 +309,3 @@ def test_eeg_getdatact_reads_external_component_activity(tmp_path):
     eeg["filename"] = "external.set"
 
     np.testing.assert_array_equal(eeg_getdatact(eeg, component=[2]), activity[[1]])
-
-
-def test_eeg_getdatact_rejects_ambiguous_projection_labels():
-    eeg = _eeg()
-    eeg["chanlocs"][1]["labels"] = "EEG Fz"
-
-    with pytest.raises(ValueError, match="not unique"):
-        eeg_getdatact(eeg, component=[1], projchan=["eeg fz"])

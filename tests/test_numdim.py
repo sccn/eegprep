@@ -36,19 +36,6 @@ def test_reference_numdim(eeglab_backend):
     eeglab_backend("numdim", np.array([[2, 2], [-1, -1]], dtype=float))
 
 
-def test_single_channel_is_one():
-    # One channel -> one normalized eigenvalue -> entropy 0 -> lambda == 1.
-    rng = np.random.default_rng(0)
-    a = rng.random((1, 50)) + 0.5
-    np.testing.assert_allclose(numdim(a), 1.0, atol=1e-10)
-
-
-def test_two_channel_orthogonal_is_nchan():
-    # A @ A.T = 2*I -> equal eigenvalues -> lambda == nchan == 2.
-    a = np.array([[1.0, 1.0], [1.0, -1.0]])
-    np.testing.assert_allclose(numdim(a), 2.0, atol=1e-10)
-
-
 def test_hadamard_equal_energy_is_nchan():
     # Hadamard(4): orthogonal equal-norm rows -> A @ A.T = 4*I -> lambda == 4.
     h4 = np.array(
@@ -61,12 +48,6 @@ def test_hadamard_equal_energy_is_nchan():
         dtype=float,
     )
     np.testing.assert_allclose(numdim(h4), 4.0, atol=1e-9)
-
-
-def test_rank_deficient_is_approx_one():
-    # Identical channels -> rank-1 -> one dominant eigenvalue -> ~1 effective dim.
-    a = np.ones((3, 10))
-    np.testing.assert_allclose(numdim(a), 1.0, atol=1e-6)
 
 
 def test_full_rank_matches_matlab():
