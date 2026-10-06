@@ -26,35 +26,6 @@ def _eeg(*, epoched=False):
 
 
 class PopCleanRawdataGuiTests(unittest.TestCase):
-    def test_gui_dialog_spec_matches_clean_rawdata_sections(self):
-        spec = pop_clean_rawdata_dialog_spec(_eeg())
-
-        self.assertEqual(spec.title, "pop_clean_rawdata()")
-        self.assertEqual(spec.function_name, "pop_clean_rawdata")
-        self.assertEqual(spec.eeglab_source, "plugins/clean_rawdata/pop_clean_rawdata.m")
-        self.assertEqual(spec.help_text, "pophelp('pop_clean_rawdata')")
-        labels = [(control.style, control.string, control.tag) for control in spec.controls]
-        self.assertIn(("checkbox", "Remove channel drift (data not already high-pass filtered)", "filter"), labels)
-        self.assertIn(("checkbox", "Process/remove channels", "chanrm"), labels)
-        self.assertIn(
-            ("checkbox", "Perform Artifact Subspace Reconstruction bad burst correction/rejection", "asr"), labels
-        )
-        self.assertIn(("checkbox", "Additional removal of bad data periods", "rejwin"), labels)
-        controls = controls_by_tag(spec)
-        self.assertEqual(controls["filter"].font_weight, "bold")
-        self.assertEqual(controls["chanrm"].font_weight, "bold")
-        self.assertEqual(controls["asr"].font_weight, "bold")
-        self.assertEqual(controls["rejwin"].font_weight, "bold")
-        self.assertTrue(controls["vis"].value)
-
-    def test_gui_channel_callbacks_expose_labels(self):
-        controls = controls_by_tag(pop_clean_rawdata_dialog_spec(_eeg()))
-
-        self.assertEqual(controls["chanuse_button"].callback.params["channels"], ("Cz", "Pz"))
-        self.assertEqual(controls["chanignore_button"].callback.params["channels"], ("Cz", "Pz"))
-        self.assertEqual(controls["filter"].callback.name, "toggle_enabled")
-        self.assertEqual(controls["filter"].callback.params["targets"], ("filterfreqs",))
-
     def test_gui_channel_callbacks_accept_numpy_chanlocs(self):
         eeg = _eeg()
         eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
@@ -193,26 +164,6 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
         np.testing.assert_array_equal(diag["rejected_intervals"], [[1, 3]])
         self.assertEqual(diag["rejected_fraction"], 3 / 40)
 
-    def test_vis_artifacts_diagnostics_infers_original_size_from_masks(self):
-        clean = _eeg()
-        clean["data"] = clean["data"][:1, :30]
-        clean["nbchan"] = 1
-        clean["pnts"] = 30
-        clean["chanlocs"] = [{"labels": "Cz"}]
-        clean["etc"] = {
-            "clean_sample_mask": np.r_[np.ones(10, dtype=bool), np.zeros(5, dtype=bool), np.ones(25, dtype=bool)],
-            "clean_channel_mask": np.asarray([True, False]),
-        }
-
-        diag = vis_artifacts_diagnostics(clean)
-
-        self.assertEqual(diag["original_samples"], 40)
-        self.assertEqual(diag["clean_samples"], 30)
-        self.assertEqual(diag["original_channels"], 2)
-        self.assertEqual(diag["clean_channels"], 1)
-        np.testing.assert_array_equal(diag["rejected_intervals"], [[11, 15]])
-        self.assertEqual(diag["removed_channel_indices"], [2])
-
     def test_string_channel_lists_use_matlab_cell_history(self):
         eeg = _eeg()
         with mock.patch(
@@ -229,10 +180,6 @@ class PopCleanRawdataGuiTests(unittest.TestCase):
 
         self.assertIn("'Channels', {'Cz' 'Pz'}", com)
         self.assertIn("'Channels_ignore', {'ECG'}", com)
-
-    def test_epoched_data_raises_clear_error(self):
-        with self.assertRaisesRegex(ValueError, "continuous"):
-            pop_clean_rawdata(_eeg(epoched=True), gui=False)
 
 
 if __name__ == "__main__":

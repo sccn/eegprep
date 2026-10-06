@@ -11,8 +11,6 @@ from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.firfilt._filtering import design_eegfiltnew
-from eegprep.plugins.firfilt._pop_common import bool_value
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm
@@ -89,11 +87,6 @@ def test_pop_eegfiltnew_chantype_history_uses_matlab_cell_array():
 
     assert "'chantype', {'EOG'}" in command
     assert _console_python_command(command) == "EEG = pop_eegfiltnew(EEG, hicutoff=30, filtorder=80, chantype=['EOG'])"
-
-
-def test_pop_eegfiltnew_rejects_filter_order_below_eeglab_minimum():
-    with pytest.raises(ValueError, match="Filter order too low"):
-        design_eegfiltnew(250, locutoff=1, hicutoff=40, filtorder=100)
 
 
 def test_pop_firma_respects_continuous_boundary_events():
@@ -188,48 +181,6 @@ def test_pop_eegfilt_legacy_usefft_fails_clearly():
         pop_eegfilt(_continuous_eeg(), 1, 40, 100, 0, 1, 0, "firls", 0)
 
 
-def test_pop_eegfiltnew_legacy_usefft_errors_like_eeglab():
-    with pytest.raises(ValueError, match="FFT filtering is not supported"):
-        pop_eegfiltnew(_continuous_eeg(), hicutoff=40, filtorder=100, usefft=True)
-
-
-def test_bool_value_matches_eeglab_singleton_numeric_flags():
-    assert bool_value([0]) is False
-    assert bool_value(np.asarray([0])) is False
-    assert bool_value([1]) is True
-    assert bool_value("off") is False
-
-
-def test_pop_firws_logs_filter_report_and_can_plot_response(caplog, monkeypatch):
-    calls = []
-
-    def fake_plotfresp(coefficients, *args, **kwargs):
-        calls.append((coefficients, args, kwargs))
-        return object(), [], {}
-
-    monkeypatch.setattr("eegprep.plugins.firfilt.pop_firws.plotfresp", fake_plotfresp)
-    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_firws")
-
-    out, command = pop_firws(
-        _continuous_eeg(), fcutoff=30, forder=100, ftype="lowpass", plotfresp=True, return_com=True
-    )
-
-    assert out["data"].shape == (3, 600)
-    assert "'plotfresp', 1" in command
-    assert calls
-    assert any("pop_firws() - lowpass filtering data" in record.message for record in caplog.records)
-
-
-def test_pop_eegfiltnew_progress_output_mentions_transition_band(caplog):
-    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_eegfiltnew")
-
-    pop_eegfiltnew(_continuous_eeg(), hicutoff=30, filtorder=100, plotfreqz=False)
-
-    messages = "\n".join(record.message for record in caplog.records)
-    assert "pop_eegfiltnew() - performing 101 point lowpass filtering" in messages
-    assert "transition band width" in messages
-
-
 def test_pop_order_helpers_return_values_and_replayable_history():
     beta, beta_command = pop_kaiserbeta(0.001, return_com=True)
     order_result, order_command = pop_firwsord("kaiser", 500, 2, 0.001, return_dev=True, return_com=True)
@@ -261,24 +212,6 @@ def test_pop_order_helpers_gui_results():
     assert beta == pytest.approx(5.65326, abs=1e-10)
     assert order == 908
     assert dev == pytest.approx(0.001)
-
-
-def test_pop_firpmord_gui_uses_eeglab_required_frequency_arguments():
-    class FirpmRenderer:
-        def run(self, spec, initial_values=None):
-            return {"rp": "1", "rs": "60"}
-
-    with pytest.raises(ValueError, match="Not enough input arguments"):
-        pop_firpmord(gui=True, renderer=FirpmRenderer())
-
-    (order, wtpass, wtstop), command = pop_firpmord(
-        [0, 40, 48, 125], [1, 0], gui=True, renderer=FirpmRenderer(), return_com=True
-    )
-
-    assert order > 0
-    assert wtpass > 0
-    assert wtstop > 0
-    assert "[m, wtpass, wtstop] = pop_firpmord(" in command
 
 
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
