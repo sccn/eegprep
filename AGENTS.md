@@ -41,7 +41,7 @@ Primary references:
 - If something is unclear, stop and ask. Do not hide confusion in code.
 - If a simpler approach exists, say so. Push back on speculative features, compatibility shims, or unnecessary abstractions.
 - For multi-step work, state a short plan with verification for each step. Include code snippets when they clarify the intended change.
-- Define verifiable success criteria. For example: bug fix means reproduce with a failing test, implement, then pass the test; feature means update behavior, tests, docs, and pre-commit.
+- Define verifiable success criteria. For example: bug fix means reproduce with a failing test, implement, then pass the test; feature means update behavior, docs, and pre-commit, with any needed test written before the code.
 
 ## EEGLAB Parity
 
@@ -99,6 +99,8 @@ Primary references:
 
 ## Testing
 
+- Never write unit tests after you write code.
+- Only add a test that would catch a real bug the EEGLAB-ported (`@eeglab_test`) tests and workflow tests miss. Do not add tests to raise coverage.
 - Pytest is the default test runner. Existing tests may still use `unittest.TestCase`; do not rewrite them unless the touched test benefits from pytest fixtures or parametrization.
 - Registered markers include `slow`, `matlab`, `octave`, `gui`, `visual`, and `parity`.
 - Legacy `unittest` tests are categorized by path/name in `tests/conftest.py`; update that map when adding obvious slow, MATLAB, GUI, visual, or parity coverage.
