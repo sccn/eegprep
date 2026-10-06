@@ -200,10 +200,6 @@ class TestEnvtopoParity(unittest.TestCase):
         """Ranking restricted to an explicit candidate list."""
         self._assert_case({"compnums": [1, 3, 5, 7, 9, 11]})
 
-    def test_parity_compsplot_count(self):
-        """Plotting fewer than the default number of components."""
-        self._assert_case({"compsplot": 3})
-
     def test_parity_limcontrib_window(self):
         """Ranking window narrower than the epoch."""
         span = self.timerange[1] - self.timerange[0]

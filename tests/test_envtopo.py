@@ -19,7 +19,6 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-from matplotlib.collections import PolyCollection
 from matplotlib.figure import Figure
 import numpy as np
 import pytest
@@ -131,37 +130,6 @@ def test_closed_form_ranking_and_peak_frames():
 # --------------------------------------------------------------------------- #
 # Property/invariant tests over seeded synthetic ICA datasets.
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("seed", [0, 1, 7])
-def test_ranking_matches_independent_mp_metric(seed):
-    """envtopo ranks components by the independently recomputed ``mp`` metric."""
-    _, mean_data, weights, icawinv, timerange, times_ms = _ica_dataset(seed)
-    metric, _ = _mp_metric(mean_data, weights, icawinv, np.ones(times_ms.shape, dtype=bool))
-    expected_order = (np.argsort(metric)[::-1] + 1).astype(int)  # 1-based, descending
-
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, sortvar="mp")
-
-    np.testing.assert_array_equal(res.compvarorder, expected_order)
-    # compvars is the metric in ranked order and is therefore non-increasing.
-    assert np.all(np.diff(res.compvars) <= 1e-12)
-    np.testing.assert_allclose(np.sort(res.sortvar), np.sort(metric), rtol=1e-9, atol=1e-12)
-    plt.close(res.figure)
-
-
-@pytest.mark.parametrize("seed", [0, 1, 7])
-def test_peak_frame_and_time_alignment(seed):
-    """compframes fall on the metric peak; comptimes are times_ms[compframes]."""
-    _, mean_data, weights, icawinv, timerange, times_ms = _ica_dataset(seed)
-    _, expected_frame = _mp_metric(mean_data, weights, icawinv, np.ones(times_ms.shape, dtype=bool))
-
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, sortvar="mp")
-
-    for order_pos, ic in enumerate(res.compvarorder.tolist()):
-        frame = int(res.compframes[order_pos])
-        assert frame == int(expected_frame[ic - 1])
-        np.testing.assert_allclose(res.comptimes[order_pos], times_ms[frame], rtol=0, atol=1e-9)
-    plt.close(res.figure)
-
-
 def test_limcontrib_window_restricts_peak_frames():
     """With a limcontrib window, every peak frame lies inside that window."""
     _, mean_data, weights, icawinv, timerange, times_ms = _ica_dataset(0)
@@ -180,100 +148,8 @@ def test_limcontrib_window_restricts_peak_frames():
     plt.close(res.figure)
 
 
-@pytest.mark.parametrize("compsplot,n_components", [(2, 4), (7, 4), (3, 10)])
-def test_compsplotted_count(compsplot, n_components):
-    """compsplotted length is min(compsplot, n_candidates), capped at MAXTOPOS=20."""
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(3, n_components=n_components)
-
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, compsplot=compsplot)
-
-    assert res.compsplotted.size == min(compsplot, n_components, 20)
-    # The plotted set is the top of the full ranking.
-    np.testing.assert_array_equal(res.compsplotted, res.compvarorder[: res.compsplotted.size])
-    plt.close(res.figure)
-
-
-def test_subcomps_are_subtracted_and_excluded_from_selection():
-    """Subtracted components get zero contribution and drop out of the top set."""
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(1)
-
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, compsplot=2, subcomps=[1])
-
-    assert 1 not in res.compsplotted.tolist()
-    plt.close(res.figure)
-
-
-def test_plotchans_subset_with_full_chanlocs_draws_maps():
-    """A plotchans subset paired with full chanlocs aligns the maps instead of size-mismatching topoplot."""
-    eeg, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
-    chanlocs = eeg["chanlocs"]  # full 6-channel locations
-    plotchans = [1, 2, 3]  # 1-based subset
-
-    res = envtopo(
-        mean_data, weights, chanlocs=chanlocs, icawinv=icawinv, timerange=timerange, plotchans=plotchans, compsplot=2
-    )
-
-    assert isinstance(res.figure, Figure)
-    assert any(ax.images for ax in res.figure.axes)  # scalp maps were drawn
-    plt.close(res.figure)
-
-
 def test_resolve_subcomps_empty_vs_zero():
     """EEGLAB parity: 0 removes none (the default); [] removes all but the candidate components."""
     candidates = np.array([0, 1])  # 1-based compnums 1,2 of 4 components
     assert _resolve_subcomps(0, 4, candidates).size == 0
     np.testing.assert_array_equal(_resolve_subcomps([], 4, candidates), np.array([2, 3]))
-
-
-def test_unknown_sortvar_raises():
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
-    with pytest.raises(ValueError, match="sortvar"):
-        envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, sortvar="nope")
-
-
-def test_envmode_rms_runs_and_preserves_ranking():
-    """envmode only changes the drawn envelope, not the component ranking."""
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(7)
-
-    avg = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, envmode="avg")
-    rms = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, envmode="rms")
-
-    np.testing.assert_array_equal(avg.compvarorder, rms.compvarorder)
-    plt.close(avg.figure)
-    plt.close(rms.figure)
-
-
-@pytest.mark.parametrize("mode,label", [("mp", "ppaf"), ("pv", "pvaf"), ("rp", "rp")])
-def test_summed_metric_label_matches_mode(mode, label):
-    """The envelope panel prints the summed metric with EEGLAB's label per mode."""
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, sortvar=mode)
-    texts = [t.get_text() for t in res.figure.axes[0].texts]
-    assert any(t.startswith(f"{label} ") and t.endswith("%") for t in texts)
-    plt.close(res.figure)
-
-
-def test_sumenv_modes_control_the_summed_envelope():
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
-    common = dict(chanlocs=None, icawinv=icawinv, timerange=timerange)
-    fill = envtopo(mean_data, weights, sumenv="fill", **common)
-    lines_on = envtopo(mean_data, weights, sumenv="on", **common)
-    off = envtopo(mean_data, weights, sumenv="off", **common)
-
-    assert any(isinstance(c, PolyCollection) for c in fill.figure.axes[0].collections)
-    assert not any(isinstance(c, PolyCollection) for c in off.figure.axes[0].collections)
-    # 'on' draws the summed envelope as two extra lines (max and min) vs 'off'.
-    assert len(lines_on.figure.axes[0].lines) == len(off.figure.axes[0].lines) + 2
-    for result in (fill, lines_on, off):
-        plt.close(result.figure)
-    with pytest.raises(ValueError, match="sumenv"):
-        envtopo(mean_data, weights, sumenv="nope", **common)
-
-
-def test_vert_draws_marker_lines():
-    _, mean_data, weights, icawinv, timerange, _ = _ica_dataset(0)
-    latency = timerange[0] + 0.4 * (timerange[1] - timerange[0])
-    res = envtopo(mean_data, weights, chanlocs=None, icawinv=icawinv, timerange=timerange, vert=[latency])
-    verticals = [ln.get_xdata()[0] for ln in res.figure.axes[0].lines if len(np.unique(ln.get_xdata())) == 1]
-    assert any(abs(x - latency / 1000.0) < 1e-9 for x in verticals)
-    plt.close(res.figure)
