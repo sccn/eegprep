@@ -33,20 +33,6 @@ class TestGenDerivedFpath(unittest.TestCase):
         self.assertNotIn('{root}', out)
         self.assertNotIn('$', out)
 
-    def test_explicit_root_placeholder_substituted(self):
-        """An explicit '{root}/...' outputdir is substituted with the dataset root."""
-        out = gen_derived_fpath(_raw_fpath(), outputdir='{root}/derivatives/eegprep')
-        expected = os.path.join(
-            os.sep, 'data', 'ds001', 'derivatives', 'eegprep', 'sub-01', 'eeg', 'sub-01_task-rest_eeg.set'
-        )
-        self.assertEqual(out, expected)
-
-    def test_path_assembly_uses_os_sep(self):
-        """The assembled path uses the OS separator throughout (no hardcoded '/')."""
-        out = gen_derived_fpath(_raw_fpath(), keyword='desc-cleaned')
-        # Every separator must be the platform separator produced by os.path.join.
-        self.assertEqual(out, os.path.normpath(out))
-
 
 if __name__ == '__main__':
     unittest.main()

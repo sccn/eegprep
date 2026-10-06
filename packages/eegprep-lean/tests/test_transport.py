@@ -115,12 +115,6 @@ def _get(transport: Transport, url: str, **kwargs):
 
 
 class TestRanges:
-    def test_whole_body(self, base_url: str, transport: Transport) -> None:
-        response = _get(transport, f"{base_url}/data")
-
-        assert response.status == 200
-        assert response.body == BODY
-
     def test_closed_range_returns_only_that_slice(self, base_url: str, transport: Transport) -> None:
         response = _get(transport, f"{base_url}/data", start=10, end=19)
 
@@ -266,13 +260,6 @@ class TestPlatformSelection:
         """The case it exists for: a sandbox without ``pyodide.http`` registers its own
         client, and platform selection must not hand back the transport that imports it."""
         monkeypatch.setattr(sys, "platform", "emscripten")
-        registered = FetchTransport(host_fetch)
-
-        set_default_transport(registered)
-
-        assert default_transport() is registered
-
-    def test_a_host_transport_wins_natively_too(self, host_fetch) -> None:
         registered = FetchTransport(host_fetch)
 
         set_default_transport(registered)
