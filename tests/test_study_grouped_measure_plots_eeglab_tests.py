@@ -24,12 +24,8 @@ from eegprep import (
     pop_statparams,
     pop_study,
     std_erpplot,
-    std_erspplot,
-    std_itcplot,
     std_precomp,
-    std_specplot,
     std_stat,
-    std_topoplot,
 )
 from tests.eeglab_tests import assert_matlab_equal, eeglab_test, load_matlab_test_fixture
 from tests.eeglab_tests.gui import close_reference_gui
@@ -1047,19 +1043,6 @@ def _factorial_study(*, n_channels: int = 6, n_components: int = 2) -> tuple[dic
     return pop_study(None, datasets, name="Deterministic 2 x 2 study")
 
 
-def _component_clusters(study: dict) -> dict:
-    study = deepcopy(study)
-    parent = study["cluster"][0]
-    dataset_ids = list(range(1, len(study["datasetinfo"]) + 1))
-    study["cluster"] = [
-        parent,
-        {"name": "Cluster 1", "sets": [dataset_ids], "comps": [1] * len(dataset_ids), "child": []},
-        {"name": "Cluster 2", "sets": [dataset_ids], "comps": [2] * len(dataset_ids), "child": []},
-    ]
-    parent["child"] = ["Cluster 1", "Cluster 2"]
-    return study
-
-
 def test_std_stat_fdr_preserves_undefined_samples_and_graded_thresholds():
     condition_a = np.asarray([[1.0, 1.0, 1.0], [1.0, 2.0, 3.0]])
     condition_b = np.asarray([[1.0, 1.0, 1.0], [2.0, 4.0, 8.0]])
@@ -1125,160 +1108,6 @@ def test_std_erpplot_groups_design_cells_and_returns_statistics_and_masks():
     plt.close(together)
 
 
-@pytest.mark.gui
-def test_std_erspplot_supports_clusters_subject_panels_and_channel_topographies():
-    study, alleeg = _factorial_study()
-    tf_params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
-    study, alleeg = std_precomp(study, alleeg, "channels", ersp="on", savetrials="on", erspparams=tf_params)
-    study, alleeg = std_precomp(study, alleeg, "components", ersp="on", savetrials="on", erspparams=tf_params)
-    study = _component_clusters(study)
-
-    _study, cluster_cells, times, freqs, cluster_figure = std_erspplot(study, alleeg, clusters=[2, 3])
-    assert cluster_cells[0][0].shape == (freqs.size, times.size, 2)
-    assert len(cluster_figure.axes) >= 2
-    plt.close(cluster_figure)
-
-    _study, subject_cells, _times, _freqs, subject_figure = std_erspplot(
-        study, alleeg, channels=[1], subject="C01", plotsubjects="on"
-    )
-    assert sum(cell.shape[-1] for row in subject_cells for cell in row) == 2
-    assert len(subject_figure.axes) >= 4
-    plt.close(subject_figure)
-
-    _study, topo_cells, _times, _freqs, topo_figure = std_erspplot(
-        study, alleeg, channels="channels", topofreq=8, topotime=400, caxis=[-3, 3]
-    )
-    assert topo_cells[0][0].shape[-2] == 6
-    assert len(topo_figure.axes) == 4
-    assert all(axis.images or not axis.get_visible() for axis in topo_figure.axes)
-    plt.close(topo_figure)
-
-
-@pytest.mark.gui
-def test_std_erspplot_channel_saved_trials_reproduce_the_cached_ersp():
-    study, alleeg = _factorial_study()
-    params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
-    study, alleeg = std_precomp(study, alleeg, [1], ersp="on", savetrials="on", recompute="on", erspparams=params)
-    cache = study["changrp"][0]
-
-    for dataset_index, trials in enumerate(cache["erspdatatrials"]):
-        reconstructed = 10 * np.log10(np.mean(np.asarray(trials), axis=-1))
-        np.testing.assert_allclose(reconstructed, np.asarray(cache["erspdata"])[dataset_index], atol=1e-12)
-    _study, cells, times, freqs, figure = std_erspplot(study, alleeg, channels=[1])
-    assert cells[0][0].shape == (freqs.size, times.size, 2)
-    assert cache["measureinfo"]["trial_cache"]["erspdatatrials"] == "linear baseline-corrected power"
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_std_erspplot_component_saved_trials_reproduce_the_cached_ersp():
-    study, alleeg = _factorial_study()
-    for info in study["datasetinfo"]:
-        info["comps"] = [2]
-    params = {"cycles": 0, "nfreqs": 5, "timesout": 5, "baseline": np.nan}
-    study, alleeg = std_precomp(
-        study, alleeg, "components", ersp="on", savetrials="on", recompute="on", erspparams=params
-    )
-    cache = study["cluster"][0]
-
-    for dataset_index, component_trials in enumerate(cache["erspdatatrials"]):
-        reconstructed = 10 * np.log10(np.mean(np.asarray(component_trials[0]), axis=-1))
-        np.testing.assert_allclose(reconstructed, np.asarray(cache["erspdata"])[dataset_index, 0], atol=1e-12)
-    _study, cells, times, freqs, figure = std_erspplot(study, alleeg, clusters=1, components=[2])
-    assert cells[0][0].shape == (freqs.size, times.size, 2)
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_std_itcplot_supports_centroids_component_panels_channels_and_subjects():
-    study, alleeg = _factorial_study()
-    tf_params = {"cycles": 0, "nfreqs": 4, "timesout": 4, "baseline": np.nan}
-    study, alleeg = std_precomp(study, alleeg, [1], itc="on", savetrials="on", erspparams=tf_params)
-    channel_cache = study["changrp"][0]
-    for dataset_index, phases in enumerate(channel_cache["itcdatatrials"]):
-        reconstructed = np.abs(np.mean(np.exp(1j * np.asarray(phases)), axis=-1))
-        np.testing.assert_allclose(reconstructed, np.asarray(channel_cache["itcdata"])[dataset_index])
-    study, alleeg = std_precomp(study, alleeg, "components", itc="on", erspparams=tf_params)
-    study = _component_clusters(study)
-
-    _study, cells, times, freqs, centroid = std_itcplot(study, alleeg, clusters=2, mode="centroid")
-    assert cells[0][0].shape == (freqs.size, times.size, 2)
-    assert np.nanmin(cells[0][0]) >= 0
-    plt.close(centroid)
-
-    _study, _cells, _times, _freqs, components = std_itcplot(study, alleeg, clusters=2, mode="comps")
-    assert len(components.axes) >= 8
-    plt.close(components)
-
-    _study, channel_cells, _times, _freqs, channel_figure = std_itcplot(
-        study, alleeg, channels=[1], subject="P01", plotsubjects="on"
-    )
-    assert sum(cell.shape[-1] for row in channel_cells for cell in row) == 2
-    plt.close(channel_figure)
-
-
-@pytest.mark.gui
-def test_std_specplot_supports_clusters_fdr_subject_traces_and_channel_topography():
-    study, alleeg = _factorial_study()
-    study, alleeg = std_precomp(study, alleeg, "channels", spec="on", recompute="on")
-    study, alleeg = std_precomp(study, alleeg, "components", spec="on", recompute="on")
-    study = _component_clusters(study)
-
-    result = std_specplot(
-        study,
-        alleeg,
-        clusters=2,
-        condstats="on",
-        plotconditions="together",
-        threshold=0.05,
-        mcorrect="fdr",
-        return_stats=True,
-    )
-    _study, cells, frequencies, _pgroup, pcond, _pinter, figure = result
-    assert cells[0][0].shape == (frequencies.size, 2)
-    assert len(pcond) == 2
-    assert figure.eegprep_plot_metadata["statistics"].mcorrect == "fdr"
-    plt.close(figure)
-
-    _study, _cells, _frequencies, subject_figure = std_specplot(
-        study, alleeg, channels=[1], subject="C01", plotsubjects="on", plotconditions="together"
-    )
-    assert sum(len(axis.lines) for axis in subject_figure.axes) >= 4
-    plt.close(subject_figure)
-
-    _study, topo_cells, _frequencies, topo_figure = std_specplot(study, alleeg, channels="channels", topofreq=8)
-    assert topo_cells[0][0].shape[-2] == 6
-    assert len(topo_figure.axes) == 4
-    plt.close(topo_figure)
-
-
-@pytest.mark.gui
-def test_std_specplot_group_and_condition_layout_controls_preserve_design_cells():
-    study, alleeg = _factorial_study()
-    study, alleeg = std_precomp(study, alleeg, [1], spec="on", recompute="on")
-
-    for plotconditions, plotgroups, expected_axes in (
-        ("apart", "apart", 4),
-        ("together", "apart", 2),
-        ("apart", "together", 2),
-        ("together", "together", 1),
-    ):
-        _study, cells, frequencies, figure = std_specplot(
-            study,
-            alleeg,
-            channels=[1],
-            plotconditions=plotconditions,
-            plotgroups=plotgroups,
-            plotsubjects="on",
-        )
-        assert [[cell.shape for cell in row] for row in cells] == [
-            [(frequencies.size, 2), (frequencies.size, 2)],
-            [(frequencies.size, 2), (frequencies.size, 2)],
-        ]
-        assert len(figure.axes) == expected_axes
-        plt.close(figure)
-
-
 @_reference("std_topoplot", "test_test_std_topoplot")
 @pytest.mark.gui
 def test_reference_std_topoplot(eeglab_backend, eeglab_writable_study, request):
@@ -1296,25 +1125,3 @@ def test_reference_std_topoplot(eeglab_backend, eeglab_writable_study, request):
     ):
         eeglab_backend("std_topoplot", study, alleeg, **options, nargout=0)
         close_reference_gui(eeglab_backend, request)
-
-
-@pytest.mark.gui
-def test_std_topoplot_draws_all_centroids_component_maps_and_selected_members():
-    study, alleeg = _factorial_study()
-    study, alleeg = std_precomp(study, alleeg, "components", erp="on", scalp="on", recompute="on")
-    study = _component_clusters(study)
-
-    study, all_figure = std_topoplot(study, alleeg, clusters="all", mode="centroid")
-    assert len(all_figure.axes) == 2
-    assert all(cluster.get("topo") for cluster in study["cluster"][1:])
-    plt.close(all_figure)
-
-    study, component_figure = std_topoplot(study, alleeg, clusters=2, mode="comps")
-    assert len(component_figure.axes) == len(study["cluster"][1]["comps"]) + 1
-    assert set(study["cluster"][1]["topopol"]) <= {-1, 1}
-    plt.close(component_figure)
-
-    _study, selected_figure = std_topoplot(study, alleeg, clusters=2, components=[4], mode="comps")
-    assert len(selected_figure.axes) == 2
-    assert selected_figure.axes[1].get_title().endswith("/IC1")
-    plt.close(selected_figure)

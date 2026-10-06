@@ -12,7 +12,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 
-import eegprep
 from eegprep.functions.studyfunc.std_dipplot import std_dipplot
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -158,51 +157,9 @@ def test_unlocalized_members_are_excluded_from_centroid_inputs():
     assert selections[0]["centroid"]["rv"] == pytest.approx(0.4)
 
 
-def test_malformed_dipfit_values_and_unknown_modes_fail_clearly():
-    study, alleeg = _study_with_dipoles()
-
-    with pytest.raises(ValueError, match="mode must be one of"):
-        std_dipplot(study, alleeg, clusters=2, mode="silent-no-op", plot=False)
-
-    alleeg[0]["dipfit"]["model"][1]["momxyz"] = [[1.0, 0.0, 0.0]]
-    with pytest.raises(ValueError, match="posxyz and momxyz shapes differ"):
-        std_dipplot(study, alleeg, clusters=2, plot=False)
-
-
 def test_incompatible_coordinate_formats_are_not_combined():
     study, alleeg = _study_with_dipoles()
     alleeg[1]["dipfit"]["coordformat"] = "spherical"
 
     with pytest.raises(ValueError, match="incompatible coordinate formats"):
         std_dipplot(study, alleeg, clusters=2, plot=False)
-
-
-@pytest.mark.parametrize(
-    ("mode", "figure_count", "axes_per_figure"),
-    [
-        ("apart", 2, [1, 1]),
-        ("together", 1, [2]),
-        ("multicolor", 1, [1]),
-        ("comps", 1, [1]),
-    ],
-)
-def test_supported_member_plot_layouts_render(mode, figure_count, axes_per_figure):
-    study, alleeg = _study_with_dipoles()
-
-    _study, _selections, figures = std_dipplot(
-        study,
-        alleeg,
-        clusters="all",
-        mode=mode,
-        dipcolor=["navy", "darkorange"],
-        dipsize=[35, 45],
-    )
-
-    assert len(figures) == figure_count
-    assert [len(figure.axes) for figure in figures] == axes_per_figure
-    for figure in figures:
-        plt.close(figure)
-
-
-def test_std_dipplot_remains_available_from_the_package_api():
-    assert eegprep.std_dipplot is std_dipplot

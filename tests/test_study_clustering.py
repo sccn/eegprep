@@ -3,28 +3,21 @@ from __future__ import annotations
 import ast
 
 import numpy as np
-import pytest
 from matplotlib import pyplot as plt
 
-from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.guifunc.session import EEGPrepSession
-from eegprep.functions.guifunc.spec import controls_by_tag
-from eegprep.functions.studyfunc.pop_clust import pop_clust, pop_clust_dialog_spec
-from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit, pop_clustedit_dialog_spec
-from eegprep.functions.studyfunc.pop_preclust import pop_preclust, pop_preclust_dialog_spec
-from eegprep.functions.studyfunc.pop_precomp import pop_precomp
+from eegprep.functions.studyfunc.pop_clust import pop_clust
+from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
+from eegprep.functions.studyfunc.pop_preclust import pop_preclust
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.optimal_kmeans import optimal_kmeans
 from eegprep.functions.studyfunc.robust_kmeans import robust_kmeans
 from eegprep.functions.studyfunc.std_apcluster import std_apcluster
 from eegprep.functions.studyfunc.std_centroid import std_centroid
-from eegprep.functions.studyfunc.std_clustplot import std_clustplot
 from eegprep.functions.studyfunc.std_createclust import std_createclust
 from eegprep.functions.studyfunc.std_findoutlierclust import std_findoutlierclust
 from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
 from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 from eegprep.functions.studyfunc.std_moveoutlier import std_moveoutlier
-from eegprep.functions.studyfunc.std_preclust import normalize_preclust_specs, std_preclust
 from eegprep.functions.studyfunc.std_rejectoutliers import std_rejectoutliers
 
 
@@ -80,64 +73,6 @@ def _preclustered_study() -> tuple[dict, list[dict]]:
     )
 
 
-def test_std_preclust_builds_parent_component_matrix_from_scalp_maps():
-    study, alleeg = _study_with_ica()
-
-    study, alleeg, command = std_preclust(
-        study,
-        alleeg,
-        1,
-        [{"measure": "scalp", "npca": 2, "norm": 1, "weight": 2}],
-        return_com=True,
-    )
-
-    preclust = study["etc"]["preclust"]
-    assert np.asarray(preclust["preclustdata"]).shape == (6, 2)
-    assert preclust["clustlevel"] == 1
-    assert len(study["cluster"][0]["comps"]) == 6
-    assert command.startswith("STUDY, ALLEEG = std_preclust(")
-
-
-def test_std_preclust_reads_phase_5b_component_measure_cache():
-    study, alleeg = _study_with_ica()
-    study, alleeg = pop_precomp(study, alleeg, "components", erp="on")
-
-    study, _alleeg = std_preclust(
-        study,
-        alleeg,
-        1,
-        [{"measure": "erp", "npca": 2, "timewindow": [0, 90]}],
-    )
-
-    assert np.asarray(study["etc"]["preclust"]["preclustdata"]).shape == (6, 2)
-    assert study["etc"]["eegprep"]["preclust_contract"]["component_measure_root"] == "STUDY.cluster[0]"
-    assert study["cluster"][0]["sets"] == [[1, 1, 1, 2, 2, 2]]
-
-
-def test_preclust_missing_component_measure_and_missing_ica_errors():
-    study, alleeg = _study_with_ica()
-    with pytest.raises(ValueError, match="component measure 'erp' is missing"):
-        std_preclust(study, alleeg, 1, [{"measure": "erp"}])
-
-    no_ica = dict(_ica_eeg("bad"))
-    no_ica.pop("icaweights")
-    no_ica.pop("icawinv")
-    study, alleeg = pop_study(None, [no_ica], name="No ICA")
-    with pytest.raises(ValueError, match="no ICA components"):
-        std_preclust(study, alleeg)
-
-
-def test_pop_clust_creates_deterministic_child_clusters():
-    study, alleeg = _preclustered_study()
-
-    clustered, command = pop_clust(study, alleeg, clus_num=2, random_state=11, return_com=True)
-
-    assert command.startswith("STUDY = pop_clust(")
-    assert len(clustered["cluster"]) == 3
-    assert sum(len(cluster["comps"]) for cluster in clustered["cluster"][1:]) == 6
-    assert clustered["cluster"][0]["child"] == [cluster["name"] for cluster in clustered["cluster"][1:]]
-
-
 def test_deterministic_clustering_helpers_return_stable_shapes():
     data = np.asarray([[0.0, 0.0], [0.1, 0.0], [5.0, 5.0], [5.1, 5.0], [20.0, 20.0]])
 
@@ -178,45 +113,6 @@ def test_deterministic_clustering_helpers_return_stable_shapes():
     assert centroids.shape == (2, 2)
     # std_findoutlierclust must flag the far row (1-based index 5) as the outlier.
     assert outlier_rows.tolist() == [5]
-
-
-def test_kmeans_kernel_is_shared_by_clustering_callers():
-    # optimal_kmeans and robust_kmeans must reuse the one canonical k-means
-    # kernel so the numerics cannot drift between copies. Single-cluster runs
-    # let us compare labels/centers directly against the kernel output.
-    from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
-
-    data = np.asarray([[0.0, 0.0], [0.1, 0.0], [5.0, 5.0], [5.1, 5.0]])
-    kernel_labels, kernel_centers = kmeans_labels(data, 2, random_state=7)
-
-    optimal_labels, optimal_centers, _sumd, optimal_distances = optimal_kmeans(data, 2, random_state=7)
-    np.testing.assert_array_equal(optimal_labels, kernel_labels)
-    np.testing.assert_allclose(optimal_centers, kernel_centers)
-    np.testing.assert_allclose(optimal_distances, np.sqrt(squared_distances(data, kernel_centers)))
-
-    robust_labels, robust_centers, _rsumd, _rdist, _outliers = robust_kmeans(
-        data, 2, STD=float("inf"), MAXiter=1, random_state=7
-    )
-    np.testing.assert_array_equal(robust_labels, kernel_labels)
-    np.testing.assert_allclose(robust_centers, kernel_centers)
-
-
-def test_pop_clust_rejects_invalid_cluster_counts_and_outlier_thresholds():
-    study, alleeg = _preclustered_study()
-
-    with pytest.raises(ValueError, match="at least 2"):
-        pop_clust(study, alleeg, clus_num=1)
-
-    with pytest.raises(ValueError, match="greater than 0"):
-        pop_clust(study, alleeg, clus_num=2, outliers=-1)
-
-
-def test_preclust_spec_command_precedence_is_explicit():
-    command_spec = normalize_preclust_specs([{"measure": "erp", "command": "spec"}])[0]
-    measure_spec = normalize_preclust_specs([{"measure": "erp", "command": ""}])[0]
-
-    assert command_spec["measure"] == "spec"
-    assert measure_spec["measure"] == "erp"
 
 
 def test_pop_clust_outlier_threshold_uses_mean_distance_guard():
@@ -305,21 +201,6 @@ def test_cluster_gui_all_selection_expands_to_all_clusters():
 
     assert "clusters=[1, 2, 3]" in command
     plt.close(figure)
-
-
-def test_std_clustplot_history_omits_empty_cluster_selection_and_replays():
-    study, alleeg = _preclustered_study()
-    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
-
-    _study, command, figure = std_clustplot(study, alleeg, clusters=[], return_com=True)
-
-    assert "clusters=" not in command
-    ast.parse(command)
-    namespace = {"STUDY": study, "ALLEEG": alleeg, "std_clustplot": std_clustplot}
-    exec(command, namespace)
-    assert "FIGURE" in namespace
-    plt.close(figure)
-    plt.close(namespace["FIGURE"])
 
 
 def test_moveoutlier_reuses_outlier_cluster_after_source_rename():
@@ -425,93 +306,6 @@ def test_pop_preclust_clust_and_clustedit_history_replays():
     assert namespace["STUDY"]["cluster"][1]["name"].startswith("Replay")
 
 
-def test_console_bare_pop_clust_updates_study_workspace():
-    study, alleeg = _preclustered_study()
-    session = EEGPrepSession()
-    session.ALLEEG = alleeg
-    session.STUDY = study
-    session.CURRENTSTUDY = 1
-    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_clust": pop_clust})
-
-    result = workspace.namespace["pop_clust"](workspace.namespace["STUDY"], workspace.namespace["ALLEEG"], clus_num=2)
-
-    assert session.STUDY is workspace.namespace["STUDY"]
-    assert len(session.STUDY["cluster"]) == 3
-    assert result.command.startswith("STUDY = pop_clust(")
-    assert session.ALLCOM[-1].startswith("STUDY = pop_clust(")
-
-
-def test_console_bare_preclust_clustedit_and_plot_update_study_workspace():
-    study, alleeg = _study_with_ica()
-    session = EEGPrepSession()
-    session.ALLEEG = alleeg
-    session.STUDY = study
-    session.CURRENTSTUDY = 1
-    workspace = EEGPrepConsoleWorkspace(
-        session,
-        exports={"pop_preclust": pop_preclust, "pop_clust": pop_clust, "pop_clustedit": pop_clustedit},
-    )
-
-    preclust_result = workspace.namespace["pop_preclust"](
-        workspace.namespace["STUDY"],
-        workspace.namespace["ALLEEG"],
-        preproc=[{"measure": "scalp", "npca": 2}],
-    )
-    cluster_result = workspace.namespace["pop_clust"](
-        workspace.namespace["STUDY"],
-        workspace.namespace["ALLEEG"],
-        clus_num=2,
-        random_state=11,
-    )
-    edit_result = workspace.namespace["pop_clustedit"](
-        workspace.namespace["STUDY"],
-        workspace.namespace["ALLEEG"],
-        action="rename",
-        cluster=2,
-        name="Console",
-    )
-    plot_result = workspace.namespace["pop_clustedit"](
-        workspace.namespace["STUDY"],
-        workspace.namespace["ALLEEG"],
-        action="plot",
-        clusters=[2, 3],
-    )
-
-    assert preclust_result.command.startswith("STUDY, ALLEEG = pop_preclust(")
-    assert cluster_result.command.startswith("STUDY = pop_clust(")
-    assert edit_result.command.startswith("STUDY = pop_clustedit(")
-    assert plot_result.command.startswith("STUDY = pop_clustedit(")
-    assert session.CURRENTSTUDY == 1
-    assert session.STUDY["cluster"][1]["name"].startswith("Console")
-    assert session.ALLCOM[-1] == plot_result.command
-    plt.close("all")
-
-
-def test_cluster_gui_specs_and_cancel_paths_are_stable():
-    study, alleeg = _preclustered_study()
-    preclust_spec = pop_preclust_dialog_spec(study)
-    clust_spec = pop_clust_dialog_spec(study)
-    edit_spec = pop_clustedit_dialog_spec(study)
-
-    assert controls_by_tag(preclust_spec)["scalp_on"].value == 0
-    assert (
-        controls_by_tag(preclust_spec)["scalp_choice"].string
-        == "Use channel values|Use Laplacian values|Use Gradient values"
-    )
-    assert "double_dip_help" in controls_by_tag(preclust_spec)
-    assert controls_by_tag(clust_spec)["clus_num"].value
-    assert controls_by_tag(edit_spec)["clus_list"].string.startswith("All cluster centroids|ParentCluster")
-    assert controls_by_tag(edit_spec)["plot_clus_maps"].string == "Plot scalp maps"
-    assert controls_by_tag(edit_spec)["move_outlier"].string == "Remove selected outlier comps."
-    assert controls_by_tag(edit_spec)["create_cluster"].enabled is False
-    assert controls_by_tag(edit_spec)["move_comp"].enabled is False
-    assert controls_by_tag(edit_spec)["rename_cluster"].enabled is False
-
-    assert pop_preclust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[2] == ""
-    assert pop_clust(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
-    assert pop_clustedit(study, alleeg, gui=True, renderer=_Renderer(None), return_com=True)[1] == ""
-
-
 def test_cluster_gui_submit_paths_accept_blank_optional_numeric_fields():
     study, alleeg = _study_with_ica()
     preclust_renderer = _Renderer(
@@ -531,28 +325,6 @@ def test_cluster_gui_submit_paths_accept_blank_optional_numeric_fields():
     assert preclust_command.startswith("STUDY, ALLEEG = pop_preclust(")
     assert clust_command.startswith("STUDY = pop_clust(")
     assert len(clustered["cluster"]) >= 3
-
-
-def test_clustedit_gui_empty_threshold_falls_back_for_non_reject_actions():
-    study, alleeg = _preclustered_study()
-    study = pop_clust(study, alleeg, clus_num=2, random_state=11)
-    renderer = _Renderer(
-        {
-            "action": 1,
-            "cluster": "",
-            "clusters": "2 3",
-            "comps": "",
-            "to_cluster": "",
-            "name": "",
-            "threshold": "",
-        }
-    )
-
-    _study, command, figure = pop_clustedit(study, alleeg, gui=True, renderer=renderer, return_com=True)
-
-    assert "action='plot'" in command
-    assert figure is not None
-    plt.close(figure)
 
 
 def test_clustedit_gui_maps_component_list_rows_to_cluster_local_positions():

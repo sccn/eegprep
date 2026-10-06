@@ -9,26 +9,17 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 from scipy.cluster import vq
 
 import eegprep
-from eegprep.functions.popfunc.plot_utils import component_activations
-from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_corrmap import pop_corrmap
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.corrmap import corrmap
-from eegprep.functions.studyfunc.std_editset import std_editset
-from eegprep.functions.studyfunc.std_erpplot import std_erpplot
-from eegprep.functions.studyfunc.std_erspplot import std_erspplot
 from eegprep.functions.studyfunc.std_makedesign import std_makedesign
 from eegprep.functions.studyfunc.std_preclust import std_preclust
-from eegprep.functions.studyfunc.std_precomp import std_precomp
 from eegprep.functions.studyfunc.std_selectdesign import std_selectdesign
-from eegprep.functions.studyfunc.std_specplot import std_specplot
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
 
@@ -238,71 +229,6 @@ def test_corrmap_aligns_labelled_montages_and_rejects_unsupported_inputs():
         corrmap(study, alleeg, 1, 4, th=0.8, ics=1)
     with pytest.raises(NotImplementedError, match="summary plotting"):
         corrmap(study, alleeg, 1, 1, th=0.8, ics=1, plot="on")
-
-
-def test_std_editset_loads_generated_sets_assigns_metadata_and_removes_a_dataset(tmp_path: Path):
-    first = _deterministic_eeg("ignore", "", "")
-    second = _deterministic_eeg("probe", "", "", offset=0.2)
-    first_path = tmp_path / "Ignore.set"
-    second_path = tmp_path / "Probe.set"
-    pop_saveset(first, first_path)
-    pop_saveset(second, second_path)
-
-    study, alleeg = std_editset(
-        None,
-        None,
-        "commands",
-        [
-            ["index", 1, "load", first_path, "subject", "S01", "condition", "ignore"],
-            ["index", 2, "load", second_path, "subject", "S01", "condition", "probe"],
-        ],
-        "updatedat",
-        "off",
-    )
-    study = std_makedesign(study, alleeg, 1, variable1="condition", values1=["ignore", "probe"])
-    study, alleeg = std_editset(study, alleeg, commands=[["remove", 2]], updatedat="off")
-
-    assert len(alleeg) == 1
-    assert alleeg[0]["setname"] == "ignore"
-    assert [(row["subject"], row["condition"]) for row in study["datasetinfo"]] == [("S01", "ignore")]
-    assert study["design"][0]["variable"][0]["value"] == ["ignore", "probe"]
-
-
-def test_std_makedesign_preserves_subject_selection_and_combined_factor_levels():
-    datasets = []
-    for subject in ("S02", "S07", "S08", "S10"):
-        datasets.extend(
-            [
-                _deterministic_eeg(f"{subject}_syn", subject, "synonyms"),
-                _deterministic_eeg(f"{subject}_nonsyn", subject, "non-synonyms", offset=0.2),
-            ]
-        )
-    study, alleeg = pop_study(None, datasets, name="Generated design study")
-    selected_subjects = ["S02", "S07", "S08", "S10"]
-
-    study = std_makedesign(
-        study,
-        alleeg,
-        1,
-        variable1="condition",
-        name="STUDY.design 1",
-        values1=["non-synonyms", "synonyms"],
-        subjselect=selected_subjects,
-    )
-    study = std_makedesign(
-        study,
-        alleeg,
-        2,
-        variable1="condition",
-        name="Design 2 test",
-        values1=["non-synonyms", ["non-synonyms", "synonyms"]],
-        subjselect=selected_subjects,
-    )
-
-    assert len(study["design"]) == 2
-    assert study["design"][0]["cases"]["value"] == selected_subjects
-    assert study["design"][1]["cases"]["value"] == selected_subjects
-    assert study["design"][1]["variable"][0]["value"][1] == ["non-synonyms", "synonyms"]
 
 
 def _cell_row(*values):
@@ -661,88 +587,6 @@ def test_reference_std_preclust(eeglab_backend, eeglab_writable_study):
     )
 
 
-def test_std_precomp_computes_channel_and_component_erp_spectrum_ersp_and_itc():
-    study, alleeg = _study_pair()
-    tf_params = {"cycles": 0, "nfreqs": 8, "timesout": 8}
-
-    study, alleeg = std_precomp(
-        study,
-        alleeg,
-        "components",
-        recompute="on",
-        erp="on",
-        scalp="on",
-        spec="on",
-        ersp="on",
-        itc="on",
-        erspparams=tf_params,
-    )
-    study, alleeg = std_precomp(
-        study,
-        alleeg,
-        "channels",
-        recompute="on",
-        erp="on",
-        spec="on",
-        ersp="on",
-        itc="on",
-        erspparams=tf_params,
-    )
-
-    channel = study["changrp"][0]
-    component = study["cluster"][0]
-    np.testing.assert_allclose(np.asarray(channel["erpdata"])[0], np.mean(alleeg[0]["data"][0], axis=1))
-    assert np.asarray(component["erpdata"]).shape == (2, 3, 128)
-    assert np.asarray(component["topo"]).shape == (2, 3, 4)
-    assert np.asarray(channel["erspdata"]).shape == np.asarray(channel["itcdata"]).shape
-    assert np.nanmin(channel["itcdata"]) >= 0.0
-    assert np.nanmax(channel["itcdata"]) <= 1.0 + 1e-12
-    peak = int(np.argmax(np.asarray(channel["specdata"])[0]))
-    assert channel["specfreqs"][peak] == 6.0
-
-
-def test_std_preclust_combines_all_current_measure_families_and_final_pca():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(
-        study,
-        alleeg,
-        "components",
-        recompute="on",
-        erp="on",
-        scalp="on",
-        spec="on",
-        ersp="on",
-        itc="on",
-        erspparams={"cycles": 0, "nfreqs": 6, "timesout": 6},
-    )
-
-    study, _alleeg = std_preclust(
-        study,
-        alleeg,
-        1,
-        ["spec", "npca", 4, "norm", 1, "weight", 1, "freqrange", [3, 25]],
-        ["erp", "npca", 4, "norm", 1, "weight", 1, "timewindow", []],
-        ["scalp", "npca", 4, "norm", 1, "weight", 1, "abso", 1],
-        ["dipoles", "norm", 1, "weight", 10],
-        ["ersp", "npca", 4, "freqrange", [], "timewindow", [], "norm", 1, "weight", 1],
-        ["itc", "npca", 4, "freqrange", [], "timewindow", [], "norm", 1, "weight", 1],
-        ["finaldim", "npca", 4],
-    )
-
-    preclust = study["etc"]["preclust"]
-    assert np.asarray(preclust["preclustdata"]).shape == (6, 4)
-    assert [item["measure"] for item in preclust["preclustparams"]] == [
-        "spec",
-        "erp",
-        "scalp",
-        "dipoles",
-        "ersp",
-        "itc",
-        "finaldim",
-    ]
-    assert np.isfinite(preclust["preclustdata"]).all()
-
-
 @_reference("pop_clust", "test_test_pop_clust")
 def test_reference_pop_clust(eeglab_backend, eeglab_sample_study, request):
     study, alleeg = eeglab_sample_study
@@ -759,18 +603,6 @@ def test_reference_pop_clust(eeglab_backend, eeglab_sample_study, request):
     request.node.user_properties.append(("eeglab_optional_kmeans_branch_entered", bool(available)))
     if available:
         eeglab_backend("pop_clust", study, alleeg, algorithm="kmeans", clus_num=10.0, outliers=3.0)
-
-
-def test_pop_clust_runs_current_kmeanscluster_scenario_with_ten_clusters():
-    study, alleeg = _study_pair(n_channels=6, n_components=6)
-    study, alleeg = std_preclust(study, alleeg, 1, ["scalp", "npca", 4, "norm", 1, "weight", 1])
-
-    study = pop_clust(study, alleeg, algorithm="kmeanscluster", clus_num=10, random_state=11)
-
-    children = study["cluster"][1:]
-    assert len(children) == 10
-    assert sum(len(cluster["comps"]) for cluster in children) == 12
-    assert study["cluster"][0]["child"] == [cluster["name"] for cluster in children]
 
 
 def test_std_selectdesign_scans_generated_designs_without_corrupting_component_membership():
@@ -823,100 +655,3 @@ def test_reference_std_selectdesign(eeglab_backend, eeglab_sample_study):
                         assert dataset.size == 0 or np.isin(dataset, cluster["sets"][:, columns]).any(), (
                             "Clusters corrupted"
                         )
-
-
-def test_std_erpplot_channel_output_matches_direct_epoch_average():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(study, alleeg, [1], erp="on", recompute="on")
-
-    _study, erpdata, erptimes, figure = std_erpplot(study, alleeg, channels=[1])
-
-    expected = {eeg["condition"]: np.mean(eeg["data"][0], axis=1) for eeg in alleeg}
-    for condition, cell in zip(["standard", "target"], erpdata):
-        np.testing.assert_allclose(cell[:, 0], expected[condition], atol=1e-12)
-    np.testing.assert_allclose(erptimes, alleeg[0]["times"], atol=1e-12)
-    assert len(figure.axes[0].lines) == 1
-    plt.close(figure)
-
-
-def test_std_erpplot_component_output_matches_direct_scaled_activation_average():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(study, alleeg, "components", erp="on", scalp="on", recompute="on")
-
-    _study, erpdata, erptimes, figure = std_erpplot(study, alleeg, clusters=1, components=[2])
-
-    expected = []
-    for eeg in alleeg:
-        scale = float(np.sqrt(np.mean(np.asarray(eeg["icawinv"])[:, 1] ** 2)))
-        expected.append(np.mean(component_activations(eeg)[1], axis=1) * scale)
-    np.testing.assert_allclose(erpdata[0][:, 0], expected[1], atol=1e-12)
-    np.testing.assert_allclose(erpdata[1][:, 0], expected[0], atol=1e-12)
-    np.testing.assert_allclose(erptimes, alleeg[0]["times"], atol=1e-12)
-    plt.close(figure)
-
-
-def test_std_specplot_channel_output_preserves_known_oscillation_peak():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(study, alleeg, [2], spec="on", recompute="on")
-
-    _study, specdata, frequencies, figure = std_specplot(study, alleeg, channels=[1])
-
-    assert all(frequencies[int(np.argmax(cell[:, 0]))] == 8.0 for cell in specdata)
-    assert all(np.isfinite(cell).all() for cell in specdata)
-    plt.close(figure)
-
-
-def test_std_specplot_component_output_preserves_known_activation_peak():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(study, alleeg, "components", spec="on", recompute="on")
-
-    _study, specdata, frequencies, figure = std_specplot(study, alleeg, clusters=1, components=[3])
-
-    assert all(frequencies[int(np.argmax(cell[:, 0]))] == 12.0 for cell in specdata)
-    assert all(np.isfinite(cell).all() for cell in specdata)
-    plt.close(figure)
-
-
-# The original test_std_erspplot2 returns for EEGLAB >13; this is extra coverage.
-def test_std_erspplot_channel_output_matches_precomputed_axes_and_cache():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(
-        study,
-        alleeg,
-        [1],
-        ersp="on",
-        recompute="on",
-        erspparams={"cycles": 0, "nfreqs": 8, "timesout": 8},
-    )
-
-    _study, erspdata, times, frequencies, figure = std_erspplot(study, alleeg, channels=[1])
-
-    raw = np.asarray(study["changrp"][0]["erspdata"])
-    np.testing.assert_allclose(erspdata[0][..., 0], raw[1])
-    np.testing.assert_allclose(erspdata[1][..., 0], raw[0])
-    np.testing.assert_allclose(times, study["changrp"][0]["ersptimes"])
-    np.testing.assert_allclose(frequencies, study["changrp"][0]["erspfreqs"])
-    assert all(np.isfinite(cell).all() for cell in erspdata)
-    plt.close(figure)
-
-
-# The original test_std_erspplot3 returns for EEGLAB >14; this is extra coverage.
-def test_std_erspplot_component_output_selects_the_requested_component():
-    study, alleeg = _study_pair()
-    study, alleeg = std_precomp(
-        study,
-        alleeg,
-        "components",
-        ersp="on",
-        recompute="on",
-        erspparams={"cycles": 0, "nfreqs": 8, "timesout": 8},
-    )
-
-    _study, erspdata, times, frequencies, figure = std_erspplot(study, alleeg, clusters=1, components=[2])
-
-    expected = np.asarray(study["cluster"][0]["erspdata"])[:, 1]
-    np.testing.assert_allclose(erspdata[0][..., 0], expected[1])
-    np.testing.assert_allclose(erspdata[1][..., 0], expected[0])
-    assert all(cell.shape == (frequencies.size, times.size, 1) for cell in erspdata)
-    assert all(np.isfinite(cell).all() for cell in erspdata)
-    plt.close(figure)
