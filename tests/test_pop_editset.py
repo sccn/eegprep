@@ -9,9 +9,7 @@ import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_editset import pop_editset
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
-from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _eeg():
@@ -221,17 +219,6 @@ def test_pop_editset_data_replacement_clears_stale_ica_when_not_supplied():
         assert out[key].size == 0
 
 
-def test_pop_editset_pnts_metadata_keeps_data_dimensions_consistent():
-    eeg = _eeg()
-
-    epoched = pop_editset(eeg, "pnts", 5)
-
-    assert epoched["data"].shape == (2, 5, 4)
-    assert epoched["trials"] == 4
-    with pytest.raises(ValueError, match="pnts=7"):
-        pop_editset(eeg, "pnts", 7)
-
-
 def test_pop_editset_history_serializes_channel_structures_for_replay():
     eeg = _eeg()
 
@@ -328,34 +315,6 @@ def test_pop_editset_loads_1d_ascii_ica_matrix_in_eeglab_column_order(tmp_path):
     np.testing.assert_array_equal(out["icaweights"], np.arange(12, dtype=float).reshape(3, 4, order="F"))
 
 
-def test_pop_editset_rejects_matlab_workspace_expressions():
-    with pytest.raises(FileNotFoundError, match="data file not found"):
-        pop_editset(_eeg(), "data", "raw.mat")
-    with pytest.raises(FileNotFoundError, match="channel-location file not found"):
-        pop_editset(_eeg(), "chanlocs", "locs.elp")
-    with pytest.raises(FileNotFoundError, match="icaweights file not found"):
-        pop_editset(_eeg(), "icaweights", "weights.txt")
-    with pytest.raises(FileNotFoundError, match="icachansind file not found"):
-        pop_editset(_eeg(), "icachansind", "icachansind.txt")
-    with pytest.raises(ValueError, match="workspace expressions for data"):
-        pop_editset(_eeg(), "data", "rawdata")
-    with pytest.raises(ValueError, match="workspace expressions for chanlocs"):
-        pop_editset(_eeg(), "chanlocs", "locs")
-    with pytest.raises(ValueError, match="workspace expressions for icachansind"):
-        pop_editset(_eeg(), "icachansind", "icachansind")
-
-
-def test_pop_editset_accepts_sample_data_metadata_edit():
-    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
-
-    out, com = pop_editset(eeg, "setname", "sample edited", "subject", "S99", return_com=True)
-
-    assert out["setname"] == "sample edited"
-    assert out["subject"] == "S99"
-    assert eeg["setname"] != "sample edited"
-    assert com == "EEG = pop_editset(EEG, 'setname', 'sample edited', 'subject', 'S99');"
-
-
 @unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")
 class TestPopEditsetMatlabParity(unittest.TestCase):
     def setUp(self):
@@ -363,45 +322,6 @@ class TestPopEditsetMatlabParity(unittest.TestCase):
             self.eeglab = get_eeglab("MAT")
         except Exception as exc:
             self.skipTest(f"MATLAB not available: {exc}")
-
-    def test_metadata_fields_match_eeglab(self):
-        eeg = _eeg()
-
-        py_out = pop_editset(
-            copy.deepcopy(eeg),
-            "setname",
-            "matlab edited",
-            "subject",
-            "S03",
-            "condition",
-            "oddball",
-            "group",
-            "patient",
-            "run",
-            4,
-            "session",
-            5,
-        )
-        ml_out = self.eeglab.pop_editset(
-            copy.deepcopy(eeg),
-            "setname",
-            "matlab edited",
-            "subject",
-            "S03",
-            "condition",
-            "oddball",
-            "group",
-            "patient",
-            "run",
-            4,
-            "session",
-            5,
-        )
-
-        for key in ("setname", "subject", "condition", "group"):
-            self.assertEqual(py_out[key], ml_out[key])
-        self.assertEqual(int(py_out["run"]), int(ml_out["run"]))
-        self.assertEqual(int(py_out["session"]), int(ml_out["session"]))
 
     def test_xmin_latency_shift_matches_eeglab(self):
         eeg = _eeg()

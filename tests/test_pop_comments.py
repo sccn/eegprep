@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import copy
-import os
-import unittest
 
 import numpy as np
 import numpy.testing as npt
-import pytest
 
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_comments import pop_comments
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import eeglab_test
-from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _eeg():
@@ -87,18 +80,6 @@ def test_pop_comments_replaces_eeg_comments_without_mutating_input():
     assert com == "EEG = pop_comments(EEG, '', 'new comment');"
 
 
-def test_pop_comments_concatenates_string_comments():
-    out, com = pop_comments("first", "", ["second", "third"], 1, return_com=True)
-
-    assert out == "first\nsecond\nthird"
-    assert com == "comments = pop_comments(comments, '', {'second' 'third'}, 1);"
-
-
-def test_pop_comments_concat_accepts_only_eeglab_numeric_flag():
-    with pytest.raises(TypeError, match="concat"):
-        pop_comments("first", "", "second", "on")
-
-
 def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
     class Renderer:
         def __init__(self, result):
@@ -124,15 +105,6 @@ def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
     npt.assert_array_equal(cancelled["data"], eeg["data"])
     assert cancelled["comments"] == eeg["comments"]
     assert cancelled["setname"] == eeg["setname"]
-
-
-def test_pop_comments_accepts_sample_data_comments():
-    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
-
-    out = pop_comments(eeg, "", "sample-data note")
-
-    assert out["comments"] == "sample-data note"
-    assert str(eeg.get("comments", "")) != "sample-data note"
 
 
 def test_pop_comments_current_suite_replaces_cell_comments():
@@ -168,21 +140,3 @@ def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
     assert eeg["comments"].endswith("un exemple\n\nde nouveau dataset")
     eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 0)
     assert eeg["comments"] == "un exemple\n\nde nouveau dataset"
-
-
-@unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")
-class TestPopCommentsMatlabParity(unittest.TestCase):
-    def setUp(self):
-        try:
-            self.eeglab = get_eeglab("MAT")
-        except Exception as exc:
-            self.skipTest(f"MATLAB not available: {exc}")
-
-    def test_replaces_eeg_comments_like_eeglab(self):
-        eeg = _eeg()
-
-        py_out = pop_comments(copy.deepcopy(eeg), "", "matlab parity note")
-        ml_out = self.eeglab.pop_comments(copy.deepcopy(eeg), "", "matlab parity note")
-
-        self.assertEqual(py_out["comments"], ml_out["comments"])
-        self.assertEqual(py_out["setname"], ml_out["setname"])

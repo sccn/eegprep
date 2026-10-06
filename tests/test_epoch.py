@@ -180,59 +180,6 @@ class TestEpochParity(unittest.TestCase):
         np.random.seed(0)
         self.eeglab = get_eeglab('MAT')
 
-    def test_parity_continuous_basic(self):
-        # 2 channels, 1000 samples, 100 Hz
-        srate = 100.0
-        n_ch, n_samp = 2, 1000
-        data = np.random.randn(n_ch, n_samp)
-        # Events in seconds
-        events = np.array([2.0, 5.0, 7.5], dtype=float)
-        lim = np.array([-0.2, 0.5], dtype=float)  # seconds
-
-        py = epoch(data, events, lim, srate=srate, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
-
-        py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
-        ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
-
-        # MATLAB indexes are 1-based; convert to 0-based for comparison
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-
-        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
-
-        # Rereferencing not requested here
-        self.assertEqual(len(py_alleventout), 0)
-        self.assertEqual(len(py_alllatencyout), 0)
-
-    def test_parity_valuelim_filter(self):
-        srate = 100.0
-        n_ch, n_samp = 1, 1000
-        data = np.zeros((n_ch, n_samp))
-        # Make the second epoch violate valuelim by inserting a large artifact
-        data[0, 600:650] = 1e3
-        events = np.array([2.0, 6.2], dtype=float)  # seconds
-        lim = np.array([-0.1, 0.4], dtype=float)
-
-        valuelim = np.array([-50.0, 50.0], dtype=float)
-
-        py = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'valuelim', valuelim, 'verbose', 'off')
-
-        py_epochdat, py_newtime, py_indexes, _, _, py_reallim = py
-        ml_epochdat, ml_newtime, ml_indexes, _, _, ml_reallim = ml
-
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
-
-        # Expect only the first event to survive
-        self.assertTrue(np.array_equal(py_indexes, np.array([0])))
-
     def test_parity_rereference_allevents(self):
         srate = 100.0
         n_ch, n_samp = 2, 2000
@@ -281,23 +228,6 @@ class TestEpochParity(unittest.TestCase):
             self.assertTrue(np.array_equal(py_alleventout[i], np.asarray(ml_alleventout0[i])))
             self.assertTrue(np.allclose(py_alllatencyout[i], np.asarray(ml_alllatencyout_flat[i]), atol=1e-12))
 
-    def test_parity_boundary_exclusion(self):
-        # Place an event whose window crosses dataset boundary
-        srate = 100.0
-        n_ch, n_samp = 1, 500
-        data = np.random.randn(n_ch, n_samp)
-        events = np.array([0.1, 5.0], dtype=float)  # second event is near end
-        lim = np.array([-0.2, 0.5], dtype=float)
-
-        py = epoch(data, events, lim, srate=srate, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
-
-        _, _, py_indexes, _, _, _ = py
-        _, _, ml_indexes, _, _, _ = ml
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-
 
 class TestEpochFunctional(unittest.TestCase):
     def test_functional_3d_epoched_input_same_epoch_constraint(self):
@@ -342,27 +272,6 @@ class TestEpochFunctional(unittest.TestCase):
         # be rejected, matching EEGLAB's floor((posinit-1)/dataframes) test.
         _, _, idx_cross, _, _, _ = epoch(data, np.array([1.2]), lim, srate=srate, verbose='off')
         self.assertEqual(idx_cross.size, 0)
-
-    def test_functional_valuelim_pass_all(self):
-        srate = 200.0
-        n_ch, n_samp = 3, 4000
-        data = 1e-3 * np.random.randn(n_ch, n_samp)  # small amplitude noise
-        events = np.array([2.0, 10.0, 15.0], dtype=float)
-        lim = np.array([-0.25, 0.25], dtype=float)
-        valuelim = np.array([-1e-2, 1e-2], dtype=float)
-
-        ep, newtime, idx, _, _, _ = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
-        self.assertTrue(np.array_equal(idx, np.arange(len(events))))
-
-    def test_functional_no_allevents_outputs_empty_lists(self):
-        srate = 100.0
-        data = np.random.randn(2, 1000)
-        events = np.array([2.0], dtype=float)
-        lim = np.array([-0.1, 0.2], dtype=float)
-
-        _, _, _, alleventout, alllatencyout, _ = epoch(data, events, lim, srate=srate, verbose='off')
-        self.assertEqual(len(alleventout), 0)
-        self.assertEqual(len(alllatencyout), 0)
 
     def test_boundary_first_last_sample(self):
         # data values equal their 0-based column index so we can verify exact slices

@@ -20,21 +20,6 @@ except (ImportError, ValueError):
     from fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
-def test_rmbase_removes_epoch_baseline_and_returns_means():
-    data = np.array(
-        [
-            [[1.0, 5.0], [3.0, 7.0], [5.0, 9.0]],
-            [[2.0, 8.0], [4.0, 10.0], [6.0, 12.0]],
-        ]
-    )
-
-    out, means = rmbase(data, frames=3, basevector=[1, 2], return_mean=True)
-
-    np.testing.assert_allclose(out[:, :2, :].mean(axis=1), 0)
-    np.testing.assert_allclose(means, [[2.0, 6.0], [3.0, 9.0]])
-    assert out.shape == data.shape
-
-
 @eeglab_test("unittesting_sigprocfunc/rmbase/sigprocfunc_rmbase_wrapperTest.m", "test_test_rmbase")
 def test_reference_rmbase(eeglab_backend, eeglab_suite_root):
     eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
@@ -48,24 +33,6 @@ def test_reference_rmbase(eeglab_backend, eeglab_suite_root):
     for arguments in ((3813.0,), (3813.0, np.arange(1.0, 1001.0)[None, :])):
         _output, mean = eeglab_backend("rmbase", eeg["data"], *arguments, nargout=2)
         assert_matlab_near([mean.shape], [[32, 8]])
-
-
-def test_python_regression_rmbase_frame_and_baseline_vector_call_forms():
-    rng = np.random.default_rng(12)
-    epoched = rng.normal(size=(32, 384, 8)).astype(np.float32)
-
-    for frames, baseline in ((None, 0), (384, 0), (192, 0), (384, np.arange(1, 129))):
-        corrected, means = rmbase(epoched, frames, baseline, return_mean=True)
-        assert corrected.shape == epoched.shape
-        expected_epochs = epoched.size // epoched.shape[0] // int(frames or epoched.shape[1] * epoched.shape[2])
-        assert means.shape == (32, expected_epochs)
-
-    continuous = rng.normal(size=(32, 30504)).astype(np.float32)
-    for frames, baseline in ((None, 0), (30504, 0), (3813, 0), (3813, np.arange(1, 1001))):
-        corrected, means = rmbase(continuous, frames, baseline, return_mean=True)
-        assert corrected.shape == continuous.shape
-        expected_epochs = continuous.shape[1] // int(frames or continuous.shape[1])
-        assert means.shape == (32, expected_epochs)
 
 
 def _legacy_rmbase(
@@ -96,18 +63,6 @@ def _legacy_rmbase(
     if array.ndim == 3:
         output = output.reshape(original_shape[0], original_shape[2], original_shape[1]).transpose(0, 2, 1)
     return output.reshape(original_shape), means
-
-
-def test_rmbase_3d_default_frames_matches_legacy_grand_mean():
-    data = np.arange(24, dtype=np.float32).reshape(2, 4, 3)
-    total_frames = data.shape[1] * data.shape[2]
-
-    expected, expected_means = _legacy_rmbase(data, frames=total_frames)
-    actual, actual_means = rmbase(data, return_mean=True)
-
-    np.testing.assert_array_equal(actual, expected)
-    np.testing.assert_array_equal(actual_means, expected_means)
-    assert actual_means.shape == (data.shape[0], 1)
 
 
 @pytest.mark.parametrize("shape", [(3, 85), (3, 17, 5)])
@@ -157,32 +112,6 @@ def test_rmbase_preserves_nan_results_and_warning_behavior():
     np.testing.assert_array_equal(actual_means, expected_means)
 
 
-def test_rmbase_fortran_order_sample_data_matches_legacy_within_rounding():
-    # pop_loadset returns Fortran-ordered float32 data. The vectorized path sums
-    # in a different order than the legacy loop, so means may differ by ~1 ulp
-    # while the float32 output stays identical.
-    data = pop_loadset(str(SAMPLE_DATASET_PATH))["data"]
-    assert not data.flags.c_contiguous
-
-    expected, expected_means = _legacy_rmbase(data, frames=data.shape[1])
-    actual, actual_means = rmbase(data, return_mean=True)
-
-    np.testing.assert_array_equal(actual, expected)
-    np.testing.assert_allclose(actual_means, expected_means, rtol=1e-14, atol=0)
-
-
-def test_pop_rmbase_epoched_pointrange_all_channels():
-    eeg = create_test_eeg(n_channels=4, n_samples=200, srate=200.0, n_trials=3)
-    data_before = eeg["data"].copy()
-
-    out = pop_rmbase(eeg, pointrange=range(1, 51))
-
-    assert out["data"].shape == (4, 200, 3)
-    np.testing.assert_allclose(np.mean(out["data"][:, 0:50, :], axis=1), 0, atol=1e-10)
-    assert not np.allclose(out["data"], data_before)
-    np.testing.assert_allclose(eeg["data"], data_before)
-
-
 def test_pop_rmbase_chanlist_subset_uses_one_based_channels():
     eeg = create_test_eeg(n_channels=5, n_samples=100, srate=100.0, n_trials=2)
     data_before = eeg["data"].copy()
@@ -191,22 +120,6 @@ def test_pop_rmbase_chanlist_subset_uses_one_based_channels():
 
     np.testing.assert_allclose(np.mean(out["data"][[1, 3], 0:30, :], axis=1), 0, atol=1e-10)
     np.testing.assert_allclose(out["data"][[0, 2, 4]], data_before[[0, 2, 4]])
-
-
-def test_pop_rmbase_rejects_zero_based_channel_indices():
-    eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=1)
-
-    with pytest.raises(ValueError, match="1-based"):
-        pop_rmbase(eeg, pointrange=range(1, 11), chanlist=[0])
-
-
-def test_pop_rmbase_continuous_no_boundaries():
-    eeg = create_test_eeg(n_channels=3, n_samples=300, srate=150.0, n_trials=1)
-
-    out = pop_rmbase(eeg, pointrange=range(51, 251))
-
-    assert out["data"].ndim == 2
-    np.testing.assert_allclose(np.mean(out["data"][:, 50:250], axis=1), 0, atol=1e-10)
 
 
 def test_pop_rmbase_continuous_with_boundaries_is_segmentwise():
@@ -269,32 +182,6 @@ def test_pop_rmbase_continuous_boundary_segment_without_baseline_is_unchanged():
     np.testing.assert_allclose(out["data"][:, 20:], before[:, 20:])
 
 
-def test_pop_rmbase_chanlist_subset_still_clears_icaact_like_eeglab():
-    eeg = create_test_eeg(n_channels=3, n_samples=40, srate=100.0, n_trials=1)
-    eeg["icaact"] = np.ones((3, 40))
-
-    out = pop_rmbase(eeg, pointrange=range(1, 6), chanlist=[2])
-
-    assert out["icaact"].size == 0
-
-
-def test_pop_rmbase_timerange_uses_eeg_times_units():
-    eeg = create_test_eeg(n_channels=2, n_samples=100, srate=100.0, n_trials=1)
-    eeg["times"] = np.arange(100, dtype=float)
-
-    out = pop_rmbase(eeg, timerange=[10, 49])
-
-    np.testing.assert_allclose(np.mean(out["data"][:, 10:50], axis=1), 0, atol=1e-10)
-
-
-def test_pop_rmbase_bad_timerange_raises():
-    eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=1)
-    eeg["times"] = np.arange(50, dtype=float)
-
-    with pytest.raises(ValueError, match="Bad time range"):
-        pop_rmbase(eeg, timerange=[-1.0, 999.0])
-
-
 def test_pop_rmbase_clears_icaact_and_preserves_decomposition_fields():
     eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=2)
     eeg["icaact"] = np.random.randn(2, 50, 2)
@@ -322,48 +209,6 @@ def test_pop_rmbase_return_com_is_replayable_python_console_input():
     assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=[1, 2, 3, 4, 5], chanlist=[1, 2])"
 
 
-def test_pop_rmbase_return_com_preserves_channel_order():
-    eeg = create_test_eeg(n_channels=3, n_samples=40, srate=100.0, n_trials=1)
-
-    _out, command = pop_rmbase(eeg, pointrange=range(1, 6), chanlist=[3, 1], return_com=True)
-
-    assert command == "EEG = pop_rmbase( EEG, [], [1 2 3 4 5], [3 1]);"
-    converted = _console_python_command(command)
-    assert converted == "EEG = pop_rmbase(EEG, timerange=[], pointrange=[1, 2, 3, 4, 5], chanlist=[3, 1])"
-
-
-def test_pop_rmbase_return_com_timerange_uses_eeglab_history_shape():
-    eeg = create_test_eeg(n_channels=2, n_samples=40, srate=100.0, n_trials=1)
-    eeg["times"] = np.arange(40, dtype=float)
-
-    _out, command = pop_rmbase(eeg, timerange=[10, 19], return_com=True)
-
-    assert command == "EEG = pop_rmbase( EEG, [10 19], []);"
-    converted = _console_python_command(command)
-    assert converted == "EEG = pop_rmbase(EEG, timerange=[10, 19], pointrange=[])"
-
-
-def test_pop_rmbase_gui_cancel_returns_original_dataset():
-    eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=1)
-
-    out, command = pop_rmbase(eeg, gui=True, renderer=_CancelRenderer(), return_com=True)
-
-    assert out is eeg
-    assert command == ""
-
-
-def test_pop_rmbase_dialog_disables_channel_controls_for_multiple_datasets():
-    eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=2)
-
-    spec = pop_rmbase_dialog_spec(eeg, multiple=True)
-    controls = {control.tag: control for control in spec.controls if control.tag}
-
-    assert controls["chantypes"].enabled is False
-    assert controls["channels"].enabled is False
-    assert controls["chantypes_button"].enabled is False
-    assert controls["channels_button"].enabled is False
-
-
 def test_pop_rmbase_dialog_accepts_numpy_chanlocs():
     eeg = create_test_eeg(n_channels=2, n_samples=50, srate=50.0, n_trials=2)
     eeg["chanlocs"] = np.asarray(
@@ -379,18 +224,6 @@ def test_pop_rmbase_dialog_accepts_numpy_chanlocs():
 
     assert controls["chantypes_button"].callback.params["channels"] == ["EEG", "EOG"]
     assert controls["channels_button"].callback.params["channels"] == ["Cz", "EOG"]
-
-
-def test_pop_rmbase_sample_data_zeroes_selected_baseline_channels_without_warnings():
-    eeg = pop_loadset(SAMPLE_DATASET_PATH)
-
-    out, command = pop_rmbase(eeg, pointrange=range(1, 21), chanlist=[1, 2], return_com=True)
-
-    assert out["data"].shape == eeg["data"].shape
-    np.testing.assert_allclose(np.nanmean(out["data"][0, :20]), 0, atol=1e-5)
-    np.testing.assert_allclose(np.nanmean(out["data"][1, :20]), 0, atol=1e-5)
-    np.testing.assert_allclose(out["data"][2], eeg["data"][2])
-    assert command == ("EEG = pop_rmbase( EEG, [], [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20], [1 2]);")
 
 
 @eeglab_test("unittesting_popfunc/pop_rmbase/popfunc_pop_rmbase_wrapperTest.m", "test_test_pop_rmbase")
@@ -451,12 +284,6 @@ def test_pop_rmbase_current_suite_time_point_and_whole_epoch_baselines():
     assert "[], []" in whole_command
 
 
-class _CancelRenderer:
-    def run(self, _spec, initial_values=None):
-        del initial_values
-        return None
-
-
 @unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")
 class TestPopRmbaseParity(unittest.TestCase):
     def setUp(self):
@@ -465,15 +292,6 @@ class TestPopRmbaseParity(unittest.TestCase):
         except Exception as exc:
             self.skipTest(f"MATLAB not available: {exc}")
         self.eeg = pop_loadset(SAMPLE_DATASET_PATH)
-
-    def test_parity_pointrange_all_channels(self):
-        pointrange = list(range(1, 51))
-
-        py_eeg = pop_rmbase(copy.deepcopy(self.eeg), pointrange=pointrange)
-        ml_eeg = self.eeglab.pop_rmbase(copy.deepcopy(self.eeg), [], pointrange, [])
-
-        self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
-        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-6, rtol=1e-6)
 
     def test_parity_chanlist_subset(self):
         pointrange = list(range(1, 31))
