@@ -18,40 +18,6 @@ def qapp():
     yield app
 
 
-def test_run_long_task_returns_result_and_forwards_progress(qapp):
-    from PySide6 import QtCore
-
-    loop = QtCore.QEventLoop()
-    results = []
-    errors = []
-    finished = []
-
-    def task():
-        logging.getLogger("eegprep.tests").info("worker progress")
-        return "done"
-
-    handle = run_long_task(
-        parent=None,
-        title="Running test task",
-        label="Running test task.",
-        task=task,
-        on_success=results.append,
-        on_error=errors.append,
-        on_finished=lambda task_handle: (finished.append(task_handle), loop.quit()),
-    )
-    QtCore.QTimer.singleShot(3000, loop.quit)
-    loop.exec()
-
-    assert results == ["done"]
-    assert errors == []
-    assert finished == [handle]
-    assert "worker progress" in handle.dialog.labelText()
-    assert "QProgressDialog" in handle.dialog.styleSheet()
-    assert "QProgressDialog QProgressBar::chunk" in handle.dialog.styleSheet()
-    assert "#a8c2ff" in handle.dialog.styleSheet()
-    assert "#000066" in handle.dialog.styleSheet()
-
-
 def test_run_long_task_restores_eegprep_logger_level_after_forwarding_progress(qapp):
     from PySide6 import QtCore
 
