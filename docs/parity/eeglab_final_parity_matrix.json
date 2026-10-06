@@ -154,7 +154,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/api/index.rst"
       ],
-      "test_notes": "Covered by clean_rawdata unit tests, sample_data pop_clean_rawdata regressions, GUI spec tests, visual checkbox diagnostics tests, and focused nonfinite/progress regressions."
+      "test_notes": "Covered by clean_rawdata unit tests, sample_data pop_clean_rawdata regressions, GUI tests, visual checkbox diagnostics tests, and focused nonfinite/progress regressions."
     },
     {
       "row_id": "clean_rawdata-standard-asr",
@@ -181,7 +181,7 @@
       "docs_targets": [
         "docs/source/user_guide/preprocessing_pipeline.rst"
       ],
-      "test_notes": "Covered by tests/test_clean_asr.py, tests/test_utils_asr.py, tests/test_clean_artifacts.py, and sample_data pop_clean_rawdata ASR regressions; MATLAB-only numerical differences remain documented as implementation tradeoffs."
+      "test_notes": "Covered by the clean_asr test in tests/test_clean_rawdata.py, tests/test_utils_asr.py, tests/test_clean_artifacts.py, the EEGLAB-ported clean_rawdata ASR cases in tests/test_clean_rawdata_eeglab_tests.py, and sample_data pop_clean_rawdata ASR regressions; MATLAB-only numerical differences remain documented as implementation tradeoffs."
     },
     {
       "row_id": "clean_rawdata-riemannian-asr",
@@ -219,7 +219,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Covered by clean_asr and clean_artifacts tests for useriemannian='calib', sample_data Riemannian calibration regressions, and explicit full-Riemannian failure-path tests."
+      "test_notes": "Covered by the full-Riemannian failure-path test in tests/test_clean_asr.py and the sample-data Riemannian ASR regression in tests/test_sample_data_pop_functions.py."
     },
     {
       "row_id": "clean_rawdata-private-numerics",
@@ -340,7 +340,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/api/signal_processing.rst"
       ],
-      "test_notes": "Covered by tests/test_pop_firfilt.py, tests/test_firfilt_helpers.py, GUI FIRFilt dialog tests, and MATLAB-marked deterministic helper parity where local MATLAB is available."
+      "test_notes": "Covered by tests/test_pop_firfilt.py, tests/test_firfilt_helpers.py, GUI FIRFilt result tests in tests/test_gui_pop_firfilt.py, and MATLAB-marked deterministic helper parity where local MATLAB is available."
     },
     {
       "row_id": "firfilt-order-dialogs",
@@ -377,7 +377,7 @@
       "docs_targets": [
         "docs/source/user_guide/preprocessing_pipeline.rst"
       ],
-      "test_notes": "Covered by deterministic kaiser/window/order tests, command history tests, dialog spec tests, and visual parity manifest/script-generation tests."
+      "test_notes": "Covered by deterministic kaiser/window/order tests, order-helper command history and GUI result tests, and visual parity manifest/script-generation tests."
     },
     {
       "row_id": "firfilt-boundary-reports-plots",
@@ -412,7 +412,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Covered by first/last boundary tests, firfiltsplit/fir_filterdcpadded regressions, report text tests, and plotfresp smoke tests using the non-interactive Matplotlib backend."
+      "test_notes": "Covered by first/last boundary tests and firfiltsplit/fir_filterdcpadded regressions in tests/test_firfilt_helpers.py and tests/test_pop_firfilt.py."
     },
     {
       "row_id": "iclabel-classification-pipeline",
@@ -453,7 +453,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/api/ica.rst"
       ],
-      "test_notes": "Covered by ICLabel feature/parity tests, GUI pop wrapper tests, sample-data ICLabel-state statistics tests, and explicit standalone alternate-network limitation tests."
+      "test_notes": "Covered by ICLabel feature extractor parity tests, tests/test_iclabel.py, GUI pop_iclabel/pop_icflag result tests, and the sample-data pop_icflag test."
     },
     {
       "row_id": "iclabel-label-statistics",
@@ -477,7 +477,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/api/ica.rst"
       ],
-      "test_notes": "Covered by deterministic label-distribution tests, missing/malformed ICLabel-state tests, class-specific threshold tests, rejected/kept tally tests, packaged help, and sample-data ICA/ICLabel-state integration coverage."
+      "test_notes": "Covered by tests/test_iclabel_statistics.py threshold-count and class-specific threshold tests and the sample-data pop_icflag test."
     },
     {
       "row_id": "iclabel-viewprops-component-browser",
@@ -507,7 +507,7 @@
         "docs/source/user_guide/ica_rejection.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Covered by pop_viewprops/pop_prop_extended GUI and data-model tests, browser-backed activity tests, rejection dashboard commit/cancel tests, menu/session sync tests, visual parity cases, and sample-data history integration coverage."
+      "test_notes": "Covered by tests/test_pop_prop_extended.py data-model tests, tests/test_gui_pop_prop_extended.py rejection commit/cancel and epoched-event tests, and visual parity cases."
     },
     {
       "row_id": "iclabel-matconvnet-activation",
@@ -581,7 +581,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/plugins.rst"
       ],
-      "test_notes": "Covered by DIPFIT settings tests for standard templates, channel omission, GUI application to multiple datasets, sample-data setup, and replayable command history."
+      "test_notes": "Covered by DIPFIT settings tests for standard templates, channel omission, GUI application to multiple datasets, and replayable command history in tests/test_dipfit_workflows.py."
     },
     {
       "row_id": "dipfit-fieldtrip-backed-fitting",
@@ -626,7 +626,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Covered by synthetic known-source DIPFIT tests, nonlinear refinement, multifit, batch/manual aliases, explicit-point leadfield generation, RV rejection, and remaining limitation-path tests for MRI headmodel, unsupported source-model files, and LORETA."
+      "test_notes": "Covered by synthetic known-source DIPFIT tests, nonlinear refinement, multifit, batch/manual aliases, explicit-point leadfield generation, and RV rejection."
     },
     {
       "row_id": "dipfit-plotting",
@@ -653,7 +653,7 @@
         "docs/source/user_guide/study_workflows.rst",
         "docs/source/user_guide/visual_parity.rst"
       ],
-      "test_notes": "Covered by dipplot command-history, localized-component selection, missing-model errors, MRI slice helper tests, and visual parity dialog cases."
+      "test_notes": "Covered by the dipplot localized-component default test, MRI slice helper test, and visual parity dialog cases."
     },
     {
       "row_id": "dipfit-atlas-coordinates-and-transforms",
@@ -805,7 +805,7 @@
         "docs/source/api/io.rst",
         "docs/source/development.rst"
       ],
-      "test_notes": "Phase 5 verifies first/last sample access, sidecar mutation, missing-sidecar failure, save/load round trips, and a slow memmap load smoke in tests/test_storage.py."
+      "test_notes": "Phase 5 verifies first/last sample access, sidecar mutation, missing-sidecar failure, and save/load round trips in tests/test_storage.py."
     },
     {
       "row_id": "mmo-python-storedisk-backend",
@@ -858,7 +858,7 @@
         "docs/source/api/io.rst",
         "docs/source/development.rst"
       ],
-      "test_notes": "Phase 5 verifies storedisk offload/rehydrate, unsaved-dataset refusal, pop_newset behavior, STUDY resave, and mixed session/console synchronization in tests/test_eeg_store_storedisk.py and tests/test_console_workspace.py."
+      "test_notes": "Phase 5 verifies storedisk offload/rehydrate, unsaved-dataset refusal, and STUDY resave in tests/test_eeg_store_storedisk.py, pop_newset behavior in tests/test_pop_newset.py, and mixed session/console synchronization in tests/test_console_workspace.py."
     },
     {
       "row_id": "optional-limo-workflows",
