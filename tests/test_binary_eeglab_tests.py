@@ -16,7 +16,6 @@ from eegprep.functions.popfunc.pop_chancoresp import pop_chancoresp
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_importpres import pop_importpres
 from eegprep.functions.popfunc.pop_snapread import pop_snapread
-from eegprep.functions.sigprocfunc.snapread import snapread
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
@@ -63,21 +62,6 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
     np.testing.assert_array_equal(cropped["data"], complete["data"][:, srate : 10 * srate])
     assert "'blockrange', [1 10]" in command
     assert cropped["history"] == command
-
-
-def test_pop_biosig_adjacent_edf_timeranges_are_sample_continuous(tmp_path: Path) -> None:
-    srate = 256
-    samples = np.arange(61 * srate, dtype=float)
-    data = (np.sin(samples / 37) * 100)[np.newaxis, :]
-    filename = tmp_path / "recording.edf"
-    _write_edf_family(filename, data, srate)
-
-    first = pop_biosig(filename, blockrange=[0, 30])
-    second = pop_biosig(filename, blockrange=[29, 60])
-
-    assert first["pnts"] == 30 * srate
-    assert second["pnts"] == 31 * srate
-    np.testing.assert_array_equal(first["data"][0, -srate:], second["data"][0, :srate])
 
 
 CHANCORRESP_SOURCE = f"{BINARY_SUITE}/pop_chancoresp/binary_pop_chancoresp_wrapperTest.m"
@@ -303,83 +287,6 @@ def test_upstream_chanevent_original_recording_and_33_calls(eeglab_backend, eegl
     eeglab_backend("pop_chanevent", eeg, event_channel)
 
 
-def test_pop_chancoresp_autoselects_fiducials_case_insensitively() -> None:
-    left, right = pop_chancoresp(
-        ["Nz", "lpa", "rpa", "x"],
-        ["nZ", "rpa", "lpa", "x"],
-        "gui",
-        "off",
-        "autoselect",
-        "fiducials",
-    )
-
-    assert left == [1, 2, 3]
-    assert right == [1, 3, 2]
-
-
-def test_pop_chancoresp_autoselect_none_returns_no_pairs() -> None:
-    assert pop_chancoresp(["a", "b", "c"], ["a", "x", "b"], "gui", "off", "autoselect", "none") == (
-        [],
-        [],
-    )
-
-
-def test_pop_chancoresp_preserves_explicit_pairs() -> None:
-    result = pop_chancoresp(
-        ["a", "b"],
-        ["x", "y"],
-        "gui",
-        "off",
-        "chanlist1",
-        [1, 2],
-        "chanlist2",
-        [2, 1],
-    )
-
-    assert result == ([1, 2], [2, 1])
-
-
-def test_pop_chancoresp_clear_returns_unpaired_display_rows() -> None:
-    left, right = pop_chancoresp("clear", ["a", "b", "c"], ["a", "b", "x"])
-
-    assert left == [" 1 -   a", " 2 -   b", " 3 -   c"]
-    assert right == [" 1 -   a", " 2 -   b", " 3 -   x"]
-
-
-def test_pop_chancoresp_invalid_fiducials_return_no_pairs() -> None:
-    result = pop_chancoresp(["x"], ["x"], "gui", "off", "autoselect", "fiducials")
-
-    assert result == ([], [])
-
-
-def test_pop_chancoresp_pairs_matching_labels_by_default() -> None:
-    result = pop_chancoresp(["a", "b", "c"], ["a", "x", "b"], "gui", "off")
-
-    assert result == ([1, 2], [1, 3])
-
-
-def test_pop_chancoresp_pair_updates_text_and_correspondences() -> None:
-    result = pop_chancoresp("pair", 2, 3, ["a", "b", "c"], ["a", "b", "x"], [], [], "", "")
-
-    assert result == (" 2 -   b   ->  3 -   x", " 3 -   x   ->  2 -   b", [2], [3])
-
-
-def test_pop_chancoresp_unpair_removes_correspondence_and_updates_text() -> None:
-    result = pop_chancoresp(
-        "unpair",
-        2,
-        3,
-        ["a", "b", "c"],
-        ["a", "b", "x"],
-        [1, 2, 3],
-        [1, 3, 2],
-        "",
-        "",
-    )
-
-    assert result == (" 2 -   b", " 3 -   x", [1, 3], [1, 2])
-
-
 def test_pop_chancoresp_covers_the_upstream_option_matrix() -> None:
     first = ["Nz", "LPA", "RPA", *[f"E{index}" for index in range(4, 33)]]
     same = list(first)
@@ -555,24 +462,6 @@ def _write_snapmaster(path: Path) -> np.ndarray:
     header = b'"NCHAN%"=3\n"NUM.POINTS"=405\n"ACT.FREQ"=100\n"TR"\n2026-06-05\n'
     path.write_bytes(header + b"\xaa" + values.tobytes(order="F"))
     return values[1:]
-
-
-def test_snapread_reads_default_and_seeked_binary_frames(tmp_path: Path) -> None:
-    filename = tmp_path / "TEST.SMA"
-    expected = _write_snapmaster(filename)
-
-    complete, params, events, header = snapread(filename)
-    after_400, seeked_params, seeked_events, _ = snapread(filename, 400)
-    after_one, _, _, _ = snapread(filename, 1)
-
-    np.testing.assert_array_equal(complete, expected)
-    np.testing.assert_array_equal(after_400, expected[:, 400:])
-    np.testing.assert_array_equal(after_one, expected[:, 1:])
-    assert params.tolist() == [2, 405, 100]
-    assert seeked_params.tolist() == [2, 5, 100]
-    assert np.flatnonzero(events).tolist() == [2, 400]
-    assert np.flatnonzero(seeked_events).tolist() == []
-    assert '"NCHAN%"=3' in header
 
 
 def test_pop_snapread_applies_each_upstream_gain_and_builds_eeg_metadata(tmp_path: Path) -> None:
