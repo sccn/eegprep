@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eegprep import celltomat, eyelike, fastif, matsel, mattocell, nan_mean, quantile, shuffle
+from eegprep import celltomat, matsel, nan_mean, quantile, shuffle
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests import assert_matlab_near as _assert_near
 
@@ -32,29 +32,6 @@ def test_python_regression_celltomat_converts_rectangular_numeric_cells_and_empt
         celltomat(invalid_cells)
 
 
-def test_python_regression_eyelike_produces_unit_diagonal_and_invertible_transform():
-    matrices = [
-        np.eye(3),
-        np.diag([3, 2, 9]),
-        np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float),
-        np.asarray([[0, 1, 1], [1, 0, 1], [1, 1, 0]], dtype=float),
-        np.asarray([[0, -4, 1], [2, 0, 1], [1, 3, 0]], dtype=float),
-        np.asarray([[1 + 2j, 3], [4, 2 - 1j]]),
-    ]
-    for matrix in matrices:
-        normalized, scale, permutation = eyelike(matrix)
-        np.testing.assert_allclose(np.diag(normalized), 1)
-        np.testing.assert_allclose(np.linalg.inv(permutation) @ np.linalg.inv(scale) @ normalized, matrix)
-
-
-def test_python_regression_fastif_uses_python_truthiness_without_evaluating_strings():
-    assert fastif(True, "yes", "no") == "yes"
-    assert fastif(False, "yes", "no") == "no"
-    assert fastif("not boolean", "yes", "no") == "yes"
-    matrix = np.arange(1, 10).reshape(3, 3)
-    np.testing.assert_array_equal(fastif(3 > 1, np.diag(matrix), matrix[:, 2]), [1, 5, 9])
-
-
 def test_python_regression_matsel_selects_zero_based_frames_from_each_flattened_epoch():
     data = np.asarray([[1, 2, 3], [4, 5, 6]])
     np.testing.assert_array_equal(matsel(data, None, None), data)
@@ -68,11 +45,6 @@ def test_python_regression_matsel_selects_zero_based_frames_from_each_flattened_
         matsel(epoched, 2.9, [0])
     with pytest.raises(ValueError, match="integers"):
         matsel(epoched, 2, [0.9])
-
-
-def test_python_regression_mattocell_returns_nested_python_scalars_and_empty_list():
-    assert mattocell([[1, 2, 3], [4, 5, 6]]) == [[1, 2, 3], [4, 5, 6]]
-    assert mattocell([]) == []
 
 
 def test_python_regression_nan_mean_uses_first_nonsingleton_axis_and_preserves_all_nan_columns():

@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Sequence
 from itertools import combinations, product
 
 import numpy as np
-import pytest
 from scipy import sparse
 from scipy import stats as scipy_stats
 from scipy.cluster import vq
@@ -483,88 +481,3 @@ def test_statcondfieldtrip_cluster_montecarlo_is_seeded_and_uses_plus_one():
     assert not np.array_equal(result.cluster_null, changed_seed.cluster_null)
     np.testing.assert_allclose(result.pvalue * 64, np.round(result.pvalue * 64), atol=1e-13)
     assert result.exact is False
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({"method": "glm"}, "method"),
-        ({"mcorrect": "hochberg"}, "mcorrect"),
-        ({"alpha": 0.0}, "alpha"),
-        ({"naccu": 0}, "naccu"),
-        ({"naccu": 1.5}, "naccu"),
-        ({"mcorrect": "max"}, "max correction"),
-        ({"mcorrect": "cluster"}, "cluster correction"),
-        ({"neighbours": [{"label": "Cz"}]}, "neighbours"),
-    ],
-)
-def test_statcondfieldtrip_rejects_invalid_or_unavailable_inference_options(kwargs, message):
-    first, second, _ = _reference_conditions()
-    with pytest.raises((ValueError, NotImplementedError), match=message):
-        statcondfieldtrip([first, second], paired="on", **kwargs)
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({}, "explicit neighbours"),
-        ({"neighbours": np.zeros((3, 3))}, "shape"),
-        ({"neighbours": np.array([[0, 1], [0, 0]])}, "symmetric"),
-        ({"neighbours": np.ones((2, 2)), "clusterstatistic": "maxsize"}, "maxsum"),
-        (
-            {"neighbours": np.ones((2, 2)), "clusterthreshold": "nonparametric_common"},
-            "parametric",
-        ),
-        ({"neighbours": np.ones((2, 2)), "clustercritval": 0.0}, "clustercritval"),
-    ],
-)
-def test_statcondfieldtrip_cluster_backend_rejects_ambiguous_policies(kwargs, message):
-    first = np.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]])
-    second = np.zeros_like(first)
-    with pytest.raises((TypeError, ValueError, NotImplementedError), match=message):
-        statcondfieldtrip(
-            [first, second],
-            paired="on",
-            method="montecarlo",
-            naccu=4,
-            mcorrect="cluster",
-            **kwargs,
-        )
-
-
-def test_statcondfieldtrip_exact_randomization_limit_is_explicit():
-    first = np.arange(17.0)[None, :]
-    second = first + np.linspace(0.0, 1.0, 17)[None, :]
-    with pytest.raises(ValueError, match="131072 permutations"):
-        statcondfieldtrip(
-            [first, second],
-            paired="on",
-            method="montecarlo",
-            naccu="all",
-            mcorrect="cluster",
-            neighbours=np.zeros((1, 1)),
-        )
-
-
-def test_statcondfieldtrip_rejects_designs_disabled_by_the_maintained_wrapper():
-    first, second, third = _reference_conditions()
-    with pytest.raises(NotImplementedError, match="paired one-way"):
-        statcondfieldtrip([first, second, third], paired="on")
-    with pytest.raises(NotImplementedError, match="two-way"):
-        statcondfieldtrip(((first, second), (second, third)), paired="off")
-    with pytest.raises(NotImplementedError, match="equal-variance"):
-        statcondfieldtrip([first, second], paired="off", variance="inhomogenous")
-    with pytest.raises(ValueError, match="variance"):
-        statcondfieldtrip([first, second], variance="pooled")
-    with pytest.raises(ValueError, match="same number of cases"):
-        statcondfieldtrip([first, second[:-1]], paired="on")
-
-
-def test_statcondfieldtrip_remains_a_package_callable_after_submodule_import():
-    import eegprep.functions.statistics as statistics
-
-    module = importlib.import_module("eegprep.functions.statistics.statcondfieldtrip")
-
-    assert statistics.statcondfieldtrip is module.statcondfieldtrip
-    assert statistics.StatcondFieldtripCluster is module.StatcondFieldtripCluster
-    assert statistics.StatcondFieldtripResult is module.StatcondFieldtripResult

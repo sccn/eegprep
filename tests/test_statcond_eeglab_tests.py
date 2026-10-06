@@ -517,19 +517,6 @@ def test_statcond_resampling_preserves_assignment_invariants():
     _assert_resampling_suite()
 
 
-def test_additional_statcond_python_workflow():
-    _assert_paired_t_reference()
-    _assert_unpaired_t_reference()
-    _assert_paired_one_way_reference()
-    _assert_unpaired_one_way_reference()
-    _assert_paired_two_way_reference()
-    _assert_unpaired_two_way_reference()
-    for paired in ("on", "off"):
-        for design in ("t", "one-way", "two-way"):
-            _assert_dimension_invariance(paired=paired, design=design)
-    _assert_resampling_suite()
-
-
 def _matlab_cells(rows):
     cells = np.empty((len(rows), len(rows[0])), dtype=object)
     for row_index, row in enumerate(rows):
