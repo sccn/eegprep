@@ -14,6 +14,9 @@ Inputs:
   - `'picard'`: Picard ICA through EEGPrep's `eeg_picard` wrapper.
   - `'runamica15'` or `'amica'`: AMICA through EEGPrep's `eeg_amica` wrapper. AMICA requires an available AMICA binary.
 - `'options'`: key/value options passed to the selected backend.
+  For Picard, `{'seed': 42}` selects a reproducible random starting point;
+  without a seed or `w_init`, initialization uses the identity matrix.
+  An explicit `w_init` matrix takes precedence over the seed.
 - `'chanind'`: one-based channel indices, channel labels, or channel types used for ICA.
 - `'reorder'`: `'on'` or `'off'`; reorder components by descending activation variance. Default is `'on'`.
 - `'dataset'`: one-based dataset indices to process when `EEG` is a list of datasets. Default is all datasets.

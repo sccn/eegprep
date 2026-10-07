@@ -25,7 +25,10 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         If 'on' or True, sort components by descending activation variance. Default is 'off'.
     kwargs : dict
         Additional keyword arguments to pass to the Picard algorithm. For
-        example, ``{"maxiter": 500}``.
+        example, ``{"max_iter": 500}``. The Python backend uses identity
+        initialization unless ``random_state`` or ``w_init`` is supplied.
+        An integer ``random_state`` selects a reproducible random start;
+        an explicit ``w_init`` matrix takes precedence over the seed.
 
     Returns
     -------
@@ -42,7 +45,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         data = flatten_ica_data(data)
 
         # Parameters to match MATLAB picard defaults for reproducible parity
-        # Using identity w_init ensures deterministic results matching MATLAB
+        # Default identity initialization matches MATLAB; explicit seeds opt into random starts.
         params = {
             'ortho': False,  # Use standard Picard (not Picard-O)
             'fun': 'tanh',  # Score function (matches MATLAB 'logcosh')
@@ -54,7 +57,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             'whiten': True,  # Whiten data (PCA)
         }
         params.update(kwargs)
-        if 'w_init' not in params:
+        if 'w_init' not in params and 'random_state' not in params:
             n_components = params.get('n_components') or data.shape[0]
             params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
