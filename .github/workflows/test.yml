@@ -7,7 +7,10 @@ on:
     branches: [ master, develop ]
 
 env:
-  # Set MATLAB batch licensing token for private repos or when using MATLAB Engine
+  # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
+  # 2027-01-15). It licenses matlab-batch only, not the Engine API for Python,
+  # so the parity tests reach MATLAB through tests/matlab/eegprep_batch_engine_serve.m
+  # running inside matlab-batch (client: tests/matlab_batch_engine.py).
   MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
@@ -149,7 +152,12 @@ jobs:
         uses: matlab-actions/setup-matlab@v2
         with:
           release: R2024b
-          products: MATLAB
+          # EEGLAB's reference functions need resample/firls/pwelch and the
+          # statistics functions (tcdf, ttest, kmeans, ...).
+          products: >-
+            MATLAB
+            Signal_Processing_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
 
       - name: Locate MATLAB root
         if: steps.matlab-availability.outputs.available == 'true'
@@ -168,62 +176,56 @@ jobs:
           echo "MATLAB_ROOT=$MATLAB_ROOT" >> $GITHUB_ENV
           echo "$MATLAB_ROOT/bin" >> $GITHUB_PATH
 
-      - name: Install Python MATLAB Engine
+      - name: Fetch EEGLAB plugin submodules
+        if: steps.matlab-availability.outputs.available == 'true'
+        shell: bash
+        working-directory: src/eegprep/eeglab
+        run: |
+          # One plugin at a time: a missing upstream commit costs one plugin, not the lane.
+          for path in $(git config -f .gitmodules --get-regexp path | awk '{print $2}'); do
+            if ! git submodule update --init --recursive --depth 1 -- "$path"; then
+              echo "::warning title=EEGLAB plugin unavailable::Could not fetch $path; parity tests needing it will fail"
+            fi
+          done
+
+      - name: Start MATLAB through matlab-batch
+        id: matlab-batch
         if: steps.matlab-availability.outputs.available == 'true'
         shell: bash
         run: |
-          # Each MATLAB release ships one engine build covering a fixed set of Python
-          # versions, and R2024b stops at 3.12:
-          #   "MATLAB Engine for Python supports Python version 3.9, 3.10, 3.11, and
-          #    3.12, but your version of Python is 3.13"
-          # A Python version the pinned release does not cover is not a CI failure. It
-          # means the MATLAB parity tests cannot run, which the availability check below
-          # already handles by falling through to the plain pytest step. Letting the
-          # install decide keeps this working automatically once a newer MATLAB release
-          # covers the version, instead of encoding a compatibility table here.
-          if ! uv pip install "${MATLAB_ROOT}/extern/engines/python"; then
-            echo "MATLAB engine does not support Python ${{ matrix.python-version }}; MATLAB parity tests will be skipped"
+          BATCH_DIR="$RUNNER_TEMP/eegprep-matlab-batch"
+          mkdir -p "$BATCH_DIR"
+          nohup matlab-batch "addpath('$GITHUB_WORKSPACE/tests/matlab'); eegprep_batch_engine_serve('$BATCH_DIR')" \
+            > "$BATCH_DIR/server.log" 2>&1 &
+          echo $! > "$BATCH_DIR/server.pid"
+          for i in $(seq 1 180); do
+            [[ -f "$BATCH_DIR/ready" ]] && break
+            if ! kill -0 "$(cat "$BATCH_DIR/server.pid")" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [[ ! -f "$BATCH_DIR/ready" ]]; then
+            echo "::error title=MATLAB did not start::see server.log below"
+            cat "$BATCH_DIR/server.log"
+            exit 1
           fi
-
-      - name: Check MATLAB Engine availability
-        id: matlab-engine-availability
-        if: steps.matlab-availability.outputs.available == 'true'
-        shell: bash
-        run: |
-          if uv run --no-sync python - <<'PY'
-          import matlab.engine
-          eng = matlab.engine.start_matlab()
-          eng.quit()
-          PY
-          then
-            echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "EEGPREP_SKIP_MATLAB=1" >> "$GITHUB_ENV"
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Run MATLAB tests
-        if: steps.matlab-engine-availability.outputs.available == 'true'
-        uses: matlab-actions/run-command@v2
-        with:
-          command: "ver"
-
-      - name: Run Python tests via MATLAB batch
-        if: steps.matlab-engine-availability.outputs.available == 'true'
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            [status, cmdout] = system('uv run --no-sync pytest tests');
-            disp(cmdout);
-            if status ~= 0
-                error('Python tests failed');
-            end
+          echo "EEGPREP_MATLAB_BATCH_DIR=$BATCH_DIR" >> "$GITHUB_ENV"
+          echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
 
       - name: Run Python tests
-        if: steps.matlab-engine-availability.outputs.available != 'true'
         run: |
           uv run --no-sync pytest tests
+
+      - name: Stop MATLAB
+        if: always() && steps.matlab-batch.outcome == 'success'
+        shell: bash
+        run: |
+          touch "$EEGPREP_MATLAB_BATCH_DIR/quit"
+          for i in $(seq 1 30); do
+            kill -0 "$(cat "$EEGPREP_MATLAB_BATCH_DIR/server.pid")" 2>/dev/null || break
+            sleep 1
+          done
+          echo "--- matlab-batch server log (tail)"
+          tail -n 60 "$EEGPREP_MATLAB_BATCH_DIR/server.log" | grep -v "$MLM_LICENSE_TOKEN" || true
 
       # eegprep-lean is a second distribution in this repo (ADR 0069) and the root
       # suite's `testpaths = ["tests"]` does not reach it, so without this step it ships
