@@ -1,5 +1,7 @@
+from io import BytesIO
 import unittest
 import numpy as np
+from scipy.io import loadmat, savemat
 
 from eegprep.functions.adminfunc.pymat import py2mat
 
@@ -26,6 +28,8 @@ class TestPy2Mat(unittest.TestCase):
         self.assertEqual(result[0]['int_field'], 42)
         self.assertEqual(result[0]['float_field'], 3.14)
         self.assertEqual(result[0]['bool_field'], True)
+        self.assertEqual(result[0]['none_field'], '')
+        self.assertEqual(result[1]['none_field'], 'not_none')
 
         # Second row - check None handling
         self.assertEqual(result[1]['string_field'], '')  # None -> empty string
@@ -34,19 +38,26 @@ class TestPy2Mat(unittest.TestCase):
         self.assertEqual(result[1]['bool_field'], False)  # None -> False
 
     def test_py2mat_type_consistency(self):
-        """Test py2mat maintains type consistency across records."""
-        input_dicts = [
-            {'mixed_field': 42},
-            {'mixed_field': 'string'},  # Different type - should become object
-        ]
-        result = py2mat(input_dicts)
+        """Mixed struct fields retain their MATLAB types regardless of record order."""
+        for values in (
+            [42, 'string'],
+            [42.0, 'string'],
+            [7.0, 'boundary', 8.0],
+            ['boundary', 7.0, 8.0],
+            [7.0, 8.0, 'boundary'],
+        ):
+            with self.subTest(values=values):
+                result = py2mat([{'mixed_field': value} for value in values])
+                buffer = BytesIO()
+                savemat(buffer, {'records': result})
+                buffer.seek(0)
+                records = loadmat(buffer, mat_dtype=True)['records'].ravel()
 
-        self.assertEqual(len(result), 2)
-        # Both should be stored as objects due to type inconsistency
-        # Note: the implementation might convert everything to string to maintain array consistency
-        # Let's just check that both values are preserved in some form
-        self.assertTrue(str(result[0]['mixed_field']) == '42' or result[0]['mixed_field'] == 42)
-        self.assertEqual(result[1]['mixed_field'], 'string')
+                self.assertEqual(len(records), len(values))
+                for record, value in zip(records, values):
+                    field = record['mixed_field']
+                    self.assertEqual(field.dtype, np.asarray(value).dtype)
+                    self.assertEqual(field.item(), value)
 
 
 if __name__ == '__main__':
