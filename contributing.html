@@ -644,33 +644,21 @@ suite validation.</p>
 </section>
 <section id="writing-tests">
 <h3>Writing Tests<a class="headerlink" href="#writing-tests" title="Link to this heading">#</a></h3>
-<p>When adding new features, include tests:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">EEGobj</span>
+<p>Write a test before the code it covers, never after. Add a test only when it
+would catch a real bug that the EEGLAB-ported tests and the workflow tests on
+<code class="docutils literal notranslate"><span class="pre">sample_data</span></code> would miss, for example a fixed regression, a 1-based latency
+or boundary-event edge, or a numerical result checked against EEGLAB. Do not add
+tests to raise coverage, and do not assert only types, shapes, or that a result
+is not <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>For a bug fix, first reproduce the bug with a failing test in the closest
+existing test file:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_select</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">test_new_feature</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test description of what this tests.&quot;&quot;&quot;</span>
-    <span class="c1"># Setup: EEGobj wraps an EEG dict (or a .set file path).</span>
-    <span class="n">eeg_dict</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
-        <span class="s2">&quot;nbchan&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-        <span class="s2">&quot;pnts&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-        <span class="s2">&quot;trials&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="s2">&quot;srate&quot;</span><span class="p">:</span> <span class="mf">128.0</span><span class="p">,</span>
-        <span class="s2">&quot;xmin&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="s2">&quot;xmax&quot;</span><span class="p">:</span> <span class="mi">99</span> <span class="o">/</span> <span class="mf">128.0</span><span class="p">,</span>
-        <span class="s2">&quot;chanlocs&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Ch</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)],</span>
-        <span class="s2">&quot;event&quot;</span><span class="p">:</span> <span class="p">[],</span>
-        <span class="s2">&quot;epoch&quot;</span><span class="p">:</span> <span class="p">[],</span>
-    <span class="p">}</span>
-    <span class="n">eeg</span> <span class="o">=</span> <span class="n">EEGobj</span><span class="p">(</span><span class="n">eeg_dict</span><span class="p">)</span>
-
-    <span class="c1"># Execute: EEGobj dispatches pop_* operations, e.g. eeg.pop_reref([]).</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">eeg</span><span class="o">.</span><span class="n">pop_reref</span><span class="p">([])</span>
-
-    <span class="c1"># Assert</span>
-    <span class="k">assert</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_pop_select_keeps_final_sample</span><span class="p">():</span>
+    <span class="n">EEG</span> <span class="o">=</span> <span class="n">pop_loadset</span><span class="p">(</span><span class="s2">&quot;sample_data/eeglab_data.set&quot;</span><span class="p">)</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;xmax&quot;</span><span class="p">]</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">pop_select</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="p">[</span><span class="n">last</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">last</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">out</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">==</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
