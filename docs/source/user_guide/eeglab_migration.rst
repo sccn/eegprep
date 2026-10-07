@@ -114,6 +114,15 @@ EEGPrep intentionally keeps both conventions visible:
 * ``icachansind`` is normalized after loading so internal indexing is
   consistent, then converted back when saving.
 
+MATLAB Structure Transport
+==========================
+
+When passing lists of dictionaries through the MATLAB bridge, numeric and text
+values in the same field retain their individual types regardless of record
+order. For example, ``42.0`` remains a MATLAB double when another record holds
+``"boundary"``; it does not become ``"42.0"``. EEGLAB's ``eeg_checkset`` may
+subsequently normalize mixed event types to strings as part of event validation.
+
 Plugin Migration
 ================
 

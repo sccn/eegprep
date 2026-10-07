@@ -62,21 +62,16 @@ class TestEEGEEG2MNE(unittest.TestCase):
         """Test conversion of epoched EEG data."""
         # Create epoched EEG data
         epoched_eeg = create_test_eeg(n_channels=32, n_samples=100, n_trials=10)
-        epoched_eeg['data'] = np.random.randn(32, 100, 10)  # 10 epochs
+        epoched_eeg['data'] = np.arange(32 * 100 * 10).reshape(32, 100, 10) * 0.25
 
-        try:
-            result = eeg_eeg2mne(epoched_eeg)
+        result = eeg_eeg2mne(epoched_eeg)
 
-            # Check that result is an MNE Epochs object (EpochsEEGLAB is a subclass of BaseEpochs)
-            self.assertIsInstance(result, mne.BaseEpochs)
-
-            # Check that data dimensions match
-            self.assertEqual(result.info['nchan'], epoched_eeg['nbchan'])
-            self.assertEqual(len(result.times), epoched_eeg['pnts'])
-            self.assertEqual(len(result), epoched_eeg['trials'])
-
-        except Exception as e:
-            self.skipTest(f"eeg_eeg2mne epoched conversion not available: {e}")
+        self.assertIsInstance(result, mne.BaseEpochs)
+        self.assertEqual(result.info['nchan'], epoched_eeg['nbchan'])
+        self.assertEqual(len(result.times), epoched_eeg['pnts'])
+        self.assertEqual(len(result), epoched_eeg['trials'])
+        # MNE uses (epochs, channels, samples) and volts rather than microvolts.
+        np.testing.assert_array_equal(result.get_data(), epoched_eeg['data'].transpose(2, 0, 1) * 1e-6)
 
 
 if __name__ == '__main__':
