@@ -654,6 +654,14 @@ model.</p></li>
 consistent, then converted back when saving.</p></li>
 </ul>
 </section>
+<section id="matlab-structure-transport">
+<h2>MATLAB Structure Transport<a class="headerlink" href="#matlab-structure-transport" title="Link to this heading">#</a></h2>
+<p>When passing lists of dictionaries through the MATLAB bridge, numeric and text
+values in the same field retain their individual types regardless of record
+order. For example, <code class="docutils literal notranslate"><span class="pre">42.0</span></code> remains a MATLAB double when another record holds
+<code class="docutils literal notranslate"><span class="pre">&quot;boundary&quot;</span></code>; it does not become <code class="docutils literal notranslate"><span class="pre">&quot;42.0&quot;</span></code>. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> may
+subsequently normalize mixed event types to strings as part of event validation.</p>
+</section>
 <section id="plugin-migration">
 <h2>Plugin Migration<a class="headerlink" href="#plugin-migration" title="Link to this heading">#</a></h2>
 <p>Bundled plugins are importable from <code class="docutils literal notranslate"><span class="pre">eegprep</span></code>:</p>
@@ -726,6 +734,7 @@ behavior.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-translation-examples">Command Translation Examples</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-replay">History Replay</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indexing-boundaries">Indexing Boundaries</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#matlab-structure-transport">MATLAB Structure Transport</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plugin-migration">Plugin Migration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-stay-in-mne-or-matlab">When to Stay in MNE or MATLAB</a></li>
 </ul>
