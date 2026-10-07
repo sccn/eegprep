@@ -32,6 +32,120 @@ def test_discovers_wrapper_regression_and_nonstandard_limo_methods(tmp_path: Pat
     }
 
 
+def test_discovers_class_test_attributes_not_names_and_excludes_helpers(tmp_path: Path) -> None:
+    source = tmp_path / "unittesting_statistics/statcond/statcondTest.m"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        textwrap.dedent(
+            """\
+            classdef statcondTest < matlab.unittest.TestCase
+                methods(TestClassSetup)
+                    function testSetup(testCase)
+                    end
+                end
+                methods(Test, TestTags = {'VectorReference'})
+                    function paired1Anova(testCase, data)
+                    end
+                end
+                methods(Test, ParameterCombination = 'exhaustive')
+                    function shuffleAndPermutation(testCase, method, data)
+                    end
+                end
+                methods(TestMethodTeardown)
+                    function testTeardown(testCase)
+                    end
+                end
+                methods(Static)
+                    function testNamedHelper()
+                    end
+                end
+            end
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert discover_matlab_test_scenarios(tmp_path) == {
+        MatlabTestScenario("unittesting_statistics/statcond/statcondTest.m", "paired1Anova"),
+        MatlabTestScenario("unittesting_statistics/statcond/statcondTest.m", "shuffleAndPermutation"),
+    }
+
+
+def test_discovers_function_suites_outside_wrapper_and_regression_patterns(tmp_path: Path) -> None:
+    source = tmp_path / "newTests.m"
+    source.write_text(
+        textwrap.dedent(
+            """\
+            function tests = newTests
+            tests = functiontests(localfunctions);
+            function testBefore(~)
+            function afterTest(~)
+            function TestUppercase(~)
+            function setupOnce(~)
+            function helper(~)
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert discover_matlab_test_scenarios(tmp_path) == {
+        MatlabTestScenario("newTests.m", "testBefore"),
+        MatlabTestScenario("newTests.m", "afterTest"),
+        MatlabTestScenario("newTests.m", "TestUppercase"),
+    }
+
+
+def test_discovers_unwrapped_limo_workflow_without_counting_called_helper(tmp_path: Path) -> None:
+    limo_root = tmp_path / "unittesting_limo"
+    limo_root.mkdir()
+    (limo_root / "limo_zIRLS_validation_4_Arno.m").write_text(
+        "clear variables\nresults = limo_test_glmboot(chanlocs, H0iw);\n", encoding="utf-8"
+    )
+    (limo_root / "limo_test_glmboot.m").write_text(
+        "function results = limo_test_glmboot(chanlocs, varargin)\n", encoding="utf-8"
+    )
+
+    expected = discover_matlab_test_scenarios(tmp_path)
+    workflow = MatlabTestScenario("unittesting_limo/limo_zIRLS_validation_4_Arno.m", "limo_zIRLS_validation_4_Arno")
+    assert expected == {workflow}
+    report = compare_test_ports(
+        tmp_path,
+        expected,
+        [
+            CollectedReference(workflow.source, workflow.test, "suite", "eeglab", "tests/test_limo.py::test_irls"),
+            CollectedReference(
+                "unittesting_limo/limo_test_glmboot.m",
+                "limo_test_glmboot",
+                "suite",
+                "eeglab",
+                "tests/test_limo.py::test_irls",
+            ),
+        ],
+        suite_commit="suite",
+        expected_eeglab_commit="eeglab",
+    )
+    assert report.ok
+    assert report.covered == (workflow,)
+
+
+def test_discovery_ignores_commented_definitions_and_reference_checkout(tmp_path: Path) -> None:
+    suite = _source_fixture(tmp_path)
+    source = suite / "commentedTest.m"
+    source.write_text(
+        "%{\nfunction tests = commentedTest\ntests = functiontests(localfunctions);\nfunction testFake(~)\n%}\n",
+        encoding="utf-8",
+    )
+    for directory in ("eeglab", ".cache"):
+        nested = suite / directory
+        nested.mkdir()
+        (nested / "internal_wrapperTest.m").write_text(
+            "function tests = internal_wrapperTest\ntests = functiontests(localfunctions);\nfunction testFake(~)\n",
+            encoding="utf-8",
+        )
+
+    assert len(discover_matlab_test_scenarios(suite)) == 5
+
+
 def test_audit_collects_pytest_provenance_normalizes_leaf_and_reports_exact_gaps(tmp_path: Path) -> None:
     suite_root = _source_fixture(tmp_path / "suite")
     suite_commit = _initialize_git_checkout(suite_root)
@@ -130,7 +244,7 @@ def _source_fixture(root: Path) -> Path:
             function test_beta(~)
             beta
 
-            function helper_not_a_test(~)
+            function helper_not_a_case(~)
             """
         ),
         encoding="utf-8",
@@ -192,6 +306,27 @@ def _write_pytest_fixture(repo_root: Path, suite_commit: str) -> None:
     (package_root / "__init__.py").write_text('AUDIT_SENTINEL = "requested checkout"\n', encoding="utf-8")
     tests_root = repo_root / "tests"
     tests_root.mkdir(parents=True)
+    (tests_root / "conftest.py").write_text(
+        textwrap.dedent(
+            """\
+            import pytest
+
+            def pytest_addoption(parser):
+                parser.addoption("--eeglab-backend", choices=("python", "matlab"), default=None)
+
+            @pytest.fixture
+            def eeglab_backend():
+                raise AssertionError("provenance collection must not execute the backend")
+
+            def pytest_collection_modifyitems(config, items):
+                if config.getoption("--eeglab-backend") is None:
+                    deselected = [item for item in items if "eeglab_backend" in item.fixturenames]
+                    config.hook.pytest_deselected(items=deselected)
+                    items[:] = [item for item in items if item not in deselected]
+            """
+        ),
+        encoding="utf-8",
+    )
     (tests_root / "test_ports.py").write_text(
         textwrap.dedent(
             f"""\
@@ -218,7 +353,7 @@ def _write_pytest_fixture(repo_root: Path, suite_commit: str) -> None:
                 pass
 
             @eeglab_test("unittesting_miscfunc/example/example_wrapperTest.m", "test_beta")
-            def test_wrapper_provenance():
+            def test_wrapper_provenance(eeglab_backend):
                 pass
 
             @eeglab_test("regression_tests/t_regression.m", "testRegression")

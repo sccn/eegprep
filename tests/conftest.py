@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import ctypes
+from functools import partial
+import importlib
 import os
 from pathlib import Path
 
 import pytest
+
+from tests.eeglab_tests import upstream_references
+from tests.eeglab_tests.backend import call_matlab, call_python
 
 
 def _preload_matlab_libstdcxx() -> None:
@@ -29,6 +34,48 @@ def _preload_matlab_libstdcxx() -> None:
 
 
 _preload_matlab_libstdcxx()
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("EEGLAB reference contracts")
+    group.addoption(
+        "--eeglab-backend",
+        choices=("matlab", "python"),
+        default=None,
+        help="Opt in to backend-neutral EEGLAB contract tests (MATLAB is required when selected).",
+    )
+    group.addoption(
+        "--eeglab-root",
+        default=os.environ.get("EEGPREP_EEGLAB_ROOT"),
+        help="Explicit EEGLAB reference checkout containing eeglab.m.",
+    )
+
+
+@pytest.fixture(scope="session")
+def eeglab_matlab_engine(request):
+    root = request.config.getoption("--eeglab-root")
+    if not root or not (Path(root) / "eeglab.m").is_file():
+        pytest.fail("MATLAB contracts require --eeglab-root pointing to an EEGLAB checkout", pytrace=False)
+    if os.environ.get("EEGPREP_SKIP_MATLAB") == "1":
+        pytest.fail("Explicit MATLAB contracts conflict with EEGPREP_SKIP_MATLAB=1", pytrace=False)
+    # The private cache prevents reusing an engine configured for another root.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("EEGPREP_EEGLAB_ROOT", str(Path(root).resolve()))
+        compat = importlib.import_module("eegprep.functions.adminfunc.eeglabcompat")
+        engine = compat.get_eeglab("MAT", auto_file_roundtrip=False, _cache={})
+    engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
+    try:
+        yield engine
+    finally:
+        engine.quit()
+
+
+@pytest.fixture
+def eeglab_backend(request):
+    """Call a named reference function on the explicitly selected backend."""
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        return partial(call_matlab, request.getfixturevalue("eeglab_matlab_engine"))
+    return call_python
 
 
 SLOW_NODEID_PARTS = (
@@ -118,12 +165,17 @@ def _nodeid_has_part(nodeid: str, parts: tuple[str, ...]) -> bool:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    del config
+    backend = config.getoption("--eeglab-backend")
 
     for item in items:
         nodeid = item.nodeid
         lower_nodeid = nodeid.lower()
         path = item.path.as_posix()
+
+        contract = "eeglab_backend" in getattr(item, "fixturenames", ())
+        transport = "eeglab_matlab_engine" in getattr(item, "fixturenames", ())
+        if backend == "matlab" and (contract or transport):
+            item.add_marker(pytest.mark.matlab)
 
         if _nodeid_has_part(nodeid, SLOW_NODEID_PARTS):
             item.add_marker(pytest.mark.slow)
@@ -143,3 +195,26 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
         if _nodeid_has_part(nodeid, OCTAVE_NODEID_PARTS):
             item.add_marker(pytest.mark.octave)
+
+
+@pytest.hookimpl(specname="pytest_collection_modifyitems", trylast=True)
+def pytest_filter_eeglab_contracts(config, items):
+    # Apply the reference-lane gate after pytest's explicit -k/-m selection.
+    backend = config.getoption("--eeglab-backend")
+    deselected = []
+    unconverted = []
+    for item in items:
+        contract = "eeglab_backend" in getattr(item, "fixturenames", ())
+        transport = "eeglab_matlab_engine" in getattr(item, "fixturenames", ())
+        if (contract and backend is None) or (transport and backend != "matlab"):
+            deselected.append(item)
+        if backend == "matlab" and not contract and not transport and upstream_references(getattr(item, "obj", None)):
+            unconverted.append(item.nodeid)
+    if unconverted:
+        raise pytest.UsageError(
+            "MATLAB mode selected tests that still call Python directly; convert them to "
+            "the eeglab_backend fixture first:\n" + "\n".join(unconverted)
+        )
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = [item for item in items if item not in deselected]
