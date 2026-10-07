@@ -549,6 +549,12 @@ older <code class="docutils literal notranslate"><span class="pre">sccn/eeglab-t
 EEGPrep currently pins <code class="docutils literal notranslate"><span class="pre">eeglab_tests</span></code> commit
 <code class="docutils literal notranslate"><span class="pre">ff605546f3f70868916fb8d49c007472b3257b50</span></code> and the EEGLAB submodule commit
 <code class="docutils literal notranslate"><span class="pre">8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</span></code>.</p>
+<p>The current deliverable is faithful ports of these existing tests, validated
+against MATLAB. It does not include newly authored MATLAB scientific cases,
+implementation-coverage targets, or EEGPrep capability fixes. Reuse unchanged
+verified results; obtain fresh evidence for changed or previously unverified
+paths. Passing the translated tests on MATLAB validates their translation, not
+whether EEGPrep itself implements every tested workflow.</p>
 <p>Translate the behavior and assertions of each MATLAB scenario into the closest
 existing pytest module. Decorate the Python test with its upstream path and
 test name so coverage remains traceable without a separate conversion matrix:</p>
@@ -566,8 +572,9 @@ warnings, errors, and all scientifically relevant output fields. Use a live
 MATLAB comparison when practical or small expected data generated from the
 pinned suite when ordinary CI must run without MATLAB.</p>
 <p>When a faithful port exposes missing behavior or a defect, keep the failing
-scenario visible and create a Bead for the implementation work. Pure MATLAB
-runtime behavior may be excluded only with a concrete technical rationale.
+scenario visible and record it in Beads without changing runtime capabilities
+as part of the test port. Excluding pure MATLAB runtime behavior requires an
+explicitly agreed scope decision and a concrete technical rationale.
 Never replace an applicable assertion with a no-crash smoke test or broaden a
 numerical tolerance simply to make the port pass.</p>
 <p>Before declaring the port complete, clone the current suite at its pinned
@@ -583,6 +590,219 @@ collects <code class="docutils literal notranslate"><span class="pre">eeglab_tes
 stale reference. Pass <code class="docutils literal notranslate"><span class="pre">--json</span></code> for automation. It deliberately rejects the
 old <code class="docutils literal notranslate"><span class="pre">eeglab-testcases</span></code> repository, a checkout at another commit, and
 provenance that does not exist in the pinned suite.</p>
+<section id="source-fidelity-and-graphical-validation">
+<h4>Source fidelity and graphical validation<a class="headerlink" href="#source-fidelity-and-graphical-validation" title="Link to this heading">#</a></h4>
+<p>Source-reference counts are not execution results or scientific coverage.
+Backend-dispatched contracts must still be checked against the actual source
+body and executed against the pinned MATLAB reference. Keep generated-data
+Python regression tests as separate supplements; they are not substitutes for
+the source recording, workload, call sequence, or assertions. A source wrapper
+whose body is entirely commented out or immediately returns is inactive, not a
+successful behavioral test. Such definitions remain visible in the inventory
+without attaching misleading provenance to a different Python scenario.</p>
+<p>The pinned inventory contains 813 definitions: 709 have Python source
+references, and 104 remain unmatched. Inspection classifies the unmatched
+definitions as 60 comment-only leaves, 27 empty functions, one commented
+tutorial body, five help-only calls, eight no-argument helper returns, two
+disabled early-return cases, and one TODO-status-only leaf. Meaningful
+interpolation and memory-mapped-object helper calls remain inside their
+parent workflow ports. The raw audit still reports the 104 unmatched entries;
+do not create dummy ports or describe this as 813 passing tests. This source
+accounting is distinct from assertion fidelity and execution evidence.</p>
+<p>Mark every contract that creates plots, windows, dialogs, or graphical
+callbacks with <code class="docutils literal notranslate"><span class="pre">gui</span></code>, even when MATLAB figures would be invisible. This
+includes progress bars in numerical helpers such as <code class="docutils literal notranslate"><span class="pre">eeg_context</span></code> and
+browser-opening paths in either backend, even if the other backend is non-GUI.
+The marker allows explicitly deferred graphical validation to remain excluded using
+<code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&quot;not</span> <span class="pre">gui&quot;</span></code>. Collecting those contracts or checking their syntax does not
+validate their runtime behavior. Modal Python dialogs may require interaction;
+do not substitute a mock renderer or invent accept/cancel actions to make an
+original interactive workflow automatic.</p>
+<p>MATLAB-specific graphics objects, caller workspaces, and object arrays sometimes
+require small test-only native boundaries. Keep the workflow and assertions in
+Python and dispatch actual EEGLAB processing functions. Translate ordinary
+language operations such as file deletion or closing a figure using real
+Python APIs, not nonexistent EEGPrep counterparts to MATLAB builtins. Do not
+replace a missing operation with a fabricated failure or a passing assertion
+that the feature is absent.</p>
+<p>Preserve the limitations of the source oracle too: a no-assertion smoke test
+does not establish numerical correctness, and a legacy wrapper that ignores a
+returned failure status does not establish that its operation succeeded.
+Record source failures and unresolved language-specific observables separately
+instead of weakening comparisons or counting a native-only diagnostic as a
+completed Python port.</p>
+<p>MATLAB tables nested in reference outputs, such as FieldTrip <code class="docutils literal notranslate"><span class="pre">trialinfo</span></code>,
+cross the test bridge as MATLAB-written MAT bytes and are restored to native
+tables before the next call. This preserves variable classes, dimensions and
+table properties; it does not replace a table with a lossy struct or omit its
+metadata. The transport regression compares the real FieldTrip preprocessing
+chain with direct native execution using the original epoched sample dataset.</p>
+<p>Large outputs retain their complete arrays. When the aggregate output container
+approaches MAT v7’s 2 GB variable limit, the test bridge writes numerical leaves
+to per-call sidecars and reassembles their original classes and dimensions
+before deleting the temporary directory. The slow transport regression sends
+more than 2 GiB through the bridge and back to MATLAB for exact comparison.
+Large Python inputs use the same sidecars before SciPy’s MAT5 writer reaches
+its container or individual-matrix size limit. Buffered Fortran-order chunks
+preserve complete values, classes and dimensions without another full-array
+copy. Separate slow checks exercise both a nested aggregate and a single
+matrix larger than 4 GiB against native MATLAB assertions.
+This is test transport, not subject selection, downsampling or a production
+dataset serializer.</p>
+<p>A user-approved Python-only exception applies to MATLAB caller-workspace and
+copy-count introspection in <code class="docutils literal notranslate"><span class="pre">checkmmo</span></code> and the nested helpers of <code class="docutils literal notranslate"><span class="pre">checkmmo2</span></code>.
+Actual construction, copying, writes, data-integrity checks and debug-output
+assertions remain in scope. MATLAB retains the original count assertions.
+Because <code class="docutils literal notranslate"><span class="pre">checkmmo</span></code>’s source oracle consists entirely of count assertions, its
+Python result records execution only, not count or scientific parity. The
+audit reports these exceptions separately without removing source definitions
+or treating unresolved diagnostic failures as passes.</p>
+</section>
+<section id="explicit-matlab-support-paths">
+<h4>Explicit MATLAB support paths<a class="headerlink" href="#explicit-matlab-support-paths" title="Link to this heading">#</a></h4>
+<p>Backend-neutral contracts run with <code class="docutils literal notranslate"><span class="pre">--eeglab-backend=matlab</span></code> and an explicit
+<code class="docutils literal notranslate"><span class="pre">--eeglab-root</span></code>. The automatically assigned <code class="docutils literal notranslate"><span class="pre">eeglab_contract</span></code> marker selects
+tests using the backend fixture, excluding ordinary direct-Python regressions
+and transport-only harness checks. For a non-graphical, non-slow contract run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>pytest<span class="w"> </span>tests<span class="w"> </span>--eeglab-backend<span class="o">=</span>matlab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-root<span class="o">=</span>/absolute/path/to/eeglab_tests/eeglab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-m<span class="w"> </span><span class="s2">&quot;eeglab_contract and not gui and not slow&quot;</span><span class="w"> </span>--junitxml<span class="o">=</span>contracts.xml
+</pre></div>
+</div>
+<p>This is a selected run, not full acceptance: graphical and slow contracts are
+not validated by this selection, and original prerequisite guards may return
+without exercising their scientific branches. Report those limits separately
+from pass counts.
+The guarded statistical and legacy ERSP contracts record
+<code class="docutils literal notranslate"><span class="pre">eeglab_source_body_entered</span></code> in each JUnit test case’s <code class="docutils literal notranslate"><span class="pre">properties</span></code>; a
+<code class="docutils literal notranslate"><span class="pre">False</span></code> value means the original prerequisite/version guard returned before
+the scientific body. The clustering contract separately records
+<code class="docutils literal notranslate"><span class="pre">eeglab_optional_kmeans_branch_entered</span></code>, since its first clustering operation
+still runs when the optional branch is unavailable. These properties do not
+change the source guards, assertions, or pytest outcomes. A passing case with a
+false guard property is not evidence that the guarded behavior was validated.</p>
+<p>For the full contract selection, omit the <code class="docutils literal notranslate"><span class="pre">not</span> <span class="pre">gui</span></code> and <code class="docutils literal notranslate"><span class="pre">not</span> <span class="pre">slow</span></code> filters.
+MATLAB windows, progress dialogs, video rendering, full-recording ICA and
+multi-subject bootstraps can run for substantially longer than the numerical
+subset. Run deliberately on a machine where graphical interaction is allowed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>pytest<span class="w"> </span>tests<span class="w"> </span>--eeglab-backend<span class="o">=</span>matlab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-root<span class="o">=</span>/absolute/path/to/eeglab_tests/eeglab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-m<span class="w"> </span>eeglab_contract<span class="w"> </span>--junitxml<span class="o">=</span>all-contracts.xml
+</pre></div>
+</div>
+<p>For long or concurrent runs, supply a distinct <code class="docutils literal notranslate"><span class="pre">--basetemp</span></code> directory for
+each run if generated datasets and model files must be retained. Pytest’s
+default temporary-directory retention can remove earlier runs while another
+process is still using their evidence. Use a new directory: pytest clears an
+existing <code class="docutils literal notranslate"><span class="pre">--basetemp</span></code> before running.</p>
+<p>Known reference findings must stay visible in that report. In the pinned
+suite, the three legacy <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> leaves <code class="docutils literal notranslate"><span class="pre">pass_general</span></code>, <code class="docutils literal notranslate"><span class="pre">pass_many_args</span></code>
+and <code class="docutils literal notranslate"><span class="pre">pass_times</span></code> return <code class="docutils literal notranslate"><span class="pre">tc_notpassed</span></code> on MATLAB R2026a: they compare a
+numeric handle vector with modern cell outputs. Their original wrappers
+discard the returned status. A green wrapper therefore does not validate
+those predicates. The Python contracts retain the comparisons and fail;
+the graphics transport only removes handles the source never compares.</p>
+<p>The original <code class="docutils literal notranslate"><span class="pre">statcond</span></code> cases 9, 10, 13 and 14 also fail directly in native
+MATLAB R2026a with their stored zero absolute/relative tolerances. Their
+maximum p-value residuals are approximately <code class="docutils literal notranslate"><span class="pre">6.07e-18</span></code>, <code class="docutils literal notranslate"><span class="pre">2.78e-17</span></code>,
+<code class="docutils literal notranslate"><span class="pre">7.81e-18</span></code> and <code class="docutils literal notranslate"><span class="pre">1.73e-17</span></code>; the direct fixture run passed 74 of 78 cases,
+matching the hybrid failures. These are retained reference fixture/platform
+discrepancies, not established EEGPrep defects. The original tolerances and
+failing assertions remain unchanged.</p>
+<p>Some graphical wrappers also discard failure statuses. The two <code class="docutils literal notranslate"><span class="pre">gradplot</span></code>
+center cases and two <code class="docutils literal notranslate"><span class="pre">headmovie</span></code> cases returned <code class="docutils literal notranslate"><span class="pre">tc_notpassed</span></code> in retained
+native-backed runs, despite their wrapper-level pytest passes. The headmovie
+failure is a nonscalar logical condition on the pinned R2026a runtime. These
+recorded statuses are source-oracle limitations, not successful scientific
+validation; do not change the original predicates to make the report green.</p>
+<p>The original <code class="docutils literal notranslate"><span class="pre">std_topoplot</span></code> workflow requires <code class="docutils literal notranslate"><span class="pre">.icatopo</span></code> files generated
+by the suite’s earlier <code class="docutils literal notranslate"><span class="pre">std_precomp</span></code> workflow. A fresh source data checkout
+does not contain them. Its independent port creates the real scalp cache in
+a writable copy of the original STUDY, then reloads the original STUDY before
+the unchanged four plotting calls. No synthetic cache or reference-tree write
+is used.</p>
+<p>The test session initializes the pinned EEGLAB checkout and
+its already installed plugins without installing anything. Optional upstream
+dependency files can live outside that checkout: pass their directory using
+<code class="docutils literal notranslate"><span class="pre">--eeglab-support-path</span> <span class="pre">PATH</span></code>. The directory must exist. This option is
+repeatable; each directory is added at the beginning of the session’s MATLAB
+path after EEGLAB plugin initialization, so the last directory takes precedence
+over earlier support directories and installed plugins. Subdirectories are not
+added recursively. The session quits its engine on teardown; it never calls
+<code class="docutils literal notranslate"><span class="pre">savepath</span></code> or changes the package runtime, reference source, or user options.</p>
+<p>Two upstream packaging gaps encountered with the pinned suite have been
+validated using source-exact files in an ignored local directory:</p>
+<ul class="simple">
+<li><p>JSONio bundled with <code class="docutils literal notranslate"><span class="pre">bids-matlab-tools8.0</span></code>/<code class="docutils literal notranslate"><span class="pre">EEG-BIDS</span></code> lacks an Apple
+Silicon MEX. Official JSONio commit
+<code class="docutils literal notranslate"><span class="pre">e6c5b3ea16142e8e428aa254fc042dfad6011c30</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">jsonread.mexmaca64</span></code> (Git blob
+<code class="docutils literal notranslate"><span class="pre">396b1d429c4887446c1c0a20b4e6f457942abe1b</span></code>). The bundled <code class="docutils literal notranslate"><span class="pre">jsonread.c</span></code>
+has blob <code class="docutils literal notranslate"><span class="pre">fa7902c4a5bbb74ddd02e76ed423a781602b33b6</span></code>, identical to the
+preceding official revision <code class="docutils literal notranslate"><span class="pre">82d835d17348b0d060e8af881da308b897a627ff</span></code>.
+The Apple Silicon commit changes only that C file’s header comment, not
+parser logic; <code class="docutils literal notranslate"><span class="pre">jsmn.c</span></code> and <code class="docutils literal notranslate"><span class="pre">jsmn.h</span></code> are unchanged. This binary is for
+native Apple Silicon MATLAB only.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Fileio260210/private/ft_datatype_sens.m</span></code> calls the absent
+<code class="docutils literal notranslate"><span class="pre">ft_deleteopt</span></code>. That caller’s blob
+<code class="docutils literal notranslate"><span class="pre">c66bdfebf2528518981ef75dc257d5b15c9da403</span></code> exactly matches official
+FieldTrip revision <code class="docutils literal notranslate"><span class="pre">efdd7db8bf5623e580c8f12f81bb57b325662e29</span></code>.
+The matching revision’s <code class="docutils literal notranslate"><span class="pre">utilities/ft_deleteopt.m</span></code> has blob
+<code class="docutils literal notranslate"><span class="pre">2eebd35ca862eac7001bb3d01e49250501e849ff</span></code>. Use that original helper,
+not a replacement implementation. Its <code class="docutils literal notranslate"><span class="pre">removefields</span></code> dependency is
+already supplied by the installed FieldTrip utilities.</p></li>
+</ul>
+<p>For that Apple Silicon setup, download the two pinned files explicitly from
+their official repositories. From the main EEGPrep checkout (not a temporary
+worktree), run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>.notes/reference/matlab-test-dependencies
+curl<span class="w"> </span>--fail<span class="w"> </span>--location<span class="w"> </span>https://raw.githubusercontent.com/gllmflndn/JSONio/e6c5b3ea16142e8e428aa254fc042dfad6011c30/jsonread.mexmaca64<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>.notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+curl<span class="w"> </span>--fail<span class="w"> </span>--location<span class="w"> </span>https://raw.githubusercontent.com/fieldtrip/fieldtrip/efdd7db8bf5623e580c8f12f81bb57b325662e29/utilities/ft_deleteopt.m<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>.notes/reference/matlab-test-dependencies/ft_deleteopt.m
+git<span class="w"> </span>hash-object<span class="w"> </span>.notes/reference/matlab-test-dependencies/jsonread.mexmaca64
+git<span class="w"> </span>hash-object<span class="w"> </span>.notes/reference/matlab-test-dependencies/ft_deleteopt.m
+</pre></div>
+</div>
+<p>Check that the two printed hashes match the blobs above before execution.
+The legacy BIDS importer prepends its own <code class="docutils literal notranslate"><span class="pre">JSONio</span></code> folder during import,
+and starting EEGLAB again also reorders plugin paths. For full BIDS/LIMO
+workflows on Apple Silicon, install that same verified binary alongside
+<code class="docutils literal notranslate"><span class="pre">jsonread.m</span></code> in each active BIDS plugin’s <code class="docutils literal notranslate"><span class="pre">JSONio</span></code> directory (both
+<code class="docutils literal notranslate"><span class="pre">EEG-BIDS</span></code> and <code class="docutils literal notranslate"><span class="pre">bids-matlab-tools8.0</span></code> if both are present). A symlink to
+the verified support file is sufficient. This is an explicit local native
+dependency installation, not a MATLAB-source correction; do not overwrite
+source files or change the pinned revision. The standalone support path alone
+is insufficient once the importer changes path precedence.</p>
+<p>The STUDY-statistics and advanced source-reconstruction tutorials require the
+full FieldTrip distribution. Fileio also bundles a partial FieldTrip whose
+<code class="docutils literal notranslate"><span class="pre">ft_defaults</span></code> can shadow the full plugin and look for <code class="docutils literal notranslate"><span class="pre">statfun</span></code>/<code class="docutils literal notranslate"><span class="pre">preproc</span></code>
+modules in the wrong directory. These two contracts temporarily prioritize
+the full plugin owning <code class="docutils literal notranslate"><span class="pre">ft_freqstatistics</span></code> after EEGLAB startup, clear its
+cached initialization and invoke its actual <code class="docutils literal notranslate"><span class="pre">ft_defaults</span></code>. They restore the
+previous path afterward; no scientific function or option is substituted.</p>
+<p>Full LIMO validation also requires Parallel Computing Toolbox (the reference
+calls <code class="docutils literal notranslate"><span class="pre">gcp</span></code> during cleanup) and Image Processing Toolbox for <code class="docutils literal notranslate"><span class="pre">bwlabeln</span></code> in
+cluster analysis, or the reference’s supported SPM alternative. A license
+entitlement alone does not install either toolbox. Record installed versions
+alongside the reference revisions; do not patch LIMO to ignore missing tools.</p>
+<p>No downloads occur automatically in pytest. Run the non-GUI parser/BIDS
+metadata smoke and the original Fileio contract with normal test selection:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> </span>pytest<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tests/test_eeglab_hybrid.py::test_matlab_bids_metadata_loaders<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-backend<span class="o">=</span>matlab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-root<span class="o">=</span>/absolute/path/to/eeglab_tests/eeglab<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-suite-root<span class="o">=</span>/absolute/path/to/eeglab_tests<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--eeglab-support-path<span class="o">=</span>/absolute/path/to/eegprep/.notes/reference/matlab-test-dependencies
+</pre></div>
+</div>
+<p>The metadata smoke calls the actual JSONio parser and original BIDS loaders on
+<code class="docutils literal notranslate"><span class="pre">ds002718</span></code> metadata. The Fileio source contract only requires its three
+original calls to complete; it does not establish numerical or channel-location
+correctness, and existing import warnings remain visible. These checks do not
+validate LIMO preprocessing, bootstraps, or GUI workflows.</p>
+</section>
 <section id="tutorial-wrapper-provenance">
 <h4>Tutorial-wrapper provenance<a class="headerlink" href="#tutorial-wrapper-provenance" title="Link to this heading">#</a></h4>
 <p>The tutorial-wrapper ports additionally pin
@@ -592,13 +812,353 @@ provenance that does not exist in the pinned suite.</p>
 <code class="docutils literal notranslate"><span class="pre">source_reconstruction_eeg</span></code>, and <code class="docutils literal notranslate"><span class="pre">time_freq_all_elec</span></code> are MATLAB Live
 Scripts (<code class="docutils literal notranslate"><span class="pre">.mlx</span></code>) in that commit; they are not missing source files. MATLAB
 can execute them, while Octave cannot execute the Live Script format.</p>
-<p>Although <code class="docutils literal notranslate"><span class="pre">tutorial2_wrapperTest.test_bids_process_face_experiment</span></code> has an
-entirely commented wrapper body, its referenced Live Script is preserved as a
-generated-data port rather than an empty test. The face-recognition and active
-P300 workflows exercise BIDS import, preprocessing, ICA rejection, epoching,
-trial-level STUDY designs, precomputation, and ERP plotting without checking the
-upstream tutorial datasets into the package. The full EEGLAB datasets remain
-useful for separate MATLAB parity runs.</p>
+<p>The ten active wrapper contracts in <code class="docutils literal notranslate"><span class="pre">tests/test_tutorial_eeglab_tests.py</span></code>
+retain the original scripts’ executable operation sequences, arguments, and
+full inputs: the continuous and ICA-epoched sample recordings, five-subject N400 study,
+and P300 BIDS tree (with the original subjects 1–2 selection). Workflows that
+write datasets, measure caches, spline files, or videos use isolated working
+directories and complete copies of the source input trees when needed. The
+original FieldTrip, DIPFIT, PICARD, and ICLabel dependencies remain required;
+missing Python capabilities are not converted into successful skips or
+expected failures. Python owns the workflow sequence, with small test-only
+boundaries for native caller workspaces, function handles, and video objects.</p>
+<p>All ten active tutorials start the EEGLAB GUI or create figures and are
+marked <code class="docutils literal notranslate"><span class="pre">gui</span></code>. They require explicit graphical validation; ordinary
+generated-data regression results do not validate these source contracts.
+Future Python video-export runs also require <code class="docutils literal notranslate"><span class="pre">ffmpeg</span></code> for the equivalent
+30-fps MPEG-4 or uncompressed AVI writer.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tutorial2_wrapperTest.test_bids_process_face_experiment</span></code> is inactive because
+its entire wrapper body is commented out. It carries no source provenance and
+is not represented by a no-op passing test. The existing face-recognition and
+other generated-data workflows remain supplemental Python regressions, without
+claims that their synthetic recordings are the original source inputs.</p>
+<p>The original <code class="docutils literal notranslate"><span class="pre">event_processing_study</span></code> script leaves <code class="docutils literal notranslate"><span class="pre">EEG</span></code> unchanged after
+editing and reloading <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. On the pinned reference, its final
+<code class="docutils literal notranslate"><span class="pre">eeglab</span> <span class="pre">redraw</span></code> therefore opens <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>’s dataset-change dialog.
+The source specifies no answer. A manual run that selects Cancel exercises
+that cancellation path but does not prove an unattended workflow or assert
+the resulting STUDY contents. Do not silently overwrite a dataset, synchronize
+the variables, or invent a dialog response inside the port.
+The test-only redraw boundary returns the actual post-dialog workspace or
+session state so subsequent source operations use the user’s real choice.
+This state transport does not select an answer or add a Cancel-only scientific
+expectation. Interactive acceptance remains a separate required check.</p>
+<p>The source also includes a manual follow-up at
+<code class="docutils literal notranslate"><span class="pre">tutorial_scripts/event_processing_study.m:39-41</span></code>: open
+<code class="docutils literal notranslate"><span class="pre">STUDY</span> <span class="pre">&gt;</span> <span class="pre">Select/Edit</span> <span class="pre">study</span> <span class="pre">design(s)</span></code>, press the lower <code class="docutils literal notranslate"><span class="pre">New</span></code> button under
+<code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">the</span> <span class="pre">independent</span> <span class="pre">variables</span> <span class="pre">for</span> <span class="pre">this</span> <span class="pre">design</span></code>, and check that <code class="docutils literal notranslate"><span class="pre">rt</span></code> is
+available in <code class="docutils literal notranslate"><span class="pre">Add</span> <span class="pre">variable</span></code>. The Python wrapper currently stops at redraw;
+its passing result does not include this follow-up. A generated-data
+<code class="docutils literal notranslate"><span class="pre">std_makedesign</span></code> test is not a substitute for the original menu workflow.
+Native manual validation on September 29, 2026 observed <code class="docutils literal notranslate"><span class="pre">rt</span></code> selectable as
+a continuous variable after explicitly canceling the stale-EEG overwrite.
+The retained dataset has 157 events with 75 numeric <code class="docutils literal notranslate"><span class="pre">rt</span></code> values and 82 empty
+fields; the 80 STUDY trial records contain the same 75 numeric values and
+five empty fields. The workspace was unchanged by opening and closing the
+design dialogs, and no additional design was saved. This is evidence for that
+observed native workflow, not an unattended test or proof of Python GUI support. EEGPrep’s
+<code class="docutils literal notranslate"><span class="pre">pop_studydesign</span></code> New-variable callback currently displays an unavailable
+subdialog message; the missing workflow remains visible for later capability
+work rather than being treated as an expected successful skip.
+Keep this original manual instruction as a separate manual acceptance case.
+Automating it with a new cross-backend GUI driver is not required to preserve
+the original test, and its manual result must not be added to automated pass
+counts. The Python test’s fixture closes the window during teardown, so perform
+the check while paused immediately after <code class="docutils literal notranslate"><span class="pre">_tutorial_redraw</span></code> returns, before
+allowing teardown to proceed.</p>
+<p>The movie tutorial requires visible MATLAB figures for native frame capture.
+On R2026a, the original 2-D section produces inconsistent frame dimensions
+under the harness’s hidden-figure default, but completes with 91 equal-sized
+frames using the original visible default. Its port temporarily enables
+visible figures for this capture workflow and restores the previous setting;
+it does not resize frames, change plotting options or patch the source.
+Native tutorial figure creation also finishes pending GUI activation and
+restores the created figure as MATLAB’s current target before the next Engine
+call. Otherwise R2026a can reactivate an older docked figure between calls,
+causing later plots to reuse its colorbar axes. This test-only boundary keeps
+the source’s figure selection without changing docking or plotting options.</p>
+</section>
+<section id="limo-preprocessing-source-correction">
+<h4>LIMO preprocessing source correction<a class="headerlink" href="#limo-preprocessing-source-correction" title="Link to this heading">#</a></h4>
+<p>The separately approved <code class="docutils literal notranslate"><span class="pre">limo_preproc_stats_hw.m</span></code> correction captures
+<code class="docutils literal notranslate"><span class="pre">pop_limo</span></code>’s existing third output and resolves the adjacency and Beta/LIMO/
+contrast text-list paths from the generated model directory. The pinned
+reference writes these under <code class="docutils literal notranslate"><span class="pre">derivatives2/derivatives</span></code> with a study-prefixed
+GLM name; the original script expects the older paths. The correction preserves
+all 18 subjects, preprocessing options, text-list inputs, 1,000 second-level
+bootstraps, calculations and plots.</p>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_limo_preprocessing_source_overlay</span></code> in
+<code class="docutils literal notranslate"><span class="pre">tests.test_limo_eeglab_tests</span></code> verifies the original SHA-256 and applies
+<code class="docutils literal notranslate"><span class="pre">tests/matlab/limo_preproc_stats_hw.source-corrections.patch</span></code> only to a scratch
+copy. Its integrity regression reverses the approved edits byte-for-byte and
+checks that the pinned source remains unchanged. The Python-owned workflow uses
+the same path expressions without evaluating the complete native script.
+Ordinary integrity checks do not establish full live validation.</p>
+<p>The port also publishes the current <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> before <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code> and the
+original three-argument contrast call. Native <code class="docutils literal notranslate"><span class="pre">limo_settings_script</span></code> reads
+base <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> even when its caller has a valid local value; the earlier redraw
+precedes the script’s new design. These explicit assignments reproduce the
+script’s current workspace instead of supplying its stale pre-design copy.
+The Python-owned workflow snapshots/restores base/global state, and the scratch
+overlay’s inverse removes both assignments to recover the pinned source.</p>
+<p>The pinned preprocessing script is interactive even after all input paths are
+resolved: <code class="docutils literal notranslate"><span class="pre">limo_add_plots</span></code> plots its supplied files, then asks for another
+central-tendency file until Cancel is selected. The first such dialog follows
+the three unweighted ERP files. Its port and scratch source overlay now use
+<code class="docutils literal notranslate"><span class="pre">eegprep_test_limo_add_plots</span></code>: the original native plotting function executes
+with every supplied file and unchanged options, while a scoped file-input
+fixture declines exactly one optional next-file request. A different prompt,
+repeated request or missing expected request fails. The original path and file
+chooser are restored even on failure. Live checks assert the actual plotted
+values and confidence-interval patches, and reject a required metadata chooser.
+This is explicit scripted file-input cancellation, not validation of clicking
+the native chooser. No extra file, computed result or plotting implementation
+is fabricated. The overlay’s inverse also removes these eight wrapper names
+and recovers the original source byte-for-byte.</p>
+<p>The subsequent original per-subject plotting call exposes a separate pinned
+LIMO failure: its <code class="docutils literal notranslate"><span class="pre">'variable'</span></code> parser assigns the numeric subject index to
+<code class="docutils literal notranslate"><span class="pre">infile</span></code> instead of retaining the supplied file list. <code class="docutils literal notranslate"><span class="pre">load(file)</span></code> then
+fails because the index is not a filename. Both the direct native call and
+the test wrapper reproduce this with the retained real six-file ERP inputs.
+The wrapper does not change this parser, suppress the error or omit the
+18-subject plotting loop. Successful optional-file cancellation therefore
+does not establish full preprocessing-workflow success.</p>
+</section>
+<section id="limo-integration-source-correction">
+<h4>LIMO integration source correction<a class="headerlink" href="#limo-integration-source-correction" title="Link to this heading">#</a></h4>
+<p>The companion <code class="docutils literal notranslate"><span class="pre">limo_test_integration.m</span></code> overlay applies five separately
+approved path-only corrections: the generated derivative/list directory,
+study-prefixed GLM names, <code class="docutils literal notranslate"><span class="pre">Gp-1</span></code> group spelling, grouped contrast basenames
+from the first subject’s returned contrast files, and the second-level
+<code class="docutils literal notranslate"><span class="pre">H0/Betas_desc-H0.mat</span></code> filename. The Python workflow and native overlay use
+the same generated model paths. Original text-list, cell and ragged-array
+inputs, all 18 subjects, OLS/WLS models, nine status sections, 101 bootstraps,
+statistical options and assertions remain unchanged. Historical cleanup is not
+corrected by this overlay.</p>
+<p>A separately authorized workspace-setup correction publishes the current local
+<code class="docutils literal notranslate"><span class="pre">STUDY</span></code> into MATLAB’s base workspace immediately before the original
+two <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code> model calls and the three-argument WLS
+<code class="docutils literal notranslate"><span class="pre">limo_batch('contrast</span> <span class="pre">only',</span> <span class="pre">[],</span> <span class="pre">contrast)</span></code> call. Native
+function-scope reproduction with all 18 retained models confirmed that the
+earlier no-argument <code class="docutils literal notranslate"><span class="pre">eeglab</span></code> call clears base/global <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> and that LIMO’s
+implicit discovery reads base, not the caller’s valid local variable. The
+<code class="docutils literal notranslate"><span class="pre">limo_settings_script</span></code> called from <code class="docutils literal notranslate"><span class="pre">limo_batch</span></code> also overwrites an explicitly
+passed local <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> from base before metadata export, requiring the same setup
+before both model calls. After the original post-load 6/7/5 group assignment,
+the overlay also refreshes only <code class="docutils literal notranslate"><span class="pre">STUDY.group</span></code> using the original
+<code class="docutils literal notranslate"><span class="pre">std_checkset</span></code> expression <code class="docutils literal notranslate"><span class="pre">unique_bc({STUDY.datasetinfo.group})</span></code>. The load
+checked this summary before the manual assignments, retaining an empty label; native
+LIMO requires it to emit grouped text lists. Dataset membership and order are
+unchanged. The three-argument discovery path remains exercised; no fourth
+argument or runtime repair is substituted. The native overlay uses the existing state-only
+<code class="docutils literal notranslate"><span class="pre">eegprep_test_base_workspace</span></code> helper with <code class="docutils literal notranslate"><span class="pre">onCleanup</span></code>; the Python-owned
+MATLAB workflow uses the same snapshot/restore helper and a pytest finalizer.
+Both preserve the prior base/global workspace even on failure. The native
+snapshot helper remains locked until restoration because EEGLAB initialization
+executes <code class="docutils literal notranslate"><span class="pre">clear</span> <span class="pre">functions</span></code>, which otherwise discards its saved state. The native
+overlay requires <code class="docutils literal notranslate"><span class="pre">tests/matlab</span></code> on the path, as supplied by the hybrid harness.</p>
+<p><code class="docutils literal notranslate"><span class="pre">prepare_limo_integration_source_overlay</span></code> in <code class="docutils literal notranslate"><span class="pre">tests.test_limo_eeglab_tests</span></code>
+checks the original SHA-256 before applying the exact substrings and occurrence
+counts in <code class="docutils literal notranslate"><span class="pre">tests/matlab/limo_test_integration.source-corrections.json</span></code> to a
+scratch copy. JSON preserves literal trailing spaces on affected source lines
+that the required whitespace checks would remove from a unified patch. An
+independent inverse regression recovers the pinned source byte-for-byte; no
+reference checkout is edited. Full live validation remains a separate check.</p>
+<p>The retained full integration run completed all 18 OLS and 18 WLS models,
+with 36 OLS and 18 WLS contrasts, then failed before the seven second-level
+sections. Pinned <code class="docutils literal notranslate"><span class="pre">limo_glm_handling</span></code> writes subject-prefixed
+<code class="docutils literal notranslate"><span class="pre">sub-NNN_desc-R2.mat</span></code> files, but <code class="docutils literal notranslate"><span class="pre">limo_best_electrodes</span></code> loads <code class="docutils literal notranslate"><span class="pre">R2.mat</span></code>
+when given the original LIMO-model list. The identical native list-input call
+reproduces the failure. Preserve that input and failure: replacing the list
+with R2-file paths would bypass the workflow being ported, not validate it.</p>
+</section>
+<section id="isolated-limo-implementation-corrections">
+<h4>Isolated LIMO implementation corrections<a class="headerlink" href="#isolated-limo-implementation-corrections" title="Link to this heading">#</a></h4>
+<p>Implementation corrections were explicitly approved on September 29, 2026
+for an isolated reference copy only. They are separate from the test-source
+overlays above. <code class="docutils literal notranslate"><span class="pre">tests/matlab/limo_isolated_reference_fixes.patch</span></code> records
+eight corrections in four files:</p>
+<ul class="simple">
+<li><p>The plotting parser assigns <code class="docutils literal notranslate"><span class="pre">'variable'</span></code> to its existing selector <code class="docutils literal notranslate"><span class="pre">v</span></code>
+instead of overwriting the filename list.</p></li>
+<li><p>For explicit scalar subject selection in four-dimensional Time data with
+one condition, the plotter selects the fourth (subject) axis, preserving
+channel/frame dimensions. The writer saves arrays as channel, frame,
+condition, subject; the original reader wrongly selected the condition axis.
+Other layouts and unspecified-variable interaction are unchanged.</p></li>
+<li><p>The R2 reader uses the mass-univariate writer’s subject-prefixed filename,
+retaining <code class="docutils literal notranslate"><span class="pre">R2.mat</span></code> for non-BIDS and multivariate models.</p></li>
+<li><p>The reader checks whether optional <code class="docutils literal notranslate"><span class="pre">chanlocs.urchan</span></code> metadata exists before
+reading it, matching its documented contract. The optional output retains
+its existing NaN initialization when absent; no channel mapping is invented.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">limo_random_select</span></code> unwraps a singleton inner filename cell before
+<code class="docutils literal notranslate"><span class="pre">fileparts</span></code>. Native <code class="docutils literal notranslate"><span class="pre">limo_batch</span></code> returns these nested contrast lists;
+concatenating the cell-valued basename and extension previously turned one
+filename into two entries. The original list shapes remain unchanged.</p></li>
+<li><p>The original group-orientation warning formats its numeric group count into
+the message instead of passing that count as a graphical window title. The
+warning and source input orientation are retained.</p></li>
+<li><p>Channel selection parses the existing numeric text as a vector, preserving
+the supplied optimized channel indices. The scalar-only conversion previously
+returned NaN for the original multi-subject vector.</p></li>
+<li><p>Single-channel Time-domain TFCE null data retain the channel, frame and
+bootstrap axes when selecting the existing t-statistic. The original
+<code class="docutils literal notranslate"><span class="pre">squeeze</span></code> removed the channel axis, so the unchanged bootstrap loop indexed
+a nonexistent third dimension. <code class="docutils literal notranslate"><span class="pre">reshape</span></code> preserves the same values as
+<code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">x</span> <span class="pre">frames</span> <span class="pre">x</span> <span class="pre">bootstraps</span></code>; multi-channel and Time-Frequency branches are
+unchanged.</p></li>
+</ul>
+<p>Numerical operations, input lists, subjects, bootstrap counts and source-test
+assertions are unchanged. Pytest never applies this patch.</p>
+<p>The initial two-correction checks exposed the optional-field and subject-axis
+defects above. The subject plot completed subject 1 before failing on subject
+2, but even that first plot incorrectly retained all subjects. Completion alone
+was not evidence of correct subject selection. All input hashes stayed unchanged.</p>
+<p>After the optional-field correction, a bounded headless MATLAB check completed
+the unchanged 18-model-list, one-output R2 call in 13.68 seconds. All returned
+channels exactly matched the original maximum-F/first-column-major-index rule
+on the retained R2 arrays. Original reference and input hashes were unchanged,
+the desktop was disabled and the private engine quit. This validates the
+corrected reader only, not the full integration workflow. The subject-axis
+correction subsequently passed live validation for all 18 subjects in
+145.29 seconds. All six actual plotted traces per subject had exactly the
+original channel-50 samples and time coordinates; retained inputs and original
+sources were unchanged. This validates that plotting segment, not the later
+preprocessing contrasts, group analyses or final results display.</p>
+<p>The remaining preprocessing segment subsequently passed in 876.21 seconds,
+executing all 43 original calls through <code class="docutils literal notranslate"><span class="pre">limo_eeg(5,</span> <span class="pre">...)</span></code>. This included
+the mean and weighted-mean plots, all 18 subject plots, contrasts, three group
+analyses, paired differences and final results display. It used isolated
+copies of retained models with path-only metadata relocation; retained inputs,
+reused 1,000-bootstrap ANOVA outputs and original sources stayed unchanged.
+An earlier segmented attempt failed in 241.65 seconds because its scratch
+session lacked the PSOM support path. The successful attempt used native
+<code class="docutils literal notranslate"><span class="pre">limo_eeg(2)</span></code> setup to restore paths normally initialized by the omitted
+<code class="docutils literal notranslate"><span class="pre">std_limo</span></code> stage. This is a successful remaining-segment run, not a fresh
+full preprocessing workflow pass or a rerun of the retained bootstrap stage.</p>
+<p>With the first four corrections applied, the exact seven-section integration
+tail failed in 152.20 seconds. All seven section statuses were failures:
+the first four stopped at nested contrast-file parsing, ANOVA at the warning
+title, ANCOVA at a text-input check, and repeated-measures ANOVA at optimized
+channel indexing. Some repeated-measures analyses, 101-bootstrap calculations
+and contrasts completed before that final failure; those partial outputs do
+not make the section or the full integration test pass. Retained input hashes
+and file-tree metadata were unchanged.</p>
+<p>A bounded native input probe confirmed that singleton-cell <code class="docutils literal notranslate"><span class="pre">fileparts</span></code>
+outputs produced separate basename and extension entries, and that scalar-only
+channel parsing returned NaN. The corrected parser exactly retained the
+original scalar and 18- and 36-entry column vectors. Together with the warning
+call’s verified argument mismatch, this motivated the three additional
+<code class="docutils literal notranslate"><span class="pre">limo_random_select</span></code> corrections above. The seven-correction rerun completed
+in 1,055.19 seconds: regressions, ANOVA, ANCOVA with contrast, and
+repeated-measures ANOVA with contrast passed their original section status
+checks. One-sample, paired and two-sample t-tests failed later in the native
+single-channel TFCE bootstrap loop. The overall seven-section test failed;
+original sources, retained input hashes and file-tree metadata were unchanged.
+The eighth correction addresses that axis loss in the isolated reference only.
+Its bounded live probe passed in 60.22 seconds: it reproduced the original
+failure for all three retained t-test outputs, then compared all 303 corrected
+bootstrap TFCE vectors, each containing 176 values, exactly against the
+unchanged native TFCE algorithm. Original sources and retained inputs stayed
+unchanged. The three complete t-test sections then passed in 90.12 seconds,
+executing all nine original calls with 101 bootstraps and TFCE enabled;
+original sources, retained inputs and file-tree metadata were unchanged.
+Together with the four successful sections from the preceding run, all seven
+remaining integration sections now have successful corrected-reference
+execution evidence. The single-channel t-test correction does not alter the
+other four sections’ paths. This is segmented evidence across two recorded
+runs, not a single fresh full nine-section integration pass.</p>
+<p>Source smoke-test success is not proof of every intended output. A separate,
+unchanged native contrast filename mismatch remains: <code class="docutils literal notranslate"><span class="pre">limo_contrast</span></code> writes
+<code class="docutils literal notranslate"><span class="pre">H0/con_1H0.mat</span></code>, while Level-2 <code class="docutils literal notranslate"><span class="pre">limo_tfce_handling</span></code> looks for
+<code class="docutils literal notranslate"><span class="pre">H0/con_1_desc-H0.mat</span></code>. The retained ANCOVA50 run produced the former and
+observed-data TFCE, but no contrast-null TFCE output. Its source status check
+still passed. This native limitation is recorded, not patched or counted as
+null-contrast TFCE validation; the eight corrections above do not address it.</p>
+<p>Keep the pinned original intact. Create an independent local clone at its
+recorded revision and copy the installed plugins/support files, excluding
+<code class="docutils literal notranslate"><span class="pre">.git</span></code> files: the original checkout’s relative submodule pointer is not
+valid at another location. Before applying the patch, verify SHA-256 values:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">limo_add_plots.m</span></code>:
+<code class="docutils literal notranslate"><span class="pre">ed715d6897c3cd8792fc9860ad34465f212d236f1deb733827ac4699bbf2bba7</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">limo_best_electrodes.m</span></code>:
+<code class="docutils literal notranslate"><span class="pre">ab910cd979623d07a45ec9fdb293b3aa6fa7d4b15c982778942cce7f47a9af42</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">limo_random_select.m</span></code>:
+<code class="docutils literal notranslate"><span class="pre">fa35655e25741fe56401b52cde2f9fa520c2491d03b152a8390c16dfdfa07541</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">limo_tfce_handling.m</span></code>:
+<code class="docutils literal notranslate"><span class="pre">f74beb9751e6a47f2665b7640f9edb2476bb4311d8818c36d0b7010f561be1ec</span></code>.</p></li>
+</ul>
+<p>Apply the patch only in that copy. Verify that these are its only source-file
+differences and that MATLAB’s <code class="docutils literal notranslate"><span class="pre">which</span></code> resolves all four functions there. A
+matching Git HEAD alone does not establish an unchanged oracle. Pass the copy
+as <code class="docutils literal notranslate"><span class="pre">--eeglab-root</span></code> and the original suite as <code class="docutils literal notranslate"><span class="pre">--eeglab-suite-root</span></code>; record
+the patch and file hashes with every result. Corrected-reference results must
+remain distinct from original-reference failures.</p>
+<p>Reusing retained first-level models to execute an unchanged remaining Python
+test section provides segmented evidence, not a fresh whole-test pass. Do not
+invent successful status entries for earlier sections. Use new output
+directories and verify retained inputs are unchanged; operations such as
+<code class="docutils literal notranslate"><span class="pre">limo_batch('contrast</span> <span class="pre">only',</span> <span class="pre">...)</span></code> modify model directories and therefore
+require isolated input copies too.</p>
+<p>The remaining integration sections are not non-graphical: TFCE creates
+waitbars, regression/ANCOVA create design figures, and the original ANOVA
+orientation can open a warning dialog. <code class="docutils literal notranslate"><span class="pre">skip</span> <span class="pre">design</span> <span class="pre">check</span></code> does not disable
+these operations. Defer these sections and preprocessing/IRLS graphical work
+when desktop use is disallowed; do not silently suppress their source steps
+or count an unexecuted section as passing.</p>
+</section>
+<section id="standalone-irls-source-correction">
+<h4>Standalone IRLS source correction<a class="headerlink" href="#standalone-irls-source-correction" title="Link to this heading">#</a></h4>
+<p>The standalone IRLS contract translates <code class="docutils literal notranslate"><span class="pre">limo_zIRLS_validation_4_Arno.m</span></code>
+and its full <code class="docutils literal notranslate"><span class="pre">limo_test_glmboot</span></code> helper into Python-owned workflows and
+bootstrap-analysis loops. It retains all subjects, cleaning/PICARD/ICLabel/ASR,
+ERP/spectrum/ERSP/ITC precomputation, 2,500 null bootstraps per subject, the
+1,000-test/1,500-null split, 300-step convergence analysis, six result fields,
+<code class="docutils literal notranslate"><span class="pre">results.mat</span></code> and native <code class="docutils literal notranslate"><span class="pre">.fig</span></code> exports. Collection and ordinary helper
+tests do not establish live validation of this full workflow.</p>
+<p>The approved corrections are retained separately in
+<code class="docutils literal notranslate"><span class="pre">tests/matlab/limo_zIRLS_validation_4_Arno.source-corrections.patch</span></code>. It assigns the
+otherwise undefined <code class="docutils literal notranslate"><span class="pre">chanlocs</span></code> variable to
+<code class="docutils literal notranslate"><span class="pre">fullfile(STUDY.filepath,</span> <span class="pre">'derivatives',</span> <span class="pre">'limo_gp_level_chanlocs.mat')</span></code>,
+which the reference <code class="docutils literal notranslate"><span class="pre">std_limo</span></code> generates. It does not invent adjacency data.
+It also captures <code class="docutils literal notranslate"><span class="pre">pop_limo</span></code>’s third output, loads each model from
+<code class="docutils literal notranslate"><span class="pre">LIMOfiles.mat{s}</span></code>, and derives its <code class="docutils literal notranslate"><span class="pre">H0</span></code> directory from that returned path.
+This uses the generated model paths without duplicating version-dependent
+directory names. Scientific options, subjects and bootstrap counts are unchanged.
+The third approved correction changes only the validation helper’s discovery
+pattern from <code class="docutils literal notranslate"><span class="pre">H0_*.mat</span></code> to <code class="docutils literal notranslate"><span class="pre">*H0.mat</span></code>, matching LIMO 4.1.2’s generated
+<code class="docutils literal notranslate"><span class="pre">sub-*_desc-Condition_effect_1H0.mat</span></code> files. Existing <code class="docutils literal notranslate"><span class="pre">Betas</span></code>, <code class="docutils literal notranslate"><span class="pre">tfce</span></code> and
+<code class="docutils literal notranslate"><span class="pre">R2</span></code> exclusions, variable selection and statistical calculations are unchanged.
+<code class="docutils literal notranslate"><span class="pre">prepare_irls_source_overlay</span></code> in <code class="docutils literal notranslate"><span class="pre">tests.eeglab_tests.limo_irls</span></code> verifies
+the original script/helper hashes and applies the patch only to a scratch
+copy. Its regression reverses all approved edits to recover both pinned files
+byte-for-byte. A corrected native run needs a writable <code class="docutils literal notranslate"><span class="pre">ds002718</span></code> copy beside the
+returned <code class="docutils literal notranslate"><span class="pre">unittesting_limo</span></code> directory. The Python contract never executes
+the complete native test script or its helper.</p>
+<p>Other source behavior remains unchanged. On September 30, 2026, the user
+stopped exhaustive IRLS execution and accepted an explicitly incomplete
+execution result for this test-porting deliverable. The full 18-subject,
+2,500-bootstrap test remains intact; it was not replaced with a smaller test.</p>
+<p>The retained-model tail ran for 48,428.80 seconds before the requested
+interruption. Channels 1–23 of the first subject completed their bootstrap
+loops; channel 24 was interrupted. This is partial execution evidence, not
+23 independently validated channel results or a passed IRLS workflow. No
+subject completed the full bootstrap stage, no H0 checkpoint was saved, and
+the subsequent error-rate analysis, confidence intervals, final six result
+fields, <code class="docutils literal notranslate"><span class="pre">results.mat</span></code> and figure exports were not validated by this run.
+The JUnit result records one <code class="docutils literal notranslate"><span class="pre">InterruptedError</span></code> failure, not a scientific
+assertion failure. The manifest records <code class="docutils literal notranslate"><span class="pre">failed-or-interrupted</span></code>, no completed
+subjects and unchanged retained inputs; six native computation source hashes
+were also verified unchanged. The log, manifest and JUnit XML are retained
+under <code class="docutils literal notranslate"><span class="pre">.notes/irls-retained-full.XFjjLX</span></code> in the validation workspace.</p>
+<p>All owned runner, MATLAB and worker processes exited, and the scheduled
+monitor was removed. Full IRLS execution remains an acknowledged validation
+gap, not a requirement to rerun during this closeout. Source-test fidelity,
+classified execution evidence and this approved execution exception must not
+be summarized as an all-tests-passed result or proof of EEGPrep capability.
+Missing Python LIMO primitives and unsupported MATLAB <code class="docutils literal notranslate"><span class="pre">.fig</span></code> export remain
+visible failures, not replacement algorithms or differently formatted files.</p>
 </section>
 </section>
 <section id="test-discovery">
@@ -1069,7 +1629,13 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-tests">Running Tests</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#porting-the-current-eeglab-tests">Porting The Current EEGLAB Tests</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#source-fidelity-and-graphical-validation">Source fidelity and graphical validation</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#explicit-matlab-support-paths">Explicit MATLAB support paths</a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#tutorial-wrapper-provenance">Tutorial-wrapper provenance</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#limo-preprocessing-source-correction">LIMO preprocessing source correction</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#limo-integration-source-correction">LIMO integration source correction</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#isolated-limo-implementation-corrections">Isolated LIMO implementation corrections</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#standalone-irls-source-correction">Standalone IRLS source correction</a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>

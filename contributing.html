@@ -617,12 +617,24 @@ place of <code class="docutils literal notranslate"><span class="pre">--eeglab-r
 are failures in this lane, not successful skips. Selecting a provenance-tagged
 test that still calls Python directly is a collection error, preventing it from
 being reported as MATLAB validation.</p>
+<p>Tests using original datasets obtain them through <code class="docutils literal notranslate"><span class="pre">eeglab_suite_root</span></code>. Set
+<code class="docutils literal notranslate"><span class="pre">--eeglab-suite-root=/path/to/eeglab_tests</span></code> if this is not the parent of
+<code class="docutils literal notranslate"><span class="pre">--eeglab-root</span></code>. The fixture verifies the suite and EEGLAB Git revisions before
+using the data. Download the original Git LFS files rather than replacing them
+with generated recordings. The MATLAB backend also checks its EEGLAB revision.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">eeglab_backend</span></code> fixture calls the selected implementation by name, for
 example <code class="docutils literal notranslate"><span class="pre">eeglab_backend(&quot;eeg_point2lat&quot;,</span> <span class="pre">points,</span> <span class="pre">epochs,</span> <span class="pre">srate,</span> <span class="pre">limits)</span></code>.
 Resolve functions through this fixture rather than importing EEGPrep functions
 at collection time. The MATLAB lane uses independent MAT-file transport, not
 EEGPrep’s dataset readers or writers. Preserve numeric types and array shapes;
 make any MATLAB/Python indexing conversion explicit in the test.</p>
+<p>Automated MATLAB figures default to invisible, and backend teardown closes
+figures after each test. Plotting computations still execute; these runs do
+not replace separate interactive or visual-parity checks. Explicit GUI calls
+can override MATLAB’s visibility default: the original LIMO workflows call
+<code class="docutils literal notranslate"><span class="pre">eeglab</span></code>/<code class="docutils literal notranslate"><span class="pre">eeglab</span> <span class="pre">redraw</span></code> and are marked <code class="docutils literal notranslate"><span class="pre">gui</span></code> and <code class="docutils literal notranslate"><span class="pre">slow</span></code>. Use
+<code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&quot;not</span> <span class="pre">gui&quot;</span></code> when desktop windows must stay closed; those workflows then
+remain unvalidated, rather than being counted as passes.</p>
 <p>The same tests can be selected with <code class="docutils literal notranslate"><span class="pre">--eeglab-backend=python</span></code> later to expose
 implementation gaps. A missing Python feature must fail honestly; it is not a
 reason to change the reference expectation, skip a case, or weaken a tolerance.
