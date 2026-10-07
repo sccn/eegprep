@@ -2,6 +2,7 @@
 Tests for runamica.py -- low-level AMICA binary wrapper.
 
 Tests cover:
+  - MATLAB-compatible input file layout
   - Temp-directory cleanup when the AMICA binary fails
   - Training progress with the actual AMICA binary (skipped if unavailable)
 """
@@ -12,11 +13,32 @@ import unittest
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from eegprep.functions.sigprocfunc.runamica import (
+    _write_data_file,
     is_amica_available,
     runamica,
 )
+
+
+@pytest.mark.parametrize('layout', ['C', 'F', 'strided'])
+def test_write_data_file_matlab_layout(tmp_path, layout):
+    data = np.array([[1.25, -2.5, 3.75], [10.5, 20.25, -30.75]], dtype='>f8')
+    if layout == 'strided':
+        padded = np.zeros((2, 6), dtype=data.dtype)
+        padded[:, ::2] = data
+        data = padded[:, ::2]
+    else:
+        data = data.copy(order=layout)
+
+    path = tmp_path / 'data.fdt'
+    _write_data_file(data, path)
+
+    # MATLAB fwrite visits every channel of frame 1 before frame 2.
+    expected = np.array([1.25, 10.5, -2.5, 20.25, 3.75, -30.75], dtype='<f4')
+    assert path.read_bytes() == expected.tobytes()
+    np.testing.assert_array_equal(np.fromfile(path, dtype='<f4').reshape(2, 3, order='F'), data)
 
 
 def _make_synthetic_sources(n_channels, n_samples, seed=42):
@@ -67,6 +89,7 @@ class TestRunamicaIntegration(unittest.TestCase):
         n_channels = 4
         n_samples = 3000
         data, _, _ = _make_synthetic_sources(n_channels, n_samples, seed=7)
+        data += np.arange(n_channels)[:, None] * 10.0
 
         _, _, mods = runamica(
             data,
@@ -74,6 +97,10 @@ class TestRunamicaIntegration(unittest.TestCase):
             max_iter=200,
             max_threads=2,
         )
+
+        # The binary must fit the intended channels, not a scrambled reshape.
+        expected_mean = data.astype('<f4').mean(axis=1, dtype=np.float64)
+        np.testing.assert_allclose(mods['mean'], expected_mean, rtol=1e-10, atol=1e-10)
 
         LL = mods['LL']
         if len(LL) > 10:

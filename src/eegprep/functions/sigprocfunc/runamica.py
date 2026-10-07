@@ -262,7 +262,8 @@ def _find_amica_binary(amica_binary=None):
 def _write_data_file(data, path):
     """Write data matrix as raw float32 little-endian .fdt file.
 
-    Matches MATLAB's fwrite(fid, dat, 'float') behavior.
+    Store all channels of each frame together, matching MATLAB's
+    fwrite(fid, dat, 'float') column-major order.
 
     Parameters
     ----------
@@ -272,7 +273,7 @@ def _write_data_file(data, path):
         Output file path (should end in .fdt).
     """
     data_f32 = np.asarray(data, dtype='<f4')  # little-endian float32
-    data_f32.tofile(path)
+    data_f32.T.tofile(path)  # tofile always uses C order, even for Fortran arrays
     logger.info("Wrote data file: %s (%d bytes)", path, data_f32.nbytes)
 
 
