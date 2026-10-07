@@ -161,7 +161,6 @@ def cnt_files(tmp_path: Path) -> tuple[Path, Path, np.ndarray, np.ndarray]:
     return int16_file, int32_file, counts16, counts32
 
 
-@eeglab_test(LOADCNT_WRAPPER, "test_test_loadcnt")
 def test_current_loadcnt_wrapper_cases(cnt_files: tuple[Path, Path, np.ndarray, np.ndarray], tmp_path: Path) -> None:
     int16_file, int32_file, _counts16, _counts32 = cnt_files
 
@@ -201,7 +200,6 @@ def test_current_loadcnt_wrapper_cases(cnt_files: tuple[Path, Path, np.ndarray, 
     assert case8["event"] == case1["event"]
 
 
-@eeglab_test(POP_LOADCNT_WRAPPER, "test_test_pop_loadcnt")
 def test_current_pop_loadcnt_wrapper_cases(
     cnt_files: tuple[Path, Path, np.ndarray, np.ndarray], tmp_path: Path
 ) -> None:
@@ -438,3 +436,35 @@ def test_loadcnt_auto_uses_explicitly_warned_int16_fallback(tmp_path: Path) -> N
 def test_cnt_public_exports_are_available() -> None:
     assert eegprep.loadcnt is loadcnt
     assert eegprep.pop_loadcnt is pop_loadcnt
+
+
+@eeglab_test(LOADCNT_WRAPPER, "test_test_loadcnt")
+def test_upstream_loadcnt_original_eight_call_forms(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+    _original_cnt_calls(eeglab_backend, eeglab_suite_root, "loadcnt")
+
+
+@eeglab_test(POP_LOADCNT_WRAPPER, "test_test_pop_loadcnt")
+def test_upstream_pop_loadcnt_original_eight_call_forms(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+    _original_cnt_calls(eeglab_backend, eeglab_suite_root, "pop_loadcnt")
+
+
+def _original_cnt_calls(eeglab_backend, eeglab_suite_root, function):
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/neuroscan"
+    int32_file = str(directory / "TEST32BIT_WITHEVENT.CNT")
+    int16_file = str(directory / "TEST.CNT")
+    mapped_file = Path("map.fdt")
+    cases = [
+        (int32_file, "dataformat", "int32"),
+        (int32_file, "dataformat", "int32", "t1", 0.0, "lddur", 301.0),
+        (int32_file, "dataformat", "int32", "t1", 0.0, "sample1", 0.0, "lddur", "301", "ldnsamples", 1000.0),
+        (int16_file, "dataformat", "int16"),
+        (int16_file, "dataformat", "int16", "memmapfile", str(mapped_file)),
+        (int16_file, "dataformat", "int16", "t1", 0.0, "lddur", 227.0),
+        (int16_file, "dataformat", "int16", "t1", 0.0, "sample1", 0.0, "lddur", "227", "ldnsamples", 1000.0),
+        (int32_file, "keystroke", "on", "dataformat", "int32"),
+    ]
+    for index, arguments in enumerate(cases):
+        eeglab_backend(function, *arguments)
+        if index == 4:
+            assert mapped_file.is_file()
+            mapped_file.unlink()

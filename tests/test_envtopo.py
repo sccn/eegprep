@@ -26,6 +26,7 @@ import pytest
 
 from eegprep.functions.sigprocfunc.envtopo import _resolve_subcomps, envtopo
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 from tests.fixtures import create_test_eeg_with_ica
 
 pytestmark = pytest.mark.parity
@@ -78,7 +79,26 @@ def _ica_dataset(seed, *, n_components=4):
 # --------------------------------------------------------------------------- #
 # Closed-form anchor: hand-built input whose ranking is obvious by design.
 # --------------------------------------------------------------------------- #
+@pytest.mark.gui
 @eeglab_test("unittesting_sigprocfunc/envtopo/sigprocfunc_envtopo_wrapperTest.m", "test_test_envtopo")
+def test_reference_envtopo_original_sample(eeglab_backend, request, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    channels = np.asarray(eeg["icachansind"]).ravel().astype(int)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        channels = channels - 1
+        eeglab_backend("figure", nargout=0)
+    else:
+        plt.figure()
+    eeglab_backend(
+        "envtopo",
+        np.asarray(eeg["data"])[channels, :, :].mean(axis=2),
+        np.asarray(eeg["icaweights"]) @ np.asarray(eeg["icasphere"]),
+        chanlocs=eeg["chanlocs"],
+        nargout=0,
+    )
+    close_reference_gui(eeglab_backend, request)
+
+
 def test_closed_form_ranking_and_peak_frames():
     """Three orthonormal maps with activation powers 9:4:1 rank as [1, 2, 3]."""
     frames = 5

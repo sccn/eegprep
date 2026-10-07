@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_autorej import pop_autorej
@@ -19,6 +20,33 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import eeglab_test
 
 EPOCHED_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
+
+
+@eeglab_test("unittesting_popfunc/pop_autorej/popfunc_pop_autorej_wrapperTest.m", "test_test_pop_autorej")
+def test_reference_pop_autorej(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    channel_count = np.asarray(eeg["nbchan"]).item()
+    for options in (
+        (
+            "threshold",
+            1000.0,
+            "electrodes",
+            np.arange(1.0, channel_count + 1)[None, :],
+            "icacomps",
+            np.empty((0, 0)),
+            "startprob",
+            5.0,
+            "maxrej",
+            5.0,
+        ),
+        (),
+        ("threshold", 100000000.0),
+        ("threshold", 0.1),
+        ("threshold", 1000.0, "electrodes", np.array([[1.0]])),
+        ("threshold", 1000.0, "electrodes", np.arange(1.0, np.fix(channel_count / 2) + 1)[None, :]),
+    ):
+        eeglab_backend("pop_autorej", eeg, *options, "eegplot", "off", "nogui", "on", nargout=2)
+
 
 # Each case names the loop phases it exercises on the 80-epoch dataset.
 EEGLAB_REJECTIONS = [
@@ -43,10 +71,6 @@ EEGLAB_REJECTIONS = [
 
 
 @pytest.mark.parametrize(("options", "expected"), EEGLAB_REJECTIONS)
-@eeglab_test(
-    "unittesting_popfunc/pop_autorej/popfunc_pop_autorej_wrapperTest.m",
-    "test_test_pop_autorej",
-)
 def test_pop_autorej_rejects_the_same_epochs_as_eeglab(options, expected):
     EEG = pop_loadset(EPOCHED_DATASET_PATH)
 

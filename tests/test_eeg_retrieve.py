@@ -3,7 +3,44 @@ import pytest
 
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_test
+from tests.test_eeg_store import _source_dataset_row, _source_eeg
+
+
+EEG_RETRIEVE_WRAPPER = "unittesting_adminfunc/eeg_retrieve/adminfunc_eeg_retrieve_wrapperTest.m"
+SOURCE_FIELDS = ("nbchan", "trials", "pnts", "srate", "xmin", "xmax", "data")
+
+
+@eeglab_test(EEG_RETRIEVE_WRAPPER, "test_pass_general")
+def test_reference_eeg_retrieve_original_general_case(eeglab_backend):
+    first, second = (_source_eeg(eeglab_backend, value) for value in (1, 2))
+    eeg, _alleeg, _current = eeglab_backend("eeg_retrieve", _source_dataset_row(first, second), 2.0, nargout=3)
+    for field in SOURCE_FIELDS:
+        expected = second[field] if field == "data" else np.array([[second[field]]])
+        assert_matlab_near(eeg[field], expected)
+
+
+@eeglab_test(EEG_RETRIEVE_WRAPPER, "test_pass_multiple")
+def test_reference_eeg_retrieve_original_multiple_case(eeglab_backend):
+    first, second = (_source_eeg(eeglab_backend, value) for value in (1, 2))
+    eeg, _alleeg, _current = eeglab_backend(
+        "eeg_retrieve", _source_dataset_row(first, second), np.array([[2.0, 1.0]]), nargout=3
+    )
+    # near compares these cell arrays with isequal, not numeric tolerance.
+    for field in SOURCE_FIELDS:
+        expected = np.empty((1, 2), dtype=object)
+        for index, dataset in enumerate((second, first)):
+            expected[0, index] = dataset[field] if field == "data" else np.array([[dataset[field]]])
+        assert_matlab_equal(eeg[field], expected)
+
+
+@eeglab_test(EEG_RETRIEVE_WRAPPER, "test_pass_zero")
+def test_reference_eeg_retrieve_original_zero_case(eeglab_backend):
+    first, second = (_source_eeg(eeglab_backend, value) for value in (1, 2))
+    empty = eeglab_backend("eeg_emptyset")
+    eeg, _alleeg, _current = eeglab_backend("eeg_retrieve", _source_dataset_row(first, second), 0.0, nargout=3)
+    for field in SOURCE_FIELDS:
+        assert_matlab_near(eeg[field], empty[field])
 
 
 def _eeg(*, name: str = "demo") -> dict:
@@ -28,7 +65,6 @@ def _eeg(*, name: str = "demo") -> dict:
     return eeg
 
 
-@eeglab_test("unittesting_adminfunc/eeg_retrieve/pass_general.m", "test_pass_general")
 def test_eeg_retrieve_returns_deepcopy_and_one_based_index():
     first = _eeg(name="first")
     second = _eeg(name="second")
@@ -41,7 +77,6 @@ def test_eeg_retrieve_returns_deepcopy_and_one_based_index():
     assert alleeg[1]["setname"] == "second"
 
 
-@eeglab_test("unittesting_adminfunc/eeg_retrieve/pass_multiple.m", "test_pass_multiple")
 def test_eeg_retrieve_handles_multiple_indices_and_empty_slots():
     selected, _alleeg, current = eeg_retrieve([_eeg(name="first"), {}, _eeg(name="third")], [3, 2, 1])
 
@@ -57,7 +92,8 @@ def test_eeg_retrieve_accepts_tuple_indices():
     assert [eeg["setname"] for eeg in selected] == ["second"]
 
 
-@eeglab_test("unittesting_adminfunc/eeg_retrieve/fail_outside.m", "test_fail_outside")
+# Both upstream fail_* bodies are entirely commented out. Keep Python's
+# active argument checks as supplemental regressions without source credit.
 def test_eeg_retrieve_rejects_negative_and_missing_indices():
     with pytest.raises(ValueError, match="1-based"):
         eeg_retrieve([_eeg()], -1)
@@ -65,7 +101,6 @@ def test_eeg_retrieve_rejects_negative_and_missing_indices():
         eeg_retrieve([_eeg()], 2)
 
 
-@eeglab_test("unittesting_adminfunc/eeg_retrieve/pass_zero.m", "test_pass_zero")
 def test_eeg_retrieve_zero_returns_empty_dataset_without_changing_alleeg():
     source = [_eeg(name="first"), _eeg(name="second")]
 
@@ -79,7 +114,6 @@ def test_eeg_retrieve_zero_returns_empty_dataset_without_changing_alleeg():
     assert [eeg["setname"] for eeg in alleeg] == ["first", "second"]
 
 
-@eeglab_test("unittesting_adminfunc/eeg_retrieve/fail_no_arg.m", "test_fail_no_arg")
 def test_eeg_retrieve_requires_a_dataset_index():
     with pytest.raises(TypeError):
         eeg_retrieve([_eeg()])

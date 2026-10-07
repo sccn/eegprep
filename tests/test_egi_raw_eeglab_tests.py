@@ -107,7 +107,6 @@ def _write_egi_raw(
     path.write_bytes(output)
 
 
-@eeglab_test(f"{BINARY_SUITE}/readegi/binary_readegi_wrapperTest.m", "test_test_readegi")
 def test_readegi_decodes_selected_segments_samples_events_and_categories(tmp_path: Path) -> None:
     signals, events = _segmented_values()
     filename = tmp_path / "TESTEGI.RAW"
@@ -137,7 +136,6 @@ def test_readegi_decodes_selected_segments_samples_events_and_categories(tmp_pat
     np.testing.assert_array_equal(categories, [1, 2])
 
 
-@eeglab_test(f"{BINARY_SUITE}/pop_readegi/binary_pop_readegi_wrapperTest.m", "test_test_pop_readegi")
 def test_pop_readegi_builds_an_epoched_dataset_with_events_and_categories(tmp_path: Path) -> None:
     signals, events = _segmented_values()
     filename = tmp_path / "TESTEGI.RAW"
@@ -170,10 +168,6 @@ def test_pop_readegi_builds_an_epoched_dataset_with_events_and_categories(tmp_pa
     assert command == f"EEG = pop_readegi('{filename.as_posix()}', [1 3], [], '');"
 
 
-@eeglab_test(
-    f"{BINARY_SUITE}/pop_readsegegi/binary_pop_readsegegi_wrapperTest.m",
-    "test_test_pop_readsegegi",
-)
 def test_pop_readsegegi_joins_the_numbered_continuous_series_with_valid_metadata(tmp_path: Path) -> None:
     first_signals = np.array([[1, 2, 3, 4, 5], [11, 12, 13, 14, 15]], dtype=float)
     second_signals = np.array([[6, 7, 8, 9], [16, 17, 18, 19]], dtype=float)
@@ -198,6 +192,38 @@ def test_pop_readsegegi_joins_the_numbered_continuous_series_with_valid_metadata
     assert "TEST_002.RAW" in eeg["comments"]
     assert command == f"EEG = pop_readsegegi('{second.as_posix()}');"
     assert eeg["history"] == command
+
+
+@eeglab_test(f"{BINARY_SUITE}/readegi/binary_readegi_wrapperTest.m", "test_test_readegi")
+def test_upstream_readegi_original_30_segments(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/EGI/TESTEGI.RAW"
+    header, data, events, categories = eeglab_backend(
+        "readegi",
+        str(filename),
+        np.arange(1, 31, dtype=float)[None, :],
+        nargout=4,
+    )
+    assert data.size > 0
+    assert data.shape[0] == np.asarray(header["nchan"]).item()
+    # This original recording has segment categories, not event channels.
+    assert events.size == 0
+    assert categories.size == 30
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_readegi/binary_pop_readegi_wrapperTest.m", "test_test_pop_readegi")
+def test_upstream_pop_readegi_original_30_segments(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/EGI/TESTEGI.RAW"
+    eeg = eeglab_backend("pop_readegi", str(filename), np.arange(1, 31, dtype=float)[None, :])
+    assert eeg["data"].size > 0
+    assert np.asarray(eeg["trials"]).item() == 30
+
+
+@eeglab_test(f"{BINARY_SUITE}/pop_readsegegi/binary_pop_readsegegi_wrapperTest.m", "test_test_pop_readsegegi")
+def test_upstream_pop_readsegegi_original_series(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/EGI/TEST_001.RAW"
+    eeg = eeglab_backend("pop_readsegegi", str(filename))
+    assert eeg["data"].size > 0
+    assert np.asarray(eeg["srate"]).item() > 0
 
 
 @pytest.mark.parametrize("version", [2, 4, 6])

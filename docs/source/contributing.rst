@@ -173,12 +173,26 @@ are failures in this lane, not successful skips. Selecting a provenance-tagged
 test that still calls Python directly is a collection error, preventing it from
 being reported as MATLAB validation.
 
+Tests using original datasets obtain them through ``eeglab_suite_root``. Set
+``--eeglab-suite-root=/path/to/eeglab_tests`` if this is not the parent of
+``--eeglab-root``. The fixture verifies the suite and EEGLAB Git revisions before
+using the data. Download the original Git LFS files rather than replacing them
+with generated recordings. The MATLAB backend also checks its EEGLAB revision.
+
 The ``eeglab_backend`` fixture calls the selected implementation by name, for
 example ``eeglab_backend("eeg_point2lat", points, epochs, srate, limits)``.
 Resolve functions through this fixture rather than importing EEGPrep functions
 at collection time. The MATLAB lane uses independent MAT-file transport, not
 EEGPrep's dataset readers or writers. Preserve numeric types and array shapes;
 make any MATLAB/Python indexing conversion explicit in the test.
+
+Automated MATLAB figures default to invisible, and backend teardown closes
+figures after each test. Plotting computations still execute; these runs do
+not replace separate interactive or visual-parity checks. Explicit GUI calls
+can override MATLAB's visibility default: the original LIMO workflows call
+``eeglab``/``eeglab redraw`` and are marked ``gui`` and ``slow``. Use
+``-m "not gui"`` when desktop windows must stay closed; those workflows then
+remain unvalidated, rather than being counted as passes.
 
 The same tests can be selected with ``--eeglab-backend=python`` later to expose
 implementation gaps. A missing Python feature must fail honestly; it is not a

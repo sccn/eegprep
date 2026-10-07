@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+import numpy as np
 import pytest
 
 from eegprep.functions.guifunc.errordlg2 import build_errordlg2
@@ -11,15 +12,97 @@ from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog, listdlg2
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.guifunc.supergui import supergui
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
-ERRORDLG2_WRAPPER = "unittesting_guifunc/errordlg2/guifunc_errordlg2_wrapperTest.m"
-EEGLAB_ERROR_WRAPPER = "unittesting_adminfunc/eeglab_error/adminfunc_eeglab_error_wrapperTest.m"
-GETTEXT_WRAPPER = "unittesting_adminfunc/gettext/adminfunc_gettext_wrapperTest.m"
-INPUTDLG2_WRAPPER = "unittesting_guifunc/inputdlg2/guifunc_inputdlg2_wrapperTest.m"
-INPUTGUI_WRAPPER = "unittesting_guifunc/inputgui/guifunc_inputgui_wrapperTest.m"
-LISTDLG2_WRAPPER = "unittesting_guifunc/listdlg2/guifunc_listdlg2_wrapperTest.m"
 SUPERGUI_WRAPPER = "unittesting_guifunc/supergui/guifunc_supergui_wrapperTest.m"
+
+
+def _cell_row(*values):
+    cells = np.empty((1, len(values)), dtype=object)
+    for index, value in enumerate(values):
+        cells[0, index] = value
+    return cells
+
+
+def _reference_supergui(eeglab_backend, request, *args, nargout):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # The source requests three outputs, including graphics objects that
+        # cannot cross the MAT-file transport. It does not inspect any output.
+        eeglab_backend("eegprep_test_gui_call", "supergui", float(nargout), *args, nargout=0)
+        window = None
+    else:
+        # Retain Python's actual dialog only to close the same test-owned
+        # window; MATLAB's requested output counts above remain unchanged.
+        _, window, _ = eeglab_backend("supergui", *args, nargout=3)
+    close_reference_gui(eeglab_backend, request, window=window)
+
+
+@pytest.mark.gui
+@eeglab_test(SUPERGUI_WRAPPER, "test_test_supergui")
+def test_reference_supergui(eeglab_backend, request):
+    controls = _cell_row(
+        _cell_row("style", "radiobutton", "string", "radio"),
+        _cell_row("style", "pushbutton", "string", "push"),
+    )
+    _reference_supergui(eeglab_backend, request, "geomhoriz", _cell_row(1.0, 1.0), "uilist", controls, nargout=0)
+    _reference_supergui(
+        eeglab_backend,
+        request,
+        "geom",
+        _cell_row(
+            _cell_row(1.0, 1.0, np.array([[0.1, 0.1]]), np.array([[0.2, 0.2]])),
+            _cell_row(1.0, 1.0, np.array([[0.1, 0.4]]), np.array([[0.4, 0.5]])),
+        ),
+        "uilist",
+        controls,
+        "title",
+        "MyGUI",
+        "userdata",
+        np.empty((0, 0)),
+        "geomvert",
+        np.array([[1.0, 2.0]]),
+        "horizontalalignment",
+        "left",
+        "minwidth",
+        10.0,
+        "borders",
+        np.array([[0.05, 0.04, 0.07, 0.06]]),
+        "spacing",
+        np.array([[0.02, 0.01]]),
+        "inseth",
+        0.02,
+        "insetv",
+        0.02,
+        nargout=3,
+    )
+    _reference_supergui(
+        eeglab_backend,
+        request,
+        "geomhoriz",
+        _cell_row(1.0, 1.0),
+        "uilist",
+        controls,
+        "title",
+        "MyGUI",
+        "userdata",
+        np.empty((0, 0)),
+        "geomvert",
+        np.array([[3.0, 2.0]]),
+        "horizontalalignment",
+        "center",
+        "minwidth",
+        10.0,
+        "borders",
+        np.array([[0.1, 0.08, 0.14, 0.12]]),
+        "spacing",
+        np.array([[0.02, 0.01]]),
+        "inseth",
+        0.02,
+        "insetv",
+        0.02,
+        nargout=3,
+    )
 
 
 def _spec(*, geomvert: tuple[float, ...] | None = None, help_text: str | None = None) -> DialogSpec:
@@ -76,15 +159,11 @@ class RecordingDialog:
         self.shown += 1
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_fail_no_arg")
-@eeglab_test("unittesting_guifunc/inputgui/fail_no_arg.m", "test_fail_no_arg")
 def test_inputgui_requires_a_dialog_spec():
     with pytest.raises(TypeError):
         inputgui()
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_general")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_general.m", "test_i_pass_general")
 def test_inputgui_returns_tagged_values_from_renderer():
     renderer = RecordingRenderer({"choice": True, "entry": "accepted"})
     spec = _spec()
@@ -95,8 +174,6 @@ def test_inputgui_returns_tagged_values_from_renderer():
     assert renderer.calls == [(spec, {"entry": "initial"})]
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_geomvert")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_geomvert.m", "test_i_pass_geomvert")
 def test_inputgui_preserves_explicit_vertical_geometry():
     renderer = RecordingRenderer({})
     spec = _spec(geomvert=(4, 1))
@@ -106,8 +183,6 @@ def test_inputgui_preserves_explicit_vertical_geometry():
     assert renderer.calls[0][0].geomvert == (4, 1)
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_help")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_help.m", "test_i_pass_help")
 def test_inputgui_preserves_help_target_for_the_renderer():
     renderer = RecordingRenderer({})
     spec = _spec(help_text="pophelp('pop_editoptions')")
@@ -118,8 +193,6 @@ def test_inputgui_preserves_help_target_for_the_renderer():
     assert renderer.calls[0][0].show_help_button
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_help_cell")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_help_cell.m", "test_i_pass_help_cell")
 def test_inputgui_represents_multiple_help_actions_as_explicit_controls(qt_widgets):
     spec = DialogSpec(
         title="MyGUI",
@@ -159,8 +232,6 @@ def test_inputgui_represents_multiple_help_actions_as_explicit_controls(qt_widge
     dialog.close()
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_help_numeric")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_help_numeric.m", "test_i_pass_help_numeric")
 def test_inputgui_rejects_a_numeric_help_target():
     spec = _spec(help_text=100)  # type: ignore[arg-type]
 
@@ -168,8 +239,6 @@ def test_inputgui_rejects_a_numeric_help_target():
         inputgui(spec, renderer=RecordingRenderer({}))
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_old")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_old.m", "test_i_pass_old")
 def test_inputgui_accepts_its_three_python_arguments_positionally():
     renderer = RecordingRenderer({"entry": "accepted"})
     spec = _spec()
@@ -180,8 +249,6 @@ def test_inputgui_accepts_its_three_python_arguments_positionally():
     assert renderer.calls == [(spec, {"entry": "initial"})]
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_plotmode")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_plotmode.m", "test_i_pass_plotmode")
 def test_inputgui_plot_mode_returns_a_visible_nonmodal_dialog():
     renderer = RecordingPlotRenderer()
     spec = _spec()
@@ -194,8 +261,6 @@ def test_inputgui_plot_mode_returns_a_visible_nonmodal_dialog():
     assert renderer.app.processed == 1
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_return_four")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_return_four.m", "test_i_pass_return_four")
 def test_inputgui_tagged_mapping_is_the_python_rich_output():
     renderer = RecordingRenderer({"choice": True, "entry": "accepted"})
 
@@ -205,8 +270,6 @@ def test_inputgui_tagged_mapping_is_the_python_rich_output():
     assert "pushme" not in result
 
 
-@eeglab_test(INPUTGUI_WRAPPER, "test_i_pass_reuse")
-@eeglab_test("unittesting_guifunc/inputgui/i_pass_reuse.m", "test_i_pass_reuse")
 def test_inputgui_renderer_can_be_reused_without_retaining_initial_values():
     renderer = RecordingRenderer({"entry": "accepted"})
     spec = _spec()
@@ -217,8 +280,6 @@ def test_inputgui_renderer_can_be_reused_without_retaining_initial_values():
     assert renderer.calls == [(spec, {"entry": "first"}), (spec, {"entry": "second"})]
 
 
-@eeglab_test(SUPERGUI_WRAPPER, "test_test_supergui")
-@eeglab_test("unittesting_guifunc/supergui/test_supergui.m", "test_test_supergui")
 def test_supergui_builds_geometry_controls_and_layout_options(qt_widgets):
     spec = DialogSpec(
         title="MyGUI",
@@ -253,27 +314,17 @@ def test_supergui_builds_geometry_controls_and_layout_options(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(INPUTDLG2_WRAPPER, "test_fail_no_arg")
-@eeglab_test("unittesting_guifunc/inputdlg2/fail_no_arg.m", "test_fail_no_arg")
 def test_inputdlg2_requires_a_prompt_and_title():
     with pytest.raises(TypeError):
         inputdlg2()
 
 
-@eeglab_test(INPUTDLG2_WRAPPER, "test_fail_invalid_length")
-@eeglab_test("unittesting_guifunc/inputdlg2/fail_invalid_length.m", "test_fail_invalid_length")
 def test_inputdlg2_rejects_mismatched_prompts_and_defaults():
     with pytest.raises(ValueError, match="same length"):
         inputdlg2_dialog_spec(["testcase", "another test"], "inputdlg2 testcase", 1, ["this"])
 
 
-@eeglab_test(INPUTDLG2_WRAPPER, "test_i_pass_general")
-@eeglab_test("unittesting_guifunc/inputdlg2/i_pass_general.m", "test_i_pass_general")
-@eeglab_test(GETTEXT_WRAPPER, "test_i_pass_general")
 def test_inputdlg2_returns_answers_in_prompt_order():
-    # The current gettext payload is entirely commented out because it waits on
-    # a MATLAB global. Its maintained intent is deterministic text entry and
-    # cancellation, which EEGPrep provides through the renderer-backed dialog.
     renderer = RecordingRenderer({"answer0": "this", "answer1": "that"})
 
     answer = inputdlg2(
@@ -293,8 +344,6 @@ def test_inputdlg2_returns_answers_in_prompt_order():
     assert [control.value for control in spec.controls if control.style == "edit"] == ["this", "that"]
 
 
-@eeglab_test(INPUTDLG2_WRAPPER, "test_i_pass_horizontal")
-@eeglab_test("unittesting_guifunc/inputdlg2/i_pass_horizontal.m", "test_i_pass_horizontal")
 def test_inputdlg2_uses_vertical_rows_for_a_multiline_prompt():
     spec = inputdlg2_dialog_spec([["test", "case"], "another test"], "inputdlg2 testcase", 1, ["this", "that"])
 
@@ -303,8 +352,6 @@ def test_inputdlg2_uses_vertical_rows_for_a_multiline_prompt():
     assert spec.geomvert == (2, 1)
 
 
-@eeglab_test(INPUTDLG2_WRAPPER, "test_i_pass_no_function")
-@eeglab_test("unittesting_guifunc/inputdlg2/i_pass_no_function.m", "test_i_pass_no_function")
 def test_inputdlg2_omits_help_when_no_function_name_is_given():
     spec = inputdlg2_dialog_spec(["testcase", "another test"], "inputdlg2 testcase", 1, ["this", "that"])
 
@@ -322,13 +369,7 @@ def qt_widgets():
     app.processEvents()
 
 
-@eeglab_test(ERRORDLG2_WRAPPER, "test_i_pass_general")
-@eeglab_test("unittesting_guifunc/errordlg2/i_pass_general.m", "test_i_pass_general")
-@eeglab_test(EEGLAB_ERROR_WRAPPER, "test_i_pass_general")
 def test_errordlg2_builds_a_critical_message_with_requested_text(qt_widgets):
-    # eeglab_error's current test payload comments out the caught-error setup
-    # and manual OK click. Assert that its maintained endpoint is a modal,
-    # critical error message with the original explanation intact.
     _app, dialog = build_errordlg2("Explanation of error", "testcase for errordlg2")
 
     assert dialog.text() == "Explanation of error"
@@ -337,15 +378,11 @@ def test_errordlg2_builds_a_critical_message_with_requested_text(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_fail_no_arg")
-@eeglab_test("unittesting_guifunc/listdlg2/fail_no_arg.m", "test_fail_no_arg")
 def test_listdlg2_requires_list_items():
     with pytest.raises(TypeError):
         listdlg2()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_general")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_general.m", "test_i_pass_general")
 def test_listdlg2_defaults_to_multiple_selection(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["This", "is", "a", "testcase"])
     list_widget = dialog.findChild(qt_widgets.QListWidget, "listboxvals")
@@ -355,8 +392,6 @@ def test_listdlg2_defaults_to_multiple_selection(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_InitialValue")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_InitialValue.m", "test_i_pass_InitialValue")
 def test_listdlg2_selects_one_based_initial_values(qt_widgets):
     _app, dialog = build_listdlg2_dialog(
         liststring=["This", "is", "a", "testcase"],
@@ -368,8 +403,6 @@ def test_listdlg2_selects_one_based_initial_values(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_PromptString")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_PromptString.m", "test_i_pass_PromptString")
 def test_listdlg2_displays_prompt_text(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["one", "two"], promptstring=["Choose", "values"])
     prompt = dialog.findChild(qt_widgets.QLabel, "prompt")
@@ -378,8 +411,6 @@ def test_listdlg2_displays_prompt_text(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_listsize")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_listsize.m", "test_i_pass_listsize")
 def test_listdlg2_uses_requested_window_size(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["one", "two"], listsize=(420, 260))
 
@@ -387,8 +418,6 @@ def test_listdlg2_uses_requested_window_size(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_name")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_name.m", "test_i_pass_name")
 def test_listdlg2_uses_requested_window_title(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["one", "two"], name="My list")
 
@@ -396,8 +425,6 @@ def test_listdlg2_uses_requested_window_title(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_single")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_single.m", "test_i_pass_single")
 def test_listdlg2_single_mode_selects_only_one_item(qt_widgets):
     _app, dialog = build_listdlg2_dialog(
         liststring=["This", "is", "a", "testcase"],
@@ -410,8 +437,6 @@ def test_listdlg2_single_mode_selects_only_one_item(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_string")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_string.m", "test_i_pass_string")
 def test_listdlg2_treats_a_string_as_one_list_item(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring="This is a testcase")
     list_widget = dialog.findChild(qt_widgets.QListWidget, "listboxvals")
@@ -422,8 +447,6 @@ def test_listdlg2_treats_a_string_as_one_list_item(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_OKString")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_OKString.m", "test_i_pass_OKString")
 def test_listdlg2_uses_custom_ok_label_and_accepts(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["one", "two"], okstring="TEST_OK")
     ok = dialog.findChild(qt_widgets.QPushButton, "ok")
@@ -435,8 +458,6 @@ def test_listdlg2_uses_custom_ok_label_and_accepts(qt_widgets):
     dialog.close()
 
 
-@eeglab_test(LISTDLG2_WRAPPER, "test_i_pass_CancelString")
-@eeglab_test("unittesting_guifunc/listdlg2/i_pass_CancelString.m", "test_i_pass_CancelString")
 def test_listdlg2_uses_custom_cancel_label_and_rejects(qt_widgets):
     _app, dialog = build_listdlg2_dialog(liststring=["one", "two"], cancelstring="TEST_CANCEL")
     cancel = dialog.findChild(qt_widgets.QPushButton, "cancel")

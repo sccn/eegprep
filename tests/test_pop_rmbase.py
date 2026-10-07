@@ -12,7 +12,7 @@ from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rmbase import pop_rmbase, pop_rmbase_dialog_spec
 from eegprep.functions.sigprocfunc.rmbase import rmbase
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
@@ -35,11 +35,22 @@ def test_rmbase_removes_epoch_baseline_and_returns_means():
     assert out.shape == data.shape
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/rmbase/sigprocfunc_rmbase_wrapperTest.m",
-    "test_test_rmbase",
-)
-def test_rmbase_upstream_frame_and_baseline_vector_call_forms():
+@eeglab_test("unittesting_sigprocfunc/rmbase/sigprocfunc_rmbase_wrapperTest.m", "test_test_rmbase")
+def test_reference_rmbase(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    output, _mean = eeglab_backend("rmbase", eeg["data"], nargout=2)
+    assert_matlab_near([output.shape], [eeg["data"].shape])
+    for arguments in ((384.0,), (192.0,), (384.0, np.arange(1.0, 129.0)[None, :])):
+        eeglab_backend("rmbase", eeg["data"], *arguments, nargout=2)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("rmbase", eeg["data"], nargout=2)
+    eeglab_backend("rmbase", eeg["data"], 30504.0, nargout=2)
+    for arguments in ((3813.0,), (3813.0, np.arange(1.0, 1001.0)[None, :])):
+        _output, mean = eeglab_backend("rmbase", eeg["data"], *arguments, nargout=2)
+        assert_matlab_near([mean.shape], [[32, 8]])
+
+
+def test_python_regression_rmbase_frame_and_baseline_vector_call_forms():
     rng = np.random.default_rng(12)
     epoched = rng.normal(size=(32, 384, 8)).astype(np.float32)
 
@@ -383,6 +394,40 @@ def test_pop_rmbase_sample_data_zeroes_selected_baseline_channels_without_warnin
 
 
 @eeglab_test("unittesting_popfunc/pop_rmbase/popfunc_pop_rmbase_wrapperTest.m", "test_test_pop_rmbase")
+def test_reference_pop_rmbase_original_baselines_and_complete_commands(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    data = eeg["data"][0, :, 1]
+    commands = []
+    for arguments, baseline_stop in (
+        ((np.array([[-1000.0, 0.0]]),), 129),
+        ((np.empty((0, 0)), np.arange(1.0, 51.0)[None, :]), 50),
+        ((np.empty((0, 0)), np.empty((0, 0))), data.size),
+        ((np.array([[-1000.0, 0.0]]), np.arange(1.0, 52.0)[None, :]), 129),
+    ):
+        output, command = eeglab_backend("pop_rmbase", eeg, *arguments, nargout=2)
+        # Preserve the source's double mean through subtraction, rounding only
+        # the result to the single-precision recording's type.
+        mean = np.mean(data[:baseline_stop], dtype=np.float64)
+        expected = (data.astype(np.float64) - mean).astype(data.dtype)
+        np.testing.assert_array_equal(output["data"][0, :, 1], expected)
+        commands.append(command)
+
+    assert tuple(commands) in (
+        (
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[],[]);",
+            "EEG = pop_rmbase( EEG, [],[1:50] ,[]);",
+            "EEG = pop_rmbase( EEG, [],[],[]);",
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[],[]);",
+        ),
+        (
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[]);",
+            "EEG = pop_rmbase( EEG, [],[1:50] );",
+            "EEG = pop_rmbase( EEG, [],[]);",
+            "EEG = pop_rmbase( EEG, [-1000 0] ,[]);",
+        ),
+    )
+
+
 def test_pop_rmbase_current_suite_time_point_and_whole_epoch_baselines():
     eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
 

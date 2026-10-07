@@ -33,6 +33,50 @@ def _eeg():
     }
 
 
+def _source_strvcat(*rows):
+    width = max(map(len, rows))
+    return np.array([row.ljust(width) for row in rows])
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments")
+def test_reference_comments_replacement(eeglab_backend):
+    comments = np.array([["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]], dtype=object)
+    first, second = "New line 1", "And this one is also new                             "
+    new_comments = np.array([[first, second]], dtype=object)
+    result, _command = eeglab_backend("pop_comments", comments, "", new_comments, nargout=2)
+    # near.m compares character codes at 1e-4, hence requires exact characters.
+    npt.assert_array_equal(result, _source_strvcat(first, second))
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
+def test_reference_comments_concatenation(eeglab_backend):
+    old = ("Line nr. 1", "This is line nr.2", " ", "And this is the final line                           ")
+    new = ("New line 1", "And this one is also new                             ")
+    comments, new_comments = np.array([old], dtype=object), np.array([new], dtype=object)
+    result, _command = eeglab_backend("pop_comments", comments, "", new_comments, 1.0, nargout=2)
+    npt.assert_array_equal(result, _source_strvcat(*old, *new))
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
+def test_reference_comments_original_workflow(eeglab_backend, eeglab_suite_root):
+    for old in ("", "another "):
+        new = "test pass!"
+        new = eeglab_backend("pop_comments", old, "Testing!", new, 0.0)
+        new = eeglab_backend("pop_comments", old, "Testing!", new, 1.0)
+    new = np.array([["test pass!", "pass again!"]], dtype=object)
+    new = eeglab_backend("pop_comments", "another ", "Testing!", new, 0.0)
+    new = eeglab_backend("pop_comments", "another ", "Testing!", new, 1.0)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    for concatenate in (1.0, 0.0):
+        eeg["comments"] = eeglab_backend(
+            "pop_comments",
+            eeg["comments"],
+            "",
+            _source_strvcat("un exemple", " ", "de nouveau dataset"),
+            concatenate,
+        )
+
+
 def test_pop_comments_replaces_eeg_comments_without_mutating_input():
     eeg = _eeg()
 
@@ -91,7 +135,6 @@ def test_pop_comments_accepts_sample_data_comments():
     assert str(eeg.get("comments", "")) != "sample-data note"
 
 
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments")
 def test_pop_comments_current_suite_replaces_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
@@ -100,7 +143,6 @@ def test_pop_comments_current_suite_replaces_cell_comments():
     assert result == "New line 1\nAnd this one is also new"
 
 
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
 def test_pop_comments_current_suite_concatenates_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
@@ -111,7 +153,6 @@ def test_pop_comments_current_suite_concatenates_cell_comments():
     )
 
 
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
 def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
     assert pop_comments("", "Testing!", "test pass!", 0) == "test pass!"
     assert pop_comments("", "Testing!", "test pass!", 1) == "test pass!"

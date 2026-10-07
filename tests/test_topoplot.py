@@ -16,6 +16,7 @@ from unittest.mock import patch
 import tempfile
 import warnings
 import scipy.io
+import pytest
 
 # Set Agg backend before importing topoplot to avoid display issues
 matplotlib.use('Agg')
@@ -26,6 +27,26 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from tests.eeglab_tests import eeglab_test
 
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
+
+
+@pytest.mark.gui
+@eeglab_test("unittesting_sigprocfunc/topoplot/sigprocfunc_topoplot_wrapperTest.m", "test_test_topoplot")
+def test_reference_topoplot(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    indices = np.asarray(eeg["icachansind"]).ravel(order="F").astype(int) - 1
+    eeglab_backend(
+        "topoplot",
+        eeg["icawinv"][:, :1],
+        np.asarray(eeg["chanlocs"])[..., indices],
+        verbose="off",
+        electrodes="on",
+        style="both",
+        plotrad=0.55,
+        intrad=0.55,
+        noplot="on",
+        chaninfo=eeg["chaninfo"],
+        nargout=5,
+    )
 
 
 class TestGriddataV4(unittest.TestCase):
@@ -172,7 +193,6 @@ class TestTopoplot(unittest.TestCase):
         ]
         self.minimal_data = np.array([1.0, 0.5, -0.5])
 
-    @eeglab_test("unittesting_sigprocfunc/topoplot/sigprocfunc_topoplot_wrapperTest.m", "test_test_topoplot")
     def test_basic_topoplot_with_agg_backend(self):
         """Test basic topoplot functionality with Agg backend (no display)."""
         # Ensure Agg backend is set

@@ -6,6 +6,7 @@ import importlib
 import io
 import os
 from pathlib import Path
+import shutil
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
@@ -76,11 +77,126 @@ from eegprep.functions.sigprocfunc.headplot import (
 )
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg_with_ica
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 _AXCOPY_SOURCE = "unittesting_sigprocfunc/axcopy/sigprocfunc_axcopy_wrapperTest.m"
 _HEADPLOT_SOURCE = "unittesting_sigprocfunc/headplot/sigprocfunc_headplot_wrapperTest.m"
 _TIMTOPO_SOURCE = "unittesting_sigprocfunc/timtopo/sigprocfunc_timtopo_wrapperTest.m"
+
+
+@pytest.mark.gui
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_existing_figure")
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_general")
+@eeglab_test(_AXCOPY_SOURCE, "test_pass_one_arg")
+def test_reference_axcopy_original_calls(eeglab_backend, request, subtests):
+    for existing, args in ((True, ()), (False, ()), (True, ("noticks",))):
+        with subtests.test(existing=existing, args=args):
+            if existing:
+                if request.config.getoption("--eeglab-backend") == "matlab":
+                    eeglab_backend("plot", np.array([[1.0, 2.0, 3.0]]), np.array([[1.0, 2.0, 3.0]]), nargout=0)
+                else:
+                    plt.plot([1, 2, 3], [1, 2, 3])
+            eeglab_backend("axcopy", *args, nargout=0)
+            close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_general")
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_options")
+@eeglab_test(_HEADPLOT_SOURCE, "test_pass_wireframe")
+def test_reference_headplot_original_spline_workflows(
+    eeglab_backend,
+    request,
+    eeglab_suite_root,
+    eeglab_working_directory,
+    subtests,
+):
+    shutil.copy2(
+        eeglab_suite_root / "unittesting_sigprocfunc/headplot/test.locs", eeglab_working_directory / "test.locs"
+    )
+    spline_file = eeglab_working_directory / "test.spline"
+    for options in (
+        {},
+        {
+            "electrodes": "off",
+            "title": "testcase",
+            "labels": 2.0,
+            "cbar": 0.0,
+            "view": np.array([[45.0, 30.0]]),
+            "maplimits": "absmax",
+            "verbose": "off",
+        },
+        {"lighting": "off"},
+    ):
+        with subtests.test(options=options):
+            if spline_file.exists():
+                spline_file.unlink()
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                eeglab_backend("headplot", "setup", "test.locs", "test.spline", nargout=0)
+            else:
+                eeglab_backend("headplot", "setup", "test.locs", splinefile="test.spline", nargout=0)
+            assert spline_file.is_file(), "headplot initialisation error (spline_file does not exist)"
+            values = np.arange(1.0, 10.0)[None, :]
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                handle = eeglab_backend("eegprep_test_gui_handle", "headplot", values, "test.spline", **options)
+                # Only the native graphics query crosses eval; Python owns the assertion.
+                is_struct = eeglab_backend("eval", f"isstruct(get({float(np.asarray(handle).item())!r}))")
+                assert bool(np.asarray(is_struct).item())
+            else:
+                figure = eeglab_backend("headplot", values, "test.spline", **options)
+                assert isinstance(figure.properties(), dict)
+            if spline_file.exists():
+                spline_file.unlink()
+            close_reference_gui(eeglab_backend, request)
+
+
+@pytest.mark.gui
+@eeglab_test(_TIMTOPO_SOURCE, "test_test_timtopo")
+def test_reference_timtopo_original_seventeen_cases(eeglab_backend, request, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    data = np.asarray(eeg["data"]).mean(axis=2)
+    limits = [float(np.asarray(eeg["xmin"]).item()) * 1000, float(np.asarray(eeg["xmax"]).item()) * 1000]
+    chanlocs_file = str(eeglab_suite_root / "eeglab/sample_data/eeglab_chan32.locs")
+    title = "ERP data and scalp maps of EEG Data epochs"
+    cases = (
+        ("", eeg["chanlocs"], {"limits": limits, "plottimes": [np.nan], "title": title}),
+        ("", chanlocs_file, {"limits": [-1000, 1992.1875], "plottimes": [np.nan], "title": title}),
+        ("", eeg["chanlocs"], {"limits": [*limits, -10, 10], "plottimes": [np.nan], "title": title}),
+        ("", eeg["chanlocs"], {"limits": [*limits, -10, 10], "plottimes": [100, 200, 300, 400], "title": title}),
+        ("", eeg["chanlocs"], {"limits": limits, "plottimes": [100, 200, 300, 400], "title": title}),
+        ("", eeg["chanlocs"], {"limits": limits, "plottimes": [100, 200, 300, 400], "title": title, "voffsets": 10.0}),
+        ("Testcase", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "plottimes": [0, 100, 200, 300], "title": title}),
+        ("Testcase 1", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "plottimes": [0, 100, 200, 300]}),
+        ("Testcase 2", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "title": title}),
+        ("Testcase 3", eeg["chanlocs"], {"plottimes": [0, 100, 200, 300], "title": title}),
+        ("Testcase 4", eeg["chanlocs"], {}),
+        ("Testcase 5", eeg["chanlocs"], {"limits": [-2000, 3000], "plottimes": [np.nan], "title": title}),
+        ("Testcase 6", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "plottimes": [-1001], "title": title}),
+        ("Testcase 7", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "plottimes": [2001], "title": title}),
+        ("Testcase 8", eeg["chanlocs"], {"limits": [-1000, 1992.1875], "plottimes": [-1001, 0, 100], "title": title}),
+        ("Testcase 9", eeg["chanlocs"], {"limits": [0, 1000], "plottimes": [-100], "title": title}),
+        (
+            "Testcase 10",
+            eeg["chanlocs"],
+            {"limits": [-1000, 1992.1875], "plottimes": np.arange(-1000.0, 1501.0, 10.0), "title": title},
+        ),
+    )
+    for figure_title, locs, options in cases:
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            eeglab_backend("figure", nargout=0)
+            if figure_title:
+                eeglab_backend("title", figure_title, "FontSize", 14.0, nargout=0)
+        else:
+            plt.figure()
+            if figure_title:
+                plt.title(figure_title, fontsize=14)
+        options = {
+            key: np.asarray(value, dtype=float).reshape(1, -1) if key in ("limits", "plottimes") else value
+            for key, value in options.items()
+        }
+        eeglab_backend("timtopo", data, locs, **options, nargout=0)
+        close_reference_gui(eeglab_backend, request)
 
 
 @pytest.fixture(scope="module")
@@ -99,8 +215,7 @@ def ica_epoch():
     return create_test_eeg_with_ica(n_channels=6, n_samples=40, n_trials=4, n_components=4)
 
 
-@eeglab_test(_AXCOPY_SOURCE, "test_pass_existing_figure")
-@eeglab_test(_AXCOPY_SOURCE, "test_pass_general")
+@pytest.mark.gui
 def test_axcopy_enlarges_a_clicked_existing_axes() -> None:
     figure, axes = plt.subplots()
     axes.plot([1, 2, 3], [1, 2, 3])
@@ -120,7 +235,7 @@ def test_axcopy_enlarges_a_clicked_existing_axes() -> None:
     plt.close("all")
 
 
-@eeglab_test(_AXCOPY_SOURCE, "test_pass_one_arg")
+@pytest.mark.gui
 def test_axcopy_redraw_callback_can_create_tickless_popup() -> None:
     figure, axes = plt.subplots()
     axes.plot([1, 2, 3], [1, 2, 3])
@@ -361,7 +476,7 @@ def test_pop_prop_plots_sample_channel_properties(sample_eeg):
     plt.close(figure)
 
 
-@eeglab_test(_HEADPLOT_SOURCE, "test_pass_general")
+@pytest.mark.gui
 def test_pop_headplot_plots_sample_latency_map_with_spline_setup(sample_eeg, tmp_path):
     eeg = deepcopy(sample_eeg)
     splinefile = tmp_path / "sample.spl"
@@ -396,7 +511,7 @@ def test_pop_headplot_does_not_mutate_caller_eeg(sample_eeg, tmp_path):
         plt.close(fig)
 
 
-@eeglab_test(_HEADPLOT_SOURCE, "test_pass_options")
+@pytest.mark.gui
 def test_pop_headplot_single_map_has_eeglab_like_title_and_surface(sample_eeg, tmp_path):
     eeg = deepcopy(sample_eeg)
     title = "ERP scalp maps of dataset: eeglab_data"
@@ -467,7 +582,7 @@ def test_headplot_setup_plotmeshonly_and_orilocs_options(sample_eeg, tmp_path):
     np.testing.assert_allclose(spline.new_electrodes, np.column_stack([spline.xe, spline.ye, spline.ze]))
 
 
-@eeglab_test(_HEADPLOT_SOURCE, "test_pass_wireframe")
+@pytest.mark.gui
 def test_headplot_lighting_off_draws_wireframe_edges(sample_eeg, tmp_path):
     splinefile = headplot_setup(
         sample_eeg["chanlocs"],
@@ -1967,7 +2082,7 @@ def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
     plt.close(envtopo_fig)
 
 
-@eeglab_test(_TIMTOPO_SOURCE, "test_test_timtopo")
+@pytest.mark.gui
 def test_timtopo_accepts_eeglab_plotting_scenarios(sample_epoch):
     data, times = data_time_slice(sample_epoch, None)
     erp = np.nanmean(data, axis=2)

@@ -15,7 +15,6 @@ from tests.eeglab_tests import eeglab_test
 ERPSS_SOURCE = "unittesting_binary/pop_read_erpss/binary_pop_read_erpss_wrapperTest.m"
 
 
-@eeglab_test(ERPSS_SOURCE, "test_test_pop_read_erpss")
 def test_pop_read_erpss_imports_both_upstream_compressed_recordings(tmp_path: Path) -> None:
     """Strengthen the upstream test, which only calls the importer without assertions."""
     first_blocks = [
@@ -92,6 +91,13 @@ def test_pop_read_erpss_imports_both_upstream_compressed_recordings(tmp_path: Pa
     assert second_eeg["srate"] == 500
     assert [event["type"] for event in second_eeg["event"]] == [128]
     assert [event["latency"] for event in second_eeg["event"]] == [3]
+
+
+@eeglab_test(ERPSS_SOURCE, "test_test_pop_read_erpss")
+def test_upstream_pop_read_erpss_original_compressed_recordings(eeglab_backend, eeglab_suite_root):
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/ERPSS"
+    eeglab_backend("pop_read_erpss", str(directory / "ERPSSTESTCOMP.RAW"), 500.0)
+    eeglab_backend("pop_read_erpss", str(directory / "ERPSSCOMPRESSED.RAW"), 500.0)
 
 
 def test_read_erpss_reads_uncompressed_big_endian_samples_and_header_rate(tmp_path: Path) -> None:

@@ -2,6 +2,8 @@ import socket
 import sys
 from unittest import mock
 
+import numpy as np
+
 import eegprep
 
 from eegprep.functions.adminfunc import eeglab as eeglab_module
@@ -21,10 +23,24 @@ def test_eeglab_versions_and_nogui_entry_points():
 
 
 @eeglab_test(IS_SCCN_WRAPPER, "test_pass_general")
+def test_reference_is_sccn(eeglab_backend):
+    # The original prints a message for every result; it makes no assertion.
+    result = np.asarray(eeglab_backend("is_sccn"))
+    if np.all(np.abs(result - 1) <= 1e-4):
+        print("IN SCCN")
+    elif np.all(np.abs(result) <= 1e-4):
+        print("NOT IN SCCN")
+    else:
+        print("WHERE AM I?")
+
+
+@eeglab_test(IS_DEPLOYED_WRAPPER, "test_test_iseeglabdeployed")
+def test_reference_iseeglabdeployed(eeglab_backend):
+    assert np.all(np.asarray(eeglab_backend("iseeglabdeployed")) == 0)
+
+
 def test_eegprep_startup_does_not_depend_on_an_institutional_hostname(monkeypatch):
-    # is_sccn only controls behavior tied to an obsolete institutional network,
-    # and its MATLAB test accepts either result without an assertion. EEGPrep's
-    # standalone startup must not consult DNS at all.
+    # Standalone startup must not consult DNS.
     def fail_hostname_lookup():
         raise AssertionError("portable EEGPrep startup must not inspect the hostname")
 
@@ -35,7 +51,6 @@ def test_eegprep_startup_does_not_depend_on_an_institutional_hostname(monkeypatc
     assert eeglab_module.eeglab("nogui", session=session, show=False) is session
 
 
-@eeglab_test(IS_DEPLOYED_WRAPPER, "test_test_iseeglabdeployed")
 def test_eegprep_startup_has_one_runtime_path_for_frozen_python(monkeypatch):
     # iseeglabdeployed selects MATLAB Compiler behavior. EEGPrep has no MATLAB
     # runtime branch, so a frozen Python executable uses the same session path.

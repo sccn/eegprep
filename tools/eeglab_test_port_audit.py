@@ -24,6 +24,20 @@ LIMO_TEST_NAMES = frozenset({"limo_test1", "limo_test2"})
 # This scientific validation workflow is not called by a wrapper. Its helper
 # limo_test_glmboot is part of the workflow, not a separate executable test.
 STANDALONE_WORKFLOWS = ("unittesting_limo/limo_zIRLS_validation_4_Arno.m",)
+# User-approved exception, not a skipped test or evidence of successful execution.
+# Keep each source definition in expected/covered/missing accounting as usual.
+MMO_SCOPE_EXCEPTIONS = {
+    "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m::test_checkmmo": (
+        "Python omits only MATLAB caller-workspace/checkcopies introspection and its count assertions. "
+        "All source alias/copy scopes and helper writes remain. Python is execution-only, not count or "
+        "scientific parity; MATLAB retains all original count assertions."
+    ),
+    "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m::test_checkmmo2": (
+        "Python omits only checkcopies calls/unused count returns inside checkmmo_sub1 and checkmmo_sub2. "
+        "All seven write/diagnostic cases remain, including original stdout assertions; "
+        "copy/write/data-integrity behavior is not excluded."
+    ),
+}
 
 _FUNCTION_RE = re.compile(
     r"^\s*function\s+(?:(?:\[[^\]\n]+\]|[A-Za-z]\w*)\s*=\s*)?(?P<name>[A-Za-z]\w*)",
@@ -76,6 +90,17 @@ class AuditReport:
     def ok(self) -> bool:
         return not self.missing and not self.invalid_references
 
+    @property
+    def approved_scope_exceptions(self) -> dict[str, str]:
+        """Report the pinned MMO exception without changing coverage or success."""
+        if self.suite_commit != EEGLAB_TESTS_COMMIT:
+            return {}
+        return {
+            scenario.as_text(): MMO_SCOPE_EXCEPTIONS[scenario.as_text()]
+            for scenario in self.expected
+            if scenario.as_text() in MMO_SCOPE_EXCEPTIONS
+        }
+
     def to_jsonable(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
@@ -85,6 +110,7 @@ class AuditReport:
             "missing_count": len(self.missing),
             "missing": [scenario.as_text() for scenario in self.missing],
             "invalid_references": list(self.invalid_references),
+            "approved_scope_exceptions": self.approved_scope_exceptions,
         }
 
 
@@ -309,6 +335,9 @@ def format_report(report: AuditReport) -> str:
     if report.invalid_references:
         lines.append("Invalid or stale provenance:")
         lines.extend(f"  {message}" for message in report.invalid_references)
+    if report.approved_scope_exceptions:
+        lines.append("Approved Python scope exceptions (not passes or skipped definitions):")
+        lines.extend(f"  {source}: {reason}" for source, reason in report.approved_scope_exceptions.items())
     return "\n".join(lines)
 
 

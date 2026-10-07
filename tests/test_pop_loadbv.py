@@ -162,7 +162,6 @@ def _assert_continuous_eeg(eeg: dict[str, Any], expected: np.ndarray, srate: flo
     np.testing.assert_allclose(eeg["times"], np.arange(expected.shape[1]) / srate * 1000)
 
 
-@eeglab_test(_UPSTREAM_WRAPPER, "test_test_pop_loadbv")
 def test_pop_loadbv_ports_all_eight_active_upstream_load_calls(tmp_path: Path) -> None:
     selected_raw = np.arange(32 * 5, dtype=np.int16).reshape(32, 5) - 50
     selected_header = _write_binary_brainvision(
@@ -255,6 +254,28 @@ def test_pop_loadbv_ports_all_eight_active_upstream_load_calls(tmp_path: Path) -
         ("TLE", 2.25, 1),
         ("square", 5.5, 2),
     ]
+
+
+@eeglab_test(_UPSTREAM_WRAPPER, "test_test_pop_loadbv")
+def test_upstream_pop_loadbv_original_eight_files(eeglab_backend, eeglab_suite_root):
+    directory = str(eeglab_suite_root / "unittesting_binary/testfiles/BVA")
+    eeglab_backend(
+        "pop_loadbv",
+        directory,
+        "brainvision_genericdataformat_binarymultiplexed_int16.vhdr",
+        1.0,
+        np.arange(1, 33, dtype=float)[None, :],
+    )
+    for filename in (
+        "BVA_withchanlocs.vhdr",
+        "brainvision_genericdataformat_binarymultiplexed_ieee32.vhdr",
+        "brainvision_genericdataformat_binarymultiplexed_int16.vhdr",
+        "brainvision_genericdataformat_binaryvectorized_ieee.vhdr",
+        "brainvision_genericdataformat_binaryvectorized_int16.vhdr",
+        "brainvision_recorder_acquisitiondataformat.vhdr",
+        "EEGLAB_export.vhdr",
+    ):
+        eeglab_backend("pop_loadbv", directory, filename)
 
 
 def test_pop_loadbv_normalizes_units_selects_samples_and_preserves_markers(tmp_path: Path) -> None:

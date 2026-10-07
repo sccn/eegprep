@@ -16,9 +16,24 @@ import numpy as np
 import pytest
 
 from eegprep.functions.miscfunc.numdim import numdim
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 pytestmark = pytest.mark.parity
+
+
+@eeglab_test("unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m", "test_pass_general")
+@eeglab_test("unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m", "test_pass_row_vector")
+@eeglab_test("unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m", "test_pass_column_vector")
+@eeglab_test("unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m", "test_pass_singular_matrix")
+def test_reference_numdim(eeglab_backend):
+    result = eeglab_backend("numdim", np.array([[2, 1], [-1, -2]], dtype=float))
+    assert_matlab_near(result, [[1 / (0.1**0.1) / (0.9**0.9)]])
+    vector = np.array([[1, 2, 0, -6]], dtype=float)
+    assert_matlab_near(eeglab_backend("numdim", vector), [[1]])
+    result = eeglab_backend("numdim", vector.T)
+    # Both alternatives are explicitly allowed by the MATLAB source test.
+    assert_matlab_near(result, [[np.nan]] if np.isnan(result).all() else [[1]])
+    eeglab_backend("numdim", np.array([[2, 2], [-1, -1]], dtype=float))
 
 
 def test_single_channel_is_one():
@@ -70,30 +85,18 @@ def test_full_rank_matches_matlab():
     np.testing.assert_allclose(v, 2.147746217856, rtol=1e-6)
 
 
-@eeglab_test(
-    "unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m",
-    "test_pass_general",
-)
-def test_current_eeglab_suite_matches_closed_form_entropy():
+def test_python_regression_matches_closed_form_entropy():
     data = np.array([[2.0, 1.0], [-1.0, -2.0]])
     expected = 1 / (0.1**0.1) / (0.9**0.9)
 
     np.testing.assert_allclose(numdim(data), expected, rtol=1e-12)
 
 
-@eeglab_test(
-    "unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m",
-    "test_pass_row_vector",
-)
-def test_current_eeglab_suite_row_vector_is_one_dimensional():
+def test_python_regression_row_vector_is_one_dimensional():
     assert numdim(np.array([[1.0, 2.0, 0.0, -6.0]])) == pytest.approx(1.0)
 
 
-@eeglab_test(
-    "unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m",
-    "test_pass_column_vector",
-)
-def test_current_eeglab_suite_preserves_column_vector_degeneracy():
+def test_python_regression_preserves_column_vector_degeneracy():
     # The upstream test allows NaN or 1 because numdim.m evaluates 0*log(0)
     # literally. The analytic entropy limit is one effective source.
     result = numdim(np.array([[1.0], [2.0], [0.0], [-6.0]]))
@@ -101,13 +104,8 @@ def test_current_eeglab_suite_preserves_column_vector_degeneracy():
     assert result == pytest.approx(1.0)
 
 
-@eeglab_test(
-    "unittesting_miscfunc/numdim/miscfunc_numdim_wrapperTest.m",
-    "test_pass_singular_matrix",
-)
-def test_current_eeglab_suite_singular_matrix_scenario_is_executable():
-    # The upstream assertion is commented out, but its intended result and
-    # the analytic entropy of a rank-one matrix are both one.
+def test_python_regression_singular_matrix_scenario_is_executable():
+    # The analytic entropy of a rank-one matrix is one.
     result = numdim(np.array([[2.0, 2.0], [-1.0, -1.0]]))
 
     assert result == pytest.approx(1.0)

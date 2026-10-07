@@ -9,6 +9,40 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from tests.eeglab_tests import eeglab_test
 
 
+@eeglab_test("unittesting_adminfunc/eegobj/adminfunc_eegobj_wrapperTest.m", "test_eegobj_simpletests")
+def test_reference_eegobj_collection_operations(eeglab_backend, eeglab_suite_root, eeglab_options_directory, request):
+    directory = str(eeglab_suite_root / "eeglab/sample_data")
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        lengths = eeglab_backend("eegprep_source_eegobj", directory)
+    else:
+        eeglab_backend("pop_editoptions", "option_eegobject", 1.0, nargout=0)
+        try:
+            eeg = eeglab_backend("pop_loadset", "filename", "eeglab_data_epochs_ica.set", "filepath", directory)
+            first = EEGobj(eeg)
+            first.pnts = 3.0
+            datasets = [first]
+            lengths = [len(datasets)]
+            datasets.append(copy.deepcopy(datasets[0]))
+            lengths.append(len(datasets))
+            empty = EEGobj({field: np.empty((0, 0)) for field in first.EEG})
+            datasets.extend([copy.deepcopy(empty), copy.deepcopy(datasets[0])])
+            lengths.append(len(datasets))
+            del datasets[:3]
+            lengths.append(len(datasets))
+            datasets.extend([copy.deepcopy(empty), copy.deepcopy(datasets[0])])
+            datasets.extend(copy.deepcopy(datasets[1:3]))
+            lengths.append(len(datasets))
+            datasets[1].filename = "test"
+            datasets[0].chanlocs[0]["labels"] = "E1"
+            datasets[-1] = copy.deepcopy(datasets[0])
+            datasets.pop()
+            lengths.append(len(datasets))
+            lengths = np.array([lengths])
+        finally:
+            eeglab_backend("pop_editoptions", "option_eegobject", 0.0, nargout=0)
+    np.testing.assert_array_equal(lengths, [[1, 2, 4, 1, 5, 4]])
+
+
 # Helper function to create a dummy EEG dictionary
 def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
     eeg = {
@@ -44,7 +78,6 @@ class TestEEGobj(unittest.TestCase):
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
-    @eeglab_test("unittesting_adminfunc/eegobj/eegobj_simpletests.m", "test_eegobj_simpletests")
     def test_collection_assignment_and_field_mutation_use_python_list_semantics(self):
         first = EEGobj(create_test_eeg(n_channels=2, n_samples=3))
         datasets = [first]
