@@ -29,9 +29,12 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Protocol
 
-#: Sent on every request. The NEMAR hosts have been observed refusing the default
-#: ``Python-urllib/x.y`` agent, and an unnamed client is not something an archive should
-#: have to guess about anyway. Browsers set their own and ignore this.
+#: Sent on every request from :class:`UrllibTransport`. The NEMAR hosts have been
+#: observed refusing the default ``Python-urllib/x.y`` agent, and an unnamed client is not
+#: something an archive should have to guess about anyway. That is true only of Chrome,
+#: which drops a script-set ``User-Agent`` and sends its own instead; Safari and Firefox
+#: send the script-set value, which is why the browser transports never set this header at
+#: all (see :class:`FetchTransport`).
 USER_AGENT = "eegprep-lean"
 
 #: Fetching a chunk that is not cached at the edge crosses to S3, so this is generous.
@@ -139,35 +142,6 @@ class UrllibTransport:
         return _check_ranged(result, url=url, ranged=range_value is not None)
 
 
-class PyfetchTransport:
-    """Browser transport: the host's own ``fetch``, via ``pyodide.http.pyfetch``.
-
-    Imported lazily so this module stays importable off Pyodide, where the tests run.
-    """
-
-    def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
-        self.timeout_s = timeout_s
-
-    async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
-        from pyodide.http import pyfetch  # ty: ignore[unresolved-import]
-
-        headers = {"User-Agent": USER_AGENT}
-        range_value = _range_header(start, end)
-        if range_value:
-            headers["Range"] = range_value
-        try:
-            response = await pyfetch(url, headers=headers)
-        except Exception as err:  # pragma: no cover - browser only
-            raise TransportError(f"request failed: {err}", url=url) from err
-        if response.status >= 400:  # pragma: no cover - browser only
-            raise TransportError("request failed", url=url, status=response.status)
-        return _check_ranged(
-            Response(status=response.status, body=await response.bytes()),
-            url=url,
-            ranged=range_value is not None,
-        )
-
-
 class FetchTransport:
     """Transport over a client the host supplies, for a runtime that owns the network.
 
@@ -200,6 +174,37 @@ class FetchTransport:
         # A host client may hand back a bytes-like buffer rather than bytes; Response
         # promises bytes.
         return _check_ranged(Response(status=status, body=bytes(body)), url=url, ranged=range_value is not None)
+
+
+async def _pyfetch(url: str, *, headers: dict[str, str]) -> tuple[int, bytes]:
+    """Adapts ``pyodide.http.pyfetch`` to the :class:`Fetch` shape :class:`FetchTransport` calls.
+
+    Imported lazily so this module stays importable off Pyodide; the tests install a
+    stand-in module at ``sys.modules["pyodide.http"]`` to exercise this off Pyodide too.
+    """
+    from pyodide.http import pyfetch  # ty: ignore[unresolved-import]
+
+    response = await pyfetch(url, headers=headers)
+    return response.status, await response.bytes()
+
+
+class PyfetchTransport:
+    """Browser transport: :class:`FetchTransport` over the host's own ``fetch``.
+
+    ``pyodide.http.pyfetch`` is Pyodide's binding to the browser's ``fetch``. Routing it
+    through :class:`FetchTransport` gives the browser transport one implementation of the
+    header rule instead of two: ``Range`` only, and nothing at all for an unranged read. A
+    script-set ``User-Agent`` here used to turn every read into a CORS-preflighted request
+    in Safari and Firefox, which ``zarr.nemar.org`` refuses; Chrome only worked because it
+    silently drops a script-set ``User-Agent`` and sends its own instead.
+    """
+
+    def __init__(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
+        self.timeout_s = timeout_s
+        self._transport = FetchTransport(_pyfetch)
+
+    async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
+        return await self._transport.get(url, start=start, end=end)
 
 
 #: Set by :func:`set_default_transport`, and consulted before the platform is.
