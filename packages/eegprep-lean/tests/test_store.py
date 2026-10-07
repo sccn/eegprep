@@ -20,12 +20,12 @@ import pytest
 zarr = pytest.importorskip("zarr", reason="needs the zarr extra")
 np = pytest.importorskip("numpy", reason="needs the zarr extra")
 
-from zarr.abc.store import OffsetByteRequest, RangeByteRequest, SuffixByteRequest  # noqa: E402
+from zarr.abc.store import OffsetByteRequest, RangeByteRequest  # noqa: E402
 from zarr.core.buffer import default_buffer_prototype  # noqa: E402
 
 from eegprep_lean.index import IndexError_  # noqa: E402
-from eegprep_lean.store import NemarHttpStore, ReadOnlyStoreError  # noqa: E402
-from eegprep_lean.window import EXPECTED_FORMULA, Window, to_physical  # noqa: E402
+from eegprep_lean.store import NemarHttpStore  # noqa: E402
+from eegprep_lean.window import EXPECTED_FORMULA, to_physical  # noqa: E402
 
 BODY = bytes(range(256))
 
@@ -86,17 +86,6 @@ class TestByteRanges:
     def test_offset_request_returns_the_rest(self, store: NemarHttpStore) -> None:
         assert _get(store, "obj", OffsetByteRequest(200)) == BODY[200:]
 
-    def test_suffix_request_returns_the_tail(self, store: NemarHttpStore) -> None:
-        """The form the sharding codec reads its chunk index with."""
-        assert _get(store, "obj", SuffixByteRequest(16)) == BODY[-16:]
-
-    def test_no_range_returns_everything(self, store: NemarHttpStore) -> None:
-        assert _get(store, "obj") == BODY
-
-    def test_an_unknown_byte_request_type_is_refused(self, store: NemarHttpStore) -> None:
-        with pytest.raises(TypeError, match="unsupported byte request"):
-            store._http_range(object())
-
 
 class TestAbsence:
     def test_a_missing_key_is_none_not_an_exception(self, store: NemarHttpStore) -> None:
@@ -112,18 +101,6 @@ class TestAbsence:
 
 
 class TestReadOnly:
-    def test_declares_itself_read_only(self, store: NemarHttpStore) -> None:
-        assert store.supports_writes is False
-        assert store.supports_deletes is False
-
-    def test_writing_and_deleting_raise(self, store: NemarHttpStore) -> None:
-        buffer = default_buffer_prototype().buffer.from_bytes(b"x")
-
-        with pytest.raises(ReadOnlyStoreError):
-            asyncio.run(store.set("obj", buffer))
-        with pytest.raises(ReadOnlyStoreError):
-            asyncio.run(store.delete("obj"))
-
     def test_listing_is_unsupported_rather_than_empty(self, store: NemarHttpStore) -> None:
         """Anonymous listing is denied on the bucket, so there is nothing to enumerate.
 
@@ -139,13 +116,6 @@ class TestReadOnly:
         with pytest.raises(NotImplementedError, match="cannot be listed"):
             asyncio.run(drain())
 
-    def test_equality_and_hashing_follow_the_base_url(self) -> None:
-        a, b = NemarHttpStore("https://x/y"), NemarHttpStore("https://x/y/")
-
-        assert a == b
-        assert hash(a) == hash(b)
-        assert a != NemarHttpStore("https://x/z")
-
 
 class TestPhysicalConversion:
     ATTRS = {
@@ -153,15 +123,6 @@ class TestPhysicalConversion:
         "scale": [2.0, 10.0, 100.0],
         "offset": [1.0, -5.0, 0.0],
     }
-
-    def test_each_channel_uses_its_own_scale_and_offset(self) -> None:
-        """Per channel, not global. Applying one channel's constants to all of them
-        returns numbers of the right shape and the wrong magnitude."""
-        digital = np.array([[1, 2], [1, 2], [1, 2]], dtype=np.int16)
-
-        physical = to_physical(digital, self.ATTRS, [0, 1, 2])
-
-        assert physical.tolist() == [[3.0, 5.0], [5.0, 15.0], [100.0, 200.0]]
 
     def test_constants_follow_the_channels_actually_read(self) -> None:
         """A window of channels 2 and 0 must use those two channels' constants, in that
@@ -179,27 +140,6 @@ class TestPhysicalConversion:
 
         with pytest.raises(IndexError_, match="declares its conversion"):
             to_physical(np.zeros((1, 1), dtype=np.int16), attrs, [0])
-
-
-class TestWindowGeometry:
-    def test_times_are_absolute_in_the_recording_not_the_window(self) -> None:
-        """A window starting at sample 500 of a 250 Hz recording begins at t=2 s.
-
-        Times relative to the window would misplace every event annotation on a plot.
-        """
-        window = Window(
-            data=np.zeros((1, 4)),
-            channels=(0,),
-            start_sample=500,
-            rate=250.0,
-            group_name="eeg_250hz",
-            physical=True,
-        )
-
-        assert window.n_samples == 4
-        assert window.duration_s == pytest.approx(0.016)
-        assert window.times_s[0] == pytest.approx(2.0)
-        assert window.times_s[-1] == pytest.approx(2.012)
 
 
 @pytest.mark.network

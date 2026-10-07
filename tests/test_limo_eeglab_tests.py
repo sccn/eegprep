@@ -163,17 +163,6 @@ def _limo_refresh_group_summary(study):
     study["group"] = _cell_row(*sorted({info["group"] for info in _limo_entries(study["datasetinfo"])}))
 
 
-def test_limo_group_summary_preserves_original_memberships():
-    entries = [{"subject": f"sub-{index:03d}", "group": ""} for index in range(2, 20)]
-    study = {"datasetinfo": entries, "group": _cell_row("")}
-    _limo_assign_groups(study)
-    before = [dict(info) for info in entries]
-    _limo_refresh_group_summary(study)
-    assert study["group"].tolist() == [["1", "2", "3"]]
-    assert entries == before
-    assert [sum(info["group"] == group for info in entries) for group in study["group"][0]] == [6, 7, 5]
-
-
 def _irls_remove_directory(directory, study_path):
     # The source removes previous derivative/H0 results, never source recordings.
     # Its try/catch permits absent or unremovable directories. Restrict this
@@ -444,17 +433,6 @@ def test_irls_binomial_interval_retains_source_default_confidence(successes, exp
     estimate, interval = matlab_binofit(successes, 1)
     assert estimate == successes
     np.testing.assert_allclose(interval, expected, rtol=0, atol=1e-15)
-
-
-def test_irls_mat_loading_retains_singleton_frequency_axis_and_model_fields(tmp_path):
-    file = tmp_path / "H0.mat"
-    data = np.arange(48, dtype=np.float32).reshape(2, 1, 3, 2, 4)
-    savemat(file, {"H0": data, "LIMO": {"dir": str(tmp_path), "design": {"bootstrap": 2500.0, "status": "to do"}}})
-    loaded = load_irls_mat(None, False, file)
-    np.testing.assert_array_equal(loaded["H0"], data, strict=True)
-    assert loaded["LIMO"]["dir"] == str(tmp_path)
-    assert loaded["LIMO"]["design"]["status"] == "to do"
-    np.testing.assert_array_equal(loaded["LIMO"]["design"]["bootstrap"], np.array([[2500.0]]))
 
 
 @pytest.mark.parametrize(

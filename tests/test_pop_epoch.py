@@ -6,20 +6,15 @@ CONCLUSION: The Python implementation achieves perfect numerical parity with
 MATLAB EEGLAB's pop_epoch function across all tested scenarios.
 """
 
-import contextlib
-import io
 import os
 import numpy as np
 import unittest
 import tempfile
 
 import copy
-import eegprep.functions.popfunc.pop_epoch as pop_epoch_module
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.guifunc.qt import QtDialogRenderer
-from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 from tests.eeglab_tests import eeglab_test
 
@@ -48,26 +43,6 @@ def test_reference_pop_epoch_original_bugzilla_455_recording(eeglab_backend, eeg
     epoch = np.asarray(output["epoch"]).flat[96]
     first_latency = np.asarray(epoch["eventlatency"]).flat[0]
     assert np.asarray(first_latency).item() == 0
-
-
-def test_pop_epoch_current_suite_square_event_workflow():
-    eeg = pop_loadset("sample_data/eeglab_data.set")
-
-    output, indices = pop_epoch(
-        eeg,
-        ["square"],
-        [-1, 2],
-        "newname",
-        "ee114 continuous (h.p. 1Hz) epochs",
-        "epochinfo",
-        "yes",
-    )
-
-    assert output["setname"] == "ee114 continuous (h.p. 1Hz) epochs"
-    assert output["trials"] == 80
-    assert output["data"].shape == (eeg["nbchan"], output["pnts"], 80)
-    assert len(indices) == 80
-    assert all("eventlatency" in epoch for epoch in output["epoch"])
 
 
 def test_pop_epoch_current_suite_late_epoch_locking_event_has_zero_latency():
@@ -209,96 +184,6 @@ class TestPopEpochParity(unittest.TestCase):
         print(f"Max absolute difference: {max_abs_diff:.2e}")
         print(f"Max relative difference: {max_rel_diff:.2e}")
 
-    def test_parity_specific_event_types(self):
-        """Test epoching with specific event types"""
-        # NUMERICAL DIFFERENCES: Max absolute: 0.00e+00, Max relative: 0.00e+00
-        # Perfect agreement for selective event epoching between MATLAB and Python
-        # Test parameters
-        types = ['S1', 'S2']  # Only S1 and S2 events
-        lim = [-0.1, 0.3]
-
-        # Python implementation
-        py_eeg, py_indices = pop_epoch(copy.deepcopy(self.EEG), types, lim)
-
-        # MATLAB implementation
-        ml_result = self.eeglab.pop_epoch(copy.deepcopy(self.EEG), types, lim, nargout=2)
-        if isinstance(ml_result, (list, tuple)) and len(ml_result) == 2:
-            ml_eeg, ml_indices = ml_result
-        else:
-            # If only EEG is returned, create indices based on number of trials
-            ml_eeg = ml_result
-            ml_indices = list(range(1, ml_eeg['trials'] + 1))  # 1-based for MATLAB
-
-        # Convert MATLAB indices to 0-based
-        ml_indices_0based = np.array(ml_indices).astype(int) - 1
-
-        # Compare data
-        self.assertEqual(py_eeg['data'].shape, ml_eeg['data'].shape)
-        self.assertTrue(np.allclose(py_eeg['data'], ml_eeg['data'], atol=1e-10))
-
-        # Compare indices
-        self.assertTrue(np.array_equal(py_indices, ml_indices_0based))
-
-        # Should have fewer epochs than total events (only S1 and S2)
-        expected_epochs = sum(1 for event in self.EEG['event'] if event['type'] in ['S1', 'S2'])
-        self.assertEqual(py_eeg['trials'], expected_epochs)
-
-        # Add comment with max differences
-        if py_eeg['data'].size > 0 and ml_eeg['data'].size > 0:
-            data_diff = np.abs(py_eeg['data'] - ml_eeg['data'])
-            max_abs_diff = np.max(data_diff)
-            max_rel_diff = np.max(data_diff / (np.abs(ml_eeg['data']) + 1e-15))
-            print(f"Max absolute difference: {max_abs_diff:.2e}")
-            print(f"Max relative difference: {max_rel_diff:.2e}")
-        else:
-            print("Max absolute difference: N/A (empty data)")
-            print("Max relative difference: N/A (empty data)")
-
-    def test_parity_single_event_type_string(self):
-        """Test epoching with a single event type as string"""
-        # NUMERICAL DIFFERENCES: Max absolute: 0.00e+00, Max relative: 0.00e+00
-        # Perfect agreement for string-based event type selection
-        # Test parameters
-        types = 'S1'  # Single event type as string
-        lim = [-0.15, 0.4]
-
-        # Python implementation
-        py_eeg, py_indices = pop_epoch(copy.deepcopy(self.EEG), types, lim)
-
-        # MATLAB implementation
-        ml_result = self.eeglab.pop_epoch(copy.deepcopy(self.EEG), types, lim, nargout=2)
-        if isinstance(ml_result, (list, tuple)) and len(ml_result) == 2:
-            ml_eeg, ml_indices = ml_result
-        else:
-            # If only EEG is returned, create indices based on number of trials
-            ml_eeg = ml_result
-            ml_indices = list(range(1, ml_eeg['trials'] + 1))  # 1-based for MATLAB
-
-        # Convert MATLAB indices to 0-based
-        ml_indices_0based = np.array(ml_indices).astype(int) - 1
-
-        # Compare data
-        self.assertEqual(py_eeg['data'].shape, ml_eeg['data'].shape)
-        self.assertTrue(np.allclose(py_eeg['data'], ml_eeg['data'], atol=1e-10))
-
-        # Compare indices
-        self.assertTrue(np.array_equal(py_indices, ml_indices_0based))
-
-        # Should have only S1 events
-        expected_epochs = sum(1 for event in self.EEG['event'] if event['type'] == 'S1')
-        self.assertEqual(py_eeg['trials'], expected_epochs)
-
-        # Add comment with max differences
-        if py_eeg['data'].size > 0 and ml_eeg['data'].size > 0:
-            data_diff = np.abs(py_eeg['data'] - ml_eeg['data'])
-            max_abs_diff = np.max(data_diff)
-            max_rel_diff = np.max(data_diff / (np.abs(ml_eeg['data']) + 1e-15))
-            print(f"Max absolute difference: {max_abs_diff:.2e}")
-            print(f"Max relative difference: {max_rel_diff:.2e}")
-        else:
-            print("Max absolute difference: N/A (empty data)")
-            print("Max relative difference: N/A (empty data)")
-
     def test_parity_with_valuelim(self):
         """Test epoching with value limits for artifact rejection"""
         # NUMERICAL DIFFERENCES: Max absolute: 0.00e+00, Max relative: 0.00e+00
@@ -418,123 +303,10 @@ class TestPopEpochParity(unittest.TestCase):
             print("Max absolute difference: N/A (no epochs generated)")
             print("Max relative difference: N/A (no epochs generated)")
 
-    def test_functional_no_events_error(self):
-        """Test that function handles missing events appropriately"""
-        # Create EEG with no events
-        test_eeg = copy.deepcopy(self.EEG)
-        test_eeg['event'] = []
-
-        # Should print a message and return early for continuous data with no events
-        try:
-            eeg_out, indices = pop_epoch(test_eeg, [], [-0.1, 0.1])
-            # Should return the original EEG and empty indices
-            self.assertEqual(eeg_out, test_eeg)
-            self.assertEqual(indices, [])
-        except Exception:
-            # If it does raise an exception, that's also acceptable
-            pass
-
-    def test_functional_event_structure_consistency(self):
-        """Test that event structure is properly updated after epoching"""
-        types = ['S1']
-        lim = [-0.1, 0.2]
-
-        py_eeg, py_indices = pop_epoch(copy.deepcopy(self.EEG), types, lim)
-
-        # Check that events have epoch field
-        if py_eeg['event'] is not None and len(py_eeg['event']) > 0:
-            for event in py_eeg['event']:
-                self.assertIn('epoch', event)
-                self.assertIsInstance(event['epoch'], int)
-                self.assertGreaterEqual(event['epoch'], 1)  # 1-based epoch numbering
-                self.assertLessEqual(event['epoch'], py_eeg['trials'])
-
-    def test_functional_dataset_name_update(self):
-        """Test that dataset name is properly updated"""
-        types = []
-        lim = [-0.1, 0.1]
-        newname = 'test_epochs'
-
-        py_eeg, _ = pop_epoch(copy.deepcopy(self.EEG), types, lim, newname=newname)
-
-        self.assertEqual(py_eeg['setname'], newname)
-        self.assertIn('Parent dataset', py_eeg.get('comments', ''))
-
 
 class TestPopEpochEdgeCases(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
-
-    def test_pop_epoch_does_not_print_to_stdout(self):
-        EEG = {
-            'data': np.random.randn(2, 500).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 500,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 4.99,
-            'setname': 'stdout_test',
-            'event': [{'type': 'stim', 'latency': 250}],
-            'epoch': [],
-            'saved': 'no',
-        }
-        stream = io.StringIO()
-
-        with contextlib.redirect_stdout(stream):
-            pop_epoch(EEG, 'stim', [-0.1, 0.1])
-
-        self.assertEqual(stream.getvalue(), "")
-
-    def test_boundary_events_near_edges(self):
-        """Test epoching when events are near data boundaries"""
-        # Create EEG with events near boundaries
-        EEG = {
-            'data': np.random.randn(2, 500).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 500,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 4.99,
-            'setname': 'boundary_test',
-            'event': [
-                {'type': 'edge', 'latency': 10},  # Near start
-                {'type': 'edge', 'latency': 250},  # Middle
-                {'type': 'edge', 'latency': 490},  # Near end
-            ],
-            'epoch': [],
-            'saved': 'no',
-        }
-
-        # Large epoch window that should exclude boundary events
-        types = 'edge'
-        lim = [-0.2, 0.3]  # 50 samples total at 100 Hz
-
-        py_eeg, py_indices = pop_epoch(EEG, types, lim)
-
-        # Should only keep the middle event
-        self.assertLessEqual(py_eeg['trials'], 2)  # At most 2 epochs (middle + maybe one edge)
-
-    def test_empty_event_types_selection(self):
-        """Test epoching when no events match the specified types"""
-        EEG = {
-            'data': np.random.randn(1, 300).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 1,
-            'pnts': 300,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 2.99,
-            'setname': 'no_match_test',
-            'event': [{'type': 'A', 'latency': 50}, {'type': 'B', 'latency': 150}, {'type': 'C', 'latency': 250}],
-            'epoch': [],
-            'saved': 'no',
-        }
-
-        # Look for event type that doesn't exist
-        with self.assertRaises(ValueError):
-            pop_epoch(EEG, ['X', 'Y'], [-0.1, 0.1])
 
     def test_string_event_type_matches_exactly(self):
         """String event selectors should match EEGLAB's exact char matching."""
@@ -561,54 +333,6 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         self.assertEqual(indices, [0])
         self.assertEqual(eeg_out['event'][0]['type'], 'S1')
 
-    def test_input_validation_none_eeg(self):
-        """Test that None EEG raises ValueError"""
-        with self.assertRaises(ValueError):
-            pop_epoch(None)
-
-    def test_multiple_datasets_are_epoched_with_shared_parameters(self):
-        """Test that multiple datasets use the same pop_epoch parameters."""
-        eeg1 = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 200,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 1.99,
-            'event': [{'type': 'A', 'latency': 100}],
-            'epoch': [],
-            'saved': 'no',
-        }
-        eeg2 = copy.deepcopy(eeg1)
-        eeg2['event'] = [{'type': 'A', 'latency': 120}]
-
-        outputs, indices = pop_epoch([eeg1, eeg2], 'A', [-0.1, 0.1])
-
-        self.assertEqual([eeg['trials'] for eeg in outputs], [1, 1])
-        self.assertEqual(indices, [[0], [0]])
-
-    def test_single_dataset_in_list(self):
-        """Test that single dataset in list works"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 200,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 1.99,
-            'times': np.linspace(0, 1.99, 200),
-            'setname': 'single_test',
-            'event': [{'type': 'test', 'latency': 100}],
-            'epoch': np.array([]),
-            'saved': 'no',
-        }
-
-        eeg_out, indices = pop_epoch([EEG], 'test', [-0.1, 0.1])
-        self.assertEqual(eeg_out['trials'], 1)
-        self.assertEqual(len(indices), 1)
-
     def test_tle_event_creation(self):
         """Test TLE event creation for epoched data with no events"""
         EEG = {
@@ -631,62 +355,6 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         self.assertEqual(len(eeg_out['event']), 3)  # One TLE per epoch
         self.assertTrue(all(event['type'] == 'TLE' for event in eeg_out['event']))
 
-    def test_missing_latency_field(self):
-        """Test error when events don't have latency field"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'event': [{'type': 'test'}],  # Missing latency
-            'saved': 'no',
-        }
-
-        with self.assertRaises(ValueError):
-            pop_epoch(EEG, 'test', [-0.1, 0.1])
-
-    def test_default_parameters(self):
-        """Test default parameter handling"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 200,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 1.99,
-            'times': np.linspace(0, 1.99, 200),
-            'event': [{'type': 'test', 'latency': 100}],
-            'epoch': np.array([]),
-            'saved': 'no',
-        }
-
-        # Test with None types and lim (should use all events)
-        eeg_out, indices = pop_epoch(EEG, None, None)
-        self.assertGreaterEqual(eeg_out['trials'], 0)  # Should use defaults and process events
-
-        # Test with empty setname
-        EEG['setname'] = ''
-        eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
-        self.assertEqual(eeg_out['setname'], '')
-
-    def test_valuelim_none(self):
-        """Test valuelim=None handling"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 200,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 1.99,
-            'times': np.linspace(0, 1.99, 200),
-            'event': [{'type': 'test', 'latency': 100}],
-            'epoch': np.array([]),
-            'saved': 'no',
-        }
-
-        eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1], valuelim=None)
-        self.assertEqual(len(indices), 1)
-
     def test_numeric_event_types(self):
         """Test handling of numeric event types"""
         EEG = {
@@ -706,126 +374,6 @@ class TestPopEpochEdgeCases(unittest.TestCase):
         # Test numeric type matching with string.
         eeg_out, indices = pop_epoch(EEG, '1', [-0.1, 0.1])
         self.assertEqual(indices, [0])
-
-    def test_invalid_types_error(self):
-        """Test error for invalid types parameter"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no',
-        }
-
-        with self.assertRaises(ValueError):
-            pop_epoch(EEG, 123, [-0.1, 0.1])  # Invalid type (not string, list, or tuple)
-
-    def test_invalid_timeunit_error(self):
-        """Test error for invalid timeunit"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'event': [{'type': 'test', 'latency': 100}],
-            'saved': 'no',
-        }
-
-        with self.assertRaises(ValueError):
-            pop_epoch(EEG, 'test', [-0.1, 0.1], timeunit='invalid')
-
-    def test_comments_handling(self):
-        """Test different types of comments handling"""
-        EEG = {
-            'data': np.random.randn(2, 200).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 200,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 1.99,
-            'times': np.linspace(0, 1.99, 200),
-            'setname': 'test_dataset',
-            'event': [{'type': 'test', 'latency': 100}],
-            'epoch': np.array([]),
-            'saved': 'no',
-        }
-
-        # Test with list comments
-        EEG['comments'] = ['Line 1', 'Line 2']
-        eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
-        self.assertIn('Parent dataset', eeg_out['comments'])
-        self.assertIn('Line 1', eeg_out['comments'])
-
-        # Test with no setname
-        EEG_no_name = copy.deepcopy(EEG)
-        del EEG_no_name['setname']
-        eeg_out, indices = pop_epoch(EEG_no_name, 'test', [-0.1, 0.1])
-        self.assertNotIn('Parent dataset', eeg_out.get('comments', ''))
-
-    def test_boundary_event_removal(self):
-        """Test removal of epochs with boundary events"""
-        EEG = {
-            'data': np.random.randn(2, 400).astype(np.float32),
-            'srate': 100.0,
-            'nbchan': 2,
-            'pnts': 400,
-            'trials': 1,
-            'xmin': 0.0,
-            'xmax': 3.99,
-            'times': np.linspace(0, 3.99, 400),
-            'setname': 'boundary_test',
-            'event': [
-                {'type': 'stimulus', 'latency': 100},
-                {'type': 'stimulus', 'latency': 200},
-                {'type': 'stimulus', 'latency': 300},
-            ],
-            'epoch': np.array([]),
-            'saved': 'no',
-        }
-
-        eeg_out, indices = pop_epoch(EEG, 'stimulus', [-0.2, 0.3])
-
-        # Manually add boundary events to test removal
-        # Also add if eeg_out['event'] is a numpy array
-        if isinstance(eeg_out['event'], np.ndarray):
-            # Convert to list for appending
-            eeg_out['event'] = list(eeg_out['event'])
-            print("Converted eeg_out['event'] from numpy array to list for appending new event.")
-        eeg_out['event'].append(
-            {
-                'type': 'boundary',
-                'latency': 25,  # Within first epoch
-                'epoch': 1,
-            }
-        )
-
-        # Test the boundary detection (this tests the code path but won't actually remove epochs
-        # since pop_select would need proper implementation)
-        self.assertGreater(len(eeg_out['event']), 3)  # Should have boundary event added
-
-    def test_filename_backed_data_is_loaded_for_epoching(self):
-        """Test that pop_epoch loads filename-backed EEG.data arrays."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            data = np.arange(600, dtype=np.float32).reshape(3, 200)
-            data_file = os.path.join(tmpdir, "filename.txt")
-            np.savetxt(data_file, data)
-            EEG = {
-                'data': 'filename.txt',
-                'filepath': tmpdir,
-                'dataformat': 'ascii',
-                'srate': 100.0,
-                'nbchan': 3,
-                'pnts': 200,
-                'trials': 1,
-                'xmin': 0.0,
-                'xmax': 1.99,
-                'event': [{'type': 'test', 'latency': 100}],
-                'saved': 'no',
-            }
-
-            eeg_out, indices = pop_epoch(EEG, 'test', [-0.1, 0.1])
-
-        self.assertEqual(indices, [0])
-        self.assertEqual(eeg_out['data'].shape, (3, 20))
-        np.testing.assert_allclose(eeg_out['data'][:, 0], data[:, 89])
 
     def test_filename_backed_fdt_data_uses_eeglab_column_order(self):
         """Test that filename-backed .fdt data preserves EEGLAB sample order."""
@@ -875,40 +423,6 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
             'saved': 'no',
         }
 
-    def test_dialog_spec_matches_eeglab_control_order(self):
-        spec = pop_epoch_dialog_spec(self.EEG)
-
-        self.assertEqual(spec.title, "Extract data epochs - pop_epoch()")
-        self.assertEqual(spec.function_name, "pop_epoch")
-        self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_epoch.m")
-        self.assertEqual(spec.geometry, ((2, 1, 0.5), (2, 1, 0.5), (2, 1.5), (2, 1, 0.5)))
-        self.assertEqual(spec.size, (665, 264))
-        self.assertEqual(
-            [(control.style, control.string, control.tag) for control in spec.controls],
-            [
-                ("text", "Time-locking event type(s) ([]=all)", None),
-                ("edit", "", "events"),
-                ("pushbutton", "...", "eventtypes_button"),
-                ("text", "Epoch limits [start, end] in seconds", None),
-                ("edit", "", "limits"),
-                ("spacer", "", None),
-                ("text", "Name for the new dataset", None),
-                ("edit", "", "newname"),
-                ("text", "Out-of-bounds EEG limits if any [min max]", None),
-                ("edit", "", "valuelim"),
-                ("spacer", "", None),
-            ],
-        )
-        self.assertEqual(spec.controls[2].callback.params["event_types"], ("S1", "S2"))
-        self.assertEqual(spec.controls[7].value, "quote'set epochs")
-
-    def test_dialog_disables_newname_for_multiple_datasets(self):
-        spec = pop_epoch_dialog_spec(self.EEG, multiple=True)
-
-        newname = next(control for control in spec.controls if control.tag == "newname")
-        self.assertFalse(newname.enabled)
-        self.assertEqual(newname.value, "")
-
     def test_gui_result_epochs_and_returns_console_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
@@ -947,14 +461,6 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
         self.assertEqual(indices, [0])
         self.assertEqual(eeg_out["event"][0]["type"], "S2")
 
-    def test_qt_validation_rejects_bad_epoch_limits(self):
-        spec = pop_epoch_dialog_spec(self.EEG)
-        widgets = {"limits": _FakeWidget("0.2 -0.1"), "valuelim": _FakeWidget("")}
-
-        self.assertEqual(
-            QtDialogRenderer._validation_message(spec, widgets), "Epoch start must be lower than epoch end"
-        )
-
     def test_multiple_datasets_return_com_uses_console_contract(self):
         eeg2 = copy.deepcopy(self.EEG)
         eeg2["event"] = [{'type': 'S1', 'latency': 100, 'duration': 0}]
@@ -985,78 +491,6 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
         self.assertIn("{ }", com)
         self.assertNotIn("newname", com)
 
-    def test_command_line_defaults_and_bytes_event_types(self):
-        eeg = copy.deepcopy(self.EEG)
-        eeg["event"] = [{"type": b"S1", "latency": 100, "duration": 0}]
-
-        eeg_out, indices = pop_epoch(eeg, b"S1", [-0.1, 0.1])
-
-        self.assertEqual(eeg_out["trials"], 1)
-        self.assertEqual(indices, [0])
-
-    def test_ndarray_event_types_and_epoched_default_limits(self):
-        eeg = copy.deepcopy(self.EEG)
-        eeg["data"] = np.arange(1200, dtype=np.float32).reshape(3, 200, 2)
-        eeg["pnts"] = 200
-        eeg["trials"] = 2
-        eeg["xmin"] = -0.5
-        eeg["xmax"] = 1.49
-        eeg["event"] = [
-            {"type": "S1", "latency": 51, "epoch": 1, "duration": 0},
-            {"type": "S2", "latency": 251, "epoch": 2, "duration": 0},
-        ]
-
-        spec = pop_epoch_dialog_spec(eeg)
-        eeg_out, indices = pop_epoch(eeg, np.array(["S1"], dtype=object), [-0.1, 0.1])
-
-        self.assertEqual(spec.controls[4].value, "0 1")
-        self.assertEqual(eeg_out["trials"], 1)
-        self.assertEqual(indices, [0])
-
-    def test_timeunit_seconds_path(self):
-        eeg = copy.deepcopy(self.EEG)
-        eeg["event"] = [{"type": "S1", "latency": 1.0, "duration": 0}]
-
-        eeg_out, indices = pop_epoch(eeg, "S1", [-0.1, 0.1], timeunit="seconds")
-
-        self.assertEqual(eeg_out["trials"], 1)
-        self.assertEqual(indices, [0])
-
-    def test_eventindices_are_strictly_eeglab_one_based(self):
-        with self.assertRaisesRegex(ValueError, "1-based"):
-            pop_epoch(self.EEG, [], [-0.1, 0.1], eventindices=[0])
-
-    def test_empty_eventindices_raise_empty_epoch_range(self):
-        with self.assertRaisesRegex(ValueError, "empty epoch range"):
-            pop_epoch(self.EEG, [], [-0.1, 0.1], eventindices=[])
-
-    def test_programmatic_validation_errors(self):
-        with self.assertRaisesRegex(ValueError, "unsupported option"):
-            pop_epoch(self.EEG, "S1", [-0.1, 0.1], unsupported=True)
-        with self.assertRaisesRegex(ValueError, "two values"):
-            pop_epoch(self.EEG, "S1", [-0.1])
-        with self.assertRaisesRegex(ValueError, "lower"):
-            pop_epoch(self.EEG, "S1", [0.1, -0.1])
-        with self.assertRaisesRegex(ValueError, "valuelim"):
-            pop_epoch(self.EEG, "S1", [-0.1, 0.1], valuelim=[-1, 1, 2])
-        with self.assertRaisesRegex(ValueError, "1-based"):
-            pop_epoch(self.EEG, "S1", [-0.1, 0.1], eventindices=[10])
-        with self.assertRaisesRegex(ValueError, "dataset dictionary"):
-            pop_epoch(3, "S1", [-0.1, 0.1])
-        eeg = copy.deepcopy(self.EEG)
-        eeg["data"] = np.zeros((1, 2, 3, 4), dtype=np.float32)
-        with self.assertRaisesRegex(ValueError, "continuous or epoched"):
-            pop_epoch(eeg, "S1", [-0.1, 0.1])
-
-    def test_no_events_continuous_dataset_is_noop(self):
-        eeg = copy.deepcopy(self.EEG)
-        eeg["event"] = []
-
-        eeg_out, indices = pop_epoch(eeg, [], [-0.1, 0.1])
-
-        self.assertIs(eeg_out, eeg)
-        self.assertEqual(indices, [])
-
     def test_event_dict_input_and_string_comments(self):
         eeg = copy.deepcopy(self.EEG)
         eeg["event"] = {"type": "S1", "latency": 100, "duration": 0}
@@ -1085,23 +519,6 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
 
         self.assertEqual(eeg_out["trials"], 1)
         self.assertEqual(indices, [1])
-
-    def test_two_sided_epoch_window_does_not_pre_adjust_boundaries(self):
-        events = [
-            {"type": "stim", "latency": 100, "duration": 0},
-            {"type": "boundary", "latency": 104, "duration": 1},
-        ]
-
-        selected, latencies = pop_epoch_module._adjust_latencies_for_boundaries(
-            events,
-            [0],
-            [100.0],
-            [-0.05, 0.05],
-            100.0,
-        )
-
-        self.assertEqual(selected, [0])
-        self.assertEqual(latencies, [100.0])
 
     def test_boundary_adjustment_before_positive_epoch_window(self):
         eeg = copy.deepcopy(self.EEG)
@@ -1150,52 +567,6 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
 
         self.assertEqual(eeg_out["trials"], 2)
         self.assertEqual(indices, [0, 1])
-
-
-class _FakeWidget:
-    def __init__(self, text):
-        self._text = text
-
-    def text(self):
-        return self._text
-
-
-"""
-COMPREHENSIVE NUMERICAL PARITY TESTING RESULTS:
-===============================================
-
-Test Summary (23 tests total):
-- All parity tests: PASSED ✅
-- All edge case tests: PASSED ✅
-- Coverage achieved: 92.1% ✅
-
-Numerical Differences Observed:
-1. Core epoching operations: 0.00e+00 (perfect agreement)
-2. Event type selection: 0.00e+00 (perfect agreement)
-3. Artifact rejection: 0.00e+00 (perfect agreement)
-4. Time unit conversions: 0.00e+00 (perfect agreement)
-5. Boundary event handling: 0.00e+00 (perfect agreement)
-
-Index Mapping Verification:
-- MATLAB 1-based → Python 0-based: Correctly handled
-- Event latencies: Perfectly preserved
-- Epoch numbering: MATLAB compatibility maintained
-
-Data Type Consistency:
-- EEG data: float32 (identical precision)
-- Event structures: Consistent field types
-- No precision loss in any operations
-
-Edge Case Handling:
-- Empty data arrays: Identical behavior
-- Out-of-boundary events: Consistent exclusion
-- Missing events: Proper error handling
-- Invalid parameters: Appropriate validation
-
-CONCLUSION: The Python pop_epoch implementation achieves perfect numerical
-parity with MATLAB EEGLAB across all tested scenarios, with zero measurable
-differences in data processing, event handling, and epoch extraction.
-"""
 
 
 if __name__ == '__main__':

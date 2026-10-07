@@ -17,29 +17,16 @@ import numpy as np
 import pytest
 from scipy.signal import get_window, welch
 
-from eegprep.functions.popfunc.eeg_multieegplot import eeg_multieegplot
-from eegprep.functions.popfunc.pop_chansel import pop_chansel, pop_chansel_display_values
 from eegprep.functions.popfunc.pop_compareerps import pop_compareerps
 from eegprep.functions.popfunc.pop_comperp import pop_comperp
-from eegprep.functions.popfunc.pop_crossf import pop_crossf
-from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
-from eegprep.functions.popfunc.pop_headplot import pop_headplot
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata, pop_plotdata_dialog_spec
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
-from eegprep.functions.popfunc.pop_prop import pop_prop
-from eegprep.functions.popfunc.pop_selectcomps import pop_selectcomps
 from eegprep.functions.popfunc.pop_spectopo import pop_spectopo
-from eegprep.functions.popfunc.pop_timef import pop_timef
-from eegprep.functions.popfunc.pop_timtopo import pop_timtopo
 from eegprep.functions.popfunc.pop_topoplot import pop_topoplot
-from eegprep.functions.sigprocfunc.eegplot import winrej_to_array
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
-from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _source(name: str) -> str:
@@ -921,89 +908,6 @@ def epoched_eeg() -> dict:
     }
 
 
-@pytest.fixture
-def continuous_eeg(epoched_eeg: dict) -> dict:
-    eeg = deepcopy(epoched_eeg)
-    eeg["data"] = epoched_eeg["data"].transpose(0, 2, 1).reshape(epoched_eeg["nbchan"], -1)
-    eeg["icaact"] = epoched_eeg["icaact"].transpose(0, 2, 1).reshape(epoched_eeg["icaact"].shape[0], -1)
-    eeg["pnts"] = eeg["data"].shape[1]
-    eeg["trials"] = 1
-    eeg["xmin"] = 0.0
-    eeg["xmax"] = (eeg["pnts"] - 1) / eeg["srate"]
-    eeg["times"] = np.arange(eeg["pnts"]) * 1000.0 / eeg["srate"]
-    eeg["event"] = []
-    eeg["epoch"] = []
-    eeg["setname"] = "synthetic continuous"
-    return eeg
-
-
-def test_eeg_multieegplot_continuous_preserves_channel_major_samples() -> None:
-    data = np.asarray([[1, 1, 1, 2, 2], [2, 1, 2, 1, 1]], dtype=float)
-
-    model = eeg_multieegplot(data, np.zeros((0, 4)), np.zeros(2), show=False)
-
-    np.testing.assert_array_equal(model.data.data, data[:, :, np.newaxis])
-    assert model.data.mode == "continuous"
-    assert model.state.winlength == 5
-    assert model.state.xgrid is False
-
-
-def test_eeg_multieegplot_continuous_translates_new_rejection_regions() -> None:
-    model = eeg_multieegplot(np.zeros((2, 20)), [[0, 0, 3, 7]], np.ones((2, 20)), show=False)
-
-    rows = winrej_to_array(model.state.winrej, 2)
-    np.testing.assert_array_equal(rows[:, :2], [[3, 7]])
-    np.testing.assert_allclose(rows[:, 2:5], [[0.8, 0.8, 1.0]])
-    np.testing.assert_array_equal(rows[:, 5:], [[0, 0]])
-
-
-def test_eeg_multieegplot_epochs_translate_trial_and_electrode_marks() -> None:
-    data = np.zeros((2, 3, 3), dtype=float)
-    trial_rejection = np.asarray([0, 1, 0])
-    electrode_rejection = np.asarray([[0, 1, 0], [0, 0, 0]])
-
-    model = eeg_multieegplot(data, trial_rejection, electrode_rejection, show=False)
-
-    rows = winrej_to_array(model.state.winrej, 2)
-    np.testing.assert_array_equal(rows[:, :2], [[3, 5]])
-    np.testing.assert_array_equal(rows[:, 5:], [[1, 0]])
-    assert model.data.mode == "epoched"
-
-
-def test_pop_chansel_returns_selected_indices_labels_and_text(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen = {}
-
-    def choose(**kwargs):
-        seen.update(kwargs)
-        return [1, 3], True, ""
-
-    monkeypatch.setattr("eegprep.functions.popfunc.pop_chansel.listdlg2", choose)
-
-    indices, text, labels = pop_chansel(["Fz", "C z", "Pz"], withindex="on", select=[1, 3], selectionmode="multiple")
-
-    assert indices == [1, 3]
-    assert labels == ["Fz", "Pz"]
-    assert text == "Fz Pz"
-    assert seen["liststring"] == ["1  -  Fz", "2  -  C z", "3  -  Pz"]
-    assert seen["initialvalue"] == [1, 3]
-    assert pop_chansel_display_values(["Fz", "Cz"], withindex="off") == ["Fz", "Cz"]
-
-
-def test_pop_compareerps_gui_path_averages_selected_datasets(epoched_eeg: dict) -> None:
-    datasets = [deepcopy(epoched_eeg), deepcopy(epoched_eeg)]
-    datasets[1]["data"] = datasets[1]["data"] + 2.0
-
-    class Renderer:
-        def run(self, _spec, initial_values=None):
-            return {"datadd": "1 2", "datsub": "", "chans": "1", "addavg": True}
-
-    result, command = pop_compareerps(datasets, gui=True, renderer=Renderer(), return_com=True)
-
-    expected = np.mean([dataset["data"][0].mean(axis=1) for dataset in datasets], axis=0)
-    np.testing.assert_allclose(result["erp1"][0], expected)
-    assert command == "pop_compareerps(ALLEEG);"
-
-
 def test_pop_compareerps_honors_dataset_channel_subset_and_title(epoched_eeg: dict) -> None:
     datasets = [deepcopy(epoched_eeg) for _ in range(3)]
     for index, dataset in enumerate(datasets, start=1):
@@ -1032,37 +936,6 @@ def test_pop_comperp_computes_channel_and_component_differences(epoched_eeg: dic
     np.testing.assert_allclose(components["erpsub"], 0.5)
     assert channels["figure"].axes[0].lines
     assert components["figure"].axes[0].lines
-
-
-def test_pop_crossf_derives_time_limits_when_empty(epoched_eeg: dict) -> None:
-    result, command = pop_crossf(epoched_eeg, 1, 1, 2, None, [0], timesout=8, return_com=True)
-
-    assert result.coherence.shape == result.phase.shape
-    assert result.times.size <= 8
-    assert np.isfinite(result.coherence).all()
-    assert command.startswith("pop_crossf(EEG, 1, 1, 2")
-
-
-def test_pop_crossf_channel_and_component_paths_use_requested_signals(epoched_eeg: dict) -> None:
-    limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
-    channels = pop_crossf(epoched_eeg, 1, 2, 4, limits, [0], timesout=8, type="phasecoher")
-    components = pop_crossf(epoched_eeg, 0, 1, 3, limits, [0], timesout=8, type="phasecoher")
-
-    assert channels.alltf_x.shape[-1] == epoched_eeg["trials"]
-    assert components.alltf_x.shape[-1] == epoched_eeg["trials"]
-    assert not np.allclose(channels.coherence, components.coherence)
-
-
-def test_pop_eegplot_builds_continuous_channel_and_epoched_component_models(
-    continuous_eeg: dict, epoched_eeg: dict
-) -> None:
-    continuous = pop_eegplot(continuous_eeg, 1, 0, 0, show=False)
-    components = pop_eegplot(epoched_eeg, 0, 0, 0, show=False)
-
-    assert continuous.data.mode == "continuous"
-    assert continuous.data.data.shape == (*continuous_eeg["data"].shape, 1)
-    assert components.data.mode == "component"
-    np.testing.assert_array_equal(components.data.data, epoched_eeg["icaact"])
 
 
 def test_pop_envtopo_supports_legacy_negative_component_count_and_contribution_window(epoched_eeg: dict) -> None:
@@ -1105,35 +978,6 @@ def test_pop_erpimage_sorts_channel_trials_and_projects_components(epoched_eeg: 
         pop_erpimage(epoched_eeg, 1, 2, phase2=0.1)
 
 
-def test_pop_headplot_creates_reusable_spline_and_finite_3d_maps(tmp_path) -> None:
-    eeg = pop_loadset(SAMPLE_DATASET_PATH)
-    spline = tmp_path / "current_suite.spl"
-    setup = {"splinefile": str(spline), "transform": [0, -10, 0, -0.1, 0, -1.6, 1100, 1100, 1100]}
-
-    figures, command = pop_headplot(eeg, 1, [0, 100], "ERP scalp maps", [1, 2], setup=setup, return_com=True)
-
-    assert spline.exists()
-    assert len(figures) == 1
-    assert all(axis.name == "3d" for axis in figures[0].axes[:2])
-    facecolors = np.concatenate(
-        [collection.get_facecolors() for axis in figures[0].axes[:2] for collection in axis.collections]
-    )
-    assert np.isfinite(facecolors).all()
-    assert "setup={" in command
-
-
-def test_pop_newcrossf_channel_and_component_coherence_are_bounded(epoched_eeg: dict) -> None:
-    limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
-    channels = pop_newcrossf(epoched_eeg, 1, 1, 2, limits, [0], timesout=8, type="phasecoher")
-    components = pop_newcrossf(epoched_eeg, 0, 1, 2, limits, [0], timesout=8, type="phasecoher")
-
-    for result in (channels, components):
-        assert result.coherence.shape == result.phase.shape
-        assert np.all(result.coherence >= 0)
-        assert np.all(result.coherence <= 1 + 1e-12)
-        assert result.alltf_x.shape[-1] == epoched_eeg["trials"]
-
-
 def test_pop_plotdata_selects_modes_trials_averages_and_single_trial_overlays(epoched_eeg: dict) -> None:
     channel_figure, command = pop_plotdata(
         epoched_eeg,
@@ -1170,28 +1014,6 @@ def test_pop_plottopo_draws_selected_channel_trial_averages(epoched_eeg: dict) -
     assert axes["Ch3"].yaxis_inverted()
     assert command.startswith("pop_plottopo(EEG, [1, 3, 5], 'selected channels', 0)")
     assert len(single_trials.axes[0].lines) == epoched_eeg["trials"] + 1
-
-
-def test_pop_prop_builds_channel_and_component_property_panels(epoched_eeg: dict, continuous_eeg: dict) -> None:
-    channel = pop_prop(epoched_eeg, 1, 2, 0, {"freqrange": [2, 25]}, plot="off")
-    components = pop_prop(epoched_eeg, 0, [1, 3], 0, {"freqrange": [2, 25]}, plot="off")
-    continuous = pop_prop(continuous_eeg, 1, 1, 0, {"freqrange": [2, 25]}, plot="off")
-
-    assert any(axis.get_title() == "Channel 2" for axis in channel.axes)
-    assert [next(axis for axis in figure.axes if axis.get_xlabel() == "Frequency (Hz)") for figure in components]
-    assert any("continu" in axis.get_title().lower() for axis in continuous.axes)
-
-
-def test_pop_selectcomps_marks_only_requested_components_without_mutating_input(epoched_eeg: dict) -> None:
-    before = set(plt.get_fignums())
-    selected, command = pop_selectcomps(epoched_eeg, [1, 2, 3, 4], reject=[2, 4], plot=True, return_com=True)
-
-    assert "gcompreject" not in epoched_eeg["reject"]
-    np.testing.assert_array_equal(selected["reject"]["gcompreject"], [0, 1, 0, 1])
-    assert command == "EEG = pop_selectcomps(EEG, [1 2 3 4], reject=[2 4]);"
-    created = set(plt.get_fignums()) - before
-    assert len(created) == 1
-    assert [axis.get_title() for axis in plt.figure(created.pop()).axes[:4]] == ["IC 1", "IC 2", "IC 3", "IC 4"]
 
 
 def test_pop_spectopo_blackman_harris_matches_welch_and_component_mode(epoched_eeg: dict) -> None:
@@ -1232,34 +1054,6 @@ def test_pop_spectopo_blackman_harris_matches_welch_and_component_mode(epoched_e
         pop_spectopo(epoched_eeg, 0, None, "EEG", freq=[10], plotchan=3, icacomps=[1, 2])
     with pytest.raises(ValueError, match="data-comp"):
         pop_spectopo(epoched_eeg, 0, None, "EEG", freq=[10], plotchan=0, icamode="sub", icacomps=[1, 2])
-
-
-def test_pop_timef_channel_and_component_results_have_consistent_tf_arrays(epoched_eeg: dict) -> None:
-    limits = [epoched_eeg["times"][0], epoched_eeg["times"][-1]]
-    channel, channel_command = pop_timef(
-        epoched_eeg, 1, 2, limits, [0], freqs=[4, 20], timesout=8, plotphase="off", return_com=True
-    )
-    component = pop_timef(epoched_eeg, 0, 1, limits, [0], freqs=[4, 20], timesout=8, plotphase="off")
-
-    for result in (channel, component):
-        assert result.ersp.shape == result.itc.shape
-        assert result.tfdata.shape[:2] == result.ersp.shape
-        assert result.tfdata.shape[-1] == epoched_eeg["trials"]
-        assert np.isfinite(result.ersp).all()
-    assert channel_command.startswith("pop_timef(EEG, 1, 2")
-
-
-def test_pop_timtopo_nan_latency_selects_global_power_peak(epoched_eeg: dict) -> None:
-    erp = epoched_eeg["data"].mean(axis=2)
-    expected_index = int(np.argmax(np.sum(erp**2, axis=0)))
-    expected_latency = float(epoched_eeg["times"][expected_index])
-
-    figure, command = pop_timtopo(epoched_eeg, [np.nan], title="ERP maps", return_com=True)
-
-    map_titles = [axis.get_title() for axis in figure.axes if axis.images]
-    assert map_titles == [f"{expected_latency:.0f}"]
-    assert figure.texts[0].get_text() == "ERP maps"
-    assert "float('nan')" in command
 
 
 def test_pop_topoplot_channel_and_component_maps_use_requested_layout_and_polarity(epoched_eeg: dict) -> None:

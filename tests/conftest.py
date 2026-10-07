@@ -222,10 +222,7 @@ SLOW_NODEID_PARTS = (
 VISUAL_FILE_SUFFIXES = ("tests/test_visual_parity.py",)
 
 GUI_FILE_SUFFIXES = (
-    "tests/test_gui_pop_adjustevents.py",
     "tests/test_gui_pop_clean_rawdata.py",
-    "tests/test_gui_pop_comments.py",
-    "tests/test_gui_pop_editset.py",
     "tests/test_gui_pop_firfilt.py",
     "tests/test_gui_pop_iclabel.py",
     "tests/test_gui_pop_prop_extended.py",
@@ -252,7 +249,6 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_eegfindboundaries.py",
     "tests/test_envtopo_parity.py",
     "tests/test_iclabel.py",
-    "tests/test_iclabel_features.py",
     "tests/test_parity_rng.py",
     "tests/test_pinv.py",
     "tests/test_pipeline.py",
@@ -263,24 +259,12 @@ MATLAB_FILE_SUFFIXES = (
 )
 
 MATLAB_NODEID_PARTS = (
-    "tests/test_ICL_feature_extractor.py::TestICLFeatureExtractorParity::",
     "tests/test_eeg_autocorr.py::TestEegAutocorr::test_parity_",
-    "tests/test_eeg_autocorr_fftw.py::TestEegAutocorrFftw::test_parity_",
-    "tests/test_eeg_autocorr_welch.py::TestEegAutocorrWelch::test_parity_",
     "tests/test_eeg_interp.py::TestComputeGParity::",
     "tests/test_eeg_interp.py::TestEegInterpParity::",
     "tests/test_eeg_interp.py::TestSphericalSplineParity::",
     "tests/test_eeg_picard.py::TestEegPicard::",
-    "tests/test_eegrej.py::TestEEGRej::test_compare_to_eeglab",
-    "tests/test_eeglabcompat.py::TestCleanDrifts::",
-    "tests/test_eeglabcompat.py::TestEegChecksetMatlab::",
-    "tests/test_eeglabcompat.py::TestEeglabCompatIntegration::",
-    "tests/test_eeglabcompat.py::TestGetEeglab::",
-    "tests/test_eeglabcompat.py::TestPopEegfiltnew::",
     "tests/test_epoch.py::TestEpochParity::",
-    "tests/test_matlab_path.py::TestMatlabPath::test_get_eeglab_mat",
-    "tests/test_matlab_path.py::TestMatlabPath::test_python_matlab_engine",
-    "tests/test_matlab_path.py::TestMatlabPath::test_start_matlab_engine",
     "tests/test_pop_reref.py::TestPopReref::test_parity_",
     "tests/test_pop_firfilt.py::TestPopFirfiltParity::",
     "tests/test_pop_rmbase.py::TestPopRmbaseParity::",
@@ -288,8 +272,6 @@ MATLAB_NODEID_PARTS = (
     "tests/test_runica.py::TestRunicaParity::",
     "tests/test_topoplot.py::TestTopoplotParity::",
 )
-
-OCTAVE_NODEID_PARTS = ("tests/test_matlab_path.py::TestMatlabPath::test_get_eeglab_oct",)
 
 
 def _path_has_suffix(path: str, suffixes: tuple[str, ...]) -> bool:
@@ -330,9 +312,6 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         requires_matlab = _path_has_suffix(path, MATLAB_FILE_SUFFIXES) or _nodeid_has_part(nodeid, MATLAB_NODEID_PARTS)
         if requires_matlab:
             item.add_marker(pytest.mark.matlab)
-
-        if _nodeid_has_part(nodeid, OCTAVE_NODEID_PARTS):
-            item.add_marker(pytest.mark.octave)
 
 
 @pytest.hookimpl(specname="pytest_collection_modifyitems", trylast=True)

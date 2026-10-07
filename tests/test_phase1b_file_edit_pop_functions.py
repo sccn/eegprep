@@ -16,8 +16,7 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_chanedit import pop_chanedit, pop_chanedit_dialog_spec
 from eegprep.functions.popfunc.pop_copyset import pop_copyset
 from eegprep.functions.popfunc.pop_editeventfield import pop_editeventfield
-from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals, pop_editeventvals_dialog_spec
-from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
+from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
 from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
@@ -247,26 +246,6 @@ def _assert_python_echo_is_parseable(command: str) -> None:
     ast.parse(_console_python_command(command))
 
 
-def test_pop_editeventfield_adds_renames_deletes_fields_and_updates_urevent():
-    eeg = _eeg()
-
-    out, command = pop_editeventfield(eeg, "condition", ["target", "button"], return_com=True)
-
-    assert eeg["event"][0].get("condition") is None
-    assert [event["condition"] for event in out["event"]] == ["target", "button"]
-    assert out["urevent"][0]["condition"] == "target"
-    assert out["urevent"][1]["condition"] == "button"
-    assert "pop_editeventfield" in command
-    _assert_python_echo_is_parseable(command)
-
-    renamed = pop_editeventfield(out, "rename", "condition->trialtype")
-    assert "condition" not in renamed["event"][0]
-    assert renamed["event"][0]["trialtype"] == "target"
-
-    deleted = pop_editeventfield(renamed, "trialtype", [])
-    assert "trialtype" not in deleted["event"][0]
-
-
 def test_pop_editeventfield_updates_urevent_pointed_to_by_loaded_event():
     eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
     values = [f"tag{index}" for index in range(len(eeg["event"]))]
@@ -290,27 +269,6 @@ def test_pop_editeventvals_append_continues_zero_based_urevent_numbering():
     assert new_event["urevent"] == n_urevents
     assert len(out["urevent"]) == n_urevents + 1
     assert out["urevent"][new_event["urevent"]]["type"] == "new"
-
-
-def test_pop_editeventvals_change_insert_delete_and_sort_events():
-    eeg = _eeg()
-
-    out, command = pop_editeventvals(eeg, "changefield", [1, "type", "target"], return_com=True)
-    assert out["event"][0]["type"] == "target"
-    assert out["urevent"][0]["type"] == "target"
-    _assert_python_echo_is_parseable(command)
-
-    inserted = pop_editeventvals(out, "insert", [2, "new", 25.0, 0.0, 3])
-    assert len(inserted["event"]) == 3
-    assert inserted["event"][1]["type"] == "new"
-
-    sorted_out = pop_editeventvals(inserted, "sort", ["latency"])
-    assert [event["latency"] for event in sorted_out["event"]] == sorted(
-        [event["latency"] for event in sorted_out["event"]]
-    )
-
-    deleted = pop_editeventvals(sorted_out, "delete", [2])
-    assert len(deleted["event"]) == 2
 
 
 def test_pop_editeventvals_insert_preserves_existing_urevent_links():
@@ -397,141 +355,6 @@ def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events(
 
     assert selected == [1, 2]
     assert [event["type"] for event in out["event"]] == ["stim", -99]
-
-
-def _selection_regression_eeg() -> dict:
-    eeg = _eeg("selection regression")
-    eeg.update(
-        {
-            "data": np.arange(1, 41, dtype=np.float32).reshape((1, 10, 4), order="F"),
-            "nbchan": 1,
-            "pnts": 10,
-            "trials": 4,
-            "srate": 1000.0,
-            "xmin": 0.0,
-            "xmax": 0.009,
-            "times": np.arange(10, dtype=float),
-            "chanlocs": [eeg["chanlocs"][0]],
-            "event": [],
-            "urevent": [],
-            "epoch": [],
-        }
-    )
-    for trial in range(1, 5):
-        event_type = "target" if trial % 2 else "other"
-        eeg["event"].extend(
-            [
-                {"type": event_type, "latency": (trial - 1) * 10 + 3, "epoch": trial},
-                {"type": "distractor", "latency": (trial - 1) * 10 + 7, "epoch": trial},
-            ]
-        )
-    return eeg
-
-
-def test_pop_selectevent_retains_matching_epochs():
-    eeg = _selection_regression_eeg()
-
-    selected, _ = pop_selectevent(eeg, "type", "target", "deleteepochs", "on")
-
-    assert selected["trials"] == 2
-    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]])
-    assert len(selected["event"]) == 4
-    assert [event["epoch"] for event in selected["event"]] == [1, 1, 2, 2]
-
-
-def test_pop_selectevent_empty_selection_errors_by_default():
-    with pytest.raises(ValueError, match="empty|Empty"):
-        pop_selectevent(_selection_regression_eeg(), "type", "absent", "deleteepochs", "on")
-
-
-def test_pop_selectevent_empty_selection_can_be_allowed():
-    selected, _ = pop_selectevent(
-        _selection_regression_eeg(),
-        "type",
-        "absent",
-        "deleteepochs",
-        "on",
-        "erroronempty",
-        "off",
-    )
-
-    assert selected["data"].size == 0
-    assert len(selected["event"]) == 0
-
-
-def test_pop_selectevent_can_invert_epoch_selection():
-    eeg = _selection_regression_eeg()
-
-    selected, _ = pop_selectevent(
-        eeg,
-        "type",
-        "target",
-        "deleteepochs",
-        "on",
-        "invertepochs",
-        "on",
-    )
-
-    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [1, 3]])
-    assert selected["trials"] == 2
-
-
-def test_pop_selectevent_deletes_unselected_events_when_requested():
-    selected, _ = pop_selectevent(
-        _selection_regression_eeg(),
-        "type",
-        "target",
-        "deleteepochs",
-        "on",
-        "deleteevents",
-        "on",
-    )
-
-    assert [event["type"] for event in selected["event"]] == ["target", "target"]
-    assert [event["epoch"] for event in selected["event"]] == [1, 2]
-
-
-def test_pop_selectevent_keeps_epochs_when_deleting_only_events():
-    eeg = _selection_regression_eeg()
-
-    selected, _ = pop_selectevent(
-        eeg,
-        "type",
-        "target",
-        "deleteepochs",
-        "off",
-        "deleteevents",
-        "on",
-    )
-
-    np.testing.assert_array_equal(selected["data"], eeg["data"])
-    assert len(selected["event"]) == 2
-
-
-def test_pop_selectevent_explicit_error_option_allows_nonempty_selection():
-    eeg = _selection_regression_eeg()
-
-    selected, _ = pop_selectevent(
-        eeg,
-        "type",
-        "target",
-        "deleteepochs",
-        "on",
-        "erroronempty",
-        "on",
-    )
-
-    np.testing.assert_array_equal(selected["data"], eeg["data"][:, :, [0, 2]])
-
-
-def test_pop_selectevent_applies_selection_to_dataset_lists():
-    eeg = _selection_regression_eeg()
-
-    selected, _ = pop_selectevent([eeg, deepcopy(eeg)], "type", "target", "deleteepochs", "on")
-
-    assert [dataset["trials"] for dataset in selected] == [2, 2]
-    np.testing.assert_array_equal(selected[0]["data"], eeg["data"][:, :, [0, 2]])
-    np.testing.assert_array_equal(selected[1]["data"], eeg["data"][:, :, [0, 2]])
 
 
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():
@@ -624,26 +447,6 @@ def test_pop_chanedit_gui_unchanged_submission_does_not_emit_history():
     assert command == ""
 
 
-def test_pop_chanedit_navigation_buttons_enabled_with_callbacks():
-    eeg = _eeg()
-
-    spec = pop_chanedit_dialog_spec(eeg)
-    controls = controls_by_tag(spec)
-
-    expected_deltas = {"back10": -10, "back1": -1, "next1": 1, "next10": 10}
-    for tag, delta in expected_deltas.items():
-        control = controls[tag]
-        assert control.enabled, f"{tag} must be enabled when multiple channels exist"
-        assert control.callback is not None
-        assert control.callback.name == "navigate_channel"
-        assert int(control.callback.params["delta"]) == delta
-        assert control.callback.params["channel_tag"] == "channel"
-        assert int(control.callback.params["max_index"]) == len(eeg["chanlocs"])
-        displays = control.callback.params["field_displays"]
-        assert len(displays) == len(eeg["chanlocs"])
-        assert displays[1]["field_labels"] == "Pz"
-
-
 def test_pop_chanedit_gui_submits_change_for_navigated_channel():
     class Renderer:
         def run(self, spec, initial_values=None):
@@ -691,18 +494,6 @@ def test_qt_renderer_navigation_updates_channel_and_fields():
         dialog.close()
 
 
-def test_sample_data_event_and_channel_dialogs_enable_navigation():
-    eeg = pop_loadset(SAMPLE_DATASET_PATH)
-
-    event_controls = controls_by_tag(pop_editeventvals_dialog_spec(eeg))
-    channel_controls = controls_by_tag(pop_chanedit_dialog_spec(eeg))
-
-    assert event_controls["next1"].enabled
-    assert int(event_controls["next1"].callback.params["max_index"]) == len(eeg["event"])
-    assert channel_controls["next1"].enabled
-    assert int(channel_controls["next1"].callback.params["max_index"]) == len(eeg["chanlocs"])
-
-
 def test_pop_chanedit_reads_comma_delimited_ced_with_comments(tmp_path):
     loc_file = tmp_path / "locs.ced"
     loc_file.write_text("% exported by EEGLAB\nlabels,X,Y,Z\nFz,0,1,0\nCz,0,0,1\n", encoding="utf-8")
@@ -726,29 +517,6 @@ def test_pop_copyset_uses_one_based_indices_and_preserves_source_order():
     assert alleeg[2]["setname"] == "first"
     assert "LASTCOM" in command
     _assert_python_echo_is_parseable(command)
-
-
-def test_pop_copyset_current_suite_overwrites_requested_output_slot():
-    first = _eeg("first")
-    second = _eeg("second")
-
-    alleeg, eeg, current_set = pop_copyset([first, second], 2, 1)
-
-    assert current_set == 1
-    assert eeg["setname"] == "second"
-    assert alleeg[0]["setname"] == "second"
-    assert alleeg[1]["setname"] == "second"
-
-
-def test_pop_copyset_current_suite_supports_copy_and_same_slot_copy():
-    eeg = _eeg("source")
-
-    alleeg, copied, current_set = pop_copyset([eeg, deepcopy(eeg)], 1, 2)
-    alleeg, copied, current_set = pop_copyset(alleeg, 1, 1)
-
-    assert current_set == 1
-    assert copied["setname"] == "source"
-    assert [dataset["setname"] for dataset in alleeg] == ["source", "source"]
 
 
 def test_pop_mergeset_continuous_offsets_events_and_inserts_boundary():
@@ -781,52 +549,6 @@ def test_pop_mergeset_gui_uses_selected_indices_as_defaults():
     assert seen["indices"] == "2 1"
     assert merged["pnts"] == first["pnts"] + second["pnts"]
     assert command == "EEG = pop_mergeset( ALLEEG, [2 1], 0);"
-
-
-def test_pop_fileio_brainvision_mat_delegates_to_fileio_mat_import(monkeypatch, tmp_path):
-    mat_path = tmp_path / "brainvision.mat"
-    mat_path.write_bytes(b"placeholder")
-    imported = _eeg("brainvision")
-    imported["history"] = "EEG = pop_fileio('brainvision.mat');"
-
-    def fake_pop_fileio(filename, *, return_com=False, **kwargs):
-        assert filename == mat_path
-        assert return_com is True
-        assert kwargs == {"dataformat": "matlab"}
-        return imported, "EEG = pop_fileio('brainvision.mat');"
-
-    monkeypatch.setattr(
-        "eegprep.functions.popfunc.pop_fileio_brainvision_mat.pop_fileio",
-        fake_pop_fileio,
-    )
-
-    out, command = pop_fileio_brainvision_mat(mat_path, dataformat="matlab", return_com=True)
-
-    assert out is imported
-    assert command == f"EEG = pop_fileio_brainvision_mat('{mat_path.as_posix()}');"
-    assert out["history"] == f"EEG = pop_fileio('brainvision.mat');\n{command}"
-    _assert_python_echo_is_parseable(command)
-
-
-def test_pop_fileio_brainvision_mat_escapes_quote_paths(monkeypatch, tmp_path):
-    mat_path = tmp_path / "brain'vision.mat"
-    mat_path.write_bytes(b"placeholder")
-    imported = _eeg("brainvision")
-
-    monkeypatch.setattr(
-        "eegprep.functions.popfunc.pop_fileio_brainvision_mat.pop_fileio",
-        lambda filename, *, return_com=False, **kwargs: (imported, ""),
-    )
-
-    _out, command = pop_fileio_brainvision_mat(mat_path, return_com=True)
-
-    assert "brain''vision.mat" in command
-    _assert_python_echo_is_parseable(command)
-
-
-def test_pop_fileio_brainvision_mat_rejects_non_mat_files(tmp_path):
-    with pytest.raises(ValueError, match="\\.mat"):
-        pop_fileio_brainvision_mat(tmp_path / "recording.vhdr")
 
 
 def test_select_multiple_datasets_preserves_order_and_updates_session_history_contract():
@@ -890,23 +612,6 @@ def test_phase1b_gui_cancel_paths_return_original_dataset_without_history():
     for function in (pop_editeventfield, pop_editeventvals, pop_chanedit, pop_selectevent, pop_rmdat):
         result = function(deepcopy(eeg), gui=True, renderer=CancelRenderer(), return_com=True)
         assert result[1] == ""
-
-
-@pytest.mark.matlab
-@pytest.mark.skipif(
-    not (matlab_engine_available() and eeglab_reference_available()),
-    reason="MATLAB engine or EEGLAB reference not available",
-)
-def test_pop_selectevent_matches_eeglab_for_basic_event_type_selection():
-    from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-
-    eeg = _eeg()
-    py_out, py_selected = pop_selectevent(eeg, "type", "stim", "deleteevents", "on")
-    matlab_out = get_eeglab("MAT").pop_selectevent(eeg, "type", "stim", "deleteevents", "on")
-
-    assert py_selected == [1]
-    assert [event["type"] for event in py_out["event"]] == [event["type"] for event in matlab_out["event"]]
-    assert np.allclose(py_out["data"], matlab_out["data"])
 
 
 @pytest.mark.matlab

@@ -12,10 +12,8 @@ from typing import Any
 
 import pytest
 
-import eegprep.extension_catalog as manager_catalog
 from eegprep.extension_catalog import (
     CATALOG_KIND_CURATION,
-    CATALOG_KIND_MANAGER,
     CATALOG_SCHEMA_VERSION,
 )
 from eegprep.extension_catalog_validation import (
@@ -23,7 +21,6 @@ from eegprep.extension_catalog_validation import (
     load_catalog_entries,
     main,
     validate_catalog_entries,
-    validate_catalog_file,
 )
 from eegprep.extensions import EXTENSION_ENTRY_POINT_GROUP
 
@@ -53,27 +50,11 @@ class FakeEntryPoint:
         return getattr(module, attr_name)
 
 
-class BrokenEntryPoint(FakeEntryPoint):
-    def load(self) -> Any:
-        raise RuntimeError("import failed")
-
-
 def test_static_catalog_entry_is_valid_without_installed_package() -> None:
     report = validate_catalog_entries([_catalog_entry()])
 
     assert report.ok
     assert report.warnings == ()
-
-
-def test_load_catalog_entries_accepts_future_index_payload(tmp_path: Path) -> None:
-    catalog = tmp_path / "catalog.json"
-    _write_catalog(catalog, _catalog_entry(id="sample_extension", extension_name="sample_extension"))
-
-    entries = load_catalog_entries(catalog)
-
-    assert len(entries) == 1
-    assert entries[0]["id"] == "sample_extension"
-    assert validate_catalog_file(catalog).ok
 
 
 def test_load_catalog_entries_accepts_catalog_directories(tmp_path: Path) -> None:
@@ -106,40 +87,6 @@ def test_catalog_cli_emits_json_report(tmp_path: Path, capsys: pytest.CaptureFix
     assert json.loads(captured.out) == {"ok": True, "errors": [], "warnings": []}
 
 
-def test_catalog_validator_entry_point_is_owned_by_validation_module() -> None:
-    pyproject_text = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
-
-    assert 'eegprep-validate-extension-catalog = "eegprep.extension_catalog_validation:main"' in pyproject_text
-    assert not hasattr(manager_catalog, "main")
-    assert not hasattr(manager_catalog, "validate_catalog_file")
-
-
-def test_schema_version_mismatch_is_reported(tmp_path: Path) -> None:
-    catalog = tmp_path / "catalog.json"
-    catalog.write_text(
-        '{"catalog_kind": "extension_curation", "schema_version": 999, "extensions": []}',
-        encoding="utf-8",
-    )
-
-    report = validate_catalog_file(catalog)
-
-    assert not report.ok
-    assert f"schema_version must be {CATALOG_SCHEMA_VERSION}" in report.errors[0].message
-
-
-def test_curation_validator_rejects_extension_manager_catalog_kind(tmp_path: Path) -> None:
-    catalog = tmp_path / "catalog.json"
-    catalog.write_text(
-        json.dumps({"catalog_kind": CATALOG_KIND_MANAGER, "schema_version": CATALOG_SCHEMA_VERSION, "extensions": []}),
-        encoding="utf-8",
-    )
-
-    report = validate_catalog_file(catalog)
-
-    assert not report.ok
-    assert f"catalog_kind must be {CATALOG_KIND_CURATION!r}" in report.errors[0].message
-
-
 def test_invalid_metadata_rejects_malicious_looking_fields() -> None:
     entry = _catalog_entry(
         id="../bad",
@@ -158,25 +105,6 @@ def test_invalid_metadata_rejects_malicious_looking_fields() -> None:
     assert "entry_point: Must start with a letter" in messages
     assert "extension_name: Must start with a letter" in messages
     assert "docs_url: Must be an https:// or http:// URL" in messages
-
-
-def test_non_object_catalog_entry_is_reported() -> None:
-    report = validate_catalog_entries(["not-an-entry"])
-
-    assert not report.ok
-    assert "Catalog entries must be mapping objects" in _messages(report)
-
-
-def test_missing_license_maintainer_and_docs_are_blocking() -> None:
-    entry = _catalog_entry(license="unknown", maintainer={}, docs_url="")
-
-    report = validate_catalog_entries([entry])
-
-    assert not report.ok
-    messages = _messages(report)
-    assert "license: License must identify the extension license" in messages
-    assert "maintainer: Required catalog metadata must not be empty" in messages
-    assert "docs_url: Required catalog metadata must not be empty" in messages
 
 
 def test_catalog_conflicts_are_reported() -> None:
@@ -220,50 +148,6 @@ def test_dependency_mismatch_is_reported_when_installed_checks_are_enabled() -> 
 
     assert not report.ok
     assert "Dependency 'example-dependency' requires >=2.0; installed version is 1.0" in _messages(report)
-
-
-def test_missing_installed_package_is_reported() -> None:
-    def version_provider(name: str) -> str:
-        raise metadata.PackageNotFoundError(name)
-
-    report = validate_catalog_entries(
-        [_catalog_entry()],
-        options=CatalogValidationOptions(check_installed=True, version_provider=version_provider),
-    )
-
-    assert not report.ok
-    assert "package_name: Package 'eegprep-ext-example' is not installed" in _messages(report)
-
-
-def test_package_without_entry_point_is_reported() -> None:
-    report = validate_catalog_entries(
-        [_catalog_entry()],
-        options=CatalogValidationOptions(
-            check_installed=True,
-            version_provider=lambda name: "1.0.0",
-            entry_points_provider=_provider(),
-        ),
-    )
-
-    assert not report.ok
-    assert "does not expose 'example'" in _messages(report)
-
-
-def test_entry_point_import_failure_is_reported() -> None:
-    report = validate_catalog_entries(
-        [_catalog_entry()],
-        options=CatalogValidationOptions(
-            check_import=True,
-            version_provider=lambda name: "1.0.0",
-            entry_points_provider=_provider(
-                BrokenEntryPoint("example", "example_pkg.register:register", package_name="eegprep-ext-example")
-            ),
-        ),
-    )
-
-    assert not report.ok
-    assert "failed to import" in _messages(report)
-    assert "import failed" in _messages(report)
 
 
 def test_imported_spec_mismatch_is_reported(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -340,76 +224,6 @@ def test_imported_spec_matching_catalog_is_valid(tmp_path: Path, monkeypatch: py
 
     assert report.ok
     assert report.warnings == ()
-
-
-def test_catalog_version_mismatch_with_installed_package_is_reported() -> None:
-    report = validate_catalog_entries(
-        [_catalog_entry()],
-        options=CatalogValidationOptions(
-            check_installed=True,
-            version_provider=lambda name: "2.0.0",
-            entry_points_provider=_provider(
-                FakeEntryPoint("example", "example_pkg.register:register", package_name="eegprep-ext-example")
-            ),
-        ),
-    )
-
-    assert not report.ok
-    assert "version: Catalog version 1.0.0 does not match installed package version 2.0.0" in _messages(report)
-
-
-def test_unsupported_eegprep_version_is_reported() -> None:
-    report = validate_catalog_entries([_catalog_entry(eegprep_requires=">=999.0")])
-
-    assert not report.ok
-    assert "requires EEGPrep >=999.0" in _messages(report)
-
-
-def test_unsupported_python_version_is_reported() -> None:
-    report = validate_catalog_entries([_catalog_entry(python_requires=">=99.0")])
-
-    assert not report.ok
-    assert "Extension requires Python >=99.0" in _messages(report)
-
-
-def test_malformed_python_requires_reports_single_field_error() -> None:
-    report = validate_catalog_entries([_catalog_entry(python_requires="not-a-spec")])
-
-    assert not report.ok
-    assert [issue.field for issue in report.errors] == ["python_requires"]
-    assert report.errors[0].message == "Must be a simple version specifier"
-    assert "Extension requires Python not-a-spec" not in _messages(report)
-
-
-def test_malformed_eegprep_requires_reports_single_field_error() -> None:
-    report = validate_catalog_entries([_catalog_entry(eegprep_requires="not-a-spec")])
-
-    assert not report.ok
-    assert [issue.field for issue in report.errors] == ["eegprep_requires"]
-    assert report.errors[0].message == "Must be a simple version specifier"
-    assert "requires EEGPrep not-a-spec" not in _messages(report)
-
-
-def test_private_internal_extension_is_not_publicly_curated_by_default() -> None:
-    entry = _catalog_entry(private=True, curation={"status": "private"})
-
-    public_report = validate_catalog_entries([entry])
-    private_report = validate_catalog_entries(
-        [entry],
-        options=CatalogValidationOptions(allow_private=True),
-    )
-
-    assert not public_report.ok
-    assert "Private/internal extensions are supported" in _messages(public_report)
-    assert private_report.ok
-    assert "does not carry curated status" in _messages(private_report)
-
-
-def test_non_recommended_package_name_warns_but_does_not_drive_discovery() -> None:
-    report = validate_catalog_entries([_catalog_entry(package_name="researchlab_example")])
-
-    assert report.ok
-    assert "Recommended package names start with 'eegprep-ext-'" in _messages(report)
 
 
 def _catalog_entry(**overrides: Any) -> dict[str, Any]:

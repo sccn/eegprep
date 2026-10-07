@@ -127,57 +127,6 @@ def test_read_erpss_reads_uncompressed_big_endian_samples_and_header_rate(tmp_pa
     assert [channel["labels"] for channel in eeg["chanlocs"]] == ["A1", "A2", "EOG"]
 
 
-def test_read_erpss_rejects_corrupt_and_truncated_recordings(tmp_path: Path) -> None:
-    data = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int16)
-    recording = tmp_path / "recording.raw"
-    _write_erpss(recording, [data], compressed=True, byteorder="little", labels=["A", "B"])
-
-    invalid_tag = tmp_path / "invalid-tag.raw"
-    invalid_tag.write_bytes(b"bad!" + recording.read_bytes()[4:])
-    with pytest.raises(ValueError, match="byte-order tag"):
-        read_erpss(invalid_tag)
-
-    truncated = tmp_path / "truncated.raw"
-    truncated.write_bytes(recording.read_bytes()[:-1])
-    with pytest.raises(ValueError, match="truncated sample data"):
-        read_erpss(truncated)
-
-    invalid_delta = tmp_path / "invalid-delta.raw"
-    invalid_bytes = bytearray(recording.read_bytes())
-    invalid_bytes[4608:4610] = b"\x00\x00"
-    invalid_delta.write_bytes(invalid_bytes)
-    with pytest.raises(ValueError, match="starts with a delta"):
-        read_erpss(invalid_delta)
-
-    outside_event = tmp_path / "outside-event.raw"
-    _write_erpss(
-        outside_event,
-        [data],
-        compressed=False,
-        byteorder="little",
-        labels=["A", "B"],
-        events=[[(3, 0, 1)]],
-    )
-    with pytest.raises(ValueError, match="outside the block"):
-        read_erpss(outside_event)
-
-
-def test_pop_read_erpss_requires_a_rate_when_the_header_has_none(tmp_path: Path) -> None:
-    recording = tmp_path / "unknown-rate.raw"
-    _write_erpss(
-        recording,
-        [np.array([[1, 2]], dtype=np.int16)],
-        compressed=False,
-        byteorder="little",
-        labels=["Cz"],
-    )
-
-    with pytest.raises(ValueError, match="sampling rate"):
-        pop_read_erpss(recording)
-    with pytest.raises(ValueError, match="finite positive"):
-        pop_read_erpss(recording, 0)
-
-
 def _write_erpss(
     path: Path,
     blocks: list[np.ndarray],

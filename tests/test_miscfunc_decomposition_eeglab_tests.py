@@ -286,30 +286,6 @@ def test_python_regression_make_timewarp_default_outlier_and_condition_calls():
     assert conditioned["event_sequence"] == ["square", "rt"]
 
 
-def test_python_regression_promax_current_suite_singular_column_vector_is_finite():
-    rotation, orthogonal = promax(np.asarray([[1.0], [2.0], [3.0]]))
-    assert rotation.shape == orthogonal.shape == (3, 3)
-    assert np.all(np.isfinite(rotation))
-    assert np.all(np.isfinite(orthogonal))
-
-
-def test_python_regression_promax_current_suite_general_rotation_contract():
-    data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
-    rotation, orthogonal = promax(data)
-    assert rotation.shape == orthogonal.shape == (3, 3)
-    np.testing.assert_allclose(finite_matmul(orthogonal, orthogonal.T), np.eye(3), rtol=1e-12, atol=1e-12)
-    assert np.linalg.matrix_rank(rotation) == 3
-    assert np.all(np.isfinite(finite_matmul(rotation, data)))
-
-
-def test_python_regression_promax_current_suite_iteration_limit_is_deterministic():
-    data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
-    first = promax(data, max_iterations=2)
-    second = promax(data, max_iterations=2)
-    np.testing.assert_allclose(first[0], second[0], rtol=0, atol=0)
-    np.testing.assert_allclose(first[1], second[1], rtol=0, atol=0)
-
-
 def test_python_regression_promax_current_suite_reduced_rotation_operates_on_original_channels():
     data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
     rotation, orthogonal = promax(data, n_components=2)
@@ -341,12 +317,6 @@ def test_python_regression_promax_current_suite_reduced_rotation_operates_on_ori
         rtol=2e-12,
         atol=2e-12,
     )
-
-
-def test_python_regression_promax_current_suite_one_component_rotation_is_identity():
-    rotation, orthogonal = promax(np.asarray([[-1.0, 0.0, 1.0, 92.0]]))
-    np.testing.assert_array_equal(rotation, [[1.0]])
-    np.testing.assert_array_equal(orthogonal, [[1.0]])
 
 
 def test_python_regression_runicalowmem_recovers_deterministic_independent_sources():

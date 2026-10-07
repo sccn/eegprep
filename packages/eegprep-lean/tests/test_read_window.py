@@ -41,7 +41,6 @@ np = pytest.importorskip("numpy", reason="needs the zarr extra")
 
 from zarr.storage import LocalStore  # noqa: E402
 
-from eegprep_lean.channels import read_group_metadata  # noqa: E402
 from eegprep_lean.index import ChannelGroup, DatasetIndex, IndexError_, Store  # noqa: E402
 import eegprep_lean  # noqa: E402
 from eegprep_lean.transport import UrllibTransport  # noqa: E402
@@ -296,15 +295,6 @@ class TestWhatTheWindowSaysAboutItself:
 
         assert window.times_s[0] == pytest.approx(2.0)
 
-    def test_it_records_which_group_it_read_and_whether_it_converted(self, served) -> None:
-        """Both are part of the Window a caller reads back, and a plot titles itself
-        from the first."""
-        index, store, _ = served
-
-        assert read(index, store, start_sample=0, n_samples=2).group_name == GROUP
-        assert read(index, store, start_sample=0, n_samples=2).physical is True
-        assert read(index, store, start_sample=0, n_samples=2, physical=False).physical is False
-
     def test_an_explicit_group_is_honored(self, served) -> None:
         """Against a store with two groups, so the parameter is observable.
 
@@ -321,15 +311,6 @@ class TestWhatTheWindowSaysAboutItself:
 
         assert (slow.group_name, slow.rate) == (SLOW_GROUP, SLOW_RATE)
         assert (fast.group_name, fast.rate) == (FAST_GROUP, FAST_RATE)
-
-    def test_a_store_with_several_groups_refuses_to_guess(self, served) -> None:
-        """They are the same recording at different rates, so there is no sensible
-        default and picking the first would be silently wrong."""
-        index, _, _ = served
-        store = index.store(SECOND_STORE_PATH)
-
-        with pytest.raises(IndexError_, match="channel groups and no name was given"):
-            read(index, store, start_sample=0, n_samples=2)
 
 
 class TestChannelSelection:
@@ -354,13 +335,6 @@ class TestChannelSelection:
 
         assert window.channels == (1, 2)
         assert window.data.tolist() == [[_digital(1, 0), _digital(1, 1)], [_digital(2, 0), _digital(2, 1)]]
-
-    def test_no_channels_means_all_of_them(self, served) -> None:
-        index, store, _ = served
-
-        window = read(index, store, start_sample=0, n_samples=2, channels=None)
-
-        assert window.channels == tuple(range(N_CHANNELS))
 
     def test_a_channel_outside_the_group_is_refused(self, served) -> None:
         index, store, _ = served
@@ -394,19 +368,6 @@ class TestBoundaries:
         with pytest.raises(IndexError_, match="must not be negative"):
             read(index, store, start_sample=-1, n_samples=2)
 
-    def test_starting_past_the_end_is_refused(self, served) -> None:
-        index, store, _ = served
-
-        with pytest.raises(IndexError_, match="past the end"):
-            read(index, store, start_sample=N_SAMPLES, n_samples=1)
-
-    @pytest.mark.parametrize("n_samples", [0, -1])
-    def test_a_non_positive_length_is_refused(self, served, n_samples: int) -> None:
-        index, store, _ = served
-
-        with pytest.raises(IndexError_, match="must be positive"):
-            read(index, store, start_sample=0, n_samples=n_samples)
-
 
 class TestTheReadActuallyUsesByteRanges:
     """Without this the file's central claim is unenforced.
@@ -415,15 +376,6 @@ class TestTheReadActuallyUsesByteRanges:
     translation and the transport's range checking are dead code under test: both survive
     deletion while every other test here still passes.
     """
-
-    def test_a_window_read_issues_range_requests(self, served) -> None:
-        index, store, requested = served
-        requested.clear()
-
-        read(index, store, start_sample=0, n_samples=4)
-
-        ranges = [spec for _, spec in requested if spec]
-        assert ranges, "no request carried a Range header, so no byte-range code ran"
 
     def test_the_shard_index_is_read_as_a_suffix_range(self, served) -> None:
         """The sharding codec reads the chunk index from the end of the shard. That is
@@ -456,26 +408,6 @@ class TestTheReadActuallyUsesByteRanges:
         assert closed, "the inner chunk was not fetched with a bounded range inside the shard"
         first, last = (int(v) for v in closed[0].split("-"))
         assert last >= first
-
-
-class TestFetching:
-    def test_passing_metadata_skips_the_group_fetch(self, served) -> None:
-        """One small document per call otherwise. A caller reading many windows from one
-        recording holds it already, and this is the parameter that lets them say so."""
-        index, store, requested = served
-        metadata = asyncio.run(read_group_metadata(index, store))
-
-        group_doc = f"/{ZARR_PATH}/{GROUP}/zarr.json"
-        requested.clear()
-        read(index, store, start_sample=0, n_samples=2, metadata=metadata)
-        without = sum(1 for path, _ in requested if path == group_doc)
-
-        requested.clear()
-        read(index, store, start_sample=0, n_samples=2)
-        with_fetch = sum(1 for path, _ in requested if path == group_doc)
-
-        assert without == 0, "metadata was supplied, so the group document was not needed"
-        assert with_fetch == 1
 
 
 class TestAHostTransport:

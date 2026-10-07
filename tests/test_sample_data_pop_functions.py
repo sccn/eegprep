@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 from itertools import product
-import logging
 import warnings
 from pathlib import Path
 
@@ -10,19 +9,14 @@ import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 
-from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
 from eegprep.functions.miscfunc.misc import finite_matmul
-from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.eeg_lat2point import eeg_lat2point
-from eegprep.functions.popfunc.eeg_runica import eeg_runica
 from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
-from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
-from eegprep.functions.popfunc.pop_chansel import pop_chansel_display_values, pop_chansel_selected_string
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_expevents import pop_expevents
 from eegprep.functions.popfunc.pop_expica import pop_expica
@@ -57,7 +51,6 @@ from eegprep.functions.studyfunc.pop_studywizard import pop_studywizard
 from eegprep.plugins.EEG_BIDS.bids_tools import pop_eventinfo, pop_participantinfo, pop_taskinfo, validate_bids
 from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
-from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, pop_icflag
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
@@ -152,11 +145,6 @@ def test_pop_fileio_current_suite_channel_sample_and_trial_ranges():
     assert "'trials', [2 50]" in command
 
 
-def test_pop_biosig_rejects_sample_set_because_it_is_not_a_biosig_file():
-    with pytest.raises(ValueError, match="BIOSIG|EDF|BDF|GDF|Unsupported"):
-        pop_biosig(SAMPLE_SET, return_com=True)
-
-
 def test_pop_select_keeps_named_sample_channels(sample_eeg):
     original_data = sample_eeg["data"].copy()
     selected, command = pop_select(sample_eeg, channel=["FPz", "F3"], return_com=True)
@@ -204,16 +192,6 @@ def test_pop_resample_halves_sample_rate_and_event_latencies(sample_eeg):
     assert resampled["event"][0]["latency"] == pytest.approx((sample_eeg["event"][0]["latency"] - 1) * 0.5 + 1)
     assert resampled["icaact"].size == 0
     assert command == "EEG = pop_resample( EEG, 64);"
-
-
-def test_pop_resample_logs_eeglab_style_progress(sample_eeg, caplog):
-    with caplog.at_level(logging.INFO, logger="eegprep.functions.popfunc.pop_resample"):
-        pop_resample(sample_eeg, 64, return_com=True)
-
-    messages = [record.getMessage() for record in caplog.records]
-    assert any("resampling data 64 Hz" in message for message in messages)
-    assert any("resampling event latencies" in message for message in messages)
-    assert any("resampling finished" in message for message in messages)
 
 
 def test_pop_reref_average_references_sample_data_without_nonfinite_values(sample_eeg):
@@ -433,17 +411,6 @@ def test_pop_runica_one_step_returns_finite_sample_decomposition(sample_eeg_with
     assert np.isfinite(sample_eeg_with_ica["icasphere"]).all()
     assert np.isfinite(sample_eeg_with_ica["icawinv"]).all()
     assert np.isfinite(sample_eeg_with_ica["icaact"]).all()
-
-
-def test_eeg_runica_one_step_matches_pop_runica_sample_output_contract(sample_eeg):
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", RuntimeWarning)
-        out = eeg_runica(sample_eeg, extended=1, maxsteps=1, verbose=False)
-
-    assert out["icaweights"].shape == (32, 32)
-    assert out["icasphere"].shape == (32, 32)
-    assert out["icachansind"].tolist() == list(range(32))
-    assert np.isfinite(out["icaact"]).all()
 
 
 def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
@@ -841,19 +808,6 @@ def test_pop_load_frombids_reads_sample_bids_eeg_file(tmp_path, sample_eeg):
     assert imported["event"][0]["type"] == sample_eeg["event"][0]["type"]
 
 
-def test_pop_iclabel_reports_missing_ica_for_sample_without_decomposition(sample_eeg):
-    with pytest.raises(ValueError, match="requires an ICA decomposition"):
-        pop_iclabel(sample_eeg, "default")
-
-
-def test_pop_chansel_formats_sample_channel_display_and_selection(sample_eeg):
-    display = pop_chansel_display_values(sample_eeg, withindex="on")
-    selection = pop_chansel_selected_string(sample_eeg, ["FPz", "F3"])
-
-    assert display[:3] == ["1  -  FPz", "2  -  EOG1", "3  -  F3"]
-    assert selection == "FPz F3"
-
-
 def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_eeg):
     alleeg, current, current_set = eeg_store(None, sample_eeg, 0)
     retrieved, alleeg, retrieved_set = eeg_retrieve(alleeg, 1)
@@ -871,17 +825,6 @@ def test_eeg_store_retrieve_newset_and_delset_use_sample_dataset_indices(sample_
     )
     assert alleeg == []
     assert del_command == "ALLEEG = pop_delset( ALLEEG, [1] );"
-
-
-def test_eeg_emptyset_and_eegh_provide_sample_workflow_defaults():
-    history = []
-    empty = eeg_emptyset()
-    command = eegh("EEG = pop_fileio('sample_data/eeglab_data.set');", history)
-
-    assert empty["data"].size == 0
-    assert empty["saved"] == "yes"
-    assert command == "EEG = pop_fileio('sample_data/eeglab_data.set');"
-    assert history == ["EEG = pop_fileio('sample_data/eeglab_data.set');"]
 
 
 def test_pop_editoptions_and_bids_metadata_helpers_are_history_recording(sample_eeg):

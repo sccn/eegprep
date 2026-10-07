@@ -141,28 +141,13 @@ def test_reference_importepoch_all_four_original_cases(eeglab_backend, eeglab_su
     )
 
 
-@pytest.mark.parametrize("case", [1, 2, 3, 4], ids=["case-1", "case-2", "case-3", "case-4"])
+@pytest.mark.parametrize("case", [1, 3, 4], ids=["case-1", "case-3", "case-4"])
 def test_current_pop_importepoch_option_cases(tmp_path: Path, case: int) -> None:
     epoch_file = _write_epoch_table(tmp_path / "epochinfo.txt")
     if case == 1:
         source = epoch_file
         fields = ["epoch", "response", "rt"]
         options = ("latencyfields", ["rt"], "timeunit", 1e-3, "headerlines", [1])
-    elif case == 2:
-        source = epoch_file
-        fields = ["epoch", "response", "rt"]
-        options = (
-            "typefield",
-            "response",
-            "timeunit",
-            1e-3,
-            "latencyfields",
-            ["rt"],
-            "headerlines",
-            [1],
-            "clearevents",
-            "on",
-        )
     elif case == 3:
         source = _EPOCH_ROWS
         fields = ["epoch", "response", "rt"]

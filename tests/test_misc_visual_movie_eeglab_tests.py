@@ -26,19 +26,15 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.guifunc.menu_spec import menu_item, menu_to_inventory
 from eegprep.functions.guifunc.qt import _require_qt
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.miscfunc.eegmovie import eegmovie
-from eegprep.functions.miscfunc.gradmap import gradmap
-from eegprep.functions.miscfunc.gradplot import gradplot
 from eegprep.functions.miscfunc.headmovie import headmovie
 from eegprep.functions.miscfunc.imagescloglog import imagescloglog
 from eegprep.functions.miscfunc.imagesclogy import imagesclogy
 from eegprep.functions.miscfunc.seemovie import seemovie
 from eegprep.functions.miscfunc.setfont import setfont
 from eegprep.functions.miscfunc.show_events import show_events
-from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.sigprocfunc.headplot import headplot_setup
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -569,43 +565,6 @@ def _center_gradient_input() -> tuple[np.ndarray, np.ndarray]:
     return values, x + 1j * y
 
 
-def _assert_center_gradient(function) -> None:
-    values, locations = _center_gradient_input()
-    gradient_x, gradient_y = function(values, locations, True)
-    assert gradient_x.shape == gradient_y.shape == (9, 1)
-    assert np.all(gradient_x[:3] < 0)
-    assert np.allclose(gradient_x[3:6], 0, atol=1e-12)
-    assert np.all(gradient_x[6:] > 0)
-    assert np.all(gradient_y[[0, 3, 6]] > 0)
-    assert np.allclose(gradient_y[[1, 4, 7]], 0, atol=1e-12)
-    assert np.all(gradient_y[[2, 5, 8]] < 0)
-    assert plt.get_fignums()
-    plt.close("all")
-
-
-def _assert_corner_gradient(function) -> None:
-    x = np.asarray([1, 1, 1, 0, 0, 0, -1, -1, -1], dtype=float) / 2.0
-    y = np.asarray([-1, 0, 1, -1, 0, 1, -1, 0, 1], dtype=float) / 2.0
-    values = np.asarray([3, 4, 5, 2, 3, 4, 1, 2, 3], dtype=float)
-    gradient_x, gradient_y = function(values, x + 1j * y, True)
-    assert np.all(gradient_x >= -1e-12)
-    assert np.all(gradient_y >= -1e-12)
-    assert plt.get_fignums()
-    plt.close("all")
-
-
-def _write_center_locations(path) -> None:
-    theta = (-45, 0, 45, -90, 0, 90, -135, 180, 135)
-    radius = (0.5, 0.5, 0.5, 0.5, 0.0, 0.5, 0.5, 0.5, 0.5)
-    rows = [f"{index}\t{angle}\t{rad}\tE{index}" for index, (angle, rad) in enumerate(zip(theta, radius), 1)]
-    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
-
-
-def test_eegmovie_requires_data() -> None:
-    with pytest.raises(TypeError):
-        eegmovie()  # ty: ignore[missing-argument]
-
-
 @pytest.mark.gui
 def test_eegmovie_returns_replayable_rgb_frames() -> None:
     data = np.arange(32, dtype=float).reshape(8, 4)
@@ -623,128 +582,6 @@ def test_eegmovie_returns_replayable_rgb_frames() -> None:
     assert not np.array_equal(movie[0], movie[1])
     assert colormap.shape == (65, 3)
     assert np.all((colormap >= 0) & (colormap <= 1))
-
-
-def test_modern_eegplot_does_not_require_legacy_channel_file() -> None:
-    model = eegplot(np.zeros((3, 10)), show=False)
-    assert model.data.channel_labels == ("1", "2", "3")
-
-
-def test_modern_eegplot_normalizes_all_relevant_legacy_display_inputs() -> None:
-    model = eegplot(
-        np.arange(40, dtype=float).reshape(4, 10),
-        "srate",
-        20,
-        "spacing",
-        5,
-        "winlength",
-        0.4,
-        "title",
-        "legacy trace",
-        "show",
-        False,
-    )
-    assert model.state.srate == 20
-    assert model.state.spacing == 5
-    assert model.state.winlength == 0.4
-    assert model.state.title == "legacy trace"
-
-
-def test_modern_eegplot_builds_a_channel_major_browser_model() -> None:
-    values = np.arange(24, dtype=float).reshape(3, 8)
-    model = eegplot(values, show=False)
-    assert np.array_equal(model.data.flat_data, values)
-    assert model.data.n_channels == 3
-
-
-def test_modern_eegplot_uses_numeric_labels_without_locations() -> None:
-    model = eegplot(np.zeros((4, 12)), show=False)
-    assert model.data.channel_labels == ("1", "2", "3", "4")
-
-
-def test_modern_eegplot_supports_large_location_free_montages() -> None:
-    model = eegplot(np.zeros((128, 2)), show=False)
-    assert model.data.n_channels == 128
-    assert model.data.channel_labels[-1] == "128"
-
-
-def test_modern_eegplot_has_a_stable_empty_title_default() -> None:
-    assert eegplot(np.zeros((3, 4)), show=False).state.title == "Scroll activity -- eegplot()"
-
-
-def test_modern_eegplot_replaces_the_one_argument_eegplotsold_path() -> None:
-    model = eegplot(np.ones((3, 5)), show=False)
-    assert model.data.total_samples == 5
-
-
-def test_modern_eegplot_replaces_the_general_eegplotsold_path() -> None:
-    model = eegplot(np.ones((3, 50)), srate=100, show=False)
-    assert model.state.srate == 100
-
-
-def test_modern_eegplot_replaces_eegplotsold_display_options() -> None:
-    model = eegplot(np.ones((3, 50)), srate=100, limits=(0.1, 0.3), color=("r",), show=False)
-    assert model.state.limits == (0.1, 0.3)
-    assert model.state.colors == ("r",)
-
-
-def test_declarative_menu_inventory_replaces_matlab_handle_introspection() -> None:
-    items = (
-        menu_item("a", children=(menu_item("aa"), menu_item("ab"))),
-        menu_item("b"),
-        menu_item("d", children=(menu_item("da"),)),
-    )
-    inventory = menu_to_inventory(items)
-    assert [item["label"] for item in inventory] == ["a", "b", "d"]
-    assert [item["label"] for item in inventory[0]["children"]] == ["aa", "ab"]
-    assert inventory[2]["children"][0]["label"] == "da"
-
-
-@pytest.mark.gui
-def test_gradmap_center_points_outward() -> None:
-    _assert_center_gradient(gradmap)
-
-
-@pytest.mark.gui
-def test_gradmap_reads_eeglab_location_files(tmp_path) -> None:
-    location_file = tmp_path / "test.locs"
-    _write_center_locations(location_file)
-    values, _locations = _center_gradient_input()
-    gradient_x, gradient_y = gradmap(values, location_file, True)
-    assert np.all(gradient_x[:3] < 0)
-    assert np.all(gradient_y[[0, 3, 6]] > 0)
-    plt.close("all")
-
-
-@pytest.mark.gui
-def test_gradmap_corner_is_nonnegative() -> None:
-    _assert_corner_gradient(gradmap)
-
-
-def test_gradplot_requires_inputs() -> None:
-    with pytest.raises(TypeError):
-        gradplot()  # ty: ignore[missing-argument]
-
-
-@pytest.mark.gui
-def test_gradplot_center_points_outward() -> None:
-    _assert_center_gradient(gradplot)
-
-
-@pytest.mark.gui
-def test_gradplot_reads_eeglab_location_files(tmp_path) -> None:
-    location_file = tmp_path / "test.locs"
-    _write_center_locations(location_file)
-    values, _locations = _center_gradient_input()
-    gradient_x, gradient_y = gradplot(values, location_file, True)
-    assert np.all(gradient_x[:3] < 0)
-    assert np.all(gradient_y[[0, 3, 6]] > 0)
-    plt.close("all")
-
-
-@pytest.mark.gui
-def test_gradplot_corner_is_nonnegative() -> None:
-    _assert_corner_gradient(gradplot)
 
 
 @pytest.fixture(scope="module")
@@ -766,26 +603,10 @@ def _assert_headmovie(result, expected_frames: int) -> np.ndarray:
 
 
 @pytest.mark.gui
-def test_headmovie_general(headmovie_inputs) -> None:
-    data, locations, spline = headmovie_inputs
-    _assert_headmovie(headmovie(data, locations, spline, movieframes=[1], plot="off"), 1)
-
-
-@pytest.mark.gui
 def test_headmovie_camera_path_changes_the_view(headmovie_inputs) -> None:
     data, locations, spline = headmovie_inputs
     movie = _assert_headmovie(
         headmovie(data, locations, spline, camerapath=[-127, 30, 30, 0], movieframes=[1, 2], plot="off"),
-        2,
-    )
-    assert not np.array_equal(movie[0], movie[1])
-
-
-@pytest.mark.gui
-def test_headmovie_elevation_path_changes_the_view(headmovie_inputs) -> None:
-    data, locations, spline = headmovie_inputs
-    movie = _assert_headmovie(
-        headmovie(data, locations, spline, camerapath=[-127, 0, 10, 20], movieframes=[1, 2], plot="off"),
         2,
     )
     assert not np.array_equal(movie[0], movie[1])
@@ -811,36 +632,6 @@ def test_imagesclogy_data_and_color_limits() -> None:
 
 
 @pytest.mark.gui
-def test_imagesclogy_manual_color_check_has_deterministic_assertions() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    mesh = imagesclogy(times, frequencies, values, [8, 16], times, ax=axis)
-    assert mesh.norm(8) == 0
-    assert mesh.norm(16) == 1
-    assert np.array_equal(axis.get_xticks(), times)
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_imagesclogy_custom_ticks() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    imagesclogy(times, frequencies, values, None, [2, 3, 4], [1, 2], ax=axis)
-    assert np.array_equal(axis.get_xticks(), [2, 3, 4])
-    assert np.array_equal(axis.get_yticks(), [1, 2])
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_imagesclogy_applies_axes_properties() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    imagesclogy(times, frequencies, values, None, None, None, "YGrid", "on", ax=axis)
-    assert any(line.get_visible() for line in axis.get_ygridlines())
-    plt.close(figure)
-
-
-@pytest.mark.gui
 def test_imagescloglog_data_and_color_limits() -> None:
     times, frequencies, values = _image_data()
     figure, axis = plt.subplots()
@@ -848,36 +639,6 @@ def test_imagescloglog_data_and_color_limits() -> None:
     assert axis.get_xscale() == axis.get_yscale() == "log"
     assert np.array_equal(mesh.get_array(), values)
     assert mesh.get_clim() == (10.0, 16.0)
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_imagescloglog_manual_color_check_has_deterministic_assertions() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    mesh = imagescloglog(times, frequencies, values, [8, 16], times, ax=axis)
-    assert mesh.norm(8) == 0
-    assert mesh.norm(16) == 1
-    assert np.array_equal(axis.get_xticks(), times)
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_imagescloglog_custom_ticks() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    imagescloglog(times, frequencies, values, None, [2, 3, 4], [1, 2], ax=axis)
-    assert np.array_equal(axis.get_xticks(), [2, 3, 4])
-    assert np.array_equal(axis.get_yticks(), [1, 2])
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_imagescloglog_applies_axes_properties() -> None:
-    times, frequencies, values = _image_data()
-    figure, axis = plt.subplots()
-    imagescloglog(times, frequencies, values, None, None, None, "XGrid", "on", ax=axis)
-    assert any(line.get_visible() for line in axis.get_xgridlines())
     plt.close(figure)
 
 

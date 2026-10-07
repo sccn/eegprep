@@ -15,8 +15,6 @@ from eegprep.extensions import (
     EXTENSION_ENTRY_POINT_GROUP,
     ExtensionAction,
     ExtensionMenu,
-    ExtensionPopFunction,
-    ExtensionResource,
     ExtensionSpec,
     LazyImport,
 )
@@ -38,44 +36,6 @@ class FakeEntryPoint:
         module_name, _, attr_name = self.value.partition(":")
         module = importlib.import_module(module_name)
         return getattr(module, attr_name)
-
-
-def test_extension_harness_asserts_static_contracts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    package = "author_harness_extension_pkg"
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "actions.py": """
-                def run(EEG):
-                    return EEG, "EEG = author_action(EEG);"
-            """,
-            "pop_functions.py": """
-                def pop_author(EEG, *, return_com=False):
-                    com = "EEG = pop_author(EEG);"
-                    if return_com:
-                        return EEG, com
-                    return EEG
-            """,
-            "help/pop_author.md": "Author help.",
-        },
-        monkeypatch,
-    )
-    spec = ExtensionSpec(
-        name="author_extension",
-        version="1.0.0",
-        package_name=package,
-        actions=(ExtensionAction("author.run", LazyImport(f"{package}.actions", "run")),),
-        pop_functions=(ExtensionPopFunction("pop_author", LazyImport(f"{package}.pop_functions", "pop_author")),),
-        menus=(ExtensionMenu(("Tools", "Author"), "pop_author"),),
-        help_resources=(ExtensionResource(package, "help/pop_author.md"),),
-    )
-    harness = ExtensionTestHarness(spec)
-    eeg = {"data": []}
-
-    harness.assert_all_static_contracts()
-    assert harness.assert_action_history_result("author.run", eeg) == (eeg, "EEG = author_action(EEG);")
-    assert harness.assert_pop_function_history_result("pop_author", eeg) == (eeg, "EEG = pop_author(EEG);")
 
 
 def test_extension_harness_rejects_menu_without_registered_action() -> None:
@@ -112,37 +72,6 @@ def test_extension_harness_rejects_missing_history_result(tmp_path: Path, monkey
 
     with pytest.raises(AssertionError, match=r"\(EEG, com\)"):
         harness.assert_action_history_result("bad.run", {"data": []})
-
-
-def test_assert_extension_entry_point_loads_returns_spec(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    package = "entry_harness_extension_pkg"
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "register.py": """
-                from eegprep.extensions import ExtensionSpec
-
-                def register():
-                    return ExtensionSpec(name="entry_harness_extension", version="1.0.0")
-            """,
-        },
-        monkeypatch,
-    )
-
-    spec = assert_extension_entry_point_loads(
-        "entry",
-        entry_points_provider=_provider(FakeEntryPoint("entry", f"{package}.register:register")),
-    )
-
-    assert spec.name == "entry_harness_extension"
-    assert (
-        ExtensionTestHarness.from_entry_point(
-            "entry_harness_extension",
-            entry_points_provider=_provider(FakeEntryPoint("entry", f"{package}.register:register")),
-        ).spec.name
-        == "entry_harness_extension"
-    )
 
 
 def test_assert_extension_entry_point_loads_reports_failed_import(

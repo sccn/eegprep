@@ -9,7 +9,7 @@ import pytest
 import matplotlib.pyplot as plt
 from scipy.signal import freqz
 
-from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, parsetxt, readneurodat, readtxtfile
+from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, readneurodat
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
@@ -183,12 +183,6 @@ def test_python_regression_eegfilt_general_case_designs_and_applies_legacy_bandp
     assert not np.allclose(filtered, data)
 
 
-def test_python_regression_env_general_case_matches_current_suite() -> None:
-    data = np.asarray([[2, 1, 3], [8, 2, 6], [4, 7, 3], [0, 1, -3], [-5, 3, 1]])
-
-    np.testing.assert_allclose(env(data), [[8, 7, 6], [-5, 1, -3]])
-
-
 def test_python_regression_env_interpolation_preserves_current_suite_anchors_and_envelope_order() -> None:
     data = np.asarray([[2, 1, 3], [8, 2, 6], [4, 7, 3], [0, 1, -3], [-5, 3, 1]])
 
@@ -197,81 +191,6 @@ def test_python_regression_env_interpolation_preserves_current_suite_anchors_and
     expected = np.asarray([[8, 8.05305535, 7, 6.56306299, 6], [-5, -1.8174217, 1, -0.32742934, -3]])
     np.testing.assert_allclose(result, expected, atol=5e-9)
     assert np.all(result[0] >= result[1])
-
-
-def _assert_movav(data: np.ndarray, expected_data: np.ndarray, expected_x: np.ndarray, **kwargs) -> None:
-    result, result_x = movav(data, **kwargs)
-    expected = np.asarray(expected_data)
-    if result.shape[1] == 1 and expected.ndim == 1:
-        expected = expected[:, None]
-    else:
-        expected = np.atleast_2d(expected)
-    np.testing.assert_allclose(result, expected)
-    np.testing.assert_allclose(result_x, np.atleast_1d(expected_x))
-
-
-def test_python_regression_movav_column_vector_matches_current_suite() -> None:
-    _assert_movav(np.asarray([[1], [2], [3], [0], [5], [-6]]), [1.5, 2.5, 1.5, 2.5, -0.5], 0.625 + np.arange(1, 6))
-
-
-def test_python_regression_movav_five_frames_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2], np.arange(1, 6), [-2, 0, 4, -6, 3]])
-    _assert_movav(data, data, 0.5 + np.arange(1, 6))
-
-
-def test_python_regression_movav_four_frames_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3], [1, 2, 3, 4], [-2, 0, 4, -6]])
-    _assert_movav(data, data, 0.375 + np.arange(1, 5))
-
-
-def test_python_regression_movav_general_case_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[1.5, 3.5, 4, 2.5, 0.5], [1.5, 2.5, 3.5, 4.5, 5.5], [-1, 2, -1, -1.5, 2]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6))
-
-
-def test_python_regression_movav_empty_windows_match_current_suite_replication() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[0, 0, 1, 1.5, 2.2], [0, 0, 1, 1.5, 4], [0, 0, -2, -1, 0.4]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6), xvals=[4, 5, 6, 6, 6, 6], firstx=1, lastx=6)
-
-
-def test_python_regression_movav_non_normalized_sums_match_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[3, 7, 8, 5, 1], [3, 5, 7, 9, 11], [-2, 4, -2, -3, 4]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6), nonorm=True)
-
-
-def test_python_regression_movav_oversize_width_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    _assert_movav(data, [2, 3.5, 0], [4.5], xvals=0, xwidth=7)
-
-
-def test_python_regression_movav_two_sample_width_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1, 0, 1, 2, -20], np.arange(1, 11), [-2, 0, 4, -6, 3, 1, -32, 5, 7, 18]])
-    expected = np.asarray(
-        [
-            [1.5, 3.5, 4, 2.5, 0.5, -0.5, 0.5, 1.5, -9],
-            [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5],
-            [-1, 2, -1, -1.5, 2, -15.5, -13.5, 6, 12.5],
-        ]
-    )
-    _assert_movav(data, expected, np.arange(2, 11), xvals=0, xwidth=2)
-
-
-def test_python_regression_movav_column_window_matches_current_suite() -> None:
-    _assert_movav(
-        np.arange(1, 7), np.asarray([5, 9, 13, 17, 21]) / 4, 0.625 + np.arange(1, 6), xwin=np.asarray([[3], [1]])
-    )
-
-
-def test_python_regression_movav_zero_sum_window_matches_current_suite() -> None:
-    _assert_movav(np.arange(1, 7), np.full(5, -3), 0.625 + np.arange(1, 6), xwin=np.asarray([[3], [-3]]))
-
-
-def _numeric_text(rows: int = 5, columns: int = 6) -> str:
-    values = np.arange(1, rows * columns + 1).reshape(rows, columns)
-    return "\n".join(" ".join(str(value) for value in row) for row in values) + "\n"
 
 
 def _source_loadtxt(eeglab_backend, eeglab_suite_root, filename, *options):
@@ -347,88 +266,6 @@ def test_upstream_readtxtfile_original_location_files(eeglab_backend, eeglab_sui
         eeglab_backend("readtxtfile", str(eeglab_suite_root / "eeglab" / path))
 
 
-def test_loadtxt_force_conversion_matches_current_suite_column_order(tmp_path: Path) -> None:
-    source = tmp_path / "convert_force.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "convert", "force", verbose="off")
-    np.testing.assert_allclose(result, np.arange(1, 31).reshape(5, 6).reshape(-1, order="F"))
-
-
-def test_loadtxt_conversion_off_matches_current_suite_strings(tmp_path: Path) -> None:
-    source = tmp_path / "convert_off.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "convert", "off", verbose="off")
-    np.testing.assert_array_equal(result, np.arange(1, 31).astype(str).reshape(5, 6))
-
-
-def test_loadtxt_general_numeric_cells_match_current_suite(tmp_path: Path) -> None:
-    source = tmp_path / "general.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
-
-
-def test_loadtxt_negative_skipline_counts_only_nonempty_lines(tmp_path: Path) -> None:
-    source = tmp_path / "negative_skipline.txt"
-    source.write_text("this\n\nlines\n\nare\n\nempty\n\n" + _numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "skipline", -4, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
-
-
-def test_loadtxt_nlines_limits_nonempty_rows(tmp_path: Path) -> None:
-    source = tmp_path / "nlines.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "nlines", 3, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 19).reshape(3, 6))
-
-
-def test_loadtxt_positive_skipline_counts_physical_lines(tmp_path: Path) -> None:
-    source = tmp_path / "skipline.txt"
-    source.write_text("\n\n\n\n" + _numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "skipline", 4, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
-
-
-def test_loadtxt_mixed_text_and_numbers_match_current_suite(tmp_path: Path) -> None:
-    source = tmp_path / "text.txt"
-    source.write_text(_numeric_text().replace("3", "three", 1), encoding="utf-8")
-    result = loadtxt(source, verbose="off")
-    assert result.shape == (5, 6)
-    assert result[0, 2] == "three"
-    assert result[4, 5] == 30.0
-
-
-def test_loadtxt_verbose_mode_reports_and_returns_current_suite_table(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    source = tmp_path / "verbose.txt"
-    source.write_text(_numeric_text(rows=11, columns=3), encoding="utf-8")
-    with caplog.at_level(logging.INFO, logger="eegprep.functions.sigprocfunc.loadtxt"):
-        result = loadtxt(source, verbose="on")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 34).reshape(11, 3))
-    assert "Read 11 non-empty line(s)" in caplog.text
-
-
-def test_python_regression_parsetxt_custom_delimiters_match_current_suite() -> None:
-    assert parsetxt('1:3.c : "a"..}::{ ', ".:") == ["1", "3", "c ", ' "a"', "}", "{ "]
-
-
-def test_python_regression_parsetxt_general_case_matches_current_suite() -> None:
-    assert parsetxt(' Hello, , my  dear "friend".It\'s great! ') == [
-        "Hello",
-        "my",
-        "dear",
-        "friend",
-        ".It",
-        "s",
-        "great!",
-    ]
-
-
-def test_python_regression_parsetxt_delimiter_only_input_matches_current_suite() -> None:
-    assert parsetxt(" , \" ' \t,' , ") == []
-
-
 def test_readneurodat_labels_and_coordinates_match_current_suite(tmp_path: Path) -> None:
     source = tmp_path / "test.dat"
     source.write_text(
@@ -497,18 +334,6 @@ def test_loadeeg_discards_incomplete_truncated_sweep(tmp_path: Path, caplog: pyt
     assert xmin == pytest.approx(-0.1)
     assert xmax == pytest.approx(0.1)
     assert "incomplete data were discarded" in caplog.text
-
-
-def test_readtxtfile_reads_current_suite_location_file_variants(tmp_path: Path) -> None:
-    paths = [tmp_path / "cap33.ced", tmp_path / "cap25.locs", tmp_path / "chan32.locs"]
-    contents = ["Number\tlabels\n1\tFz\n", "1 0.0 0.5 Fz\r\n2 0.0 0.0 Cz\r\n", "1 -18 0.35 Fp1"]
-    for path, content in zip(paths, contents):
-        path.write_bytes(content.encode("utf-8"))
-    assert [readtxtfile(path) for path in paths] == [
-        "\nNumber\tlabels\n1\tFz",
-        "\n1 0.0 0.5 Fz\n2 0.0 0.0 Cz",
-        "\n1 -18 0.35 Fp1",
-    ]
 
 
 def test_loadeeg_selects_one_based_channels_and_sweep_metadata(tmp_path: Path) -> None:

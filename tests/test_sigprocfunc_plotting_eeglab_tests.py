@@ -16,11 +16,8 @@ import pytest
 
 from eegprep.functions.sigprocfunc.cbar import cbar
 from eegprep.functions.sigprocfunc.copyaxis import copyaxis
-from eegprep.functions.sigprocfunc.forcelocs import forcelocs
-from eegprep.functions.sigprocfunc.headplot import headplot
 from eegprep.functions.sigprocfunc.plotcurve import plotcurve
 from eegprep.functions.sigprocfunc.sbplot import DEFAULT_AXES_POSITION, sbplot
-from eegprep.functions.sigprocfunc.slider import slider
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.assertions import assert_matlab_struct_near
 from tests.eeglab_tests.gui import close_reference_gui
@@ -239,59 +236,6 @@ def test_reference_headplot_example_commands(eeglab_backend, request, subtests):
 
 
 @pytest.mark.gui
-def test_cbar_default_is_a_tagged_vertical_full_colormap() -> None:
-    figure, _source_axes = plt.subplots()
-
-    axes = cbar()
-
-    assert axes.get_gid() == "cbar"
-    assert axes.images[0].get_array().shape == (plt.get_cmap().N, 1, 4)
-    assert not axes.get_xticks().size
-    assert axes.yaxis.get_ticks_position() == "right"
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_cbar_horizontal_moves_the_source_axes_and_draws_full_colormap() -> None:
-    figure, source = plt.subplots()
-    before = source.get_position().bounds
-
-    axes = cbar("horiz")
-
-    assert axes.images[0].get_array().shape == (1, plt.get_cmap().N, 4)
-    assert source.get_position().height < before[3]
-    assert axes.get_position().width == source.get_position().width
-    assert not axes.get_yticks().size
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_cbar_horizontal_can_show_a_partial_one_based_color_range() -> None:
-    figure, _source_axes = plt.subplots()
-
-    axes = cbar("horiz", np.arange(33, 65))
-
-    rgba = np.asarray(axes.images[0].get_array())
-    expected = plt.get_cmap()(np.linspace(0.0, 1.0, plt.get_cmap().N))[32:64]
-    assert rgba.shape == (1, 32, 4)
-    np.testing.assert_allclose(rgba[0], expected)
-    plt.close(figure)
-
-
-@pytest.mark.gui
-def test_cbar_vertical_does_not_resize_the_source_axes() -> None:
-    figure, source = plt.subplots()
-    before = source.get_position().bounds
-
-    axes = cbar("vert")
-
-    np.testing.assert_allclose(source.get_position().bounds, before)
-    assert axes.get_position().x0 > source.get_position().x1
-    assert axes.images[0].get_array().shape[1] == 1
-    plt.close(figure)
-
-
-@pytest.mark.gui
 def test_cbar_vertical_partial_range_preserves_order_and_value_ticks() -> None:
     figure, _source_axes = plt.subplots()
 
@@ -334,53 +278,6 @@ def test_copyaxis_without_arguments_copies_current_scientific_plot() -> None:
     assert copied_image_figure.axes[0].images[0].get_cmap().name == "turbo"
     plt.close(image_figure)
     plt.close(copied_image_figure)
-
-
-def _x_rotation_locs() -> list[dict[str, float | str]]:
-    return [
-        {"labels": "a", "X": -np.sqrt(2) / 2, "Y": np.sqrt(2) / 2, "Z": 0.0},
-        {"labels": "b", "X": 1.0, "Y": 0.0, "Z": 0.0},
-        {"labels": "c", "X": 0.0, "Y": -1.0, "Z": 0.0},
-        {"labels": "d", "X": np.sqrt(2) / 2, "Y": -np.sqrt(2) / 2, "Z": 0.0},
-    ]
-
-
-def test_forcelocs_rotates_xz_plane_and_refreshes_all_coordinate_systems() -> None:
-    original = _x_rotation_locs()
-
-    result = forcelocs(original, (-0.5, "x", "b"))
-
-    expected = np.asarray(
-        [
-            [np.sqrt(2) / 4, np.sqrt(2) / 2, -np.sqrt(6) / 4],
-            [-0.5, 0.0, np.sqrt(12) / 4],
-            [0.0, -1.0, 0.0],
-            [-np.sqrt(2) / 4, -np.sqrt(2) / 2, np.sqrt(6) / 4],
-        ]
-    )
-    np.testing.assert_allclose([[loc["X"], loc["Y"], loc["Z"]] for loc in result], expected, atol=1e-12)
-    np.testing.assert_allclose([loc["sph_radius"] for loc in result], 1.0, atol=1e-12)
-    assert result[1]["theta"] == -180.0
-    assert original[1]["X"] == 1.0
-
-
-def test_forcelocs_rotates_yz_plane_and_matches_eeglab_expected_montage() -> None:
-    original = _x_rotation_locs()
-    original[0].update({"X": -0.5, "Y": 0.5, "Z": np.sqrt(2) / 2})
-
-    result = forcelocs(original, (1.0, "y", "a"))
-
-    expected = np.asarray(
-        [
-            [-0.5, np.sqrt(12) / 4, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.0, -np.sqrt(1 / 3), np.sqrt(2 / 3)],
-            [np.sqrt(2) / 2, -np.sqrt(2 / 3) / 2, np.sqrt(1 / 3)],
-        ]
-    )
-    np.testing.assert_allclose([[loc["X"], loc["Y"], loc["Z"]] for loc in result], expected, atol=1e-12)
-    np.testing.assert_allclose([result[0]["theta"], result[0]["radius"]], [-120.0, 0.5], atol=1e-12)
-    np.testing.assert_allclose([result[2]["sph_theta"], result[2]["sph_phi"]], [-90.0, 54.735610317245346])
 
 
 @pytest.mark.gui
@@ -474,64 +371,3 @@ def test_sbplot_current_wrapper_cases_span_grid_and_honor_properties_and_parent(
     assert nested.get_position().x0 >= parent.get_position().x0
     assert nested.get_position().x1 <= parent.get_position().x1 + 1e-12
     plt.close(parent_figure)
-
-
-@pytest.mark.gui
-def test_slider_current_wrapper_cases_create_controls_and_pan_magnified_axes() -> None:
-    figure1, axis1 = plt.subplots()
-    original1 = axis1.get_position().bounds
-    controls1 = slider(figure1, 0, 0)
-    assert controls1.horizontal is None and controls1.vertical is None
-    np.testing.assert_allclose(axis1.get_position().bounds, original1)
-
-    figure2, axis2 = plt.subplots()
-    controls2 = slider(figure2, 0, 1)
-    assert controls2.horizontal is None and controls2.vertical is not None
-    controls2.vertical.set_val(0.25)
-    np.testing.assert_allclose(axis2.get_position().bounds, controls2.original_positions[0])
-
-    figure3, axis3 = plt.subplots()
-    controls3 = slider(figure3, 1, 0)
-    assert controls3.horizontal is not None and controls3.vertical is None
-    controls3.horizontal.set_val(0.75)
-    np.testing.assert_allclose(axis3.get_position().bounds, controls3.original_positions[0])
-
-    figure4, axis4 = plt.subplots()
-    controls4 = slider(figure4, 1, 1, 1.2, 1.2, 0)
-    original4 = controls4.original_positions[0]
-    initial4 = axis4.get_position().bounds
-    np.testing.assert_allclose(initial4[2:], np.asarray(original4[2:]) * 1.2)
-    assert controls4.dismiss.active is False
-    controls4.horizontal.set_val(1.0)
-    assert axis4.get_position().x0 < initial4[0]
-    controls4.remove()
-    np.testing.assert_allclose(axis4.get_position().bounds, original4)
-    assert len(figure4.axes) == 1
-    for figure in (figure1, figure2, figure3, figure4):
-        plt.close(figure)
-
-
-def test_headplot_cartesian_command_returns_and_prints_parseable_example(capsys) -> None:
-    before = set(plt.get_fignums())
-
-    text = headplot("cartesian")
-
-    assert capsys.readouterr().out == text
-    assert "chan_num  x        y        z" in text
-    fields = text.splitlines()[3].split()
-    assert fields[:4] == ["1", "0.4528", "0.8888", "-0.0694"]
-    assert set(plt.get_fignums()) == before
-
-
-def test_headplot_example_command_returns_and_prints_spherical_table(capsys) -> None:
-    before = set(plt.get_fignums())
-
-    text = headplot("example")
-
-    assert capsys.readouterr().out == text
-    assert "chan_num cor_deg horiz_deg" in text
-    rows = [line.split() for line in text.splitlines() if line.strip() and line.strip()[0].isdigit()]
-    assert len(rows) == 21
-    assert rows[0][:4] == ["1", "-90", "-72", "Fp1."]
-    assert rows[-1][:4] == ["21", "45", "-90", "Pz.."]
-    assert set(plt.get_fignums()) == before

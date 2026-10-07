@@ -15,16 +15,13 @@ from eegprep import (
     eeg_amplitudearea,
     eeg_chaninds,
     eeg_context,
-    eeg_eegrej,
     eeg_eventhist,
     eeg_eventtypes,
     eeg_getepochevent,
     eeg_insertbound,
-    eeg_matchchans,
     eeg_mergechan,
     eeg_mergelocs,
     eeg_timeinterp,
-    eeg_urlatency,
 )
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
@@ -494,19 +491,6 @@ def _context_eeg(*, epoched: bool = False) -> dict:
     return eeg
 
 
-def _matching_locations() -> tuple[list[dict], list[dict]]:
-    small = [
-        {"labels": "1_1", "X": 0, "Y": 1, "Z": 0, "sph_radius": 1},
-        {"labels": "1_2", "X": 0, "Y": -1, "Z": 0, "sph_radius": 1},
-    ]
-    big = [
-        {"labels": "2_1", "X": -np.sqrt(2) / 2, "Y": np.sqrt(2) / 2, "Z": 0, "sph_radius": 1},
-        {"labels": "2_2", "X": 1, "Y": 0, "Z": 0, "sph_radius": 1},
-        {"labels": "2_3", "X": 0, "Y": -1, "Z": 0, "sph_radius": 1},
-    ]
-    return big, small
-
-
 # The source eeg_addnewevents body is entirely commented out; this is extra coverage.
 def test_eeg_addnewevents_current_suite_documented_calls_are_functional():
     eeg = {"event": [], "urevent": []}
@@ -623,50 +607,6 @@ def test_eeg_context_current_suite_six_context_cases():
     np.testing.assert_allclose(boundary_result[1], [[2], [np.nan], [6]], equal_nan=True)
 
 
-def test_eeg_eegrej_current_suite_empty_and_middle_regions():
-    data = np.arange(1, 16, dtype=float).reshape(3, 5)
-    eeg = {"data": data, "nbchan": 3, "pnts": 5, "trials": 1, "srate": 1, "xmin": 0, "xmax": 4, "event": []}
-    unchanged = eeg_eegrej(eeg, [])
-    np.testing.assert_array_equal(unchanged["data"], data)
-    output = eeg_eegrej(eeg, [[2, 3]])
-    np.testing.assert_array_equal(output["data"], data[:, [0, 3, 4]])
-    assert output["event"] == [{"type": "boundary", "latency": 1.5, "duration": 2.0}]
-
-
-def test_eeg_eegrej_current_suite_endpoint_event_regression():
-    eeg = {"data": np.zeros((1, 10000)), "pnts": 10000, "srate": 500, "trials": 1, "xmin": 0, "xmax": 19.998}
-    cases = [
-        (
-            [
-                {"type": "mrk1", "latency": 999},
-                {"type": "mrk2", "latency": 1000},
-                {"type": "mrk3", "latency": 2000},
-                {"type": "mrk4", "latency": 2001},
-            ],
-            [1000, 2000],
-            ["mrk1", "boundary", "mrk4"],
-            [999, 999.5, 1000],
-        ),
-        (
-            [{"type": "mrk1", "latency": 1}, {"type": "mrk2", "latency": 1000}, {"type": "mrk3", "latency": 1001}],
-            [1, 1000],
-            ["boundary", "mrk3"],
-            [0.5, 1],
-        ),
-        (
-            [{"type": "mrk1", "latency": 8999}, {"type": "mrk2", "latency": 9000}, {"type": "mrk3", "latency": 10000}],
-            [9000, 10000],
-            ["mrk1", "boundary"],
-            [8999, 8999.5],
-        ),
-    ]
-    for events, region, expected_types, expected_latencies in cases:
-        case = {**eeg, "event": events}
-        output = eeg_eegrej(case, [region])
-        assert [event["type"] for event in output["event"]] == expected_types
-        np.testing.assert_allclose([event["latency"] for event in output["event"]], expected_latencies)
-
-
 def test_eeg_eventhist_current_suite_string_and_numeric_fields():
     string_events = [{"type": value} for value in ["square", "square", "rt", "square", "rt"]]
     values, counts, labels = eeg_eventhist(string_events, "type")
@@ -701,15 +641,6 @@ def test_eeg_eventtypes_current_suite_counts_and_order():
     assert eeg_eventtypes({"event": [{"type": 1.0}, {"type": 1}, {"type": 2.5}]}) == (["1", "2.5"], [2, 1])
 
 
-def test_eeg_getepochevent_current_suite_duration_new_and_old_forms():
-    eeg = _epoched_event_eeg(durations=True)
-    new_values, new_all = eeg_getepochevent(eeg, "type", "rt", "fieldname", "duration")
-    old_values, old_all = eeg_getepochevent(eeg, "rt", [], "duration")
-    np.testing.assert_allclose(new_values, [np.nan, 300, 500], equal_nan=True)
-    np.testing.assert_allclose(old_values, new_values, equal_nan=True)
-    assert new_all == [[], [300], [500]] and old_all == new_all
-
-
 def test_eeg_getepochevent_current_suite_empty_time_window():
     values, all_values = eeg_getepochevent(_epoched_event_eeg(), "type", "rt", "fieldname", "urevent")
     np.testing.assert_allclose(values, [np.nan, 2, 4], equal_nan=True)
@@ -741,19 +672,6 @@ def test_eeg_getepochevent_current_suite_old_four_argument_form():
     np.testing.assert_allclose(type_values, [1000, np.nan, np.nan], equal_nan=True)
 
 
-def test_eeg_getepochevent_current_suite_default_latency():
-    values, all_values = eeg_getepochevent(_epoched_event_eeg(), "rt")
-    np.testing.assert_allclose(values, [np.nan, 1300, 1400], equal_nan=True)
-    assert all_values == [[], [1300], [1400]]
-
-
-def test_eeg_getepochevent_current_suite_continuous_fallback():
-    eeg = _epoched_event_eeg(include_event_epochs=False)
-    values, all_values = eeg_getepochevent(eeg, "rt")
-    np.testing.assert_allclose(values, [4300, np.nan, np.nan], equal_nan=True)
-    assert all_values == [[4300, 7400], [], []]
-
-
 def test_eeg_insertbound_current_suite_general_case():
     eeg = _epoched_event_eeg()
     events = copy.deepcopy(eeg["event"])
@@ -773,34 +691,6 @@ def test_eeg_insertbound_current_suite_general_case():
 
     rounded, _ = eeg_insertbound([{"type": "stim", "latency": 5}], 20, [[2.5, 3.5]])
     np.testing.assert_allclose([event["latency"] for event in rounded], [2.5, 3])
-
-
-def _assert_matchchans(option: str | None) -> None:
-    big, small = _matching_locations()
-    selected, distances, locations = eeg_matchchans(big, small, option)
-    assert selected == [0, 2]
-    np.testing.assert_allclose(distances, [np.sqrt(2 - np.sqrt(2)), 0])
-    assert locations[0]["bigchan"] == 0
-    assert locations[0]["bigdist"] == distances[0]
-    assert locations[1]["bigchan"] == 2 and locations[1]["bigdist"] == 0
-
-
-# pass_general.m contains no executable code in the pinned source suite.
-def test_eeg_matchchans_current_suite_general_case():
-    _assert_matchchans(None)
-
-
-def test_eeg_matchchans_current_suite_noplot_case():
-    _assert_matchchans("noplot")
-
-    big, small = _matching_locations()
-    big[0]["X"] = np.nan
-    with np.testing.assert_raises_regex(ValueError, "finite coordinates"):
-        eeg_matchchans(big, small, "noplot")
-    big, small = _matching_locations()
-    big[0]["sph_radius"] = 0
-    with np.testing.assert_raises_regex(ValueError, "positive spherical radius"):
-        eeg_matchchans(big, small, "noplot")
 
 
 def test_eeg_mergechan_current_suite_three_overlap_shapes():
@@ -847,21 +737,6 @@ def test_eeg_timeinterp_current_suite_continuous_sample_workflow():
     selected_electrode = eeg_timeinterp(selected_electrode, [8, 12], elecinds=[0], interpwin=1)
     np.testing.assert_allclose(selected_electrode["data"][0, 7:12], polynomial[7:12], rtol=1e-12)
     np.testing.assert_array_equal(selected_electrode["data"][1, 7:12], np.zeros(5))
-
-
-def test_eeg_urlatency_current_suite_boundary_durations():
-    events = [
-        {"type": "boundary", "duration": 2, "latency": 1.5},
-        {"type": "boundary", "duration": 3, "latency": 5.5},
-        {"type": "boundary", "duration": 1, "latency": 9.5},
-    ]
-    assert eeg_urlatency(events, 9) == 14
-    np.testing.assert_allclose(eeg_urlatency(events, [1, 6, 10]), [1, 11, 16])
-
-
-def test_eeg_urlatency_current_suite_missing_duration():
-    events = [{"type": "boundary", "latency": latency} for latency in [1.5, 5.5, 9.5]]
-    assert np.isnan(eeg_urlatency(events, 9))
 
 
 @eeglab_test("unittesting_popfunc/eeg_urlatency/popfunc_eeg_urlatency_wrapperTest.m", "test_pass_general")

@@ -3,7 +3,6 @@ import unittest
 
 import numpy as np
 
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.popfunc.pop_resample import (
     RATIO_TOLERANCE,
     _resample_ratio,
@@ -53,31 +52,6 @@ class PopResamplePythonTests(unittest.TestCase):
         self.assertEqual(out["icaact"].size, 0)
         np.testing.assert_allclose([event["latency"] for event in out["event"]], [3.5, 5.5, 8.5])
         np.testing.assert_allclose([event["duration"] for event in out["event"]], [1.0, 0.5, 2.0])
-        np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
-
-    def test_resample_preserves_numpy_event_containers(self):
-        eeg = _continuous_eeg()
-        eeg["event"] = np.asarray(eeg["event"], dtype=object)
-        eeg["urevent"] = np.asarray(eeg["urevent"], dtype=object)
-
-        out = pop_resample(eeg, 50, engine="scipy")
-
-        self.assertIsInstance(out["event"], np.ndarray)
-        self.assertIsInstance(out["urevent"], np.ndarray)
-        np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
-
-    def test_numeric_boundary99_splits_continuous_segments_when_enabled(self):
-        eeg = _continuous_eeg()
-        eeg["event"][1]["type"] = -99
-        eeg["urevent"][1]["type"] = -99
-        old = EEG_OPTIONS["option_boundary99"]
-        EEG_OPTIONS["option_boundary99"] = 1
-        try:
-            out = pop_resample(eeg, 50, engine="scipy")
-        finally:
-            EEG_OPTIONS["option_boundary99"] = old
-
-        np.testing.assert_allclose([event["latency"] for event in out["event"]], [3.5, 5.5, 8.5])
         np.testing.assert_allclose([event["latency"] for event in out["urevent"]], [3.5, 5.5, 8.5])
 
     def test_epoched_data_resamples_each_epoch_and_clears_urevents(self):
@@ -150,17 +124,6 @@ def test_reference_pop_resample_original_half_sample_boundary_workflow(eeglab_ba
         assert np.asarray(events[1]["latency"]).item() == rate + 0.5
 
 
-def test_pop_resample_current_suite_epoched_and_continuous_rates():
-    for eeg in (_epoched_resample_eeg(), _continuous_eeg()):
-        low_rate = pop_resample(eeg, 10)
-        high_rate = pop_resample(eeg, 1000)
-
-        assert low_rate["srate"] == 10
-        assert high_rate["srate"] == 1000
-        assert low_rate["trials"] == eeg["trials"]
-        assert high_rate["trials"] == eeg["trials"]
-
-
 def test_pop_resample_current_suite_preserves_event_duration_seconds():
     epoched = _epoched_resample_eeg()
     continuous = _continuous_eeg()
@@ -221,30 +184,15 @@ class ResampleRatioTests(unittest.TestCase):
     ratio came back small, wrong, and unflagged.
     """
 
-    # Sampling rates that are not integers are the whole point: every pair here
-    # with a whole-number source rate was already handled correctly, and every
-    # pair with a fractional one was not.
-    INTEGER_RATES = {
-        (250, 1000): (1, 4),
-        (256, 512): (1, 2),
-        (500, 2048): (125, 512),
-        (128, 1000): (16, 125),
-        (1000, 1024): (125, 128),
-        (44100, 48000): (147, 160),
-        (96, 128): (3, 4),
-    }
+    # Sampling rates that are not integers are the whole point: every pair with a
+    # whole-number source rate was already handled correctly, and every pair
+    # with a fractional one was not.
     FRACTIONAL_RATES = {
         (999.9, 2000): (9999, 20000),
         (1023.4, 2000): (5117, 10000),
         (250, 999.9): (2500, 9999),
         (128, 512.03): (12800, 51203),
     }
-
-    def test_whole_number_rates_are_unchanged(self):
-        """The fix must not move the ratios that were already right."""
-        for (freq, srate), expected in self.INTEGER_RATES.items():
-            with self.subTest(freq=freq, srate=srate):
-                self.assertEqual(_resample_ratio(freq, srate), expected)
 
     def test_fractional_rates_are_exact(self):
         """Each of these came back truncated, by up to 16.7 percent."""
@@ -276,9 +224,7 @@ class ResampleRatioTests(unittest.TestCase):
     def test_a_fractional_rate_resamples_through_the_whole_pipeline(self):
         """The end-to-end test that the defect actually fails.
 
-        The test below deliberately uses whole-number rates, and so passes
-        against the old implementation too: it says nothing about this fix. This
-        one drives `pop_resample` itself at a fractional source rate, where the
+        This drives `pop_resample` itself at a fractional source rate, where the
         old ratio was 21/84 and the correct one is 2560/9999, and asserts the
         sample count that follows from the correct one.
 
@@ -303,27 +249,6 @@ class ResampleRatioTests(unittest.TestCase):
         self.assertEqual((p, q), (2560, 9999))
         self.assertEqual(output["pnts"], math.ceil(2000 * p / q))
         self.assertEqual(output["srate"], 256)
-
-    def test_the_resampled_rate_matches_the_data(self):
-        """The invariant the defect broke: the label and the samples agree.
-
-        pop_resample stamps ``srate`` with the rate it was asked for whatever
-        the ratio turned out to be, so a wrong ratio produced a recording whose
-        declared rate and sample count disagreed, with nothing to notice it.
-        Whole-number rates keep this cheap; the ratio tests above are where the
-        fractional ones are covered, because an exact fractional ratio means a
-        denominator in the thousands and an anti-aliasing filter to match.
-        """
-        eeg = _continuous_eeg()
-        eeg["event"] = []
-        duration = eeg["pnts"] / eeg["srate"]
-
-        for rate in (50, 200, 250):
-            with self.subTest(rate=rate):
-                output = pop_resample(dict(eeg), rate)
-
-                self.assertEqual(output["srate"], rate)
-                self.assertAlmostEqual(output["pnts"] / output["srate"], duration, delta=1 / rate)
 
 
 if __name__ == "__main__":

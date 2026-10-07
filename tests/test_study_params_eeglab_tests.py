@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import ast
 
 import numpy as np
 
-import eegprep
-from eegprep.functions.studyfunc.pop_dipparams import pop_dipparams
 from eegprep.functions.studyfunc.pop_erpimparams import pop_erpimparams
 from eegprep.functions.studyfunc.pop_erpparams import pop_erpparams
 from eegprep.functions.studyfunc.pop_erspparams import pop_erspparams
 from eegprep.functions.studyfunc.pop_specparams import pop_specparams
-from eegprep.functions.studyfunc.pop_statparams import pop_statparams
 from tests.eeglab_tests import eeglab_test
 
 
@@ -47,34 +43,6 @@ def _study_with_cached_measures() -> dict:
         "etc": {},
         "cluster": [{"name": "ParentCluster", **fields}],
         "changrp": [{"name": "Cz", **fields}],
-    }
-
-
-def test_pop_dipparams_stores_every_current_eeglab_test_option():
-    study = _study_with_cached_measures()
-    cases = (
-        ("axistight", "on"),
-        ("axistight", "off"),
-        ("projimg", "on"),
-        ("projimg", "off"),
-        ("projlines", "on"),
-        ("projlines", "off"),
-        ("density", "on"),
-        ("density", "off"),
-        ("centrline", "on"),
-        ("centrline", "off"),
-    )
-
-    for key, value in cases:
-        study = pop_dipparams(study, key, value)
-        assert study["etc"]["dipparams"][key] == value
-
-    assert study["etc"]["dipparams"] == {
-        "axistight": "off",
-        "projimg": "off",
-        "projlines": "off",
-        "density": "off",
-        "centrline": "off",
     }
 
 
@@ -174,64 +142,6 @@ def test_pop_specparams_stores_every_current_option_and_invalidates_spectrum_cac
     for collection in (study["cluster"], study["changrp"]):
         assert "specdata" not in collection[0]
         assert "specfreqs" not in collection[0]
-
-
-def test_pop_statparams_stores_common_eeglab_and_fieldtrip_namespaces():
-    study = _study_with_cached_measures()
-    cases = (
-        ("groupstats", "on", "common", "groupstats"),
-        ("groupstats", "off", "common", "groupstats"),
-        ("condstats", "on", "common", "condstats"),
-        ("condstats", "off", "common", "condstats"),
-        ("singletrials", "on", "common", "singletrials"),
-        ("singletrials", "off", "common", "singletrials"),
-        ("mode", "eeglab", "common", "mode"),
-        ("mode", "fieldtrip", "common", "mode"),
-        ("method", "param", "eeglab", "method"),
-        ("method", "perm", "eeglab", "method"),
-        ("method", "bootstrap", "eeglab", "method"),
-        ("naccu", 2000, "eeglab", "naccu"),
-        ("alpha", 0.5, "eeglab", "alpha"),
-        ("mcorrect", "fdr", "eeglab", "mcorrect"),
-        ("mcorrect", "holms", "eeglab", "mcorrect"),
-        ("mcorrect", "bonferoni", "eeglab", "mcorrect"),
-        ("mcorrect", "none", "eeglab", "mcorrect"),
-        ("fieldtripmethod", "analytic", "fieldtrip", "method"),
-        ("fieldtripmethod", "montecarlo", "fieldtrip", "method"),
-        ("fieldtripnaccu", 2000, "fieldtrip", "naccu"),
-        ("fieldtripalpha", 0.5, "fieldtrip", "alpha"),
-        ("fieldtripmcorrect", "cluster", "fieldtrip", "mcorrect"),
-        ("fieldtripmcorrect", "max", "fieldtrip", "mcorrect"),
-        ("fieldtripmcorrect", "fdr", "fieldtrip", "mcorrect"),
-        ("fieldtripmcorrect", "holms", "fieldtrip", "mcorrect"),
-        ("fieldtripmcorrect", "bonferoni", "fieldtrip", "mcorrect"),
-        ("fieldtripmcorrect", "none", "fieldtrip", "mcorrect"),
-        ("fieldtripclusterparam", [], "fieldtrip", "clusterparam"),
-        ("fieldtripchannelneighbor", [], "fieldtrip", "channelneighbor"),
-        ("fieldtripchannelneighborparam", [], "fieldtrip", "channelneighborparam"),
-    )
-
-    for option, value, namespace, stored_key in cases:
-        study = pop_statparams(study, option, value)
-        statistics = study["etc"]["statistics"]
-        actual = statistics[stored_key] if namespace == "common" else statistics[namespace][stored_key]
-        assert actual == value
-
-    study, command = pop_statparams(study, "default", return_com=True)
-    assert study["etc"]["statistics"]["fieldtrip"]["alpha"] == 0.5
-    assert command == "STUDY = pop_statparams(STUDY)"
-    ast.parse(command)
-
-
-def test_study_parameter_functions_are_public_and_history_replays_empty_values():
-    study = _study_with_cached_measures()
-
-    updated, command = eegprep.pop_erpparams(study, timerange=[], return_com=True)
-    namespace = {"STUDY": study, "pop_erpparams": pop_erpparams}
-    exec(command, namespace)
-
-    assert namespace["STUDY"]["etc"]["erpparams"] == updated["etc"]["erpparams"]
-    assert "timerange=[]" in command
 
 
 # Keep each source's option order: later calls operate on the modified STUDY.

@@ -437,20 +437,6 @@ def _reference_biosig_case(*, all_fields):
     return data, np.array([rows], dtype=[(field, object) for field in fields])
 
 
-def test_biosig2eeglabevent_current_suite_all_fields():
-    source = {
-        "TYP": ["a", "b", "a", "a", "b"],
-        "POS": [1.0, 2.1, 6.294, 10.2, 42.943],
-        "DUR": [0.03, 1.02, 3, 0.45, 1.9],
-        "CHN": ["5", "2", "9", "5", "1"],
-    }
-    events = biosig2eeglabevent(source)
-    assert [event["type"] for event in events] == source["TYP"]
-    assert [event["latency"] for event in events] == source["POS"]
-    assert [event["duration"] for event in events] == source["DUR"]
-    assert [event["chanindex"] for event in events] == source["CHN"]
-
-
 def test_biosig2eeglabevent_current_suite_partial_fields_and_one_based_interval():
     source = {"POS": [1, 5, 10, 15], "DUR": [0, 8, 4, 2]}
     all_events = biosig2eeglabevent(source)
@@ -459,11 +445,6 @@ def test_biosig2eeglabevent_current_suite_partial_fields_and_one_based_interval(
     assert [event["latency"] for event in all_events] == source["POS"]
     assert [event["duration"] for event in all_events] == source["DUR"]
     assert interval_events == [{"latency": 1.0, "duration": 7.0}, {"latency": 6.0, "duration": 2.0}]
-
-
-def test_python_regression_eventalign_requires_alignment_inputs():
-    with pytest.raises(TypeError):
-        eventalign()
 
 
 def test_python_regression_eventalign_scalar_factor_defaults_to_median():

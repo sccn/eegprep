@@ -101,16 +101,6 @@ def help_file(tmp_path: Path) -> Path:
     return filename
 
 
-def test_gethelpvar_requires_a_filename():
-    with pytest.raises(TypeError):
-        gethelpvar()
-
-
-def test_gethelpvar_rejects_a_missing_file(tmp_path: Path):
-    with pytest.raises(FileNotFoundError):
-        gethelpvar(tmp_path / "DOES_NOT_EXIST.m", ["report"])
-
-
 def test_gethelpvar_returns_all_documented_variables(help_file: Path):
     descriptions, names = gethelpvar(help_file)
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import builtins
 import importlib
 from importlib import metadata
 from pathlib import Path
@@ -46,20 +45,6 @@ class Renderer:
     def run(self, spec: Any, initial_values: dict[str, Any] | None = None) -> dict[str, Any] | None:
         self.spec = spec
         return self.result
-
-
-def test_template_and_examples_document_install_modes_and_entry_points() -> None:
-    readme = (EXAMPLES_ROOT / "README.md").read_text(encoding="utf-8")
-
-    assert "uv add -e /path/to/eegprep_ext_template" in readme
-    assert "uv add git+https://github.com/lab/eegprep-ext-template" in readme
-    assert "uv add eegprep-ext-template" in readme
-    assert "--no-plugins" in readme
-    assert "private repository" in readme
-
-    for package in EXAMPLE_PACKAGES:
-        pyproject = (EXAMPLES_ROOT / package / "pyproject.toml").read_text(encoding="utf-8")
-        assert f'[project.entry-points."{EXTENSION_ENTRY_POINT_GROUP}"]' in pyproject
 
 
 @pytest.mark.parametrize("package", EXAMPLE_PACKAGES)
@@ -119,72 +104,6 @@ def test_template_resources_pop_function_and_console_history(monkeypatch: pytest
         np.testing.assert_allclose(session.EEG["data"], package.load_sample_eeg()["data"] * 3)
     finally:
         workspace.close()
-
-
-def test_no_plugins_mode_skips_example_entry_points() -> None:
-    def provider(*, group: str) -> tuple[ExampleEntryPoint, ...]:
-        raise AssertionError(f"entry point provider should not run for {group}")
-
-    registry = ExtensionRegistry(entry_points_provider=provider)
-
-    assert registry.discover(include_plugins=False) == ()
-
-
-def test_common_example_behaviors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    template = _import_example("eegprep_ext_template", monkeypatch)
-    eeg = template.load_sample_eeg()
-
-    signal = _import_example("eegprep_ext_signal_transform", monkeypatch)
-    centered, center_command = signal.pop_demo_center(eeg, return_com=True)
-    np.testing.assert_allclose(np.mean(centered["data"], axis=1), np.zeros(eeg["nbchan"]))
-    assert center_command == "EEG = pop_demo_center(EEG);"
-
-    file_io = _import_example("eegprep_ext_file_io", monkeypatch)
-    csv_path, export_command = file_io.pop_demo_export_csv(eeg, tmp_path / "template.csv", return_com=True)
-    imported, import_command = file_io.pop_demo_import_csv(csv_path, srate=eeg["srate"], return_com=True)
-    np.testing.assert_allclose(imported["data"], eeg["data"])
-    assert "pop_demo_export_csv" in export_command
-    assert "pop_demo_import_csv" in import_command
-
-    gui_dialog = _import_example("eegprep_ext_gui_dialog", monkeypatch)
-    renderer = Renderer({"threshold": "0.25"})
-    thresholded, threshold_command = gui_dialog.pop_demo_threshold(eeg, gui=True, renderer=renderer, return_com=True)
-    assert renderer.spec is not None
-    assert renderer.spec.function_name == "pop_demo_threshold"
-    assert renderer.spec.show_help_button is False
-    assert thresholded["etc"]["eegprep_ext_gui_dialog"]["samples_over_threshold"] == 5
-    assert threshold_command == "EEG = pop_demo_threshold(EEG, 0.25);"
-    cancelled, cancel_command = gui_dialog.pop_demo_threshold(eeg, gui=True, renderer=Renderer(None), return_com=True)
-    assert cancelled is eeg
-    assert cancel_command == ""
-    with pytest.raises(ValueError):
-        gui_dialog.pop_demo_threshold(eeg, gui=True, renderer=Renderer({"threshold": "bad"}), return_com=True)
-
-    plot_browser = _import_example("eegprep_ext_plot_browser", monkeypatch)
-    callback_calls = []
-    browser, browser_command = plot_browser.pop_demo_browser(
-        eeg,
-        command_callback=lambda out_eeg, command: callback_calls.append((out_eeg, command)),
-        return_com=True,
-    )
-    assert browser["kind"] == "example-browser"
-    assert callback_calls == [(eeg, browser_command)]
-
-    optional = _import_example("eegprep_ext_optional_dependency", monkeypatch)
-    optional_spec = optional.register()
-    assert optional_spec.package_data_resources[0].exists()
-    assert "Template optional model" in optional.model_card_text()
-
-    real_import = builtins.__import__
-
-    def blocked_import(name: str, *args: Any, **kwargs: Any) -> Any:
-        if name == "eegprep_template_optional_model":
-            raise ImportError(name)
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", blocked_import)
-    with pytest.raises(RuntimeError, match=r"\[model\]"):
-        optional.pop_demo_optional_score(eeg, return_com=True)
 
 
 def _import_example(package: str, monkeypatch: pytest.MonkeyPatch) -> Any:

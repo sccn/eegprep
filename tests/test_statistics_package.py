@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import os
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,6 @@ from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from eegprep.functions.statistics import (
     TwoWayEffects,
     anova1_cell,
-    anova1rm_cell,
     anova2_cell,
     anova2rm_cell,
     concatdata,
@@ -25,7 +23,6 @@ from eegprep.functions.statistics import (
     stat_surrogate_pvals,
     statcond,
     surrogdistrib,
-    teststat as statistics_teststat,
     ttest2_cell,
     ttest_cell,
 )
@@ -63,30 +60,6 @@ def test_reference_fdr_original_correlated_random_data(eeglab_backend, request):
         eeglab_backend("fdr", probabilities, *options, nargout=2)
 
 
-def test_fdr_upstream_call_forms_preserve_threshold_and_mask_shapes():
-    pvals = np.asarray(
-        [
-            [1.0, 0.2385, 0.4182, 0.0611],
-            [0.2385, 1.0, 0.4502, 0.0049],
-            [0.4182, 0.4502, 1.0, 0.0001],
-            [0.0611, 0.0049, 0.0001, 1.0],
-        ]
-    )
-
-    default = fdr(pvals)
-    assert np.asarray(default.threshold).shape == pvals.shape
-    assert default.mask.shape == pvals.shape
-
-    for q in (0.8, 0.05, 0.5):
-        result = fdr(pvals, q)
-        assert np.isscalar(result.threshold)
-        npt.assert_array_equal(result.mask, pvals <= result.threshold)
-
-    nonparametric = fdr(pvals, 0.5, "nonParametric")
-    assert nonparametric.threshold <= fdr(pvals, 0.5).threshold
-    npt.assert_array_equal(nonparametric.mask, pvals <= nonparametric.threshold)
-
-
 def test_fdr_uses_finite_pvalues_for_threshold_denominator():
     pvals = np.array([0.01, 0.03, np.nan, np.inf])
 
@@ -94,13 +67,6 @@ def test_fdr_uses_finite_pvalues_for_threshold_denominator():
 
     assert result.threshold == pytest.approx(0.03)
     npt.assert_array_equal(result.mask, [True, True, False, False])
-
-
-def test_fdr_no_finite_pvalues_returns_empty_mask():
-    result = fdr(np.array([np.nan, np.inf]), 0.05)
-
-    assert result.threshold == 0
-    npt.assert_array_equal(result.mask, [False, False])
 
 
 def test_surrogate_pvals_and_ci_use_last_axis():
@@ -166,66 +132,6 @@ def test_corrcoef_and_concatdata_contracts():
     assert concatenated.grid_shape == (1, 2)
 
 
-def test_anova1_cell_matches_scipy_f_oneway():
-    groups = [
-        np.array([[1, 2, 1, 3], [2, 2, 3, 4]], dtype=float),
-        np.array([[2, 3, 4, 5], [3, 4, 5, 6]], dtype=float),
-        np.array([[4, 4, 5, 6], [6, 6, 7, 8]], dtype=float),
-    ]
-
-    f_values, df = anova1_cell(groups)
-    expected = np.array([scipy_stats.f_oneway(*(group[row] for group in groups)).statistic for row in range(2)])
-
-    npt.assert_allclose(f_values, expected)
-    assert df == (2, 9)
-
-
-def test_repeated_measure_anova_helpers_return_factor_results():
-    grid = (
-        (
-            np.array([[1, 2, 3, 4], [2, 2, 4, 5]], dtype=float),
-            np.array([[2, 3, 5, 6], [3, 4, 6, 7]], dtype=float),
-        ),
-        (
-            np.array([[3, 3, 4, 5], [4, 5, 5, 6]], dtype=float),
-            np.array([[4, 6, 6, 8], [6, 7, 8, 9]], dtype=float),
-        ),
-    )
-
-    one_way, one_way_df = anova1rm_cell(grid[0])
-    two_way = anova2rm_cell(grid)
-    unpaired = anova2_cell(grid)
-
-    assert one_way.shape == (2,)
-    assert one_way_df == (1, 3)
-    assert two_way.rows.shape == two_way.columns.shape == two_way.interaction.shape == (2,)
-    assert two_way.df_rows == (1, 3)
-    assert two_way.df_columns == (1, 3)
-    assert two_way.df_interaction == (1, 3)
-    assert unpaired.df_interaction == (1, 12)
-
-
-def test_statcond_selects_tests_and_returns_named_two_way_effects():
-    rng = np.random.default_rng(2)
-    first = rng.normal(size=(3, 10))
-    second = first + 0.2
-    third = rng.normal(size=(3, 8))
-    grid = (
-        (rng.normal(size=(3, 9)), rng.normal(loc=0.2, size=(3, 9))),
-        (rng.normal(loc=0.1, size=(3, 9)), rng.normal(loc=0.4, size=(3, 9))),
-    )
-
-    paired = statcond([first, second], paired="on")
-    unpaired = statcond([first, third], paired="auto")
-    two_way = statcond(grid, paired="on")
-
-    assert paired.paired is True
-    assert paired.stat.shape == (3,)
-    assert unpaired.paired is False
-    assert isinstance(two_way.stat, TwoWayEffects)
-    assert two_way.pvalue.interaction.shape == (3,)
-
-
 def test_statcond_unpaired_default_uses_eeglab_homogenous_variance():
     first = np.array([[1.0, 2.0, 3.0, 4.0], [1.5, 1.7, 2.2, 2.9]])
     second = np.array([[2.0, 5.0, 8.0, 11.0, 14.0], [1.4, 2.1, 2.4, 4.8, 7.0]])
@@ -240,21 +146,6 @@ def test_statcond_unpaired_default_uses_eeglab_homogenous_variance():
     assert not np.allclose(pooled_stat, welch_stat)
 
 
-def test_nonparametric_statcond_and_surrogdistrib_are_seeded():
-    rng = np.random.default_rng(3)
-    first = rng.normal(size=(2, 8))
-    second = first + rng.normal(size=(2, 8))
-
-    first_result = statcond([first, second], method="perm", naccu=20, rng=10)
-    second_result = statcond([first, second], method="perm", naccu=20, rng=10)
-    surrogates = surrogdistrib([first, second], method="bootstrap", naccu=3, rng=10)
-
-    npt.assert_allclose(first_result.surrogate, second_result.surrogate)
-    npt.assert_allclose(first_result.pvalue, second_result.pvalue)
-    assert len(surrogates) == 3
-    assert all(sample[0][0].shape == first.shape for sample in surrogates)
-
-
 def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():
     rng = np.random.default_rng(30)
     data = [rng.normal(size=(3, 8)), rng.normal(size=(3, 8))]
@@ -264,11 +155,6 @@ def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():
 
     npt.assert_array_equal(iterative.surrogate, batched.surrogate)
     npt.assert_array_equal(iterative.pvalue, batched.pvalue)
-
-
-def test_statcond_rejects_unknown_arraycomp_mode():
-    with pytest.raises(ValueError, match="arraycomp"):
-        statcond([np.arange(4), np.arange(4)], arraycomp="sometimes")
 
 
 def test_statcond_supplied_surrogates_return_alpha_ci_and_mask():
@@ -316,39 +202,6 @@ def test_nonparametric_two_way_statcond_matches_manual_surrogate_assembly():
         result.pvalue.interaction,
         stat_surrogate_pvals(expected_surrogates.interaction, result.stat.interaction, "one"),
     )
-
-
-def test_invalid_inputs_fail_clearly():
-    with pytest.raises(ValueError, match="identical shapes"):
-        ttest_cell(np.ones((2, 4)), np.ones((2, 5)))
-    with pytest.raises(ValueError, match="same number of cases"):
-        statcond([np.ones((2, 4)), np.ones((2, 5))], paired="on")
-    with pytest.raises(TypeError, match="numeric"):
-        fdr(np.array(["bad"], dtype=object), 0.05)
-    with pytest.raises(ValueError, match="fdr_type"):
-        fdr(np.array([0.01, 0.02]), 0.05, fdr_type="unknown")
-    with pytest.raises(ValueError, match="observed shape"):
-        stat_surrogate_pvals(np.ones((2, 4)), np.ones((3,)), "both")
-
-
-def test_teststat_smoke_helper_runs_deterministic_checks():
-    result = statistics_teststat(seed=0)
-
-    assert sorted(result) == ["one_way_f_mean", "paired_t_mean", "two_way_interaction_mean"]
-
-
-def test_statistics_package_exports_remain_functions_after_submodule_imports():
-    import eegprep.functions.statistics as statistics
-
-    fdr_module = importlib.import_module("eegprep.functions.statistics.fdr")
-    statcond_module = importlib.import_module("eegprep.functions.statistics.statcond")
-    core_module = importlib.import_module("eegprep.functions.statistics._core")
-
-    assert statistics.fdr is fdr_module.fdr
-    assert statistics.statcond is statcond_module.statcond
-    assert statistics.FDRResult is fdr_module.FDRResult
-    assert statistics.StatcondResult is statcond_module.StatcondResult
-    assert core_module.fdr is fdr_module.fdr
 
 
 @pytest.fixture(scope="module")

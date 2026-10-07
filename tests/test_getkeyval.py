@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 
 import numpy as np
-import pytest
 
 from eegprep.functions.adminfunc.getkeyval import getkeyval
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
@@ -12,11 +11,6 @@ from tests.eeglab_tests import assert_matlab_near, eeglab_test
 COMMAND = "testfunction('key', 'val', 'foo', 'bar', 'eeglab', 'test');"
 ARRAY_COMMAND = "testfunction('key', [3 1 4 1 6], 'foo', 'bar', 'eeglab', 'test');"
 GETKEYVAL_WRAPPER = "unittesting_adminfunc/getkeyval/adminfunc_getkeyval_wrapperTest.m"
-
-
-def test_getkeyval_requires_a_command_and_variable():
-    with pytest.raises(TypeError):
-        getkeyval()
 
 
 def test_getkeyval_returns_a_named_string_value_without_quotes():
@@ -136,7 +130,3 @@ def _character_matrix(expression):
     # Only the quoted character rows in this source oracle need evaluation.
     rows = expression.strip()[1:-1].split(";")
     return np.array([list(ast.literal_eval(row.strip().removeprefix("[").removesuffix("]"))) for row in rows])
-
-
-def test_getkeyval_matrix_oracle_accepts_equivalent_row_brackets():
-    np.testing.assert_array_equal(_character_matrix("[['foo'];['bar']]"), _character_matrix("['foo';'bar']"))

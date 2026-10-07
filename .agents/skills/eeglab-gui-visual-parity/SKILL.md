@@ -596,7 +596,6 @@ Actionable PR attachment workflow:
    ```bash
    PYTHONPATH=src "$PYTHON" -m unittest \
      tests.test_pop_adjustevents \
-     tests.test_gui_pop_adjustevents \
      tests.test_visual_parity
    ./pre-commit.py <changed files>
    ```
@@ -616,7 +615,6 @@ Run focused tests during development:
 ```bash
 PYTHONPATH=src "$PYTHON" -m unittest \
   tests.test_pop_adjustevents \
-  tests.test_gui_pop_adjustevents \
   tests.test_visual_parity
 ```
 
@@ -628,7 +626,6 @@ PYTHONPATH=src "$PYTHON" -m compileall -q \
   src/eegprep/functions/guifunc \
   tools/visual_parity \
   tests/test_pop_adjustevents.py \
-  tests/test_gui_pop_adjustevents.py \
   tests/test_visual_parity.py
 ```
 

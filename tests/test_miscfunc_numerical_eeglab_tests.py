@@ -14,12 +14,9 @@ from eegprep import (
     covary,
     datlim,
     eucl,
-    gabor2d,
     gauss,
-    gauss2d,
     gauss3d,
     hungarian,
-    laplac2d,
     mapcorr,
     matcorr,
     matperm,
@@ -374,18 +371,6 @@ def test_reference_covary(eeglab_backend):
         _assert_near(eeglab_backend("covary", data), expected)
 
 
-def test_python_regression_abspeak_rejects_an_epoch_length_that_does_not_divide_data():
-    with pytest.raises(ValueError, match="divide"):
-        abspeak(np.ones((2, 5)), 6)
-    with pytest.raises(ValueError, match="integer"):
-        abspeak(np.ones((2, 6)), 2.9)
-
-
-def test_python_regression_abspeak_requires_data():
-    with pytest.raises(TypeError):
-        abspeak()  # type: ignore[call-arg]
-
-
 def test_python_regression_abspeak_returns_last_tied_peak_and_its_sign():
     cases = [
         (
@@ -449,16 +434,6 @@ def test_python_regression_abspeak_ignores_nan_without_masking_infinite_peaks():
     assert np.isnan(signs[1, 0])
 
 
-def test_python_regression_averef_rejects_single_channel_data():
-    with pytest.raises(ValueError, match="two channels"):
-        averef([[2, 8]])
-
-
-def test_python_regression_averef_requires_data():
-    with pytest.raises(TypeError):
-        averef()  # type: ignore[call-arg]
-
-
 def test_python_regression_averef_removes_each_frames_channel_mean():
     positive = np.asarray([[2, 1, 3], [8, 2, 6]], dtype=float)
     np.testing.assert_allclose(averef(positive), [[-3, -0.5, -1.5], [3, 0.5, 1.5]])
@@ -492,11 +467,6 @@ def test_python_regression_covary_preserves_grand_mean_centering_and_unbiased_sc
     assert covary([1, 4, 1]) == pytest.approx(3)
 
 
-def test_python_regression_datlim_rejects_non_numeric_input():
-    with pytest.raises(TypeError, match="numeric"):
-        datlim(["one", "two"])
-
-
 def test_python_regression_datlim_flattens_all_dimensions_and_retains_infinities():
     np.testing.assert_array_equal(datlim([[2, 1, 3], [8, np.inf, 0]]), [0, np.inf])
     np.testing.assert_array_equal(datlim([[-1e100, -np.inf, 12], [23, -100, 90]]), [-np.inf, 90])
@@ -513,21 +483,6 @@ def test_python_regression_eucl_supports_within_between_and_reference_distances(
     np.testing.assert_allclose(eucl(first, second), np.asarray(eucl(second, first)).T)
 
 
-def test_python_regression_gabor2d_controls_orientation_frequency_phase_and_magnitude_cut():
-    default = gabor2d(5, 4)
-    assert default.shape == (5, 4)
-    assert np.max(np.abs(default)) < 1
-    rotated = gabor2d(5, 4, 72, 270)
-    assert np.all(rotated[:, :2] <= 1e-15)
-    assert np.all(rotated[:, 2:] >= -1e-15)
-    high_frequency = gabor2d(50, 40, 20, 0, 10, 8, 25.5, 20.5, 30)
-    assert np.count_nonzero(np.diff(np.signbit(high_frequency[:, 20]))) >= 4
-    cut = gabor2d(50, 40, 20, 0, 10, 8, 25.5, 20.5, 0, 0.5)
-    uncut = gabor2d(50, 40, 20, 0, 10, 8, 25.5, 20.5, 0, 0)
-    assert np.count_nonzero(cut) < np.count_nonzero(uncut)
-    assert np.any(cut < 0) and np.any(cut > 0)
-
-
 def test_python_regression_gauss_is_symmetric_positive_and_unit_peaked():
     window = gauss(5, 1)
     np.testing.assert_allclose(window, window[::-1])
@@ -536,18 +491,6 @@ def test_python_regression_gauss_is_symmetric_positive_and_unit_peaked():
     np.testing.assert_array_equal(gauss(1, 3), [1])
     with pytest.raises(ValueError, match="integer"):
         gauss(5.5, 1)
-
-
-def test_python_regression_gauss2d_has_requested_peak_symmetry_and_cut():
-    kernel = gauss2d(5, 5)
-    np.testing.assert_allclose(kernel, kernel[::-1])
-    np.testing.assert_allclose(kernel, kernel[:, ::-1])
-    assert np.argmax(kernel) == np.ravel_multi_index((2, 2), kernel.shape)
-    cut = gauss2d(5, 4, 1, 1, 3, 2.5, 0.5)
-    uncut = gauss2d(5, 4, 1, 1, 3, 2.5, 0)
-    assert np.count_nonzero(cut) < np.count_nonzero(uncut)
-    with pytest.raises(ValueError, match="integer"):
-        gauss2d(5.5, 4)
 
 
 def test_python_regression_gauss3d_honors_anisotropic_shape_peak_and_cut():
@@ -585,19 +528,6 @@ def test_python_regression_hungarian_finds_known_global_minima_with_unique_assig
     assert total == 3
     with pytest.raises(ValueError, match="no finite complete assignment"):
         hungarian([[1, np.inf], [2, np.inf]])
-
-
-def test_python_regression_laplac2d_honors_peak_location_scale_and_cut():
-    kernel = laplac2d(5, 5)
-    assert kernel[2, 2] == pytest.approx(1)
-    assert kernel.min() == pytest.approx(-0.4060058497)
-    shifted = laplac2d(25, 25, 5, 25, 4)
-    assert np.argmax(shifted) == np.ravel_multi_index((24, 3), shifted.shape)
-    assert laplac2d(25, 25, 1).max() == pytest.approx(1)
-    upstream_cut = laplac2d(25, 25, 5, 12.5, 12.5, 1e-6)
-    assert 0.038 < upstream_cut.max() < 0.039
-    material_cut = laplac2d(25, 25, 5, 12.5, 12.5, 0.1)
-    assert 0 < np.count_nonzero(material_cut) < material_cut.size
 
 
 def test_python_regression_mapcorr_aligns_values_by_channel_label_before_matching():
@@ -675,14 +605,6 @@ def test_python_regression_nan_std_uses_sample_scaling_and_first_nonsingleton_ax
     np.testing.assert_allclose(nan_std(offset + np.arange(4)), np.sqrt(5 / 3))
     assert np.isnan(nan_std(1))
     assert nan_std([1, 2]) == pytest.approx(np.sqrt(0.5))
-
-
-def test_python_regression_pcexpand_accepts_row_or_column_mean_vectors():
-    projections = np.asarray([[1, -2, 3], [-2, 0, 1]])
-    vectors = np.asarray([[0.6, -0.8], [0.8, 0.6]])
-    expected = np.asarray([[4.2, 0.8, 3], [0.6, -0.6, 4]])
-    np.testing.assert_allclose(pcexpand(projections, vectors, [2, 1]), expected)
-    np.testing.assert_allclose(pcexpand(projections, vectors, [[2], [1]]), expected)
 
 
 def test_python_regression_pcsquash_orders_components_and_roundtrips_through_pcexpand():
@@ -810,25 +732,3 @@ def test_python_regression_vectdata_interpolates_and_smooths_with_explicit_v4_ex
     np.testing.assert_allclose(complex_result, complex_values)
     with pytest.raises(NotImplementedError, match="v4"):
         vectdata(values, times, timesout=dense_times, method="v4")
-
-
-def test_real_only_numerical_helpers_reject_complex_inputs_instead_of_discarding_them():
-    complex_values = [1 + 2j, 3 + 4j]
-    for call in (
-        lambda: covary(complex_values),
-        lambda: datlim(complex_values),
-        lambda: eucl(complex_values),
-        lambda: hungarian([[1 + 1j]]),
-        lambda: mapcorr(
-            [complex_values],
-            [complex_values],
-            [{"labels": "A"}, {"labels": "B"}],
-            [{"labels": "A"}, {"labels": "B"}],
-        ),
-        lambda: matcorr([complex_values], [complex_values]),
-        lambda: matperm([complex_values], [complex_values], [0], [0], [1 + 1j]),
-        lambda: nan_std(complex_values),
-        lambda: uniquef(complex_values),
-    ):
-        with pytest.raises(ValueError, match="real"):
-            call()

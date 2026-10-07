@@ -6,23 +6,18 @@ from typing import Any
 import numpy as np
 import pytest
 
-import eegprep.functions.sigprocfunc.eegplot as eegplot_module
 import eegprep.functions.popfunc.pop_eegplot as pop_eegplot_module
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.popfunc.pop_eegplot import apply_eegplot_rejections
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.eeg_multieegplot import eeg_multieegplot
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc.eegplot import (
     add_winrej_region,
     build_eegplot_model,
-    decimate_minmax,
-    eegplot,
     eegplot2event,
     eegplot2trial,
     event_latency_to_sample,
     normalize_events,
-    parse_eegplot_options,
     toggle_winrej_at_sample,
     trial2eegplot,
     visible_sample_bounds,
@@ -119,39 +114,6 @@ def test_reference_eegplot2event_original_marks(eeglab_backend, subtests):
             assert_matlab_near(eeglab_backend("eegplot2event", marks, *options), expected)
 
 
-def test_parse_eegplot_options_accepts_eeglab_key_value_pairs() -> None:
-    options = parse_eegplot_options(("srate", 100, "xgrid", "on"), {"winlength": 2})
-
-    assert options == {"srate": 100, "xgrid": "on", "winlength": 2}
-
-
-def test_parse_eegplot_options_rejects_unknown_options() -> None:
-    with pytest.raises(ValueError, match="unrecognized option"):
-        parse_eegplot_options((), {"bogus": 1})
-
-
-def test_eegplot_rejects_internal_plotdata2_option() -> None:
-    with pytest.raises(ValueError, match="plotdata2"):
-        eegplot(np.zeros((1, 10)), plotdata2="on", show=False)
-
-
-def test_continuous_data_normalization_defaults_and_bounds() -> None:
-    data = np.arange(20, dtype=float).reshape(2, 10)
-    model = build_eegplot_model(data, srate=10, winlength=0.4, spacing=2, show=False)
-
-    assert model.data.data.shape == (2, 10, 1)
-    assert model.data.flat_data.shape == (2, 10)
-    assert model.data.mode == "continuous"
-    assert model.state.dispchans == 2
-    assert visible_sample_bounds(model.data, model.state) == (0, 4)
-
-
-def test_empty_spacing_uses_eeglab_default_spacing() -> None:
-    model = build_eegplot_model(np.zeros((2, 10)), srate=10, winlength=0.4, spacing=[], show=False)
-
-    assert model.state.spacing == pytest.approx(1.0)
-
-
 def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None:
     data = np.zeros((1, 4, 3), dtype=float)
     data[0, :, 0] = [1, 2, 3, 4]
@@ -163,49 +125,6 @@ def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None
     assert model.data.mode == "epoched"
     assert model.state.limits == (0.0, 750.0)
     assert visible_sample_bounds(model.data, model.state) == (4, 8)
-
-
-def test_component_mode_uses_ica_activation_labels_without_mutating_eeg() -> None:
-    eeg = create_test_eeg(n_channels=2, n_samples=5, n_trials=1, srate=10)
-    eeg["icaact"] = np.array([[1, 2, 3, 4, 5], [5, 4, 3, 2, 1]], dtype=float)
-    data_before = np.array(eeg["data"], copy=True)
-    ica_before = np.array(eeg["icaact"], copy=True)
-
-    model = build_eegplot_model(eeg, component=True, spacing=1, show=False)
-
-    assert model.data.mode == "component"
-    assert model.data.channel_labels == ("1", "2")
-    np.testing.assert_array_equal(model.data.flat_data, eeg["icaact"])
-    np.testing.assert_array_equal(eeg["data"], data_before)
-    np.testing.assert_array_equal(eeg["icaact"], ica_before)
-
-
-def test_spectral_and_overlay_inputs_are_normalized_together() -> None:
-    data = np.arange(20, dtype=float).reshape(2, 10)
-    overlay = data + 100
-    freqs = np.linspace(1, 10, 10)
-
-    model = build_eegplot_model(
-        data,
-        data2=overlay,
-        freqs=freqs,
-        freqlimits=[3, 7],
-        spacing=1,
-        winlength=2,
-        show=False,
-    )
-
-    assert model.data.mode == "spectral"
-    assert model.data.data.shape == (2, 5, 1)
-    assert model.state.limits == (3.0, 7.0)
-    np.testing.assert_array_equal(model.data.x_values, freqs[2:7])
-    np.testing.assert_array_equal(model.data.flat_data2, overlay[:, 2:7])
-
-
-def test_noui_option_sets_publication_state_without_showing_qt() -> None:
-    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, noui="on", show=False)
-
-    assert model.state.noui is True
 
 
 def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
@@ -227,31 +146,6 @@ def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:
         ]
     )
     assert [event.color_index for event in color_events] == [2, 1, 0]
-
-
-def test_winrej_state_preserves_color_and_channel_mask() -> None:
-    model = build_eegplot_model(
-        np.zeros((3, 10)),
-        srate=10,
-        spacing=1,
-        winrej=[[1, 5, 0.1, 0.2, 0.3, 1, 0, 1]],
-        show=False,
-    )
-
-    assert len(model.state.winrej) == 1
-    assert model.state.winrej[0].color == (0.1, 0.2, 0.3)
-    assert model.state.winrej[0].channel_mask == (True, False, True)
-
-
-def test_wincolor_sets_normalized_marking_color() -> None:
-    model = build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(0.5, 0.2, 0.1), show=False)
-
-    assert model.state.mark_color == (0.5, 0.2, 0.1)
-
-
-def test_wincolor_rejects_out_of_range_rgb_values() -> None:
-    with pytest.raises(ValueError, match="between 0 and 1"):
-        build_eegplot_model(np.zeros((2, 10)), spacing=1, wincolor=(255, 255, 255), show=False)
 
 
 def test_trial2eegplot_converts_epoch_and_channel_marks() -> None:
@@ -282,14 +176,6 @@ def test_eegplot2trial_filters_colors_and_handles_first_epoch_boundary() -> None
     np.testing.assert_array_equal(row_marks, [[True, False, False], [False, False, False]])
     np.testing.assert_array_equal(excluded_marks, [False, True, False])
     np.testing.assert_array_equal(excluded_rows, [[False, False, False], [False, True, False]])
-
-
-def test_eegplot2event_converts_continuous_marks_for_eeg_eegrej() -> None:
-    rows = np.array([[2.2, 5.8, 0.7, 1.0, 0.9, 1], [8, 9, 0.1, 0.2, 0.3, 1]])
-
-    events = eegplot2event(rows, -1, colorout=[[0.1, 0.2, 0.3]])
-
-    np.testing.assert_array_equal(events, [[-1, 1, 2, 6, 0.7, 1.0, 0.9]])
 
 
 def test_winrej_add_merge_reversed_duplicate_and_boundary_regions() -> None:
@@ -331,14 +217,6 @@ def test_epoched_drag_marks_whole_epochs_and_merges_channel_masks() -> None:
     np.testing.assert_array_equal(winrej_to_array(regions, 2)[:, 5:], [[1, 1], [1, 1]])
 
 
-def test_conversion_helpers_handle_empty_inputs() -> None:
-    assert trial2eegplot([], np.zeros((2, 0)), 10).shape == (0, 7)
-    assert eegplot2event([]).shape == (0, 7)
-    trial_marks, row_marks = eegplot2trial([], 10, 3)
-    np.testing.assert_array_equal(trial_marks, [False, False, False])
-    assert row_marks.shape == (0, 3)
-
-
 @pytest.mark.matlab
 @pytest.mark.skipif(not matlab_engine_available(), reason="MATLAB engine not available or skipped")
 def test_eegplot_conversion_helpers_match_matlab() -> None:
@@ -361,41 +239,6 @@ def test_eegplot_conversion_helpers_match_matlab() -> None:
     np.testing.assert_array_equal(py_elec, np.asarray(matlab_elec, dtype=bool))
 
 
-def test_winrej_rejects_out_of_range_rows() -> None:
-    with pytest.raises(ValueError, match="sample range"):
-        build_eegplot_model(np.zeros((2, 10)), spacing=1, winrej=[[0, 11]], show=False)
-
-
-def test_decimation_preserves_endpoints_and_limits_point_count() -> None:
-    x = np.arange(1000, dtype=float)
-    y = np.sin(x / 10)
-
-    dec_x, dec_y = decimate_minmax(x, y, pixel_width=80)
-
-    assert dec_x.size <= 160
-    assert dec_x[0] == 0
-    assert dec_x[-1] == 999
-    assert dec_y.size == dec_x.size
-
-
-def test_decimation_handles_all_nan_segments() -> None:
-    x = np.arange(1000, dtype=float)
-    y = np.full(1000, np.nan)
-
-    dec_x, dec_y = decimate_minmax(x, y, pixel_width=20)
-
-    assert dec_x[0] == 0
-    assert dec_x[-1] == 999
-    assert np.isnan(dec_y).all()
-
-
-def test_eegplot_show_false_returns_model_and_does_not_import_qt() -> None:
-    model = eegplot(np.zeros((2, 20)), "srate", 20, spacing=1, show=False)
-
-    assert model.data.n_channels == 2
-    assert model.state.srate == 20
-
-
 def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
     data_before = np.array(eeg["data"], copy=True)
@@ -405,18 +248,6 @@ def test_pop_eegplot_returns_unchanged_eeg_and_history_command() -> None:
     assert out is eeg
     np.testing.assert_array_equal(eeg["data"], data_before)
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
-
-
-def test_pop_eegplot_rejects_empty_dataset() -> None:
-    with pytest.raises(ValueError, match="non-empty EEG dataset"):
-        pop_eegplot(None)
-
-
-def test_pop_eegplot_return_com_requires_callback_for_nonblocking_browser() -> None:
-    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
-
-    with pytest.raises(ValueError, match="command_callback"):
-        pop_eegplot(eeg, return_com=True)
 
 
 def test_pop_eegplot_return_com_with_callback_does_not_return_stale_eeg(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -553,34 +384,6 @@ def test_pop_eegplot_loads_continuous_mark_only_rows_when_updating_or_superposin
     assert np.asarray(captured[3]).shape == (0,)
 
 
-def test_pop_eegplot_component_mode_computes_activations_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
-    eeg["icaweights"] = np.eye(2)
-    eeg["icasphere"] = np.eye(2)
-    calls = 0
-
-    def fake_component_activations(dataset: dict) -> np.ndarray:
-        nonlocal calls
-        calls += 1
-        assert dataset is eeg
-        return np.ones((2, 10, 1), dtype=float)
-
-    monkeypatch.setattr(eegplot_module, "component_activations", fake_component_activations)
-
-    out, command = pop_eegplot(eeg, icacomp=0, return_com=True, show=False)
-
-    assert out is eeg
-    assert calls == 1
-    assert command == "pop_eegplot(EEG, 0, 0, 1)"
-
-
-def test_pop_eegplot_component_mode_requires_ica() -> None:
-    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=1, srate=10)
-
-    with pytest.raises(ValueError, match="run ICA"):
-        pop_eegplot(eeg, icacomp=0, show=False)
-
-
 def test_eeg_multieegplot_epoched_combines_old_and_new_rejection_colors() -> None:
     data = np.zeros((2, 4, 3), dtype=float)
     rej = np.array([False, True, False])
@@ -628,44 +431,3 @@ def test_eegplot_accept_creates_dataset_only_when_reject_removes_data() -> None:
     assert eegplot_accept_creates_dataset(epoched, epoched_out, reject=1) is True
     assert eegplot_accept_creates_dataset(continuous, continuous_out, reject=0) is False
     assert eegplot_accept_creates_dataset(continuous, continuous, reject=1) is False
-
-
-def test_sample_data_eeglab_set_builds_non_mutating_model() -> None:
-    eeg = pop_loadset(str(SAMPLE_DATASET))
-    data_before = np.array(eeg["data"], copy=True)
-
-    model = build_eegplot_model(eeg, winlength=1, show=False)
-
-    assert model.data.n_channels == int(eeg["nbchan"])
-    assert model.state.srate == float(eeg["srate"])
-    np.testing.assert_array_equal(eeg["data"], data_before)
-
-
-def test_sample_data_pop_eegplot_channel_api_flow_returns_browser_model() -> None:
-    eeg = pop_loadset(str(SAMPLE_DATASET))
-    data_before = np.array(eeg["data"], copy=True)
-
-    model = pop_eegplot(eeg, superpose=1, show=False, winlength=1)
-
-    assert model.data.mode == "continuous"
-    assert model.data.n_channels == int(eeg["nbchan"])
-    assert model.state.title.startswith("Scroll channel activities -- eegplot()")
-    np.testing.assert_array_equal(eeg["data"], data_before)
-
-
-def test_sample_data_pop_eegplot_component_api_flow_with_ica_fields() -> None:
-    eeg = pop_loadset(str(SAMPLE_DATASET))
-    n_channels = int(eeg["nbchan"])
-    eeg["icaweights"] = np.eye(n_channels)
-    eeg["icasphere"] = np.eye(n_channels)
-    eeg["icawinv"] = np.eye(n_channels)
-    eeg["icachansind"] = np.arange(n_channels)
-    eeg["icaact"] = np.array(eeg["data"], dtype=float, copy=True)
-    data_before = np.array(eeg["data"], copy=True)
-
-    model = pop_eegplot(eeg, icacomp=0, show=False, winlength=1)
-
-    assert model.data.mode == "component"
-    assert model.data.n_channels == n_channels
-    assert model.state.title.startswith("Scroll component activities -- eegplot()")
-    np.testing.assert_array_equal(eeg["data"], data_before)

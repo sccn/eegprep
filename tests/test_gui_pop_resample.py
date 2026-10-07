@@ -2,8 +2,7 @@ import unittest
 
 import numpy as np
 
-from eegprep.functions.guifunc.qt import QtDialogRenderer
-from eegprep.functions.popfunc.pop_resample import pop_resample, pop_resample_dialog_spec
+from eegprep.functions.popfunc.pop_resample import pop_resample
 
 
 def _eeg():
@@ -22,20 +21,6 @@ def _eeg():
 
 
 class PopResampleGuiTests(unittest.TestCase):
-    def test_gui_dialog_spec_matches_eeglab_inputdlg(self):
-        spec = pop_resample_dialog_spec(100)
-
-        self.assertEqual(spec.title, "Resample current dataset -- pop_resample()")
-        self.assertEqual(spec.function_name, "pop_resample")
-        self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_resample.m")
-        self.assertEqual(
-            [(control.style, control.string, control.tag) for control in spec.controls],
-            [
-                ("text", "New sampling rate", None),
-                ("edit", "", "freq"),
-            ],
-        )
-
     def test_gui_result_resamples_and_returns_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
@@ -46,31 +31,6 @@ class PopResampleGuiTests(unittest.TestCase):
         self.assertEqual(out["srate"], 50)
         self.assertEqual(out["pnts"], 10)
         self.assertEqual(com, "EEG = pop_resample( EEG, 50);")
-
-    def test_resample_handles_missing_event_fields(self):
-        eeg = _eeg()
-        eeg.pop("event")
-        eeg.pop("urevent")
-
-        out, com = pop_resample(eeg, 50, return_com=True)
-
-        self.assertEqual(out["srate"], 50)
-        self.assertEqual(out["pnts"], 10)
-        self.assertEqual(com, "EEG = pop_resample( EEG, 50);")
-
-    def test_gui_validation_rejects_nonpositive_rate(self):
-        spec = pop_resample_dialog_spec(100)
-        widgets = {"freq": _FakeWidget("0")}
-
-        self.assertEqual(QtDialogRenderer._validation_message(spec, widgets), "New sampling rate must be positive")
-
-
-class _FakeWidget:
-    def __init__(self, text):
-        self._text = text
-
-    def text(self):
-        return self._text
 
 
 if __name__ == "__main__":

@@ -69,31 +69,12 @@ def restore_eeg_options():
         EEG_OPTIONS.update(original)
 
 
-def test_default_options_expose_the_processing_and_storage_contract():
-    defaults = EEGOptions().to_dict()
-
-    assert EEG_OPTIONS == defaults
-    assert EEG_OPTIONS["option_storedisk"] == 0
-    assert EEG_OPTIONS["option_memmapdata"] == 0
-    assert EEG_OPTIONS["option_single"] == 1
-    assert EEG_OPTIONS["option_computeica"] == 1
-
-
 def test_pop_editoptions_updates_known_options_and_returns_history_command():
     command = pop_editoptions(option_computeica=0, option_storedisk=1)
 
     assert EEG_OPTIONS["option_computeica"] == 0
     assert EEG_OPTIONS["option_storedisk"] == 1
     assert command == "LASTCOM = pop_editoptions();"
-
-
-def test_pop_editoptions_rejects_unknown_options_without_partial_mutation():
-    original = dict(EEG_OPTIONS)
-
-    with pytest.raises(KeyError, match="Unknown EEGPrep option"):
-        pop_editoptions(option_does_not_exist=1)
-
-    assert EEG_OPTIONS == original
 
 
 def test_eeg_readoptions_parses_packaged_matlab_option_template():

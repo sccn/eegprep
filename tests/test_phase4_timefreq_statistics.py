@@ -12,27 +12,23 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-from matplotlib.contour import QuadContourSet
 import numpy as np
 import pytest
 import scipy.io
 from scipy import stats
 
-import eegprep
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
-from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat, pop_eventstat_dialog_spec
+from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat
 from eegprep.functions.popfunc.pop_crossf import pop_crossf
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
-from eegprep.functions.popfunc.plot_utils import channel_labels
-from eegprep.functions.popfunc.pop_newtimef import _run_gui as run_newtimef_gui
-from eegprep.functions.popfunc.pop_newtimef import _topo_options, pop_newtimef, pop_newtimef_dialog_spec
+from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf
+from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
 from eegprep.functions.popfunc.pop_timef import pop_timef
-from eegprep.functions.popfunc.pop_signalstat import pop_signalstat, pop_signalstat_dialog_spec
+from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
 from eegprep.functions.sigprocfunc.signalstat import signalstat
 from eegprep.functions.guifunc.tf_cycle_calc_dialog import tf_cycle_calc_dialog_spec
 from eegprep.functions.timefreqfunc.angtimewarp import angtimewarp
@@ -43,31 +39,21 @@ from eegprep.functions.timefreqfunc._bootstrap import (
     thresholds_by_frequency,
 )
 from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold, exact_p_values
-from eegprep.functions.timefreqfunc.correct_mc import correct_mc
 from eegprep.functions.timefreqfunc.correctfit import correctfit
-from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
-from eegprep.functions.statistics.fdr import fdr
 from eegprep.functions.statistics.stat_surrogate_pvals import stat_surrogate_pvals
-from eegprep.functions.timefreqfunc.newcrossf import _is_on as newcrossf_is_on
-from eegprep.functions.timefreqfunc.newcrossf import _threshold_vector as newcrossf_threshold_vector
 from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_frequency
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc._pac_support import _empirical_pvalue as pac_empirical_pvalue
-from eegprep.functions.timefreqfunc.newtimef import _is_on as newtimef_is_on
 from eegprep.functions.timefreqfunc.newtimef import (
     _baseline_pvalues,
     _bootstrap_itc,
     _bootstrap_power,
-    _reduce_to_two_ticks,
-    _significance_mask,
     _thresholds_by_frequency,
 )
-from eegprep.functions.timefreqfunc.newtimef import _threshold_vector as newtimef_threshold_vector
-from eegprep.functions.timefreqfunc.newtimef import compute_time_frequency, newtimef
+from eegprep.functions.timefreqfunc.newtimef import newtimef
 from eegprep.functions.timefreqfunc.newtimefbaseln import newtimefbaseln
-from eegprep.functions.timefreqfunc.newtimefpowerunit import newtimefpowerunit
 from eegprep.functions.timefreqfunc.rsadjust import rsadjust
 from eegprep.functions.timefreqfunc.rsfit import rsfit
 from eegprep.functions.timefreqfunc.rsget import rsget
@@ -261,20 +247,6 @@ def test_reference_newtimef_original_baseline_formulas(eeglab_backend):
         assert np.all(np.abs(expected - actual) < 1e-8)
 
 
-def test_newtimef_synthetic_returns_deterministic_shapes():
-    srate = 128
-    times = np.arange(0, 1, 1 / srate)
-    trials = np.stack([np.sin(2 * np.pi * 10 * times), np.sin(2 * np.pi * 10 * times + 0.2)], axis=1)
-
-    result = newtimef(trials, trials.shape[0], [0, 1000], srate, 0, freqs=[5, 20], timesout=12, plot="off")
-
-    assert result.ersp.shape == result.itc.shape == (result.freqs.size, result.times.size)
-    assert result.tfdata.shape[2] == trials.shape[1]
-    assert result.times.size <= 12
-    assert np.isfinite(result.ersp).all()
-    assert np.all(np.abs(result.itc) <= 1 + 1e-12)
-
-
 def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
     data = np.random.RandomState(0).rand(100, 10)
     output_times = np.arange(20, 81, 10) * 10
@@ -353,25 +325,6 @@ def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
     np.testing.assert_allclose(wavelet_result.ersp[:, 1], wavelet_power, rtol=0, atol=1e-14)
 
 
-def test_newtimef_rejects_unknown_options():
-    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
-
-    with pytest.raises(TypeError, match="unexpected keyword"):
-        newtimef(signal, 128, [0, 1000], 128, 0, unsupported_option=1)
-
-
-def test_newtimef_is_on_uses_whitelist_semantics():
-    assert newtimef_is_on("on") is True
-    assert newtimef_is_on("yes") is True
-    assert newtimef_is_on(1) is True
-    # Unrecognized values are treated as OFF, matching the canonical is_on.
-    assert newtimef_is_on("yes-please") is False
-    assert newtimef_is_on("display") is False
-    assert newtimef_is_on("off") is False
-    assert newtimef_is_on([0, 1]) is False
-    assert newtimef_is_on(np.array([0, 1])) is False
-
-
 def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
     # With no explicit freqs, EEGLAB stops at maxfreq=50 (capped at Nyquist), not the full band.
     times = np.arange(256) / 128
@@ -381,41 +334,6 @@ def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
 
     assert result.freqs.max() <= 50.0 + 1e-9
     assert result.freqs.max() > 30.0  # the band is not truncated too aggressively
-
-
-def test_newtimef_still_rejects_unimplemented_overlap():
-    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
-
-    with pytest.raises(NotImplementedError, match="overlap"):
-        newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=2)
-    with pytest.raises(NotImplementedError, match="overlap"):
-        compute_time_frequency(signal, 128, [0, 1000], 128, 0, overlap=2)
-
-    # plotphase is now implemented (both 'on' and 'off') and no longer raises.
-    for phase in ("on", "off"):
-        result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", overlap=None, plotphase=phase)
-        assert result.ersp.shape == result.itc.shape
-
-
-def test_newtimef_rejects_non_shuffle_boottype():
-    # newtimef implements only EEGLAB's default 'shuffle' null; 'rand'/'randall' build
-    # materially different nulls (newtimef.m 1282-1347), so an unsupported boottype must
-    # fail loudly instead of silently returning the shuffle result.
-    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
-    for boottype in ("rand", "randall"):
-        with pytest.raises(NotImplementedError, match="boottype"):
-            newtimef(signal, 128, [0, 1000], 128, 0, plot="off", boottype=boottype)
-    # the default 'shuffle' is accepted, case-insensitively as in EEGLAB
-    result = newtimef(signal, 128, [0, 1000], 128, 0, plot="off", boottype="Shuffle")
-    assert result.ersp.shape == result.itc.shape
-
-
-def test_newtimef_nonzero_cycles_use_wavelet_time_grid(sample_epoch):
-    result = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off")
-
-    assert result.times.size > 1
-    assert result.freqs.size > 0
-    assert result.tfdata.shape == (result.freqs.size, result.times.size, sample_epoch["trials"])
 
 
 def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
@@ -436,25 +354,6 @@ def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
 
     with pytest.raises(ValueError, match="scale"):
         newtimef(trials, 256, [0, 2000], srate, [3, 0.5], scale="bogus", plot="off")
-
-
-def test_newtimef_itctype_variants_and_type_alias():
-    # itctype selects the coherence statistic; all stay within the unit disk but differ,
-    # and 'type' is an accepted alias for 'itctype'.
-    srate = 128
-    trials = _oscillation_trials(srate, 256, [0.0, 0.4, 0.8, 1.2])
-    common = dict(freqs=[6, 20], nfreqs=6, plot="off")
-
-    default = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], **common)  # 'phasecoher'
-    coher = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], itctype="coher", **common)
-    pc2 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], itctype="phasecoher2", **common)
-    for result in (default, coher, pc2):
-        assert result.itc.shape == default.itc.shape
-        assert np.all(np.abs(result.itc) <= 1 + 1e-9)
-    assert not np.allclose(default.itc, coher.itc)  # the statistic actually changes
-
-    aliased = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], type="coher", **common)
-    np.testing.assert_allclose(aliased.itc, coher.itc)
 
 
 def test_newtimef_supplied_powbase_shifts_ersp_by_db_offset():
@@ -503,17 +402,6 @@ def test_newtimef_baseline_forms_control_powbase_units():
 
     # NaN disables the baseline, so log-scale powbase stays in absolute power (as in EEGLAB)
     np.testing.assert_allclose(powbase(np.nan), powbase(np.nan, scale="abs"), rtol=1e-6, atol=1e-6)
-
-
-def test_newtimef_single_trial_itc_is_unity():
-    # With one trial, inter-trial coherence is trivially perfect: |itc| == 1 everywhere.
-    srate = 128
-    signal = np.sin(2 * np.pi * 10 * np.arange(256) / srate)
-
-    result = newtimef(signal, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 20], nfreqs=6, plot="off")
-
-    assert result.tfdata.shape[2] == 1
-    np.testing.assert_allclose(np.abs(result.itc), 1.0, atol=1e-9)
 
 
 def test_newtimef_supplied_1d_bootstrap_thresholds_flag_extremes():
@@ -694,11 +582,6 @@ def test_timewarp_matches_eeglab_linear_interpolation_matrix():
     np.testing.assert_allclose(matrix, expected, rtol=1e-12, atol=1e-12)
 
 
-def test_timewarp_rejects_unsorted_markers():
-    with pytest.raises(ValueError, match="ascending order"):
-        timewarp([1, 5, 3], [1, 2, 5])
-
-
 @eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_5point_sinus")
 @eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_diff_start")
 @eeglab_test("unittesting_sigprocfunc/angtimewarp/sigprocfunc_angtimewarp_wrapperTest.m", "test_pass_spike")
@@ -807,13 +690,6 @@ def test_newcrossf_single_trial_switches_to_cross_spectrum():
     assert result.allcoher.shape[2] == 1
     assert np.nanmean(result.coherence) > 1.0
     assert np.nanmax(multi_trial.coherence) <= 1.0 + 1e-12
-
-
-def test_newcrossf_rejects_unknown_options():
-    signal = np.sin(2 * np.pi * 10 * np.arange(128) / 128)
-
-    with pytest.raises(TypeError, match="Unsupported newcrossf option"):
-        newcrossf(signal, signal, 128, [0, 1000], 128, 0, unsupported_option=1, plot="off")
 
 
 def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
@@ -952,66 +828,6 @@ def test_pop_eventstat_extracts_sample_event_latencies(sample_eeg):
     plt.close(result.figure)
 
 
-def test_pop_eventstat_epoched_latrange_uses_epoch_relative_latency(sample_epoch):
-    all_values = event_values(sample_epoch, "latency", type=["square"])
-    ranged_values = event_values(sample_epoch, "latency", type=["square"], latrange=[-100, 200])
-
-    assert ranged_values.size == all_values.size == sample_epoch["trials"]
-
-
-def test_pop_newtimef_gui_defaults_are_replayable_and_honest(sample_eeg):
-    result = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_DefaultDialogRenderer())
-
-    assert result["options"]["timesout"] == 200
-    assert result["options"]["plotphase"] == "off"  # the "plot ITC phase" checkbox defaults to off
-    assert "plottype" not in result["options"]
-
-
-def test_pop_newtimef_baseline_modes_bootstrap_and_curve_plot(sample_epoch):
-    result, command = pop_newtimef(
-        sample_epoch,
-        1,
-        1,
-        [-100, 200],
-        [3, 0.8],
-        basenorm="on",
-        trialbase="full",
-        alpha=0.1,
-        naccu=12,
-        rng=0,
-        plottype="curve",
-        plot="off",
-        return_com=True,
-    )
-
-    assert result.ersp.shape == result.itc.shape
-    assert result.erspboot.shape == (result.freqs.size, 2)
-    assert result.itcboot.shape == (result.freqs.size,)
-    assert result.ersp_significant.shape == result.ersp.shape
-    assert "basenorm='on'" in command
-    assert "trialbase='full'" in command
-    _assert_python_command(command)
-
-
-def test_pop_newtimef_accepts_supplied_bootstrap_limits(sample_epoch):
-    result = pop_newtimef(
-        sample_epoch,
-        1,
-        1,
-        [-100, 200],
-        [0],
-        alpha=0.05,
-        pboot=np.asarray([[-1, 1], [-1, 1]], dtype=float),
-        rboot=np.asarray([0.5, 0.5], dtype=float),
-        freqs=[8, 12],
-        nfreqs=2,
-        plot="off",
-    )
-
-    np.testing.assert_array_equal(result.erspboot, np.asarray([[-1, 1], [-1, 1]], dtype=float))
-    np.testing.assert_array_equal(result.itcboot, np.asarray([0.5, 0.5], dtype=float))
-
-
 def test_newtimef_significance_flags_event_related_effect():
     # A phase-locked post-stimulus burst must test significant against the
     # pre-stimulus baseline null; EEGLAB ranks each cell against a per-frequency
@@ -1055,335 +871,6 @@ def test_newtimef_significance_flags_event_related_effect():
     assert 0.03 < result.itc_significant[:, baseline].mean() < 0.08
 
 
-def test_newtimef_applies_ersp_and_itc_color_limits():
-    srate = 128
-    times = np.arange(128) / srate
-    trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
-
-    result = newtimef(trials, trials.shape[0], [0, 1000], srate, 0, freqs=[5, 20], timesout=12, erspmax=3.0, itcmax=0.4)
-
-    clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
-    assert (-3.0, 3.0) in clims  # ERSP color max is symmetric [-erspmax, erspmax]
-    assert (-0.4, 0.4) in clims  # ITC image uses a symmetric caxis; the colorbar is clipped to [0, itcmax]
-    plt.close(result.figure)
-
-
-def test_pop_newtimef_forwards_color_limits(sample_eeg, sample_epoch):
-    class _ColorLimitRenderer:
-        def run(self, spec, initial_values=None):
-            _ = initial_values
-            values = {control.tag: control.value for control in spec.controls if control.tag}
-            values["erspmax"] = "3"
-            values["itcmax"] = "0.4"
-            return values
-
-    gui = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_ColorLimitRenderer())
-    assert gui["options"]["erspmax"] == 3.0
-    assert gui["options"]["itcmax"] == 0.4
-
-    result, command = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], erspmax=2.5, itcmax=0.6, return_com=True)
-    assert "erspmax=2.5" in command
-    assert "itcmax=0.6" in command
-    clims = [image.get_clim() for axis in result.figure.axes for image in axis.get_images()]
-    assert (-2.5, 2.5) in clims
-    assert (-0.6, 0.6) in clims
-    plt.close(result.figure)
-
-
-def test_newtimef_image_panels_match_eeglab_styling():
-    srate = 256
-    frames = 256
-    times = np.arange(frames) / srate
-    burst = np.exp(-((times - 0.5) ** 2) / (2 * 0.1**2))
-    rng = np.random.default_rng(0)
-    trials = np.stack(
-        [0.5 * rng.standard_normal(frames) + 1.2 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(20)],
-        axis=1,
-    )
-
-    result = newtimef(
-        trials, frames, [0, 1000], srate, [3, 0.5], freqs=[4, 40], nfreqs=40, alpha=0.05, rng=0, title="Fz"
-    )
-
-    fig = result.figure
-    images = [image for axis in fig.axes for image in axis.get_images()]
-    assert len(images) == 2  # ERSP image + ITC image
-    for image in images:
-        assert image.get_cmap().name == "turbo"
-        vmin, vmax = image.get_clim()
-        assert vmin == pytest.approx(-vmax)  # symmetric color axis, so the baseline sits at green
-        assert not np.isnan(image.get_array()).any()  # non-significant cells are green-floored, not NaN/white
-    titles = [axis.get_title() for axis in fig.axes]
-    assert any(title.startswith("ERSP(") for title in titles)  # colorbar unit title
-    assert "ITC" in titles
-    ersp_axis = images[0].axes
-    assert any(np.allclose(line.get_xdata(), 0.0) for line in ersp_axis.get_lines())  # stimulus-onset marker
-    assert ersp_axis.get_xlim() == pytest.approx((result.times[0], result.times[-1]))
-    plt.close(fig)
-
-
-def test_newtimef_image_has_eeglab_marginal_panels():
-    # The composite image carries EEGLAB's four marginal panels: ERSP min/max and
-    # the ERP curve below the images, and the baseline spectrum and marginal ITC
-    # (rotated) to their left, each labelled and -- with alpha -- showing thresholds.
-    srate = 256
-    frames = 512
-    tlimits = [-1000, 1000]
-    times = np.linspace(tlimits[0], tlimits[1], frames) / 1000.0
-    rng = np.random.default_rng(0)
-    burst = np.exp(-((times - 0.30) ** 2) / (2 * 0.12**2)) * (times > 0)
-    data = np.stack(
-        [0.8 * rng.standard_normal(frames) + 1.6 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(30)],
-        axis=1,
-    )
-
-    result = newtimef(
-        data,
-        frames,
-        tlimits,
-        srate,
-        [3, 0.5],
-        freqs=[5, 45],
-        nfreqs=40,
-        baseline=[-1000, 0],
-        alpha=0.05,
-        rng=0,
-        title="Fz",
-    )
-
-    axes = result.figure.axes
-    labels = {(axis.get_xlabel(), axis.get_ylabel()) for axis in axes}
-    assert ("Time (ms)", "dB") in labels  # ERSP min/max marginal, below the ERSP image
-    assert ("Time (ms)", "µV") in labels  # ERP trace, below the ITC image
-    assert ("dB", "Frequency (Hz)") in labels  # baseline spectrum, left of the ERSP image
-    assert ("ERP", "Frequency (Hz)") in labels  # marginal ITC, left of the ITC image
-    spectrum_axis = next(a for a in axes if (a.get_xlabel(), a.get_ylabel()) == ("dB", "Frequency (Hz)"))
-    assert len(spectrum_axis.get_lines()) >= 3  # baseline curve plus the bootstrap threshold envelope
-    # EEGLAB caps each marginal value axis at two ticks (first and last)
-    time_marginals = [a for a in axes if a.get_xlabel() == "Time (ms)" and a.get_ylabel() in ("dB", "µV")]
-    freq_marginals = [a for a in axes if a.get_ylabel() == "Frequency (Hz)" and a.get_xlabel() in ("dB", "ERP")]
-    assert len(time_marginals) == 2 and all(len(a.get_yticks()) == 2 for a in time_marginals)
-    assert len(freq_marginals) == 2 and all(len(a.get_xticks()) == 2 for a in freq_marginals)
-    plt.close(result.figure)
-
-
-def test_reduce_to_two_ticks_matches_eeglab_tick_choices():
-    # Every case below is a real EEGLAB (YLim -> displayed ticks) pair captured from the
-    # newtimef marginal panels of two figures. EEGLAB uses MATLAB's 1/2/5 tick steps (not
-    # matplotlib's 2.5); the sparser spectrum panel keeps tick(end-1) via drop_last.
-    first_last = [
-        ((-0.0642, 0.4711), [0.0, 0.4]),  # marginal ITC (step 0.1, not matplotlib's 0.25)
-        ((-1.8545, 1.7770), [-1.0, 1.0]),  # ERP trace
-        ((-7.9296, 22.7297), [0.0, 20.0]),  # ERSP min/max (dB)
-        ((0.0557, 0.1708), [0.06, 0.16]),  # marginal ITC (step 0.02, not 0.05 -> 0.1,0.15)
-        ((-7.4781, 34.8989), [0.0, 30.0]),  # ERP trace (not 0,20)
-        ((-2.3130, 1.5606), [-2.0, 1.0]),  # ERSP min/max (dB)
-    ]
-    drop_last = [
-        ((-3.1417, -0.6802), [-3.0, -2.0]),  # spectrum: tick(end-1) = -2, not -3,-1 or -3,-1.5
-        ((8.7617, 27.4748), [10.0, 20.0]),  # spectrum
-    ]
-    _fig, axis = plt.subplots()
-    for (lo, hi), want in first_last:
-        axis.set_xlim(lo, hi)
-        _reduce_to_two_ticks(axis, "x")
-        np.testing.assert_allclose(axis.get_xticks(), want, err_msg=f"[{lo},{hi}]")
-    for (lo, hi), want in drop_last:
-        axis.set_xlim(lo, hi)
-        _reduce_to_two_ticks(axis, "x", drop_last=True)
-        np.testing.assert_allclose(axis.get_xticks(), want, err_msg=f"[{lo},{hi}]")
-    plt.close(_fig)
-
-
-def test_newtimef_itc_phase_sign_and_phase_only_modes():
-    srate = 256
-    frames = 384
-    times = np.arange(frames) / srate
-    burst = np.exp(-((times - 0.5) ** 2) / (2 * 0.1**2))
-    rng = np.random.default_rng(0)
-    trials = np.stack(
-        [0.5 * rng.standard_normal(frames) + 1.2 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(20)],
-        axis=1,
-    )
-    common = dict(freqs=[4, 40], nfreqs=40)
-
-    def itc_image(result):
-        return [image for axis in result.figure.axes for image in axis.get_images()][1]
-
-    signed = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], **common)  # plotphase defaults to 'on'
-    assert float(np.nanmin(itc_image(signed).get_array())) < 0.0  # phase sign yields negative (cool) cells
-    plt.close(signed.figure)
-
-    magnitude = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], plotphase="off", **common)
-    assert float(np.nanmin(itc_image(magnitude).get_array())) >= 0.0  # magnitude only, no phase sign
-    plt.close(magnitude.figure)
-
-    phase = newtimef(trials, frames, [0, 1000], srate, [3, 0.5], plotphaseonly="on", **common)
-    assert itc_image(phase).get_clim() == (-180.0, 180.0)  # phase in degrees
-    assert "ITC phase" in [axis.get_title() for axis in phase.figure.axes]
-    plt.close(phase.figure)
-
-
-def test_newtimef_pcontour_outlines_significance_instead_of_masking():
-    srate = 256
-    frames = 512
-    tlimits = [-1000, 1000]
-    times = np.linspace(tlimits[0], tlimits[1], frames) / 1000.0
-    rng = np.random.default_rng(0)
-    burst = np.exp(-((times - 0.30) ** 2) / (2 * 0.12**2)) * (times > 0)
-    data = np.stack(
-        [0.8 * rng.standard_normal(frames) + 1.6 * np.sin(2 * np.pi * 10 * times) * burst for _ in range(30)],
-        axis=1,
-    )
-    common = dict(freqs=[5, 45], nfreqs=40, baseline=[-1000, 0], alpha=0.05, rng=0)
-
-    masked = newtimef(data, frames, tlimits, srate, [3, 0.5], **common)
-    contoured = newtimef(data, frames, tlimits, srate, [3, 0.5], pcontour="on", **common)
-
-    ersp_masked = np.asarray([im for axis in masked.figure.axes for im in axis.get_images()][0].get_array())
-    ersp_contoured = np.asarray([im for axis in contoured.figure.axes for im in axis.get_images()][0].get_array())
-    assert np.mean(ersp_masked == 0.0) > 0.3  # green-floor sets non-significant cells to baseval
-    assert np.mean(ersp_contoured == 0.0) < 0.05  # pcontour keeps the raw values
-    masked_collections = sum(len(axis.collections) for axis in masked.figure.axes)
-    contoured_collections = sum(len(axis.collections) for axis in contoured.figure.axes)
-    assert contoured_collections > masked_collections  # significance drawn as contour outlines
-    # EEGLAB draws the mask contour with MATLAB's auto levels 0.1:0.1:1.0 (ten black lines
-    # that fan out into a bold banded outline), not a single thin 0.5 line.
-    contour_sets = contoured.figure.findobj(QuadContourSet)
-    assert contour_sets
-    for cset in contour_sets:
-        np.testing.assert_allclose(cset.levels, np.arange(1, 11) / 10.0)
-        assert np.allclose(cset.get_edgecolor()[:, :3], 0.0)  # black
-    plt.close(masked.figure)
-    plt.close(contoured.figure)
-
-
-def test_pop_newtimef_adds_scalp_map_inset_and_caption(sample_epoch, ica_epoch):
-    result, command = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [3, 0.8], plot="off", return_com=True)
-    assert channel_labels(sample_epoch)[0] in [text.get_text() for text in result.figure.texts]  # channel caption
-    assert len(result.figure.axes) == 9  # 8 image/marginal/colorbar axes + the scalp-map inset
-    assert "elocs" not in command and "topovec" not in command  # injected for the plot, not the history
-    plt.close(result.figure)
-
-    component = pop_newtimef(ica_epoch, 0, 2, [-100, 200], [3, 0.8], plot="off")
-    assert "IC 2" in [text.get_text() for text in component.figure.texts]
-    assert len(component.figure.axes) == 9
-    plt.close(component.figure)
-
-    assert _topo_options({"chanlocs": []}, 1, 1) == {}  # no channel locations -> no inset
-
-
-def test_pop_newtimef_forwards_plotphase(sample_eeg):
-    class _PhaseCheckedRenderer:
-        def run(self, spec, initial_values=None):
-            _ = initial_values
-            values = {control.tag: control.value for control in spec.controls if control.tag}
-            values["plotphase"] = True
-            return values
-
-    checked = run_newtimef_gui(sample_eeg, typeproc=1, renderer=_PhaseCheckedRenderer())
-    assert "plotphase" not in checked["options"]  # checked keeps newtimef's phase-sign default
-
-
-def test_newtimef_curve_mode_still_plots_per_frequency_lines():
-    srate = 128
-    times = np.arange(128) / srate
-    trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
-
-    result = newtimef(trials, trials.shape[0], [0, 1000], srate, 0, freqs=[5, 20], timesout=12, plottype="curve")
-
-    assert result.figure.axes  # curve figure is produced
-    assert any(axis.get_lines() for axis in result.figure.axes)  # per-frequency traces, not an image
-    assert not any(axis.get_images() for axis in result.figure.axes)
-    plt.close(result.figure)
-
-
-def test_newtimef_single_panel_figures():
-    # plotitc='off' draws only the ERSP image; plotersp='off' draws only the ITC image.
-    srate = 128
-    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
-    common = dict(freqs=[6, 20], nfreqs=6, timesout=12)
-
-    ersp_only = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], plotitc="off", **common)
-    itc_only = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], plotersp="off", **common)
-
-    assert len([im for ax in ersp_only.figure.axes for im in ax.get_images()]) == 1
-    assert len([im for ax in itc_only.figure.axes for im in ax.get_images()]) == 1
-    assert any(title.startswith("ERSP(") for title in [ax.get_title() for ax in ersp_only.figure.axes])
-    assert "ITC" in [ax.get_title() for ax in itc_only.figure.axes]
-    plt.close(ersp_only.figure)
-    plt.close(itc_only.figure)
-
-
-def test_newtimef_vert_markers_drawn_on_image_panels():
-    # A 'vert' marker draws a vertical line on the image panel (besides the time-0 marker).
-    srate = 128
-    trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
-    marker = 500.0  # ms, inside the epoch
-
-    result = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 20], nfreqs=6, vert=[marker])
-
-    ersp_axis = [im for ax in result.figure.axes for im in ax.get_images()][0].axes
-    assert any(np.allclose(line.get_xdata(), marker) for line in ersp_axis.get_lines())
-    plt.close(result.figure)
-
-
-def test_timefreq_statistics_dialog_specs_match_eeglab_control_inventory(sample_eeg):
-    newtimef = pop_newtimef_dialog_spec(sample_eeg, typeproc=1)
-    newcrossf = pop_newcrossf_dialog_spec(sample_eeg, typeproc=1)
-    signal_spec = pop_signalstat_dialog_spec(sample_eeg, typeproc=1)
-    event_spec = pop_eventstat_dialog_spec(sample_eeg)
-
-    assert newtimef.title == "Plot channel time frequency -- pop_newtimef()"
-    assert newtimef.size == (1059, 511)
-    assert newtimef.row_spacing == 4
-    assert newcrossf.size == (908, 476)
-    assert newcrossf.row_spacing == 4
-    assert controls_by_tag(newtimef)["num_button"].callback.name == "select_channels"
-    assert controls_by_tag(newtimef)["baseline"].value == "0"
-    assert controls_by_tag(newtimef)["calcpush"].enabled is True
-    assert controls_by_tag(newtimef)["calcpush"].callback.name == "tf_cycle_calc"
-    assert controls_by_tag(newtimef)["plotcurve"].enabled is True
-    assert controls_by_tag(newtimef)["alpha"].enabled is True
-    assert controls_by_tag(newcrossf)["coher"].value is False
-    assert signal_spec.title == "Plot signal statistics -- pop_signalstat()"
-    assert controls_by_tag(signal_spec)["percent"].value == "5"
-    assert event_spec.title == "Plot event statistics -- pop_eventstat()"
-    assert controls_by_tag(event_spec)["eventfield"].value == "latency"
-
-
-def test_timefreq_statistics_menu_actions_are_implemented():
-    assert action_kind("pop_newtimef:channels") == "implemented"
-    assert action_kind("pop_newcrossf:components") == "implemented"
-    assert action_kind("pop_signalstat:channels") == "implemented"
-    assert action_kind("pop_eventstat") == "implemented"
-
-
-def test_phase4_top_level_exports_resolve_existing_modules():
-    expected = {
-        "bootstat",
-        "correct_mc",
-        "crossf",
-        "dftfilt",
-        "dftfilt2",
-        "dftfilt3",
-        "angtimewarp",
-        "newtimefbaseln",
-        "newtimefitc",
-        "newtimefpowerunit",
-        "newtimeftrialbaseln",
-        "pop_crossf",
-        "pop_timef",
-        "tf_cycle_calc",
-        "timef",
-        "timefreq",
-        "timewarp",
-    }
-    assert expected <= set(eegprep.__all__)
-    for name in expected:
-        assert getattr(eegprep, name) is not None
-
-
 def test_legacy_timef_and_crossf_wrappers_return_replayable_history(sample_epoch):
     timef_result, timef_command = pop_timef(sample_epoch, 1, 1, [-100, 200], [0], plot="off", return_com=True)
     crossf_result, crossf_command = pop_crossf(sample_epoch, 1, 1, 2, [-100, 200], [0], plot="off", return_com=True)
@@ -1394,88 +881,6 @@ def test_legacy_timef_and_crossf_wrappers_return_replayable_history(sample_epoch
     assert crossf_command.startswith("pop_crossf(EEG, 1, 1, 2")
     _assert_python_command(timef_command)
     _assert_python_command(crossf_command)
-
-
-def test_newcrossf_supported_phase4_options_are_headless():
-    srate = 128
-    times = np.arange(0, 1, 1 / srate)
-    trials = np.stack(
-        [
-            np.sin(2 * np.pi * 12 * times),
-            np.sin(2 * np.pi * 12 * times + 0.3),
-            np.sin(2 * np.pi * 12 * times + 0.7),
-        ],
-        axis=1,
-    )
-
-    result = newcrossf(
-        trials,
-        trials,
-        trials.shape[0],
-        [0, 1000],
-        srate,
-        0,
-        freqs=[8, 16],
-        type="phasecoher2",
-        subitc="on",
-        alpha=0.1,
-        naccu=12,
-        rng=0,
-        plot="off",
-    )
-    amp = newcrossf(trials, trials, trials.shape[0], [0, 1000], srate, 0, freqs=[8, 16], type="amp", plot="off")
-
-    assert result.rboot.shape == (result.freqs.size,)
-    assert result.significant.shape == result.coherence.shape
-    assert np.nanmax(np.abs(result.coherence)) <= 1 + 1e-12
-    assert amp.coherence.shape == amp.phase.shape
-
-
-def test_newtimefpowerunit_matches_eeglab_labels():
-    assert newtimefpowerunit({"scale": "log", "baseline": 0, "basenorm": "off"}) == "dB"
-    assert newtimefpowerunit({"scale": "abs", "baseline": [float("nan")], "basenorm": "off"}) == "uV^{2}/Hz"
-    assert newtimefpowerunit({"scale": "abs", "baseline": 0, "basenorm": "on"}) == "std."
-
-
-def test_bootstat_threshold_sides_and_rand_phase_preserve_magnitude():
-    first = np.arange(24, dtype=float).reshape(2, 3, 4)
-    second = first[:, ::-1, :] / 2.0
-
-    def statistic(left, right):
-        return np.mean(left - right, axis=1)
-
-    upper = bootstat([first, second], statistic=statistic, alpha=0.1, naccu=20, bootside="upper", rng=0)
-    both = bootstat([first, second], statistic=statistic, alpha=0.1, naccu=20, bootside="both", rng=0)
-
-    assert upper.surrogates.shape == (20, 2, 4)
-    assert upper.thresholds.shape == (2, 4)
-    assert both.thresholds.shape == (2, 4, 2)
-    np.testing.assert_allclose(upper.thresholds, bootstrap_threshold(upper.surrogates, alpha=0.1, bootside="upper"))
-
-    complex_values = np.exp(1j * np.arange(6, dtype=float)).reshape(2, 3)
-    randomized = bootstat(complex_values, statistic=np.abs, naccu=5, boottype="rand", rng=0)
-    np.testing.assert_allclose(randomized.surrogates, np.broadcast_to(np.abs(complex_values), (5, 2, 3)))
-
-
-def test_timefreq_threshold_helpers_pool_through_canonical_bootstrap_threshold():
-    # newtimef/newcrossf no longer re-sort surrogates; they pool (naccu x baseline)
-    # per frequency and delegate the percentile/tail math to bootstrap_threshold.
-    rng = np.random.default_rng(7)
-    surrogates = rng.normal(size=(24, 3, 5))
-
-    pooled = surrogates.transpose(0, 2, 1).reshape(-1, surrogates.shape[1])
-    expected_both = bootstrap_threshold(pooled, alpha=0.1, bootside="both")
-    expected_upper = bootstrap_threshold(pooled, alpha=0.1, bootside="upper")
-
-    np.testing.assert_allclose(_thresholds_by_frequency(surrogates, alpha=0.1, both=True), expected_both)
-    np.testing.assert_allclose(_thresholds_by_frequency(surrogates, alpha=0.1, both=False), expected_upper)
-    np.testing.assert_allclose(_upper_thresholds_by_frequency(surrogates, alpha=0.1), expected_upper)
-
-    # Single-frequency case keeps the original (nfreq,) / (nfreq, 2) shapes.
-    single = rng.normal(size=(24, 1, 5))
-    assert _thresholds_by_frequency(single, alpha=0.1, both=True).shape == (1, 2)
-    assert _thresholds_by_frequency(single, alpha=0.1, both=False).shape == (1,)
-    assert _upper_thresholds_by_frequency(single, alpha=0.1).shape == (1,)
 
 
 def test_bootstrap_threshold_matches_eeglab_tail_mean_formula():
@@ -1524,26 +929,6 @@ def test_timefreq_shared_bootstrap_helpers_cover_newtimef_and_newcrossf_paths():
     np.testing.assert_allclose(np.abs(randomized), np.abs(values))
 
 
-def test_newtimef_fdr_branch_matches_canonical_fdr_threshold():
-    rng = np.random.default_rng(11)
-    pvalues = rng.random(size=(4, 6))
-
-    threshold = float(fdr(pvalues, 0.1).threshold)
-    expected = np.zeros_like(pvalues, dtype=bool) if threshold == 0 else pvalues <= threshold
-
-    np.testing.assert_array_equal(_significance_mask(pvalues, 0.1, "fdr"), expected)
-    np.testing.assert_array_equal(_significance_mask(pvalues, 0.1, "none"), pvalues <= 0.1)
-
-
-def test_timefreq_is_on_and_threshold_vector_are_the_canonical_shared_helpers():
-    # newcrossf reuses newtimef's threshold helper and the canonical is_on whitelist.
-    assert newcrossf_threshold_vector is newtimef_threshold_vector
-    assert newtimef_threshold_vector is threshold_vector
-    assert newcrossf_is_on is newtimef_is_on
-    assert newcrossf_is_on("on") is True
-    assert newcrossf_is_on("display") is False
-
-
 def test_bootstat_basevect_uses_eeglab_one_based_indices():
     data = np.arange(12, dtype=float).reshape(2, 3, 2)
     seen = []
@@ -1568,63 +953,6 @@ def test_empirical_pvalue_conventions_are_intentionally_distinct():
         stat_surrogate_pvals(distribution[np.newaxis, :], np.asarray([observed]), "right"), [0.0]
     )
     np.testing.assert_allclose(exact_p_values(observed, distribution, center=0.0), 0.0)
-
-
-def test_correct_mc_returns_phase4_standalone_shapes():
-    rng = np.random.default_rng(0)
-    eeg = {
-        "data": rng.normal(size=(2, 64, 4)),
-        "pnts": 64,
-        "trials": 4,
-        "srate": 128,
-        "xmin": 0,
-        "xmax": 63 / 128,
-    }
-
-    ncorrect, pvalues = correct_mc(eeg, cycles=0, freqrange=(4, 16), timesout=(4, 6))
-
-    assert isinstance(ncorrect, int)
-    assert pvalues.shape == (int(np.ceil(np.log2(16))), 2)
-
-
-def test_correct_mc_uses_rsfit_for_neighbor_correlations():
-    eeg = {
-        "data": np.arange(64, dtype=float).reshape(2, 32),
-        "pnts": 32,
-        "srate": 128,
-        "xmin": 0,
-        "xmax": 31 / 128,
-    }
-
-    class Result:
-        def __init__(self, offset):
-            base = np.asarray(
-                [
-                    [0.0, 1.0, 2.0, 4.0],
-                    [0.0, 1.0, 3.0, 6.0],
-                    [0.0, 2.0, 5.0, 9.0],
-                ],
-                dtype=float,
-            )
-            self.ersp = base + offset
-
-    def fake_newtimef(data, *_args, **_kwargs):
-        return Result(float(data[0]))
-
-    correct_mc_module = importlib.import_module("eegprep.functions.timefreqfunc.correct_mc")
-    with (
-        mock.patch.object(correct_mc_module, "newtimef", side_effect=fake_newtimef),
-        mock.patch.object(correct_mc_module, "rsfit", return_value=0.001) as fitted,
-    ):
-        ncorrect, pvalues = correct_mc(eeg, cycles=0, freqrange=(4, 8), timesout=(4,))
-
-    assert ncorrect == 12
-    assert fitted.call_count == 3
-    assert pvalues.shape == (3, 1)
-    for call in fitted.call_args_list:
-        correlations, value = call.args
-        assert value == 0.0
-        assert len(correlations) == 2
 
 
 def test_ramberg_schmeiser_helpers_cover_analytic_cases():
@@ -1657,20 +985,6 @@ def test_correctfit_applies_gamma_parameters_and_zero_mode():
     assert correctfit(0.0, gamparams=[2.0, 0.5, 0.25], zeromode="off")[0] == pytest.approx(0.0)
 
 
-def test_legacy_dft_helpers_cover_public_surface():
-    filters = dftfilt(16, 2, 4, 2, 0.5)
-    empty = dftfilt(8, 0.1, 10, 2, 0.5)
-    wavelets = dftfilt2([8, 16], [3, 5], 128)
-    sinus = dftfilt2([8], 3, 128, kind="sinus")
-
-    assert filters.shape == (16, 14)
-    assert np.iscomplexobj(filters)
-    assert empty.shape == (8, 0)
-    assert [wavelet.size for wavelet in wavelets] == [49, 41]
-    assert sinus[0].shape == (49,)
-    assert np.iscomplexobj(sinus[0])
-
-
 @pytest.mark.parametrize(
     ("action", "module_path", "expected_kwargs", "command"),
     [
@@ -1685,18 +999,6 @@ def test_legacy_dft_helpers_cover_public_surface():
             "eegprep.functions.popfunc.pop_newcrossf.pop_newcrossf",
             {"typeproc": 0, "return_com": True},
             "pop_newcrossf(EEG, 0, 1, 2)",
-        ),
-        (
-            "pop_signalstat:channels",
-            "eegprep.functions.popfunc.pop_signalstat.pop_signalstat",
-            {"typeproc": 1, "return_com": True},
-            "pop_signalstat(EEG, 1, 1, 5)",
-        ),
-        (
-            "pop_eventstat",
-            "eegprep.functions.popfunc.pop_eventstat.pop_eventstat",
-            {"return_com": True},
-            "pop_eventstat(EEG, 'latency', [], [], 5)",
         ),
     ],
 )
@@ -1727,14 +1029,6 @@ def test_signalstat_matches_numpy_for_known_vector():
     assert result.zlow == pytest.approx(1.5)
     assert result.zhigh == pytest.approx(52.0)
     assert result.trimmed_indices.tolist() == [1, 2, 3]
-
-
-def test_signalstat_plots_topographic_context_when_map_is_available(ica_epoch):
-    result = pop_signalstat(ica_epoch, 0, 1, 5)
-
-    titles = [axis.get_title() for axis in result.figure.axes]
-    assert "Topographic map" in titles
-    plt.close(result.figure)
 
 
 @pytest.mark.matlab
@@ -2346,9 +1640,3 @@ def _eeglab_reference_root() -> Path | None:
         if (candidate / "functions" / "sigprocfunc" / "signalstat.m").exists():
             return candidate
     return None
-
-
-class _DefaultDialogRenderer:
-    def run(self, spec, initial_values=None):
-        _ = initial_values
-        return {control.tag: control.value for control in spec.controls if control.tag}

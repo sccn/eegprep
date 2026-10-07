@@ -204,36 +204,25 @@ suite validation.
 Writing Tests
 -------------
 
-When adding new features, include tests:
+Write a test before the code it covers, never after. Add a test only when it
+would catch a real bug that the EEGLAB-ported tests and the workflow tests on
+``sample_data`` would miss, for example a fixed regression, a 1-based latency
+or boundary-event edge, or a numerical result checked against EEGLAB. Do not add
+tests to raise coverage, and do not assert only types, shapes, or that a result
+is not ``None``.
+
+For a bug fix, first reproduce the bug with a failing test in the closest
+existing test file:
 
 .. code-block:: python
 
-    import numpy as np
-    from eegprep import EEGobj
+    from eegprep import pop_loadset, pop_select
 
-    def test_new_feature():
-        """Test description of what this tests."""
-        # Setup: EEGobj wraps an EEG dict (or a .set file path).
-        eeg_dict = {
-            "data": np.zeros((4, 100), dtype=np.float32),
-            "nbchan": 4,
-            "pnts": 100,
-            "trials": 1,
-            "srate": 128.0,
-            "xmin": 0.0,
-            "xmax": 99 / 128.0,
-            "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)],
-            "event": [],
-            "epoch": [],
-        }
-        eeg = EEGobj(eeg_dict)
-
-        # Execute: EEGobj dispatches pop_* operations, e.g. eeg.pop_reref([]).
-        result = eeg.pop_reref([])
-
-        # Assert
-        assert result is not None
-        assert result["nbchan"] == 4
+    def test_pop_select_keeps_final_sample():
+        EEG = pop_loadset("sample_data/eeglab_data.set")
+        last = EEG["xmax"]
+        out = pop_select(EEG, time=[last - 1, last])
+        assert out["data"][:, -1].tolist() == EEG["data"][:, -1].tolist()
 
 Documentation Standards
 =======================

@@ -3724,7 +3724,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the bare legacy pop_averef alias history test in tests/test_console_workspace.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_biosig.m",
@@ -3788,7 +3788,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_chancenter reference cases (empty center, with and without omitchans, recorded calls), 1-based omit indices, console history, and GUI cancel path in tests/test_phase2_file_channel_location.py; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_chancoresp.m",
@@ -3804,7 +3804,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_chancoresp fiducial auto-selection test in tests/test_phase2_file_channel_location.py and the upstream chancoresp fiducials test in tests/test_binary_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_chanedit.m",
@@ -3879,7 +3879,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the dataset channel-subset and title test in tests/test_popfunc_visual_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_comperp.m",
@@ -3894,7 +3894,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py display/significance, RMS, grid-validation, GUI/spec, history, and sample epoched dataset-list tests."
+      "test_notes": "Covered by the RMS/grid-validation and significance-shading tests in tests/test_phase4_plot_wrappers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_copyset.m",
@@ -3970,7 +3970,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_pop_editset.py file-backed assignments, mapping history replay, explicit workspace-expression errors, GUI cancel/no-change paths, sample-data metadata, and MATLAB parity metadata tests when available."
+      "test_notes": "Covered by tests/test_pop_editset.py file-backed data/chanlocs/ICA loading, channel-structure history replay, GUI renderer and cancel/no-change paths, xmin latency-shift behavior, and a MATLAB parity test when available."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eegfilt.m",
@@ -4030,7 +4030,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py single-dataset envtopo, icachansind subset handling, history syntax, and explicit multi-dataset limitation test."
+      "test_notes": "Covered by the icachansind subset handling, explicit multi-dataset limitation, and blank-GUI subcomps tests in tests/test_phase4_plot_wrappers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_epoch.m",
@@ -4045,7 +4045,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_pop_epoch.py filename-backed data loading, invalid options, GUI/history/cancel behavior, first/last sample edge cases, boundary behavior, and MATLAB parity tests when available."
+      "test_notes": "Covered by tests/test_pop_epoch.py filename-backed data loading, GUI/history/cancel behavior, 1-based eventindices, boundary-event handling, the late-epoch zero-latency case, and MATLAB parity tests when available."
     },
     {
       "eeglab_path": "functions/popfunc/pop_erpimage.m",
@@ -4060,7 +4060,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py sample channel/component ERP images, projected components, time limits, decimation, event sorting, nosort, unsupported alignment, GUI/spec, and history syntax."
+      "test_notes": "Covered by the time-limit/decimation, symmetric default color axis, event-field sorting, and scalp-inset placement tests in tests/test_phase4_plot_wrappers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eventstat.m",
@@ -4164,7 +4164,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the pop_findmatchingcomps correlated-component and rejected-map tests in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_fusechanrej.m",
@@ -4179,7 +4179,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the pop_fusechanrej common-channel tests (subject/session scoping, case-insensitive matching) in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_headplot.m",
@@ -4209,7 +4209,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the pop_icathresh rejection-flag test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_importdata.m",
@@ -4343,7 +4343,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_loadbci ASCII import test in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_loadset.m",
@@ -4492,7 +4492,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_readlocs reference test on the four original files, packaged montage, round-trip, and custom-format 1-based readchans tests in tests/test_phase2_file_channel_location.py; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_readsegegi.m",
@@ -4535,7 +4535,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the rejchanspec original-workflow reference test and the pop_rejchanspec history test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_rejcont.m",
@@ -4685,7 +4685,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_gui_pop_runica.py backend routing, options/history, multi-dataset selection/concatenation, sample-data smoke, and unsupported-algorithm limitation tests."
+      "test_notes": "Covered by tests/test_gui_pop_runica.py backend routing (Picard), GUI options/history, dataset-selection routing, and existing-ICA handling, plus warning-free sample-data pop_runica runs; tests/test_sample_data_pop_functions.py also runs pop_runica on sample data."
     },
     {
       "eeglab_path": "functions/popfunc/pop_runscript.m",
@@ -4700,7 +4700,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_file_menu_pop_functions.py Python script execution, command history, and explicit MATLAB/text script limitation tests."
+      "test_notes": "Covered by tests/test_sample_data_pop_functions.py (original runscript reference and workspace-namespace modification) and the File-menu runscript CURRENTSET tests in tests/test_gui_main_window.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_saveh.m",
@@ -4806,7 +4806,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_snapread gain/metadata test and upstream pop_snapread reference test in tests/test_binary_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_spectopo.m",
@@ -4882,7 +4882,7 @@
         "console",
         "gui"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the pop_topochansel index/label resolution test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/popfunc/pop_topoplot.m",
@@ -4928,7 +4928,7 @@
         "gui",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the pop_writelocs recorded-locations reference test and the locs/CED round-trip test in tests/test_phase2_file_channel_location.py; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/acsobiro.m",
@@ -5042,7 +5042,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by all five current eeglab_tests cbar wrapper methods in tests/test_sigprocfunc_plotting_eeglab_tests.py, with artist arrays, layout, orientation, and ticks asserted."
+      "test_notes": "Covered by the cbar original-calls reference test and the vertical partial-range value-tick test in tests/test_sigprocfunc_plotting_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/celltomat.m",
@@ -5077,7 +5077,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the chancenter reference tests (2-D, all-negative, optimize, scalar, zero radius) in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/changeunits.m",
@@ -5111,7 +5111,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the ICA projection-identity test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/condstat.m",
@@ -5146,7 +5146,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the convertlocs cart2all reference test and the BESA spherical-convention test in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/copyaxis.m",
@@ -5159,7 +5159,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by the current copyaxis wrapper method in tests/test_sigprocfunc_plotting_eeglab_tests.py with line, image, labels, limits, styles, and legend assertions."
+      "test_notes": "Covered by the copyaxis reference test and the current-plot copy test in tests/test_sigprocfunc_plotting_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/coregister.m",
@@ -5172,7 +5172,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase4_plot_wrappers.py packaged reference matching, traditional and shared-scale fitting, noninteractive coregister, manual coregistration callback, and unsupported-method limitation tests."
+      "test_notes": "Covered by the traditional and shared-scale transform fitting test and the traditional-transform matrix EEGLAB-match test in tests/test_phase4_plot_wrappers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/dipoledensity.m",
@@ -5302,7 +5302,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the eegthresh reference tests (selected/rejected, one electrode, all rejected, none rejected) in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/entropy_rej.m",
@@ -5315,7 +5315,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the entropy_rej reference tests (vectors, matrices, normalized epochs) in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/env.m",
@@ -5449,7 +5449,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the floatread reference tests (general, no size, offset, square, NaN/Inf) in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/floatwrite.m",
@@ -5463,7 +5463,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the floatwrite reference tests (general, native) in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/forcelocs.m",
@@ -5477,7 +5477,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by both current forcelocs wrapper methods in tests/test_sigprocfunc_plotting_eeglab_tests.py against their exact expected 3-D and derived coordinate values."
+      "test_notes": "Covered by the forcelocs complete-coordinates reference test in tests/test_sigprocfunc_plotting_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/gettempfolder.m",
@@ -5511,7 +5511,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "All five current headplot wrapper methods carry provenance across tests/test_phase4_plot_wrappers.py and tests/test_sigprocfunc_plotting_eeglab_tests.py; spline/interpolation MATLAB parity tests run when available."
+      "test_notes": "Covered by the headplot reference tests in tests/test_phase4_plot_wrappers.py and tests/test_sigprocfunc_plotting_eeglab_tests.py, plus the spline-metadata, interpolated-value, and ICA-metadata EEGLAB-match tests in tests/test_phase4_plot_wrappers.py; spline/interpolation MATLAB parity tests run when available."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icaact.m",
@@ -5524,7 +5524,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the ICA projection-identity test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icadefs.m",
@@ -5550,7 +5550,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the ICA projection-identity test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/icavar.m",
@@ -5563,7 +5563,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the ICA projection-identity test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/imagesctc.m",
@@ -5623,7 +5623,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the jointprob reference test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/kmeanscluster.m",
@@ -5657,7 +5657,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the kurt reference test and the sample-standard-deviation formula test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/loadtxt.m",
@@ -6040,7 +6040,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the readeetraklocs reference test in tests/test_phase2_file_channel_location.py and the upstream section-order test."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readegi.m",
@@ -6080,7 +6080,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the readegilocs reference test over all original channel counts and the packaged EGI montage test in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readelp.m",
@@ -6094,7 +6094,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the readelp five-output reference test in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readlocs.m",
@@ -6108,7 +6108,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the readlocs reference tests (bugzilla 339 and 72) and the packaged-montage, custom-format, BESA-column, quoted-CED-type, and round-trip tests in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/readneurodat.m",
@@ -6166,7 +6166,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the realproba reference test and the equal-values regression test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/rejkurt.m",
@@ -6179,7 +6179,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the rejkurt reference test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/rejstatepoch.m",
@@ -6213,7 +6213,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_phase7_long_tail_helpers.py and console history coverage where user-facing."
+      "test_notes": "Covered by the rejtrend reference test in tests/test_phase7_long_tail_helpers.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/reref.m",
@@ -6351,7 +6351,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "The current slider wrapper's four active control combinations are covered in tests/test_sigprocfunc_plotting_eeglab_tests.py with widget, panning, magnification, suppression, and restoration assertions."
+      "test_notes": "Covered by the slider original-calls reference test in tests/test_sigprocfunc_plotting_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/snapread.m",
@@ -6365,7 +6365,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the upstream snapread reference test in tests/test_binary_eeglab_tests.py."
     },
     {
       "eeglab_path": "functions/sigprocfunc/sobi.m",
@@ -6614,7 +6614,7 @@
         "helper",
         "file_channel"
       ],
-      "test_notes": "Covered by tests/test_phase2_file_channel_location.py with synthetic files, malformed rows, packaged montages, 1-based channel indices, console history, and cancel/error paths; adjacent pop_chanedit coverage remains in tests/test_phase1b_file_edit_pop_functions.py."
+      "test_notes": "Covered by the writelocs round-trip tests in tests/test_phase2_file_channel_location.py."
     },
     {
       "eeglab_path": "functions/statistics/anova1_cell.m",
@@ -6628,7 +6628,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
+      "test_notes": "Covered by the MATLAB Engine parity test in tests/test_statistics_package.py with documented tolerances; skips when MATLAB is unavailable."
     },
     {
       "eeglab_path": "functions/statistics/anova1rm_cell.m",
@@ -6642,7 +6642,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
+      "test_notes": "No dedicated anova1rm_cell test remains in tests/test_statistics_package.py; repeated-measures coverage there is anova2rm_cell."
     },
     {
       "eeglab_path": "functions/statistics/anova2_cell.m",
@@ -6656,7 +6656,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
+      "test_notes": "Covered by the MATLAB Engine parity test in tests/test_statistics_package.py with documented tolerances; skips when MATLAB is unavailable."
     },
     {
       "eeglab_path": "functions/statistics/anova2rm_cell.m",
@@ -6670,7 +6670,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused tests and MATLAB Engine parity tests with documented tolerances; MATLAB tests skip when unavailable."
+      "test_notes": "Covered by the MATLAB Engine parity test in tests/test_statistics_package.py with documented tolerances; skips when MATLAB is unavailable."
     },
     {
       "eeglab_path": "functions/statistics/concatdata.m",
@@ -6684,7 +6684,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused shape and length-boundary tests."
+      "test_notes": "Covered by the concatdata original-arrays reference test and contract test in tests/test_statistics_package.py."
     },
     {
       "eeglab_path": "functions/statistics/corrcoef_cell.m",
@@ -6782,7 +6782,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py focused deterministic resampling tests."
+      "test_notes": "Covered indirectly by the seeded nonparametric two-way statcond test in tests/test_statistics_package.py; no standalone surrogdistrib test remains."
     },
     {
       "eeglab_path": "functions/statistics/teststat.m",
@@ -6796,7 +6796,7 @@
         "helper",
         "statistics"
       ],
-      "test_notes": "Covered by tests/test_statistics_package.py, which verifies the smoke helper runs deterministic package checks."
+      "test_notes": "No dedicated teststat test remains in tests/test_statistics_package.py."
     },
     {
       "eeglab_path": "functions/statistics/ttest2_cell.m",
@@ -6838,7 +6838,7 @@
         "helper",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py ERSP/ITC precompute axis coverage.",
+      "test_notes": "Covered by the std_precomp reference test in tests/test_study_workflows_eeglab_tests.py, the precompute cache/baseline/design tests in tests/test_study_measures.py, and the precompute workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -6914,7 +6914,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by multi-dataset design helper tests in tests/test_study_metadata.py."
+      "test_notes": "Covered by the independent-variable import/save/rebuild test in tests/test_study_metadata.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_chanplot.m",
@@ -7012,7 +7012,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py STUDY ERP precompute coverage.",
+      "test_notes": "Covered by tests/test_study_params_eeglab_tests.py (stores every option and invalidates the ERP cache).",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7029,7 +7029,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py STUDY ERSP/ITC precompute coverage.",
+      "test_notes": "Covered by tests/test_study_params_eeglab_tests.py (stores every option and invalidates the time-frequency cache).",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7170,7 +7170,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py STUDY spectrum precompute coverage.",
+      "test_notes": "Covered by tests/test_study_params_eeglab_tests.py (stores every option and invalidates the spectrum cache).",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7381,7 +7381,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py channel read coverage.",
+      "test_notes": "Covered by the precompute/chanplot workflow in tests/test_study_end_to_end.py and the cached-measure tests in tests/test_study_measures.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7615,7 +7615,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py ERP precompute coverage.",
+      "test_notes": "Covered by the std_precomp reference test in tests/test_study_workflows_eeglab_tests.py, the precompute cache/baseline/design tests in tests/test_study_measures.py, and the precompute workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7674,7 +7674,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py ERSP/ITC precompute coverage.",
+      "test_notes": "Covered by the std_precomp reference test in tests/test_study_workflows_eeglab_tests.py, the precompute cache/baseline/design tests in tests/test_study_measures.py, and the precompute workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7718,7 +7718,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_metadata.py file consistency coverage.",
+      "test_notes": "Covered by the std_checkset datasetinfo alignment tests and the missing-dataset pop_loadstudy failure test in tests/test_study_metadata.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7733,7 +7733,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_metadata.py file consistency coverage.",
+      "test_notes": "Covered by the std_checkset datasetinfo alignment tests and the missing-dataset pop_loadstudy failure test in tests/test_study_metadata.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -7966,7 +7966,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_metadata.py load/save coverage.",
+      "test_notes": "Covered by the STUDY save/load round trips in tests/test_study_end_to_end.py and tests/test_sample_data_pop_functions.py, and the missing-dataset failure test in tests/test_study_metadata.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8024,7 +8024,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_metadata.py session consistency coverage.",
+      "test_notes": "Covered by the session consistency check in tests/test_study_long_tail_helpers.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8110,7 +8110,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py plotting coverage.",
+      "test_notes": "Covered by tests/test_study_grouped_measure_plots_eeglab_tests.py, the chanplot workflow in tests/test_study_end_to_end.py, and the pop_chanplot component-mode test in tests/test_study_measures.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8125,7 +8125,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py plotting coverage.",
+      "test_notes": "Covered by the ERP/spectrum plot reference and design-sweep tests in tests/test_study_grouped_measure_plots_eeglab_tests.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8155,7 +8155,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py time-frequency plotting coverage.",
+      "test_notes": "Covered by the ERSP plot reference tests in tests/test_study_grouped_measure_plots_eeglab_tests.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8345,7 +8345,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_end_to_end.py readback coverage.",
+      "test_notes": "Covered by the cached-measure read tests in tests/test_study_measures.py and the precompute/plot workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8416,7 +8416,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py readback coverage.",
+      "test_notes": "Covered by the cached component-measure read tests in tests/test_study_measures.py; no dedicated spectrogram readback test remains.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8445,7 +8445,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py and tests/test_study_clustering.py.",
+      "test_notes": "Covered by the cached component-measure read tests in tests/test_study_measures.py and the preclust/clust workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8664,7 +8664,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py spectrum precompute coverage.",
+      "test_notes": "Covered by the std_precomp reference test in tests/test_study_workflows_eeglab_tests.py, the precompute cache/baseline/design tests in tests/test_study_measures.py, and the precompute workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8679,7 +8679,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py STUDY measure cache coverage.",
+      "test_notes": "Covered by the std_precomp reference test in tests/test_study_workflows_eeglab_tests.py, the precompute cache/baseline/design tests in tests/test_study_measures.py, and the precompute workflow in tests/test_study_end_to_end.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8738,7 +8738,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_measures.py topography/cache coverage.",
+      "test_notes": "Covered by the cached component-measure tests in tests/test_study_measures.py and test_reference_std_topoplot in tests/test_study_grouped_measure_plots_eeglab_tests.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -8753,7 +8753,7 @@
         "api",
         "study"
       ],
-      "test_notes": "Covered by tests/test_study_clustering.py cluster/topography workflow coverage.",
+      "test_notes": "Covered by test_reference_std_topoplot in tests/test_study_grouped_measure_plots_eeglab_tests.py and the cluster edit/plot test in tests/test_study_clustering.py.",
       "follow_up_issue": "https://github.com/sccn/eegprep/issues/149"
     },
     {
@@ -9158,7 +9158,7 @@
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by tests/test_clean_asr.py calibration-mode acceptance and full-process limitation tests, tests/test_clean_rawdata.py Riemannian calibration smoke, and sample pop_clean_rawdata Riemannian command coverage."
+      "test_notes": "Covered by the full-Riemannian-processing limitation test in tests/test_clean_asr.py, the clean_asr test in tests/test_clean_rawdata.py, tests/test_utils_asr.py, and the sample-data Riemannian ASR test (test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_noise) in tests/test_sample_data_pop_functions.py."
     }
   ]
 }

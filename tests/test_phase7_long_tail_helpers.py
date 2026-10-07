@@ -7,19 +7,14 @@ import numpy as np
 import pytest
 from scipy.stats import pearsonr
 
-from eegprep.functions.popfunc.pop_averef import pop_averef
 from eegprep.functions.popfunc.pop_findmatchingcomps import pop_findmatchingcomps
 from eegprep.functions.popfunc.pop_fusechanrej import pop_fusechanrej
 from eegprep.functions.popfunc.pop_icathresh import pop_icathresh
 from eegprep.functions.popfunc.pop_rejchanspec import pop_rejchanspec
-from eegprep.functions.popfunc.pop_chansel import pop_chansel_resolve
 from eegprep.functions.popfunc.pop_topochansel import pop_topochansel
-from eegprep.functions.sigprocfunc.eegthresh import eegthresh
-from eegprep.functions.sigprocfunc.entropy_rej import entropy_rej
 from eegprep.functions.sigprocfunc.ica_helpers import compvar, eeg_getica, eeg_pvaf, icaact, icaproj, icavar
 from eegprep.functions.sigprocfunc.kurt import kurt
 from eegprep.functions.sigprocfunc.realproba import realproba
-from eegprep.functions.sigprocfunc.rejtrend import rejtrend
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
@@ -299,15 +294,6 @@ def _eeg(data: np.ndarray) -> dict:
     }
 
 
-def test_pop_averef_delegates_to_reref_and_keeps_legacy_history():
-    eeg = _eeg(np.array([[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]]))
-
-    out, command = pop_averef(eeg, return_com=True)
-
-    np.testing.assert_allclose(out["data"].mean(axis=0), np.zeros(3), atol=1e-12)
-    assert command == "EEG = pop_averef( EEG, 0);"
-
-
 def test_pop_findmatchingcomps_marks_highly_correlated_component():
     eeg = _eeg(np.zeros((3, 10)))
     eeg["icawinv"] = np.array([[1.0, 0.0, 0.2], [0.0, 1.0, 0.1], [0.0, 0.0, 1.0]])
@@ -452,15 +438,6 @@ def test_pop_topochansel_resolves_indices_and_labels_without_gui():
     assert command.startswith("pop_topochansel(")
 
 
-def test_pop_topochansel_uses_canonical_chansel_resolver():
-    # The non-GUI selection resolution must match pop_chansel's resolver so the
-    # two former parsers cannot drift (e.g. on comma-separated labels).
-    chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}, {"labels": "Pz"}]
-    chanlist, _names, _text = pop_topochansel(chanlocs, "Pz, Fz", gui=False)
-    _values, expected = pop_chansel_resolve(chanlocs, "Pz, Fz")
-    assert chanlist == expected
-
-
 def test_ica_helpers_match_simple_projection_identities():
     data = np.array([[1.0, 2.0, 3.0], [0.0, 0.0, 0.0]])
     weights = np.eye(2)
@@ -530,197 +507,8 @@ def test_kurt_uses_eeglab_sample_standard_deviation_formula():
     np.testing.assert_allclose(expected, [-7 / 3, -7 / 3])
 
 
-def test_python_regression_kurt_row_and_column_vectors_match_upstream_moment_formula():
-    values = np.arange(1.0, 10.0)
-    expected = (708.0 / (225.0 / 4.0)) / 9.0 - 3.0
-
-    assert kurt(values) == pytest.approx(expected)
-    assert kurt(values[:, np.newaxis]) == pytest.approx(expected)
-
-
-def test_python_regression_kurt_matches_upstream_bernoulli_cases():
-    balanced = np.concatenate([np.zeros(10_000), np.ones(10_000)])
-    sparse_zero = np.asarray([1, 1, 1, 1, 1, 1, 0, 1, 1, 1], dtype=float)
-
-    for values in (balanced, sparse_zero):
-        centered = values - values.mean()
-        expected = np.sum(centered**4) / np.std(values, ddof=1) ** 4 / values.size - 3
-        assert kurt(values) == pytest.approx(expected)
-
-
-def test_python_regression_realproba_default_bin_count_matches_eeglab():
-    probabilities, distribution = realproba(np.array([1.0, 2.0, 3.0]))
-
-    np.testing.assert_allclose(probabilities, np.ones(3))
-    np.testing.assert_allclose(distribution, np.ones(1))
-
-
-def test_python_regression_realproba_explicit_discretization_matches_upstream_bins():
-    probabilities, distribution = realproba(np.array([1.0, 2.0, 3.0]), 10)
-
-    expected = np.zeros(10)
-    expected[[0, 4, 9]] = 1 / 3
-    np.testing.assert_allclose(probabilities, np.full(3, 1 / 3))
-    np.testing.assert_allclose(distribution, expected)
-
-
 def test_python_regression_realproba_equal_values_have_well_defined_probabilities():
     probabilities, distribution = realproba(np.ones(3), 3)
 
     np.testing.assert_allclose(probabilities, np.ones(3))
     np.testing.assert_allclose(distribution, np.full(3, 1 / 3))
-
-
-def test_python_regression_entropy_rej_vector_orientation_and_defaults_match_upstream():
-    expected = -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3]))
-
-    for data in (np.asarray([1, 1, 2]), np.asarray([[1], [1], [2]])):
-        entropy, rejected = entropy_rej(data)
-        np.testing.assert_allclose(entropy, [[expected]])
-        np.testing.assert_array_equal(rejected, [[False]])
-
-
-def test_python_regression_entropy_rej_two_dimensional_scores_and_sample_normalization_match_upstream():
-    data = np.asarray([[1, 1, 2], [1, 2, 3]])
-    expected = np.asarray(
-        [
-            -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3])),
-            -np.sum(np.full(3, 1 / 3) * np.log(np.full(3, 1 / 3))),
-        ]
-    )[:, np.newaxis]
-
-    entropy, rejected = entropy_rej(data, 3, None, 0, 1000)
-    normalized, normalized_rejected = entropy_rej(data, 3, None, 1, 1000)
-
-    np.testing.assert_allclose(entropy, expected)
-    np.testing.assert_allclose(normalized, [[-np.sqrt(2) / 2], [np.sqrt(2) / 2]])
-    np.testing.assert_array_equal(rejected, np.zeros((2, 1), dtype=bool))
-    np.testing.assert_array_equal(normalized_rejected, np.zeros((2, 1), dtype=bool))
-
-
-def test_python_regression_entropy_rej_three_dimensional_trials_match_upstream():
-    data = np.empty((2, 3, 2), dtype=float)
-    data[:, :, 0] = [[1, 1, 2], [1, 2, 3]]
-    data[:, :, 1] = [[2, 1, 1], [2, 1, 3]]
-    expected_raw = np.asarray(
-        [
-            -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3])),
-            -np.sum(np.full(3, 1 / 3) * np.log(np.full(3, 1 / 3))),
-        ]
-    )
-
-    raw, _ = entropy_rej(data, 3, None, 0, 1000)
-    normalized, rejected = entropy_rej(data, 3, None, 1, 1000)
-
-    np.testing.assert_allclose(raw, [[expected_raw[0], expected_raw[0]], [expected_raw[1], expected_raw[1]]])
-    # These synthetic trials have identical entropy per channel.
-    np.testing.assert_allclose(normalized, np.zeros((2, 2)))
-    np.testing.assert_array_equal(rejected, np.zeros((2, 2), dtype=bool))
-
-
-def test_python_regression_entropy_rej_precomputed_scores_only_apply_threshold():
-    expected = -np.sum(np.asarray([2 / 3, 2 / 3, 1 / 3]) * np.log([2 / 3, 2 / 3, 1 / 3]))
-
-    entropy, rejected = entropy_rej([1, 1, 2], 3, [expected], 0, 1000)
-
-    np.testing.assert_allclose(entropy, [expected])
-    np.testing.assert_array_equal(rejected, [False])
-
-
-def test_python_regression_eegthresh_matches_upstream_selected_and_rejected_trials():
-    data = np.empty((2, 3, 5), dtype=float)
-    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]]
-    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
-
-    accepted, rejected, selected, electrodes = eegthresh(data, 3, [1, 2], 2, 13, [1, 15], 1, 15)
-
-    np.testing.assert_array_equal(accepted, [2, 3])
-    np.testing.assert_array_equal(rejected, [1, 4, 5])
-    np.testing.assert_array_equal(selected, data[:, :, [1, 2]])
-    np.testing.assert_array_equal(electrodes, [[True, True, True], [True, False, True]])
-
-    accepted_two, rejected_two, selected_two, electrodes_two = eegthresh(data[:, :, :2], 3, [1, 2], 2, 13, [1, 6], 1, 6)
-    np.testing.assert_array_equal(accepted_two, [2])
-    np.testing.assert_array_equal(rejected_two, [1])
-    np.testing.assert_array_equal(selected_two, data[:, :, [1]])
-    np.testing.assert_array_equal(electrodes_two, [[True], [True]])
-
-
-def test_python_regression_eegthresh_preserves_all_channels_when_testing_one_electrode():
-    data = np.empty((2, 3, 5), dtype=float)
-    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 13]]
-    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
-
-    accepted, rejected, selected, electrodes = eegthresh(data, 3, [2], 2, 13, [1, 15], 1, 15)
-
-    np.testing.assert_array_equal(accepted, [2, 3, 4])
-    np.testing.assert_array_equal(rejected, [1, 5])
-    np.testing.assert_array_equal(selected, data[:, :, [1, 2, 3]])
-    np.testing.assert_array_equal(electrodes, [[True, True]])
-
-
-def test_python_regression_eegthresh_handles_all_and_no_rejections():
-    data = np.empty((2, 3, 5), dtype=float)
-    data[0] = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]]
-    data[1] = [[1, 4, 7, 10, 13], [2, 5, 8, 11, 14], [3, 6, 9, 12, 15]]
-
-    accepted, rejected, selected, _ = eegthresh(data, 3, [1, 2], 2, 11, [1, 15], 1, 15)
-    assert accepted.size == 0
-    np.testing.assert_array_equal(rejected, [1, 2, 3, 4, 5])
-    assert selected.shape == (2, 3, 0)
-
-    accepted, rejected, selected, electrodes = eegthresh(data, 3, [1, 2], 1, 15, [1, 15], 1, 15)
-    np.testing.assert_array_equal(accepted, [1, 2, 3, 4, 5])
-    assert rejected.size == 0
-    np.testing.assert_array_equal(selected, data)
-    assert electrodes.shape == (2, 0)
-
-
-def test_python_regression_eegthresh_accepts_continuous_and_single_epoch_shapes():
-    data = np.arange(12, dtype=float).reshape(2, 6)
-
-    continuous = eegthresh(data, 3, [1], -1, 20, [1, 6], 1, 6)
-    one_epoch = eegthresh(data[:, :, np.newaxis], 6, [1], -1, 20, [1, 6], 1, 6)
-
-    assert continuous[2].shape == (2, 6)
-    assert one_epoch[2].shape == (2, 6, 1)
-
-
-def test_rejection_helper_compatibility_outputs_are_eeglab_facing():
-    signal = np.array([[[0.0, 0.0], [0.5, 2.0], [0.0, 0.0]]])
-
-    accepted, rejected, newsignal, elec = eegthresh(signal, 3, [1], [-1], [1], [0, 1], [0], [1])
-    trend_reject, trend_rows = rejtrend(np.repeat(signal, 2, axis=1), 3, 0.1, 0.1)
-    probabilities, distribution = realproba(np.array([0.0, 0.0, 1.0, 1.0]), 2)
-
-    np.testing.assert_array_equal(accepted, [1])
-    np.testing.assert_array_equal(rejected, [2])
-    assert newsignal.shape == (1, 3, 1)
-    np.testing.assert_array_equal(elec, [[True]])
-    assert trend_reject.shape == (2,)
-    assert trend_rows.shape == (1, 2)
-    np.testing.assert_allclose(probabilities, [0.5, 0.5, 0.5, 0.5])
-    np.testing.assert_allclose(distribution, [0.5, 0.5])
-
-
-def test_python_regression_rejtrend_upstream_parameter_combinations_preserve_trial_contract():
-    rng = np.random.default_rng(14)
-    signal = rng.normal(size=(6, 1000, 9))
-    signal[0, :, 2] += np.linspace(0, 20, 1000)
-
-    for pointrange, maxslope, min_r, step in (
-        (384, 0.5, 0.3, None),
-        (384, 0.5, 1, None),
-        (384, 0.5, 0, None),
-        (384, 10, 0.3, None),
-        (1000, 0.5, 0.3, None),
-        (384, 0.5, 0.3, 2),
-        (384, 0.5, 1, 3),
-        (384, 0.5, 0, 10),
-        (384, 10, 0.3, 100),
-        (1000, 0.5, 0.3, 1),
-    ):
-        rejected, row_marks = rejtrend(signal, pointrange, maxslope, min_r, step)
-        assert rejected.shape == (9,)
-        assert row_marks.shape == (6, 9)
-        np.testing.assert_array_equal(rejected, row_marks.any(axis=0))

@@ -27,8 +27,8 @@ Use this workflow when building a new EEGPrep feature.
    follow `AGENTS.md`. Plan thoroughly, and break down the work into steps.
 
 5. Execute the plan and write code. Do not take shortcuts. Maintain current coding conventions and
-   follow `AGENTS.md`. Write tests as described there. Aim for more than 90%
-   coverage for the changed feature code, and ensure the tests pass.
+   follow `AGENTS.md`. Write any needed test before the code, as described
+   there, and ensure the tests pass.
    Remember, while we are doing a porting project, EEGPrep must work well standalone and must be a delight to use for EEG Researchers.
    For user-facing `pop_*` or menu actions, preserve the `eegprep-console`
    workspace contract: return `(EEG, com)` with `return_com=True`, update
@@ -59,10 +59,9 @@ Use this workflow when building a new EEGPrep feature.
    inspect/use `EEG` in the console, then run a console command and verify the
    GUI/history refresh. Wherever relevant use the cursor and keyboard like the user would actually use the app.  Fix any bugs that surface.
 
-8. After implementation and GUI parity/QA work, write additional regression
-   tests and integration tests for behaviors discovered during testing,
-   including `tests/test_console_workspace.py` when shared workspace sync or
-   console wrappers are affected.
+8. For each bug found during GUI parity/QA work, write a failing regression
+   test first (in `tests/test_console_workspace.py` when shared workspace sync
+   or console wrappers are affected), then fix the bug.
 
 9. Review the current feature branch against `origin/develop`. Use the
    [`github-pr-review`](../github-pr-review/SKILL.md) skill when appropriate.

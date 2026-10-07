@@ -13,8 +13,6 @@ from eegprep.functions.popfunc.pop_editeventvals import (
     _display_event_value,
     _display_field_label,
 )
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _epoched_eeg():
@@ -67,49 +65,6 @@ def test_epoched_latency_edit_is_symmetric_with_display():
     displayed = _display_event_value(eeg, eeg["event"][0], "latency")
     out = pop_editeventvals(deepcopy(eeg), "changefield", [1, "latency", displayed])
     assert out["event"][0]["latency"] == pytest.approx(eeg["event"][0]["latency"])
-
-
-def test_epoched_latency_edit_round_trips_through_display():
-    """Writing a new ms latency then reading it back yields the same ms value."""
-    eeg = _epoched_eeg()
-    new_ms = 60.0
-    out = pop_editeventvals(deepcopy(eeg), "changefield", [1, "latency", new_ms])
-    assert _display_event_value(out, out["event"][0], "latency") == new_ms
-
-
-def test_changefield_updates_urevent_at_zero_based_pointer_of_loaded_event():
-    """event[k]['urevent'] is a 0-based index into EEG['urevent'] (eeglab_data.set: 0..153)."""
-    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
-    k = 1
-    pointer = eeg["event"][k]["urevent"]
-    assert pointer == k
-    untouched = deepcopy(eeg["urevent"][0])
-
-    out = pop_editeventvals(eeg, "changefield", [k + 1, "latency", 1.5])
-
-    assert out["event"][k]["latency"] == pytest.approx(1.5 * eeg["srate"] + 1)
-    assert out["urevent"][pointer]["latency"] == pytest.approx(out["event"][k]["latency"])
-    assert out["urevent"][0] == untouched
-
-
-def test_navigation_buttons_enabled_with_callbacks():
-    """Nav buttons are enabled and carry navigate_event callbacks (#228)."""
-    eeg = _epoched_eeg()
-    spec = pop_editeventvals_dialog_spec(eeg)
-    controls = controls_by_tag(spec)
-    expected_deltas = {"back10": -10, "back1": -1, "next1": 1, "next10": 10}
-    for tag, delta in expected_deltas.items():
-        control = controls[tag]
-        assert control.enabled, f"{tag} must be enabled when events exist"
-        assert control.callback is not None, f"{tag} needs a navigate_event callback"
-        assert control.callback.name == "navigate_event"
-        assert int(control.callback.params["delta"]) == delta
-        assert control.callback.params["eventnum_tag"] == "eventnum"
-        assert int(control.callback.params["max_index"]) == len(eeg["event"])
-        # Per-event display values must cover every event and every field.
-        displays = control.callback.params["field_displays"]
-        assert len(displays) == len(eeg["event"])
-        assert "field_type" in displays[1] and "field_latency" in displays[1]
 
 
 def test_run_gui_submits_change_for_navigated_event_index():

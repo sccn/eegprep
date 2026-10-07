@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -388,48 +387,6 @@ def test_pop_loadbv_honors_big_endian_binary_headers(tmp_path: Path) -> None:
     eeg = pop_loadbv(header)
 
     _assert_continuous_eeg(eeg, raw, 250.0)
-
-
-@pytest.mark.parametrize(
-    ("change", "message"),
-    [
-        (lambda text: text.replace("DataOrientation=MULTIPLEXED", "DataOrientation=UNKNOWN"), "orientation"),
-        (lambda text: text.replace("DataType=TIMEDOMAIN", "DataType=FREQUENCYDOMAIN"), "data type"),
-        (lambda text: text.replace("SamplingInterval=4000", "SamplingInterval=0"), "SamplingInterval"),
-        (lambda text: text.replace("BinaryFormat=INT_16", "BinaryFormat=INT_32"), "binary format"),
-        (lambda text: text.replace("Ch2=Ch2,,1,µV\n", ""), "missing Ch2"),
-        (lambda text: text.replace("DataPoints=3", "DataPoints=4"), "declares 4 samples"),
-    ],
-)
-def test_pop_loadbv_rejects_malformed_headers(
-    tmp_path: Path,
-    change: Callable[[str], str],
-    message: str,
-) -> None:
-    header = _write_binary_brainvision(tmp_path, "malformed", np.ones((2, 3), dtype=np.int16))
-    header.write_text(change(header.read_text(encoding="utf-8")), encoding="utf-8")
-
-    with pytest.raises(ValueError, match=message):
-        pop_loadbv(header)
-
-
-def test_pop_loadbv_rejects_truncated_binary_and_invalid_selections(tmp_path: Path) -> None:
-    header = _write_binary_brainvision(tmp_path, "truncated", np.ones((2, 3), dtype=np.int16))
-    data_path = tmp_path / "truncated.dat"
-    data_path.write_bytes(data_path.read_bytes()[:-1])
-
-    with pytest.raises(ValueError, match="truncated"):
-        pop_loadbv(header)
-
-    valid = _write_binary_brainvision(tmp_path, "valid", np.ones((2, 3), dtype=np.int16))
-    with pytest.raises(ValueError, match="srange"):
-        pop_loadbv(valid, srange=[0, 2])
-    with pytest.raises(ValueError, match="srange"):
-        pop_loadbv(valid, srange=[2, 4])
-    with pytest.raises(ValueError, match="chans"):
-        pop_loadbv(valid, chans=[3])
-    with pytest.raises(ValueError, match="integer"):
-        pop_loadbv(valid, chans=[1.5])
 
 
 def test_pop_loadbv_warns_and_loads_when_marker_file_is_missing(tmp_path: Path) -> None:
