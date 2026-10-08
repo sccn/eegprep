@@ -1,6 +1,8 @@
 import os
 import unittest
 import numpy as np
+import pytest
+from picard import picard
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
@@ -70,6 +72,26 @@ local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 def create_test_eeg():
     """Epoched EEG fixture sized for eeg_picard (32 ch, 1000 pnts, 10 trials)."""
     return _create_test_eeg(n_channels=32, n_samples=1000, srate=500.0, n_trials=10)
+
+
+@pytest.mark.parametrize('n_components', [None, 3])
+def test_eeg_picard_initialization(n_components):
+    eeg = _create_test_eeg(n_channels=4, n_samples=400, n_trials=2)
+    eeg['data'] = np.random.RandomState(7).laplace(size=(4, 400, 2))
+    # Stop early to observe initialization, even if converged ICA solutions coincide.
+    options = dict(n_components=n_components, max_iter=2, verbose=False)
+    with pytest.warns(UserWarning, match='Picard did not converge'):
+        default = eeg_picard(eeg, **options)
+        identity = eeg_picard(eeg, w_init=np.eye(n_components or 4), random_state=123, **options)
+        seeded = eeg_picard(eeg, random_state=0, **options)
+        repeated = eeg_picard(eeg, random_state=0, **options)
+        other = eeg_picard(eeg, random_state=123, **options)
+        k, w, _ = picard(eeg['data'].reshape(4, -1, order='F'), ortho=False, m=10, random_state=0, **options)
+
+    np.testing.assert_array_equal(default['icaweights'], identity['icaweights'])
+    np.testing.assert_array_equal(seeded['icaweights'], repeated['icaweights'])
+    assert not np.allclose(seeded['icaweights'], other['icaweights'])
+    np.testing.assert_allclose(seeded['icaweights'], w @ k, rtol=1e-12, atol=1e-12)
 
 
 class TestEegPicardSimple(DebuggableTestCase):

@@ -44,6 +44,13 @@ fewer component than channels, which is useful after average referencing. The
 initial unmixing matrix is sized to the reduced decomposition while remaining
 deterministic.
 
+Picard starts from an identity matrix by default. To choose a reproducible
+random starting point, call ``eeg_picard(EEG, random_state=42)`` or pass
+``options={"seed": 42}`` to ``pop_runica`` with ``icatype="picard"``.
+An explicit ``w_init`` matrix takes precedence over the seed. Passing
+``random_state=None`` explicitly uses NumPy's global random state, as in
+Python Picard. Different starts can converge to equivalent ICA solutions.
+
 ICLabel Workflow
 ================
 
