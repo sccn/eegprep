@@ -13,6 +13,9 @@ import asyncio
 import importlib
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -388,3 +391,55 @@ class TestExtras:
         assert caught.value.name == "a_module_that_does_not_exist_anywhere"
         assert not eegprep_lean.is_missing_extra(caught.value, "plot")
         assert not eegprep_lean.is_missing_extra(caught.value, "zarr")
+
+    #: What resolving a lazy name loads. Listing or describing names must load none of
+    #: it, or a base install pays for an extra, or fails without one, just by asking.
+    EXTRA_MODULES = ("zarr", "numpy", "matplotlib", "eegprep_lean.store", "eegprep_lean.window", "eegprep_lean.plot")
+
+    def _run_fresh(self, code: str) -> str:
+        """Run ``code`` in a new interpreter and fail if it loaded anything behind an extra.
+
+        A subprocess, because any earlier test in this process may already have imported
+        the extras, which would make an in-process check pass for the wrong reason.
+        """
+        import eegprep_lean
+
+        package_parent = Path(eegprep_lean.__file__).resolve().parent.parent
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join([str(package_parent), env.get("PYTHONPATH", "")])
+        script = (
+            f"import sys, eegprep_lean\n{code}\n"
+            f"loaded = [m for m in {self.EXTRA_MODULES!r} if m in sys.modules]\n"
+            "assert not loaded, f'loaded {loaded}'\n"
+        )
+        result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+
+    def test_dir_lists_every_lazy_name_without_loading_its_extra(self) -> None:
+        """Tab completion reads ``dir()``, and it is how a notebook reader finds a name."""
+        names = self._run_fresh("print('\\n'.join(dir(eegprep_lean)))").split()
+
+        missing = set(self.EXPECTED_EXTRA) - set(names)
+        assert not missing, f"dir() omits the lazy names {sorted(missing)}"
+        assert {"help", "read_index", "read_group_metadata"} <= set(names)
+
+    def test_help_describes_every_public_name_without_loading_an_extra(self) -> None:
+        import eegprep_lean
+
+        text = self._run_fresh("eegprep_lean.help()")
+
+        constants = {"EXTRA_HINTS", "EXTRA_ROOTS", "SUPPORTED_FORMAT_VERSION", "__version__"}
+        absent = [name for name in sorted(set(eegprep_lean.__all__) - constants) if name not in text]
+        assert not absent, f"help() does not mention {absent}"
+        for extra in ("zarr", "plot", "preprocess"):
+            assert f"{extra} extra" in text
+
+    def test_help_says_what_is_not_available_yet(self) -> None:
+        """A reader who looks for preprocessing or ICLabel should learn it is not there
+        yet from the overview, not by searching for a name that does not exist."""
+        text = self._run_fresh("eegprep_lean.help()")
+
+        assert "Preprocessing" in text
+        assert "ICLabel" in text
+        assert "issues/378" in text
