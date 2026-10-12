@@ -176,8 +176,10 @@ def use_64bit_eeg_options():
     if file_existed_before:
         shutil.copy2(eeg_options_path, backup_path)
 
-    # Copy the 64-bit options file
+    # Copy the 64-bit options file. copy2 keeps the template's older mtime,
+    # and MATLAB will not reload a cached eeg_options that looks newer.
     shutil.copy2(source_path, eeg_options_path)
+    eeg_options_path.touch()
 
     try:
         yield
@@ -187,6 +189,7 @@ def use_64bit_eeg_options():
             # Restore from backup
             if backup_path.exists():
                 shutil.copy2(backup_path, eeg_options_path)
+                eeg_options_path.touch()
                 backup_path.unlink()  # Remove the backup file
             else:
                 warnings.warn(

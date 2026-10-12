@@ -93,7 +93,11 @@ class TestEnvtopoParity(unittest.TestCase):
             matlab_engine = importlib.import_module("matlab.engine")
             engine = matlab_engine.start_matlab()
             eeglab_root = _resolve_eeglab_root()
-            engine.addpath(engine.genpath(str(eeglab_root)), nargout=0)
+            # genpath(root) also adds plugin folders that ship Octave sources.
+            # Those replace MATLAB functions, and the first envtopo topoplot then
+            # never returns. The function tree is enough for envtopo itself.
+            engine.addpath(str(eeglab_root), nargout=0)
+            engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
         except Exception as e:
             if engine is not None:
                 engine.quit()
