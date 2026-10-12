@@ -1,66 +1,131 @@
+import asyncio
+import importlib
 import os
+import subprocess
+import sys
+import textwrap
 import unittest
-from unittest import mock
 
 import numpy as np
+import pytest
 from eegprep import ICL_feature_extractor, iclabel, pop_loadset
 from eegprep.utils.testing import has_optional_dependency
 
+from eegprep.plugins.ICLabel import iclabel_net_onnx_web
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 import eegprep.plugins.ICLabel.iclabel as iclabel_module
 import eegprep.plugins.ICLabel.iclabel_net_onnx as iclabel_onnx_module
+import eegprep.plugins.ICLabel.pop_iclabel as pop_iclabel_module
 
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 _NET_ICL_MAT = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
+_SAMPLE_ICA_SET = os.path.join(os.path.dirname(__file__), '..', 'sample_data', 'eeglab_data_with_ica_tmp.set')
+_PLATFORM_SELECTED_MODULES = (iclabel_onnx_module, iclabel_module, pop_iclabel_module)
 
 
-def _async_eeg():
-    return {
-        'data': np.zeros((2, 20), dtype=np.float32),
-        'nbchan': 2,
-        'pnts': 20,
-        'trials': 1,
-        'srate': 100,
-        'icaweights': np.eye(2),
-        'icasphere': np.eye(2),
-        'icawinv': np.eye(2),
-        'icachansind': np.arange(2),
-        'etc': {},
-    }
+@pytest.fixture
+def emscripten_iclabel(monkeypatch):
+    """Reload the ICLabel modules as Pyodide imports them, then restore the native ones."""
+    monkeypatch.setattr(sys, 'platform', 'emscripten')
+    try:
+        yield tuple(importlib.reload(module) for module in _PLATFORM_SELECTED_MODULES)
+    finally:
+        monkeypatch.undo()
+        for module in _PLATFORM_SELECTED_MODULES:
+            importlib.reload(module)
 
 
-class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
-    async def test_native_async_entry_point_uses_shared_postprocessing(self):
-        eeg = _async_eeg()
-        network_output = np.arange(28, dtype=np.float32).reshape(4, 7, 1, 1)
-        features = tuple(np.zeros((4, 1), dtype=np.float32) for _ in range(3))
+def _run_python(code):
+    result = subprocess.run(
+        [sys.executable, '-c', textwrap.dedent(code)], capture_output=True, text=True, check=False, timeout=300
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
 
-        with (
-            mock.patch.object(iclabel_module, '_prepare_features', return_value=features) as prepare,
-            mock.patch(
-                'eegprep.plugins.ICLabel.iclabel_net_onnx.run_iclabel_net_async',
-                new=mock.AsyncMock(return_value=network_output),
-            ) as run,
-        ):
-            output = await iclabel_module.iclabel_async(eeg)
 
-        prepare.assert_called_once()
-        run.assert_awaited_once_with(*features)
-        classification = output['etc']['ic_classification']['ICLabel']['classifications']
-        self.assertEqual(classification.shape, (1, 7))
-        self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
+def test_iclabel_net_onnx_selects_web_backend_on_emscripten(emscripten_iclabel):
+    onnx_module, _, _ = emscripten_iclabel
 
-    def test_sync_entry_point_fails_fast_under_emscripten(self):
-        with mock.patch.object(iclabel_module, '_IS_EMSCRIPTEN', True):
-            with self.assertRaisesRegex(RuntimeError, r'use await iclabel_async\(\.\.\.\)'):
-                iclabel_module.iclabel(None)
+    assert onnx_module.IS_EMSCRIPTEN is True
+    assert onnx_module._run_iclabel_net_async is iclabel_net_onnx_web.run_iclabel_net_async
 
-    def test_sync_onnx_backend_fails_fast_under_emscripten(self):
-        with mock.patch.object(iclabel_onnx_module, '_IS_EMSCRIPTEN', True):
-            with self.assertRaisesRegex(RuntimeError, r'use await run_iclabel_net_async\(\.\.\.\)'):
-                iclabel_onnx_module.run_iclabel_net(None, None, None)
+
+def test_sync_entry_points_fail_fast_under_emscripten(emscripten_iclabel):
+    onnx_module, emscripten_iclabel_module, emscripten_pop_module = emscripten_iclabel
+
+    with pytest.raises(RuntimeError, match=r'use await iclabel_async\(\.\.\.\)'):
+        emscripten_iclabel_module.iclabel(None)
+    with pytest.raises(RuntimeError, match=r'use await iclabel_async\(\.\.\.\)'):
+        emscripten_pop_module.pop_iclabel(None)
+    with pytest.raises(RuntimeError, match=r'use await run_iclabel_net_async\(\.\.\.\)'):
+        onnx_module.run_iclabel_net(None, None, None)
+
+
+def test_emscripten_iclabel_never_imports_onnxruntime():
+    # A fresh interpreter that imports ICLabel as Pyodide would. The probe has
+    # no JavaScript host, so the browser bridge call itself fails; what matters
+    # is that neither entry point reached for native onnxruntime first.
+    output = _run_python(
+        f"""
+        import asyncio
+        import sys
+
+        from eegprep import pop_loadset
+
+        eeg = pop_loadset({_SAMPLE_ICA_SET!r})
+        sys.platform = "emscripten"
+        from eegprep.plugins.ICLabel.iclabel import iclabel, iclabel_async
+
+        for call in (lambda: iclabel(eeg), lambda: asyncio.run(iclabel_async(eeg))):
+            try:
+                call()
+            except Exception as exc:
+                print(type(exc).__name__)
+        print(sorted(name for name in sys.modules if name.split(".")[0] == "onnxruntime"))
+        """
+    )
+
+    assert output.splitlines()[0] == 'RuntimeError'
+    assert output.splitlines()[-1] == '[]'
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='needs onnxruntime to prove the block matters')
+def test_iclabel_without_onnxruntime_names_the_iclabel_extra():
+    output = _run_python(
+        f"""
+        import sys
+
+        sys.modules["onnxruntime"] = None
+        from eegprep import iclabel, pop_loadset
+
+        try:
+            iclabel(pop_loadset({_SAMPLE_ICA_SET!r}))
+        except ImportError as exc:
+            print(exc)
+        """
+    )
+
+    assert 'pip install "eegprep[iclabel]"' in output
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
+def test_iclabel_async_matches_sync_on_sample_ica_dataset():
+    eeg = pop_loadset(_SAMPLE_ICA_SET)
+    original_weights = eeg['icaweights'].copy()
+
+    asynchronous = asyncio.run(iclabel_module.iclabel_async(eeg))
+    synchronous = iclabel(eeg)
+
+    labels = asynchronous['etc']['ic_classification']['ICLabel']
+    assert labels['classifications'].shape == (32, 7)
+    np.testing.assert_array_equal(
+        labels['classifications'], synchronous['etc']['ic_classification']['ICLabel']['classifications']
+    )
+    assert labels['version'] == 'default'
+    assert 'ic_classification' not in eeg['etc']
+    np.testing.assert_array_equal(eeg['icaweights'], original_weights)
 
 
 # Shipped int8 model versus the float32 network on eeglab_data_with_ica_tmp.set

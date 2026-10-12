@@ -6,7 +6,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.plugins.ICLabel.iclabel import SYNC_UNAVAILABLE_MESSAGE, _IS_EMSCRIPTEN, iclabel, iclabel_async
+from eegprep.plugins.ICLabel.iclabel import IS_EMSCRIPTEN, SYNC_UNAVAILABLE_MESSAGE, iclabel, iclabel_async
 
 
 _VERSIONS = ("default", "lite", "beta")
@@ -22,7 +22,7 @@ def pop_iclabel(
     return_com: bool = False,
 ):
     """Classify independent components using ICLabel."""
-    if _IS_EMSCRIPTEN:
+    if IS_EMSCRIPTEN:
         raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
     return _pop_iclabel_sync(
         EEG,

@@ -6,6 +6,7 @@ selected packaged artifact produced by the Phase 6 quantization pipeline, and
 runs it through onnxruntime so ICLabel classification does not require torch.
 """
 
+import functools
 import os
 import sys
 
@@ -13,27 +14,21 @@ import numpy as np
 
 INPUT_NAMES = ('image', 'psdmed', 'autocorr')
 OUTPUT_NAME = 'output'
-_IS_EMSCRIPTEN = sys.platform == 'emscripten'
+# True in Pyodide, where only the asynchronous ONNX Runtime Web backend exists.
+IS_EMSCRIPTEN = sys.platform == 'emscripten'
 
-_session = None
 
-
+@functools.cache
 def _get_session():
-    global _session
-    if _session is not None:
-        return _session
     try:
         import onnxruntime as ort
     except ImportError as e:
         raise ImportError(
-            f"onnxruntime is not installed in your environment ({e}). "
-            f"To include onnxruntime, install eegprep as eegprep[iclabel] or "
-            f"eegprep[all]."
+            f"ICLabel needs onnxruntime to run its packaged network, but it could not be imported ({e}). "
+            'Install it with: pip install "eegprep[iclabel]" (also included in "eegprep[all]").'
         ) from e
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, 'iclabel.onnx')
-    _session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-    return _session
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'iclabel.onnx')
+    return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 
 def run_iclabel_net(image, psdmed, autocorr):
@@ -49,7 +44,7 @@ def run_iclabel_net(image, psdmed, autocorr):
     numpy.ndarray
         Network output, shaped like the torch model's output.
     """
-    if _IS_EMSCRIPTEN:
+    if IS_EMSCRIPTEN:
         raise RuntimeError(
             "ICLabel synchronous ONNX execution is unavailable under Emscripten; use await run_iclabel_net_async(...)."
         )
@@ -63,7 +58,7 @@ def run_iclabel_net(image, psdmed, autocorr):
     return output
 
 
-if _IS_EMSCRIPTEN:
+if IS_EMSCRIPTEN:
     from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async as _run_iclabel_net_async
 else:
 

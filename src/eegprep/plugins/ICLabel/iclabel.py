@@ -1,13 +1,13 @@
 """ICLabel module for classifying independent components in EEG data."""
 
 from copy import deepcopy
-import sys
 
 import numpy as np
 
+from eegprep.plugins.ICLabel.iclabel_net_onnx import IS_EMSCRIPTEN, run_iclabel_net, run_iclabel_net_async
+
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
-_IS_EMSCRIPTEN = sys.platform == 'emscripten'
 SYNC_UNAVAILABLE_MESSAGE = (
     'ICLabel synchronous entry points are unavailable under Emscripten; '
     'use await iclabel_async(...) or await pop_iclabel_async(...).'
@@ -35,7 +35,7 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
-    if _IS_EMSCRIPTEN:
+    if IS_EMSCRIPTEN:
         raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
     return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
 
@@ -51,7 +51,7 @@ async def iclabel_async(EEG, algorithm='default', engine=None):
     EEG = deepcopy(EEG)
 
     if engine in ['matlab', 'octave']:
-        if _IS_EMSCRIPTEN:
+        if IS_EMSCRIPTEN:
             raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
         return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
     if engine is not None:
@@ -62,8 +62,6 @@ async def iclabel_async(EEG, algorithm='default', engine=None):
             f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
             "and an EEGLAB ICLabel checkout that provides that artifact."
         )
-
-    from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net_async
 
     image, psdmed, autocorr = _prepare_features(EEG)
     output_np = await run_iclabel_net_async(image, psdmed, autocorr)
@@ -90,8 +88,6 @@ def _iclabel_sync(EEG, algorithm='default', engine=None):
             f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
             "and an EEGLAB ICLabel checkout that provides that artifact."
         )
-
-    from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
 
     image, psdmed, autocorr = _prepare_features(EEG)
     output_np = run_iclabel_net(image, psdmed, autocorr)
