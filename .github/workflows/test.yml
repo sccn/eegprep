@@ -212,6 +212,9 @@ jobs:
           echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
 
       - name: Run Python tests
+        # The suite takes about 15 minutes; a hang, such as a dialog nothing answers, would
+        # otherwise run until GitHub's 6 hour job limit.
+        timeout-minutes: 45
         run: |
           uv run --no-sync pytest tests
 
