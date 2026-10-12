@@ -252,7 +252,7 @@ exclude = ["eegprep.eeglab*"]
 ]
 
 [tool.setuptools.exclude-package-data]
-"eegprep" = ["bin/*", "eeglab/**", "plugins/ICLabel/netICL.mat"]
+"eegprep" = ["bin/*", "eeglab/**"]
 
 [tool.setuptools.dynamic]
 version = { attr = "eegprep.__version__" }
