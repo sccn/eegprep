@@ -10,8 +10,15 @@ Usage:
 
 Inputs:
 
-- `EEG`: EEGPrep/EEGLAB-style dataset with an ICA decomposition.
-- `icversion`: one of `'default'`, `'lite'`, or `'beta'`.
+- `EEG`: EEGPrep/EEGLAB-style dataset (or a list of datasets) with an ICA decomposition.
+- `icversion`: one of `'default'`, `'lite'`, or `'beta'`. The standalone Python engine ships only `'default'`.
+- `gui`: open the version dialog. Defaults to true when `icversion` is omitted.
+- `renderer`: dialog renderer used instead of the Qt window, for scripted or headless runs.
+- `engine`: `None` (default) classifies with EEGPrep's packaged network on `onnxruntime`.
+  `'matlab'` or `'octave'` call an EEGLAB ICLabel checkout, which is also the only way to use `'lite'` or `'beta'`.
+- `return_com`: also return the history command, `EEG = pop_iclabel(EEG, 'default');`.
+  For `pop_iclabel_async` it is `EEG = await pop_iclabel_async(EEG, 'default');`,
+  which replays in `eegprep-console`.
 
 Graphical interface:
 
@@ -24,27 +31,20 @@ Behavior:
 - Results are stored in `EEG.etc.ic_classification.ICLabel`.
 - The result includes the ICLabel class names, per-component class probabilities, and the selected version string.
 - Lists of datasets are processed one dataset at a time with the same selected version.
-- In Pyodide/Emscripten, use `await iclabel_async(EEG)` or
-  `await pop_iclabel_async(EEG, 'default')`. The synchronous `iclabel` and
-  `pop_iclabel` entry points fail fast because ONNX Runtime Web is asynchronous.
-- The browser host must register EEGPrep's ONNX Runtime Web bridge before
-  calling the async entry point. A host may run the Pyodide environment in a
-  Web Worker to keep the UI responsive.
-- Standalone Python EEGPrep ships the gate-selected weight-only int8 ICLabel
-  network as an ONNX artifact (`iclabel.onnx`) and classifies through
-  `onnxruntime`; install the `iclabel` extra (`eegprep[iclabel]`) to run it.
-  Feature extraction, float32 input normalization, augmentation, and output
-  softmax are unchanged. On the frozen 217-component, subject-disjoint set in
-  `tools/iclabel/evaluation_manifest.json`, the shipped artifact agreed with
-  the preserved float32 teacher on 100% of top-1 labels and 100% of existing
-  `pop_icflag` keep-or-reject decisions, with a maximum probability drift of
-  0.01346. The calibrated candidate measured 98.1567% top-1 and 100%
-  keep-or-reject but exceeded the frozen 0.015 probability-drift gate; the
-  smaller weight-only candidate is the shipped default. These are measured
-  frozen-set parity results, not a general accuracy claim. The EEGLAB `lite`
-  and `beta` network artifacts are
-  explicit MATLAB/Octave passthrough choices and raise a clear limitation when
-  requested with the standalone Python engine.
+- Standalone Python needs the `iclabel` extra (`pip install "eegprep[iclabel]"`), which installs `onnxruntime`.
+  Without it an `ImportError` names the extra. PyTorch is not needed.
+- The packaged network is an 8-bit weight-only quantization of the EEGLAB network. How closely its
+  probabilities match the full-precision network is reported in the user guide:
+  https://sccn.github.io/eegprep/user_guide/ica_rejection.html#iclabel-measured-agreement
+- In Pyodide/Emscripten the synchronous `iclabel` and `pop_iclabel` raise `RuntimeError`.
+  Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`; see `pop_iclabel_async`.
+
+Errors:
+
+- `ValueError` when `icversion` is not one of the three versions or the dataset has no ICA decomposition.
+- `NotImplementedError` when `'lite'` or `'beta'` is requested with `engine=None`.
+- `ImportError` naming `eegprep[iclabel]` when `onnxruntime` is not installed.
+- `RuntimeError` when a synchronous entry point is called under Pyodide/Emscripten.
 
 Example:
 
@@ -55,6 +55,5 @@ Notes:
 
 - ICLabel class probabilities are ordered as Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, and Other.
 - This wrapper uses EEGPrep's packaged ICLabel implementation and does not require an EEGLAB checkout at runtime.
-- Async history commands are replayable from `eegprep-console`; for example,
-  use `await eegh(1)` when the selected history entry contains
-  `pop_iclabel_async`.
+
+See also: POP_ICLABEL_ASYNC, POP_ICFLAG, POP_VIEWPROPS

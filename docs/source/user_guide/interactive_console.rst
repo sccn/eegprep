@@ -95,7 +95,8 @@ result is committed to the same GUI/console session:
 
 The browser-specific synchronous calls ``pop_iclabel`` and ``iclabel`` fail
 fast with an instruction to use their async counterparts. A browser host must
-register the ONNX Runtime Web bridge; placing Pyodide in a Web Worker is
+set ``globalThis.eegprep_iclabel_web`` to the ONNX Runtime Web bridge (see
+:doc:`plugins` for its ``run(...)`` contract); placing Pyodide in a Web Worker is
 recommended for UI responsiveness. The async history command is recorded with
 ``await`` and can be replayed with:
 
