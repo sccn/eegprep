@@ -572,7 +572,8 @@ EEGLAB-facing one-based values.</p>
 </div>
 <p>GUI path: <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Filter</span> <span class="pre">the</span> <span class="pre">data</span></code>. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
-ICA activations, and returns a replayable history command.</p>
+ICA activations, and returns a replayable history command. <code class="docutils literal notranslate"><span class="pre">minphase=True</span></code>
+converts the FIR to minimum phase with the real cepstrum before causal filtering.</p>
 <p>Use FIRFilt helpers for custom filter design:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_firws</span><span class="p">,</span> <span class="n">pop_firwsord</span><span class="p">,</span> <span class="n">pop_kaiserbeta</span>
 
