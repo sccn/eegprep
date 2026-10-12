@@ -325,6 +325,17 @@ class TestAsrProcess(unittest.TestCase):
         self.assertIn('max_mem=0.001', message)
         self.assertIn(f'{self.n_channels} channels', message)
         self.assertIn('max_mem=None', message)
+        # The remedy names each caller's own argument and recommends headroom beyond the bare minimum.
+        self.assertIn('MaxMem', message)
+        self.assertIn('maxmem', message)
+        self.assertIn('twice', message)
+
+    def test_unusable_max_mem_values_raise_value_error(self):
+        """Zero, negative, infinite and NaN budgets are mistakes, not an out-of-memory condition."""
+        for bad in (0, -5, float('inf'), float('nan')):
+            with self.subTest(max_mem=bad):
+                with self.assertRaisesRegex(ValueError, 'max_mem must be a finite, positive'):
+                    asr_process(self.test_data, self.srate, self.state, max_mem=bad)
 
     def test_default_budget_scales_with_channels_and_sampling_rate(self):
         """The default budget must cover the fixed overhead of high-density, high-rate data.
@@ -342,10 +353,19 @@ class TestAsrProcess(unittest.TestCase):
                 overhead_mb = n_channels * n_channels * lookahead_samples * 8 * 3 / 1024**2
                 self.assertGreater(overhead_mb, DEFAULT_MAX_MEM_MB)
 
-                cleaned, _ = asr_process(chunk, srate, state)
+                with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as logs:
+                    cleaned, _ = asr_process(chunk.copy(), srate, state)
 
                 self.assertEqual(cleaned.shape, chunk.shape)
                 self.assertTrue(np.all(np.isfinite(cleaned)))
+                # The default is exactly twice the overhead: a clamp to the 64 MB base budget would not
+                # raise but would change the block layout and so the output.
+                explicit, _ = asr_process(chunk.copy(), srate, state, max_mem=2 * overhead_mb)
+                np.testing.assert_array_equal(cleaned, explicit)
+                # A raised budget is a warning only when it is large (more than 4 x the base budget).
+                raised = [record for record in logs.records if record.getMessage().startswith('Default memory budget')]
+                expected_level = 'WARNING' if 2 * overhead_mb > 4 * DEFAULT_MAX_MEM_MB else 'INFO'
+                self.assertEqual([record.levelname for record in raised], [expected_level])
 
     def test_rank_deficient_covariance_produces_sane_output(self):
         """Process genuinely rank-deficient data (singular covariance).

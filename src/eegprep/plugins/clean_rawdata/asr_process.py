@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 # needs no RAM probe. That choice gives small blocks; see the max_mem docstring.
 DEFAULT_MAX_MEM_MB = 64
 
+# A raised default budget above this multiple of DEFAULT_MAX_MEM_MB is logged as a warning, because it
+# means a large allocation the caller did not ask for.
+_WARN_BUDGET_FACTOR = 4
+
 
 def asr_process(
     data, srate, state, window_len=0.5, lookahead=None, step_size=32, max_dims=0.66, max_mem=None, use_gpu=False
@@ -90,21 +94,29 @@ def asr_process(
     N = int(round_mat(window_len * srate))
     P = int(round_mat(lookahead * srate))
 
+    if max_mem is not None and not (np.isfinite(max_mem) and max_mem > 0):
+        raise ValueError(f'max_mem must be a finite, positive number of megabytes or None, got {max_mem!r}')
+
     # Fixed memory overhead of the lookahead buffers, independent of the number of blocks
     overhead_mb = C * C * P * 8 * 3 / 1024**2
     if max_mem is None:
         max_mem = max(DEFAULT_MAX_MEM_MB, 2 * overhead_mb)
         if max_mem > DEFAULT_MAX_MEM_MB:
-            logger.info(
+            level = logging.WARNING if max_mem > _WARN_BUDGET_FACTOR * DEFAULT_MAX_MEM_MB else logging.INFO
+            logger.log(
+                level,
                 f'Default memory budget raised from {DEFAULT_MAX_MEM_MB} to {max_mem:.0f} MB '
-                f'to fit {C} channels with {P} lookahead samples'
+                f'to fit {C} channels with {P} lookahead samples',
             )
     elif max_mem < overhead_mb:
+        minimum_mb = int(np.ceil(overhead_mb))
         raise RuntimeError(
             f'Not enough memory: max_mem={max_mem} MB cannot hold the fixed overhead of {overhead_mb:.2f} MB '
             f'for C={C} channels and P={P} lookahead samples (C * C * P * 8 * 3 bytes). '
-            f'Pass max_mem of at least {int(np.ceil(overhead_mb))} MB, pass max_mem=None to let asr_process '
-            f'choose a budget, or reduce the number of channels, the sampling rate or the lookahead.'
+            f'Pass max_mem of at least {minimum_mb} MB (about {2 * minimum_mb} MB, twice that, gives usable block '
+            f'sizes), or max_mem=None to let asr_process choose a budget. Through clean_artifacts set MaxMem '
+            f'(or availableRAM_GB), through clean_asr set maxmem; or reduce the number of channels, the sampling '
+            f'rate or the lookahead.'
         )
 
     # Fix NaN and Inf values
