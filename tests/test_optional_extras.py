@@ -28,6 +28,7 @@ from eegprep.functions.miscfunc.misc import num_jobs_from_reservation
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
 SAMPLE_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
+SAMPLE_ICA_SET = REPO_ROOT / "sample_data" / "eeglab_data_with_ica_tmp.set"
 
 # Packages that only an extra provides and that a base install must run without.
 OPTIONAL_PACKAGES = ["psutil", "oct2py", "pyedflib", "onnxruntime", "torch", "onnx"]
@@ -224,6 +225,36 @@ def test_light_pipeline_runs_without_optional_extras(tmp_path: Path) -> None:
     result = _json_result(completed)
     assert result["command"] == "EEG = pop_reref( EEG, []);"
     assert result["shape"][0] == 32
+
+
+def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> None:
+    """Both ICLabel entry points name ``eegprep[iclabel]`` when onnxruntime is missing (blocked, so no skip).
+
+    Only onnxruntime is blocked: a ``None`` entry for torch makes SciPy's array-type detection fail inside
+    feature extraction, which a real environment without torch never does.
+    """
+    completed = _run_without_optional_extras(
+        f"""
+        import asyncio, json
+        from eegprep import iclabel, pop_loadset
+        from eegprep.plugins.ICLabel.iclabel import iclabel_async
+
+        EEG = pop_loadset({str(SAMPLE_ICA_SET)!r})
+        messages = {{}}
+        for name, call in (("sync", lambda: iclabel(EEG)), ("async", lambda: asyncio.run(iclabel_async(EEG)))):
+            try:
+                call()
+            except ImportError as exc:
+                messages[name] = str(exc)
+        print(json.dumps(messages))
+        """,
+        tmp_path,
+        blocked=["onnxruntime"],
+    )
+
+    messages = _json_result(completed)
+    assert set(messages) == {"sync", "async"}
+    assert all('pip install "eegprep[iclabel]"' in message for message in messages.values())
 
 
 def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:
