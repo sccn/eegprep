@@ -106,6 +106,8 @@ recommended for UI responsiveness. The async history command is recorded with
 
 For an entry that has a top-level ``await``, ``eegh(n)`` returns an awaitable instead of running it,
 so always replay such entries with ``await eegh(n)``.
+Like EEGLAB's ``eegh``, EEGPrep records a command only once when it is identical to the most recent history entry,
+so running ``EEG = await pop_iclabel_async(EEG, 'default');`` twice in a row, or replaying it with ``eegh(1)``, adds a single entry.
 
 The result is stored only if the selected datasets are unchanged when classification finishes.
 If you select another dataset while it runs,
