@@ -24,6 +24,7 @@ from hypothesis import HealthCheck, Phase, Verbosity, given, seed, settings
 from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_reref import pop_reref
@@ -262,6 +263,52 @@ def materialize_eeg(case: FuzzCase) -> dict:
 def data_sha256(data: np.ndarray) -> str:
     array = np.ascontiguousarray(data, dtype=np.float64)
     return hashlib.sha256(array.tobytes()).hexdigest()
+
+
+# EEGLAB clean_windows / fit_eeg_distribution defaults. The fuzzer does not
+# override them. Short recordings reach m < 2 in the fit's width loop, and
+# fit_eeg_distribution.m:126 then errors in bsxfun. clean_asr.m catches that
+# and calibrates on the whole recording.
+_FIT_MAX_WIDTH = 0.6 - 0.022
+_FIT_MIN_WIDTH = 0.25 * _FIT_MAX_WIDTH
+_FIT_WIDTH_STEP = 0.01
+_CLEAN_WINDOW_OVERLAP = 0.66
+_ASR_REF_WNDLEN = 1.0
+
+
+def _matlab_colon(start: float, step: float, stop: float) -> np.ndarray:
+    """MATLAB colon ``start:step:stop``, including the endpoint within a few ulps."""
+    start = float(start)
+    step = float(step)
+    stop = float(stop)
+    if step == 0.0 or (step > 0.0 and start > stop) or (step < 0.0 and start < stop):
+        return np.array([], dtype=float)
+    span = (stop - start) / step
+    count = math.floor(span)
+    tol = 3.0 * float(np.spacing(max(abs(start), abs(stop), abs(step)) * max(count, 1)))
+    if span - count > 1.0 - tol / abs(step):
+        count += 1
+    values = start + step * np.arange(count + 1, dtype=float)
+    if step > 0.0:
+        return values[values <= stop + tol]
+    return values[values >= stop - tol]
+
+
+def _calibration_window_count(n_samples: int, srate: float) -> int:
+    width = _ASR_REF_WNDLEN * srate
+    step = width * (1.0 - _CLEAN_WINDOW_OVERLAP)
+    stop = n_samples - width
+    if width <= 0.0 or step <= 0.0 or stop < 1.0:
+        return 0
+    return int(_matlab_colon(1.0, step, stop).size)
+
+
+def _fit_eeg_distribution_throws(n_windows: int) -> bool:
+    """True when EEGLAB's fit errors on this many per-channel RMS windows."""
+    if n_windows <= 0:
+        return False
+    widths = _matlab_colon(_FIT_MAX_WIDTH, -_FIT_WIDTH_STEP, _FIT_MIN_WIDTH)
+    return any(int(round_mat(n_windows * width)) < 2 for width in widths)
 
 
 def compare_data(
@@ -712,6 +759,26 @@ def _explicit_reref_nan_is_oracle_defect(
     return not python_gap and not oracle_gap
 
 
+def _asr_short_calibration_is_oracle_defect(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when EEGLAB fell back to all-data ASR after fit_eeg_distribution threw."""
+    if case.function != "clean_asr" or not python.ok or not oracle.ok or oracle.data is None:
+        return False
+    params = thaw_params(case.params)
+    if isinstance(params["ref_maxbadchannels"], str):
+        return False
+    if not _fit_eeg_distribution_throws(_calibration_window_count(int(eeg["pnts"]), float(eeg["srate"]))):
+        return False
+    fallback_params = dict(params)
+    fallback_params["ref_maxbadchannels"] = "off"
+    fallback = dispatch_python(FuzzCase(case.function, case.spec, freeze_params(fallback_params)), copy.deepcopy(eeg))
+    fallback_gap, *_rest = compare_data(
+        fallback["data"], oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance
+    )
+    return not fallback_gap
+
+
 def _explicit_reref(data: np.ndarray, ref: list[int], exclude: list[int], keepref: str, *, matrix: bool) -> np.ndarray:
     excluded = set(exclude)
     chansin = [index for index in range(data.shape[0]) if index not in excluded]
@@ -752,6 +819,11 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # 0*NaN is NaN, so a NaN outside the reference spreads to every channel.
         # Subtraction, which EEGLAB's own alternate code comments as equivalent,
         # keeps that NaN on its own channel. EEGPrep follows the subtraction.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _asr_short_calibration_is_oracle_defect(case, eeg, python, oracle, tolerance):
+        # clean_windows.m fits one RMS value per window. With only a few windows,
+        # fit_eeg_distribution.m:126 throws, and clean_asr.m calibrates on every
+        # sample. EEGPrep's fit succeeds, so it still drops the bad window.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     return judge(python, oracle, tolerance, case, digest)
 

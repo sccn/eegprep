@@ -11,6 +11,7 @@ import pytest
 from hypothesis import strategies as st
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from tests.fuzz.harness import (
     EEGSpec,
     FuzzCase,
@@ -170,17 +171,22 @@ def test_explicit_reref_zero_times_nan_is_not_a_divergence():
     )
     eeg = materialize_eeg(case)
     python_data = np.asarray(dispatch_python(case, eeg)["data"])
-    oracle_data = _matrix_reref(eeg["data"], 3)
-    diverged, error_class, count, *_rest = compare_data(python_data, oracle_data, 128.0, 128.0, Tolerance(1e-6, 1e-6))
+    matrix = _matrix_reref(eeg["data"], 3)
+    diverged, error_class, count, *_rest = compare_data(python_data, matrix, 128.0, 128.0, Tolerance(1e-6, 1e-6))
     assert diverged is True
     assert error_class == "nan-mask"
     assert count == 45
+    # The .set file stores MATLAB's double refmatrix product as single. That
+    # residual is larger than the pop_reref absolute tolerance.
+    stored = matrix.astype(np.float32)
+    finite = np.isfinite(matrix)
+    assert np.max(np.abs(matrix[finite] - stored.astype(np.float64)[finite])) > 1e-6
 
     outcome = evaluate_case(
         case,
         lambda _case: eeg,
         PythonBackend(),
-        _Backend(lambda _case, dataset: _matrix_reref(dataset["data"], 3)),
+        _Backend(lambda _case, dataset: _matrix_reref(dataset["data"], 3).astype(np.float32)),
         load_tolerances(),
     )
     assert outcome.diverged is False
@@ -201,6 +207,64 @@ def test_explicit_reref_numeric_error_still_diverges_when_nans_match():
         return out
 
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted_oracle), load_tolerances())
+    assert outcome.diverged is True
+
+
+def _asr_case(*, length: int, start: int) -> FuzzCase:
+    return FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(11)), start, length, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": 0.075, "window_len": None}),
+    )
+
+
+def _asr_all_data(dataset):
+    return clean_asr(dataset, cutoff=5.0, ref_maxbadchannels="off")["data"]
+
+
+def test_clean_asr_short_fit_crash_is_not_a_divergence():
+    """EEGLAB's 3-window calibration throws and clean_asr keeps every sample."""
+    case = _asr_case(length=256, start=8)
+    eeg = materialize_eeg(case)
+    windowed = np.asarray(dispatch_python(case, eeg)["data"])
+    fallback = np.asarray(_asr_all_data(eeg))
+    diverged, error_class, max_abs, *_rest = compare_data(windowed, fallback, 128.0, 128.0, Tolerance(0.0, 1e-6))
+    assert diverged is True
+    assert error_class == "numeric"
+    assert max_abs > 50
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(lambda _case, dataset: np.asarray(_asr_all_data(dataset), dtype=np.float32)),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+
+def test_clean_asr_short_recording_numeric_error_still_diverges():
+    case = _asr_case(length=256, start=8)
+    eeg = materialize_eeg(case)
+
+    def zeros(_case, dataset):
+        return np.zeros_like(np.asarray(_asr_all_data(dataset)))
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(zeros), load_tolerances())
+    assert outcome.diverged is True
+
+
+def test_clean_asr_long_recording_all_data_oracle_still_diverges():
+    case = _asr_case(length=1024, start=0)
+    eeg = materialize_eeg(case)
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(lambda _case, dataset: _asr_all_data(dataset)),
+        load_tolerances(),
+    )
     assert outcome.diverged is True
 
 
