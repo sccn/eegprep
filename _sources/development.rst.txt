@@ -763,8 +763,9 @@ monitor was removed. Full IRLS execution remains an acknowledged validation
 gap, not a requirement to rerun during this closeout. Source-test fidelity,
 classified execution evidence and this approved execution exception must not
 be summarized as an all-tests-passed result or proof of EEGPrep capability.
-Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
-visible failures, not replacement algorithms or differently formatted files.
+Missing Python LIMO primitives remain visible failures, not replacement
+algorithms. ``savefig`` writes MATLAB ``.fig`` files for the IRLS
+``saveas(..., 'fig')`` export; that full workflow is still not a completed run.
 
 Test Discovery
 --------------

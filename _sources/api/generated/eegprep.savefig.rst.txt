@@ -1,0 +1,6 @@
+﻿savefig
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: savefig
