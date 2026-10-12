@@ -11,6 +11,8 @@ from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew
+from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm
@@ -24,6 +26,27 @@ try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 except (ImportError, ValueError):
     from fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+
+
+def test_pop_eegfiltnew_minphase_matches_real_cepstrum():
+    """Minimum-phase filtering must use EEGLAB's real-cepstrum conversion.
+
+    scipy.signal.minimum_phase disagrees with minphaserceps by about 5e-3 on
+    the nightly fuzz crop (hicutoff 25 Hz, order 100, one channel).
+    """
+    source = pop_loadset(SAMPLE_DATASET_PATH)
+    eeg = {
+        "data": np.array(source["data"][7:8, 252:508], dtype=np.float64),
+        "srate": float(source["srate"]),
+        "nbchan": 1,
+        "pnts": 256,
+        "trials": 1,
+        "event": [],
+    }
+    filtered = pop_eegfiltnew(eeg, hicutoff=25, filtorder=100, minphase=True, plotfreqz=False)
+    linear, _metadata = design_eegfiltnew(float(source["srate"]), hicutoff=25, filtorder=100, minphase=False)
+    expected = apply_fir_filter(eeg, minphaserceps(linear), causal=True)
+    np.testing.assert_allclose(filtered["data"], expected["data"], atol=0, rtol=0)
 
 
 def _continuous_eeg() -> dict:
@@ -261,7 +284,7 @@ class TestPopFirfiltParity(unittest.TestCase):
         )
 
         self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
-        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=3e-3, rtol=3e-3)
+        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-7, rtol=1e-7)
 
     def test_parity_pop_eegfiltnew_boundary_split(self):
         eeg = create_test_eeg(n_channels=1, n_samples=200, srate=100.0, n_trials=1)
