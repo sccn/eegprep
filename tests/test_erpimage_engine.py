@@ -756,3 +756,45 @@ def test_wavelet_transform_ignores_trial_offsets_and_spans_trial_blocks() -> Non
         direct[frame] = coswin @ epoch + 1j * (sinwin @ epoch)
     offset = engine._wavelet_transform(values + 1e6, frames, coswin, sinwin)
     np.testing.assert_allclose(offset, direct, rtol=0, atol=1e-9 * np.max(np.abs(direct)))
+
+
+def test_weighted_windows_wider_than_their_weights_match_the_general_movav_port() -> None:
+    values = np.random.default_rng(8).normal(size=(2, 12))
+    weights = np.array([0.2, 0.5, 0.3])
+    expected, _x = movav(values, np.arange(1, 13), 3.5, 1.0, None, None, weights)
+    actual, _x = engine._moving_average(values, 3.5, 1.0, weights)
+    np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
+
+
+def test_remaining_input_forms_and_checks() -> None:
+    data = np.random.default_rng(9).normal(size=(64, 6))
+    times = np.arange(64.0) * 1000 / 128
+    flat = engine.compute_erpimage(data.reshape(-1, order="F"), np.arange(6.0), times, 1, 1, plotted=False)
+    np.testing.assert_array_equal(flat.outdata, data)
+    with pytest.raises(ValueError, match=r"\(frames, trials\)"):
+        engine.compute_erpimage(np.zeros((2, 3, 4, 5)), None, np.arange(3.0), plotted=False)
+    with pytest.raises(ValueError, match="topphase"):
+        engine.compute_erpimage(
+            data, None, times, options=engine.parse_erpimage_options(phasesort=[100, 0, 10, 12, 200])
+        )
+    with pytest.raises(ValueError, match="amplitude-sorting freq"):
+        engine.compute_erpimage(data, None, times, options=engine.parse_erpimage_options(ampsort=[100, 0, 1]))
+    with pytest.raises(ValueError, match="cannot be < 1"):
+        engine.compute_erpimage(data, None, times, 0.5, options=engine.parse_erpimage_options(avg_type="gaussian"))
+    clamped = engine.compute_erpimage(
+        data, None, times, options=engine.parse_erpimage_options(ampsort=[100, 0, 10, 900]), plotted=False
+    )
+    assert clamped.sort_mode == "amp"
+    amps = engine.compute_erpimage(
+        data,
+        None,
+        times,
+        options=engine.parse_erpimage_options(plotamps=True, coher=[10, 10, 0.05], caxis=[-3, 3]),
+        rng=np.random.default_rng(0),
+    )
+    assert amps.clim == (-3.0, 3.0)
+    marks, ref, styles = engine._timewarp_marks(
+        (np.full((6, 3), [50.0, 100.0, 150.0]), None, ("r", "g")), times, 128.0, 64
+    )
+    assert styles == ("", "r", "g", "r", "")
+    np.testing.assert_allclose(engine._gauss(1, 2.0), [np.exp(-4.0)])
