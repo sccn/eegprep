@@ -2,6 +2,11 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary: workflow_dispatch is only available once this file is on the
+  # default branch. This push trigger starts the reference run from this branch.
+  push:
+    branches:
+      - cursor/eeglab-reference-ci-9de8
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -101,6 +106,9 @@ jobs:
             echo "::error title=eeglab_tests pin mismatch::HEAD is not $SUITE_COMMIT"
             exit 1
           fi
+          # eeglab_tests records its EEGLAB submodule as git@github.com, and the
+          # runner has no SSH key. Rewrite that one URL to HTTPS for this checkout.
+          git -C eeglab_tests config url."https://github.com/".insteadOf "git@github.com:"
           git -C eeglab_tests submodule update --init --depth 1 -- eeglab
           if [[ "$(git -C eeglab_tests/eeglab rev-parse HEAD)" != "$EEGLAB_COMMIT" ]]; then
             echo "::error title=EEGLAB pin mismatch::suite submodule is not $EEGLAB_COMMIT"
