@@ -6,7 +6,7 @@ import inspect
 import logging
 import sys
 import webbrowser
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -24,6 +24,8 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 
 logger = logging.getLogger(__name__)
 _IS_EMSCRIPTEN = sys.platform == "emscripten"
+# Actions whose backend is an awaitable JavaScript Promise under Emscripten.
+_ASYNC_MENU_ACTIONS = frozenset({"pop_iclabel"})
 
 
 def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -277,9 +279,15 @@ class MenuActionDispatcher:
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self._long_tasks: list[LongTaskHandle] = []
 
-    def dispatch_gui(self, action: str, parent: Any | None = None) -> Any:
-        """Run a menu action from Qt and show user-facing errors."""
-        if _IS_EMSCRIPTEN and action.partition(":")[0] == "pop_iclabel":
+    def dispatch_gui(self, action: str, parent: Any | None = None) -> Coroutine[Any, Any, None] | None:
+        """Run a menu action from Qt and show user-facing errors.
+
+        Returns ``None`` after running the action. Under Emscripten, ICLabel awaits a
+        JavaScript Promise and cannot run synchronously, so for that action the
+        :meth:`dispatch_gui_async` coroutine is returned instead and the caller must
+        schedule it on the running event loop.
+        """
+        if _IS_EMSCRIPTEN and action.partition(":")[0] in _ASYNC_MENU_ACTIONS:
             return self.dispatch_gui_async(action, parent)
         with self.session.gui_action(action):
             try:
@@ -297,8 +305,14 @@ class MenuActionDispatcher:
         *,
         renderer: Any | None = None,
     ) -> None:
-        """Run the browser ICLabel menu action while awaiting its Promise backend."""
-        if action.partition(":")[0] != "pop_iclabel":
+        """Run a menu action from an asyncio host and show user-facing errors.
+
+        ICLabel awaits ``pop_iclabel_async`` and stores the result only if the
+        selected datasets did not change meanwhile; other actions run synchronously
+        through :meth:`dispatch_gui`. ``renderer`` replaces the Qt renderer of the
+        ICLabel version dialog, for example in headless hosts and tests.
+        """
+        if action.partition(":")[0] not in _ASYNC_MENU_ACTIONS:
             self.dispatch_gui(action, parent)
             return
         with self.session.gui_action(action):
@@ -1350,16 +1364,12 @@ class MenuActionDispatcher:
         from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async
 
         target_state = self.session.dataset_state_token()
-        out = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
+        eeg_out, command = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
+        if not command:
+            return
         self.session.require_dataset_state_unchanged(target_state, "ICLabel")
-        eeg_out, command = out[0], out[1] if isinstance(out, tuple) and len(out) > 1 else ""
-        if command:
-            store_kwargs = {"command": command}
-            target_indices = list(self.session.selected_dataset_indices())
-            if target_indices:
-                store_kwargs["index"] = target_indices
-            self._store_current_from_gui(eeg_out, **store_kwargs)
-            self._refresh()
+        self._store_current_from_gui(eeg_out, command=command)
+        self._refresh()
 
     def _run_pop_runica_long_task(
         self,
