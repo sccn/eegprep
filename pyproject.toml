@@ -51,12 +51,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Developer-only, and very large: rebuilds the float32 ICLabel network from netICL.mat
-# (tools/iclabel/export_iclabel_onnx.py, which needs torch and onnx, and
-# tools/iclabel/quantize_iclabel_onnx.py, which needs onnx) to regenerate the shipped
-# iclabel.onnx. Not needed to run ICLabel, and deliberately left out of ``all``; the iclabel
-# extra is the runtime. torch 2.4 is the first release whose torch.onnx.export accepts the
-# dynamo=False argument the export script passes.
+# Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, together
+# with the iclabel extra (onnxruntime). tools/iclabel/export_iclabel_onnx.py needs torch and
+# onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full sequence. Not
+# needed to run ICLabel, and deliberately left out of ``all``; the iclabel extra is the runtime.
+# torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
+# export script passes.
 torch = [
   "torch>=2.4",
   "onnx>=1.14",
