@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from scipy.stats import beta
 
+from eegprep.functions.sigprocfunc.savefig import savefig
 from tests.eeglab_tests import load_matlab_test_fixture
 from tests.eeglab_tests.backend import _decode
 
@@ -375,6 +376,5 @@ def _plot_results(call, native, results, errors, maxima, clusters, names, nsubje
             handle = call("eegprep_test_gui_handle", "gcf")
             call("saveas", handle, name, "fig", nargout=0)
         else:
-            # Preserve the requested artifact. Unsupported .fig is a real
-            # Python graphics capability gap, not permission to replace it.
-            plt.savefig(f"{name}.fig", format="fig")
+            # saveas(..., 'fig') writes this MATLAB-openable .fig.
+            savefig(plt.gcf(), f"{name}.fig")

@@ -10,9 +10,17 @@ tested headlessly, encoded by downstream tools, or replayed with ``seemovie``.
 The ``movieframes`` argument follows EEGLAB's 1-based public indexing
 convention.
 
+``savefig`` writes a Matplotlib figure to a MATLAB ``.fig`` file that
+``openfig`` can open. The file stores the figure, its axes, and the lines,
+images, and text on those axes, including data, limits, colors, scales, and
+labels. ``figure.savefig("name.fig")`` uses the same writer. Scatter plots,
+bars, patches, and legends are omitted. The figure colormap is the first
+image's colormap.
+
 .. autosummary::
    :toctree: generated/
 
+   eegprep.savefig
    eegprep.hist2
    eegprep.cbar
    eegprep.copyaxis
