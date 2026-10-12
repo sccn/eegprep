@@ -19,6 +19,11 @@ import textwrap
 import tomllib
 from pathlib import Path
 
+import pytest
+
+from eegprep.functions.adminfunc.eeglabcompat import EEGLAB_ROOT_ENV, get_eeglab
+from eegprep.functions.miscfunc.misc import num_jobs_from_reservation
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
 SAMPLE_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
@@ -260,3 +265,29 @@ def test_pop_writeeeg_edf_names_the_edf_extra_without_pyedflib(tmp_path: Path) -
     result = _json_result(completed)
     assert "eegprep[edf]" in result["message"]
     assert result["chained"] is True
+
+
+def test_num_jobs_from_reservation_names_the_sys_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A RAM reservation needs psutil; the error names ``eegprep[sys]`` and keeps the real reason."""
+    monkeypatch.setitem(sys.modules, "psutil", None)
+
+    with pytest.raises(ImportError) as excinfo:
+        num_jobs_from_reservation("4GB")
+
+    assert 'pip install "eegprep[sys]"' in str(excinfo.value)
+    assert "None in sys.modules" in str(excinfo.value)
+    assert isinstance(excinfo.value.__cause__, ImportError)
+
+
+def test_get_eeglab_octave_names_the_eeglab_extra(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The Octave runtime needs oct2py; the error names ``eegprep[eeglab]`` once an EEGLAB root is found."""
+    (tmp_path / "eeglab.m").write_text("")
+    monkeypatch.setenv(EEGLAB_ROOT_ENV, str(tmp_path))
+    monkeypatch.setitem(sys.modules, "oct2py", None)
+
+    with pytest.raises(ImportError) as excinfo:
+        get_eeglab("oct")
+
+    assert 'pip install "eegprep[eeglab]"' in str(excinfo.value)
+    assert "None in sys.modules" in str(excinfo.value)
+    assert isinstance(excinfo.value.__cause__, ImportError)
