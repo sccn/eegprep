@@ -63,6 +63,21 @@ if [[ ! -f "$WHEEL_PATH" || ! -f "$SCRIPT_PATH" ]]; then
   exit 2
 fi
 
+# Bun is the JavaScript package manager for this repository: it installs the
+# exact pyodide and onnxruntime-web versions pinned in bun.lock. The harness
+# itself stays on Node.js, one of the JavaScript hosts Pyodide documents
+# (browsers are the other). It has been run by hand under Bun, but Bun is not
+# exercised in CI, so it is not claimed as a supported runtime here.
+# Check both tools before any download so a missing one fails immediately.
+if ! command -v bun >/dev/null 2>&1; then
+  echo "bun is required to install the pinned Pyodide packages (https://bun.sh)" >&2
+  exit 2
+fi
+if ! command -v node >/dev/null 2>&1; then
+  echo "node (Node.js 22 or newer) is required to run the Pyodide harness" >&2
+  exit 2
+fi
+
 if [[ -z "$DOCOPT_WHEEL_PATH" ]]; then
   DOCOPT_DIR="$WORKTREE_TMP/docopt"
   uv run --no-sync python "$REPO_ROOT/tools/pyodide/prepare_docopt_wheel.py" --output-dir "$DOCOPT_DIR"
@@ -73,15 +88,6 @@ if [[ ! -f "$DOCOPT_WHEEL_PATH" ]]; then
   exit 2
 fi
 
-# Bun is the JavaScript package manager for this repository: it installs the
-# exact pyodide and onnxruntime-web versions pinned in bun.lock. The harness
-# itself stays on Node.js, one of the JavaScript hosts Pyodide documents
-# (browsers are the other). It has been run by hand under Bun, but Bun is not
-# exercised in CI, so it is not claimed as a supported runtime here.
-if ! command -v bun >/dev/null 2>&1; then
-  echo "bun is required to install the pinned Pyodide packages (https://bun.sh)" >&2
-  exit 2
-fi
 JS_PREFIX="$WORKTREE_TMP/js"
 mkdir -p "$JS_PREFIX"
 cp "$REPO_ROOT/tools/pyodide/package.json" "$JS_PREFIX/package.json"

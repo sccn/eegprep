@@ -146,7 +146,7 @@ def _ica_summary(
                     backend=RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
                 )
             )
-        except Exception:  # Keep the full traceback in the report before failing the gate.
+        except Exception:  # Keep the full traceback: run_benchmark re-raises it in its RuntimeError message.
             records.append(
                 benchmark_record(
                     algorithm=name,
