@@ -1194,6 +1194,52 @@ algorithms. <code class="docutils literal notranslate"><span class="pre">savefig
 </ul>
 <p>Check CI status on GitHub Actions.</p>
 </section>
+<section id="nightly-differential-fuzzing">
+<h3>Nightly differential fuzzing<a class="headerlink" href="#nightly-differential-fuzzing" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">.github/workflows/fuzz-nightly.yml</span></code> compares EEGPrep with EEGLAB on
+generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
+oracle. The job runs at 10:23 UTC and can be started manually with
+<code class="docutils literal notranslate"><span class="pre">workflow_dispatch</span></code>. A known-good sanity case runs first. If that case
+fails, the job fails and does not open an issue. Later mismatches are shrunk
+with Hypothesis, saved under the <code class="docutils literal notranslate"><span class="pre">fuzz-repros</span></code> artifact, and filed (at most
+three new issues a night) with the labels <code class="docutils literal notranslate"><span class="pre">fuzz</span></code> and <code class="docutils literal notranslate"><span class="pre">fuzz-unconfirmed</span></code>.</p>
+<p>Per-function absolute and relative tolerances live in
+<code class="docutils literal notranslate"><span class="pre">tests/fuzz/tolerances.toml</span></code>. They are changed only by reviewed human pull
+requests.</p>
+<p>Run it locally against a MATLAB session that is already serving
+<code class="docutils literal notranslate"><span class="pre">tests/matlab/eegprep_batch_engine_serve.m</span></code> the same way the workflow does:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_MATLAB_BATCH_DIR</span><span class="o">=</span>/tmp/eegprep-matlab-batch
+<span class="nb">export</span><span class="w"> </span><span class="nv">EEGPREP_EEGLAB_ROOT</span><span class="o">=</span>src/eegprep/eeglab
+uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tests.fuzz<span class="w"> </span>run<span class="w"> </span>--output<span class="w"> </span>fuzz-out<span class="w"> </span>--examples<span class="w"> </span><span class="m">4</span>
+</pre></div>
+</div>
+<p>Without MATLAB, the fake oracle checks the harness itself:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tests.fuzz<span class="w"> </span>run<span class="w"> </span>--oracle<span class="w"> </span>fake<span class="w"> </span>--fake-mode<span class="w"> </span>match<span class="w"> </span>--examples<span class="w"> </span><span class="m">2</span><span class="w"> </span>--output<span class="w"> </span>fuzz-out
+</pre></div>
+</div>
+<p>Replay a saved failure after downloading the artifact:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tests.fuzz<span class="w"> </span>reproduce<span class="w"> </span>fuzz-out/repros/pop_reref-numeric-1e-3.json
+</pre></div>
+</div>
+<p>The JSON records the seed, the parameters, and a hash of the input crop from
+<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data.set</span></code>. To turn that file into a regression test,
+copy it into the tree and assert the two sides agree. Skip the test when
+MATLAB is not configured:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">tests.fuzz.harness</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_repro</span>
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">matlab</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_pop_reref_fuzz_repro</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;EEGPREP_SKIP_MATLAB&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+        <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;MATLAB not available&quot;</span><span class="p">)</span>
+    <span class="n">outcome</span> <span class="o">=</span> <span class="n">run_repro</span><span class="p">(</span><span class="s2">&quot;tests/fuzz/repros/pop_reref-numeric-1e-3.json&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">outcome</span><span class="o">.</span><span class="n">diverged</span>
+</pre></div>
+</div>
+</section>
 <section id="full-pipeline-parity-harness">
 <h3>Full-Pipeline Parity Harness<a class="headerlink" href="#full-pipeline-parity-harness" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">tests/</span></code> suite covers parity function by function. End-to-end parity — does
@@ -1641,6 +1687,7 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-discovery">Test Discovery</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#continuous-integration">Continuous Integration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nightly-differential-fuzzing">Nightly differential fuzzing</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-pipeline-parity-harness">Full-Pipeline Parity Harness</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#why-it-is-not-part-of-tests">Why it is not part of <code class="docutils literal notranslate"><span class="pre">tests/</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#running-it">Running it</a></li>
