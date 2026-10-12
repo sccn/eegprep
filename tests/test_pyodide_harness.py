@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import re
 import shutil
@@ -15,10 +16,11 @@ import pytest
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools import check_pyodide_base_resolution
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
-from tools.pyodide import benchmark
+from tools.pyodide import benchmark, compare_iclabel
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
+from tools.pyodide.iclabel_parity import run_parity
 from tools.pyodide.prepare_docopt_wheel import verify_sha256
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -133,43 +135,126 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["decisions"]["blas_recommended"] is False
 
 
-def test_compare_iclabel_reports_applies_established_numeric_tolerance():
-    native = {
-        "schema_version": 1,
-        "platform": "native",
+def _iclabel_report(platform, classifications, **overrides):
+    values = np.asarray(classifications, dtype=np.float32)
+    report = {
+        "schema_version": compare_iclabel.SCHEMA_VERSION,
+        "platform": platform,
         "dataset": "eeglab_data_with_ica_tmp.set",
-        "shape": [2, 7],
-        "classifications": [[0.1] * 7, [0.9] * 7],
+        "model_sha256": MODEL_SHA256,
+        "shape": list(values.shape),
+        "classifications": values.tolist(),
     }
-    pyodide = {
-        **native,
-        "platform": "pyodide",
-        "classifications": [[0.1 + 1e-6] * 7, [0.9 - 1e-6] * 7],
-    }
+    return {**report, **overrides}
 
-    comparison = compare_iclabel_reports(native, pyodide)
 
+def _write_reports(tmp_path, native, pyodide):
+    paths = {}
+    for name, report in (("native", native), ("pyodide", pyodide)):
+        paths[name] = tmp_path / f"{name}.json"
+        paths[name].write_text(json.dumps(report))
+    return ["--native", str(paths["native"]), "--pyodide", str(paths["pyodide"])]
+
+
+def _two_component_values(offset=0.0):
+    return np.asarray([[0.1] * 7, [0.9] * 7], dtype=np.float32) + np.float32(offset)
+
+
+def test_compare_iclabel_main_accepts_difference_within_tolerance(tmp_path, capsys):
+    arguments = _write_reports(
+        tmp_path,
+        _iclabel_report("native", _two_component_values()),
+        _iclabel_report("pyodide", _two_component_values(1e-6)),
+    )
+
+    assert compare_iclabel.main(arguments) == 0
+
+    comparison = json.loads(capsys.readouterr().out)
     assert comparison["allclose"] is True
-    assert comparison["max_absolute_difference"] <= 1e-5
+    assert comparison["max_absolute_difference"] <= compare_iclabel.ATOL
+    assert comparison["model_sha256"] == MODEL_SHA256
+
+
+def test_compare_iclabel_main_fails_difference_beyond_tolerance(tmp_path, capsys):
+    report_path = tmp_path / "parity.md"
+    arguments = _write_reports(
+        tmp_path,
+        _iclabel_report("native", _two_component_values()),
+        _iclabel_report("pyodide", _two_component_values(1e-3)),
+    )
+
+    assert compare_iclabel.main([*arguments, "--report", str(report_path)]) == 1
+
+    comparison = json.loads(capsys.readouterr().out)
+    assert comparison["allclose"] is False
+    assert comparison["max_absolute_difference"] == pytest.approx(1e-3, rel=1e-2)
+    assert "`allclose`: `False`" in report_path.read_text()
 
 
 def test_compare_iclabel_reports_rejects_shape_mismatch():
-    native = {
-        "schema_version": 1,
-        "platform": "native",
-        "dataset": "sample.set",
-        "shape": [1, 7],
-        "classifications": [[0.1] * 7],
-    }
-    pyodide = {
-        **native,
-        "platform": "pyodide",
-        "shape": [2, 7],
-        "classifications": [[0.1] * 7, [0.9] * 7],
-    }
+    native = _iclabel_report("native", [[0.1] * 7])
+    pyodide = _iclabel_report("pyodide", [[0.1] * 7, [0.9] * 7])
 
     with pytest.raises(ValueError, match="shapes differ"):
         compare_iclabel_reports(native, pyodide)
+
+
+def test_compare_iclabel_reports_rejects_dataset_mismatch():
+    native = _iclabel_report("native", _two_component_values())
+    pyodide = _iclabel_report("pyodide", _two_component_values(), dataset="other.set")
+
+    with pytest.raises(ValueError, match="different datasets"):
+        compare_iclabel_reports(native, pyodide)
+
+
+def test_compare_iclabel_reports_rejects_different_model_digests():
+    native = _iclabel_report("native", _two_component_values())
+    pyodide = _iclabel_report("pyodide", _two_component_values(), model_sha256="b" * 64)
+
+    with pytest.raises(ValueError, match="different ICLabel models"):
+        compare_iclabel_reports(native, pyodide)
+
+
+def test_compare_iclabel_reports_rejects_swapped_platform_labels():
+    native = _iclabel_report("native", _two_component_values())
+    pyodide = _iclabel_report("pyodide", _two_component_values())
+
+    with pytest.raises(ValueError, match="labeled native and pyodide"):
+        compare_iclabel_reports(pyodide, native)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"schema_version": 1}, "Unsupported ICLabel parity schema"),
+        ({"platform": "browser"}, "Invalid ICLabel parity platform"),
+        ({"model_sha256": None}, "lacks a SHA-256 model digest"),
+        ({"model_sha256": "not-a-digest"}, "lacks a SHA-256 model digest"),
+        ({"shape": [3, 7]}, "does not match classifications"),
+        ({"classifications": [[0.5] * 6, [0.5] * 6], "shape": [2, 6]}, "Unexpected ICLabel classification shape"),
+        ({"classifications": [[0.1] * 7, [float("nan")] * 7]}, "non-finite values"),
+        ({"classifications": [[0.1] * 7, [float("inf")] * 7]}, "non-finite values"),
+    ],
+)
+def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, message):
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps({**_iclabel_report("native", _two_component_values()), **overrides}))
+
+    with pytest.raises(ValueError, match=message):
+        compare_iclabel._load_report(path)
+
+
+def test_native_parity_report_round_trips_through_the_comparison(tmp_path, capsys):
+    pytest.importorskip("onnxruntime")
+    native = run_parity("native", REPO_ROOT / "sample_data")
+    packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
+
+    assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
+    assert native["shape"] == [32, 7]
+
+    arguments = _write_reports(tmp_path, native, {**native, "platform": "pyodide"})
+    assert compare_iclabel.main(arguments) == 0
+    assert json.loads(capsys.readouterr().out)["max_absolute_difference"] == 0.0
 
 
 def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
