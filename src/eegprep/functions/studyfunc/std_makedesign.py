@@ -16,6 +16,7 @@ from eegprep.functions.studyfunc._study_utils import (
     variable_values,
 )
 from eegprep.functions.studyfunc.std_addvarlevel import std_addvarlevel
+from eegprep.functions.studyfunc.std_getindvar import std_getindvar
 from eegprep.functions.studyfunc.std_selectdesign import std_selectdesign
 
 
@@ -133,8 +134,13 @@ def _design_variables(
     defaultdesign: str,
 ) -> list[dict[str, Any]]:
     labels = available_variables(study)
-    if all(_empty_label(label) for label, _values, _vartype in specs) and defaultdesign != "forceoff":
+    # Omitted variables fall back to condition/group. An explicit '' or 'none'
+    # clears that slot, matching EEGLAB, and must not restore the fallback.
+    omitted = all(label is None for label, _values, _vartype in specs)
+    if omitted and defaultdesign != "forceoff":
         specs = _default_specs(study, labels)
+    factors, _factor_values, _subjects, paired = std_getindvar(study)
+    paired_by_label = dict(zip(factors, paired, strict=True))
     variables = []
     for label, values, vartype in specs:
         if _empty_label(label):
@@ -150,7 +156,7 @@ def _design_variables(
             "label": label,
             "value": parsed_values,
             "vartype": vartype_text,
-            "pairing": "off" if label == "group" or vartype_text == "continuous" else "on",
+            "pairing": paired_by_label.get(label, "off" if vartype_text == "continuous" else "on"),
             "levelindex": list(range(1, len(parsed_values) + 1)),
         }
         variables.append(variable)
@@ -194,7 +200,13 @@ def _history_command(
     datselect: Any,
 ) -> str:
     kwargs: dict[str, Any] = {"name": design["name"], "delfiles": delfiles, "defaultdesign": defaultdesign}
-    for index, variable in enumerate(design.get("variable") or [], start=1):
+    variables = [variable for variable in design.get("variable") or [] if variable.get("label")]
+    # EEGLAB's recorded command omits empty labels. Re-running it restores the
+    # default condition variable, so an empty design records explicit 'none'.
+    if not variables:
+        kwargs["variable1"] = "none"
+        kwargs["variable2"] = "none"
+    for index, variable in enumerate(variables, start=1):
         kwargs[f"variable{index}"] = variable["label"]
         kwargs[f"values{index}"] = variable.get("value", [])
         kwargs[f"vartype{index}"] = variable.get("vartype", "categorical")

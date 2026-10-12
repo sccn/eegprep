@@ -245,7 +245,7 @@ def pop_studydesign_dialog_spec(STUDY: dict[str, Any], ALLEEG: list[dict[str, An
             "Web help opens the packaged pop_studydesign help. EEGLAB opens the STUDY design wiki page.",
             "Paired-statistics checkboxes, Plot, data-trial selection, and the design folder field are commented out of the current EEGLAB dialog.",
             "std_makedesign stores variable1 through variable4. Additional dialog variables are dropped on OK, as in EEGLAB.",
-            "An empty new design is saved with defaultdesign='forceoff' so EEGPrep does not invent condition and group.",
+            "An empty design records variable1='none' and variable2='none'. EEGLAB omits those labels, and re-running its history restores condition.",
         ),
     )
 
@@ -688,8 +688,11 @@ def _options_from_editor_design(design: dict[str, Any]) -> dict[str, Any]:
     ]
     options: dict[str, Any] = {
         "name": str(design.get("name") or ""),
-        "defaultdesign": "off" if labeled else "forceoff",
+        "defaultdesign": "off",
     }
+    if not labeled:
+        options["variable1"] = "none"
+        options["variable2"] = "none"
     for index, variable in enumerate(labeled[:_STORED_DESIGN_VARIABLES], start=1):
         vartype = str(variable.get("vartype") or "categorical")
         options[f"variable{index}"] = str(variable["label"])
@@ -790,7 +793,9 @@ def _ensure_trialinfo(
     labels = [
         str(options[key])
         for key in sorted(options)
-        if key.startswith("variable") and key.removeprefix("variable").isdigit() and options[key]
+        if key.startswith("variable")
+        and key.removeprefix("variable").isdigit()
+        and str(options[key]).strip().lower() not in {"", "none", "[]"}
     ]
     if not labels or all(label in available_variables(study) for label in labels):
         return study, ""

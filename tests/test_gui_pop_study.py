@@ -420,7 +420,13 @@ def test_pop_studydesign_add_rename_and_delete_match_std_makedesign():
     assert "std_makedesign" in command
     assert "name='Only S01'" in command
     assert "subjselect=['S01']" in command
+    assert "variable1='none'" in command
+    assert "variable2='none'" in command
+    assert "defaultdesign='off'" in command
     ast.parse(command)
+    namespace = {"STUDY": copy.deepcopy(study), "ALLEEG": copy.deepcopy(alleeg), "std_makedesign": std_makedesign}
+    exec(command, namespace)
+    assert namespace["STUDY"]["design"][1]["variable"] == []
 
     state = _editor_state(edited, alleeg)
     apply_studydesign_select(state, 2)

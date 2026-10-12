@@ -444,7 +444,10 @@ trial factor such as ``rt``, and on OK writes ``STUDY.design`` and rebuilds
 ``trialinfo`` when that factor is not already available. Canceling still
 leaves the workspace unchanged. Paired-statistics checkboxes are commented
 out of the current EEGLAB dialog, so EEGPrep does not show them; pairing is
-stored by ``std_makedesign``. The September 29 observation remains the
+stored by ``std_makedesign``. GitHub Actions replays the dialog command
+history in EEGLAB and compares ``STUDY.design`` for New, Rename, Delete, a
+combined categorical value, a continuous variable, and an empty design.
+The September 29 observation remains the
 manual MATLAB acceptance record for the original dialog. The Python tutorial
 wrapper still stops at redraw, so a passing wrapper does not exercise this
 follow-up.
