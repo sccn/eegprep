@@ -15,14 +15,18 @@ from tests.fuzz.harness import (
     EEGSpec,
     FuzzCase,
     Outcome,
+    PythonBackend,
     SideResult,
     Tolerance,
     compare_data,
     data_sha256,
     default_sanity,
+    dispatch_python,
     draw_cases,
+    evaluate_case,
     freeze_params,
     judge,
+    load_tolerances,
     materialize_eeg,
     nightly_seed,
     run_repro,
@@ -139,6 +143,65 @@ def test_compare_respects_tolerance_shape_and_nan_mask():
     )
     assert both.diverged is False
     assert both.both_ok is False
+
+
+def _matrix_reref(data: np.ndarray, ref: int) -> np.ndarray:
+    """EEGLAB reref.m's ``refmatrix * data``, which spreads NaNs through explicit zeros."""
+    refmatrix = np.eye(data.shape[0])
+    refmatrix[:, ref] -= 1.0
+    with np.errstate(invalid="ignore"):
+        out = refmatrix @ np.asarray(data, dtype=np.float64)
+    return np.delete(out, ref, axis=0)
+
+
+def test_explicit_reref_zero_times_nan_is_not_a_divergence():
+    case = FuzzCase(
+        "pop_reref",
+        EEGSpec(
+            channels=tuple(range(11, 28)),
+            start=512,
+            length=1399,
+            decimate=1,
+            nan_channel=0,
+            nan_start=1396,
+            nan_length=3,
+        ),
+        freeze_params({"ref": (3,), "keepref": "off", "exclude": ()}),
+    )
+    eeg = materialize_eeg(case)
+    python_data = np.asarray(dispatch_python(case, eeg)["data"])
+    oracle_data = _matrix_reref(eeg["data"], 3)
+    diverged, error_class, count, *_rest = compare_data(python_data, oracle_data, 128.0, 128.0, Tolerance(1e-6, 1e-6))
+    assert diverged is True
+    assert error_class == "nan-mask"
+    assert count == 45
+
+    outcome = evaluate_case(
+        case,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(lambda _case, dataset: _matrix_reref(dataset["data"], 3)),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+
+def test_explicit_reref_numeric_error_still_diverges_when_nans_match():
+    case = FuzzCase(
+        "pop_reref",
+        EEGSpec(channels=(0, 1, 2, 3), start=0, length=8, decimate=1, nan_channel=0, nan_start=1, nan_length=2),
+        freeze_params({"ref": (3,), "keepref": "off", "exclude": ()}),
+    )
+    eeg = materialize_eeg(case)
+
+    def shifted_oracle(_case, dataset):
+        out = _matrix_reref(dataset["data"], 3)
+        out[0, 0] += 1.0
+        return out
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted_oracle), load_tolerances())
+    assert outcome.diverged is True
 
 
 def test_materialize_crops_decimates_and_injects_nans():

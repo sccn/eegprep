@@ -690,6 +690,51 @@ def shrink_signature(strategy, seed_value: int, examples: int, signature: str, e
     return found["outcome"]
 
 
+def _explicit_reref_nan_is_oracle_defect(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when the only gap is EEGLAB's ``refmatrix * data`` spreading NaNs."""
+    if case.function != "pop_reref" or not python.ok or not oracle.ok or python.data is None or oracle.data is None:
+        return False
+    params = thaw_params(case.params)
+    ref = [int(index) for index in params["ref"]]
+    if not ref:
+        return False
+    data = np.asarray(eeg["data"], dtype=np.float64)
+    if data.ndim != 2:
+        return False
+    exclude = [int(index) for index in params["exclude"]]
+    keepref = str(params["keepref"])
+    subtraction = _explicit_reref(data, ref, exclude, keepref, matrix=False)
+    matrix = _explicit_reref(data, ref, exclude, keepref, matrix=True)
+    python_gap, *_rest = compare_data(python.data, subtraction, float(python.srate), float(python.srate), tolerance)
+    oracle_gap, *_rest = compare_data(oracle.data, matrix, float(oracle.srate), float(oracle.srate), tolerance)
+    return not python_gap and not oracle_gap
+
+
+def _explicit_reref(data: np.ndarray, ref: list[int], exclude: list[int], keepref: str, *, matrix: bool) -> np.ndarray:
+    excluded = set(exclude)
+    chansin = [index for index in range(data.shape[0]) if index not in excluded]
+    position = {channel: index for index, channel in enumerate(chansin)}
+    block = data[chansin]
+    if matrix:
+        refmatrix = np.eye(len(chansin))
+        scale = 1.0 / len(ref)
+        for index in ref:
+            refmatrix[:, position[index]] -= scale
+        with np.errstate(invalid="ignore"):
+            updated = refmatrix @ block
+    else:
+        with np.errstate(invalid="ignore"):
+            updated = block - data[ref].mean(axis=0)
+    out = np.array(data, copy=True)
+    out[chansin] = updated
+    if keepref.lower() == "off":
+        keep = [index for index in range(out.shape[0]) if index not in set(ref)]
+        out = out[keep]
+    return out
+
+
 def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances) -> Outcome:
     if case.sanity:
         try:
@@ -701,7 +746,14 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
     digest = data_sha256(np.asarray(eeg["data"]))
     python = python_backend.run(case, copy.deepcopy(eeg))
     oracle = oracle_backend.run(case, copy.deepcopy(eeg))
-    return judge(python, oracle, tolerance_for(report_name(case), tolerances), case, digest)
+    tolerance = tolerance_for(report_name(case), tolerances)
+    if _explicit_reref_nan_is_oracle_defect(case, eeg, python, oracle, tolerance):
+        # reref.m multiplies by a reference matrix that contains explicit zeros.
+        # 0*NaN is NaN, so a NaN outside the reference spreads to every channel.
+        # Subtraction, which EEGLAB's own alternate code comments as equivalent,
+        # keeps that NaN on its own channel. EEGPrep follows the subtraction.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    return judge(python, oracle, tolerance, case, digest)
 
 
 def dispatch_python(case: FuzzCase, eeg: dict):
