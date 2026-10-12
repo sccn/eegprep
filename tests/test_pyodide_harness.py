@@ -23,6 +23,7 @@ from tools.pyodide.prepare_docopt_wheel import verify_sha256
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODEL_SHA256 = "a" * 64
+SUBPROCESS_TIMEOUT_SECONDS = 60
 
 
 def test_docopt_hash_check_rejects_modified_sdist(tmp_path):
@@ -404,20 +405,26 @@ def _run_script_with_path(path_entries, tmp_path):
     script = tmp_path / "script.py"
     wheel.touch()
     script.touch()
-    return subprocess.run(
-        [
-            shutil.which("bash"),
-            str(REPO_ROOT / "tools" / "pyodide" / "run_pyodide.sh"),
-            "--wheel",
-            str(wheel),
-            "--script",
-            str(script),
-        ],
-        env={"PATH": ":".join(str(entry) for entry in path_entries), "TMPDIR": str(tmp_path)},
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            [
+                shutil.which("bash"),
+                str(REPO_ROOT / "tools" / "pyodide" / "run_pyodide.sh"),
+                "--wheel",
+                str(wheel),
+                "--script",
+                str(script),
+            ],
+            env={"PATH": ":".join(str(entry) for entry in path_entries), "TMPDIR": str(tmp_path)},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            f"run_pyodide.sh did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s; it should exit before downloading"
+        )
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash is required to run run_pyodide.sh")
@@ -479,12 +486,16 @@ def test_iclabel_web_bridge_retries_failed_session_initialization():
         if (attempts !== 2) throw new Error(`expected two session attempts, got ${attempts}`);
         """
     )
-    result = subprocess.run(
-        ["node", "--input-type=module"],
-        input=script,
-        text=True,
-        capture_output=True,
-        cwd=Path(__file__).parents[1],
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["node", "--input-type=module"],
+            input=script,
+            text=True,
+            capture_output=True,
+            cwd=Path(__file__).parents[1],
+            check=False,
+            timeout=SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"The Node.js bridge script did not finish within {SUBPROCESS_TIMEOUT_SECONDS} s")
     assert result.returncode == 0, result.stderr
