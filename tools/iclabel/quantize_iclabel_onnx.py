@@ -219,41 +219,41 @@ def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.
 
 def compare_predictions(
     teacher: np.ndarray,
-    candidate: np.ndarray,
+    model_probabilities: np.ndarray,
     thresholds: np.ndarray = DEFAULT_ICFLAG_THRESHOLDS,
 ) -> dict[str, Any]:
-    """Compare probabilities, class labels, and ICLabel keep/reject decisions."""
+    """Compare model probabilities with the teacher's: values, class labels, and keep/reject decisions."""
     teacher = np.asarray(teacher, dtype=float)
-    candidate = np.asarray(candidate, dtype=float)
-    if teacher.shape != candidate.shape or teacher.ndim != 2 or teacher.shape[1] != len(ICLABEL_CLASSES):
+    model_probabilities = np.asarray(model_probabilities, dtype=float)
+    if teacher.shape != model_probabilities.shape or teacher.ndim != 2 or teacher.shape[1] != len(ICLABEL_CLASSES):
         raise ValueError("ICLabel predictions must be matching (components, 7) arrays")
-    if not np.isfinite(teacher).all() or not np.isfinite(candidate).all():
+    if not np.isfinite(teacher).all() or not np.isfinite(model_probabilities).all():
         raise ValueError("ICLabel predictions must be finite")
 
     teacher_labels = np.argmax(teacher, axis=1)
-    candidate_labels = np.argmax(candidate, axis=1)
+    model_labels = np.argmax(model_probabilities, axis=1)
     teacher_reject = _rejection_flags(teacher, thresholds)
-    candidate_reject = _rejection_flags(candidate, thresholds)
+    model_reject = _rejection_flags(model_probabilities, thresholds)
     per_class: dict[str, dict[str, Any]] = {}
     for class_index, class_name in enumerate(ICLABEL_CLASSES):
         selected = teacher_labels == class_index
         count = int(np.sum(selected))
         per_class[class_name] = {
             "count": count,
-            "agreement": None if count == 0 else float(np.mean(candidate_labels[selected] == class_index)),
+            "agreement": None if count == 0 else float(np.mean(model_labels[selected] == class_index)),
         }
 
     return {
         "sample_count": int(teacher.shape[0]),
-        "max_probability_abs_diff": float(np.max(np.abs(teacher - candidate))),
-        "mean_probability_abs_diff": float(np.mean(np.abs(teacher - candidate))),
-        "top1_agreement": float(np.mean(teacher_labels == candidate_labels)),
-        "keep_reject_agreement": float(np.mean(teacher_reject == candidate_reject)),
+        "max_probability_abs_diff": float(np.max(np.abs(teacher - model_probabilities))),
+        "mean_probability_abs_diff": float(np.mean(np.abs(teacher - model_probabilities))),
+        "top1_agreement": float(np.mean(teacher_labels == model_labels)),
+        "keep_reject_agreement": float(np.mean(teacher_reject == model_reject)),
         "teacher_class_distribution": {
             name: int(np.sum(teacher_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
         },
-        "candidate_class_distribution": {
-            name: int(np.sum(candidate_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
+        "model_class_distribution": {
+            name: int(np.sum(model_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
         },
         "per_class_agreement": per_class,
     }

@@ -88,10 +88,10 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
             [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.70],
         ]
     )
-    candidate = teacher.copy()
-    candidate[3] = [0.55, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
+    model_probabilities = teacher.copy()
+    model_probabilities[3] = [0.55, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
 
-    metrics = compare_predictions(teacher, candidate)
+    metrics = compare_predictions(teacher, model_probabilities)
 
     assert metrics["top1_agreement"] == pytest.approx(0.75)
     assert metrics["keep_reject_agreement"] == pytest.approx(1.0)
@@ -111,7 +111,7 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
             [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.1],
         ]
     )
-    candidate = np.array(
+    model_probabilities = np.array(
         [
             [0.8999, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1001],
             [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -130,7 +130,7 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
         ]
     )
 
-    metrics = compare_predictions(teacher, candidate, thresholds)
+    metrics = compare_predictions(teacher, model_probabilities, thresholds)
 
     assert metrics["top1_agreement"] == pytest.approx(1.0)
     assert metrics["keep_reject_agreement"] == pytest.approx(0.0)

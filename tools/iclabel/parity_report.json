@@ -21,7 +21,10 @@
   "gate_pass": true,
   "manifest": "evaluation_manifest.json",
   "metrics": {
-    "candidate_class_distribution": {
+    "keep_reject_agreement": 1.0,
+    "max_probability_abs_diff": 0.013459265232086182,
+    "mean_probability_abs_diff": 0.0008022966030173169,
+    "model_class_distribution": {
       "Brain": 18,
       "Channel Noise": 0,
       "Eye": 5,
@@ -30,9 +33,6 @@
       "Muscle": 1,
       "Other": 193
     },
-    "keep_reject_agreement": 1.0,
-    "max_probability_abs_diff": 0.013459265232086182,
-    "mean_probability_abs_diff": 0.0008022966030173169,
     "per_class_agreement": {
       "Brain": {
         "agreement": 1.0,
