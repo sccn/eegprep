@@ -732,6 +732,20 @@ def test_console_eegh_replays_await_text_inside_a_string_synchronously():
     workspace.close()
 
 
+def test_console_eegh_names_the_history_entry_that_cannot_be_replayed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+    session.add_history("EEG = pop_editset(EEG, 'setname', ;")
+
+    with pytest.raises(
+        SyntaxError, match=r"History entry 1 could not be replayed as Python: .*pop_editset.*never closed"
+    ):
+        workspace.namespace["eegh"](1)
+
+    workspace.close()
+
+
 def test_console_eegh_clear_and_remove_notify_session_listeners():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})

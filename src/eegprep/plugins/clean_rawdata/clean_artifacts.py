@@ -112,7 +112,8 @@ def clean_artifacts(
         Default 0.1.
     MaxMem : int or None
         Maximum memory in MB for ASR processing. Default None, a 64 MB budget that ASR raises
-        automatically for many channels at a high sampling rate; an explicit value that is
+        to twice the lookahead overhead for many channels at a high sampling rate, with a logged
+        warning because the smaller blocks can change the output; an explicit value that is
         too small for that overhead raises RuntimeError.
     Distance : str
         Distance metric for ASR calibration ('euclidian' or 'riemannian'). The

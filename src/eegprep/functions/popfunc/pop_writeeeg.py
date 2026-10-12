@@ -13,7 +13,27 @@ from eegprep.functions.sigprocfunc.writegdf import writegdf
 
 
 def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
-    """Write continuous EEG data to EDF, BDF, or GDF."""
+    """Write continuous EEG data to EDF, BDF, or GDF.
+
+    The format follows the filename extension. EDF and BDF output needs the optional
+    ``pyedflib`` package (``pip install "eegprep[edf]"``); GDF output has its own writer and does not.
+
+    Args:
+        EEG: Continuous EEG dataset with 2-D channel-by-sample ``data`` of finite values.
+        filename: Output path ending in ``.edf``, ``.bdf``, or ``.gdf``. Missing parent directories
+            are created once the data has been validated.
+        *args: EEGLAB-style option pairs, such as ``"TYPE", "GDF"``.
+        **kwargs: The same options as keywords. ``type`` must match the filename extension.
+
+    Returns:
+        The history command, ``LASTCOM = pop_writeeeg(EEG, ...);``.
+
+    Raises:
+        ValueError: If the extension, an option, or the data is not supported.
+        ImportError: If an EDF or BDF file is requested and ``pyedflib`` is not installed. The
+            message names the ``eegprep[edf]`` extra.
+        OSError: If the file cannot be written.
+    """
     path = Path(filename)
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     output_type = str(options.pop("type", path.suffix.lstrip("."))).lower()
@@ -23,8 +43,8 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
         raise ValueError("pop_writeeeg output must end in .edf, .bdf, or .gdf")
     if output_type != path.suffix.lstrip(".").lower():
         raise ValueError("TYPE must match the output filename extension")
-    path.parent.mkdir(parents=True, exist_ok=True)
     if output_type == "gdf":
+        path.parent.mkdir(parents=True, exist_ok=True)
         writegdf(
             path,
             EEG["data"],
@@ -42,8 +62,8 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
     return f"LASTCOM = pop_writeeeg(EEG, {', '.join(pieces)});"
 
 
-def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None:
-    # Optional-dependency guard: GDF output has its own writer and works without the ``edf`` extra.
+def _require_pyedflib(output_type: str) -> tuple[Any, Any]:
+    """Import ``pyedflib`` and ``pyedflib.highlevel``, the single guarded import site for EDF and BDF output."""
     try:
         import pyedflib
         from pyedflib import highlevel
@@ -53,7 +73,12 @@ def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None
             'Install it with pip install "eegprep[edf]" (or uv pip install "eegprep[edf]"); '
             "GDF output does not need it."
         ) from exc
+    return pyedflib, highlevel
 
+
+def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None:
+    # Guard and validate before the first filesystem change, so a failed write leaves nothing behind.
+    pyedflib, highlevel = _require_pyedflib(output_type)
     data = np.ascontiguousarray(EEG["data"])
     if data.ndim != 2:
         raise ValueError("pop_writeeeg requires continuous 2-D channel-by-sample data")
@@ -62,7 +87,7 @@ def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None
     file_type = pyedflib.FILETYPE_BDFPLUS if output_type == "bdf" else pyedflib.FILETYPE_EDFPLUS
     digital_min, digital_max = (-8_388_608, 8_388_607) if output_type == "bdf" else (-32_768, 32_767)
     headers = [
-        _signal_header(label, signal, float(EEG["srate"]), digital_min, digital_max)
+        _signal_header(highlevel, label, signal, float(EEG["srate"]), digital_min, digital_max)
         for label, signal in zip(channel_labels(EEG), data)
     ]
     annotations = [
@@ -73,13 +98,14 @@ def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None
         ]
         for event in events_to_records(EEG.get("event"))
     ]
+    path.parent.mkdir(parents=True, exist_ok=True)
     if not highlevel.write_edf(str(path), data, headers, header={"annotations": annotations}, file_type=file_type):
         raise OSError(f"Could not write {output_type.upper()} file: {path}")
 
 
-def _signal_header(label: str, signal: np.ndarray, srate: float, digital_min: int, digital_max: int) -> dict[str, Any]:
-    from pyedflib import highlevel  # available: _write_edf_family checked the import
-
+def _signal_header(
+    highlevel: Any, label: str, signal: np.ndarray, srate: float, digital_min: int, digital_max: int
+) -> dict[str, Any]:
     physical_min = float(np.floor(np.min(signal)))
     physical_max = float(np.ceil(np.max(signal)))
     if physical_min == physical_max:

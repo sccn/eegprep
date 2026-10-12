@@ -290,10 +290,15 @@ jobs:
   base-install:
     name: Base install without optional extras
     runs-on: ubuntu-22.04
-    # Every other job syncs with --all-extras, so a module that quietly needs
-    # an extra (oct2py, psutil, pyedflib, onnxruntime, torch) would pass CI and
-    # fail for a user who runs a plain `pip install eegprep`. This job installs
-    # only the base dependencies and the dev group.
+    # The lint and test jobs sync --all-extras and the other jobs add the extras
+    # they need (pyodide: iclabel and torch; docs.yml: docs and iclabel), so a
+    # module that quietly needs an optional package can pass them and still fail
+    # for a user of a plain `pip install eegprep`. This job installs only the
+    # base dependencies and the dev group. The dev group itself brings pyedflib,
+    # pyqtgraph, PySide6 and ipython, so this install alone cannot catch an
+    # unguarded pyedflib or GUI import: tests/test_optional_extras.py blocks each
+    # optional package explicitly, and this install keeps oct2py, psutil,
+    # onnxruntime and torch out.
     steps:
       - uses: actions/checkout@v4
 
@@ -311,7 +316,7 @@ jobs:
           EEGPREP_SKIP_MATLAB=1 QT_QPA_PLATFORM=offscreen uv run --no-sync pytest tests/test_optional_extras.py -q -p no:cacheprovider
 
   pyodide:
-    name: Pyodide harness, ICA benchmark, and ICLabel browser parity
+    name: Pyodide harness, ICA benchmark, ICLabel browser parity, and ICLabel regeneration
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -339,7 +344,7 @@ jobs:
         run: |
           uv python install 3.12
 
-      - name: Install benchmark dependencies
+      - name: Install benchmark and ICLabel regeneration dependencies
         run: |
           uv sync --python 3.12 --group dev --extra iclabel --extra torch
 
@@ -353,8 +358,10 @@ jobs:
       # gate to pass against the frozen teacher probabilities and the result to be
       # numerically identical to the shipped model on the evaluation features. A
       # fresh PyTorch export is not guaranteed to be byte-identical across PyTorch
-      # versions, so bytes are not compared. The committed parity report must
-      # record the shipped model's SHA-256, which release.yml checks again.
+      # versions, so bytes are not compared. The regenerated report's gate and
+      # metrics must match the committed report (drift metrics within 1e-5 for
+      # CPU differences), and the committed report must record the shipped
+      # model's SHA-256, which release.yml checks again.
       - name: Regenerate the ICLabel model from netICL.mat
         run: |
           set -euo pipefail
@@ -366,6 +373,7 @@ jobs:
             --output "$regenerated/iclabel.onnx" \
             --report "$regenerated/parity_report.json" \
             --require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx \
+            --require-matching-report tools/iclabel/parity_report.json \
             > pyodide-artifacts/iclabel-quantization.log
           shipped_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
           recorded_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')

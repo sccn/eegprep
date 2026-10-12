@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import sys
 import tempfile
+import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from urllib.parse import quote
@@ -24,12 +24,20 @@ import numpy as np
 
 from eegprep import ICL_feature_extractor, eeg_runica, pop_loadset
 
-from tools.iclabel.quantize_iclabel_onnx import COMPONENTS_PER_RECORDING, load_frozen_manifest
+from tools.iclabel.quantize_iclabel_onnx import (
+    COMPONENTS_PER_RECORDING,
+    DEFAULT_EVALUATION_FEATURES,
+    load_frozen_manifest,
+)
 
 
 DEFAULT_OUTPUT_DIR = Path(__file__).parent
-_SPLIT = "evaluation"
 _CHUNK_SIZE = 1024 * 1024
+_FEATURE_SHAPES = (
+    (32, 32, 1, COMPONENTS_PER_RECORDING),
+    (1, 100, 1, COMPONENTS_PER_RECORDING),
+    (1, 100, 1, COMPONENTS_PER_RECORDING),
+)
 
 
 def _verify_recording(path: Path, recording: Mapping[str, object]) -> None:
@@ -90,18 +98,26 @@ def _download_recording(manifest: Mapping[str, object], recording: Mapping[str, 
 def _feature_archive_is_valid(path: Path) -> bool:
     if not path.exists():
         return False
+    problem = _checkpoint_problem(path)
+    if problem is not None:
+        print(f"RECOMPUTE feature checkpoint {path} {problem}", file=sys.stderr, flush=True)
+    return problem is None
+
+
+def _checkpoint_problem(path: Path) -> str | None:
+    """Return why a feature checkpoint cannot be reused, or None when it can."""
     try:
         with np.load(path, allow_pickle=False) as archive:
             arrays = [np.asarray(archive[name], dtype=np.float32) for name in ("topo", "psd", "autocorr")]
-    except (KeyError, OSError, ValueError) as exc:
-        print(f"RECOMPUTE unreadable feature checkpoint {path}: {exc!r}", file=sys.stderr, flush=True)
-        return False
-    return (
-        arrays[0].shape == (32, 32, 1, COMPONENTS_PER_RECORDING)
-        and arrays[1].shape == (1, 100, 1, COMPONENTS_PER_RECORDING)
-        and arrays[2].shape == (1, 100, 1, COMPONENTS_PER_RECORDING)
-        and all(np.isfinite(array).all() for array in arrays)
-    )
+    # Zero-byte checkpoints raise EOFError and truncated ones zipfile.BadZipFile.
+    except (EOFError, KeyError, OSError, ValueError, zipfile.BadZipFile) as exc:
+        return f"is unreadable ({exc!r})"
+    shapes = tuple(array.shape for array in arrays)
+    if shapes != _FEATURE_SHAPES:
+        return f"has shapes {shapes}; expected {_FEATURE_SHAPES}"
+    if not all(np.isfinite(array).all() for array in arrays):
+        return "contains non-finite values"
+    return None
 
 
 def _extract_recording_features(raw_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -121,12 +137,7 @@ def _extract_recording_features(raw_path: Path) -> tuple[np.ndarray, np.ndarray,
         raise ValueError(f"ICLabel feature extraction returned {len(features)} arrays for {raw_path}")
     if any(not np.isfinite(feature).all() for feature in features):
         raise ValueError(f"ICLabel feature extraction returned non-finite values for {raw_path}")
-    expected_shapes = (
-        (32, 32, 1, COMPONENTS_PER_RECORDING),
-        (1, 100, 1, COMPONENTS_PER_RECORDING),
-        (1, 100, 1, COMPONENTS_PER_RECORDING),
-    )
-    if tuple(feature.shape for feature in features) != expected_shapes:
+    if tuple(feature.shape for feature in features) != _FEATURE_SHAPES:
         raise ValueError(
             f"Unexpected ICLabel feature shapes for {raw_path}: {tuple(feature.shape for feature in features)}"
         )
@@ -138,11 +149,11 @@ def _recording_features(
     recording: Mapping[str, object],
     data_dir: Path,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    raw_path = data_dir / _SPLIT / str(recording["source_path"])
+    raw_path = data_dir / str(recording["source_path"])
     _download_recording(manifest, recording, raw_path)
-    checkpoint = data_dir / "features" / _SPLIT / f"{recording['subject']}.npz"
+    checkpoint = data_dir / "features" / f"{recording['subject']}.npz"
     if _feature_archive_is_valid(checkpoint):
-        print(f"CHECKPOINT {_SPLIT}/{recording['subject']}", flush=True)
+        print(f"CHECKPOINT {recording['subject']}", flush=True)
         with np.load(checkpoint, allow_pickle=False) as archive:
             return tuple(np.asarray(archive[name], dtype=np.float32) for name in ("topo", "psd", "autocorr"))
 
@@ -169,22 +180,22 @@ def build_evaluation_archive(
     output_path: Path,
     limit: int | None = None,
 ) -> None:
-    evaluation = manifest[_SPLIT]
+    evaluation = manifest["evaluation"]
     recordings = evaluation["recordings"]
     if limit is not None:
         recordings = recordings[:limit]
     extracted = []
     for index, recording in enumerate(recordings, start=1):
-        print(f"RECORDING {_SPLIT} {index}/{len(recordings)} {recording['subject']}", flush=True)
+        print(f"RECORDING {index}/{len(recordings)} {recording['subject']}", flush=True)
         extracted.append(_recording_features(manifest, recording, data_dir))
     if limit is None and len(extracted) != int(evaluation["component_count"]) // COMPONENTS_PER_RECORDING:
-        raise ValueError(f"{_SPLIT} archive did not process all manifest recordings")
+        raise ValueError("Evaluation archive did not process all manifest recordings")
     features = tuple(np.concatenate([recording[index] for recording in extracted], axis=3) for index in range(3))
     expected_count = len(extracted) * COMPONENTS_PER_RECORDING
     if any(feature.shape[3] != expected_count for feature in features):
-        raise ValueError(f"{_SPLIT} archive has the wrong component count")
+        raise ValueError("Evaluation archive has the wrong component count")
     _write_archive(output_path, features)
-    print(f"ARCHIVE {_SPLIT} {output_path} components={expected_count}", flush=True)
+    print(f"ARCHIVE {output_path} components={expected_count}", flush=True)
 
 
 def main() -> None:
@@ -196,8 +207,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = load_frozen_manifest(args.manifest)
-    build_evaluation_archive(manifest, args.data_dir, args.output_dir / f"{_SPLIT}_features.npz", args.limit)
-    print(json.dumps({"status": "complete", "splits": [_SPLIT]}), flush=True)
+    build_evaluation_archive(manifest, args.data_dir, args.output_dir / DEFAULT_EVALUATION_FEATURES.name, args.limit)
 
 
 if __name__ == "__main__":

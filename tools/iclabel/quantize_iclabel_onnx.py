@@ -32,6 +32,12 @@ one in the report. The quantize step exits nonzero, without writing the
 report, when the gate fails. If ``netICL.mat`` itself changes, first refreeze
 the teacher with :func:`write_teacher_probabilities` (the command is recorded
 in ``evaluation_manifest.json``) and update the SHA-256 recorded there.
+
+CI runs the export and quantize steps into a temporary directory with
+``--require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx`` and
+``--require-matching-report tools/iclabel/parity_report.json``, so the
+committed model and the gate numbers in the committed report are reproduced
+from ``netICL.mat`` on every run.
 """
 
 from __future__ import annotations
@@ -62,6 +68,13 @@ DEFAULT_TEACHER_PROBABILITIES = Path(__file__).with_name("evaluation_teacher_pro
 DEFAULT_REPORT = Path(__file__).with_name("parity_report.json")
 COMPONENTS_PER_RECORDING = 31
 _HASH_CHUNK_SIZE = 1024 * 1024
+# ONNX Runtime float32 results for these probabilities differ across CPUs by
+# about 1e-6 (eager PyTorch versus ONNX Runtime: 1.19e-06 on the evaluation
+# set), and the drift metrics move by at most as much. The other metrics are
+# counts and ratios whose decisions sit at least 0.0024 from a tie or threshold,
+# so they must match exactly.
+_DRIFT_METRICS = ("max_probability_abs_diff", "mean_probability_abs_diff")
+_DRIFT_METRIC_TOLERANCE = 1e-5
 
 
 def _sha256(path: Path) -> str:
@@ -219,41 +232,41 @@ def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.
 
 def compare_predictions(
     teacher: np.ndarray,
-    candidate: np.ndarray,
+    model_probabilities: np.ndarray,
     thresholds: np.ndarray = DEFAULT_ICFLAG_THRESHOLDS,
 ) -> dict[str, Any]:
-    """Compare probabilities, class labels, and ICLabel keep/reject decisions."""
+    """Compare model probabilities with the teacher's: values, class labels, and keep/reject decisions."""
     teacher = np.asarray(teacher, dtype=float)
-    candidate = np.asarray(candidate, dtype=float)
-    if teacher.shape != candidate.shape or teacher.ndim != 2 or teacher.shape[1] != len(ICLABEL_CLASSES):
+    model_probabilities = np.asarray(model_probabilities, dtype=float)
+    if teacher.shape != model_probabilities.shape or teacher.ndim != 2 or teacher.shape[1] != len(ICLABEL_CLASSES):
         raise ValueError("ICLabel predictions must be matching (components, 7) arrays")
-    if not np.isfinite(teacher).all() or not np.isfinite(candidate).all():
+    if not np.isfinite(teacher).all() or not np.isfinite(model_probabilities).all():
         raise ValueError("ICLabel predictions must be finite")
 
     teacher_labels = np.argmax(teacher, axis=1)
-    candidate_labels = np.argmax(candidate, axis=1)
+    model_labels = np.argmax(model_probabilities, axis=1)
     teacher_reject = _rejection_flags(teacher, thresholds)
-    candidate_reject = _rejection_flags(candidate, thresholds)
+    model_reject = _rejection_flags(model_probabilities, thresholds)
     per_class: dict[str, dict[str, Any]] = {}
     for class_index, class_name in enumerate(ICLABEL_CLASSES):
         selected = teacher_labels == class_index
         count = int(np.sum(selected))
         per_class[class_name] = {
             "count": count,
-            "agreement": None if count == 0 else float(np.mean(candidate_labels[selected] == class_index)),
+            "agreement": None if count == 0 else float(np.mean(model_labels[selected] == class_index)),
         }
 
     return {
         "sample_count": int(teacher.shape[0]),
-        "max_probability_abs_diff": float(np.max(np.abs(teacher - candidate))),
-        "mean_probability_abs_diff": float(np.mean(np.abs(teacher - candidate))),
-        "top1_agreement": float(np.mean(teacher_labels == candidate_labels)),
-        "keep_reject_agreement": float(np.mean(teacher_reject == candidate_reject)),
+        "max_probability_abs_diff": float(np.max(np.abs(teacher - model_probabilities))),
+        "mean_probability_abs_diff": float(np.mean(np.abs(teacher - model_probabilities))),
+        "top1_agreement": float(np.mean(teacher_labels == model_labels)),
+        "keep_reject_agreement": float(np.mean(teacher_reject == model_reject)),
         "teacher_class_distribution": {
             name: int(np.sum(teacher_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
         },
-        "candidate_class_distribution": {
-            name: int(np.sum(candidate_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
+        "model_class_distribution": {
+            name: int(np.sum(model_labels == index)) for index, name in enumerate(ICLABEL_CLASSES)
         },
         "per_class_agreement": per_class,
     }
@@ -273,6 +286,27 @@ def gate_failures(metrics: Mapping[str, Any]) -> list[str]:
     if not drift <= MAX_PROBABILITY_ABS_DIFF:
         failures.append(f"maximum probability difference {drift:.6f} exceeds {MAX_PROBABILITY_ABS_DIFF}")
     return failures
+
+
+def report_mismatches(report: Mapping[str, Any], reference: Mapping[str, Any]) -> list[str]:
+    """List where the gate or metrics of ``report`` differ from those of ``reference``.
+
+    The two drift metrics may differ by ``_DRIFT_METRIC_TOLERANCE``; every
+    other gate and metric value must be equal.
+    """
+    mismatches = []
+    if report["gate"] != reference["gate"]:
+        mismatches.append(f"gate: {report['gate']} != {reference['gate']}")
+    metrics, expected = report["metrics"], reference["metrics"]
+    for key in sorted(metrics.keys() | expected.keys()):
+        actual, wanted = metrics.get(key), expected.get(key)
+        if key in _DRIFT_METRICS and actual is not None and wanted is not None:
+            matches = abs(actual - wanted) <= _DRIFT_METRIC_TOLERANCE
+        else:
+            matches = actual == wanted
+        if not matches:
+            mismatches.append(f"metrics.{key}: {actual!r} != {wanted!r}")
+    return mismatches
 
 
 def quantize_weight_only(model_input: Path, model_output: Path) -> Path:
@@ -400,6 +434,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         type=Path,
         help="fail unless the new model's raw outputs on the evaluation features equal this model's exactly",
     )
+    parser.add_argument(
+        "--require-matching-report",
+        type=Path,
+        help="fail unless the new report's gate and metrics match this committed report",
+    )
     args = parser.parse_args(argv)
 
     model = quantize_weight_only(args.float32_artifact, args.output)
@@ -409,11 +448,22 @@ def main(argv: Sequence[str] | None = None) -> None:
     if failures:
         raise SystemExit(f"ICLabel int8 model {model} failed the frozen gate: {'; '.join(failures)}")
     if args.require_identical_to is not None:
+        # Both models run here, in the same ONNX Runtime on the same CPU, so kernel
+        # differences between machines cancel and exact equality is platform
+        # independent: it fails only when the two networks differ.
         features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, load_frozen_manifest())
         if not np.array_equal(run_network(model, features), run_network(args.require_identical_to, features)):
             raise SystemExit(
                 f"ICLabel int8 model {model} is not numerically identical to {args.require_identical_to} "
                 "on the evaluation features"
+            )
+    if args.require_matching_report is not None:
+        reference = json.loads(args.require_matching_report.read_text(encoding="utf-8"))
+        mismatches = report_mismatches(report, reference)
+        if mismatches:
+            raise SystemExit(
+                f"ICLabel parity report for {model} does not match {args.require_matching_report}: "
+                + "; ".join(mismatches)
             )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("w", encoding="utf-8") as handle:

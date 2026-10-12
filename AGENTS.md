@@ -76,7 +76,7 @@ Primary references:
 - Touch only files you must. Do not refactor adjacent code, reformat unrelated blocks, or delete pre-existing dead code unless asked.
 - Remove imports, variables, functions, and files that your change made unused. Do not clean up pre-existing dead code unless asked.
 - Match existing local style, even where it is imperfect.
-- All imports go at the top. No local imports except for circular dependency breaks or optional dependency guards. Do not use `TYPE_CHECKING` guards; fix cycles structurally, often with protocols or smaller modules.
+- All imports go at the top. No local imports except for circular dependency breaks, optional dependency guards, or lazy imports that keep a heavy import chain out of a light import path when a test pins that behavior (for example `get_eeglab` in `plugins/clean_rawdata/private/ransac.py`, so that `import runica` does not load `mne`; pinned by `tests/test_runica_matmul.py` and `tests/test_optional_extras.py`). Do not use `TYPE_CHECKING` guards; fix cycles structurally, often with protocols or smaller modules.
 - Prefer top-level functions over classes when code does not mutate shared state. Avoid deep inheritance.
 - Use early returns to reduce nesting.
 - Prefer logging over `print`, except in scripts and temporary debugging.

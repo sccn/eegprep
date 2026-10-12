@@ -3,7 +3,7 @@ import asyncio
 import numpy as np
 import pytest
 
-from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, _apply_save_metadata
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.plugins.ICLabel.iclabel import iclabel
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
@@ -151,8 +151,13 @@ def _store_new(session):
             lambda session: session.CURRENTSET == [1],
         ),
         (_store_new, "the dataset selection changed", lambda session: session.EEG["setname"] == "stored as new"),
+        (
+            lambda session: _apply_save_metadata(session.EEG, "/data/first_save.set"),
+            "the selected dataset was modified",
+            lambda session: session.EEG["filename"] == "first_save.set",
+        ),
     ],
-    ids=["data-edit", "putmask", "retrieve", "store-new"],
+    ids=["data-edit", "putmask", "retrieve", "store-new", "first-save-names-the-file"],
 )
 def test_gui_edit_during_async_iclabel_discards_the_result_and_keeps_the_edit(
     sample_ica_eeg, monkeypatch, during, message, edit_survives
@@ -177,7 +182,7 @@ def test_gui_edit_during_async_iclabel_discards_the_result_and_keeps_the_edit(
         lambda session: session.mark_current_saved(),
         lambda session: session.ALLEEG[0].update(setname="unselected edit"),
     ],
-    ids=["refresh", "plot-history", "save", "unselected-dataset"],
+    ids=["refresh", "plot-history", "marks-saved", "unselected-dataset"],
 )
 def test_gui_benign_actions_during_async_iclabel_keep_the_result(sample_ica_eeg, monkeypatch, during):
     session = _session(sample_ica_eeg, "first", "second")
@@ -188,6 +193,17 @@ def test_gui_benign_actions_during_async_iclabel_keep_the_result(sample_ica_eeg,
     assert session.CURRENTSET == [2]
     assert _classifications(session.EEG).shape == (32, 7)
     assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+
+
+@pytest.mark.parametrize("version", ["lite", "beta"])
+def test_browser_requests_for_other_networks_do_not_advise_unavailable_engines(monkeypatch, version):
+    """Under Emscripten the MATLAB and Octave engines do not exist, so the error must not point at them."""
+    monkeypatch.setattr("eegprep.plugins.ICLabel.iclabel.IS_EMSCRIPTEN", True)
+
+    with pytest.raises(NotImplementedError, match="available in the browser") as excinfo:
+        asyncio.run(pop_iclabel_async(_eeg(), version, gui=False))
+
+    assert "engine='matlab'" not in str(excinfo.value)
 
 
 def test_gui_second_iclabel_dispatch_while_the_first_is_pending_is_discarded(sample_ica_eeg, monkeypatch):

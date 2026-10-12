@@ -1,13 +1,17 @@
 import hashlib
+import http.server
+import io
 import json
+import threading
 from pathlib import Path
+from urllib.error import HTTPError
 
 import numpy as np
 import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
-from tools.iclabel.freeze_iclabel_evaluation import _feature_archive_is_valid
+from tools.iclabel.freeze_iclabel_evaluation import _download_recording, _feature_archive_is_valid, _verify_recording
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_EVALUATION_FEATURES,
     DEFAULT_FROZEN_MANIFEST,
@@ -25,6 +29,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
     load_verified_teacher,
     main,
     network_inputs_from_features,
+    report_mismatches,
 )
 
 
@@ -87,10 +92,10 @@ def test_compare_predictions_reports_overall_and_per_class_agreement():
             [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.70],
         ]
     )
-    candidate = teacher.copy()
-    candidate[3] = [0.55, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
+    model_probabilities = teacher.copy()
+    model_probabilities[3] = [0.55, 0.05, 0.05, 0.05, 0.05, 0.05, 0.40]
 
-    metrics = compare_predictions(teacher, candidate)
+    metrics = compare_predictions(teacher, model_probabilities)
 
     assert metrics["top1_agreement"] == pytest.approx(0.75)
     assert metrics["keep_reject_agreement"] == pytest.approx(1.0)
@@ -110,7 +115,7 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
             [0.0, 0.0, 0.9, 0.0, 0.0, 0.0, 0.1],
         ]
     )
-    candidate = np.array(
+    model_probabilities = np.array(
         [
             [0.8999, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1001],
             [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -129,7 +134,7 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
         ]
     )
 
-    metrics = compare_predictions(teacher, candidate, thresholds)
+    metrics = compare_predictions(teacher, model_probabilities, thresholds)
 
     assert metrics["top1_agreement"] == pytest.approx(1.0)
     assert metrics["keep_reject_agreement"] == pytest.approx(0.0)
@@ -146,6 +151,7 @@ def test_gate_passes_with_every_metric_on_its_boundary():
         ("keep_reject_agreement", np.nextafter(MIN_KEEP_REJECT_AGREEMENT, -np.inf), "keep-or-reject agreement"),
         ("max_probability_abs_diff", np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), "maximum probability"),
         ("top1_agreement", np.nan, "top-1 agreement"),
+        ("keep_reject_agreement", np.nan, "keep-or-reject agreement"),
         ("max_probability_abs_diff", np.nan, "maximum probability"),
     ),
 )
@@ -240,12 +246,29 @@ def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model()
 
     report = evaluate_model(PACKAGED_MODEL)
 
-    # Probability metrics can differ in the last float32 bits across CPUs, so
-    # only the gate verdict and the platform-independent fields must match.
     assert gate_failures(report["metrics"]) == []
+    assert report_mismatches(report, committed) == []
     assert {key: value for key, value in report.items() if key != "metrics"} == {
         key: value for key, value in committed.items() if key != "metrics"
     }
+
+
+def test_report_mismatches_allow_only_cross_cpu_drift_noise():
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    drift = committed["metrics"]["max_probability_abs_diff"]
+
+    def with_metric(key, value):
+        return {**committed, "metrics": {**committed["metrics"], key: value}}
+
+    assert report_mismatches(committed, committed) == []
+    assert report_mismatches(with_metric("max_probability_abs_diff", drift + 1e-6), committed) == []
+    assert report_mismatches(with_metric("max_probability_abs_diff", drift + 1e-4), committed) == [
+        f"metrics.max_probability_abs_diff: {drift + 1e-4!r} != {drift!r}"
+    ]
+    distribution = {**committed["metrics"]["model_class_distribution"], "Brain": 17, "Other": 194}
+    assert len(report_mismatches(with_metric("model_class_distribution", distribution), committed)) == 1
+    stricter_gate = {**committed, "gate": {**committed["gate"], "maximum_probability_abs_diff": 0.01}}
+    assert report_mismatches(stricter_gate, committed)[0].startswith("gate: ")
 
 
 @pytest.fixture(scope="module")
@@ -277,6 +300,8 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
             str(report_path),
             "--require-identical-to",
             str(PACKAGED_MODEL),
+            "--require-matching-report",
+            str(DEFAULT_REPORT),
         ]
     )
 
@@ -285,6 +310,54 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
     tensor_types = {value.type.tensor_type.elem_type for value in (*model.graph.input, *model.graph.output)}
     assert tensor_types == {onnx.TensorProto.FLOAT}
     assert {"DequantizeLinear", "Softmax"} <= {node.op_type for node in model.graph.node}
+
+
+def test_regeneration_fails_without_a_report_when_the_required_model_differs(float32_export, tmp_path):
+    # The int8 model passes the gate but is not the float32 network it is
+    # required to reproduce here.
+    report_path = tmp_path / "parity_report.json"
+
+    with pytest.raises(SystemExit, match="not numerically identical"):
+        main(
+            [
+                "--float32-artifact",
+                str(float32_export),
+                "--output",
+                str(tmp_path / "iclabel.onnx"),
+                "--report",
+                str(report_path),
+                "--require-identical-to",
+                str(float32_export),
+            ]
+        )
+
+    assert not report_path.exists()
+
+
+def test_regeneration_fails_without_a_report_when_the_committed_report_differs(float32_export, tmp_path):
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    stale = tmp_path / "stale_parity_report.json"
+    stale.write_text(
+        json.dumps({**committed, "metrics": {**committed["metrics"], "mean_probability_abs_diff": 0.002}}),
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "parity_report.json"
+
+    with pytest.raises(SystemExit, match="mean_probability_abs_diff"):
+        main(
+            [
+                "--float32-artifact",
+                str(float32_export),
+                "--output",
+                str(tmp_path / "iclabel.onnx"),
+                "--report",
+                str(report_path),
+                "--require-matching-report",
+                str(stale),
+            ]
+        )
+
+    assert not report_path.exists()
 
 
 def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_export, tmp_path):
@@ -309,9 +382,176 @@ def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_exp
     assert not report_path.exists()
 
 
-def test_freeze_reports_an_unreadable_feature_checkpoint_before_recomputing(tmp_path, capsys):
+def _checkpoint_bytes(components=31, value=0.0):
+    buffer = io.BytesIO()
+    np.savez_compressed(
+        buffer,
+        topo=np.full((32, 32, 1, components), value, dtype=np.float32),
+        psd=np.zeros((1, 100, 1, components), dtype=np.float32),
+        autocorr=np.zeros((1, 100, 1, components), dtype=np.float32),
+    )
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("contents", "reason"),
+    (
+        (b"", "is unreadable (EOFError"),
+        (_checkpoint_bytes()[: len(_checkpoint_bytes()) // 2], "is unreadable (BadZipFile"),
+        (b"not an npz archive", "is unreadable"),
+        (_checkpoint_bytes(components=30), "has shapes"),
+        (_checkpoint_bytes(value=np.nan), "contains non-finite values"),
+    ),
+    ids=("zero-byte", "truncated", "not-npz", "wrong-component-count", "non-finite"),
+)
+def test_freeze_logs_why_it_recomputes_a_feature_checkpoint(tmp_path, capsys, contents, reason):
     checkpoint = tmp_path / "sub-002.npz"
-    checkpoint.write_bytes(b"not an npz archive")
+    checkpoint.write_bytes(contents)
 
     assert _feature_archive_is_valid(checkpoint) is False
-    assert f"RECOMPUTE unreadable feature checkpoint {checkpoint}" in capsys.readouterr().err
+    assert f"RECOMPUTE feature checkpoint {checkpoint} {reason}" in capsys.readouterr().err
+
+
+def test_freeze_reuses_a_valid_feature_checkpoint_silently(tmp_path, capsys):
+    checkpoint = tmp_path / "sub-002.npz"
+    checkpoint.write_bytes(_checkpoint_bytes())
+
+    assert _feature_archive_is_valid(checkpoint) is True
+    assert capsys.readouterr().err == ""
+
+
+_RECORDING_BYTES = b"EEGLAB set file stand-in" * 64
+_RECORDING = {
+    "subject": "sub-002",
+    "source_path": "sub-002/ses-01/eeg/sub-002_ses-01_task-gonogo_run-1_eeg.set",
+    "git_annex_key": "MD5E-s1536--recording.set",
+    "size_bytes": len(_RECORDING_BYTES),
+    "md5": hashlib.md5(_RECORDING_BYTES, usedforsecurity=False).hexdigest(),
+}
+_CORRUPT_RECORDING_BYTES = b"X" * len(_RECORDING_BYTES)
+
+
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    ((_RECORDING_BYTES[:-1], "Size mismatch"), (_CORRUPT_RECORDING_BYTES, "MD5 mismatch")),
+)
+def test_freeze_rejects_a_recording_with_the_wrong_size_or_checksum(tmp_path, contents, message):
+    path = tmp_path / "recording.set"
+    path.write_bytes(contents)
+
+    with pytest.raises(ValueError, match=message):
+        _verify_recording(path, _RECORDING)
+
+
+def test_freeze_accepts_a_recording_that_matches_the_manifest(tmp_path):
+    path = tmp_path / "recording.set"
+    path.write_bytes(_RECORDING_BYTES)
+
+    _verify_recording(path, _RECORDING)
+
+
+class _RecordingServer:
+    """Local HTTP server that answers each path with a queue of (status, body) responses."""
+
+    def __init__(self, responses):
+        self.responses = {path: list(queue) for path, queue in responses.items()}
+        self.requests = []
+        server = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                server.requests.append(self.path)
+                status, body = server.responses[self.path].pop(0)
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self._httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self._httpd.server_port}"
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc_info):
+        self._httpd.shutdown()
+        self._httpd.server_close()
+
+    def manifest(self):
+        return {
+            "dataset": {
+                "s3_object_url_template": self.url + "/nemar/{git_annex_key}",
+                "openneuro_s3_url_template": self.url + "/openneuro/{source_path}",
+            }
+        }
+
+
+_NEMAR_PATH = "/nemar/" + _RECORDING["git_annex_key"]
+_OPENNEURO_PATH = "/openneuro/" + _RECORDING["source_path"]
+
+
+@pytest.mark.parametrize(
+    ("responses", "expected_requests"),
+    (
+        ({_NEMAR_PATH: [(200, _RECORDING_BYTES)]}, [_NEMAR_PATH]),
+        (
+            {_NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES), (200, _CORRUPT_RECORDING_BYTES), (200, _RECORDING_BYTES)]},
+            [_NEMAR_PATH] * 3,
+        ),
+        ({_NEMAR_PATH: [(404, b"")], _OPENNEURO_PATH: [(200, _RECORDING_BYTES)]}, [_NEMAR_PATH, _OPENNEURO_PATH]),
+        (
+            {_NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3, _OPENNEURO_PATH: [(200, _RECORDING_BYTES)]},
+            [_NEMAR_PATH] * 3 + [_OPENNEURO_PATH],
+        ),
+    ),
+    ids=("first-try", "retry-after-checksum-mismatch", "fallback-after-404", "fallback-after-three-mismatches"),
+)
+def test_freeze_download_retries_and_falls_back_until_the_checksum_matches(tmp_path, responses, expected_requests):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+
+    with _RecordingServer(responses) as server:
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == expected_requests
+    assert path.read_bytes() == _RECORDING_BYTES
+    assert not path.with_name(path.name + ".part").exists()
+
+
+def test_freeze_download_fails_when_both_sources_serve_bad_data(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+    responses = {
+        _NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3,
+        _OPENNEURO_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3,
+    }
+
+    with _RecordingServer(responses) as server, pytest.raises(ValueError, match="MD5 mismatch"):
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert not path.exists()
+    assert not path.with_name(path.name + ".part").exists()
+
+
+def test_freeze_download_does_not_fall_back_after_a_server_error(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+
+    with _RecordingServer({_NEMAR_PATH: [(500, b"")]}) as server, pytest.raises(HTTPError):
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == [_NEMAR_PATH]
+    assert not path.exists()
+
+
+def test_freeze_download_reuses_a_verified_recording_without_a_request(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+    path.parent.mkdir(parents=True)
+    path.write_bytes(_RECORDING_BYTES)
+
+    with _RecordingServer({}) as server:
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == []

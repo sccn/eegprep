@@ -57,8 +57,8 @@
   "generation": {
     "script": "tools/iclabel/freeze_iclabel_evaluation.py",
     "command": "MNE_DONTWRITE_HOME=true OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run --no-sync python -m tools.iclabel.freeze_iclabel_evaluation --manifest tools/iclabel/evaluation_manifest.json --data-dir <DATA_DIR> --output-dir tools/iclabel",
-    "data_directory_layout": "The script stores verified public .set objects below <DATA_DIR>/evaluation/<source_path> and resumable per-recording feature checkpoints below <DATA_DIR>/features/evaluation/<subject>.npz.",
-    "resume_rule": "Existing recordings are accepted only when their manifest size and MD5 match; existing feature checkpoints are accepted only when their expected float32 shapes and finiteness checks pass."
+    "data_directory_layout": "The script stores verified public .set objects below <DATA_DIR>/<source_path> and resumable per-recording feature checkpoints below <DATA_DIR>/features/<subject>.npz.",
+    "resume_rule": "Existing recordings are accepted only when their manifest size and MD5 match; existing feature checkpoints are accepted only when they load and pass the expected float32 shape and finiteness checks; any other checkpoint is logged and recomputed."
   },
   "evaluation": {
     "component_count": 217,

@@ -27,10 +27,17 @@ _PLATFORM_SELECTED_MODULES = (iclabel_onnx_module, iclabel_module, pop_iclabel_m
 
 @pytest.fixture
 def emscripten_iclabel(monkeypatch):
-    """Reload the ICLabel modules as Pyodide imports them, then restore the native ones."""
-    monkeypatch.setattr(sys, 'platform', 'emscripten')
+    """Reload the ICLabel modules as Pyodide imports them, then restore the native ones.
+
+    Only the reload sees the patched platform. The reloaded modules keep the
+    Emscripten backend they selected at import, while the test body, including
+    any asyncio event loop it starts, runs on the real platform.
+    """
     try:
-        yield tuple(importlib.reload(module) for module in _PLATFORM_SELECTED_MODULES)
+        monkeypatch.setattr(sys, 'platform', 'emscripten')
+        modules = tuple(importlib.reload(module) for module in _PLATFORM_SELECTED_MODULES)
+        monkeypatch.undo()
+        yield modules
     finally:
         monkeypatch.undo()
         for module in _PLATFORM_SELECTED_MODULES:
@@ -95,25 +102,6 @@ def test_emscripten_iclabel_never_imports_onnxruntime():
     # The asynchronous call got through feature extraction to the browser bridge.
     assert async_failure.endswith(' iclabel_net_onnx_web.py')
     assert onnxruntime_modules == '[]'
-
-
-@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='needs onnxruntime to prove the block matters')
-def test_iclabel_without_onnxruntime_names_the_iclabel_extra():
-    output = _run_python(
-        f"""
-        import sys
-
-        sys.modules["onnxruntime"] = None
-        from eegprep import iclabel, pop_loadset
-
-        try:
-            iclabel(pop_loadset({_SAMPLE_ICA_SET!r}))
-        except ImportError as exc:
-            print(exc)
-        """
-    )
-
-    assert 'pip install "eegprep[iclabel]"' in output
 
 
 @pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')

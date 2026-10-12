@@ -57,14 +57,17 @@ dependencies = [
 # onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full sequence. Not
 # needed to run ICLabel, and deliberately left out of ``all``; the iclabel extra is the runtime.
 # torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
-# export script passes.
+# export script passes: the keyword exists on torch.onnx.utils.export, which torch.onnx.export
+# re-exports, from 2.4.0 (it is absent from the signature in 2.3.1).
 torch = [
   "torch>=2.4",
   "onnx>=1.14",
 ]
-# Runtime for ICLabel classification (pop_iclabel, iclabel).
+# Runtime for ICLabel classification (pop_iclabel, iclabel). 1.20 is the first release usable with
+# the base numpy>=2.1 on every supported Python: 1.18.1 pins numpy<2 (1.18.0 is built against numpy
+# 1.x), 1.19 added numpy 2 support, and 1.20 added the first cp313 wheels (requires-python is >=3.12).
 iclabel = [
-  "onnxruntime>=1.18",
+  "onnxruntime>=1.20",
 ]
 gui = [
   "pyqtgraph>=0.13.7",

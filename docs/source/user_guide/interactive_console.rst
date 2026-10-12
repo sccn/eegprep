@@ -86,7 +86,7 @@ Browser ICLabel
 ===============
 
 When the console is hosted inside a Pyodide/Emscripten browser runtime, ICLabel
-uses the asynchronous ONNX Runtime Web path. Run it with ``await`` so the
+uses the asynchronous Open Neural Network Exchange (ONNX) Runtime Web path. Run it with ``await`` so the
 result is committed to the same GUI/console session:
 
 .. code-block:: python
@@ -104,7 +104,7 @@ recommended for UI responsiveness. The async history command is recorded with
 
    await eegh(1)
 
-For an entry that contains ``await``, ``eegh(n)`` returns an awaitable instead of running it,
+For an entry that has a top-level ``await``, ``eegh(n)`` returns an awaitable instead of running it,
 so always replay such entries with ``await eegh(n)``.
 
 The result is stored only if the selected datasets are unchanged when classification finishes.
@@ -113,11 +113,11 @@ or edit the data, events, channel locations, or any other field of a selected da
 ``pop_iclabel_async`` raises ``RuntimeError``, keeps your edit, and discards the result;
 run it again on the current dataset.
 Recording history, a change of the ``saved`` flag, refreshing the GUI, and edits to unselected datasets do not discard it.
-A second ``pop_iclabel_async`` started while the first is running is discarded once the first stores its result.
+When two ``pop_iclabel_async`` calls overlap, the first to finish stores its result and the other is discarded.
 
 The check covers the console's ``pop_iclabel_async`` and ``eegprep.pop_iclabel_async``, which store their result.
 ``iclabel_async`` only returns a classified copy and stores nothing, so it is not checked.
-A function imported from its defining module, such as ``eegprep.plugins.ICLabel.pop_iclabel``, is the plain function:
+A function imported from its defining module, as in ``from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async``, is the plain function:
 assigning its result to ``EEG`` stores it like any other assignment, without the check.
 
 In-place Workspace Edits

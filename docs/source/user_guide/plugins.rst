@@ -126,7 +126,7 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network as an ONNX
+The standalone Python engine ships the default ICLabel network as an Open Neural Network Exchange (ONNX)
 artifact and classifies through ``onnxruntime`` (``eegprep[iclabel]``). ``lite``
 and ``beta`` network requests require MATLAB or Octave with an EEGLAB
 ICLabel checkout that provides those artifacts. How closely the packaged

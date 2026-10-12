@@ -146,7 +146,7 @@ jobs:
           if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
             echo "::error::Packaged ICLabel network differs from the source artifact"; exit 1
           fi
-          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1)
+          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1 || true)
           if [ -z "$sdist_model_path" ]; then
             echo "::error::ICLabel network (iclabel.onnx) missing from the sdist"; exit 1
           fi
@@ -181,10 +181,11 @@ jobs:
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck
           wheel=$(ls dist/*.whl)
-          # Pin onnxruntime to the uv.lock version that produced
-          # tools/iclabel/parity_report.json and that the test suite runs, so the
-          # released model is smoke-tested on the runtime it was validated with.
-          # Users still get any version the iclabel extra allows; bump this with uv.lock.
+          # Pin onnxruntime to the uv.lock version that the frozen teacher
+          # probabilities were computed with (tools/iclabel/evaluation_manifest.json)
+          # and that the test suite runs, so the released model is smoke-tested on
+          # the runtime it was validated with. Users still get any version the
+          # iclabel extra allows; bump this with uv.lock.
           VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep

@@ -7,6 +7,7 @@ import scipy.signal
 import scipy.linalg
 
 from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
+from .asr_process import DEFAULT_MAX_MEM_MB
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
 from .private.yulewalk import yulewalk
@@ -104,7 +105,7 @@ def asr_calibrate(
     if blocksize is None:
         blocksize = 10
     if maxmem is None:
-        maxmem = 64  # in MB
+        maxmem = DEFAULT_MAX_MEM_MB
     if window_len is None:
         window_len = 0.5
     if window_overlap is None:

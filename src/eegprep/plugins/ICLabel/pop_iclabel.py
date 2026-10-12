@@ -25,7 +25,8 @@ def pop_iclabel(
 
     Args:
         EEG: EEG dataset, or a list of datasets, each with an ICA
-            decomposition. ``None`` returns ``None`` without doing anything.
+            decomposition. ``None`` returns ``None`` (``(None, "")`` with
+            ``return_com=True``) without doing anything.
         icversion: ICLabel network: ``'default'``, ``'lite'``, or ``'beta'``
             (case-insensitive). Only ``'default'`` ships with EEGPrep.
         gui: Show the version dialog first. Defaults to ``True`` when
@@ -40,13 +41,17 @@ def pop_iclabel(
         The labeled dataset (or list of datasets); with ``return_com=True``, a
         ``(EEG, command)`` tuple whose command is
         ``"EEG = pop_iclabel(EEG, 'default');"`` for the default network.
-        If the dialog is cancelled, ``EEG`` is returned unchanged with an
+        If the dialog is canceled, ``EEG`` is returned unchanged with an
         empty command.
 
     Raises:
         RuntimeError: Under Emscripten (Pyodide); use :func:`pop_iclabel_async`.
         ValueError: If a dataset has no ICA decomposition or ``icversion`` is
             not supported.
+        NotImplementedError: If ``icversion`` is ``'lite'`` or ``'beta'`` with
+            ``engine=None``.
+        ImportError: If ``engine=None`` and onnxruntime is not installed; the
+            message names the ``eegprep[iclabel]`` extra.
     """
     require_sync_backend(engine)
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
@@ -73,14 +78,16 @@ async def pop_iclabel_async(
 
     The awaitable counterpart of :func:`pop_iclabel` and the ICLabel entry
     point under Emscripten (Pyodide), where the network runs through the
-    host's ONNX Runtime Web session. On native platforms it returns exactly
-    what :func:`pop_iclabel` returns; see
+    host's ONNX Runtime Web session. It returns the same datasets as
+    :func:`pop_iclabel`; with ``return_com=True`` only the history command
+    differs, because it contains ``await``. See
     :func:`eegprep.plugins.ICLabel.iclabel.iclabel_async` for event-loop
     behavior.
 
     Args:
         EEG: EEG dataset, or a list of datasets, each with an ICA
-            decomposition. ``None`` returns ``None`` without doing anything.
+            decomposition. ``None`` returns ``None`` (``(None, "")`` with
+            ``return_com=True``) without doing anything.
         icversion: ICLabel network: ``'default'``, ``'lite'``, or ``'beta'``
             (case-insensitive). Only ``'default'`` ships with EEGPrep.
         gui: Show the version dialog first. Defaults to ``True`` when
@@ -95,12 +102,16 @@ async def pop_iclabel_async(
         ``(EEG, command)`` tuple whose command is
         ``"EEG = await pop_iclabel_async(EEG, 'default');"`` for the default
         network, which replays in ``eegprep-console``. If the dialog is
-        cancelled, ``EEG`` is returned unchanged with an empty command.
+        canceled, ``EEG`` is returned unchanged with an empty command.
 
     Raises:
         RuntimeError: For ``engine='matlab'`` or ``'octave'`` under Emscripten.
         ValueError: If a dataset has no ICA decomposition or ``icversion`` is
             not supported.
+        NotImplementedError: If ``icversion`` is ``'lite'`` or ``'beta'`` with
+            ``engine=None``.
+        ImportError: On native platforms, if ``engine=None`` and onnxruntime is
+            not installed; the message names the ``eegprep[iclabel]`` extra.
     """
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
     if icversion is None:
@@ -114,7 +125,7 @@ async def pop_iclabel_async(
 
 
 def _requested_icversion(EEG, icversion, gui, renderer):
-    """Return the ICLabel version to run, or None when there is no dataset or the dialog was cancelled."""
+    """Return the ICLabel version to run, or None when there is no dataset or the dialog was canceled."""
     if EEG is None:
         return None
     if gui is None:
