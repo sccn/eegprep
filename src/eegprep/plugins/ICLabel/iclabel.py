@@ -122,6 +122,11 @@ def _validate_request(algorithm, engine):
         raise RuntimeError(_ENGINE_UNAVAILABLE_MESSAGE)
     algorithm = _normalize_algorithm(algorithm)
     if engine is None and algorithm != 'default':
+        if IS_EMSCRIPTEN:
+            raise NotImplementedError(
+                f"Only the default ICLabel network (iclabel.onnx) is available in the browser. The '{algorithm}' "
+                "network needs MATLAB or Octave with an EEGLAB ICLabel checkout, which do not exist under Emscripten."
+            )
         raise NotImplementedError(
             "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
             f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
