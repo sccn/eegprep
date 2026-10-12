@@ -157,10 +157,15 @@ jobs:
           if [ "$sdist_model_sha256" != "$source_model_sha256" ]; then
             echo "::error::Sdist ICLabel network differs from the source artifact"; exit 1
           fi
-          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["candidates"]["weight_only"]["sha256"])')
-          report_default_artifact=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["default_artifact"])')
-          if [ "$report_default_artifact" != "iclabel_int8_weight_only.onnx" ] || [ "$source_model_sha256" != "$report_model_sha256" ]; then
-            echo "::error::Source ICLabel network does not match the committed parity report"; exit 1
+          # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
+          # parity gate passes; the shipped model must be the one it describes.
+          report_gate_pass=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["gate_pass"])')
+          if [ "$report_gate_pass" != "True" ]; then
+            echo "::error::tools/iclabel/parity_report.json records a failed ICLabel parity gate"; exit 1
+          fi
+          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
+          if [ "$source_model_sha256" != "$report_model_sha256" ]; then
+            echo "::error::Source ICLabel network does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1
@@ -173,10 +178,13 @@ jobs:
 
       - name: Smoke test the built wheel
         run: |
-          # shellcheck disable=SC1087
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck
           wheel=$(ls dist/*.whl)
+          # Pin onnxruntime to the uv.lock version that produced
+          # tools/iclabel/parity_report.json and that the test suite runs, so the
+          # released model is smoke-tested on the runtime it was validated with.
+          # Users still get any version the iclabel extra allows; bump this with uv.lock.
           VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep
@@ -193,7 +201,7 @@ jobs:
           eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
           labeled = pop_iclabel(eeg, 'default')
           probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
-          assert probabilities.ndim == 2 and probabilities.shape.__getitem__(1) == 7
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
           assert np.isfinite(probabilities).all()
           print('installed-wheel ICLabel smoke test passed')
 
@@ -206,10 +214,10 @@ jobs:
 
       - name: Smoke test the built sdist
         run: |
-          # shellcheck disable=SC1087
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck-sdist
           sdist=$(ls dist/*.tar.gz)
+          # Same onnxruntime pin as the wheel smoke test above.
           VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
           import eegprep
@@ -226,7 +234,7 @@ jobs:
           eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
           labeled = pop_iclabel(eeg, 'default')
           probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
-          assert probabilities.ndim == 2 and probabilities.shape.__getitem__(1) == 7
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
           assert np.isfinite(probabilities).all()
           print('installed-sdist ICLabel smoke test passed')
 

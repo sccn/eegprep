@@ -1,39 +1,37 @@
-"""onnxruntime backend for the packaged ICLabel default network.
+"""ONNX Runtime backend for the packaged ICLabel default network.
 
-This is the runtime counterpart to :mod:`iclabel_net` (the torch definition
-used only to build and export the network). It loads ``iclabel.onnx``, the
-selected packaged artifact produced by the Phase 6 quantization pipeline, and
-runs it through onnxruntime so ICLabel classification does not require torch.
+This is the runtime counterpart to :mod:`iclabel_net`, the PyTorch definition
+used only to export the network. It runs ``iclabel.onnx``, the int8
+weight-only network built by ``tools/iclabel/quantize_iclabel_onnx.py``,
+through onnxruntime, so ICLabel classification does not need PyTorch. Under
+Emscripten (Pyodide) the backend is chosen when this module is first
+imported, and inference goes through the host's ONNX Runtime Web bridge in
+:mod:`iclabel_net_onnx_web` instead.
 """
 
+import functools
 import os
 import sys
 
 import numpy as np
 
-_INPUT_NAMES = ('image', 'psdmed', 'autocorr')
-_OUTPUT_NAME = 'output'
-_IS_EMSCRIPTEN = sys.platform == 'emscripten'
+INPUT_NAMES = ('image', 'psdmed', 'autocorr')
+OUTPUT_NAME = 'output'
+# True in Pyodide, where only the asynchronous ONNX Runtime Web backend exists.
+IS_EMSCRIPTEN = sys.platform == 'emscripten'
 
-_session = None
 
-
+@functools.cache
 def _get_session():
-    global _session
-    if _session is not None:
-        return _session
     try:
         import onnxruntime as ort
     except ImportError as e:
         raise ImportError(
-            f"onnxruntime is not installed in your environment ({e}). "
-            f"To include onnxruntime, install eegprep as eegprep[iclabel] or "
-            f"eegprep[all]."
+            f"ICLabel needs onnxruntime to run its packaged network, but it could not be imported ({e}). "
+            'Install it with: pip install "eegprep[iclabel]" (also included in "eegprep[all]").'
         ) from e
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, 'iclabel.onnx')
-    _session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-    return _session
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'iclabel.onnx')
+    return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 
 def run_iclabel_net(image, psdmed, autocorr):
@@ -49,21 +47,21 @@ def run_iclabel_net(image, psdmed, autocorr):
     numpy.ndarray
         Network output, shaped like the torch model's output.
     """
-    if _IS_EMSCRIPTEN:
+    if IS_EMSCRIPTEN:
         raise RuntimeError(
             "ICLabel synchronous ONNX execution is unavailable under Emscripten; use await run_iclabel_net_async(...)."
         )
     session = _get_session()
     inputs = {
-        _INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
-        _INPUT_NAMES[1]: np.asarray(psdmed, dtype=np.float32),
-        _INPUT_NAMES[2]: np.asarray(autocorr, dtype=np.float32),
+        INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
+        INPUT_NAMES[1]: np.asarray(psdmed, dtype=np.float32),
+        INPUT_NAMES[2]: np.asarray(autocorr, dtype=np.float32),
     }
-    (output,) = session.run([_OUTPUT_NAME], inputs)
+    (output,) = session.run([OUTPUT_NAME], inputs)
     return output
 
 
-if _IS_EMSCRIPTEN:
+if IS_EMSCRIPTEN:
     from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async as _run_iclabel_net_async
 else:
 
