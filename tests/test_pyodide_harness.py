@@ -53,48 +53,51 @@ def test_benchmark_failure_records_the_full_traceback():
     assert summary["median_seconds"] is None
 
 
-def test_compare_reports_applies_convergence_and_blas_gates():
-    def report(platform, runica_seconds, picard_seconds, picard_converged):
-        matmul = []
-        for case in ("activation", "weight_update"):
-            for dtype, operation, blas_seconds in (
-                ("float64", "dgemm", 0.5),
-                ("float32", "sgemm", 0.9 if case == "activation" else 0.5),
-            ):
-                common = {
-                    "case": case,
-                    "dtype": dtype,
-                    "platform": "pyodide",
-                    "seed": 375,
-                    "left_shape": [64, 64],
-                    "right_shape": [64, 49] if case == "activation" else [64, 64],
-                    "median_seconds": 1.0,
-                }
-                matmul.append({**common, "operation": "numpy_matmul"})
-                matmul.append({**common, "operation": operation, "median_seconds": blas_seconds})
-        return {
-            "schema_version": 1,
-            "platform": platform,
-            "seed": 375,
-            "shape": [64, 15_000],
-            "runica_block": 49,
-            "thread_count": 1,
-            "ica": {
-                "runica": {
-                    "median_seconds": runica_seconds,
-                    "median_iterations": 100,
-                    "all_converged": True,
-                },
-                "picard": {
-                    "median_seconds": picard_seconds,
-                    "median_iterations": 50,
-                    "all_converged": picard_converged,
-                },
+def _benchmark_report(platform, runica_seconds, picard_seconds, picard_converged):
+    matmul = []
+    for case in ("activation", "weight_update"):
+        for dtype, operation, blas_seconds in (
+            ("float64", "dgemm", 0.5),
+            ("float32", "sgemm", 0.9 if case == "activation" else 0.5),
+        ):
+            common = {
+                "case": case,
+                "dtype": dtype,
+                "platform": "pyodide",
+                "seed": 375,
+                "left_shape": [64, 64],
+                "right_shape": [64, 49] if case == "activation" else [64, 64],
+                "median_seconds": 1.0,
+            }
+            matmul.append({**common, "operation": "numpy_matmul"})
+            matmul.append({**common, "operation": operation, "median_seconds": blas_seconds})
+    return {
+        "schema_version": 1,
+        "platform": platform,
+        "seed": 375,
+        "shape": [64, 15_000],
+        "runica_block": 49,
+        "thread_count": 1,
+        "ica": {
+            "runica": {
+                "median_seconds": runica_seconds,
+                "median_iterations": 100,
+                "all_converged": True,
             },
-            "matmul": matmul,
-        }
+            "picard": {
+                "median_seconds": picard_seconds,
+                "median_iterations": 50,
+                "all_converged": picard_converged,
+            },
+        },
+        "matmul": matmul,
+    }
 
-    comparison = compare_reports(report("native", 10.0, 5.0, True), report("pyodide", 20.0, 4.0, True))
+
+def test_compare_reports_applies_convergence_and_blas_gates():
+    comparison = compare_reports(
+        _benchmark_report("native", 10.0, 5.0, True), _benchmark_report("pyodide", 20.0, 4.0, True)
+    )
 
     assert comparison["ica"]["runica"]["pyodide_speed_ratio"] == 2.0
     assert comparison["ica"]["runica"]["native_median_iterations"] == 100
@@ -103,6 +106,19 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["matmul"][0]["blas_speedup_over_numpy"] == 2.0
     assert comparison["decisions"]["picard_browser_default_retained"] is True
     assert comparison["decisions"]["blas_recommended"] is False
+
+
+def test_compare_reports_does_not_retain_picard_when_it_did_not_converge_in_the_browser():
+    comparison = compare_reports(
+        _benchmark_report("native", 10.0, 5.0, True), _benchmark_report("pyodide", 20.0, 4.0, False)
+    )
+
+    # Picard is faster and takes fewer iterations than runica, so only convergence can veto it.
+    assert (
+        comparison["ica"]["picard"]["pyodide_median_iterations"]
+        < comparison["ica"]["runica"]["pyodide_median_iterations"]
+    )
+    assert comparison["decisions"]["picard_browser_default_retained"] is False
 
 
 def _iclabel_report(platform, classifications, **overrides):
