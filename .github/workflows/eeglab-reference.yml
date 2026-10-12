@@ -2,11 +2,6 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
-  # Temporary, so a push can start this workflow before it exists on the default
-  # branch. Removed once the run is in progress; cancel-in-progress stays false.
-  push:
-    branches:
-      - cursor/eeglab-reference-ci-9de8
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
