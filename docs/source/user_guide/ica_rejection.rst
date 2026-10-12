@@ -171,12 +171,14 @@ when that runtime has an EEGLAB ICLabel checkout with those artifacts.
 Measured Agreement with the Full-Precision Network
 --------------------------------------------------
 
-Quantization changes the class probabilities slightly. The shipped network was
-compared with the full-precision (float32) network built from the same EEGLAB
-weights on a frozen set of 217 independent components, one recording from each
-of seven subjects of the public OpenNeuro dataset ds002680. The committed
-manifest ``tools/iclabel/evaluation_manifest.json`` records the files and the
-ICA settings. The weight-only network passed all three acceptance criteria:
+Quantization changes the class probabilities slightly. To measure how much,
+the full-precision (float32) network built from the same EEGLAB weights
+classified a frozen set of 217 independent components, one recording from each
+of seven subjects of the public OpenNeuro dataset ds002680, and its
+probabilities were stored once as reference values
+(``tools/iclabel/evaluation_teacher_probabilities.npy``). The committed manifest
+``tools/iclabel/evaluation_manifest.json`` records the recordings and the ICA
+settings. The shipped network passed all three acceptance criteria:
 
 .. list-table::
    :header-rows: 1
@@ -201,8 +203,15 @@ ICA settings. The weight-only network passed all three acceptance criteria:
      - yes
 
 The mean absolute probability difference was 0.00080. "Keep-or-reject" asks
-whether ``pop_icflag`` would flag the component for removal. The complete report is
-``tools/iclabel/parity_report.json``.
+whether ``pop_icflag`` would flag the component for removal. A variant that
+also quantized the activations (calibrated int8) was evaluated during development
+and exceeded the 0.015 probability criterion, so it was not shipped.
+
+The complete report is ``tools/iclabel/parity_report.json``. It records the
+SHA-256 of ``iclabel.onnx``, which the release workflow checks against the
+packaged file. Continuous integration also rebuilds the network from
+``netICL.mat`` and requires it to produce network outputs identical to the
+shipped file's on the evaluation components.
 
 These are measured agreement results on one frozen set, not an accuracy claim.
 The set is dominated by one class: the full-precision network labels 193 of the
