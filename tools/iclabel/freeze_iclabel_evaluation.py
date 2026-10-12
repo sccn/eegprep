@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -26,7 +27,6 @@ from eegprep import ICL_feature_extractor, eeg_runica, pop_loadset
 from tools.iclabel.quantize_iclabel_onnx import COMPONENTS_PER_RECORDING, load_frozen_manifest
 
 
-DEFAULT_DATA_DIR = Path("/private/tmp/eegprep-phase6-iclabel-data")
 DEFAULT_OUTPUT_DIR = Path(__file__).parent
 _SPLIT = "evaluation"
 _CHUNK_SIZE = 1024 * 1024
@@ -93,7 +93,8 @@ def _feature_archive_is_valid(path: Path) -> bool:
     try:
         with np.load(path, allow_pickle=False) as archive:
             arrays = [np.asarray(archive[name], dtype=np.float32) for name in ("topo", "psd", "autocorr")]
-    except (KeyError, OSError, ValueError):
+    except (KeyError, OSError, ValueError) as exc:
+        print(f"RECOMPUTE unreadable feature checkpoint {path}: {exc!r}", file=sys.stderr, flush=True)
         return False
     return (
         arrays[0].shape == (32, 32, 1, COMPONENTS_PER_RECORDING)

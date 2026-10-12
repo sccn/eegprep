@@ -7,6 +7,7 @@ import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
+from tools.iclabel.freeze_iclabel_evaluation import _feature_archive_is_valid
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_EVALUATION_FEATURES,
     DEFAULT_FROZEN_MANIFEST,
@@ -305,3 +306,11 @@ def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_exp
         )
 
     assert not report_path.exists()
+
+
+def test_freeze_reports_an_unreadable_feature_checkpoint_before_recomputing(tmp_path, capsys):
+    checkpoint = tmp_path / "sub-002.npz"
+    checkpoint.write_bytes(b"not an npz archive")
+
+    assert _feature_archive_is_valid(checkpoint) is False
+    assert f"RECOMPUTE unreadable feature checkpoint {checkpoint}" in capsys.readouterr().err

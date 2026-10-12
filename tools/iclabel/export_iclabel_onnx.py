@@ -10,12 +10,12 @@ package.
 Provenance: the exported graph is ``ICLabelNet.forward`` (three convolutional
 branches over the topography image, PSD, and autocorrelation features,
 concatenated and passed through a final conv + softmax), pinned at
-``ONNX_OPSET_VERSION`` below. Feature extraction, input normalization, the
-4-way augmentation, and the post-network averaging (``iclabel.py``) are
+``ONNX_OPSET_VERSION`` below. Feature extraction, float32 casting, the
+four-way augmentation, and the post-network averaging (``iclabel.py``) are
 unchanged by this export; they run in plain numpy before and after the
 network call.
 
-torch is required only to run this script, never at ICLabel classification
+PyTorch is required only to run this script, never at ICLabel classification
 time; the runtime backend is onnxruntime (``eegprep[iclabel]``).
 """
 
@@ -42,8 +42,8 @@ DEFAULT_ONNX_PATH = REPO_ROOT / 'build' / 'iclabel' / 'iclabel_float32.onnx'
 # Concat, and Reshape, all supported since opset 7-9, so the choice is driven
 # by runtime compatibility rather than op coverage: opset 17 has been
 # supported by onnxruntime since 1.14 (2023), giving broad compatibility
-# today while staying modern enough for the onnxruntime-web/wasm target
-# planned for phase 5.
+# while staying modern enough for the ONNX Runtime Web (WebAssembly) backend
+# used in the browser.
 ONNX_OPSET_VERSION = 17
 
 _INPUT_SHAPES = ((1, 1, 32, 32), (1, 1, 1, 100), (1, 1, 1, 100))
@@ -102,7 +102,7 @@ def main() -> None:
     args = parser.parse_args()
 
     onnx_path = export(args.mat_path, args.onnx_path)
-    size_mb = onnx_path.stat().st_size / (1024 * 1024)
+    size_mb = onnx_path.stat().st_size / 1e6
     logger.info("Exported %s (opset %d, %.2f MB)", onnx_path, ONNX_OPSET_VERSION, size_mb)
 
     max_abs_diff = verify(args.mat_path, onnx_path)
