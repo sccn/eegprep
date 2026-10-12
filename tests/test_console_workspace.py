@@ -486,6 +486,44 @@ def test_console_async_iclabel_preserves_ordered_multi_dataset_selection(sample_
     workspace.close()
 
 
+class _DefaultIclabelDialog:
+    """Headless ICLabel version dialog that chooses the default network."""
+
+    def run(self, spec, initial_values=None):
+        return {"icversion": 1}
+
+
+def test_gui_async_iclabel_reaches_the_console_and_replays_there_on_another_dataset(iclabel_console):
+    session, workspace = iclabel_console("first", "second")
+    session.retrieve(1)
+
+    asyncio.run(MenuActionDispatcher(session).dispatch_gui_async("pop_iclabel", None, renderer=_DefaultIclabelDialog()))
+
+    first = workspace.namespace["EEG"]
+    assert first["setname"] == "first"
+    assert first["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert workspace.namespace["ALLCOM"] == [ICLABEL_ASYNC_COMMAND]
+    assert workspace.namespace["LASTCOM"] == ICLABEL_ASYNC_COMMAND
+
+    _run_console(workspace, "CURRENTSET = 2")
+    replayed = asyncio.run(workspace.namespace["eegh"](2))
+
+    second = workspace.namespace["EEG"]
+    assert replayed == ICLABEL_ASYNC_COMMAND
+    assert second is session.ALLEEG[1]
+    assert second["setname"] == "second"
+    np.testing.assert_array_equal(
+        second["etc"]["ic_classification"]["ICLabel"]["classifications"],
+        first["etc"]["ic_classification"]["ICLabel"]["classifications"],
+    )
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND, "CURRENTSET = 2", ICLABEL_ASYNC_COMMAND]
+
+    # As in EEGLAB's eegh, a command identical to the most recent entry is
+    # recorded once, so running ICLabel again adds no second entry.
+    asyncio.run(workspace.namespace["eegh"](1))
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND, "CURRENTSET = 2", ICLABEL_ASYNC_COMMAND]
+
+
 def test_console_async_iclabel_without_ica_raises_and_leaves_the_session_unchanged():
     session = EEGPrepSession()
     session.store_current(_demo_eeg(), new=True)
