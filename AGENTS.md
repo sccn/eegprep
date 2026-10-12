@@ -117,6 +117,7 @@ Primary references:
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.
 - Do not write tautological tests that only assert types, constants, or implementation details.
 - Never relax tolerances or hack around failures without proving the numerical expectation is wrong.
+- `tests/fuzz/tolerances.toml` is human-owned. Those per-function absolute and relative tolerances are changed only by reviewed human pull requests. Agents must not loosen them to hide mismatches.
 - Avoid duplicate fixtures; reuse `tests/fixtures.py` or local helpers already present in the relevant test file.
 
 ## Lint and Format
