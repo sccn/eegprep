@@ -137,5 +137,5 @@ already operates on float64 data, its Emscripten hot-loop products use
 activation and 2.66x for the weight update. Native execution retains NumPy
 `@`, and Picard is not monkeypatched or distributed across workers. The
 comparison script intentionally retains the universal all-dtypes gate, so its
-`phase3_recommended` field remains **false** even though the float64-only
+`blas_recommended` field remains **false** even though the float64-only
 implementation is now covered and benchmarked.

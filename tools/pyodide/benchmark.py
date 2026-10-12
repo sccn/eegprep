@@ -1,4 +1,4 @@
-"""Run the deterministic Phase 2 ICA and matrix-multiplication benchmarks."""
+"""Run the deterministic ICA and matrix-multiplication benchmarks."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 import json
 import statistics
 import time
+import traceback
 import warnings
 from collections.abc import Callable
 from typing import Any
@@ -26,11 +27,11 @@ WARMUP_RUNS = 1
 MEASURED_RUNS = 3
 RUNICA_BLOCK = 49
 MATMUL_REPETITIONS = 3
+# Pyodide has no pthread support, so one instance cannot run several threads for
+# a single ICA call. Keep the native comparison on the same one-thread budget;
+# browser concurrency belongs at the Web Worker/job level rather than inside
+# one ICA call.
 THREAD_COUNT = 1
-
-# Pyodide 0.29.5 has no pthread support. Keep the native comparison on the
-# same one-thread budget; browser concurrency belongs at the Web Worker/job
-# level rather than inside one ICA call.
 
 # These are the two products called out in runica's training loop for 64
 # channels and the default block heuristic at 15,000 frames: the activation
@@ -145,7 +146,7 @@ def _ica_summary(
                     backend=RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
                 )
             )
-        except Exception as exc:  # Keep the raw failure visible before failing the gate.
+        except Exception:  # Keep the full traceback in the report before failing the gate.
             records.append(
                 benchmark_record(
                     algorithm=name,
@@ -156,7 +157,7 @@ def _ica_summary(
                     iterations=None,
                     converged=None,
                     backend=RUNICA_MATMUL_BACKEND if name == "runica" else "picard",
-                    error=f"{type(exc).__name__}: {exc}",
+                    error=traceback.format_exc(),
                 )
             )
 
@@ -222,7 +223,7 @@ def _matmul_summary(*, platform: str, rng: np.random.RandomState) -> list[dict[s
 
 
 def run_benchmark(platform: str) -> dict[str, Any]:
-    """Run all Phase 2 measurements on ``platform`` and return the report."""
+    """Run all measurements on ``platform`` and return the report."""
     rng = np.random.RandomState(SEED)
     data = rng.standard_normal((CHANNELS, FRAMES)).astype(np.float64)
     with threadpool_limits(limits=THREAD_COUNT):

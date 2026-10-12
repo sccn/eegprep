@@ -15,6 +15,7 @@ import pytest
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools import check_pyodide_base_resolution
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
+from tools.pyodide import benchmark
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
@@ -58,6 +59,26 @@ def test_benchmark_uses_runica_inner_loop_product_shapes():
         ((64, 64), (64, 49)),
         ((64, 64), (64, 64)),
     ]
+
+
+def test_benchmark_failure_records_the_full_traceback():
+    calls = []
+
+    def fails_after_warmup(_data):
+        calls.append(1)
+        if len(calls) > benchmark.WARMUP_RUNS:
+            raise ValueError("measured run broke")
+        return 1.0, 10, True
+
+    summary = benchmark._ica_summary(
+        platform="native", data=np.zeros((2, 2)), name="runica", operation=fails_after_warmup
+    )
+
+    error = summary["runs"][0]["error"]
+    assert "Traceback (most recent call last)" in error
+    assert "in fails_after_warmup" in error
+    assert error.rstrip().endswith("ValueError: measured run broke")
+    assert summary["median_seconds"] is None
 
 
 def test_compare_reports_applies_convergence_and_blas_gates():
@@ -109,7 +130,7 @@ def test_compare_reports_applies_convergence_and_blas_gates():
     assert comparison["matmul"][0]["native_blas_speedup_over_numpy"] == 2.0
     assert comparison["matmul"][0]["blas_speedup_over_numpy"] == 2.0
     assert comparison["decisions"]["picard_browser_default_retained"] is True
-    assert comparison["decisions"]["phase3_recommended"] is False
+    assert comparison["decisions"]["blas_recommended"] is False
 
 
 def test_compare_iclabel_reports_applies_established_numeric_tolerance():
