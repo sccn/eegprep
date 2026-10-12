@@ -51,13 +51,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Export-only: regenerates the float32 ICLabel reference from netICL.mat via
-# tools/iclabel/export_iclabel_onnx.py. Not required to run ICLabel
-# classification; see the iclabel extra for that.
+# Developer-only, and very large: rebuilds the float32 ICLabel network from netICL.mat
+# (tools/iclabel/export_iclabel_onnx.py, which needs torch and onnx, and
+# tools/iclabel/quantize_iclabel_onnx.py, which needs onnx) to regenerate the shipped
+# iclabel.onnx. Not needed to run ICLabel, and deliberately left out of ``all``; the iclabel
+# extra is the runtime. torch 2.4 is the first release whose torch.onnx.export accepts the
+# dynamo=False argument the export script passes.
 torch = [
-  "torch>=2.0",
+  "torch>=2.4",
   "onnx>=1.14",
 ]
+# Runtime for ICLabel classification (pop_iclabel, iclabel).
 iclabel = [
   "onnxruntime>=1.18",
 ]
@@ -93,7 +97,6 @@ edf = [
   "pyedflib>=0.1.42",
 ]
 all = [
-  "eegprep[torch]",
   "eegprep[iclabel]",
   "eegprep[gui]",
   "eegprep[console]",

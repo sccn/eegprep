@@ -542,7 +542,6 @@ all = [
     { name = "myst-parser" },
     { name = "numpydoc" },
     { name = "oct2py" },
-    { name = "onnx" },
     { name = "onnxruntime" },
     { name = "psutil" },
     { name = "pydata-sphinx-theme" },
@@ -555,7 +554,6 @@ all = [
     { name = "sphinx-gallery" },
     { name = "sphinx-togglebutton" },
     { name = "sphinxcontrib-spelling" },
-    { name = "torch" },
 ]
 console = [
     { name = "ipython" },
@@ -621,7 +619,6 @@ requires-dist = [
     { name = "eegprep", extras = ["gui"], marker = "extra == 'console'" },
     { name = "eegprep", extras = ["iclabel"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["sys"], marker = "extra == 'all'" },
-    { name = "eegprep", extras = ["torch"], marker = "extra == 'all'" },
     { name = "h5py", specifier = ">=3.12.1" },
     { name = "ipython", marker = "extra == 'console'", specifier = ">=8.0" },
     { name = "matplotlib", specifier = ">=3.8.0" },
@@ -651,7 +648,7 @@ requires-dist = [
     { name = "sphinx-togglebutton", marker = "extra == 'docs'", specifier = ">=0.3.0" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=7.1.0" },
     { name = "threadpoolctl", specifier = ">=3.5.0" },
-    { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
+    { name = "torch", marker = "extra == 'torch'", specifier = ">=2.4" },
 ]
 provides-extras = ["torch", "iclabel", "gui", "console", "docs", "eeglab", "sys", "edf", "all"]
 
