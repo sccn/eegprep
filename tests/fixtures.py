@@ -218,14 +218,34 @@ class GatedIclabelBackend:
 
     def __init__(self):
         self.calls = 0
-        self.started = asyncio.Event()
         self.release = asyncio.Event()
 
     async def __call__(self, image, psdmed, autocorr):
         self.calls += 1
-        self.started.set()
         await self.release.wait()
         return iclabel_net_onnx.run_iclabel_net(image, psdmed, autocorr)
+
+    async def wait_started(self, *tasks, calls=1, timeout=30.0):
+        """Wait until ``calls`` ICLabel calls are suspended in this backend.
+
+        If one of ``tasks`` finishes first, re-raise its exception, so a
+        regression before the backend fails fast with the real error instead of
+        hanging the test.
+        """
+
+        async def reached():
+            while self.calls < calls:
+                await asyncio.sleep(0)
+
+        waiter = asyncio.ensure_future(reached())
+        done, _pending = await asyncio.wait({waiter, *tasks}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+        waiter.cancel()
+        if waiter in done:
+            return
+        for task in done:
+            task.result()
+            raise AssertionError(f"{task!r} finished before {calls} ICLabel call(s) reached the backend")
+        raise AssertionError(f"{calls} ICLabel call(s) did not reach the backend within {timeout} s")
 
 
 def gate_iclabel_backend(monkeypatch):

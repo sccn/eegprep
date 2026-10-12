@@ -228,7 +228,7 @@ def _run_during_console_iclabel(workspace, backend, during):
 
     async def scenario():
         task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
-        await backend.started.wait()
+        await backend.wait_started(task)
         try:
             during()
         finally:
@@ -278,7 +278,7 @@ def test_console_bare_iclabel_async_returns_its_result_without_a_freshness_check
 
     async def scenario():
         task = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
-        await backend.started.wait()
+        await backend.wait_started(task)
         session.retrieve(2)
         backend.release.set()
         return await task
@@ -451,8 +451,7 @@ def test_console_second_concurrent_async_iclabel_reports_the_concurrent_commit(s
     async def scenario():
         first = asyncio.create_task(classify(workspace.namespace["EEG"], "default"))
         second = asyncio.create_task(classify(workspace.namespace["EEG"], "default"))
-        while backend.calls < 2:
-            await asyncio.sleep(0)
+        await backend.wait_started(first, second, calls=2)
         backend.release.set()
         return await asyncio.gather(first, second, return_exceptions=True)
 

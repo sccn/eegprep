@@ -120,7 +120,7 @@ def _run_during_gui_iclabel(session, backend, during):
         task = asyncio.create_task(
             dispatcher.dispatch_gui_async("pop_iclabel", None, renderer=_Renderer({"icversion": 1}))
         )
-        await backend.started.wait()
+        await backend.wait_started(task)
         try:
             during(session)
         finally:
@@ -204,8 +204,7 @@ def test_gui_second_iclabel_dispatch_while_the_first_is_pending_is_discarded(sam
             )
             for _ in range(2)
         ]
-        while backend.calls < 2:
-            await asyncio.sleep(0)
+        await backend.wait_started(*runs, calls=2)
         backend.release.set()
         return await asyncio.gather(*runs, return_exceptions=True)
 

@@ -1146,12 +1146,14 @@ def modal_answers(qt_widgets):
     answers.active = False
 
 
-async def _wait_for(condition, timeout=10.0):
-    async def poll():
-        while not condition():
-            await asyncio.sleep(0.01)
+def _answer_iclabel_dialog_and_next_warning(modal_answers):
+    """Accept the ICLabel version dialog and queue an answer for the next warning.
 
-    await asyncio.wait_for(poll(), timeout)
+    The dispatcher reports action errors in a modal warning, so answering it
+    lets an ICLabel failure before inference fail the test instead of hanging.
+    """
+    modal_answers.answer_next()
+    modal_answers.answer_next()
 
 
 def _pending_tasks():
@@ -1163,10 +1165,11 @@ def test_gui_main_window_runs_async_iclabel_menu_action_on_the_running_loop(emsc
     session = window.session
 
     async def scenario():
-        modal_answers.answer_next()
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
         _iclabel_action(window).trigger()
         assert session.ALLCOM == []
-        await _wait_for(lambda: session.ALLCOM)
+        (task,) = _pending_tasks()
+        await asyncio.wait_for(task, 30)
 
     asyncio.run(scenario())
 
@@ -1200,11 +1203,11 @@ def test_gui_main_window_shows_stale_iclabel_result_warning(emscripten_iclabel_w
     backend = gate_iclabel_backend(monkeypatch)
 
     async def scenario():
-        modal_answers.answer_next()
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
         _iclabel_action(window).trigger()
-        await backend.started.wait()
+        (task,) = _pending_tasks()
+        await backend.wait_started(task)
         session.EEG["setname"] = "edited during inference"
-        modal_answers.answer_next()
         backend.release.set()
         await asyncio.gather(*_pending_tasks())
 
@@ -1225,10 +1228,10 @@ def test_gui_main_window_cancelled_async_menu_action_changes_nothing(
     backend = gate_iclabel_backend(monkeypatch)
 
     async def scenario():
-        modal_answers.answer_next()
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
         _iclabel_action(window).trigger()
-        await backend.started.wait()
         (task,) = _pending_tasks()
+        await backend.wait_started(task)
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
         return task
