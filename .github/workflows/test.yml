@@ -287,6 +287,29 @@ jobs:
         run: |
           uv pip list
 
+  base-install:
+    name: Base install without optional extras
+    runs-on: ubuntu-22.04
+    # Every other job syncs with --all-extras, so a module that quietly needs
+    # an extra (oct2py, psutil, pyedflib, onnxruntime, torch) would pass CI and
+    # fail for a user who runs a plain `pip install eegprep`. This job installs
+    # only the base dependencies and the dev group.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install the base package without extras
+        run: uv sync --python 3.12 --group dev
+
+      - name: Check the optional-extras contract
+        run: |
+          EEGPREP_SKIP_MATLAB=1 QT_QPA_PLATFORM=offscreen uv run --no-sync pytest tests/test_optional_extras.py -q -p no:cacheprovider
+
   pyodide:
     name: Pyodide harness, ICA benchmark, and ICLabel browser parity
     runs-on: ubuntu-22.04
