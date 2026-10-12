@@ -55,11 +55,11 @@ Changed
   Examples are 128 channels at 1000 Hz (93.75 MB overhead, so a 187.5 MB budget) and 256 channels at 512 Hz (192 MB overhead, so a 384 MB budget).
   Block sizes no longer vary with the machine's free memory, but the reconstruction matrix is refreshed on a per-block grid, so output of Artifact Subspace Reconstruction (ASR) differs slightly from 0.4.0 whenever the block layout differs.
   Pass ``max_mem`` explicitly to fix the block layout across machines.
-- ``eegh(n)`` in ``eegprep-console`` returns a coroutine when history entry ``n`` contains ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
-  Run it with ``await eegh(n)``; entries without ``await`` still run immediately.
-- ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran.
-  A result computed against a dataset that changed in the meantime is discarded with a ``RuntimeError`` instead of being committed to the wrong dataset.
-  ``notify_changed`` takes a ``dataset_changed`` flag; the developer notes in :doc:`user_guide/contracts` describe the contract.
+- ``eegh(n)`` in ``eegprep-console`` returns an awaitable only when history entry ``n`` has a top-level ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
+  Run it with ``await eegh(n)``; other entries, including ones that only mention ``await`` inside a string, still run immediately.
+- ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: ``dataset_state_token()`` returns a ``DatasetStateToken`` and ``require_dataset_state_unchanged(token, function_name)`` raises a ``RuntimeError`` when the selection or the dataset content changed.
+  A result computed against a dataset that changed in the meantime is discarded with that error instead of being committed to the wrong dataset.
+  The developer notes in :doc:`user_guide/contracts` describe the contract.
 
 Added
 -----
