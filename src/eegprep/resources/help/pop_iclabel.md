@@ -31,7 +31,7 @@ Behavior:
 - Results are stored in `EEG.etc.ic_classification.ICLabel`.
 - The result includes the ICLabel class names, per-component class probabilities, and the selected version string.
 - Lists of datasets are processed one dataset at a time with the same selected version.
-- If the dialog is cancelled, `EEG` is returned unchanged and the command is empty.
+- If the dialog is canceled, `EEG` is returned unchanged and the command is empty.
 - Standalone Python needs the `iclabel` extra (`pip install "eegprep[iclabel]"`), which installs `onnxruntime`.
   Without it an `ImportError` names the extra. PyTorch is not needed.
 - The packaged network is an 8-bit weight-only quantization of the EEGLAB network. How closely its

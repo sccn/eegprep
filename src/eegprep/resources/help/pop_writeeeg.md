@@ -1,4 +1,4 @@
-# POP_WRITEEG - Export EEG data to EDF/BDF/GDF
+# POP_WRITEEEG - Export EEG data to EDF/BDF/GDF
 
 `pop_writeeeg` writes the current dataset to an external EEG file format.
 

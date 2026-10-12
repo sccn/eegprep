@@ -137,6 +137,34 @@ the dataset has, so no resampling is required beforehand. Clinical and
 consumer amplifier rates that are not round numbers, such as 258 Hz, work
 directly.
 
+ASR Memory Budget and Blocks
+============================
+
+ASR processes the data in blocks so that memory use stays within a budget. The
+budget is ``MaxMem`` in ``clean_artifacts`` and ``bids_preproc``, ``maxmem`` in
+``clean_asr``, and ``max_mem`` in ``asr_process``. Leave it unset, as EEGPrep does by
+default, to get 64 MB, or twice the fixed lookahead memory when that is larger
+(128 channels at 1000 Hz need 187.5 MB, 256 channels at 512 Hz need 384 MB).
+``availableRAM_GB`` in ``clean_artifacts`` sets ``MaxMem`` from the RAM you can spare.
+
+The reconstruction matrix is refreshed block by block, so the block layout can
+change the output, materially for some data. EEGPrep logs a warning when
+processing goes beyond the plain default:
+
+- the default budget was raised above 64 MB, with the block count, the block
+  length and the expected peak memory;
+- the limit of 10000 blocks makes memory use exceed the budget, which happens on
+  long recordings with many channels (about 456 MB at peak for one hour of 128
+  channels at 1000 Hz, against a 187.5 MB budget); give a larger budget or clean
+  the recording in segments;
+- the blocks are shorter than the lookahead, so results can differ materially and
+  the run is slower; this applies to an explicit budget as well.
+
+A larger budget gives larger blocks and silences these warnings. A budget below
+the fixed lookahead memory raises ``RuntimeError`` with the smallest workable
+value and about twice that is recommended, and a zero, negative, infinite, or NaN
+budget raises ``ValueError``.
+
 Riemannian ASR Notes
 ====================
 

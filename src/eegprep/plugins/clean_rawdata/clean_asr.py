@@ -66,8 +66,9 @@ def clean_asr(
         useriemannian (str, optional): Option to use a Riemannian ASR variant. Set to 'calib' to use a Riemannian estimate
             at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. Default: None (disabled).
         maxmem (Optional[int], optional): Maximum memory in MB for ASR processing, passed to asr_calibrate and asr_process.
-            Default: None, a 64 MB budget that asr_process raises automatically when the lookahead overhead of many channels
-            at a high sampling rate needs more. An explicit value too small for that overhead raises RuntimeError.
+            Default: None, a 64 MB budget that asr_process raises to twice the lookahead overhead when many channels at a
+            high sampling rate need more, with a logged warning because the smaller blocks can change the output.
+            An explicit value too small for that overhead raises RuntimeError.
 
     Returns
     -------

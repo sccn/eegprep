@@ -98,11 +98,18 @@ and a BLAKE2b digest of the current ``EEG`` and the selected ``ALLEEG`` entries,
 It compares content, not identity or change notifications,
 so it detects edits made through any alias, including in-place NumPy writes.
 Capturing a token reads the selected data once, in fixed-size chunks and without copying the arrays;
-budget two such passes per awaited call.
+an awaited call costs two such passes, because ``require_dataset_state_unchanged`` captures a second token to compare.
+Dictionaries, lists, tuples, NumPy arrays, and memory-mapped data are hashed by content.
+Any other value, such as a SciPy sparse matrix stored in a dataset field, is hashed by its ``repr``,
+so an in-place edit that does not change the ``repr`` is not detected:
+replace such objects instead of editing them in place.
 
 The digest skips the top-level ``history`` and ``saved`` fields,
 because recording a command or marking the dataset saved does not change the data a result was computed from.
 Nested fields with those names are hashed, and unselected datasets are ignored.
+Setting the ``saved`` flag alone therefore keeps an in-flight result,
+but a Save that assigns a new ``filename`` or ``filepath``, such as the first Save of a dataset,
+changes hashed fields and discards it.
 An edit that is reverted before the check is not reported, because the content is the same again.
 
 Under Emscripten, ``MenuActionDispatcher.dispatch_gui`` returns the ``dispatch_gui_async`` coroutine for ICLabel instead of running it.

@@ -282,11 +282,18 @@ class EEGPrepSession:
 
         The token holds ``CURRENTSET`` and a BLAKE2b digest of the current ``EEG`` and
         the selected ``ALLEEG`` entries, each object hashed once. Capturing it reads
-        every selected array once, in chunks and without copying the dataset, so call
-        it once before an awaited computation and once before its commit. Top-level
-        ``history`` and ``saved`` fields are not hashed, and unselected datasets are
-        ignored. Because only content is compared, an edit that is reverted before
-        the check leaves the token unchanged.
+        every selected array once, in chunks and without copying the dataset; an
+        awaited call costs two such passes, because
+        :meth:`require_dataset_state_unchanged` captures a second token to compare.
+        Top-level ``history`` and ``saved`` fields are not hashed, and unselected
+        datasets are ignored. Because only content is compared, an edit that is
+        reverted before the check leaves the token unchanged.
+
+        Dictionaries, lists, tuples, NumPy arrays and memory-mapped data are hashed by
+        content. Any other value, such as a SciPy sparse matrix, is hashed by its
+        ``repr``, so an in-place edit that does not change the ``repr`` is not detected;
+        keep such objects out of the fields a result depends on, or replace them
+        instead of editing them.
         """
         current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
         selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET if 1 <= index <= len(self.ALLEEG)]

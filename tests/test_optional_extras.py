@@ -19,6 +19,7 @@ import textwrap
 import tomllib
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import EEGLAB_ROOT_ENV, get_eeglab
@@ -27,6 +28,7 @@ from eegprep.functions.miscfunc.misc import num_jobs_from_reservation
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
 SAMPLE_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
+SAMPLE_ICA_SET = REPO_ROOT / "sample_data" / "eeglab_data_with_ica_tmp.set"
 
 # Packages that only an extra provides and that a base install must run without.
 OPTIONAL_PACKAGES = ["psutil", "oct2py", "pyedflib", "onnxruntime", "torch", "onnx"]
@@ -225,6 +227,36 @@ def test_light_pipeline_runs_without_optional_extras(tmp_path: Path) -> None:
     assert result["shape"][0] == 32
 
 
+def test_iclabel_without_onnxruntime_names_the_iclabel_extra(tmp_path: Path) -> None:
+    """Both ICLabel entry points name ``eegprep[iclabel]`` when onnxruntime is missing (blocked, so no skip).
+
+    Only onnxruntime is blocked: a ``None`` entry for torch makes SciPy's array-type detection fail inside
+    feature extraction, which a real environment without torch never does.
+    """
+    completed = _run_without_optional_extras(
+        f"""
+        import asyncio, json
+        from eegprep import iclabel, pop_loadset
+        from eegprep.plugins.ICLabel.iclabel import iclabel_async
+
+        EEG = pop_loadset({str(SAMPLE_ICA_SET)!r})
+        messages = {{}}
+        for name, call in (("sync", lambda: iclabel(EEG)), ("async", lambda: asyncio.run(iclabel_async(EEG)))):
+            try:
+                call()
+            except ImportError as exc:
+                messages[name] = str(exc)
+        print(json.dumps(messages))
+        """,
+        tmp_path,
+        blocked=["onnxruntime"],
+    )
+
+    messages = _json_result(completed)
+    assert set(messages) == {"sync", "async"}
+    assert all('pip install "eegprep[iclabel]"' in message for message in messages.values())
+
+
 def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:
     """GDF output has its own writer, so it must not need pyedflib (the ``edf`` extra)."""
     completed = _run_without_optional_extras(
@@ -247,17 +279,19 @@ def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:
 
 
 def test_pop_writeeeg_edf_names_the_edf_extra_without_pyedflib(tmp_path: Path) -> None:
-    """EDF and BDF need pyedflib; the error must name ``eegprep[edf]`` and chain the original cause."""
+    """EDF and BDF need pyedflib; the error names ``eegprep[edf]``, chains the cause, and creates no directory."""
+    output_dir = tmp_path / "not_yet_created"
     completed = _run_without_optional_extras(
         f"""
         import json
+        from pathlib import Path
         import numpy as np
         from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 
         EEG = {{"data": np.arange(40, dtype=float).reshape(2, 20), "srate": 100.0, "nbchan": 2, "pnts": 20,
                "chanlocs": [{{"labels": "Cz"}}, {{"labels": "Pz"}}], "event": []}}
         try:
-            pop_writeeeg(EEG, {str(tmp_path / "out.edf")!r})
+            pop_writeeeg(EEG, {str(output_dir / "out.edf")!r})
         except ImportError as exc:
             print(json.dumps({{"message": str(exc), "chained": isinstance(exc.__cause__, ImportError)}}))
         """,
@@ -267,6 +301,23 @@ def test_pop_writeeeg_edf_names_the_edf_extra_without_pyedflib(tmp_path: Path) -
     result = _json_result(completed)
     assert "eegprep[edf]" in result["message"]
     assert result["chained"] is True
+    assert not output_dir.exists()
+
+
+def test_pop_writeeeg_rejecting_the_data_creates_no_directory(tmp_path: Path) -> None:
+    """Data the EDF writer rejects must fail before the output directory is created."""
+    pytest.importorskip("pyedflib")
+    from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
+
+    data = np.arange(40, dtype=float).reshape(2, 20)
+    data[0, 3] = np.nan
+    EEG = {"data": data, "srate": 100.0, "nbchan": 2, "pnts": 20, "chanlocs": [{"labels": "Cz"}, {"labels": "Pz"}]}
+    output_dir = tmp_path / "not_yet_created"
+
+    with pytest.raises(ValueError, match="finite"):
+        pop_writeeeg(EEG, output_dir / "out.edf")
+
+    assert not output_dir.exists()
 
 
 def test_num_jobs_from_reservation_names_the_sys_extra(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -321,3 +372,17 @@ def test_ransac_defers_the_eeglab_bridge_but_still_reaches_it(tmp_path: Path) ->
     result = _json_result(completed)
     assert result["loaded_on_import"] == []
     assert 'pip install "eegprep[eeglab]"' in result["message"]
+
+
+def test_dockerfile_installs_the_extras_its_entry_point_needs() -> None:
+    """``bids_minimal_preproc.py --jobs "4GB"`` reaches psutil, so the image must install the ``sys`` extra."""
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text()
+    entry_point = (REPO_ROOT / "scripts" / "bids_minimal_preproc.py").read_text()
+    install = re.search(r'pip install[^\n]*"\.\[([^\]]+)\]"', dockerfile)
+    assert install is not None, "the Dockerfile should install the package with explicit extras"
+    extras = set(install.group(1).split(","))
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]
+
+    assert extras <= set(project["optional-dependencies"])
+    assert "ReservePerJob=args.jobs" in entry_point, "the entry point no longer forwards --jobs; revisit this test"
+    assert "sys" in extras

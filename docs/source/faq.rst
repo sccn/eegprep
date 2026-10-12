@@ -70,7 +70,7 @@ Does EEGPrep support GPU acceleration?
 --------------------------------------
 
 No. EEGPrep computes on the CPU. The ``use_gpu`` argument of ``clean_asr`` exists for
-EEGLAB compatibility and is ignored, and ICLabel runs on ONNX Runtime's CPU provider.
+EEGLAB compatibility and is ignored, and ICLabel runs on Open Neural Network Exchange (ONNX) Runtime's CPU provider.
 PyTorch is not needed to run EEGPrep.
 
 Usage FAQ

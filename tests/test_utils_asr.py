@@ -4,7 +4,13 @@ import numpy as np
 from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
-from eegprep.plugins.clean_rawdata.asr_process import DEFAULT_MAX_MEM_MB, asr_process
+from eegprep.plugins.clean_rawdata.asr_process import (
+    DEFAULT_MAX_MEM_MB,
+    MAX_BLOCKS,
+    asr_process,
+    plan_blocks,
+    plan_warnings,
+)
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
@@ -325,6 +331,17 @@ class TestAsrProcess(unittest.TestCase):
         self.assertIn('max_mem=0.001', message)
         self.assertIn(f'{self.n_channels} channels', message)
         self.assertIn('max_mem=None', message)
+        # The remedy names each caller's own argument and recommends headroom beyond the bare minimum.
+        self.assertIn('MaxMem', message)
+        self.assertIn('maxmem', message)
+        self.assertIn('twice', message)
+
+    def test_unusable_max_mem_values_raise_value_error(self):
+        """Zero, negative, infinite and NaN budgets are mistakes, not an out-of-memory condition."""
+        for bad in (0, -5, float('inf'), float('nan')):
+            with self.subTest(max_mem=bad):
+                with self.assertRaisesRegex(ValueError, 'max_mem must be a finite, positive'):
+                    asr_process(self.test_data, self.srate, self.state, max_mem=bad)
 
     def test_default_budget_scales_with_channels_and_sampling_rate(self):
         """The default budget must cover the fixed overhead of high-density, high-rate data.
@@ -342,10 +359,43 @@ class TestAsrProcess(unittest.TestCase):
                 overhead_mb = n_channels * n_channels * lookahead_samples * 8 * 3 / 1024**2
                 self.assertGreater(overhead_mb, DEFAULT_MAX_MEM_MB)
 
-                cleaned, _ = asr_process(chunk, srate, state)
+                with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as logs:
+                    cleaned, _ = asr_process(chunk.copy(), srate, state)
 
                 self.assertEqual(cleaned.shape, chunk.shape)
                 self.assertTrue(np.all(np.isfinite(cleaned)))
+                # The default is exactly twice the overhead: a clamp to the 64 MB base budget would not
+                # raise but would change the block layout and so the output.
+                explicit, _ = asr_process(chunk.copy(), srate, state, max_mem=2 * overhead_mb)
+                np.testing.assert_array_equal(cleaned, explicit)
+                # Raising the budget is a warning (INFO is invisible by default), naming cause and remedy.
+                raised = [record for record in logs.records if record.getMessage().startswith('ASR default memory')]
+                self.assertEqual([record.levelname for record in raised], ['WARNING'])
+                message = raised[0].getMessage()
+                self.assertIn(f'raised from {DEFAULT_MAX_MEM_MB} to {2 * overhead_mb:.0f} MB', message)
+                self.assertIn(f'{n_channels} channels', message)
+                self.assertIn(f'{lookahead_samples} lookahead samples', message)
+                self.assertIn('MaxMem', message)
+                self.assertIn('maxmem', message)
+
+    def test_plain_default_budget_logs_no_warning(self):
+        """Nothing is raised and the blocks are comfortable, so there is nothing to warn about."""
+        with self.assertNoLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING'):
+            asr_process(self.test_data.copy(), self.srate, self.state)
+
+    def test_blocks_shorter_than_the_lookahead_warn_with_an_explicit_budget(self):
+        """A budget that passes the overhead check but leaves blocks shorter than the lookahead warns."""
+        lookahead_samples = int(round(0.5 / 2 * self.srate))
+        overhead_mb = self.n_channels * self.n_channels * lookahead_samples * 8 * 3 / 1024**2
+        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='WARNING') as logs:
+            cleaned, _ = asr_process(self.test_data.copy(), self.srate, self.state, max_mem=1.2 * overhead_mb)
+
+        self.assertEqual(cleaned.shape, self.test_data.shape)
+        self.assertEqual([record.levelname for record in logs.records], ['WARNING'])
+        message = logs.records[0].getMessage()
+        self.assertIn(f'shorter than the lookahead ({lookahead_samples} samples)', message)
+        self.assertIn('runtime grows', message)
+        self.assertIn('Pass a larger max_mem', message)
 
     def test_rank_deficient_covariance_produces_sane_output(self):
         """Process genuinely rank-deficient data (singular covariance).
@@ -363,6 +413,85 @@ class TestAsrProcess(unittest.TestCase):
 
         self.assertEqual(cleaned_data.shape, degenerate.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
+
+
+class TestBlockPlan(unittest.TestCase):
+    """The pure planning step: budget, block count and memory estimates for given sizes, with no data."""
+
+    def test_comfortable_default_needs_no_raise_and_no_warning(self):
+        plan = plan_blocks(C=8, S=1000, P=50, step_size=32)
+
+        self.assertEqual(plan.budget_mb, DEFAULT_MAX_MEM_MB)
+        self.assertFalse(plan.budget_raised)
+        self.assertFalse(plan.capped)
+        self.assertEqual(plan.splits, 1)
+        self.assertEqual(plan_warnings(plan, 8, 1000, 50), [])
+
+    def test_raised_default_for_128_channels_at_1000_hz(self):
+        """128 channels, 250 lookahead samples, 10 s: twice the 93.75 MB overhead, in 108 blocks."""
+        plan = plan_blocks(C=128, S=10000, P=250, step_size=32)
+
+        self.assertTrue(plan.budget_raised)
+        self.assertEqual(plan.budget_mb, 187.5)
+        self.assertEqual(plan.overhead_mb, 93.75)
+        self.assertEqual(plan.splits, 108)
+        self.assertAlmostEqual(plan.block_samples, 10000 / 108)
+        self.assertLessEqual(plan.peak_mb, plan.budget_mb)
+        self.assertFalse(plan.capped)
+        (message,) = plan_warnings(plan, 128, 10000, 250)
+        for expected in (
+            'raised from 64 to 188 MB',
+            '93.8 MB',
+            '128 channels',
+            '250 lookahead samples',
+            '108 blocks',
+            'peak memory about 187 MB',
+            'refreshed per block',
+            'shorter than the lookahead',
+            'MaxMem',
+            'availableRAM_GB',
+            'maxmem',
+        ):
+            self.assertIn(expected, message)
+
+    def test_explicit_budgets_just_above_the_overhead_give_many_tiny_blocks(self):
+        """Measured block counts for 128 channels, 1000 Hz, 10 s: 94 MB hits the cap, 100 MB gives 1610 blocks."""
+        at_cap = plan_blocks(C=128, S=10000, P=250, step_size=32, max_mem=94)
+        above = plan_blocks(C=128, S=10000, P=250, step_size=32, max_mem=100)
+
+        self.assertEqual((at_cap.splits, at_cap.capped), (MAX_BLOCKS, True))
+        self.assertEqual((above.splits, above.capped), (1610, False))
+        self.assertFalse(above.budget_raised)
+        (message,) = plan_warnings(above, 128, 10000, 250)
+        self.assertIn('shorter than the lookahead (250 samples)', message)
+        self.assertIn('runtime grows', message)
+
+    def test_block_cap_makes_memory_exceed_the_budget_on_long_recordings(self):
+        """One hour of 128 channels at 1000 Hz cannot fit 187.5 MB in 10000 blocks: about 456 MB at peak."""
+        plan = plan_blocks(C=128, S=3_600_000, P=250, step_size=32)
+
+        self.assertEqual(plan.splits, MAX_BLOCKS)
+        self.assertTrue(plan.capped)
+        self.assertEqual(plan.block_samples, 360)
+        self.assertAlmostEqual(plan.peak_mb, 456, delta=1)
+        self.assertGreater(plan.peak_mb, 2 * plan.budget_mb)
+        raised_message, capped_message = plan_warnings(plan, 128, 3_600_000, 250)
+        self.assertIn('raised from 64 to 188 MB', raised_message)
+        self.assertNotIn('shorter than the lookahead', raised_message)
+        for expected in (
+            'limited to 10000 blocks',
+            'exceed the 188 MB budget',
+            'about 456 MB in all',
+            'clean the recording in segments',
+            'maxmem',
+        ):
+            self.assertIn(expected, capped_message)
+
+    def test_unusable_budgets_are_rejected_by_the_planner(self):
+        with self.assertRaisesRegex(ValueError, 'finite, positive'):
+            plan_blocks(C=8, S=1000, P=50, step_size=32, max_mem=float('nan'))
+        with self.assertRaisesRegex(RuntimeError, 'Not enough memory'):
+            plan_blocks(C=128, S=1000, P=250, step_size=32, max_mem=50)
 
 
 class TestCleanAsrNoMutation(unittest.TestCase):

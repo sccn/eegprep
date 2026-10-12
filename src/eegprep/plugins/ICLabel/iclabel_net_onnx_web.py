@@ -23,10 +23,11 @@ async def run_iclabel_net_async(image, psdmed, autocorr):
     Raises:
         ImportError: If not running in Pyodide, or the host never registered
             the ``eegprep_iclabel_web`` global.
+        RuntimeError: If the bridge returns a different number of values than
+            seven class probabilities per input row.
     """
-    # The host registers eegprep_iclabel_web outside Python, so this is a real
-    # trust boundary; without the guard a missing registration surfaces as
-    # "cannot import name 'eegprep_iclabel_web' from 'js'".
+    # The host registers eegprep_iclabel_web outside Python. The guard replaces the bare
+    # "cannot import name 'eegprep_iclabel_web' from 'js'" with the host contract.
     try:
         from js import eegprep_iclabel_web  # ty: ignore[unresolved-import]
         from pyodide.ffi import to_js  # ty: ignore[unresolved-import]

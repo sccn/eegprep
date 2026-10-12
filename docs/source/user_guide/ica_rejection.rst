@@ -54,7 +54,7 @@ Python Picard. Different starts can converge to equivalent ICA solutions.
 ICLabel Workflow
 ================
 
-Run ICLabel after ICA. ICLabel runs on ONNX Runtime, which the ``iclabel`` extra
+Run ICLabel after ICA. ICLabel runs on Open Neural Network Exchange (ONNX) Runtime, which the ``iclabel`` extra
 installs (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
