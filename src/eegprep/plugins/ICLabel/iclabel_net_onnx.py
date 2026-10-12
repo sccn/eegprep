@@ -37,15 +37,19 @@ def _get_session():
 def run_iclabel_net(image, psdmed, autocorr):
     """Run the packaged ICLabel network through onnxruntime.
 
-    Parameters
-    ----------
-    image, psdmed, autocorr : numpy.ndarray
-        NCHW float32 arrays, matching the torch ``ICLabelNet.forward`` inputs.
+    Args:
+        image: NCHW float32 topography array, ``(N, 1, 32, 32)``.
+        psdmed: NCHW float32 spectrum array, ``(N, 1, 1, 100)``.
+        autocorr: NCHW float32 autocorrelation array, ``(N, 1, 1, 100)``.
 
-    Returns
-    -------
-    numpy.ndarray
-        Network output, shaped like the torch model's output.
+    Returns:
+        numpy.ndarray: Network output ``(N, 7, 1, 1)``, shaped like the torch
+        model's output.
+
+    Raises:
+        RuntimeError: Under Emscripten, where only the asynchronous backend exists.
+        ImportError: If onnxruntime is not installed; the message names the
+            ``eegprep[iclabel]`` extra.
     """
     if IS_EMSCRIPTEN:
         raise RuntimeError(
