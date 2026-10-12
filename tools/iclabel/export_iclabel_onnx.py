@@ -33,6 +33,7 @@ import onnxruntime as ort
 import torch
 
 from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+from eegprep.plugins.ICLabel.iclabel_net_onnx import INPUT_NAMES, OUTPUT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,6 @@ DEFAULT_ONNX_PATH = ICLABEL_ARTIFACT_DIR / 'iclabel_float32.onnx'
 # planned for phase 5.
 ONNX_OPSET_VERSION = 17
 
-INPUT_NAMES = ('image', 'psdmed', 'autocorr')
-OUTPUT_NAMES = ('output',)
 _INPUT_SHAPES = ((1, 1, 32, 32), (1, 1, 1, 100), (1, 1, 1, 100))
 
 
@@ -62,14 +61,14 @@ def export(mat_path: Path = DEFAULT_MAT_PATH, onnx_path: Path = DEFAULT_ONNX_PAT
     onnx_path.parent.mkdir(parents=True, exist_ok=True)
 
     dummy_inputs = tuple(torch.zeros(shape, dtype=torch.float32) for shape in _INPUT_SHAPES)
-    dynamic_axes = {name: {0: 'batch'} for name in (*INPUT_NAMES, *OUTPUT_NAMES)}
+    dynamic_axes = {name: {0: 'batch'} for name in (*INPUT_NAMES, OUTPUT_NAME)}
 
     torch.onnx.export(
         model,
         dummy_inputs,
         str(onnx_path),
         input_names=list(INPUT_NAMES),
-        output_names=list(OUTPUT_NAMES),
+        output_names=[OUTPUT_NAME],
         opset_version=ONNX_OPSET_VERSION,
         dynamic_axes=dynamic_axes,
         do_constant_folding=True,
@@ -94,7 +93,7 @@ def verify(mat_path: Path, onnx_path: Path, batch_size: int = 16, seed: int = 0)
         torch_out = model(*(torch.from_numpy(inputs[name]) for name in INPUT_NAMES)).numpy()
 
     session = ort.InferenceSession(str(onnx_path), providers=['CPUExecutionProvider'])
-    (onnx_out,) = session.run(list(OUTPUT_NAMES), inputs)
+    (onnx_out,) = session.run([OUTPUT_NAME], inputs)
 
     max_abs_diff = float(np.max(np.abs(torch_out - onnx_out)))
     return max_abs_diff

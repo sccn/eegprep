@@ -27,6 +27,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
 
 
 def _reference_network_inputs(features):
+    """Independent oracle for the production ICLabel augmentation and NCHW layout."""
     topo, psdmed, autocorr = features
     topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
     psdmed = np.single(np.tile(psdmed, (1, 1, 1, 4)))
@@ -143,7 +144,7 @@ def test_frozen_feature_archive_hash_is_verified(tmp_path):
         load_verified_feature_archive(mutated, manifest, "evaluation")
 
 
-def test_quantization_inputs_match_independent_reference_transform():
+def test_production_prepare_inputs_match_independent_reference():
     manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
     features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
     actual = network_inputs_from_features(features)

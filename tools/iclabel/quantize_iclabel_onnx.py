@@ -20,6 +20,8 @@ from typing import Any
 import numpy as np
 
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
+from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
+from eegprep.plugins.ICLabel.iclabel_net_onnx import INPUT_NAMES, OUTPUT_NAME
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 
 
@@ -27,8 +29,6 @@ CLASS_NAMES = ("Brain", "Muscle", "Eye", "Heart", "Line Noise", "Channel Noise",
 MIN_TOP1_AGREEMENT = 0.95
 MIN_KEEP_REJECT_AGREEMENT = 0.99
 MAX_PROBABILITY_ABS_DIFF = 0.015
-_INPUT_NAMES = ("image", "psdmed", "autocorr")
-_OUTPUT_NAME = "output"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FLOAT32_ARTIFACT = _REPO_ROOT / "tools" / "iclabel" / "artifacts" / "iclabel_float32.onnx"
 DEFAULT_FROZEN_MANIFEST = Path(__file__).with_name("evaluation_manifest.json")
@@ -168,34 +168,22 @@ def _validate_feature_arrays(features: Sequence[np.ndarray]) -> None:
 
 
 def network_inputs_from_features(features: Sequence[np.ndarray]) -> dict[str, np.ndarray]:
-    """Build the frozen quantization inputs independently of runtime ICLabel."""
+    """Build named network inputs with the production ICLabel augmentation."""
     _validate_feature_arrays(features)
-    topo, psd, autocorr = features
-    topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
-    psd = np.single(np.tile(psd, (1, 1, 1, 4)))
-    autocorr = np.single(np.tile(autocorr, (1, 1, 1, 4)))
-    return {
-        "image": np.transpose(topo, (3, 2, 0, 1)),
-        "psdmed": np.transpose(psd, (3, 2, 0, 1)),
-        "autocorr": np.transpose(autocorr, (3, 2, 0, 1)),
-    }
+    return dict(zip(INPUT_NAMES, prepare_network_inputs(features)))
 
 
 def _run_network(model_path: Path, inputs: Mapping[str, np.ndarray]) -> np.ndarray:
     import onnxruntime as ort
 
     session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
-    (output,) = session.run([_OUTPUT_NAME], dict(inputs))
+    (output,) = session.run([OUTPUT_NAME], dict(inputs))
     return np.asarray(output, dtype=np.float32)
 
 
 def predict_features(model_path: Path, features: Sequence[np.ndarray]) -> np.ndarray:
     """Run an ICLabel artifact and return one 7-class row per component."""
-    output = _run_network(model_path, network_inputs_from_features(features))
-    output = output.T
-    output = np.reshape(output, (-1, 4), order="F")
-    output = np.mean(output, axis=1)
-    return np.reshape(output, (7, -1), order="F").T
+    return postprocess_network_output(_run_network(model_path, network_inputs_from_features(features)))
 
 
 def _rejection_flags(classifications: np.ndarray, thresholds: np.ndarray) -> np.ndarray:
@@ -330,7 +318,7 @@ def quantize_weight_only(model_input: Path, model_output: Path) -> Path:
 
 class _CalibrationDataReader:
     def __init__(self, inputs: Mapping[str, np.ndarray]):
-        self._inputs = {name: np.asarray(inputs[name], dtype=np.float32) for name in _INPUT_NAMES}
+        self._inputs = {name: np.asarray(inputs[name], dtype=np.float32) for name in INPUT_NAMES}
         batches = {array.shape[0] for array in self._inputs.values()}
         if len(batches) != 1 or not batches:
             raise ValueError("Calibration inputs must have matching non-empty batch dimensions")

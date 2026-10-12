@@ -11,8 +11,8 @@ import sys
 
 import numpy as np
 
-_INPUT_NAMES = ('image', 'psdmed', 'autocorr')
-_OUTPUT_NAME = 'output'
+INPUT_NAMES = ('image', 'psdmed', 'autocorr')
+OUTPUT_NAME = 'output'
 _IS_EMSCRIPTEN = sys.platform == 'emscripten'
 
 _session = None
@@ -55,11 +55,11 @@ def run_iclabel_net(image, psdmed, autocorr):
         )
     session = _get_session()
     inputs = {
-        _INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
-        _INPUT_NAMES[1]: np.asarray(psdmed, dtype=np.float32),
-        _INPUT_NAMES[2]: np.asarray(autocorr, dtype=np.float32),
+        INPUT_NAMES[0]: np.asarray(image, dtype=np.float32),
+        INPUT_NAMES[1]: np.asarray(psdmed, dtype=np.float32),
+        INPUT_NAMES[2]: np.asarray(autocorr, dtype=np.float32),
     }
-    (output,) = session.run([_OUTPUT_NAME], inputs)
+    (output,) = session.run([OUTPUT_NAME], inputs)
     return output
 
 

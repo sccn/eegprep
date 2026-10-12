@@ -101,10 +101,10 @@ def _iclabel_sync(EEG, algorithm='default', engine=None):
 def _prepare_features(EEG):
     from eegprep import ICL_feature_extractor
 
-    return _prepare_network_inputs(ICL_feature_extractor(EEG, True))
+    return prepare_network_inputs(ICL_feature_extractor(EEG, True))
 
 
-def _prepare_network_inputs(features):
+def prepare_network_inputs(features):
     """Apply ICLabel augmentation and convert feature arrays to network inputs."""
     topo, psdmed, autocorr = features
     topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
@@ -117,7 +117,7 @@ def _prepare_network_inputs(features):
     )
 
 
-def _postprocess_network_output(output_np):
+def postprocess_network_output(output_np):
     """Average the four augmented network outputs into component probabilities."""
     output_np = output_np.T
     output_np = np.reshape(output_np, (-1, 4), order='F')
@@ -126,7 +126,7 @@ def _postprocess_network_output(output_np):
 
 
 def _attach_classification(EEG, output_np, algorithm):
-    output_np = _postprocess_network_output(output_np)
+    output_np = postprocess_network_output(output_np)
 
     if 'ic_classification' not in EEG['etc']:
         EEG['etc']['ic_classification'] = {}

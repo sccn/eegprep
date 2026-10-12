@@ -63,41 +63,33 @@ class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
 
 
 def _float32_classifications(eeg):
-    image, psdmed, autocorr = _reference_network_inputs(eeg)
     import onnxruntime as ort
 
+    image, psdmed, autocorr = iclabel_module.prepare_network_inputs(ICL_feature_extractor(eeg, True))
     float32_path = os.path.join(
         os.path.dirname(__file__), '..', 'tools', 'iclabel', 'artifacts', 'iclabel_float32.onnx'
     )
     (output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
         ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
     )
-    return _reference_postprocess(output)
+    return iclabel_module.postprocess_network_output(output)
 
 
-def _reference_network_inputs(eeg):
-    """Build ICLabel inputs independently from the production helpers."""
-    features = ICL_feature_extractor(eeg, True)
-    features[0] = np.single(
-        np.concatenate([features[0], -features[0], features[0][:, ::-1, :, :], -features[0][:, ::-1, :, :]], axis=3)
-    )
-    features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
-    features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-    return tuple(np.transpose(feature, (3, 2, 0, 1)) for feature in features)
+def test_postprocess_averages_the_four_augmentations_of_each_component():
+    # Batch row ``augmentation * components + component`` holds one augmented
+    # copy, matching prepare_network_inputs. The offsets cancel in the
+    # four-way mean, and scaling them per component makes any mix-up of
+    # components or augmentations change the result. All values are dyadic
+    # rationals, so float32 arithmetic recovers the table exactly.
+    components = 3
+    table = np.arange(components * 7, dtype=np.float32).reshape(components, 7) / 8
+    offsets = np.array([-3, -1, 1, 3], dtype=np.float32) / 8
+    output = np.empty((4 * components, 7, 1, 1), dtype=np.float32)
+    for augmentation, offset in enumerate(offsets):
+        for component in range(components):
+            output[augmentation * components + component, :, 0, 0] = table[component] + offset * (component + 1)
 
-
-def _reference_postprocess(output):
-    output = output.T
-    output = np.reshape(output, (-1, 4), order='F')
-    output = np.mean(output, axis=1)
-    output = np.reshape(output, (7, -1), order='F')
-    return output.T
-
-
-def test_postprocess_matches_independent_reference():
-    output = np.arange(56, dtype=np.float32).reshape(4, 7, 2, 1)
-
-    np.testing.assert_array_equal(iclabel_module._postprocess_network_output(output), _reference_postprocess(output))
+    np.testing.assert_array_equal(iclabel_module.postprocess_network_output(output), table)
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -180,12 +172,12 @@ class TestICLabelOnnxExport(unittest.TestCase):
         model = ICLabelNet(mat_path)
         model.eval()
 
-        image, psdmed, autocorr = _reference_network_inputs(self.EEG)
+        image, psdmed, autocorr = iclabel_module.prepare_network_inputs(ICL_feature_extractor(self.EEG, True))
 
         with torch.no_grad():
             torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
 
-        torch_final = _reference_postprocess(torch_out)
+        torch_final = iclabel_module.postprocess_network_output(torch_out)
 
         onnx_final = _float32_classifications(self.EEG)
 
