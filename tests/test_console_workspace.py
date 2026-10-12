@@ -218,6 +218,21 @@ def _iclabel_console(sample_ica_eeg, *setnames):
     return session, workspace
 
 
+@pytest.fixture
+def iclabel_console(sample_ica_eeg):
+    """Open consoles like ``_iclabel_console`` and close each one at teardown, even after a failure."""
+    workspaces = []
+
+    def open_console(*setnames):
+        session, workspace = _iclabel_console(sample_ica_eeg, *setnames)
+        workspaces.append(workspace)
+        return session, workspace
+
+    yield open_console
+    for workspace in workspaces:
+        workspace.close()
+
+
 def _run_during_console_iclabel(workspace, backend, during):
     """Start console ``pop_iclabel_async``, call ``during`` while inference is suspended, then finish it."""
 
@@ -266,8 +281,8 @@ def test_console_save_flag_change_during_async_iclabel_keeps_the_result(sample_i
     workspace.close()
 
 
-def test_console_bare_iclabel_async_returns_its_result_without_a_freshness_check(sample_ica_eeg, monkeypatch):
-    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+def test_console_bare_iclabel_async_returns_its_result_without_a_freshness_check(iclabel_console, monkeypatch):
+    session, workspace = iclabel_console("first", "second")
     session.retrieve(1)
     backend = gate_iclabel_backend(monkeypatch)
 
@@ -285,7 +300,6 @@ def test_console_bare_iclabel_async_returns_its_result_without_a_freshness_check
     assert session.CURRENTSET == [2]
     assert all("ic_classification" not in dataset["etc"] for dataset in session.ALLEEG)
     assert session.ALLCOM == []
-    workspace.close()
 
 
 def test_console_sync_pop_during_async_iclabel_runs_and_discards_the_stale_result(sample_ica_eeg, monkeypatch):
@@ -438,8 +452,8 @@ def test_console_history_and_unselected_edits_during_async_iclabel_keep_the_resu
     workspace.close()
 
 
-def test_console_second_concurrent_async_iclabel_reports_the_concurrent_commit(sample_ica_eeg, monkeypatch):
-    session, workspace = _iclabel_console(sample_ica_eeg)
+def test_console_second_concurrent_async_iclabel_reports_the_concurrent_commit(iclabel_console, monkeypatch):
+    session, workspace = iclabel_console()
     backend = gate_iclabel_backend(monkeypatch)
     classify = workspace.namespace["pop_iclabel_async"]
 
@@ -457,7 +471,6 @@ def test_console_second_concurrent_async_iclabel_reports_the_concurrent_commit(s
     assert "concurrent pop_iclabel_async call" in str(second_result)
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
-    workspace.close()
 
 
 def test_console_async_iclabel_preserves_ordered_multi_dataset_selection(sample_ica_eeg):
