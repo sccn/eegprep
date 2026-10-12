@@ -13,13 +13,7 @@ from scipy.io import savemat
 from scipy.sparse import coo_matrix, issparse
 
 from tests.eeglab_tests import assert_matlab_equal
-from tests.eeglab_tests.backend import (
-    _load_matlab_variable,
-    _save_matlab_arguments,
-    call_matlab,
-    call_python,
-    skip_without_matlab_plugin,
-)
+from tests.eeglab_tests.backend import _load_matlab_variable, _save_matlab_arguments, call_matlab, call_python
 
 
 pytest_plugins = ("pytester",)
@@ -454,7 +448,6 @@ def test_matlab_table_roundtrip_preserves_values_classes_and_metadata(eeglab_mat
 
 def test_matlab_fieldtrip_chain_preserves_original_trialinfo_table(eeglab_matlab_engine, eeglab_suite_root):
     engine = eeglab_matlab_engine
-    skip_without_matlab_plugin(engine, "ft_preprocessing", "Fieldtrip-lite")
     dataset = eeglab_suite_root / "eeglab" / "sample_data" / "eeglab_data_epochs_ica.set"
     eeg = call_matlab(engine, "pop_loadset", str(dataset))
     data = call_matlab(engine, "eeglab2fieldtrip", eeg, "preprocessing", "none")
@@ -572,7 +565,6 @@ def test_matlab_limo_optional_file_choice_preserves_plots_and_restores_io(eeglab
 
 def test_matlab_bids_metadata_loaders(eeglab_matlab_engine, eeglab_suite_root):
     """Exercise native JSONio and BIDS setup on the original 18-subject metadata."""
-    skip_without_matlab_plugin(eeglab_matlab_engine, "jsonread", "JSONio")
     directory = eeglab_suite_root / "ds002718"
     description = directory / "dataset_description.json"
     expected = json.loads(description.read_text(encoding="utf-8"))
