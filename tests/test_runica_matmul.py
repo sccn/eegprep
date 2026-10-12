@@ -3,6 +3,7 @@ import subprocess
 import sys
 
 import numpy as np
+import pytest
 
 from eegprep.functions.sigprocfunc import runica_matmul
 
@@ -76,15 +77,17 @@ def test_runica_executes_the_selected_backend(monkeypatch):
         importlib.reload(runica_module)
 
 
-def test_runica_blas_backend_matches_numpy_backend(monkeypatch):
+@pytest.mark.parametrize("extended", [0, 1], ids=["logistic", "extended"])
+def test_runica_blas_backend_matches_numpy_backend(monkeypatch, extended):
     """The dgemm backend used under Emscripten must reproduce the NumPy backend's decomposition.
 
     Both backends run the real runica training loop on the same Laplace-distributed sources;
-    maxsteps stays small so the check is quick while still exercising weight updates.
+    maxsteps stays small so the check is quick while still exercising weight updates. The
+    extended loop also runs the backend in its kurtosis-based sign estimation.
     """
     rng = np.random.default_rng(386)
     data = rng.laplace(size=(4, 4000))
-    kwargs = {"maxsteps": 30, "rndreset": "off", "verbose": False}
+    kwargs = {"maxsteps": 30, "rndreset": "off", "verbose": False, "extended": extended}
 
     monkeypatch.setattr(runica_matmul, "runica_matmul", runica_matmul._numpy_matmul)
     weights_numpy, sphere_numpy, *_ = runica_module.runica(data.copy(), **kwargs)
