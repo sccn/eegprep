@@ -159,7 +159,11 @@ jobs:
           fi
           # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
           # parity gate passes; the shipped model must be the one it describes.
-          report_model_sha256=$(python3 -c 'import json; report = json.load(open("tools/iclabel/parity_report.json")); assert report["gate_pass"] is True, "parity gate did not pass"; print(report["packaged_model"]["sha256"])')
+          report_gate_pass=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["gate_pass"])')
+          if [ "$report_gate_pass" != "True" ]; then
+            echo "::error::tools/iclabel/parity_report.json records a failed ICLabel parity gate"; exit 1
+          fi
+          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
           if [ "$source_model_sha256" != "$report_model_sha256" ]; then
             echo "::error::Source ICLabel network does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
