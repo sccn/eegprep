@@ -122,7 +122,8 @@ readable and prevents hidden global state from changing scientific results.
 
    history = [filter_com, resample_com, clean_com]
 
-The same rule applies to ICA, ICLabel, and BIDS preprocessing:
+The same rule applies to ICA, ICLabel, and BIDS preprocessing. ICLabel needs the
+``iclabel`` extra (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
 

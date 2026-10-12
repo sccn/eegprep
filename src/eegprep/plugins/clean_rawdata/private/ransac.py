@@ -8,7 +8,12 @@ from .sphericalSplineInterpolate import sphericalSplineInterpolate
 
 
 def get_eeglab(*args, **kwargs):
-    """Load the EEGLAB bridge only when a MATLAB or Octave path needs it."""
+    """Load the EEGLAB bridge only when a MATLAB or Octave path needs it.
+
+    eeglabcompat imports pop_loadset and so mne. runica imports this module for rand_permutation,
+    and importing runica must stay light (tests/test_runica_matmul.py checks that mne is not loaded).
+    There is no import cycle; the deferral is only for import weight.
+    """
     from ....functions.adminfunc.eeglabcompat import get_eeglab as load_eeglab
 
     return load_eeglab(*args, **kwargs)

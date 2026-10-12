@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pyedflib
-from pyedflib import highlevel
 
 from eegprep.functions.popfunc._file_io import channel_labels, events_to_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
@@ -45,6 +43,17 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
 
 
 def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None:
+    # Optional-dependency guard: GDF output has its own writer and works without the ``edf`` extra.
+    try:
+        import pyedflib
+        from pyedflib import highlevel
+    except ImportError as exc:
+        raise ImportError(
+            f"Writing {output_type.upper()} files requires pyedflib ({exc}). "
+            'Install it with pip install "eegprep[edf]" (or uv pip install "eegprep[edf]"); '
+            "GDF output does not need it."
+        ) from exc
+
     data = np.ascontiguousarray(EEG["data"])
     if data.ndim != 2:
         raise ValueError("pop_writeeeg requires continuous 2-D channel-by-sample data")
@@ -69,6 +78,8 @@ def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None
 
 
 def _signal_header(label: str, signal: np.ndarray, srate: float, digital_min: int, digital_max: int) -> dict[str, Any]:
+    from pyedflib import highlevel  # available: _write_edf_family checked the import
+
     physical_min = float(np.floor(np.min(signal)))
     physical_max = float(np.ceil(np.max(signal)))
     if physical_min == physical_max:

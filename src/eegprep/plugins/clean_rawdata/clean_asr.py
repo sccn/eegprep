@@ -31,7 +31,7 @@ def clean_asr(
     ref_wndlen: Union[float, str, None] = 1.0,
     use_gpu: bool = False,
     useriemannian: Optional[str] = None,
-    maxmem: Optional[int] = 64,
+    maxmem: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Run the Artifact Subspace Reconstruction (ASR) method on EEG data.
 
@@ -65,7 +65,9 @@ def clean_asr(
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
         useriemannian (str, optional): Option to use a Riemannian ASR variant. Set to 'calib' to use a Riemannian estimate
             at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. Default: None (disabled).
-        maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
+        maxmem (Optional[int], optional): Maximum memory in MB for ASR processing, passed to asr_calibrate and asr_process.
+            Default: None, a 64 MB budget that asr_process raises automatically when the lookahead overhead of many channels
+            at a high sampling rate needs more. An explicit value too small for that overhead raises RuntimeError.
 
     Returns
     -------

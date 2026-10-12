@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -60,6 +61,18 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("POP_REREF", text)
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("pop_reref.md"))
+
+    def test_pophelp_documents_the_async_iclabel_entry_point_and_browser_bridge(self):
+        text, source_path = pophelp_text("pop_iclabel_async")
+
+        self.assertTrue(source_path.endswith("pop_iclabel_async.md"))
+        self.assertIn("EEG = await pop_iclabel_async(EEG, 'default');", text)
+        # The documented host method must be the one the reference bridge implements.
+        bridge = (REPO_ROOT / "tools/pyodide/iclabel_web_bridge.mjs").read_text(encoding="utf-8")
+        match = re.search(r"run: \(([^)]*)\) =>", bridge)
+        assert match is not None
+        self.assertIn("globalThis.eegprep_iclabel_web", text)
+        self.assertIn(f"run({match.group(1)})", text)
 
     def test_help_resources_are_declared_as_package_data(self):
         pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))

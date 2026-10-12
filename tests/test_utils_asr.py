@@ -4,7 +4,8 @@ import numpy as np
 from unittest.mock import patch
 
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
-from eegprep.plugins.clean_rawdata.asr_process import asr_process
+from eegprep.plugins.clean_rawdata.asr_process import DEFAULT_MAX_MEM_MB, asr_process
+from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
 
@@ -292,6 +293,60 @@ class TestAsrProcess(unittest.TestCase):
         self.assertEqual(cleaned_data.shape, self.test_data.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
 
+    def test_default_max_mem_equals_explicit_default(self):
+        """max_mem=None is exactly the documented default budget, not merely a plausible one."""
+        default_out, default_state = asr_process(self.test_data.copy(), self.srate, self.state)
+        explicit_out, explicit_state = asr_process(
+            self.test_data.copy(), self.srate, self.state, max_mem=DEFAULT_MAX_MEM_MB
+        )
+
+        np.testing.assert_array_equal(default_out, explicit_out)
+        np.testing.assert_array_equal(default_state['carry'], explicit_state['carry'])
+        np.testing.assert_array_equal(default_state['last_R'], explicit_state['last_R'])
+
+    def test_explicit_max_mem_forces_blocks(self):
+        """A small but sufficient explicit budget splits the work into blocks and still cleans."""
+        large_data = np.random.randn(self.n_channels, 5000) * 0.5
+
+        with self.assertLogs('eegprep.plugins.clean_rawdata.asr_process', level='INFO') as log:
+            cleaned_data, _ = asr_process(large_data, self.srate, self.state, max_mem=10)
+
+        self.assertTrue(any('blocks' in msg for msg in log.output))
+        self.assertEqual(cleaned_data.shape, large_data.shape)
+        self.assertTrue(np.all(np.isfinite(cleaned_data)))
+
+    def test_explicit_budget_below_fixed_overhead_raises_with_remedy(self):
+        """An explicit budget the fixed overhead cannot fit in must fail, naming the minimum and the fix."""
+        with self.assertRaises(RuntimeError) as cm:
+            asr_process(self.test_data, self.srate, self.state, max_mem=0.001)
+
+        message = str(cm.exception)
+        self.assertIn('Not enough memory', message)
+        self.assertIn('max_mem=0.001', message)
+        self.assertIn(f'{self.n_channels} channels', message)
+        self.assertIn('max_mem=None', message)
+
+    def test_default_budget_scales_with_channels_and_sampling_rate(self):
+        """The default budget must cover the fixed overhead of high-density, high-rate data.
+
+        128 channels at 1000 Hz and 256 channels at 512 Hz both need more than the 64 MB base
+        budget for the lookahead overhead (C * C * P * 8 * 3 bytes), which used to raise
+        'Not enough memory' even though EEGLAB's asr_process.m falls back to a larger budget.
+        """
+        for n_channels, srate in ((128, 1000.0), (256, 512.0)):
+            with self.subTest(channels=n_channels, srate=srate):
+                rng = np.random.default_rng(n_channels)
+                state = asr_calibrate(rng.standard_normal((n_channels, int(3 * srate))), srate)
+                chunk = rng.standard_normal((n_channels, int(srate)))
+                lookahead_samples = int(round(0.25 * srate))
+                overhead_mb = n_channels * n_channels * lookahead_samples * 8 * 3 / 1024**2
+                self.assertGreater(overhead_mb, DEFAULT_MAX_MEM_MB)
+
+                cleaned, _ = asr_process(chunk, srate, state)
+
+                self.assertEqual(cleaned.shape, chunk.shape)
+                self.assertTrue(np.all(np.isfinite(cleaned)))
+
     def test_rank_deficient_covariance_produces_sane_output(self):
         """Process genuinely rank-deficient data (singular covariance).
 
@@ -346,6 +401,47 @@ class TestCleanAsrNoMutation(unittest.TestCase):
         # Output is a distinct object with distinct data.
         self.assertIsNot(EEG_out, EEG_in)
         self.assertIsNot(EEG_out['data'], EEG_in['data'])
+
+
+class TestCleanAsrDefaultMemory(unittest.TestCase):
+    """clean_asr and clean_artifacts must run at high channel counts with their default memory budget."""
+
+    @staticmethod
+    def _eeg(n_channels, srate, seconds):
+        rng = np.random.default_rng(n_channels)
+        data = rng.standard_normal((n_channels, int(seconds * srate)))
+        return {'data': data, 'srate': srate, 'nbchan': n_channels, 'pnts': data.shape[1], 'etc': {}}
+
+    def test_clean_asr_default_budget_at_128_channels_1000_hz(self):
+        EEG = self._eeg(128, 1000.0, 3)
+
+        cleaned = clean_asr(EEG, ref_maxbadchannels='off')
+
+        self.assertEqual(cleaned['data'].shape, EEG['data'].shape)
+        self.assertTrue(np.all(np.isfinite(cleaned['data'])))
+
+    def test_clean_artifacts_default_budget_at_128_channels_1000_hz(self):
+        """Burst repair alone, so the test exercises only the MaxMem default flowing into ASR."""
+        EEG = self._eeg(128, 1000.0, 3)
+
+        cleaned, _, _, _ = clean_artifacts(
+            EEG,
+            ChannelCriterion='off',
+            LineNoiseCriterion='off',
+            FlatlineCriterion='off',
+            Highpass='off',
+            WindowCriterion='off',
+            BurstCriterionRefMaxBadChns='off',
+        )
+
+        self.assertEqual(cleaned['data'].shape, EEG['data'].shape)
+        self.assertTrue(np.all(np.isfinite(cleaned['data'])))
+
+    def test_clean_asr_explicit_tiny_budget_still_raises(self):
+        EEG = self._eeg(8, 250.0, 6)
+
+        with self.assertRaisesRegex(RuntimeError, 'Not enough memory'):
+            clean_asr(EEG, ref_maxbadchannels='off', maxmem=0.001)
 
 
 if __name__ == '__main__':

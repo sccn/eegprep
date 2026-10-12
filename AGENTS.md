@@ -14,7 +14,7 @@ Primary references:
 - `src/eegprep/functions/sigprocfunc/`: EEGLAB-style low-level signal processing functions such as `runica.py`, `runamica.py`, `topoplot.py`, `epoch.py`, and `eegrej.py`.
 - `src/eegprep/plugins/clean_rawdata/`: Python ports of the EEGLAB clean_rawdata plugin, including `clean_*` and ASR modules.
 - `src/eegprep/plugins/clean_rawdata/private/`: ports of clean_rawdata private helpers such as `fit_eeg_distribution`, `geometric_median`, FIR helpers, covariance helpers, and spherical-spline interpolation.
-- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and the bundled `iclabel.onnx` network (exported from `netICL.mat` via `tools/iclabel/export_iclabel_onnx.py`).
+- `src/eegprep/plugins/ICLabel/`: Python ports of the EEGLAB ICLabel plugin and the bundled `iclabel.onnx` network, an int8 weight-only quantization of `netICL.mat` produced by `tools/iclabel/export_iclabel_onnx.py` and `tools/iclabel/quantize_iclabel_onnx.py`; `netICL.mat` stays in the source tree but is not packaged.
 - `src/eegprep/plugins/firfilt/`: Python ports of the EEGLAB firfilt plugin helpers.
 - `src/eegprep/functions/miscfunc/`: EEGLAB-style miscellaneous helpers, including format conversion and numerical utilities.
 - `src/eegprep/functions/eegobj/`: Python counterpart to EEGLAB's `functions/@eegobj/`.
@@ -135,7 +135,7 @@ Primary references:
 - Python support starts at 3.12 per `pyproject.toml`.
 - `uv` is the default package and environment manager for development, CI, and agent workflows.
 - `.python-version` sets the default development interpreter to Python 3.12.
-- Use `uv sync --group dev` after cloning or when dependencies change.
+- Use `uv sync --group dev --extra iclabel` after cloning or when dependencies change; the `iclabel` extra (ONNX Runtime) is needed by the ICLabel tests and gallery examples.
 - Use `uv run python ...` for Python commands so tests run inside the project environment.
 - Do not add dependencies for tiny helpers. If a dependency is justified, update `pyproject.toml`, docs, and any CI/install notes.
 

@@ -129,6 +129,9 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
     } <= packaged
     assert "eeglab/**" in excluded
     assert not any(path.startswith("eeglab/") for path in packaged)
+    # netICL.mat is the MATLAB source of the ICLabel weights. It is only read to regenerate
+    # iclabel.onnx, so it must not ship (verified against built wheel and sdist).
+    assert not any(path.endswith("netICL.mat") for path in packaged)
 
 
 def _read_pyproject() -> dict:

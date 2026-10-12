@@ -49,7 +49,7 @@ def clean_artifacts(
     SubsetSize: float = 0.25,
     NoLocsChannelCriterion: float = 0.45,
     NoLocsChannelCriterionExcluded: float = 0.1,
-    MaxMem: int = 64,
+    MaxMem: Optional[int] = None,
     Distance: str = 'euclidian',
     # Misc.
     Channels: Optional[Sequence[str]] = None,
@@ -110,8 +110,10 @@ def clean_artifacts(
     NoLocsChannelCriterionExcluded : float
         Fraction of channels excluded when assessing correlation in nolocs cleaning.
         Default 0.1.
-    MaxMem : int
-        Maximum memory in MB for ASR processing. Default 64.
+    MaxMem : int or None
+        Maximum memory in MB for ASR processing. Default None, a 64 MB budget that ASR raises
+        automatically for many channels at a high sampling rate; an explicit value that is
+        too small for that overhead raises RuntimeError.
     Distance : str
         Distance metric for ASR calibration ('euclidian' or 'riemannian'). The
         Riemannian path uses EEGPrep's calibration-time estimate; full
@@ -263,7 +265,7 @@ def clean_artifacts(
             ref_tolerances=BurstCriterionRefTolerances,
             use_gpu=False,
             useriemannian=useriemannian,
-            maxmem=int(MaxMem),
+            maxmem=None if MaxMem is None else int(MaxMem),
         )
 
         if BurstRejection:

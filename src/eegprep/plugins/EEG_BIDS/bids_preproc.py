@@ -167,7 +167,7 @@ def bids_preproc(
     NumSamples: int = 50,
     NoLocsChannelCriterion: float = 0.45,
     NoLocsChannelCriterionExcluded: float = 0.1,
-    MaxMem: int = 64,
+    MaxMem: Optional[int] = None,
     Distance: str = 'euclidian',
     # Misc cleaning config
     Channels: Optional[Sequence[str]] = None,
@@ -340,8 +340,9 @@ def bids_preproc(
     NoLocsChannelCriterionExcluded : float
         Fraction of channels excluded when assessing correlation in nolocs cleaning.
         Default 0.1.
-    MaxMem : int
-        Maximum memory in MB for ASR processing. Default 64.
+    MaxMem : int or None
+        Maximum memory in MB for ASR processing. Default None, a 64 MB budget that ASR raises
+        automatically for many channels at a high sampling rate. See ``clean_artifacts``.
     Distance : str
         Distance metric for ASR processing ('euclidian'). Default 'euclidian'.
     Channels : Sequence[str] or None

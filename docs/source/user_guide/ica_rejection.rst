@@ -54,7 +54,8 @@ Python Picard. Different starts can converge to equivalent ICA solutions.
 ICLabel Workflow
 ================
 
-Run ICLabel after ICA:
+Run ICLabel after ICA. ICLabel runs on ONNX Runtime, which the ``iclabel`` extra
+installs (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
 
@@ -153,23 +154,63 @@ preserves event display state through the ``scroll_event`` option.
 Network Availability
 ====================
 
-The standalone Python engine ships the gate-selected weight-only int8 ICLabel
-network as ``iclabel.onnx`` and classifies components through `onnxruntime`;
-install the ``iclabel`` extra (``eegprep[iclabel]``) to run it. Feature
-extraction, float32 input normalization, four-way augmentation, and output
-softmax remain unchanged. On the frozen 217-component, subject-disjoint
-evaluation set recorded in ``tools/iclabel/evaluation_manifest.json``, the
-shipped artifact agreed with the preserved float32 teacher on all 217 top-1
-labels and all 217 keep-or-reject decisions under the existing
-``pop_icflag`` thresholds (100% and 100%), with a maximum probability drift of
-0.01346. The calibrated int8 candidate measured 98.1567% top-1 and 100%
-keep-or-reject but exceeded the fixed 0.015 probability-drift gate, so the
-smaller weight-only candidate is shipped. These are measured parity results on
-the frozen set, not a general accuracy claim. The reproducible float32
-reference, both int8 candidates, and the complete report are retained under
-``tools/iclabel/``.
+The standalone Python engine ships one ICLabel network, the EEGLAB ``default``
+network, as ``iclabel.onnx`` (2,932,897 bytes) and classifies components with
+``onnxruntime``. Install the ``iclabel`` extra (``eegprep[iclabel]``) to run it.
+Feature extraction, the cast to float32, four-way augmentation, and the output
+softmax are unchanged; only the convolution weights are stored as 8-bit
+integers (weight-only quantization) to keep the file small.
 
 EEGLAB ``lite`` and ``beta`` network artifacts are not bundled in the Python
 package; requesting them with ``engine=None`` raises a clear limitation. They
 can still be requested through ``engine="matlab"`` or ``engine="octave"``
 when that runtime has an EEGLAB ICLabel checkout with those artifacts.
+
+.. _iclabel_measured_agreement:
+
+Measured Agreement with the Full-Precision Network
+--------------------------------------------------
+
+Quantization changes the class probabilities slightly. The shipped network was
+compared with the full-precision (float32) network built from the same EEGLAB
+weights on a frozen set of 217 independent components, one recording from each
+of seven subjects of the public OpenNeuro dataset ds002680. The committed
+manifest ``tools/iclabel/evaluation_manifest.json`` records the files and the
+ICA settings. The weight-only network passed all three acceptance criteria:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 18 18 18
+
+   * - Criterion
+     - Required
+     - Measured
+     - Passed
+   * - Components whose top-1 class matches
+     - at least 0.95
+     - 1.0 (217 of 217)
+     - yes
+   * - Components with the same keep-or-reject decision under the default
+       ``pop_icflag`` thresholds
+     - at least 0.99
+     - 1.0 (217 of 217)
+     - yes
+   * - Largest absolute difference in any class probability
+     - at most 0.015
+     - 0.01346
+     - yes
+
+The mean absolute probability difference was 0.00080. "Keep-or-reject" asks
+whether ``pop_icflag`` would flag the component for removal. The complete report is
+``tools/iclabel/parity_report.json``.
+
+These are measured agreement results on one frozen set, not an accuracy claim.
+The set is dominated by one class: the full-precision network labels 193 of the
+217 components Other (and 18 Brain, 5 Eye, 1 Muscle), and Heart, Line Noise, and
+Channel Noise do not occur, so the agreement figures say nothing about those
+classes. Releases up to 0.4.0 classified with PyTorch, so probabilities can
+differ from those releases by up to about 0.0135 (the largest difference
+measured on this set).
+
+Developers who change ``netICL.mat`` or the quantization rebuild the packaged
+network with the ``torch`` extra; the procedure is in :ref:`releasing`.

@@ -180,7 +180,8 @@ Important processing options:
      - Run ICA after cleaning. Use this only when the data length and runtime
        budget are appropriate.
    * - ``WithICLabel``
-     - Classify components after ICA.
+     - Classify components after ICA. Needs the ``iclabel`` extra
+       (``uv add "eegprep[iclabel]"``).
    * - ``ReturnData``
      - Return final EEG dictionaries instead of only writing derivatives. This
        can use substantial memory for large studies.

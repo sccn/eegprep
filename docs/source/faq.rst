@@ -34,7 +34,7 @@ For development installation from source:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 What are the system requirements?
 ---------------------------------
@@ -57,24 +57,21 @@ Refresh the uv environment:
 .. code-block:: bash
 
     uv lock
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Or create a fresh uv environment:
 
 .. code-block:: bash
 
     rm -rf .venv
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Does EEGPrep support GPU acceleration?
 --------------------------------------
 
-EEGPrep can leverage GPU acceleration through MNE-Python and PyTorch for ICA and other computations. Install GPU support:
-
-.. code-block:: bash
-
-    uv add torch  # For GPU support
-    uv add "mne[cuda]"  # For MNE GPU support
+No. EEGPrep computes on the CPU. The ``use_gpu`` argument of ``clean_asr`` exists for
+EEGLAB compatibility and is ignored, and ICLabel runs on ONNX Runtime's CPU provider.
+PyTorch is not needed to run EEGPrep.
 
 Usage FAQ
 =========
@@ -210,9 +207,8 @@ Preprocessing speed depends on:
 To speed up processing:
 
 1. Downsample data if appropriate
-2. Use GPU acceleration
-3. Process in parallel (for multiple subjects)
-4. Use faster algorithms (e.g., ASR instead of ICA)
+2. Process in parallel (for multiple subjects)
+3. Use faster algorithms (e.g., ASR instead of ICA)
 
 How much memory does EEGPrep use?
 ---------------------------------
@@ -258,8 +254,7 @@ Tips for optimization:
 2. **Skip unnecessary steps**: Only apply needed preprocessing
 3. **Use faster algorithms**: ASR is faster than ICA
 4. **Downsample if appropriate**: Reduces computation
-5. **Use GPU acceleration**: For ICA and other algorithms
-6. **Process in batches**: More efficient than one-by-one
+5. **Process in batches**: More efficient than one-by-one
 
 Troubleshooting FAQ
 ===================
@@ -277,7 +272,7 @@ Or if developing from source:
 
 .. code-block:: bash
 
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 I get "ValueError: Data shape mismatch"
 ---------------------------------------
@@ -291,23 +286,6 @@ I get "ValueError: Data shape mismatch"
     print(eeg.data.shape)  # Should be (channels, samples)
     print(eeg.nbchan)  # Number of channels
     print(eeg.pnts)  # Number of samples
-
-I get "RuntimeError: CUDA out of memory"
-----------------------------------------
-
-**Cause**: GPU memory exhausted
-
-**Solutions**:
-
-1. Use CPU instead:
-
-.. code-block:: python
-
-    eeg = eegprep.clean_artifacts(eeg, use_gpu=False)
-
-2. Process smaller segments
-3. Reduce batch size
-4. Upgrade GPU memory
 
 My data has NaN values
 ----------------------

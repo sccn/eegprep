@@ -6,10 +6,9 @@ no WebAssembly build to fall back to. That makes ``requires-python`` and these f
 *ceiling* for the browser target, which is the opposite of how a floor usually reads, and it
 is invisible from the code. A routine bump made for an unrelated reason is enough to break it.
 
-``epic/324-pyodide-browser`` already carries ``tools/check_pyodide_base_resolution.py``, but
-that gate matches package *names* against the Pyodide lock and never compares versions, so a
-floor above what Pyodide ships passes it (sccn/eegprep#400). These tests close that gap on
-``develop``, offline and without a network fetch.
+``tools/check_pyodide_base_resolution.py`` matches package *names* against the Pyodide lock
+and never compares versions, so a floor above what Pyodide ships passes it (sccn/eegprep#400).
+These tests close that gap, offline and without a network fetch.
 """
 
 from __future__ import annotations

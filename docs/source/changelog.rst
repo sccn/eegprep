@@ -7,55 +7,79 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
+Unreleased
+==========
+
+Changes since 0.4.0, not yet in a tagged release.
+
+Breaking changes
+----------------
+
+- **BREAKING: three packages are no longer installed with** ``eegprep``.
+  ``oct2py``, ``psutil``, and ``pyedflib`` moved to optional extras.
+  This removes the last base dependencies without a WebAssembly (WASM) build,
+  so the base requirement set can resolve under Pyodide, which runs Python in the browser.
+  Each feature raises an ``ImportError`` that names the extra and keeps the original cause when it is missing.
+  Migration:
+
+  - ``get_eeglab('OCT')`` and the other Octave parity helpers now need ``pip install "eegprep[eeglab]"`` (``oct2py``).
+  - ``num_jobs_from_reservation`` with a memory reservation such as ``"4GB"``, and ``ReservePerJob`` in ``bids_preproc``, now need ``pip install "eegprep[sys]"`` (``psutil``).
+    CPU reservations such as ``"2CPU"`` do not.
+  - ``pop_writeeeg`` now imports ``pyedflib`` only when it writes European Data Format (EDF) or BioSemi Data Format (BDF) files, which need ``pip install "eegprep[edf]"``.
+    General Data Format (GDF) output has its own writer and works without it.
+  - ``eegprep[all]`` installs all three.
+
+- **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
+  ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime`` instead of PyTorch.
+  The package ships ``iclabel.onnx`` in place of ``netICL.mat``.
+  Migration: install ``pip install "eegprep[iclabel]"`` where you installed ``eegprep[torch]`` for ICLabel.
+  The ``torch`` extra now installs ``torch`` and ``onnx`` only for rebuilding the packaged network from ``netICL.mat`` (see :ref:`releasing`);
+  it is no longer part of ``eegprep[all]`` and its floor is ``torch>=2.4``.
+- **BREAKING: ICLabel probabilities differ slightly from 0.4.0.**
+  The shipped network stores its convolution weights as 8-bit integers (weight-only quantization, 2,932,897 bytes) instead of float32.
+  On the frozen evaluation set of 217 components, class probabilities differ from the float32 network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
+  That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
+  see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
+  Feature extraction, the cast to float32, augmentation, softmax, the class set, and the rejection thresholds are unchanged.
+- **BREAKING: explicit ASR memory limits are enforced.**
+  ``asr_process(..., max_mem=...)``, ``clean_asr(..., maxmem=...)``, ``clean_artifacts(..., MaxMem=...)`` and ``bids_preproc(..., MaxMem=...)`` no longer fall back to half of the free RAM when the given budget cannot hold the fixed lookahead overhead (``C * C * P * 8 * 3`` bytes for ``C`` channels and ``P`` lookahead samples).
+  They raise ``RuntimeError`` containing ``Not enough memory``, which states the minimum, ``C`` and ``P``, and the fix.
+  Migration: omit the argument (the default is now ``None``), or pass at least the stated minimum.
+
+Changed
+-------
+
+- ``asr_process`` no longer probes free system RAM through ``psutil``, which has no WASM build.
+  With ``max_mem=None``, and with the new ``None`` defaults of ``clean_asr``, ``clean_artifacts`` and ``bids_preproc`` (formerly 64), it uses a 64 MB budget, the same as ``asr_calibrate``.
+  When 64 MB cannot hold the fixed overhead, the budget is raised to twice the overhead, deterministically and with an informational log message.
+  Examples are 128 channels at 1000 Hz (93.75 MB overhead, so a 187.5 MB budget) and 256 channels at 512 Hz (192 MB overhead, so a 384 MB budget).
+  Block sizes no longer vary with the machine's free memory, but the reconstruction matrix is refreshed on a per-block grid, so output of Artifact Subspace Reconstruction (ASR) differs slightly from 0.4.0 whenever the block layout differs.
+  Pass ``max_mem`` explicitly to fix the block layout across machines.
+- ``eegh(n)`` in ``eegprep-console`` returns a coroutine when history entry ``n`` contains ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
+  Run it with ``await eegh(n)``; entries without ``await`` still run immediately.
+- ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran.
+  A result computed against a dataset that changed in the meantime is discarded with a ``RuntimeError`` instead of being committed to the wrong dataset.
+  ``notify_changed`` takes a ``dataset_changed`` flag; the developer notes in :doc:`user_guide/contracts` describe the contract.
+
+Added
+-----
+
+- Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
+  It classifies through ONNX Runtime Web (the JavaScript build of the Open Neural Network Exchange runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
+  ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
+  The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
+  Browser execution is checked against native classification for parity.
+- Added a pinned Pyodide 0.29.5 harness and a continuous integration (CI) gate that installs the working-tree wheel, runs a continuous sample-data smoke pipeline, and records one-thread ``runica`` and Picard benchmarks plus benchmarks of the matrix products (basic linear algebra subprograms, BLAS) that ``runica`` performs.
+  See :doc:`pyodide_benchmark`.
+  Pyodide Web Workers are documented as the browser responsiveness and independent-job concurrency boundary, not as threading inside one independent component analysis (ICA) run.
+- ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
+- Added the ``edf`` extra (``pyedflib``) and the quoted install hints ``pip install "eegprep[extra]"`` in the optional-dependency errors, which also work in zsh.
+
 Version 0.4.0
 =============
 
 *Released 2026-09-23*
 
-- Added the asynchronous Pyodide/Emscripten ICLabel path through pinned ONNX
-  Runtime Web. ``iclabel_async`` and ``pop_iclabel_async`` preserve the native
-  post-processing, console history, and GUI/console session synchronization;
-  browser execution is gated by native-to-browser classification parity.
-- Added a pinned Pyodide 0.29.5 harness and CI gate that installs the working-tree
-  wheel, runs a continuous sample-data smoke pipeline, and records one-thread
-  ``runica``/Picard and runica-shaped BLAS benchmarks. See :doc:`pyodide_benchmark`;
-  Pyodide Web Workers are documented as the browser responsiveness and independent-job
-  concurrency boundary, not as intra-ICA threading.
-- Installing ``eegprep`` no longer pulls ``oct2py``, ``psutil``, or ``pyedflib``.
-  The Octave parity engine now needs ``eegprep[eeglab]`` and the system-RAM helper in
-  ``num_jobs_from_reservation`` now needs ``eegprep[sys]``; both raise an ``ImportError``
-  naming the extra when it is missing, and ``eegprep[all]`` still installs everything.
-  ``pyedflib`` was unused by the package and is gone from every published install.
-  This removes the last base dependencies that have no WebAssembly build, so the base
-  requirement set can resolve under Pyodide.
-- ICLabel now ships a gate-selected weight-only int8 ONNX artifact (2,932,897
-  bytes) while retaining a reproducible float32 reference and calibrated int8
-  candidate under ``tools/iclabel/artifacts/``. On the frozen, subject-disjoint
-  217-component real-data evaluation set, the shipped artifact matched the
-  float32 teacher on 100% of top-1 labels and 100% of existing
-  ``pop_icflag`` keep-or-reject decisions, with a maximum probability drift of
-  0.01346 and a mean drift of 0.00080. The calibrated candidate measured
-  98.1567% and 100%, respectively, but exceeded the 0.015 maximum probability
-  drift gate. Feature extraction, normalization, augmentation, softmax, class
-  set, and rejection thresholds are unchanged.
-- ``asr_process`` now resolves ``max_mem=None`` to a fixed 64 MB instead of probing free
-  system RAM through ``psutil``.
-  This matches the ``maxmem=64`` default that ``asr_calibrate`` and ``clean_asr`` already
-  use, so the whole ASR pipeline assumes one memory budget and block sizes no longer vary
-  with the machine's free memory.
-  ``clean_asr`` already passed 64, so the standard cleaning pipeline is unchanged; only
-  direct ``asr_process(..., max_mem=None)`` calls see different block splitting, and
-  because the reconstruction matrix is refreshed on a per-block grid their output changes
-  accordingly.
-  Pass ``max_mem`` explicitly to pin the previous behavior.
-- ICLabel (``iclabel``/``pop_iclabel``) now classifies the default network through
-  ``onnxruntime`` instead of torch. The package ships ``iclabel.onnx`` in place of
-  ``netICL.mat``; install the new ``iclabel`` extra (``eegprep[iclabel]``) to run
-  classification. torch is now needed only to regenerate the ONNX artifact from
-  ``netICL.mat`` (``tools/iclabel/export_iclabel_onnx.py``), not to run ICLabel.
-  The preserved float32 reference remains the probability-parity artifact for the
-  previous torch and MATLAB paths; the shipped int8 artifact is validated separately
-  by the frozen top-1 and keep-or-reject semantic gate.
 - Added a source-driven developer audit for the current EEGLAB test-port
   project. It discovers all MATLAB wrapper and regression methods from the
   pinned suite, collects pytest provenance, resolves same-directory scenario
