@@ -281,6 +281,50 @@ def test_harness_holds_mne_at_the_declared_floor():
     assert re.search(r"MICROPIP_CONSTRAINTS = \[[^\]]*\"mne==" + re.escape(floor) + r"\"", runner)
 
 
+def _run_script_with_path(path_entries, tmp_path):
+    """Run run_pyodide.sh with a PATH of only the given directories, after the argument checks."""
+    wheel = tmp_path / "eegprep.whl"
+    script = tmp_path / "script.py"
+    wheel.touch()
+    script.touch()
+    return subprocess.run(
+        [
+            shutil.which("bash"),
+            str(REPO_ROOT / "tools" / "pyodide" / "run_pyodide.sh"),
+            "--wheel",
+            str(wheel),
+            "--script",
+            str(script),
+        ],
+        env={"PATH": ":".join(str(entry) for entry in path_entries), "TMPDIR": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is required to run run_pyodide.sh")
+@pytest.mark.parametrize("missing", ["bun", "node"])
+def test_runner_script_reports_a_missing_javascript_tool_before_downloading(tmp_path, missing):
+    # Only the helpers the script needs before its checks, plus a bun or node stub on
+    # PATH: the script must stop with exit code 2 before running any installer.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for helper in ("mktemp", "dirname", "rm"):
+        (bin_dir / helper).symlink_to(shutil.which(helper))
+    installer_log = tmp_path / "bun-was-run"
+    present = "node" if missing == "bun" else "bun"
+    stub = bin_dir / present
+    stub.write_text(f"#!/bin/sh\ntouch {installer_log}\n")
+    stub.chmod(0o755)
+
+    result = _run_script_with_path([bin_dir], tmp_path)
+
+    assert result.returncode == 2
+    assert missing in result.stderr
+    assert not installer_log.exists()
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
 def test_iclabel_web_bridge_retries_failed_session_initialization():
     script = textwrap.dedent(
