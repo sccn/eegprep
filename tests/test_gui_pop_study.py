@@ -12,7 +12,19 @@ from eegprep.functions.studyfunc.pop_addindepvar import (
     pop_addindepvar_dialog_spec,
 )
 from eegprep.functions.studyfunc.pop_study import pop_study, pop_study_dialog_spec
-from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign, pop_studydesign_dialog_spec
+from eegprep.functions.studyfunc.pop_studydesign import (
+    apply_studydesign_add,
+    apply_studydesign_delete,
+    apply_studydesign_delete_variable,
+    apply_studydesign_new_variable,
+    apply_studydesign_rename,
+    apply_studydesign_select,
+    apply_studydesign_select_subjects,
+    apply_studydesign_set_subjects,
+    pop_studydesign,
+    pop_studydesign_dialog_spec,
+    studydesign_factor_lines,
+)
 from eegprep.functions.studyfunc.std_makedesign import std_makedesign
 from eegprep.functions.studyfunc.std_maketrialinfo import std_maketrialinfo
 from tests.fixtures import create_test_eeg
@@ -338,3 +350,276 @@ def test_pop_addindepvar_dialog_selects_categorical_values_and_combines_them():
 
     assert warning is None
     assert state["factorvals"][1][-1] == ["standard", "target"]
+
+
+def _two_condition_study():
+    datasets = []
+    for subject, condition in (("S01", "target"), ("S02", "standard")):
+        eeg = create_test_eeg(n_channels=2, n_samples=10)
+        eeg.update({"setname": subject, "subject": subject, "condition": condition, "filename": f"{subject}.set"})
+        datasets.append(eeg)
+    return pop_study(None, datasets, name="Study")
+
+
+def _editor_state(study, alleeg):
+    return controls_by_tag(pop_studydesign_dialog_spec(study, alleeg))["new_design"].callback.params
+
+
+def _commit_editor(study, alleeg, state, **result):
+    payload = {"designind": state, "subjects": state.get("subject_text") or "", "resave": False}
+    payload.update(result)
+    return pop_studydesign(study, alleeg, gui=True, renderer=_Renderer(payload), return_com=True)
+
+
+def test_pop_studydesign_controls_are_wired():
+    study, alleeg = _two_condition_study()
+    controls = controls_by_tag(pop_studydesign_dialog_spec(study, alleeg))
+    expected = {
+        "subjects": "studydesign_set_subjects",
+        "select_subjects": "studydesign_select_subjects",
+        "new_design": "studydesign_add_design",
+        "rename_design": "studydesign_rename_design",
+        "delete_design": "studydesign_delete_design",
+        "designind": "studydesign_select_design",
+        "new_variable": "studydesign_new_variable",
+        "edit_variable": "studydesign_edit_variable",
+        "delete_variable": "studydesign_delete_variable",
+        "list_factors": "studydesign_list_factors",
+    }
+    for tag, name in expected.items():
+        assert controls[tag].callback.name == name
+    spec = pop_studydesign_dialog_spec(study, alleeg)
+    assert spec.help_label == "Web help"
+    assert spec.help_text == "pop_studydesign"
+    assert controls["resave"].value is True
+    assert "show_message" not in {control.callback.name for control in spec.controls if control.callback}
+
+
+def test_pop_studydesign_add_rename_and_delete_match_std_makedesign():
+    study, alleeg = _two_condition_study()
+    state = _editor_state(study, alleeg)
+
+    assert apply_studydesign_delete(state) == "The first STUDY design cannot be removed, only modified"
+    apply_studydesign_add(state)
+    apply_studydesign_rename(state, "Only S01")
+    apply_studydesign_select_subjects(state, ["S01"])
+    edited, _alleeg, command = _commit_editor(study, alleeg, state)
+
+    reference = std_makedesign(
+        copy.deepcopy(study),
+        copy.deepcopy(alleeg),
+        2,
+        name="Only S01",
+        defaultdesign="forceoff",
+        subjselect=["S01"],
+        return_com=True,
+    )[0]
+    assert [design["name"] for design in edited["design"]] == ["STUDY.design 1", "Only S01"]
+    assert edited["design"][1]["cases"]["value"] == ["S01"]
+    assert edited["design"][1]["variable"] == reference["design"][1]["variable"]
+    assert "std_makedesign" in command
+    assert "name='Only S01'" in command
+    assert "subjselect=['S01']" in command
+    ast.parse(command)
+
+    state = _editor_state(edited, alleeg)
+    apply_studydesign_select(state, 2)
+    assert apply_studydesign_delete(state) is None
+    deleted, _alleeg, delete_command = _commit_editor(edited, alleeg, state)
+    assert len(deleted["design"]) == 1
+    assert "del STUDY['design'][1]" in delete_command
+
+
+def test_pop_studydesign_subject_text_rejects_unknown_names():
+    study, alleeg = _two_condition_study()
+    state = _editor_state(study, alleeg)
+    warning = apply_studydesign_set_subjects(state, "S99")
+    assert warning == "Unknown subject(s) - check syntax"
+    assert state["designs"][0]["cases"]["value"] == ["S01", "S02"]
+    assert apply_studydesign_set_subjects(state, "S02") is None
+    edited, _alleeg, command = _commit_editor(study, alleeg, state)
+    reference = std_makedesign(
+        copy.deepcopy(study),
+        copy.deepcopy(alleeg),
+        1,
+        name="STUDY.design 1",
+        variable1="condition",
+        values1=["standard", "target"],
+        vartype1="categorical",
+        subjselect=["S02"],
+        defaultdesign="off",
+        return_com=True,
+    )[0]
+    assert edited["design"][0]["cases"]["value"] == ["S02"]
+    assert edited["design"][0]["variable"][0]["label"] == reference["design"][0]["variable"][0]["label"]
+    assert edited["design"][0]["variable"][0]["value"] == reference["design"][0]["variable"][0]["value"]
+    assert "subjselect=['S02']" in command
+
+
+def test_pop_studydesign_edits_and_lists_factors_without_a_four_variable_cap():
+    study, alleeg = _two_condition_study()
+    state = _editor_state(study, alleeg)
+    lines = studydesign_factor_lines(state["designs"][0], state["datasetinfo"])
+    assert "2nd-level available statistics" in lines
+    assert "* t-test/ANOVA using condition = target" in lines
+    assert apply_studydesign_delete_variable(state) is True
+    for _index in range(5):
+        updated, warning = apply_studydesign_new_variable(
+            state["variables"],
+            state["varlist"],
+            {"lbfact0": {"label": "condition", "values": ["target"], "categorical": 1}},
+        )
+        assert warning is None
+        state["variables"] = updated
+        state["designs"][0]["variable"] = updated
+    edited, _alleeg, command = _commit_editor(study, alleeg, state)
+    labels = [variable["label"] for variable in edited["design"][0]["variable"]]
+    assert labels == ["condition", "condition", "condition", "condition"]
+    assert "variable4='condition'" in command
+    assert "variable5" not in command
+
+
+def _gui():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer, _require_qt
+
+    try:
+        qt_core, qt_widgets = _require_qt()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+    return qt_core, qt_widgets, QtDialogRenderer
+
+
+def _on_modal(qt_core, qt_widgets, predicate, action):
+    def poll():
+        app = qt_widgets.QApplication.instance()
+        child = app.activeModalWidget()
+        poll.tries += 1
+        if child is not None and predicate(child):
+            action(child)
+            return
+        if poll.tries > 50:
+            if child is not None:
+                child.reject()
+            return
+        qt_core.QTimer.singleShot(10, poll)
+
+    poll.tries = 0
+    qt_core.QTimer.singleShot(10, poll)
+
+
+def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
+    qt_core, qt_widgets, renderer_type = _gui()
+    study, alleeg = _two_condition_study()
+    study["filename"] = "designs.study"
+    study["filepath"] = str(tmp_path)
+    before = copy.deepcopy(study)
+    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    _app, dialog, widgets = renderer_type().build_dialog(pop_studydesign_dialog_spec(study, alleeg))
+    for tag in (
+        "subjects",
+        "select_subjects",
+        "new_design",
+        "rename_design",
+        "delete_design",
+        "designind",
+        "new_variable",
+        "edit_variable",
+        "delete_variable",
+        "list_factors",
+        "variable_summary",
+        "resave",
+    ):
+        assert widgets[tag].objectName() == tag
+    assert dialog.findChild(qt_widgets.QPushButton, "ok").objectName() == "ok"
+    assert dialog.findChild(qt_widgets.QPushButton, "cancel").objectName() == "cancel"
+    assert dialog.findChild(qt_widgets.QPushButton, "help").objectName() == "help"
+
+    def close_warning(child):
+        assert "first STUDY design" in child.text()
+        child.accept()
+
+    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Warning", close_warning)
+    widgets["delete_design"].click()
+    assert widgets["designind"].count() == 1
+
+    widgets["new_design"].click()
+    assert [widgets["designind"].item(row).text() for row in range(widgets["designind"].count())] == [
+        "STUDY.design 1",
+        "Design 2",
+    ]
+
+    def rename(child):
+        child.findChild(qt_widgets.QLineEdit, "answer0").setText("Renamed design")
+        child.accept()
+
+    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Rename Study Design", rename)
+    widgets["rename_design"].click()
+    assert widgets["designind"].currentItem().text() == "Renamed design"
+
+    widgets["designind"].setCurrentRow(0)
+
+    def read_factors(child):
+        texts = [label.text() for label in child.findChildren(qt_widgets.QLabel)]
+        assert "* t-test/ANOVA using condition = target" in texts
+        child.accept()
+
+    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "List factors", read_factors)
+    widgets["list_factors"].click()
+
+    def keep_target(child):
+        values = child.findChild(qt_widgets.QListWidget, "lbval0")
+        for row in range(values.count()):
+            values.item(row).setSelected(values.item(row).text() == "target")
+        child.accept()
+
+    _on_modal(qt_core, qt_widgets, lambda child: child.windowTitle() == "Add variable", keep_target)
+    widgets["edit_variable"].click()
+    assert "target" in widgets["variable_summary"].item(0).text()
+    assert "standard" not in widgets["variable_summary"].item(0).text()
+
+    def choose_s01(child):
+        values = child.findChild(qt_widgets.QListWidget, "listboxvals")
+        for row in range(values.count()):
+            values.item(row).setSelected(values.item(row).text() == "S01")
+        child.findChild(qt_widgets.QPushButton, "ok").click()
+
+    _on_modal(qt_core, qt_widgets, lambda child: child.objectName() == "listdlg2", choose_s01)
+    widgets["select_subjects"].click()
+    assert widgets["subjects"].text().strip() == "S01"
+
+    dialog.findChild(qt_widgets.QPushButton, "help").click()
+    help_dialog = next(widget for widget in app.topLevelWidgets() if widget.objectName() == "pophelp")
+    assert help_dialog.windowTitle().startswith("pop_studydesign")
+    help_dialog.close()
+
+    state = widgets["designind"].property("eegprep_value")
+    edited, _alleeg, command = _commit_editor(study, alleeg, state, resave=True)
+    reference = std_makedesign(
+        copy.deepcopy(before),
+        copy.deepcopy(alleeg),
+        1,
+        name="STUDY.design 1",
+        variable1="condition",
+        values1=["target"],
+        vartype1="categorical",
+        subjselect=["S01"],
+        defaultdesign="off",
+        return_com=True,
+    )[0]
+    assert edited["design"][0]["variable"][0]["value"] == reference["design"][0]["variable"][0]["value"]
+    assert edited["design"][0]["cases"]["value"] == ["S01"]
+    assert edited["design"][1]["name"] == "Renamed design"
+    assert (tmp_path / "designs.study").is_file()
+    assert "pop_savestudy" in command
+    ast.parse(command)
+    dialog.close()
+
+    def cancel():
+        active = qt_widgets.QApplication.instance().activeModalWidget()
+        active.findChild(qt_widgets.QPushButton, "cancel").click()
+
+    qt_core.QTimer.singleShot(20, cancel)
+    cancelled, _alleeg, cancel_command = pop_studydesign(before, alleeg, gui=True, return_com=True)
+    assert cancel_command == ""
+    assert cancelled["design"][0]["cases"]["value"] == ["S01", "S02"]

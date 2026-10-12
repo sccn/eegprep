@@ -7212,7 +7212,7 @@
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_studydesign.py",
       "gap_category": "4_study_group_depth",
       "status": "implemented",
-      "rationale": "The design editor New button opens Add variable and stores continuous trial factors such as rt on STUDY.design, rebuilding trialinfo when needed. Other design-editor buttons remain unavailable.",
+      "rationale": "The visible STUDY design editor controls edit subjects, designs, and independent variables, including continuous rt, and OK calls std_makedesign. Paired-statistics checkboxes are commented out of the current EEGLAB dialog.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7220,7 +7220,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Continuous rt New-variable coverage is in tests/test_gui_pop_study.py."
+      "test_notes": "Offscreen button coverage and std_makedesign comparisons are in tests/test_gui_pop_study.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_studyerp.m",

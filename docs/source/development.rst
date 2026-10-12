@@ -437,10 +437,14 @@ The retained dataset has 157 events with 75 numeric ``rt`` values and 82 empty
 fields; the 80 STUDY trial records contain the same 75 numeric values and
 five empty fields. The workspace was unchanged by opening and closing the
 design dialogs, and no additional design was saved. EEGPrep's
-``pop_studydesign`` New button now opens Add variable, lists a continuous
+``pop_studydesign`` dialog now runs the visible EEGLAB controls: subject
+selection, design New/Rename/Delete, variable New/Edit/Delete, List factors,
+resave, Help, OK, and Cancel. New opens Add variable, lists a continuous
 trial factor such as ``rt``, and on OK writes ``STUDY.design`` and rebuilds
 ``trialinfo`` when that factor is not already available. Canceling still
-leaves the workspace unchanged. The September 29 observation remains the
+leaves the workspace unchanged. Paired-statistics checkboxes are commented
+out of the current EEGLAB dialog, so EEGPrep does not show them; pairing is
+stored by ``std_makedesign``. The September 29 observation remains the
 manual MATLAB acceptance record for the original dialog. The Python tutorial
 wrapper still stops at redraw, so a passing wrapper does not exercise this
 follow-up.
