@@ -103,10 +103,21 @@ recommended for UI responsiveness. The async history command is recorded with
 
    await eegh(1)
 
-If the selected dataset state or selection changes while classification is
-running, EEGPrep raises ``RuntimeError`` and discards the stale result instead
-of committing it to a different dataset. History-only commands do not
-invalidate the in-flight classification.
+For an entry that contains ``await``, ``eegh(n)`` returns an awaitable instead of running it,
+so always replay such entries with ``await eegh(n)``.
+
+The result is stored only if the selected datasets are unchanged when classification finishes.
+If you select another dataset while it runs,
+or edit the data, events, channel locations, or any other field of a selected dataset from the console or the GUI,
+``pop_iclabel_async`` raises ``RuntimeError``, keeps your edit, and discards the result;
+run it again on the current dataset.
+Recording history, a change of the ``saved`` flag, refreshing the GUI, and edits to unselected datasets do not discard it.
+A second ``pop_iclabel_async`` started while the first is running is discarded once the first stores its result.
+
+The check covers the console's ``pop_iclabel_async`` and ``eegprep.pop_iclabel_async``, which store their result.
+``iclabel_async`` only returns a classified copy and stores nothing, so it is not checked.
+A function imported from its defining module, such as ``eegprep.plugins.ICLabel.pop_iclabel``, is the plain function:
+assigning its result to ``EEG`` stores it like any other assignment, without the check.
 
 In-place Workspace Edits
 ========================

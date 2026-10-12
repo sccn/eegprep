@@ -22,7 +22,7 @@ from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 _UNSET = object()
 # Top-level dataset fields that do not make an asynchronous result stale: the result
 # was computed from the same data whether or not a command was recorded in its
-# history or the dataset was saved in the meantime.
+# history or the dataset was marked saved in the meantime.
 _FRESHNESS_IGNORED_FIELDS = frozenset({"history", "saved"})
 _DIGEST_CHUNK_ELEMENTS = 1 << 20
 

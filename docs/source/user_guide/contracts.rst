@@ -81,6 +81,33 @@ handles and rehydrated through the shared storage path via ``eeg_store`` and
 ``eeg_retrieve``. Unsaved resident datasets stay resident, or fail clearly,
 until you save them.
 
+Asynchronous Results
+====================
+
+An awaited computation, such as ICLabel in a browser runtime,
+can finish after the GUI or the console has changed the session.
+Code that stores such a result captures ``token = session.dataset_state_token()`` before awaiting
+and calls ``session.require_dataset_state_unchanged(token, function_name)`` before storing.
+The second call raises ``RuntimeError`` naming ``function_name`` when the result would overwrite data it was not computed from,
+and says whether the dataset selection changed or a selected dataset was modified.
+The GUI ICLabel action and the console wrapper for any coroutine ``pop_*`` function follow this contract;
+functions that return a result without storing it, such as ``iclabel_async``, need no check.
+
+The token is a ``DatasetStateToken`` holding ``CURRENTSET``
+and a BLAKE2b digest of the current ``EEG`` and the selected ``ALLEEG`` entries, each object hashed once.
+It compares content, not identity or change notifications,
+so it detects edits made through any alias, including in-place NumPy writes.
+Capturing a token reads the selected data once, in fixed-size chunks and without copying the arrays;
+budget two such passes per awaited call.
+
+The digest skips the top-level ``history`` and ``saved`` fields,
+because recording a command or marking the dataset saved does not change the data a result was computed from.
+Nested fields with those names are hashed, and unselected datasets are ignored.
+An edit that is reverted before the check is not reported, because the content is the same again.
+
+Under Emscripten, ``MenuActionDispatcher.dispatch_gui`` returns the ``dispatch_gui_async`` coroutine for ICLabel instead of running it.
+The main window schedules it on the running asyncio event loop, and shows a warning when no loop is running.
+
 Standalone Runtime Boundary
 ===========================
 
