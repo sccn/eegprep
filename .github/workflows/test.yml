@@ -304,6 +304,14 @@ jobs:
         with:
           node-version: 22
 
+      # tools/pyodide/run_pyodide.sh installs the pinned Pyodide and ONNX Runtime
+      # Web packages with `bun install --frozen-lockfile` from tools/pyodide/bun.lock;
+      # Node.js above still runs the harness.
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
       - name: Install Python 3.12
         run: |
           uv python install 3.12
