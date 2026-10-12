@@ -2,6 +2,11 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary, so a push can start this workflow before it exists on the default
+  # branch. Removed once the run is in progress; cancel-in-progress stays false.
+  push:
+    branches:
+      - cursor/eeglab-reference-ci-9de8
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -11,8 +16,8 @@ env:
   MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
-  # v5 is not the group held by an earlier lost-runner job on this ref.
-  group: eeglab-reference-v5-${{ github.ref }}
+  # v6 is not the group held by an earlier lost-runner job on this ref.
+  group: eeglab-reference-v6-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
