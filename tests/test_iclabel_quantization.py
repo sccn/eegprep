@@ -3,12 +3,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_CALIBRATED_ARTIFACT,
     DEFAULT_FLOAT32_ARTIFACT,
     DEFAULT_FROZEN_MANIFEST,
     DEFAULT_EVALUATION_FEATURES,
+    DEFAULT_TEACHER_PROBABILITIES,
     DEFAULT_WEIGHT_ONLY_ARTIFACT,
     MAX_PROBABILITY_ABS_DIFF,
     MIN_KEEP_REJECT_AGREEMENT,
@@ -17,6 +19,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
     evaluate_artifacts,
     load_frozen_manifest,
     load_verified_feature_archive,
+    load_verified_teacher,
     network_inputs_from_features,
     parity_gate_passes,
     predict_features,
@@ -24,6 +27,9 @@ from tools.iclabel.quantize_iclabel_onnx import (
     quantize_weight_only,
     select_default_artifact,
 )
+
+
+_NET_ICL_MAT = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "netICL.mat"
 
 
 def _reference_network_inputs(features):
@@ -142,6 +148,42 @@ def test_frozen_feature_archive_hash_is_verified(tmp_path):
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         load_verified_feature_archive(mutated, manifest, "evaluation")
+
+
+def test_frozen_teacher_hash_is_verified(tmp_path):
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    teacher = np.load(DEFAULT_TEACHER_PROBABILITIES)
+    teacher[0, 0] += np.float32(1e-3)
+    mutated = tmp_path / "evaluation_teacher_probabilities.npy"
+    np.save(mutated, teacher)
+
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        load_verified_teacher(mutated, manifest)
+
+
+def test_frozen_teacher_matches_the_netICL_network():
+    torch = pytest.importorskip("torch")
+    from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    model = ICLabelNet(str(_NET_ICL_MAT))
+    model.eval()
+    with torch.no_grad():
+        output = model(*(torch.from_numpy(np.ascontiguousarray(array)) for array in prepare_network_inputs(features)))
+
+    # The teacher came from ONNX Runtime float32 kernels and this reference
+    # from eager PyTorch kernels on the same weights. Measured on the 217
+    # evaluation components: max abs diff 1.19e-06, mean 7.6e-08, the usual
+    # float32 reordering gap between two independent implementations. 1e-5
+    # leaves room for other CPUs while staying 1,500 times below the
+    # 0.015 probability gate, so a different network would fail here.
+    np.testing.assert_allclose(
+        postprocess_network_output(output.numpy()),
+        load_verified_teacher(DEFAULT_TEACHER_PROBABILITIES, manifest),
+        rtol=0,
+        atol=1e-5,
+    )
 
 
 def test_production_prepare_inputs_match_independent_reference():

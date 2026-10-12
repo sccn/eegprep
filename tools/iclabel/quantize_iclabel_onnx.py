@@ -33,6 +33,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FLOAT32_ARTIFACT = _REPO_ROOT / "tools" / "iclabel" / "artifacts" / "iclabel_float32.onnx"
 DEFAULT_FROZEN_MANIFEST = Path(__file__).with_name("evaluation_manifest.json")
 DEFAULT_EVALUATION_FEATURES = Path(__file__).with_name("evaluation_features.npz")
+DEFAULT_TEACHER_PROBABILITIES = Path(__file__).with_name("evaluation_teacher_probabilities.npy")
 DEFAULT_CALIBRATION_FEATURES = Path(__file__).with_name("calibration_features.npz")
 DEFAULT_ARTIFACT_DIR = Path(__file__).with_name("artifacts")
 DEFAULT_WEIGHT_ONLY_ARTIFACT = DEFAULT_ARTIFACT_DIR / "iclabel_int8_weight_only.onnx"
@@ -106,6 +107,9 @@ def _validate_frozen_manifest(manifest: Mapping[str, Any]) -> None:
         raise ValueError("ICLabel evaluation subject policy does not match its recordings")
     if policy.get("calibration_subjects") != calibration_subjects:
         raise ValueError("ICLabel calibration subject policy does not match its recordings")
+    teacher = manifest["evaluation"].get("teacher_probabilities")
+    if not isinstance(teacher, Mapping) or not isinstance(teacher.get("sha256"), str):
+        raise ValueError("ICLabel manifest is missing evaluation teacher_probabilities metadata")
     evaluation_paths = {recording["source_path"] for recording in splits["evaluation"]}
     calibration_paths = {recording["source_path"] for recording in splits["calibration"]}
     if evaluation_paths.intersection(calibration_paths):
@@ -151,6 +155,40 @@ def load_verified_feature_archive(
             f"expected {expected_component_count}"
         )
     return features
+
+
+def load_verified_teacher(path: Path, manifest: Mapping[str, Any]) -> np.ndarray:
+    """Load the frozen float32 teacher probabilities after checking their hash and shape."""
+    evaluation = manifest["evaluation"]
+    expected_sha256 = evaluation["teacher_probabilities"]["sha256"]
+    actual_sha256 = _sha256(Path(path))
+    if actual_sha256 != expected_sha256:
+        raise ValueError(
+            f"ICLabel teacher probabilities SHA-256 mismatch: expected {expected_sha256}, got {actual_sha256}"
+        )
+    teacher = np.load(path, allow_pickle=False)
+    expected_shape = (evaluation["component_count"], len(CLASS_NAMES))
+    if teacher.dtype != np.float32 or teacher.shape != expected_shape:
+        raise ValueError(
+            f"ICLabel teacher probabilities must be float32 {expected_shape}, got {teacher.dtype} {teacher.shape}"
+        )
+    return teacher
+
+
+def write_teacher_probabilities(
+    float32_artifact: Path,
+    output: Path = DEFAULT_TEACHER_PROBABILITIES,
+    evaluation_features: Path = DEFAULT_EVALUATION_FEATURES,
+    manifest: Path = DEFAULT_FROZEN_MANIFEST,
+) -> str:
+    """Freeze float32 teacher probabilities for the evaluation set and return their SHA-256.
+
+    Run this only when ``netICL.mat`` or the evaluation features change, then
+    record the returned hash in ``evaluation_manifest.json``.
+    """
+    features = load_verified_feature_archive(evaluation_features, load_frozen_manifest(manifest), "evaluation")
+    np.save(output, predict_features(float32_artifact, features))
+    return _sha256(output)
 
 
 def _validate_feature_arrays(features: Sequence[np.ndarray]) -> None:
