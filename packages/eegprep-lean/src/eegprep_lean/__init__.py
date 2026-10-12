@@ -18,7 +18,16 @@ to offer here.
     index = await read_index("nm000103")
     store = index.stores[0]
     url = index.level0_url(store)
+
+``eegprep_lean.help()`` prints every public name, which extra supplies it, and what is not
+available yet.
 """
+
+import ast
+import functools
+import pathlib
+import re
+import textwrap
 
 from .channels import Channel, GroupMetadata, read_group_metadata
 from .extras import EXTRA_HINTS, EXTRA_ROOTS, is_missing_extra, missing_extra_error
@@ -83,6 +92,89 @@ def __getattr__(name: str):
     return getattr(module, name)
 
 
+def __dir__() -> list[str]:
+    """Include the names behind an extra, which tab completion would otherwise never offer."""
+    return sorted({*globals(), *_EXTRA_NAMES})
+
+
+_ICLABEL_ISSUE = "https://github.com/sccn/eegprep/issues/378"
+
+_RST_MARKUP = re.compile(r"(?::\w+:)?`+~?")
+
+_EXAMPLE = """\
+from eegprep_lean import plot_window, read_index, read_window, to_png
+
+index = await read_index("nm000103")
+window = await read_window(index, index.stores[0], start_sample=2500, n_samples=500, channels=[0, 1, 2])
+png = to_png(plot_window(window).figure)"""
+
+
+@functools.cache
+def _module_source(module: str) -> ast.Module:
+    return ast.parse(pathlib.Path(__file__).with_name(module.rpartition(".")[2] + ".py").read_text(encoding="utf-8"))
+
+
+def _definition(module: str, name: str) -> ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef:
+    """Read from source rather than imported, so describing a name never needs its extra."""
+    return next(
+        node
+        for node in _module_source(module).body
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name
+    )
+
+
+def help() -> None:
+    """Print each public name, what it does, the extra that supplies it, and an example."""
+    functions: dict[str | None, list[tuple[str, str]]] = {None: [], **{extra: [] for extra in EXTRA_ROOTS}}
+    classes: dict[str | None, list[str]] = {extra: [] for extra in functions}
+    for name in __all__:
+        if name in _EXTRA_NAMES:
+            module, extra = _EXTRA_NAMES[name]
+        elif callable(globals()[name]):
+            module, extra = globals()[name].__module__, None
+        else:
+            continue
+        node = _definition(module, name)
+        if isinstance(node, ast.ClassDef):
+            classes[extra].append(name)
+            continue
+        call = f"await {name}()" if isinstance(node, ast.AsyncFunctionDef) else f"{name}()"
+        summary = _RST_MARKUP.sub("", (ast.get_docstring(node) or "").partition("\n")[0])
+        functions[extra].append((call, summary))
+
+    width = max(len(call) for entries in functions.values() for call, _ in entries)
+    lines = [f"eegprep-lean {__version__}: read a NEMAR recording, natively or in a browser.", ""]
+    for extra, entries in functions.items():
+        heading = (
+            "Base install, no extra: pip install eegprep-lean"
+            if extra is None
+            else f"{extra} extra: {EXTRA_HINTS[extra]}"
+        )
+        lines.append(textwrap.fill(heading, width=88, subsequent_indent="    "))
+        lines += [f"  {call:<{width}}  {summary}" for call, summary in entries]
+        if classes[extra]:
+            lines.append(
+                textwrap.fill(
+                    "Classes: " + ", ".join(classes[extra]), 88, initial_indent="  ", subsequent_indent="    "
+                )
+            )
+        lines.append("")
+    lines += [
+        "preprocess extra: installs scipy, and supplies nothing yet.",
+        "",
+        "Not available yet:",
+        "  Preprocessing: filtering and resampling are not implemented.",
+        f"  ICLabel component classification: tracked in {_ICLABEL_ISSUE}",
+        "",
+        "Example, with the zarr and plot extras:",
+        textwrap.indent(_EXAMPLE, "  "),
+        "",
+        "help(eegprep_lean.<name>) shows the full docstring; a name behind an extra needs that extra installed.",
+    ]
+    print("\n".join(lines))
+
+
+# Not in __all__: a star import would replace the builtin help() with this one.
 __all__ = [
     "EXTRA_HINTS",
     "EXTRA_ROOTS",

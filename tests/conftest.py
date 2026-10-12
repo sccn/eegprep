@@ -46,6 +46,18 @@ def _eeglab_support_directory(value):
     return directory
 
 
+def pytest_configure(config):
+    # CI: MATLAB served by matlab-batch (the batch token cannot license the Engine
+    # API), against the vendored EEGLAB. Set here, after option parsing, so that
+    # --eeglab-root keeps its default and the pinned eeglab_tests lane stays opted out.
+    batch_dir = os.environ.get("EEGPREP_MATLAB_BATCH_DIR")
+    if batch_dir:
+        from tests.matlab_batch_engine import install
+
+        install(batch_dir)
+        os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(Path(__file__).resolve().parents[1] / "src/eegprep/eeglab"))
+
+
 def pytest_addoption(parser):
     group = parser.getgroup("EEGLAB reference contracts")
     group.addoption(

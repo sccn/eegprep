@@ -50,6 +50,11 @@ anything.
 
 ## Use
 
+`eegprep_lean.help()` prints every public function with one line on what it does,
+the extra that supplies it, what is not available yet, and a short example.
+`dir(eegprep_lean)` and tab completion list the names behind an extra too,
+without importing it.
+
 With nothing installed but this package, you can ask what a dataset holds:
 
 ```python

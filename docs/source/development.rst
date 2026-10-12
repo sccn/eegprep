@@ -763,8 +763,9 @@ monitor was removed. Full IRLS execution remains an acknowledged validation
 gap, not a requirement to rerun during this closeout. Source-test fidelity,
 classified execution evidence and this approved execution exception must not
 be summarized as an all-tests-passed result or proof of EEGPrep capability.
-Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
-visible failures, not replacement algorithms or differently formatted files.
+Missing Python LIMO primitives remain visible failures, not replacement
+algorithms. ``savefig`` writes MATLAB ``.fig`` files for the IRLS
+``saveas(..., 'fig')`` export; that full workflow is still not a completed run.
 
 Test Discovery
 --------------
@@ -807,6 +808,62 @@ Tests run automatically on:
 - Scheduled nightly runs
 
 Check CI status on GitHub Actions.
+
+Nightly differential fuzzing
+----------------------------
+
+``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
+generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
+oracle. The job runs at 10:23 UTC and can be started manually with
+``workflow_dispatch``. A known-good sanity case runs first. If that case
+fails, the job fails and does not open an issue. Later mismatches are shrunk
+with Hypothesis, saved under the ``fuzz-repros`` artifact, and filed (at most
+three new issues a night) with the labels ``fuzz`` and ``fuzz-unconfirmed``.
+
+Per-function absolute and relative tolerances live in
+``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
+requests.
+
+Run it locally against a MATLAB session that is already serving
+``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
+
+.. code-block:: bash
+
+    export EEGPREP_MATLAB_BATCH_DIR=/tmp/eegprep-matlab-batch
+    export EEGPREP_EEGLAB_ROOT=src/eegprep/eeglab
+    uv run python -m tests.fuzz run --output fuzz-out --examples 4
+
+Without MATLAB, the fake oracle checks the harness itself:
+
+.. code-block:: bash
+
+    uv run python -m tests.fuzz run --oracle fake --fake-mode match --examples 2 --output fuzz-out
+
+Replay a saved failure after downloading the artifact:
+
+.. code-block:: bash
+
+    uv run python -m tests.fuzz reproduce fuzz-out/repros/pop_reref-numeric-1e-3.json
+
+The JSON records the seed, the parameters, and a hash of the input crop from
+``sample_data/eeglab_data.set``. To turn that file into a regression test,
+copy it into the tree and assert the two sides agree. Skip the test when
+MATLAB is not configured:
+
+.. code-block:: python
+
+    import os
+
+    import pytest
+
+    from tests.fuzz.harness import run_repro
+
+    @pytest.mark.matlab
+    def test_pop_reref_fuzz_repro():
+        if os.getenv("EEGPREP_SKIP_MATLAB") == "1":
+            pytest.skip("MATLAB not available")
+        outcome = run_repro("tests/fuzz/repros/pop_reref-numeric-1e-3.json")
+        assert not outcome.diverged
 
 Full-Pipeline Parity Harness
 ----------------------------

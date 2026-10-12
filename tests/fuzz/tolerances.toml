@@ -1,0 +1,22 @@
+# Tolerances are changed only by reviewed human pull requests.
+# Agents must not loosen these values to hide mismatches.
+#
+# EEGLAB output is the oracle. A sample matches when
+# abs(python - oracle) <= abs + rel * abs(oracle), the same rule as
+# numpy.allclose. pop_clean_rawdata ASR-only cases use [clean_asr].
+
+[pop_eegfiltnew]
+abs = 1.0e-7
+rel = 1.0e-7
+
+[pop_reref]
+abs = 1.0e-6
+rel = 1.0e-6
+
+[pop_resample]
+abs = 1.0e-8
+rel = 1.0e-5
+
+[clean_asr]
+abs = 0.0
+rel = 1.0e-6
