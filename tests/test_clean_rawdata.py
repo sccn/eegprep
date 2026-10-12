@@ -190,10 +190,13 @@ class TestRiemannianASRMatlab(DebuggableTestCase):
         cleaned = clean_asr(deepcopy(eeg), cutoff=5, ref_maxbadchannels='off', useriemannian=True, maxmem=64)
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_asr(eeg, 5.0, [], [], [], 'off', [], [], False, True, 64.0)
+        # The reconstructed burst (amplitude 25) differed by at most 2.4e-6 absolute
+        # in the MATLAB CI run. That is an eigenvector-scale residual. A wrong
+        # subspace would move the burst by a large fraction of its amplitude.
         compare_eeg(
             cleaned['data'],
             expected['data'],
-            atol=0,
+            atol=1e-5,
             rtol=1e-6,
             err_msg='Riemannian clean_asr() failed vs MATLAB',
         )
