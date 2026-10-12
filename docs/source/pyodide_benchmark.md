@@ -11,10 +11,10 @@ that determine whether later browser work is worthwhile.
 The harness pins [Pyodide 0.29.5](https://pyodide.org/en/stable/usage/faq.html)
 and uses Pyodide's `emfs:` local-wheel transport. The package-resolution path
 pre-installs a universal `docopt==0.6.2` wheel built from a hash-checked sdist
-because the PyPI release is an sdist. The live harness also pins the
-Pyodide-compatible pure Python versions `mne==1.10.0`, `sympy==1.14.0`, and
-`threadpoolctl==3.6.0` while
-leaving EEGPrep's published dependency ranges unchanged.
+because the PyPI release is an sdist.
+The live harness also pins `mne==1.10.0`, the lowest version EEGPrep declares,
+and `threadpoolctl==3.6.0`, the version in `uv.lock` (Pyodide bundles 3.5.0),
+while leaving EEGPrep's published dependency ranges unchanged.
 The smoke install completed successfully with this closure; no additional
 sdist-only blocker surfaced in the live harness.
 

@@ -5,6 +5,13 @@ import { basename, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const USAGE = `Usage: run_pyodide.mjs --pyodide-module PATH --wheel PATH --docopt-wheel PATH --script PATH [--sample-data-dir PATH] [--output PATH] [--iclabel-model PATH --onnxruntime-web-module PATH] -- [script args...]`;
+// Dependencies of the EEGPrep base install that the Pyodide distribution ships
+// prebuilt (the "pyodide-lock" rows printed by tools/check_pyodide_base_resolution.py).
+// They load in one batch before micropip resolves the wheel, so micropip finds
+// them already installed instead of looking each one up. Compiled packages such
+// as numpy and scipy have no PyPI WebAssembly wheel, so the distribution's build
+// is the only one available. Keep in sync with the pinned Pyodide version in
+// tools/pyodide/package.json.
 const PYODIDE_PACKAGES = [
   "certifi",
   "charset-normalizer",
@@ -22,7 +29,6 @@ const PYODIDE_PACKAGES = [
   "lazy-loader",
   "markupsafe",
   "matplotlib",
-  "mpmath",
   "narwhals",
   "numpy",
   "packaging",
@@ -37,7 +43,6 @@ const PYODIDE_PACKAGES = [
   "scikit-learn",
   "scipy",
   "six",
-  "sympy",
   "threadpoolctl",
   "tqdm",
   "typing-extensions",
@@ -45,7 +50,12 @@ const PYODIDE_PACKAGES = [
   "urllib3",
   "wrapt",
 ];
-const MICROPIP_CONSTRAINTS = ["mne==1.10.0", "sympy==1.14.0", "threadpoolctl==3.6.0"];
+// mne is held at the floor declared in pyproject.toml (tests/test_pyodide_harness.py
+// checks they match) so the harness is deterministic and exercises the oldest
+// supported MNE release. threadpoolctl 3.6.0 matches uv.lock, so native and
+// browser benchmark runs use the same library; the Pyodide distribution bundles
+// the older 3.5.0, hence the reinstall in installCode below.
+const MICROPIP_CONSTRAINTS = ["mne==1.10.0", "threadpoolctl==3.6.0"];
 
 function fail(message) {
   console.error(`${message}\n${USAGE}`);
@@ -160,7 +170,6 @@ async function main() {
   const installCode = `
 import micropip
 await micropip.install("threadpoolctl==3.6.0", reinstall=True)
-await micropip.install("sympy==1.14.0", reinstall=True)
 await micropip.install(${JSON.stringify(`emfs:${docoptWheelPath}`)})
 await micropip.install(
     ${JSON.stringify(`emfs:${eegprepWheelPath}`)},
@@ -174,6 +183,10 @@ await micropip.install(
   stdout.length = 0;
   stderr.length = 0;
 
+  // Contract with scripts that need top-level await (see iclabel_parity.py):
+  // a script running as __main__ under Pyodide stores a coroutine in the
+  // global ``__eegprep_async_result__``; after runpy returns, this host awaits
+  // it, and a non-zero integer result becomes the exit status.
   const scriptCode = `
 import os
 import runpy
@@ -193,13 +206,22 @@ else:
         if result not in (None, 0):
             raise SystemExit(result)
 `;
+  let scriptFailure = null;
   try {
     await pyodide.runPythonAsync(scriptCode);
-  } finally {
-    if (args.output) {
+  } catch (error) {
+    scriptFailure = error;
+  }
+  if (args.output) {
+    try {
       writeFileSync(args.output, stdout.join(""));
+    } catch (writeError) {
+      // Never let a failed output write hide the script's own error.
+      if (scriptFailure === null) throw writeError;
+      console.error(`Could not write ${args.output}: ${writeError.message}`);
     }
   }
+  if (scriptFailure !== null) throw scriptFailure;
 }
 
 main().catch((error) => {

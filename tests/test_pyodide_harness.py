@@ -1,8 +1,10 @@
 import asyncio
+import re
 import shutil
 import subprocess
 import sys
 import textwrap
+import tomllib
 import types
 from pathlib import Path
 
@@ -159,6 +161,14 @@ def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
     monkeypatch.setitem(sys.modules, "js", types.ModuleType("js"))
     with pytest.raises(ImportError, match="eegprep_iclabel_web"):
         asyncio.run(run_iclabel_net_async(image, image, image))
+
+
+def test_harness_holds_mne_at_the_declared_floor():
+    dependencies = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
+    (floor,) = [item.removeprefix("mne>=") for item in dependencies if item.startswith("mne>=")]
+    runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
+
+    assert re.search(r"MICROPIP_CONSTRAINTS = \[[^\]]*\"mne==" + re.escape(floor) + r"\"", runner)
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
