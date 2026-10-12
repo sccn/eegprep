@@ -52,9 +52,10 @@ const PYODIDE_PACKAGES = [
 ];
 // mne is held at the floor declared in pyproject.toml (tests/test_pyodide_harness.py
 // checks they match) so the harness is deterministic and exercises the oldest
-// supported MNE release. threadpoolctl 3.6.0 matches uv.lock, so native and
-// browser benchmark runs use the same library; the Pyodide distribution bundles
-// the older 3.5.0, hence the reinstall in installCode below.
+// supported MNE release. threadpoolctl 3.6.0 matches uv.lock (the same test
+// checks that), so native and browser benchmark runs use the same library; the
+// Pyodide distribution bundles the older 3.5.0, hence the reinstall in
+// installCode below.
 const MICROPIP_CONSTRAINTS = ["mne==1.10.0", "threadpoolctl==3.6.0"];
 
 function fail(message) {

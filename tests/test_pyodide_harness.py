@@ -270,7 +270,10 @@ def test_pinned_pyodide_version_agrees_across_the_harness():
     version = package["dependencies"]["pyodide"]
 
     assert version == check_pyodide_base_resolution.PYODIDE_VERSION
-    assert f"Pyodide {version}" in (REPO_ROOT / "docs" / "source" / "pyodide_benchmark.md").read_text()
+    # The measured-results section records the version of one dated run, so only the
+    # runtime-boundary text before it has to follow the pin.
+    runtime_text = (REPO_ROOT / "docs" / "source" / "pyodide_benchmark.md").read_text().split("## Measured results")[0]
+    assert set(re.findall(r"Pyodide (\d+\.\d+\.\d+)", runtime_text)) == {version}
 
 
 def test_harness_holds_mne_at_the_declared_floor():
@@ -279,6 +282,18 @@ def test_harness_holds_mne_at_the_declared_floor():
     runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
 
     assert re.search(r"MICROPIP_CONSTRAINTS = \[[^\]]*\"mne==" + re.escape(floor) + r"\"", runner)
+
+
+def test_harness_pins_threadpoolctl_at_the_uv_lock_version():
+    packages = tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]
+    (locked,) = [package["version"] for package in packages if package["name"] == "threadpoolctl"]
+    runner = (REPO_ROOT / "tools" / "pyodide" / "run_pyodide.mjs").read_text()
+
+    pins = re.findall(r"threadpoolctl==([0-9.]+)", runner)
+
+    # One in MICROPIP_CONSTRAINTS and one in the explicit reinstall.
+    assert len(pins) == 2
+    assert set(pins) == {locked}
 
 
 def _run_script_with_path(path_entries, tmp_path):
