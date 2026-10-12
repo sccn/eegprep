@@ -1,14 +1,17 @@
 import hashlib
+import http.server
 import io
 import json
+import threading
 from pathlib import Path
+from urllib.error import HTTPError
 
 import numpy as np
 import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
 from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
-from tools.iclabel.freeze_iclabel_evaluation import _feature_archive_is_valid
+from tools.iclabel.freeze_iclabel_evaluation import _download_recording, _feature_archive_is_valid, _verify_recording
 from tools.iclabel.quantize_iclabel_onnx import (
     DEFAULT_EVALUATION_FEATURES,
     DEFAULT_FROZEN_MANIFEST,
@@ -415,3 +418,140 @@ def test_freeze_reuses_a_valid_feature_checkpoint_silently(tmp_path, capsys):
 
     assert _feature_archive_is_valid(checkpoint) is True
     assert capsys.readouterr().err == ""
+
+
+_RECORDING_BYTES = b"EEGLAB set file stand-in" * 64
+_RECORDING = {
+    "subject": "sub-002",
+    "source_path": "sub-002/ses-01/eeg/sub-002_ses-01_task-gonogo_run-1_eeg.set",
+    "git_annex_key": "MD5E-s1536--recording.set",
+    "size_bytes": len(_RECORDING_BYTES),
+    "md5": hashlib.md5(_RECORDING_BYTES, usedforsecurity=False).hexdigest(),
+}
+_CORRUPT_RECORDING_BYTES = b"X" * len(_RECORDING_BYTES)
+
+
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    ((_RECORDING_BYTES[:-1], "Size mismatch"), (_CORRUPT_RECORDING_BYTES, "MD5 mismatch")),
+)
+def test_freeze_rejects_a_recording_with_the_wrong_size_or_checksum(tmp_path, contents, message):
+    path = tmp_path / "recording.set"
+    path.write_bytes(contents)
+
+    with pytest.raises(ValueError, match=message):
+        _verify_recording(path, _RECORDING)
+
+
+def test_freeze_accepts_a_recording_that_matches_the_manifest(tmp_path):
+    path = tmp_path / "recording.set"
+    path.write_bytes(_RECORDING_BYTES)
+
+    _verify_recording(path, _RECORDING)
+
+
+class _RecordingServer:
+    """Local HTTP server that answers each path with a queue of (status, body) responses."""
+
+    def __init__(self, responses):
+        self.responses = {path: list(queue) for path, queue in responses.items()}
+        self.requests = []
+        server = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                server.requests.append(self.path)
+                status, body = server.responses[self.path].pop(0)
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self._httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self._httpd.server_port}"
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc_info):
+        self._httpd.shutdown()
+        self._httpd.server_close()
+
+    def manifest(self):
+        return {
+            "dataset": {
+                "s3_object_url_template": self.url + "/nemar/{git_annex_key}",
+                "openneuro_s3_url_template": self.url + "/openneuro/{source_path}",
+            }
+        }
+
+
+_NEMAR_PATH = "/nemar/" + _RECORDING["git_annex_key"]
+_OPENNEURO_PATH = "/openneuro/" + _RECORDING["source_path"]
+
+
+@pytest.mark.parametrize(
+    ("responses", "expected_requests"),
+    (
+        ({_NEMAR_PATH: [(200, _RECORDING_BYTES)]}, [_NEMAR_PATH]),
+        (
+            {_NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES), (200, _CORRUPT_RECORDING_BYTES), (200, _RECORDING_BYTES)]},
+            [_NEMAR_PATH] * 3,
+        ),
+        ({_NEMAR_PATH: [(404, b"")], _OPENNEURO_PATH: [(200, _RECORDING_BYTES)]}, [_NEMAR_PATH, _OPENNEURO_PATH]),
+        (
+            {_NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3, _OPENNEURO_PATH: [(200, _RECORDING_BYTES)]},
+            [_NEMAR_PATH] * 3 + [_OPENNEURO_PATH],
+        ),
+    ),
+    ids=("first-try", "retry-after-checksum-mismatch", "fallback-after-404", "fallback-after-three-mismatches"),
+)
+def test_freeze_download_retries_and_falls_back_until_the_checksum_matches(tmp_path, responses, expected_requests):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+
+    with _RecordingServer(responses) as server:
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == expected_requests
+    assert path.read_bytes() == _RECORDING_BYTES
+    assert not path.with_name(path.name + ".part").exists()
+
+
+def test_freeze_download_fails_when_both_sources_serve_bad_data(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+    responses = {
+        _NEMAR_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3,
+        _OPENNEURO_PATH: [(200, _CORRUPT_RECORDING_BYTES)] * 3,
+    }
+
+    with _RecordingServer(responses) as server, pytest.raises(ValueError, match="MD5 mismatch"):
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert not path.exists()
+    assert not path.with_name(path.name + ".part").exists()
+
+
+def test_freeze_download_does_not_fall_back_after_a_server_error(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+
+    with _RecordingServer({_NEMAR_PATH: [(500, b"")]}) as server, pytest.raises(HTTPError):
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == [_NEMAR_PATH]
+    assert not path.exists()
+
+
+def test_freeze_download_reuses_a_verified_recording_without_a_request(tmp_path):
+    path = tmp_path / "data" / _RECORDING["source_path"]
+    path.parent.mkdir(parents=True)
+    path.write_bytes(_RECORDING_BYTES)
+
+    with _RecordingServer({}) as server:
+        _download_recording(server.manifest(), _RECORDING, path)
+
+    assert server.requests == []
