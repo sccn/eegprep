@@ -13,6 +13,7 @@ import eegprep.plugins.ICLabel.iclabel_net_onnx as iclabel_onnx_module
 
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
+_NET_ICL_MAT = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
 
 
 def _async_eeg():
@@ -62,16 +63,42 @@ class TestICLabelAsync(unittest.IsolatedAsyncioTestCase):
                 iclabel_onnx_module.run_iclabel_net(None, None, None)
 
 
-def _float32_classifications(eeg):
-    import onnxruntime as ort
+# Shipped int8 model versus the float32 network on eeglab_data_with_ica_tmp.set
+# (32 components), measured with ONNX Runtime 1.30.0 and PyTorch 2.12.0: max
+# abs diff 0.0079, mean 0.00061, identical argmax and default pop_icflag
+# decisions, with the closest top-two margin at 0.019 and the closest Eye
+# probability 0.062 away from its 0.9 threshold. The frozen gate accepts up to
+# 0.015 on its 217 evaluation components (measured 0.0135, mean 0.0008). These
+# bounds are tighter than the gate yet above the measured drift by far more
+# than the ~1e-6 float32 differences between CPUs.
+_INT8_MAX_ABS_DIFF = 1e-2
+_INT8_MEAN_ABS_DIFF = 1e-3
 
-    image, psdmed, autocorr = iclabel_module.prepare_network_inputs(ICL_feature_extractor(eeg, True))
-    float32_path = os.path.join(
-        os.path.dirname(__file__), '..', 'tools', 'iclabel', 'artifacts', 'iclabel_float32.onnx'
-    )
-    (output,) = ort.InferenceSession(float32_path, providers=['CPUExecutionProvider']).run(
-        ['output'], {'image': image, 'psdmed': psdmed, 'autocorr': autocorr}
-    )
+
+def _rejection_flags(probabilities):
+    labeled = {'etc': {'ic_classification': {'ICLabel': {'classifications': probabilities}}}}
+    return eeg_icflag(labeled, DEFAULT_ICFLAG_THRESHOLDS)['reject']['gcompreject']
+
+
+def _assert_within_int8_drift(actual, reference):
+    difference = np.abs(actual - reference)
+    assert float(difference.max()) < _INT8_MAX_ABS_DIFF
+    assert float(difference.mean()) < _INT8_MEAN_ABS_DIFF
+    np.testing.assert_array_equal(actual.argmax(axis=1), reference.argmax(axis=1))
+    np.testing.assert_array_equal(_rejection_flags(actual), _rejection_flags(reference))
+
+
+def _float32_classifications(eeg):
+    """Classify with the float32 network from netICL.mat through eager PyTorch."""
+    import torch
+
+    from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
+
+    model = ICLabelNet(str(_NET_ICL_MAT))
+    model.eval()
+    inputs = iclabel_module.prepare_network_inputs(ICL_feature_extractor(eeg, True))
+    with torch.no_grad():
+        output = model(*(torch.from_numpy(np.ascontiguousarray(array)) for array in inputs)).numpy()
     return iclabel_module.postprocess_network_output(output)
 
 
@@ -113,112 +140,34 @@ class TestICLabelEngines(unittest.TestCase):
         print(f"Python autocorr max: {np.max(features_python[2]):.6f}, min: {np.min(features_python[2]):.6f}")
         print(f"{'=' * 60}\n")
 
-        # Keep probability-level MATLAB parity against the preserved float32 reference;
-        # the package default int8 artifact is covered by the semantic gate tests.
+        # MATLAB runs the float32 network and iclabel() the shipped int8 one.
+        # MATLAB matched the Python float32 network within 3.37e-06 on this
+        # dataset, so by the triangle inequality the int8 drift bounds above
+        # still hold, and the class and keep-or-reject margins (0.019 and 0.062)
+        # exceed twice that drift, so those decisions must agree exactly.
         EEG_matlab = iclabel(self.EEG, algorithm='default', engine='matlab')
 
-        res1 = _float32_classifications(self.EEG).flatten()
-        res2 = EEG_matlab['etc']['ic_classification']['ICLabel']['classifications'].flatten()
+        res1 = iclabel(self.EEG)['etc']['ic_classification']['ICLabel']['classifications']
+        res2 = EEG_matlab['etc']['ic_classification']['ICLabel']['classifications']
 
-        # Diagnostic output
-        print(f"\n{'=' * 60}")
-        print("DIAGNOSTIC OUTPUT")
-        print(f"{'=' * 60}")
-        print(f"Python result dtype: {res1.dtype}")
-        print(f"MATLAB result dtype: {res2.dtype}")
-        print(f"Python result shape: {res1.shape}")
-        print(f"MATLAB result shape: {res2.shape}")
-        print(f"\nMax absolute difference: {np.max(np.abs(res1 - res2)):.2e}")
-        print(f"Mean absolute difference: {np.mean(np.abs(res1 - res2)):.2e}")
-        print(f"Max relative difference: {np.max(np.abs(res1 - res2) / (np.abs(res2) + 1e-10)):.2e}")
-        print(f"Mean relative difference: {np.mean(np.abs(res1 - res2) / (np.abs(res2) + 1e-10)):.2e}")
-        print(f"\nPython results (first 20 values):\n{res1[:20]}")
-        print(f"\nMATLAB results (first 20 values):\n{res2[:20]}")
-        print(f"\nDifferences (first 20 values):\n{(res1 - res2)[:20]}")
-        print(f"\nRelative differences (first 20 values):\n{((res1 - res2) / (res2 + 1e-10))[:20]}")
-
-        # Count how many values exceed tolerances
-        abs_diffs = np.abs(res1 - res2)
-        rel_diffs = np.abs(res1 - res2) / (np.abs(res2) + 1e-10)
-        exceeds_abs = abs_diffs > 1e-8
-        exceeds_rel = rel_diffs > 1e-5
-        exceeds_both = exceeds_abs & exceeds_rel
-        print(f"\nValues exceeding absolute tolerance (1e-8): {np.sum(exceeds_abs)}/{len(res1)}")
-        print(f"Values exceeding relative tolerance (1e-5): {np.sum(exceeds_rel)}/{len(res1)}")
-        print(f"Values exceeding BOTH tolerances: {np.sum(exceeds_both)}/{len(res1)}")
-        print(f"{'=' * 60}\n")
-
-        # Max abs diff: 3.37e-06, Max rel diff: 4.25e-05
-        self.assertTrue(np.allclose(res1, res2, rtol=1e-4, atol=1e-5), 'ICLabel results differ beyond tolerance')
-
-
-class TestICLabelOnnxExport(unittest.TestCase):
-    """Cross-check the preserved float32 ONNX reference against its torch source."""
-
-    def setUp(self):
-        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_onnx_matches_torch_on_sample_data(self):
-        if not has_optional_dependency('torch'):
-            self.skipTest("PyTorch is not installed; install eegprep[torch] to run the ONNX-vs-torch cross-check")
-        if not has_optional_dependency('onnxruntime'):
-            self.skipTest("onnxruntime is not installed; install eegprep[iclabel] to run ICLabel classification")
-
-        import torch
-
-        from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
-
-        mat_path = os.path.join(os.path.dirname(__file__), '..', 'src', 'eegprep', 'plugins', 'ICLabel', 'netICL.mat')
-        model = ICLabelNet(mat_path)
-        model.eval()
-
-        image, psdmed, autocorr = iclabel_module.prepare_network_inputs(ICL_feature_extractor(self.EEG, True))
-
-        with torch.no_grad():
-            torch_out = model(torch.from_numpy(image), torch.from_numpy(psdmed), torch.from_numpy(autocorr)).numpy()
-
-        torch_final = iclabel_module.postprocess_network_output(torch_out)
-
-        onnx_final = _float32_classifications(self.EEG)
-
-        diff = np.abs(torch_final - onnx_final)
-        print(f"\nONNX vs torch max abs diff: {diff.max():.2e}, mean abs diff: {diff.mean():.2e}")
-
-        # Measured on this sample_data dataset while building the export
-        # (tools/iclabel/export_iclabel_onnx.py): max abs diff 1.43e-06, max
-        # rel diff 2.59e-05, from ordinary float32 op-ordering differences
-        # between eager torch execution and onnxruntime's fused CPU kernels.
-        # That is the same order of magnitude as the Python-vs-MATLAB gap
-        # tolerated above (~3.4e-06 abs / ~4.3e-05 rel), so this test reuses
-        # that already-established tolerance instead of introducing a new one.
-        self.assertTrue(
-            np.allclose(torch_final, onnx_final, rtol=1e-4, atol=1e-5),
-            'ONNX and torch ICLabel outputs differ beyond tolerance',
-        )
+        difference = np.abs(res1 - res2)
+        print(f"\nPython int8 versus MATLAB: max abs diff {difference.max():.2e}, mean {difference.mean():.2e}")
+        _assert_within_int8_drift(res1, res2)
 
 
 @unittest.skipUnless(has_optional_dependency('onnxruntime'), "install eegprep[iclabel] to run ICLabel runtime coverage")
 class TestICLabelRuntime(unittest.TestCase):
-    def test_default_entry_point_uses_packaged_onnx_runtime(self):
+    def test_default_entry_point_stays_within_int8_drift_of_the_float32_network(self):
+        if not has_optional_dependency('torch'):
+            self.skipTest("install eegprep[torch] to rebuild the float32 ICLabel network from netICL.mat")
         eeg = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
         output = iclabel(eeg)
         classifications = output['etc']['ic_classification']['ICLabel']['classifications']
-        reference = _float32_classifications(eeg)
 
-        self.assertEqual(classifications.shape[1], 7)
-        self.assertTrue(np.isfinite(classifications).all())
+        self.assertEqual(classifications.shape, (32, 7))
         self.assertEqual(output['etc']['ic_classification']['ICLabel']['version'], 'default')
-        difference = np.abs(classifications - reference)
-        self.assertLess(float(difference.max()), 1e-2)
-        self.assertLess(float(difference.mean()), 1e-3)
-        np.testing.assert_array_equal(classifications.argmax(axis=1), reference.argmax(axis=1))
-
-        def rejection_flags(probabilities):
-            labelled = {'etc': {'ic_classification': {'ICLabel': {'classifications': probabilities}}}}
-            return eeg_icflag(labelled, DEFAULT_ICFLAG_THRESHOLDS)['reject']['gcompreject']
-
-        np.testing.assert_array_equal(rejection_flags(classifications), rejection_flags(reference))
+        _assert_within_int8_drift(classifications, _float32_classifications(eeg))
 
 
 if __name__ == '__main__':

@@ -1,15 +1,11 @@
-"""Export the reproducible float32 ICLabel default network to ONNX.
+"""Export the float32 ICLabel default network from ``netICL.mat`` to ONNX.
 
-Offline, developer-only tool: it produces the float32 reference artifact
-``tools/iclabel/artifacts/iclabel_float32.onnx`` by default. The selected
-artifact is copied to the package filename ``iclabel.onnx`` only after the
-Phase 6 parity gate passes. This script is not installed with the package.
-
-Regenerate the float32 reference after changing ``netICL.mat`` or
-``iclabel_net.py``:
-
-    uv sync --group dev --extra torch --extra iclabel
-    uv run --no-sync python tools/iclabel/export_iclabel_onnx.py
+Offline, developer-only tool and the first step of the regeneration sequence
+documented in ``tools/iclabel/quantize_iclabel_onnx.py``, which quantizes this
+float32 export into the packaged int8 ``iclabel.onnx``. The float32 export is
+not committed; by default it is written to the git-ignored
+``build/iclabel/iclabel_float32.onnx``. This script is not installed with the
+package.
 
 Provenance: the exported graph is ``ICLabelNet.forward`` (three convolutional
 branches over the topography image, PSD, and autocorrelation features,
@@ -39,9 +35,8 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ICLABEL_DIR = REPO_ROOT / 'src' / 'eegprep' / 'plugins' / 'ICLabel'
-ICLABEL_ARTIFACT_DIR = REPO_ROOT / 'tools' / 'iclabel' / 'artifacts'
 DEFAULT_MAT_PATH = ICLABEL_DIR / 'netICL.mat'
-DEFAULT_ONNX_PATH = ICLABEL_ARTIFACT_DIR / 'iclabel_float32.onnx'
+DEFAULT_ONNX_PATH = REPO_ROOT / 'build' / 'iclabel' / 'iclabel_float32.onnx'
 
 # Pinned per issue #377. The network only uses Conv2d, LeakyReLU, Softmax,
 # Concat, and Reshape, all supported since opset 7-9, so the choice is driven
