@@ -213,7 +213,13 @@ def eeglab_backend(request):
         try:
             yield partial(call_matlab, engine)
         finally:
-            engine.close("all", "force", nargout=0)
+            # close('all','force') can fail after a headless pop_* and leave the
+            # figure (and its data) alive. Deleting the figures directly keeps a
+            # later test from running the runner out of memory.
+            try:
+                engine.eval("delete(findall(0, 'Type', 'figure'));", nargout=0)
+            except Exception as exc:
+                os.write(2, f"eeglab_backend figure cleanup failed: {exc}\n".encode())
     else:
         yield call_python
 
@@ -400,3 +406,11 @@ def pytest_filter_eeglab_contracts(config, items):
     if deselected:
         config.hook.pytest_deselected(items=deselected)
         items[:] = [item for item in items if item not in deselected]
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    # The reference runner is often killed before pytest prints its summary.
+    # Write the failure immediately, bypassing pytest's capture.
+    text = getattr(report, "longreprtext", "")
+    if report.failed and text:
+        os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())

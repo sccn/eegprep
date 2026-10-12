@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 
 import numpy as np
 import numpy.testing as npt
@@ -43,27 +44,44 @@ def test_reference_comments_replacement(eeglab_backend):
 
 
 @eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
-def test_reference_comments_concatenation(eeglab_backend, request):
+@pytest.mark.skipif(
+    "config.getoption('--eeglab-backend') == 'matlab'",
+    reason="pop_comments concatenation of the 53-wide source rows exhausts the headless runner",
+)
+def test_reference_comments_concatenation(eeglab_backend):
     old = ("Line nr. 1", "This is line nr.2", " ", "And this is the final line                           ")
     new = ("New line 1", "And this one is also new                             ")
-    if request.config.getoption("--eeglab-backend") == "matlab":
-        pytest.skip("pop_comments concatenation of the 53-wide source rows kills the headless runner")
     comments, new_comments = np.array([old], dtype=object), np.array([new], dtype=object)
     result, _command = eeglab_backend("pop_comments", comments, "", new_comments, 1.0, nargout=2)
     npt.assert_array_equal(result, _source_strvcat(*old, *new))
 
 
 @eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
+def _reference_step(label: str) -> None:
+    # pytest capture would hide this until the test ends. The runner has been
+    # killed inside this workflow before that summary exists.
+    os.write(1, f"pop_comments workflow: {label}\n".encode())
+
+
 def test_reference_comments_original_workflow(eeglab_backend, eeglab_suite_root):
     for old in ("", "another "):
         new = "test pass!"
+        _reference_step(f"replace {old!r}")
         new = eeglab_backend("pop_comments", old, "Testing!", new, 0.0)
+        _reference_step(f"concat {old!r}")
         new = eeglab_backend("pop_comments", old, "Testing!", new, 1.0)
     new = np.array([["test pass!", "pass again!"]], dtype=object)
+    _reference_step("cell replace")
     new = eeglab_backend("pop_comments", "another ", "Testing!", new, 0.0)
+    _reference_step("cell concat")
     new = eeglab_backend("pop_comments", "another ", "Testing!", new, 1.0)
-    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    dataset = eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"
+    if not dataset.is_file():
+        pytest.fail(f"sample dataset missing: {dataset}", pytrace=False)
+    _reference_step("pop_loadset")
+    eeg = eeglab_backend("pop_loadset", str(dataset))
     for concatenate in (1.0, 0.0):
+        _reference_step(f"dataset concat {concatenate}")
         eeg["comments"] = eeglab_backend(
             "pop_comments",
             eeg["comments"],

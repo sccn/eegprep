@@ -2,6 +2,12 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary, so a push can start this workflow before it exists on the default
+  # branch. Removed once the run is in progress; cancel-in-progress stays false
+  # so that removal push does not cancel the run.
+  push:
+    branches:
+      - cursor/eeglab-reference-ci-9de8
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -11,8 +17,8 @@ env:
   MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
-  # v4 is not the group held by an earlier lost-runner job on this ref.
-  group: eeglab-reference-v4-${{ github.ref }}
+  # v5 is not the group held by an earlier lost-runner job on this ref.
+  group: eeglab-reference-v5-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -347,7 +353,20 @@ jobs:
           set +e
           SECONDS=0
           export PYTHONUNBUFFERED=1
+          # The runner is SIGTERM'd on cgroup memory pressure before artifact
+          # upload, so stream the MATLAB log and a memory sample into this step.
+          if [[ -n "${EEGPREP_MATLAB_BATCH_DIR:-}" && -f "$EEGPREP_MATLAB_BATCH_DIR/server.log" ]]; then
+            tail -n 0 -f "$EEGPREP_MATLAB_BATCH_DIR/server.log" | grep -F -v --line-buffered "$MLM_LICENSE_TOKEN" &
+          fi
+          (
+            while true; do
+              printf '%s mem ' "$(date -u +%H:%M:%S)"
+              free -m | awk 'NR==2 {print "total="$2, "used="$3, "free="$4, "available="$7}'
+              sleep 30
+            done
+          ) &
           uv run --no-sync pytest \
+            -vv \
             --eeglab-backend=matlab \
             --eeglab-root="$GITHUB_WORKSPACE/src/eegprep/eeglab" \
             --eeglab-suite-root="$GITHUB_WORKSPACE/eeglab_tests" \
