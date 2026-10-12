@@ -1,9 +1,12 @@
-"""onnxruntime backend for the packaged ICLabel default network.
+"""ONNX Runtime backend for the packaged ICLabel default network.
 
-This is the runtime counterpart to :mod:`iclabel_net` (the torch definition
-used only to build and export the network). It loads ``iclabel.onnx``, the
-selected packaged artifact produced by the Phase 6 quantization pipeline, and
-runs it through onnxruntime so ICLabel classification does not require torch.
+This is the runtime counterpart to :mod:`iclabel_net`, the PyTorch definition
+used only to export the network. It runs ``iclabel.onnx``, the int8
+weight-only network built by ``tools/iclabel/quantize_iclabel_onnx.py``,
+through onnxruntime, so ICLabel classification does not need PyTorch. Under
+Emscripten (Pyodide) the backend is chosen when this module is first
+imported, and inference goes through the host's ONNX Runtime Web bridge in
+:mod:`iclabel_net_onnx_web` instead.
 """
 
 import functools

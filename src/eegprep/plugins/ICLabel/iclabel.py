@@ -1,4 +1,4 @@
-"""ICLabel module for classifying independent components in EEG data."""
+"""ICLabel classification of independent components in EEG data."""
 
 from copy import deepcopy
 
@@ -20,25 +20,34 @@ _ENGINE_UNAVAILABLE_MESSAGE = (
 
 
 def iclabel(EEG, algorithm='default', engine=None):
-    """Apply ICLabel to classify independent components.
+    """Classify independent components with ICLabel.
 
-    Parameters
-    ----------
-    EEG : dict
-        EEGLAB EEG structure
-    algorithm : str
-        Algorithm to use for classification, passed to the MATLAB/Octave implementation.
-        Default is 'default'.
-    engine : str or None
-        Engine to use for implementation. Options are:
-        - None: Use the default Python implementation
-        - 'matlab': Use MATLAB engine
-        - 'octave': Use Octave engine
+    With ``engine=None`` this runs the packaged int8 ICLabel network
+    (``iclabel.onnx``) through ONNX Runtime, which needs the ``iclabel`` extra
+    (``pip install "eegprep[iclabel]"``). ``engine='matlab'`` or ``'octave'``
+    instead calls ICLabel in an EEGLAB installation through that engine.
 
-    Returns
-    -------
-    EEG : dict
-        EEGLAB EEG structure with ICLabel classifications added
+    Args:
+        EEG: EEG dataset with an ICA decomposition. It is not modified.
+        algorithm: ICLabel network: ``'default'``, ``'lite'``, or ``'beta'``
+            (case-insensitive; ``None`` means ``'default'``). Only
+            ``'default'`` ships with EEGPrep; ``'lite'`` and ``'beta'`` need a
+            MATLAB or Octave engine.
+        engine: ``None`` for the packaged network, or ``'matlab'`` or
+            ``'octave'``.
+
+    Returns:
+        dict: A copy of ``EEG`` whose ``etc.ic_classification.ICLabel`` holds
+        ``classes``, ``classifications`` (components x 7 probabilities), and
+        ``version``.
+
+    Raises:
+        RuntimeError: Under Emscripten (Pyodide), where ICLabel runs only
+            through :func:`iclabel_async`.
+        ValueError: If ``engine`` or ``algorithm`` is not supported.
+        NotImplementedError: If ``algorithm`` is ``'lite'`` or ``'beta'`` with
+            ``engine=None``.
+        ImportError: If ``engine=None`` and onnxruntime is not installed.
     """
     require_sync_backend(engine)
     algorithm = _validate_request(algorithm, engine)
@@ -49,11 +58,35 @@ def iclabel(EEG, algorithm='default', engine=None):
 
 
 async def iclabel_async(EEG, algorithm='default', engine=None):
-    """Apply ICLabel through an awaitable native or browser backend.
+    """Classify independent components with ICLabel from asynchronous code.
 
-    The browser backend is selected once when the ICLabel module is loaded and
-    awaits the ONNX Runtime Web Promise. Native callers may use this entry
-    point as an asynchronous spelling of the same pure processing operation.
+    This is the ICLabel entry point under Emscripten (Pyodide): the packaged
+    network runs in the host's ONNX Runtime Web session, and this coroutine
+    awaits its Promise. The backend is chosen when
+    :mod:`eegprep.plugins.ICLabel.iclabel_net_onnx` is first imported. On
+    native platforms it returns exactly what :func:`iclabel` returns, but it
+    runs synchronously inside the coroutine and does not yield to the event
+    loop; ``engine='matlab'`` or ``'octave'`` blocks the loop for the whole
+    engine call.
+
+    Args:
+        EEG: EEG dataset with an ICA decomposition. It is not modified.
+        algorithm: ICLabel network: ``'default'``, ``'lite'``, or ``'beta'``.
+            Only ``'default'`` ships with EEGPrep.
+        engine: ``None`` for the packaged network, or ``'matlab'`` or
+            ``'octave'`` on native platforms.
+
+    Returns:
+        dict: A copy of ``EEG`` with ``etc.ic_classification.ICLabel`` filled
+        in, as for :func:`iclabel`.
+
+    Raises:
+        RuntimeError: For ``engine='matlab'`` or ``'octave'`` under Emscripten.
+        ValueError: If ``engine`` or ``algorithm`` is not supported.
+        NotImplementedError: If ``algorithm`` is ``'lite'`` or ``'beta'`` with
+            ``engine=None``.
+        ImportError: On native platforms, if ``engine=None`` and onnxruntime
+            is not installed.
     """
     algorithm = _validate_request(algorithm, engine)
     EEG = deepcopy(EEG)
