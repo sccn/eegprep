@@ -145,11 +145,12 @@ def _design_variables(
         parsed_values = parse_design_values(values)
         if not parsed_values:
             parsed_values = variable_values(study, label)
+        vartype_text = _vartype(vartype)
         variable = {
             "label": label,
             "value": parsed_values,
-            "vartype": _vartype(vartype),
-            "pairing": "off" if label == "group" else "on",
+            "vartype": vartype_text,
+            "pairing": "off" if label == "group" or vartype_text == "continuous" else "on",
             "levelindex": list(range(1, len(parsed_values) + 1)),
         }
         variables.append(variable)

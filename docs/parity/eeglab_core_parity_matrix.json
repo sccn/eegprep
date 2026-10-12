@@ -6906,7 +6906,7 @@
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_addindepvar.py",
       "gap_category": "4_study_group_depth",
       "status": "implemented",
-      "rationale": "Programmatic EEGPrep helper selects STUDY independent variables and categorical/continuous values without MATLAB GUI callbacks.",
+      "rationale": "Add variable selects categorical and continuous STUDY factors, including combined categorical values. MATLAB callback strings and figure handles still raise NotImplementedError.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -6914,7 +6914,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by the independent-variable import/save/rebuild test in tests/test_study_metadata.py."
+      "test_notes": "Covered by tests/test_gui_pop_study.py and the independent-variable tests in tests/test_study_metadata.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_chanplot.m",
@@ -7212,7 +7212,7 @@
       "eegprep_equivalent": "src/eegprep/functions/studyfunc/pop_studydesign.py",
       "gap_category": "4_study_group_depth",
       "status": "implemented",
-      "rationale": "Phase 6 implemented this STUDY entry point; Phase 7 updated the matrix row after integration.",
+      "rationale": "The design editor New button opens Add variable and stores continuous trial factors such as rt on STUDY.design, rebuilding trialinfo when needed. Other design-editor buttons remain unavailable.",
       "responsible_phase": "phase_6",
       "user_facing_surface": [
         "api",
@@ -7220,7 +7220,7 @@
         "gui",
         "study"
       ],
-      "test_notes": "Covered by existing STUDY tests from Phase 6."
+      "test_notes": "Continuous rt New-variable coverage is in tests/test_gui_pop_study.py."
     },
     {
       "eeglab_path": "functions/studyfunc/pop_studyerp.m",

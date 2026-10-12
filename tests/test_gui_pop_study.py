@@ -1,11 +1,20 @@
 import ast
+import copy
 import os
 
 import numpy as np
+import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.studyfunc.pop_addindepvar import (
+    apply_addindepvar_combine,
+    pop_addindepvar,
+    pop_addindepvar_dialog_spec,
+)
 from eegprep.functions.studyfunc.pop_study import pop_study, pop_study_dialog_spec
-from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
+from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign, pop_studydesign_dialog_spec
+from eegprep.functions.studyfunc.std_makedesign import std_makedesign
+from eegprep.functions.studyfunc.std_maketrialinfo import std_maketrialinfo
 from tests.fixtures import create_test_eeg
 
 
@@ -177,3 +186,155 @@ def test_pop_studydesign_gui_updates_subject_selection():
 
     assert edited["design"][0]["cases"]["value"] == ["S01"]
     ast.parse(command)
+
+
+def _reaction_time_study():
+    """Epoched STUDY whose time-locking events carry a continuous ``rt`` field.
+
+    This is the state ``event_processing_study`` reaches before
+    ``STUDY > Select/Edit study design(s)`` > New > Add variable.
+    """
+    eeg = create_test_eeg(n_channels=2, n_samples=10, n_trials=3)
+    for index, event in enumerate(eeg["event"]):
+        event["epoch"] = index + 1
+        event["rt"] = np.empty((0, 0)) if index == 2 else (300.0 if index == 0 else 450.0)
+    eeg.update({"setname": "rt", "subject": "S01", "filename": "rt.set"})
+    return pop_study(None, [eeg], name="RT study")
+
+
+def test_pop_studydesign_new_button_opens_add_variable_for_rt():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer, _require_qt
+
+    try:
+        qt_core, qt_widgets = _require_qt()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+    study, alleeg = _reaction_time_study()
+    spec = pop_studydesign_dialog_spec(study, alleeg)
+    assert controls_by_tag(spec)["new_variable"].callback.name == "studydesign_new_variable"
+    renderer = QtDialogRenderer()
+    app, dialog, widgets = renderer.build_dialog(spec)
+    observed: dict[str, object] = {"tries": 0}
+
+    def choose_rt():
+        observed["tries"] = int(observed["tries"]) + 1
+        child = app.activeModalWidget()
+        if child is None or child.windowTitle() != "Add variable":
+            if int(observed["tries"]) > 50:
+                for widget in app.topLevelWidgets():
+                    if widget.windowTitle() == "Add variable":
+                        widget.reject()
+                return
+            qt_core.QTimer.singleShot(10, choose_rt)
+            return
+        try:
+            observed["title"] = child.windowTitle()
+            factors = child.findChild(qt_widgets.QListWidget, "lbfact0")
+            for row in range(factors.count()):
+                if factors.item(row).text() == "rt":
+                    factors.setCurrentRow(row)
+                    break
+            vartype = child.findChild(qt_widgets.QComboBox, "vartype")
+            values = child.findChild(qt_widgets.QListWidget, "lbval0")
+            observed["vartype"] = vartype.currentText()
+            observed["values_enabled"] = values.isEnabled()
+            observed["values"] = [values.item(row).text() for row in range(values.count())]
+        finally:
+            child.accept()
+
+    qt_core.QTimer.singleShot(10, choose_rt)
+    widgets["new_variable"].click()
+    dialog.close()
+
+    stored = widgets["variable_summary"].property("eegprep_value")
+    assert observed["title"] == "Add variable"
+    assert observed["vartype"] == "Continuous variable"
+    assert observed["values_enabled"] is False
+    assert observed["values"] == ["300", "450"]
+    assert stored[-1]["label"] == "rt"
+    assert stored[-1]["vartype"] == "continuous"
+    assert stored[-1]["value"] == []
+
+
+def test_pop_studydesign_new_variable_lists_and_stores_continuous_rt():
+    study, alleeg = _reaction_time_study()
+    before_study, before_alleeg = copy.deepcopy(study), copy.deepcopy(alleeg)
+    controls = controls_by_tag(pop_studydesign_dialog_spec(study, alleeg))
+    callback = controls["new_variable"].callback
+
+    assert callback.name == "studydesign_new_variable"
+    assert "rt" in callback.params["varlist"]["factors"]
+    rt_index = callback.params["varlist"]["factors"].index("rt")
+    assert callback.params["varlist"]["numerical"][rt_index] is True
+    assert "trialinfo" not in study["datasetinfo"][0] or not any(
+        "rt" in row for row in study["datasetinfo"][0].get("trialinfo") or []
+    )
+
+    renderer = _Renderer(
+        {
+            "subjects": "",
+            "designind": 1,
+            "variable_summary": [{"label": "rt", "value": [], "vartype": "continuous"}],
+        }
+    )
+    edited, edited_alleeg, command = pop_studydesign(study, alleeg, gui=True, renderer=renderer, return_com=True)
+
+    rt_variable = edited["design"][0]["variable"][0]
+    assert rt_variable["label"] == "rt"
+    assert rt_variable["vartype"] == "continuous"
+    assert rt_variable["pairing"] == "off"
+    assert rt_variable["level"] == "one"
+    assert [float(value) for value in rt_variable["value"]] == [300.0, 450.0]
+    trialinfo = edited["datasetinfo"][0]["trialinfo"]
+    assert len(trialinfo) == 3
+    assert [row.get("rt") for row in trialinfo if "rt" in row] == [300.0, 450.0]
+    assert [row.get("rt") for row in edited_alleeg[0]["trialinfo"] if "rt" in row] == [300.0, 450.0]
+    assert "std_maketrialinfo" in command
+    assert "variable1='rt'" in command
+    assert "vartype1='continuous'" in command
+    ast.parse(command)
+    namespace = {
+        "STUDY": before_study,
+        "ALLEEG": before_alleeg,
+        "std_makedesign": std_makedesign,
+        "std_maketrialinfo": std_maketrialinfo,
+    }
+    exec(command, namespace)
+    assert namespace["STUDY"]["design"][0]["variable"][0]["label"] == "rt"
+    assert namespace["STUDY"]["design"][0]["variable"][0]["vartype"] == "continuous"
+
+
+def test_pop_addindepvar_dialog_selects_categorical_values_and_combines_them():
+    varlist = {
+        "factors": ["None", "condition"],
+        "factorvals": [[], ["standard", "target", "oddball"]],
+        "numerical": [True, False],
+    }
+    renderer = _Renderer({"lbfact0": 2, "lbval0": [2], "vartype": 1})
+
+    label, values, categorical = pop_addindepvar(varlist, gui=True, renderer=renderer)
+
+    assert label == "condition"
+    assert values == ["target"]
+    assert categorical == 1
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc.qt import QtDialogRenderer, _require_qt
+
+    try:
+        _require_qt()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+    spec = pop_addindepvar_dialog_spec(varlist)
+    state = controls_by_tag(spec)["lbfact0"].callback.params
+    qt_renderer = QtDialogRenderer()
+    _app, dialog, widgets = qt_renderer.build_dialog(spec)
+    widgets["lbfact0"].setCurrentRow(1)
+    for row in range(widgets["lbval0"].count()):
+        widgets["lbval0"].item(row).setSelected(row < 2)
+    warning = apply_addindepvar_combine(widgets, state)
+    dialog.close()
+
+    assert warning is None
+    assert state["factorvals"][1][-1] == ["standard", "target"]

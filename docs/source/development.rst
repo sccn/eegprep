@@ -436,11 +436,14 @@ a continuous variable after explicitly canceling the stale-EEG overwrite.
 The retained dataset has 157 events with 75 numeric ``rt`` values and 82 empty
 fields; the 80 STUDY trial records contain the same 75 numeric values and
 five empty fields. The workspace was unchanged by opening and closing the
-design dialogs, and no additional design was saved. This is evidence for that
-observed native workflow, not an unattended test or proof of Python GUI support. EEGPrep's
-``pop_studydesign`` New-variable callback currently displays an unavailable
-subdialog message; the missing workflow remains visible for later capability
-work rather than being treated as an expected successful skip.
+design dialogs, and no additional design was saved. EEGPrep's
+``pop_studydesign`` New button now opens Add variable, lists a continuous
+trial factor such as ``rt``, and on OK writes ``STUDY.design`` and rebuilds
+``trialinfo`` when that factor is not already available. Canceling still
+leaves the workspace unchanged. The September 29 observation remains the
+manual MATLAB acceptance record for the original dialog. The Python tutorial
+wrapper still stops at redraw, so a passing wrapper does not exercise this
+follow-up.
 Keep this original manual instruction as a separate manual acceptance case.
 Automating it with a new cross-backend GUI driver is not required to preserve
 the original test, and its manual result must not be added to automated pass

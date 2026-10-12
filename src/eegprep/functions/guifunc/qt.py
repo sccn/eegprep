@@ -27,6 +27,13 @@ from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.studyfunc._study_utils import format_components_button
+from eegprep.functions.studyfunc.pop_addindepvar import (
+    apply_addindepvar_combine,
+    apply_addindepvar_selectfact,
+    apply_addindepvar_vartype,
+    read_addindepvar_selection,
+)
+from eegprep.functions.studyfunc.pop_studydesign import run_studydesign_new_variable, variable_summary_lines
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, design_firma, design_firpm, design_firws
 from eegprep.plugins.firfilt._pop_common import numeric_or_none, vector_or_none
 from eegprep.plugins.firfilt.kaiserbeta import kaiserbeta
@@ -380,6 +387,23 @@ class QtDialogRenderer:
             button = widgets.get(params["button"])
             if button is not None:
                 button.clicked.connect(lambda: self._select_study_components(button, widgets, params))
+        elif callback.name == "addindepvar_selectfact":
+            source = widgets.get("lbfact0")
+            if source is not None:
+                source.currentRowChanged.connect(lambda _row: apply_addindepvar_selectfact(widgets, params))
+                _bind_addindepvar_accept(widgets, params)
+        elif callback.name == "addindepvar_vartype":
+            source = widgets.get("vartype")
+            if source is not None:
+                source.currentIndexChanged.connect(lambda _index: apply_addindepvar_vartype(widgets, params))
+        elif callback.name == "addindepvar_combine":
+            source = widgets.get("combine1")
+            if source is not None:
+                source.clicked.connect(lambda: self._combine_addindepvar_values(source, widgets, params))
+        elif callback.name == "studydesign_new_variable":
+            source = widgets.get(params.get("button", "new_variable"))
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_new_variable(source, widgets, params))
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -418,6 +442,31 @@ class QtDialogRenderer:
             return
         freqs_widget.setText(_format_numeric_vector(result.widths_table[:, 0]))
         cycles_widget.setText(_format_numeric_vector(result.cycles))
+
+    def _combine_addindepvar_values(self, button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        message = apply_addindepvar_combine(widgets, params)
+        if not message:
+            return
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", message)
+
+    def _studydesign_new_variable(self, button: Any, widgets: Mapping[str, Any], params: dict[str, Any]) -> None:
+        warning, variables = run_studydesign_new_variable(params, renderer=self)
+        if warning:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(button, "Warning", warning)
+            return
+        if not variables:
+            return
+        summary = widgets.get("variable_summary")
+        if summary is None:
+            return
+        summary.clear()
+        rows = variable_summary_lines(variables)
+        summary.addItems(rows or ["No independent variables"])
+        if rows:
+            summary.setCurrentRow(len(rows) - 1)
+        summary.setProperty(_VALUE_PROPERTY, variables)
 
 
 def _QDialog() -> Any:
@@ -1435,6 +1484,22 @@ def _study_recording_key(widgets: Mapping[str, Any], tags: Mapping[str, str]) ->
 def _study_number_token(text: str) -> str:
     text = text.strip()
     return str(int(text)) if _is_int_text(text) else text.lower()
+
+
+def _bind_addindepvar_accept(widgets: Mapping[str, Any], state: Mapping[str, Any]) -> None:
+    dialog = widgets["lbfact0"].window()
+    if getattr(dialog, "_eegprep_addindepvar_bound", False):
+        return
+    dialog._eegprep_addindepvar_bound = True
+
+    def capture() -> None:
+        label, values, categorical = read_addindepvar_selection(widgets, state)
+        widgets["lbfact0"].setProperty(
+            _VALUE_PROPERTY,
+            {"label": label, "values": values, "categorical": categorical},
+        )
+
+    dialog.accepted.connect(capture)
 
 
 def _read_widget(widget: Any) -> Any:
