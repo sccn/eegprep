@@ -2,6 +2,9 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary: workflow_dispatch 404s until this file is on the default branch.
+  push:
+    branches: [cursor/eeglab-reference-ci-9de8]
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -12,7 +15,8 @@ env:
 
 concurrency:
   group: eeglab-reference-${{ github.ref }}
-  cancel-in-progress: false
+  # True only for this kickoff so it replaces the wedged in-progress run.
+  cancel-in-progress: true
 
 jobs:
   reference:
