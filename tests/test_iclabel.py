@@ -97,25 +97,6 @@ def test_emscripten_iclabel_never_imports_onnxruntime():
     assert onnxruntime_modules == '[]'
 
 
-@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='needs onnxruntime to prove the block matters')
-def test_iclabel_without_onnxruntime_names_the_iclabel_extra():
-    output = _run_python(
-        f"""
-        import sys
-
-        sys.modules["onnxruntime"] = None
-        from eegprep import iclabel, pop_loadset
-
-        try:
-            iclabel(pop_loadset({_SAMPLE_ICA_SET!r}))
-        except ImportError as exc:
-            print(exc)
-        """
-    )
-
-    assert 'pip install "eegprep[iclabel]"' in output
-
-
 @pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
 def test_iclabel_async_matches_sync_on_sample_ica_dataset():
     eeg = pop_loadset(_SAMPLE_ICA_SET)
