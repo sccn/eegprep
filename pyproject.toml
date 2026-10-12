@@ -30,6 +30,7 @@ dependencies = [
   # substitute another version. Their floors are therefore a ceiling: raising one
   # past what Pyodide ships makes the install impossible, not merely larger.
   # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1.
+  # Keep the Pyodide version in sync with tools/pyodide/package.json.
   # threadpoolctl is bundled too but is pure Python, so micropip can fetch any
   # version from PyPI and its floor is not constrained this way.
   # tests/test_browser_dependency_floors.py enforces the distinction.

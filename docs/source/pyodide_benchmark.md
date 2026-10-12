@@ -73,7 +73,7 @@ Picard remains unchanged.
 ## Measured results
 
 These numbers come from one run on 2026-10-12, on a shared Apple M4 Pro laptop (14 cores, 64 GB memory, macOS 27.0.1),
-using the tools at commit `921d6bc7` of the `fix/386-pyodide-tools` branch (EEGPrep 0.4.0 wheel built from that tree).
+using the harness in `tools/pyodide` as landed with the browser epic (an EEGPrep 0.4.0 wheel built from that tree).
 The Pyodide column ran under Node.js v26.10.0 with Pyodide 0.29.5 (21 minutes 49 seconds in total);
 the native column ran under Python 3.12.15 with NumPy 2.2.6 and SciPy 1.16.3, restricted to one BLAS thread
 (`OMP_NUM_THREADS=1` and the related variables CI sets).
