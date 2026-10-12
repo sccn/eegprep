@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import shutil
 import subprocess
@@ -12,6 +13,7 @@ import numpy as np
 import pytest
 
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
+from tools import check_pyodide_base_resolution
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
@@ -161,6 +163,38 @@ def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
     monkeypatch.setitem(sys.modules, "js", types.ModuleType("js"))
     with pytest.raises(ImportError, match="eegprep_iclabel_web"):
         asyncio.run(run_iclabel_net_async(image, image, image))
+
+
+@pytest.mark.parametrize(
+    ("name", "status", "in_lock", "wheel"),
+    [
+        ("numpy", "ok", True, None),
+        ("mne", "ok", False, "mne-1.10.0-py3-none-any.whl"),
+        ("docopt", "ok", False, None),
+        ("no-wasm-build", "FAIL", False, None),
+    ],
+)
+def test_base_resolution_classifies_each_package_once(name, status, in_lock, wheel):
+    result = check_pyodide_base_resolution.classify_package(name, "1.0", in_lock, wheel)
+
+    assert result.status == status
+
+
+def test_base_resolution_reports_declared_known_gaps(monkeypatch):
+    monkeypatch.setitem(check_pyodide_base_resolution.KNOWN_GAPS, "gap-package", "no wasm build yet")
+
+    result = check_pyodide_base_resolution.classify_package("gap-package", "1.0", False, None)
+
+    assert result.status == "known-gap"
+    assert "no wasm build yet" in result.source
+
+
+def test_pinned_pyodide_version_agrees_across_the_harness():
+    package = json.loads((REPO_ROOT / "tools" / "pyodide" / "package.json").read_text())
+    version = package["dependencies"]["pyodide"]
+
+    assert version == check_pyodide_base_resolution.PYODIDE_VERSION
+    assert f"Pyodide {version}" in (REPO_ROOT / "docs" / "source" / "pyodide_benchmark.md").read_text()
 
 
 def test_harness_holds_mne_at_the_declared_floor():
