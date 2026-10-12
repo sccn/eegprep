@@ -222,7 +222,6 @@ def test_erpimage_sorts_trials_and_draws_zero_and_vertical_lines() -> None:
     vertical = [line for line in segments if np.allclose(line.get_xdata(), [100.0, 100.0])]
     assert zero and zero[0].get_linewidth() == erpimage_module.ZEROWIDTH
     assert vertical and vertical[0].get_linestyle() == "--"
-    # The smoothed sortvar is overplotted as a thick black trace.
     sortvar_trace = [line for line in lines if line.get_linestyle() == "-" and len(line.get_xdata()) == 3]
     np.testing.assert_allclose(sortvar_trace[0].get_xdata(), [10.0, 20.0, 30.0])
 

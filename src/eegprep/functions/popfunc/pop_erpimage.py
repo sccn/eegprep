@@ -104,8 +104,6 @@ def pop_erpimage(
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
     show_figures(result.figure, plot=plot)
-    # The full EEGLAB pop_erpimage port returning ErpimageResult follows in its own change;
-    # until then the wrapper keeps its (trials, points) "image" view of the smoothed data.
     output = {"figure": result.figure, "image": result.outdata.T}
     return (output, command) if return_com else output
 

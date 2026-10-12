@@ -1749,10 +1749,7 @@ def _permutation_threshold(values: np.ndarray, alpha: float, signs: np.ndarray) 
     empty = counts == 0
     counts[empty] = 1
     mean = _seqsum(clean, axis=0) / counts
-    # macOS Accelerate raises spurious floating-point flags inside matmul; the inputs are finite.
-    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-        sums = signs @ clean
-    permuted = np.sort(np.abs(sums / counts), axis=0)
+    permuted = np.sort(np.abs((signs @ clean) / counts), axis=0)
     bound = int(np.floor(2 * alpha * signs.shape[0]))
     threshold = permuted[signs.shape[0] - 1 - bound]
     mean[empty] = np.nan

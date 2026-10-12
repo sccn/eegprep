@@ -45,7 +45,7 @@ OUTPUTS = (
     "phsamp",
     "erpsig",
 )
-# Outputs in data units: compare relative to the input scale (an ERP after 'rmerp' is ~1e-15).
+# Data-unit outputs are compared on the input scale: an ERP after 'rmerp' is rounding noise.
 DATA_DOMAIN = {"outdata", "erp", "erpsig"}
 NON_SCENARIO_KEYS = {"datasets", "seed", "matlab_version"}
 ENGINE_IMPORTS = {"__future__", "ast", "dataclasses", "typing", "numpy"}
@@ -170,8 +170,8 @@ def _assert_scenario(fixture: dict, name: str) -> None:
             continue
         result = _compute(fixture, name, plotted=mode == "plot")
         for field in fields:
-            # EEGPrep draws unbiased permutation signs, so erpalpha thresholds (and the ERP
-            # limits drawn from them) differ by design; see the test_erpalpha_* tests.
+            # erpalpha thresholds use unbiased signs (sccn/eeglab#976); test_erpalpha_* compares
+            # them with MATLAB given MATLAB's own sign draws.
             if name == "erpalpha" and (field == "erpsig" or (mode == "plot" and field == "limits")):
                 continue
             expected = _field(fixture, name, prefix + field)
@@ -548,8 +548,10 @@ def test_unweighted_irregular_windows_match_the_general_movav_port(trials, width
     width = min(width, float(trials))
     expected, expected_x = movav(values, np.arange(1, trials + 1), width, advance, None, None, None)
     actual, actual_x = engine._moving_average(values, width, advance, np.ones(1))
-    # The general port multiplies the advance; EEGLAB (and the engine) add it repeatedly.
-    np.testing.assert_allclose(actual_x, expected_x, rtol=1e-12)
+    steps = np.full(actual_x.size, advance)
+    steps[0] = 1 + width / 2
+    np.testing.assert_array_equal(actual_x, np.cumsum(steps))  # EEGLAB adds the advance repeatedly
+    assert actual_x.size == expected_x.size
     np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12, equal_nan=True)
 
 
