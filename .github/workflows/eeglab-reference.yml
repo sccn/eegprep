@@ -17,7 +17,7 @@ env:
 
 concurrency:
   group: eeglab-reference-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reference:
