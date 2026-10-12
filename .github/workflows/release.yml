@@ -146,7 +146,7 @@ jobs:
           if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
             echo "::error::Packaged ICLabel network differs from the source artifact"; exit 1
           fi
-          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1)
+          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1 || true)
           if [ -z "$sdist_model_path" ]; then
             echo "::error::ICLabel network (iclabel.onnx) missing from the sdist"; exit 1
           fi
