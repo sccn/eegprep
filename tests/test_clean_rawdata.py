@@ -174,8 +174,8 @@ class TestCleanASR(DebuggableTestCase):
 class TestRiemannianASRMatlab(DebuggableTestCase):
     """MATLAB reference for clean_asr(..., useriemannian=True).
 
-    Run this before merging. It calls EEGLAB clean_asr with Riemannian processing
-    enabled and compares the cleaned samples. This environment has no MATLAB.
+    Compares cleaned samples against EEGLAB clean_asr with Riemannian processing.
+    The MATLAB session needs the Manopt paths from eegplugin_clean_rawdata.
     """
 
     def test_clean_asr_riemannian_matches_matlab(self):

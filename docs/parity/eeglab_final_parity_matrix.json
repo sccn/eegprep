@@ -216,7 +216,7 @@
         "docs/source/user_guide/preprocessing_pipeline.rst",
         "docs/source/user_guide/installation.rst"
       ],
-      "test_notes": "Covered by tests/test_riemannian_asr.py (geodesic midpoint, nonlinear eigenspace, block covariances, clean_asr processing, carried covariance) and the MATLAB clean_asr(useriemannian=true) parity test in tests/test_clean_rawdata.py. The calibration-only path remains covered by tests/test_clean_asr.py and the sample-data Riemannian ASR regression in tests/test_sample_data_pop_functions.py. Run the MATLAB parity test before merging; this environment has no MATLAB."
+      "test_notes": "Covered by tests/test_riemannian_asr.py (geodesic midpoint, nonlinear eigenspace, block covariances, clean_asr processing, carried covariance) and the MATLAB clean_asr(useriemannian=true) parity test in tests/test_clean_rawdata.py. The MATLAB compatibility session adds the Manopt directories from eegplugin_clean_rawdata so grassmannfactory resolves. The calibration-only path remains covered by tests/test_clean_asr.py and the sample-data Riemannian ASR regression in tests/test_sample_data_pop_functions.py."
     },
     {
       "row_id": "clean_rawdata-private-numerics",

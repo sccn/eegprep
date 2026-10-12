@@ -330,6 +330,18 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/picard')
         engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        # eegplugin_clean_rawdata adds these so rasr_nonlinear_eigenspace can call Manopt.
+        manopt_root = path2eeglab + '/plugins/clean_rawdata/manopt'
+        for relative in (
+            '',
+            '/manopt/manifolds/grassmann',
+            '/manopt/tools',
+            '/manopt/core',
+            '/manopt/solvers/trustregions',
+        ):
+            manopt_path = manopt_root + relative
+            if os.path.isdir(manopt_path):
+                engine.addpath(manopt_path, nargout=0)
         amica_path = path2eeglab + '/plugins/amica'
         if os.path.isdir(amica_path):
             engine.addpath(amica_path, nargout=0)
