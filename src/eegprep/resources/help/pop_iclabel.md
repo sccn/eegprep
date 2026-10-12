@@ -37,7 +37,9 @@ Behavior:
   probabilities match the full-precision network is reported in the user guide:
   https://sccn.github.io/eegprep/user_guide/ica_rejection.html#iclabel-measured-agreement
 - In Pyodide/Emscripten the synchronous `iclabel` and `pop_iclabel` raise `RuntimeError`.
-  Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`; see `pop_iclabel_async`.
+  Use `await iclabel_async(EEG)` or `await pop_iclabel_async(EEG, 'default')`.
+  The browser host must also set `globalThis.eegprep_iclabel_web`, whose
+  `run(...)` contract is in the `pop_iclabel_async` help.
 
 Errors:
 

@@ -37,7 +37,7 @@ Breaking changes
   it is no longer part of ``eegprep[all]`` and its floor is ``torch>=2.4``.
 - **BREAKING: ICLabel probabilities differ slightly from 0.4.0.**
   The shipped network stores its convolution weights as 8-bit integers (weight-only quantization, 2,932,897 bytes) instead of float32.
-  On the frozen evaluation set of 217 components, class probabilities differ from the float32 network by at most 0.01346 (mean 0.00080), and all top-1 labels and all keep-or-reject decisions agree.
+  On the frozen evaluation set of 217 components, class probabilities differ from the float32 network by at most 0.01346, and all top-1 labels and all keep-or-reject decisions agree.
   That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
   see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
   Feature extraction, the cast to float32, augmentation, softmax, the class set, and the rejection thresholds are unchanged.
