@@ -4,6 +4,7 @@ This module provides common test fixtures and utilities that can be reused
 across different test modules.
 """
 
+import asyncio
 import importlib.util
 import os
 from pathlib import Path
@@ -11,8 +12,12 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.plugins.ICLabel import iclabel_net_onnx
+
 
 SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+SAMPLE_ICA_DATASET_PATH = SAMPLE_DATASET_PATH.parent / "eeglab_data_with_ica_tmp.set"
 
 
 def matlab_engine_available():
@@ -196,3 +201,35 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_compo
         )
 
     return eeg
+
+
+def load_sample_ica_eeg():
+    """Load the bundled 32-channel sample dataset with its 32-component ICA decomposition."""
+    return pop_loadset(str(SAMPLE_ICA_DATASET_PATH))
+
+
+class GatedIclabelBackend:
+    """Real ICLabel ONNX backend that suspends until the test releases it.
+
+    Installed in place of ``iclabel_net_onnx._run_iclabel_net_async``, it keeps an
+    ICLabel call in flight so a test can change the session before the real network
+    output is returned.
+    """
+
+    def __init__(self):
+        self.calls = 0
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def __call__(self, image, psdmed, autocorr):
+        self.calls += 1
+        self.started.set()
+        await self.release.wait()
+        return iclabel_net_onnx.run_iclabel_net(image, psdmed, autocorr)
+
+
+def gate_iclabel_backend(monkeypatch):
+    """Install and return a :class:`GatedIclabelBackend` for the current test."""
+    backend = GatedIclabelBackend()
+    monkeypatch.setattr(iclabel_net_onnx, "_run_iclabel_net_async", backend)
+    return backend

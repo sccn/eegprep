@@ -32,6 +32,7 @@ from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+from tests.fixtures import gate_iclabel_backend, load_sample_ica_eeg
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -209,6 +210,97 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
     finally:
         EEG_OPTIONS.clear()
         EEG_OPTIONS.update(old_options)
+
+
+@pytest.fixture(scope="module")
+def sample_ica_eeg():
+    return load_sample_ica_eeg()
+
+
+def _iclabel_console(sample_ica_eeg, *setnames):
+    session = EEGPrepSession()
+    for setname in setnames or ("sample",):
+        session.store_current(dict(sample_ica_eeg, setname=setname), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+    workspace.namespace["np"] = np
+    return session, workspace
+
+
+def _run_during_console_iclabel(workspace, backend, during):
+    """Start console ``pop_iclabel_async``, call ``during`` while inference is suspended, then finish it."""
+
+    async def scenario():
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+        await backend.started.wait()
+        try:
+            during()
+        finally:
+            backend.release.set()
+        return await task
+
+    return asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "first_sample = EEG['data'].flat[0]",
+        "weights = EEG['icaweights'].copy()\nnp.fill_diagonal(weights, 0.0)",
+        "scratch = EEG['data'].copy()\nscratch *= 2",
+        "ordered = np.sort(EEG['data'])",
+        "scratch = EEG.copy()\nscratch['setname'] = 'scratch'",
+    ],
+)
+def test_console_scratch_work_during_async_iclabel_keeps_the_result(sample_ica_eeg, monkeypatch, source):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    result = _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, source))
+
+    assert result.eeg is session.EEG
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert session.ALLCOM == ["EEG = await pop_iclabel_async(EEG, 'default');"]
+    workspace.close()
+
+
+def test_console_save_flag_change_during_async_iclabel_keeps_the_result(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    result = _run_during_console_iclabel(workspace, backend, session.mark_current_saved)
+
+    assert result.eeg is session.EEG
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    workspace.close()
+
+
+def test_console_sync_pop_during_async_iclabel_runs_and_discards_the_stale_result(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="discarded"):
+        _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, "EEG = pop_reref(EEG, [])"))
+
+    assert session.ALLCOM == ["EEG = pop_reref( EEG, []);"]
+    assert "ic_classification" not in session.EEG["etc"]
+    workspace.close()
+
+
+def test_console_reads_gui_edits_made_while_async_iclabel_is_in_flight(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    def gui_rename_then_console_read():
+        session.EEG["setname"] = "renamed in GUI"
+        _run_console(workspace, "seen = EEG['setname']")
+
+    with pytest.raises(RuntimeError, match="discarded"):
+        _run_during_console_iclabel(workspace, backend, gui_rename_then_console_read)
+
+    assert workspace.namespace["seen"] == "renamed in GUI"
+    assert session.EEG["setname"] == "renamed in GUI"
+    assert "ic_classification" not in session.EEG["etc"]
+    workspace.close()
 
 
 def test_console_async_iclabel_pop_updates_shared_session_once():
