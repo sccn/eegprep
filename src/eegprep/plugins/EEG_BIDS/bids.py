@@ -182,7 +182,6 @@ def layout_get_lenient(
             break
     if expect_one and len(results) > 1:
         if 'run' in query_entities:
-            # filter the entities to those that match the run exactly
             # (this helps disambiguate 001 vs 1 etc)
             # rule: try to use the run as a verbatim string to disambiguate 001 vs 1 etc
             run = str(query_entities['run'])

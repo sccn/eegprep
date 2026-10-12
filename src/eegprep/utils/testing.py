@@ -44,21 +44,17 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
         if b.ndim >= 3:
             b = b.reshape(b.shape[:2])
 
-    # check if a and b are the same shape
     if a.shape != b.shape:
         raise ValueError(f"a and b have different shapes: {a.shape} != {b.shape}")
 
-    # Store original shape for summary
     original_shape = a.shape
 
-    # Flatten for comparison
     a_flat = a.flatten()
     b_flat = b.flatten()
 
     diff = a_flat - b_flat
     abs_diff = np.abs(diff)
 
-    # Compute statistics
     max_abs_diff = np.max(abs_diff)
     mean_abs_diff = np.mean(abs_diff)
     rms_diff = np.sqrt(np.mean(diff**2))
@@ -74,7 +70,6 @@ def compare_eeg(a, b, rtol=0, atol=1e-7, use_32_bit=default_32_bit, err_msg=''):
     total_elements = diff.size
     mismatch_pct = 100.0 * mismatched / total_elements if total_elements > 0 else 0.0
 
-    # Build summary string
     summary_lines = [
         "Comparison Summary:",
         f"  Shape: {original_shape}",
@@ -156,7 +151,6 @@ def use_64bit_eeg_options():
             # Your code that needs 64-bit EEG options
             pass
     """
-    # Get paths
     homedir = Path.home()
     eeg_options_path = homedir / 'eeg_options.m'
     backup_path = homedir / 'eeg_options.m.backup'
@@ -165,7 +159,6 @@ def use_64bit_eeg_options():
     package_root = Path(__file__).resolve().parent.parent
     source_path = package_root / 'resources' / 'eeg_options_64bit.m'
 
-    # Check if source file exists
     if not source_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_path}")
 
@@ -176,7 +169,6 @@ def use_64bit_eeg_options():
     if file_existed_before:
         shutil.copy2(eeg_options_path, backup_path)
 
-    # Copy the 64-bit options file
     shutil.copy2(source_path, eeg_options_path)
 
     try:

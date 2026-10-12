@@ -93,7 +93,6 @@ def eeg_mne2eeg_epochs(epochs, ica):
         'roi': np.array([]),
     }
 
-    # create channel locations
     ch_names = epochs.ch_names
 
     ch_locs = epochs.info['chs']
@@ -148,7 +147,6 @@ def eeg_mne2eeg_epochs(epochs, ica):
             ch_names, theta_all, radius_all, X_all, Y_all, Z_all, sph_theta_all, sph_phi_all, sph_radius_all
         )
     ]
-    # Create the list of dictionaries with a string field
     # d_list = [{
     #     'labels': ch_name,
     #     'theta': math.atan2(ch_loc[0], ch_loc[1]),
@@ -164,7 +162,6 @@ def eeg_mne2eeg_epochs(epochs, ica):
     #     'ref': ''
     # } for ch_name, ch_loc in zip(ch_names, ch_locs_xyz)]
 
-    # convert d_list to a numpy array
     d_list = np.array(d_list)
     eeglab_dict['chanlocs'] = d_list
 

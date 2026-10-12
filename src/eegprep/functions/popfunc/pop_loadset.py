@@ -11,17 +11,8 @@ from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
-# Allows access using . notation
-# class EEG:
-#     def __init__(self, **kwargs):
-#         self.__dict__.update(kwargs)
-#     def __getitem__(self, key):
-#         return self.__dict__[key]
-#     def __setitem__(self, key, value):
-#         self.__dict__[key] = value
 
 default_empty = np.array([])
-# default_empty = None
 
 
 def loadset(file_path):
@@ -52,28 +43,22 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     channel_selection = [] if isinstance(loadmode, str) else loadmode
 
     def new_check(obj):
-        # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
         if isinstance(obj, dict):
             return {key: new_check(obj[key]) for key in obj}
-        # check if obj is a numpy array and apply recursively the function to each object not changing the struture of the array
         elif isinstance(obj, list):
             if len(obj) == 0:
                 return default_empty
             else:
                 return [new_check(item) for item in obj]
         elif isinstance(obj, np.ndarray):
-            # check if empty and return none
             if obj.size == 0:
                 return default_empty
-            # check if it is a numeric array
             elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
                 return obj
             else:
                 return np.array([new_check(item) for item in obj], dtype=object)
-        # check if it is a scalar or a string and return it
         elif np.isscalar(obj) or isinstance(obj, str):
             return obj
-        # check if obj is a mat_struct object and convert it to a dictionary
         elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
             dict_obj = {}
             for field_name in obj._fieldnames:

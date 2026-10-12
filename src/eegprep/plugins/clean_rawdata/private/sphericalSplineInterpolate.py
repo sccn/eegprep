@@ -22,15 +22,12 @@ def _interpMx(cosEE, order, tol):
     """
     x = np.asarray(cosEE)  # Ensure input is a numpy array
 
-    # Initialize variables for Legendre polynomial recurrence (vectorized)
     # Using float for n even for integers to ensure float division later
     n = 1.0
     Pns1 = np.ones_like(x)
     Pn = x.copy()  # Use a copy to avoid modifying input if it was passed by reference
 
-    # Calculate initial terms for G and H sums
     nn_plus_n = n * n + n  # = 2.0 when n=1
-    # Ensure float exponentiation/division
     tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
     G = tmp.copy()  # Start sum for G
     H = nn_plus_n * tmp  # Start sum for H
@@ -50,16 +47,12 @@ def _interpMx(cosEE, order, tol):
         Pns1 = Pn
         Pn = ((2.0 * n - 1.0) * x * Pns1 - (n - 1.0) * Pns2) / n
 
-        # Store old G, H for convergence check (make copies)
         oG = G.copy()
         oH = H.copy()
 
-        # Calculate update term 'tmp' (vectorized)
         nn_plus_n = n * n + n
-        # Ensure float exponentiation/division
         tmp = ((2.0 * n + 1.0) * Pn) / (nn_plus_n ** float(order))
 
-        # Update G and H sums (vectorized)
         G += tmp  # update function estimate, spline interp
         H += nn_plus_n * tmp  # update function estimate, SLAP
 
@@ -119,7 +112,6 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
         made. This software and documents are distributed without any
         warranty, express or implied.
     """
-    # Ensure inputs are numpy arrays
     src = np.asarray(src)
     dest = np.asarray(dest)
 
@@ -132,8 +124,6 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     n_src = src.shape[1]
     n_dest = dest.shape[1]
 
-    # Map the positions onto the unit sphere
-    # Normalize each column vector
     norm_src = np.sqrt(np.sum(src**2, axis=0, keepdims=True))
     # Avoid division by zero if a source position is exactly at the origin
     norm_src[norm_src == 0] = 1.0
@@ -144,17 +134,13 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     norm_dest[norm_dest == 0] = 1.0
     dest_norm = dest / norm_dest
 
-    # Calculate the cosine of the angle between the new and old electrodes.
     # If the vectors are on top of each other, the result is 1.
-    # Transpose src_norm (N, 3) and dest_norm (M, 3) for matrix multiplication
     cosSS = finite_matmul(src_norm.T, src_norm)  # angles between source positions [N x N]
     cosDS = finite_matmul(dest_norm.T, src_norm)  # angles between destination positions [M x N]
 
-    # Ensure cosines are within [-1, 1] due to potential floating point errors
     cosSS = np.clip(cosSS, -1.0, 1.0)
     cosDS = np.clip(cosDS, -1.0, 1.0)
 
-    # Compute the interpolation matrices G and H using the helper function
     # Pass the tolerance 'tol' from the main function call
     Gss, _ = _interpMx(cosSS, order, tol)  # [N x N] (Hss not needed)
     Gds, Hds = _interpMx(cosDS, order, tol)  # [M x N]
@@ -163,7 +149,6 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     if lambda_reg > 0:
         Gss = Gss + lambda_reg * np.eye(n_src)
 
-    # Compute the mapping to the polynomial coefficients space
     # N.B. this can be numerically unstable so use the PINV to solve..
     muGss = 1.0  # Fixed value as in the MATLAB code (comment mentioned median(diag(Gss)))
 
@@ -176,10 +161,8 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     C[n_src, :n_src] = muGss  # Row of ones * muGss
     # C[n_src, n_src] remains 0
 
-    # Calculate the pseudoinverse of C
     iC = finite_pinv(C)  # [N+1 x N+1]
 
-    # Compute the final mapping matrix W based on the specified type
     type_lower = type.lower()
     if type_lower == 'spline':
         # W = [Gds ones(M,1)*muGss] * iC[:, :-1]
@@ -189,7 +172,6 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
         W = finite_matmul(Gds_augmented, iC[:, :n_src])  # [M x N+1] @ [N+1 x N] = [M x N]
 
     elif type_lower == 'slap':
-        # W = Hds * iC[:-1, :-1]
         W = finite_matmul(Hds, iC[:n_src, :n_src])  # [M x N] @ [N x N] = [M x N]
 
     else:

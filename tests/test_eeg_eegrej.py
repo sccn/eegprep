@@ -73,7 +73,6 @@ def _make_continuous_eeg2():
 
 
 def _save_eeg(path, EEG):
-    # Save as a single file object array for simplicity
     np.save(path, EEG, allow_pickle=True)
 
 
@@ -90,21 +89,6 @@ class TestEEGEegrej(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    # def test_rmtime_continuous(self):
-    #     EEG = _make_continuous_eeg2()
-
-    #     xmin = float(EEG['xmin'])
-    #     xmax = float(EEG['xmax'])
-    #     span = xmax - xmin
-    #     rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)*EEG['srate']
-    #     rm_seg = rm_seg.astype(int)
-    #     EEG_py = eeg_eegrej(EEG, rm_seg)
-
-    #     EEG_mat = self.eeglab.eeg_eegrej(EEG, rm_seg)
-
-    #     self.assertEqual(EEG_py['pnts'], EEG_mat['pnts'])
-    #     self.assertTrue(np.allclose(EEG_py['data'], EEG_mat['data'], atol=1e-7, equal_nan=True))
-
     def test_rmtime_continuous2(self):
         EEG = pop_loadset(self.fpath_eeglab)
         rm_seg = np.array([[7535.900000, 15070.800000]], dtype=float)
@@ -113,14 +97,6 @@ class TestEEGEegrej(unittest.TestCase):
         EEG_mat = self.eeglab.eeg_eegrej(EEG, rm_seg)
         self.assertEqual(EEG_py['pnts'], EEG_mat['pnts'])
         np.testing.assert_array_equal(EEG_py["data"], EEG_mat["data"])
-
-    # def test_compare_to_eeglab(self):
-    #     EEG = pop_loadset(self.fpath_eeglab)
-    #     regions = np.array([[6, 10]], dtype=int)
-    #     EEG_out = eeg_eegrej(EEG, regions)
-
-    #     eeglab_outdata = self.eeglab.eeg_eegrej(EEG, [6, 10])
-    #     np.testing.assert_array_equal(EEG_out["data"], eeglab_outdata["data"])
 
 
 class TestEEGEegrejExtended(unittest.TestCase):
@@ -186,7 +162,6 @@ class TestEEGEegrejExtended(unittest.TestCase):
         regions = np.array([[5, 9]])
         result = eeg_eegrej(EEG, regions)
 
-        # Calculate expected new duration
         new_pnts = result['pnts']
         expected_duration = original_duration * (new_pnts / original_pnts)
         expected_xmax = EEG['xmin'] + expected_duration
@@ -207,7 +182,6 @@ class TestEEGEegrejExtended(unittest.TestCase):
         regions = np.array([[10, 12]])
         result = eeg_eegrej(EEG, regions)
 
-        # Check that problematic events are cleaned up
         latencies = [e.get('latency') for e in result['event']]
 
         # Should not have events at latency 0 or at pnts

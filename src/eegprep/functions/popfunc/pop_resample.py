@@ -414,7 +414,6 @@ def upfirdn_raw(x, h, p, q):
     y : ndarray
         Filtered and resampled signal.
     """
-    # Ensure x is a numpy array and h is 1D.
     x = np.array(x, copy=True)
     h = np.array(h).flatten()
 
@@ -471,11 +470,9 @@ def resample_raw(x, p, q, h=None):
     if p <= 0 or q <= 0:
         raise ValueError("p and q must be positive integers")
 
-    # Convert x to numpy array and handle row vectors
     x = np.asarray(x)
     is_1d = x.ndim == 1
 
-    # Reshape input to 2D array with shape (samples, channels)
     if is_1d:
         x = x.reshape(-1, 1)
     elif x.ndim == 2 and x.shape[0] == 1:
@@ -487,14 +484,12 @@ def resample_raw(x, p, q, h=None):
         p = p // great_common_divisor
         q = q // great_common_divisor
 
-    # Filter design if required
     if h is None:
         # Properties of the antialiasing filter
         log10_rejection = -3.0
         stopband_cutoff_f = 1.0 / (2.0 * max(p, q))
         roll_off_width = stopband_cutoff_f / 10.0
 
-        # Determine filter length
         rejection_dB = -20.0 * log10_rejection
         L = ceil((rejection_dB - 8.0) / (28.714 * roll_off_width))
 
@@ -502,7 +497,6 @@ def resample_raw(x, p, q, h=None):
         t = np.arange(-L, L + 1)
         ideal_filter = 2 * p * stopband_cutoff_f * np.sinc(2 * stopband_cutoff_f * t)
 
-        # Determine parameter of Kaiser window
         if 21 <= rejection_dB <= 50:
             beta = 0.5842 * (rejection_dB - 21.0) ** 0.4 + 0.07886 * (rejection_dB - 21.0)
         elif rejection_dB > 50:
@@ -510,7 +504,6 @@ def resample_raw(x, p, q, h=None):
         else:
             beta = 0.0
 
-        # Apply Kaiser window to ideal filter
         h = ideal_filter * signal.windows.kaiser(2 * L + 1, beta)
 
     if not np.isrealobj(h):

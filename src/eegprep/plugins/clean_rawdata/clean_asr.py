@@ -96,7 +96,6 @@ def clean_asr(
         window_len = max(0.5, 1.5 * nbchan / srate)
 
     # --- Ensure Data Type ---
-    # Already done with np.asarray above
 
     # --- Determine Reference/Calibration Data ---
     ref_section_data = None
@@ -159,10 +158,6 @@ def clean_asr(
     except ValueError as e:
         # Catch specific errors like not enough calibration data
         raise ValueError(f"ASR calibration failed: {e}")
-    # except Exception as e:
-    #      # Catch unexpected errors during calibration
-    #      logger.exception("An unexpected error occurred during ASR calibration.")
-    #      raise RuntimeError(f"ASR calibration failed unexpectedly: {e}")
 
     del ref_section_data  # Free memory
 
@@ -175,7 +170,6 @@ def clean_asr(
     # Based on: sig = [signal.data bsxfun(@minus,2*signal.data(:,end),signal.data(:,(end-1):-1:end-round(windowlen/2*signal.srate)))];
     N_extrap = int(round_mat(window_len / 2 * srate))
     if N_extrap > 0:
-        # Calculate indices for reflection, handling edge case where N_extrap >= S-1
         extrap_len = min(N_extrap, S - 1 if S > 1 else 0)
         if extrap_len > 0:
             # Indices from second-to-last sample back 'extrap_len' steps

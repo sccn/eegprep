@@ -3,10 +3,6 @@ if __name__ == '__main__':
 
     eeglab_file_path = '/Users/arno/Python/eegprep/tmp.set'
     EEG = pop_loadset(eeglab_file_path)
-
-    # Test with different engines
-    # EEG_python = pop_resample(EEG, 100, engine=None)
-    # EEG_matlab = pop_resample(EEG, 100, engine='matlab')
     EEG_octave = pop_resample(EEG, 100, engine='octave')
 
 
@@ -15,7 +11,6 @@ if 0:
     from oct2py import octave as octave_engine
     import logging
 
-    # engine = Oct2Py(logger=get_log())
     octave_engine.logger = get_log("new_log")
     octave_engine.logger.setLevel(logging.WARNING)
     octave_engine.warning('off', 'backtrace')

@@ -66,7 +66,6 @@ class TestEegCompare(DebuggableTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        # Create basic test EEG structures
         self.basic_eeg1 = self.create_test_eeg()
         self.basic_eeg2 = self.create_test_eeg()
 

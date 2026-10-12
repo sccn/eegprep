@@ -55,7 +55,6 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                 return bool(np.array_equal(np.array(a), np.array(b), equal_nan=True))
             except (TypeError, ValueError):
                 pass
-        # Handle scalar vs array comparisons
         if isinstance(a, np.ndarray) and np.isscalar(b):
             try:
                 return bool(np.all(a == b))
@@ -142,7 +141,6 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         # Don't print here - let caller decide whether to print
         return summary
 
-    # Handle both dictionary-like objects and objects with __dict__
     if hasattr(eeg1, 'keys'):
         # Dictionary-like object
         fields1 = eeg1.keys()
@@ -150,7 +148,6 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         def get_val1(f):
             return eeg1.get(f, None)
 
-        # Handle case where eeg2 might be a numpy array or other non-dict object
         if hasattr(eeg2, 'keys'):
 
             def has_field2(f):
@@ -295,7 +292,6 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
         error_msg = f'Different numbers of events {len(ev1)} vs {len(ev2)}'
         logger.warning('    %s', error_msg)
         differences.append(error_msg)
-        # print the first event of each
         if verbose_level > 0:
             if len(ev1) > 0:
                 logger.warning('    First event of first dataset: %s', ev1[0])
@@ -331,7 +327,6 @@ def eeg_compare(eeg1, eeg2, verbose_level=0, trigger_error=False):
                         differences.append(error_msg)
             logger.info('    All other events OK')
 
-    # Build final summary
     if summary_parts:
         summary = "Numerical Distance Summary:\n" + "\n".join(summary_parts)
         if differences:

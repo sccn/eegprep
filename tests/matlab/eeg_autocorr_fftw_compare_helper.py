@@ -15,7 +15,6 @@ else:
 EEG = pop_loadset(eeglab_file_path)
 EEG = pop_reref(EEG, [])
 
-# Print the loaded data
 res = eeg_autocorr_fftw(EEG, 100)
 
 # save in a matlab file

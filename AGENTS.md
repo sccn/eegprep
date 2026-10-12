@@ -87,6 +87,10 @@ Primary references:
 - Put magic strings and magic numbers in top-level constants when they are reused or semantically important.
 - Before writing any utility, helper, or data structure, search for existing implementations and check the standard library, current dependencies, and appropriate third-party packages before adding new code or dependencies. If a suitable implementation exists, use it.
 
+## Comments
+
+Do not write comments that restate the code. Comments are only allowed to explain non-obvious intent or EEGLAB parity (indexing, rounding, MATLAB equivalents, line references). Never use comments to justify workarounds, shortcuts, skipped tests, or loosened tolerances; fix the root cause or open an issue instead.
+
 ## Public APIs and Docs
 
 - Public APIs need concise docstrings. Use the style already present in nearby code; Google-style is preferred for new public functions.

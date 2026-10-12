@@ -27,7 +27,6 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
         nfreqs = nyquist
     nfreqs = int(nfreqs)
 
-    # setup constants
     ncomp = EEG['icaweights'].shape[0]
 
     # Hamming window
@@ -57,7 +56,6 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     n_seg = index.shape[1] * EEG['trials']
     subset = rng.permutation(n_seg)[: int(n_seg * pct_data / 100)]
 
-    # calculate windowed spectrums
     psdmed = np.zeros((ncomp, nfreqs))
     for it in range(ncomp):
         temp = np.reshape(EEG['icaact'][it, index, :], (1, index.shape[0], index.shape[1] * EEG['trials']))

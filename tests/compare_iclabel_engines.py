@@ -5,29 +5,6 @@ import matplotlib.pyplot as plt
 import argparse
 from scipy.stats import pearsonr
 
-# ### Using ICLabel with Different Engines
-
-# ```python
-# from eegprep import pop_loadset, iclabel
-
-# # Load an EEG file
-# EEG = pop_loadset('./sample_data/eeglab_data_with_ica_tmp.set')
-
-# # Apply ICLabel with the default Python implementation
-# EEG_python = iclabel(EEG, algorithm='default', engine=None)
-# EEG_matlab = iclabel(EEG, algorithm='default', engine='matlab')
-# ```
-
-# ### Running the Comparison Script
-
-# The `test_iclabel_engines.py` script can be used to compare the results of applying ICLabel with different engines:
-
-# ```bash
-# python test_iclabel_engines.py your_eeg_file.set --output_dir results --algorithm default
-# ```
-
-
-# Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from eegprep import pop_loadset, pop_saveset, iclabel
@@ -60,11 +37,9 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
             'matlab',
         ]
 
-    # Load the input EEG file
     print(f"Loading EEG file: {input_file}")
     EEG = pop_loadset(input_file)
 
-    # Apply ICLabel with different engines
     results = {}
     for engine in engines:
         try:
@@ -72,10 +47,8 @@ def compare_iclabel_engines(input_file, output_dir=None, engines=None, algorithm
             print(f"Applying ICLabel with engine={engine_name}, algorithm={algorithm}")
             EEG_result = iclabel(EEG.copy(), algorithm=algorithm, engine=engine)
 
-            # Store the result
             results[engine_name] = EEG_result
 
-            # Save the result if output_dir is specified
             if output_dir is not None:
                 output_file = os.path.join(output_dir, f"iclabel_{engine_name}_{algorithm}.set")
                 pop_saveset(EEG_result, output_file)
@@ -111,20 +84,16 @@ def compare_classifications(results):
             engine1 = engines[i]
             engine2 = engines[j]
 
-            # Get the classifications
             classifications1 = results[engine1]['etc']['ic_classification']['ICLabel']['classifications']
             classifications2 = results[engine2]['etc']['ic_classification']['ICLabel']['classifications']
 
-            # Calculate correlation
             correlations = []
             for comp_idx in range(classifications1.shape[0]):
                 corr, _ = pearsonr(classifications1[comp_idx], classifications2[comp_idx])
                 correlations.append(corr)
 
-            # Calculate mean absolute difference
             mean_abs_diff = np.mean(np.abs(classifications1 - classifications2))
 
-            # Store the comparison metrics
             comparisons[(engine1, engine2)] = {
                 'correlations': correlations,
                 'mean_correlation': np.mean(correlations),
@@ -201,24 +170,20 @@ def main():
     parser.add_argument('--algorithm', default='default', help='Algorithm to use for classification')
     args = parser.parse_args()
 
-    # Create output directory if it doesn't exist
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
 
-    # Compare ICLabel engines
     results = compare_iclabel_engines(args.input_file, args.output_dir, algorithm=args.algorithm)
 
     # Compare classifications
     if len(results) > 1:
         comparisons = compare_classifications(results)
 
-        # Plot comparisons
         plot_comparisons(results, comparisons, args.output_dir, args.algorithm)
 
         # Wait for user input before closing the plot
         plt.show()
 
-        # Print summary
         print("\nSummary of comparisons:")
         for (engine1, engine2), metrics in comparisons.items():
             print(f"Comparison between {engine1} and {engine2}:")
