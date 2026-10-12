@@ -931,7 +931,9 @@ def test_upstream_pop_export_all_33_call_forms(eeglab_backend, eeglab_suite_root
 @eeglab_test("unittesting_popfunc/pop_fileio/popfunc_pop_fileio_wrapperTest.m", "test_test_pop_fileio")
 def test_upstream_pop_fileio_original_sample_options(eeglab_backend, request, eeglab_suite_root):
     if request.config.getoption("--eeglab-backend") == "matlab":
-        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "ft_read_data", "Fileio")
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        skip_without_matlab_plugin(engine, "ft_read_data", "Fileio")
+        skip_without_matlab_plugin(engine, "ft_deleteopt", "Fieldtrip-lite")
     filename = str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set")
     eeglab_backend("pop_fileio", filename)
     eeglab_backend(
