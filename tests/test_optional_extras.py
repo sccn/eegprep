@@ -341,3 +341,17 @@ def test_ransac_defers_the_eeglab_bridge_but_still_reaches_it(tmp_path: Path) ->
     result = _json_result(completed)
     assert result["loaded_on_import"] == []
     assert 'pip install "eegprep[eeglab]"' in result["message"]
+
+
+def test_dockerfile_installs_the_extras_its_entry_point_needs() -> None:
+    """``bids_minimal_preproc.py --jobs "4GB"`` reaches psutil, so the image must install the ``sys`` extra."""
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text()
+    entry_point = (REPO_ROOT / "scripts" / "bids_minimal_preproc.py").read_text()
+    install = re.search(r'pip install[^\n]*"\.\[([^\]]+)\]"', dockerfile)
+    assert install is not None, "the Dockerfile should install the package with explicit extras"
+    extras = set(install.group(1).split(","))
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]
+
+    assert extras <= set(project["optional-dependencies"])
+    assert "ReservePerJob=args.jobs" in entry_point, "the entry point no longer forwards --jobs; revisit this test"
+    assert "sys" in extras
