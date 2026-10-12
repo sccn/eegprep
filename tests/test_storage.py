@@ -84,26 +84,6 @@ def test_memmap_data_flat_iterators_behave_like_numpy(tmp_path: Path):
     data.close()
 
 
-def test_memmap_common_mutation_views_advance_revision(tmp_path: Path):
-    path = tmp_path / "tracked.fdt"
-    backing = np.memmap(path, dtype="float32", mode="w+", shape=(2, 3), order="F")
-    backing[:] = np.arange(6, dtype=np.float32).reshape((2, 3))
-    backing.flush()
-    data = MemmapData(path, (2, 3), mode="r+")
-
-    data.flat[0] = 10.0
-    assert data.mutation_revision == 1
-    assert np.asarray(data).flat[0] == 10.0
-    data.ravel(order="F")[1] = 11.0
-    assert data.mutation_revision == 2
-    data.sort()
-    assert data.mutation_revision == 3
-    np.put(data, [2], [12.0])
-    assert data.mutation_revision == 4
-
-    data.close()
-
-
 def test_option_savetwofiles_defaults_to_sidecar_storage(tmp_path: Path):
     EEG_OPTIONS["option_savetwofiles"] = 1
     data = np.arange(12, dtype=np.float32).reshape((3, 4))

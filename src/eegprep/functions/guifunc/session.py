@@ -7,7 +7,6 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import numpy as np
@@ -35,35 +34,6 @@ def has_eeg_data(eeg: Any) -> bool:
     if isinstance(data, list):
         return len(data) > 0
     return True
-
-
-def _dataset_storage_token(dataset: Any) -> tuple[Any, ...] | None:
-    """Return a cheap mutation token for file-backed EEG data."""
-    if not isinstance(dataset, dict):
-        return None
-    data = dataset.get("data")
-    if isinstance(data, MemmapData):
-        path = data.path
-        revision = data.mutation_revision
-    elif isinstance(data, np.memmap):
-        filename = data.filename
-        path = Path(filename) if filename else None
-        revision = 0
-    else:
-        return None
-    try:
-        stat = path.stat() if path is not None else None
-    except OSError:
-        stat = None
-    return (
-        type(data).__name__,
-        str(path) if path is not None else None,
-        tuple(int(size) for size in data.shape),
-        np.dtype(data.dtype).str,
-        revision,
-        None if stat is None else stat.st_mtime_ns,
-        None if stat is None else stat.st_size,
-    )
 
 
 def _dataset_content_token(dataset: Any) -> bytes:
@@ -113,7 +83,6 @@ def _update_dataset_digest(value: Any, digest: Any, seen: set[int]) -> None:
     if isinstance(value, MemmapData):
         digest.update(b"MemmapData")
         digest.update(str(value.path).encode())
-        digest.update(repr(value.mutation_revision).encode())
         try:
             _update_dataset_digest(np.asarray(value), digest, seen)
         except RuntimeError:
@@ -323,7 +292,6 @@ class EEGPrepSession:
             tuple(self.CURRENTSET),
             selected_slots,
             tuple(id(dataset) for dataset in current),
-            tuple(_dataset_storage_token(dataset) for dataset in tracked_datasets),
             tuple(_dataset_content_token(dataset) for dataset in tracked_datasets),
         )
 
