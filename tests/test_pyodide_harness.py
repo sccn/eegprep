@@ -230,7 +230,7 @@ def test_load_iclabel_report_rejects_invalid_reports(tmp_path, overrides, messag
         compare_iclabel._load_report(path)
 
 
-def test_native_parity_report_round_trips_through_the_comparison(tmp_path, capsys):
+def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     pytest.importorskip("onnxruntime")
     native = run_parity("native", REPO_ROOT / "sample_data")
     packaged_model = REPO_ROOT / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
@@ -238,9 +238,15 @@ def test_native_parity_report_round_trips_through_the_comparison(tmp_path, capsy
     assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]
 
-    arguments = _write_reports(tmp_path, native, {**native, "platform": "pyodide"})
-    assert compare_iclabel.main(arguments) == 0
-    assert json.loads(capsys.readouterr().out)["max_absolute_difference"] == 0.0
+    # A second report from an independently perturbed copy of the real classifications:
+    # a difference inside the tolerance passes, one beyond it fails.
+    values = np.asarray(native["classifications"], dtype=np.float64)
+    within = {**native, "platform": "pyodide", "classifications": (values + 1e-6).tolist()}
+    beyond = {**native, "platform": "pyodide", "classifications": (values + 1e-3).tolist()}
+
+    assert compare_iclabel.main(_write_reports(tmp_path, native, within)) == 0
+    assert json.loads(capsys.readouterr().out)["max_absolute_difference"] == pytest.approx(1e-6, rel=0.1)
+    assert compare_iclabel.main(_write_reports(tmp_path, native, beyond)) == 1
 
 
 def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
