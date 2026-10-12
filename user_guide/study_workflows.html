@@ -692,7 +692,17 @@ metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
 <code class="docutils literal notranslate"><span class="pre">{&quot;factor&quot;:</span> <span class="pre">[values...]}</span></code> dictionaries; STUDY selectors normalize both forms
 before matching factor levels and numerical ranges. <code class="docutils literal notranslate"><span class="pre">std_maketrialinfo</span></code> uses
 each epoch’s time-locking event, including custom fields such as reaction time,
-and later STUDY synchronization preserves those derived rows. Use <code class="docutils literal notranslate"><span class="pre">std_substudy</span></code> or
+and later STUDY synchronization preserves those derived rows.</p>
+<p>The Study design editor edits subjects, design names, and independent
+variables. <strong>New</strong> under the variable list opens <strong>Add variable</strong>. A continuous
+trial factor such as <code class="docutils literal notranslate"><span class="pre">rt</span></code> is stored on <code class="docutils literal notranslate"><span class="pre">STUDY.design</span></code> with pairing <code class="docutils literal notranslate"><span class="pre">off</span></code>.
+The dialog keeps that factor’s value list empty; <code class="docutils literal notranslate"><span class="pre">std_makedesign</span></code> fills the
+observed values and keeps the first four variables. If the factor is missing
+from STUDY trial metadata, OK also runs <code class="docutils literal notranslate"><span class="pre">std_maketrialinfo</span></code>. <strong>List factors</strong>
+shows the first-level and second-level text for the selected design, and the
+resave box writes the STUDY when it already has a file name. Cancel leaves the
+STUDY unchanged.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">std_substudy</span></code> or
 <code class="docutils literal notranslate"><span class="pre">std_rmdat</span></code> when a workflow needs to remove datasets; EEGPrep remaps STUDY
 references and invalidates cached measure arrays after membership changes.</p>
 <p><code class="docutils literal notranslate"><span class="pre">std_findsameica</span></code> groups matching ICA decompositions within each subject.
