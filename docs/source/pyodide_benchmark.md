@@ -39,8 +39,11 @@ distributed algorithm and a separate parity gate.
 
 ## Reproducing the gate
 
-The harness requires `uv`, Node.js 22 or newer, and npm. From the repository
-root, build the EEGPrep wheel and run the sample-data smoke test with:
+The harness requires `uv`, Node.js 22 or newer, and [Bun](https://bun.sh).
+Bun installs the pinned `pyodide` and `onnxruntime-web` packages from
+`tools/pyodide/bun.lock` (`bun install --frozen-lockfile`); Node.js runs the
+harness.
+From the repository root, build the EEGPrep wheel and run the sample-data smoke test with:
 
 ```bash
 uv build --wheel --out-dir pyodide-artifacts
