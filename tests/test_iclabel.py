@@ -26,20 +26,20 @@ _PLATFORM_SELECTED_MODULES = (iclabel_onnx_module, iclabel_module, pop_iclabel_m
 
 
 @pytest.fixture
-def emscripten_iclabel(monkeypatch):
+def emscripten_iclabel():
     """Reload the ICLabel modules as Pyodide imports them, then restore the native ones.
 
     Only the reload sees the patched platform. The reloaded modules keep the
     Emscripten backend they selected at import, while the test body, including
-    any asyncio event loop it starts, runs on the real platform.
+    any asyncio event loop it starts, runs on the real platform. The patch is
+    private to this fixture, so it cannot undo patches made by other fixtures.
     """
     try:
-        monkeypatch.setattr(sys, 'platform', 'emscripten')
-        modules = tuple(importlib.reload(module) for module in _PLATFORM_SELECTED_MODULES)
-        monkeypatch.undo()
+        with pytest.MonkeyPatch.context() as platform_patch:
+            platform_patch.setattr(sys, 'platform', 'emscripten')
+            modules = tuple(importlib.reload(module) for module in _PLATFORM_SELECTED_MODULES)
         yield modules
     finally:
-        monkeypatch.undo()
         for module in _PLATFORM_SELECTED_MODULES:
             importlib.reload(module)
 
