@@ -14,6 +14,7 @@ import pytest
 
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
+from tests.fixtures import load_sample_ica_eeg
 from tools.eeglab_test_port_audit import validate_suite_checkout
 
 
@@ -37,6 +38,16 @@ def _preload_matlab_libstdcxx() -> None:
 
 
 _preload_matlab_libstdcxx()
+
+
+@pytest.fixture(scope="module")
+def sample_ica_eeg():
+    """Bundled 32-channel sample dataset with its ICA decomposition, loaded once per test module.
+
+    Tests share this dict: copy it, for example with ``EEGPrepSession.store_current``,
+    before changing it.
+    """
+    return load_sample_ica_eeg()
 
 
 def _eeglab_support_directory(value):

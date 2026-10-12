@@ -33,7 +33,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
 from eegprep.plugins.ICLabel.iclabel import iclabel
-from tests.fixtures import gate_iclabel_backend, load_sample_ica_eeg
+from tests.fixtures import gate_iclabel_backend
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -207,11 +207,6 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
 
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
-
-
-@pytest.fixture(scope="module")
-def sample_ica_eeg():
-    return load_sample_ica_eeg()
 
 
 def _iclabel_console(sample_ica_eeg, *setnames):

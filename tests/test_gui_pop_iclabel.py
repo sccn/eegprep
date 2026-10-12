@@ -9,7 +9,7 @@ from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.plugins.ICLabel.iclabel import iclabel
 from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel, pop_iclabel_async
-from tests.fixtures import gate_iclabel_backend, load_sample_ica_eeg
+from tests.fixtures import gate_iclabel_backend
 
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
 
@@ -49,11 +49,6 @@ class PopIclabelGuiTests(unittest.TestCase):
         classify.assert_called_once_with(eeg, algorithm="default", engine=None)
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "default")
         self.assertEqual(com, "EEG = pop_iclabel(EEG, 'default');")
-
-
-@pytest.fixture(scope="module")
-def sample_ica_eeg():
-    return load_sample_ica_eeg()
 
 
 def _classifications(eeg):
