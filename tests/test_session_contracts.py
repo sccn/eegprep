@@ -7,6 +7,7 @@ import pytest
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.plugins.ICLabel.iclabel import iclabel
 from tests.fixtures import (
     create_test_eeg,
 )
@@ -175,6 +176,61 @@ def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
 
     np.asarray(session.EEG["data"])[0, 0] = 9.0
 
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edits_in_the_iclabel_classes_object_array(sample_ica_eeg):
+    session = EEGPrepSession()
+    session.store_current(iclabel(sample_ica_eeg), new=True)
+    classes = session.EEG["etc"]["ic_classification"]["ICLabel"]["classes"]
+    assert classes.dtype == object
+    token = session.dataset_state_token()
+
+    classes[0] = "Renamed"
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edits_of_an_array_held_in_an_object_array():
+    session = _session_with("selected")
+    cells = np.empty(2, dtype=object)
+    cells[0], cells[1] = np.zeros(3), "label"
+    session.EEG["etc"]["cells"] = cells
+    token = session.dataset_state_token()
+
+    cells[0][1] = 5.0
+
+    assert session.dataset_state_token() != token
+
+
+# Values other than dicts, lists, tuples, and arrays are hashed through repr(), so an
+# in-place edit that leaves repr() unchanged, such as changing a stored value of a
+# scipy.sparse matrix, is not detected.
+def test_dataset_state_token_follows_reference_cycles_and_still_detects_edits():
+    session = _session_with("selected")
+    etc = session.EEG["etc"]
+    holder = np.empty(1, dtype=object)
+    holder[0] = etc
+    etc["self"] = etc
+    etc["cells"] = holder
+    token = session.dataset_state_token()
+
+    etc["note"] = "edited inside the cycle"
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_hashes_a_strided_view_by_its_visible_content():
+    session = _session_with("selected")
+    # The view spans several buffered digest chunks.
+    base = np.zeros((3, 1_400_000), dtype=np.float32)
+    session.EEG["data"] = base[:, ::2]
+    token = session.dataset_state_token()
+
+    base[-1, -1] = 1.0
+    assert session.dataset_state_token() == token
+
+    base[-1, -2] = 1.0
     assert session.dataset_state_token() != token
 
 
