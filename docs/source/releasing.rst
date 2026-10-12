@@ -73,10 +73,14 @@ What the workflow does
    test suite with ``EEGPREP_SKIP_MATLAB=1``.
 2. **build** — ``uv build``, then checks that the tag matches ``__version__``, that
    the vendored EEGLAB checkout is absent from both artifacts, that the wheel and
-   sdist contain the selected ICLabel network (and no source ``netICL.mat``), and
-   that both artifacts match the committed Phase 6 parity-report hash. It also
-   runs ``twine check --strict`` and installs both artifacts with the ICLabel
-   extra for runtime classification and the ASR filter smoke test.
+   sdist contain the packaged ICLabel network (and no source ``netICL.mat``), and
+   that the packaged network's SHA-256 equals the ``weight_only`` entry in
+   ``tools/iclabel/parity_report.json``, whose default artifact must be
+   ``iclabel_int8_weight_only.onnx``. It also runs ``twine check --strict`` and
+   installs both artifacts with the ICLabel extra for runtime classification and
+   the ASR filter smoke test. The smoke tests also pin ``onnxruntime==1.30.0``, a
+   stricter version than the ``iclabel`` extra's ``>=1.18`` floor; change the pin
+   in ``release.yml`` when the runtime you test against changes.
 3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
    stored in the repository.
 4. **github-release** — creates the GitHub release with the artifacts attached.
@@ -86,6 +90,27 @@ What the workflow does
    Trusted Publishing needs one-time setup on PyPI under
    *Manage project → Publishing → Add a new publisher*: owner ``sccn``, repository
    ``eegprep``, workflow ``release.yml``, environment ``pypi``.
+
+Regenerating the ICLabel network
+================================
+
+``src/eegprep/plugins/ICLabel/iclabel.onnx`` is built from the EEGLAB weights in
+``netICL.mat``. Rebuild it only when the weights or the quantization change; a
+normal release reuses the committed file. The sequence is:
+
+1. Install the developer tools with the ``torch`` extra (very large, and not part
+   of ``eegprep[all]``).
+2. Export the full-precision (float32) network from ``netICL.mat``.
+3. Quantize its weights to 8-bit integers; the script checks the result against
+   the acceptance criteria and fails if it does not pass.
+4. Copy the passing network to ``src/eegprep/plugins/ICLabel/iclabel.onnx``.
+5. Commit the updated ``tools/iclabel/parity_report.json`` together with the new
+   network, so the report's SHA-256 matches the packaged file.
+
+The exact commands are in the docstring of ``tools/iclabel/quantize_iclabel_onnx.py``.
+The build job above fails the release when the packaged network and the report
+disagree, and the measured agreement shown to users
+(:ref:`iclabel_measured_agreement`) must be updated from the new report.
 
 If a tag was pushed at a bad commit
 ===================================
