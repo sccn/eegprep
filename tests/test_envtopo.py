@@ -75,9 +75,7 @@ def _ica_dataset(seed, *, n_components=4):
     return eeg, mean_data, weights, icawinv, timerange, times_ms
 
 
-# --------------------------------------------------------------------------- #
 # Closed-form anchor: hand-built input whose ranking is obvious by design.
-# --------------------------------------------------------------------------- #
 @pytest.mark.gui
 @eeglab_test("unittesting_sigprocfunc/envtopo/sigprocfunc_envtopo_wrapperTest.m", "test_test_envtopo")
 def test_reference_envtopo_original_sample(eeglab_backend, request, eeglab_suite_root):
@@ -127,9 +125,7 @@ def test_closed_form_ranking_and_peak_frames():
     plt.close(res.figure)
 
 
-# --------------------------------------------------------------------------- #
 # Property/invariant tests over seeded synthetic ICA datasets.
-# --------------------------------------------------------------------------- #
 def test_limcontrib_window_restricts_peak_frames():
     """With a limcontrib window, every peak frame lies inside that window."""
     _, mean_data, weights, icawinv, timerange, times_ms = _ica_dataset(0)

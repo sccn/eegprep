@@ -90,7 +90,6 @@ def clean_channels_nolocs(
     else:
         X = EEG['data'].T
 
-    # For each window, flag channels with too low correlation to any other channel
     flagged = np.zeros((C, W), dtype=bool)
     for o in range(W):
         window_data = X[offsets[o] + wnd, :]
@@ -101,13 +100,11 @@ def clean_channels_nolocs(
     # Mark channels for removal which have more flagged samples than the maximum
     removed_channels = np.sum(flagged, axis=1) * window_len > max_broken_time
 
-    # Apply removal
     if np.all(removed_channels):
         logger.warning('All channels are flagged bad according to the used criterion: not removing anything.')
     elif np.any(removed_channels):
         logger.info('Now removing bad channels...')
         try:
-            # Try to use pop_select if available
             from eegprep import pop_select
 
             EEG = pop_select(EEG, nochannel=list(np.where(removed_channels)[0]))

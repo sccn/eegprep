@@ -1,5 +1,3 @@
-% compute G function
-% ------------------
 function g = computeg(x,y,z,xelec,yelec,zelec, params)
 
 unitmat = ones(length(x(:)),length(xelec));

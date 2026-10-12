@@ -41,7 +41,6 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # Assuming EEG['data'] contains the EEG data as a numpy array of shape (channels, timepoints)
         data = EEG['data'].astype('float64')
 
-        # reshape from 3D to 2D
         data = flatten_ica_data(data)
 
         # Parameters to match MATLAB picard defaults for reproducible parity
@@ -63,13 +62,11 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
 
         weighting_matrix, unmixing_matrix, sources = picard(data, **params)
 
-        # Update EEG['icaweights'] with the separating (unmixing) matrix
         EEG['icasphere'] = np.eye(EEG['nbchan'])
         EEG['icaweights'] = unmixing_matrix @ weighting_matrix
         # use pinv from the imported pinv
         EEG['icawinv'] = pinv(EEG['icaweights'] @ EEG['icasphere'])
 
-        # Calculate the inverse weights (mixing matrix) and store in EEG['icawinv']
         EEG['icaact'] = sources
 
         # reshape EEG['icaact'] back to 3D as EEG['data']

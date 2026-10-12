@@ -77,9 +77,7 @@ def clean_windows(
         Boolean mask (length == original ``pnts``) indicating which samples are
         retained (``True``) or removed (``False``).
     """
-    # ------------------------------------------------------------------
     #                           Input handling
-    # ------------------------------------------------------------------
     # Operate on a deep copy so the caller's dataset is never mutated.
     EEG = deepcopy(EEG)
     input_data = np.asarray(EEG['data'])
@@ -88,7 +86,6 @@ def clean_windows(
     C, S = EEG['data'].shape
     Fs = EEG['srate']
 
-    # Convert fractional parameters to absolute where necessary
     if C == 0 or S == 0:
         raise ValueError('Empty data array encountered.')
 
@@ -99,9 +96,6 @@ def clean_windows(
 
     shape_range = np.asarray(shape_range)
 
-    # ------------------------------------------------------------------
-    #                    Prepare window indexing helpers
-    # ------------------------------------------------------------------
     N = int(round_mat(window_len * Fs))  # samples per window
     if N <= 0:
         raise ValueError('Window length too small - results in N <= 0.')
@@ -120,16 +114,11 @@ def clean_windows(
 
     logger.info('Determining time window rejection thresholds...')
 
-    # ------------------------------------------------------------------
-    #                      Compute z-score per channel
-    # ------------------------------------------------------------------
     wz = np.zeros((C, W), dtype=float)
     for c in reversed(range(C)):
-        # compute RMS amplitude for each window
         Xsq = EEG['data'][c, :] ** 2  # power
         # Gather samples for all windows using broadcasting (W, N)
         indices = offsets[:, None] + wnd[None, :]
-        # Extract data and compute RMS per window
         rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
 
         # Fit distribution to clean EEG portion
@@ -152,9 +141,7 @@ def clean_windows(
         wz[c, :] = (rms - mu) / sig
     logger.info('done.')
 
-    # ------------------------------------------------------------------
     #                Identify windows to be removed/kept
-    # ------------------------------------------------------------------
     swz = np.sort(wz, axis=0)  # sort each column (ascending)
 
     remove_mask = np.zeros(W, dtype=bool)
@@ -172,9 +159,6 @@ def clean_windows(
 
     removed_windows = np.where(remove_mask)[0]
 
-    # ------------------------------------------------------------------
-    #                Convert window removals to sample mask
-    # ------------------------------------------------------------------
     sample_mask = np.ones(S, dtype=bool)
     for w in removed_windows:
         start = offsets[w]
@@ -184,17 +168,11 @@ def clean_windows(
     kept_seconds = np.count_nonzero(sample_mask) / Fs
     logger.info(f'Keeping {kept_pct:.1f}% ({kept_seconds:.0f} seconds) of the data.')
 
-    # ------------------------------------------------------------------
-    #               Apply sample rejection
-    # ------------------------------------------------------------------
     rejected_intervals = mask_to_intervals(sample_mask, value=False)
     if rejected_intervals.size:
         EEG = eeg_eegrej(EEG, rejected_intervals)
     EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
-    # ------------------------------------------------------------------
-    #                     Update/insert clean_sample_mask
-    # ------------------------------------------------------------------
     if 'etc' not in EEG:
         EEG['etc'] = {}
 

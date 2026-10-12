@@ -91,7 +91,6 @@ def asr_calibrate(
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
             needed for `asr_process`.
     """
-    # Ensure X is a numpy array and C x S
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
         raise ValueError("Input data X must be a 2D array (channels x samples).")
@@ -134,10 +133,8 @@ def asr_calibrate(
             amps = amps[:-1]
         B, A = yulewalk(8, freqvals, amps)
 
-    # Ensure data is finite
     X[~np.isfinite(X)] = 0.0
 
-    # Apply the signal shaping filter based on compatibility mode
     if compatibility == 'max':
         # Maximum MATLAB compatibility: use B/A form with lfilter
         # Initialize filter state to zeros (matching MATLAB's filter(..., [], 2))
@@ -163,7 +160,6 @@ def asr_calibrate(
     # U will be shape (C, C, num_blocks)
     logger.info("Calculating blockwise covariances...")
 
-    # Determine the number of blocks
     num_blocks = int(np.ceil(S / blocksize))
     U = np.zeros((C, C, num_blocks))
     block_starts = np.arange(0, S, blocksize)
@@ -175,10 +171,8 @@ def asr_calibrate(
         if range_indices.size == 0:
             continue  # Skip if no indices
 
-        # Extract data for these indices
         X_k = Xf[:, range_indices]
 
-        # Calculate and accumulate outer products
         outer_products = np.reshape(X_k, (C, 1, -1)) * np.reshape(X_k, (1, C, -1))
 
         # Add to U, ensuring shape alignment
@@ -190,7 +184,6 @@ def asr_calibrate(
     # Average the accumulated covariances
     U /= blocksize
 
-    # compute a robust average of the covariance matrices
     med = None
     if useriemannian in ('calib', 'all', True):
         logger.info("Calculating Riemannian geometric median covariance...")
@@ -209,7 +202,6 @@ def asr_calibrate(
         logger.warning("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
         med = np.median(U, axis=-1)
 
-    # make sure median is reshaped back to matrix form
     M_robust = np.reshape(med, (C, C))
 
     # Get the mixing matrix M (matrix square root of the robust covariance)
@@ -233,7 +225,6 @@ def asr_calibrate(
     # Transform data into component space (using eigenvectors)
     X_transformed = np.abs(finite_matmul(Xf.T, V))  # Shape: (S, C)
 
-    # Calculate window indices for RMS calculation
     step = N * (1.0 - window_overlap)
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
@@ -243,18 +234,14 @@ def asr_calibrate(
     if len(window_starts) <= 1:
         raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
 
-    # Create window indices matrix
     window_indices = window_starts[:, None] + np.arange(N)
 
-    # Initialize arrays for mu and sigma
     mu = np.zeros(C)
     sig = np.zeros(C)
 
-    # Calculate thresholds for each component
     for c in reversed(range(C)):
         comp_data = X_transformed[:, c] ** 2
 
-        # Calculate RMS amplitude for each window
         rms_windows = np.sqrt(np.mean(comp_data[window_indices], axis=1))
 
         # Fit a distribution to the clean part
@@ -276,15 +263,12 @@ def asr_calibrate(
         mu = np.nan_to_num(mu, nan=np.nanmedian(mu) if np.any(~np.isnan(mu)) else 1.0)
         sig = np.nan_to_num(sig, nan=np.nanmedian(sig) if np.any(~np.isnan(sig)) else 0.5)
 
-    # Ensure sigma is non-negative
     sig = np.maximum(sig, 0)
 
-    # Calculate threshold matrix T
     T = finite_matmul(np.diag(mu + cutoff * sig), V.T)
 
     logger.info('Thresholds calculation complete.')
 
-    # Return the state dictionary
     state = {
         'M': M,  # Mixing matrix
         'T': T,  # Threshold matrix

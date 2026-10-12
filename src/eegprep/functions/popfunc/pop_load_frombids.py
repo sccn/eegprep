@@ -145,10 +145,8 @@ def pop_load_frombids(
         import bids
 
         layout: bids.BIDSLayout = layout_for_fpath(filename)
-        # get the applicable metadata for this file
         metadata: Dict[str, Any] = layout.get_metadata(filename, include_entities=True)
 
-        # apply overrides
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':
             EEG['ref'] = metadata.get('EEGReference', 'unknown')
@@ -159,7 +157,6 @@ def pop_load_frombids(
 
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
-        # check for presence of a _channels.tsv file
         query_entities = {**layout.parse_file_entities(filename), 'suffix': 'channels', 'extension': '.tsv'}
         # retrieve the list of all such files
         channel_file_list = layout_get_lenient(
@@ -181,7 +178,6 @@ def pop_load_frombids(
             if verbose:
                 logger.info(f"  applying BIDS channel locations from {fo.filename}...")
             report['ChanlocsFrom'] = os.path.relpath(fo.path, root)
-            # read in the file contents
             chans: pd.DataFrame = fo.get_df()
 
             # this is used to override the type (e.g. 'EEG', 'EOG', 'ECG', etc.) and the ref (if present)
@@ -196,7 +192,6 @@ def pop_load_frombids(
                     continue
                 idx = orig_labels.index(lab)
 
-                # update the channel type
                 try:
                     typ = ch['type']
                 except KeyError:
@@ -211,7 +206,6 @@ def pop_load_frombids(
                     except ValueError:
                         # perhaps best to just leave it as is since the EEG file
                         # might have it set already
-                        # EEG['chanlocs'][idx]['ref'] = numeric_null
                         pass
                     else:
                         EEG['chanlocs'][idx]['ref'] = ref_idx
@@ -225,7 +219,6 @@ def pop_load_frombids(
 
             break
 
-        # check for presence of an _electrodes.tsv file
         query_entities = query_for_adjacent_fpath(filename, suffix='electrodes', extension='.tsv')
         # retrieve the list of all such files
         elec_file_list = layout_get_lenient(
@@ -248,10 +241,8 @@ def pop_load_frombids(
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
             report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
-            # read in the file contents
             elecs: pd.DataFrame = elec_fo.get_df()
 
-            # check for the presence of a coordsystem file
             query_entities = query_for_adjacent_fpath(elec_fo.path, suffix='coordsystem', extension='.json')
             coordsystem_file_list = layout_get_lenient(
                 layout,
@@ -281,7 +272,6 @@ def pop_load_frombids(
                     if verbose:
                         logger.info(f"  applying BIDS coordsystem from {coordsystem_fo.filename}...")
                     report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
-                    # read in the file contents
                     content: Dict[str, Any] = coordsystem_fo.get_dict()
                     EEG['etc']['BIDSCoordsystem'] = content
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
@@ -346,7 +336,6 @@ def pop_load_frombids(
 
                 # convert to mm (EEGLAB's internal unit)
                 coords = coords_to_mm(coords, coord_units)
-                # convert to ALS if needed
                 if coord_system == 'RAS':
                     coords = coords_RAS_to_ALS(coords)
                 elif coord_system != 'ALS':
@@ -358,7 +347,6 @@ def pop_load_frombids(
 
                 sph_theta, sph_phi, sph_radius, polar_theta, polar_radius = coords_ALS_to_angular(coords)
 
-                # now read in the electrode locations
                 notfound = []
                 num_updated = 0
                 for k, ch in enumerate(elecs.iloc):
@@ -371,7 +359,6 @@ def pop_load_frombids(
                     # assign the coordinates (note we always assume AJS)
                     xyz = coords[k]
 
-                    # update the channel record
                     rec = EEG['chanlocs'][idx]
                     if np.any(np.isnan(xyz)):
                         continue  # invalid, nothing to do
@@ -403,7 +390,6 @@ def pop_load_frombids(
 
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
-        # get the query to find the associated events file
         query_entities = query_for_adjacent_fpath(filename, suffix='events', extension='.tsv')
         try:
             # retrieve the list of all such files
@@ -414,7 +400,6 @@ def pop_load_frombids(
                 if verbose:
                     logger.info(f"  applying BIDS events from {fo.filename}...")
                 report['EventsFrom'] = os.path.relpath(fo.path, root)
-                # read in the file contents
                 events: pd.DataFrame = fo.get_df()
 
                 try:
@@ -465,8 +450,6 @@ def pop_load_frombids(
                 else:
                     probe_columns = event_type_columns
 
-                # read out the event types and/or codes
-
                 for candidate_column in probe_columns:
                     try:
                         # preferred column for the event type
@@ -491,12 +474,10 @@ def pop_load_frombids(
 
                 ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
 
-                # extract extra columns to include in the event data structure
                 # this does not in
                 extra_columns = sorted(set(events.columns) - set(used_columns))
                 ev_extra = {col: events[col].to_numpy() for col in extra_columns}
 
-                # drop trivial (all-nan) columns
                 for col in list(ev_extra):
                     try:
                         if np.all(np.isnan(ev_extra[col])):
@@ -528,26 +509,21 @@ def pop_load_frombids(
 
                     report["NumEventsFromBids"] = int(np.sum(keep))
 
-                    # append the new events to the EEG structure
                     if count := np.sum(keep):
-                        # build an events structure (SoA form)
                         events_soa = {
                             'latency': ev_lats,
                             'duration': ev_durs,
                             'type': ev_types,
                             'urevent': np.zeros_like(ev_lats),
                         }
-                        # append extra event columns
                         events_soa.update(ev_extra)
 
-                        # convert from structure-of-arrays to array-of-structures and filter by keep
                         new_events = [
                             {key: values[i] for key, values in events_soa.items()} for i, kp in enumerate(keep) if kp
                         ]
 
                         EEG_events = np.asarray(EEG['event'], dtype=object).tolist()
 
-                        # append any missing fields to existing events with null values
                         for col in ev_extra:
                             for ev in EEG_events:
                                 if col not in ev:
@@ -706,7 +682,6 @@ def pop_load_frombids(
         if isinstance(current_type, str) and current_type and current_type.lower() not in ['n/a', 'nan']:
             continue
 
-        # Check if label contains any type keyword
         assigned = False
         for keyword in type_keywords:
             if keyword.lower() in label.lower():

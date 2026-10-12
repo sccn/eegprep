@@ -15,7 +15,6 @@ eeglabpath = eeglabpath(1:end-length('eeglab.m'));
 fileName = fullfile(eeglabpath, 'sample_data', 'eeglab_data_epochs_ica.set');
 %fileName = fullfile(pwd, '../../sample_data/eeglab_data_with_ica_tmp.set');
 
-% call Python function
 system([pythonFunc ' eeg_rpsd_compare_helper.py ' fileName]);
 res = load('eeg_rpsd_data.mat');
 %delete('eeg_rpsd_data.mat');

@@ -31,7 +31,6 @@ class TestCleanFlatlinesBasic(DebuggableTestCase):
 
     def test_clean_flatlines_all_flatlines(self):
         """Test clean_flatlines when all channels have flatlines."""
-        # Create data where all channels have flatlines
         eeg_all_flatlines = self.test_eeg.copy()
         eeg_all_flatlines['data'] = np.zeros_like(eeg_all_flatlines['data'])
 
@@ -47,29 +46,6 @@ class TestCleanFlatlinesValidation(DebuggableTestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.test_eeg = create_test_eeg()
-
-    # def test_clean_flatlines_pop_select_fallback(self):
-    #     """Test clean_flatlines fallback when pop_select is not available."""
-    #     eeg_fallback = self.test_eeg.copy()
-    #     eeg_fallback['data'][5, :, :] = 1.0  # Create flatline
-
-    #     # Mock the import to fail
-    #     import sys
-    #     original_import = __builtins__['__import__']
-
-    #     def mock_import(name, *args, **kwargs):
-    #         if name == 'eegprep':
-    #             raise ImportError("Mock import error")
-    #         return original_import(name, *args, **kwargs)
-
-    #     __builtins__['__import__'] = mock_import
-
-    #     try:
-    #         result = clean_flatlines(eeg_fallback, max_flatline_duration=1.0)
-    #         # Should still work with fallback
-    #         self.assertIsInstance(result, dict)
-    #     finally:
-    #         __builtins__['__import__'] = original_import
 
     def test_clean_flatlines_fallback_composites_existing_mask(self):
         """Fallback path with a prior clean_channel_mask must composite, not crash.

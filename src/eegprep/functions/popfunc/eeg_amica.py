@@ -66,7 +66,6 @@ def eeg_amica(
     """
     EEG = copy.deepcopy(EEG)
 
-    # Extract data and reshape from 3D to 2D
     data = flatten_ica_data(EEG['data'].astype('float64'))
 
     # Run AMICA
@@ -82,19 +81,15 @@ def eeg_amica(
         **kwargs,
     )
 
-    # Store standard ICA fields from model 0
     num_pcs = mods['num_pcs']
     EEG['icaweights'] = mods['W'][:, :, 0]
     EEG['icasphere'] = mods['S'][:num_pcs, :]
     EEG['icawinv'] = mods['A'][:, :, 0]
 
-    # Compute ICA activations
     EEG['icaact'] = (EEG['icaweights'] @ EEG['icasphere']) @ data
-    # Reshape icaact back to 3D
     EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
-    # Store full multi-model results
     if 'etc' not in EEG:
         EEG['etc'] = {}
     EEG['etc']['amica'] = mods
@@ -135,7 +130,6 @@ def load_amica_model(EEG, mods, model_num=0):
     EEG['icasphere'] = mods['S'][:num_pcs, :]
     EEG['icawinv'] = mods['A'][:, :, model_num]
 
-    # Recompute activations
     data = flatten_ica_data(EEG['data'].astype('float64'))
     EEG['icaact'] = (EEG['icaweights'] @ EEG['icasphere']) @ data
     EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])

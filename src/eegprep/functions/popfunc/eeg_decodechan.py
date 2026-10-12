@@ -44,7 +44,6 @@ def eeg_decodechan(
 
     nchan = len(chanlocs)
 
-    # Normalize chanstr into a flat Python list
     if isinstance(chanstr, str):
         seq = chanstr.split()
     else:
@@ -88,7 +87,6 @@ def eeg_decodechan(
             raise ValueError("Channel index out of range")
         chaninds.extend(int(i) for i in numeric_req)
 
-    # Prepare lowercase lookup for the chosen field
     if nchan == 0:
         # Nothing to match against
         if ignoremissing:

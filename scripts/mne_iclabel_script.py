@@ -11,7 +11,6 @@ if 1:
     raw = mne.io.read_epochs_eeglab(eeglab_data_path)
     raw.filter(1.0, 40.0, fir_design='firwin')
 
-    # Select the EEG channels
     picks = mne.pick_types(raw.info, meg=False, eeg=True, eog=False, exclude='bads')
 
     # Fit ICA
@@ -21,7 +20,6 @@ if 1:
     # Label components using ICALabel
     labels2 = label_components(raw, ica, method='iclabel')
 
-    # Print the labels
     for idx, label in enumerate(labels2['labels']):
         print(f"Component {idx}: {label}")
     EEG = eeg_mne2eeg_epochs(raw, ica)

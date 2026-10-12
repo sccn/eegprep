@@ -88,7 +88,6 @@ class TestTopoplot(unittest.TestCase):
         # Create synthetic data vector (one value per channel)
         self.datavector = np.array([1.0, 2.0, -1.0, 0.5, -0.5, 1.5, -1.5, 0.8, -0.8])
 
-        # Create minimal channel locations for edge cases
         self.minimal_chan_locs = [
             {'labels': 'Cz', 'theta': 0, 'radius': 0.0},
             {'labels': 'Fz', 'theta': 0, 'radius': 0.3},
@@ -100,7 +99,6 @@ class TestTopoplot(unittest.TestCase):
         """Test that values outside head boundary are properly masked."""
         handle, Zi, plotrad, xi, yi = topoplot(self.datavector, self.chan_locs, noplot='on')
 
-        # Calculate head boundary (rmax = 0.5)
         rmax = 0.5
         distances = np.sqrt(xi**2 + yi**2)
         outside_head = distances > rmax
@@ -246,7 +244,6 @@ class TestTopoplotParity(unittest.TestCase):
             self.matlab_available = False
             self.skipTest(f"MATLAB not available: {e}")
 
-        # Load real EEG dataset with ICA
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(test_file)
 
@@ -255,7 +252,6 @@ class TestTopoplotParity(unittest.TestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
-        # Get first IC weights
         icawinv = self.EEG['icawinv']
         datavector = icawinv[:, 0]  # First component
         chanlocs = self.EEG['chanlocs']
@@ -297,7 +293,6 @@ class TestTopoplotParity(unittest.TestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
-        # Get first IC weights
         icawinv = self.EEG['icawinv']
         datavector = icawinv[:, 0]  # First component
         chanlocs = self.EEG['chanlocs']

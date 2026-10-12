@@ -11,12 +11,10 @@ class TestCleanWindows(unittest.TestCase):
         """Set up test fixtures with synthetic EEG data."""
         np.random.seed(42)  # For reproducible tests
 
-        # Create synthetic EEG data structure
         self.n_channels = 8
         self.n_samples = 2500  # 10 seconds at 250 Hz
         self.srate = 250.0
 
-        # Create clean EEG data
         self.clean_data = np.random.randn(self.n_channels, self.n_samples) * 0.5
 
         # Add some realistic structure

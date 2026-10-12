@@ -44,7 +44,6 @@ def clean_drifts(
 
     op = filtfilt if method == 'fir' else filtfilt_fast
 
-    # apply it, channel by channel to save memory
     for i in range(EEG['data'].shape[0]):
         EEG['data'][i, :] = op(B, 1, EEG['data'][i, :])
     EEG['etc']['clean_drifts_kernel'] = B

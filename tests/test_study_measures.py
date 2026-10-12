@@ -59,7 +59,6 @@ def test_std_precomp_recompute_off_preserves_cached_channel_measures():
     study, alleeg = std_precomp(study, alleeg, [1], erp="on", spec="on", recompute="off")
     np.testing.assert_allclose(np.asarray(study["changrp"][0]["erpdata"]), np.asarray(sentinel))
 
-    # recompute='on' must overwrite the sentinel with a freshly computed measure.
     study, alleeg = std_precomp(study, alleeg, [1], erp="on", spec="on", recompute="on")
     np.testing.assert_allclose(np.asarray(study["changrp"][0]["erpdata"]), np.asarray(original_erp))
 

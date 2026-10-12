@@ -79,7 +79,6 @@ class TestPopEpochParity(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"MATLAB not available: {e}")
 
-        # Create a basic EEG structure for testing
         self.create_test_eeg()
 
     def create_test_eeg(self):
@@ -246,7 +245,6 @@ class TestPopEpochParity(unittest.TestCase):
         # Perfect agreement in time unit conversion (seconds vs points)
         # Note: Using events in the middle of data to ensure valid epochs
 
-        # Create EEG with events that will produce valid epochs when using seconds
         # The original EEG has events at latencies 150, 350, 550, 750, 850 (in samples)
         # With srate=100, these are at 1.5s, 3.5s, 5.5s, 7.5s, 8.5s
         # For timeunit='seconds', latencies are interpreted as seconds

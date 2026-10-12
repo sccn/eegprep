@@ -4,7 +4,6 @@ import logging
 import contextvars
 from contextlib import contextmanager
 
-# test_eeg_checkset()
 import numpy as np
 import os
 
@@ -66,14 +65,12 @@ def _eventconsistency(EEG):
     if events is None:
         return EEG
 
-    # Convert numpy array to list for manipulation
     if isinstance(events, np.ndarray):
         events = list(events)
 
     if len(events) == 0:
         return EEG
 
-    # 1. Remove events with NaN latency
     events = [
         e for e in events if not ('latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency']))
     ]
@@ -134,11 +131,9 @@ def _eventconsistency(EEG):
                 boundary_idx = boundary_idx[:-1]
                 boundary_lats = boundary_lats[:-1]
 
-        # Find consecutive duplicates (same latency)
         to_remove = []
         for j in range(len(boundary_lats) - 1, 0, -1):
             if boundary_lats[j] == boundary_lats[j - 1]:
-                # Merge duration into the next one
                 dur_this = events[boundary_idx[j]].get('duration', 0) or 0
                 dur_prev = events[boundary_idx[j - 1]].get('duration', 0) or 0
                 events[boundary_idx[j]]['duration'] = dur_this + dur_prev
@@ -173,12 +168,10 @@ def eeg_checkset(EEG, *checks, load_data=True):
     Ensures EEG dict has required fields with correct types, computes ICA activations if
     possible, and loads data from file if specified.
     """
-    # Get the exception type based on strict mode
     # In strict mode (True), we catch DummyException (never raised) so exceptions propagate
     # In non-strict mode (False), we catch Exception and handle gracefully
     exception_type = DummyException if _strict_mode_var.get() else Exception
 
-    # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
     else:
@@ -218,7 +211,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
         EEG['reject'] = {}
 
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
-        # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
         if not os.path.exists(file_name):
             # try to use the same name as the filename but with .fdt extension
@@ -253,7 +245,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # scaling shape: (n_components,)
                 scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
 
-                # Store original weights before scaling
                 if not isinstance(EEG.get('etc'), dict):
                     logger.debug("Replacing non-dict EEG['etc'] during ICA RMS scaling backup")
                     EEG['etc'] = {}
@@ -264,13 +255,11 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # icaweights shape: (n_components, n_channels)
                 EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
 
-                # Recompute icawinv
                 with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
                     EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
         except exception_type as e:
             logger.error("Error scaling ICA components: " + str(e))
 
-    # compute ICA activations
     if (
         'icaweights' in EEG
         and 'icasphere' in EEG
@@ -287,9 +276,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 and hasattr(EEG['icachansind'], '__len__')
                 and len(EEG['icachansind']) > 0
             ):
-                # Convert to numpy array if it's a list
                 icachansind = np.array(EEG['icachansind'], dtype=int)
-                # Validate indices are within bounds
                 n_channels = EEG['data'].shape[0]
                 if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
                     logger.warning(
@@ -303,9 +290,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # If icachansind not set, assume all channels (default behavior)
                 ica_data = EEG['data']
 
-            # Check dimension compatibility before matrix multiplication
             expected_channels = EEG['icaweights'].shape[1]  # Number of input channels ICA expects
-            actual_channels = ica_data.shape[0]  # Number of channels in ica_data
+            actual_channels = ica_data.shape[0]
 
             if expected_channels != actual_channels:
                 logger.warning(
@@ -332,7 +318,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
     # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
     try:
         if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
-            # Initialize epoch field if missing or wrong size
             if 'epoch' not in EEG:
                 EEG['epoch'] = []
 
@@ -340,7 +325,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # Need to rebuild epoch structure
                 EEG['epoch'] = []
             elif len(EEG['epoch']) > 0:
-                # Remove existing event-related fields from epoch structure
                 # (they will be regenerated from current events)
                 epoch_list = list(EEG['epoch'])
                 for i in range(len(epoch_list)):
@@ -350,18 +334,15 @@ def eeg_checkset(EEG, *checks, load_data=True):
                             del epoch_list[i][k]
                 EEG['epoch'] = np.array(epoch_list, dtype=object)
 
-            # Build epoch structure from events
             tmpevent = EEG['event']
             eventepoch = np.array([e.get('epoch', 1) for e in tmpevent])
 
-            # Create list of event indices for each epoch
             epochevent = []
             for k in range(EEG['trials']):
                 epoch_num = k + 1  # 1-based epoch numbering
                 event_indices = np.where(eventepoch == epoch_num)[0]
                 epochevent.append(list(event_indices))
 
-            # Initialize epoch structure if empty
             if len(EEG['epoch']) == 0:
                 EEG['epoch'] = np.array([{} for _ in range(EEG['trials'])], dtype=object)
 
@@ -373,18 +354,15 @@ def eeg_checkset(EEG, *checks, load_data=True):
             # Skip 'epoch' field itself to avoid duplication
             event_fields = []
             if len(tmpevent) > 0:
-                # Get field names from first event
                 event_fields = [f for f in tmpevent[0].keys() if f != 'epoch']
 
             for fname in event_fields:
-                # Build list of field values for each epoch
                 for k in range(EEG['trials']):
                     event_idx_list = epochevent[k]
                     if len(event_idx_list) == 0:
                         # No events in this epoch
                         field_values = []
                     else:
-                        # Extract values from events for this epoch
                         field_values = []
                         for idx in event_idx_list:
                             val = tmpevent[idx].get(fname, None)
@@ -404,7 +382,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
                             field_values.append(val)
 
-                    # Store in epoch structure
                     EEG['epoch'][k][f'event{fname}'] = field_values
 
     except exception_type as e:
@@ -444,7 +421,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
         if EEG['pnts'] > 0:
             EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
 
-    # Define the expected types
     expected_types = {
         'setname': str,
         'filename': str,
@@ -491,7 +467,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'roi': dict,
     }
 
-    # Iterate through expected types and check input dictionary
     for field, expected_type in expected_types.items():
         if field not in EEG:
             logger.debug(f"Field '{field}' is missing from the EEG dictionary, adding it.")
@@ -538,13 +513,9 @@ def eeg_checkset(EEG, *checks, load_data=True):
                     logger.warning(
                         f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types."
                     )
-            # elif field in ['eventdescription', 'epochdescription']:
-            #     if not all(isinstance(item, str) for item in value):
-            #         print(f"Field '{field}' is expected to be a numpy array of strings but contains other types.")
         else:
             # General type check
             if not isinstance(value, expected_type):
-                # check for empty Ndarray
                 if isinstance(value, np.ndarray) and value.size == 0:
                     continue
                 logger.warning(

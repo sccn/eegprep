@@ -26,7 +26,6 @@ class TestEegAutocorrFftw(DebuggableTestCase):
 
     def create_test_eeg(self, ncomp=10, pnts=1000, trials=1, srate=256):
         """Create a test EEG structure with ICA data."""
-        # Create realistic ICA activations
         np.random.seed(42)  # For reproducible tests
         icaact = np.random.randn(ncomp, pnts, trials).astype(
             np.float64

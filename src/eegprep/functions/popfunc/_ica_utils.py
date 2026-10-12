@@ -27,11 +27,9 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
 
     # Optionally sort components by mean descending activation variance
     if sortcomps in ('on', True):
-        # Flatten icaact to 2D for variance computation
         icaact_2d = flatten_ica_data(EEG['icaact'])
         # Compute variance metric: sum(icawinv^2) .* sum(icaact^2)
         variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
-        # Sort indices in descending order
         windex = np.argsort(variance_metric)[::-1]
         # Reorder components
         EEG['icaact'] = EEG['icaact'][windex, :, :]
@@ -40,9 +38,7 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
 
     # Optionally normalize components using the same rule as runica()
     if posact in ('on', True):
-        # Flatten icaact to 2D for finding max abs values
         icaact_2d = flatten_ica_data(EEG['icaact'])
-        # Find indices of max absolute values for each component
         ix = np.argmax(np.abs(icaact_2d), axis=1)
         ncomps = EEG['icaact'].shape[0]
 
