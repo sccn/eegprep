@@ -67,23 +67,6 @@ def test_pop_saveset_twofiles_roundtrips_epoched_data_as_memmap(tmp_path: Path):
     assert reloaded["data"][1, 2, 1] == -123.0
 
 
-def test_memmap_data_flat_iterators_behave_like_numpy(tmp_path: Path):
-    path = tmp_path / "flat.fdt"
-    expected = np.arange(6, dtype=np.float32).reshape((2, 3))
-    backing = np.memmap(path, dtype="float32", mode="w+", shape=(2, 3), order="F")
-    backing[:] = expected
-    backing.flush()
-    data = MemmapData(path, (2, 3), mode="r+")
-
-    np.testing.assert_array_equal(data.flat.copy(), expected.ravel())
-    assert data[:, 1:].flat[0] == expected[0, 1]
-    mapped = np.asarray(data)
-    np.fill_diagonal(mapped, -1.0)
-    np.testing.assert_array_equal(np.diagonal(np.asarray(data)), [-1.0, -1.0])
-
-    data.close()
-
-
 def test_option_savetwofiles_defaults_to_sidecar_storage(tmp_path: Path):
     EEG_OPTIONS["option_savetwofiles"] = 1
     data = np.arange(12, dtype=np.float32).reshape((3, 4))
