@@ -60,7 +60,9 @@ def _normalize(name: str) -> str:
 
 
 def _requirement_name(requirement: str) -> str:
-    return _normalize(re.match(r"[A-Za-z0-9_.-]+", requirement).group(0))
+    name = re.match(r"[A-Za-z0-9_.-]+", requirement)
+    assert name is not None, f"unparseable requirement: {requirement!r}"
+    return _normalize(name.group(0))
 
 
 def _declared_distributions() -> tuple[set[str], set[str]]:

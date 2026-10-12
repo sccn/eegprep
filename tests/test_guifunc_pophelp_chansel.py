@@ -69,9 +69,10 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("EEG = await pop_iclabel_async(EEG, 'default');", text)
         # The documented host method must be the one the reference bridge implements.
         bridge = (REPO_ROOT / "tools/pyodide/iclabel_web_bridge.mjs").read_text(encoding="utf-8")
-        signature = re.search(r"run: \(([^)]*)\) =>", bridge).group(1)
+        match = re.search(r"run: \(([^)]*)\) =>", bridge)
+        assert match is not None
         self.assertIn("globalThis.eegprep_iclabel_web", text)
-        self.assertIn(f"run({signature})", text)
+        self.assertIn(f"run({match.group(1)})", text)
 
     def test_help_resources_are_declared_as_package_data(self):
         pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
