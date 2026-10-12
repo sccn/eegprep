@@ -1,6 +1,7 @@
 """Artifact Subspace Reconstruction (ASR) utilities."""
 
 import logging
+from typing import NamedTuple
 
 import numpy as np
 import scipy.signal
@@ -16,12 +17,116 @@ logger = logging.getLogger(__name__)
 # asr_process.m falls back to half of the free RAM when this budget cannot hold the fixed
 # lookahead overhead; asr_process() instead uses twice that overhead whenever that exceeds this
 # base budget (that is, whenever the overhead is above half of it), which is deterministic and
-# needs no RAM probe. That choice gives small blocks; see the max_mem docstring.
+# needs no RAM probe. That gives small blocks, so processing beyond the plain default is logged
+# as a warning; see plan_blocks().
 DEFAULT_MAX_MEM_MB = 64
 
-# A raised default budget above this multiple of DEFAULT_MAX_MEM_MB is logged as a warning, because it
-# means a large allocation the caller did not ask for.
-_WARN_BUDGET_FACTOR = 4
+# Upper limit on the number of blocks, as in asr_process.m: the block-count formula can ask for
+# millions of blocks on long recordings.
+MAX_BLOCKS = 10000
+
+_REMEDY = 'Pass a larger max_mem for larger blocks (clean_artifacts: MaxMem or availableRAM_GB; clean_asr: maxmem).'
+
+
+class BlockPlan(NamedTuple):
+    """How asr_process splits the data into blocks to stay within a memory budget."""
+
+    budget_mb: float  # effective budget, either the caller's max_mem or the resolved default
+    overhead_mb: float  # fixed memory of the lookahead buffers, independent of the number of blocks
+    budget_raised: bool  # the default budget was raised above DEFAULT_MAX_MEM_MB to fit the overhead
+    splits: int  # number of blocks, at most MAX_BLOCKS
+    block_samples: float  # average block length in samples
+    peak_mb: float  # estimated peak memory: the overhead plus the working memory of one block
+    capped: bool  # MAX_BLOCKS made the blocks larger than the budget allows
+
+
+def plan_blocks(C, S, P, step_size, max_mem=None):
+    """Choose the memory budget and the number of blocks for ``S`` samples of ``C`` channels.
+
+    Args:
+        C (int): Number of channels.
+        S (int): Number of samples to process.
+        P (int): Lookahead in samples.
+        step_size (int): Samples between updates of the reconstruction matrix.
+        max_mem (float, optional): Memory budget in MB. None uses ``DEFAULT_MAX_MEM_MB``, raised to
+            twice the fixed lookahead overhead whenever that is larger.
+
+    Returns:
+        BlockPlan: The effective budget, the block count and the memory estimates.
+
+    Raises:
+        ValueError: If ``max_mem`` is not None and not a finite, positive number.
+        RuntimeError: If an explicit ``max_mem`` cannot hold the fixed overhead.
+    """
+    if max_mem is not None and not (np.isfinite(max_mem) and max_mem > 0):
+        raise ValueError(f'max_mem must be a finite, positive number of megabytes or None, got {max_mem!r}')
+
+    overhead_mb = C * C * P * 8 * 3 / 1024**2
+    budget_raised = False
+    if max_mem is None:
+        max_mem = max(DEFAULT_MAX_MEM_MB, 2 * overhead_mb)
+        budget_raised = max_mem > DEFAULT_MAX_MEM_MB
+    elif max_mem < overhead_mb:
+        minimum_mb = int(np.ceil(overhead_mb))
+        raise RuntimeError(
+            f'Not enough memory: max_mem={max_mem} MB cannot hold the fixed overhead of {overhead_mb:.2f} MB '
+            f'for C={C} channels and P={P} lookahead samples (C * C * P * 8 * 3 bytes). '
+            f'Pass max_mem of at least {minimum_mb} MB (about {2 * minimum_mb} MB, twice that, gives usable block '
+            f'sizes), or max_mem=None to let asr_process choose a budget. Through clean_artifacts set MaxMem '
+            f'(or availableRAM_GB), through clean_asr set maxmem; or reduce the number of channels, the sampling '
+            f'rate or the lookahead.'
+        )
+
+    # Memory bytes needed to process all samples at once (following the reference implementation formula)
+    bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5
+    # Memory available to the working set of one block, after the fixed overhead
+    mem_available = max(max_mem * 1024**2 - C * C * P * 8 * 3, 1)
+    wanted = int(np.ceil(bytes_needed / mem_available))
+    splits = min(wanted, MAX_BLOCKS)
+    return BlockPlan(
+        budget_mb=float(max_mem),
+        overhead_mb=overhead_mb,
+        budget_raised=budget_raised,
+        splits=splits,
+        block_samples=S / splits,
+        peak_mb=overhead_mb + bytes_needed / splits / 1024**2,
+        capped=wanted > MAX_BLOCKS,
+    )
+
+
+def plan_warnings(plan, C, S, P):
+    """Return the warnings for a plan that goes beyond the plain default budget and block layout.
+
+    Nothing is returned for the default budget when the blocks are comfortable.
+    """
+    short_blocks = plan.block_samples < P
+    short_text = (
+        f'Blocks are shorter than the lookahead ({P} samples), so results can differ materially '
+        f'from processing in larger blocks and runtime grows. '
+    )
+    messages = []
+    if plan.budget_raised:
+        messages.append(
+            f'ASR default memory budget raised from {DEFAULT_MAX_MEM_MB} to {plan.budget_mb:.0f} MB because the '
+            f'fixed lookahead buffers need {plan.overhead_mb:.1f} MB for {C} channels and {P} lookahead samples. '
+            f'The {S} samples will be processed in {plan.splits} blocks averaging {plan.block_samples:.1f} samples, '
+            f'with peak memory about {plan.peak_mb:.0f} MB. The reconstruction matrix is refreshed per block, so the '
+            f'output can differ from processing in larger blocks. ' + (short_text if short_blocks else '') + _REMEDY
+        )
+    elif short_blocks:
+        messages.append(
+            f'ASR will use {plan.splits} blocks averaging {plan.block_samples:.1f} samples at max_mem='
+            f'{plan.budget_mb:g} MB. ' + short_text + _REMEDY
+        )
+    if plan.capped:
+        messages.append(
+            f'ASR is limited to {MAX_BLOCKS} blocks, so memory use will exceed the {plan.budget_mb:.0f} MB budget: '
+            f'each block needs about {plan.peak_mb - plan.overhead_mb:.0f} MB plus the {plan.overhead_mb:.0f} MB '
+            f'fixed overhead, about {plan.peak_mb:.0f} MB in all, for {S} samples of {C} channels. '
+            f'Pass a larger max_mem (clean_artifacts: MaxMem or availableRAM_GB; clean_asr: maxmem) or clean the '
+            f'recording in segments.'
+        )
+    return messages
 
 
 def asr_process(
@@ -50,7 +155,7 @@ def asr_process(
                                   Max: window_len * srate. Default: 32.
         max_dims (float or int, optional): Maximum dimensions/fraction of dimensions to remove.
                                          Default: 0.66 (fraction).
-        max_mem (int, optional): Maximum memory in MB for processing large chunks. Default: None, which
+        max_mem (float, optional): Memory budget in MB for processing in blocks. Default: None, which
                                  uses DEFAULT_MAX_MEM_MB (64 MB), or twice the fixed lookahead overhead
                                  (C * C * P * 8 * 3 bytes, for C channels and P lookahead samples)
                                  whenever that exceeds 64 MB, that is, whenever the overhead is above
@@ -59,7 +164,8 @@ def asr_process(
                                  the output, because the reconstruction matrix is refreshed on a
                                  per-block grid, so output can differ materially between budgets for
                                  some data: pass a larger max_mem for bigger blocks. An explicit value
-                                 below the overhead raises RuntimeError.
+                                 below the overhead raises RuntimeError; zero, negative, infinite and
+                                 NaN values raise ValueError.
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
     Returns
@@ -67,6 +173,12 @@ def asr_process(
         tuple: (outdata, outstate)
             outdata (np.ndarray): Cleaned data chunk (delayed by lookahead).
             outstate (dict): Updated state dictionary for subsequent calls.
+
+    Warnings are logged (logger ``eegprep.plugins.clean_rawdata.asr_process``) when processing goes beyond
+    the plain default: when the default budget is raised above 64 MB, when the limit of ``MAX_BLOCKS``
+    blocks makes memory use exceed the budget (long, high-density recordings), and when blocks are
+    shorter than the lookahead, in which case results can differ materially and runtime grows. Each
+    message gives the remedy, a larger ``max_mem``.
     """
     # Check and sanitize data
     data = np.asarray(data, dtype=float)
@@ -94,30 +206,9 @@ def asr_process(
     N = int(round_mat(window_len * srate))
     P = int(round_mat(lookahead * srate))
 
-    if max_mem is not None and not (np.isfinite(max_mem) and max_mem > 0):
-        raise ValueError(f'max_mem must be a finite, positive number of megabytes or None, got {max_mem!r}')
-
-    # Fixed memory overhead of the lookahead buffers, independent of the number of blocks
-    overhead_mb = C * C * P * 8 * 3 / 1024**2
-    if max_mem is None:
-        max_mem = max(DEFAULT_MAX_MEM_MB, 2 * overhead_mb)
-        if max_mem > DEFAULT_MAX_MEM_MB:
-            level = logging.WARNING if max_mem > _WARN_BUDGET_FACTOR * DEFAULT_MAX_MEM_MB else logging.INFO
-            logger.log(
-                level,
-                f'Default memory budget raised from {DEFAULT_MAX_MEM_MB} to {max_mem:.0f} MB '
-                f'to fit {C} channels with {P} lookahead samples',
-            )
-    elif max_mem < overhead_mb:
-        minimum_mb = int(np.ceil(overhead_mb))
-        raise RuntimeError(
-            f'Not enough memory: max_mem={max_mem} MB cannot hold the fixed overhead of {overhead_mb:.2f} MB '
-            f'for C={C} channels and P={P} lookahead samples (C * C * P * 8 * 3 bytes). '
-            f'Pass max_mem of at least {minimum_mb} MB (about {2 * minimum_mb} MB, twice that, gives usable block '
-            f'sizes), or max_mem=None to let asr_process choose a budget. Through clean_artifacts set MaxMem '
-            f'(or availableRAM_GB), through clean_asr set maxmem; or reduce the number of channels, the sampling '
-            f'rate or the lookahead.'
-        )
+    plan = plan_blocks(C, S, P, step_size, max_mem)
+    for message in plan_warnings(plan, C, S, P):
+        logger.warning(message)
 
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0
@@ -146,18 +237,7 @@ def asr_process(
     # Prepend the carry buffer to the data
     X = np.concatenate((carry, data), axis=1)
 
-    # Memory bytes needed to process all samples at once (following the reference implementation formula)
-    bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5
-
-    # Available memory in bytes (subtract fixed overhead)
-    mem_available = max_mem * 1024**2 - C * C * P * 8 * 3
-    mem_available = max(mem_available, 1)  # Ensure positive
-
-    # Number of splits (blocks) needed to fit in memory
-    splits = int(np.ceil(bytes_needed / mem_available))
-    # Cap at reasonable value
-    splits = min(splits, 10000)
-
+    splits = plan.splits
     if splits > 1:
         logger.info(f'Cleaning data in {splits} blocks')
 

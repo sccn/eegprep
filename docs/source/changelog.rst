@@ -52,7 +52,9 @@ Changed
 
 - ``asr_process`` no longer probes free system RAM through ``psutil``, which has no WASM build.
   With ``max_mem=None``, and with the new ``None`` defaults of ``clean_asr``, ``clean_artifacts`` and ``bids_preproc`` (formerly 64), it uses a 64 MB budget, the same as ``asr_calibrate``.
-  Whenever twice the fixed overhead exceeds 64 MB (the overhead is above 32 MB), the budget is raised to twice the overhead, deterministically and with a log message (a warning when the budget exceeds 256 MB).
+  Whenever twice the fixed overhead exceeds 64 MB (the overhead is above 32 MB), the budget is raised to twice the overhead, deterministically, and a warning is logged with the cause, the block layout, the expected peak memory, and the remedy.
+  Two more warnings cover processing beyond the plain default: the 10000-block limit of ``asr_process.m`` makes memory use exceed the budget on long, high-density recordings (about 456 MB at peak for one hour of 128 channels at 1000 Hz), and blocks shorter than the lookahead, which also applies to an explicit ``max_mem``.
+  See :ref:`preprocessing_pipeline` for the user-facing description.
   Examples are 128 channels at 1000 Hz (93.75 MB overhead, so a 187.5 MB budget) and 256 channels at 512 Hz (192 MB overhead, so a 384 MB budget).
   That raised budget leaves room for blocks of only about 0.375 lookahead samples each, and a larger ``max_mem`` gives bigger blocks.
   Block sizes no longer vary with the machine's free memory, but the reconstruction matrix is refreshed on a per-block grid, so the output can differ materially from 0.4.0 whenever the block layout differs, depending on the data.
