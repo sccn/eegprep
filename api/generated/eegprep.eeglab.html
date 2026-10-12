@@ -540,18 +540,18 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>onearg</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – EEGLAB-like command. <code class="docutils literal notranslate"><span class="pre">&quot;nogui&quot;</span></code> returns a session only,
+<li><p><strong>onearg</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – EEGLAB-like command. <code class="docutils literal notranslate"><span class="pre">&quot;nogui&quot;</span></code> returns a session only,
 <code class="docutils literal notranslate"><span class="pre">&quot;full&quot;</span></code> enables legacy/advanced menu items, and <code class="docutils literal notranslate"><span class="pre">&quot;versions&quot;</span></code>
 returns the package version string.</p></li>
 <li><p><strong>session</strong> (<a class="reference internal" href="eegprep.EEGPrepSession.html#eegprep.EEGPrepSession" title="eegprep.functions.guifunc.session.EEGPrepSession"><em>EEGPrepSession</em></a><em> | </em><em>None</em>) – Optional existing GUI session.</p></li>
-<li><p><strong>show</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Show the Qt window before returning.</p></li>
-<li><p><strong>block</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Enter the Qt event loop.</p></li>
-<li><p><strong>all_menus</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>) – Override <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_allmenus&quot;]</span></code>.</p></li>
-<li><p><strong>include_plugins</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Include plugin-contributed menus.</p></li>
-<li><p><strong>native_menu_bar</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>) – Use the native macOS menu bar when <code class="docutils literal notranslate"><span class="pre">True</span></code>. <code class="docutils literal notranslate"><span class="pre">None</span></code>
+<li><p><strong>show</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Show the Qt window before returning.</p></li>
+<li><p><strong>block</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Enter the Qt event loop.</p></li>
+<li><p><strong>all_menus</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a><em> | </em><em>None</em>) – Override <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_allmenus&quot;]</span></code>.</p></li>
+<li><p><strong>include_plugins</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Include plugin-contributed menus.</p></li>
+<li><p><strong>native_menu_bar</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a><em> | </em><em>None</em>) – Use the native macOS menu bar when <code class="docutils literal notranslate"><span class="pre">True</span></code>. <code class="docutils literal notranslate"><span class="pre">None</span></code>
 keeps EEGPrep’s platform default; set <code class="docutils literal notranslate"><span class="pre">False</span></code> to keep menus in
 the window on macOS.</p></li>
-<li><p><strong>native_file_dialogs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em> | </em><em>None</em>) – Override the global file-dialog option. <code class="docutils literal notranslate"><span class="pre">True</span></code>
+<li><p><strong>native_file_dialogs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a><em> | </em><em>None</em>) – Override the global file-dialog option. <code class="docutils literal notranslate"><span class="pre">True</span></code>
 uses platform-native pickers, <code class="docutils literal notranslate"><span class="pre">False</span></code> uses Qt pickers, and
 <code class="docutils literal notranslate"><span class="pre">None</span></code> follows <code class="docutils literal notranslate"><span class="pre">EEG_OPTIONS[&quot;option_native_dialogs&quot;]</span></code>.</p></li>
 </ul>
@@ -561,7 +561,7 @@ uses platform-native pickers, <code class="docutils literal notranslate"><span c
 <code class="docutils literal notranslate"><span class="pre">onearg=&quot;nogui&quot;</span></code>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
 </dd>
 </dl>
 </dd></dl>

@@ -533,36 +533,36 @@ shape.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Sequence of condition arrays.</p></li>
-<li><p><strong>paired</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Pairing mode. <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code> pairs conditions only when every case
+<li><p><strong>data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – Sequence of condition arrays.</p></li>
+<li><p><strong>paired</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Pairing mode. <code class="docutils literal notranslate"><span class="pre">&quot;auto&quot;</span></code> pairs conditions only when every case
 count is equal.</p></li>
-<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;analytic&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;montecarlo&quot;</span></code>. EEGLAB aliases
+<li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;analytic&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;montecarlo&quot;</span></code>. EEGLAB aliases
 <code class="docutils literal notranslate"><span class="pre">&quot;param&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;parametric&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;perm&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;permutation&quot;</span></code>,
 and <code class="docutils literal notranslate"><span class="pre">&quot;bootstrap&quot;</span></code> are accepted; bootstrap follows EEGLAB’s
 FieldTrip wrapper and selects permutation inference.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – EEGLAB alias for <code class="docutils literal notranslate"><span class="pre">method</span></code>. A non-empty value takes precedence.</p></li>
-<li><p><strong>naccu</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Number of permutations for Monte Carlo inference, or <code class="docutils literal notranslate"><span class="pre">&quot;all&quot;</span></code>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – EEGLAB alias for <code class="docutils literal notranslate"><span class="pre">method</span></code>. A non-empty value takes precedence.</p></li>
+<li><p><strong>naccu</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Number of permutations for Monte Carlo inference, or <code class="docutils literal notranslate"><span class="pre">&quot;all&quot;</span></code>
 to enumerate small permutation spaces exactly.</p></li>
-<li><p><strong>variance</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Equal-variance mode for an unpaired t-test. Both spellings of
+<li><p><strong>variance</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Equal-variance mode for an unpaired t-test. Both spellings of
 <code class="docutils literal notranslate"><span class="pre">&quot;homogeneous&quot;</span></code> are accepted.</p></li>
-<li><p><strong>mcorrect</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Multiple-comparison correction: <code class="docutils literal notranslate"><span class="pre">&quot;none&quot;</span></code>,
+<li><p><strong>mcorrect</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Multiple-comparison correction: <code class="docutils literal notranslate"><span class="pre">&quot;none&quot;</span></code>,
 <code class="docutils literal notranslate"><span class="pre">&quot;bonferroni&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;holm&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;fdr&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;max&quot;</span></code>, or
 <code class="docutils literal notranslate"><span class="pre">&quot;cluster&quot;</span></code>.
 EEGLAB/FieldTrip spellings <code class="docutils literal notranslate"><span class="pre">&quot;bonferoni&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;holms&quot;</span></code> are
 accepted. Max correction requires Monte Carlo inference.</p></li>
-<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Family significance threshold used to form <code class="docutils literal notranslate"><span class="pre">mask</span></code>.</p></li>
-<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Case axis in every condition array.</p></li>
-<li><p><strong>rng</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="(in NumPy v2.5)"><em>Generator</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Optional NumPy generator or seed for Monte Carlo inference.</p></li>
-<li><p><strong>neighbours</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>) – Explicit square, symmetric adjacency matrix over features
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Family significance threshold used to form <code class="docutils literal notranslate"><span class="pre">mask</span></code>.</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Case axis in every condition array.</p></li>
+<li><p><strong>rng</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/random/generator.html#numpy.random.Generator" title="(in NumPy v2.5)"><em>Generator</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Optional NumPy generator or seed for Monte Carlo inference.</p></li>
+<li><p><strong>neighbours</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – Explicit square, symmetric adjacency matrix over features
 flattened in NumPy C order. Dense and SciPy sparse matrices are
 supported. Required for cluster correction and otherwise rejected.</p></li>
-<li><p><strong>clusteralpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Per-feature cluster-forming probability. Two-condition
+<li><p><strong>clusteralpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Per-feature cluster-forming probability. Two-condition
 tests split it equally between the two tails.</p></li>
-<li><p><strong>clusterstatistic</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Cluster statistic. Only FieldTrip’s default
+<li><p><strong>clusterstatistic</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Cluster statistic. Only FieldTrip’s default
 <code class="docutils literal notranslate"><span class="pre">&quot;maxsum&quot;</span></code> is supported.</p></li>
-<li><p><strong>clusterthreshold</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Cluster-forming threshold policy. Only
+<li><p><strong>clusterthreshold</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Cluster-forming threshold policy. Only
 <code class="docutils literal notranslate"><span class="pre">&quot;parametric&quot;</span></code> is supported.</p></li>
-<li><p><strong>clustercritval</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>) – Optional positive statistic cutoff overriding the
+<li><p><strong>clustercritval</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a><em> | </em><em>None</em>) – Optional positive statistic cutoff overriding the
 value derived from <code class="docutils literal notranslate"><span class="pre">clusteralpha</span></code> and the reference distribution.</p></li>
 </ul>
 </dd>
@@ -576,9 +576,9 @@ records, critical statistic, and maximum-cluster null distribution.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – For paired one-way ANOVA, two-way designs, or
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#NotImplementedError" title="(in Python v3.15)"><strong>NotImplementedError</strong></a> – For paired one-way ANOVA, two-way designs, or
     unsupported cluster-statistic and threshold policies.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – For invalid methods, corrections, alpha, variance, or
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – For invalid methods, corrections, alpha, variance, or
     condition shapes.</p></li>
 </ul>
 </dd>

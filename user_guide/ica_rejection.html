@@ -550,6 +550,12 @@ selected channel count. For example, <code class="docutils literal notranslate">
 fewer component than channels, which is useful after average referencing. The
 initial unmixing matrix is sized to the reduced decomposition while remaining
 deterministic.</p>
+<p>Picard starts from an identity matrix by default. To choose a reproducible
+random starting point, call <code class="docutils literal notranslate"><span class="pre">eeg_picard(EEG,</span> <span class="pre">random_state=42)</span></code> or pass
+<code class="docutils literal notranslate"><span class="pre">options={&quot;seed&quot;:</span> <span class="pre">42}</span></code> to <code class="docutils literal notranslate"><span class="pre">pop_runica</span></code> with <code class="docutils literal notranslate"><span class="pre">icatype=&quot;picard&quot;</span></code>.
+An explicit <code class="docutils literal notranslate"><span class="pre">w_init</span></code> matrix takes precedence over the seed. Passing
+<code class="docutils literal notranslate"><span class="pre">random_state=None</span></code> explicitly uses NumPy’s global random state, as in
+Python Picard. Different starts can converge to equivalent ICA solutions.</p>
 </section>
 <section id="iclabel-workflow">
 <h2>ICLabel Workflow<a class="headerlink" href="#iclabel-workflow" title="Link to this heading">#</a></h2>
