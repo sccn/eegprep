@@ -10,10 +10,12 @@ from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
 
-# Fixed memory budget (MB) used when max_mem is not given. Matches the maxmem=64 default
-# already used by asr_calibrate() and clean_asr() elsewhere in this plugin, so the whole ASR
-# pipeline assumes the same memory budget without probing the runtime environment (psutil is
-# an optional dependency and has no WebAssembly build).
+# Base memory budget (MB) used when max_mem is not given. It matches the maxmem=64 default of
+# asr_calibrate(), so the ASR pipeline starts from the same budget without probing the runtime
+# environment (psutil is an optional dependency and has no WebAssembly build). EEGLAB's
+# asr_process.m falls back to half of the free RAM when this budget cannot hold the fixed
+# lookahead overhead; asr_process() raises the default budget to twice that overhead instead,
+# which is deterministic and needs no RAM probe.
 DEFAULT_MAX_MEM_MB = 64
 
 
@@ -43,8 +45,11 @@ def asr_process(
                                   Max: window_len * srate. Default: 32.
         max_dims (float or int, optional): Maximum dimensions/fraction of dimensions to remove.
                                          Default: 0.66 (fraction).
-        max_mem (int, optional): Maximum memory in MB for processing large chunks.
-                                 Default: None, which resolves to DEFAULT_MAX_MEM_MB (64 MB).
+        max_mem (int, optional): Maximum memory in MB for processing large chunks. Default: None, which
+                                 uses DEFAULT_MAX_MEM_MB (64 MB), raised to twice the fixed lookahead
+                                 overhead (C * C * P * 8 * 3 bytes, for C channels and P lookahead
+                                 samples) when 64 MB cannot hold it, as for 128 channels at 1000 Hz.
+                                 An explicit value below that overhead raises RuntimeError.
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
     Returns
@@ -65,8 +70,6 @@ def asr_process(
     # Parameter handling
     if lookahead is None:
         lookahead = window_len / 2
-    if max_mem is None:
-        max_mem = DEFAULT_MAX_MEM_MB
 
     # Ensure window length is adequate
     window_len = max(window_len, 1.5 * C / srate)
@@ -80,6 +83,23 @@ def asr_process(
     # Number of samples in sliding window and lookahead
     N = int(round_mat(window_len * srate))
     P = int(round_mat(lookahead * srate))
+
+    # Fixed memory overhead of the lookahead buffers, independent of the number of blocks
+    overhead_mb = C * C * P * 8 * 3 / 1024**2
+    if max_mem is None:
+        max_mem = max(DEFAULT_MAX_MEM_MB, 2 * overhead_mb)
+        if max_mem > DEFAULT_MAX_MEM_MB:
+            logger.info(
+                f'Default memory budget raised from {DEFAULT_MAX_MEM_MB} to {max_mem:.0f} MB '
+                f'to fit {C} channels with {P} lookahead samples'
+            )
+    elif max_mem < overhead_mb:
+        raise RuntimeError(
+            f'Not enough memory: max_mem={max_mem} MB cannot hold the fixed overhead of {overhead_mb:.2f} MB '
+            f'for C={C} channels and P={P} lookahead samples (C * C * P * 8 * 3 bytes). '
+            f'Pass max_mem of at least {int(np.ceil(overhead_mb))} MB, pass max_mem=None to let asr_process '
+            f'choose a budget, or reduce the number of channels, the sampling rate or the lookahead.'
+        )
 
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0
@@ -108,19 +128,14 @@ def asr_process(
     # Prepend the carry buffer to the data
     X = np.concatenate((carry, data), axis=1)
 
-    # Calculate number of splits for memory management
-
-    if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
-        raise RuntimeError('Not enough memory')
-
-    # Calculate memory bytes needed (following reference implementation formula)
+    # Memory bytes needed to process all samples at once (following the reference implementation formula)
     bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5
 
     # Available memory in bytes (subtract fixed overhead)
     mem_available = max_mem * 1024**2 - C * C * P * 8 * 3
     mem_available = max(mem_available, 1)  # Ensure positive
 
-    # Number of splits needed
+    # Number of splits (blocks) needed to fit in memory
     splits = int(np.ceil(bytes_needed / mem_available))
     # Cap at reasonable value
     splits = min(splits, 10000)
