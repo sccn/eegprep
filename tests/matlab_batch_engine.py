@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import subprocess
 import sys
 import time
 import types
@@ -20,8 +21,12 @@ from pathlib import Path
 import numpy as np
 import scipy.io
 
-# ponytail: one call waits up to 30 min; the suite's slowest parity call is a few.
-TIMEOUT = 1800
+# The slowest reference call in CI (std_precomp) is about 6 minutes. A wedged
+# eval, such as a menu dialog, never writes a response; leave headroom for that
+# call, then fail and let restart.sh replace the server so later tests are not
+# stuck behind it.
+TIMEOUT = 900
+RESTART_READY_TIMEOUT = 300
 
 
 class MatlabExecutionError(Exception):
@@ -134,11 +139,12 @@ class BatchEngine:
             cells[0, i] = _encode(v)
         scipy.io.savemat(partial, {"kind": kind, "name": name, "nargout": float(nargout), "args": cells}, format="5")
         os.replace(partial, request)  # the server only sees complete files
-        deadline = time.monotonic() + TIMEOUT
-        while not response.exists():
-            if time.monotonic() > deadline:
-                raise TimeoutError(f"MATLAB did not answer {kind} {name!r} within {TIMEOUT}s")
-            time.sleep(0.005)
+        try:
+            self._wait_for_response(response, kind, name)
+        except Exception:
+            # The server is still inside this eval. Drop it before the next test.
+            self._restart_if_wedged()
+            raise
         try:
             raw = scipy.io.loadmat(response, squeeze_me=False)
         finally:
@@ -151,6 +157,24 @@ class BatchEngine:
             return None
         decoded = [_decode(v) for v in outputs.ravel(order="F")]
         return decoded[0] if nargout == 1 else tuple(decoded[:nargout])
+
+    def _wait_for_response(self, response, kind, name):
+        deadline = time.monotonic() + TIMEOUT
+        while not response.exists():
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"MATLAB did not answer {kind} {name!r} within {TIMEOUT}s")
+            time.sleep(0.05)
+
+    def _restart_if_wedged(self):
+        script = self.directory / "restart.sh"
+        if not script.is_file():
+            return
+        ready = self.directory / "ready"
+        ready.unlink(missing_ok=True)
+        subprocess.run(["bash", str(script)], check=False, cwd=self.directory, timeout=120)
+        deadline = time.monotonic() + RESTART_READY_TIMEOUT
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
 
 
 def install(directory):

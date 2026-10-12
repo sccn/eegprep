@@ -198,6 +198,8 @@ def eeglab_matlab_engine(request):
         for support_path in request.config.getoption("--eeglab-support-path"):
             engine.addpath(str(support_path), "-begin", nargout=0)
         engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
+        # nogui does not run eegplugin_* hooks, so nested plugin functions stay off the path.
+        engine.eegprep_reference_plugins(str(Path(root).resolve()), nargout=0)
         yield engine
     finally:
         engine.quit()

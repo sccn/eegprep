@@ -95,6 +95,7 @@ dev = [
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
   "pytest>=8.0",
+  "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
   "ruff>=0.15.14",
