@@ -92,7 +92,13 @@ def _update_digest(value: Any, digest: hashlib.blake2b, seen: set[int]) -> None:
 def _update_array_digest(array: np.ndarray, digest: hashlib.blake2b, seen: set[int]) -> None:
     digest.update(f"ndarray{array.dtype!r}{array.shape}".encode())
     if array.dtype.hasobject:
+        # An object array can hold itself, so it needs the same cycle guard as a container.
+        if id(array) in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(id(array))
         _update_digest(array.tolist(), digest, seen)
+        seen.remove(id(array))
         return
     # Fortran-ordered arrays, the usual layout of EEG data read from disk, are hashed
     # through their C-ordered transpose so neither layout is copied. The layout tag

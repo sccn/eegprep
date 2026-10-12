@@ -179,6 +179,9 @@ def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
     assert session.dataset_state_token() != token
 
 
+# Values other than dicts, lists, tuples, and arrays are hashed through repr(), so an
+# in-place edit that leaves repr() unchanged, such as changing a stored value of a
+# scipy.sparse matrix, is not detected.
 def test_dataset_state_token_detects_edits_in_the_iclabel_classes_object_array(sample_ica_eeg):
     session = EEGPrepSession()
     session.store_current(iclabel(sample_ica_eeg), new=True)
@@ -203,9 +206,18 @@ def test_dataset_state_token_detects_edits_of_an_array_held_in_an_object_array()
     assert session.dataset_state_token() != token
 
 
-# Values other than dicts, lists, tuples, and arrays are hashed through repr(), so an
-# in-place edit that leaves repr() unchanged, such as changing a stored value of a
-# scipy.sparse matrix, is not detected.
+def test_dataset_state_token_follows_an_object_array_that_contains_itself():
+    session = _session_with("selected")
+    cells = np.empty(2, dtype=object)
+    cells[0], cells[1] = cells, "label"
+    session.EEG["etc"]["cells"] = cells
+    token = session.dataset_state_token()
+
+    cells[1] = "edited"
+
+    assert session.dataset_state_token() != token
+
+
 def test_dataset_state_token_follows_reference_cycles_and_still_detects_edits():
     session = _session_with("selected")
     etc = session.EEG["etc"]
