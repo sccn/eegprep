@@ -1289,7 +1289,13 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
     patched: list[tuple[logging.StreamHandler[Any], Any]] = []
     for logger in _logging_tree():
         for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler) and not isinstance(handler.stream, _PromptSafeStream):
+            # A handler without a stream yet, such as torch's lazily opened trace handler, has
+            # nothing to wrap, and wrapping None would break its first flush.
+            if (
+                isinstance(handler, logging.StreamHandler)
+                and handler.stream is not None
+                and not isinstance(handler.stream, _PromptSafeStream)
+            ):
                 original_stream = handler.stream
                 handler.setStream(_PromptSafeStream(original_stream))
                 patched.append((handler, original_stream))

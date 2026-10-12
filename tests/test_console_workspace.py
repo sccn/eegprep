@@ -818,6 +818,27 @@ def test_gui_action_buffers_logger_warnings_until_command_echo():
     )
 
 
+def test_prompt_safe_logging_leaves_handlers_that_have_no_stream_yet(tmp_path):
+    # A FileHandler with delay=True has stream None until its first record, like torch's
+    # lazily opened trace handler, which a CI run reaches by importing torch.
+    logger = logging.getLogger("eegprep.tests.console_lazy_handler")
+    logger.propagate = False
+    lazy = logging.FileHandler(tmp_path / "lazy.log", delay=True)
+    logger.addHandler(lazy)
+    assert lazy.stream is None
+
+    restore = console_module._install_prompt_safe_logging()
+    try:
+        assert lazy.stream is None
+    finally:
+        restore()
+        logger.removeHandler(lazy)
+        logger.propagate = True
+        lazy.close()
+
+    assert lazy.stream is None
+
+
 def test_gui_action_buffers_late_created_logger_handlers_until_command_echo():
     logger = logging.getLogger("eegprep.tests.console_gui_late")
     logger.setLevel(logging.WARNING)
