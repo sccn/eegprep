@@ -15,7 +15,8 @@ convention.
 images, and text on those axes, including data, limits, colors, scales, and
 labels. ``figure.savefig("name.fig")`` uses the same writer. Scatter plots,
 bars, patches, and legends are omitted. The figure colormap is the first
-image's colormap.
+image's colormap. Characters outside ASCII are stored as ASCII, and mathtext
+tick labels are stored as the plain tick value, so MATLAB can read the file.
 
 .. autosummary::
    :toctree: generated/

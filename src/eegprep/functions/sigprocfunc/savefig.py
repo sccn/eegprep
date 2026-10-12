@@ -78,11 +78,16 @@ def savefig(figure: Figure, filename: str | os.PathLike[str] | BinaryIO) -> str:
     """Save ``figure`` as a MATLAB ``.fig`` file.
 
     The file stores the figure, each axes, and the lines, images, and text on
-    those axes (data, limits, colors, scales, and labels). Scatter, bars,
-    patches, and legends are omitted. A figure has one colormap, taken from
-    the first image. ``Interpreter`` is ``none`` so label text is stored
-    literally. Importing this module also registers Matplotlib's ``fig``
-    format, so ``figure.savefig("name.fig")`` uses the same writer.
+    those axes (data, limits, colors, scales, and labels). Title and axis
+    labels are text children indexed by the axes ``special`` vector, which is
+    how ``openfig`` attaches them. Scatter, bars, patches, and legends are
+    omitted. A figure has one colormap, taken from the first image.
+    ``Interpreter`` is ``none`` so label text is stored literally. Characters
+    outside ASCII are replaced (a Unicode minus becomes ``-``) so each MAT
+    character array is one byte per character. Mathtext tick labels are stored
+    as the plain tick value. Importing this module also
+    registers Matplotlib's ``fig`` format, so ``figure.savefig("name.fig")``
+    uses the same writer.
 
     Args:
         figure: Matplotlib figure to export.
@@ -149,19 +154,36 @@ def _row(values) -> np.ndarray:
     return np.asarray(values, dtype=np.float64).reshape(1, -1)
 
 
+def _column(values) -> np.ndarray:
+    return np.asarray(values, dtype=np.float64).reshape(-1, 1)
+
+
+def _ascii(value: str) -> str:
+    # scipy writes mxCHAR as UTF-8 while the array size counts characters.
+    # A multibyte character makes those two disagree and MATLAB's fig loader
+    # aborts. U+2212 is the minus Matplotlib puts in tick labels.
+    return value.replace("\u2212", "-").encode("ascii", "replace").decode("ascii")
+
+
 def _scalar(value: float) -> np.ndarray:
     return np.array([[float(value)]], dtype=np.float64)
 
 
-def _node(kind: str, handle: float, properties: dict, children: list[np.ndarray]) -> np.ndarray:
-    # ``special`` is empty. Title and axis labels are ordinary text children,
-    # so openfig does not have to resolve handle-valued Title/XLabel properties.
+def _node(
+    kind: str,
+    handle: float,
+    properties: dict,
+    children: list[np.ndarray],
+    special: np.ndarray | None = None,
+) -> np.ndarray:
     node = np.empty((1, 1), dtype=_NODE)
     node[0, 0]["type"] = kind
     node[0, 0]["handle"] = _scalar(handle)
     node[0, 0]["properties"] = properties
     node[0, 0]["children"] = _stack(children)
-    node[0, 0]["special"] = _empty()
+    # Axes ``special`` is a 4x1 index vector (title, xlabel, ylabel, zlabel).
+    # Other nodes leave it empty, matching hgsave.
+    node[0, 0]["special"] = _empty() if special is None else special
     return node
 
 
@@ -186,7 +208,7 @@ def _figure_node(figure: Figure, handles: Iterator[float]) -> np.ndarray:
         "Visible": "on",
     }
     if name:
-        properties["Name"] = name
+        properties["Name"] = _ascii(name)
     handle = next(handles)
     children = [_axes_node(ax, handles) for ax in figure.axes]
     for text in figure.texts:
@@ -215,20 +237,23 @@ def _colormap(figure: Figure) -> np.ndarray:
 def _axes_node(ax, handles: Iterator[float]) -> np.ndarray:
     handle = next(handles)
     children: list[np.ndarray] = []
-    for text in (ax.title, ax.xaxis.label, ax.yaxis.label):
-        node = _text_node(text, handles, ax)
-        if node is not None:
-            children.append(node)
-    if ax.name == "3d":
-        node = _text_node(ax.zaxis.label, handles, ax)
-        if node is not None:
-            children.append(node)
     children.extend(_line_node(line, handles) for line in ax.lines)
     children.extend(_image_node(image, handles) for image in ax.images)
     for text in ax.texts:
         node = _text_node(text, handles, ax)
         if node is not None:
             children.append(node)
+    # hgsave always records four label texts and points ``special`` at them.
+    # A 0 index makes the HG1 converter read off the front of the child list.
+    label_artists = [ax.title, ax.xaxis.label, ax.yaxis.label]
+    label_artists.append(ax.zaxis.label if ax.name == "3d" else None)
+    special: list[float] = []
+    for artist in label_artists:
+        if artist is None:
+            children.append(_blank_label(handles))
+        else:
+            children.append(_text_node(artist, handles, ax, allow_empty=True))
+        special.append(float(len(children)))
     tick_labels = ax.get_xticklabels()
     font_source = tick_labels[0] if tick_labels else ax.title
     properties: dict = {
@@ -247,7 +272,7 @@ def _axes_node(ax, handles: Iterator[float]) -> np.ndarray:
         "YGrid": _grid(ax.yaxis),
         "Color": _color(ax.get_facecolor()),
         "FontSize": _scalar(float(font_source.get_fontsize())),
-        "FontName": font_source.get_fontname(),
+        "FontName": _ascii(font_source.get_fontname()),
         "Visible": "on",
     }
     _store_ticks(properties, "X", ax.get_xticks(), [tick.get_text() for tick in ax.get_xticklabels()])
@@ -261,7 +286,7 @@ def _axes_node(ax, handles: Iterator[float]) -> np.ndarray:
         properties["ZScale"] = _scale(ax.zaxis)
         properties["ZDir"] = _direction(ax.zaxis)
         properties["ZGrid"] = _grid(ax.zaxis)
-    return _node("axes", handle, properties, children)
+    return _node("axes", handle, properties, children, _column(special))
 
 
 def _line_node(line, handles: Iterator[float]) -> np.ndarray:
@@ -288,7 +313,7 @@ def _line_node(line, handles: Iterator[float]) -> np.ndarray:
         properties["MarkerFaceColor"] = _resolved_marker_color(line, line.get_markerfacecolor(), color)
     label = line.get_label()
     if label and not str(label).startswith("_"):
-        properties["DisplayName"] = str(label)
+        properties["DisplayName"] = _ascii(str(label))
     return _node("graph2d.lineseries", next(handles), properties, [])
 
 
@@ -330,9 +355,9 @@ def _image_coordinates(image, rows: int, cols: int) -> tuple[np.ndarray, np.ndar
     return _row((x0, x1)), _row((y0, y1))
 
 
-def _text_node(text, handles: Iterator[float], ax) -> np.ndarray | None:
-    content = str(text.get_text() or "")
-    if not content:
+def _text_node(text, handles: Iterator[float], ax, allow_empty: bool = False) -> np.ndarray | None:
+    content = _ascii(str(text.get_text() or ""))
+    if not content and not allow_empty:
         return None
     if ax is not None and text.get_transform() == ax.transData:
         position = np.asarray(text.get_position(), dtype=float).reshape(-1)
@@ -354,7 +379,7 @@ def _text_node(text, handles: Iterator[float], ax) -> np.ndarray | None:
         "Units": units,
         "Color": _artist_color(text.get_color()),
         "FontSize": _scalar(float(text.get_fontsize())),
-        "FontName": text.get_fontname(),
+        "FontName": _ascii(text.get_fontname()),
         "FontWeight": "bold" if bold else "normal",
         "FontAngle": "italic" if text.get_fontstyle() == "italic" else "normal",
         "HorizontalAlignment": text.get_ha() if text.get_ha() in {"left", "center", "right"} else "left",
@@ -365,12 +390,32 @@ def _text_node(text, handles: Iterator[float], ax) -> np.ndarray | None:
     return _node("text", next(handles), properties, [])
 
 
+def _blank_label(handles: Iterator[float]) -> np.ndarray:
+    properties = {
+        "String": "",
+        "Position": _row((0.0, 0.0, 0.0)),
+        "Units": "data",
+        "Color": _row((0.0, 0.0, 0.0)),
+        "FontSize": _scalar(10.0),
+        "FontName": "Helvetica",
+        "FontWeight": "normal",
+        "FontAngle": "normal",
+        "HorizontalAlignment": "center",
+        "VerticalAlignment": "middle",
+        "Rotation": _scalar(0.0),
+        "Interpreter": "none",
+    }
+    return _node("text", next(handles), properties, [])
+
+
 def _matlab_text(content: str):
+    # A 1-D array of fixed-width strings becomes a 2-D mxCHAR (one row per
+    # line). A 2-D array of single characters becomes 3-D, which openfig rejects.
     lines = content.split("\n")
     if len(lines) == 1:
         return lines[0]
     width = max(len(line) for line in lines)
-    return np.array([list(line.ljust(width)) for line in lines])
+    return np.array([line.ljust(width) for line in lines], dtype=f"U{width}")
 
 
 def _store_ticks(properties: dict, prefix: str, ticks, labels: list[str]) -> None:
@@ -380,22 +425,30 @@ def _store_ticks(properties: dict, prefix: str, ticks, labels: list[str]) -> Non
         return
     properties[f"{prefix}Tick"] = _row(values[:count])
     properties[f"{prefix}TickMode"] = "manual"
-    matrix = _tick_label_matrix(labels[:count])
+    plain = [_plain_tick_label(label, float(values[index])) for index, label in enumerate(labels[:count])]
+    matrix = _tick_label_matrix(plain)
     if matrix is not None:
         properties[f"{prefix}TickLabel"] = matrix
         properties[f"{prefix}TickLabelMode"] = "manual"
 
 
+def _plain_tick_label(label: str, value: float) -> str:
+    text = _ascii(label).replace("\n", " ")
+    if "\\" not in text and "$" not in text:
+        return text
+    return np.format_float_positional(value, trim="-")
+
+
 def _tick_label_matrix(labels: list[str]):
     if not any(labels):
         return None
-    cleaned = [label.replace("\n", " ") for label in labels]
+    cleaned = [_ascii(label).replace("\n", " ") for label in labels]
     width = max(len(label) for label in cleaned)
     if width == 0:
         return None
     if len(cleaned) == 1:
         return cleaned[0]
-    return np.array([list(label.ljust(width)) for label in cleaned])
+    return np.array([line.ljust(width) for line in cleaned], dtype=f"U{width}")
 
 
 def _limits(pair) -> np.ndarray:

@@ -6,6 +6,8 @@ MATLAB and is skipped when no engine is available; run it before merging.
 
 from __future__ import annotations
 
+import struct
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -45,7 +47,7 @@ def _matlab_text(value) -> str:
         return "" if array.size == 0 else str(array.reshape(-1)[0])
     if array.ndim == 2 and array.dtype.itemsize == np.dtype("U1").itemsize:
         return "\n".join("".join(row).rstrip() for row in array.astype(str))
-    return "".join(array.astype(str).ravel())
+    return "\n".join(item.rstrip() for item in array.astype(str).ravel())
 
 
 def _children(node):
@@ -76,6 +78,48 @@ def _load_root(path):
 
 def _by_type(root, kind):
     return [node for node in _walk(root) if _matlab_text(node.type) == kind]
+
+
+def _char_ranks(path) -> set[int]:
+    """Ranks of mxCHAR arrays in a MAT-file. openfig aborts on rank other than 2."""
+    data = open(path, "rb").read()
+    ranks: set[int] = set()
+
+    def walk(start: int, end: int) -> None:
+        pos = start
+        while pos + 8 <= end:
+            word = struct.unpack_from("<I", data, pos)[0]
+            if word == 0 or word > 0xFFFF:
+                mdtype = word & 0xFFFF
+                nbytes = word >> 16
+                payload = pos + 4
+                nxt = pos + 8
+            else:
+                mdtype = word
+                nbytes = struct.unpack_from("<I", data, pos + 4)[0]
+                payload = pos + 8
+                nxt = payload + nbytes + (-nbytes % 8)
+            if mdtype == 0 or mdtype > 40 or nxt <= pos or nxt > end:
+                return
+            if mdtype == 14 and nbytes > 16:
+                flags = struct.unpack_from("<I", data, payload + 8)[0]
+                mclass = flags & 0xFF
+                dims_at = payload + 16
+                dtag = struct.unpack_from("<I", data, dims_at)[0]
+                if dtag > 0xFFFF:
+                    count = (dtag >> 16) // 4
+                    dims = struct.unpack_from("<" + "i" * count, data, dims_at + 4)
+                else:
+                    count = struct.unpack_from("<I", data, dims_at + 4)[0] // 4
+                    dims = struct.unpack_from("<" + "i" * count, data, dims_at + 8)
+                if mclass == 4:
+                    ranks.add(len(dims))
+                if mclass in (1, 2, 3):
+                    walk(payload, payload + nbytes)
+            pos = nxt
+
+    walk(128, len(data))
+    return ranks
 
 
 def test_savefig_stores_figure_axes_line_image_and_text(tmp_path):
@@ -117,6 +161,12 @@ def test_savefig_stores_figure_axes_line_image_and_text(tmp_path):
         assert "marker" in texts
         assert "channels" in texts
         assert "Export" in texts
+        label_children = _children(line_axes)
+        special = np.ravel(line_axes.special).astype(int)
+        assert special.shape == (4,)
+        assert _matlab_text(_properties(label_children[special[0] - 1]).String) == "Hello\nworld"
+        assert _matlab_text(_properties(label_children[special[1] - 1]).String) == "time"
+        assert _char_ranks(written) == {2}
         marker = next(node for node in _by_type(root, "text") if _matlab_text(_properties(node).String) == "marker")
         assert _matlab_text(_properties(marker).Units) == "data"
         np.testing.assert_allclose(np.ravel(_properties(marker).Position)[:2], [2.0, 4.0])
@@ -156,23 +206,26 @@ def test_openfig_round_trip(tmp_path):
         engine.eval(
             f"""
             set(0, 'DefaultFigureVisible', 'off');
-            h = openfig('{fig_literal}', 'invisible');
+            h = openfig('{fig_literal}', 'new', 'invisible');
             ln = findobj(h, 'Type', 'line');
             im = findobj(h, 'Type', 'image');
             tx = findall(h, 'Type', 'text');
+            ax = ancestor(ln, 'axes');
             xdata = get(ln, 'XData');
             ydata = get(ln, 'YData');
             color = get(ln, 'Color');
             linestyle = get(ln, 'LineStyle');
             cdata = get(im, 'CData');
             ydir = get(ancestor(im, 'axes'), 'YDir');
+            title_str = get(get(ax, 'Title'), 'String');
+            xlabel_str = get(get(ax, 'XLabel'), 'String');
             ntext = numel(tx);
             labels = cell(1, ntext);
             for k = 1:ntext
                 labels{{k}} = get(tx(k), 'String');
             end
             close(h);
-            save('{out_literal}', 'xdata', 'ydata', 'color', 'linestyle', 'cdata', 'ydir', 'labels');
+            save('{out_literal}', 'xdata', 'ydata', 'color', 'linestyle', 'cdata', 'ydir', 'labels', 'title_str', 'xlabel_str');
             """,
             nargout=0,
         )
@@ -191,3 +244,5 @@ def test_openfig_round_trip(tmp_path):
     assert "Hello\nworld" in texts
     assert "marker" in texts
     assert "Export" in texts
+    assert _matlab_text(saved["title_str"]) == "Hello\nworld"
+    assert _matlab_text(saved["xlabel_str"]) == "time"
