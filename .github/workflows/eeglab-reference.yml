@@ -107,8 +107,10 @@ jobs:
             exit 1
           fi
           # eeglab_tests records its EEGLAB submodule as git@github.com, and the
-          # runner has no SSH key. Rewrite that one URL to HTTPS for this checkout.
-          git -C eeglab_tests config url."https://github.com/".insteadOf "git@github.com:"
+          # runner has no SSH key. submodule update does not apply insteadOf to
+          # that URL, so point this checkout at the public HTTPS remote.
+          git -C eeglab_tests submodule set-url eeglab https://github.com/sccn/eeglab.git
+          git -C eeglab_tests submodule sync -- eeglab
           git -C eeglab_tests submodule update --init --depth 1 -- eeglab
           if [[ "$(git -C eeglab_tests/eeglab rev-parse HEAD)" != "$EEGLAB_COMMIT" ]]; then
             echo "::error title=EEGLAB pin mismatch::suite submodule is not $EEGLAB_COMMIT"
