@@ -196,12 +196,12 @@ def test_gui_benign_actions_during_async_iclabel_keep_the_result(sample_ica_eeg,
 
 
 @pytest.mark.parametrize("version", ["lite", "beta"])
-def test_browser_requests_for_other_networks_do_not_advise_unavailable_engines(monkeypatch, version):
+def test_browser_requests_for_other_networks_do_not_advise_unavailable_engines(sample_ica_eeg, monkeypatch, version):
     """Under Emscripten the MATLAB and Octave engines do not exist, so the error must not point at them."""
     monkeypatch.setattr("eegprep.plugins.ICLabel.iclabel.IS_EMSCRIPTEN", True)
 
     with pytest.raises(NotImplementedError, match="available in the browser") as excinfo:
-        asyncio.run(pop_iclabel_async(_eeg(), version, gui=False))
+        asyncio.run(pop_iclabel_async(sample_ica_eeg, version, gui=False))
 
     assert "engine='matlab'" not in str(excinfo.value)
 
