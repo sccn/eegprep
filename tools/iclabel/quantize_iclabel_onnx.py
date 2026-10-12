@@ -448,6 +448,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     if failures:
         raise SystemExit(f"ICLabel int8 model {model} failed the frozen gate: {'; '.join(failures)}")
     if args.require_identical_to is not None:
+        # Both models run here, in the same ONNX Runtime on the same CPU, so kernel
+        # differences between machines cancel and exact equality is platform
+        # independent: it fails only when the two networks differ.
         features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, load_frozen_manifest())
         if not np.array_equal(run_network(model, features), run_network(args.require_identical_to, features)):
             raise SystemExit(

@@ -148,6 +148,7 @@ def test_gate_passes_with_every_metric_on_its_boundary():
         ("keep_reject_agreement", np.nextafter(MIN_KEEP_REJECT_AGREEMENT, -np.inf), "keep-or-reject agreement"),
         ("max_probability_abs_diff", np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), "maximum probability"),
         ("top1_agreement", np.nan, "top-1 agreement"),
+        ("keep_reject_agreement", np.nan, "keep-or-reject agreement"),
         ("max_probability_abs_diff", np.nan, "maximum probability"),
     ),
 )
@@ -306,6 +307,54 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
     tensor_types = {value.type.tensor_type.elem_type for value in (*model.graph.input, *model.graph.output)}
     assert tensor_types == {onnx.TensorProto.FLOAT}
     assert {"DequantizeLinear", "Softmax"} <= {node.op_type for node in model.graph.node}
+
+
+def test_regeneration_fails_without_a_report_when_the_required_model_differs(float32_export, tmp_path):
+    # The int8 model passes the gate but is not the float32 network it is
+    # required to reproduce here.
+    report_path = tmp_path / "parity_report.json"
+
+    with pytest.raises(SystemExit, match="not numerically identical"):
+        main(
+            [
+                "--float32-artifact",
+                str(float32_export),
+                "--output",
+                str(tmp_path / "iclabel.onnx"),
+                "--report",
+                str(report_path),
+                "--require-identical-to",
+                str(float32_export),
+            ]
+        )
+
+    assert not report_path.exists()
+
+
+def test_regeneration_fails_without_a_report_when_the_committed_report_differs(float32_export, tmp_path):
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    stale = tmp_path / "stale_parity_report.json"
+    stale.write_text(
+        json.dumps({**committed, "metrics": {**committed["metrics"], "mean_probability_abs_diff": 0.002}}),
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "parity_report.json"
+
+    with pytest.raises(SystemExit, match="mean_probability_abs_diff"):
+        main(
+            [
+                "--float32-artifact",
+                str(float32_export),
+                "--output",
+                str(tmp_path / "iclabel.onnx"),
+                "--report",
+                str(report_path),
+                "--require-matching-report",
+                str(stale),
+            ]
+        )
+
+    assert not report_path.exists()
 
 
 def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_export, tmp_path):
