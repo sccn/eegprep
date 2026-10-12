@@ -1,6 +1,4 @@
 import asyncio
-import unittest
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -14,21 +12,6 @@ from tests.fixtures import gate_iclabel_backend
 ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
 
 
-def _eeg():
-    return {
-        "data": np.zeros((2, 20), dtype=np.float32),
-        "nbchan": 2,
-        "pnts": 20,
-        "trials": 1,
-        "srate": 100,
-        "icaweights": np.eye(2),
-        "icasphere": np.eye(2),
-        "icawinv": np.eye(2),
-        "icachansind": np.arange(2),
-        "etc": {},
-    }
-
-
 class _Renderer:
     """Headless ICLabel version dialog that answers like a user."""
 
@@ -39,20 +22,40 @@ class _Renderer:
         return self.values
 
 
-class PopIclabelGuiTests(unittest.TestCase):
-    def test_gui_result_runs_iclabel_and_returns_history(self):
-        eeg = _eeg()
-        updated = dict(eeg, etc={"ic_classification": {"ICLabel": {"version": "default"}}})
-        with mock.patch("eegprep.plugins.ICLabel.pop_iclabel.iclabel", return_value=updated) as classify:
-            out, com = pop_iclabel(eeg, gui=True, renderer=_Renderer({"icversion": 1}), return_com=True)
-
-        classify.assert_called_once_with(eeg, algorithm="default", engine=None)
-        self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "default")
-        self.assertEqual(com, "EEG = pop_iclabel(EEG, 'default');")
-
-
 def _classifications(eeg):
     return eeg["etc"]["ic_classification"]["ICLabel"]["classifications"]
+
+
+# The dialog's popup index is 1-based; _run_gui clamps out-of-range indices to the menu.
+@pytest.mark.parametrize("icversion", [1, 0], ids=["default", "below-range"])
+def test_gui_sync_iclabel_default_choice_classifies_and_returns_history(sample_ica_eeg, icversion):
+    expected = _classifications(iclabel(sample_ica_eeg))
+
+    output, command = pop_iclabel(
+        sample_ica_eeg, gui=True, renderer=_Renderer({"icversion": icversion}), return_com=True
+    )
+
+    np.testing.assert_array_equal(_classifications(output), expected)
+    assert command == "EEG = pop_iclabel(EEG, 'default');"
+    assert "ic_classification" not in sample_ica_eeg["etc"]
+
+
+@pytest.mark.parametrize(
+    ("icversion", "network"),
+    [(2, "lite"), (3, "beta"), (7, "beta")],
+    ids=["lite", "beta", "above-range"],
+)
+def test_gui_sync_iclabel_lite_and_beta_choices_request_their_network(sample_ica_eeg, icversion, network):
+    with pytest.raises(NotImplementedError, match=f"The '{network}' network is available only with engine="):
+        pop_iclabel(sample_ica_eeg, gui=True, renderer=_Renderer({"icversion": icversion}), return_com=True)
+
+
+def test_gui_sync_iclabel_cancelled_dialog_returns_the_dataset_unchanged(sample_ica_eeg):
+    output, command = pop_iclabel(sample_ica_eeg, gui=True, renderer=_Renderer(None), return_com=True)
+
+    assert output is sample_ica_eeg
+    assert command == ""
+    assert "ic_classification" not in sample_ica_eeg["etc"]
 
 
 def _session(sample_ica_eeg, *setnames):
@@ -210,7 +213,3 @@ def test_gui_second_iclabel_dispatch_while_the_first_is_pending_is_discarded(sam
     assert "concurrent ICLabel call" in str(second)
     assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
     assert _classifications(session.EEG).shape == (32, 7)
-
-
-if __name__ == "__main__":
-    unittest.main()
