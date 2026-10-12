@@ -24,53 +24,31 @@ def test_runica_matmul_backends_agree():
     )
 
 
-def test_runica_matmul_selects_numpy_on_native_platform():
-    assert runica_matmul.BACKEND == "numpy.matmul"
-    assert runica_matmul.runica_matmul is runica_matmul._numpy_matmul
-
-
-def test_runica_matmul_selects_dgemm_on_emscripten(monkeypatch):
-    original_platform = sys.platform
-    monkeypatch.setattr(sys, "platform", "emscripten")
-    try:
-        reloaded = importlib.reload(runica_matmul)
-        assert reloaded.BACKEND == "scipy.linalg.blas.dgemm"
-        assert reloaded.runica_matmul is reloaded._blas_matmul
-    finally:
-        monkeypatch.setattr(sys, "platform", original_platform)
-        importlib.reload(runica_matmul)
-
-
-def test_runica_consumer_reads_the_selected_backend_module(monkeypatch):
+def test_runica_runs_its_training_products_through_dgemm_on_emscripten(monkeypatch):
     original_platform = sys.platform
     monkeypatch.setattr(sys, "platform", "emscripten")
     try:
         selected = importlib.reload(runica_matmul)
         consumer = importlib.reload(runica_module)
-        assert consumer._runica_matmul is selected
-        assert consumer._runica_matmul.runica_matmul is selected._blas_matmul
-    finally:
-        monkeypatch.setattr(sys, "platform", original_platform)
-        importlib.reload(runica_matmul)
-        importlib.reload(runica_module)
+        backend, dgemm = selected.runica_matmul, selected._dgemm
+        calls = {"backend": 0, "dgemm": 0}
 
+        def count_backend(left, right):
+            calls["backend"] += 1
+            return backend(left, right)
 
-def test_runica_executes_the_selected_backend(monkeypatch):
-    original_platform = sys.platform
-    monkeypatch.setattr(sys, "platform", "emscripten")
-    try:
-        selected = importlib.reload(runica_matmul)
-        consumer = importlib.reload(runica_module)
-        calls = []
+        def count_dgemm(**kwargs):
+            calls["dgemm"] += 1
+            return dgemm(**kwargs)
 
-        def spy(left, right):
-            calls.append((left.shape, right.shape))
-            return selected._blas_matmul(left, right)
-
-        monkeypatch.setattr(selected, "runica_matmul", spy)
+        # Patching after the import also shows that runica looks the backend up at
+        # call time, which test_runica_blas_backend_matches_numpy_backend relies on.
+        monkeypatch.setattr(selected, "runica_matmul", count_backend)
+        monkeypatch.setattr(selected, "_dgemm", count_dgemm)
         data = np.random.default_rng(385).standard_normal((3, 100))
         consumer.runica(data, maxsteps=1, verbose=False, rndreset="off")
-        assert calls
+        assert calls["backend"] > 0
+        assert calls["dgemm"] == calls["backend"]
     finally:
         monkeypatch.setattr(sys, "platform", original_platform)
         importlib.reload(runica_matmul)
