@@ -73,7 +73,7 @@ Picard remains unchanged.
 ## Measured results
 
 These numbers come from one run on 2026-10-12, on a shared Apple M4 Pro laptop (14 cores, 64 GB memory, macOS 27.0.1),
-using the harness in `tools/pyodide` as landed with the browser epic (an EEGPrep 0.4.0 wheel built from that tree).
+using the harness in `tools/pyodide` at the merge of PR #386 (an EEGPrep 0.4.0 wheel built from that tree).
 The Pyodide column ran under Node.js v26.10.0 with Pyodide 0.29.5 (21 minutes 49 seconds in total);
 the native column ran under Python 3.12.15 with NumPy 2.2.6 and SciPy 1.16.3, restricted to one BLAS thread
 (`OMP_NUM_THREADS=1` and the related variables CI sets).
@@ -143,8 +143,9 @@ Pyodide sends only input tensors across that bridge.
 The Python `iclabel_async`/`pop_iclabel_async` APIs never import native `onnxruntime` on Emscripten.
 If a host does not register the bridge, they raise an `ImportError` that names this contract.
 
-CI compares the browser result with a native `onnxruntime` reference using `rtol=1e-4` and `atol=1e-5`,
-the established ICLabel parity tolerance.
+CI compares the browser result with a native `onnxruntime` reference using `rtol=1e-4` and `atol=1e-5`.
+The tolerance is tight on purpose: both runtimes execute the same packaged int8 weights in float32 arithmetic,
+so only small numerical differences between the runtimes are expected.
 Both reports also record the SHA-256 digest of the `iclabel.onnx` in their installed EEGPrep package
 (the working tree natively, the built wheel in Pyodide),
 and the comparison fails if the digests differ, so parity is always measured on the model the tree ships.
