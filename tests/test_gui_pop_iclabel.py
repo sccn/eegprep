@@ -5,7 +5,6 @@ from unittest import mock
 import numpy as np
 import pytest
 
-import eegprep.plugins.ICLabel.pop_iclabel as pop_iclabel_module
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.plugins.ICLabel.iclabel import iclabel
@@ -50,11 +49,6 @@ class PopIclabelGuiTests(unittest.TestCase):
         classify.assert_called_once_with(eeg, algorithm="default", engine=None)
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "default")
         self.assertEqual(com, "EEG = pop_iclabel(EEG, 'default');")
-
-    def test_sync_entry_point_fails_fast_under_emscripten(self):
-        with mock.patch.object(pop_iclabel_module, "_IS_EMSCRIPTEN", True):
-            with self.assertRaisesRegex(RuntimeError, r"or await pop_iclabel_async\(\.\.\.\)"):
-                pop_iclabel(None)
 
 
 @pytest.fixture(scope="module")

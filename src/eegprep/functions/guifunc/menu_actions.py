@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-import sys
 import webbrowser
 from collections.abc import Callable, Coroutine, Mapping
 from functools import wraps
@@ -20,10 +19,10 @@ from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.plugins.ICLabel.iclabel import IS_EMSCRIPTEN
 
 
 logger = logging.getLogger(__name__)
-_IS_EMSCRIPTEN = sys.platform == "emscripten"
 # The only menu action whose backend is an awaitable JavaScript Promise under Emscripten.
 _ASYNC_ICLABEL_ACTION = "pop_iclabel"
 
@@ -287,7 +286,7 @@ class MenuActionDispatcher:
         :meth:`dispatch_gui_async` coroutine is returned instead and the caller must
         schedule it on the running event loop.
         """
-        if _IS_EMSCRIPTEN and action.partition(":")[0] == _ASYNC_ICLABEL_ACTION:
+        if IS_EMSCRIPTEN and action.partition(":")[0] == _ASYNC_ICLABEL_ACTION:
             return self.dispatch_gui_async(action, parent)
         with self.session.gui_action(action):
             try:

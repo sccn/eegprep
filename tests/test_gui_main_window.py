@@ -1095,7 +1095,7 @@ def emscripten_iclabel_window(qt_widgets, monkeypatch):
     """Main window over the sample ICA dataset with ICLabel dispatched as under Emscripten."""
     from eegprep.functions.guifunc.main_window import build_main_window
 
-    monkeypatch.setattr(menu_actions_module, "_IS_EMSCRIPTEN", True)
+    monkeypatch.setattr(menu_actions_module, "IS_EMSCRIPTEN", True)
     session = EEGPrepSession()
     session.store_current(load_sample_ica_eeg(), new=True)
     window = build_main_window(session, all_menus=False)
