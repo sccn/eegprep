@@ -1,4 +1,5 @@
 import hashlib
+import io
 import json
 from pathlib import Path
 
@@ -309,9 +310,39 @@ def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_exp
     assert not report_path.exists()
 
 
-def test_freeze_reports_an_unreadable_feature_checkpoint_before_recomputing(tmp_path, capsys):
+def _checkpoint_bytes(components=31, value=0.0):
+    buffer = io.BytesIO()
+    np.savez_compressed(
+        buffer,
+        topo=np.full((32, 32, 1, components), value, dtype=np.float32),
+        psd=np.zeros((1, 100, 1, components), dtype=np.float32),
+        autocorr=np.zeros((1, 100, 1, components), dtype=np.float32),
+    )
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("contents", "reason"),
+    (
+        (b"", "is unreadable (EOFError"),
+        (_checkpoint_bytes()[: len(_checkpoint_bytes()) // 2], "is unreadable (BadZipFile"),
+        (b"not an npz archive", "is unreadable"),
+        (_checkpoint_bytes(components=30), "has shapes"),
+        (_checkpoint_bytes(value=np.nan), "contains non-finite values"),
+    ),
+    ids=("zero-byte", "truncated", "not-npz", "wrong-component-count", "non-finite"),
+)
+def test_freeze_logs_why_it_recomputes_a_feature_checkpoint(tmp_path, capsys, contents, reason):
     checkpoint = tmp_path / "sub-002.npz"
-    checkpoint.write_bytes(b"not an npz archive")
+    checkpoint.write_bytes(contents)
 
     assert _feature_archive_is_valid(checkpoint) is False
-    assert f"RECOMPUTE unreadable feature checkpoint {checkpoint}" in capsys.readouterr().err
+    assert f"RECOMPUTE feature checkpoint {checkpoint} {reason}" in capsys.readouterr().err
+
+
+def test_freeze_reuses_a_valid_feature_checkpoint_silently(tmp_path, capsys):
+    checkpoint = tmp_path / "sub-002.npz"
+    checkpoint.write_bytes(_checkpoint_bytes())
+
+    assert _feature_archive_is_valid(checkpoint) is True
+    assert capsys.readouterr().err == ""
