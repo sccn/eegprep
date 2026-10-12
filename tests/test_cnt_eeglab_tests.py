@@ -22,6 +22,7 @@ from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.sigprocfunc.loadcnt import loadcnt
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 LOADCNT_WRAPPER = "unittesting_binary/loadcnt/binary_loadcnt_wrapperTest.m"
@@ -299,12 +300,20 @@ def test_loadcnt_warns_and_truncates_a_request_at_end_of_recording(
 
 
 @eeglab_test(LOADCNT_WRAPPER, "test_test_loadcnt")
-def test_upstream_loadcnt_original_eight_call_forms(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+def test_upstream_loadcnt_original_eight_call_forms(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request
+):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "loadcnt", "neuroscanio")
     _original_cnt_calls(eeglab_backend, eeglab_suite_root, "loadcnt")
 
 
 @eeglab_test(POP_LOADCNT_WRAPPER, "test_test_pop_loadcnt")
-def test_upstream_pop_loadcnt_original_eight_call_forms(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+def test_upstream_pop_loadcnt_original_eight_call_forms(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request
+):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "pop_loadcnt", "neuroscanio")
     _original_cnt_calls(eeglab_backend, eeglab_suite_root, "pop_loadcnt")
 
 
