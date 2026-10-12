@@ -36,6 +36,7 @@ ERP_PERMUTATIONS = 500
 MIN_ERPALPHA = 0.001
 MAX_ERPALPHA = 0.1
 AMPSORT_WINDOW_STEP_MS = 10.0
+WAVELET_TRIAL_BLOCK = 256  # trials per FFT block, bounding memory for large datasets
 PLOTAMPS_CAXIS_FRACTION = 0.8
 NEAR_ZERO = 1e-22
 EEGLAB_SIGN_BIAS_ISSUE = "https://github.com/sccn/eeglab/issues/976"
@@ -1591,12 +1592,35 @@ def _weighted_windows(values: np.ndarray, columns: np.ndarray, weights: np.ndarr
             total += clean[:, columns + tap] * weight
             present |= finite[:, columns + tap]
         total[~present] = np.nan
+    elif np.all(weights == weights[0]):
+        # Boxcar: O(trials) sliding sums instead of one pass per tap. The same terms are
+        # added in a different order, so results agree within (2*width)*eps*max|x|.
+        total = _sliding_sums(values, columns, weights.size) * weights[0]
     else:
         total = np.zeros((values.shape[0], columns.size))
         for tap, weight in enumerate(weights):
             total += values[:, columns + tap] * weight
     weight_sum = _seqsum(weights, axis=0)
     return total / weight_sum if abs(weight_sum) > NEAR_ZERO else total
+
+
+def _sliding_sums(values: np.ndarray, starts: np.ndarray, width: int) -> np.ndarray:
+    """Sums of ``width`` consecutive columns at each start (van Herk/Gil-Werman).
+
+    Columns are split into blocks of ``width``; a window is the suffix of one block
+    plus the prefix of the next, so each sum uses only the window's own terms.
+    """
+    rows, ntrials = values.shape
+    blocks = -(-ntrials // width) + 1
+    padded = np.zeros((rows, blocks * width))
+    padded[:, :ntrials] = values
+    shaped = padded.reshape(rows, blocks, width)
+    prefix = np.cumsum(shaped, axis=2).reshape(rows, -1)
+    suffix = np.cumsum(shaped[:, :, ::-1], axis=2)[:, :, ::-1].reshape(rows, -1)
+    sums = prefix[:, starts + width - 1]
+    partial = starts % width != 0
+    sums[:, partial] += suffix[:, starts[partial]]
+    return sums
 
 
 def _nan_sum(values: np.ndarray, axis: int) -> np.ndarray:
@@ -1725,7 +1749,10 @@ def _permutation_threshold(values: np.ndarray, alpha: float, signs: np.ndarray) 
     empty = counts == 0
     counts[empty] = 1
     mean = _seqsum(clean, axis=0) / counts
-    permuted = np.sort(np.abs((signs @ clean) / counts), axis=0)
+    # macOS Accelerate raises spurious floating-point flags inside matmul; the inputs are finite.
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        sums = signs @ clean
+    permuted = np.sort(np.abs(sums / counts), axis=0)
     bound = int(np.floor(2 * alpha * signs.shape[0]))
     threshold = permuted[signs.shape[0] - 1 - bound]
     mean[empty] = np.nan
@@ -1900,13 +1927,30 @@ def _phasecoher(  # noqa: C901
 
 
 def _wavelet_transform(extended: np.ndarray, frames: int, coswin: np.ndarray, sinwin: np.ndarray) -> np.ndarray:
-    """Demeaned windowed projections for each frame (EEGLAB's per-frame loop)."""
+    """EEGLAB's per-frame projection of each demeaned window onto the wavelet.
+
+    ``coswin . (epoch - mean(epoch))`` equals a correlation of the data with the
+    demeaned kernel, computed here with FFTs (agreeing within a few eps of
+    ``max|result|``). The kernel sums to zero, so removing each trial's mean first
+    changes nothing but keeps rounding relative to the signal, not its offset.
+    """
     length = coswin.size
+    real_kernel = coswin - _seqsum(coswin, axis=0) / length
+    imag_kernel = sinwin - _seqsum(sinwin, axis=0) / length
+    size = 1 << int(np.ceil(np.log2(extended.shape[0] + length - 1)))
+    real_spectrum = np.fft.rfft(real_kernel[::-1], size)
+    imag_spectrum = np.fft.rfft(imag_kernel[::-1], size)
     result = np.empty((frames, extended.shape[1]), dtype=complex)
-    for frame in range(frames):
-        epoch = extended[frame : frame + length]
-        epoch = epoch - _seqsum(epoch, axis=0) / length
-        result[frame] = (coswin @ epoch) + 1j * (sinwin @ epoch)
+    for start in range(0, extended.shape[1], WAVELET_TRIAL_BLOCK):
+        block = extended[:, start : start + WAVELET_TRIAL_BLOCK]
+        spectrum = np.fft.rfft(block - block.mean(axis=0), size, axis=0)
+        window = slice(length - 1, length - 1 + frames)
+        result[:, start : start + block.shape[1]].real = np.fft.irfft(spectrum * real_spectrum[:, None], size, axis=0)[
+            window
+        ]
+        result[:, start : start + block.shape[1]].imag = np.fft.irfft(spectrum * imag_spectrum[:, None], size, axis=0)[
+            window
+        ]
     return result
 
 

@@ -582,6 +582,7 @@ def test_auxvar_follows_alignment_ties_and_orientation() -> None:
     np.testing.assert_allclose(aligned.auxvar[0], auxvar[aligned.sortidx, 0] + shifts)
 
 
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
 def test_nan_after_smoothing_zeroes_the_whole_row_column_block() -> None:
     data = np.ones((6, 8))
     data[2, 3], data[2, 4] = np.inf, -np.inf  # inf - inf turns into NaN inside the moving average
@@ -602,7 +603,7 @@ def test_percentile_erps_with_fewer_trials_than_groups_give_missing_rows() -> No
 @pytest.mark.parametrize(
     ("options", "check"),
     [
-        (["timewarp", (np.full((8, 1), 120.0), [100.0], ["r--"])], lambda r: r.vert_colors == ("r--",)),
+        (["timewarp", (np.full((8, 1), 120.0), [150.0], ["r--"])], lambda r: r.vert_colors == ("r--",)),
         (["timewarp", (np.full((8, 1), 120.0),), "auxvar", np.zeros((1, 8))], lambda r: r.verttimes is None),
         (["avg_type", "gaussian"], lambda r: r.outdata.shape[1] == 8),
         (["ampsort", [200, 0, 10, 10]], lambda r: r.sort_mode == "amp"),
@@ -741,3 +742,17 @@ def test_squeezed_three_dimensional_input_and_boxcar_zero_width() -> None:
         data, None, np.arange(20.0), 0, 0, engine.parse_erpimage_options(avg_type="gaussian"), plotted=False
     )
     np.testing.assert_array_equal(gaussian.outdata, data[0])
+
+
+def test_wavelet_transform_ignores_trial_offsets_and_spans_trial_blocks() -> None:
+    rng = np.random.default_rng(7)
+    frames, trials = 48, engine.WAVELET_TRIAL_BLOCK + 44
+    values = rng.normal(size=(frames + 40, trials))
+    coswin, sinwin = engine._wavelet(128.0, 10.0, 3.0)
+    length = coswin.size
+    direct = np.empty((frames, trials), dtype=complex)
+    for frame in range(frames):
+        epoch = values[frame : frame + length] - values[frame : frame + length].mean(axis=0)
+        direct[frame] = coswin @ epoch + 1j * (sinwin @ epoch)
+    offset = engine._wavelet_transform(values + 1e6, frames, coswin, sinwin)
+    np.testing.assert_allclose(offset, direct, rtol=0, atol=1e-9 * np.max(np.abs(direct)))
