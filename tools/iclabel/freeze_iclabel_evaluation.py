@@ -1,9 +1,9 @@
-"""Download the frozen ICLabel recordings and build float32 feature archives.
+"""Download the frozen ICLabel evaluation recordings and build their float32 feature archive.
 
 The manifest is the authority for recording selection and checksums. This tool
 only downloads the public NEMAR objects named by that manifest, runs the fixed
 EEGPrep ICA and ICLabel feature path, and writes resumable derived archives.
-It does not run a quantized model or select a shipped artifact.
+It does not run any ICLabel network.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ import numpy as np
 
 from eegprep import ICL_feature_extractor, eeg_runica, pop_loadset
 
-from tools.iclabel.quantize_iclabel_onnx import load_frozen_manifest
+from tools.iclabel.quantize_iclabel_onnx import COMPONENTS_PER_RECORDING, load_frozen_manifest
 
 
-COMPONENT_COUNT = 31
 DEFAULT_DATA_DIR = Path("/private/tmp/eegprep-phase6-iclabel-data")
 DEFAULT_OUTPUT_DIR = Path(__file__).parent
+_SPLIT = "evaluation"
 _CHUNK_SIZE = 1024 * 1024
 
 
@@ -96,9 +96,9 @@ def _feature_archive_is_valid(path: Path) -> bool:
     except (KeyError, OSError, ValueError):
         return False
     return (
-        arrays[0].shape == (32, 32, 1, COMPONENT_COUNT)
-        and arrays[1].shape == (1, 100, 1, COMPONENT_COUNT)
-        and arrays[2].shape == (1, 100, 1, COMPONENT_COUNT)
+        arrays[0].shape == (32, 32, 1, COMPONENTS_PER_RECORDING)
+        and arrays[1].shape == (1, 100, 1, COMPONENTS_PER_RECORDING)
+        and arrays[2].shape == (1, 100, 1, COMPONENTS_PER_RECORDING)
         and all(np.isfinite(array).all() for array in arrays)
     )
 
@@ -120,7 +120,11 @@ def _extract_recording_features(raw_path: Path) -> tuple[np.ndarray, np.ndarray,
         raise ValueError(f"ICLabel feature extraction returned {len(features)} arrays for {raw_path}")
     if any(not np.isfinite(feature).all() for feature in features):
         raise ValueError(f"ICLabel feature extraction returned non-finite values for {raw_path}")
-    expected_shapes = ((32, 32, 1, COMPONENT_COUNT), (1, 100, 1, COMPONENT_COUNT), (1, 100, 1, COMPONENT_COUNT))
+    expected_shapes = (
+        (32, 32, 1, COMPONENTS_PER_RECORDING),
+        (1, 100, 1, COMPONENTS_PER_RECORDING),
+        (1, 100, 1, COMPONENTS_PER_RECORDING),
+    )
     if tuple(feature.shape for feature in features) != expected_shapes:
         raise ValueError(
             f"Unexpected ICLabel feature shapes for {raw_path}: {tuple(feature.shape for feature in features)}"
@@ -130,15 +134,14 @@ def _extract_recording_features(raw_path: Path) -> tuple[np.ndarray, np.ndarray,
 
 def _recording_features(
     manifest: Mapping[str, object],
-    split_name: str,
     recording: Mapping[str, object],
     data_dir: Path,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    raw_path = data_dir / split_name / str(recording["source_path"])
+    raw_path = data_dir / _SPLIT / str(recording["source_path"])
     _download_recording(manifest, recording, raw_path)
-    checkpoint = data_dir / "features" / split_name / f"{recording['subject']}.npz"
+    checkpoint = data_dir / "features" / _SPLIT / f"{recording['subject']}.npz"
     if _feature_archive_is_valid(checkpoint):
-        print(f"CHECKPOINT {split_name}/{recording['subject']}", flush=True)
+        print(f"CHECKPOINT {_SPLIT}/{recording['subject']}", flush=True)
         with np.load(checkpoint, allow_pickle=False) as archive:
             return tuple(np.asarray(archive[name], dtype=np.float32) for name in ("topo", "psd", "autocorr"))
 
@@ -159,29 +162,28 @@ def _write_archive(path: Path, features: Sequence[np.ndarray]) -> None:
     os.replace(temporary, path)
 
 
-def build_split(
+def build_evaluation_archive(
     manifest: Mapping[str, object],
-    split_name: str,
     data_dir: Path,
     output_path: Path,
     limit: int | None = None,
 ) -> None:
-    split = manifest[split_name]
-    recordings = split["recordings"]
+    evaluation = manifest[_SPLIT]
+    recordings = evaluation["recordings"]
     if limit is not None:
         recordings = recordings[:limit]
     extracted = []
     for index, recording in enumerate(recordings, start=1):
-        print(f"RECORDING {split_name} {index}/{len(recordings)} {recording['subject']}", flush=True)
-        extracted.append(_recording_features(manifest, split_name, recording, data_dir))
-    if limit is None and len(extracted) != int(split["component_count"]) // COMPONENT_COUNT:
-        raise ValueError(f"{split_name} archive did not process all manifest recordings")
+        print(f"RECORDING {_SPLIT} {index}/{len(recordings)} {recording['subject']}", flush=True)
+        extracted.append(_recording_features(manifest, recording, data_dir))
+    if limit is None and len(extracted) != int(evaluation["component_count"]) // COMPONENTS_PER_RECORDING:
+        raise ValueError(f"{_SPLIT} archive did not process all manifest recordings")
     features = tuple(np.concatenate([recording[index] for recording in extracted], axis=3) for index in range(3))
-    expected_count = len(extracted) * COMPONENT_COUNT
+    expected_count = len(extracted) * COMPONENTS_PER_RECORDING
     if any(feature.shape[3] != expected_count for feature in features):
-        raise ValueError(f"{split_name} archive has the wrong component count")
+        raise ValueError(f"{_SPLIT} archive has the wrong component count")
     _write_archive(output_path, features)
-    print(f"ARCHIVE {split_name} {output_path} components={expected_count}", flush=True)
+    print(f"ARCHIVE {_SPLIT} {output_path} components={expected_count}", flush=True)
 
 
 def main() -> None:
@@ -189,16 +191,12 @@ def main() -> None:
     parser.add_argument("--manifest", type=Path, default=Path(__file__).with_name("evaluation_manifest.json"))
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    parser.add_argument("--split", choices=("all", "evaluation", "calibration"), default="all")
     parser.add_argument("--limit", type=int, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     manifest = load_frozen_manifest(args.manifest)
-    splits = ("evaluation", "calibration") if args.split == "all" else (args.split,)
-    for split_name in splits:
-        output_name = f"{split_name}_features.npz"
-        build_split(manifest, split_name, args.data_dir, args.output_dir / output_name, args.limit)
-    print(json.dumps({"status": "complete", "splits": list(splits)}), flush=True)
+    build_evaluation_archive(manifest, args.data_dir, args.output_dir / f"{_SPLIT}_features.npz", args.limit)
+    print(json.dumps({"status": "complete", "splits": [_SPLIT]}), flush=True)
 
 
 if __name__ == "__main__":

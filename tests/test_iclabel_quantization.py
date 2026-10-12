@@ -1,35 +1,38 @@
+import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from eegprep.plugins.ICLabel.iclabel import postprocess_network_output, prepare_network_inputs
-from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS
+from eegprep.plugins.ICLabel.iclabel_net_onnx import run_iclabel_net
 from tools.iclabel.quantize_iclabel_onnx import (
-    DEFAULT_CALIBRATED_ARTIFACT,
-    DEFAULT_FLOAT32_ARTIFACT,
-    DEFAULT_FROZEN_MANIFEST,
     DEFAULT_EVALUATION_FEATURES,
+    DEFAULT_FROZEN_MANIFEST,
+    DEFAULT_REPORT,
     DEFAULT_TEACHER_PROBABILITIES,
-    DEFAULT_WEIGHT_ONLY_ARTIFACT,
     MAX_PROBABILITY_ABS_DIFF,
     MIN_KEEP_REJECT_AGREEMENT,
     MIN_TOP1_AGREEMENT,
+    PACKAGED_MODEL,
     compare_predictions,
-    evaluate_artifacts,
+    evaluate_model,
+    gate_failures,
     load_frozen_manifest,
     load_verified_feature_archive,
     load_verified_teacher,
+    main,
     network_inputs_from_features,
-    parity_gate_passes,
-    predict_features,
-    quantize_calibrated,
-    quantize_weight_only,
-    select_default_artifact,
 )
 
 
 _NET_ICL_MAT = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "netICL.mat"
+_METRICS_AT_GATE_BOUNDARY = {
+    "top1_agreement": MIN_TOP1_AGREEMENT,
+    "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
+    "max_probability_abs_diff": MAX_PROBABILITY_ABS_DIFF,
+}
 
 
 def _reference_network_inputs(features):
@@ -45,26 +48,33 @@ def _reference_network_inputs(features):
     }
 
 
-def test_frozen_manifest_is_subject_balanced_and_calibration_disjoint():
+def _frozen_inputs():
     manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest)
+    return manifest, features, load_verified_teacher(DEFAULT_TEACHER_PROBABILITIES, manifest)
 
-    assert manifest["status"] == "frozen"
-    evaluation = manifest["evaluation"]
-    calibration = manifest["calibration"]
-    evaluation_subjects = [item["subject"] for item in evaluation["recordings"]]
-    calibration_subjects = [item["subject"] for item in calibration["recordings"]]
 
-    assert evaluation_subjects == sorted(set(evaluation_subjects))
-    assert calibration_subjects == sorted(set(calibration_subjects))
-    assert set(evaluation_subjects).isdisjoint(calibration_subjects)
-    assert all(item["component_indices"] == list(range(31)) for item in evaluation["recordings"])
-    assert all(item["component_indices"] == list(range(31)) for item in calibration["recordings"])
-    assert {item["source_path"] for item in evaluation["recordings"]}.isdisjoint(
-        item["source_path"] for item in calibration["recordings"]
-    )
-    assert manifest["selection_policy"]["confidence_based_filtering"] is False
-    assert manifest["selection_policy"]["subject_disjoint"] is True
-    assert manifest["selection_policy"]["recordings_per_subject"] == 1
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    (
+        (lambda manifest: manifest["selection_policy"].update(label_based_selection=True), "label filtering"),
+        (lambda manifest: manifest["selection_policy"].update(confidence_based_filtering=True), "confidence"),
+        (
+            lambda manifest: manifest["evaluation"]["recordings"][0].update(component_indices=list(range(30))),
+            "retain all 31 components",
+        ),
+        (lambda manifest: manifest["evaluation"]["recordings"].reverse(), "unique and sorted"),
+        (lambda manifest: manifest["evaluation"]["teacher_probabilities"].pop("sha256"), "teacher_probabilities"),
+    ),
+)
+def test_manifest_validation_rejects_biased_or_incomplete_selection(tmp_path, mutate, message):
+    manifest = json.loads(DEFAULT_FROZEN_MANIFEST.read_text(encoding="utf-8"))
+    mutate(manifest)
+    path = tmp_path / "evaluation_manifest.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        load_frozen_manifest(path)
 
 
 def test_compare_predictions_reports_overall_and_per_class_agreement():
@@ -124,18 +134,25 @@ def test_compare_predictions_exposes_rejection_threshold_boundaries():
     assert metrics["keep_reject_agreement"] == pytest.approx(0.0)
 
 
-@pytest.mark.parametrize(
-    ("probability_drift", "expected"),
-    ((MAX_PROBABILITY_ABS_DIFF, True), (np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), False)),
-)
-def test_probability_gate_boundary_is_inclusive(probability_drift, expected):
-    metrics = {
-        "top1_agreement": MIN_TOP1_AGREEMENT,
-        "keep_reject_agreement": MIN_KEEP_REJECT_AGREEMENT,
-        "max_probability_abs_diff": probability_drift,
-    }
+def test_gate_passes_with_every_metric_on_its_boundary():
+    assert gate_failures(_METRICS_AT_GATE_BOUNDARY) == []
 
-    assert parity_gate_passes(metrics) is expected
+
+@pytest.mark.parametrize(
+    ("metric", "value", "message"),
+    (
+        ("top1_agreement", np.nextafter(MIN_TOP1_AGREEMENT, -np.inf), "top-1 agreement"),
+        ("keep_reject_agreement", np.nextafter(MIN_KEEP_REJECT_AGREEMENT, -np.inf), "keep-or-reject agreement"),
+        ("max_probability_abs_diff", np.nextafter(MAX_PROBABILITY_ABS_DIFF, np.inf), "maximum probability"),
+        ("top1_agreement", np.nan, "top-1 agreement"),
+        ("max_probability_abs_diff", np.nan, "maximum probability"),
+    ),
+)
+def test_each_gate_criterion_fails_on_its_own(metric, value, message):
+    failures = gate_failures({**_METRICS_AT_GATE_BOUNDARY, metric: value})
+
+    assert len(failures) == 1
+    assert message in failures[0]
 
 
 def test_frozen_feature_archive_hash_is_verified(tmp_path):
@@ -147,7 +164,7 @@ def test_frozen_feature_archive_hash_is_verified(tmp_path):
     np.savez(mutated, **features)
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
-        load_verified_feature_archive(mutated, manifest, "evaluation")
+        load_verified_feature_archive(mutated, manifest)
 
 
 def test_frozen_teacher_hash_is_verified(tmp_path):
@@ -165,8 +182,7 @@ def test_frozen_teacher_matches_the_netICL_network():
     torch = pytest.importorskip("torch")
     from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
 
-    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
-    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    _, features, teacher = _frozen_inputs()
     model = ICLabelNet(str(_NET_ICL_MAT))
     model.eval()
     with torch.no_grad():
@@ -178,17 +194,11 @@ def test_frozen_teacher_matches_the_netICL_network():
     # float32 reordering gap between two independent implementations. 1e-5
     # leaves room for other CPUs while staying 1,500 times below the
     # 0.015 probability gate, so a different network would fail here.
-    np.testing.assert_allclose(
-        postprocess_network_output(output.numpy()),
-        load_verified_teacher(DEFAULT_TEACHER_PROBABILITIES, manifest),
-        rtol=0,
-        atol=1e-5,
-    )
+    np.testing.assert_allclose(postprocess_network_output(output.numpy()), teacher, rtol=0, atol=1e-5)
 
 
 def test_production_prepare_inputs_match_independent_reference():
-    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
-    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
+    _, features, _ = _frozen_inputs()
     actual = network_inputs_from_features(features)
     expected = _reference_network_inputs(features)
 
@@ -196,174 +206,102 @@ def test_production_prepare_inputs_match_independent_reference():
         np.testing.assert_array_equal(actual[name], expected[name])
 
 
-def test_artifact_selection_falls_back_to_float32_until_an_int8_gate_passes():
-    report = {
-        "candidates": {
-            "weight_only": {
-                "artifact": "iclabel_int8_weight_only.onnx",
-                "top1_agreement": 0.99,
-                "keep_reject_agreement": 0.98,
-                "max_probability_abs_diff": 0.01,
-            },
-            "calibrated": {
-                "artifact": "iclabel_int8_calibrated.onnx",
-                "top1_agreement": 0.99,
-                "keep_reject_agreement": 0.98,
-                "max_probability_abs_diff": 0.01,
-            },
-        }
+def test_parity_report_records_the_packaged_model_and_frozen_inputs():
+    report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
+    model_bytes = PACKAGED_MODEL.read_bytes()
+
+    assert report["packaged_model"]["sha256"] == hashlib.sha256(model_bytes).hexdigest()
+    assert report["packaged_model"]["size_bytes"] == len(model_bytes)
+    assert report["evaluation_features"]["sha256"] == manifest["evaluation"]["feature_archive"]["sha256"]
+    assert report["teacher_probabilities"]["sha256"] == manifest["evaluation"]["teacher_probabilities"]["sha256"]
+    assert report["gate_pass"] is True
+    assert gate_failures(report["metrics"]) == []
+
+
+def test_production_runtime_passes_the_frozen_gate():
+    pytest.importorskip("onnxruntime")
+    manifest, features, teacher = _frozen_inputs()
+
+    probabilities = postprocess_network_output(run_iclabel_net(*prepare_network_inputs(features)))
+    metrics = compare_predictions(teacher, probabilities)
+
+    assert gate_failures(metrics) == []
+    assert (
+        metrics["teacher_class_distribution"] == manifest["evaluation"]["teacher_probabilities"]["class_distribution"]
+    )
+
+
+def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model():
+    pytest.importorskip("onnxruntime")
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+
+    report = evaluate_model(PACKAGED_MODEL)
+
+    # Probability metrics can differ in the last float32 bits across CPUs, so
+    # only the gate verdict and the platform-independent fields must match.
+    assert gate_failures(report["metrics"]) == []
+    assert {key: value for key, value in report.items() if key != "metrics"} == {
+        key: value for key, value in committed.items() if key != "metrics"
     }
 
-    assert select_default_artifact(report) == "iclabel.onnx"
 
-    report["candidates"]["weight_only"]["keep_reject_agreement"] = 0.99
-    assert select_default_artifact(report) == "iclabel_int8_weight_only.onnx"
+@pytest.fixture(scope="module")
+def float32_export(tmp_path_factory):
+    pytest.importorskip("torch")
+    pytest.importorskip("onnx")
+    pytest.importorskip("onnxruntime")
+    from tools.iclabel.export_iclabel_onnx import export, verify
 
-    report["candidates"]["weight_only"]["keep_reject_agreement"] = 0.98
-    report["candidates"]["calibrated"]["keep_reject_agreement"] = 0.99
-    assert select_default_artifact(report) == "iclabel_int8_calibrated.onnx"
+    path = export(_NET_ICL_MAT, tmp_path_factory.mktemp("iclabel") / "iclabel_float32.onnx")
+    # export_iclabel_onnx.main() applies the same bound; measured 1.0e-05 on its random inputs.
+    assert verify(_NET_ICL_MAT, path) <= 1e-4
+    return path
 
 
-def test_thresholds_remain_the_existing_open_interval_defaults():
-    expected = np.array(
+def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, tmp_path):
+    import onnx
+
+    report_path = tmp_path / "parity_report.json"
+    output = tmp_path / "iclabel.onnx"
+
+    main(
         [
-            [np.nan, np.nan],
-            [0.9, 1.0],
-            [0.9, 1.0],
-            [np.nan, np.nan],
-            [np.nan, np.nan],
-            [np.nan, np.nan],
-            [np.nan, np.nan],
+            "--float32-artifact",
+            str(float32_export),
+            "--output",
+            str(output),
+            "--report",
+            str(report_path),
+            "--require-identical-to",
+            str(PACKAGED_MODEL),
         ]
     )
-    np.testing.assert_equal(DEFAULT_ICFLAG_THRESHOLDS, expected)
+
+    assert json.loads(report_path.read_text(encoding="utf-8"))["gate_pass"] is True
+    model = onnx.load(output)
+    tensor_types = {value.type.tensor_type.elem_type for value in (*model.graph.input, *model.graph.output)}
+    assert tensor_types == {onnx.TensorProto.FLOAT}
+    assert {"DequantizeLinear", "Softmax"} <= {node.op_type for node in model.graph.node}
 
 
-def test_packaged_artifact_matches_the_gate_selected_candidate():
-    package_artifact = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
-    assert package_artifact.read_bytes() == DEFAULT_WEIGHT_ONLY_ARTIFACT.read_bytes()
+def test_quantize_exits_nonzero_without_a_report_when_the_gate_fails(float32_export, tmp_path):
+    import onnx
+    from onnx import numpy_helper
 
+    # Scaling the final Conv weights scales the logits, which moves the
+    # softmax probabilities far beyond the 0.015 gate.
+    model = onnx.load(float32_export)
+    final_conv = [node for node in model.graph.node if node.op_type == "Conv"][-1]
+    weights = next(initializer for initializer in model.graph.initializer if initializer.name == final_conv.input[1])
+    weights.CopyFrom(numpy_helper.from_array(numpy_helper.to_array(weights) * np.float32(1.5), name=weights.name))
+    perturbed = tmp_path / "perturbed_float32.onnx"
+    onnx.save(model, perturbed)
+    report_path = tmp_path / "parity_report.json"
 
-def test_packaged_default_artifact_passes_the_semantic_gate():
-    pytest.importorskip("onnxruntime")
+    with pytest.raises(SystemExit, match="failed the frozen gate"):
+        main(
+            ["--float32-artifact", str(perturbed), "--output", str(tmp_path / "out.onnx"), "--report", str(report_path)]
+        )
 
-    package_artifact = Path(__file__).parents[1] / "src" / "eegprep" / "plugins" / "ICLabel" / "iclabel.onnx"
-    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
-    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
-    teacher = predict_features(DEFAULT_FLOAT32_ARTIFACT, features)
-    candidate = predict_features(package_artifact, features)
-
-    assert parity_gate_passes(compare_predictions(teacher, candidate))
-
-
-def test_committed_candidates_pass_evaluation_on_the_frozen_archive():
-    pytest.importorskip("onnxruntime")
-
-    report = evaluate_artifacts(
-        DEFAULT_FLOAT32_ARTIFACT,
-        DEFAULT_EVALUATION_FEATURES,
-        {"weight_only": DEFAULT_WEIGHT_ONLY_ARTIFACT, "calibrated": DEFAULT_CALIBRATED_ARTIFACT},
-    )
-
-    assert report["float32_reference"]["sample_count"] == 217
-    assert report["float32_reference"]["top1_agreement"] == pytest.approx(1.0)
-    assert report["float32_reference"]["keep_reject_agreement"] == pytest.approx(1.0)
-    assert report["feature_archives"]["evaluation"] == {
-        "path": "tools/iclabel/evaluation_features.npz",
-        "sha256": "dbb2c0cc063d29ab2e8e59fafb0f474df780a458ac17be9d4732abc0233c8b44",
-        "component_count": 217,
-    }
-    assert report["default_artifact"] == "iclabel_int8_weight_only.onnx"
-    assert report["gate"]["maximum_probability_abs_diff"] == MAX_PROBABILITY_ABS_DIFF
-
-    expected_counts = {
-        "Brain": 18,
-        "Muscle": 1,
-        "Eye": 5,
-        "Heart": 0,
-        "Line Noise": 0,
-        "Channel Noise": 0,
-        "Other": 193,
-    }
-    # ONNX Runtime can make platform-specific boundary choices for calibrated
-    # int8 activations; the fixed promotion thresholds are the portable gate.
-    for candidate_name in ("weight_only", "calibrated"):
-        candidate = report["candidates"][candidate_name]
-        assert candidate["gate_pass"] is (candidate_name == "weight_only")
-        assert candidate["top1_agreement"] >= MIN_TOP1_AGREEMENT
-        assert candidate["keep_reject_agreement"] >= MIN_KEEP_REJECT_AGREEMENT
-        assert candidate["teacher_class_distribution"] == expected_counts
-        assert set(candidate["per_class_agreement"]) == set(expected_counts)
-    assert report["candidates"]["calibrated"]["max_probability_abs_diff"] > MAX_PROBABILITY_ABS_DIFF
-
-
-def test_weight_only_matches_full_frozen_probabilities_and_threshold_boundaries():
-    pytest.importorskip("onnxruntime")
-
-    manifest = load_frozen_manifest(DEFAULT_FROZEN_MANIFEST)
-    features = load_verified_feature_archive(DEFAULT_EVALUATION_FEATURES, manifest, "evaluation")
-    teacher = predict_features(DEFAULT_FLOAT32_ARTIFACT, features)
-    candidate = predict_features(DEFAULT_WEIGHT_ONLY_ARTIFACT, features)
-    metrics = compare_predictions(teacher, candidate, DEFAULT_ICFLAG_THRESHOLDS)
-
-    assert teacher.shape == (217, 7)
-    assert metrics["max_probability_abs_diff"] <= MAX_PROBABILITY_ABS_DIFF
-    assert metrics["mean_probability_abs_diff"] <= 0.001
-    assert metrics["keep_reject_agreement"] == pytest.approx(1.0)
-
-
-def test_weight_only_quantization_preserves_float_io_and_softmax(tmp_path):
-    onnx = pytest.importorskip("onnx")
-    ort = pytest.importorskip("onnxruntime")
-
-    output_path = tmp_path / "weight-only.onnx"
-    quantize_weight_only(DEFAULT_FLOAT32_ARTIFACT, output_path)
-    model = onnx.load(output_path)
-
-    input_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.input}
-    output_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.output}
-    assert set(input_types.values()) == {onnx.TensorProto.FLOAT}
-    assert set(output_types.values()) == {onnx.TensorProto.FLOAT}
-    assert any(node.op_type == "DequantizeLinear" for node in model.graph.node)
-    assert any(node.op_type == "Softmax" for node in model.graph.node)
-
-    session = ort.InferenceSession(str(output_path), providers=["CPUExecutionProvider"])
-    inputs = {
-        "image": np.zeros((2, 1, 32, 32), dtype=np.float32),
-        "psdmed": np.zeros((2, 1, 1, 100), dtype=np.float32),
-        "autocorr": np.zeros((2, 1, 1, 100), dtype=np.float32),
-    }
-    (output,) = session.run(["output"], inputs)
-    assert output.shape == (2, 7, 1, 1)
-    assert np.isfinite(output).all()
-    np.testing.assert_allclose(output.sum(axis=1), 1.0, rtol=1e-5, atol=1e-6)
-
-
-def test_calibrated_quantization_consumes_float_feature_inputs(tmp_path):
-    onnx = pytest.importorskip("onnx")
-    ort = pytest.importorskip("onnxruntime")
-
-    rng = np.random.default_rng(379)
-    calibration_inputs = {
-        "image": rng.standard_normal((4, 1, 32, 32)).astype(np.float32),
-        "psdmed": rng.standard_normal((4, 1, 1, 100)).astype(np.float32),
-        "autocorr": rng.standard_normal((4, 1, 1, 100)).astype(np.float32),
-    }
-    output_path = tmp_path / "calibrated.onnx"
-
-    quantize_calibrated(DEFAULT_FLOAT32_ARTIFACT, output_path, calibration_inputs)
-
-    assert output_path.exists()
-    assert output_path.stat().st_size < DEFAULT_FLOAT32_ARTIFACT.stat().st_size
-    model = onnx.load(output_path)
-    input_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.input}
-    output_types = {value.name: value.type.tensor_type.elem_type for value in model.graph.output}
-    assert set(input_types.values()) == {onnx.TensorProto.FLOAT}
-    assert set(output_types.values()) == {onnx.TensorProto.FLOAT}
-    assert any(node.op_type == "Softmax" for node in model.graph.node)
-    (output,) = ort.InferenceSession(str(output_path), providers=["CPUExecutionProvider"]).run(
-        ["output"], calibration_inputs
-    )
-    assert output.shape == (4, 7, 1, 1)
-    assert np.isfinite(output).all()
-    np.testing.assert_allclose(output.sum(axis=1), 1.0, rtol=1e-5, atol=1e-6)
+    assert not report_path.exists()

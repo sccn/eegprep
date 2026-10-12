@@ -157,10 +157,11 @@ jobs:
           if [ "$sdist_model_sha256" != "$source_model_sha256" ]; then
             echo "::error::Sdist ICLabel network differs from the source artifact"; exit 1
           fi
-          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["candidates"]["weight_only"]["sha256"])')
-          report_default_artifact=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["default_artifact"])')
-          if [ "$report_default_artifact" != "iclabel_int8_weight_only.onnx" ] || [ "$source_model_sha256" != "$report_model_sha256" ]; then
-            echo "::error::Source ICLabel network does not match the committed parity report"; exit 1
+          # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
+          # parity gate passes; the shipped model must be the one it describes.
+          report_model_sha256=$(python3 -c 'import json; report = json.load(open("tools/iclabel/parity_report.json")); assert report["gate_pass"] is True, "parity gate did not pass"; print(report["packaged_model"]["sha256"])')
+          if [ "$source_model_sha256" != "$report_model_sha256" ]; then
+            echo "::error::Source ICLabel network does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1

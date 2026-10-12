@@ -317,34 +317,31 @@ jobs:
           mkdir -p pyodide-artifacts
           uv build --wheel --out-dir pyodide-artifacts
 
-      - name: Regenerate and validate ICLabel quantized artifacts
+      # The documented regeneration sequence from tools/iclabel/quantize_iclabel_onnx.py:
+      # export the float32 network from netICL.mat, quantize it, and require the
+      # gate to pass against the frozen teacher probabilities and the result to be
+      # numerically identical to the shipped model on the evaluation features. A
+      # fresh PyTorch export is not guaranteed to be byte-identical across PyTorch
+      # versions, so bytes are not compared. The committed parity report must
+      # record the shipped model's SHA-256, which release.yml checks again.
+      - name: Regenerate the ICLabel model from netICL.mat
         run: |
           set -euo pipefail
-          candidate_dir="$RUNNER_TEMP/iclabel-quantized"
-          report_path="$candidate_dir/parity_report.json"
+          regenerated="$RUNNER_TEMP/iclabel-regenerated"
+          uv run --no-sync python tools/iclabel/export_iclabel_onnx.py \
+            --onnx-path "$regenerated/iclabel_float32.onnx"
           uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \
-            --output-dir "$candidate_dir" \
-            --report "$report_path" \
+            --float32-artifact "$regenerated/iclabel_float32.onnx" \
+            --output "$regenerated/iclabel.onnx" \
+            --report "$regenerated/parity_report.json" \
+            --require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx \
             > pyodide-artifacts/iclabel-quantization.log
-          uv run --no-sync python - "$report_path" "$candidate_dir/iclabel_int8_weight_only.onnx" <<'PY'
-          import json
-          from pathlib import Path
-          import sys
-
-          report = json.loads(Path(sys.argv[1]).read_text())
-          selected = report["default_artifact"]
-          if selected != "iclabel_int8_weight_only.onnx":
-              raise SystemExit(f"unexpected selected ICLabel artifact: {selected}")
-          if not report["candidates"]["weight_only"]["gate_pass"]:
-              raise SystemExit("regenerated weight-only ICLabel artifact failed its parity gate")
-          generated = Path(sys.argv[2]).read_bytes()
-          shipped = Path("src/eegprep/plugins/ICLabel/iclabel.onnx").read_bytes()
-          if generated != shipped:
-              raise SystemExit("shipped iclabel.onnx differs from the regenerated selected artifact")
-          committed = json.loads(Path("tools/iclabel/parity_report.json").read_text())
-          if report["candidates"]["weight_only"]["sha256"] != committed["candidates"]["weight_only"]["sha256"]:
-              raise SystemExit("committed ICLabel parity report is stale relative to regenerated artifact")
-          PY
+          shipped_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
+          recorded_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
+          if [ "$shipped_sha256" != "$recorded_sha256" ]; then
+            echo "::error::tools/iclabel/parity_report.json does not describe the shipped iclabel.onnx; regenerate them together"
+            exit 1
+          fi
 
       - name: Build the locked docopt wheel
         run: |
