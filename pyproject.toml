@@ -80,11 +80,17 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
+# EEGLAB/MATLAB parity helpers: the Octave runtime used by eegprep.functions.adminfunc.eeglabcompat.
 eeglab = [
   "oct2py>=5.5.0",
 ]
+# System RAM probing for memory reservations such as num_jobs_from_reservation("4GB").
 sys = [
   "psutil>=7.0.0",
+]
+# EDF and BDF output of pop_writeeeg; GDF output and EDF/BDF input do not need it.
+edf = [
+  "pyedflib>=0.1.42",
 ]
 all = [
   "eegprep[torch]",
@@ -94,6 +100,7 @@ all = [
   "eegprep[docs]",
   "eegprep[eeglab]",
   "eegprep[sys]",
+  "eegprep[edf]",
 ]
 
 [project.scripts]
@@ -108,8 +115,9 @@ dev = [
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
   "pytest>=8.0",
-  # Used only to write synthetic EDF fixtures in tests/test_bids_load_frombids_helpers.py;
-  # eegprep itself reads EDF through mne/neo and never imports pyedflib.
+  # Same package as the ``edf`` extra: tests write EDF/BDF files through pop_writeeeg and build
+  # synthetic EDF fixtures. eegprep reads EDF through mne/neo and imports pyedflib only to write
+  # EDF and BDF.
   "pyedflib>=0.1.42",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",

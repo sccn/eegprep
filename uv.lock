@@ -546,6 +546,7 @@ all = [
     { name = "onnxruntime" },
     { name = "psutil" },
     { name = "pydata-sphinx-theme" },
+    { name = "pyedflib" },
     { name = "pyqtgraph" },
     { name = "pyside6" },
     { name = "sphinx" },
@@ -571,6 +572,9 @@ docs = [
     { name = "sphinx-gallery" },
     { name = "sphinx-togglebutton" },
     { name = "sphinxcontrib-spelling" },
+]
+edf = [
+    { name = "pyedflib" },
 ]
 eeglab = [
     { name = "oct2py" },
@@ -611,6 +615,7 @@ requires-dist = [
     { name = "eeglabio", specifier = ">=0.1.2" },
     { name = "eegprep", extras = ["console"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["docs"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["edf"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["eeglab"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'console'" },
@@ -632,6 +637,7 @@ requires-dist = [
     { name = "psutil", marker = "extra == 'sys'", specifier = ">=7.0.0" },
     { name = "pybids", specifier = ">=0.4" },
     { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.14.0" },
+    { name = "pyedflib", marker = "extra == 'edf'", specifier = ">=0.1.42" },
     { name = "pyqtgraph", marker = "extra == 'gui'", specifier = ">=0.13.7" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.6" },
     { name = "python-picard", specifier = ">=0.8,<0.9" },
@@ -647,7 +653,7 @@ requires-dist = [
     { name = "threadpoolctl", specifier = ">=3.5.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
-provides-extras = ["torch", "iclabel", "gui", "console", "docs", "eeglab", "sys", "all"]
+provides-extras = ["torch", "iclabel", "gui", "console", "docs", "eeglab", "sys", "edf", "all"]
 
 [package.metadata.requires-dev]
 dev = [
