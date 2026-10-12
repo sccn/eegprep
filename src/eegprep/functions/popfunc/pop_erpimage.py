@@ -79,23 +79,35 @@ def pop_erpimage(
         values = values[mask, :]
         times = times[mask]
     chan_locs, channel_index = _scalp_map_arguments(EEG, typeplot, int(index), plotmap=plotmap)
-    figure, image = erpimage(
+    options: dict[str, Any] = {
+        "erp": bool(kwargs.pop("erp", True)),
+        "cbar": bool(kwargs.pop("cbar", True)),
+        # EEGLAB's dialog labels channel and projected ERPs in microvolts, component activity unitless.
+        "yerplabel": "\\muV" if typeplot or numeric_vector(projchan).size else "",
+    }
+    caxis = numeric_vector(kwargs.pop("caxis", []))
+    if caxis.size:
+        options["caxis"] = caxis
+    vert = numeric_vector(kwargs.pop("vert", []))
+    if vert.size:
+        options["vert"] = vert
+    if chan_locs is not None:
+        options["topo"] = (channel_index, chan_locs)
+    result = erpimage(
         values,
-        times=times,
-        title=str(kwargs.pop("title", _default_title(typeplot, int(index), projchan=projchan))),
-        sort_values=sort_values,
-        smooth=kwargs.pop("smooth", None),
-        decimate=_first_int(kwargs.pop("decimate", None), default=1),
-        caxis=kwargs.pop("caxis", None),
-        cbar=bool(kwargs.pop("cbar", True)),
-        plot_erp=bool(kwargs.pop("erp", True)),
-        vert=kwargs.pop("vert", None),
-        chan_locs=chan_locs,
-        channel_index=channel_index,
+        sort_values,
+        times,
+        str(kwargs.pop("title", _default_title(typeplot, int(index), projchan=projchan))),
+        _first_int(kwargs.pop("smooth", None), default=1),
+        _first_int(kwargs.pop("decimate", None), default=1),
+        **options,
     )
     command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
-    show_figures(figure, plot=plot)
-    return ({"figure": figure, "image": image}, command) if return_com else {"figure": figure, "image": image}
+    show_figures(result.figure, plot=plot)
+    # The full EEGLAB pop_erpimage port returning ErpimageResult follows in its own change;
+    # until then the wrapper keeps its (trials, points) "image" view of the smoothed data.
+    output = {"figure": result.figure, "image": result.outdata.T}
+    return (output, command) if return_com else output
 
 
 def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> DialogSpec:

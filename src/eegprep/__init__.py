@@ -181,6 +181,7 @@ _LAZY_EXPORTS = {
     "entropy_rej": ("eegprep.functions.sigprocfunc.entropy_rej", "entropy_rej"),
     "env": ("eegprep.functions.sigprocfunc.env", "env"),
     "epoch": ("eegprep.functions.redefine_functions", "epoch"),
+    "erpimage": ("eegprep.functions.sigprocfunc.erpimage", "erpimage"),
     "eventalign": ("eegprep.functions.sigprocfunc.eventalign", "eventalign"),
     "eventlock": ("eegprep.functions.sigprocfunc.eventlock", "eventlock"),
     "extension_version_satisfies": ("eegprep.extensions", "extension_version_satisfies"),

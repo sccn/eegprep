@@ -21,6 +21,7 @@ from scipy import signal
 from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root, get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc import erpimage_engine as engine
+from eegprep.functions.sigprocfunc.erpimage import butterworth_filter
 from eegprep.functions.sigprocfunc.movav import movav
 from tests.eeglab_tests import load_matlab_test_fixture
 from tests.fixtures import matlab_engine_available
@@ -48,15 +49,6 @@ OUTPUTS = (
 DATA_DOMAIN = {"outdata", "erp", "erpsig"}
 NON_SCENARIO_KEYS = {"datasets", "seed", "matlab_version"}
 ENGINE_IMPORTS = {"__future__", "ast", "dataclasses", "typing", "numpy"}
-
-
-def butterworth_filter(data: np.ndarray, filt: np.ndarray, srate: float) -> np.ndarray:
-    """MATLAB butter(3, ...) + filtfilt, as erpimage's 'filt' option applies them."""
-    if filt[0] == 0:
-        b, a = signal.butter(3, filt[1] * 2 / srate, "low")
-    else:
-        b, a = signal.butter(3, filt * 2 / srate, "bandpass")
-    return signal.filtfilt(b, a, data, axis=0, padtype="odd", padlen=3 * (max(len(a), len(b)) - 1))
 
 
 def _load(path: Path) -> dict:
