@@ -110,6 +110,10 @@ Primary references:
   - Marker subset: `uv run pytest -m "not slow"`
   - Full suite: `uv run pytest tests`
   - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run pytest tests`
+- The EEGLAB reference suite is the tests that use the `eeglab_backend` or `eeglab_matlab_engine` fixtures. Do not run it on every change or iteration. Those tests stay deselected unless `--eeglab-backend` is passed (`tests/conftest.py`).
+- Before merging a PR that changes core function implementations (EEGLAB-ported processing code), trigger `.github/workflows/eeglab-reference.yml` (EEGLAB reference, `workflow_dispatch`) on the PR branch, or run the suite locally once on the final branch. PRs that change only tests, docs, CI, or tooling do not need it. A local run uses the real MATLAB backend: `uv run --no-sync pytest tests --eeglab-backend=matlab --eeglab-root=<pinned EEGLAB checkout> --eeglab-suite-root=<pinned eeglab_tests checkout>`. `--eeglab-backend=python` does not count. Point the roots at the checkouts pinned by `EEGLAB_TESTS_EEGLAB_COMMIT` and `EEGLAB_TESTS_COMMIT` in `tests/eeglab_tests/__init__.py`. `--no-sync` keeps a separately installed MATLAB Engine on the path.
+- Put that run in the PR description: the exact command or workflow run, the EEGLAB and eeglab_tests commits, pass/fail/skip counts, runtime, and an explanation for any failures or skips.
+- Core-function PRs need human approval before merging. This single MATLAB reference run is required evidence for that approval.
 - Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - For features reachable from `eegprep-console`, add or update `tests/test_console_workspace.py` coverage when namespace sync, history, import aliases, or bare `pop_*` auto-store behavior can be affected.
@@ -117,6 +121,7 @@ Primary references:
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.
 - Do not write tautological tests that only assert types, constants, or implementation details.
 - Never relax tolerances or hack around failures without proving the numerical expectation is wrong.
+- `tests/fuzz/tolerances.toml` is human-owned. Those per-function absolute and relative tolerances are changed only by reviewed human pull requests. Agents must not loosen them to hide mismatches.
 - Avoid duplicate fixtures; reuse `tests/fixtures.py` or local helpers already present in the relevant test file.
 
 ## Lint and Format
@@ -151,6 +156,7 @@ Primary references:
 - When creating a PR that includes GUI changes, attach side-by-side GUI comparison images as GitHub user attachments using `gh attach --comment`; do not commit those images or visual parity artifacts to the repo.
 - When using `gh` to inspect issues or PRs, prefer `--json <fields>` or explicit narrow flags such as `--comments`; avoid plain `gh issue view` or `gh pr view`, which can fail on this repo because GitHub classic project fields are deprecated.
 - If you notice unrelated dead code or unrelated cleanup, mention it separately instead of changing it.
+- Do not merge a PR that changes core function implementations until a human approves it. That approval includes the one pre-merge MATLAB reference-suite result described under Testing. PRs that do not change core functions do not need that run.
 
 ## Agent Failure Patterns to Avoid
 

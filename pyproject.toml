@@ -127,6 +127,7 @@ dev = [
   "PySide6>=6.6",
   "ruff>=0.15.14",
   "ty>=0.0.39",
+  "hypothesis>=6.130",
 ]
 release = [
   "build>=1.2",
