@@ -19,6 +19,7 @@ import textwrap
 import tomllib
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import EEGLAB_ROOT_ENV, get_eeglab
@@ -247,17 +248,19 @@ def test_pop_writeeeg_gdf_works_without_pyedflib(tmp_path: Path) -> None:
 
 
 def test_pop_writeeeg_edf_names_the_edf_extra_without_pyedflib(tmp_path: Path) -> None:
-    """EDF and BDF need pyedflib; the error must name ``eegprep[edf]`` and chain the original cause."""
+    """EDF and BDF need pyedflib; the error names ``eegprep[edf]``, chains the cause, and creates no directory."""
+    output_dir = tmp_path / "not_yet_created"
     completed = _run_without_optional_extras(
         f"""
         import json
+        from pathlib import Path
         import numpy as np
         from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 
         EEG = {{"data": np.arange(40, dtype=float).reshape(2, 20), "srate": 100.0, "nbchan": 2, "pnts": 20,
                "chanlocs": [{{"labels": "Cz"}}, {{"labels": "Pz"}}], "event": []}}
         try:
-            pop_writeeeg(EEG, {str(tmp_path / "out.edf")!r})
+            pop_writeeeg(EEG, {str(output_dir / "out.edf")!r})
         except ImportError as exc:
             print(json.dumps({{"message": str(exc), "chained": isinstance(exc.__cause__, ImportError)}}))
         """,
@@ -267,6 +270,23 @@ def test_pop_writeeeg_edf_names_the_edf_extra_without_pyedflib(tmp_path: Path) -
     result = _json_result(completed)
     assert "eegprep[edf]" in result["message"]
     assert result["chained"] is True
+    assert not output_dir.exists()
+
+
+def test_pop_writeeeg_rejecting_the_data_creates_no_directory(tmp_path: Path) -> None:
+    """Data the EDF writer rejects must fail before the output directory is created."""
+    pytest.importorskip("pyedflib")
+    from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
+
+    data = np.arange(40, dtype=float).reshape(2, 20)
+    data[0, 3] = np.nan
+    EEG = {"data": data, "srate": 100.0, "nbchan": 2, "pnts": 20, "chanlocs": [{"labels": "Cz"}, {"labels": "Pz"}]}
+    output_dir = tmp_path / "not_yet_created"
+
+    with pytest.raises(ValueError, match="finite"):
+        pop_writeeeg(EEG, output_dir / "out.edf")
+
+    assert not output_dir.exists()
 
 
 def test_num_jobs_from_reservation_names_the_sys_extra(monkeypatch: pytest.MonkeyPatch) -> None:
