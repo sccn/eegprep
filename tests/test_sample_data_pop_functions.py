@@ -58,6 +58,7 @@ from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 SAMPLE_SET = Path("sample_data/eeglab_data.set")
@@ -928,7 +929,9 @@ def test_upstream_pop_export_all_33_call_forms(eeglab_backend, eeglab_suite_root
 
 
 @eeglab_test("unittesting_popfunc/pop_fileio/popfunc_pop_fileio_wrapperTest.m", "test_test_pop_fileio")
-def test_upstream_pop_fileio_original_sample_options(eeglab_backend, eeglab_suite_root):
+def test_upstream_pop_fileio_original_sample_options(eeglab_backend, request, eeglab_suite_root):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "ft_read_data", "Fileio")
     filename = str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set")
     eeglab_backend("pop_fileio", filename)
     eeglab_backend(
@@ -950,7 +953,9 @@ def test_upstream_pop_fileio_original_sample_options(eeglab_backend, eeglab_suit
 
 
 @eeglab_test("unittesting_popfunc/pop_writeeeg/popfunc_pop_writeeeg_wrapperTest.m", "test_test_pop_writeeeg")
-def test_upstream_pop_writeeeg_original_full_recording(eeglab_backend, eeglab_suite_root, tmp_path):
+def test_upstream_pop_writeeeg_original_full_recording(eeglab_backend, request, eeglab_suite_root, tmp_path):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "sopen", "Biosig")
     eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
     for suffix, options in (("edf", ()), ("gdf", ("TYPE", "GDF")), ("bdf", ("TYPE", "BDF"))):
         filename = tmp_path / f"testwriteeeg.{suffix}"
