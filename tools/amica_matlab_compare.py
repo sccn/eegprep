@@ -8,6 +8,7 @@ contain the same amica15ex binary EEGPrep runs.
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import traceback
 from pathlib import Path
@@ -66,9 +67,8 @@ def main() -> int:
     _write_data_file(data, py_path)
 
     install(os.environ["EEGPREP_MATLAB_BATCH_DIR"])
-    import matlab.engine
-
-    eng = matlab.engine.start_matlab()
+    matlab_engine = importlib.import_module("matlab.engine")
+    eng = matlab_engine.start_matlab()
     eng.workspace["dat"] = np.array(data, dtype=np.float64, order="F")
     shape = np.asarray(eng.eval("size(dat)", nargout=1)).astype(int).ravel()
     print(f"matlab_size={shape.tolist()}")
