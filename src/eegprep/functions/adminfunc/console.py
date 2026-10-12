@@ -13,6 +13,7 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from types import CodeType
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -199,37 +200,6 @@ class LazyWorkspaceExport:
         return f"<EEGPrep export {self.name}>"
 
 
-class ConsoleAsyncFunction(LazyWorkspaceExport):
-    """Console wrapper that rejects stale results from public async functions."""
-
-    def __init__(
-        self,
-        name: str,
-        bridge: EEGPrepConsoleWorkspace,
-        value: Any | None = None,
-        resolver: Callable[[], Any] | None = None,
-    ) -> None:
-        super().__init__(name, value=value, resolver=resolver)
-        self.bridge = bridge
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        target_state = self.bridge.session.dataset_state_token()
-        return self._call_async(target_state, *args, **kwargs)
-
-    async def _call_async(
-        self,
-        target_state: DatasetStateToken,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        result = await self.resolve()(*args, **kwargs)
-        self.bridge.session.require_dataset_state_unchanged(target_state, self.name)
-        return result
-
-    def __repr__(self) -> str:
-        return f"<EEGPrep console async function {self.name}>"
-
-
 class ConsolePopFunction(LazyWorkspaceExport):
     """Console wrapper that stores ``pop_*`` EEG outputs back into the session."""
 
@@ -244,10 +214,11 @@ class ConsolePopFunction(LazyWorkspaceExport):
         self.bridge = bridge
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.name == "pop_iclabel_async":
-            target_state = self.bridge.session.dataset_state_token()
-            return self._call_async(target_state, *args, **kwargs)
         function = self.resolve()
+        if inspect.iscoroutinefunction(function):
+            # Capture the selection now, not when the coroutine starts, so changes made
+            # between the call and its first await also invalidate the result.
+            return self._call_async(function, self.bridge.session.dataset_state_token(), args, kwargs)
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
@@ -299,11 +270,11 @@ class ConsolePopFunction(LazyWorkspaceExport):
 
     async def _call_async(
         self,
+        function: Callable[..., Any],
         target_state: DatasetStateToken,
-        *args: Any,
-        **kwargs: Any,
+        args: tuple[Any, ...],
+        kwargs: Mapping[str, Any],
     ) -> Any:
-        function = self.resolve()
         call_kwargs = dict(kwargs)
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
@@ -324,8 +295,6 @@ class ConsoleEEGPrepModule:
     def __getattr__(self, name: str) -> Any:
         if name.startswith("pop_"):
             return self._bridge.pop_wrapper(name)
-        if name == "iclabel_async":
-            return self._bridge.async_wrapper(name)
         if name == "eegh":
             return self._bridge.namespace["eegh"]
         return getattr(eegprep, name)
@@ -344,6 +313,13 @@ class ConsoleEegh:
         self.bridge = bridge
 
     def __call__(self, command: Any = None, *args: Any) -> Any:
+        """Show, search, edit, or replay session history like EEGLAB ``eegh``.
+
+        ``eegh(n)`` with a positive ``n`` replays history entry ``n`` and returns its
+        text. An entry with a top-level ``await``, such as
+        ``EEG = await pop_iclabel_async(EEG, 'default');``, cannot run synchronously,
+        so ``eegh(n)`` returns an awaitable for it instead: use ``await eegh(n)``.
+        """
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":
@@ -363,11 +339,9 @@ class ConsoleEegh:
                 self.bridge.pull_from_session()
                 return ""
             history_command = session.history_command_at(value)
-            if history_command:
-                if "await " in history_command:
-                    return self.bridge.execute_history_command_async(history_command)
-                self.bridge.execute_history_command(history_command)
-            return history_command
+            if not history_command:
+                return history_command
+            return self.bridge.execute_history_command(history_command)
         session = self.bridge.session
         normalized = str(command).strip()
         if normalized:
@@ -404,8 +378,6 @@ class EEGPrepConsoleWorkspace:
         self.namespace: dict[str, Any] = {}
         self._eegprep_proxy = ConsoleEEGPrepModule(self)
         self._wrapped_pop_exports: dict[str, ConsolePopFunction] = {}
-        self._wrapped_async_exports: dict[str, ConsoleAsyncFunction] = {}
-        self._export_values = dict(exports or {})
         self._syncing = False
         self._pop_updated_session = False
         self._pop_needs_source_history = False
@@ -431,7 +403,6 @@ class EEGPrepConsoleWorkspace:
         """Mirror session state into the console namespace."""
         self.namespace["eegprep"] = self._eegprep_proxy
         self.namespace.update(self._wrapped_pop_exports)
-        self.namespace.update(self._wrapped_async_exports)
         self.namespace["EEG"] = self.session.EEG
         self.namespace["ALLEEG"] = self.session.ALLEEG
         self.namespace["CURRENTSET"] = self.session.current_set_value()
@@ -595,10 +566,6 @@ class EEGPrepConsoleWorkspace:
                 wrapped = ConsolePopFunction(name, self, None if exports is None else exports[name])
                 self._wrapped_pop_exports[name] = wrapped
                 self.namespace[name] = wrapped
-            elif name == "iclabel_async":
-                wrapped = ConsoleAsyncFunction(name, self, None if exports is None else exports[name])
-                self._wrapped_async_exports[name] = wrapped
-                self.namespace[name] = wrapped
             else:
                 self.namespace[name] = LazyWorkspaceExport(name, None if exports is None else exports[name])
 
@@ -618,15 +585,6 @@ class EEGPrepConsoleWorkspace:
             resolver = pop_function.load if pop_function is not None else None
             wrapped = ConsolePopFunction(name, self, resolver=resolver)
             self._wrapped_pop_exports[name] = wrapped
-        return wrapped
-
-    def async_wrapper(self, name: str) -> ConsoleAsyncFunction:
-        """Return the console-aware wrapper for a public async function."""
-        wrapped = self._wrapped_async_exports.get(name)
-        if wrapped is None:
-            value = self._export_values.get(name)
-            wrapped = ConsoleAsyncFunction(name, self, value=value)
-            self._wrapped_async_exports[name] = wrapped
         return wrapped
 
     def _session_changed(self, _session: EEGPrepSession) -> None:
@@ -650,8 +608,6 @@ class EEGPrepConsoleWorkspace:
                 self.namespace[local_name] = self._eegprep_proxy
             elif export_name.startswith("pop_"):
                 self.namespace[local_name] = self.pop_wrapper(export_name)
-            elif export_name == "iclabel_async":
-                self.namespace[local_name] = self.async_wrapper(export_name)
 
     def _store_eeg(self, eeg: Any, command: str, *, new: bool = False, index: int | list[int] | None = None) -> None:
         self._syncing = True
@@ -660,19 +616,23 @@ class EEGPrepConsoleWorkspace:
         finally:
             self._syncing = False
 
-    def execute_history_command(self, command: str) -> None:
-        """Execute an EEGLAB history command through the console namespace."""
-        source = _console_python_command(command)
-        exec(source, self.namespace)
-        self.after_execute(source)
+    def execute_history_command(self, command: str) -> Any:
+        """Execute an EEGLAB history command through the console namespace.
 
-    async def execute_history_command_async(self, command: str) -> str:
-        """Execute an awaitable EEGLAB history command through the console namespace."""
+        Returns ``command``. A command with a top-level ``await`` is compiled as a
+        coroutine, so an awaitable that runs it and resolves to ``command`` is
+        returned instead.
+        """
         source = _console_python_command(command)
         code = compile(source, "<eegprep-history>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
-        result = eval(code, self.namespace)  # noqa: S307 - executing trusted session history
-        if inspect.isawaitable(result):
-            await result
+        if code.co_flags & inspect.CO_COROUTINE:
+            return self._execute_history_coroutine(code, source, command)
+        exec(code, self.namespace)
+        self.after_execute(source)
+        return command
+
+    async def _execute_history_coroutine(self, code: CodeType, source: str, command: str) -> str:
+        await eval(code, self.namespace)  # noqa: S307 - replaying the session's own history
         self.after_execute(source)
         return command
 
@@ -1617,7 +1577,7 @@ def _eegprep_import_aliases(source: str) -> dict[str, str]:
                     aliases[alias.asname or "eegprep"] = "eegprep"
         elif isinstance(node, ast.ImportFrom) and node.module == "eegprep":
             for alias in node.names:
-                if alias.name.startswith("pop_") or alias.name == "iclabel_async":
+                if alias.name.startswith("pop_"):
                     aliases[alias.asname or alias.name] = alias.name
     return aliases
 
