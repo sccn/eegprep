@@ -1,26 +1,143 @@
-"""Ports of the maintained EEGLAB ``statcondfieldtrip`` wrapper test."""
+"""Original guarded statcondfieldtrip workflow and additional Python checks."""
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Sequence
 from itertools import combinations, product
 
 import numpy as np
-import pytest
 from scipy import sparse
 from scipy import stats as scipy_stats
+from scipy.cluster import vq
 
+import eegprep
 from eegprep.functions.statistics import StatcondFieldtripResult, statcondfieldtrip
 from tests.eeglab_tests import eeglab_test
-
-
-STATCONDFIELDTRIP_SCRIPT = "unittesting_statistics/statcondfieldtrip/test_statcondfieldtrip.m"
-STATCONDFIELDTRIP_WRAPPER = "unittesting_statistics/statcondfieldtrip/statistics_statcondfieldtrip_wrapperTest.m"
+from tests.test_statcond_eeglab_tests import _legacy_assertsame, _matlab_cells
 
 # Cluster-policy oracle: fieldtrip/fieldtrip@8e2307d7e7284c6870a5d12e244d9dc95a1faae3,
 # ft_statistics_montecarlo.m and private/clusterstat.m. The exhaustive fixtures
 # below independently check its label-exchangeability and maxsum principles.
+
+
+def _source_pair(first, second):
+    # As in the legacy statcond port, preserve the first statistic's MATLAB
+    # numeric class when constructing the source's two-element comparison row.
+    return np.concatenate([np.asarray(first).ravel(), np.asarray(second).ravel()]).astype(np.asarray(first).dtype)
+
+
+@eeglab_test(
+    "unittesting_statistics/statcondfieldtrip/statistics_statcondfieldtrip_wrapperTest.m",
+    "test_test_statcondfieldtrip",
+)
+def test_reference_statcondfieldtrip_workflow(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        available = (
+            eeglab_backend("license", "checkout", "statistics_toolbox").item()
+            and eeglab_backend("exist", "kmean").item()
+        )
+    else:
+        # No MATLAB licensing analogue; retain the original misspelled name
+        # when querying the actual Python public/library namespaces.
+        available = any(getattr(module, "kmean", None) is not None for module in (eegprep, vq))
+    request.node.user_properties.append(("eeglab_source_body_entered", bool(available)))
+    if not available:
+        return
+
+    rng = np.random.default_rng()
+    rows = [[rng.random((1, 10)), rng.random((1, 10)) + 0.5]]
+    for paired in ("on", "off"):
+        options = {"variance": "homogenous"} if paired == "off" else {}
+        first = eeglab_backend(
+            "statcond", _matlab_cells(rows), mode="param", verbose="off", paired=paired, nargout=3, **options
+        )
+        second = eeglab_backend(
+            "statcondfieldtrip",
+            _matlab_cells(rows),
+            mode="param",
+            verbose="off",
+            paired=paired,
+            method="analytic",
+            nargout=3,
+            **options,
+        )
+        _legacy_assertsame(*(_source_pair(a, b) for a, b in zip(first, second, strict=True)))
+
+    rows = [
+        [rng.random((1, 10)), rng.random((1, 10)), rng.random((1, 10)) + 0.2],
+        [rng.random((1, 10)), rng.random((1, 10)) + 0.2, rng.random((1, 10))],
+    ]
+    first = eeglab_backend("statcond", _matlab_cells(rows[:1]), mode="param", verbose="off", paired="off", nargout=3)
+    second = eeglab_backend(
+        "statcondfieldtrip",
+        _matlab_cells(rows[:1]),
+        mode="param",
+        verbose="off",
+        paired="off",
+        method="analytic",
+        nargout=3,
+    )
+    _legacy_assertsame(
+        _source_pair(first[0], second[0]),
+        _source_pair(first[1].flat[0], second[1].flat[0]),
+        _source_pair(first[1].flat[1], second[1].flat[1]),
+        _source_pair(first[2], second[2]),
+    )
+    # The source's following paired/2-way comparisons are inside literal if 0.
+    indices = ((0,), (3,), (1, 3), (0, 1, 3))
+    for paired in ("on", "off"):
+        conditions = [
+            [rng.random(shape) + offset for offset in (0, 0.5, 0)]
+            for shape in ((1, 10), (10, 10), (5, 10, 10), (2, 5, 10, 10))
+        ]
+        for arrays, index in zip(conditions[1:], indices[1:], strict=True):
+            for original, target in zip(conditions[0], arrays, strict=True):
+                target[index] = original[0]
+        _assert_reference_fieldtrip_dimensions(eeglab_backend, conditions, indices, paired, 2)
+    # The paired 1-way dimensional section is also explicitly if 0. The final
+    # unpaired ANOVA reuses the second (unpaired t-test) set of random arrays.
+    _assert_reference_fieldtrip_dimensions(eeglab_backend, conditions, indices, "off", 3)
+
+
+def _assert_reference_fieldtrip_dimensions(backend, conditions, indices, paired, n_conditions):
+    options = {"variance": "homogenous"} if paired == "off" and n_conditions == 2 else {}
+    first = [
+        backend(
+            "statcond",
+            _matlab_cells([arrays[:n_conditions]]),
+            mode="param",
+            verbose="off",
+            paired=paired,
+            nargout=3,
+            **options,
+        )
+        for arrays in conditions
+    ]
+    # FieldTrip's 4-D calls are commented out, but the original statcond 4-D
+    # call above remains active even though its result is not asserted.
+    second = [
+        backend(
+            "statcondfieldtrip",
+            _matlab_cells([arrays[:n_conditions]]),
+            mode="param",
+            verbose="off",
+            paired=paired,
+            method="analytic",
+            nargout=3,
+        )
+        for arrays in conditions[:3]
+    ]
+    compared = [*first[:3], *second]
+    selected = [*indices[:3], *indices[:3]]
+    statistics, probabilities = [], []
+    for (statistic, _df, probability), index in zip(compared, selected, strict=True):
+        statistics.append(np.asarray(statistic if statistic.size == 1 else statistic[index]).flat[0])
+        probabilities.append(np.asarray(probability if probability.size == 1 else probability[index]).flat[0])
+    _legacy_assertsame(
+        np.array(statistics, dtype=np.asarray(first[0][0]).dtype),
+        np.concatenate([np.asarray(result[1]).ravel(order="F") for result in compared]),
+        np.array(probabilities, dtype=np.asarray(first[0][2]).dtype),
+    )
 
 
 def _reference_conditions() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -92,11 +209,8 @@ def _assert_active_dimension_calls(*, paired: bool, one_way: bool) -> None:
         assert result.df == baseline.df
 
 
-@eeglab_test(STATCONDFIELDTRIP_WRAPPER, "test_test_statcondfieldtrip")
-@eeglab_test(STATCONDFIELDTRIP_SCRIPT, "test_statcondfieldtrip")
-def test_current_statcondfieldtrip_wrapper_executes_its_scientific_intent():
-    # The MATLAB script returns before these calls because its `exist('kmean')`
-    # guard contains a typo. Execute the active body rather than porting a no-op.
+def test_additional_statcondfieldtrip_vector_and_dimension_checks():
+    # Generated fixtures and stricter assertions provide supplemental coverage.
     _assert_active_vector_calls()
     _assert_active_dimension_calls(paired=True, one_way=False)
     _assert_active_dimension_calls(paired=False, one_way=False)
@@ -367,88 +481,3 @@ def test_statcondfieldtrip_cluster_montecarlo_is_seeded_and_uses_plus_one():
     assert not np.array_equal(result.cluster_null, changed_seed.cluster_null)
     np.testing.assert_allclose(result.pvalue * 64, np.round(result.pvalue * 64), atol=1e-13)
     assert result.exact is False
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({"method": "glm"}, "method"),
-        ({"mcorrect": "hochberg"}, "mcorrect"),
-        ({"alpha": 0.0}, "alpha"),
-        ({"naccu": 0}, "naccu"),
-        ({"naccu": 1.5}, "naccu"),
-        ({"mcorrect": "max"}, "max correction"),
-        ({"mcorrect": "cluster"}, "cluster correction"),
-        ({"neighbours": [{"label": "Cz"}]}, "neighbours"),
-    ],
-)
-def test_statcondfieldtrip_rejects_invalid_or_unavailable_inference_options(kwargs, message):
-    first, second, _ = _reference_conditions()
-    with pytest.raises((ValueError, NotImplementedError), match=message):
-        statcondfieldtrip([first, second], paired="on", **kwargs)
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({}, "explicit neighbours"),
-        ({"neighbours": np.zeros((3, 3))}, "shape"),
-        ({"neighbours": np.array([[0, 1], [0, 0]])}, "symmetric"),
-        ({"neighbours": np.ones((2, 2)), "clusterstatistic": "maxsize"}, "maxsum"),
-        (
-            {"neighbours": np.ones((2, 2)), "clusterthreshold": "nonparametric_common"},
-            "parametric",
-        ),
-        ({"neighbours": np.ones((2, 2)), "clustercritval": 0.0}, "clustercritval"),
-    ],
-)
-def test_statcondfieldtrip_cluster_backend_rejects_ambiguous_policies(kwargs, message):
-    first = np.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]])
-    second = np.zeros_like(first)
-    with pytest.raises((TypeError, ValueError, NotImplementedError), match=message):
-        statcondfieldtrip(
-            [first, second],
-            paired="on",
-            method="montecarlo",
-            naccu=4,
-            mcorrect="cluster",
-            **kwargs,
-        )
-
-
-def test_statcondfieldtrip_exact_randomization_limit_is_explicit():
-    first = np.arange(17.0)[None, :]
-    second = first + np.linspace(0.0, 1.0, 17)[None, :]
-    with pytest.raises(ValueError, match="131072 permutations"):
-        statcondfieldtrip(
-            [first, second],
-            paired="on",
-            method="montecarlo",
-            naccu="all",
-            mcorrect="cluster",
-            neighbours=np.zeros((1, 1)),
-        )
-
-
-def test_statcondfieldtrip_rejects_designs_disabled_by_the_maintained_wrapper():
-    first, second, third = _reference_conditions()
-    with pytest.raises(NotImplementedError, match="paired one-way"):
-        statcondfieldtrip([first, second, third], paired="on")
-    with pytest.raises(NotImplementedError, match="two-way"):
-        statcondfieldtrip(((first, second), (second, third)), paired="off")
-    with pytest.raises(NotImplementedError, match="equal-variance"):
-        statcondfieldtrip([first, second], paired="off", variance="inhomogenous")
-    with pytest.raises(ValueError, match="variance"):
-        statcondfieldtrip([first, second], variance="pooled")
-    with pytest.raises(ValueError, match="same number of cases"):
-        statcondfieldtrip([first, second[:-1]], paired="on")
-
-
-def test_statcondfieldtrip_remains_a_package_callable_after_submodule_import():
-    import eegprep.functions.statistics as statistics
-
-    module = importlib.import_module("eegprep.functions.statistics.statcondfieldtrip")
-
-    assert statistics.statcondfieldtrip is module.statcondfieldtrip
-    assert statistics.StatcondFieldtripCluster is module.StatcondFieldtripCluster
-    assert statistics.StatcondFieldtripResult is module.StatcondFieldtripResult

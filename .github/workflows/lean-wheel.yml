@@ -1,0 +1,84 @@
+name: eegprep-lean wheel
+
+# Builds the eegprep-lean wheel and proves it works when installed, rather than when
+# run from the source tree.
+#
+# Deliberately does NOT publish. eegprep-lean is a second distribution in this repository
+# (ADR 0069) and release.yml builds and publishes the root package only, to
+# pypi.org/p/eegprep. Publishing a second name needs the project owner's agreement and a
+# one-time trusted-publisher setup, neither of which is a decision this workflow should
+# make. It produces an artifact; where that artifact is served from is a separate call.
+#
+# Why a wheel at all, when the tests already run from source: the browser installs a
+# wheel. micropip takes a URL to one, so the artifact is the thing the browser lane will
+# actually consume, and a wheel that builds but omits a module fails there and nowhere
+# else. The verification step below installs it into an environment that has nothing and
+# runs the offline suite against the installed package.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "packages/eegprep-lean/**"
+      - ".github/workflows/lean-wheel.yml"
+  pull_request:
+    paths:
+      - "packages/eegprep-lean/**"
+      - ".github/workflows/lean-wheel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    name: Build and verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Build the wheel
+        working-directory: packages/eegprep-lean
+        shell: bash
+        run: |
+          uv build --wheel --out-dir dist
+
+      - name: It must be a pure-Python wheel
+        working-directory: packages/eegprep-lean
+        shell: bash
+        # py3-none-any or it cannot be installed in a browser at all: Pyodide has no
+        # compiler, and micropip can only take a wheel built for any platform. This
+        # package declares no dependencies and contains no extension modules, so anything
+        # else here means the build picked up something it should not have.
+        run: |
+          set -euo pipefail
+          ls dist
+          test -n "$(ls dist/*-py3-none-any.whl 2>/dev/null)" || {
+            echo "::error::no py3-none-any wheel was produced; a browser cannot install this"
+            exit 1
+          }
+
+      - name: The installed wheel must pass the offline suite
+        working-directory: packages/eegprep-lean
+        shell: bash
+        # Against the installed package, with src NOT on the path, so a module left out
+        # of the wheel fails here rather than in a browser. --with the wheel and nothing
+        # else, because the base tier declares no dependencies and that claim is only
+        # true if it holds in an environment that has none.
+        run: |
+          set -euo pipefail
+          WHEEL="$(ls dist/*-py3-none-any.whl)"
+          uv run --isolated --no-project --with "$WHEEL" --with pytest \
+            python -m pytest tests -m "not network" -p no:cacheprovider
+
+      - name: Upload the wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: eegprep-lean-wheel
+          path: packages/eegprep-lean/dist/*.whl
+          if-no-files-found: error

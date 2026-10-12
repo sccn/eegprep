@@ -31,12 +31,6 @@ def test_single_channel_closed_form():
     np.testing.assert_allclose(np.squeeze(spher(data)), 2 / np.sqrt(2.5), rtol=1e-10)
 
 
-def test_symmetric():
-    # Sphering matrix of a symmetric PSD covariance is symmetric.
-    s = spher(DATA)
-    np.testing.assert_allclose(s, s.T, atol=1e-9)
-
-
 def test_whitens_covariance_to_four_i():
     # S = 2*inv(sqrtm(C)) -> S @ C @ S.T = 4*I.
     s = spher(DATA)

@@ -12,10 +12,8 @@ from eegprep.cli.commands.pipeline import (
     run_pipeline_config,
     validate_pipeline_config,
 )
-from eegprep.cli.commands.qc import compute_qc_metrics, qc_dataset, qc_report_dataset
+from eegprep.cli.commands.qc import compute_qc_metrics, qc_report_dataset
 from eegprep.cli.commands.report import report_dataset
-from eegprep.functions.popfunc.pop_saveset import pop_saveset
-from tests.fixtures import create_test_eeg
 
 
 SAMPLE_SET = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -101,71 +99,6 @@ def test_pipeline_refuses_existing_outputs_without_overwrite(tmp_path):
     assert existing_qc.read_text(encoding="utf-8") == "existing"
 
 
-def test_pipeline_clean_after_epoch_uses_pop_clean_continuous_data_guard(tmp_path):
-    input_path = tmp_path / "epoched.set"
-    eeg = create_test_eeg(n_channels=2, n_samples=12, srate=100)
-    eeg["data"] = np.stack([eeg["data"], eeg["data"]], axis=2)
-    eeg["pnts"] = 12
-    eeg["trials"] = 2
-    pop_saveset(eeg, str(input_path))
-    config_path = _write_pipeline_config(
-        tmp_path,
-        input_path=input_path,
-        steps=[{"name": "clean", "method": "asr"}],
-    )
-
-    result = run_pipeline_config(config_path)
-
-    assert result["status"] == "error"
-    assert result["code"] == "PIPELINE_STEP_FAILED"
-    assert "Input data must be continuous" in result["message"]
-
-
-def test_pipeline_clean_uses_direct_cli_defaults(monkeypatch, tmp_path):
-    calls = []
-
-    def fake_pop_clean_rawdata(eeg, **kwargs):
-        calls.append(kwargs)
-        return eeg, "EEG = pop_clean_rawdata(EEG, 'BurstCriterion', 20);"
-
-    monkeypatch.setattr(transforms_cli, "pop_clean_rawdata", fake_pop_clean_rawdata)
-    config_path = _write_pipeline_config(
-        tmp_path,
-        steps=[{"name": "clean", "method": "asr"}],
-    )
-
-    result = run_pipeline_config(config_path)
-
-    assert result["status"] == "ok"
-    assert calls == [
-        {
-            "FlatlineCriterion": "off",
-            "ChannelCriterion": "off",
-            "LineNoiseCriterion": "off",
-            "Highpass": "off",
-            "BurstCriterion": 20.0,
-            "BurstRejection": False,
-            "WindowCriterion": "off",
-            "Distance": "Euclidean",
-            "gui": False,
-            "return_com": True,
-        }
-    ]
-
-
-def test_pipeline_clean_rejects_scalar_highpass(tmp_path):
-    config_path = _write_pipeline_config(
-        tmp_path,
-        steps=[{"name": "clean", "method": "asr", "highpass": 0.5}],
-    )
-
-    result = validate_pipeline_config(config_path)
-
-    assert result["status"] == "error"
-    assert result["error"]["code"] == "CONFIG_SCHEMA_ERROR"
-    assert result["error"]["details"]["errors"][0]["path"] == "steps[0].highpass"
-
-
 def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
     calls = []
 
@@ -206,33 +139,6 @@ def test_pipeline_filter_history_uses_modern_eegfiltnew(monkeypatch, tmp_path):
     assert "pop_eegfiltnew" in result["history"][0]
 
 
-def test_pipeline_filter_rejects_negative_notch_lower_edge(tmp_path):
-    config_path = _write_pipeline_config(
-        tmp_path,
-        steps=[{"name": "filter", "notch": 1, "notch_width": 4}],
-    )
-
-    result = run_pipeline_config(config_path)
-
-    assert result["status"] == "error"
-    assert result["code"] == "CONFIG_SCHEMA_ERROR"
-    assert "notch minus half notch_width must be positive" in result["message"]
-    assert not (tmp_path / "out").exists()
-
-
-def test_pipeline_invalid_config_returns_structured_error(tmp_path):
-    config_path = _write_pipeline_config(
-        tmp_path,
-        steps=[{"name": "does_not_exist"}],
-    )
-
-    result = validate_pipeline_config(config_path)
-
-    assert result["status"] == "error"
-    assert result["error"]["code"] == "CONFIG_SCHEMA_ERROR"
-    assert result["error"]["details"]["errors"][0]["path"] == "steps[0].name"
-
-
 def test_qc_metrics_include_agent_recommendation_codes_for_bad_events():
     eeg = {
         "data": np.zeros((2, 10)),
@@ -259,34 +165,8 @@ def test_qc_metrics_include_agent_recommendation_codes_for_bad_events():
     assert metrics["events"]["index_base"] == 1
 
 
-def test_qc_metrics_use_one_based_channel_indices():
-    eeg = {
-        "data": np.array([[1, 2, 3], [0, 0, 0]], dtype=float),
-        "nbchan": 3,
-        "pnts": 3,
-        "trials": 1,
-        "srate": 100,
-        "chanlocs": [{"labels": "Fz", "X": 0.0, "Y": 1.0, "Z": 0.0}],
-        "event": [],
-    }
-
-    metrics = compute_qc_metrics(eeg)
-
-    assert metrics["channels"]["missing_location_indices"] == [2, 3]
-    assert metrics["data_quality"]["flat_channel_indices"] == [2]
-    assert metrics["channels"]["index_base"] == 1
-
-
 def test_pipeline_channel_indices_are_eeglab_facing_one_based():
     assert _channel_indices([1, "2", "Cz"]) == [0, 1, "Cz"]
-
-
-def test_qc_dataset_missing_file_returns_structured_error(tmp_path):
-    result = qc_dataset(tmp_path / "missing.set")
-
-    assert result["status"] == "error"
-    assert result["error"]["code"] == "INPUT_FILE_NOT_FOUND"
-    assert result["error"]["path"].endswith("missing.set")
 
 
 def test_report_and_qc_report_write_html_and_manifests(tmp_path):

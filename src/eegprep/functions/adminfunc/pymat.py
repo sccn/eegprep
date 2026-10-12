@@ -94,7 +94,10 @@ def py2mat(dicts):
                     key_max_lengths[k] = len(processed_v)
                 else:
                     key_max_lengths[k] = max(key_max_lengths[k], len(processed_v))
-                key_types[k] = 'U'  # Unicode string type
+                if k not in key_types:
+                    key_types[k] = 'U'  # Unicode string type
+                elif key_types[k] != 'U':
+                    key_types[k] = object
             elif isinstance(processed_v, (int, np.integer)):
                 if k not in key_types:
                     key_types[k] = int
@@ -114,9 +117,8 @@ def py2mat(dicts):
                 # For arrays (including nested struct arrays), use object type
                 key_types[k] = object
             elif processed_v is None:
-                # For None values, we'll determine type from other instances
-                if k not in key_types:
-                    key_types[k] = object
+                # Missing values must not determine a mixed field's dtype.
+                continue
             else:
                 # For other types, use object
                 key_types[k] = object
@@ -124,6 +126,7 @@ def py2mat(dicts):
     # Create dtype from all keys
     dtype_list = []
     for k in sorted(all_keys):
+        key_types.setdefault(k, object)
         if key_types[k] == 'U':
             # For Unicode strings, specify the maximum length
             max_len = key_max_lengths.get(k, 1)

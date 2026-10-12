@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import re
 import runpy
-from importlib.resources import files
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QSlider
 
 from tests.eeglab_tests import eeglab_test
 
@@ -18,13 +20,48 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MAKEHTML_OUTPUT_WRAPPER = "unittesting_miscfunc/makehtml/output/miscfunc_makehtml_output_wrapperTest.m"
 
 
-@eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_Contents")
+@pytest.mark.gui
 @eeglab_test(MAKEHTML_OUTPUT_WRAPPER, "test_eeglab")
+def test_reference_generated_documentation_menu(eeglab_backend, eeglab_suite_root, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        previous = engine.pwd()
+        try:
+            # Resolve the generated help-menu stub, not the main EEGLAB launcher.
+            engine.cd(str(eeglab_suite_root / "unittesting_miscfunc/makehtml/output"), nargout=0)
+            eeglab_backend("eeglab", nargout=0)
+        finally:
+            engine.cd(previous, nargout=0)
+    else:
+        title = "(Click on blue text for help)"
+        # Capture only this test's dialog as the Python equivalent of gcf.
+        window = eeglab_backend(
+            "textgui",
+            np.array([["Contents.m", "eeglab.m"]], dtype=object),
+            np.array([["pophelp('Contents.m');", "pophelp('eeglab.m');"]], dtype=object),
+            "fontsize",
+            15.0,
+            "fontname",
+            "times",
+            "linesperpage",
+            18.0,
+            "title",
+            np.array(["Test".ljust(len(title)), title]),
+        )
+        defaults = eeglab_backend("icadefs")
+        palette = window.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor.fromRgbF(*defaults.BACKCOLOR))
+        window.setPalette(palette)
+        window.setAutoFillBackground(True)
+        slider_color = QColor.fromRgbF(*defaults.GUIBACKCOLOR)
+        for slider in window.findChildren(QSlider, options=Qt.FindChildOption.FindDirectChildrenOnly):
+            palette = slider.palette()
+            palette.setColor(QPalette.ColorRole.Window, slider_color)
+            slider.setPalette(palette)
+            slider.setAutoFillBackground(True)
+
+
 def test_public_api_and_plugins_example_runs() -> None:
-    # These MATLAB methods execute generated documentation stubs: Contents.m is
-    # comments only and eeglab.m opens callback-string help links. EEGPrep's
-    # Sphinx replacement keeps its top-level example executable against the
-    # installed public API, which is the portable behavior worth preserving.
     example = REPO_ROOT / "docs/source/examples/plot_public_api_and_plugins.py"
 
     runpy.run_path(str(example), run_name="__main__")
@@ -64,65 +101,6 @@ def test_user_guide_example_runs(name: str, capsys: pytest.CaptureFixture[str]) 
         marker for marker in (str(REPO_ROOT), "/var/folders/", "/private/tmp/", "generated on") if marker in printed
     ]
     assert not leaks, f"{name} prints machine-specific output: {leaks}"
-
-
-def test_package_resources_cover_public_workflows() -> None:
-    package = files("eegprep")
-
-    assert package.joinpath("resources/help/pop_clean_rawdata.md").is_file()
-    assert package.joinpath("resources/help/eegplot.md").is_file()
-    assert package.joinpath("resources/help/pop_eegplot.md").is_file()
-    assert package.joinpath("resources/help/eeg_multieegplot.md").is_file()
-    assert package.joinpath("resources/skills/eegprep-cli.md").is_file()
-    assert package.joinpath("resources/headplot/colin27headmesh.mat").is_file()
-    assert package.joinpath("resources/montages/standard-10-5-342ch.locs").is_file()
-    assert package.joinpath("plugins/ICLabel/iclabel.onnx").is_file()
-
-
-def test_browser_help_and_docs_do_not_describe_eegbrowser_as_excluded() -> None:
-    stale_patterns = (
-        r"excluded_reason\s*=\s*[\"']eegbrowser[\"']",
-        r"EEGBrowser.*excluded",
-        r"excluded.*EEGBrowser",
-        r"outside the current .*scope",
-        r"without launching EEGBrowser",
-        r"does not open EEGPlot/EEGBrowser",
-        r"not opened in EEGPrep",
-        r"scrolling inspection remains",
-        r"current parity scope",
-        r"``eegbrowser``",
-    )
-    checked_paths = [
-        *sorted((REPO_ROOT / "src/eegprep/resources/help").glob("*.md")),
-        *sorted((REPO_ROOT / "docs/source").rglob("*.rst")),
-        REPO_ROOT / "src/eegprep/functions/guifunc/menu_placeholders.py",
-    ]
-
-    stale = []
-    for path in checked_paths:
-        text = path.read_text(encoding="utf-8")
-        for pattern in stale_patterns:
-            if re.search(pattern, text, flags=re.IGNORECASE):
-                stale.append(f"{path.relative_to(REPO_ROOT)}: {pattern}")
-
-    assert stale == []
-
-
-def test_project_entry_points_cover_gui_and_console() -> None:
-    pyproject = _read_pyproject()
-
-    assert pyproject["project"]["scripts"]["eegprep-gui"] == "eegprep.functions.adminfunc.eeglab:main"
-    assert pyproject["project"]["scripts"]["eegprep-console"] == "eegprep.functions.adminfunc.console:main"
-    assert pyproject["project"]["scripts"]["eegprep"] == "eegprep.cli.main:main"
-
-
-def test_development_dependencies_cover_console_runtime() -> None:
-    pyproject = _read_pyproject()
-    dev_dependencies = set(pyproject["dependency-groups"]["dev"])
-
-    assert "ipython>=8.0" in dev_dependencies
-    assert "pyqtgraph>=0.13.7" in dev_dependencies
-    assert "PySide6>=6.6" in dev_dependencies
 
 
 def test_setuptools_package_data_covers_runtime_resources() -> None:

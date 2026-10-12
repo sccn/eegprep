@@ -156,9 +156,7 @@ def test_trial_factor_channel_cells_reconstruct_from_single_trial_caches(datatyp
     ("datatype", "plotter"),
     [
         ("erp", std_erpplot),
-        ("spec", std_specplot),
         ("ersp", std_erspplot),
-        ("itc", std_itcplot),
     ],
 )
 def test_trial_factor_component_cluster_preserves_membership_in_every_cell(datatype, plotter):

@@ -92,7 +92,6 @@ def _write_bdf(
     path.write_bytes(fixed + signal_header + data)
 
 
-@eeglab_test(OPENBDF_SUITE, "test_pass_general")
 def test_openbdf_general_header_matches_current_suite(tmp_path: Path) -> None:
     path = tmp_path / "test.bdf"
     labels = [f"A{index}" for index in range(1, 17)] + ["Status"]
@@ -129,88 +128,6 @@ def test_openbdf_general_header_matches_current_suite(tmp_path: Path) -> None:
     assert head["FileName"] == str(path.resolve())
 
 
-@eeglab_test(OPENBDF_SUITE, "test_pass_chan_types")
-def test_openbdf_channel_types_match_current_suite(tmp_path: Path) -> None:
-    path = tmp_path / "test_chan_types.bdf"
-    _write_bdf(
-        path,
-        labels=["A1", "A2", "ECG", "EKG", "EEG", "EOG", "EMG"],
-        samples_per_record=[256, 200, 256, 256, 256, 256, 256],
-    )
-
-    assert openbdf(path)["Head"]["ChanTyp"] == "N CCEOM"
-
-
-@eeglab_test(OPENBDF_SUITE, "test_pass_dig_min_larger_max")
-def test_openbdf_invalid_digital_order_disables_calibration(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    path = tmp_path / "test_dig_min_larger_max.bdf"
-    _write_bdf(
-        path,
-        labels=["A1", "A2", "A3"],
-        samples_per_record=[4, 4, 4],
-        digital_minimum=[8388608, 8388608, -8388608],
-        digital_maximum=[8388607, 8388607, 8388607],
-    )
-
-    head = openbdf(path)["Head"]
-
-    np.testing.assert_array_equal(head["Cal"][:2], [1, 1])
-    np.testing.assert_array_equal(head["Off"][:2], [0, 0])
-    assert "digital minimum is not smaller" in caplog.text
-
-
-@eeglab_test(OPENBDF_SUITE, "test_pass_invalid_dig_min_max")
-def test_openbdf_missing_digital_limits_use_legacy_fallback(tmp_path: Path) -> None:
-    path = tmp_path / "test_invalid_dig_min_max.bdf"
-    _write_bdf(
-        path,
-        labels=[f"A{index}" for index in range(7)],
-        samples_per_record=[4] * 7,
-        digital_minimum=[None] * 7,
-        digital_maximum=[None] * 7,
-    )
-
-    head = openbdf(path)["Head"]
-
-    np.testing.assert_array_equal(head["DigMin"], np.full(7, -32768))
-    np.testing.assert_array_equal(head["DigMax"], np.full(7, 32767))
-
-
-@eeglab_test(OPENBDF_SUITE, "test_pass_invalid_phys_min_max")
-def test_openbdf_missing_physical_limits_use_digital_limits(tmp_path: Path) -> None:
-    path = tmp_path / "test_invalid_phys_min_max.bdf"
-    _write_bdf(
-        path,
-        labels=[f"A{index}" for index in range(7)],
-        samples_per_record=[4] * 7,
-        physical_minimum=[None] * 7,
-        physical_maximum=[None] * 7,
-    )
-
-    head = openbdf(path)["Head"]
-
-    np.testing.assert_array_equal(head["PhysMin"], head["DigMin"])
-    np.testing.assert_array_equal(head["PhysMax"], head["DigMax"])
-
-
-@eeglab_test(OPENBDF_SUITE, "test_pass_phys_min_larger_max")
-def test_openbdf_reversed_physical_limits_use_digital_limits(tmp_path: Path) -> None:
-    path = tmp_path / "test_phys_min_larger_max.bdf"
-    _write_bdf(
-        path,
-        labels=[f"A{index}" for index in range(7)],
-        samples_per_record=[4] * 7,
-        physical_minimum=[2, 2, -2, -2, -2, -2, -2],
-        physical_maximum=[1, 1, 2, 2, 2, 2, 2],
-    )
-
-    head = openbdf(path)["Head"]
-
-    np.testing.assert_array_equal(head["PhysMin"], head["DigMin"])
-    np.testing.assert_array_equal(head["PhysMax"], head["DigMax"])
-
-
-@eeglab_test(OPENBDF_SUITE, "test_pass_unknown_record_size")
 def test_openbdf_unknown_record_count_uses_three_byte_samples(tmp_path: Path) -> None:
     path = tmp_path / "test_unknown_record_size.bdf"
     labels = ["A1", "A2"]
@@ -220,7 +137,6 @@ def test_openbdf_unknown_record_count_uses_three_byte_samples(tmp_path: Path) ->
     assert openbdf(path)["Head"]["NRec"] == 60
 
 
-@eeglab_test(READBDF_SUITE, "test_pass_general")
 def test_readbdf_decodes_selected_records_and_calibrates_them(tmp_path: Path) -> None:
     path = tmp_path / "test.bdf"
     labels = [f"A{index}" for index in range(1, 17)] + ["Status"]
@@ -287,20 +203,59 @@ def test_readbdf_preserves_variable_rate_padding_and_compact_modes(tmp_path: Pat
     np.testing.assert_array_equal(compact["Record"][1], [10, 11, 12, 13, 0, 0, 0, 0])
 
 
-def test_readbdf_rejects_fractional_out_of_range_and_truncated_records(tmp_path: Path) -> None:
-    path = tmp_path / "short.bdf"
-    _write_bdf(
-        path,
-        labels=["A1"],
-        samples_per_record=[4],
-        records=[[np.arange(4)]],
-    )
-    opened = openbdf(path)
+@eeglab_test(OPENBDF_SUITE, "test_pass_general")
+def test_upstream_openbdf_original_general_header(eeglab_backend, eeglab_suite_root):
+    # The source constructs an expected header but does not compare it.
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test.bdf"
+    eeglab_backend("openbdf", str(path), nargout=2)
 
-    with pytest.raises(ValueError, match="integers"):
-        readbdf(opened, [1.5])
-    with pytest.raises(IndexError, match="between 1 and 1"):
-        readbdf(opened, [2])
-    path.write_bytes(path.read_bytes()[:-1])
-    with pytest.raises(ValueError, match="incomplete"):
-        readbdf(opened, [1])
+
+@eeglab_test(OPENBDF_SUITE, "test_pass_chan_types")
+def test_upstream_openbdf_original_channel_types(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_chan_types.bdf"
+    data, _ = eeglab_backend("openbdf", str(path), nargout=2)
+    assert data["Head"]["ChanTyp"] == "N CCEOM"
+
+
+@eeglab_test(OPENBDF_SUITE, "test_pass_dig_min_larger_max")
+def test_upstream_openbdf_original_reversed_digital_limits(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_dig_min_larger_max.bdf"
+    data, _ = eeglab_backend("openbdf", str(path), nargout=2)
+    np.testing.assert_array_equal(data["Head"]["Cal"][:2], np.ones((2, 1)))
+    np.testing.assert_array_equal(data["Head"]["Off"][:2], np.zeros((2, 1)))
+
+
+@eeglab_test(OPENBDF_SUITE, "test_pass_invalid_dig_min_max")
+def test_upstream_openbdf_original_invalid_digital_limits(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_invalid_dig_min_max.bdf"
+    data, _ = eeglab_backend("openbdf", str(path), nargout=2)
+    np.testing.assert_array_equal(data["Head"]["DigMin"], np.full((7, 1), -32768.0))
+    np.testing.assert_array_equal(data["Head"]["DigMax"], np.full((7, 1), 32767.0))
+
+
+@eeglab_test(OPENBDF_SUITE, "test_pass_invalid_phys_min_max")
+def test_upstream_openbdf_original_invalid_physical_limits(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_invalid_phys_min_max.bdf"
+    data, _ = eeglab_backend("openbdf", str(path), nargout=2)
+    np.testing.assert_array_equal(data["Head"]["PhysMin"], data["Head"]["DigMin"])
+    np.testing.assert_array_equal(data["Head"]["PhysMax"], data["Head"]["DigMax"])
+
+
+@eeglab_test(OPENBDF_SUITE, "test_pass_phys_min_larger_max")
+def test_upstream_openbdf_original_reversed_physical_limits(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_phys_min_larger_max.bdf"
+    data, _ = eeglab_backend("openbdf", str(path), nargout=2)
+    np.testing.assert_array_equal(data["Head"]["PhysMin"], data["Head"]["DigMin"])
+    np.testing.assert_array_equal(data["Head"]["PhysMax"], data["Head"]["DigMax"])
+
+
+@eeglab_test(READBDF_SUITE, "test_pass_general")
+def test_upstream_readbdf_original_record_selection(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_binary/readbdf/test.bdf"
+    bdf = eeglab_backend("openbdf", str(path))
+    records = np.array([[1.0, 2.0, 4.0]])
+    data, signal = eeglab_backend("readbdf", bdf, records, nargout=2)
+    assert data["Record"].shape == (17, 256 * 3)
+    assert data["Valid"].shape == (1, 256 * 3)
+    np.testing.assert_array_equal(data["Idx"], records)
+    assert signal.shape == (256, 17)

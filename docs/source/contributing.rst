@@ -49,6 +49,20 @@ Fork and Clone
 Development Environment
 =======================
 
+Project Task Tracking
+---------------------
+
+We use Beads (``bd``) to track project tasks, dependencies, and handoffs. It is a
+development tool, not an EEGPrep runtime dependency. The local Dolt database runs
+in embedded mode without a server. Public bug reports still belong in GitHub
+Issues.
+
+In a fresh clone, install Beads and run ``bd bootstrap`` from the repository root
+to recover the shared task database, then ``bd ready`` to find available work. Follow the
+`repository setup guide <https://github.com/sccn/eegprep/blob/develop/.beads/README.md>`_
+for installation, coding-agent hooks, and explicit task synchronization. A code
+commit or ``git push`` does not synchronize the task database.
+
 Virtual Environment Setup
 --------------------------
 
@@ -129,39 +143,86 @@ Run tests with verbose output:
 
     uv run pytest -v tests/test_clean_artifacts.py
 
+Reference Tests Against MATLAB
+------------------------------
+
+Reference-contract tests use Python assertions with an explicitly selected
+backend. Ordinary ``pytest`` runs deselect these tests; deselection is not
+validation. Keep their inputs, workflows, and expectations faithful to the
+current ``sccn/eeglab_tests`` suite even when EEGPrep lacks the corresponding
+feature. Provenance decorators identify source scenarios, but do not prove
+behavioral equivalence or MATLAB code coverage.
+
+Use the reference revisions recorded in ``tests/eeglab_tests/__init__.py``.
+Initialize the suite's EEGLAB submodule and its plugin submodules, download the
+required Git LFS datasets, and install MATLAB Engine for the installed MATLAB
+release into the development environment. MATLAB, plugins, and reference data
+are development dependencies only; EEGPrep users do not need them.
+
+Select a migrated test module and run it against the pinned EEGLAB checkout:
+
+.. code-block:: bash
+
+    uv run --no-sync pytest path/to/test_module.py \
+        --eeglab-backend=matlab --eeglab-root=/path/to/eeglab_tests/eeglab
+
+``--no-sync`` preserves MATLAB Engine when it was installed separately from the
+project dependencies. ``EEGPREP_EEGLAB_ROOT`` can supply the reference path in
+place of ``--eeglab-root``. Missing MATLAB, reference files, or required plugins
+are failures in this lane, not successful skips. Selecting a provenance-tagged
+test that still calls Python directly is a collection error, preventing it from
+being reported as MATLAB validation.
+
+Tests using original datasets obtain them through ``eeglab_suite_root``. Set
+``--eeglab-suite-root=/path/to/eeglab_tests`` if this is not the parent of
+``--eeglab-root``. The fixture verifies the suite and EEGLAB Git revisions before
+using the data. Download the original Git LFS files rather than replacing them
+with generated recordings. The MATLAB backend also checks its EEGLAB revision.
+
+The ``eeglab_backend`` fixture calls the selected implementation by name, for
+example ``eeglab_backend("eeg_point2lat", points, epochs, srate, limits)``.
+Resolve functions through this fixture rather than importing EEGPrep functions
+at collection time. The MATLAB lane uses independent MAT-file transport, not
+EEGPrep's dataset readers or writers. Preserve numeric types and array shapes;
+make any MATLAB/Python indexing conversion explicit in the test.
+
+Automated MATLAB figures default to invisible, and backend teardown closes
+figures after each test. Plotting computations still execute; these runs do
+not replace separate interactive or visual-parity checks. Explicit GUI calls
+can override MATLAB's visibility default: the original LIMO workflows call
+``eeglab``/``eeglab redraw`` and are marked ``gui`` and ``slow``. Use
+``-m "not gui"`` when desktop windows must stay closed; those workflows then
+remain unvalidated, rather than being counted as passes.
+
+The same tests can be selected with ``--eeglab-backend=python`` later to expose
+implementation gaps. A missing Python feature must fail honestly; it is not a
+reason to change the reference expectation, skip a case, or weaken a tolerance.
+Report source accounting, live MATLAB results, and unresolved blockers
+separately. Neither a source-count match nor a passing subset establishes full
+suite validation.
+
 Writing Tests
 -------------
 
-When adding new features, include tests:
+Write a test before the code it covers, never after. Add a test only when it
+would catch a real bug that the EEGLAB-ported tests and the workflow tests on
+``sample_data`` would miss, for example a fixed regression, a 1-based latency
+or boundary-event edge, or a numerical result checked against EEGLAB. Do not add
+tests to raise coverage, and do not assert only types, shapes, or that a result
+is not ``None``.
+
+For a bug fix, first reproduce the bug with a failing test in the closest
+existing test file:
 
 .. code-block:: python
 
-    import numpy as np
-    from eegprep import EEGobj
+    from eegprep import pop_loadset, pop_select
 
-    def test_new_feature():
-        """Test description of what this tests."""
-        # Setup: EEGobj wraps an EEG dict (or a .set file path).
-        eeg_dict = {
-            "data": np.zeros((4, 100), dtype=np.float32),
-            "nbchan": 4,
-            "pnts": 100,
-            "trials": 1,
-            "srate": 128.0,
-            "xmin": 0.0,
-            "xmax": 99 / 128.0,
-            "chanlocs": [{"labels": f"Ch{i + 1}"} for i in range(4)],
-            "event": [],
-            "epoch": [],
-        }
-        eeg = EEGobj(eeg_dict)
-
-        # Execute: EEGobj dispatches pop_* operations, e.g. eeg.pop_reref([]).
-        result = eeg.pop_reref([])
-
-        # Assert
-        assert result is not None
-        assert result["nbchan"] == 4
+    def test_pop_select_keeps_final_sample():
+        EEG = pop_loadset("sample_data/eeglab_data.set")
+        last = EEG["xmax"]
+        out = pop_select(EEG, time=[last - 1, last])
+        assert out["data"][:, -1].tolist() == EEG["data"][:, -1].tolist()
 
 Documentation Standards
 =======================

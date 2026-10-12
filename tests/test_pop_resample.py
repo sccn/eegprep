@@ -69,9 +69,6 @@ class TestPopResample(unittest.TestCase):
         #                              rtol=1e-5, atol=1e-8,
         #                              err_msg='ICA activations differ between Python and Octave')
 
-    def test_advanced(self):
-        pass
-
 
 if __name__ == '__main__':
     unittest.main()

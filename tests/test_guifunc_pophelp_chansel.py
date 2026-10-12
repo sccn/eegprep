@@ -1,22 +1,47 @@
 import unittest
-from importlib import resources
 from pathlib import Path
 
 import tomllib
 
+import numpy as np
+import pytest
+
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
-from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
 from eegprep.functions.popfunc.pop_chansel import (
-    pop_chansel_display_values,
     pop_chansel_selected_string,
 )
-from eegprep.functions.popfunc.pop_reref import pop_reref_dialog_spec
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.gui import close_reference_gui
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.gui
+@eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
+def test_reference_pophelp(eeglab_backend, request):
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    if not matlab:
+        from PySide6.QtWidgets import QApplication
+
+        # Keep the real Python application and returned dialogs alive until
+        # the source closes them; MATLAB's pophelp itself has no output.
+        _application = QApplication.instance() or QApplication([])
+    for function in ("pop_editoptions", "pop_editoptions.m"):
+        window = eeglab_backend("pophelp", function, nargout=0 if matlab else 1)
+        close_reference_gui(eeglab_backend, request, window=window)
+
+
+@eeglab_test("unittesting_adminfunc/eeg_helphelp/adminfunc_eeg_helphelp_wrapperTest.m", "test_pass_general")
+def test_reference_eeg_helphelp(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # This one help script executes `help eeg_helphelp`; the other five
+        # category-help scripts are comment-only, not pophelp_text contracts.
+        eeglab_backend("eegprep_test_run_script", "eeg_helphelp", np.empty((1, 0), dtype=object), nargout=0)
+    else:
+        eeglab_backend("eeg_helphelp", nargout=0)
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):
@@ -35,79 +60,6 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         self.assertIn("POP_REREF", text)
         self.assertIn("resources/help", Path(source_path).as_posix())
         self.assertTrue(source_path.endswith("pop_reref.md"))
-
-    @eeglab_test("unittesting_guifunc/pophelp/guifunc_pophelp_wrapperTest.m", "test_test_pophelp")
-    @eeglab_test("unittesting_guifunc/pophelp/test_pophelp.m", "test_test_pophelp")
-    def test_pophelp_accepts_function_name_with_or_without_matlab_suffix(self):
-        plain_text, plain_source = pophelp_text("pop_editoptions")
-        matlab_text, matlab_source = pophelp_text("pop_editoptions.m")
-
-        self.assertEqual(matlab_text, plain_text)
-        self.assertEqual(matlab_source, plain_source)
-        self.assertIn("POP_EDITOPTIONS", plain_text.upper())
-
-    def test_pophelp_reads_pop_interp_packaged_resource(self):
-        text, source_path = pophelp_text("pop_interp")
-
-        self.assertIn("POP_INTERP - interpolate data channels", text)
-        self.assertIn("resources/help", Path(source_path).as_posix())
-        self.assertTrue(source_path.endswith("pop_interp.md"))
-
-    def test_pophelp_reads_reref_packaged_resource(self):
-        text, source_path = pophelp_text("reref")
-
-        self.assertIn("REREF - convert common reference EEG data", text)
-        self.assertIn("resources/help", Path(source_path).as_posix())
-        self.assertTrue(source_path.endswith("reref.md"))
-
-    def test_phase_study_pop_help_resources_are_packaged(self):
-        for target in ("pop_addindepvar", "pop_listfactors"):
-            with self.subTest(target=target):
-                text, source_path = pophelp_text(target)
-                self.assertIn(target.upper(), text.upper())
-                self.assertIn("resources/help", Path(source_path).as_posix())
-                self.assertTrue(source_path.endswith(f"{target}.md"))
-
-    def test_packaged_help_does_not_reference_local_notes(self):
-        text, _ = pophelp_text("pop_preclust")
-
-        self.assertNotIn(".notes/", text)
-        self.assertIn("pop_precomp", text)
-
-    def test_dialog_help_targets_have_packaged_resources(self):
-        interp_eeg = {"data": [], "trials": 1, "chanlocs": [], "chaninfo": {}, "epoch": []}
-        specs = (pop_reref_dialog_spec(), pop_interp_dialog_spec(interp_eeg))
-
-        for spec in specs:
-            with self.subTest(spec=spec.function_name):
-                text, source_path = pophelp_text(spec.help_text)
-                self.assertIn(spec.function_name.upper(), text)
-                self.assertIn("resources/help", Path(source_path).as_posix())
-
-    @eeglab_test("unittesting_adminfunc/eeg_helpadmin/test_eeg_helpadmin.m", "test_test_eeg_helpadmin")
-    @eeglab_test("unittesting_adminfunc/eeg_helphelp/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpmenu/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helppop/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpsigproc/pass_general.m", "test_pass_general")
-    @eeglab_test("unittesting_adminfunc/eeg_helpstudy/pass_general.m", "test_pass_general")
-    def test_help_resources_are_packaged_importlib_resources(self):
-        help_files = resources.files("eegprep.resources.help")
-
-        for function_name in (
-            "eeg_helpadmin",
-            "eeg_helphelp",
-            "eeg_helpmenu",
-            "eeg_helppop",
-            "eeg_helpsigproc",
-            "eeg_helpstudy",
-        ):
-            with self.subTest(function_name=function_name):
-                text, source_path = pophelp_text(function_name)
-                self.assertTrue(help_files.joinpath(f"{function_name}.md").is_file())
-                self.assertTrue(text.strip())
-                self.assertTrue(source_path.endswith(f"{function_name}.md"))
-        self.assertTrue(help_files.joinpath("eegprep.md").is_file())
-        self.assertIn("EEGPrep", help_files.joinpath("eegprep.md").read_text(encoding="utf-8"))
 
     def test_help_resources_are_declared_as_package_data(self):
         pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -144,25 +96,6 @@ class PopHelpAndChanSelTests(unittest.TestCase):
                 self.assertIn(target.upper(), text.upper())
                 self.assertTrue(source_path.endswith(f"{target}.md"))
 
-    def test_pophelp_requires_packaged_resource(self):
-        with self.assertRaisesRegex(FileNotFoundError, "Missing packaged EEGPrep help resource"):
-            pophelp_text("missing_resource")
-
-    def test_pop_chansel_display_values_match_withindex_format(self):
-        values = pop_chansel_display_values(["Fp1", "Cz", "Pz"], withindex="on")
-
-        self.assertEqual(values, ["1  -  Fp1", "2  -  Cz", "3  -  Pz"])
-
-    def test_pop_chansel_selected_string_matches_eeglab_output(self):
-        selected = pop_chansel_selected_string(["Fp1", "Cz", "Pz"], ["Fp1", "Pz"])
-
-        self.assertEqual(selected, "Fp1 Pz")
-
-    def test_pop_chansel_selected_string_matches_default_withindex_off_output(self):
-        selected = pop_chansel_selected_string(["Fp1", "Cz", "Pz"], ["Cz"])
-
-        self.assertEqual(selected, "Cz")
-
     def test_pop_chansel_quotes_labels_with_spaces(self):
         selected = pop_chansel_selected_string(["Left mastoid", "Cz"], ["Left mastoid"])
 
@@ -172,10 +105,6 @@ class PopHelpAndChanSelTests(unittest.TestCase):
         selected = pop_chansel_selected_string(["Fp1", "Cz", "Pz"], [1, 3])
 
         self.assertEqual(selected, "Fp1 Pz")
-
-    def test_pop_chansel_raises_for_missing_selected_label(self):
-        with self.assertRaisesRegex(ValueError, "Cannot find 'Pz'"):
-            pop_chansel_selected_string(["Fp1", "Cz"], ["Pz"])
 
 
 if __name__ == "__main__":

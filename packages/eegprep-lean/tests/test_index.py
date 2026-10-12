@@ -1,0 +1,445 @@
+"""Tests for the NEMAR index reader.
+
+Two tiers. The offline ones drive the real parsing and path-building code against a real
+index document, captured verbatim from ``zarr.nemar.org`` and trimmed to two stores. The
+``network`` ones reach the live host, because what is under test is conformance to a
+contract another team serves, and a stand-in that always agrees with this reader would
+prove exactly nothing about that.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import importlib
+import importlib.util
+import json
+import os
+import subprocess
+import sys
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from eegprep_lean import (
+    DatasetIndex,
+    IndexError_,
+    Store,
+    UnsupportedFormatVersion,
+    read_index,
+)
+from eegprep_lean.transport import Response
+
+FIXTURE = Path(__file__).parent / "nm000103_index_v3.json"
+LIVE_DATASET = "nm000103"
+
+# Literal values from the captured document, so an assertion can disagree with the parser.
+# A test that compares a parsed object to itself passes whatever from_entry does with the
+# fields, which is how a name/modality swap survives a suite.
+STORE0_PATH = "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_eeg.set"
+STORE0_ZARR = "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_eeg.zarr"
+STORE1_PATH = "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DiaryOfAWimpyKid_eeg.set"
+GROUP0_NAME = "eeg_250hz"
+GROUP0_MODALITY = "EEG"
+GROUP0_RATE = 250.0
+GROUP0_CHANNELS = 129
+GROUP0_SAMPLES = 43034
+GROUP0_VIEW_LEVELS = 4
+CONTRACT_BASE = "https://zarr.nemar.org/nm000103/zarr/"
+
+
+class ReplayTransport:
+    """Serves one captured document, and records what was asked for.
+
+    This stands in for the network at the process boundary, the same way an HTTP response
+    fixture does. Everything under test still runs: validation, version branching and
+    path building are the real implementations.
+    """
+
+    def __init__(self, body: bytes, *, status: int = 200) -> None:
+        self.body = body
+        self.status = status
+        self.requested: list[str] = []
+
+    async def get(self, url: str, *, start: int | None = None, end: int | None = None) -> Response:
+        self.requested.append(url)
+        return Response(status=self.status, body=self.body)
+
+
+def _document() -> dict:
+    return json.loads(FIXTURE.read_text())
+
+
+def _read(document: dict) -> tuple[DatasetIndex, ReplayTransport]:
+    transport = ReplayTransport(json.dumps(document).encode())
+    index = asyncio.run(read_index(LIVE_DATASET, transport=transport))
+    return index, transport
+
+
+class TestContractConformance:
+    def test_reads_the_index_through_the_contract_host(self) -> None:
+        """The one URL a client may build. Not the bucket."""
+        _, transport = _read(_document())
+
+        assert transport.requested == ["https://zarr.nemar.org/nm000103/zarr/index.json"]
+
+    def test_refuses_a_format_version_it_does_not_implement(self) -> None:
+        """An older index stays served until its dataset reconverts, so guessing is wrong."""
+        document = _document()
+        document["format_version"] = 2
+
+        with pytest.raises(UnsupportedFormatVersion) as caught:
+            _read(document)
+
+        assert caught.value.found == 2
+        assert "format_version 2" in str(caught.value)
+
+    def test_an_index_without_contract_base_is_refused(self) -> None:
+        """Without it there is no URL this reader is allowed to build."""
+        document = _document()
+        del document["contract_base"]
+
+        with pytest.raises(IndexError_, match="no contract_base"):
+            _read(document)
+
+    def test_store_count_comes_from_the_field_not_the_array_length(self) -> None:
+        """The contract says store_count is authoritative; stores[] may be a page of it.
+
+        The fixture is trimmed to two stores from a dataset serving 3522, so a reader
+        that returned len(stores) would disagree with the archive by three orders of
+        magnitude and look plausible doing it.
+        """
+        index, _ = _read(_document())
+
+        assert index.store_count == 3522
+        assert len(index.stores) == 2
+
+    def test_level0_and_view_follow_the_declared_layout_templates(self) -> None:
+        """layout.level0 is <zarr>/<group>/0 and layout.view is <zarr>/<group>/view/<L>.
+
+        Spelled out literally rather than rebuilt from the parsed object. Comparing a URL
+        to one assembled from the same fields it was assembled from passes no matter what
+        those fields hold, which is how a name/modality swap goes unnoticed.
+        """
+        index, _ = _read(_document())
+        store = index.stores[0]
+
+        assert index.level0_url(store) == f"{CONTRACT_BASE}{STORE0_ZARR}/{GROUP0_NAME}/0"
+        assert index.view_url(store, 1) == f"{CONTRACT_BASE}{STORE0_ZARR}/{GROUP0_NAME}/view/1"
+
+    def test_parses_every_group_field_into_the_field_it_names(self) -> None:
+        """Catches a transposition in from_entry, which no URL assertion can see."""
+        group = _read(_document())[0].stores[0].group()
+
+        assert group.name == GROUP0_NAME
+        assert group.modality == GROUP0_MODALITY
+        assert group.rate == GROUP0_RATE
+        assert group.n_channels == GROUP0_CHANNELS
+        assert group.n_samples == GROUP0_SAMPLES
+        assert group.n_view_levels == GROUP0_VIEW_LEVELS
+        assert group.duration_s == GROUP0_SAMPLES / GROUP0_RATE
+
+    def test_parses_store_identity_fields_into_the_fields_they_name(self) -> None:
+        """`path` is the source recording and `zarr` is the store; swapping them builds
+        URLs that look right and resolve to nothing."""
+        store = _read(_document())[0].stores[0]
+
+        assert store.path == STORE0_PATH
+        assert store.zarr == STORE0_ZARR
+
+    def test_contract_base_is_normalized_so_joins_cannot_lose_a_separator(self) -> None:
+        document = _document()
+        document["contract_base"] = document["contract_base"].rstrip("/")
+
+        index, _ = _read(document)
+
+        assert index.contract_base.endswith("/")
+        assert "zarr//" not in index.level0_url(index.stores[0])
+
+
+class TestIndexUrlOverride:
+    """``index_url`` names the document to fetch. ``contract_base`` still comes from the
+    document itself, never from this argument, which is the point: a dev or staging
+    deployment's index names its own ``contract_base``, and this reader must return
+    that, not production's."""
+
+    CUSTOM_URL = "https://staging.example.test/nm000103/zarr/index.json"
+
+    def test_an_explicit_index_url_is_fetched_instead_of_the_template(self) -> None:
+        transport = ReplayTransport(json.dumps(_document()).encode())
+
+        index = asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
+        assert transport.requested == [self.CUSTOM_URL]
+        assert index.contract_base == CONTRACT_BASE
+
+    def test_an_index_url_for_another_dataset_is_refused(self) -> None:
+        """A supplied URL can name another dataset's index, and reading it would return
+        that dataset's recordings under this one's name."""
+        transport = ReplayTransport(json.dumps({**_document(), "dataset_id": "nm000999"}).encode())
+
+        with pytest.raises(IndexError_, match=r"'nm000999', not 'nm000103'"):
+            asyncio.run(read_index(LIVE_DATASET, transport=transport, index_url=self.CUSTOM_URL))
+
+
+class TestViewLevels:
+    def test_accepts_the_highest_level_the_group_declares(self) -> None:
+        """The boundary itself. Only testing one past it leaves `<=` vs `<` undetected."""
+        index, _ = _read(_document())
+        store = index.stores[0]
+
+        url = index.view_url(store, GROUP0_VIEW_LEVELS)
+
+        assert url.endswith(f"/view/{GROUP0_VIEW_LEVELS}")
+
+    def test_rejects_a_view_level_the_group_does_not_have(self) -> None:
+        index, _ = _read(_document())
+        store = index.stores[0]
+        group = store.group()
+
+        with pytest.raises(IndexError_, match="outside 1"):
+            index.view_url(store, group.n_view_levels + 1)
+
+    def test_rejects_view_level_zero_rather_than_treating_it_as_full_resolution(self) -> None:
+        """Level 0 has its own template. Silently aliasing it would return the wrong array."""
+        index, _ = _read(_document())
+
+        with pytest.raises(IndexError_, match="level0_url"):
+            index.view_url(index.stores[0], 0)
+
+
+class TestGroupSelection:
+    def test_refuses_to_guess_between_several_groups(self) -> None:
+        """Groups are one recording at different rates, so picking the first returns real
+        data at the wrong sampling rate, which survives a plot and is never questioned."""
+        base = _read(_document())[0].stores[0].groups[0]
+        two = Store(path="x.set", zarr="x.zarr", groups=(base, replace(base, name="eeg_500hz", rate=500.0)))
+
+        with pytest.raises(IndexError_, match="different rates"):
+            two.group()
+
+    def test_an_explicit_group_is_honored_rather_than_silently_replaced(self) -> None:
+        """A caller that resolved an ambiguity must get the group it named.
+
+        Two groups at genuinely different rates, so a reader that ignores the argument and
+        falls back to `store.group()` raises on the ambiguity instead of quietly returning
+        the wrong rate.
+        """
+        base = _read(_document())[0].stores[0].groups[0]
+        fast = replace(base, name="eeg_500hz", rate=500.0)
+        store = Store(path=STORE0_PATH, zarr=STORE0_ZARR, groups=(base, fast))
+        index = _read(_document())[0]
+
+        assert index.level0_url(store, fast).endswith("/eeg_500hz/0")
+        assert index.level0_url(store, base).endswith(f"/{GROUP0_NAME}/0")
+        assert index.view_url(store, 1, fast).endswith("/eeg_500hz/view/1")
+
+    def test_selects_by_name_among_groups_at_different_rates(self) -> None:
+        base = _read(_document())[0].stores[0].groups[0]
+        fast = replace(base, name="eeg_500hz", rate=500.0)
+        store = Store(path=STORE0_PATH, zarr=STORE0_ZARR, groups=(base, fast))
+
+        assert store.group("eeg_500hz").rate == 500.0
+        assert store.group(GROUP0_NAME).rate == GROUP0_RATE
+
+
+class TestLookup:
+    def test_finds_a_store_by_its_source_path(self) -> None:
+        index, _ = _read(_document())
+
+        assert index.store(STORE1_PATH) is index.stores[1]
+        assert index.store(STORE0_PATH).zarr == STORE0_ZARR
+
+
+@pytest.mark.network
+class TestAgainstTheLiveHost:
+    """Reaches zarr.nemar.org. These are the tests that can actually fail when the
+    contract changes underneath this reader, which is the point of having them."""
+
+    def test_reads_the_live_index(self) -> None:
+        index = asyncio.run(read_index(LIVE_DATASET))
+
+        assert index.dataset_id == LIVE_DATASET
+        assert index.format_version == 3
+        assert index.contract_base == f"https://zarr.nemar.org/{LIVE_DATASET}/zarr/"
+        assert index.store_count > 0
+        assert index.stores
+
+    def test_a_level0_url_built_from_the_live_index_serves_array_metadata(self) -> None:
+        """End to end: read the index, build a path from its own layout, fetch what is
+        there. Proves the templates resolve to something real rather than merely to a
+        well-formed string."""
+        from eegprep_lean.transport import default_transport
+
+        async def run() -> dict:
+            transport = default_transport()
+            index = await read_index(LIVE_DATASET, transport=transport)
+            url = index.level0_url(index.stores[0])
+            response = await transport.get(f"{url}/zarr.json")
+            return json.loads(response.body)
+
+        metadata = asyncio.run(run())
+
+        assert len(metadata["shape"]) == 2, "a level-0 EEG array is channels by samples"
+        assert metadata["data_type"] == "int16"
+        # Axis order, not just rank: a transposed array also has rank 2, and reading it as
+        # channels-by-samples would return one channel's whole recording as a time slice.
+        channels, samples = metadata["shape"]
+        assert channels == GROUP0_CHANNELS, "first axis is channels"
+        assert samples == GROUP0_SAMPLES, "second axis is samples"
+        # Physical values need these; a reader returning digital counts is wrong in a way
+        # that raises nothing, so check they are usable and not a degenerate identity.
+        scale = metadata["attributes"]["scale"]
+        offset = metadata["attributes"]["offset"]
+        assert len(scale) == channels
+        assert len(offset) == channels
+        assert all(s > 0 for s in scale), "a zero or negative scale cannot convert to volts"
+        assert any(o != 0 for o in offset), "an all-zero offset would make the field pointless"
+
+    def test_the_host_honors_the_suffix_range_the_sharding_codec_needs(self) -> None:
+        """If suffix ranges stop working, every chunk read fails and metadata still
+        passes, so this is checked directly rather than inferred."""
+        from eegprep_lean.transport import default_transport
+
+        async def run() -> Response:
+            transport = default_transport()
+            index = await read_index(LIVE_DATASET, transport=transport)
+            store = index.stores[0]
+            url = index.level0_url(store)
+            return await transport.get(f"{url}/c/0/0", start=None, end=128)
+
+        response = asyncio.run(run())
+
+        assert response.status == 206, "a 200 means the range was ignored and a whole shard is coming"
+        assert len(response.body) == 128
+
+
+class TestExtras:
+    """The lazy loader in ``__init__``, which is what a base install meets first.
+
+    Every ImportError here is one the interpreter actually raised. Which branch runs
+    depends on what is installed, and test.yml runs the offline suite in four tiers
+    (nothing, zarr alone, plot alone, both), so between them every branch is exercised.
+    The "both" tier is where these particular tests skip, and it is there for the
+    cross-extra paths the other three cannot reach.
+    """
+
+    EXTRA_PACKAGES = (("zarr", "zarr", "NemarHttpStore"), ("plot", "matplotlib", "plot_window"))
+
+    def test_a_genuinely_absent_extra_is_recognized_as_such(self) -> None:
+        import eegprep_lean
+
+        checked = 0
+        for extra, package, _ in self.EXTRA_PACKAGES:
+            if importlib.util.find_spec(package) is not None:
+                continue
+            checked += 1
+            with pytest.raises(ImportError) as caught:
+                importlib.import_module(package)
+            assert eegprep_lean.is_missing_extra(caught.value, extra)
+        if checked == 0:
+            pytest.skip("both extras are installed in this tier")
+
+    #: Which extra supplies each lazily loaded name, written out here rather than read
+    #: from the table under test. Reading the table would make any remapping of it agree
+    #: with its own expectation, which is the failure mode this file already carries a
+    #: warning about.
+    EXPECTED_EXTRA = {
+        "NemarHttpStore": "zarr",
+        "ReadOnlyStoreError": "zarr",
+        "open_array": "zarr",
+        "read_window": "zarr",
+        "Window": "plot",
+        "to_physical": "plot",
+        "default_spacing": "plot",
+        "plot_window": "plot",
+        "to_png": "plot",
+    }
+
+    def test_every_lazy_name_resolves_or_names_its_own_extra(self) -> None:
+        """The whole point of the table in ``__init__``, checked entry by entry.
+
+        Both branches, in whichever tier this runs: when the module imports, the name
+        must resolve to the real object, and when it does not, the error must name the
+        extra that actually supplies it. Importing from the submodule directly, which is
+        what every other test does, never touches this path, so a wrong extra label in
+        the table would reach a reader before it reached a test.
+        """
+        import eegprep_lean
+
+        for name, extra in self.EXPECTED_EXTRA.items():
+            module_name = eegprep_lean._EXTRA_NAMES[name][0]
+            try:
+                module = importlib.import_module(module_name)
+            except ImportError:
+                with pytest.raises(ImportError, match=f"needs the {extra} extra"):
+                    getattr(eegprep_lean, name)
+            else:
+                assert getattr(eegprep_lean, name) is getattr(module, name), (
+                    f"eegprep_lean.{name} is not {module_name}.{name}"
+                )
+
+    def test_an_unrelated_import_error_is_not_blamed_on_the_extra(self) -> None:
+        """A bug inside store.py or plot.py raises ImportError too, and calling that a
+        missing extra sends the reader off to install something they already have while
+        the real error stays buried in the cause."""
+        import eegprep_lean
+
+        with pytest.raises(ImportError) as caught:
+            importlib.import_module("a_module_that_does_not_exist_anywhere")
+
+        assert caught.value.name == "a_module_that_does_not_exist_anywhere"
+        assert not eegprep_lean.is_missing_extra(caught.value, "plot")
+        assert not eegprep_lean.is_missing_extra(caught.value, "zarr")
+
+    #: What resolving a lazy name loads. Listing or describing names must load none of
+    #: it, or a base install pays for an extra, or fails without one, just by asking.
+    EXTRA_MODULES = ("zarr", "numpy", "matplotlib", "eegprep_lean.store", "eegprep_lean.window", "eegprep_lean.plot")
+
+    def _run_fresh(self, code: str) -> str:
+        """Run ``code`` in a new interpreter and fail if it loaded anything behind an extra.
+
+        A subprocess, because any earlier test in this process may already have imported
+        the extras, which would make an in-process check pass for the wrong reason.
+        """
+        import eegprep_lean
+
+        package_parent = Path(eegprep_lean.__file__).resolve().parent.parent
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join([str(package_parent), env.get("PYTHONPATH", "")])
+        script = (
+            f"import sys, eegprep_lean\n{code}\n"
+            f"loaded = [m for m in {self.EXTRA_MODULES!r} if m in sys.modules]\n"
+            "assert not loaded, f'loaded {loaded}'\n"
+        )
+        result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+
+    def test_dir_lists_every_lazy_name_without_loading_its_extra(self) -> None:
+        """Tab completion reads ``dir()``, and it is how a notebook reader finds a name."""
+        names = self._run_fresh("print('\\n'.join(dir(eegprep_lean)))").split()
+
+        missing = set(self.EXPECTED_EXTRA) - set(names)
+        assert not missing, f"dir() omits the lazy names {sorted(missing)}"
+        assert {"help", "read_index", "read_group_metadata"} <= set(names)
+
+    def test_help_describes_every_public_name_without_loading_an_extra(self) -> None:
+        import eegprep_lean
+
+        text = self._run_fresh("eegprep_lean.help()")
+
+        constants = {"EXTRA_HINTS", "EXTRA_ROOTS", "SUPPORTED_FORMAT_VERSION", "__version__"}
+        absent = [name for name in sorted(set(eegprep_lean.__all__) - constants) if name not in text]
+        assert not absent, f"help() does not mention {absent}"
+        for extra in ("zarr", "plot", "preprocess"):
+            assert f"{extra} extra" in text
+
+    def test_help_says_what_is_not_available_yet(self) -> None:
+        """A reader who looks for preprocessing or ICLabel should learn it is not there
+        yet from the overview, not by searching for a name that does not exist."""
+        text = self._run_fresh("eegprep_lean.help()")
+
+        assert "Preprocessing" in text
+        assert "ICLabel" in text
+        assert "issues/378" in text

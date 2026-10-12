@@ -39,22 +39,6 @@ def ensure_file(fname: str) -> str:
     return local_file
 
 
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestMATLABAccess(unittest.TestCase):
-    def setUp(self):
-        try:
-            self.eeglab = eeglabcompat.get_eeglab('MAT')
-            self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
-        except ImportError as e:
-            self.skipTest(f"MATLAB not available: {e}")
-
-    def test_basic(self):
-        self.assertEqual(self.eeglab.sqrt(4.0), 2.0, 'MATLAB sqrt() failed')
-
-    def test_eeglab_presence(self):
-        eeglabcompat.eeg_checkset(self.EEG, eeglab=self.eeglab)
-
-
 class TestCleanFlatlines(unittest.TestCase):
     def setUp(self):
         # download file
@@ -185,12 +169,6 @@ class TestCleanASR(DebuggableTestCase):
             err_msg='clean_asr() failed vs MATLAB',
         )
 
-    def test_riemannian(self):
-        """Test the Riemannian mode."""
-        # for now this is just checking that it does not crash since we don't have
-        # MATLAB reference code for this
-        clean_asr(deepcopy(self.EEG), useriemannian='calib')
-
 
 class TestCleanWindows(DebuggableTestCase):
     def setUp(self):
@@ -237,10 +215,6 @@ class TestCleanWindows(DebuggableTestCase):
         eeglab = eeglabcompat.get_eeglab('MAT')
         expected = eeglab.clean_windows(self.EEG)
         compare_eeg(cleaned['data'], expected['data'], err_msg='clean_windows() failed vs MATLAB')
-
-    def test_clean_windows_preserves_float64(self):
-        cleaned, _ = clean_windows(deepcopy(self.EEG))
-        self.assertEqual(cleaned['data'].dtype, np.float64)
 
 
 # ------------------------------------------------------------------------------

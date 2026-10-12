@@ -5,7 +5,7 @@ import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.sigprocfunc.epoch import epoch  # Python translation under test
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_test
 
 
 def _ml_list_of_arrays_to_0_based(list_of_arrays):
@@ -41,6 +41,66 @@ def _upstream_epoch_data():
     "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
     "test_pass_no_srate",
 )
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_boundary",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_valuelim",
+)
+@eeglab_test(
+    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
+    "test_pass_allevents",
+)
+def test_reference_epoch_original_five_output_contracts(eeglab_backend, subtests):
+    data = np.arange(1.0, 41.0).reshape(2, 20)
+    events = np.array([[2.0, 5.0, 6.0, 9.0, 12.0, 18.0]])
+    first_channel = np.array(
+        [[1, 4, 5, 8, 11, 17], [2, 5, 6, 9, 12, 18], [3, 6, 7, 10, 13, 19], [4, 7, 8, 11, 14, 20]],
+        dtype=float,
+    )
+    expected_data = np.stack((first_channel, first_channel + 20.0))
+    cell_indices, cell_latencies = np.empty((1, 6), dtype=object), np.empty((1, 6), dtype=object)
+    for index, (indices, latencies) in enumerate(
+        zip(
+            ([1.0], [2.0, 3.0], [2.0, 3.0], [4.0, 5.0], [6.0], [7.0, 8.0]),
+            ([0.0], [0.0, 1.0], [-1.0, 0.0], [0.0, 1.0], [0.0], [-1.0, 0.0]),
+            strict=True,
+        )
+    ):
+        cell_indices[0, index], cell_latencies[0, index] = np.array([indices]), np.array([latencies])
+    for case in ("general", "no_srate", "boundary", "valuelim", "allevents"):
+        with subtests.test(case=case):
+            source_events = events.copy()
+            options = () if case == "no_srate" else ("srate", 1.0)
+            expected_indices = np.arange(1.0, 7.0)[:, None]
+            if case == "boundary":
+                source_events[0, -1] = 19.0
+                expected_indices = expected_indices[:-1]
+            elif case == "valuelim":
+                options += ("valuelim", np.array([[7.0, 35.0]]))
+                expected_indices = np.array([[4.0], [5.0]])
+            elif case == "allevents":
+                options += ("allevents", np.array([[2.0, 5.0, 6.0, 9.0, 10.0, 12.0, 17.0, 18.0]]))
+            epoched, newtime, indices, rerefevents, rereflatencies = eeglab_backend(
+                "epoch",
+                data,
+                source_events,
+                np.array([[-1.0, 3.0]]),
+                *options,
+                nargout=5,
+            )
+            assert_matlab_near(epoched, expected_data[:, :, expected_indices[:, 0].astype(int) - 1])
+            assert_matlab_near(newtime, [[-1.0, 2.0]])
+            assert_matlab_near(indices, expected_indices)
+            # near.m uses isequal, not numeric tolerance, for cell arguments.
+            assert_matlab_equal(rerefevents, cell_indices if case == "allevents" else np.empty((0, 0), dtype=object))
+            assert_matlab_equal(
+                rereflatencies, cell_latencies if case == "allevents" else np.empty((0, 0), dtype=object)
+            )
+
+
 def test_epoch_upstream_default_and_explicit_sampling_rate_match_exact_slices():
     data = _upstream_epoch_data()
     events = [2, 5, 6, 9, 12, 18]
@@ -59,10 +119,6 @@ def test_epoch_upstream_default_and_explicit_sampling_rate_match_exact_slices():
         np.testing.assert_array_equal(reallim, [-1, 2])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_boundary",
-)
 def test_epoch_upstream_boundary_case_drops_only_out_of_bounds_window():
     data = _upstream_epoch_data()
 
@@ -75,10 +131,6 @@ def test_epoch_upstream_boundary_case_drops_only_out_of_bounds_window():
     np.testing.assert_array_equal(indices, np.arange(5))
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_valuelim",
-)
 def test_epoch_upstream_value_limits_filter_on_all_channels():
     data = _upstream_epoch_data()
 
@@ -97,10 +149,6 @@ def test_epoch_upstream_value_limits_filter_on_all_channels():
     np.testing.assert_array_equal(indices, [3, 4])
 
 
-@eeglab_test(
-    "unittesting_sigprocfunc/epoch/sigprocfunc_epoch_wrapperTest.m",
-    "test_pass_allevents",
-)
 def test_epoch_upstream_rereferences_all_events_with_zero_based_indices():
     data = _upstream_epoch_data()
 
@@ -131,59 +179,6 @@ class TestEpochParity(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
         self.eeglab = get_eeglab('MAT')
-
-    def test_parity_continuous_basic(self):
-        # 2 channels, 1000 samples, 100 Hz
-        srate = 100.0
-        n_ch, n_samp = 2, 1000
-        data = np.random.randn(n_ch, n_samp)
-        # Events in seconds
-        events = np.array([2.0, 5.0, 7.5], dtype=float)
-        lim = np.array([-0.2, 0.5], dtype=float)  # seconds
-
-        py = epoch(data, events, lim, srate=srate, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
-
-        py_epochdat, py_newtime, py_indexes, py_alleventout, py_alllatencyout, py_reallim = py
-        ml_epochdat, ml_newtime, ml_indexes, ml_alleventout, ml_alllatencyout, ml_reallim = ml
-
-        # MATLAB indexes are 1-based; convert to 0-based for comparison
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-
-        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
-
-        # Rereferencing not requested here
-        self.assertEqual(len(py_alleventout), 0)
-        self.assertEqual(len(py_alllatencyout), 0)
-
-    def test_parity_valuelim_filter(self):
-        srate = 100.0
-        n_ch, n_samp = 1, 1000
-        data = np.zeros((n_ch, n_samp))
-        # Make the second epoch violate valuelim by inserting a large artifact
-        data[0, 600:650] = 1e3
-        events = np.array([2.0, 6.2], dtype=float)  # seconds
-        lim = np.array([-0.1, 0.4], dtype=float)
-
-        valuelim = np.array([-50.0, 50.0], dtype=float)
-
-        py = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'valuelim', valuelim, 'verbose', 'off')
-
-        py_epochdat, py_newtime, py_indexes, _, _, py_reallim = py
-        ml_epochdat, ml_newtime, ml_indexes, _, _, ml_reallim = ml
-
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-        self.assertTrue(np.allclose(py_epochdat, ml_epochdat, atol=1e-12))
-        self.assertTrue(np.allclose(py_newtime, ml_newtime, atol=1e-12))
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-        self.assertTrue(np.allclose(py_reallim, ml_reallim, atol=1e-12))
-
-        # Expect only the first event to survive
-        self.assertTrue(np.array_equal(py_indexes, np.array([0])))
 
     def test_parity_rereference_allevents(self):
         srate = 100.0
@@ -233,23 +228,6 @@ class TestEpochParity(unittest.TestCase):
             self.assertTrue(np.array_equal(py_alleventout[i], np.asarray(ml_alleventout0[i])))
             self.assertTrue(np.allclose(py_alllatencyout[i], np.asarray(ml_alllatencyout_flat[i]), atol=1e-12))
 
-    def test_parity_boundary_exclusion(self):
-        # Place an event whose window crosses dataset boundary
-        srate = 100.0
-        n_ch, n_samp = 1, 500
-        data = np.random.randn(n_ch, n_samp)
-        events = np.array([0.1, 5.0], dtype=float)  # second event is near end
-        lim = np.array([-0.2, 0.5], dtype=float)
-
-        py = epoch(data, events, lim, srate=srate, verbose='off')
-        ml = self.eeglab.epoch(data, events, lim, 'srate', srate, 'verbose', 'off')
-
-        _, _, py_indexes, _, _, _ = py
-        _, _, ml_indexes, _, _, _ = ml
-        ml_indexes0 = np.asarray(ml_indexes).astype(int).flatten() - 1  # flatten to 1D
-
-        self.assertTrue(np.array_equal(py_indexes, ml_indexes0))
-
 
 class TestEpochFunctional(unittest.TestCase):
     def test_functional_3d_epoched_input_same_epoch_constraint(self):
@@ -294,27 +272,6 @@ class TestEpochFunctional(unittest.TestCase):
         # be rejected, matching EEGLAB's floor((posinit-1)/dataframes) test.
         _, _, idx_cross, _, _, _ = epoch(data, np.array([1.2]), lim, srate=srate, verbose='off')
         self.assertEqual(idx_cross.size, 0)
-
-    def test_functional_valuelim_pass_all(self):
-        srate = 200.0
-        n_ch, n_samp = 3, 4000
-        data = 1e-3 * np.random.randn(n_ch, n_samp)  # small amplitude noise
-        events = np.array([2.0, 10.0, 15.0], dtype=float)
-        lim = np.array([-0.25, 0.25], dtype=float)
-        valuelim = np.array([-1e-2, 1e-2], dtype=float)
-
-        ep, newtime, idx, _, _, _ = epoch(data, events, lim, srate=srate, valuelim=valuelim, verbose='off')
-        self.assertTrue(np.array_equal(idx, np.arange(len(events))))
-
-    def test_functional_no_allevents_outputs_empty_lists(self):
-        srate = 100.0
-        data = np.random.randn(2, 1000)
-        events = np.array([2.0], dtype=float)
-        lim = np.array([-0.1, 0.2], dtype=float)
-
-        _, _, _, alleventout, alllatencyout, _ = epoch(data, events, lim, srate=srate, verbose='off')
-        self.assertEqual(len(alleventout), 0)
-        self.assertEqual(len(alllatencyout), 0)
 
     def test_boundary_first_last_sample(self):
         # data values equal their 0-based column index so we can verify exact slices

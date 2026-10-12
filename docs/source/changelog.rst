@@ -7,8 +7,10 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
-Unreleased
-==========
+Version 0.4.0
+=============
+
+*Released 2026-09-23*
 
 - Added the asynchronous Pyodide/Emscripten ICLabel path through pinned ONNX
   Runtime Web. ``iclabel_async`` and ``pop_iclabel_async`` preserve the native

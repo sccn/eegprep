@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs, native_file_dialog_override
+from eegprep.functions.guifunc.file_dialogs import file_dialog_kwargs
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.qt import _select_file
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -34,21 +34,6 @@ def test_file_dialog_kwargs_precedence(monkeypatch, configured, explicit, expect
     monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", configured)
 
     assert file_dialog_kwargs(_qt_widgets(), native_file_dialogs=explicit) == expected
-
-
-def test_file_dialog_kwargs_combines_directory_flags(monkeypatch):
-    monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", 0)
-
-    assert file_dialog_kwargs(_qt_widgets(), directories=True) == {"options": 5}
-
-
-def test_scoped_override_applies_to_callback_dialogs(monkeypatch):
-    monkeypatch.setitem(EEG_OPTIONS, "option_native_dialogs", 1)
-
-    with native_file_dialog_override(False):
-        assert file_dialog_kwargs(_qt_widgets()) == {"options": 4}
-
-    assert file_dialog_kwargs(_qt_widgets()) == {}
 
 
 @pytest.mark.parametrize(

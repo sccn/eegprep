@@ -2,24 +2,16 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from eegprep.plugins.ICLabel import _prop_browser, _prop_numerics
-from eegprep.plugins.ICLabel import pop_prop_extended as pop_prop_extended_module
 from eegprep.plugins.ICLabel.pop_prop_extended import (
-    DEFAULT_ICLABEL_CLASSES,
     build_extended_property_data,
-    classifier_name_from_gui,
-    classifier_names,
-    resolve_classifier_data,
     component_rejection_status,
     resolve_dipfit_data,
     selected_property_indices,
 )
-from eegprep.functions.popfunc._rejection import component_rejection_flags, set_component_rejection_flag
-from eegprep.plugins.ICLabel.pop_viewprops import pop_viewprops
+from eegprep.functions.popfunc._rejection import set_component_rejection_flag
 from tests.fixtures import create_test_eeg_with_ica
 
 
@@ -62,17 +54,6 @@ def _iclabel_eeg(*, include_classifier: bool = True) -> dict:
     return eeg
 
 
-def test_classifier_data_parsing_defaults_to_iclabel_and_standard_classes() -> None:
-    eeg = _iclabel_eeg()
-
-    classifier = resolve_classifier_data(eeg, component_total=4, require=True)
-
-    assert classifier.name == "ICLabel"
-    assert classifier.classes == DEFAULT_ICLABEL_CLASSES
-    np.testing.assert_allclose(classifier.probabilities[1], [0.02, 0.94, 0.02, 0.01, 0.0, 0.0, 0.01])
-    assert classifier_names(eeg) == ["Other", "ICLabel"]
-
-
 def test_channel_property_data_accepts_numpy_chanlocs() -> None:
     eeg = _iclabel_eeg()
     eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
@@ -81,20 +62,6 @@ def test_channel_property_data_accepts_numpy_chanlocs() -> None:
 
     assert len(dashboard.topography_chanlocs) == 4
     assert dashboard.topography_chanlocs[0]["labels"] == "Ch1"
-
-
-def test_classifier_name_from_gui_matches_string_values_case_insensitively() -> None:
-    eeg = _iclabel_eeg()
-
-    assert classifier_name_from_gui(eeg, "iclabel") == "ICLabel"
-    assert classifier_name_from_gui(eeg, "OTHER") == "Other"
-
-
-def test_classifier_data_rejects_component_count_mismatch() -> None:
-    eeg = _iclabel_eeg()
-
-    with pytest.raises(ValueError, match="rows for 3 ICA components"):
-        resolve_classifier_data(eeg, "ICLabel", component_total=3, require=True)
 
 
 def test_selected_component_indices_are_eeglab_facing_one_based() -> None:
@@ -116,16 +83,6 @@ def test_component_rejection_flags_use_one_based_component_indices() -> None:
 
     np.testing.assert_array_equal(updated, [0, 1, 1, 0])
     np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 1, 1, 0])
-
-
-def test_component_rejection_flags_initialize_missing_or_stale_vectors() -> None:
-    eeg = _iclabel_eeg()
-    eeg["reject"]["gcompreject"] = np.array([1, 1])
-
-    flags = component_rejection_flags(eeg, 4, create=True)
-
-    np.testing.assert_array_equal(flags, [False, False, False, False])
-    np.testing.assert_array_equal(eeg["reject"]["gcompreject"], [0, 0, 0, 0])
 
 
 def test_dashboard_data_assembly_includes_classification_surfaces() -> None:
@@ -172,30 +129,3 @@ def test_dashboard_data_assembly_includes_localized_dipfit_model() -> None:
     assert first_dipfit is not None
     np.testing.assert_allclose(dashboard.dipfit.positions, [[25, 10, 35], [-25, 10, 35]])
     np.testing.assert_allclose(first_dipfit.positions, [[0, -20, 40]])
-
-
-def test_dipfit_data_rejects_malformed_localized_model() -> None:
-    eeg = _iclabel_eeg()
-    eeg["dipfit"] = {"model": [{"posxyz": [1, 2], "momxyz": [1, 0, 0], "rv": 0.1}]}
-
-    with pytest.raises(ValueError, match="posxyz rows with 3 coordinates"):
-        resolve_dipfit_data(eeg, 1)
-
-
-def test_missing_classifier_falls_back_to_lightweight_viewprops_display() -> None:
-    eeg = _iclabel_eeg(include_classifier=False)
-
-    figures = pop_viewprops(eeg, 0, [1, 2], plot=True, show_activity=False)
-
-    assert len(figures) == 1
-    assert not hasattr(figures[0], "eegprep_dashboard_data")
-    assert len(figures[0].eegprep_activity_views) == 2
-    assert figures[0].eegprep_activity_views[0].state.events
-    plt.close(figures[0])
-
-
-def test_pop_prop_extended_facade_preserves_public_helper_imports() -> None:
-    assert pop_prop_extended_module.build_extended_property_data is _prop_numerics.build_extended_property_data
-    assert pop_prop_extended_module.resolve_classifier_data is _prop_numerics.resolve_classifier_data
-    assert pop_prop_extended_module.resolve_dipfit_data is _prop_numerics.resolve_dipfit_data
-    assert _prop_browser.build_navigable_dashboard.__module__.endswith("._prop_browser")

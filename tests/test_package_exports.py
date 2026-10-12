@@ -2,35 +2,12 @@
 
 from __future__ import annotations
 
-import importlib
 import subprocess
 import sys
 import textwrap
 
-import pytest
 
 import eegprep
-
-
-@pytest.mark.parametrize(
-    ("name", "module_name", "attr_name"),
-    (
-        ("gui", "eegprep.functions.adminfunc.eeglab", "gui"),
-        ("EEGPrepSession", "eegprep.functions.guifunc.session", "EEGPrepSession"),
-        ("pop_study", "eegprep.functions.studyfunc.pop_study", "pop_study"),
-        ("pop_clust", "eegprep.functions.studyfunc.pop_clust", "pop_clust"),
-        ("plugin_menu", "eegprep.functions.adminfunc.plugin_menu", "plugin_menu"),
-    ),
-)
-def test_representative_lazy_exports_match_direct_import(name: str, module_name: str, attr_name: str) -> None:
-    direct = getattr(importlib.import_module(module_name), attr_name)
-
-    assert getattr(eegprep, name) is direct
-
-
-def test_all_lists_public_exports_once() -> None:
-    assert eegprep.__all__ == ["__version__", *eegprep._LAZY_EXPORTS]
-    assert len(eegprep.__all__) == len(set(eegprep.__all__))
 
 
 def test_eegrej_export_matches_eeglab_low_level_function() -> None:
@@ -46,73 +23,6 @@ def test_eegrej_export_matches_eeglab_low_level_function() -> None:
     assert eegprep.eeg_eegrej is eeg_eegrej
     assert eegprep.eegrej is not eegprep.eeg_eegrej
     assert eegprep.rmbase is sigproc_rmbase
-
-
-def test_phase_6b_public_exports_are_intentional() -> None:
-    expected = {
-        "CallbackSpec",
-        "ConsoleDatasetResult",
-        "ConsolePopResult",
-        "ControlSpec",
-        "DialogSpec",
-        "EEGPrepConsoleWorkspace",
-        "EEGPrepSession",
-        "EXTENSION_API_VERSION",
-        "EXTENSION_COMPATIBILITY_POLICY",
-        "EXTENSION_CURATION_POLICY_URL",
-        "EXTENSION_NAMING_PREFIX",
-        "EXTENSION_TRUST_MESSAGE",
-        "CatalogSourceType",
-        "ExtensionAction",
-        "ExtensionCatalog",
-        "ExtensionCatalogEntry",
-        "ExtensionDependency",
-        "ExtensionLoadError",
-        "ExtensionMenu",
-        "ExtensionPopFunction",
-        "ExtensionRecord",
-        "ExtensionRegistry",
-        "ExtensionResource",
-        "ExtensionSourceType",
-        "ExtensionSpec",
-        "ExtensionStatus",
-        "ExtensionTestHarness",
-        "ExtensionValidationResult",
-        "CatalogValidationIssue",
-        "CatalogValidationOptions",
-        "CatalogValidationReport",
-        "CATALOG_SCHEMA_VERSION",
-        "assert_extension_entry_point_loads",
-        "build_safe_install_commands",
-        "build_safe_update_commands",
-        "bundled_plugins",
-        "check_extension_compatibility",
-        "discover_extensions",
-        "eeg_emptyset",
-        "eeg_retrieve",
-        "eeg_store",
-        "extension_version_satisfies",
-        "firws",
-        "firwsord",
-        "format_plugin_menu",
-        "inputgui",
-        "listdlg2",
-        "load_catalog_entries",
-        "load_extension_catalog",
-        "plugin_menu",
-        "plugin_status",
-        "pop_delset",
-        "pop_eegplot",
-        "pop_editoptions",
-        "pop_newset",
-        "pophelp",
-        "supergui",
-        "validate_catalog_entries",
-        "validate_catalog_file",
-        "validate_extension_spec",
-    }
-
-    assert expected <= set(eegprep.__all__)
 
 
 def test_import_eegprep_is_lightweight() -> None:

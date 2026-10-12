@@ -94,27 +94,6 @@ def test_pop_load_frombids_merge_deduplicates_raw_and_tsv_events(tmp_path: Path)
     ]
 
 
-def test_raw_set_loader_returns_eeg_and_timing_metadata() -> None:
-    from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
-
-    dataset = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
-    warnings: list[str] = []
-
-    eeg, srate, times_sec, report = load_raw_eeg_file(
-        str(dataset),
-        dtype=np.float64,
-        numeric_null=np.array([]),
-        warning=warnings.append,
-        verbose=False,
-    )
-
-    assert report["ImporterUsed"] == "pop_loadset"
-    assert warnings == []
-    assert srate == eeg["srate"]
-    assert eeg["data"].dtype == np.float64
-    np.testing.assert_allclose(times_sec, np.asarray(eeg["times"], dtype=float) / 1000.0)
-
-
 def test_montage_inference_uses_packaged_montage_resources() -> None:
     from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 

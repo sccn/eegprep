@@ -166,6 +166,7 @@ root = ["."]
 [tool.ty.src]
 include = [
   "src/eegprep",
+  "packages/eegprep-lean/src/eegprep_lean",
   "scripts",
   "tools",
 ]
@@ -208,6 +209,7 @@ markers = [
   "gui: tests that exercise GUI behavior",
   "visual: visual parity capture or comparison tests",
   "parity: numerical or behavioral parity tests against EEGLAB/MATLAB",
+  "eeglab_contract: tests that dispatch through the explicit EEGLAB reference backend",
 ]
 
 [tool.setuptools]

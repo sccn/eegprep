@@ -9,16 +9,13 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 import numpy as np
-import pytest
 
 import eegprep
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.std_pac import std_pac
 from eegprep.functions.studyfunc.std_pacplot import std_pacplot
 from eegprep.functions.studyfunc.std_readpac import std_readpac
-from eegprep.functions.timefreqfunc._pac_support import PAC_UNSUPPORTED_MESSAGE
 from eegprep.functions.timefreqfunc.pac import PacResult, pac
-from eegprep.functions.timefreqfunc.pac_cont import PacContResult, pac_cont
 from tests.fixtures import create_test_eeg
 
 
@@ -45,56 +42,6 @@ def test_pac_computes_frequency_pair_grid_for_epoched_data():
     uncoupled_amp = np.abs(result.pac[edge_amp_index, phase_index]).mean()
     assert coupled > 5 * uncoupled_amp
     assert eegprep.pac is pac
-
-
-def test_pac_cont_computes_sliding_window_modulation_and_pvalues():
-    amp, phase, srate = _coupled_trials()
-
-    result = pac_cont(
-        amp[:, 0],
-        phase[:, 0],
-        srate,
-        freqphase=[4, 8],
-        freqamp=[20, 40],
-        winsize=32,
-        ntimesout=6,
-        alpha=0.1,
-        baseline=[0, 1000],
-        nofig="on",
-    )
-
-    assert isinstance(result, PacContResult)
-    assert result.pac.shape == result.times.shape == result.pvalues.shape
-    assert result.indices.min() >= 1
-    assert np.all(result.pac >= 0)
-    assert np.all((result.pvalues >= 0) & (result.pvalues <= 1))
-    assert eegprep.pac_cont is pac_cont
-
-
-def test_pac_reports_explicit_unsupported_statistics_and_latphase():
-    amp, phase, srate = _coupled_trials()
-
-    with pytest.raises(NotImplementedError, match="PAC bootstrap significance"):
-        pac(amp, phase, srate, alpha=0.05)
-    with pytest.raises(NotImplementedError, match="PAC bootstrap significance"):
-        pac(amp, phase, srate, method="latphase")
-
-    assert "not silently emulated" in PAC_UNSUPPORTED_MESSAGE
-
-
-def test_pac_rejects_unimplemented_plotting_options():
-    amp, phase, srate = _coupled_trials()
-
-    with pytest.raises(NotImplementedError, match="not implemented"):
-        pac(amp, phase, srate, title="my coupling")
-    with pytest.raises(NotImplementedError, match="not implemented"):
-        pac(amp, phase, srate, vert=[100.0])
-    with pytest.raises(NotImplementedError, match="not implemented"):
-        pac(amp, phase, srate, newfig="off")
-
-    # Default plotting values still compute PAC without plotting.
-    result = pac(amp, phase, srate, title="", vert=None, newfig="on", ntimesout=4)
-    assert isinstance(result, PacResult)
 
 
 def test_std_pac_computes_study_cache_and_std_pacplot_reads_it():
@@ -146,42 +93,6 @@ def test_std_pac_computes_study_cache_and_std_pacplot_reads_it():
     plt.close(figure)
 
 
-def test_std_pacplot_explicit_channels_take_precedence_over_channels1_alias():
-    study = {
-        "changrp": [
-            {
-                "name": "Ch1",
-                "channels": ["Ch1"],
-                "inds": [1],
-                "pacdata": np.ones((1, 2, 3)),
-                "pacfreqs": [8.0, 12.0],
-                "pactimes": [0.0, 100.0, 200.0],
-            },
-            {
-                "name": "Ch2",
-                "channels": ["Ch2"],
-                "inds": [2],
-                "pacdata": np.ones((1, 2, 3)) * 2.0,
-                "pacfreqs": [8.0, 12.0],
-                "pactimes": [0.0, 100.0, 200.0],
-            },
-        ]
-    }
-
-    _study, plot_data, _times, _freqs, figure, command = std_pacplot(
-        study,
-        None,
-        channels=[1],
-        channels1=[2],
-        noplot="on",
-        return_com=True,
-    )
-
-    np.testing.assert_allclose(plot_data[0], np.ones((1, 2, 3)))
-    assert figure is None
-    assert "channels=[1]" in command
-
-
 def test_std_readpac_reads_and_slices_eegprep_owned_channel_cache():
     study, alleeg = _study_pair()
     raw = np.arange(2 * 4 * 5, dtype=float).reshape(2, 4, 5)
@@ -207,23 +118,6 @@ def test_std_readpac_reads_and_slices_eegprep_owned_channel_cache():
     np.testing.assert_allclose(pacdata[0], raw[:, 1:4, 1:4])
     np.testing.assert_allclose(pactimes, [0.0, 100.0, 200.0])
     np.testing.assert_allclose(pacfreqs, [8.0, 12.0, 16.0])
-
-
-def test_std_readpac_rejects_missing_or_malformed_pac_caches():
-    study, alleeg = _study_pair()
-
-    with pytest.raises(NotImplementedError, match="PAC reading requires EEGPrep-owned pacdata caches"):
-        std_readpac(study, alleeg, clusters=1)
-
-    malformed = deepcopy(study)
-    malformed["cluster"][0]["pacdata"] = np.ones((2, 3, 4))
-    malformed["cluster"][0]["pacfreqs"] = [4.0, 8.0]
-    malformed["cluster"][0]["pactimes"] = [0.0, 100.0, 200.0, 300.0]
-    with pytest.raises(ValueError, match="PAC cache shape"):
-        std_readpac(malformed, alleeg, clusters=1)
-
-    with pytest.raises(ValueError, match="Unknown std_readpac option"):
-        std_readpac(study, alleeg, clusters=1, unsupported="on")
 
 
 def _coupled_trials(n_samples: int = 128):

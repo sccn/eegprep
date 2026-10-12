@@ -21,11 +21,33 @@ STALE_EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab-testcases.git"
 REFERENCE_ATTRIBUTE = "__eeglab_test_references__"
 PROVENANCE_OPTION = "--eeglab-provenance-output"
 LIMO_TEST_NAMES = frozenset({"limo_test1", "limo_test2"})
+# This scientific validation workflow is not called by a wrapper. Its helper
+# limo_test_glmboot is part of the workflow, not a separate executable test.
+STANDALONE_WORKFLOWS = ("unittesting_limo/limo_zIRLS_validation_4_Arno.m",)
+# User-approved exception, not a skipped test or evidence of successful execution.
+# Keep each source definition in expected/covered/missing accounting as usual.
+MMO_SCOPE_EXCEPTIONS = {
+    "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m::test_checkmmo": (
+        "Python omits only MATLAB caller-workspace/checkcopies introspection and its count assertions. "
+        "All source alias/copy scopes and helper writes remain. Python is execution-only, not count or "
+        "scientific parity; MATLAB retains all original count assertions."
+    ),
+    "unittesting_adminfunc/mmo/adminfunc_mmo_wrapperTest.m::test_checkmmo2": (
+        "Python omits only checkcopies calls/unused count returns inside checkmmo_sub1 and checkmmo_sub2. "
+        "All seven write/diagnostic cases remain, including original stdout assertions; "
+        "copy/write/data-integrity behavior is not excluded."
+    ),
+}
 
 _FUNCTION_RE = re.compile(
     r"^\s*function\s+(?:(?:\[[^\]\n]+\]|[A-Za-z]\w*)\s*=\s*)?(?P<name>[A-Za-z]\w*)",
     re.MULTILINE,
 )
+_CLASS_BLOCK_RE = re.compile(
+    r"^\s*(?P<kind>methods|properties|events|enumeration)\b\s*(?:\((?P<attributes>[^)]*)\))?",
+    re.MULTILINE,
+)
+_TEST_ATTRIBUTE_RE = re.compile(r"(?:^|,)\s*Test\s*(?:,|$)")
 
 
 class AuditInputError(RuntimeError):
@@ -34,7 +56,7 @@ class AuditInputError(RuntimeError):
 
 @dataclass(frozen=True, order=True)
 class MatlabTestScenario:
-    """One MATLAB test method in its defining source file."""
+    """One source method/workflow, not an expanded parameter case or assertion."""
 
     source: str
     test: str
@@ -68,6 +90,17 @@ class AuditReport:
     def ok(self) -> bool:
         return not self.missing and not self.invalid_references
 
+    @property
+    def approved_scope_exceptions(self) -> dict[str, str]:
+        """Report the pinned MMO exception without changing coverage or success."""
+        if self.suite_commit != EEGLAB_TESTS_COMMIT:
+            return {}
+        return {
+            scenario.as_text(): MMO_SCOPE_EXCEPTIONS[scenario.as_text()]
+            for scenario in self.expected
+            if scenario.as_text() in MMO_SCOPE_EXCEPTIONS
+        }
+
     def to_jsonable(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
@@ -77,23 +110,39 @@ class AuditReport:
             "missing_count": len(self.missing),
             "missing": [scenario.as_text() for scenario in self.missing],
             "invalid_references": list(self.invalid_references),
+            "approved_scope_exceptions": self.approved_scope_exceptions,
         }
 
 
 def discover_matlab_test_scenarios(suite_root: Path) -> set[MatlabTestScenario]:
-    """Discover wrapper and regression methods from an EEGLAB test checkout."""
-    scenarios: set[MatlabTestScenario] = set()
-    for path in sorted(suite_root.rglob("*wrapperTest.m")):
-        names = _matlab_function_names(path)
-        for name in names[1:]:
-            if name.startswith("test") or name in LIMO_TEST_NAMES:
-                scenarios.add(MatlabTestScenario(path.relative_to(suite_root).as_posix(), name))
+    """Discover test definitions and unwrapped workflows in the reference suite.
 
-    regression_root = suite_root / "regression_tests"
-    for path in sorted(regression_root.glob("t_*.m")):
-        for name in _matlab_function_names(path):
-            if name.startswith("test"):
-                scenarios.add(MatlabTestScenario(path.relative_to(suite_root).as_posix(), name))
+    Class Test attributes, rather than file/method names, identify class tests.
+    Parameter expansions and statements inside legacy workflows must still be
+    checked when porting; a provenance match does not establish faithful behavior.
+    The EEGLAB submodule is reference code, not part of the test-suite inventory.
+    """
+    scenarios: set[MatlabTestScenario] = set()
+    for path in sorted(suite_root.rglob("*.m")):
+        source = path.relative_to(suite_root).as_posix()
+        if source.startswith("eeglab/") or any(part.startswith(".") for part in path.relative_to(suite_root).parts):
+            continue
+        text = _matlab_source(path)
+        if re.search(r"^\s*classdef\b", text, re.MULTILINE):
+            blocks = list(_CLASS_BLOCK_RE.finditer(text))
+            for index, block in enumerate(blocks):
+                if block["kind"] != "methods" or not _TEST_ATTRIBUTE_RE.search(block["attributes"] or ""):
+                    continue
+                end = blocks[index + 1].start() if index + 1 < len(blocks) else len(text)
+                for function in _FUNCTION_RE.finditer(text, block.end(), end):
+                    scenarios.add(MatlabTestScenario(source, function["name"]))
+        elif re.search(r"\bfunctiontests\s*\(\s*localfunctions\s*\)", text):
+            names = [match["name"] for match in _FUNCTION_RE.finditer(text)]
+            for name in names[1:]:
+                if name.lower().startswith("test") or name.lower().endswith("test") or name in LIMO_TEST_NAMES:
+                    scenarios.add(MatlabTestScenario(source, name))
+        elif source in STANDALONE_WORKFLOWS:
+            scenarios.add(MatlabTestScenario(source, path.stem))
     return scenarios
 
 
@@ -161,6 +210,7 @@ def collect_pytest_references(repo_root: Path) -> tuple[CollectedReference, ...]
             "-m",
             "pytest",
             "--collect-only",
+            "--eeglab-backend=python",
             "--quiet",
             "--disable-warnings",
             "-p",
@@ -228,8 +278,8 @@ def compare_test_ports(
         elif len(candidates) > 1:
             invalid.add(f"{label} ambiguously maps to multiple wrapper methods")
         elif reference.test in _matlab_function_names(suite_root / Path(*source.parts)):
-            # Some Python tests also cite current-suite helper/class methods.
-            # They are valid provenance, but are outside this wrapper/regression gate.
+            # Supporting helper references are valid provenance, but cannot
+            # replace any of the independently discovered test definitions.
             continue
         else:
             invalid.add(f"{label} does not identify a MATLAB method in the pinned suite")
@@ -277,6 +327,7 @@ def format_report(report: AuditReport) -> str:
         f"EEGLAB test-port audit: {state}",
         f"Suite commit: {report.suite_commit}",
         f"Expected: {len(report.expected)}; covered: {len(report.covered)}; missing: {len(report.missing)}",
+        "Counts describe source definitions only, not parameter cases, faithful ports, or MATLAB validation.",
     ]
     if report.missing:
         lines.append("Missing scenarios:")
@@ -284,6 +335,9 @@ def format_report(report: AuditReport) -> str:
     if report.invalid_references:
         lines.append("Invalid or stale provenance:")
         lines.extend(f"  {message}" for message in report.invalid_references)
+    if report.approved_scope_exceptions:
+        lines.append("Approved Python scope exceptions (not passes or skipped definitions):")
+        lines.extend(f"  {source}: {reason}" for source, reason in report.approved_scope_exceptions.items())
     return "\n".join(lines)
 
 
@@ -339,8 +393,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _matlab_function_names(path: Path) -> list[str]:
+    return [match.group("name") for match in _FUNCTION_RE.finditer(_matlab_source(path))]
+
+
+def _matlab_source(path: Path) -> str:
     text = path.read_text(encoding="utf-8", errors="replace")
-    return [match.group("name") for match in _FUNCTION_RE.finditer(text)]
+    text = re.sub(r"^\s*%\{\s*$.*?^\s*%\}\s*$", "", text, flags=re.MULTILINE | re.DOTALL)
+    return re.sub(r"^\s*%[^\n]*", "", text, flags=re.MULTILINE)
 
 
 def _leaf_wrapper_lookup(

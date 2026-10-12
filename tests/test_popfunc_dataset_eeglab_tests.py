@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import shutil
 
 import matplotlib
 import numpy as np
@@ -11,22 +12,223 @@ import pytest
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
-from eegprep.functions.adminfunc.pop_delset import pop_delset
-from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
-from eegprep.functions.popfunc.importevent import importevent
-from eegprep.functions.popfunc.pop_chanedit import pop_chanedit
-from eegprep.functions.popfunc.pop_editset import pop_editset
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.functions.popfunc.pop_eventstat import event_values, pop_eventstat
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
-from eegprep.functions.popfunc.pop_newset import pop_newset
-from eegprep.functions.popfunc.pop_rmdat import pop_rmdat
 from eegprep.functions.popfunc.pop_runica import pop_runica
 from eegprep.functions.popfunc.pop_selectevent import pop_selectevent
-from eegprep.functions.popfunc.pop_signalstat import pop_signalstat
-from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
-from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests import assert_matlab_equal, eeglab_test
+from tests.eeglab_tests.assertions import matlab_field_concat
+
+
+def _reference_dataset_array(eeg, count):
+    return np.array([[tuple(eeg.values())] * count], dtype=[(field, object) for field in eeg])
+
+
+@eeglab_test("unittesting_popfunc/importevent/popfunc_importevent_wrapperTest.m", "test_pass_general")
+def test_reference_importevent_original_text_file(eeglab_backend, eeglab_suite_root, eeglab_working_directory):
+    source = eeglab_suite_root / "unittesting_popfunc/importevent/testevent.txt"
+    shutil.copyfile(source, eeglab_working_directory / "testevent.txt")
+    events = eeglab_backend(
+        "importevent",
+        "testevent.txt",
+        np.empty((0, 0)),
+        250.0,
+        "fields",
+        np.array([["type", "latency", "code"]], dtype=object),
+        "skipline",
+        1.0,
+    )
+    assert isinstance(events, dict) or max(events.shape) == 1
+
+
+@eeglab_test("unittesting_popfunc/pop_delset/popfunc_pop_delset_wrapperTest.m", "test_test_pop_delset")
+def test_reference_delset_original_stored_recordings(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    alleeg, eeg, _ = eeglab_backend("eeg_store", np.empty((0, 0)), eeg, nargout=3)
+    alleeg, eeg, _ = eeglab_backend("eeg_store", alleeg, eeg, nargout=3)
+    eeglab_backend("pop_delset", alleeg, np.array([[1.0]]))
+
+
+@eeglab_test("unittesting_popfunc/pop_mergeset/popfunc_pop_mergeset_wrapperTest.m", "test_test_pop_mergeset")
+def test_reference_mergeset_all_eight_recorded_data_calls(eeglab_backend, eeglab_suite_root):
+    for filename in ("eeglab_data.set", "eeglab_data_epochs_ica.set"):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
+        alleeg = eeglab_backend("eeg_checkset", _reference_dataset_array(eeg, 3), "loaddata")
+        eeglab_backend("pop_mergeset", alleeg, np.array([[1.0, 2.0]]), 0.0)
+        eeglab_backend("pop_mergeset", alleeg, np.array([[1.0, 2.0]]), 1.0)
+        first = {field: alleeg[field][0, 0] for field in alleeg.dtype.names}
+        second = {field: alleeg[field][0, 1] for field in alleeg.dtype.names}
+        eeglab_backend("pop_mergeset", first, second, 0.0)
+        eeglab_backend("pop_mergeset", alleeg, np.array([[1.0, 2.0, 3.0]]), 0.0)
+
+
+@eeglab_test("unittesting_popfunc/pop_newset/popfunc_pop_newset_wrapperTest.m", "test_test_pop_newset")
+def test_reference_newset_original_eight_datasets_and_saved_files(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory
+):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    alleeg = _reference_dataset_array(eeg, 8)
+    alleeg, eeg, _ = eeglab_backend(
+        "pop_newset", alleeg, eeg, 1.0, "setname", "origin", "comments", "no change", "overwrite", "on", nargout=3
+    )
+    for overwrite in ("off", "on"):
+        eeg = {field: alleeg[field][0, 7] for field in alleeg.dtype.names}
+        alleeg, eeg, _ = eeglab_backend(
+            "pop_newset", alleeg, eeg, 8.0, "setname", "new", "comments", "change", "overwrite", overwrite, nargout=3
+        )
+    eeg = {field: alleeg[field][0, 1] for field in alleeg.dtype.names}
+    alleeg, eeg, _ = eeglab_backend(
+        "pop_newset",
+        alleeg,
+        eeg,
+        2.0,
+        "setname",
+        "new",
+        "comments",
+        "change",
+        "overwrite",
+        "on",
+        "saveold",
+        "old.set",
+        "savenew",
+        "new.set",
+        nargout=3,
+    )
+    for filename in ("old.set", "old.fdt", "new.set", "new.fdt"):
+        # MATLAB delete warns, rather than errors, if optional split data is absent.
+        (eeglab_working_directory / filename).unlink(missing_ok=True)
+    eeg = {field: alleeg[field][0, 2] for field in alleeg.dtype.names}
+    eeglab_backend(
+        "pop_newset",
+        alleeg,
+        eeg,
+        3.0,
+        "setname",
+        "new",
+        "comments",
+        "change",
+        "overwrite",
+        "on",
+        "retrieve",
+        1.0,
+        nargout=3,
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_rmdat/popfunc_pop_rmdat_wrapperTest.m", "test_test_pop_rmdat")
+def test_reference_rmdat_original_event_windows(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    for kinds, limits, invert in (
+        (["rt"], [-1.0, 2.0], 0.0),
+        (["rt"], [-1.0, 2.0], 1.0),
+        (["square"], [-1.0, 2.0], 0.0),
+        (["rt"], [-10.0, 200.0], 0.0),
+        (["rt", "square"], [-1.0, 2.0], 0.0),
+    ):
+        eeglab_backend("pop_rmdat", eeg, np.array([kinds], dtype=object), np.array([limits]), invert)
+
+
+@eeglab_test("unittesting_popfunc/pop_chanedit/popfunc_pop_chanedit_wrapperTest.m", "test_test_pop_chanedit")
+def test_reference_chanedit_original_locations(eeglab_backend, eeglab_suite_root):
+    sample_directory = eeglab_suite_root / "eeglab/sample_data"
+    eeg = eeglab_backend("pop_loadset", str(sample_directory / "eeglab_data.set"))
+    eeg["chanlocs"] = eeglab_backend(
+        "pop_chanedit",
+        eeg["chanlocs"],
+        "load",
+        np.array([[str(sample_directory / "eeglab_chan32.locs"), "filetype", ""]], dtype=object),
+        "shrink",
+        -0.1,
+    )
+
+
+@eeglab_test("unittesting_popfunc/pop_eegfilt/popfunc_pop_eegfilt_wrapperTest.m", "test_test_pop_eegfilt")
+def test_reference_eegfilt_original_recording_and_defaults(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("pop_eegfilt", eeg, 1.0, 0.0, np.empty((0, 0)), np.array([[0.0]]))
+
+
+@eeglab_test("unittesting_popfunc/pop_eventstat/popfunc_pop_eventstat_wrapperTest.m", "test_test_pop_eventstat")
+@pytest.mark.gui
+def test_reference_eventstat_all_twenty_original_calls(eeglab_backend, eeglab_suite_root, request):
+    for filename in ("eeglab_data.set", "eeglab_data_epochs_ica.set"):
+        eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data" / filename))
+        xmin, xmax = np.asarray(eeg["xmin"]).item(), np.asarray(eeg["xmax"]).item()
+        shift = (xmax - xmin) / 10.0
+        cases = [("",), ("rt",)]
+        for percent in (5.0, 80.0):
+            cases.extend(
+                (
+                    ("", np.empty((0, 0)), percent),
+                    ("rt", np.empty((0, 0)), percent),
+                    ("rt", 1000.0 * np.array([[xmin, xmax]]), percent),
+                    ("rt", 1000.0 * np.array([[xmin + shift, xmax - 2.0 * shift]]), percent),
+                )
+            )
+        for options in cases:
+            eeglab_backend("pop_eventstat", eeg, "latency", *options, nargout=11)
+            if request.config.getoption("--eeglab-backend") == "matlab":
+                eeglab_backend("close", nargout=0)
+            else:
+                plt.close()
+
+
+@eeglab_test("unittesting_popfunc/pop_runica/popfunc_pop_runica_wrapperTest.m", "test_test_pop_runica")
+@pytest.mark.slow
+def test_reference_runica_original_recording_and_defaults(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    eeglab_backend("pop_runica", eeg, "icatype", "runica", "extended", 1.0, "pca", 4.0)
+
+
+@eeglab_test(
+    "unittesting_popfunc/pop_selectevent/popfunc_pop_selectevent_wrapperTest.m", "test_demo_selectevent_glitch"
+)
+def test_reference_selectevent_original_overlapping_epoch_workflow(eeglab_backend):
+    eeg = eeglab_backend("eeg_emptyset")
+    eeg["srate"] = 500.0
+    eeg["nbchan"] = 1.0
+    eeg["data"] = np.zeros((1, 2000))
+    eeg["event"] = np.array([[("1", 201.0), ("2", 501.0)]], dtype=[("type", object), ("latency", object)])
+    eeg = eeglab_backend("eeg_checkset", eeg)
+    eeg = eeglab_backend(
+        "pop_epoch", eeg, np.array([["1", "2"]], dtype=object), np.array([[-0.2, 1.0]]), "epochinfo", "yes"
+    )
+    for kind, options, expected_count in (
+        ("2", ("latency", "-10<=10"), 1),
+        ("2", (), 3),
+        ("2", ("deleteevents", "on"), 2),
+        ("1", ("deleteevents", "on"), 1),
+    ):
+        selected = eeglab_backend("pop_selectevent", eeg, "type", kind, "deleteepochs", "on", *options)
+        events = selected["event"]
+        count = 1 if isinstance(events, dict) else np.asarray(events).size
+        assert count == expected_count
+
+
+@eeglab_test("unittesting_popfunc/pop_selectevent/popfunc_pop_selectevent_wrapperTest.m", "test_test_pop_selectevent")
+def test_reference_selectevent_original_recording_position_field(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend("pop_selectevent", eeg, "position", 1.0, "deleteevents", "off", "deleteepochs", "on")
+
+
+@eeglab_test("unittesting_popfunc/pop_signalstat/popfunc_pop_signalstat_wrapperTest.m", "test_test_pop_signalstat")
+@pytest.mark.gui
+def test_reference_signalstat_all_four_original_calls(eeglab_backend, eeglab_suite_root, request):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    for arguments in ((1.0, 5.0), (0.0, 5.0), (1.0, 5.0, 50.0), (0.0, 5.0, 0.5)):
+        eeglab_backend("pop_signalstat", eeg, *arguments, nargout=11)
+        if request.config.getoption("--eeglab-backend") == "matlab":
+            eeglab_backend("close", nargout=0)
+        else:
+            plt.close()
+
+
+@eeglab_test("unittesting_popfunc/pop_subcomp/popfunc_pop_subcomp_wrapperTest.m", "test_test_pop_subcomp")
+def test_reference_subcomp_original_recording(eeglab_backend, eeglab_suite_root):
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data_epochs_ica.set"))
+    eeglab_backend("pop_subcomp", eeg, np.array([[3.0]]), 0.0)
 
 
 def _continuous_eeg(name: str = "continuous", *, nbchan: int = 4, pnts: int = 240) -> dict:
@@ -121,120 +323,71 @@ def _epoched_eeg(name: str = "epoched") -> dict:
     return eeg
 
 
-@eeglab_test("unittesting_popfunc/importevent/popfunc_importevent_wrapperTest.m", "test_pass_general")
-def test_current_importevent_reads_named_fields_and_skips_header(tmp_path):
-    event_file = tmp_path / "testevent.txt"
-    event_file.write_text("type latency code\ntest 400 3\n", encoding="utf-8")
-
-    events = importevent(
-        event_file,
-        [],
-        250,
-        "fields",
-        ["type", "latency", "code"],
-        "skipline",
-        1,
-    )
-
-    assert events == [{"type": "test", "latency": 100001.0, "code": 3, "init_index": 1, "init_time": 400.0}]
-
-
 @eeglab_test("unittesting_popfunc/importevent/popfunc_importevent_wrapperTest.m", "test_test_latency")
-def test_current_importevent_seconds_and_sample_positions_have_identical_boundaries():
-    seconds = importevent(
-        [[0, "Experiment begins"], [49, "Experiment ends"]],
-        [],
-        1,
-        "fields",
-        ["latency", "type"],
-        "timeunit",
-        1,
-    )
-    samples = importevent(
-        [[1, "Experiment begins"], [50, "Experiment ends"]],
-        [],
-        1,
-        "fields",
-        ["latency", "type"],
-        "timeunit",
-        np.nan,
-    )
-
-    assert [event["latency"] for event in seconds] == [1.0, 50.0]
-    assert [event["latency"] for event in samples] == [1.0, 50.0]
-
-
-@eeglab_test("unittesting_popfunc/pop_chanedit/popfunc_pop_chanedit_wrapperTest.m", "test_test_pop_chanedit")
-def test_current_pop_chanedit_loads_locations_and_records_display_shrink(tmp_path):
-    location_file = tmp_path / "eeglab_chan32.locs"
-    location_file.write_text("1 0 0.25 Fz\n2 180 0.3 Pz\n", encoding="utf-8")
-
-    chanlocs = pop_chanedit([], "load", [location_file, "filetype", ""], "shrink", -0.1)
-
-    assert [channel["labels"] for channel in chanlocs] == ["Fz", "Pz"]
-    assert chanlocs[0]["shrink"] == pytest.approx(-0.1)
-    assert chanlocs[0]["radius"] == pytest.approx(0.25)
-
-
-@eeglab_test("unittesting_popfunc/pop_delset/popfunc_pop_delset_wrapperTest.m", "test_test_pop_delset")
-def test_current_pop_delset_blanks_selected_dataset_without_renumbering_following_sets():
-    first = _continuous_eeg("first")
-    second = _continuous_eeg("second")
-
-    alleeg, command = pop_delset([first, second], [1])
-
-    assert alleeg[0] == {}
-    assert alleeg[1]["setname"] == "second"
-    assert command == "ALLEEG = pop_delset( ALLEEG, [1] );"
-
-
-@eeglab_test("unittesting_popfunc/pop_editset/popfunc_pop_editset_wrapperTest.m", "test_test_pop_editset")
-def test_current_pop_editset_builds_a_consistent_epoched_dataset_from_arrays():
-    data = np.arange(72, dtype=float).reshape(3, 24)
-    chanlocs = [{"labels": "Fz"}, {"labels": "Cz"}, {"labels": "Pz"}]
-
-    output = pop_editset(
-        eeg_emptyset(),
-        "setname",
-        "UnitTesting",
-        "data",
-        data,
+def test_reference_importevent_original_named_workspace_variables(eeglab_backend, request):
+    options = (
         "dataformat",
         "array",
-        "subject",
-        "S01",
-        "condition",
-        "testing",
-        "group",
-        "control",
-        "session",
-        1,
-        "chanlocs",
-        chanlocs,
-        "pnts",
-        8,
+        "nbchan",
+        0.0,
+        "data",
+        "eegdata",
+        "setname",
+        "importevent_bug",
         "srate",
-        200,
+        1.0,
+        "pnts",
+        0.0,
         "xmin",
-        -0.1,
-        "ref",
-        "common",
-        "icaweights",
-        np.eye(3),
-        "icasphere",
-        np.eye(3),
-        "comments",
-        "fully exercised replacement for the commented MATLAB test",
+        0.0,
     )
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    if matlab:
+        engine = request.getfixturevalue("eeglab_matlab_engine")
+        engine.eval("global eegdata; eegdata = rand(2,50);", nargout=0)
+        workspace = None
+    else:
+        workspace = EEGPrepConsoleWorkspace(EEGPrepSession())
+        workspace.namespace["eegdata"] = np.random.default_rng().random((2, 50))
+    try:
+        eeg = (
+            eeglab_backend("pop_importdata", *options)
+            if workspace is None
+            else workspace.namespace["pop_importdata"](*options)
+        )
+        events = []
+        for values, timeunit in (
+            ([[0.0, "Experiment begins"], [49.0, "Experiment ends"]], 1.0),
+            ([[1.0, "Experiment begins"], [float(np.asarray(eeg["pnts"]).item()), "Experiment ends"]], np.nan),
+        ):
+            values = np.array(values, dtype=object)
+            arguments = (
+                np.empty((0, 0)),
+                1.0,
+                "fields",
+                np.array([["latency", "type"]], dtype=object),
+                "timeunit",
+                timeunit,
+            )
+            if workspace is None:
+                # A tiny transport helper binds the literal caller variable;
+                # passing the cell contents directly would drop that workflow.
+                result = eeglab_backend("eegprep_test_importevent_caller", values, *arguments)
+            else:
+                workspace.namespace["myEventValues"] = values
+                result = workspace.namespace["importevent"]("myEventValues", *arguments)
+            events.append(result)
+        first, second = (matlab_field_concat(result, "latency").T for result in events)
+        assert_matlab_equal(first, second)
+        assert first[0, 0] == 1.0
+        assert first[1, 0] == 50.0
+    finally:
+        if workspace is None:
+            engine.eval("clear global eegdata; clear eegdata;", nargout=0)
+        else:
+            workspace.close()
 
-    assert output["data"].shape == (3, 8, 3)
-    assert (output["nbchan"], output["pnts"], output["trials"]) == (3, 8, 3)
-    assert output["times"][[0, -1]].tolist() == pytest.approx([-100.0, -65.0])
-    assert output["icaact"].shape == (3, 8, 3)
-    assert [channel["labels"] for channel in output["chanlocs"]] == ["Fz", "Cz", "Pz"]
 
-
-@eeglab_test("unittesting_popfunc/pop_eegfilt/popfunc_pop_eegfilt_wrapperTest.m", "test_test_pop_eegfilt")
 def test_current_pop_eegfilt_default_highpass_attenuates_sub_cutoff_signal():
     srate = 100.0
     pnts = 4000
@@ -264,27 +417,6 @@ def test_current_pop_eegfilt_default_highpass_attenuates_sub_cutoff_signal():
     assert command == "EEG = pop_eegfilt( EEG, 1, 0, [], [0], 0, 0, 'firls', 0);"
 
 
-@eeglab_test("unittesting_popfunc/pop_eventstat/popfunc_pop_eventstat_wrapperTest.m", "test_test_pop_eventstat")
-def test_current_pop_eventstat_filters_type_and_epoch_relative_latency_numerically():
-    continuous = _continuous_eeg()
-    epoched = _epoched_eeg()
-
-    all_result = pop_eventstat(continuous, "latency", "", [], 5, plot="off")
-    typed_result = pop_eventstat(continuous, "latency", "rt", [500, 2200], 80, plot="off")
-    epoch_result = pop_eventstat(epoched, "latency", "square", [-1, 1], 5, plot="off")
-
-    assert all_result.mean == pytest.approx(np.mean([31, 81, 151, 211]))
-    assert typed_result.mean == pytest.approx(np.mean([81, 211]))
-    np.testing.assert_array_equal(event_values(epoched, "latency", type="square", latrange=[-1, 1]), [11, 111])
-    assert epoch_result.mean == pytest.approx(61.0)
-    assert typed_result.trimmed_indices.size == 0
-    assert np.isnan(typed_result.trimmed_mean)
-    plt.close(all_result.figure)
-    plt.close(typed_result.figure)
-    plt.close(epoch_result.figure)
-
-
-@eeglab_test("unittesting_popfunc/pop_mergeset/popfunc_pop_mergeset_wrapperTest.m", "test_test_pop_mergeset")
 def test_current_pop_mergeset_handles_continuous_epoched_list_and_pair_forms():
     continuous = [_continuous_eeg(f"continuous-{index}") for index in range(3)]
     merged = pop_mergeset(continuous, [1, 2], 0)
@@ -319,70 +451,6 @@ def test_current_pop_mergeset_handles_continuous_epoched_list_and_pair_forms():
     )
 
 
-@eeglab_test("unittesting_popfunc/pop_newset/popfunc_pop_newset_wrapperTest.m", "test_test_pop_newset")
-def test_current_pop_newset_overwrites_appends_saves_and_retrieves(tmp_path):
-    original = _epoched_eeg("base")
-    alleeg = [deepcopy(original) for _index in range(8)]
-
-    alleeg, current, current_set, _ = pop_newset(
-        alleeg, deepcopy(original), 1, "setname", "origin", "comments", "no change", "overwrite", "on"
-    )
-    assert current_set == 1
-    assert alleeg[0]["setname"] == current["setname"] == "origin"
-
-    alleeg, current, current_set, _ = pop_newset(
-        alleeg, deepcopy(alleeg[7]), 8, "setname", "new", "comments", "change", "overwrite", "off"
-    )
-    assert current_set == 9
-    assert len(alleeg) == 9
-
-    alleeg, current, current_set, _ = pop_newset(
-        alleeg, deepcopy(alleeg[7]), 8, "setname", "replacement", "overwrite", "on"
-    )
-    assert current_set == 8
-    assert alleeg[7]["setname"] == "replacement"
-
-    old_file = tmp_path / "old.set"
-    new_file = tmp_path / "new.set"
-    alleeg, current, current_set, _ = pop_newset(
-        alleeg,
-        deepcopy(alleeg[1]),
-        2,
-        "setname",
-        "saved replacement",
-        "overwrite",
-        "on",
-        "saveold",
-        old_file,
-        "savenew",
-        new_file,
-    )
-    assert old_file.exists() and new_file.exists()
-    assert current["saved"] == "yes"
-
-    _alleeg, retrieved, retrieved_set, _ = pop_newset(alleeg, current, current_set, "retrieve", 1)
-    assert retrieved_set == 1
-    assert retrieved["setname"] == "origin"
-
-
-@eeglab_test("unittesting_popfunc/pop_rmdat/popfunc_pop_rmdat_wrapperTest.m", "test_test_pop_rmdat")
-def test_current_pop_rmdat_keeps_and_removes_each_requested_event_window():
-    eeg = _continuous_eeg(pnts=240)
-
-    keep_rt = pop_rmdat(eeg, ["rt"], [-0.1, 0.2], 0)
-    remove_rt = pop_rmdat(eeg, ["rt"], [-0.1, 0.2], 1)
-    keep_square = pop_rmdat(eeg, ["square"], [-0.1, 0.2], 0)
-    keep_clipped = pop_rmdat(eeg, ["rt"], [-10, 200], 0)
-    keep_both = pop_rmdat(eeg, ["rt", "square"], [-0.1, 0.2], 0)
-
-    assert 0 < keep_rt["pnts"] < eeg["pnts"]
-    assert remove_rt["pnts"] == eeg["pnts"] - keep_rt["pnts"]
-    assert keep_square["pnts"] == keep_rt["pnts"]
-    assert keep_clipped["pnts"] == eeg["pnts"]
-    assert keep_both["pnts"] > keep_rt["pnts"]
-
-
-@eeglab_test("unittesting_popfunc/pop_runica/popfunc_pop_runica_wrapperTest.m", "test_test_pop_runica")
 def test_current_pop_runica_extended_pca_produces_a_valid_reduced_decomposition():
     rng = np.random.default_rng(17)
     sources = np.vstack(
@@ -415,48 +483,6 @@ def test_current_pop_runica_extended_pca_produces_a_valid_reduced_decomposition(
     assert output["icachansind"].tolist() == list(range(6))
 
 
-def _overlapping_epoch_eeg() -> dict:
-    eeg = eeg_emptyset()
-    eeg.update(
-        {
-            "srate": 500.0,
-            "nbchan": 1,
-            "data": np.zeros((1, 2000)),
-            "pnts": 2000,
-            "trials": 1,
-            "xmin": 0.0,
-            "xmax": 3.998,
-            "times": np.arange(2000) / 500 * 1000,
-            "event": [
-                {"type": "1", "latency": 201.0, "urevent": 0},
-                {"type": "2", "latency": 501.0, "urevent": 1},
-            ],
-            "urevent": [{"type": "1", "latency": 201.0}, {"type": "2", "latency": 501.0}],
-        }
-    )
-    epoched, _indices = pop_epoch(eeg, ["1", "2"], [-0.2, 1])
-    return epoched
-
-
-@eeglab_test(
-    "unittesting_popfunc/pop_selectevent/popfunc_pop_selectevent_wrapperTest.m",
-    "test_demo_selectevent_glitch",
-)
-def test_current_pop_selectevent_handles_overlapping_epochs_and_millisecond_ranges():
-    eeg = _overlapping_epoch_eeg()
-
-    latency_selected, _ = pop_selectevent(eeg, "type", "2", "deleteepochs", "on", "latency", "-10<=10")
-    all_type_two, _ = pop_selectevent(eeg, "type", "2", "deleteepochs", "on")
-    only_type_two, _ = pop_selectevent(eeg, "type", "2", "deleteepochs", "on", "deleteevents", "on")
-    only_type_one, _ = pop_selectevent(eeg, "type", "1", "deleteepochs", "on", "deleteevents", "on")
-
-    assert len(latency_selected["event"]) == 1
-    assert len(all_type_two["event"]) == 3
-    assert len(only_type_two["event"]) == 2
-    assert len(only_type_one["event"]) == 1
-
-
-@eeglab_test("unittesting_popfunc/pop_selectevent/popfunc_pop_selectevent_wrapperTest.m", "test_test_pop_selectevent")
 def test_current_pop_selectevent_selects_epochs_using_a_custom_event_field():
     selected, event_indices = pop_selectevent(
         _epoched_eeg(), "position", 1, "deleteevents", "off", "deleteepochs", "on"
@@ -466,37 +492,3 @@ def test_current_pop_selectevent_selects_epochs_using_a_custom_event_field():
     assert event_indices == [1, 3]
     assert [event["position"] for event in selected["event"]] == [1, 1]
     np.testing.assert_array_equal(selected["data"], _epoched_eeg()["data"][:, :, [0, 2]])
-
-
-@eeglab_test("unittesting_popfunc/pop_signalstat/popfunc_pop_signalstat_wrapperTest.m", "test_test_pop_signalstat")
-def test_current_pop_signalstat_reports_raw_and_component_statistics_at_multiple_trim_levels():
-    eeg = _epoched_eeg()
-    data = np.asarray(eeg["data"])
-
-    raw = pop_signalstat(eeg, 1, 2, 5, plot="off")
-    component = pop_signalstat(eeg, 0, 2, 5, plot="off")
-    heavily_trimmed = pop_signalstat(eeg, 1, 2, 50, plot="off")
-    lightly_trimmed = pop_signalstat(eeg, 0, 2, 0.5, plot="off")
-
-    assert raw.mean == pytest.approx(float(np.mean(data[1])))
-    assert component.mean == pytest.approx(raw.mean)
-    assert heavily_trimmed.trimmed_indices.size < raw.trimmed_indices.size
-    assert lightly_trimmed.trimmed_indices.size >= component.trimmed_indices.size
-    for result in (raw, component, heavily_trimmed, lightly_trimmed):
-        assert np.isfinite(result.matlab_tuple()[:9]).all()
-        plt.close(result.figure)
-
-
-@eeglab_test("unittesting_popfunc/pop_subcomp/popfunc_pop_subcomp_wrapperTest.m", "test_test_pop_subcomp")
-def test_current_pop_subcomp_removes_component_three_from_data_and_ica_fields():
-    eeg = _epoched_eeg()
-    original = np.asarray(eeg["data"]).copy()
-
-    output = pop_subcomp(eeg, [3], 0)
-
-    np.testing.assert_allclose(output["data"][[0, 1, 3]], original[[0, 1, 3]])
-    np.testing.assert_allclose(output["data"][2], 0)
-    assert output["icaweights"].shape == (3, 4)
-    assert output["icawinv"].shape == (4, 3)
-    assert output["icaact"].size == 0
-    assert output["setname"].endswith("pruned with ICA")

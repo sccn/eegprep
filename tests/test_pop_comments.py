@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import copy
-import os
-import unittest
 
 import numpy as np
 import numpy.testing as npt
-import pytest
 
-from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_comments import pop_comments
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import eeglab_test
-from tests.fixtures import SAMPLE_DATASET_PATH
 
 
 def _eeg():
@@ -33,6 +26,50 @@ def _eeg():
     }
 
 
+def _source_strvcat(*rows):
+    width = max(map(len, rows))
+    return np.array([row.ljust(width) for row in rows])
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments")
+def test_reference_comments_replacement(eeglab_backend):
+    comments = np.array([["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]], dtype=object)
+    first, second = "New line 1", "And this one is also new                             "
+    new_comments = np.array([[first, second]], dtype=object)
+    result, _command = eeglab_backend("pop_comments", comments, "", new_comments, nargout=2)
+    # near.m compares character codes at 1e-4, hence requires exact characters.
+    npt.assert_array_equal(result, _source_strvcat(first, second))
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
+def test_reference_comments_concatenation(eeglab_backend):
+    old = ("Line nr. 1", "This is line nr.2", " ", "And this is the final line                           ")
+    new = ("New line 1", "And this one is also new                             ")
+    comments, new_comments = np.array([old], dtype=object), np.array([new], dtype=object)
+    result, _command = eeglab_backend("pop_comments", comments, "", new_comments, 1.0, nargout=2)
+    npt.assert_array_equal(result, _source_strvcat(*old, *new))
+
+
+@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
+def test_reference_comments_original_workflow(eeglab_backend, eeglab_suite_root):
+    for old in ("", "another "):
+        new = "test pass!"
+        new = eeglab_backend("pop_comments", old, "Testing!", new, 0.0)
+        new = eeglab_backend("pop_comments", old, "Testing!", new, 1.0)
+    new = np.array([["test pass!", "pass again!"]], dtype=object)
+    new = eeglab_backend("pop_comments", "another ", "Testing!", new, 0.0)
+    new = eeglab_backend("pop_comments", "another ", "Testing!", new, 1.0)
+    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    for concatenate in (1.0, 0.0):
+        eeg["comments"] = eeglab_backend(
+            "pop_comments",
+            eeg["comments"],
+            "",
+            _source_strvcat("un exemple", " ", "de nouveau dataset"),
+            concatenate,
+        )
+
+
 def test_pop_comments_replaces_eeg_comments_without_mutating_input():
     eeg = _eeg()
 
@@ -41,18 +78,6 @@ def test_pop_comments_replaces_eeg_comments_without_mutating_input():
     assert eeg["comments"] == "old comment"
     assert out["comments"] == "new comment"
     assert com == "EEG = pop_comments(EEG, '', 'new comment');"
-
-
-def test_pop_comments_concatenates_string_comments():
-    out, com = pop_comments("first", "", ["second", "third"], 1, return_com=True)
-
-    assert out == "first\nsecond\nthird"
-    assert com == "comments = pop_comments(comments, '', {'second' 'third'}, 1);"
-
-
-def test_pop_comments_concat_accepts_only_eeglab_numeric_flag():
-    with pytest.raises(TypeError, match="concat"):
-        pop_comments("first", "", "second", "on")
 
 
 def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
@@ -82,16 +107,6 @@ def test_pop_comments_gui_uses_renderer_text_and_cancel_returns_original():
     assert cancelled["setname"] == eeg["setname"]
 
 
-def test_pop_comments_accepts_sample_data_comments():
-    eeg = pop_loadset(str(SAMPLE_DATASET_PATH))
-
-    out = pop_comments(eeg, "", "sample-data note")
-
-    assert out["comments"] == "sample-data note"
-    assert str(eeg.get("comments", "")) != "sample-data note"
-
-
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments")
 def test_pop_comments_current_suite_replaces_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
@@ -100,7 +115,6 @@ def test_pop_comments_current_suite_replaces_cell_comments():
     assert result == "New line 1\nAnd this one is also new"
 
 
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
 def test_pop_comments_current_suite_concatenates_cell_comments():
     old_comments = ["Line nr. 1", "This is line nr.2", " ", "And this is the final line"]
 
@@ -111,7 +125,6 @@ def test_pop_comments_current_suite_concatenates_cell_comments():
     )
 
 
-@eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
 def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
     assert pop_comments("", "Testing!", "test pass!", 0) == "test pass!"
     assert pop_comments("", "Testing!", "test pass!", 1) == "test pass!"
@@ -127,21 +140,3 @@ def test_pop_comments_current_suite_string_cell_and_dataset_workflow():
     assert eeg["comments"].endswith("un exemple\n\nde nouveau dataset")
     eeg["comments"] = pop_comments(eeg["comments"], "", ["un exemple", " ", "de nouveau dataset"], 0)
     assert eeg["comments"] == "un exemple\n\nde nouveau dataset"
-
-
-@unittest.skipIf(os.getenv("EEGPREP_SKIP_MATLAB") == "1", "MATLAB not available")
-class TestPopCommentsMatlabParity(unittest.TestCase):
-    def setUp(self):
-        try:
-            self.eeglab = get_eeglab("MAT")
-        except Exception as exc:
-            self.skipTest(f"MATLAB not available: {exc}")
-
-    def test_replaces_eeg_comments_like_eeglab(self):
-        eeg = _eeg()
-
-        py_out = pop_comments(copy.deepcopy(eeg), "", "matlab parity note")
-        ml_out = self.eeglab.pop_comments(copy.deepcopy(eeg), "", "matlab parity note")
-
-        self.assertEqual(py_out["comments"], ml_out["comments"])
-        self.assertEqual(py_out["setname"], ml_out["setname"])

@@ -1,0 +1,112 @@
+{
+ "format": "nemar-zarr-index",
+ "format_version": 3,
+ "dataset_id": "nm000103",
+ "contract_base": "https://zarr.nemar.org/nm000103/zarr/",
+ "data_base": "https://nemar.s3.us-east-2.amazonaws.com/nm000103/zarr/",
+ "data_base_kind": "s3-public",
+ "s3_uri": "s3://nemar/nm000103/zarr/",
+ "s3_region": "us-east-2",
+ "s3_anonymous": true,
+ "source_commit": "d14ae5eb3881e368ee328bc1312d3fa51f7e70a9",
+ "engine_version": "3",
+ "biosigio_version": "1.2.7",
+ "updated_utc": "2026-09-05T01:05:47Z",
+ "doi": "10.82901/nemar.nm000103",
+ "license": "CC-BY-NC-SA 4.0",
+ "citation": "Seyed Yahya Shirazi, Alexandre Franco, Maur\u00edcio Scopel Hoffmann, Nathalia B. Esper, Dung Truong, Arnaud Delorme, Michael Milham, Scott Makeig (2026) Healthy Brain Network EEG - Not for Commercial Use (v2.0.0). NEMAR. https://doi.org/10.82901/nemar.nm000103",
+ "hed_version": "8.3.0",
+ "layout": {
+  "level0": "<zarr>/<group>/0",
+  "view": "<zarr>/<group>/view/<L>",
+  "view_levels": "1..n_view_levels from the group attrs",
+  "scale_offset": "level-0 array attrs scale[] and offset[]; physical = digital * scale + offset",
+  "events": "<data_base>events.parquet"
+ },
+ "discovered_count": 3522,
+ "store_count": 3522,
+ "n_recordings": 3522,
+ "errors": 0,
+ "failure_count": 0,
+ "pending_count": 0,
+ "stores": [
+  {
+   "path": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_eeg.set",
+   "zarr": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_eeg.zarr",
+   "updated_utc": "2026-09-05T01:05:47Z",
+   "source_tree": "raw",
+   "derived": false,
+   "modalities": [
+    "eeg"
+   ],
+   "groups": [
+    {
+     "name": "eeg_250hz",
+     "modality": "EEG",
+     "rate": 250.0,
+     "n_channels": 129,
+     "n_samples": 43034,
+     "duration_s": 172.136,
+     "n_view_levels": 4,
+     "view_chunk_columns": 1024,
+     "source_rate_hz": 500.0,
+     "chunk_samples": 1000,
+     "shard_samples": 44000
+    }
+   ],
+   "power_line_frequency": 60.0,
+   "event_description_count": 4,
+   "units_report": {
+    "converted": 0,
+    "relabelled": 0,
+    "kept_importer_unit": 0,
+    "units_column_present": true,
+    "sidecar": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DespicableMe_channels.tsv",
+    "sidecar_supplied": true
+   },
+   "n_events": 4,
+   "trial_types": {}
+  },
+  {
+   "path": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DiaryOfAWimpyKid_eeg.set",
+   "zarr": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DiaryOfAWimpyKid_eeg.zarr",
+   "updated_utc": "2026-09-05T01:05:47Z",
+   "source_tree": "raw",
+   "derived": false,
+   "modalities": [
+    "eeg"
+   ],
+   "groups": [
+    {
+     "name": "eeg_250hz",
+     "modality": "EEG",
+     "rate": 250.0,
+     "n_channels": 129,
+     "n_samples": 29749,
+     "duration_s": 118.996,
+     "n_view_levels": 3,
+     "view_chunk_columns": 1024,
+     "source_rate_hz": 500.0,
+     "chunk_samples": 1000,
+     "shard_samples": 30000
+    }
+   ],
+   "power_line_frequency": 60.0,
+   "event_description_count": 4,
+   "units_report": {
+    "converted": 0,
+    "relabelled": 0,
+    "kept_importer_unit": 0,
+    "units_column_present": true,
+    "sidecar": "sub-NDARAA075AMK/eeg/sub-NDARAA075AMK_task-DiaryOfAWimpyKid_channels.tsv",
+    "sidecar_supplied": true
+   },
+   "n_events": 4,
+   "trial_types": {}
+  }
+ ],
+ "failures": [],
+ "pending": [],
+ "events_parquet": "https://nemar.s3.us-east-2.amazonaws.com/nm000103/zarr/events.parquet",
+ "events_row_count": 190855
+}

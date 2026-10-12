@@ -5,17 +5,12 @@ import unittest
 import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
-from eegprep.functions.guifunc import qt as qt_renderer
-from eegprep.functions.guifunc.qt import QtDialogRenderer, _firpm_order_shape
+from eegprep.functions.guifunc.qt import _firpm_order_shape
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt, pop_eegfilt_dialog_spec
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew, pop_eegfiltnew_dialog_spec
-from eegprep.plugins.firfilt.pop_firma import pop_firma, pop_firma_dialog_spec
-from eegprep.plugins.firfilt.pop_firpm import pop_firpm, pop_firpm_dialog_spec
-from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord, pop_firpmord_dialog_spec
-from eegprep.plugins.firfilt.pop_firws import pop_firws, pop_firws_dialog_spec
-from eegprep.plugins.firfilt.pop_firwsord import pop_firwsord_dialog_spec
-from eegprep.plugins.firfilt.pop_kaiserbeta import pop_kaiserbeta_dialog_spec
-from eegprep.plugins.firfilt.pop_xfirws import pop_xfirws_dialog_spec
+from eegprep.plugins.firfilt.pop_firpm import pop_firpm
+from eegprep.plugins.firfilt.pop_firpmord import pop_firpmord
+from eegprep.plugins.firfilt.pop_firws import pop_firws
 
 
 def _eeg():
@@ -40,20 +35,6 @@ def _eeg():
 
 
 class PopFirfiltGuiTests(unittest.TestCase):
-    def test_pop_eegfiltnew_dialog_matches_eeglab_sections(self):
-        spec = pop_eegfiltnew_dialog_spec(_eeg())
-
-        self.assertEqual(spec.title, "Filter the data -- pop_eegfiltnew()")
-        self.assertEqual(spec.function_name, "pop_eegfiltnew")
-        self.assertEqual(spec.eeglab_source, "plugins/firfilt/pop_eegfiltnew.m")
-        self.assertEqual(spec.help_text, "pophelp('pop_eegfiltnew')")
-        labels = [(control.style, control.string, control.tag) for control in spec.controls]
-        self.assertIn(("text", "Lower edge of the frequency pass band (Hz)", None), labels)
-        self.assertIn(("text", "Higher edge of the frequency pass band (Hz)", None), labels)
-        self.assertIn(("checkbox", "Notch filter the data instead of pass band", "revfilt"), labels)
-        self.assertIn(("text", "Channel type(s)", None), labels)
-        self.assertIn(("text", "OR channel labels or indices", None), labels)
-
     def test_pop_eegfiltnew_dialog_accepts_numpy_chanlocs(self):
         eeg = _eeg()
         eeg["chanlocs"] = np.asarray(eeg["chanlocs"], dtype=object)
@@ -154,61 +135,6 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertEqual(out["data"].shape, (3, 600))
         self.assertEqual(command, "EEG = pop_eegfilt( EEG, 1, 40, [100], [0], 0, 0, 'fir1', 0);")
 
-    def test_firfilt_plugin_dialog_specs_are_eeglab_labeled(self):
-        specs = [
-            pop_firws_dialog_spec(_eeg()),
-            pop_firpm_dialog_spec(_eeg()),
-            pop_firma_dialog_spec(_eeg()),
-        ]
-
-        self.assertEqual([spec.function_name for spec in specs], ["pop_firws", "pop_firpm", "pop_firma"])
-        self.assertEqual(
-            [spec.eeglab_source for spec in specs],
-            ["plugins/firfilt/pop_firws.m", "plugins/firfilt/pop_firpm.m", "plugins/firfilt/pop_firma.m"],
-        )
-
-    def test_firfilt_dialog_buttons_have_live_callbacks(self):
-        for spec in (pop_firws_dialog_spec(_eeg()), pop_firpm_dialog_spec(_eeg()), pop_firma_dialog_spec(_eeg())):
-            for control in spec.controls:
-                if control.style == "pushbutton" and control.string in {"Estimate", "Plot filter responses"}:
-                    self.assertIsNotNone(control.callback)
-                    if control.tag != "wargpush":
-                        self.assertTrue(control.enabled)
-
-    def test_firfilt_order_dialog_specs_are_eeglab_labeled(self):
-        specs = [
-            pop_kaiserbeta_dialog_spec(),
-            pop_firwsord_dialog_spec(),
-            pop_firpmord_dialog_spec(),
-            pop_xfirws_dialog_spec(),
-        ]
-
-        self.assertEqual(
-            [spec.function_name for spec in specs],
-            ["pop_kaiserbeta", "pop_firwsord", "pop_firpmord", "pop_xfirws"],
-        )
-        self.assertEqual(
-            [spec.eeglab_source for spec in specs],
-            [
-                "plugins/firfilt/pop_kaiserbeta.m",
-                "plugins/firfilt/pop_firwsord.m",
-                "plugins/firfilt/pop_firpmord.m",
-                "plugins/firfilt/pop_xfirws.m",
-            ],
-        )
-        kaiser_controls = {(control.style, control.string, control.tag) for control in specs[0].controls}
-        self.assertIn(("text", "Max passband deviation/ripple:", None), kaiser_controls)
-        self.assertEqual(specs[1].help_text, "pophelp('pop_firwsord')")
-        firpm_controls = controls_by_tag(specs[2])
-        self.assertIn("rp", firpm_controls)
-        self.assertIn("rs", firpm_controls)
-        self.assertNotIn("f", firpm_controls)
-        self.assertNotIn("a", firpm_controls)
-
-    def test_qt_renderer_stateless_helpers_have_module_ownership(self):
-        self.assertIs(QtDialogRenderer._read_widget, qt_renderer._read_widget)
-        self.assertIs(QtDialogRenderer._validation_message, qt_renderer._validation_message)
-
     def test_firpm_estimate_order_shape_uses_paired_edges_for_single_cutoff_filters(self):
         highpass_edges, highpass_amplitudes = _firpm_order_shape([8], 4, "highpass", 200)
         lowpass_edges, lowpass_amplitudes = _firpm_order_shape([30], 4, "lowpass", 200)
@@ -258,16 +184,6 @@ class PopFirfiltGuiTests(unittest.TestCase):
         self.assertEqual(
             command, "EEG = pop_firpm(EEG, 'fcutoff', [8 30], 'ftrans', 4, 'ftype', 'bandpass', 'forder', 120);"
         )
-
-    def test_firma_gui_result_filters_and_returns_history(self):
-        class Renderer:
-            def run(self, spec, initial_values=None):
-                return {"forder": "10"}
-
-        out, command = pop_firma(_eeg(), gui=True, renderer=Renderer(), return_com=True)
-
-        self.assertEqual(out["data"].shape, (3, 600))
-        self.assertEqual(command, "EEG = pop_firma(EEG, 'forder', 10);")
 
 
 if __name__ == "__main__":

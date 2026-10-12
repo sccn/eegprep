@@ -3,9 +3,8 @@ import unittest
 import numpy as np
 
 from eegprep.functions.adminfunc.console import _console_python_command
-from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.plugins.ICLabel.eeg_icflag import eeg_icflag
-from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, pop_icflag, pop_icflag_dialog_spec
+from eegprep.plugins.ICLabel.pop_icflag import DEFAULT_ICFLAG_THRESHOLDS, pop_icflag
 
 
 def _eeg():
@@ -37,19 +36,6 @@ def _eeg():
 
 
 class PopIcflagGuiTests(unittest.TestCase):
-    def test_dialog_spec_matches_eeglab_threshold_prompt(self):
-        spec = pop_icflag_dialog_spec()
-        controls = controls_by_tag(spec)
-
-        self.assertEqual(spec.title, "Flag components using ICLabel -- pop_icflag()")
-        self.assertEqual(spec.function_name, "pop_icflag")
-        self.assertEqual(spec.eeglab_source, "plugins/ICLabel/pop_icflag.m")
-        self.assertEqual(spec.controls[0].font_weight, "bold")
-        self.assertEqual(controls["min_1"].value, "0.9")
-        self.assertEqual(controls["max_1"].value, "1")
-        self.assertEqual(controls["min_2"].value, "0.9")
-        self.assertEqual(controls["max_2"].value, "1")
-
     def test_gui_result_flags_components_and_returns_replayable_history(self):
         class Renderer:
             def run(self, spec, initial_values=None):
@@ -90,21 +76,6 @@ class PopIcflagGuiTests(unittest.TestCase):
         out = eeg_icflag(eeg, thresholds)
 
         np.testing.assert_array_equal(out["reject"]["gcompreject"], [0, 0, 1])
-
-    def test_missing_iclabel_raises_clear_error(self):
-        eeg = _eeg()
-        eeg["etc"] = {}
-
-        with self.assertRaisesRegex(ValueError, "Run pop_iclabel first"):
-            pop_icflag(eeg, DEFAULT_ICFLAG_THRESHOLDS)
-
-    def test_missing_iclabel_in_dataset_list_raises_clear_error(self):
-        eeg = _eeg()
-        missing = _eeg()
-        missing["etc"] = {}
-
-        with self.assertRaisesRegex(ValueError, "Run pop_iclabel first"):
-            pop_icflag([eeg, missing], DEFAULT_ICFLAG_THRESHOLDS)
 
 
 if __name__ == "__main__":

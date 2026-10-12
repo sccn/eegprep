@@ -8,7 +8,7 @@ from typing import Any
 
 from .functions.adminfunc.logs import setup_logging
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 setup_logging(logging.WARNING)
 
@@ -116,6 +116,7 @@ _LAZY_EXPORTS = {
     "plotcurve": ("eegprep.functions.sigprocfunc.plotcurve", "plotcurve"),
     "quantile": ("eegprep.functions.sigprocfunc.quantile", "quantile"),
     "scanfold": ("eegprep.functions.miscfunc.scanfold", "scanfold"),
+    "savefig": ("eegprep.functions.sigprocfunc.savefig", "savefig"),
     "sbplot": ("eegprep.functions.sigprocfunc.sbplot", "sbplot"),
     "shuffle": ("eegprep.functions.sigprocfunc.shuffle", "shuffle"),
     "slider": ("eegprep.functions.sigprocfunc.slider", "slider"),

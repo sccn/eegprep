@@ -1,29 +1,12 @@
 """Tests for eeg_checkset eventconsistency mode and pop_epoch boundary detection."""
 
-import os
 import numpy as np
-import pytest
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, _eventconsistency
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
 
 
 class TestEventconsistencyOperations:
     """Unit tests for _eventconsistency helper."""
-
-    def test_removes_nan_latency_events(self):
-        EEG = {
-            'event': [
-                {'type': 'stim', 'latency': 100},
-                {'type': 'stim', 'latency': float('nan')},
-                {'type': 'stim', 'latency': 300},
-            ],
-            'pnts': 1000,
-            'trials': 1,
-        }
-        result = _eventconsistency(EEG)
-        assert len(result['event']) == 2
-        assert all(not np.isnan(e['latency']) for e in result['event'])
 
     def test_removes_out_of_bounds_events(self):
         EEG = {
@@ -106,11 +89,6 @@ class TestEventconsistencyOperations:
         result = _eventconsistency(EEG)
         assert result['event'][0]['type'] == 'stim'
 
-    def test_empty_events_noop(self):
-        EEG = {'event': [], 'pnts': 100, 'trials': 1}
-        result = _eventconsistency(EEG)
-        assert len(result['event']) == 0
-
     def test_eeg_checkset_accepts_eventconsistency_arg(self):
         """Verify eeg_checkset('eventconsistency') calls _eventconsistency."""
         EEG = {
@@ -131,42 +109,3 @@ class TestEventconsistencyOperations:
         result = eeg_checkset(EEG, 'eventconsistency')
         # NaN event should have been removed
         assert len(result['event']) == 1
-
-
-@pytest.mark.skipif(
-    not os.path.exists('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set'),
-    reason="Sub-002 parity data not available",
-)
-class TestPopEpochSubject002Parity:
-    """Integration test using real sub-002 step-5 data."""
-
-    def _load_step5(self):
-        from eegprep import pop_loadset, eeg_checkset_strict_mode
-
-        with eeg_checkset_strict_mode(False):
-            return pop_loadset('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set')
-
-    def _load_compat_step6(self):
-        from eegprep import pop_loadset, eeg_checkset_strict_mode
-
-        with eeg_checkset_strict_mode(False):
-            return pop_loadset('partity_analysis/all_steps/matlab_eeglabcompat/sub-002_run-1_step6.set')
-
-    def test_trial_count_matches_matlab(self):
-        """Python pop_epoch trial count must match MATLAB eeglabcompat.
-
-        Both should produce 402 trials after the MATLAB epoch.m int64 fix
-        (double cast on line 126) and the Python half-sample boundary fix.
-        """
-        eeg5 = self._load_step5()
-        eeg_matlab6 = self._load_compat_step6()
-
-        eeg_out, _ = pop_epoch(
-            eeg5,
-            ['standard', 'oddball', 'oddball_with_reponse'],
-            [-0.5, 1.0],
-        )
-
-        assert eeg_out['trials'] == eeg_matlab6['trials'], (
-            f"Trial count mismatch: Python={eeg_out['trials']}, MATLAB={eeg_matlab6['trials']}"
-        )

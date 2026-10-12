@@ -1,0 +1,3 @@
+# Shared task history, independent of code branches. Embedded mode is selected
+# in metadata.json; the database itself is local and ignored by Git.
+sync.remote: "git+https://github.com/sccn/eegprep"

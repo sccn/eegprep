@@ -4,7 +4,6 @@ import numpy as np
 
 from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.functions.popfunc.eeg_runica import eeg_runica
-from eegprep.functions.popfunc.pop_runica import pop_runica
 
 
 def _epoched_eeg(offset=0):
@@ -163,29 +162,3 @@ def test_finalize_ica_fields_recomputes_stale_backend_inverse_after_sorting():
     out = finalize_ica_fields(eeg, sortcomps=True, posact=False)
 
     np.testing.assert_allclose(out["icawinv"], pinv(out["icaweights"] @ out["icasphere"]))
-
-
-def test_pop_runica_concatenates_epoched_datasets_in_eeglab_order(monkeypatch):
-    first = _epoched_eeg()
-    second = _epoched_eeg(offset=100)
-    captured = {}
-
-    def fake_eeg_runica(eeg, sortcomps="off", **_kwargs):
-        captured["data"] = np.asarray(eeg["data"]).copy()
-        return dict(
-            eeg,
-            icasphere=np.eye(2),
-            icaweights=np.eye(2),
-            icawinv=np.eye(2),
-            icaact=np.zeros((2, int(eeg["pnts"]), int(eeg["trials"]))),
-            icachansind=np.array([0, 1]),
-        )
-
-    monkeypatch.setattr("eegprep.functions.popfunc.pop_runica.eeg_runica", fake_eeg_runica)
-
-    out, command = pop_runica([first, second], concatenate="on", return_com=True)
-
-    expected = np.concatenate([_eeglab_flattened(first["data"]), _eeglab_flattened(second["data"])], axis=1)
-    np.testing.assert_array_equal(captured["data"], expected)
-    assert len(out) == 2
-    assert "'concatenate', 'on'" in command

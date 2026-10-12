@@ -4,18 +4,12 @@ This module provides common test fixtures and utilities that can be reused
 across different test modules.
 """
 
-import ast
-from copy import deepcopy
 import importlib.util
 import os
 from pathlib import Path
-from typing import Any
 import unittest
 
 import numpy as np
-
-from eegprep.functions.guifunc.session import EEGPrepSession
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 
 SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
@@ -47,26 +41,6 @@ def skip_without_matlab(test_func):
             pass
     """
     return unittest.skipUnless(matlab_engine_available(), "MATLAB engine not available or skipped")(test_func)
-
-
-def mpl_use_agg():
-    """Set matplotlib backend to 'Agg' for headless testing.
-
-    This should be called before importing matplotlib.pyplot or other
-    matplotlib modules that require a display.
-    """
-    import matplotlib
-
-    matplotlib.use('Agg')
-
-
-def rng_seed(seed=42):
-    """Set numpy random seed for deterministic testing.
-
-    Args:
-        seed (int): Random seed value. Default is 42.
-    """
-    np.random.seed(seed)
 
 
 def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
@@ -222,180 +196,3 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_compo
         )
 
     return eeg
-
-
-def create_test_events(n_events=10, max_latency=1000, event_types=None):
-    """Create synthetic event list for testing.
-
-    Args:
-        n_events (int): Number of events to create. Default is 10.
-        max_latency (int): Maximum event latency in samples. Default is 1000.
-        event_types (list): List of event types to use. Default is ['stim', 'resp'].
-
-    Returns:
-        list: List of event dictionaries.
-    """
-    if event_types is None:
-        event_types = ['stim', 'resp']
-
-    events = []
-    latencies = np.sort(np.random.uniform(1, max_latency, n_events))
-
-    for i, latency in enumerate(latencies):
-        event_type = event_types[i % len(event_types)]
-        events.append(
-            {
-                'type': event_type,
-                'latency': float(latency),
-                'duration': 0.0,
-                'channel': 0,
-                'bvtime': [],
-                'bvmknum': 1,
-                'visible': [1],
-                'code': event_type,
-                'urevent': i + 1,
-            }
-        )
-
-    return events
-
-
-def cleanup_matplotlib():
-    """Clean up matplotlib figures and reset state.
-
-    This should be called in test tearDown methods to prevent
-    memory leaks and interference between tests.
-    """
-    import matplotlib.pyplot as plt
-
-    plt.close('all')
-
-
-def fresh_sample_eeg() -> dict[str, Any]:
-    """Load a fresh copy of the checked-in EEGLAB sample dataset."""
-    return deepcopy(pop_loadset(str(SAMPLE_DATASET_PATH)))
-
-
-def fresh_session_with_sample(command: str = "EEG = pop_loadset('eeglab_data.set');") -> EEGPrepSession:
-    """Return a new session with one freshly loaded sample dataset selected."""
-    session = EEGPrepSession()
-    session.store_current(fresh_sample_eeg(), new=True, command=command)
-    return session
-
-
-def assert_session_synced(session: EEGPrepSession, namespace: dict[str, Any]) -> None:
-    """Assert that an EEGPrep console namespace mirrors ``session``."""
-    assert namespace["EEG"] is session.EEG
-    assert namespace["ALLEEG"] is session.ALLEEG
-    assert namespace["CURRENTSET"] == session.current_set_value()
-    assert namespace["ALLCOM"] is session.ALLCOM
-    assert namespace["LASTCOM"] == session.LASTCOM
-    assert namespace["STUDY"] is session.STUDY
-    assert namespace["CURRENTSTUDY"] == session.CURRENTSTUDY
-
-
-def assert_history_contains_once(session: EEGPrepSession, command: str) -> None:
-    """Assert that ``command`` was appended exactly once to session history."""
-    assert session.ALLCOM.count(command) == 1
-    assert session.LASTCOM == command
-
-
-def assert_history_replayable(command: str) -> str:
-    """Assert that an EEGLAB-style command converts to valid Python input."""
-    from eegprep.functions.adminfunc.console import _console_python_command
-
-    converted = _console_python_command(command)
-    ast.parse(converted)
-    return converted
-
-
-def assert_eeg_fields_close(
-    left: dict[str, Any],
-    right: dict[str, Any],
-    fields: tuple[str, ...] | list[str],
-    *,
-    rtol: float = 1e-7,
-    atol: float = 1e-7,
-) -> None:
-    """Assert selected EEG fields match for lightweight parity scaffolding."""
-    for field in fields:
-        left_value = left[field]
-        right_value = right[field]
-        if isinstance(left_value, np.ndarray) or isinstance(right_value, np.ndarray):
-            np.testing.assert_allclose(left_value, right_value, rtol=rtol, atol=atol)
-        else:
-            assert left_value == right_value
-
-
-class TestFixturesContextManager:
-    """Context manager for common test fixtures.
-
-    Usage:
-        with EEGContext(seed=42, mpl_backend='Agg') as fixtures:
-            eeg = fixtures.create_eeg(n_channels=64)
-            # ... run tests ...
-    """
-
-    __test__ = False
-
-    def __init__(self, seed=42, mpl_backend='Agg'):
-        """Initialize test fixtures.
-
-        Args:
-            seed (int): Random seed for reproducible tests. Default is 42.
-            mpl_backend (str): Matplotlib backend to use. Default is 'Agg'.
-        """
-        self.seed = seed
-        self.mpl_backend = mpl_backend
-        self.original_backend = None
-
-    def __enter__(self):
-        """Enter context manager and set up fixtures."""
-        # Set random seed
-        if self.seed is not None:
-            rng_seed(self.seed)
-
-        # Set matplotlib backend
-        if self.mpl_backend is not None:
-            import matplotlib
-
-            self.original_backend = matplotlib.get_backend()
-            matplotlib.use(self.mpl_backend)
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit context manager and clean up."""
-        # Clean up matplotlib
-        cleanup_matplotlib()
-
-        # Restore original backend if changed
-        if self.original_backend is not None:
-            import matplotlib
-
-            matplotlib.use(self.original_backend)
-
-    def create_eeg(self, **kwargs):
-        """Create test EEG data with fixtures applied."""
-        return create_test_eeg(**kwargs)
-
-    def create_eeg_with_ica(self, **kwargs):
-        """Create test EEG data with ICA and fixtures applied."""
-        return create_test_eeg_with_ica(**kwargs)
-
-    def create_events(self, **kwargs):
-        """Create test events with fixtures applied."""
-        return create_test_events(**kwargs)
-
-
-# Backward compatibility alias for legacy references.
-EEGContext = TestFixturesContextManager
-
-
-# Legacy functions for backward compatibility
-def small_eeg():
-    """Create a small EEG fixture for quick legacy tests."""
-    return create_test_eeg(n_channels=8, n_samples=250)
-
-
-TestFixtures = EEGContext  # Backward compatibility alias

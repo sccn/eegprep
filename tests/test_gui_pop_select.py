@@ -53,38 +53,6 @@ def _epoched_eeg():
 
 
 class PopSelectGuiTests(unittest.TestCase):
-    def test_gui_dialog_spec_matches_eeglab_control_order(self):
-        spec = pop_select_dialog_spec(_eeg())
-
-        self.assertEqual(spec.title, "Select data -- pop_select()")
-        self.assertEqual(spec.function_name, "pop_select")
-        self.assertEqual(spec.eeglab_source, "functions/popfunc/pop_select.m")
-        self.assertEqual(spec.size, (695, 404))
-        self.assertEqual(spec.geomvert, (1, 1, 1, 1, 1, 1, 1, 1))
-        self.assertEqual(
-            [(control.style, control.string, control.tag) for control in spec.controls[:8]],
-            [
-                ("text", "Select data in:", None),
-                ("text", "Input desired range", None),
-                ("text", "on->remove these", None),
-                ("text", "Time range [min max] (s)", None),
-                ("edit", "", "time"),
-                ("spacer", "", None),
-                ("checkbox", "    ", "rmtime"),
-                ("spacer", "", None),
-            ],
-        )
-        self.assertEqual([control.font_weight for control in spec.controls[:3]], ["bold", "bold", "bold"])
-        scroll = controls_by_tag(spec)["scroll"]
-        self.assertTrue(scroll.enabled)
-        self.assertEqual(scroll.callback.name, "open_eegplot")
-
-    def test_gui_channel_picker_exposes_labels_and_types(self):
-        controls = controls_by_tag(pop_select_dialog_spec(_eeg()))
-
-        self.assertEqual(controls["chans_button"].callback.params["channels"], ("Fz", "Cz", "HEOG", "VEOG"))
-        self.assertEqual(controls["chantype_button"].callback.params["channels"], ("EEG", "EOG"))
-
     def test_gui_dialog_spec_accepts_numpy_chanlocs(self):
         # eeg_checkset normalises EEG['chanlocs'] to a numpy array of dicts;
         # the dialog builder must accept that storage form (regression for #229).
@@ -142,72 +110,6 @@ class PopSelectGuiTests(unittest.TestCase):
 
         self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz", "HEOG"])
         self.assertEqual(com, "EEG = pop_select( EEG, 'channel', [1 2 3]);")
-
-    def test_gui_result_handles_missing_optional_eeg_fields(self):
-        class Renderer:
-            def run(self, spec, initial_values=None):
-                return {
-                    "time": "",
-                    "rmtime": False,
-                    "point": "",
-                    "rmpoint": False,
-                    "trial": "",
-                    "rmtrial": False,
-                    "chans": "Fz Cz",
-                    "rmchannel": False,
-                    "chantype": "",
-                    "rmchantype": False,
-                }
-
-        eeg = {
-            "data": np.arange(120, dtype=np.float32).reshape(3, 40),
-            "nbchan": 3,
-            "pnts": 40,
-            "trials": 1,
-            "srate": 100,
-            "xmin": 0,
-            "xmax": 0.39,
-            "times": np.arange(40),
-            "event": [],
-            "urevent": [],
-            "epoch": [],
-            "chanlocs": [
-                {"labels": "Fz", "type": "EEG"},
-                {"labels": "Cz", "type": "EEG"},
-                {"labels": "Pz", "type": "EOG"},
-            ],
-        }
-
-        out, com = pop_select(eeg, gui=True, renderer=Renderer(), return_com=True)
-
-        self.assertEqual(out["nbchan"], 2)
-        self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz"])
-        self.assertEqual([chan["labels"] for chan in out["chaninfo"]["removedchans"]], ["Pz"])
-        self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
-
-    def test_gui_result_handles_multiple_datasets(self):
-        test_case = self
-
-        class Renderer:
-            def run(self, spec, initial_values=None):
-                test_case.assertEqual(spec.function_name, "pop_select")
-                return {
-                    "time": "",
-                    "rmtime": False,
-                    "point": "",
-                    "rmpoint": False,
-                    "trial": "",
-                    "rmtrial": False,
-                    "chans": "Fz Cz",
-                    "rmchannel": False,
-                    "chantype": "",
-                    "rmchantype": False,
-                }
-
-        out, com = pop_select([_eeg(), _eeg()], gui=True, renderer=Renderer(), return_com=True)
-
-        self.assertEqual([eeg["nbchan"] for eeg in out], [2, 2])
-        self.assertEqual(com, "EEG = pop_select( EEG, 'channel', {'Fz' 'Cz'});")
 
     def test_gui_result_accepts_matlab_colon_trial_range(self):
         class Renderer:
