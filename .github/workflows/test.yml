@@ -145,7 +145,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --python "${{ matrix.python-version }}" --all-extras --group dev
+          uv sync --python ${{ matrix.python-version }} --all-extras --group dev
 
       - name: Set up MATLAB
         if: steps.matlab-availability.outputs.available == 'true'
@@ -173,8 +173,8 @@ jobs:
           print(candidates[-1])
           PY
           )
-          echo "MATLAB_ROOT=$MATLAB_ROOT" >> "$GITHUB_ENV"
-          echo "$MATLAB_ROOT/bin" >> "$GITHUB_PATH"
+          echo "MATLAB_ROOT=$MATLAB_ROOT" >> $GITHUB_ENV
+          echo "$MATLAB_ROOT/bin" >> $GITHUB_PATH
 
       - name: Fetch EEGLAB plugin submodules
         if: steps.matlab-availability.outputs.available == 'true'
