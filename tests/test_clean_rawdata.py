@@ -202,7 +202,7 @@ class TestRiemannianASRMatlab(DebuggableTestCase):
             cleaned['data'],
             np.asarray(expected['data'], dtype=float),
             atol=0,
-            rtol=1e-6,
+            rtol=1e-8,
             use_32_bit=False,
             err_msg='Riemannian clean_asr() failed vs MATLAB',
         )
