@@ -2,6 +2,11 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary: workflow_dispatch is only available once this file is on the
+  # default branch. This push trigger starts the reference run from this branch.
+  push:
+    branches:
+      - cursor/eeglab-reference-ci-9de8
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
