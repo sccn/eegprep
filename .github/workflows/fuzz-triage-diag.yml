@@ -99,7 +99,7 @@ jobs:
 
       - name: Run fuzz triage diagnostics
         shell: bash
-        run: uv run --no-sync python tools/fuzz_triage_diag.py
+        run: PYTHONPATH=. uv run --no-sync python tools/fuzz_triage_diag.py
 
       - name: Stop MATLAB
         if: always() && steps.matlab-batch.outcome == 'success'
