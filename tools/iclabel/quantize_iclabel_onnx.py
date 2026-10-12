@@ -32,6 +32,12 @@ one in the report. The quantize step exits nonzero, without writing the
 report, when the gate fails. If ``netICL.mat`` itself changes, first refreeze
 the teacher with :func:`write_teacher_probabilities` (the command is recorded
 in ``evaluation_manifest.json``) and update the SHA-256 recorded there.
+
+CI runs the export and quantize steps into a temporary directory with
+``--require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx`` and
+``--require-matching-report tools/iclabel/parity_report.json``, so the
+committed model and the gate numbers in the committed report are reproduced
+from ``netICL.mat`` on every run.
 """
 
 from __future__ import annotations
@@ -62,6 +68,13 @@ DEFAULT_TEACHER_PROBABILITIES = Path(__file__).with_name("evaluation_teacher_pro
 DEFAULT_REPORT = Path(__file__).with_name("parity_report.json")
 COMPONENTS_PER_RECORDING = 31
 _HASH_CHUNK_SIZE = 1024 * 1024
+# ONNX Runtime float32 results for these probabilities differ across CPUs by
+# about 1e-6 (eager PyTorch versus ONNX Runtime: 1.19e-06 on the evaluation
+# set), and the drift metrics move by at most as much. The other metrics are
+# counts and ratios whose decisions sit at least 0.0024 from a tie or threshold,
+# so they must match exactly.
+_DRIFT_METRICS = ("max_probability_abs_diff", "mean_probability_abs_diff")
+_DRIFT_METRIC_TOLERANCE = 1e-5
 
 
 def _sha256(path: Path) -> str:
@@ -275,6 +288,27 @@ def gate_failures(metrics: Mapping[str, Any]) -> list[str]:
     return failures
 
 
+def report_mismatches(report: Mapping[str, Any], reference: Mapping[str, Any]) -> list[str]:
+    """List where the gate or metrics of ``report`` differ from those of ``reference``.
+
+    The two drift metrics may differ by ``_DRIFT_METRIC_TOLERANCE``; every
+    other gate and metric value must be equal.
+    """
+    mismatches = []
+    if report["gate"] != reference["gate"]:
+        mismatches.append(f"gate: {report['gate']} != {reference['gate']}")
+    metrics, expected = report["metrics"], reference["metrics"]
+    for key in sorted(metrics.keys() | expected.keys()):
+        actual, wanted = metrics.get(key), expected.get(key)
+        if key in _DRIFT_METRICS and actual is not None and wanted is not None:
+            matches = abs(actual - wanted) <= _DRIFT_METRIC_TOLERANCE
+        else:
+            matches = actual == wanted
+        if not matches:
+            mismatches.append(f"metrics.{key}: {actual!r} != {wanted!r}")
+    return mismatches
+
+
 def quantize_weight_only(model_input: Path, model_output: Path) -> Path:
     """Write a Conv-weight-only int8 QDQ artifact with float inputs and outputs."""
     import onnx
@@ -400,6 +434,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         type=Path,
         help="fail unless the new model's raw outputs on the evaluation features equal this model's exactly",
     )
+    parser.add_argument(
+        "--require-matching-report",
+        type=Path,
+        help="fail unless the new report's gate and metrics match this committed report",
+    )
     args = parser.parse_args(argv)
 
     model = quantize_weight_only(args.float32_artifact, args.output)
@@ -414,6 +453,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise SystemExit(
                 f"ICLabel int8 model {model} is not numerically identical to {args.require_identical_to} "
                 "on the evaluation features"
+            )
+    if args.require_matching_report is not None:
+        reference = json.loads(args.require_matching_report.read_text(encoding="utf-8"))
+        mismatches = report_mismatches(report, reference)
+        if mismatches:
+            raise SystemExit(
+                f"ICLabel parity report for {model} does not match {args.require_matching_report}: "
+                + "; ".join(mismatches)
             )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("w", encoding="utf-8") as handle:

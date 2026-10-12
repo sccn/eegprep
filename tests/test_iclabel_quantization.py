@@ -26,6 +26,7 @@ from tools.iclabel.quantize_iclabel_onnx import (
     load_verified_teacher,
     main,
     network_inputs_from_features,
+    report_mismatches,
 )
 
 
@@ -241,12 +242,29 @@ def test_evaluate_model_reproduces_the_committed_report_for_the_packaged_model()
 
     report = evaluate_model(PACKAGED_MODEL)
 
-    # Probability metrics can differ in the last float32 bits across CPUs, so
-    # only the gate verdict and the platform-independent fields must match.
     assert gate_failures(report["metrics"]) == []
+    assert report_mismatches(report, committed) == []
     assert {key: value for key, value in report.items() if key != "metrics"} == {
         key: value for key, value in committed.items() if key != "metrics"
     }
+
+
+def test_report_mismatches_allow_only_cross_cpu_drift_noise():
+    committed = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+    drift = committed["metrics"]["max_probability_abs_diff"]
+
+    def with_metric(key, value):
+        return {**committed, "metrics": {**committed["metrics"], key: value}}
+
+    assert report_mismatches(committed, committed) == []
+    assert report_mismatches(with_metric("max_probability_abs_diff", drift + 1e-6), committed) == []
+    assert report_mismatches(with_metric("max_probability_abs_diff", drift + 1e-4), committed) == [
+        f"metrics.max_probability_abs_diff: {drift + 1e-4!r} != {drift!r}"
+    ]
+    distribution = {**committed["metrics"]["model_class_distribution"], "Brain": 17, "Other": 194}
+    assert len(report_mismatches(with_metric("model_class_distribution", distribution), committed)) == 1
+    stricter_gate = {**committed, "gate": {**committed["gate"], "maximum_probability_abs_diff": 0.01}}
+    assert report_mismatches(stricter_gate, committed)[0].startswith("gate: ")
 
 
 @pytest.fixture(scope="module")
@@ -278,6 +296,8 @@ def test_regeneration_from_netICL_reproduces_the_packaged_model(float32_export, 
             str(report_path),
             "--require-identical-to",
             str(PACKAGED_MODEL),
+            "--require-matching-report",
+            str(DEFAULT_REPORT),
         ]
     )
 
