@@ -341,7 +341,12 @@ class ConsoleEegh:
             history_command = session.history_command_at(value)
             if not history_command:
                 return history_command
-            return self.bridge.execute_history_command(history_command)
+            try:
+                return self.bridge.execute_history_command(history_command)
+            except SyntaxError as exc:
+                raise SyntaxError(
+                    f"History entry {value} could not be replayed as Python: {history_command!r} ({exc.msg})"
+                ) from exc
         session = self.bridge.session
         normalized = str(command).strip()
         if normalized:
