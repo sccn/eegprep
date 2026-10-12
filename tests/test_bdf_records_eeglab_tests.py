@@ -14,6 +14,16 @@ OPENBDF_SUITE = "unittesting_sigprocfunc/openbdf/sigprocfunc_openbdf_wrapperTest
 READBDF_SUITE = "unittesting_binary/readbdf/binary_readbdf_wrapperTest.m"
 
 
+def _skip_without_openbdf(request):
+    """The Biosig extension zip does not ship openbdf."""
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        return
+    found = request.getfixturevalue("eeglab_matlab_engine").which("openbdf")
+    if isinstance(found, str) and found.strip():
+        return
+    pytest.skip("Biosig plugin does not provide openbdf")
+
+
 def _field(value: str | int | float | None, width: int) -> bytes:
     text = "" if value is None else str(value)
     encoded = text.encode("ascii")
@@ -204,21 +214,24 @@ def test_readbdf_preserves_variable_rate_padding_and_compact_modes(tmp_path: Pat
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_general")
-def test_upstream_openbdf_original_general_header(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_general_header(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     # The source constructs an expected header but does not compare it.
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test.bdf"
     eeglab_backend("openbdf", str(path), nargout=2)
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_chan_types")
-def test_upstream_openbdf_original_channel_types(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_channel_types(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_chan_types.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
     assert data["Head"]["ChanTyp"] == "N CCEOM"
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_dig_min_larger_max")
-def test_upstream_openbdf_original_reversed_digital_limits(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_reversed_digital_limits(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_dig_min_larger_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
     np.testing.assert_array_equal(data["Head"]["Cal"][:2], np.ones((2, 1)))
@@ -226,7 +239,8 @@ def test_upstream_openbdf_original_reversed_digital_limits(eeglab_backend, eegla
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_invalid_dig_min_max")
-def test_upstream_openbdf_original_invalid_digital_limits(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_invalid_digital_limits(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_invalid_dig_min_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
     np.testing.assert_array_equal(data["Head"]["DigMin"], np.full((7, 1), -32768.0))
@@ -234,7 +248,8 @@ def test_upstream_openbdf_original_invalid_digital_limits(eeglab_backend, eeglab
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_invalid_phys_min_max")
-def test_upstream_openbdf_original_invalid_physical_limits(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_invalid_physical_limits(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_invalid_phys_min_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
     np.testing.assert_array_equal(data["Head"]["PhysMin"], data["Head"]["DigMin"])
@@ -242,7 +257,8 @@ def test_upstream_openbdf_original_invalid_physical_limits(eeglab_backend, eegla
 
 
 @eeglab_test(OPENBDF_SUITE, "test_pass_phys_min_larger_max")
-def test_upstream_openbdf_original_reversed_physical_limits(eeglab_backend, eeglab_suite_root):
+def test_upstream_openbdf_original_reversed_physical_limits(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_sigprocfunc/openbdf/test_phys_min_larger_max.bdf"
     data, _ = eeglab_backend("openbdf", str(path), nargout=2)
     np.testing.assert_array_equal(data["Head"]["PhysMin"], data["Head"]["DigMin"])
@@ -250,7 +266,8 @@ def test_upstream_openbdf_original_reversed_physical_limits(eeglab_backend, eegl
 
 
 @eeglab_test(READBDF_SUITE, "test_pass_general")
-def test_upstream_readbdf_original_record_selection(eeglab_backend, eeglab_suite_root):
+def test_upstream_readbdf_original_record_selection(eeglab_backend, request, eeglab_suite_root):
+    _skip_without_openbdf(request)
     path = eeglab_suite_root / "unittesting_binary/readbdf/test.bdf"
     bdf = eeglab_backend("openbdf", str(path))
     records = np.array([[1.0, 2.0, 4.0]])

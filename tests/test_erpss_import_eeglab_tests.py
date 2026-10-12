@@ -10,6 +10,7 @@ import pytest
 
 from eegprep import pop_read_erpss, read_erpss
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 ERPSS_SOURCE = "unittesting_binary/pop_read_erpss/binary_pop_read_erpss_wrapperTest.m"
@@ -94,7 +95,9 @@ def test_pop_read_erpss_imports_both_upstream_compressed_recordings(tmp_path: Pa
 
 
 @eeglab_test(ERPSS_SOURCE, "test_test_pop_read_erpss")
-def test_upstream_pop_read_erpss_original_compressed_recordings(eeglab_backend, eeglab_suite_root):
+def test_upstream_pop_read_erpss_original_compressed_recordings(eeglab_backend, eeglab_suite_root, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "pop_read_erpss", "ERPSS")
     directory = eeglab_suite_root / "unittesting_binary/testfiles/ERPSS"
     eeglab_backend("pop_read_erpss", str(directory / "ERPSSTESTCOMP.RAW"), 500.0)
     eeglab_backend("pop_read_erpss", str(directory / "ERPSSCOMPRESSED.RAW"), 500.0)
