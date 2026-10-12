@@ -26,4 +26,18 @@ async def run_iclabel_net_async(image, psdmed, autocorr):
         to_js(autocorr.reshape(-1)),
         to_js(list(autocorr.shape)),
     )
-    return np.asarray(output.to_py(), dtype=np.float32).reshape((-1, 7, 1, 1))
+    return _network_output(output.to_py(), image.shape[0])
+
+
+def _network_output(values, batch_size):
+    """Shape the bridge's flat output like the native network output, checking its size first."""
+    # The host is outside Python's control, so a wrong-sized result must not be
+    # silently reshaped into a different number of components.
+    output = np.asarray(values, dtype=np.float32)
+    expected_shape = (batch_size, 7, 1, 1)
+    if output.size != batch_size * 7:
+        raise RuntimeError(
+            f"ICLabel web bridge returned {output.size} values for a batch of {batch_size}; "
+            f"expected {batch_size * 7} (7 class probabilities per input)."
+        )
+    return output.reshape(expected_shape)

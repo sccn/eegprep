@@ -128,6 +128,15 @@ def test_iclabel_async_matches_sync_on_sample_ica_dataset():
     np.testing.assert_array_equal(eeg['icaweights'], original_weights)
 
 
+def test_web_bridge_output_must_hold_seven_probabilities_per_input():
+    flat = np.arange(4 * 7, dtype=np.float32)
+
+    np.testing.assert_array_equal(iclabel_net_onnx_web._network_output(flat, batch_size=4), flat.reshape(4, 7, 1, 1))
+    # 28 values are a multiple of 7, but they describe 4 inputs, not 8.
+    with pytest.raises(RuntimeError, match='returned 28 values for a batch of 8; expected 56'):
+        iclabel_net_onnx_web._network_output(flat, batch_size=8)
+
+
 @pytest.fixture(scope='module')
 def sample_eeg():
     return pop_loadset(_SAMPLE_ICA_SET)
