@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ master, develop, epic/324-pyodide-browser ]
+    branches: [ master, develop ]
   pull_request:
-    branches: [ master, develop, epic/324-pyodide-browser ]
+    branches: [ master, develop ]
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -434,5 +434,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pyodide-phase-2-through-phase-6-output
+          name: pyodide-harness-output
           path: pyodide-artifacts

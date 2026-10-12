@@ -12,7 +12,6 @@ on:
   pull_request:
     branches:
       - develop
-      - epic/324-pyodide-browser
     paths:
       - 'docs/**'
       - 'src/**'
