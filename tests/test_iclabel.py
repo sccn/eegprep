@@ -128,6 +128,72 @@ def test_iclabel_async_matches_sync_on_sample_ica_dataset():
     np.testing.assert_array_equal(eeg['icaweights'], original_weights)
 
 
+@pytest.fixture(scope='module')
+def sample_eeg():
+    return pop_loadset(_SAMPLE_ICA_SET)
+
+
+@pytest.mark.parametrize('algorithm', ['lite', 'beta'])
+def test_python_engine_only_ships_the_default_network(sample_eeg, algorithm):
+    with pytest.raises(NotImplementedError, match=r'iclabel\.onnx'):
+        iclabel(sample_eeg, algorithm=algorithm)
+    with pytest.raises(NotImplementedError, match=r'iclabel\.onnx'):
+        asyncio.run(iclabel_module.iclabel_async(sample_eeg, algorithm=algorithm))
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'message'),
+    [({'engine': 'torch'}, 'Unsupported engine'), ({'algorithm': 'huge'}, 'algorithm must be one of')],
+)
+def test_unsupported_engine_or_algorithm_is_rejected(sample_eeg, arguments, message):
+    with pytest.raises(ValueError, match=message):
+        iclabel(sample_eeg, **arguments)
+    with pytest.raises(ValueError, match=message):
+        asyncio.run(iclabel_module.iclabel_async(sample_eeg, **arguments))
+
+
+def test_pop_iclabel_requires_an_ica_decomposition_before_classifying(sample_eeg):
+    without_ica = dict(sample_eeg, icaweights=np.empty((0, 0)))
+
+    for EEG in (without_ica, [sample_eeg, without_ica]):
+        with pytest.raises(ValueError, match='requires an ICA decomposition'):
+            pop_iclabel_module.pop_iclabel(EEG, 'default')
+        with pytest.raises(ValueError, match='requires an ICA decomposition'):
+            asyncio.run(pop_iclabel_module.pop_iclabel_async(EEG, 'default'))
+
+
+@pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='install eegprep[iclabel] to run ICLabel')
+def test_pop_iclabel_sync_and_async_classify_alike_with_replayable_history(sample_eeg):
+    synchronous, sync_command = pop_iclabel_module.pop_iclabel(sample_eeg, 'Default', return_com=True)
+    asynchronous, async_command = asyncio.run(
+        pop_iclabel_module.pop_iclabel_async([sample_eeg], 'default', return_com=True)
+    )
+
+    assert sync_command == "EEG = pop_iclabel(EEG, 'default');"
+    assert async_command == "EEG = await pop_iclabel_async(EEG, 'default');"
+    np.testing.assert_array_equal(
+        asynchronous[0]['etc']['ic_classification']['ICLabel']['classifications'],
+        synchronous['etc']['ic_classification']['ICLabel']['classifications'],
+    )
+    assert pop_iclabel_module.pop_iclabel(None, return_com=True) == (None, '')
+    assert asyncio.run(pop_iclabel_module.pop_iclabel_async(None, return_com=True)) == (None, '')
+
+
+@pytest.mark.parametrize('engine', ['matlab', 'octave'])
+def test_eeglab_engines_are_unavailable_under_emscripten(emscripten_iclabel, sample_eeg, engine):
+    _, emscripten_iclabel_module, emscripten_pop_module = emscripten_iclabel
+    message = 'MATLAB and Octave engines are unavailable under Emscripten; use engine=None'
+
+    with pytest.raises(RuntimeError, match=message):
+        asyncio.run(emscripten_iclabel_module.iclabel_async(sample_eeg, engine=engine))
+    with pytest.raises(RuntimeError, match=message):
+        asyncio.run(emscripten_pop_module.pop_iclabel_async(sample_eeg, 'default', engine=engine))
+    with pytest.raises(RuntimeError, match=message):
+        emscripten_iclabel_module.iclabel(sample_eeg, engine=engine)
+    with pytest.raises(RuntimeError, match=message):
+        emscripten_pop_module.pop_iclabel(None, engine=engine)
+
+
 # Shipped int8 model versus the float32 network on eeglab_data_with_ica_tmp.set
 # (32 components), measured with ONNX Runtime 1.30.0 and PyTorch 2.12.0: max
 # abs diff 0.0079, mean 0.00061, identical argmax and default pop_icflag

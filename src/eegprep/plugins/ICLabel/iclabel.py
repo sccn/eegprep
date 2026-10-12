@@ -8,9 +8,14 @@ from eegprep.plugins.ICLabel.iclabel_net_onnx import IS_EMSCRIPTEN, run_iclabel_
 
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
-SYNC_UNAVAILABLE_MESSAGE = (
+_SUPPORTED_ENGINES = (None, 'matlab', 'octave')
+_SYNC_UNAVAILABLE_MESSAGE = (
     'ICLabel synchronous entry points are unavailable under Emscripten; '
     'use await iclabel_async(...) or await pop_iclabel_async(...).'
+)
+_ENGINE_UNAVAILABLE_MESSAGE = (
+    'MATLAB and Octave engines are unavailable under Emscripten; use engine=None, '
+    'which runs the packaged ICLabel network in the browser.'
 )
 
 
@@ -35,9 +40,12 @@ def iclabel(EEG, algorithm='default', engine=None):
     EEG : dict
         EEGLAB EEG structure with ICLabel classifications added
     """
-    if IS_EMSCRIPTEN:
-        raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
-    return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
+    require_sync_backend(engine)
+    algorithm = _validate_request(algorithm, engine)
+    EEG = deepcopy(EEG)
+    if engine is not None:
+        return _run_eeglab_engine(EEG, algorithm, engine)
+    return _attach_classification(EEG, run_iclabel_net(*_prepare_features(EEG)), algorithm)
 
 
 async def iclabel_async(EEG, algorithm='default', engine=None):
@@ -47,51 +55,55 @@ async def iclabel_async(EEG, algorithm='default', engine=None):
     awaits the ONNX Runtime Web Promise. Native callers may use this entry
     point as an asynchronous spelling of the same pure processing operation.
     """
-    algorithm = _normalize_algorithm(algorithm)
+    algorithm = _validate_request(algorithm, engine)
     EEG = deepcopy(EEG)
-
-    if engine in ['matlab', 'octave']:
-        if IS_EMSCRIPTEN:
-            raise RuntimeError(SYNC_UNAVAILABLE_MESSAGE)
-        return _iclabel_sync(EEG, algorithm=algorithm, engine=engine)
     if engine is not None:
+        return _run_eeglab_engine(EEG, algorithm, engine)
+    return _attach_classification(EEG, await run_iclabel_net_async(*_prepare_features(EEG)), algorithm)
+
+
+def require_sync_backend(engine=None):
+    """Raise ``RuntimeError`` when ICLabel cannot run synchronously with ``engine`` here.
+
+    Under Emscripten (Pyodide) the packaged network runs only through the
+    asynchronous ONNX Runtime Web backend, and the MATLAB and Octave engines
+    do not exist. Native platforms always pass.
+
+    Args:
+        engine: ``None`` for the packaged network, or ``'matlab'`` or ``'octave'``.
+
+    Raises:
+        RuntimeError: Under Emscripten. For ``engine=None`` the message points
+            to the asynchronous entry points; for MATLAB or Octave it says to
+            use ``engine=None``.
+    """
+    if IS_EMSCRIPTEN:
+        raise RuntimeError(_SYNC_UNAVAILABLE_MESSAGE if engine is None else _ENGINE_UNAVAILABLE_MESSAGE)
+
+
+def _validate_request(algorithm, engine):
+    """Return the normalized algorithm after rejecting unsupported engine and algorithm pairs."""
+    if engine not in _SUPPORTED_ENGINES:
         raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
-    if algorithm != 'default':
+    if engine is not None and IS_EMSCRIPTEN:
+        raise RuntimeError(_ENGINE_UNAVAILABLE_MESSAGE)
+    algorithm = _normalize_algorithm(algorithm)
+    if engine is None and algorithm != 'default':
         raise NotImplementedError(
             "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
             f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
             "and an EEGLAB ICLabel checkout that provides that artifact."
         )
-
-    image, psdmed, autocorr = _prepare_features(EEG)
-    output_np = await run_iclabel_net_async(image, psdmed, autocorr)
-    return _attach_classification(EEG, output_np, algorithm)
+    return algorithm
 
 
-def _iclabel_sync(EEG, algorithm='default', engine=None):
-    algorithm = _normalize_algorithm(algorithm)
-    EEG = deepcopy(EEG)
+def _run_eeglab_engine(EEG, algorithm, engine):
+    from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
-    if engine in ['matlab', 'octave']:
-        from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-
-        runtime = 'MAT' if engine == 'matlab' else 'OCT'
-        eeglab = get_eeglab(runtime=runtime)
-        if algorithm == 'default':
-            return eeglab.iclabel(EEG)
-        return eeglab.iclabel(EEG, algorithm)
-    if engine is not None:
-        raise ValueError(f"Unsupported engine: {engine}. Should be None, 'matlab', or 'octave'")
-    if algorithm != 'default':
-        raise NotImplementedError(
-            "EEGPrep standalone Python ICLabel only ships the default network (iclabel.onnx). "
-            f"The '{algorithm}' network is available only with engine='matlab' or engine='octave' "
-            "and an EEGLAB ICLabel checkout that provides that artifact."
-        )
-
-    image, psdmed, autocorr = _prepare_features(EEG)
-    output_np = run_iclabel_net(image, psdmed, autocorr)
-    return _attach_classification(EEG, output_np, algorithm)
+    eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT')
+    if algorithm == 'default':
+        return eeglab.iclabel(EEG)
+    return eeglab.iclabel(EEG, algorithm)
 
 
 def _prepare_features(EEG):
