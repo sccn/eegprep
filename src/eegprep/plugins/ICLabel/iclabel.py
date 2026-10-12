@@ -146,7 +146,18 @@ def _prepare_features(EEG):
 
 
 def prepare_network_inputs(features):
-    """Apply ICLabel augmentation and convert feature arrays to network inputs."""
+    """Augment ICLabel features four ways and convert them to network inputs.
+
+    Args:
+        features: ``(topo, psd, autocorr)`` from ``ICL_feature_extractor`` with
+            shapes ``(32, 32, 1, n)``, ``(1, 100, 1, n)``, and ``(1, 100, 1, n)``.
+
+    Returns:
+        tuple: float32 NCHW ``image`` ``(4n, 1, 32, 32)``, ``psdmed``
+        ``(4n, 1, 1, 100)``, and ``autocorr`` ``(4n, 1, 1, 100)``. Batch row
+        ``k * n + j`` holds augmentation ``k`` (original, negated, flipped,
+        negated and flipped topography) of component ``j``.
+    """
     topo, psdmed, autocorr = features
     topo = np.single(np.concatenate([topo, -topo, topo[:, ::-1, :, :], -topo[:, ::-1, :, :]], axis=3))
     psdmed = np.single(np.tile(psdmed, (1, 1, 1, 4)))
@@ -159,7 +170,15 @@ def prepare_network_inputs(features):
 
 
 def postprocess_network_output(output_np):
-    """Average the four augmented network outputs into component probabilities."""
+    """Average the four augmented network outputs of each component.
+
+    Args:
+        output_np: Network output of shape ``(4n, 7, 1, 1)`` in the batch order
+            of :func:`prepare_network_inputs`.
+
+    Returns:
+        numpy.ndarray: ``(n, 7)`` class probabilities.
+    """
     output_np = output_np.T
     output_np = np.reshape(output_np, (-1, 4), order='F')
     output_np = np.mean(output_np, axis=1)
