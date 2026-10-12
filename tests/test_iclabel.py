@@ -175,7 +175,7 @@ def test_pop_iclabel_requires_an_ica_decomposition_before_classifying(sample_eeg
 def test_pop_iclabel_sync_and_async_classify_alike_with_replayable_history(sample_eeg):
     synchronous, sync_command = pop_iclabel_module.pop_iclabel(sample_eeg, 'Default', return_com=True)
     asynchronous, async_command = asyncio.run(
-        pop_iclabel_module.pop_iclabel_async([sample_eeg], 'default', return_com=True)
+        pop_iclabel_module.pop_iclabel_async([sample_eeg, None], 'default', return_com=True)
     )
 
     assert sync_command == "EEG = pop_iclabel(EEG, 'default');"
@@ -184,6 +184,7 @@ def test_pop_iclabel_sync_and_async_classify_alike_with_replayable_history(sampl
         asynchronous[0]['etc']['ic_classification']['ICLabel']['classifications'],
         synchronous['etc']['ic_classification']['ICLabel']['classifications'],
     )
+    assert asynchronous[1] is None
     assert pop_iclabel_module.pop_iclabel(None, return_com=True) == (None, '')
     assert asyncio.run(pop_iclabel_module.pop_iclabel_async(None, return_com=True)) == (None, '')
 

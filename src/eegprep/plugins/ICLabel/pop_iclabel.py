@@ -52,7 +52,10 @@ def pop_iclabel(
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
     if icversion is None:
         return (EEG, "") if return_com else EEG
-    output = [iclabel(dataset, algorithm=icversion, engine=engine) for dataset in _datasets_with_ica(EEG)]
+    output = [
+        None if dataset is None else iclabel(dataset, algorithm=icversion, engine=engine)
+        for dataset in _datasets_with_ica(EEG)
+    ]
     output = output if isinstance(EEG, list) else output[0]
     return (output, _history_command(icversion)) if return_com else output
 
@@ -102,7 +105,10 @@ async def pop_iclabel_async(
     icversion = _requested_icversion(EEG, icversion, gui, renderer)
     if icversion is None:
         return (EEG, "") if return_com else EEG
-    output = [await iclabel_async(dataset, algorithm=icversion, engine=engine) for dataset in _datasets_with_ica(EEG)]
+    output = [
+        None if dataset is None else await iclabel_async(dataset, algorithm=icversion, engine=engine)
+        for dataset in _datasets_with_ica(EEG)
+    ]
     output = output if isinstance(EEG, list) else output[0]
     return (output, _history_command(icversion, asynchronous=True)) if return_com else output
 
@@ -125,10 +131,11 @@ def _requested_icversion(EEG, icversion, gui, renderer):
 
 
 def _datasets_with_ica(EEG):
-    """Return ``EEG`` as a list of datasets after checking that each one has ICA weights."""
+    """Return ``EEG`` as a list after checking each dataset's ICA weights; empty (``None``) slots pass through."""
     datasets = EEG if isinstance(EEG, list) else [EEG]
     for dataset in datasets:
-        _require_ica(dataset)
+        if dataset is not None:
+            _require_ica(dataset)
     return datasets
 
 
