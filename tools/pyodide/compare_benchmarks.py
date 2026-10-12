@@ -1,4 +1,4 @@
-"""Compare native and Pyodide Phase 2 benchmark reports."""
+"""Compare native and Pyodide benchmark reports."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _matmul_lookup(report: dict[str, Any], case: str, dtype: str, operation: str
 
 
 def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str, Any]:
-    """Return the Phase 2 decisions and ratios for two valid reports."""
+    """Return the decisions and ratios for two valid reports."""
     if native.get("platform") != "native" or pyodide.get("platform") != "pyodide":
         raise ValueError("Reports must be labeled native and pyodide")
     if (
@@ -70,7 +70,7 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
     )
 
     matmul = []
-    phase3_gate_results = []
+    blas_gate_results = []
     for case in REQUIRED_MATMUL_CASES:
         for dtype, blas_name in (("float64", "dgemm"), ("float32", "sgemm")):
             native_numpy_result = _matmul_lookup(native, case, dtype, "numpy_matmul")
@@ -79,7 +79,7 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
             blas_result = _matmul_lookup(pyodide, case, dtype, blas_name)
             native_speedup = native_numpy_result["median_seconds"] / native_blas_result["median_seconds"]
             speedup = numpy_result["median_seconds"] / blas_result["median_seconds"]
-            phase3_gate_results.append(speedup >= BLAS_SPEEDUP_GATE)
+            blas_gate_results.append(speedup >= BLAS_SPEEDUP_GATE)
             matmul.append(
                 {
                     "case": case,
@@ -102,8 +102,8 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
         "ica": ica,
         "decisions": {
             "picard_browser_default_retained": picard_browser_default_retained,
-            "phase3_recommended": all(phase3_gate_results),
-            "phase3_gate": f"scipy BLAS >= {BLAS_SPEEDUP_GATE:.1f}x faster than NumPy @ for both Pyodide runica shapes and dtypes",
+            "blas_recommended": all(blas_gate_results),
+            "blas_gate": f"scipy BLAS >= {BLAS_SPEEDUP_GATE:.1f}x faster than NumPy @ for both Pyodide runica shapes and dtypes",
         },
         "matmul": matmul,
     }
@@ -111,7 +111,7 @@ def compare_reports(native: dict[str, Any], pyodide: dict[str, Any]) -> dict[str
 
 def _markdown(comparison: dict[str, Any]) -> str:
     lines = [
-        "# Phase 2 Pyodide benchmark comparison",
+        "# Pyodide benchmark comparison",
         "",
         f"Input: `{comparison['shape'][0]} x {comparison['shape'][1]}`, seed `{comparison['seed']}`.",
         "",
@@ -149,8 +149,8 @@ def _markdown(comparison: dict[str, Any]) -> str:
             "## Decisions",
             "",
             f"- Retain Picard as the browser default: `{decisions['picard_browser_default_retained']}`.",
-            f"- Recommend Phase 3 BLAS work: `{decisions['phase3_recommended']}`.",
-            f"- Gate: {decisions['phase3_gate']}.",
+            f"- Recommend SciPy BLAS for runica matrix products: `{decisions['blas_recommended']}`.",
+            f"- Gate: {decisions['blas_gate']}.",
             "",
         ]
     )

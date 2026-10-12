@@ -1,12 +1,16 @@
 """Assert that eegprep's base install (no extras) resolves cleanly under Pyodide.
 
-Phase gate for issue #374 / epic #324: ``micropip.install("eegprep")`` must not need a
+Gate for issue #374 / epic #324: ``micropip.install("eegprep")`` must not need a
 WebAssembly build for anything left in ``[project].dependencies``. Every package reachable
 from eegprep's base dependencies in ``uv.lock`` must either ship prebuilt in the target
 Pyodide distribution, or publish a pure-Python wheel (abi ``none``, platform ``any``) that
 micropip can pull straight from PyPI. This only checks resolvability from lockfile and
-package-index metadata; it does not run inside Pyodide (that is phase 2's live
-``micropip.install`` harness).
+package-index metadata; it does not run inside Pyodide (``tools/pyodide/run_pyodide.sh`` is
+the live ``micropip.install`` harness).
+
+Needs network access. No workflow runs this script; run it by hand with
+``uv run python tools/check_pyodide_base_resolution.py`` after changing
+``[project].dependencies`` or the pinned Pyodide version.
 """
 
 from __future__ import annotations
@@ -27,15 +31,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 UV_LOCK_PATH = REPO_ROOT / "uv.lock"
 
 # Pinned Pyodide release used to look up which packages ship prebuilt in the distribution.
-# Bump when phase 2 wires up a live micropip.install harness against a newer release.
+# Keep in sync with the pyodide version in tools/pyodide/package.json
+# (tests/test_pyodide_harness.py checks that they match).
 PYODIDE_VERSION = "0.29.5"
 PYODIDE_LOCK_URL = f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/pyodide-lock.json"
 PYPI_JSON_URL = "https://pypi.org/pypi/{name}/{version}/json"
 HTTP_TIMEOUT_S = 30
 
-# The live Phase 2 harness builds this exact sdist into a local universal wheel before asking
-# micropip to resolve eegprep. Keep the package out of ``KNOWN_GAPS`` so the static check cannot
-# accidentally turn a known local transport into a silent exception.
+# The live harness (tools/pyodide/prepare_docopt_wheel.py) builds this exact sdist into a local
+# universal wheel before asking micropip to resolve eegprep. Keep the package out of
+# ``KNOWN_GAPS`` so the static check cannot accidentally turn a known local transport into a
+# silent exception.
 KNOWN_GAPS: dict[str, str] = {}
 LOCAL_WHEEL_PACKAGES = {"docopt"}
 
@@ -124,16 +130,32 @@ def _find_universal_wheel(name: str, version: str) -> str | None:
     return None
 
 
-@dataclass
+STATUS_OK = "ok"
+STATUS_KNOWN_GAP = "known-gap"
+STATUS_FAIL = "FAIL"
+
+
+@dataclass(frozen=True)
 class PackageCheck:
     name: str
     version: str
-    in_pyodide_lock: bool
-    universal_wheel: str | None
+    status: str
+    source: str
 
-    @property
-    def ok(self) -> bool:
-        return self.in_pyodide_lock or self.universal_wheel is not None
+
+def classify_package(name: str, version: str, in_pyodide_lock: bool, universal_wheel: str | None) -> PackageCheck:
+    """Decide once whether a base package installs under Pyodide and where it comes from."""
+    if in_pyodide_lock:
+        return PackageCheck(name, version, STATUS_OK, "pyodide-lock")
+    if universal_wheel:
+        return PackageCheck(name, version, STATUS_OK, f"pypi wheel: {universal_wheel}")
+    if name in LOCAL_WHEEL_PACKAGES:
+        return PackageCheck(
+            name, version, STATUS_OK, "local pure-Python wheel built by tools/pyodide/prepare_docopt_wheel.py"
+        )
+    if name in KNOWN_GAPS:
+        return PackageCheck(name, version, STATUS_KNOWN_GAP, f"NOT FOUND, known gap: {KNOWN_GAPS[name]}")
+    return PackageCheck(name, version, STATUS_FAIL, "NOT FOUND (no Pyodide build, no pure-Python wheel)")
 
 
 def main() -> int:
@@ -147,32 +169,13 @@ def main() -> int:
     for name, version in sorted(closure.items()):
         in_lock = canonicalize_name(name) in pyodide_names
         wheel = None if in_lock else _find_universal_wheel(name, version)
-        results.append(PackageCheck(name, version, in_lock, wheel))
+        results.append(classify_package(name, version, in_lock, wheel))
 
     for result in results:
-        if result.in_pyodide_lock:
-            source = "pyodide-lock"
-        elif result.universal_wheel:
-            source = f"pypi wheel: {result.universal_wheel}"
-        elif result.name in LOCAL_WHEEL_PACKAGES:
-            source = "local pure-Python wheel built by the Phase 2 harness"
-        elif result.name in KNOWN_GAPS:
-            source = f"NOT FOUND, known gap: {KNOWN_GAPS[result.name]}"
-        else:
-            source = "NOT FOUND (no Pyodide build, no pure-Python wheel)"
-        status = (
-            "ok"
-            if result.ok or result.name in LOCAL_WHEEL_PACKAGES
-            else ("known-gap" if result.name in KNOWN_GAPS else "FAIL")
-        )
-        print(f"[{status}] {result.name}=={result.version}: {source}")
+        print(f"[{result.status}] {result.name}=={result.version}: {result.source}")
 
-    failures = [
-        result
-        for result in results
-        if not result.ok and result.name not in KNOWN_GAPS and result.name not in LOCAL_WHEEL_PACKAGES
-    ]
-    known = [result for result in results if not result.ok and result.name in KNOWN_GAPS]
+    failures = [result for result in results if result.status == STATUS_FAIL]
+    known = [result for result in results if result.status == STATUS_KNOWN_GAP]
     print(
         f"\nChecked {len(results)} base packages against Pyodide {PYODIDE_VERSION}: "
         f"{len(failures)} failing, {len(known)} known gaps (not blocking)."

@@ -73,12 +73,21 @@ if [[ ! -f "$DOCOPT_WHEEL_PATH" ]]; then
   exit 2
 fi
 
-NPM_PREFIX="$WORKTREE_TMP/npm"
-mkdir -p "$NPM_PREFIX"
-cp "$REPO_ROOT/tools/pyodide/package.json" "$NPM_PREFIX/package.json"
-cp "$REPO_ROOT/tools/pyodide/package-lock.json" "$NPM_PREFIX/package-lock.json"
-npm ci --ignore-scripts --no-audit --no-fund --prefix "$NPM_PREFIX"
-PYODIDE_MODULE="$NPM_PREFIX/node_modules/pyodide/pyodide.mjs"
+# Bun is the JavaScript package manager for this repository: it installs the
+# exact pyodide and onnxruntime-web versions pinned in bun.lock. The harness
+# itself stays on Node.js, one of the JavaScript hosts Pyodide documents
+# (browsers are the other). It has been run by hand under Bun, but Bun is not
+# exercised in CI, so it is not claimed as a supported runtime here.
+if ! command -v bun >/dev/null 2>&1; then
+  echo "bun is required to install the pinned Pyodide packages (https://bun.sh)" >&2
+  exit 2
+fi
+JS_PREFIX="$WORKTREE_TMP/js"
+mkdir -p "$JS_PREFIX"
+cp "$REPO_ROOT/tools/pyodide/package.json" "$JS_PREFIX/package.json"
+cp "$REPO_ROOT/tools/pyodide/bun.lock" "$JS_PREFIX/bun.lock"
+bun install --frozen-lockfile --ignore-scripts --cwd "$JS_PREFIX"
+PYODIDE_MODULE="$JS_PREFIX/node_modules/pyodide/pyodide.mjs"
 
 NODE_ARGS=(
   "$SCRIPT_DIR/run_pyodide.mjs"
@@ -105,7 +114,7 @@ with open(output_path, "wb") as handle:
 PY
   NODE_ARGS+=(
     --iclabel-model "$ICLABEL_MODEL_PATH"
-    --onnxruntime-web-module "$NPM_PREFIX/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs"
+    --onnxruntime-web-module "$JS_PREFIX/node_modules/onnxruntime-web/dist/ort.bundle.min.mjs"
   )
 fi
 if [[ -n "$SAMPLE_DATA_DIR" ]]; then
