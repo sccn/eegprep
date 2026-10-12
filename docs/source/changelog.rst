@@ -41,7 +41,7 @@ Breaking changes
   That set is dominated by one class and says nothing about Heart, Line Noise, or Channel Noise;
   see :ref:`iclabel_measured_agreement` for the criteria, the numbers, and the caveats.
   Feature extraction, the cast to float32, augmentation, softmax, the class set, and the rejection thresholds are unchanged.
-- **BREAKING: explicit ASR memory limits are enforced.**
+- **BREAKING: explicit memory limits for Artifact Subspace Reconstruction (ASR) are enforced.**
   ``asr_process(..., max_mem=...)``, ``clean_asr(..., maxmem=...)``, ``clean_artifacts(..., MaxMem=...)`` and ``bids_preproc(..., MaxMem=...)`` no longer fall back to half of the free RAM when the given budget cannot hold the fixed lookahead overhead (``C * C * P * 8 * 3`` bytes for ``C`` channels and ``P`` lookahead samples).
   They raise ``RuntimeError`` containing ``Not enough memory``, which states the minimum, ``C`` and ``P``, and the fix.
   Migration: omit the argument (the default is now ``None``), or pass at least the stated minimum.
@@ -51,10 +51,11 @@ Changed
 
 - ``asr_process`` no longer probes free system RAM through ``psutil``, which has no WASM build.
   With ``max_mem=None``, and with the new ``None`` defaults of ``clean_asr``, ``clean_artifacts`` and ``bids_preproc`` (formerly 64), it uses a 64 MB budget, the same as ``asr_calibrate``.
-  When 64 MB cannot hold the fixed overhead, the budget is raised to twice the overhead, deterministically and with an informational log message.
+  Whenever twice the fixed overhead exceeds 64 MB (the overhead is above 32 MB), the budget is raised to twice the overhead, deterministically and with a log message.
   Examples are 128 channels at 1000 Hz (93.75 MB overhead, so a 187.5 MB budget) and 256 channels at 512 Hz (192 MB overhead, so a 384 MB budget).
-  Block sizes no longer vary with the machine's free memory, but the reconstruction matrix is refreshed on a per-block grid, so output of Artifact Subspace Reconstruction (ASR) differs slightly from 0.4.0 whenever the block layout differs.
-  Pass ``max_mem`` explicitly to fix the block layout across machines.
+  That raised budget leaves room for blocks of only about 0.375 lookahead samples each, and a larger ``max_mem`` gives bigger blocks.
+  Block sizes no longer vary with the machine's free memory, but the reconstruction matrix is refreshed on a per-block grid, so the output can differ materially from 0.4.0 whenever the block layout differs, depending on the data.
+  Pass ``max_mem`` explicitly to choose the block layout, and to keep it the same across machines.
 - ``eegh(n)`` in ``eegprep-console`` returns an awaitable only when history entry ``n`` has a top-level ``await``, such as ``EEG = await pop_iclabel_async(EEG, 'default');``.
   Run it with ``await eegh(n)``; other entries, including ones that only mention ``await`` inside a string, still run immediately.
 - ``EEGPrepSession`` gains a dataset freshness API so that long-running asynchronous work can tell whether the selected dataset changed while it ran: ``dataset_state_token()`` returns a ``DatasetStateToken`` and ``require_dataset_state_unchanged(token, function_name)`` raises a ``RuntimeError`` when the selection or the dataset content changed.

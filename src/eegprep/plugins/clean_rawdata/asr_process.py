@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 # asr_calibrate(), so the ASR pipeline starts from the same budget without probing the runtime
 # environment (psutil is an optional dependency and has no WebAssembly build). EEGLAB's
 # asr_process.m falls back to half of the free RAM when this budget cannot hold the fixed
-# lookahead overhead; asr_process() raises the default budget to twice that overhead instead,
-# which is deterministic and needs no RAM probe.
+# lookahead overhead; asr_process() instead uses twice that overhead whenever that exceeds this
+# base budget (that is, whenever the overhead is above half of it), which is deterministic and
+# needs no RAM probe. That choice gives small blocks; see the max_mem docstring.
 DEFAULT_MAX_MEM_MB = 64
 
 
@@ -46,10 +47,15 @@ def asr_process(
         max_dims (float or int, optional): Maximum dimensions/fraction of dimensions to remove.
                                          Default: 0.66 (fraction).
         max_mem (int, optional): Maximum memory in MB for processing large chunks. Default: None, which
-                                 uses DEFAULT_MAX_MEM_MB (64 MB), raised to twice the fixed lookahead
-                                 overhead (C * C * P * 8 * 3 bytes, for C channels and P lookahead
-                                 samples) when 64 MB cannot hold it, as for 128 channels at 1000 Hz.
-                                 An explicit value below that overhead raises RuntimeError.
+                                 uses DEFAULT_MAX_MEM_MB (64 MB), or twice the fixed lookahead overhead
+                                 (C * C * P * 8 * 3 bytes, for C channels and P lookahead samples)
+                                 whenever that exceeds 64 MB, that is, whenever the overhead is above
+                                 32 MB, as for 128 channels at 1000 Hz. The raised default leaves room
+                                 for blocks of only about 0.375 * P samples. The block layout changes
+                                 the output, because the reconstruction matrix is refreshed on a
+                                 per-block grid, so output can differ materially between budgets for
+                                 some data: pass a larger max_mem for bigger blocks. An explicit value
+                                 below the overhead raises RuntimeError.
         use_gpu (bool, optional): Whether to use GPU (not implemented). Default: False.
 
     Returns
