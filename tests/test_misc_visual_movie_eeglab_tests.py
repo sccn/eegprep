@@ -182,7 +182,6 @@ def test_reference_gradplot_ignored_statuses(
 def test_reference_getallmenus(eeglab_backend, request):
     matlab = request.config.getoption("--eeglab-backend") == "matlab"
     if matlab:
-        engine = request.getfixturevalue("eeglab_matlab_engine")
         userdata = np.empty((1, 2), dtype=object)
         userdata[0] = [np.empty((0, 0)), np.empty((0, 0))]
         eeglab_backend(
@@ -211,28 +210,10 @@ def test_reference_getallmenus(eeglab_backend, request):
             userdata,
             nargout=0,
         )
-        window = engine.double(engine.gcf())
-        eeglab_backend(
-            "uicontrol",
-            "Parent",
-            window,
-            "Units",
-            "points",
-            "BackgroundColor",
-            np.array([[1.0, 0, 0]]),
-            "ListboxTop",
-            0.0,
-            "HorizontalAlignment",
-            "left",
-            "Position",
-            np.array([[100.0, 200, 300, 400]]),
-            "Style",
-            "frame",
-            "Tag",
-            "Frame1",
-            nargout=0,
-        )
-        eeglab_backend("set", window, "MenuBar", "none", nargout=0)
+        # HG2 handles do not survive a MAT round trip as doubles.
+        result = eeglab_backend("eegprep_test_getallmenus_fixture")
+        tree = result["tree"]
+        count = float(np.asarray(result["count"]).reshape(-1)[0])
     else:
         qt_core, qt_widgets = _require_qt()
         app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
@@ -249,23 +230,14 @@ def test_reference_getallmenus(eeglab_backend, request):
         frame.setStyleSheet("background-color: rgb(255, 0, 0)")
         frame.setFrameShape(qt_widgets.QFrame.Shape.Box)
         window.menuBar().setNativeMenuBar(False)
-    try:
-        for label in "abcdefg":
-            if matlab:
-                menu = engine.double(engine.uimenu(window, "Label", label))
-            else:
+        try:
+            for label in "abcdefg":
                 menu = window.menuBar().addMenu(label)
-            for child in ("aa", "ab", "ac", "ad") if label == "a" else ("da",) if label == "d" else ():
-                if matlab:
-                    engine.uimenu(menu, "Label", child, nargout=0)
-                else:
+                for child in ("aa", "ab", "ac", "ad") if label == "a" else ("da",) if label == "d" else ():
                     menu.addAction(child)
-        tree = eeglab_backend("getallmenus", window)
-        count = engine.numel(engine.findobj(0.0)) if matlab else len(window.findChildren(qt_core.QObject)) + 2
-    finally:
-        if matlab:
-            engine.close(window, nargout=0)
-        else:
+            tree = eeglab_backend("getallmenus", window)
+            count = len(window.findChildren(qt_core.QObject)) + 2
+        finally:
             window.close()
             window.deleteLater()
             app.processEvents()
@@ -470,17 +442,16 @@ def test_reference_setfont(eeglab_backend, request):
         eeglab_backend("plot", np.arange(1.0, 11.0)[None, :], nargout=0)
         for function, text in (("xlabel", "test"), ("ylabel", "test2"), ("title", "test3")):
             eeglab_backend(function, text, nargout=0)
-        engine = request.getfixturevalue("eeglab_matlab_engine")
-        # A numeric graphics handle crosses the existing MAT-file transport.
-        figure = engine.double(engine.gcf())
+        eeglab_backend("eegprep_test_setfont_gcf", "fontsize", 12.0, nargout=0)
+        eeglab_backend("eegprep_test_setfont_gcf", "handletype", "xlabels", "fontsize", 18.0, nargout=0)
     else:
         figure = plt.figure()
         plt.plot(np.arange(1.0, 11.0))
         plt.xlabel("test")
         plt.ylabel("test2")
         plt.title("test3")
-    eeglab_backend("setfont", figure, "fontsize", 12.0, nargout=0)
-    eeglab_backend("setfont", figure, "handletype", "xlabels", "fontsize", 18.0, nargout=0)
+        eeglab_backend("setfont", figure, "fontsize", 12.0, nargout=0)
+        eeglab_backend("setfont", figure, "handletype", "xlabels", "fontsize", 18.0, nargout=0)
     close_reference_gui(eeglab_backend, request)
 
 

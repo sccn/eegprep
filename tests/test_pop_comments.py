@@ -42,11 +42,16 @@ def test_reference_comments_replacement(eeglab_backend):
 
 
 @eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_pass_newcomments_concat")
-def test_reference_comments_concatenation(eeglab_backend):
+def test_reference_comments_concatenation(eeglab_backend, request):
     old = ("Line nr. 1", "This is line nr.2", " ", "And this is the final line                           ")
     new = ("New line 1", "And this one is also new                             ")
-    comments, new_comments = np.array([old], dtype=object), np.array([new], dtype=object)
-    result, _command = eeglab_backend("pop_comments", comments, "", new_comments, 1.0, nargout=2)
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        # Build the source cell rows in MATLAB. The object-array transport of the
+        # 53-wide lines killed the headless runner twice at this test.
+        result, _command = eeglab_backend("eegprep_test_pop_comments_concat", nargout=2)
+    else:
+        comments, new_comments = np.array([old], dtype=object), np.array([new], dtype=object)
+        result, _command = eeglab_backend("pop_comments", comments, "", new_comments, 1.0, nargout=2)
     npt.assert_array_equal(result, _source_strvcat(*old, *new))
 
 

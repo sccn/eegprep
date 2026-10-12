@@ -2,6 +2,9 @@ name: EEGLAB reference
 
 on:
   workflow_dispatch:
+  # Temporary: workflow_dispatch 404s until this file is on the default branch.
+  push:
+    branches: [cursor/eeglab-reference-ci-9de8]
 
 env:
   # MATLAB batch licensing token (MathWorks pilot, license 1144083, expires
@@ -11,17 +14,17 @@ env:
   MLM_LICENSE_TOKEN: ${{ secrets.MATLAB_BATCH_TOKEN }}
 
 concurrency:
-  # v2 is not the group held by the lost-runner job on this ref, so a new
-  # dispatch is not queued behind that run.
-  group: eeglab-reference-v2-${{ github.ref }}
+  # v3 is not the group held by an earlier lost-runner job on this ref.
+  group: eeglab-reference-v3-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   reference:
     name: Reference (${{ matrix.shard }})
     runs-on: ubuntu-22.04
-    # pytest-timeout names a stuck test first. This bound stops a shard if that fails.
-    timeout-minutes: 180
+    # pytest-timeout names a stuck test first. This bound fails the job when the
+    # runner is lost, instead of holding the concurrency group until the 180 minute default.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -188,6 +191,17 @@ jobs:
           download Fieldtrip-lite "http://sccn.ucsd.edu/eeglab/plugins/fieldtrip-lite-20250523.zip"
           download Fileio "http://sccn.ucsd.edu/eeglab/plugins/fileio260210.zip"
           download Biosig "http://sccn.ucsd.edu/eeglab/plugins/Biosig3.8.5.zip"
+          # bva-io is a git repo, not one of the extension zips. pop_loadbv.m is at the root.
+          bva="$plugin_dir/bva-io"
+          if git init "$bva" \
+            && git -C "$bva" remote add origin https://github.com/sccn/bva-io.git \
+            && git -C "$bva" fetch --depth 1 origin d5fe22f69aadc40139e916067ca63cb52f79978a \
+            && git -C "$bva" checkout --detach FETCH_HEAD; then
+            :
+          else
+            echo "::warning title=EEGLAB plugin unavailable::Could not fetch bva-io; pop_loadbv tests will skip"
+            rm -rf "$bva"
+          fi
           # Fileio 20260210 calls ft_deleteopt, which FieldTrip-lite 20250523 does not ship yet.
           ft_util=$(echo plugins/fieldtrip-*/utilities)
           if [[ -d "$ft_util" ]]; then
@@ -335,6 +349,7 @@ jobs:
           echo "pytest ${args[*]}"
           set +e
           SECONDS=0
+          export PYTHONUNBUFFERED=1
           uv run --no-sync pytest \
             --eeglab-backend=matlab \
             --eeglab-root="$GITHUB_WORKSPACE/src/eegprep/eeglab" \

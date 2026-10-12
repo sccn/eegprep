@@ -206,7 +206,9 @@ def test_upstream_chancoresp_unpair(eeglab_backend):
 
 
 @eeglab_test(CHANCORRESP_SOURCE, "test_test_pop_chancoresp")
-def test_upstream_chancoresp_original_39_calls(eeglab_backend, eeglab_suite_root):
+def test_upstream_chancoresp_original_39_calls(eeglab_backend, request, eeglab_suite_root):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "pop_loadbv", "bva-io")
     directory = str(eeglab_suite_root / "unittesting_binary/testfiles/BVA")
     locations = [
         eeglab_backend("pop_loadbv", directory, filename)["chanlocs"]
