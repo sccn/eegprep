@@ -20,7 +20,8 @@ Behavior:
 - `engine='matlab'` and `engine='octave'` are not available under Pyodide/Emscripten.
 - In `eegprep-console` and the GUI the result is committed to the shared session only if the
   selected dataset is unchanged while the call is running; otherwise a `RuntimeError` reports
-  the discarded result.
+  the discarded result. A Save that assigns a new file name or path, such as the first Save of a
+  dataset, counts as a change and discards the result; marking the dataset saved alone does not.
 
 Browser host contract:
 

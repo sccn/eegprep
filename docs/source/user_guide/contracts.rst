@@ -103,6 +103,9 @@ budget two such passes per awaited call.
 The digest skips the top-level ``history`` and ``saved`` fields,
 because recording a command or marking the dataset saved does not change the data a result was computed from.
 Nested fields with those names are hashed, and unselected datasets are ignored.
+Setting the ``saved`` flag alone therefore keeps an in-flight result,
+but a Save that assigns a new ``filename`` or ``filepath``, such as the first Save of a dataset,
+changes hashed fields and discards it.
 An edit that is reverted before the check is not reported, because the content is the same again.
 
 Under Emscripten, ``MenuActionDispatcher.dispatch_gui`` returns the ``dispatch_gui_async`` coroutine for ICLabel instead of running it.
