@@ -19,6 +19,7 @@ from tests.fuzz.harness import (
     Tolerance,
     compare_data,
     data_sha256,
+    default_sanity,
     draw_cases,
     freeze_params,
     judge,
@@ -157,6 +158,15 @@ def test_materialize_crops_decimates_and_injects_nans():
     assert eeg["event"].size == 0
     np.testing.assert_allclose(eeg["data"], expected, equal_nan=True)
     assert len(data_sha256(eeg["data"])) == 64
+
+
+def test_reref_sanity_signal_matches_across_float32_and_float64():
+    case = next(item for item in default_sanity() if item.function == "pop_reref")
+    data = np.asarray(materialize_eeg(case)["data"], dtype=np.float64)
+    ref64 = data - data.mean(axis=0, keepdims=True)
+    narrow = np.asarray(data, dtype=np.float32)
+    ref32 = (narrow - narrow.mean(axis=0, keepdims=True)).astype(np.float64)
+    assert np.max(np.abs(ref64 - ref32)) <= 1e-6
 
 
 def test_same_seed_draws_the_same_cases():

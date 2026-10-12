@@ -228,6 +228,12 @@ def materialize_eeg(case: FuzzCase) -> dict:
     sample_index = np.arange(spec.start, spec.start + span, spec.decimate)
     data = np.asarray(source["data"])
     cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64)
+    if case.sanity and case.function == "pop_reref":
+        # eeglab_data.set is float32. Average reference on those values differs
+        # by about 1e-4 (see test_parity_data_reref_with_matlab), which is
+        # outside the 1e-6 bar but is not a broken bridge. Sanity uses an
+        # integer signal whose mean is exact in float32 and float64.
+        cropped = _exact_reref_signal(cropped.shape)
     if spec.nan_channel >= 0 and spec.nan_length > 0:
         stop = spec.nan_start + spec.nan_length
         if spec.nan_channel >= cropped.shape[0] or spec.nan_start < 0 or stop > cropped.shape[1]:
@@ -474,6 +480,8 @@ def run_session(
                 {"function": outcome.report, "error_class": outcome.error_class, "detail": outcome.detail}
             )
     if not harness_ok:
+        for row in sanity_rows:
+            logger.error("fuzz sanity %s %s: %s", row["function"], row["error_class"], row["detail"])
         logger.error("fuzz sanity failed; not surveying and not filing issues")
         result = SessionResult(seed_value, False, functions, [], output_dir, sanity_rows, [], [], [])
         _write_reports(result, summary_path, tracker, run_url, "sanity", issue_cap)
@@ -776,6 +784,13 @@ def _srate_or_match(python_srate: float, oracle_srate: float, max_abs: float, ma
         delta = abs(float(python_srate) - float(oracle_srate))
         return True, "srate", delta, 0.0, f"srate {python_srate} != {oracle_srate}"
     return False, "match", max_abs, max_rel, "match"
+
+
+def _exact_reref_signal(shape: tuple[int, int]) -> np.ndarray:
+    channels, samples = shape
+    column = np.arange(samples, dtype=np.float64) % 7.0
+    scale = np.arange(1, channels + 1, dtype=np.float64)[:, None]
+    return scale * column
 
 
 def _copy_eeg(source: dict) -> dict:
