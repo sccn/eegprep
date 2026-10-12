@@ -196,8 +196,7 @@ class BatchEngine:
             return
         ready = self.directory / "ready"
         ready.unlink(missing_ok=True)
-        # check=True: a restart that did not run must not look like a timeout.
-        # as_posix() keeps Git Bash from treating backslashes in the script path as escapes.
+        # Git Bash treats backslashes in the script path as escapes.
         subprocess.run(
             [_bash_executable(), script.as_posix()],
             check=True,

@@ -12,7 +12,6 @@ end
 fileName = '../../sample_data/eeglab_data_with_ica_tmp.set';
 % fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
 
-% call Python function
 system([pythonFunc ' eeg_autocorr_compare_helper.py ' fileName]);
 res = load('eeg_autocorr_data.mat');
 delete('eeg_autocorr_data.mat');

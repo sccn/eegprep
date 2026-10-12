@@ -210,7 +210,6 @@ class TestPopReref(DebuggableTestCase):
         """Create a test EEG structure."""
         np.random.seed(42)  # For reproducible tests
 
-        # Create channel locations
         chanlocs = []
         for i in range(nbchan):
             chanlocs.append(
@@ -225,7 +224,6 @@ class TestPopReref(DebuggableTestCase):
                 }
             )
 
-        # Create ICA components equal to number of channels
         icaweights = np.random.randn(nbchan, nbchan).astype(np.float64)
         icawinv = np.linalg.pinv(icaweights).astype(np.float64)
         icasphere = np.eye(nbchan).astype(np.float64)
@@ -524,7 +522,6 @@ class TestPopReref(DebuggableTestCase):
         # The function should clear ICA fields instead of raising an error
         result = pop_reref(EEG, ref=None)
 
-        # Check that ICA fields were cleared
         self.assertEqual(result['icawinv'].size, 0)
         self.assertEqual(result['icaweights'].size, 0)
         self.assertEqual(result['icasphere'].size, 0)
@@ -624,7 +621,6 @@ class TestPopReref(DebuggableTestCase):
         import scipy.io
         from eegprep import pop_loadset, pop_saveset
 
-        # Load real test data
         local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         EEG = pop_loadset(test_file)

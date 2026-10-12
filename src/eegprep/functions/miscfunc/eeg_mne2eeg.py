@@ -13,7 +13,6 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
     """Convert MNE Annotations or events to EEGLAB event structure (list of dicts)."""
     events = []
     sfreq = raw_or_epochs.info['sfreq']
-    # Handle Annotations (Raw)
     if (
         hasattr(raw_or_epochs, 'annotations')
         and raw_or_epochs.annotations is not None
@@ -22,11 +21,9 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
         for ann in raw_or_epochs.annotations:
             latency = int(ann['onset'] * sfreq) + 1  # EEGLAB is 1-based
             events.append({'latency': latency, 'type': ann['description']})
-    # Handle Epochs/events array
     elif hasattr(raw_or_epochs, 'events') and raw_or_epochs.events is not None:
         for ev in raw_or_epochs.events:
             latency = int(ev[0]) + 1  # sample index, 1-based
-            # Try to get event type from event_id
             event_type = None
             if hasattr(raw_or_epochs, 'event_id'):
                 for k, v in raw_or_epochs.event_id.items():

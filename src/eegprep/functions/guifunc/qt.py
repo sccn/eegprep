@@ -27,6 +27,27 @@ from eegprep.functions.popfunc.pop_chansel import pop_chansel
 from eegprep.functions.popfunc.pop_eegplot import pop_eegplot
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.studyfunc._study_utils import format_components_button
+from eegprep.functions.studyfunc.pop_addindepvar import (
+    apply_addindepvar_combine,
+    apply_addindepvar_selectfact,
+    apply_addindepvar_vartype,
+    read_addindepvar_selection,
+)
+from eegprep.functions.studyfunc.pop_studydesign import (
+    apply_studydesign_add,
+    apply_studydesign_delete,
+    apply_studydesign_delete_variable,
+    apply_studydesign_select,
+    apply_studydesign_select_subjects,
+    apply_studydesign_set_subjects,
+    list_factors_dialog_spec,
+    parse_subject_text,
+    run_studydesign_edit_variable,
+    run_studydesign_new_variable,
+    run_studydesign_rename,
+    studydesign_factor_lines,
+    sync_studydesign_widgets,
+)
 from eegprep.plugins.firfilt._filtering import FILTER_TYPES, WINDOW_TYPES, design_firma, design_firpm, design_firws
 from eegprep.plugins.firfilt._pop_common import numeric_or_none, vector_or_none
 from eegprep.plugins.firfilt.kaiserbeta import kaiserbeta
@@ -380,6 +401,71 @@ class QtDialogRenderer:
             button = widgets.get(params["button"])
             if button is not None:
                 button.clicked.connect(lambda: self._select_study_components(button, widgets, params))
+        elif callback.name == "addindepvar_selectfact":
+            source = widgets.get("lbfact0")
+            if source is not None:
+                source.currentRowChanged.connect(lambda _row: apply_addindepvar_selectfact(widgets, params))
+                _bind_addindepvar_accept(widgets, params)
+        elif callback.name == "addindepvar_vartype":
+            source = widgets.get("vartype")
+            if source is not None:
+                source.currentIndexChanged.connect(lambda _index: apply_addindepvar_vartype(widgets, params))
+        elif callback.name == "addindepvar_combine":
+            source = widgets.get("combine1")
+            if source is not None:
+                source.clicked.connect(lambda: self._combine_addindepvar_values(source, widgets, params))
+        elif callback.name == "studydesign_set_subjects":
+            source = widgets.get("subjects")
+            if source is not None:
+                source.editingFinished.connect(lambda: self._studydesign_set_subjects(source, widgets, params))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_select_subjects":
+            source = widgets.get("select_subjects")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_pick_subjects(source, widgets, params))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_add_design":
+            source = widgets.get("new_design")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "add"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_rename_design":
+            source = widgets.get("rename_design")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "rename"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_delete_design":
+            source = widgets.get("delete_design")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "delete"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_select_design":
+            source = widgets.get("designind")
+            if source is not None:
+                source.currentRowChanged.connect(
+                    lambda row: self._studydesign_action(source, widgets, params, "select")
+                )
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_edit_variable":
+            source = widgets.get("edit_variable")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "edit"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_delete_variable":
+            source = widgets.get("delete_variable")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "delete_variable"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_list_factors":
+            source = widgets.get("list_factors")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_action(source, widgets, params, "list"))
+                self._bind_studydesign(widgets, params)
+        elif callback.name == "studydesign_new_variable":
+            source = widgets.get("new_variable")
+            if source is not None:
+                source.clicked.connect(lambda: self._studydesign_new_variable(source, widgets, params))
+                self._bind_studydesign(widgets, params)
 
     def _run_tf_cycle_calc(self, button: Any, widgets: dict[str, Any], params: Mapping[str, Any]) -> None:
         _qt_core, qt_widgets = _require_qt()
@@ -418,6 +504,91 @@ class QtDialogRenderer:
             return
         freqs_widget.setText(_format_numeric_vector(result.widths_table[:, 0]))
         cycles_widget.setText(_format_numeric_vector(result.cycles))
+
+    def _combine_addindepvar_values(self, button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+        message = apply_addindepvar_combine(widgets, params)
+        if not message:
+            return
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", message)
+
+    def _bind_studydesign(self, widgets: Mapping[str, Any], state: dict[str, Any]) -> None:
+        if state.get("_bound"):
+            return
+        state["_bound"] = True
+        summary = widgets.get("variable_summary")
+        if summary is not None:
+            summary.currentRowChanged.connect(lambda row: state.__setitem__("variable_index", int(row) + 1))
+        sync_studydesign_widgets(dict(widgets), state)
+
+    def _studydesign_action(self, button: Any, widgets: Mapping[str, Any], params: dict[str, Any], action: str) -> None:
+        _qt_core, qt_widgets = _require_qt()
+        warning = None
+        changed = True
+        if action == "add":
+            apply_studydesign_add(params)
+        elif action == "delete":
+            warning = apply_studydesign_delete(params)
+        elif action == "rename":
+            changed = run_studydesign_rename(params, renderer=self)
+        elif action == "select":
+            apply_studydesign_select(params, int(widgets["designind"].currentRow()) + 1)
+        elif action == "delete_variable":
+            changed = apply_studydesign_delete_variable(params)
+        elif action == "edit":
+            changed = run_studydesign_edit_variable(params, renderer=self)
+        elif action == "list":
+            design = params["designs"][int(params["design_index"]) - 1]
+            self.run(list_factors_dialog_spec(studydesign_factor_lines(design, params["datasetinfo"])))
+            return
+        else:
+            return
+        if warning:
+            qt_widgets.QMessageBox.warning(button, "Warning", warning)
+            return
+        if changed:
+            sync_studydesign_widgets(dict(widgets), params)
+
+    def _studydesign_set_subjects(self, edit: Any, widgets: Mapping[str, Any], params: dict[str, Any]) -> None:
+        warning = apply_studydesign_set_subjects(params, str(edit.text()))
+        if warning:
+            _qt_core, qt_widgets = _require_qt()
+            edit.blockSignals(True)
+            edit.setText("")
+            edit.blockSignals(False)
+            qt_widgets.QMessageBox.warning(edit, "Warning", warning)
+        sync_studydesign_widgets(dict(widgets), params)
+
+    def _studydesign_pick_subjects(self, button: Any, widgets: Mapping[str, Any], params: dict[str, Any]) -> None:
+        from eegprep.functions.popfunc.pop_chansel import pop_chansel
+
+        subjects = list(params["subjects"])
+        text = str(widgets["subjects"].text())
+        if text.strip():
+            chosen = set(parse_subject_text(text))
+            selected = [index for index, subject in enumerate(subjects, start=1) if subject in chosen]
+        else:
+            selected = list(range(1, len(subjects) + 1))
+        indices, _text, labels = pop_chansel(
+            [{"labels": subject} for subject in subjects],
+            select=selected or list(range(1, len(subjects) + 1)),
+            parent=button.window(),
+        )
+        if not indices:
+            return
+        apply_studydesign_select_subjects(params, list(labels))
+        sync_studydesign_widgets(dict(widgets), params)
+
+    def _studydesign_new_variable(self, button: Any, widgets: Mapping[str, Any], params: dict[str, Any]) -> None:
+        del button
+        warning, variables = run_studydesign_new_variable(params, renderer=self)
+        if warning:
+            _qt_core, qt_widgets = _require_qt()
+            qt_widgets.QMessageBox.warning(widgets.get("new_variable"), "Warning", warning)
+            return
+        if not variables:
+            return
+        sync_studydesign_widgets(dict(widgets), params)
 
 
 def _QDialog() -> Any:
@@ -1435,6 +1606,22 @@ def _study_recording_key(widgets: Mapping[str, Any], tags: Mapping[str, str]) ->
 def _study_number_token(text: str) -> str:
     text = text.strip()
     return str(int(text)) if _is_int_text(text) else text.lower()
+
+
+def _bind_addindepvar_accept(widgets: Mapping[str, Any], state: Mapping[str, Any]) -> None:
+    dialog = widgets["lbfact0"].window()
+    if getattr(dialog, "_eegprep_addindepvar_bound", False):
+        return
+    dialog._eegprep_addindepvar_bound = True
+
+    def capture() -> None:
+        label, values, categorical = read_addindepvar_selection(widgets, state)
+        widgets["lbfact0"].setProperty(
+            _VALUE_PROPERTY,
+            {"label": label, "values": values, "categorical": categorical},
+        )
+
+    dialog.accepted.connect(capture)
 
 
 def _read_widget(widget: Any) -> Any:

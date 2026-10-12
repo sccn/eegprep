@@ -9,10 +9,8 @@ function [xq,yq,vq] = griddata_v4(x,y,v,xq,yq)
 
 xy = x(:) + 1i*y(:);
 
-% Determine distances between points
 d = abs(xy - xy.');
 
-% Determine weights for interpolation
 g = (d.^2) .* (log(d)-1);   % Green's function.
 % Fixup value of Green's function along diagonal
 g(1:size(d,1)+1:end) = 0;
@@ -32,7 +30,5 @@ for i=1:m
         vq(i,j) = g * weights;
     end
 end
-
-
 
 

@@ -67,7 +67,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_ica_fields(self):
         """Test ICA fields in the converted EEGLAB dataset."""
-        # Create MNE Epochs object
         n_channels = 16
         n_times = 50
         n_epochs = 5
@@ -81,7 +80,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        # Create ICA object
         ica = ICA(n_components=8, random_state=42)
         ica.fit(epochs)
 
@@ -106,7 +104,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_channel_locations(self):
         """Test channel location conversion."""
-        # Create MNE Epochs object with channel locations
         n_channels = 8
         n_times = 100
         n_epochs = 3
@@ -139,19 +136,16 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        # Create ICA object
         ica = ICA(n_components=4, random_state=42)
         ica.fit(epochs)
 
         try:
             result = eeg_mne2eeg_epochs(epochs, ica)
 
-            # Check channel locations
             self.assertIn('chanlocs', result)
             self.assertIsInstance(result['chanlocs'], np.ndarray)
             self.assertEqual(len(result['chanlocs']), n_channels)
 
-            # Check channel location structure
             for i, chan in enumerate(result['chanlocs']):
                 self.assertIn('labels', chan)
                 self.assertIn('X', chan)

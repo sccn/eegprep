@@ -40,7 +40,6 @@ class TestEegAutocorr(DebuggableTestCase):
 
     def create_test_eeg(self, ncomp=10, pnts=1000, trials=1, srate=256):
         """Create a test EEG structure with ICA data."""
-        # Create realistic ICA activations
         np.random.seed(42)  # For reproducible tests
         nbchan = ncomp  # Use same number of channels as components for valid ICA structure
 
@@ -52,7 +51,6 @@ class TestEegAutocorr(DebuggableTestCase):
             icaact = np.random.randn(ncomp, pnts, trials).astype(np.float64)
             data = np.random.randn(nbchan, pnts, trials).astype(np.float64)
 
-        # Create channel locations
         chanlocs = np.array(
             [
                 {'labels': f'E{i + 1}', 'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'theta': 0.0, 'radius': 0.0, 'type': 'EEG'}
@@ -97,7 +95,6 @@ class TestEegAutocorr(DebuggableTestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
-        # Load real EEG dataset with ICA
         from eegprep.functions.popfunc.pop_loadset import pop_loadset
         import os
 

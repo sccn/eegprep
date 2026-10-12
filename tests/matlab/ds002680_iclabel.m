@@ -8,7 +8,6 @@ for iEEG = 1:3:length(ALLEEG)
     count = count+1;
 end
 
-% Compute averages for each field
 fields = fieldnames(results); % Get field names
 numFields = length(fields);
 numElements = length(results);

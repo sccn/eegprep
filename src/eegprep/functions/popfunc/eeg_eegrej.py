@@ -50,7 +50,6 @@ def _eegrej(
     if r.size == 0:
         # nothing to remove; still ensure events sorted and valid
         events_out = [] if events is None else [dict(ev) for ev in events]
-        # Sort events by latency if present
         if events_out and all("latency" in ev for ev in events_out):
             events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
         boundevents = np.array([], dtype=float)
@@ -70,7 +69,6 @@ def _eegrej(
     for i in range(1, r.shape[0]):
         if r[i - 1, 1] >= r[i, 0]:
             r[i, 0] = r[i - 1, 1] + 1
-    # Drop empty or inverted regions after adjustment
     r = r[r[:, 0] <= r[:, 1]]
     if r.size == 0:
         events_out = [] if events is None else [dict(ev) for ev in events]
@@ -87,7 +85,6 @@ def _eegrej(
     for beg, end in r:
         reject[beg - 1 : end] = True  # This matches MATLAB reject(beg:end) when end is already the inclusive end
 
-    # Prepare events
     ori_events: List[Dict] = [] if events is None else [dict(ev) for ev in events]
     events_out: List[Dict] = [dict(ev) for ev in ori_events]
 
@@ -108,7 +105,6 @@ def _eegrej(
             span = int(end - beg + 1)
             lat[ori_lat > beg] -= span
 
-        # Apply updated latencies
         for i, ev in enumerate(events_out):
             ev["latency"] = float(lat[i])
 
@@ -157,13 +153,11 @@ def _eegrej(
     newx = x[:, ~reject]
     newn = int(newx.shape[1])
 
-    # Update total time proportionally
     newt = float(timelength) * (newn / float(n))
 
     # Remove boundary events that would fall exactly after the last sample + 0.5
     boundevents = boundevents[boundevents < (newn + 1)]
 
-    # Merge duplicate boundary latencies and sum durations for duplicates
     if boundevents.size:
         rounded = round_mat(boundevents, 12)
         merged_be: List[float] = []
@@ -216,7 +210,6 @@ def _eegrej(
                 # the boundary events that are NOT newly inserted.
                 nested_lats.add(float(ori_events[idx].get("latency", float("nan"))))
         if nested_lats:
-            # Build set of adjusted latencies for nested events
             # ori_lat was captured before adjustments; recompute adjusted lat
             ori_lat_arr = np.array([float(ev.get("latency", float("nan"))) for ev in ori_events], dtype=float)
             adj_lat = ori_lat_arr.copy()
@@ -233,7 +226,6 @@ def _eegrej(
                 cleaned.append(ev)
             events_out = cleaned
 
-    # Remove events with latency out of bound (> newn+1)
     filtered: List[Dict] = []
     for ev in events_out:
         latv = float(ev.get("latency", float("inf")))
@@ -241,7 +233,6 @@ def _eegrej(
             filtered.append(ev)
     events_out = filtered
 
-    # Sort by latency
     events_out.sort(key=lambda ev: ev.get("latency", float("inf")))
 
     # Handle contiguous boundary events with same latency: merge durations
@@ -294,7 +285,6 @@ def eeg_eegrej(EEG, regions):
     else:
         regions = regions[np.argsort(regions[:, 0])]
 
-    # handle eegplot-style regions [.. .. beg end]
     if regions.shape[1] > 2:
         regions = regions[:, 2:4]
 
@@ -303,7 +293,6 @@ def eeg_eegrej(EEG, regions):
     # Use original events; backend will handle pruning, shifting, and boundary insertion
     events = list(EEG.get("event", []))
 
-    # call _eegrej backend
     xdur = float(EEG["xmax"] - EEG["xmin"])
     data_out, xmax_rel, event2, boundevents = _eegrej(EEG["data"], regions, xdur, events)
 
@@ -335,7 +324,6 @@ def eeg_eegrej(EEG, regions):
             if EEG["event"][-1].get("type") == EEG["event"][-2].get("type"):
                 EEG["event"].pop()
 
-    # make sure that each newly inserted boundary event has all fields
     extra_fields = set().union(*(ev.keys() for ev in EEG['event'])) - {"type", "latency", "duration"}
     for ev in EEG['event']:
         if _is_boundary_event(ev):

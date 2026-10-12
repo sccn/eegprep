@@ -36,9 +36,7 @@ def filtfilt_fast(
     n = len(b)
     # pad the signal at both ends
     x_padded = np.pad(x, (n, n), mode='reflect', reflect_type='odd')
-    # filter, reverse
     y_forward = fftconvolve(x_padded, b, mode='full')[::-1]
-    # filter, reverse
     y_filtered = fftconvolve(y_forward, b, mode='full')[::-1]
     # trim off padding
     excess = len(y_filtered) - len(x)

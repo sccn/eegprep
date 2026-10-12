@@ -66,7 +66,6 @@ class TestCalcProjector(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures with synthetic channel locations."""
-        # Create synthetic 3D channel locations (spherical coordinates)
         self.n_channels = 8
         theta = np.linspace(0, 2 * np.pi, self.n_channels, endpoint=False)
         phi = np.pi / 4  # Fixed elevation

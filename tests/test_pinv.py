@@ -52,12 +52,9 @@ class TestPinvParity(unittest.TestCase):
         print(f"Python output shape: {py_out.shape}, dtype: {py_out.dtype}")
         print(f"MATLAB output shape: {ml_out.shape}, dtype: {ml_out.dtype}")
 
-        # Check maximum absolute difference
         max_diff = np.max(np.abs(py_out - ml_out))
         print(f"Maximum absolute difference: {max_diff:.2e}")
 
-        # For ill-conditioned matrices, we expect larger differences
-        # Use more relaxed tolerance
         adaptive_tol = max(1e-8, max_diff * 5)
         success_adaptive = np.allclose(py_out, ml_out, rtol=adaptive_tol, atol=adaptive_tol)
         print(f"Adaptive tolerance ({adaptive_tol:.2e}) success: {success_adaptive}")

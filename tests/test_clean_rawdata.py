@@ -95,7 +95,6 @@ class TestUtilFuncs(DebuggableTestCase):
         from eegprep.plugins.clean_rawdata.private.stats import block_geometric_median
 
         np.random.seed(42)
-        # generate heavy-tailed data with non-zero centroid and apply random rotation
         df = 3  # degrees of freedom for t-distribution
         center = np.arange(1, 33)  # non-zero centroid vector
         # random noise transform
@@ -113,7 +112,7 @@ class TestUtilFuncs(DebuggableTestCase):
         from scipy.stats import genextreme
 
         x = genextreme.rvs(0.1, size=5007)
-        observed, *_ = fit_eeg_distribution(x)  # returns 4 values, for now we check only the first
+        observed, *_ = fit_eeg_distribution(x)
         expected = self.eeglab.fit_eeg_distribution(x)
         # compare numbers
         np.testing.assert_almost_equal(observed, expected, err_msg='fit_eeg_distribution() test failed')
@@ -174,12 +173,10 @@ class TestCleanWindows(DebuggableTestCase):
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
 
-        # ------------------------------------------------------------------
         # Inject synthetic high‑amplitude artefacts so that clean_windows()
         # has something to remove. We draw 20 random stretches (200‑2000
         # samples) and corrupt a random subset of channels in each stretch
         # by adding scaled Gaussian noise.
-        # ------------------------------------------------------------------
         rng = np.random.default_rng(seed=42)  # deterministic for the test
 
         n_stretches = 20
@@ -217,9 +214,7 @@ class TestCleanWindows(DebuggableTestCase):
         compare_eeg(cleaned['data'], expected['data'], err_msg='clean_windows() failed vs MATLAB')
 
 
-# ------------------------------------------------------------------------------
 #                               clean_artifacts
-# ------------------------------------------------------------------------------
 
 
 class TestCleanArtifacts(DebuggableTestCase):
@@ -239,9 +234,6 @@ class TestCleanArtifacts(DebuggableTestCase):
 
                 # --- MATLAB reference ---
                 eeglab = eeglabcompat.get_eeglab('MAT')
-                # Startup already ran eeg_options. Clear it so this call reloads
-                # the 64-bit file; otherwise ASR on the long recording stays in
-                # single precision and drifts by a few thousandths of a microvolt.
                 eeglab.engine.eval('clear eeg_options', nargout=0)
                 expected_mat = eeglab.clean_artifacts(eeg)
 

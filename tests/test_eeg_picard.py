@@ -1,6 +1,8 @@
 import os
 import unittest
 import numpy as np
+import pytest
+from picard import picard
 from eegprep import pop_loadset, eeg_picard, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
@@ -37,19 +39,16 @@ def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
     """
     n_comp = weights1.shape[0]
 
-    # Compute correlation matrix between all pairs of components
     # weights1 rows correlated with weights2 rows
     corr_matrix = np.zeros((n_comp, n_comp))
     for i in range(n_comp):
         for j in range(n_comp):
             corr_matrix[i, j] = np.corrcoef(weights1[i, :], weights2[j, :])[0, 1]
 
-    # For each component in weights1, find the best match in weights2
     abs_corr = np.abs(corr_matrix)
     max_correlations = np.max(abs_corr, axis=1)
     best_matches = np.argmax(abs_corr, axis=1)
 
-    # Check that all components have high correlation (>= 1-atol)
     min_acceptable_corr = 1.0 - atol
     matched = np.all(max_correlations >= min_acceptable_corr)
 
@@ -57,7 +56,6 @@ def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
 
 
 # ASSESSMENT OF THE TEST RESULTS
-# -----------------------------
 # The current conclusion is that while MATLAB and Octave are not exactly the same, they are close enough.
 # However, Python is quite different. The image is saved in the test folder of the difference between the 2-D arrays.
 # More investigation is needed to understand why this is the case. The implementation are quite different to start with.
@@ -70,6 +68,26 @@ local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 def create_test_eeg():
     """Epoched EEG fixture sized for eeg_picard (32 ch, 1000 pnts, 10 trials)."""
     return _create_test_eeg(n_channels=32, n_samples=1000, srate=500.0, n_trials=10)
+
+
+@pytest.mark.parametrize('n_components', [None, 3])
+def test_eeg_picard_initialization(n_components):
+    eeg = _create_test_eeg(n_channels=4, n_samples=400, n_trials=2)
+    eeg['data'] = np.random.RandomState(7).laplace(size=(4, 400, 2))
+    # Stop early to observe initialization, even if converged ICA solutions coincide.
+    options = dict(n_components=n_components, max_iter=2, verbose=False)
+    with pytest.warns(UserWarning, match='Picard did not converge'):
+        default = eeg_picard(eeg, **options)
+        identity = eeg_picard(eeg, w_init=np.eye(n_components or 4), random_state=123, **options)
+        seeded = eeg_picard(eeg, random_state=0, **options)
+        repeated = eeg_picard(eeg, random_state=0, **options)
+        other = eeg_picard(eeg, random_state=123, **options)
+        k, w, _ = picard(eeg['data'].reshape(4, -1, order='F'), ortho=False, m=10, random_state=0, **options)
+
+    np.testing.assert_array_equal(default['icaweights'], identity['icaweights'])
+    np.testing.assert_array_equal(seeded['icaweights'], repeated['icaweights'])
+    assert not np.allclose(seeded['icaweights'], other['icaweights'])
+    np.testing.assert_allclose(seeded['icaweights'], w @ k, rtol=1e-12, atol=1e-12)
 
 
 class TestEegPicardSimple(DebuggableTestCase):
@@ -108,7 +126,6 @@ class TestEegPicard(unittest.TestCase):
         if not matlab_function_exists(eeglab_mat, 'eeg_picard'):
             self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
 
-        # --- Python Engine ---
         print("Running Picard with Python engine...")
         EEG_python = eeg_picard(self.EEG.copy())
         pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_picard_python.set'))
@@ -120,16 +137,8 @@ class TestEegPicard(unittest.TestCase):
         pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
         print("MATLAB engine test completed.")
 
-        # # --- Octave Engine ---
-        # print("Running Picard with Octave engine...")
-        # eeglab_oct = get_eeglab('OCT')
-        # EEG_octave = eeg_picard(self.EEG.copy(), engine=eeglab_oct)
-        # pop_saveset(EEG_octave, os.path.join(local_url, 'eeglab_data_picard_octave.set'))
-        # print("Octave engine test completed.")
-
         # --- Assertions ---
 
-        # Check that all results have the necessary ICA fields
         for eeg_result, engine_name in [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]:  # , (EEG_octave, 'Octave')]:
             with self.subTest(engine=engine_name):
                 self.assertIn('icaweights', eeg_result)
@@ -138,7 +147,6 @@ class TestEegPicard(unittest.TestCase):
                 self.assertIn('icaact', eeg_result)
                 self.assertIn('icachansind', eeg_result)
 
-        # Check shapes consistency
         # Assuming number of components is equal to number of channels by default
         n_chans = self.EEG['nbchan']
         n_pnts = self.EEG['pnts']
@@ -158,21 +166,6 @@ class TestEegPicard(unittest.TestCase):
                 self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
 
         print("All engines produced ICA fields with consistent shapes.")
-
-        # Compare MATLAB and Octave results with tolerance
-        # print("Comparing MATLAB and Octave results...")
-        # np.testing.assert_allclose(EEG_matlab['icaweights'], EEG_octave['icaweights'],rtol=0.005, atol=1e-5,err_msg='MATLAB and Octave icaweights differ beyond tolerance')
-        # np.testing.assert_allclose(EEG_matlab['icasphere'], EEG_octave['icasphere'],rtol=0.005, atol=1e-5,err_msg='MATLAB and Octave icasphere differ beyond tolerance')
-        # np.testing.assert_allclose(EEG_matlab['icawinv'], EEG_octave['icawinv'],rtol=0.05, atol=0.0005,err_msg='MATLAB and Octave icawinv differ beyond tolerance')
-        # # np.testing.assert_allclose(EEG_matlab['icaact'], EEG_octave['icaact'],rtol=0.005, atol=1e-5,err_msg='MATLAB and Octave icaact differ beyond tolerance')
-        # print("MATLAB and Octave results are consistent.")
-
-        # import sys
-        # original_threshold = np.get_printoptions()['threshold']
-        # np.set_printoptions(threshold=sys.maxsize)
-        # print("pArray = np.", repr(EEG_python['icaweights']))
-        # print("mArray = np.", repr(EEG_matlab['icaweights']))
-        # np.set_printoptions(threshold=original_threshold)
 
         # plot the difference between each 2-D array and the difference between the 2-D arrays and save the figure
         if False:
@@ -217,10 +210,6 @@ class TestEegPicard(unittest.TestCase):
         )
 
         # Compare icaweights using correlation (handles permutation and sign ambiguity)
-        # NOTE: Python and MATLAB picard have different whitening implementations
-        # (Python uses numpy, MATLAB uses its own PCA), which causes some components
-        # to be estimated differently. A relaxed threshold is used to accept this.
-        # Typical results: mean correlation ~0.95, min correlation ~0.65-0.70
         matched, max_corrs, best_matches, corr_matrix = compare_ica_components(
             EEG_python['icaweights'], EEG_matlab['icaweights'], atol=0.35
         )
@@ -235,8 +224,6 @@ class TestEegPicard(unittest.TestCase):
         if not unique_matches:
             print(f"  WARNING: Non-unique matching detected. Best matches: {best_matches}")
 
-        # Assert that all components have at least 0.65 correlation
-        # (0.65 threshold accounts for whitening differences between implementations)
         self.assertTrue(
             matched,
             f"ICA components do not match well. Min correlation: {np.min(max_corrs):.4f}. "
@@ -253,24 +240,3 @@ class TestEegPicard(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(defaultTest='TestEegPicard.test_picard_engines')
-
-# MATLAB code for manual comparison of the results
-# EEG_python = pop_loadset('eeglab_data_picard_python.set');
-# EEG_matlab = pop_loadset('eeglab_data_picard_matlab.set');
-# EEG_octave = pop_loadset('eeglab_data_picard_octave.set');
-#
-# % Compare component activations
-# eegplot(EEG_python.icaact, 'srate', EEG_python.srate, 'data2', EEG_matlab.icaact);
-# title('Python (black) vs MATLAB (red) ICA activations');
-#
-# % Check correlation of weight matrices (they could be in different order and polarity)
-# figure; imagesc(abs(corr(EEG_matlab.icaweights', EEG_python.icaweights'))); colorbar;
-# title('Correlation of MATLAB vs Python ICA weights');
-#
-# % Compare MATLAB and Octave directly
-# figure; hist(abs(EEG_octave.data(:) - EEG_matlab.data(:)), 100)
-# title('Difference between MATLAB and Octave data');
-#
-# np.testing.assert_allclose(EEG_matlab['icaact'].flatten(), EEG_octave['icaact'].flatten(),
-#                                  rtol=1e-5, atol=1e-8,
-#                                  err_msg='MATLAB and Octave results differ beyond tolerance')

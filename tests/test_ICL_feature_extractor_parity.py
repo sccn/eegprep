@@ -42,7 +42,6 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
             self.matlab_available = False
             self.skipTest(f"MATLAB not available: {e}")
 
-        # Load real EEG dataset with ICA
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(test_file)
 
@@ -87,7 +86,6 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  MATLAB shape: {ml_topo.shape}")
         print(f"  Max absolute diff: {np.max(np.abs(py_topo - ml_topo)):.6f}")
 
-        # Calculate mismatched elements
         mismatch_mask = ~np.isclose(py_topo, ml_topo, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_topo.size
@@ -112,7 +110,6 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  MATLAB shape: {ml_psd.shape}")
         print(f"  Max absolute diff: {np.max(np.abs(py_psd - ml_psd)):.6f}")
 
-        # Calculate mismatched elements
         mismatch_mask = ~np.isclose(py_psd, ml_psd, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PSD_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_psd.size
@@ -137,7 +134,6 @@ class TestICLFeatureExtractorParity(unittest.TestCase):
         print(f"  MATLAB shape: {ml_autocorr.shape}")
         print(f"  Max absolute diff: {np.max(np.abs(py_autocorr - ml_autocorr)):.6f}")
 
-        # Calculate mismatched elements
         mismatch_mask = ~np.isclose(py_autocorr, ml_autocorr, rtol=ICLABEL_PARITY_RTOL, atol=ICLABEL_PARITY_ATOL)
         n_mismatch = np.sum(mismatch_mask)
         n_total = py_autocorr.size

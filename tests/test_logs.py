@@ -14,7 +14,6 @@ class TestLogs(unittest.TestCase):
         old_level = root_logger.level
         old_handlers = list(root_logger.handlers)
         try:
-            # Remove existing handlers to isolate tests
             for h in list(root_logger.handlers):
                 root_logger.removeHandler(h)
             yield root_logger
@@ -31,7 +30,6 @@ class TestLogs(unittest.TestCase):
             self.assertEqual(len(root.handlers), 0)
             setup_logging()
             self.assertEqual(len(root.handlers), 1)
-            # Call again; should skip due to only_if_unset=True default
             setup_logging()
             self.assertEqual(len(root.handlers), 1)
 

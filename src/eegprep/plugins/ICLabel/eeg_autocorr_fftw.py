@@ -27,21 +27,16 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     # FFT length
     nfft = next_fast_len(2 * EEG['pnts'] - 1)
 
-    # Initialize autocorrelation array
     ncomp = EEG['icaact'].shape[0]
     ac = np.zeros((ncomp, nfft))
 
-    # Calculate autocorrelation using FFT
     for it in range(EEG['icaact'].shape[0]):
-        # Apply FFT
         X = fft(EEG['icaact'][it, :, :], n=nfft, axis=0)
-        # Compute the mean of the power spectrum
         ac[it, :] = np.mean(np.abs(X) ** 2, axis=1)
 
     # Inverse FFT to get autocorrelation
     ac = ifft(ac, axis=1)
 
-    # make sure the data is in real
     ac = np.real(ac)
 
     # Adjust the size of autocorrelation array
@@ -51,7 +46,6 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     else:
         ac = ac[:, : int(EEG['srate']) + 1]
 
-    # Normalize by 0-lag autocorrelation
     ac = ac / ac[:, 0][:, np.newaxis]
 
     # resample to 1 second at 100 samples/sec

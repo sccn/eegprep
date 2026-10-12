@@ -29,7 +29,6 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     """
     EEG = copy.deepcopy(EEG)
 
-    # Extract data and reshape from 3D to 2D
     data = flatten_ica_data(EEG['data'].astype('float64'))
 
     # Run runica
@@ -37,7 +36,6 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     if not np.isfinite(weights).all() or not np.isfinite(sphere).all():
         raise ValueError("runica(): ICA decomposition produced non-finite weights or sphering matrix.")
 
-    # Update EEG structure with ICA results
     EEG['icasphere'] = sphere
     EEG['icaweights'] = weights
     unmixing = finite_matmul(weights, sphere)
@@ -45,11 +43,9 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     if not np.isfinite(EEG['icawinv']).all():
         raise ValueError("runica(): ICA decomposition produced a non-finite inverse weight matrix.")
 
-    # Compute ICA activations
     EEG['icaact'] = finite_matmul(unmixing, data)
     if not np.isfinite(EEG['icaact']).all():
         raise ValueError("runica(): ICA decomposition produced non-finite activations.")
-    # Reshape icaact back to 3D
     EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 

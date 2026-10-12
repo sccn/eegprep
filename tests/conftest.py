@@ -281,6 +281,7 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_pop_epoch.py",
     "tests/test_pop_loadset_h5.py",
     "tests/test_pop_resample.py",
+    "tests/test_pop_studydesign_matlab.py",
     "tests/test_spectopo_parity.py",
 )
 
@@ -409,8 +410,7 @@ def pytest_filter_eeglab_contracts(config, items):
 
 
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
-    # The reference runner is often killed before pytest prints its summary.
-    # Write the failure immediately, bypassing pytest's capture.
+    # A killed runner never flushes pytest's capture.
     text = getattr(report, "longreprtext", "")
     if report.failed and text:
         os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())

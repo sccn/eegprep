@@ -75,7 +75,6 @@ class TestCovarianceMatrixOperations(unittest.TestCase):
         pow_stack = cov_powm(self.cov_stack, 0.5)
         sqrt2_stack, rsqrt2_stack = cov_sqrtm2(self.cov_stack)
 
-        # Check shapes
         self.assertEqual(log_stack.shape, self.cov_stack.shape)
         self.assertEqual(exp_stack.shape, self.cov_stack.shape)
         self.assertEqual(sqrt_stack.shape, self.cov_stack.shape)
@@ -84,7 +83,6 @@ class TestCovarianceMatrixOperations(unittest.TestCase):
         # Check round-trip: exp(log(C)) = C
         np.testing.assert_array_almost_equal(exp_stack, self.cov_stack, decimal=10)
 
-        # Check sqrt consistency
         np.testing.assert_array_almost_equal(sqrt_stack, pow_stack, decimal=10)
         np.testing.assert_array_almost_equal(sqrt_stack, sqrt2_stack, decimal=10)
         np.testing.assert_array_almost_equal(rsqrt_stack, rsqrt2_stack, decimal=10)
@@ -95,7 +93,6 @@ class TestCovMean(unittest.TestCase):
 
     def setUp(self):
         """Create test data."""
-        # Create a stack of similar covariance matrices
         self.cov_stack = np.array([[[2.0, 0.5], [0.5, 1.5]], [[2.2, 0.3], [0.3, 1.8]], [[1.8, 0.7], [0.7, 1.2]]])
 
         # Single matrix (should return itself)

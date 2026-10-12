@@ -19,14 +19,6 @@ from eegprep.functions.adminfunc.storage import (
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 
-# Allows access using . notation
-# class EEG:
-#     def __init__(self, **kwargs):
-#         self.__dict__.update(kwargs)
-#     def __getitem__(self, key):
-#         return self.__dict__[key]
-#     def __setitem__(self, key, value):
-#         self.__dict__[key] = value
 
 default_empty = np.array([])
 
@@ -194,7 +186,6 @@ def flatten_dict(data):
     np.recarray
         Flattened data.
     """
-    # Flatten each dictionary and collect the fields and types
     flat_data = [flatten_dict_sub(item) for item in data]
     fields = list(dict.fromkeys(field for item in flat_data for field in item))
     dtypes = []
@@ -254,40 +245,6 @@ def saveset(EEG, file_name):
     return pop_saveset(EEG, file_name)
 
 
-# def dictlist_to_recarray(events):
-#     # --- Infer dtype automatically ---
-#     dtype_fields = []
-#     for key in events[0].keys():
-#         values = [e[key] for e in events]
-
-#         # If string: pick Unicode type with max length
-#         if all(isinstance(v, str) for v in values):
-#             maxlen = max(len(v) for v in values)
-#             dtype_fields.append((key, f'U{maxlen}'))
-
-#         # If integer: use int32
-#         elif all(isinstance(v, int) for v in values):
-#             dtype_fields.append((key, 'i4'))
-
-#         # If float or mixed int/float: use float64
-#         elif all(isinstance(v, (float, int)) for v in values):
-#             dtype_fields.append((key, 'f8'))
-
-#         else:
-#             # fallback: generic object
-#             dtype_fields.append((key, object))
-
-#     dtype = np.dtype(dtype_fields)
-
-#     # --- Convert events to recarray ---
-#     rec_events = np.array(
-#         [tuple(e[k] for k in events[0].keys()) for e in events],
-#         dtype=dtype
-#     ).view(np.recarray)
-
-#     return rec_events
-
-
 def pop_saveset_old(EEG, file_path):
     """Save EEG data to file (old version).
 
@@ -303,9 +260,6 @@ def pop_saveset_old(EEG, file_path):
     dict
         EEG data.
     """
-    # convert Events to structured array
-    # if 'event' in EEG:
-    #     EEG['event'] = flatten_dict(EEG['event'])
 
     # add 1 to EEG['icachansind'] to make it 1-based
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
@@ -358,7 +312,6 @@ def _chanlocs_to_struct_array(chanlocs_list):
         ('unit', 'U20'),
     ]
 
-    # Extract values, replacing empty numpy arrays with None
     d_list = []
     for c in items:
         row = {}
@@ -548,12 +501,10 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     if save_two_files:
         write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
 
-    # # Step 4: Save the EEGLAB dataset as a .mat file
     try:
         scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
     except ValueError as e:
         if '31 characters' in str(e):
-            # try to save with long_field_names option
             scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
         else:
             # the file is likely partial and thus invalid -- delete

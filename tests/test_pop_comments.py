@@ -53,8 +53,7 @@ def test_reference_comments_concatenation(eeglab_backend):
 
 
 def _reference_step(label: str) -> None:
-    # pytest capture would hide this until the test ends. The runner has been
-    # killed inside this workflow before that summary exists.
+    # A killed runner never flushes pytest's capture.
     os.write(1, f"pop_comments workflow: {label}\n".encode())
 
 

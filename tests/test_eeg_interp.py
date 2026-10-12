@@ -130,7 +130,6 @@ class TestEegInterpParity(unittest.TestCase):
         n_timepoints = 1000
         n_trials = 1
 
-        # Generate synthetic EEG data
         np.random.seed(42)  # For reproducible tests
         self.test_EEG = {
             'data': np.random.randn(n_channels, n_timepoints, n_trials) * 50,
@@ -156,7 +155,6 @@ class TestEegInterpParity(unittest.TestCase):
             'etc': {},
         }
 
-        # Create realistic channel locations on unit sphere
         for i in range(n_channels):
             theta = 2 * np.pi * i / n_channels
             phi = np.pi / 6 + (np.pi / 3) * (i % 8) / 8
@@ -233,7 +231,6 @@ class TestEegInterpParity(unittest.TestCase):
         # MATLAB interpolation
         ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical')
 
-        # Compare results
         self._compare_eeg_results(py_result, ml_result)
 
     def test_parity_spherical_kang(self):
@@ -290,7 +287,6 @@ class TestEegInterpParity(unittest.TestCase):
 
     def test_parity_multiple_trials(self):
         """Test parity with multiple trials (epochs)"""
-        # Create multi-trial EEG data
         multi_trial_EEG = self.test_EEG.copy()
         multi_trial_EEG['trials'] = 3
         multi_trial_EEG['data'] = np.random.randn(32, 1000, 3) * 50
@@ -313,13 +309,11 @@ class TestSphericalSplineParity(unittest.TestCase):
         """Set up MATLAB interface and test data"""
         self.eeglab = get_eeglab('MAT')
 
-        # Set up test electrode positions
         np.random.seed(42)
         n_good = 10
         n_bad = 3
         n_points = 100
 
-        # Generate electrode positions on unit sphere
         xyz_good = np.random.randn(3, n_good)
         xyz_good /= np.linalg.norm(xyz_good, axis=0)
 
@@ -408,7 +402,6 @@ class TestEegInterpChanlocs(unittest.TestCase):
 
     def setUp(self):
         """Set up test EEG structure with known channel layout"""
-        # Create a test EEG structure with 4 channels
         self.test_EEG = {
             'data': np.random.randn(4, 100, 1),  # 4 channels, 100 time points, 1 trial
             'nbchan': 4,
@@ -425,12 +418,10 @@ class TestEegInterpChanlocs(unittest.TestCase):
             ],
         }
 
-        # Store original data for comparison
         self.original_data = self.test_EEG['data'].copy()
 
     def test_chanloc_no_overlap_appends_channels(self):
         """Test Case 2: No overlap should append new channels"""
-        # Create completely new chanlocs with no overlap
         new_chanlocs = [
             {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},
             {'labels': 'T8', 'X': -0.8, 'Y': 0.0, 'Z': 0.6},
@@ -457,7 +448,6 @@ class TestEegInterpChanlocs(unittest.TestCase):
 
     def test_chanloc_partial_overlap_case(self):
         """Test partial overlap case (not subset, not disjoint)"""
-        # Create chanlocs with partial overlap
         partial_overlap_chanlocs = [
             {'labels': 'Fp1', 'X': 0.1, 'Y': 0.8, 'Z': 0.6},  # exists
             {'labels': 'T7', 'X': 0.8, 'Y': 0.0, 'Z': 0.6},  # new
@@ -472,7 +462,6 @@ class TestEegInterpChanlocs(unittest.TestCase):
         self.assertEqual(result['data'].shape, (4, 100, 1))
 
         # Channels 0 (Fp1) and 2 (F3) should have been interpolated
-        # Check that they're different from original (interpolated)
         with self.assertRaises(AssertionError):
             np.testing.assert_array_equal(result['data'][0, :, :], self.original_data[0, :, :])
         with self.assertRaises(AssertionError):
@@ -484,7 +473,6 @@ class TestEegInterpChanlocs(unittest.TestCase):
 
     def test_chanloc_with_multiple_trials(self):
         """Test chanloc functionality with multiple trials"""
-        # Create multi-trial data
         multi_trial_EEG = self.test_EEG.copy()
         multi_trial_EEG['data'] = np.random.randn(4, 100, 3)  # 3 trials
         multi_trial_EEG['trials'] = 3

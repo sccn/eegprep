@@ -91,7 +91,6 @@ class TestEEGobj(unittest.TestCase):
         out = obj.pop_select(trial=[1, 2, 3])
         self.assertEqual(out['trials'], 3)
         self.assertEqual(out['data'].shape[2], 3)
-        # Ensure original object is not modified
         self.assertEqual(obj.EEG['trials'], 3)  # obj.EEG should be updated
         self.assertEqual(obj.EEG['data'].shape[2], 3)
 
@@ -101,7 +100,6 @@ class TestEEGobj(unittest.TestCase):
         out = obj.pop_select('channel', [0, 1])
         self.assertEqual(out['nbchan'], 2)
         self.assertEqual(out['data'].shape[0], 2)
-        # Ensure original object is not modified
         self.assertEqual(obj.EEG['nbchan'], 2)  # obj.EEG should be updated
         self.assertEqual(obj.EEG['data'].shape[0], 2)
 

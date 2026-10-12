@@ -436,11 +436,21 @@ a continuous variable after explicitly canceling the stale-EEG overwrite.
 The retained dataset has 157 events with 75 numeric ``rt`` values and 82 empty
 fields; the 80 STUDY trial records contain the same 75 numeric values and
 five empty fields. The workspace was unchanged by opening and closing the
-design dialogs, and no additional design was saved. This is evidence for that
-observed native workflow, not an unattended test or proof of Python GUI support. EEGPrep's
-``pop_studydesign`` New-variable callback currently displays an unavailable
-subdialog message; the missing workflow remains visible for later capability
-work rather than being treated as an expected successful skip.
+design dialogs, and no additional design was saved. EEGPrep's
+``pop_studydesign`` dialog now runs the visible EEGLAB controls: subject
+selection, design New/Rename/Delete, variable New/Edit/Delete, List factors,
+resave, Help, OK, and Cancel. New opens Add variable, lists a continuous
+trial factor such as ``rt``, and on OK writes ``STUDY.design`` and rebuilds
+``trialinfo`` when that factor is not already available. Canceling still
+leaves the workspace unchanged. Paired-statistics checkboxes are commented
+out of the current EEGLAB dialog, so EEGPrep does not show them; pairing is
+stored by ``std_makedesign``. GitHub Actions replays the dialog command
+history in EEGLAB and compares ``STUDY.design`` for New, Rename, Delete, a
+combined categorical value, a continuous variable, and an empty design.
+The September 29 observation remains the
+manual MATLAB acceptance record for the original dialog. The Python tutorial
+wrapper still stops at redraw, so a passing wrapper does not exercise this
+follow-up.
 Keep this original manual instruction as a separate manual acceptance case.
 Automating it with a new cross-backend GUI driver is not required to preserve
 the original test, and its manual result must not be added to automated pass
@@ -763,8 +773,9 @@ monitor was removed. Full IRLS execution remains an acknowledged validation
 gap, not a requirement to rerun during this closeout. Source-test fidelity,
 classified execution evidence and this approved execution exception must not
 be summarized as an all-tests-passed result or proof of EEGPrep capability.
-Missing Python LIMO primitives and unsupported MATLAB ``.fig`` export remain
-visible failures, not replacement algorithms or differently formatted files.
+Missing Python LIMO primitives remain visible failures, not replacement
+algorithms. ``savefig`` writes MATLAB ``.fig`` files for the IRLS
+``saveas(..., 'fig')`` export; that full workflow is still not a completed run.
 
 Test Discovery
 --------------
@@ -807,6 +818,62 @@ Tests run automatically on:
 - Scheduled nightly runs
 
 Check CI status on GitHub Actions.
+
+Nightly differential fuzzing
+----------------------------
+
+``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
+generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
+oracle. The job runs at 10:23 UTC and can be started manually with
+``workflow_dispatch``. A known-good sanity case runs first. If that case
+fails, the job fails and does not open an issue. Later mismatches are shrunk
+with Hypothesis, saved under the ``fuzz-repros`` artifact, and filed (at most
+three new issues a night) with the labels ``fuzz`` and ``fuzz-unconfirmed``.
+
+Per-function absolute and relative tolerances live in
+``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
+requests.
+
+Run it locally against a MATLAB session that is already serving
+``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
+
+.. code-block:: bash
+
+    export EEGPREP_MATLAB_BATCH_DIR=/tmp/eegprep-matlab-batch
+    export EEGPREP_EEGLAB_ROOT=src/eegprep/eeglab
+    uv run python -m tests.fuzz run --output fuzz-out --examples 4
+
+Without MATLAB, the fake oracle checks the harness itself:
+
+.. code-block:: bash
+
+    uv run python -m tests.fuzz run --oracle fake --fake-mode match --examples 2 --output fuzz-out
+
+Replay a saved failure after downloading the artifact:
+
+.. code-block:: bash
+
+    uv run python -m tests.fuzz reproduce fuzz-out/repros/pop_reref-numeric-1e-3.json
+
+The JSON records the seed, the parameters, and a hash of the input crop from
+``sample_data/eeglab_data.set``. To turn that file into a regression test,
+copy it into the tree and assert the two sides agree. Skip the test when
+MATLAB is not configured:
+
+.. code-block:: python
+
+    import os
+
+    import pytest
+
+    from tests.fuzz.harness import run_repro
+
+    @pytest.mark.matlab
+    def test_pop_reref_fuzz_repro():
+        if os.getenv("EEGPREP_SKIP_MATLAB") == "1":
+            pytest.skip("MATLAB not available")
+        outcome = run_repro("tests/fuzz/repros/pop_reref-numeric-1e-3.json")
+        assert not outcome.diverged
 
 Full-Pipeline Parity Harness
 ----------------------------

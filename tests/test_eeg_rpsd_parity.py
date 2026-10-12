@@ -37,7 +37,6 @@ class TestEegRpsdParity(unittest.TestCase):
             self.matlab_available = False
             self.skipTest(f"MATLAB not available: {e}")
 
-        # Load real EEG dataset with ICA
         test_file = os.path.join(local_url, 'eeglab_data_with_ica_tmp.set')
         self.EEG = pop_loadset(test_file)
 

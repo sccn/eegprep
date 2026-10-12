@@ -42,7 +42,6 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
 
         filepath = 'sample_data/eeglab_data_hdf5.set'
 
-        # Load with Python
         py_eeg = pop_loadset_h5(filepath)
 
         # Load with MATLAB
@@ -58,7 +57,6 @@ class TestPopLoadsetH5Parity(unittest.TestCase):
 
         filepath = 'sample_data/eeglab_data_epochs_ica_hdf5.set'
 
-        # Load with Python
         py_eeg = pop_loadset_h5(filepath)
 
         # Load with MATLAB
@@ -100,6 +98,5 @@ class TestPopLoadsetH5RealData(unittest.TestCase):
 
 if __name__ == '__main__':
     # test test_load_epoched_data only
-    # TestPopLoadsetH5RealData().test_load_epoched_data()
 
     unittest.main()
