@@ -17,7 +17,6 @@ from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_importpres import pop_importpres
 from eegprep.functions.popfunc.pop_snapread import pop_snapread
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
-from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 BINARY_SUITE = "unittesting_binary"
@@ -508,9 +507,7 @@ def test_upstream_pop_snapread_original_recording_and_gains(eeglab_backend, eegl
 
 
 @eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
-def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, request, eeglab_suite_root):
-    if request.config.getoption("--eeglab-backend") == "matlab":
-        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "sopen", "Biosig")
+def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, eeglab_suite_root):
     filename = eeglab_suite_root / "unittesting_binary/testfiles/BDF/jo1_3.bdf"
     eeglab_backend("pop_biosig", str(filename), "blockrange", np.array([[1.0, 10.0]]))
 
@@ -518,8 +515,6 @@ def test_upstream_pop_biosig_original_bdf_blockrange(eeglab_backend, request, ee
 @eeglab_test(f"{BINARY_SUITE}/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig_timerange")
 @pytest.mark.gui
 def test_upstream_pop_biosig_original_edf_overlap(request, eeglab_backend, eeglab_suite_root):
-    if request.config.getoption("--eeglab-backend") == "matlab":
-        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "sopen", "Biosig")
     filename = str(eeglab_suite_root / "unittesting_binary/testfiles/BDF/5038.edf")
     first = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[0.0, 30.0]]))
     second = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[29.0, 60.0]]))

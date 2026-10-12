@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 from numpy.exceptions import ComplexWarning
-import pytest
 from scipy.io import loadmat, savemat
 from scipy.sparse import issparse
 
@@ -145,14 +144,6 @@ def _load_matlab_variable(filename, variable):
         warnings.simplefilter("ignore", ComplexWarning)
         typed = loadmat(filename, mat_dtype=True)[variable]
     return _decode(raw, typed, Path(filename).parent)
-
-
-def skip_without_matlab_plugin(engine, function_name: str, plugin: str) -> None:
-    """Skip when an optional EEGLAB plugin did not put ``function_name`` on the path."""
-    found = engine.which(function_name)
-    if isinstance(found, str) and found.strip():
-        return
-    pytest.skip(f"{plugin} plugin is not installed ({function_name} was not found)")
 
 
 def call_matlab(engine, name, *args, nargout=1, **kwargs):
