@@ -1,15 +1,23 @@
+import asyncio
 import shutil
 import subprocess
+import sys
 import textwrap
+import types
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools.check_pyodide_base_resolution import KNOWN_GAPS
 from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
 from tools.pyodide.prepare_docopt_wheel import verify_sha256
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MODEL_SHA256 = "a" * 64
 
 
 def test_docopt_hash_check_rejects_modified_sdist(tmp_path):
@@ -137,6 +145,20 @@ def test_compare_iclabel_reports_rejects_shape_mismatch():
 
     with pytest.raises(ValueError, match="shapes differ"):
         compare_iclabel_reports(native, pyodide)
+
+
+def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
+    image = np.zeros((1, 1, 1, 1), dtype=np.float32)
+
+    # Outside Pyodide there is no ``js`` module at all.
+    monkeypatch.setitem(sys.modules, "js", None)
+    with pytest.raises(ImportError, match="createIcLabelWebBridge"):
+        asyncio.run(run_iclabel_net_async(image, image, image))
+
+    # Inside Pyodide, a host that never registered the global leaves ``js`` without it.
+    monkeypatch.setitem(sys.modules, "js", types.ModuleType("js"))
+    with pytest.raises(ImportError, match="eegprep_iclabel_web"):
+        asyncio.run(run_iclabel_net_async(image, image, image))
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for the browser bridge test")
