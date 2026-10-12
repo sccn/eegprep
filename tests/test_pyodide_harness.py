@@ -235,10 +235,90 @@ def test_browser_backend_without_a_host_names_the_bridge_contract(monkeypatch):
     with pytest.raises(ImportError, match="createIcLabelWebBridge"):
         asyncio.run(run_iclabel_net_async(image, image, image))
 
-    # Inside Pyodide, a host that never registered the global leaves ``js`` without it.
+    # Inside Pyodide, a host that never registered the global leaves ``js`` without it. Python
+    # reports that as a plain ImportError (not ModuleNotFoundError), whose own text does not
+    # mention the bridge, so only the guard can make the message name the contract.
     monkeypatch.setitem(sys.modules, "js", types.ModuleType("js"))
-    with pytest.raises(ImportError, match="eegprep_iclabel_web"):
+    with pytest.raises(ImportError, match="createIcLabelWebBridge"):
         asyncio.run(run_iclabel_net_async(image, image, image))
+
+    # A host that registered the bridge but runs outside Pyodide's foreign function interface.
+    monkeypatch.setitem(sys.modules, "js", _js_module(_StandInBridge(np.zeros(7))))
+    monkeypatch.setitem(sys.modules, "pyodide", types.ModuleType("pyodide"))
+    monkeypatch.setitem(sys.modules, "pyodide.ffi", types.ModuleType("pyodide.ffi"))
+    with pytest.raises(ImportError, match="createIcLabelWebBridge"):
+        asyncio.run(run_iclabel_net_async(image, image, image))
+
+
+class _StandInResult:
+    """Stands in for the JavaScript typed array the host returns; Pyodide exposes it as a proxy."""
+
+    def __init__(self, values):
+        self._values = values
+
+    def to_py(self):
+        return list(self._values)
+
+
+class _StandInBridge:
+    """Stands in for ``globalThis.eegprep_iclabel_web`` created by createIcLabelWebBridge."""
+
+    def __init__(self, output):
+        self.output = output
+        self.calls = []
+
+    async def run(self, *arguments):
+        self.calls.append(arguments)
+        return _StandInResult(self.output)
+
+
+def _js_module(bridge):
+    module = types.ModuleType("js")
+    module.eegprep_iclabel_web = bridge
+    return module
+
+
+def _install_pyodide_boundary(monkeypatch, bridge):
+    """Register stand-ins for the two modules that only exist inside Pyodide."""
+    ffi = types.ModuleType("pyodide.ffi")
+    ffi.to_js = lambda value: value
+    monkeypatch.setitem(sys.modules, "js", _js_module(bridge))
+    monkeypatch.setitem(sys.modules, "pyodide", types.ModuleType("pyodide"))
+    monkeypatch.setitem(sys.modules, "pyodide.ffi", ffi)
+
+
+def test_browser_backend_passes_tensors_in_the_bridge_argument_order(monkeypatch):
+    rng = np.random.default_rng(0)
+    image = rng.random((2, 1, 3, 3))  # float64 input: the backend must send float32
+    psdmed = np.asfortranarray(rng.random((2, 1, 1, 5), dtype=np.float32))  # not C-contiguous
+    autocorr = rng.random((2, 1, 1, 4), dtype=np.float32)
+    probabilities = np.arange(14, dtype=np.float32) / 14
+    bridge = _StandInBridge(probabilities)
+    _install_pyodide_boundary(monkeypatch, bridge)
+
+    output = asyncio.run(run_iclabel_net_async(image, psdmed, autocorr))
+
+    ((image_data, image_shape, psdmed_data, psdmed_shape, autocorr_data, autocorr_shape),) = bridge.calls
+    # The bridge contract is flat C-order float32 data followed by that tensor's shape, per input.
+    for data, shape, source in (
+        (image_data, image_shape, image),
+        (psdmed_data, psdmed_shape, psdmed),
+        (autocorr_data, autocorr_shape, autocorr),
+    ):
+        assert shape == list(source.shape)
+        assert data.dtype == np.float32
+        np.testing.assert_array_equal(data, np.asarray(source, dtype=np.float32).ravel(order="C"))
+    assert output.shape == (2, 7, 1, 1)
+    assert output.dtype == np.float32
+    np.testing.assert_array_equal(output.reshape(-1), probabilities)
+
+
+def test_browser_backend_rejects_a_wrong_sized_bridge_result(monkeypatch):
+    inputs = [np.zeros((2, 1, 1, 3), dtype=np.float32)] * 3
+    _install_pyodide_boundary(monkeypatch, _StandInBridge(np.zeros(13, dtype=np.float32)))
+
+    with pytest.raises(RuntimeError, match="returned 13 values for a batch of 2; expected 14"):
+        asyncio.run(run_iclabel_net_async(*inputs))
 
 
 @pytest.mark.parametrize(
