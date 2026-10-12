@@ -34,7 +34,7 @@ For development installation from source:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 What are the system requirements?
 ---------------------------------
@@ -57,14 +57,14 @@ Refresh the uv environment:
 .. code-block:: bash
 
     uv lock
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Or create a fresh uv environment:
 
 .. code-block:: bash
 
     rm -rf .venv
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Does EEGPrep support GPU acceleration?
 --------------------------------------
@@ -277,7 +277,7 @@ Or if developing from source:
 
 .. code-block:: bash
 
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 I get "ValueError: Data shape mismatch"
 ---------------------------------------

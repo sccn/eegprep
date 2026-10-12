@@ -247,7 +247,7 @@ If installing from source, ensure you're in the correct directory and use:
 
 .. code-block:: bash
 
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Version Conflicts
 -----------------

@@ -95,7 +95,8 @@ This mirrors what ``eegprep-console`` does for you automatically.
 Script Component Review
 =======================
 
-Use the ICA sample to script ICLabel review:
+Use the ICA sample to script ICLabel review. ICLabel runs on ONNX Runtime, which the
+``iclabel`` extra installs (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
 

@@ -212,7 +212,8 @@ Run ICA:
 
    EEG, com = pop_runica(EEG, icatype="picard", gui=False, return_com=True)
 
-Label and review components:
+Label and review components. ICLabel runs on ONNX Runtime, which the ``iclabel``
+extra installs (``uv add "eegprep[iclabel]"``):
 
 .. code-block:: python
 

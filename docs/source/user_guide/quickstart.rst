@@ -34,9 +34,10 @@ Five-Minute Python Workflow
 Run this from the repository root after installing EEGPrep or syncing the
 source checkout.
 
-The ICA/ICLabel example near the end of this page also needs the optional
-runtime dependency. For a source checkout, run ``uv sync --group dev --extra iclabel``;
-for an installed package, use ``pip install eegprep[iclabel]``.
+The ICA/ICLabel example near the end of this page also needs ONNX Runtime, which the
+``iclabel`` extra installs. For a source checkout, run
+``uv sync --group dev --extra iclabel``; for an installed package, run
+``uv add "eegprep[iclabel]"`` (or ``pip install "eegprep[iclabel]"`` outside uv).
 
 .. code-block:: python
 
