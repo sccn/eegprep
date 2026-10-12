@@ -79,7 +79,7 @@ What the workflow does
    true. It also runs ``twine check --strict`` and installs both artifacts with
    the ICLabel extra for runtime classification and the ASR filter smoke test.
    The smoke tests also pin ``onnxruntime==1.30.0``, the ``uv.lock`` version the
-   model was validated with and stricter than the ``iclabel`` extra's ``>=1.18``
+   model was validated with and stricter than the ``iclabel`` extra's ``>=1.20``
    floor; bump the pin in ``release.yml`` together with ``uv.lock``.
 3. **publish** — uploads to PyPI using Trusted Publishing, so no API token is
    stored in the repository.

@@ -32,7 +32,7 @@ Breaking changes
 - **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
   ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime`` instead of PyTorch.
   The package ships ``iclabel.onnx`` in place of ``netICL.mat``.
-  Migration: install ``pip install "eegprep[iclabel]"`` where you installed ``eegprep[torch]`` for ICLabel.
+  Migration: install ``pip install "eegprep[iclabel]"`` (``onnxruntime`` 1.20 or newer) where you installed ``eegprep[torch]`` for ICLabel.
   The ``torch`` extra now installs ``torch`` and ``onnx`` only for rebuilding the packaged network from ``netICL.mat`` (see :ref:`releasing`);
   it is no longer part of ``eegprep[all]`` and its floor is ``torch>=2.4``.
 - **BREAKING: ICLabel probabilities differ slightly from 0.4.0.**

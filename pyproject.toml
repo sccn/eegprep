@@ -62,9 +62,11 @@ torch = [
   "torch>=2.4",
   "onnx>=1.14",
 ]
-# Runtime for ICLabel classification (pop_iclabel, iclabel).
+# Runtime for ICLabel classification (pop_iclabel, iclabel). 1.20 is the first release usable with
+# the base numpy>=2.1 on every supported Python: 1.18.1 pins numpy<2 (1.18.0 is built against numpy
+# 1.x), 1.19 added numpy 2 support, and 1.20 added the first cp313 wheels (requires-python is >=3.12).
 iclabel = [
-  "onnxruntime>=1.18",
+  "onnxruntime>=1.20",
 ]
 gui = [
   "pyqtgraph>=0.13.7",

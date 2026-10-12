@@ -89,7 +89,7 @@ missing.
      - Installs
      - Needed for
    * - ``iclabel``
-     - ``onnxruntime``
+     - ``onnxruntime`` 1.20 or newer
      - ``pop_iclabel`` and ``iclabel`` component classification.
    * - ``gui``
      - ``PySide6``, ``pyqtgraph``
