@@ -19,7 +19,8 @@ def fit_eeg_distribution(
 
     This function estimates the mean and standard deviation of clean EEG from a
     sample of amplitude values (that have preferably been computed over short
-    windows) that may include a large fraction of contaminated samples. The
+    windows) that may include a large fraction of contaminated samples. An empty
+    sample, or a search that does not identify a distribution, returns NaNs. The
     clean EEG is assumed to represent a generalized Gaussian component in a
     mixture with near-arbitrary artifact components. By default, at least 25%
     (MinCleanFraction) of the data must be clean EEG, and the rest can be
@@ -105,6 +106,8 @@ def fit_eeg_distribution(
     # --- Sort data so we can access quantiles directly ---
     # Ensure X is a numpy array, convert to float (like MATLAB's double), flatten
     X = np.asarray(X, dtype=float).flatten()
+    if X.size == 0:
+        return np.nan, np.nan, np.nan, np.nan
     X.sort()
     n = len(X)
 
