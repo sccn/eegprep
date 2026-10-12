@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -31,6 +32,30 @@ RESTART_READY_TIMEOUT = 300
 
 class MatlabExecutionError(Exception):
     pass
+
+
+def _bash_executable() -> str:
+    """Return a bash that can run ``restart.sh`` inside the batch directory.
+
+    Windows puts ``System32\\bash.exe`` on ``PATH``. That file is the WSL
+    launcher: it does not execute a Windows ``restart.sh`` against the batch
+    directory, so the restart marker never appears. Git Bash does.
+    """
+    if os.name != "nt":
+        return "bash"
+    program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+    for candidate in (
+        Path(program_files) / "Git" / "bin" / "bash.exe",
+        Path(program_files) / "Git" / "usr" / "bin" / "bash.exe",
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    found = shutil.which("bash")
+    if found is not None and "system32" not in Path(found).as_posix().lower():
+        return found
+    raise FileNotFoundError(
+        "restart.sh needs Git Bash; Windows System32 bash.exe is the WSL launcher and cannot run it"
+    )
 
 
 def _tag(tag, value=0.0):
@@ -171,7 +196,14 @@ class BatchEngine:
             return
         ready = self.directory / "ready"
         ready.unlink(missing_ok=True)
-        subprocess.run(["bash", str(script)], check=False, cwd=self.directory, timeout=120)
+        # check=True: a restart that did not run must not look like a timeout.
+        # as_posix() keeps Git Bash from treating backslashes in the script path as escapes.
+        subprocess.run(
+            [_bash_executable(), script.as_posix()],
+            check=True,
+            cwd=self.directory,
+            timeout=120,
+        )
         deadline = time.monotonic() + RESTART_READY_TIMEOUT
         while not ready.exists() and time.monotonic() < deadline:
             time.sleep(0.05)
