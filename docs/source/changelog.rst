@@ -7,6 +7,25 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
+Unreleased
+==========
+
+- ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
+  EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
+  outputs plus the figure. Sorting, smoothing and decimation, phase and
+  amplitude sorting, coherence with bootstrap significance, amplitude images,
+  time warping and axis limits match MATLAB R2025b, computed by a NumPy-only
+  engine. ``erpimage(data, times=..., sort_values=..., smooth=...)`` calls
+  become ``erpimage(data, sortvar, times, title, avewidth, decimate, ...)``,
+  and ``plot_erp``, ``chan_locs`` and ``channel_index`` become ``erp`` and
+  ``topo``. Defaults now follow EEGLAB (no ERP trace, no colorbar). The
+  ``erpalpha`` permutation test uses unbiased random signs, so its thresholds
+  differ slightly from EEGLAB's
+  (`sccn/eeglab#976 <https://github.com/sccn/eeglab/issues/976>`_); see
+  :ref:`erpimage_api` for every difference.
+- ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
+  including the sortvar trace at the right edge and rounded ERP axis ticks.
+
 Version 0.4.0
 =============
 

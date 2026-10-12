@@ -5370,12 +5370,12 @@
       "eegprep_equivalent": "src/eegprep/functions/sigprocfunc/erpimage.py",
       "gap_category": "1_long_tail_helper_coverage",
       "status": "implemented",
-      "rationale": "EEGPrep has a same-name implementation at src/eegprep/functions/sigprocfunc/erpimage.py; keep this row as the parity contract.",
+      "rationale": "Faithful port: the NumPy engine erpimage_engine.py reproduces every erpimage.m output (sorting, movav smoothing and decimation, phasecoher amplitude/ITC with bootstrap, ERP limits) and erpimage.py draws the EEGLAB figure. Documented deviations: sortidx indexes the input trials, 'noplot' hides only the sortvar trace, 'erpalpha' uses unbiased permutation signs (sccn/eeglab#976), and input errors raise.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Preserve existing focused tests; add MATLAB parity only when later changes alter behavior or expose option gaps."
+      "test_notes": "tests/test_erpimage_engine.py compares 42 MATLAB R2025b scenarios from tests/matlab/erpimage_engine_fixtures.mat (rtol 1e-12; live regeneration when MATLAB is available) plus properties; tests/test_erpimage.py covers the plot layer and the pinned EEGLAB erpimage reference contracts."
     },
     {
       "eeglab_path": "functions/sigprocfunc/eventalign.m",
