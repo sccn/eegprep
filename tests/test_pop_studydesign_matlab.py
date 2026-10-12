@@ -162,6 +162,20 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
+def _struct_rows(value: Any) -> list[dict[str, Any]]:
+    """Return one dict per MATLAB struct, including a 1xN struct array."""
+    value = _plain(value)
+    if isinstance(value, dict):
+        return [value]
+    if not isinstance(value, list):
+        return []
+    if len(value) == 1 and isinstance(value[0], list):
+        value = value[0]
+    if all(isinstance(item, dict) for item in value):
+        return value
+    return []
+
+
 def _canonical_value(value: Any) -> Any:
     value = _plain(value)
     if isinstance(value, list):
@@ -176,9 +190,9 @@ def _canonical_value(value: Any) -> Any:
 
 def _canonical_designs(designs: Any) -> list[dict[str, Any]]:
     output = []
-    for design in _as_list(designs):
+    for design in _struct_rows(designs):
         variables = []
-        for variable in _as_list(design.get("variable")):
+        for variable in _struct_rows(design.get("variable")):
             if not isinstance(variable, dict) or not variable.get("label"):
                 continue
             extra = set(variable) - set(_VARIABLE_FIELDS) - {"levelindex"}

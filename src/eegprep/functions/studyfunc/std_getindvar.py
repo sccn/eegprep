@@ -96,8 +96,7 @@ def _append_trial_factors(
             for value in values
         ]
         subjects.append(value_subjects)
-        # String trial factors are paired. Numeric trial factors are not.
-        paired.append("off" if _numeric_values(values) else "on")
+        paired.append("on" if _paired_subject_sets(value_subjects) else "off")
 
 
 def _append_design_values(study: dict[str, Any], factors: list[str], factorvals: list[list[Any]]) -> None:
@@ -136,10 +135,6 @@ def _same_subjects(value_subjects: list[list[Any]]) -> bool:
         return True
     first = value_subjects[0]
     return all(subjects == first for subjects in value_subjects)
-
-
-def _numeric_values(values: list[Any]) -> bool:
-    return bool(values) and all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in values)
 
 
 def _paired_subject_sets(value_subjects: list[list[Any]]) -> bool:

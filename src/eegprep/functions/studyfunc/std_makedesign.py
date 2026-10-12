@@ -156,7 +156,7 @@ def _design_variables(
             "label": label,
             "value": parsed_values,
             "vartype": vartype_text,
-            "pairing": paired_by_label.get(label, "off" if vartype_text == "continuous" else "on"),
+            "pairing": "off" if vartype_text == "continuous" else paired_by_label.get(label, "on"),
             "levelindex": list(range(1, len(parsed_values) + 1)),
         }
         variables.append(variable)
