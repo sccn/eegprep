@@ -174,10 +174,13 @@ jobs:
 
       - name: Smoke test the built wheel
         run: |
-          # shellcheck disable=SC1087
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck
           wheel=$(ls dist/*.whl)
+          # Pin onnxruntime to the uv.lock version that produced
+          # tools/iclabel/parity_report.json and that the test suite runs, so the
+          # released model is smoke-tested on the runtime it was validated with.
+          # Users still get any version the iclabel extra allows; bump this with uv.lock.
           VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep
@@ -194,7 +197,7 @@ jobs:
           eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
           labeled = pop_iclabel(eeg, 'default')
           probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
-          assert probabilities.ndim == 2 and probabilities.shape.__getitem__(1) == 7
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
           assert np.isfinite(probabilities).all()
           print('installed-wheel ICLabel smoke test passed')
 
@@ -207,10 +210,10 @@ jobs:
 
       - name: Smoke test the built sdist
         run: |
-          # shellcheck disable=SC1087
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck-sdist
           sdist=$(ls dist/*.tar.gz)
+          # Same onnxruntime pin as the wheel smoke test above.
           VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.30.0"
           VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
           import eegprep
@@ -227,7 +230,7 @@ jobs:
           eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
           labeled = pop_iclabel(eeg, 'default')
           probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
-          assert probabilities.ndim == 2 and probabilities.shape.__getitem__(1) == 7
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
           assert np.isfinite(probabilities).all()
           print('installed-sdist ICLabel smoke test passed')
 
