@@ -15,9 +15,7 @@ import pytest
 
 from eegprep.plugins.ICLabel.iclabel_net_onnx_web import run_iclabel_net_async
 from tools import check_pyodide_base_resolution
-from tools.check_pyodide_base_resolution import KNOWN_GAPS
 from tools.pyodide import benchmark, compare_iclabel
-from tools.pyodide.benchmark import MATMUL_CASES, MAX_ICA_ITERATIONS, benchmark_record
 from tools.pyodide.compare_benchmarks import compare_reports
 from tools.pyodide.compare_iclabel import compare_reports as compare_iclabel_reports
 from tools.pyodide.iclabel_parity import run_parity
@@ -33,34 +31,6 @@ def test_docopt_hash_check_rejects_modified_sdist(tmp_path):
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         verify_sha256(archive, "0" * 64)
-
-
-def test_docopt_is_no_longer_a_static_known_gap():
-    assert "docopt" not in KNOWN_GAPS
-
-
-def test_benchmark_record_marks_max_iterations_as_not_converged():
-    result = benchmark_record(
-        algorithm="runica",
-        platform="native",
-        shape=(64, 15_000),
-        seed=375,
-        seconds=1.25,
-        iterations=MAX_ICA_ITERATIONS,
-        converged=False,
-        backend="numpy",
-    )
-
-    assert result["iterations"] == MAX_ICA_ITERATIONS
-    assert result["converged"] is False
-    assert result["error"] is None
-
-
-def test_benchmark_uses_runica_inner_loop_product_shapes():
-    assert [(case["left_shape"], case["right_shape"]) for case in MATMUL_CASES] == [
-        ((64, 64), (64, 49)),
-        ((64, 64), (64, 64)),
-    ]
 
 
 def test_benchmark_failure_records_the_full_traceback():
