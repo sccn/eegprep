@@ -60,7 +60,7 @@ Install the default development environment:
 ``uv sync`` creates ``.venv/`` and installs EEGPrep in editable mode from the
 locked dependency set. The development environment includes the GUI and
 ``eegprep-console`` runtime dependencies so ``uv run eegprep-console --full``
-works from a fresh checkout, and ONNX Runtime (the ``iclabel`` extra) because the
+works from a fresh checkout, and Open Neural Network Exchange (ONNX) Runtime (the ``iclabel`` extra) because the
 gallery examples and tests run ICLabel. Use ``uv run`` for commands so they
 execute inside this environment.
 

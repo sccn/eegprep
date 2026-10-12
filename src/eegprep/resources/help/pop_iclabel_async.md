@@ -14,7 +14,7 @@ Inputs and results are the same as POP_ICLABEL: `EEG`, `icversion`, `gui`,
 Behavior:
 
 - Use it in Pyodide/Emscripten, where the synchronous `pop_iclabel` and `iclabel`
-  raise `RuntimeError` because ONNX Runtime Web is asynchronous.
+  raise `RuntimeError` because Open Neural Network Exchange (ONNX) Runtime Web is asynchronous.
 - On native Python it runs the same `onnxruntime` network as `pop_iclabel`, so it needs
   the `iclabel` extra (`pip install "eegprep[iclabel]"`) there as well.
 - `engine='matlab'` and `engine='octave'` are not available under Pyodide/Emscripten.

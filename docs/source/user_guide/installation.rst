@@ -122,7 +122,7 @@ ICLabel (component classification)
 -----------------------------------
 
 ``pop_iclabel`` and ``iclabel`` classify independent components with a packaged
-ONNX network run by ``onnxruntime``. Install the ``iclabel`` extra to enable
+Open Neural Network Exchange (ONNX) network run by ``onnxruntime``. Install the ``iclabel`` extra to enable
 them:
 
 .. code-block:: bash
@@ -163,7 +163,8 @@ WebAssembly build. Install it with the ``eeglab`` extra:
     uv add "eegprep[eeglab]"
 
 Without this extra, calling ``get_eeglab('OCT')`` raises an ``ImportError``
-naming this extra.
+naming this extra, provided an EEGLAB checkout is found first (``EEGPREP_EEGLAB_ROOT``
+or a checkout next to the repository); otherwise it reports the missing checkout.
 
 System-Aware Parallel Jobs
 ---------------------------

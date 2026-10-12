@@ -22,7 +22,7 @@ Breaking changes
   Each feature raises an ``ImportError`` that names the extra and keeps the original cause when it is missing.
   Migration:
 
-  - ``get_eeglab('OCT')`` and the other Octave parity helpers now need ``pip install "eegprep[eeglab]"`` (``oct2py``).
+  - ``get_eeglab('OCT')`` and the other Octave parity helpers now need ``pip install "eegprep[eeglab]"`` (``oct2py``); the error naming the extra appears once an EEGLAB checkout is found, and a missing checkout is reported first.
   - ``num_jobs_from_reservation`` with a memory reservation such as ``"4GB"``, and ``ReservePerJob`` in ``bids_preproc``, now need ``pip install "eegprep[sys]"`` (``psutil``).
     CPU reservations such as ``"2CPU"`` do not.
   - ``pop_writeeeg`` now imports ``pyedflib`` only when it writes European Data Format (EDF) or BioSemi Data Format (BDF) files, which need ``pip install "eegprep[edf]"``.
@@ -30,7 +30,7 @@ Breaking changes
   - ``eegprep[all]`` installs all three.
 
 - **BREAKING: ICLabel needs the** ``iclabel`` **extra, and** ``eegprep[torch]`` **no longer enables it.**
-  ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime`` instead of PyTorch.
+  ``iclabel`` and ``pop_iclabel`` now classify with ``onnxruntime``, the Open Neural Network Exchange (ONNX) runtime, instead of PyTorch.
   The package ships ``iclabel.onnx`` in place of ``netICL.mat``.
   Migration: install ``pip install "eegprep[iclabel]"`` (``onnxruntime`` 1.20 or newer) where you installed ``eegprep[torch]`` for ICLabel.
   The ``torch`` extra now installs ``torch`` and ``onnx`` only for rebuilding the packaged network from ``netICL.mat`` (see :ref:`releasing`);
@@ -69,12 +69,12 @@ Added
 -----
 
 - Added the asynchronous ICLabel path for Pyodide and Emscripten, which run Python in the browser through WebAssembly.
-  It classifies through ONNX Runtime Web (the JavaScript build of the Open Neural Network Exchange runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
+  It classifies through ONNX Runtime Web (the JavaScript build of the ONNX runtime) and the host-provided ``globalThis.eegprep_iclabel_web`` bridge described in :doc:`user_guide/plugins`.
   ``iclabel_async`` and ``pop_iclabel_async`` keep the native post-processing, the console history, and the GUI and console session synchronization.
   The synchronous ``iclabel`` and ``pop_iclabel`` raise ``RuntimeError`` there.
   Browser execution is checked against native classification for parity.
 - Added a pinned Pyodide 0.29.5 harness and a continuous integration (CI) gate that installs the working-tree wheel, runs a continuous sample-data smoke pipeline, and records one-thread ``runica`` and Picard benchmarks plus benchmarks of the matrix products (basic linear algebra subprograms, BLAS) that ``runica`` performs.
-  See :doc:`pyodide_benchmark`.
+  The harness needs ``uv``, Node.js 22 or newer, and Bun (``bun install --frozen-lockfile`` from ``tools/pyodide/bun.lock``); see :doc:`pyodide_benchmark`.
   Pyodide Web Workers are documented as the browser responsiveness and independent-job concurrency boundary, not as threading inside one independent component analysis (ICA) run.
 - ``runica`` can use ``scipy.linalg.blas.dgemm`` for its matrix products under Emscripten; native platforms keep ``numpy.matmul``.
 - Added the ``edf`` extra (``pyedflib``) and the quoted install hints ``pip install "eegprep[extra]"`` in the optional-dependency errors, which also work in zsh.

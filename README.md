@@ -51,7 +51,7 @@ uv add eegprep
 ```
 
 To install all optional extras, including GUI, console, docs, the ICLabel
-runtime (ONNX Runtime), EDF/BDF export, MATLAB/Octave parity, and system-aware
+runtime (Open Neural Network Exchange (ONNX) Runtime), EDF/BDF export, MATLAB/Octave parity, and system-aware
 job scheduling dependencies, use:
 
 ```bash
