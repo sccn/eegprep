@@ -290,10 +290,15 @@ jobs:
   base-install:
     name: Base install without optional extras
     runs-on: ubuntu-22.04
-    # Every other job syncs with --all-extras, so a module that quietly needs
-    # an extra (oct2py, psutil, pyedflib, onnxruntime, torch) would pass CI and
-    # fail for a user who runs a plain `pip install eegprep`. This job installs
-    # only the base dependencies and the dev group.
+    # The lint and test jobs sync --all-extras and the other jobs add the extras
+    # they need (pyodide: iclabel and torch; docs.yml: docs and iclabel), so a
+    # module that quietly needs an optional package can pass them and still fail
+    # for a user of a plain `pip install eegprep`. This job installs only the
+    # base dependencies and the dev group. The dev group itself brings pyedflib,
+    # pyqtgraph, PySide6 and ipython, so this install alone cannot catch an
+    # unguarded pyedflib or GUI import: tests/test_optional_extras.py blocks each
+    # optional package explicitly, and this install keeps oct2py, psutil,
+    # onnxruntime and torch out.
     steps:
       - uses: actions/checkout@v4
 
