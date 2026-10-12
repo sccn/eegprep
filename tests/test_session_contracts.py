@@ -63,33 +63,91 @@ def test_currentset_empty_single_and_multiple_console_values():
     assert session.current_set_value() == [1, 2]
 
 
-def test_dataset_state_token_changes_when_session_notifies():
+def _session_with(*setnames):
+    session = EEGPrepSession()
+    for setname in setnames:
+        eeg = create_test_eeg(n_channels=2, n_samples=8)
+        eeg["setname"] = setname
+        eeg["etc"] = {"note": "kept"}
+        session.store_current(eeg, new=True)
+    return session
+
+
+def test_dataset_state_token_changes_when_a_dataset_is_stored():
     session = EEGPrepSession()
     token = session.dataset_state_token()
 
     session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
 
-    assert not session.dataset_state_unchanged(token)
+    assert session.dataset_state_token() != token
 
 
-def test_dataset_state_token_ignores_history_only_changes():
-    session = EEGPrepSession()
-    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+@pytest.mark.parametrize(
+    "change",
+    (
+        lambda session: session.add_history("plot(EEG);"),
+        lambda session: session.mark_current_saved(),
+        lambda session: session.EEG.update(history="edited history"),
+        lambda session: session.ALLEEG[0].update(setname="unselected edit"),
+    ),
+    ids=("session-history", "saved-flag", "dataset-history", "unselected-dataset"),
+)
+def test_dataset_state_token_ignores_history_saved_flag_and_unselected_datasets(change):
+    session = _session_with("unselected", "selected")
     token = session.dataset_state_token()
 
-    session.add_history("plot(EEG);")
+    change(session)
 
-    assert session.dataset_state_unchanged(token)
+    assert session.dataset_state_token() == token
 
 
-def test_dataset_state_token_detects_saved_dataset_mutations():
-    session = EEGPrepSession()
-    session.store_current(create_test_eeg(n_channels=2, n_samples=8), new=True)
+@pytest.mark.parametrize(
+    "change",
+    (
+        lambda session: session.EEG["data"].__setitem__((0, 0), 9.0),
+        lambda session: np.putmask(session.EEG["data"], session.EEG["data"] > 0, 0.0),
+        lambda session: session.EEG["chanlocs"][0].update(labels="renamed"),
+        lambda session: session.EEG["etc"].update(history="nested history is dataset content"),
+        lambda session: session.ALLEEG[1].update(setname="edited slot"),
+    ),
+    ids=("data-sample", "putmask", "nested-chanloc", "nested-history-key", "selected-slot-alias"),
+)
+def test_dataset_state_token_detects_in_place_edits_of_selected_datasets(change):
+    session = _session_with("unselected", "selected")
+    session.retrieve(2)
+    assert session.EEG is not session.ALLEEG[1]
     token = session.dataset_state_token()
 
-    session.mark_current_saved()
+    change(session)
 
-    assert not session.dataset_state_unchanged(token)
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_detects_edit_in_last_chunk_of_fortran_data():
+    session = EEGPrepSession()
+    eeg = create_test_eeg(n_channels=2, n_samples=8)
+    eeg["data"] = np.asfortranarray(np.zeros((3, 700_000), dtype=np.float32))
+    eeg["nbchan"], eeg["pnts"] = eeg["data"].shape
+    session.store_current(eeg, new=True)
+    assert session.EEG["data"].flags.f_contiguous
+    token = session.dataset_state_token()
+
+    session.EEG["data"][-1, -1] = 1.0
+
+    assert session.dataset_state_token() != token
+
+
+def test_dataset_state_token_matches_again_after_an_edit_is_reverted():
+    # Only content is compared, so a result computed from the restored values is still valid.
+    session = _session_with("selected")
+    token = session.dataset_state_token()
+    original = session.EEG["data"][0, 0]
+
+    session.EEG["data"][0, 0] = original + 1.0
+    assert session.dataset_state_token() != token
+    session.EEG["data"][0, 0] = original
+
+    assert session.dataset_state_token() == token
 
 
 def test_dataset_state_token_detects_selected_slot_replacement_without_notification():
@@ -100,7 +158,7 @@ def test_dataset_state_token_detects_selected_slot_replacement_without_notificat
     session.ALLEEG[0] = replacement
     session.EEG = replacement
 
-    assert not session.dataset_state_unchanged(token)
+    assert session.dataset_state_token() != token
 
 
 def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
@@ -117,7 +175,25 @@ def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
 
     np.asarray(session.EEG["data"])[0, 0] = 9.0
 
-    assert not session.dataset_state_unchanged(token)
+    assert session.dataset_state_token() != token
+
+
+def test_require_dataset_state_unchanged_names_the_function_and_the_change():
+    session = _session_with("first", "second")
+    token = session.dataset_state_token()
+    session.require_dataset_state_unchanged(token, "pop_iclabel_async")
+
+    session.EEG["setname"] = "edited"
+    with pytest.raises(
+        RuntimeError, match=r"pop_iclabel_async result discarded because the selected dataset was modified"
+    ):
+        session.require_dataset_state_unchanged(token, "pop_iclabel_async")
+
+    session.retrieve(1)
+    with pytest.raises(
+        RuntimeError, match=r"ICLabel result discarded because the dataset selection changed.*Run ICLabel again"
+    ):
+        session.require_dataset_state_unchanged(token, "ICLabel")
 
 
 @pytest.mark.parametrize(

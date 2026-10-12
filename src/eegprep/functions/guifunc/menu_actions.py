@@ -1351,8 +1351,7 @@ class MenuActionDispatcher:
 
         target_state = self.session.dataset_state_token()
         out = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
-        if not self.session.dataset_state_unchanged(target_state):
-            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+        self.session.require_dataset_state_unchanged(target_state, "ICLabel")
         eeg_out, command = out[0], out[1] if isinstance(out, tuple) and len(out) > 1 else ""
         if command:
             store_kwargs = {"command": command}
@@ -1462,7 +1461,7 @@ class MenuActionDispatcher:
         if command:
             self.session.echo_command(command)
             self.session.add_history(command, notify=False)
-            self.session.notify_changed(dataset_changed=True)
+            self.session.notify_changed()
             self._refresh()
 
     def _select_study_set(self, parent: Any | None) -> None:

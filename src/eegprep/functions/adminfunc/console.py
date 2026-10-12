@@ -21,7 +21,12 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
-from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
+from eegprep.functions.guifunc.session import (
+    DatasetStateToken,
+    EEGPrepSession,
+    follow_dataset_selection,
+    normalize_dataset_indices,
+)
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
@@ -48,7 +53,6 @@ _BROWSER_ACCEPT_POP_FUNCTIONS = {
     "pop_rejspec",
     "pop_rejtrend",
 }
-_IN_PLACE_DATASET_POP_FUNCTIONS = frozenset({"pop_saveset"})
 
 
 class ConsolePopResult:
@@ -214,13 +218,12 @@ class ConsoleAsyncFunction(LazyWorkspaceExport):
 
     async def _call_async(
         self,
-        target_state: tuple[Any, ...],
+        target_state: DatasetStateToken,
         *args: Any,
         **kwargs: Any,
     ) -> Any:
         result = await self.resolve()(*args, **kwargs)
-        if not self.bridge.session.dataset_state_unchanged(target_state):
-            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+        self.bridge.session.require_dataset_state_unchanged(target_state, self.name)
         return result
 
     def __repr__(self) -> str:
@@ -292,18 +295,11 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 self.bridge._pop_updated_session = True
                 self.bridge.pull_from_session()
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
-        eeg_result, result_command = _extract_pop_eeg_and_command(result)
-        if (
-            self.name in _IN_PLACE_DATASET_POP_FUNCTIONS
-            and not result_command
-            and eeg_result is self.bridge.session.EEG
-        ):
-            self.bridge.session.notify_changed(dataset_changed=True)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     async def _call_async(
         self,
-        target_state: tuple[Any, ...],
+        target_state: DatasetStateToken,
         *args: Any,
         **kwargs: Any,
     ) -> Any:
@@ -312,8 +308,7 @@ class ConsolePopFunction(LazyWorkspaceExport):
         if _accepts_return_com(function) and "return_com" not in call_kwargs:
             call_kwargs["return_com"] = True
         result = await function(*args, **call_kwargs)
-        if not self.bridge.session.dataset_state_unchanged(target_state):
-            raise RuntimeError("ICLabel result discarded because the session changed while it was running.")
+        self.bridge.session.require_dataset_state_unchanged(target_state, self.name)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
     def __repr__(self) -> str:

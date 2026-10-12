@@ -134,7 +134,7 @@ class PopIclabelGuiTests(unittest.TestCase):
                 session.mark_current_saved()
                 session.store_current(_eeg("second"), new=True)
                 release.set()
-                with self.assertRaisesRegex(RuntimeError, "session changed"):
+                with self.assertRaisesRegex(RuntimeError, "discarded"):
                     await task
 
         asyncio.run(scenario())
