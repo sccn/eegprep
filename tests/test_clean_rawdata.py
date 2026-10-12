@@ -1,15 +1,12 @@
 import logging
 import os
 import unittest
-import warnings
 
 if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
 from copy import deepcopy
 
 import numpy as np
-import scipy.linalg
-import scipy.signal
 
 from eegprep import (
     clean_artifacts,
@@ -22,9 +19,6 @@ from eegprep import (
     pop_loadset,
 )
 from eegprep.functions.adminfunc import eeglabcompat
-from eegprep.plugins.clean_rawdata.asr_calibrate_r import _block_outer_sums, asr_calibrate_r
-from eegprep.plugins.clean_rawdata.private.riemann import rasr_nonlinear_eigenspace
-from eegprep.plugins.clean_rawdata.private.stats import geometric_median
 from eegprep.utils.testing import DebuggableTestCase, compare_eeg, is_debug, use_64bit_eeg_options
 from tests.fixtures import create_test_eeg, matlab_engine_available
 
@@ -176,49 +170,12 @@ class TestCleanASR(DebuggableTestCase):
         )
 
 
-def _flat_gap(name, left, right):
-    """Max absolute gap after flattening, plus shapes when they disagree."""
-    left = np.real(np.asarray(left, dtype=float))
-    right = np.real(np.asarray(right, dtype=float))
-    if left.shape != right.shape:
-        return f'{name}: shape {left.shape} vs {right.shape}'
-    gap = float(np.max(np.abs(left - right))) if left.size else 0.0
-    scale = float(np.max(np.abs(right))) if right.size else 0.0
-    return f'{name}: maxabs {gap:.3e} rel {gap / (scale + 1e-30):.3e}'
-
-
-def _basis_gap(left, right):
-    """Max absolute gap after matching eigenvector column signs."""
-    left = np.real(np.asarray(left, dtype=float))
-    right = np.real(np.asarray(right, dtype=float))
-    if left.shape != right.shape:
-        return f'shape {left.shape} vs {right.shape}'
-    aligned = right.copy()
-    for column in range(left.shape[1]):
-        if np.dot(left[:, column], aligned[:, column]) < 0:
-            aligned[:, column] *= -1
-    return float(np.max(np.abs(left - aligned)))
-
-
-def _robust_covariance(data, numerator, denominator):
-    """Block geometric-median covariance used by asr_calibrate_r."""
-    channels, samples = data.shape
-    blocksize = max(10, int(np.ceil((channels * channels * samples * 8 * 3 * 2) / (64 * (2**21)))))
-    filtered = scipy.signal.lfilter(numerator, denominator, np.nan_to_num(data), axis=1)
-    outers = _block_outer_sums(filtered, blocksize)
-    vectors = np.swapaxes(outers, -1, -2).reshape(outers.shape[0], -1) / blocksize
-    median = geometric_median(vectors)
-    return np.real(np.reshape(median, (channels, channels), order='F'))
-
-
 @unittest.skipUnless(matlab_engine_available(), 'MATLAB engine not available or skipped')
 class TestRiemannianASRMatlab(DebuggableTestCase):
     """MATLAB reference for clean_asr(..., useriemannian=True).
 
-    Compares cleaned samples against EEGLAB clean_asr with Riemannian processing.
-    The MATLAB session needs the Manopt paths from eegplugin_clean_rawdata.
-    The reference call goes through the batch engine with a double-precision
-    struct so pop_loadset cannot downcast the burst to single.
+    The batch engine receives a double-precision struct. The .set round-trip
+    stores this burst in single precision and disagrees by about 2e-6.
     """
 
     def test_clean_asr_riemannian_matches_matlab(self):
@@ -231,8 +188,6 @@ class TestRiemannianASRMatlab(DebuggableTestCase):
         eeg['data'] = data
 
         cleaned = clean_asr(deepcopy(eeg), cutoff=5, ref_maxbadchannels='off', useriemannian=True, maxmem=64)
-        py_state = asr_calibrate_r(data, eeg['srate'], cutoff=5, maxmem=64)
-        robust = _robust_covariance(data, py_state['B'], py_state['A'])
         engine = eeglabcompat.get_eeglab('MAT', auto_file_roundtrip=False)
         signal = {
             'data': data,
@@ -242,53 +197,14 @@ class TestRiemannianASRMatlab(DebuggableTestCase):
             'trials': 1.0,
             'xmin': 0.0,
         }
-        lines = []
-        try:
-            mat_state = engine.asr_calibrate_r(
-                data, float(eeg['srate']), 5.0, None, None, None, None, None, None, None, 64.0
-            )
-            lines.append(_flat_gap('B', py_state['B'], mat_state['B']))
-            lines.append(_flat_gap('A', py_state['A'], mat_state['A']))
-            lines.append(_flat_gap('M', py_state['M'], mat_state['M']))
-            lines.append(_flat_gap('T', py_state['T'], mat_state['T']))
-            filtered = engine.filter(np.ravel(py_state['B']), np.ravel(py_state['A']), data, None, 2.0)
-            py_filtered = scipy.signal.lfilter(np.ravel(py_state['B']), np.ravel(py_state['A']), data, axis=1)
-            lines.append(_flat_gap('filter', py_filtered, filtered))
-            mat_sqrt = engine.sqrtm(robust)
-            lines.append(_flat_gap('sqrtm', scipy.linalg.sqrtm(robust), mat_sqrt))
-            py_vectors, py_values = rasr_nonlinear_eigenspace(py_state['M'], data.shape[0])
-            mat_vectors, mat_values = engine.rasr_nonlinear_eigenspace(
-                np.real(py_state['M']), float(data.shape[0]), nargout=2
-            )
-            order = np.argsort(np.real(np.diag(np.asarray(py_values, dtype=float))))
-            mat_order = np.argsort(np.real(np.diag(np.asarray(mat_values, dtype=float))))
-            lines.append(
-                'rasr basis on Python M: maxabs '
-                f'{_basis_gap(py_vectors[:, order], np.asarray(mat_vectors, dtype=float)[:, mat_order]):.3e}'
-            )
-            expected = engine.clean_asr(signal, 5.0, None, None, None, 'off', None, None, False, True, 64.0)
-            expected_data = np.asarray(expected['data'] if isinstance(expected, dict) else expected, dtype=float)
-            lines.append(_flat_gap('clean_asr double', cleaned['data'], expected_data))
-        except Exception as exc:
-            expected_data = None
-            lines.append(f'raw MATLAB path failed: {type(exc).__name__}: {exc}')
-        eeglab = eeglabcompat.get_eeglab('MAT')
-        wrapped = eeglab.clean_asr(eeg, 5.0, [], [], [], 'off', [], [], False, True, 64.0)
-        lines.append(_flat_gap('clean_asr file roundtrip', cleaned['data'], wrapped['data']))
-        single = data.astype(np.float32).astype(np.float64)
-        eeg_single = deepcopy(eeg)
-        eeg_single['data'] = single
-        cleaned_single = clean_asr(eeg_single, cutoff=5, ref_maxbadchannels='off', useriemannian=True, maxmem=64)
-        lines.append(_flat_gap('python float32 input vs file roundtrip', cleaned_single['data'], wrapped['data']))
-        warnings.warn('Riemannian ASR stages | ' + ' | '.join(lines), UserWarning, stacklevel=1)
-        if expected_data is None:
-            raise AssertionError(' | '.join(lines))
+        expected = engine.clean_asr(signal, 5.0, None, None, None, 'off', None, None, False, True, 64.0)
         compare_eeg(
             cleaned['data'],
-            expected_data,
+            np.asarray(expected['data'], dtype=float),
             atol=0,
             rtol=1e-6,
-            err_msg='Riemannian clean_asr() failed vs MATLAB | ' + ' | '.join(lines),
+            use_32_bit=False,
+            err_msg='Riemannian clean_asr() failed vs MATLAB',
         )
 
 

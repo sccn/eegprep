@@ -272,27 +272,11 @@ def geometric_median(X, tol=1.0e-5, y=None, max_iter=500):
         if y.shape != (X.shape[1],):
             raise ValueError(f"Initial guess y must have shape ({X.shape[1]},) matching the number of features in X.")
 
-    # Small constant to prevent division by zero if a point coincides with the median
-    epsilon = 1e-9
-
     for i in range(max_iter):
-        # X shape: (n_samples, n_features), y shape: (n_features,)
-        # Broadcasting makes (X - y) shape (n_samples, n_features)
-        squared_distances = np.sum((X - y) ** 2, axis=1)
-
-        # Calculate inverse norms (distances). Add epsilon for numerical stability.
-        invnorms = 1.0 / np.sqrt(squared_distances + epsilon)
-
-        # Check for exact matches (where distance is near zero)
-        # If a data point coincides with the current estimate, its weight should be handled carefully.
-        # Weiszfeld's algorithm can be sensitive here. A common approach is to give these points
-        # large weight or handle them separately, but simply adding epsilon often suffices.
-        # Here, the epsilon already prevents division by zero.
-
-        # Weighted average: sum(X * weights) / sum(weights)
-        # weights are invnorms. Need to broadcast invnorms for element-wise multiplication.
-        # invnorms shape: (n_samples,), X shape: (n_samples, n_features)
-        # X * invnorms[:, np.newaxis] has shape (n_samples, n_features)
+        # geometric_median.m weights each sample by 1/distance.
+        distances = np.sqrt(np.sum((X - y) ** 2, axis=1))
+        invnorms = np.zeros_like(distances)
+        np.divide(1.0, distances, out=invnorms, where=distances > 0)
         new_y = np.sum(X * invnorms[:, np.newaxis], axis=0) / np.sum(invnorms)
 
         oldy = y
