@@ -24,8 +24,8 @@ from eegprep.functions.popfunc.pop_newset import pop_newset
 
 logger = logging.getLogger(__name__)
 _IS_EMSCRIPTEN = sys.platform == "emscripten"
-# Actions whose backend is an awaitable JavaScript Promise under Emscripten.
-_ASYNC_MENU_ACTIONS = frozenset({"pop_iclabel"})
+# The only menu action whose backend is an awaitable JavaScript Promise under Emscripten.
+_ASYNC_ICLABEL_ACTION = "pop_iclabel"
 
 
 def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -287,7 +287,7 @@ class MenuActionDispatcher:
         :meth:`dispatch_gui_async` coroutine is returned instead and the caller must
         schedule it on the running event loop.
         """
-        if _IS_EMSCRIPTEN and action.partition(":")[0] in _ASYNC_MENU_ACTIONS:
+        if _IS_EMSCRIPTEN and action.partition(":")[0] == _ASYNC_ICLABEL_ACTION:
             return self.dispatch_gui_async(action, parent)
         with self.session.gui_action(action):
             try:
@@ -312,7 +312,7 @@ class MenuActionDispatcher:
         through :meth:`dispatch_gui`. ``renderer`` replaces the Qt renderer of the
         ICLabel version dialog, for example in headless hosts and tests.
         """
-        if action.partition(":")[0] not in _ASYNC_MENU_ACTIONS:
+        if action.partition(":")[0] != _ASYNC_ICLABEL_ACTION:
             self.dispatch_gui(action, parent)
             return
         with self.session.gui_action(action):
