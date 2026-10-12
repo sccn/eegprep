@@ -80,8 +80,10 @@ def savefig(figure: Figure, filename: str | os.PathLike[str] | BinaryIO) -> str:
     The file stores the figure, each axes, and the lines, images, and text on
     those axes (data, limits, colors, scales, and labels). Title and axis
     labels are text children indexed by the axes ``special`` vector, which is
-    how ``openfig`` attaches them. Scatter, bars, patches, and legends are
-    omitted. A figure has one colormap, taken from the first image.
+    how ``openfig`` attaches them. Figure text such as a suptitle is stored on
+    the first axes, because ``openfig`` drops text parented to the figure.
+    Scatter, bars, patches, and legends are omitted. A figure has one colormap,
+    taken from the first image.
     ``Interpreter`` is ``none`` so label text is stored literally. Characters
     outside ASCII are replaced (a Unicode minus becomes ``-``) so each MAT
     character array is one byte per character. Mathtext tick labels are stored
@@ -210,11 +212,13 @@ def _figure_node(figure: Figure, handles: Iterator[float]) -> np.ndarray:
     if name:
         properties["Name"] = _ascii(name)
     handle = next(handles)
-    children = [_axes_node(ax, handles) for ax in figure.axes]
-    for text in figure.texts:
-        node = _text_node(text, handles, None)
-        if node is not None:
-            children.append(node)
+    figure_texts = list(figure.texts)
+    children = [_axes_node(ax, handles, figure_texts if index == 0 else ()) for index, ax in enumerate(figure.axes)]
+    if not figure.axes:
+        for text in figure_texts:
+            node = _text_node(text, handles, None)
+            if node is not None:
+                children.append(node)
     return _node("figure", handle, properties, children)
 
 
@@ -234,12 +238,12 @@ def _colormap(figure: Figure) -> np.ndarray:
     return np.asarray(cmap(np.linspace(0.0, 1.0, count)), dtype=np.float64)[:, :3]
 
 
-def _axes_node(ax, handles: Iterator[float]) -> np.ndarray:
+def _axes_node(ax, handles: Iterator[float], figure_texts=()) -> np.ndarray:
     handle = next(handles)
     children: list[np.ndarray] = []
     children.extend(_line_node(line, handles) for line in ax.lines)
     children.extend(_image_node(image, handles) for image in ax.images)
-    for text in ax.texts:
+    for text in (*ax.texts, *figure_texts):
         node = _text_node(text, handles, ax)
         if node is not None:
             children.append(node)

@@ -161,6 +161,8 @@ def test_savefig_stores_figure_axes_line_image_and_text(tmp_path):
         assert "marker" in texts
         assert "channels" in texts
         assert "Export" in texts
+        assert {_matlab_text(child.type) for child in _children(root)} == {"axes"}
+        assert any(_matlab_text(_properties(node).String) == "Export" for node in _by_type(axes_nodes[0], "text"))
         label_children = _children(line_axes)
         special = np.ravel(line_axes.special).astype(int)
         assert special.shape == (4,)
