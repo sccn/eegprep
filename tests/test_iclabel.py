@@ -70,7 +70,9 @@ def test_emscripten_iclabel_never_imports_onnxruntime():
     output = _run_python(
         f"""
         import asyncio
+        import os
         import sys
+        import traceback
 
         from eegprep import pop_loadset
 
@@ -82,13 +84,17 @@ def test_emscripten_iclabel_never_imports_onnxruntime():
             try:
                 call()
             except Exception as exc:
-                print(type(exc).__name__)
+                failing_module = os.path.basename(traceback.extract_tb(exc.__traceback__)[-1].filename)
+                print(type(exc).__name__, failing_module)
         print(sorted(name for name in sys.modules if name.split(".")[0] == "onnxruntime"))
         """
     )
 
-    assert output.splitlines()[0] == 'RuntimeError'
-    assert output.splitlines()[-1] == '[]'
+    sync_failure, async_failure, onnxruntime_modules = output.splitlines()
+    assert sync_failure.startswith('RuntimeError ')
+    # The asynchronous call got through feature extraction to the browser bridge.
+    assert async_failure.endswith(' iclabel_net_onnx_web.py')
+    assert onnxruntime_modules == '[]'
 
 
 @pytest.mark.skipif(not has_optional_dependency('onnxruntime'), reason='needs onnxruntime to prove the block matters')
@@ -163,8 +169,11 @@ def test_unsupported_engine_or_algorithm_is_rejected(sample_eeg, arguments, mess
 
 def test_pop_iclabel_requires_an_ica_decomposition_before_classifying(sample_eeg):
     without_ica = dict(sample_eeg, icaweights=np.empty((0, 0)))
+    # Classifying this one fails with AttributeError, so the ValueError below
+    # shows that every dataset is checked before any is classified.
+    unclassifiable = dict(sample_eeg, icawinv=None)
 
-    for EEG in (without_ica, [sample_eeg, without_ica]):
+    for EEG in (without_ica, [unclassifiable, without_ica]):
         with pytest.raises(ValueError, match='requires an ICA decomposition'):
             pop_iclabel_module.pop_iclabel(EEG, 'default')
         with pytest.raises(ValueError, match='requires an ICA decomposition'):
@@ -190,7 +199,7 @@ def test_pop_iclabel_sync_and_async_classify_alike_with_replayable_history(sampl
 
 
 @pytest.mark.parametrize('engine', ['matlab', 'octave'])
-def test_eeglab_engines_are_unavailable_under_emscripten(emscripten_iclabel, sample_eeg, engine):
+def test_eeglab_engines_are_unavailable_under_emscripten(sample_eeg, emscripten_iclabel, engine):
     _, emscripten_iclabel_module, emscripten_pop_module = emscripten_iclabel
     message = 'MATLAB and Octave engines are unavailable under Emscripten; use engine=None'
 

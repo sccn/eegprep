@@ -189,13 +189,14 @@ def test_frozen_teacher_matches_the_netICL_network():
     with torch.no_grad():
         output = model(*(torch.from_numpy(np.ascontiguousarray(array)) for array in prepare_network_inputs(features)))
 
-    # The teacher came from ONNX Runtime float32 kernels and this reference
-    # from eager PyTorch kernels on the same weights. Measured on the 217
-    # evaluation components: max abs diff 1.19e-06, mean 7.6e-08, the usual
-    # float32 reordering gap between two independent implementations. 1e-5
-    # leaves room for other CPUs while staying 1,500 times below the
-    # 0.015 probability gate, so a different network would fail here.
-    np.testing.assert_allclose(postprocess_network_output(output.numpy()), teacher, rtol=0, atol=1e-5)
+    # The teacher came from ONNX Runtime float32 kernels on macOS arm64 and this
+    # reference from eager PyTorch kernels on the same weights. Measured there
+    # on the 217 evaluation components: max abs diff 1.19e-06, mean 7.6e-08.
+    # rtol=1e-4, atol=1e-5 is the bound this suite already applied to eager
+    # PyTorch versus the float32 ONNX export on the Linux, macOS and Windows CI
+    # runners; at most about 1.1e-4, it is still over 100 times below the 0.015
+    # probability gate, so a different network would fail here.
+    np.testing.assert_allclose(postprocess_network_output(output.numpy()), teacher, rtol=1e-4, atol=1e-5)
 
 
 def test_production_prepare_inputs_match_independent_reference():
