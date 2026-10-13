@@ -69,10 +69,10 @@ def test_dialog_defaults_give_eeglabs_settings(epochs) -> None:
 
 EVERY_FIELD_COMMAND = (
     "pop_erpimage(EEG, 1, 'POz', titleplot='Sorted', smooth=3, decimate=2, sortingtype=['rt'], "
-    "sortingwin=[0, 1000], sortingeventfield='latency', cbar=False, "
+    "sortingwin=[0, 1000], sortingeventfield='latency', erpstd='on', cbar=False, "
     "limits=[-200, 800, -5, 5, -3, 3, 0, 1, 1], caxis=[-10, 10], renorm='yes', align=float('inf'), "
     "nosort=True, noplot=True, phasesort=[100, 25, 10, 12], coher=[10, 10, 0.01], spec=[2, 40], "
-    "vert=[0, 500], erpstd='on', plotmap=False)"
+    "vert=[0, 500], plotmap=False)"
 )
 
 
@@ -209,8 +209,8 @@ def test_dialog_values_replace_the_callers_options(epochs) -> None:
         epochs, 1, 14, gui=True, cbar=False, erp=2, erpstd=True, renderer=renderer, plot="off", return_com=True
     )
     assert renderer.initial_values["cbar"] is False and "erp" not in renderer.initial_values
-    assert renderer.initial_values["others"] == "erp=2, erpstd=True"
-    assert command == "pop_erpimage(EEG, 1, 14, smooth=10, decimate=1)"
+    assert renderer.initial_values["others"] == "erpstd=True"
+    assert command == "pop_erpimage(EEG, 1, 14, smooth=10, decimate=1, erp=2)"
 
 
 def test_options_the_dialog_cannot_show_are_applied_as_given(epochs) -> None:
@@ -232,7 +232,7 @@ def test_options_the_dialog_cannot_show_are_applied_as_given(epochs) -> None:
 def test_unchanged_time_limits_are_not_passed_and_a_single_coher_frequency_is_kept(epochs) -> None:
     values = {"erp": False, "coher": "10 12", "phase": "", "limtime": "-1000 1992.1875"}
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer(values), noshow=True, return_com=True)
-    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, erp=False, coher=[10, 12], noshow=True)"
+    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True, erp=False, coher=[10, 12])"
 
 
 def test_dialog_caxis_vert_and_spec_reach_the_figure(epochs) -> None:
@@ -248,7 +248,7 @@ def test_dialog_caxis_vert_and_spec_reach_the_figure(epochs) -> None:
 def test_dialog_image_amps_is_passed_on_with_a_coherence_frequency(epochs) -> None:
     command = _command(epochs, {"plotamps": True, "coher": "10", "coher2": "0.01"})
     assert command == (
-        "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, plotamps=True, coher=[10, 10, 0.01], noshow=True)"
+        "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True, plotamps=True, coher=[10, 10, 0.01])"
     )
     assert "coher=[10, 12, 0.01]" in _command(epochs, {"coher": "10 12", "coher2": "0.01"})
     with pytest.raises(ValueError, match="allamps and allcohers flags require coher"):
@@ -311,6 +311,17 @@ def test_dialog_numbers_accept_ranges_brackets_and_cell_text(epochs) -> None:
 def test_blank_required_dialog_entries_raise(epochs, values, typeplot, message) -> None:
     with pytest.raises(ValueError, match=message):
         _command(epochs, values, typeplot=typeplot)
+
+
+def test_dialog_fields_replace_more_options_as_in_eeglab(epochs, caplog) -> None:
+    values = {"caxis": "-5 5", "others": "caxis=[-1, 1], erp=False, yerplabel='uV', erpstd=True"}
+    with caplog.at_level(logging.WARNING, logger="eegprep.functions.popfunc.pop_erpimage"):
+        result, command = pop_erpimage(epochs, 1, renderer=_Renderer(values), plot="off", return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, caxis=[-5, 5], erpstd=True)"
+    assert result.axhndls[2].get_ylabel() == "µV"
+    assert "the dialog sets the ERP axis label, so yerplabel in More options is ignored" in caplog.text
+    unchecked = pop_erpimage(epochs, 1, renderer=_Renderer({"erp": False, "others": "erp=True"}), plot="off")
+    assert unchecked.axhndls[2] is not None
 
 
 def test_dialog_rescale_needs_a_sorting_field(epochs) -> None:

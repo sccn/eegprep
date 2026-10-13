@@ -49,6 +49,8 @@ ARGUMENT_NAMES = (
     "sortingeventfield",
 )
 CHECKBOX_OPTIONS = ("erp", "cbar", "nosort", "noplot", "plotamps")
+# The dialog always sets these, so More options cannot carry them.
+DIALOG_SET_OPTIONS = ("erp", "cbar", "yerplabel")
 
 
 def pop_erpimage(
@@ -817,7 +819,7 @@ def _dialog_values(
         if fields is not None:
             values.update(fields)
             continue
-        text = _option_text(name, value)
+        text = None if name in DIALOG_SET_OPTIONS else _option_text(name, value)
         if text is None:
             hidden[name] = value
         else:
@@ -958,11 +960,20 @@ def _literal(node: ast.expr) -> Any:
 
 
 def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> dict[str, Any]:
-    """``pop_erpimage`` arguments from the dialog values, mapped as ``pop_erpimage.m`` does."""
-    options: dict[str, Any] = {}
+    """``pop_erpimage`` arguments from the dialog values, mapped as ``pop_erpimage.m`` does.
+
+    As in EEGLAB, More options are read first and every field the dialog sets
+    replaces them; an empty field or unchecked box sets nothing, except that
+    the ERP trace and colorbar, on by default here, are turned off.
+    """
+    options = _more_options(_text(result, "others"))
+    if options.pop("yerplabel", None) is not None:
+        logger.warning("pop_erpimage(): the dialog sets the ERP axis label, so yerplabel in More options is ignored.")
     for flag in ("erp", "cbar"):
-        if not bool(result.get(flag, True)):
-            options[flag] = False
+        if bool(result.get(flag, True)):
+            options.pop(flag, None)
+        else:
+            options.setdefault(flag, False)
     limits = _dialog_limits(EEG, result)
     if limits is not None:
         options["limits"] = limits
@@ -991,7 +1002,6 @@ def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> 
         values = _dialog_numbers(result, tag, label)
         if values.size:
             options[tag] = values.tolist()
-    options.update(_more_options(_text(result, "others")))
     window = _dialog_numbers(result, "eventrange", "Event time range", sizes=(2,))
     channel_label = "Channel" if typeplot else "Component(s)"
     arguments = {
