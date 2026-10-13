@@ -86,6 +86,19 @@ class ErpimageResult(NamedTuple):
     erpsig: np.ndarray | None
     figure: Any
 
+    def __repr__(self) -> str:
+        """Array shapes instead of values, so consoles echo a readable summary."""
+        fields = ", ".join(f"{name}={_brief(value)}" for name, value in zip(self._fields, self, strict=True))
+        return f"ErpimageResult({fields})"
+
+
+def _brief(value: Any) -> str:
+    if isinstance(value, np.ndarray):
+        return f"<array {'x'.join(str(size) for size in value.shape)}>"
+    if isinstance(value, tuple):
+        return "(" + ", ".join(_brief(item) for item in value) + ("," if len(value) == 1 else "") + ")"
+    return repr(value)
+
 
 def erpimage(
     data: Any,

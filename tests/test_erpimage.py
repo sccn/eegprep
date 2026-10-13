@@ -290,6 +290,14 @@ def test_eeglab_tokens_and_keywords_are_equivalent() -> None:
     assert not any(label.get_visible() and label.get_text() for label in image_ax.get_xticklabels())
 
 
+def test_result_repr_shows_shapes_not_values() -> None:
+    data, times = _trials()
+    text = repr(erpimage(data, np.linspace(0, 1, 30), times, "", 3, 1, "NoShow", "on", "erp"))
+    assert text.startswith("ErpimageResult(outdata=<array 64x28>, outvar=<array 28>,")
+    assert "erp=<array 1x64>" in text and "amps=None" in text and "figure=None" in text
+    assert "axhndls=(None, None, None, None, None)" in text
+
+
 def test_erpimage_draws_into_a_target_subfigure() -> None:
     data, times = _trials()
     figure = plt.figure()
