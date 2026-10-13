@@ -1,7 +1,5 @@
 """Matrix pseudoinverse computation utilities."""
 
-# create a pinv function that uses the pseudoinverse function from scipy
-
 import numpy as np
 from scipy.linalg import pinv as scipy_pinv
 
@@ -33,7 +31,6 @@ def pinv(A, tol=None, method='scipy'):
         if tol is None:
             return scipy_pinv(A)
         else:
-            # Convert tol to rtol for scipy (relative tolerance)
             return scipy_pinv(A, rtol=tol)
 
     elif method == 'svd':
@@ -47,7 +44,6 @@ def pinv(A, tol=None, method='scipy'):
         # Threshold singular values
         s_inv = np.where(s > tol, 1.0 / s, 0.0)
 
-        # Compute pseudoinverse
         return Vt.T @ np.diag(s_inv) @ U.T
 
     elif method == 'gelsd':

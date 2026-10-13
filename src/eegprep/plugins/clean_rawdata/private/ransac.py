@@ -63,7 +63,6 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
         idx = k + choice
         pool[k], pool[idx] = pool[idx], pool[k]
 
-    # Return first m elements
     return pool[:m].copy()
 
 

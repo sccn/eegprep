@@ -206,7 +206,19 @@ metadata may be stored as row dictionaries or as EEGLAB-loaded columnar
 ``{"factor": [values...]}`` dictionaries; STUDY selectors normalize both forms
 before matching factor levels and numerical ranges. ``std_maketrialinfo`` uses
 each epoch's time-locking event, including custom fields such as reaction time,
-and later STUDY synchronization preserves those derived rows. Use ``std_substudy`` or
+and later STUDY synchronization preserves those derived rows.
+
+The Study design editor edits subjects, design names, and independent
+variables. **New** under the variable list opens **Add variable**. A continuous
+trial factor such as ``rt`` is stored on ``STUDY.design`` with pairing ``off``.
+The dialog keeps that factor's value list empty; ``std_makedesign`` fills the
+observed values and keeps the first four variables. If the factor is missing
+from STUDY trial metadata, OK also runs ``std_maketrialinfo``. **List factors**
+shows the first-level and second-level text for the selected design, and the
+resave box writes the STUDY when it already has a file name. Cancel leaves the
+STUDY unchanged.
+
+Use ``std_substudy`` or
 ``std_rmdat`` when a workflow needs to remove datasets; EEGPrep remaps STUDY
 references and invalidates cached measure arrays after membership changes.
 

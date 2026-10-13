@@ -64,17 +64,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
             raise ValueError("params must be length-3 tuple")
         method = 'spherical'
 
-    # if bad chans is numerical, subtract 1 to make it 0-based
-    # if isinstance(bad_chans, list) and isinstance(bad_chans[0], int):
-    #     bad_chans = [i-1 for i in bad_chans]
-
-    # Store original data shape to preserve it at the end
     original_data_shape = EEG['data'].shape
 
-    # ensure channel locations present
     locs = chanlocs_as_list(EEG['chanlocs'])
     EEG['chanlocs'] = locs
-    # check if locs is null or empty
     if locs is None or len(locs) == 0:
         raise RuntimeError("Channel locations required for interpolation")
     if 'X' not in locs[0] or 'Y' not in locs[0] or 'Z' not in locs[0]:
@@ -86,11 +79,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     if candidate_chanlocs and isinstance(candidate_chanlocs[0], dict):
         bad_chans = candidate_chanlocs
 
-    # convert bad_chans from labels to indices if needed
-    # Handle empty lists first
     if isinstance(bad_chans, list) and len(bad_chans) == 0:
         bad_idx = []
-    # Check if bad_chans is a list of chanloc structures
     elif (
         isinstance(bad_chans, list)
         and len(bad_chans) > 0
@@ -100,9 +90,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         and 'Y' in bad_chans[0]
         and 'Z' in bad_chans[0]
     ):
-        # Handle the new chanloc structure case
         EEG, bad_idx = _handle_chanloc_interpolation(EEG, bad_chans)
-        # Update local variables that may have changed
         locs = EEG['chanlocs']
     elif isinstance(bad_chans, list) and len(bad_chans) > 0 and isinstance(bad_chans[0], str):
         labels = [ch['labels'] for ch in locs]
@@ -125,7 +113,6 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     # EEG['data'] = data
     # EEG['nbchan'] = data.shape[0]
 
-    # extract Cartesian positions and normalize to unit sphere
     def _norm(ch_ids):
         """Normalize channel coordinates to unit sphere.
 
@@ -149,10 +136,8 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     # reshape data to (n_chan, n_timepoints)
     d = EEG['data'].reshape(EEG['nbchan'], -1)
 
-    # Save original bad channel data before interpolation
     original_bad_data = d[bad_idx, :].copy()
 
-    # compute interpolated signals for bad channels
     if method in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast'):
         bad_data = spheric_spline(
             xelec=xyz_good[0],
@@ -330,7 +315,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
 
     # Case 1: Identical chanlocs - return as-is
     if len(current_labels) == len(new_labels) and current_labels == new_labels:
-        # Check if the coordinate data is also identical
         coords_match = True
         for i, (curr_ch, new_ch) in enumerate(zip(current_locs, new_chanlocs)):
             if curr_ch['X'] != new_ch['X'] or curr_ch['Y'] != new_ch['Y'] or curr_ch['Z'] != new_ch['Z']:
@@ -338,7 +322,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
                 break
 
         if coords_match:
-            # Return empty bad_idx since no interpolation needed
             return EEG, []
         else:
             # Same labels but different coordinates - this is ambiguous, throw error
@@ -347,7 +330,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
                 "This is ambiguous - use different channel labels or identical coordinates."
             )
 
-    # Check overlap between current and new labels
     current_set = set(current_labels)
     new_set = set(new_labels)
     overlap = current_set.intersection(new_set)
@@ -363,7 +345,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
             new_data = np.zeros((EEG['nbchan'] + len(new_chanlocs), original_shape[1]))
             new_data[: EEG['nbchan'], :] = EEG['data']
 
-        # Update EEG structure
         EEG['data'] = new_data
         EEG['chanlocs'].extend(new_chanlocs)
 
@@ -375,39 +356,32 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
 
     # Case 3: Current channels are proper subset of new chanlocs
     elif current_set.issubset(new_set):
-        # Create mapping from current channels to new positions
         old_to_new_idx = {}
         for i, label in enumerate(current_labels):
             new_idx = new_labels.index(label)
             old_to_new_idx[i] = new_idx
 
-        # Create new data array with size matching new chanlocs
         original_shape = EEG['data'].shape
         if len(original_shape) == 3:  # epoched data
             new_data = np.zeros((len(new_chanlocs), original_shape[1], original_shape[2]))
-            # Map existing data to correct positions
             for old_idx, new_idx in old_to_new_idx.items():
                 new_data[new_idx, :, :] = EEG['data'][old_idx, :, :]
         else:  # continuous data
             new_data = np.zeros((len(new_chanlocs), original_shape[1]))
-            # Map existing data to correct positions
             for old_idx, new_idx in old_to_new_idx.items():
                 new_data[new_idx, :] = EEG['data'][old_idx, :]
 
-        # Update EEG structure
         EEG['data'] = new_data
         EEG['chanlocs'] = new_chanlocs.copy()
         EEG['nbchan'] = len(new_chanlocs)
 
         # Handle ICA channel indices update (equivalent to MATLAB lines 174-189)
         if EEG.get('icasphere') is not None and hasattr(EEG['icasphere'], '__len__') and len(EEG['icasphere']) > 0:
-            # Update icachansind if it exists and is not empty
             if (
                 EEG.get('icachansind') is not None
                 and hasattr(EEG['icachansind'], '__len__')
                 and len(EEG['icachansind']) > 0
             ):
-                # Convert icachansind to list if it's a numpy array for easier manipulation
                 if hasattr(EEG['icachansind'], 'tolist'):
                     icachansind = EEG['icachansind'].tolist()
                 else:
@@ -417,15 +391,12 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
                 # This maps from old position to new position in the sorted order
                 updated_icachansind = []
                 for old_ica_idx in icachansind:
-                    # Find where this old channel index went in the new structure
                     if old_ica_idx in old_to_new_idx:
                         new_pos = old_to_new_idx[old_ica_idx]
                         updated_icachansind.append(new_pos)
 
-                # Update both EEG.icachansind and EEG.chaninfo.icachansind
                 EEG['icachansind'] = updated_icachansind
 
-                # Ensure chaninfo exists and update icachansind there too
                 if 'chaninfo' not in EEG:
                     EEG['chaninfo'] = {}
                 EEG['chaninfo']['icachansind'] = updated_icachansind
@@ -439,7 +410,6 @@ def _handle_chanloc_interpolation(EEG, new_chanlocs):
     else:
         # Partial overlap case - not clearly specified in requirements
         # Default to treating new_chanlocs as the channels to interpolate
-        # Find which of the new_chanlocs exist in current structure
         bad_idx = []
         for i, new_ch in enumerate(new_chanlocs):
             if new_ch['labels'] in current_labels:

@@ -94,6 +94,12 @@ def pytest_addoption(parser):
         metavar="PATH",
         help="Session-local MATLAB support directory, added after plugins; repeatable, last path takes precedence.",
     )
+    group.addoption(
+        "--run-heavy-reference",
+        action="store_true",
+        default=False,
+        help="Run heavy EEGLAB reference tests that are skipped unless this flag is passed.",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -203,6 +209,8 @@ def eeglab_matlab_engine(request):
         for support_path in request.config.getoption("--eeglab-support-path"):
             engine.addpath(str(support_path), "-begin", nargout=0)
         engine.addpath(str(Path(__file__).parent / "matlab"), nargout=0)
+        # nogui does not run eegplugin_* hooks, so nested plugin functions stay off the path.
+        engine.eegprep_reference_plugins(str(Path(root).resolve()), nargout=0)
         yield engine
     finally:
         engine.quit()
@@ -216,7 +224,13 @@ def eeglab_backend(request):
         try:
             yield partial(call_matlab, engine)
         finally:
-            engine.close("all", "force", nargout=0)
+            # close('all','force') can fail after a headless pop_* and leave the
+            # figure (and its data) alive. Deleting the figures directly keeps a
+            # later test from running the runner out of memory.
+            try:
+                engine.eval("delete(findall(0, 'Type', 'figure'));", nargout=0)
+            except Exception as exc:
+                os.write(2, f"eeglab_backend figure cleanup failed: {exc}\n".encode())
     else:
         yield call_python
 
@@ -277,7 +291,50 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_pop_epoch.py",
     "tests/test_pop_loadset_h5.py",
     "tests/test_pop_resample.py",
+    "tests/test_pop_studydesign_matlab.py",
     "tests/test_spectopo_parity.py",
+)
+
+# These stay collected so port-audit provenance still sees them. They run only
+# with --run-heavy-reference.
+HEAVY_REFERENCE_SKIP_REASON = "heavy EEGLAB reference test; pass --run-heavy-reference to run"
+HEAVY_REFERENCE_NODEIDS = (
+    # LIMO integration, IRLS validation, and preprocessing+stats.
+    "tests/test_limo_eeglab_tests.py::test_reference_limo_integration",
+    "tests/test_limo_eeglab_tests.py::test_reference_limo_irls_validation",
+    "tests/test_limo_eeglab_tests.py::test_reference_limo_preprocessing_and_statistics",
+    "tests/test_eeglab_hybrid.py::test_matlab_limo_optional_file_choice_preserves_plots_and_restores_io",
+    # STUDY grouped measure plots.
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erpplot_channel_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erpplot_component_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erpplot_design_sweep[teststudy2]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erspplot_channel_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erspplot_component_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erspplot_legacy_channel_cache[teststudy2]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_erspplot_legacy_component_cache[teststudy2]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_specplot_channel_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_specplot_component_cache[teststudy]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_specplot_design_sweep[teststudy2]",
+    "tests/test_study_grouped_measure_plots_eeglab_tests.py::test_reference_std_topoplot[teststudy]",
+    # std_erspplot, std_itcplot, and std_specplot. std_precomp and std_preclust stay runnable.
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_std_erspplot[teststudy]",
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_std_itcplot[teststudy]",
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_std_specplot[teststudy]",
+    # Transfers larger than the MAT5 container limits.
+    "tests/test_eeglab_hybrid.py::test_matlab_aggregate_outputs_over_two_gib_remain_complete",
+    "tests/test_eeglab_hybrid.py::test_matlab_inputs_over_four_gib_remain_complete[False]",
+    "tests/test_eeglab_hybrid.py::test_matlab_inputs_over_four_gib_remain_complete[True]",
+    # Tutorial reference workflows. The plain BIDS face test is not in this list.
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_bids_p300",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_event_processing_single_dataset",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_event_processing_study",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_history",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_make_eeg_movie",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_plot_study_erp[teststudy]",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_source_reconstruction_advanced",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_source_reconstruction_eeg",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_study_script[teststudy]",
+    "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_time_freq_all_elec",
 )
 
 MATLAB_NODEID_PARTS = (
@@ -336,6 +393,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if requires_matlab:
             item.add_marker(pytest.mark.matlab)
 
+        if not config.getoption("--run-heavy-reference") and nodeid in HEAVY_REFERENCE_NODEIDS:
+            item.add_marker(pytest.mark.skip(reason=HEAVY_REFERENCE_SKIP_REASON))
+
 
 @pytest.hookimpl(specname="pytest_collection_modifyitems", trylast=True)
 def pytest_filter_eeglab_contracts(config, items):
@@ -358,3 +418,10 @@ def pytest_filter_eeglab_contracts(config, items):
     if deselected:
         config.hook.pytest_deselected(items=deselected)
         items[:] = [item for item in items if item not in deselected]
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    # A killed runner never flushes pytest's capture.
+    text = getattr(report, "longreprtext", "")
+    if report.failed and text:
+        os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())

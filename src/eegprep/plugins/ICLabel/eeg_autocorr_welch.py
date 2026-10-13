@@ -29,7 +29,6 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     if pct_data is None or pct_data == 0:
         pct_data = 100
 
-    # setup constants
     ncomp = EEG['icaweights'].shape[0]
     n_points = min(EEG['pnts'], EEG['srate'] * 3)
     nfft = 2 ** (int(np.log2(n_points * 2 - 1)) + 1)

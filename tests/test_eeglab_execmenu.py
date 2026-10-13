@@ -37,11 +37,11 @@ def test_native_base_workspace_snapshot_restores_values_and_global_bindings(eegl
             nargout=0,
         )
         engine.eegprep_test_base_workspace("restore", nargout=0)
-        assert engine.eval("isequal(eegprep_contract_global, int16(7))")
-        assert engine.eval("isequal(eegprep_contract_local.field, single([1 2]))")
-        assert engine.eval("ismember('eegprep_contract_global', who('global'))")
-        assert not engine.eval("ismember('eegprep_contract_new_global', who('global'))")
-        assert not engine.eval("exist('eegprep_contract_new_local', 'var')")
+        assert engine.eval("isequal(eegprep_contract_global, int16(7))", nargout=1)
+        assert engine.eval("isequal(eegprep_contract_local.field, single([1 2]))", nargout=1)
+        assert engine.eval("ismember('eegprep_contract_global', who('global'))", nargout=1)
+        assert not engine.eval("ismember('eegprep_contract_new_global', who('global'))", nargout=1)
+        assert not engine.eval("exist('eegprep_contract_new_local', 'var')", nargout=1)
         assert not engine.mislocked("eegprep_test_base_workspace")
     finally:
         engine.eval(
@@ -67,6 +67,8 @@ def test_reference_execmenu_original_menu_and_history_workflow(
     eeglab_working_directory,
 ):
     """Retain the original menu calls, with file writes confined to scratch."""
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        pytest.skip("eeglab_execmenu pop_chanedit lookup blocks in a headless batch session")
     sample_folder = eeglab_working_directory / "sample_data"
     sample_folder.mkdir()
     for filename in ("eeglab_data.set", "eeglab_data.fdt"):

@@ -38,7 +38,6 @@ def _chan_labels(EEG):
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):
     def setUp(self):
-        # Load the same dataset in both backends
         self.EEG_py = pop_loadset(ensure_file('FlankerTest.set'))
         self.eeglab = get_eeglab('MAT')  # MATLAB bridge
 
@@ -61,8 +60,6 @@ class TestPopSelectParity(unittest.TestCase):
         # If events exist, ensure counts match
         if EEG_py_out.get('event') is not None and EEG_mat_out.get('event') is not None:
             self.assertEqual(len(EEG_py_out['event']), len(EEG_mat_out['event']))
-
-    # TODO: This test has pre-existing issues with boundary adjustment differences
 
 
 def _boundary_events(EEG):
@@ -242,13 +239,11 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         """Test trial selection updates events correctly."""
         EEG = copy.deepcopy(self.EEG)
 
-        # Select first two trials
         EEG_out = pop_select(EEG, trial=[1, 2])
 
         self.assertEqual(EEG_out['trials'], 2)
         # Should have 2 events (from epochs 1 and 2)
         self.assertEqual(len(EEG_out['event']), 2)
-        # Check epoch numbers are updated
         self.assertEqual(EEG_out['event'][0]['epoch'], 1)
         self.assertEqual(EEG_out['event'][1]['epoch'], 2)
 
@@ -258,7 +253,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         EEG['dipfit'] = [{'some': 'dipole_info'}]
         EEG['roi'] = [{'some': 'roi_info'}]
 
-        # Remove one channel
         EEG_out = pop_select(EEG, channel=[0, 1, 2])  # Remove channel 3
 
         # dipfit and roi should be cleared
@@ -269,7 +263,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         """Test that epoch fields are removed from events when only one trial remains."""
         EEG = copy.deepcopy(self.EEG)
 
-        # Select only first trial
         EEG_out = pop_select(EEG, trial=[1])
 
         self.assertEqual(EEG_out['trials'], 1)

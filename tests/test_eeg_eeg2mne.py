@@ -43,7 +43,6 @@ class TestEEGEEG2MNE(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_continuous_data(self):
         """Test conversion of continuous EEG data."""
-        # Create continuous EEG data
         continuous_eeg = self.test_eeg.copy()
         continuous_eeg['data'] = np.random.randn(32, 1000)
         continuous_eeg['trials'] = 1
@@ -53,14 +52,12 @@ class TestEEGEEG2MNE(unittest.TestCase):
         # Check that result is an MNE Raw object (RawEEGLAB is a subclass of BaseRaw)
         self.assertIsInstance(result, BaseRaw)
 
-        # Check that data dimensions match
         self.assertEqual(result.info['nchan'], continuous_eeg['nbchan'])
         self.assertEqual(result.n_times, continuous_eeg['pnts'])
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_eeg2mne_epoched_data(self):
         """Test conversion of epoched EEG data."""
-        # Create epoched EEG data
         epoched_eeg = create_test_eeg(n_channels=32, n_samples=100, n_trials=10)
         epoched_eeg['data'] = np.arange(32 * 100 * 10).reshape(32, 100, 10) * 0.25
 

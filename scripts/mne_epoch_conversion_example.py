@@ -1,11 +1,9 @@
 # Example to export MNE epochs to EEGLAB dataset
-# Events are not handled correctly in this example but it works
 
 import mne
 import numpy as np
 from scipy.io import savemat
 
-# Load example data
 sample_data_folder = mne.datasets.sample.data_path()
 sample_data_raw_file = sample_data_folder / "MEG" / "sample" / "sample_audvis_filt-0-40_raw.fif"
 raw = mne.io.read_raw_fif(sample_data_raw_file)
@@ -30,7 +28,7 @@ epochs = mne.Epochs(
 aud_epochs = epochs["auditory"]
 
 # export to EEGLAB dataset
-data = epochs.get_data()  # Get the data from the epochs
+data = epochs.get_data()
 n_epochs, n_channels, n_times = data.shape
 
 # Create a dictionary to save as a MATLAB file
@@ -124,11 +122,9 @@ eeglab_dict = {
     'roi': np.array([]),
 }
 
-# create channel locations
 ch_names = epochs.ch_names
 ch_locs = np.array([[i, 0, 0] for i in range(n_channels)])
 
-# Create the list of dictionaries with a string field
 d_list = [
     {
         'labels': ch_name,
@@ -147,7 +143,6 @@ d_list = [
     for ch_name, ch_loc in zip(ch_names, ch_locs)
 ]
 
-# Define the data type for the structured array, including a string field
 # dtype = np.dtype([
 #     ('labels', np.str_),
 #     ('theta', np.float64),
@@ -180,7 +175,6 @@ dtype = np.dtype(
     ]
 )
 
-# Convert the list of dictionaries to a structured NumPy array
 eeglab_dict['chanlocs'] = np.array(
     [
         (
@@ -202,13 +196,4 @@ eeglab_dict['chanlocs'] = np.array(
     dtype=dtype,
 )
 
-# ch_dict = [{'labels': ch_name, 'X': ch_loc[0], 'Y': ch_loc[1], 'Z': ch_loc[2]} for ch_name, ch_loc in zip(ch_names, ch_locs)]
-# eeglab_dict['chanlocs'] = np.array(ch_dict)
-# eeglab_dict['urchanlocs'] = ch_dict
-
-#    'event': np.array([[event[0], 0, event[2]] for event in events])  # Create event array
-
-# # Step 4: Save the EEGLAB dataset as a .mat file
 savemat('output_file.mat', eeglab_dict)
-
-# print("EEGLAB dataset saved successfully!")

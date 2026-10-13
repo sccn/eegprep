@@ -30,11 +30,8 @@ def pop_loadset_h5(file_name):
     def convert_to_string(filecontent):
         if isinstance(filecontent, np.ndarray):
             if filecontent.dtype == 'uint16':
-                # Convert uint16 array to bytes and then decode as UTF-8
                 try:
-                    # Convert uint16 values to bytes
                     bytes_array = filecontent.astype(np.uint8)
-                    # Decode as UTF-8
                     return bytes_array.tobytes().decode('utf-8')
                 except (UnicodeDecodeError, ValueError):
                     # Fallback to character-by-character conversion
@@ -45,7 +42,6 @@ def pop_loadset_h5(file_name):
                         elif val == 10:  # LF
                             text += '\n'
                         else:
-                            # Handle unicode characters properly
                             try:
                                 text += chr(val)
                             except ValueError:
@@ -53,7 +49,6 @@ def pop_loadset_h5(file_name):
                                 continue
                     return text
             elif filecontent.dtype.kind in ['S', 'U']:  # String or Unicode
-                # Handle byte strings and unicode strings
                 if len(filecontent) == 1:
                     return filecontent[0].decode('utf-8') if isinstance(filecontent[0], bytes) else str(filecontent[0])
                 else:
@@ -70,7 +65,6 @@ def pop_loadset_h5(file_name):
         return arr.reshape(-1)[0]
 
     def single_struct_dict(hdf5_group, all_keys):
-        # Build one dict from a scalar struct where each field holds a single value
         out = {}
         f = hdf5_group.file
         for k in all_keys:
@@ -137,19 +131,16 @@ def pop_loadset_h5(file_name):
         """Handle groups that aren't in the predefined lists."""
         group = EEGTMP[key]
         if isinstance(group, h5py.Group):
-            # Create structured array from the group
             field_names = list(group.keys())
             if len(field_names) == 0:
                 return np.array([])
 
-            # Create structured array
             dtype_list = []
             data_list = []
 
             for field_name in field_names:
                 field_data = group[field_name][()]
 
-                # Handle HDF5 references
                 if isinstance(field_data, h5py.h5r.Reference):
                     # Dereference the reference
                     referenced_dataset = EEGTMP[field_data]
@@ -180,7 +171,6 @@ def pop_loadset_h5(file_name):
                     dtype_list.append((field_name, f'U{max_len}'))
                     data_list.append([str_item])
 
-            # Create structured array
             if len(data_list) > 0:
                 # For reference handling, we want length 1 with full arrays in each field
                 structured_data = np.empty(1, dtype=dtype_list)
@@ -228,27 +218,21 @@ def pop_loadset_h5(file_name):
             EEG[key] = get_data(EEGTMP, key)
         elif key != "#refs#":
             if isinstance(EEGTMP[key], h5py.Group):
-                # Handle generic groups
                 EEG[key] = handle_generic_group(EEGTMP, key)
             else:
                 EEG[key] = EEGTMP[key][()]
 
-        # Apply string conversion to all fields that might need it
         if key in EEG:
             value = EEG[key]
             if key in strings:
                 EEG[key] = convert_to_string(value)
             elif isinstance(value, np.ndarray) and value.dtype == 'uint16':
-                # Apply string conversion to uint16 arrays that aren't in strings list
                 EEG[key] = convert_to_string(value)
             elif isinstance(value, np.ndarray) and value.dtype.kind in ['S', 'U']:
-                # Apply string conversion to string arrays
                 EEG[key] = convert_to_string(value)
             elif isinstance(value, np.ndarray) and hasattr(value.dtype, 'names') and value.dtype.names is not None:
-                # Apply string conversion to structured arrays (like chanlocs)
                 for field_name in value.dtype.names:
                     if isinstance(value[field_name][0], bytes):
-                        # Convert byte strings to unicode strings
                         value[field_name] = [
                             item.decode('utf-8') if isinstance(item, bytes) else str(item) for item in value[field_name]
                         ]
@@ -267,7 +251,6 @@ def pop_loadset_h5(file_name):
                 else:
                     EEG[key] = arr.T
 
-        # Apply scalar conversion
         if key in scalars and key in EEG:
             value = EEG[key]
             if isinstance(value, np.ndarray):

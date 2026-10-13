@@ -37,7 +37,6 @@ def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0, seed=4
     mixing = rng.randn(n_channels, n_channels)
     data_2d = mixing @ sources
 
-    # Reshape for trials
     if n_trials > 1:
         # Tile data to create trials
         total_samples = n_samples * n_trials
@@ -51,7 +50,6 @@ def _make_test_eeg(n_channels=4, n_samples=2000, n_trials=1, srate=250.0, seed=4
     else:
         data = data_2d
 
-    # Build EEG dict
     EEG = {
         'data': data.astype(np.float64),
         'srate': srate,

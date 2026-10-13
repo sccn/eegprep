@@ -179,7 +179,6 @@ class MatlabWrapper:
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
 
-                # save all parameters in the temp_filename which is a .mat file
                 if len(new_args) > 0:
                     if len(new_args) > 1:
                         scipy.io.savemat(
@@ -261,9 +260,6 @@ class MatlabWrapper:
                         os.remove(result_extra_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
-            # else:
-            #     # run it directly
-            #     return getattr(self.engine, name)(*args)
 
         return wrapper
 
@@ -348,10 +344,6 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
 
-        # path2eeglab = 'eeglab' # init >10 seconds
-        # res = eeglab.version()
-        # print('Running EEGLAB commands in compatibility mode with Octave ' + res)
-
         if rt == 'oct':
             engine.logger.setLevel(logging.INFO)
 
@@ -384,21 +376,6 @@ def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
     return eeglab.clean_drifts(EEG, Transition, Attenuation)
 
 
-# def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
-#     eeglab = get_eeglab(auto_file_roundtrip=False)
-
-#     pop_saveset(EEG, './tmp.set') # 0.8 seconds
-#     EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-#     EEG2 = eeglab.pop_resample(EEG2, freq) # 2.4 seconds
-#     eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
-#     EEG3 = pop_loadset('./tmp2.set') # 0.2 seconds
-
-#     # delete temporary files
-#     os.remove('./tmp.set')
-#     os.remove('./tmp2.set')
-#     return EEG3
-
-
 def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=False):
     """Filter EEG data using EEGLAB's pop_eegfiltnew.
 
@@ -420,7 +397,6 @@ def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=F
     dict
         Filtered EEG data.
     """
-    # error if locutoff and hicutoff are none
     if locutoff is None and hicutoff is None:
         raise ValueError('Cannot have low cutoff and high cutoff not defined')
 

@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import Any
 
 import numpy as np
-from scipy.signal import filtfilt, firls, firwin, lfilter, minimum_phase, remez
+from scipy.signal import filtfilt, firls, firwin, lfilter, remez
 from scipy.signal import windows as signal_windows
 
 from eegprep.functions.adminfunc.storage import mapped_output_like
@@ -14,6 +14,7 @@ from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
 from eegprep.plugins.firfilt.firws import firws
+from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 
 
 WINDOW_TYPES = ("rectangular", "hann", "hamming", "blackman", "kaiser")
@@ -83,7 +84,7 @@ def design_eegfiltnew(
         filter_type = "high" if cutoff.size == 1 else "stop"
     b, _a = firws(filtorder, cutoff / nyquist, filter_type, window)
     if minphase:
-        b = minimum_phase(b, method="homomorphic", half=False)
+        b = minphaserceps(b)
     metadata = {
         "locutoff": locutoff,
         "hicutoff": hicutoff,
@@ -155,7 +156,7 @@ def design_firws(
     fir_type = {"highpass": "high", "bandstop": "stop"}.get(ftype, "")
     b, _a = firws(order, np.sort(cutoff / (float(srate) / 2.0)), fir_type, window)
     if minphase:
-        b = minimum_phase(b, method="homomorphic", half=False)
+        b = minphaserceps(b)
     return np.asarray(b, dtype=float)
 
 

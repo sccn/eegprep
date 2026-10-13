@@ -25,7 +25,6 @@ class TestAsrCalibrate(unittest.TestCase):
         self.n_samples = 1000
         self.srate = 250.0
 
-        # Create synthetic clean EEG data (zero-mean)
         self.clean_data = np.random.randn(self.n_channels, self.n_samples) * 0.5
 
         # Add some realistic structure (autocorrelation)
@@ -277,11 +276,9 @@ class TestAsrProcess(unittest.TestCase):
         self.n_samples = 500
         self.srate = 200.0
 
-        # Create calibration data and state
         calib_data = np.random.randn(self.n_channels, 1000) * 0.3
         self.state = asr_calibrate(calib_data, self.srate)
 
-        # Create test data with some artifacts
         self.test_data = np.random.randn(self.n_channels, self.n_samples) * 0.4
         # Add some artifacts to specific channels/times
         self.test_data[2, 100:150] += np.random.randn(50) * 2.0  # Large artifacts

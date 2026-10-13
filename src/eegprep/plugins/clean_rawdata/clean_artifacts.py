@@ -25,9 +25,7 @@ _DISTANCE_MODES = {
     'riemannian': 'calib',
 }
 
-# -----------------------------------------------------------------------------
 #                               Public API
-# -----------------------------------------------------------------------------
 
 
 def clean_artifacts(
@@ -140,9 +138,7 @@ def clean_artifacts(
     removed_channels : ndarray of bool
         Mask indicating which channels were removed during cleaning.
     """
-    # ------------------------------------------------------------------
     #                Basic argument sanity / aliases
-    # ------------------------------------------------------------------
     if availableRAM_GB is not None and not np.isnan(availableRAM_GB):
         MaxMem = int(round_mat(availableRAM_GB * 1000))
 
@@ -159,9 +155,7 @@ def clean_artifacts(
     if 'etc' not in EEG:
         EEG['etc'] = {}
 
-    # ------------------------------------------------------------------
     #             Optional: restrict to / ignore certain channels
-    # ------------------------------------------------------------------
     if Channels is not None and len(Channels):
         # Attempt pop_select based on labels; the manual fallback only covers the
         # documented case where pop_select is unavailable (ImportError). Errors
@@ -189,16 +183,12 @@ def clean_artifacts(
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
 
-    # ------------------------------------------------------------------
     #                     1) Flat‑line channel removal
-    # ------------------------------------------------------------------
     if FlatlineCriterion not in (None, 'off'):
         logger.info('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
-    # ------------------------------------------------------------------
     #                        2) High‑pass filtering
-    # ------------------------------------------------------------------
     if Highpass not in (None, 'off'):
         if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
             raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
@@ -209,9 +199,7 @@ def clean_artifacts(
     # into the returned high-pass dataset.
     HP = copy.deepcopy(EEG)
 
-    # ------------------------------------------------------------------
     #            3) Channel cleaning (noisy / disconnected)
-    # ------------------------------------------------------------------
     removed_channels = np.zeros(EEG['nbchan'], dtype=bool)
     if ChannelCriterion not in (None, 'off') or LineNoiseCriterion not in (None, 'off'):
         chancorr_crit = 0.0 if ChannelCriterion in (None, 'off') else float(ChannelCriterion)
@@ -249,9 +237,7 @@ def clean_artifacts(
                 max_broken_time=float(ChannelCriterionMaxBadTime),
             )
 
-    # ------------------------------------------------------------------
     #                     4) Burst repair via ASR
-    # ------------------------------------------------------------------
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
@@ -277,7 +263,6 @@ def clean_artifacts(
             # Convert retained samples to inclusive zero-based intervals.
             retain_intervals = mask_to_intervals(sample_mask, value=True) - 1
 
-            # Remove very short intervals < 5 samples
             if retain_intervals.size:
                 lengths = retain_intervals[:, 1] - retain_intervals[:, 0]
                 small = lengths < 5
@@ -291,14 +276,11 @@ def clean_artifacts(
             if rejected_intervals.size:
                 EEG = eeg_eegrej(EEG, rejected_intervals)
 
-            # Update mask in EEG.etc
             EEG['etc']['clean_sample_mask'] = sample_mask
         else:
             EEG = BUR
 
-    # ------------------------------------------------------------------
     #                     5) Post‑clean windows stage
-    # ------------------------------------------------------------------
     if WindowCriterion not in (None, 'off') and WindowCriterionTolerances not in (None, 'off'):
         logger.info('Final post‑processing – removing irrecoverable windows...')
         EEG, _ = clean_windows(

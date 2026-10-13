@@ -180,7 +180,6 @@ def asr_process(
     shorter than the lookahead, in which case results can differ materially and runtime grows. Each
     message gives the remedy, a larger ``max_mem``.
     """
-    # Check and sanitize data
     data = np.asarray(data, dtype=float)
     if data.ndim != 2:
         raise ValueError("Input data must be a 2D array (channels x samples).")
@@ -193,10 +192,8 @@ def asr_process(
     if lookahead is None:
         lookahead = window_len / 2
 
-    # Ensure window length is adequate
     window_len = max(window_len, 1.5 * C / srate)
 
-    # Convert max_dims to actual number if given as fraction
     if max_dims < 1:
         max_dims_num = int(round_mat(C * max_dims))
     else:
@@ -213,7 +210,6 @@ def asr_process(
     # Fix NaN and Inf values
     data[~np.isfinite(data)] = 0
 
-    # Extract state variables
     M = state['M']  # Mixing matrix
     T = state['T']  # Threshold matrix
     sos = state.get('sos')  # SOS filter representation (None if compatibility='max')
@@ -229,7 +225,6 @@ def asr_process(
     last_R = state.get('last_R')  # Last reconstruction matrix
     last_trivial = state.get('last_trivial', True)  # Was last step trivial (no artifacts)
 
-    # Initialize prior filter state by extrapolating available data into the past
     if carry is None:
         ind = np.mod(np.arange(P + 1, 1, -1) - 1, S)
         carry = 2 * data[:, [0]] - data[:, ind]
@@ -241,9 +236,7 @@ def asr_process(
     if splits > 1:
         logger.info(f'Cleaning data in {splits} blocks')
 
-    # Process data in chunks
     for k in range(splits):
-        # Calculate range for this chunk in the original data space
         chunk_start = int(np.floor(k * S / splits))
         chunk_end = int(min(S, np.floor((k + 1) * S / splits)))
         range_ = np.arange(chunk_start, chunk_end)
@@ -254,7 +247,6 @@ def asr_process(
         # Get spectrally shaped data for statistics computation (range shifted by lookahead)
         Xraw = X[:, range_ + P]
 
-        # Filter the data window based on compatibility mode
         if compatibility == 'max':
             # Maximum MATLAB compatibility: use B/A form with lfilter
             Xfilt, iir_state = scipy.signal.lfilter(b, a, Xraw, axis=1, zi=iir_state)
@@ -272,7 +264,6 @@ def asr_process(
         # Running mean over a window of N samples (along the last / time axis)
         Xcov_filtered, cov = moving_average(Xcov_sample, N=N, axis=1, Z=cov, init=0)
 
-        # Determine points at which to update the reconstruction matrix
         update_at = np.arange(step_size, Xfilt.shape[1] + step_size - 1, step_size, dtype=int)
         update_at = np.minimum(update_at, Xfilt.shape[1])
 
@@ -283,11 +274,9 @@ def asr_process(
 
         update_at -= 1  # prepare for 0-based indexing
 
-        # Extract the covariance matrices at our update points (already
         # averaged by the moving window) and reshape to C × C × #updates.
         Xcov_matrices = np.reshape(Xcov_filtered[:, update_at], (C, C, len(update_at)))
 
-        # Process each update point
         last_n = -1  # MATLAB uses 1‑based indexing; align so first sample is included
         for j, n in enumerate(update_at):
             # Eigendecomposition to find potential artifact components
@@ -308,7 +297,6 @@ def asr_process(
             keep = (D < thresholds) | (np.arange(1, C + 1) < (C - max_dims_num))
             trivial = np.all(keep)
 
-            # Update the reconstruction matrix R
             if not trivial:
                 try:
                     # Following reference implementation:
@@ -318,7 +306,6 @@ def asr_process(
                     masked_A_T = keep_mask * A.T  # Zero out rows where keep is False
                     Q = masked_A_T.T  # Back to original orientation
 
-                    # Calculate reconstruction matrix
                     Z = finite_pinv(Q)
                     R = np.real(finite_matmul(finite_matmul(M, Z), V.T))
                 except np.linalg.LinAlgError:
@@ -328,9 +315,7 @@ def asr_process(
             else:
                 R = np.eye(C)
 
-            # Apply reconstruction to data
             if not trivial or not last_trivial:
-                # Get subrange of data to process
                 subrange = range(last_n + 1, n + 1)
                 if len(subrange) > 0:
                     # Calculate blend coefficients (raised cosine)
@@ -340,10 +325,8 @@ def asr_process(
                     idx_in_X = range_[subrange]
                     segment = X[:, idx_in_X]
 
-                    # Apply blended reconstruction
                     X[:, idx_in_X] = blend * finite_matmul(R, segment) + (1 - blend) * finite_matmul(last_R, segment)
 
-            # Update state for next iteration
             last_n = n
             last_R = R
             last_trivial = trivial
@@ -360,7 +343,6 @@ def asr_process(
     # Return cleaned data (without the lookahead portion)
     outdata = X[:, P : P + S]
 
-    # Update state dictionary
     outstate = {
         'M': M,
         'T': T,

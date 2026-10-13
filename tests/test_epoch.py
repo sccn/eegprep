@@ -13,7 +13,6 @@ def _ml_list_of_arrays_to_0_based(list_of_arrays):
     out = []
     # Handle the nested structure from MATLAB
     if isinstance(list_of_arrays, np.ndarray) and list_of_arrays.dtype == object:
-        # Flatten the outer structure and process each epoch's events
         for epoch_events in list_of_arrays.flatten():
             if isinstance(epoch_events, np.ndarray):
                 # Convert each array in the epoch to 0-based
@@ -187,7 +186,6 @@ class TestEpochParity(unittest.TestCase):
         events = np.array([5.0, 10.0], dtype=float)
         lim = np.array([-0.2, 0.8], dtype=float)
 
-        # Define all events in seconds on the same scale as 'events'
         allevents = np.array([4.7, 4.9, 5.1, 5.6, 9.1, 9.85, 10.05], dtype=float)
         alleventrange = np.array([-0.1, 0.3], dtype=float)
 

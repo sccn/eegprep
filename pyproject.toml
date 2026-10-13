@@ -126,6 +126,7 @@ dev = [
   # synthetic EDF fixtures. eegprep reads EDF through mne/neo and imports pyedflib only to write
   # EDF and BDF.
   "pyedflib>=0.1.42",
+  "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
   "ruff>=0.15.14",

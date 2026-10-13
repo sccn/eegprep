@@ -60,16 +60,13 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
     Returns:
         dict: EEG structure with synthetic data and metadata.
     """
-    # Generate synthetic data
     data = np.random.randn(n_channels, n_samples, n_trials) * 0.5
     if n_trials == 1:
         data = data.squeeze(axis=2)  # Remove trial dimension for continuous data
 
-    # Create events and epoch info if epoched data
     events = []
     epochs = []
     if n_trials > 1:
-        # Create one event per epoch
         for i in range(n_trials):
             events.append(
                 {
@@ -81,7 +78,6 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
             )
             epochs.append({'event': [i], 'eventtype': ['epoch'], 'eventlatency': [0], 'eventduration': [0]})
 
-    # Create basic channel locations
     chanlocs = []
     for i in range(n_channels):
         chanlocs.append(
@@ -101,7 +97,6 @@ def create_test_eeg(n_channels=32, n_samples=1000, srate=250.0, n_trials=1):
             }
         )
 
-    # Create basic EEG structure
     eeg = {
         'data': data,
         'srate': srate,
@@ -167,7 +162,6 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_compo
     if n_components is None:
         n_components = n_channels
 
-    # Create base EEG structure
     eeg = create_test_eeg(n_channels, n_samples, srate, n_trials)
 
     # Add ICA decomposition
@@ -176,7 +170,6 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_compo
     eeg['icasphere'] = np.eye(n_channels)
     eeg['icachansind'] = np.arange(n_channels)
 
-    # Generate ICA activations
     if n_trials == 1:
         eeg['icaact'] = np.random.randn(n_components, n_samples) * 0.5
     else:

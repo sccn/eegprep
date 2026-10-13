@@ -104,7 +104,6 @@ def copy_code_folder(bids_root, deriv_dir, srate, highpass):
     code_dir = os.path.join(deriv_dir, 'code')
     os.makedirs(code_dir, exist_ok=True)
 
-    # Copy processing script
     src_script = os.path.join(EEGPREP_ROOT, 'scripts', 'bids_minimal_preproc.py')
     shutil.copy2(src_script, code_dir)
 
@@ -118,16 +117,12 @@ def copy_code_folder(bids_root, deriv_dir, srate, highpass):
     with open(dst_dockerfile, 'w') as f:
         f.write(content)
 
-    # Create source archive
     create_source_archive(os.path.join(code_dir, 'eegprep-source.tar.gz'))
 
-    # Save pinned requirements
     save_pinned_requirements(os.path.join(code_dir, 'requirements.txt'))
 
-    # Export Docker image
     export_docker_image(os.path.join(code_dir, 'eegprep-minimal.tar.gz'))
 
-    # Read dataset_description for DOI
     ds_desc_path = os.path.join(bids_root, 'dataset_description.json')
     ds_name = os.path.basename(bids_root)
     ds_doi = ''
@@ -142,7 +137,6 @@ def copy_code_folder(bids_root, deriv_dir, srate, highpass):
         for src in desc.get('SourceDatasets', []):
             ds_url = src.get('URL', ds_url)
 
-    # Write REPRODUCE.md
     reproduce = f"""# Reproducing the EEGPrep Derivative for {ds_name}
 
 This derivative dataset was generated from **{ds_name}** using
@@ -304,24 +298,19 @@ def main():
 
     deriv_dir = os.path.join(bids_root, 'derivatives', 'eegprep')
 
-    # Build
     if not args.skip_docker_build:
         build_docker()
 
-    # Process
     if not args.skip_processing:
         run_docker(bids_root, args.srate, args.highpass, args.extra_args)
 
-    # Add .bidsignore
     add_bidsignore(deriv_dir)
 
     # Prepend regeneration notice to derivative README
     prepend_readme_notice(deriv_dir)
 
-    # Copy reproducibility files
     copy_code_folder(bids_root, deriv_dir, args.srate, args.highpass)
 
-    # Validate
     validate_bids(deriv_dir)
 
     print('\n=== Done ===')

@@ -28,6 +28,7 @@ delete(quit_file);
 end
 
 function response = serve_one(request)
+drop_octave_compatibility_shims();
 n = double(request.nargout);
 assignin('base', 'eegprep_rpc_name__', char(request.name));
 if strcmp(char(request.kind), 'eval')
@@ -78,6 +79,19 @@ for i = 1:numel(outputs)
     if isa(v, 'function_handle'), outputs{i} = func2str(v);
     elseif isstring(v), outputs{i} = char(v);
     elseif isobject(v), outputs{i} = sprintf('<%s>', class(v));
+    end
+end
+end
+
+function drop_octave_compatibility_shims()
+% Biosig ships Octave sources under maybe-missing, including freemat3.5.
+% On the path they replace strncmpi, strtok, strvcat, all, and fgetl. MATLAB
+% then either errors or, in pop_comments, allocates until the runner is killed.
+entries = strsplit(path, pathsep);
+for index = 1:numel(entries)
+    folder = entries{index};
+    if contains(folder, 'maybe-missing')
+        rmpath(folder);
     end
 end
 end

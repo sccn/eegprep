@@ -69,7 +69,8 @@ The usual FIR filtering entry point is ``pop_eegfiltnew``:
 
 GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
-ICA activations, and returns a replayable history command.
+ICA activations, and returns a replayable history command. ``minphase=True``
+converts the FIR to minimum phase with the real cepstrum before causal filtering.
 
 Use FIRFilt helpers for custom filter design:
 

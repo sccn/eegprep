@@ -86,7 +86,6 @@ def fit_eeg_distribution(
     if beta is None:
         beta = np.arange(1.7, 3.6, 0.15)
 
-    # Convert potentially list inputs to numpy arrays for consistency
     quants = np.array(quants)
     step_sizes = np.array(step_sizes)
     beta = np.array(beta)
@@ -137,13 +136,11 @@ def fit_eeg_distribution(
     min_width = min_clean_fraction * max_width  # minimum width of the fit interval, as fraction of data
 
     # --- Get matrix of shifted data ranges ---
-    # Generate start indices based on lower quantile, dropout fraction, and step size
     # Use np.arange; add a small fraction of step_sizes[0] to ensure the endpoint is included if it's a multiple of the step
     start_indices = round_mat(
         n * np.arange(lower_min, lower_min + max_dropout_fraction + 0.99 * step_sizes[0], step_sizes[0])
     ).astype(int)
 
-    # Generate indices within each window based on max_width
     max_window_len = int(round_mat(n * max_width))
     window_indices = np.arange(max_window_len)
 
@@ -154,7 +151,6 @@ def fit_eeg_distribution(
     # Index into sorted data X to get the windows
     X_windows = X[all_indices]
 
-    # Get the first element (lower bound) of each window
     X1 = X_windows[:, 0].copy()  # Use .copy() to avoid potential view issues
 
     # Subtract the lower bound from each element in its respective window (equivalent to bsxfun(@minus, X, X1))
@@ -166,7 +162,6 @@ def fit_eeg_distribution(
     opt_bounds = np.array([np.nan, np.nan])
     opt_lu = np.array([np.nan, np.nan])  # Lower and Upper data values of the optimal interval
 
-    # Iterate through possible interval widths 'm' exactly as in-house
     m_steps = np.int32(round_mat(n * np.arange(max_width, min_width, -step_sizes[1])))
 
     for m in m_steps:
@@ -237,7 +232,6 @@ def fit_eeg_distribution(
         sig = np.nan
         logger.warning("Could not calculate std dev due to invalid gamma function input.")
 
-    # Ensure output types are standard Python floats if they are scalar
     mu = float(mu) if np.isscalar(mu) else mu
     sig = float(sig) if np.isscalar(sig) else sig
     alpha = float(alpha) if np.isscalar(alpha) else alpha
@@ -263,7 +257,6 @@ def geometric_median(X, tol=1.0e-5, y=None, max_iter=500):
     -------
         np.ndarray: The geometric median of X, shape (n_features,).
     """
-    # Ensure X is a numpy array
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError("Input data X must be a 2D array (samples x features).")
@@ -280,7 +273,6 @@ def geometric_median(X, tol=1.0e-5, y=None, max_iter=500):
     epsilon = 1e-9
 
     for i in range(max_iter):
-        # Calculate squared distances from each point in X to the current median y
         # X shape: (n_samples, n_features), y shape: (n_features,)
         # Broadcasting makes (X - y) shape (n_samples, n_features)
         squared_distances = np.sum((X - y) ** 2, axis=1)
@@ -294,14 +286,12 @@ def geometric_median(X, tol=1.0e-5, y=None, max_iter=500):
         # large weight or handle them separately, but simply adding epsilon often suffices.
         # Here, the epsilon already prevents division by zero.
 
-        # Update the median estimate
         # Weighted average: sum(X * weights) / sum(weights)
         # weights are invnorms. Need to broadcast invnorms for element-wise multiplication.
         # invnorms shape: (n_samples,), X shape: (n_samples, n_features)
         # X * invnorms[:, np.newaxis] has shape (n_samples, n_features)
         new_y = np.sum(X * invnorms[:, np.newaxis], axis=0) / np.sum(invnorms)
 
-        # Store the old median and update y
         oldy = y
         y = new_y
 
@@ -355,18 +345,15 @@ def block_geometric_median(X, blocksize=1, tol=1.0e-5, y=None, max_iter=500):
 
     o, v = X.shape  # #observations & #variables
     if o == 0:
-        # Handle empty input case
         return np.full((v,), np.nan)
 
     r = o % blocksize  # #remainder in last block
     b = o // blocksize  # #full blocks
 
     if b > 0:
-        # Process full blocks
         # Reshape to (num_blocks, blocksize, num_variables) and sum along axis 1
         X_blocks = X[: o - r, :].reshape(b, blocksize, v).sum(axis=1)
         if r > 0:
-            # Process remainder block if it exists
             X_rem = X[o - r :, :].sum(axis=0, keepdims=True) * (blocksize / r)
             # Combine full blocks and scaled remainder
             X_processed = np.vstack((X_blocks, X_rem))
@@ -380,7 +367,6 @@ def block_geometric_median(X, blocksize=1, tol=1.0e-5, y=None, max_iter=500):
         # This case should ideally not be reached if o > 0, but handle defensively
         return np.full((v,), np.nan)
 
-    # Call the standard geometric median function on the processed data
     median_val = geometric_median(X_processed, tol=tol, y=y, max_iter=max_iter)
 
     # Scale the result by 1/blocksize as per MATLAB implementation

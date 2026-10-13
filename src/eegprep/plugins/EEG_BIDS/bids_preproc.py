@@ -24,7 +24,7 @@ from ...functions.miscfunc.misc import (
 from .bids import layout_for_fpath, root_for_fpath
 from .coords import chanloc_has_coords
 
-# whether pop_rmbase accepts the time range in ms (change if needed)
+# EpochBaseline is seconds; pop_rmbase timerange uses EEG["times"] milliseconds.
 pop_rmbase_in_ms = True
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,6 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
 
     layout: BIDSLayout = layout_for_fpath(root)
     files = layout.get()
-    # apply filter rules
     # 1. none of the excluded files
     exclude = set(exclude)
     files = [f for f in files if f.path not in exclude]
@@ -70,7 +69,6 @@ def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     no_suffixes = {'channels', 'events', 'electrodes'}
     files = [f for f in files if f.entities.get('suffix') not in no_suffixes]
     filepaths = [f.path for f in files]
-    # now perform the copy
     for srcpath in filepaths:
         relpath = os.path.relpath(srcpath, root)
         dstpath = os.path.join(dst, relpath)
@@ -406,7 +404,6 @@ def bids_preproc(
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
         specified) or a single EEG object (if a single file was specified), otherwise None.
     """
-    # get a dictionary of all arguments
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (
@@ -496,7 +493,6 @@ def bids_preproc(
             "StageNames, if given, must be a list of 4 strings, as in: "
             "['desc-cleaned', 'desc-picard', 'desc-iclabel', 'desc-epoch']."
         )
-    # apply FinalDesc override to the last active stage name
     if FinalDesc is not None:
         StageNames = list(StageNames)
         if EpochEvents is not None:
@@ -607,7 +603,6 @@ def bids_preproc(
 
         if SkipIfPresent and all(os.path.exists(fn) for fn in needed_files):
             logger.info(f"*** Skipping {fn} as preprocessed file(s) already exists: {', '.join(needed_files)} ***")
-            # load the final file if requested
             with eeg_checkset_strict_mode(False):
                 EEG = pop_loadset(needed_files[-1]) if ReturnData else None
             with _lock:
@@ -649,7 +644,6 @@ def bids_preproc(
                     """Save intermediate stage if requested."""
                     if SaveIntermediateStages and IntermediateDir:
                         os.makedirs(IntermediateDir, exist_ok=True)
-                        # Extract subject/run info from filename for unique identifier
                         base = (
                             os.path.basename(fn)
                             .replace('.set', '')
@@ -679,7 +673,6 @@ def bids_preproc(
                             """Get channel type, handling nan and non-string types."""
                             typ = ch.get('type')
                             # Return None for nan, None, or other non-string types (will be excluded)
-                            # Check for float/nan first since nan is not a string but isinstance check alone misses it
                             if typ is None:
                                 return None
                             if isinstance(typ, float) and np.isnan(typ):
@@ -716,7 +709,6 @@ def bids_preproc(
                     StagesToGo.remove('Import')
                     StagesToGo.remove('CleanArtifacts')
                 else:
-                    # load input file
                     EEG, import_report = pop_load_frombids(
                         fn,
                         bidsmetadata=ApplyMetadata,
@@ -776,7 +768,6 @@ def bids_preproc(
                     old_events = EEG['event']
                     old_chanlocs = EEG['chanlocs']
 
-                    # apply processing chain
                     needs_recalc = True
                     if os.path.exists(fpath_cln) and SkipIfPresent:
                         logger.info(f"Found {fpath_cln}, skipping cleaning stage.")
@@ -888,10 +879,8 @@ def bids_preproc(
                         # Save stage 10 BEFORE component removal (for comparison)
                         save_stage(EEG, 10, 'iclabel')
 
-                        # Remove flagged components
                         EEG = pop_subcomp(EEG)
 
-                        # Save the final result after component removal
                         pop_saveset(EEG, fpath_iclabel)
                         report["ICLabel"] = {
                             "Applied": True,
@@ -905,7 +894,6 @@ def bids_preproc(
                 # reinterpolate to original channel set if any channels were removed
                 if WithInterp:
                     if old_chanlocs is None:
-                        # load input file to get original channel locations
                         tmp, import_report = pop_load_frombids(
                             fn,
                             bidsmetadata=ApplyMetadata,
@@ -914,7 +902,6 @@ def bids_preproc(
                             eventtype=EventColumn,
                             return_report=True,
                         )
-                        # apply channel selection to that also
                         if OnlyChannelsWithPosition or OnlyModalities:
                             tmp = select_channels(tmp)
                         old_chanlocs = tmp['chanlocs']
@@ -928,7 +915,6 @@ def bids_preproc(
                         try:
                             EEG = eeg_interp(EEG, list(old_chanlocs))
 
-                            # Clear ICA after interpolation since ICA was computed on
                             # fewer channels and is now incompatible with interpolated data
                             if 'icaweights' in EEG and EEG['icaweights'].size > 0:
                                 if EEG['icaweights'].shape[1] != EEG['nbchan']:
@@ -1083,7 +1069,6 @@ def bids_preproc(
                     content['PowerLineFrequency'] = 'n/a'
                 content['SamplingFrequency'] = EEG['srate']
 
-                # write channel counts based on the modality
                 labels = [
                     str(lab['type']).lower() if isinstance(lab['type'], str) else repr(lab['type'])
                     for lab in EEG['chanlocs']
@@ -1095,7 +1080,6 @@ def bids_preproc(
                 n_trig = sum(lab == 'trig' for lab in labels)
                 content['MiscChannelCount'] = len(EEG['chanlocs']) - (n_eeg + n_ecg + n_emg + n_eog + n_trig)
 
-                # remove misnamed field that may be present from prior json file
                 if 'MISCChannelCount' in content:
                     del content['MISCChannelCount']
                 if 'TriggerChannelCount' in content:
@@ -1123,7 +1107,6 @@ def bids_preproc(
                     if labelscheme and labelscheme != 'unknown':
                         content['EEGPlacementScheme'] = labelscheme
 
-                # write information about the applied filters
                 if ('SoftwareFilters' not in content) or not isinstance(content['SoftwareFilters'], dict):
                     content['SoftwareFilters'] = sw_filts = {}
                 else:
@@ -1192,13 +1175,11 @@ def bids_preproc(
                     logger.error(f"Failed to write report file {fpath_report}: {e}")
 
     elif os.path.isdir(root):
-        # process all files under a BIDS root recursively
         all_files = bids_list_eeg_files(root, subjects=Subjects, sessions=Sessions, runs=Runs, tasks=Tasks)
         n_jobs = 1 if is_debug() else num_jobs_from_reservation(ReservePerJob)
         n_total = len(all_files)
         t0 = now()
 
-        # copy/move the other files from the root
         if '{root}' in OutputDir:
             OutputDir = OutputDir.replace('{root}', root)
         _copy_misc_root_files(root, OutputDir, exclude=all_files)
@@ -1218,7 +1199,6 @@ def bids_preproc(
                 "Name": os.path.basename(root),
                 "BIDSVersion": "1.1.1",
             }
-        # update the desc
         desc["DatasetType"] = "derivative"
         generated_by = desc.setdefault("GeneratedBy", [])
         if not isinstance(generated_by, list):

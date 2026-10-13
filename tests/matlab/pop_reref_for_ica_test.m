@@ -24,7 +24,6 @@ EEG4.icaact     = EEG4.icaweights*EEG4.data(:,:);
 EEG.icaact(1:10,1:10) - EEG4.icaact(1:10,1:10)
 
 
-% Compute the inverse weight matrix (mixing matrix)
 X = rand(10,1000);
 [W,S] = runica(X);
 W = W*S;

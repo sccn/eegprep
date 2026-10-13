@@ -14,7 +14,6 @@ else:
     eeglab_file_path = '/Users/arno/Downloads/STUDYstern/S01/Memorize.set'
 EEG = pop_loadset(eeglab_file_path)
 
-# Print the loaded data
 res = ICL_feature_extractor(EEG, True)
 
 # save in a matlab file

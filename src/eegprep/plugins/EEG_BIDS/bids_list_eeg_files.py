@@ -45,7 +45,6 @@ def bids_list_eeg_files(
     """
     layout = layout_for_fpath(root)
 
-    # prepare filters, if any
     filters = {
         'subject': [subjects] if isinstance(subjects, (str, int)) else subjects,
         'session': [sessions] if isinstance(sessions, (str, int)) else sessions,
@@ -57,7 +56,6 @@ def bids_list_eeg_files(
     # first get all EEG files
     eeg_files = layout.get(suffix='eeg', return_type='filename' if not filters else 'object')
 
-    # apply filters
     if filters:
         for key, query_values in filters.items():
             for v in query_values:
@@ -93,9 +91,7 @@ def bids_list_eeg_files(
                         # index the applicable values (eg subjects) with integers, alphabetically
                         # strip any missing candidates
                         data_values = [dv for dv in data_values if dv is not None and dv != '']
-                        # normalize data values to strings
                         data_values = [str(dv) for dv in data_values]
-                        # get unique values, sorted alphabetically
                         uq_values = sorted(set(data_values))
                         # rewrite the query values into the first k sorted unique strings
                         query_values = [uq_values[i] for i in query_values if i < len(uq_values)]

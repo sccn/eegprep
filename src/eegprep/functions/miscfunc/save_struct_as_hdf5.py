@@ -16,7 +16,6 @@ def save_dict_to_hdf5(data, filename, dataset_name):
     dataset_name : str
         Name of the dataset in the HDF5 file.
     """
-    # Create a structured dtype from the dictionary keys and their corresponding types
     dtype = []
     for key, value in data.items():
         if isinstance(value, str):
@@ -34,7 +33,6 @@ def save_dict_to_hdf5(data, filename, dataset_name):
 
     structured_dtype = np.dtype(dtype)
 
-    # Convert dictionary values to a structured array
     structured_data = np.array(
         [
             tuple(
@@ -49,6 +47,5 @@ def save_dict_to_hdf5(data, filename, dataset_name):
         dtype=structured_dtype,
     )
 
-    # Save to HDF5
     with h5py.File(filename, 'w') as hdf:
         hdf.create_dataset(dataset_name, data=structured_data)

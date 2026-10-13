@@ -36,7 +36,6 @@ def firwsord(wintype: str, fs: float, df: float, dev: Optional[float] = None) ->
     win_df_array = [0.9, 3.1, 3.3, 5.5]
     win_dev_array = [0.089, 0.0063, 0.0022, 0.0002]
 
-    # Check arguments
     if fs is None or df is None or wintype is None:
         raise ValueError('Not enough input arguments.')
 

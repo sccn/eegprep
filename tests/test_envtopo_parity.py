@@ -93,7 +93,9 @@ class TestEnvtopoParity(unittest.TestCase):
             matlab_engine = importlib.import_module("matlab.engine")
             engine = matlab_engine.start_matlab()
             eeglab_root = _resolve_eeglab_root()
-            engine.addpath(engine.genpath(str(eeglab_root)), nargout=0)
+            # Octave sources in plugin folders replace MATLAB functions and hang topoplot.
+            engine.addpath(str(eeglab_root), nargout=0)
+            engine.addpath(engine.genpath(str(eeglab_root / "functions")), nargout=0)
         except Exception as e:
             if engine is not None:
                 engine.quit()

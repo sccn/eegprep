@@ -7,10 +7,8 @@ import scipy.io
 # recarray -> struct array
 
 default_empty = np.array([])
-# default_empty = None
 
 
-# convert list of arbitrary dicts to struct array
 def py2mat(dicts):
     """Convert a list of dictionaries to a NumPy structured array.
 
@@ -19,7 +17,6 @@ def py2mat(dicts):
     if dicts is None:
         return np.array([], dtype=object)
 
-    # Handle single dictionary input by wrapping in a list
     if isinstance(dicts, dict):
         dicts = [dicts]
 
@@ -35,10 +32,8 @@ def py2mat(dicts):
     def process_value(value):
         """Recursively process values, converting nested structures."""
         if value is None:
-            # Return None as-is, will be handled later
             return None
         elif isinstance(value, dict):
-            # Convert single dict to struct array with one element
             if value:
                 return py2mat([value])[0]
             else:
@@ -46,9 +41,7 @@ def py2mat(dicts):
                 return np.array([], dtype=object)
         elif isinstance(value, np.ndarray) and value.size > 0:
             try:
-                # Check if it's an array of dicts
                 if isinstance(value.flat[0], dict):
-                    # Convert numpy array of dicts to struct array
                     return py2mat(value.tolist())
                 else:
                     # Keep regular numpy arrays as-is
@@ -57,7 +50,6 @@ def py2mat(dicts):
                 # If we can't access flat[0], just return the array as-is
                 return value
         elif isinstance(value, (list, tuple)) and value and isinstance(value[0], dict):
-            # Convert list/tuple of dicts to struct array
             return py2mat(value)
         elif isinstance(value, np.ndarray):
             # Keep numpy arrays as-is
@@ -67,7 +59,6 @@ def py2mat(dicts):
             if not value:
                 return np.array([], dtype=object)
             try:
-                # Try to create a numpy array, but handle inhomogeneous sequences
                 return np.array(value)
             except ValueError:
                 # If the sequence is inhomogeneous, create an object array
@@ -84,10 +75,8 @@ def py2mat(dicts):
         for k, v in d.items():
             all_keys.add(k)
 
-            # Process the value recursively
             processed_v = process_value(v)
 
-            # Determine the appropriate NumPy dtype for this value
             if isinstance(processed_v, str):
                 # For strings, we need to track the maximum length
                 if k not in key_max_lengths:
@@ -123,7 +112,6 @@ def py2mat(dicts):
                 # For other types, use object
                 key_types[k] = object
 
-    # Create dtype from all keys
     dtype_list = []
     for k in sorted(all_keys):
         key_types.setdefault(k, object)
@@ -136,17 +124,14 @@ def py2mat(dicts):
 
     dtype = np.dtype(dtype_list)
 
-    # Create structured array
     struct_array = np.empty(len(dicts), dtype=dtype)
 
-    # Fill the array
     for i, d in enumerate(dicts):
         for k in all_keys:
             value = d.get(k, None)
             processed_value = process_value(value)
 
             if processed_value is None:
-                # Handle None values based on the field type
                 if key_types[k] == 'U':
                     # For string fields, use empty string instead of None
                     struct_array[i][k] = ''
@@ -168,36 +153,22 @@ def py2mat(dicts):
     return struct_array
 
 
-# def mat2py(mat_dict):
-#     # convert all struct arrays to lists of dicts recursively
-#     for k, v in mat_dict.items():
-#         if isinstance(v, np.recarray):
-#             mat_dict[k] = v.tolist()
-#         elif isinstance(v, dict):
-#             mat_dict[k] = mat2py(v)
-#     return mat_dict
-
-
 def mat2py(obj):
     """Convert MATLAB data structures to Python equivalents.
 
     Recursively converts MATLAB structs, arrays, and other types to Python dicts, lists,
     and arrays.
     """
-    # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
     if isinstance(obj, dict):
         return {key: mat2py(obj[key]) for key in obj}
-    # check if obj is a numpy array and apply recursively the function to each object not changing the struture of the array
     elif isinstance(obj, list):
         if len(obj) == 0:
             return default_empty
         else:
             return [mat2py(item) for item in obj]
     elif isinstance(obj, np.ndarray):
-        # check if empty and return none
         if obj.size == 0:
             return default_empty
-        # check if it is a numeric array
         elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
             if len(obj) == 1:
                 if isinstance(obj[0], np.ndarray):
@@ -211,7 +182,6 @@ def mat2py(obj):
                     return obj[0]
             else:
                 return obj
-            # check if it is a string array
         elif obj.dtype.kind in ['U', 'S']:
             if len(obj) == 1:
                 return obj[0]
@@ -224,7 +194,6 @@ def mat2py(obj):
                 else:
                     return [mat2py(row) for row in obj]
             else:
-                # Check if dtype has field names (structured array)
                 if obj.dtype.names is not None:
                     if len(obj) == 1:
                         return {name: mat2py(obj[0][name]) for name in obj.dtype.names}
@@ -236,12 +205,10 @@ def mat2py(obj):
                         return mat2py(obj[0])
                     else:
                         return [mat2py(row) for row in obj]
-    # check if it is a scalar or a string and return it
     elif np.isscalar(obj) or isinstance(obj, str):
         return obj
     elif isinstance(obj, np.recarray):
         return mat2py(obj.tolist())
-    # check if obj is a mat_struct object and convert it to a dictionary
     elif isinstance(obj, scipy.io.matlab.mat_struct):
         dict_obj = {}
         for field_name in obj._fieldnames:
@@ -252,9 +219,7 @@ def mat2py(obj):
                 field_value = getattr(obj, field_name)
             dict_obj[field_name] = mat2py(field_value)
         return dict_obj
-    # Handle other objects that have attributes and should be converted to dictionaries
     elif hasattr(obj, '__dict__') and not isinstance(obj, (str, int, float, bool, np.ndarray)):
-        # Convert object with attributes to dictionary
         dict_obj = {}
         for attr_name in dir(obj):
             # Skip private/magic attributes and methods
