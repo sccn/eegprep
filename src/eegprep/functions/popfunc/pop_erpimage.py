@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import inspect
 import logging
 from typing import Any
 
@@ -10,7 +12,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_text_tokens
+from eegprep.functions.miscfunc.value_parsing import is_empty_value, is_on, parse_text_tokens
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
@@ -36,6 +38,17 @@ MAX_DIALOG_SMOOTH = 10
 MICROVOLT_LABEL = "\\muV"
 NO_RENORM = "no"
 COLOR_LIMITS_HELP = "Color axis limits [low high], or the fraction of the data range to use"
+ARGUMENT_NAMES = (
+    "channel",
+    "projchan",
+    "titleplot",
+    "smooth",
+    "decimate",
+    "sortingtype",
+    "sortingwin",
+    "sortingeventfield",
+)
+CHECKBOX_OPTIONS = ("erp", "cbar", "nosort", "noplot", "plotamps")
 
 
 def pop_erpimage(
@@ -44,8 +57,8 @@ def pop_erpimage(
     channel: Any = None,
     projchan: Any = None,
     titleplot: str = "",
-    smooth: Any = DEFAULT_SMOOTH,
-    decimate: Any = DEFAULT_DECIMATE,
+    smooth: Any = None,
+    decimate: Any = None,
     sortingtype: Any = None,
     sortingwin: Any = None,
     sortingeventfield: str = "",
@@ -55,6 +68,7 @@ def pop_erpimage(
     plot: str | bool = "on",
     target: Any = None,
     rng: Any = None,
+    lastcom: str = "",
     return_com: bool = False,
     **kwargs: Any,
 ) -> ErpimageResult | tuple[ErpimageResult | None, str] | None:
@@ -63,8 +77,9 @@ def pop_erpimage(
     The positional arguments follow EEGLAB: ``typeplot`` is 1 for channels and
     0 for components, ``channel`` the 1-based channel(s) (numbers or labels)
     or component(s), ``projchan`` the channel(s) to back-project components
-    onto, then the title, the moving-average width ``smooth`` (trials), the
-    window advance ``decimate``, and the events that sort the trials:
+    onto, then the title, the moving-average width ``smooth`` (trials; 5 by
+    default), the window advance ``decimate`` (0 by default), and the events
+    that sort the trials:
     ``sortingtype`` (event types), ``sortingwin`` ([start end] in ms) and
     ``sortingeventfield`` (for example ``'latency'``). Remaining arguments are
     :func:`~eegprep.erpimage` options, as EEGLAB tokens or keywords
@@ -73,15 +88,21 @@ def pop_erpimage(
     Unlike a bare ``erpimage`` call, the ERP trace, the colorbar and the scalp
     map are on by default, as in the dialog; turn them off with ``erp=False``,
     ``cbar=False`` or ``plotmap=False``. Without ``channel`` (or with
-    ``gui=True``) the dialog opens.
+    ``gui=True``) the dialog opens, filled with the given arguments and
+    options; its values then replace them. Options no dialog field can show
+    (for example ``topo`` with its own channel locations) are applied as given.
 
     Args:
-        gui: open the dialog; defaults to ``channel is None``.
+        gui: open the dialog; defaults to an empty ``channel``.
         renderer: dialog renderer used instead of the Qt dialog.
         plot: ``'off'`` builds the figure without displaying it.
         target: Matplotlib Figure or SubFigure to draw into.
         rng: seed or NumPy random generator for the coherence bootstrap and
-            the ``erpalpha`` permutations.
+            the ``erpalpha`` permutations; only an integer seed is written to
+            the history command.
+        lastcom: an earlier ``pop_erpimage`` history command whose arguments
+            fill the dialog, as EEGLAB's ``lastcom``; pass no other arguments
+            with it.
         return_com: also return the Python history command.
 
     Returns:
@@ -94,18 +115,34 @@ def pop_erpimage(
     typeplot = _plot_type(typeplot)
     _check_dataset(EEG, typeplot)
     show_figures(None, plot=plot)  # rejects an invalid 'plot' before anything is drawn
+    arguments = {
+        "channel": channel,
+        "projchan": projchan,
+        "titleplot": titleplot,
+        "smooth": smooth,
+        "decimate": decimate,
+        "sortingtype": sortingtype,
+        "sortingwin": sortingwin,
+        "sortingeventfield": sortingeventfield,
+    }
     if gui is None:
         gui = is_empty_value(channel)
-    if gui:
-        call = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
-        if call is None:
-            return (None, "") if return_com else None
-        channel, projchan, titleplot = call["channel"], call["projchan"], call["titleplot"]
-        smooth, decimate = call["smooth"], call["decimate"]
-        sortingtype, sortingwin, sortingeventfield = call["sortingtype"], call["sortingwin"], call["sortingeventfield"]
-        kwargs = {**kwargs, **call["options"]}
+    if lastcom:
+        if not all(is_empty_value(value) for value in arguments.values()) or options or kwargs:
+            raise ValueError("pop_erpimage(): lastcom holds the arguments; pass no others with it")
+        arguments, options, kwargs = _previous_call(lastcom)
     plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
     user_options = _ordered_options(options, kwargs)
+    if gui:
+        call = _run_gui(EEG, typeplot, arguments, user_options, plotmap=plotmap, renderer=renderer)
+        if call is None:
+            return (None, "") if return_com else None
+        arguments, user_options, plotmap = call
+    channel, projchan, titleplot = arguments["channel"], arguments["projchan"], arguments["titleplot"]
+    smooth = DEFAULT_SMOOTH if arguments["smooth"] is None else arguments["smooth"]
+    decimate = DEFAULT_DECIMATE if arguments["decimate"] is None else arguments["decimate"]
+    sortingtype, sortingwin = arguments["sortingtype"], arguments["sortingwin"]
+    sortingeventfield = arguments["sortingeventfield"]
     channels = _selected_items(EEG, channel, typeplot)
     projection = [] if typeplot else _items(projchan)
     projection_numbers = _channel_numbers(EEG, projection, "projection channel") if projection else []
@@ -267,7 +304,7 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
         raise ValueError(f"pop_erpimage(): events have no '{field}' field to sort the trials by")
     if trials > 1 and not any("epoch" in event for event in events):
         raise ValueError("pop_erpimage(): events have no 'epoch' field; epoch the data before sorting by events")
-    types = [sortingtype] if isinstance(sortingtype, str) else _event_types(sortingtype)
+    types = _event_types(sortingtype)
     window = _number_list(sortingwin, "sortingwin")
     if window.size not in (0, 2):
         raise ValueError(f"pop_erpimage(): sortingwin must be [start end] in ms, got {window.tolist()}")
@@ -294,8 +331,11 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
 
 
 def _event_types(sortingtype: Any) -> list[Any]:
+    """Event types to sort by; a string is one type."""
     if sortingtype is None:
         return []
+    if isinstance(sortingtype, str):
+        return [sortingtype]
     return [
         item.item() if isinstance(item, np.generic) else item
         for item in np.ravel(np.asarray(sortingtype, dtype=object))
@@ -726,17 +766,193 @@ def _epoch_limits_text(EEG: dict[str, Any]) -> str:
     return " ".join(f"{value:.10g}" for value in 1000 * np.array([float(EEG["xmin"]), float(EEG["xmax"])]))
 
 
-def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None) -> dict[str, Any] | None:
-    result = inputgui(pop_erpimage_dialog_spec(EEG, typeplot=typeplot), renderer=renderer)
+def _run_gui(
+    EEG: dict[str, Any],
+    typeplot: int,
+    arguments: dict[str, Any],
+    options: dict[str, Any],
+    *,
+    plotmap: bool,
+    renderer: Any | None,
+) -> tuple[dict[str, Any], dict[str, Any], bool] | None:
+    """Arguments, options and scalp-map flag after the dialog; options it cannot show are kept as given."""
+    values, hidden = _dialog_values(arguments, options, plotmap=plotmap)
+    result = inputgui(pop_erpimage_dialog_spec(EEG, typeplot=typeplot), initial_values=values, renderer=renderer)
     if result is None:
         return None
-    return _dialog_call(EEG, typeplot, result)
+    call = _dialog_call(EEG, typeplot, result)
+    return call["arguments"], hidden | call["options"], call["plotmap"]
+
+
+def _dialog_values(
+    arguments: dict[str, Any], options: dict[str, Any], *, plotmap: bool
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Dialog values showing a call (fields as ``pop_erpimage.m`` restores them), and the options no field shows."""
+    values: dict[str, Any] = {"plotmap": plotmap}
+    items = {
+        "chan": _items(arguments["channel"]),
+        "projchan": _items(arguments["projchan"]),
+        "type": _event_types(arguments["sortingtype"]),
+    }
+    values.update({tag: " ".join(_token_text(item) for item in found) for tag, found in items.items() if found})
+    for tag, name in (("title", "titleplot"), ("field", "sortingeventfield")):
+        if arguments[name]:
+            values[tag] = str(arguments[name])
+    for tag, name in (("smooth", "smooth"), ("decimate", "decimate"), ("eventrange", "sortingwin")):
+        if not is_empty_value(arguments[name]):
+            numbers = _number_array(arguments[name])
+            values[tag] = str(arguments[name]) if numbers is None else _numbers_text(numbers)
+    hidden: dict[str, Any] = {}
+    others = []
+    for name, value in options.items():
+        fields = _option_fields(name, value)
+        if fields is not None:
+            values.update(fields)
+            continue
+        text = _option_text(name, value)
+        if text is None:
+            hidden[name] = value
+        else:
+            others.append(text)
+    if others:
+        values["others"] = ", ".join(others)
+    return values, hidden
+
+
+def _token_text(item: Any) -> str:
+    """A channel, component or event type as dialog text; quoted when it holds spaces, commas or quotes."""
+    text = event_type_text(item)
+    if text and not any(char in text for char in " ,'\""):
+        return text
+    quote = '"' if "'" in text else "'"
+    return f"{quote}{text}{quote}"
+
+
+def _option_fields(name: str, value: Any) -> dict[str, Any] | None:
+    """The dialog fields that show an erpimage option, or None when none can."""
+    if name in CHECKBOX_OPTIONS:
+        if isinstance(value, (bool, np.bool_)) or (isinstance(value, str) and value.lower() in {"on", "off"}):
+            return {name: is_on(value)}
+        return None
+    if name == "renorm":
+        return {"renorm": value} if isinstance(value, str) else None
+    numbers = _number_array(value)
+    if numbers is None:
+        return None
+    if name in ("caxis", "spec", "vert", "align"):
+        return {name: _numbers_text(numbers)}
+    if name == "phasesort" and numbers.size in (3, 4):
+        return {
+            "phase3": _numbers_text(numbers[:1]),
+            "phase2": _numbers_text(numbers[1:2]),
+            "phase": _numbers_text(numbers[2:]),
+        }
+    if name == "coher" and numbers.size <= 3:
+        fields = {"coher": _numbers_text(numbers[:2])}
+        if numbers.size == 3:
+            fields["coher2"] = _numbers_text(numbers[2:])
+        return fields
+    if name == "limits" and numbers.size <= 9:
+        return _limits_fields(numbers)
+    return None
+
+
+def _limits_fields(limits: np.ndarray) -> dict[str, Any] | None:
+    """EEGLAB's limits(1:9) in the dialog; NaN pairs stay blank, a half-NaN pair cannot be shown."""
+    padded = np.full(9, np.nan)
+    padded[: limits.size] = limits
+    fields = {}
+    for tag, part in (
+        ("limtime", padded[0:2]),
+        ("limerp", padded[2:4]),
+        ("limamp", padded[4:6]),
+        ("limcoher", padded[6:8]),
+        ("limbaseamp", padded[8:9]),
+    ):
+        if np.all(np.isnan(part)):
+            continue
+        if np.any(np.isnan(part)):
+            return None
+        fields[tag] = _numbers_text(part)
+    return fields
+
+
+def _option_text(name: str, value: Any) -> str | None:
+    """``name=value`` for the More options box, when reading it back gives the same value."""
+    text = f"{name}={python_literal(value)}"
+    try:
+        shown = parse_plot_options_text(text).get(name)
+    except ValueError:
+        return None
+    return text if python_literal(shown) == python_literal(value) else None
+
+
+def _number_array(value: Any) -> np.ndarray | None:
+    """A non-empty 1-D vector of numbers, or None."""
+    if value is None or isinstance(value, (str, bytes, bool, np.bool_)):
+        return None
+    try:
+        numbers = np.asarray(value, dtype=float)
+    except (TypeError, ValueError):
+        return None
+    return numbers.ravel() if numbers.ndim <= 1 and numbers.size else None
+
+
+def _numbers_text(numbers: np.ndarray) -> str:
+    return " ".join(str(int(number)) if number.is_integer() else repr(number) for number in map(float, numbers))
+
+
+def _previous_call(lastcom: str) -> tuple[dict[str, Any], tuple[Any, ...], dict[str, Any]]:
+    """Arguments, EEGLAB tokens and keyword options of an earlier ``pop_erpimage`` command."""
+    try:
+        tree = ast.parse(lastcom.strip())
+    except SyntaxError as error:
+        raise ValueError(f"pop_erpimage(): lastcom is not a Python command: {lastcom!r}") from error
+    call = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and ast.unparse(node.func).split(".")[-1] == "pop_erpimage"
+        ),
+        None,
+    )
+    if call is None:
+        raise ValueError(f"pop_erpimage(): lastcom is not a pop_erpimage command: {lastcom!r}")
+    positional = [None, *(_restored_value(node, f"argument {index}") for index, node in enumerate(call.args[1:], 2))]
+    keywords = {}
+    for keyword in call.keywords:
+        value = _restored_value(keyword.value, str(keyword.arg))
+        if keyword.arg is not None and value is not None:
+            keywords[keyword.arg] = value
+    bound = inspect.signature(pop_erpimage).bind_partial(*positional, **keywords)
+    bound.apply_defaults()
+    values = bound.arguments
+    return {name: values[name] for name in ARGUMENT_NAMES}, tuple(values["options"]), dict(values["kwargs"])
+
+
+def _restored_value(node: ast.expr, name: str) -> Any:
+    """A literal of a history command, or None (logged) when it is an expression such as ``EEG['chanlocs']``."""
+    try:
+        return _literal(node)
+    except (TypeError, ValueError):
+        logger.info("pop_erpimage(): %s of the previous command is not a literal, so it is not restored.", name)
+        return None
+
+
+def _literal(node: ast.expr) -> Any:
+    """``ast.literal_eval`` that also reads ``float('nan')`` and ``float('inf')``, as history commands write them."""
+    if isinstance(node, ast.Call) and ast.unparse(node.func) == "float" and len(node.args) == 1:
+        return float(_literal(node.args[0]))
+    if isinstance(node, (ast.List, ast.Tuple)):
+        items = [_literal(item) for item in node.elts]
+        return items if isinstance(node, ast.List) else tuple(items)
+    return ast.literal_eval(node)
 
 
 def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> dict[str, Any]:
     """``pop_erpimage`` arguments from the dialog values, mapped as ``pop_erpimage.m`` does."""
     options: dict[str, Any] = {}
-    for flag in ("erp", "cbar", "plotmap"):
+    for flag in ("erp", "cbar"):
         if not bool(result.get(flag, True)):
             options[flag] = False
     limits = _dialog_limits(EEG, result)
@@ -770,7 +986,7 @@ def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> 
     options.update(_more_options(_text(result, "others")))
     window = _dialog_numbers(result, "eventrange", "Event time range", sizes=(2,))
     channel_label = "Channel" if typeplot else "Component(s)"
-    return {
+    arguments = {
         "channel": _dialog_items(result, "chan", channel_label, required=True),
         "projchan": _dialog_items(result, "projchan", "Project to channel #", required=False),
         "titleplot": _text(result, "title"),
@@ -779,8 +995,8 @@ def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> 
         "sortingtype": parse_text_tokens(_text(result, "type")) or None,
         "sortingwin": window.tolist() if window.size else None,
         "sortingeventfield": field,
-        "options": options,
     }
+    return {"arguments": arguments, "options": options, "plotmap": bool(result.get("plotmap", True))}
 
 
 def _text(result: dict[str, Any], tag: str) -> str:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from pathlib import Path
 
@@ -31,20 +32,21 @@ def _close_figures():
 
 
 class _Renderer:
-    """Dialog seam: returns the given values (None cancels) and keeps the spec it was shown."""
+    """Dialog seam: the user edits ``values`` (None cancels); keeps the spec and initial values it was shown."""
 
     def __init__(self, values: dict | None) -> None:
         self.values = values
         self.spec = None
+        self.initial_values = None
 
     def run(self, spec, initial_values=None):
-        self.spec = spec
+        self.spec, self.initial_values = spec, initial_values
         if self.values is None:
             return None
         defaults = {
             tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"
         }
-        return {**defaults, **self.values}
+        return {**defaults, **(initial_values or {}), **self.values}
 
 
 def _command(eeg: dict, values: dict, typeplot: int = 1) -> str:
@@ -63,6 +65,15 @@ def test_dialog_defaults_give_eeglabs_settings(epochs) -> None:
     tags = controls_by_tag(renderer.spec)
     assert tags["limtime"].value == "-1000 1992.1875"
     assert tags["smooth"].value == "10" and tags["decimate"].value == "1"
+
+
+EVERY_FIELD_COMMAND = (
+    "pop_erpimage(EEG, 1, 'POz', titleplot='Sorted', smooth=3, decimate=2, sortingtype=['rt'], "
+    "sortingwin=[0, 1000], sortingeventfield='latency', cbar=False, "
+    "limits=[-200, 800, -5, 5, -3, 3, 0, 1, 1], caxis=[-10, 10], renorm='yes', align=float('inf'), "
+    "nosort=True, noplot=True, phasesort=[100, 25, 10, 12], coher=[10, 10, 0.01], spec=[2, 40], "
+    "vert=[0, 500], erpstd='on', plotmap=False)"
+)
 
 
 def test_dialog_maps_every_field_like_pop_erpimage_m(epochs) -> None:
@@ -97,19 +108,126 @@ def test_dialog_maps_every_field_like_pop_erpimage_m(epochs) -> None:
         "others": "'erpstd', 'on'",
     }
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer(values), plot="off", rng=1, return_com=True)
-    assert command == (
-        "pop_erpimage(EEG, 1, 'POz', titleplot='Sorted', smooth=3, decimate=2, sortingtype=['rt'], "
-        "sortingwin=[0, 1000], sortingeventfield='latency', cbar=False, "
-        "limits=[-200, 800, -5, 5, -3, 3, 0, 1, 1], caxis=[-10, 10], renorm='yes', align=float('inf'), "
-        "nosort=True, noplot=True, phasesort=[100, 25, 10, 12], coher=[10, 10, 0.01], spec=[2, 40], "
-        "vert=[0, 500], erpstd='on', plotmap=False, rng=1)"
+    assert command == EVERY_FIELD_COMMAND[:-1] + ", rng=1)"
+
+
+def test_explicit_arguments_fill_the_dialog_and_come_back_unchanged(epochs) -> None:
+    renderer = _Renderer({})
+    _result, command = pop_erpimage(
+        epochs,
+        1,
+        "POz",
+        None,
+        "Sorted",
+        3,
+        2,
+        ["rt"],
+        [0, 1000],
+        "latency",
+        "cbar",
+        "off",
+        gui=True,
+        renderer=renderer,
+        plot="off",
+        return_com=True,
+        limits=[-200, 800, -5, 5, -3, 3, 0, 1, 1],
+        caxis=[-10, 10],
+        renorm="yes",
+        align=np.inf,
+        nosort=True,
+        noplot=True,
+        phasesort=[100, 25, 10, 12],
+        coher=[10, 10, 0.01],
+        spec=[2, 40],
+        vert=[0, 500],
+        erpstd="on",
+        plotmap=False,
     )
+    assert command == EVERY_FIELD_COMMAND
+    assert renderer.initial_values == {
+        "plotmap": False,
+        "chan": "POz",
+        "title": "Sorted",
+        "smooth": "3",
+        "decimate": "2",
+        "type": "rt",
+        "eventrange": "0 1000",
+        "field": "latency",
+        "cbar": False,
+        "limtime": "-200 800",
+        "limerp": "-5 5",
+        "limamp": "-3 3",
+        "limcoher": "0 1",
+        "limbaseamp": "1",
+        "caxis": "-10 10",
+        "renorm": "yes",
+        "align": "inf",
+        "nosort": True,
+        "noplot": True,
+        "phase3": "100",
+        "phase2": "25",
+        "phase": "10 12",
+        "coher": "10 10",
+        "coher2": "0.01",
+        "spec": "2 40",
+        "vert": "0 500",
+        "others": "erpstd='on'",
+    }
+
+
+def test_lastcom_reopens_the_dialog_with_the_previous_command(epochs) -> None:
+    renderer = _Renderer({})
+    _result, command = pop_erpimage(epochs, 1, lastcom=EVERY_FIELD_COMMAND, renderer=renderer, return_com=True)
+    assert command == EVERY_FIELD_COMMAND
+    assert renderer.initial_values["phase"] == "10 12" and renderer.initial_values["align"] == "inf"
+
+
+def test_lastcom_skips_expressions_and_replays_without_the_dialog(epochs, caplog) -> None:
+    lastcom = "image = pop_erpimage(EEG, 1, 14, smooth=3, topo=(14, EEG['chanlocs']), rng=2)"
+    with caplog.at_level(logging.INFO, logger="eegprep.functions.popfunc.pop_erpimage"):
+        _result, command = pop_erpimage(epochs, 1, lastcom=lastcom, gui=False, plot="off", return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 14, smooth=3, decimate=0)"
+    assert "topo of the previous command is not a literal, so it is not restored" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("channel", "lastcom", "message"),
+    [
+        (14, "pop_erpimage(EEG, 1, 3)", "lastcom holds the arguments; pass no others with it"),
+        (None, "pop_erpimage(EEG, 1, 3", "lastcom is not a Python command"),
+        (None, "pop_topoplot(EEG, 1, 3)", "lastcom is not a pop_erpimage command"),
+    ],
+)
+def test_lastcom_that_cannot_be_used_raises(epochs, channel, lastcom, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        pop_erpimage(epochs, 1, channel, lastcom=lastcom, renderer=_Renderer({}))
+
+
+def test_dialog_values_replace_the_callers_options(epochs) -> None:
+    renderer = _Renderer({"cbar": True, "others": ""})
+    _result, command = pop_erpimage(
+        epochs, 1, 14, gui=True, cbar=False, erpstd=True, renderer=renderer, plot="off", return_com=True
+    )
+    assert renderer.initial_values["cbar"] is False and renderer.initial_values["others"] == "erpstd=True"
+    assert command == "pop_erpimage(EEG, 1, 14, smooth=10, decimate=1)"
+
+
+def test_options_the_dialog_cannot_show_are_applied_as_given(epochs) -> None:
+    renderer = _Renderer({})
+    topo = (14, deepcopy(epochs["chanlocs"]))
+    limits = [-200, 800, np.nan, 5]
+    result, command = pop_erpimage(
+        epochs, 1, 14, gui=True, topo=topo, limits=limits, renderer=renderer, plot="off", return_com=True
+    )
+    assert "others" not in renderer.initial_values and "limtime" not in renderer.initial_values
+    assert command.endswith("decimate=1, topo=(14, EEG['chanlocs']), limits=[-200, 800, float('nan'), 5])")
+    assert result.axhndls[5] is not None
 
 
 def test_unchanged_time_limits_are_not_passed_and_a_single_coher_frequency_is_kept(epochs) -> None:
     values = {"erp": False, "coher": "10 12", "phase": "", "limtime": "-1000 1992.1875"}
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer(values), noshow=True, return_com=True)
-    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True, erp=False, coher=[10, 12])"
+    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, erp=False, coher=[10, 12], noshow=True)"
 
 
 def test_dialog_keeps_quoted_event_types_with_spaces() -> None:
@@ -120,6 +238,9 @@ def test_dialog_keeps_quoted_event_types_with_spaces() -> None:
     result, command = pop_erpimage(eeg, 1, renderer=_Renderer(values), noshow=True, return_com=True)
     assert "sortingtype=['S  1', 'Stimulus/S 2']" in command
     np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
+    renderer = _Renderer({})
+    reopened = pop_erpimage(eeg, 1, lastcom=command, renderer=renderer, return_com=True)[1]
+    assert renderer.initial_values["type"] == "'S  1' 'Stimulus/S 2'" and reopened == command
 
 
 def test_dialog_lists_numeric_event_types_sorted_as_numbers() -> None:

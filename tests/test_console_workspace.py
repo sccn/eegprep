@@ -727,6 +727,33 @@ def test_gui_pop_erpimage_history_replays_in_the_console(monkeypatch):
     plt.close("all")
 
 
+def test_menu_pop_erpimage_reopens_with_the_last_matching_command(monkeypatch):
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    shown = []
+
+    def dialog(spec, initial_values=None, renderer=None):
+        shown.append(initial_values)
+        defaults = {
+            tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"
+        }
+        edits = {"chan": "B", "smooth": "1", "nosort": True} if len(shown) == 1 else {}
+        return {**defaults, **initial_values, **edits}
+
+    monkeypatch.setattr(pop_erpimage_module, "inputgui", dialog)
+    dispatcher = MenuActionDispatcher(session)
+    dispatcher.dispatch("pop_erpimage:channels")
+    component_command = "pop_erpimage(EEG, 0, 2, smooth=3, decimate=1)"
+    session.add_history(component_command)
+    dispatcher.dispatch("pop_erpimage:channels")
+
+    command = "pop_erpimage(EEG, 1, 'B', smooth=1, decimate=1, nosort=True)"
+    assert shown[0] == {"plotmap": True}
+    assert shown[1] == {"plotmap": True, "chan": "B", "smooth": "1", "decimate": "1", "nosort": True}
+    assert session.ALLCOM == [command, component_command, command]
+    plt.close("all")
+
+
 def test_timewarped_pop_newtimef_console_call_records_replayable_history():
     session = EEGPrepSession()
     eeg = _demo_eeg()
