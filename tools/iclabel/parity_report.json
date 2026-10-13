@@ -1,0 +1,118 @@
+{
+  "class_names": [
+    "Brain",
+    "Muscle",
+    "Eye",
+    "Heart",
+    "Line Noise",
+    "Channel Noise",
+    "Other"
+  ],
+  "evaluation_features": {
+    "component_count": 217,
+    "path": "tools/iclabel/evaluation_features.npz",
+    "sha256": "dbb2c0cc063d29ab2e8e59fafb0f474df780a458ac17be9d4732abc0233c8b44"
+  },
+  "gate": {
+    "maximum_probability_abs_diff": 0.015,
+    "minimum_keep_reject_agreement": 0.99,
+    "minimum_top1_agreement": 0.95
+  },
+  "gate_pass": true,
+  "manifest": "evaluation_manifest.json",
+  "metrics": {
+    "keep_reject_agreement": 1.0,
+    "max_probability_abs_diff": 0.013459265232086182,
+    "mean_probability_abs_diff": 0.0008022966030173169,
+    "model_class_distribution": {
+      "Brain": 18,
+      "Channel Noise": 0,
+      "Eye": 5,
+      "Heart": 0,
+      "Line Noise": 0,
+      "Muscle": 1,
+      "Other": 193
+    },
+    "per_class_agreement": {
+      "Brain": {
+        "agreement": 1.0,
+        "count": 18
+      },
+      "Channel Noise": {
+        "agreement": null,
+        "count": 0
+      },
+      "Eye": {
+        "agreement": 1.0,
+        "count": 5
+      },
+      "Heart": {
+        "agreement": null,
+        "count": 0
+      },
+      "Line Noise": {
+        "agreement": null,
+        "count": 0
+      },
+      "Muscle": {
+        "agreement": 1.0,
+        "count": 1
+      },
+      "Other": {
+        "agreement": 1.0,
+        "count": 193
+      }
+    },
+    "sample_count": 217,
+    "teacher_class_distribution": {
+      "Brain": 18,
+      "Channel Noise": 0,
+      "Eye": 5,
+      "Heart": 0,
+      "Line Noise": 0,
+      "Muscle": 1,
+      "Other": 193
+    },
+    "top1_agreement": 1.0
+  },
+  "packaged_model": {
+    "path": "src/eegprep/plugins/ICLabel/iclabel.onnx",
+    "sha256": "8c0537d299e8776eef418d4a697547ad0b317902d656f69f64440169c564d8e3",
+    "size_bytes": 2932897
+  },
+  "quantization": "int8 Conv weights per output channel with a float DequantizeLinear before each Conv; float32 model inputs, outputs, and softmax; feature extraction, augmentation, and output averaging unchanged from iclabel.py",
+  "teacher_probabilities": {
+    "path": "tools/iclabel/evaluation_teacher_probabilities.npy",
+    "sha256": "4378b436bcbf7aaf3752881b53ee60c11f5f9cdfde8f32cc7e9dc4d9ab92be07"
+  },
+  "thresholds": [
+    [
+      null,
+      null
+    ],
+    [
+      0.9,
+      1.0
+    ],
+    [
+      0.9,
+      1.0
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ]
+}

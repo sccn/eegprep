@@ -126,15 +126,45 @@ Use the lower-level FIRFilt helpers for custom order/window work:
 ICLabel
 =======
 
-The standalone Python engine ships the default ICLabel network. ``lite`` and
-``beta`` network requests require MATLAB or Octave with an EEGLAB ICLabel
-checkout that provides those artifacts.
+The standalone Python engine ships the default ICLabel network as an Open Neural Network Exchange (ONNX)
+artifact and classifies through ``onnxruntime`` (``eegprep[iclabel]``). ``lite``
+and ``beta`` network requests require MATLAB or Octave with an EEGLAB
+ICLabel checkout that provides those artifacts. How closely the packaged
+network matches the full-precision one is in :ref:`iclabel_measured_agreement`.
 
 .. code-block:: python
 
    EEG, com = pop_iclabel(EEG, "default", return_com=True)
    stats = eeg_icalabelstat(EEG, threshold=0.9, verbose=False)
    EEG, com = pop_icflag(EEG, return_com=True)
+
+In a Pyodide/Emscripten browser runtime, use the asynchronous entry point and
+await the ONNX Runtime Web-backed operation:
+
+.. code-block:: python
+
+   EEG, com = await pop_iclabel_async(EEG, "default", return_com=True)
+
+The synchronous ``iclabel`` and ``pop_iclabel`` entry points raise
+``RuntimeError`` in that runtime; native Python behavior is unchanged.
+
+The browser host supplies the ONNX Runtime Web bridge by setting
+``globalThis.eegprep_iclabel_web`` before the first call. It is an object with
+one method:
+
+.. code-block:: javascript
+
+   run(imageData, imageShape, psdmedData, psdmedShape, autocorrData, autocorrShape)
+
+Each ``*Data`` argument is a flat ``Float32Array`` and each ``*Shape`` argument
+is an integer array: ``[N, 1, 32, 32]`` for ``image`` and ``[N, 1, 1, 100]`` for
+``psdmed`` and ``autocorr``, where ``N`` is four times the number of components
+(ICLabel classifies four augmented copies of each). ``run`` returns a ``Promise``
+that resolves to the flat ``Float32Array`` of the network output, seven class
+scores for each of the ``N`` rows. The reference implementation is
+``createIcLabelWebBridge`` in ``tools/pyodide/iclabel_web_bridge.mjs`` in the
+source repository; it creates one ``onnxruntime-web`` session from the bytes of
+the packaged ``iclabel.onnx``.
 
 Review components visually with ``pop_viewprops`` before removing them.
 

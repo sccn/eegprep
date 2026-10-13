@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 
 import numpy as np
 
@@ -14,11 +15,23 @@ from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.adminfunc.eeg_retrieve import eeg_retrieve
 from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.pop_delset import pop_delset
-from eegprep.functions.adminfunc.storage import offload_storedisk_datasets
+from eegprep.functions.adminfunc.storage import MemmapData, offload_storedisk_datasets
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
 _UNSET = object()
+# Top-level dataset fields that do not make an asynchronous result stale: the result
+# was computed from the same data whether or not a command was recorded in its
+# history or the dataset was marked saved in the meantime.
+_FRESHNESS_IGNORED_FIELDS = frozenset({"history", "saved"})
+_DIGEST_CHUNK_ELEMENTS = 1 << 20
+
+
+class DatasetStateToken(NamedTuple):
+    """Selection and content digest captured by :meth:`EEGPrepSession.dataset_state_token`."""
+
+    currentset: tuple[int, ...]
+    content_digest: bytes
 
 
 def has_eeg_data(eeg: Any) -> bool:
@@ -33,6 +46,73 @@ def has_eeg_data(eeg: Any) -> bool:
     if isinstance(data, list):
         return len(data) > 0
     return True
+
+
+def _datasets_digest(datasets: Iterable[dict[str, Any]]) -> bytes:
+    digest = hashlib.blake2b(digest_size=16)
+    for dataset in datasets:
+        digest.update(b"dataset{")
+        for key in sorted(dataset, key=str):
+            if key in _FRESHNESS_IGNORED_FIELDS:
+                continue
+            _update_digest(str(key), digest, set())
+            _update_digest(dataset[key], digest, set())
+        digest.update(b"}")
+    return digest.digest()
+
+
+def _update_digest(value: Any, digest: hashlib.blake2b, seen: set[int]) -> None:
+    if isinstance(value, (dict, list, tuple)):
+        if id(value) in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(id(value))
+        if isinstance(value, dict):
+            digest.update(b"dict{")
+            for key in sorted(value, key=str):
+                _update_digest(str(key), digest, seen)
+                _update_digest(value[key], digest, seen)
+            digest.update(b"}")
+        else:
+            digest.update(b"list[")
+            for item in value:
+                _update_digest(item, digest, seen)
+            digest.update(b"]")
+        seen.remove(id(value))
+        return
+    if isinstance(value, MemmapData):
+        value = np.asarray(value)
+    if isinstance(value, np.ndarray):
+        _update_array_digest(value, digest, seen)
+        return
+    digest.update(type(value).__name__.encode())
+    digest.update(repr(value).encode())
+
+
+def _update_array_digest(array: np.ndarray, digest: hashlib.blake2b, seen: set[int]) -> None:
+    digest.update(f"ndarray{array.dtype!r}{array.shape}".encode())
+    if array.dtype.hasobject:
+        # An object array can hold itself, so it needs the same cycle guard as a container.
+        if id(array) in seen:
+            digest.update(b"<cycle>")
+            return
+        seen.add(id(array))
+        _update_digest(array.tolist(), digest, seen)
+        seen.remove(id(array))
+        return
+    # Fortran-ordered arrays, the usual layout of EEG data read from disk, are hashed
+    # through their C-ordered transpose so neither layout is copied. The layout tag
+    # keeps the two traversal orders from colliding.
+    transposed = array.flags.f_contiguous and not array.flags.c_contiguous
+    digest.update(b"F" if transposed else b"C")
+    # Buffered chunks bound memory use for strided views; contiguous data is read in place.
+    for chunk in np.nditer(
+        array.T if transposed else array,
+        flags=("external_loop", "buffered", "zerosize_ok"),
+        order="C",
+        buffersize=_DIGEST_CHUNK_ELEMENTS,
+    ):
+        digest.update(np.ascontiguousarray(chunk))
 
 
 def normalize_dataset_indices(indices: Any, *, allow_empty: bool = True) -> list[int]:
@@ -202,6 +282,51 @@ class EEGPrepSession:
         """Notify listeners that session-backed state changed."""
         for listener in list(self._listeners):
             listener(self)
+
+    def dataset_state_token(self) -> DatasetStateToken:
+        """Capture the selected datasets to check an asynchronous result before committing it.
+
+        The token holds ``CURRENTSET`` and a BLAKE2b digest of the current ``EEG`` and
+        the selected ``ALLEEG`` entries, each object hashed once. Capturing it reads
+        every selected array once, in chunks and without copying the dataset; an
+        awaited call costs two such passes, because
+        :meth:`require_dataset_state_unchanged` captures a second token to compare.
+        Top-level ``history`` and ``saved`` fields are not hashed, and unselected
+        datasets are ignored. Because only content is compared, an edit that is
+        reverted before the check leaves the token unchanged.
+
+        Dictionaries, lists, tuples, NumPy arrays and memory-mapped data are hashed by
+        content. Any other value, such as a SciPy sparse matrix, is hashed by its
+        ``repr``, so an in-place edit that does not change the ``repr`` is not detected;
+        keep such objects out of the fields a result depends on, or replace them
+        instead of editing them.
+        """
+        current = self.EEG if isinstance(self.EEG, list) else [self.EEG]
+        selected = [self.ALLEEG[index - 1] for index in self.CURRENTSET if 1 <= index <= len(self.ALLEEG)]
+        datasets = {id(dataset): dataset for dataset in (*current, *selected)}
+        return DatasetStateToken(tuple(self.CURRENTSET), _datasets_digest(datasets.values()))
+
+    def require_dataset_state_unchanged(self, token: DatasetStateToken, function_name: str) -> None:
+        """Raise ``RuntimeError`` if the selected datasets changed since ``token`` was captured.
+
+        Args:
+            token: Value returned by :meth:`dataset_state_token` before the computation.
+            function_name: Name shown in the error, for example ``"pop_iclabel_async"``.
+        """
+        current = self.dataset_state_token()
+        if current == token:
+            return
+        if current.currentset != token.currentset:
+            reason = "the dataset selection changed while it was running"
+        else:
+            reason = (
+                "the selected dataset was modified while it was running, for example by another "
+                f"command, a GUI action, or a concurrent {function_name} call"
+            )
+        raise RuntimeError(
+            f"{function_name} result discarded because {reason}. "
+            f"Run {function_name} again if the current dataset still needs it."
+        )
 
     def current_eeg(self) -> dict[str, Any] | list[dict[str, Any]]:
         """Return the current EEG selection."""

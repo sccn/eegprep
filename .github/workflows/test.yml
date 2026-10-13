@@ -212,6 +212,9 @@ jobs:
           echo "EEGPREP_SKIP_MATLAB=0" >> "$GITHUB_ENV"
 
       - name: Run Python tests
+        # The suite takes about 15 minutes; a hang, such as a dialog nothing answers, would
+        # otherwise run until GitHub's 6 hour job limit.
+        timeout-minutes: 45
         run: |
           uv run --no-sync pytest tests
 
@@ -286,3 +289,192 @@ jobs:
         if: always()
         run: |
           uv pip list
+
+  base-install:
+    name: Base install without optional extras
+    runs-on: ubuntu-22.04
+    # The lint and test jobs sync --all-extras and the other jobs add the extras
+    # they need (pyodide: iclabel and torch; docs.yml: docs and iclabel), so a
+    # module that quietly needs an optional package can pass them and still fail
+    # for a user of a plain `pip install eegprep`. This job installs only the
+    # base dependencies and the dev group. The dev group itself brings pyedflib,
+    # pyqtgraph, PySide6 and ipython, so this install alone cannot catch an
+    # unguarded pyedflib or GUI import: tests/test_optional_extras.py blocks each
+    # optional package explicitly, and this install keeps oct2py, psutil,
+    # onnxruntime and torch out.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install the base package without extras
+        run: uv sync --python 3.12 --group dev
+
+      - name: Check the optional-extras contract
+        run: |
+          EEGPREP_SKIP_MATLAB=1 QT_QPA_PLATFORM=offscreen uv run --no-sync pytest tests/test_optional_extras.py -q -p no:cacheprovider
+
+  pyodide:
+    name: Pyodide harness, ICA benchmark, ICLabel browser parity, and ICLabel regeneration
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # tools/pyodide/run_pyodide.sh installs the pinned Pyodide and ONNX Runtime
+      # Web packages with `bun install --frozen-lockfile` from tools/pyodide/bun.lock;
+      # Node.js above still runs the harness.
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install Python 3.12
+        run: |
+          uv python install 3.12
+
+      - name: Install benchmark and ICLabel regeneration dependencies
+        run: |
+          uv sync --python 3.12 --group dev --extra iclabel --extra torch
+
+      - name: Build EEGPrep wheel from the working tree
+        run: |
+          mkdir -p pyodide-artifacts
+          uv build --wheel --out-dir pyodide-artifacts
+
+      # The documented regeneration sequence from tools/iclabel/quantize_iclabel_onnx.py:
+      # export the float32 network from netICL.mat, quantize it, and require the
+      # gate to pass against the frozen teacher probabilities and the result to be
+      # numerically identical to the shipped model on the evaluation features. A
+      # fresh PyTorch export is not guaranteed to be byte-identical across PyTorch
+      # versions, so bytes are not compared. The regenerated report's gate and
+      # metrics must match the committed report (drift metrics within 1e-5 for
+      # CPU differences), and the committed report must record the shipped
+      # model's SHA-256, which release.yml checks again.
+      - name: Regenerate the ICLabel model from netICL.mat
+        run: |
+          set -euo pipefail
+          regenerated="$RUNNER_TEMP/iclabel-regenerated"
+          uv run --no-sync python tools/iclabel/export_iclabel_onnx.py \
+            --onnx-path "$regenerated/iclabel_float32.onnx"
+          uv run --no-sync python tools/iclabel/quantize_iclabel_onnx.py \
+            --float32-artifact "$regenerated/iclabel_float32.onnx" \
+            --output "$regenerated/iclabel.onnx" \
+            --report "$regenerated/parity_report.json" \
+            --require-identical-to src/eegprep/plugins/ICLabel/iclabel.onnx \
+            --require-matching-report tools/iclabel/parity_report.json \
+            > pyodide-artifacts/iclabel-quantization.log
+          shipped_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
+          recorded_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
+          if [ "$shipped_sha256" != "$recorded_sha256" ]; then
+            echo "::error::tools/iclabel/parity_report.json does not describe the shipped iclabel.onnx; regenerate them together"
+            exit 1
+          fi
+
+      - name: Build the locked docopt wheel
+        run: |
+          uv run --no-sync python tools/pyodide/prepare_docopt_wheel.py \
+            --output-dir pyodide-artifacts/docopt
+
+      - name: Validate Node runner argument handling
+        run: |
+          if output=$(node tools/pyodide/run_pyodide.mjs --not-a-real-option 2>&1); then
+            echo "The runner accepted an invalid option" >&2
+            exit 1
+          fi
+          grep -q "Usage:" <<< "$output"
+
+      - name: Run Pyodide sample-data smoke test
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/smoke.py \
+            --sample-data-dir sample_data \
+            2>&1 | tee pyodide-artifacts/pyodide-smoke.log
+
+      - name: Run native ICLabel parity reference
+        env:
+          MNE_CONFIGDIR: ${{ runner.temp }}/mne
+        run: |
+          uv run --no-sync python tools/pyodide/iclabel_parity.py \
+            --platform native \
+            --sample-data-dir sample_data \
+            > pyodide-artifacts/iclabel-native.json
+
+      - name: Run browser ICLabel parity through Pyodide
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --iclabel-web \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/iclabel_parity.py \
+            --sample-data-dir sample_data \
+            --output pyodide-artifacts/iclabel-pyodide.json \
+            -- --platform pyodide \
+            2>&1 | tee pyodide-artifacts/iclabel-pyodide.log
+
+      - name: Compare ICLabel browser parity
+        run: |
+          set -o pipefail
+          uv run --no-sync python tools/pyodide/compare_iclabel.py \
+            --native pyodide-artifacts/iclabel-native.json \
+            --pyodide pyodide-artifacts/iclabel-pyodide.json \
+            --report pyodide-artifacts/iclabel-parity.md \
+            | tee pyodide-artifacts/iclabel-parity.json
+
+      - name: Run native ICA and matmul benchmark
+        env:
+          MNE_CONFIGDIR: ${{ runner.temp }}/mne
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          VECLIB_MAXIMUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
+        run: |
+          uv run --no-sync python tools/pyodide/benchmark.py \
+            --platform native \
+            > pyodide-artifacts/benchmark-native.json
+
+      - name: Run Pyodide ICA and matmul benchmark
+        run: |
+          set -o pipefail
+          tools/pyodide/run_pyodide.sh \
+            --wheel "$(find pyodide-artifacts -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --docopt-wheel "$(find pyodide-artifacts/docopt -maxdepth 1 -type f -name 'docopt-0.6.2-*.whl' -print -quit)" \
+            --script tools/pyodide/benchmark.py \
+            --output pyodide-artifacts/benchmark-pyodide.json \
+            -- --platform pyodide \
+            2>&1 | tee pyodide-artifacts/benchmark-pyodide.log
+
+      - name: Compare benchmark gates
+        run: |
+          set -o pipefail
+          uv run --no-sync python tools/pyodide/compare_benchmarks.py \
+            --native pyodide-artifacts/benchmark-native.json \
+            --pyodide pyodide-artifacts/benchmark-pyodide.json \
+            --report pyodide-artifacts/benchmark-comparison.md \
+            | tee pyodide-artifacts/benchmark-comparison.json
+
+      - name: Upload Pyodide raw output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyodide-harness-output
+          path: pyodide-artifacts

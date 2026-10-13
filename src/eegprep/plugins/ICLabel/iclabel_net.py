@@ -1,7 +1,9 @@
-"""ICLabel neural network model for EEG artifact classification.
+"""PyTorch definition of the ICLabel default network, loaded from ``netICL.mat``.
 
-This module provides PyTorch implementations of the ICLabel neural network for
-classifying EEG components as brain or artifact sources.
+Used only to export ``iclabel.onnx`` (``tools/iclabel/export_iclabel_onnx.py``)
+and by the MATLAB parity harness; not imported at runtime. ICLabel
+classification runs the packaged ``iclabel.onnx`` through ONNX Runtime and
+needs only ``eegprep[iclabel]``, not PyTorch.
 """
 
 import scipy.io

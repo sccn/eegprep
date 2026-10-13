@@ -1,9 +1,13 @@
 import ast
+import asyncio
+import gc
 import inspect
+import logging
 import os
 import sys
 import textwrap
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
@@ -16,7 +20,9 @@ from eegprep.functions.guifunc.menu_actions import (
 )
 from eegprep.functions.guifunc.long_task import LongTaskHandle
 from eegprep.functions.guifunc.menu_spec import menu_enabled
+from eegprep.functions.guifunc import menu_actions as menu_actions_module
 from eegprep.functions.guifunc.session import EEGPrepSession
+from tests.fixtures import gate_iclabel_backend, load_sample_ica_eeg
 
 
 def _child(menu, label):
@@ -1069,3 +1075,197 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()
+
+
+ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+_MODAL_POLL_MS = 10
+_MODAL_POLL_LIMIT = 500
+
+
+@pytest.fixture
+def qt_widgets():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    widgets.QApplication.instance() or widgets.QApplication([])
+    return widgets
+
+
+@pytest.fixture
+def emscripten_iclabel_window(qt_widgets, monkeypatch):
+    """Main window over the sample ICA dataset with ICLabel dispatched as under Emscripten."""
+    from eegprep.functions.guifunc.main_window import build_main_window
+
+    monkeypatch.setattr(menu_actions_module, "IS_EMSCRIPTEN", True)
+    session = EEGPrepSession()
+    session.store_current(load_sample_ica_eeg(), new=True)
+    window = build_main_window(session, all_menus=False)
+    yield window
+    window.window.close()
+
+
+def _iclabel_action(window):
+    return next(action for action in _qt_actions(window.window.menuBar().actions()) if action.data() == "pop_iclabel")
+
+
+class _ModalAnswers:
+    """Answer modal dialogs from inside their Qt event loop and record each dialog's text."""
+
+    def __init__(self):
+        self.texts = []
+        self.active = True
+
+    def answer_next(self, *, accept=True):
+        from PySide6 import QtCore, QtWidgets
+
+        polls = 0
+
+        def answer():
+            nonlocal polls
+            if not self.active:
+                return
+            dialog = QtWidgets.QApplication.activeModalWidget()
+            if dialog is None:
+                polls += 1
+                if polls < _MODAL_POLL_LIMIT:
+                    QtCore.QTimer.singleShot(_MODAL_POLL_MS, answer)
+                return
+            self.texts.append(dialog.text() if isinstance(dialog, QtWidgets.QMessageBox) else dialog.windowTitle())
+            if accept:
+                dialog.accept()
+            else:
+                dialog.reject()
+
+        QtCore.QTimer.singleShot(0, answer)
+
+
+@pytest.fixture
+def modal_answers(qt_widgets):
+    answers = _ModalAnswers()
+    yield answers
+    # Stop polling so an unanswered request cannot close a later test's dialog.
+    answers.active = False
+
+
+def _answer_iclabel_dialog_and_next_warning(modal_answers):
+    """Accept the ICLabel version dialog and queue an answer for the next warning.
+
+    The dispatcher reports action errors in a modal warning, so answering it
+    lets an ICLabel failure before inference fail the test instead of hanging.
+    """
+    modal_answers.answer_next()
+    modal_answers.answer_next()
+
+
+def _pending_tasks():
+    return asyncio.all_tasks() - {asyncio.current_task()}
+
+
+def test_gui_main_window_runs_async_iclabel_menu_action_on_the_running_loop(emscripten_iclabel_window, modal_answers):
+    window = emscripten_iclabel_window
+    session = window.session
+
+    async def scenario():
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        _iclabel_action(window).trigger()
+        assert session.ALLCOM == []
+        (task,) = _pending_tasks()
+        await asyncio.wait_for(task, 30)
+
+    asyncio.run(scenario())
+
+    assert modal_answers.texts == ["ICLabel"]
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    assert session.CURRENTSET == [1]
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+
+
+def test_gui_main_window_warns_when_async_menu_action_has_no_event_loop(emscripten_iclabel_window, modal_answers):
+    window = emscripten_iclabel_window
+    session = window.session
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        modal_answers.answer_next()
+        _iclabel_action(window).trigger()
+        gc.collect()
+
+    assert modal_answers.texts == [
+        "Cannot run pop_iclabel: it waits for an asynchronous backend, and no asyncio event loop is running."
+    ]
+    assert not [warning for warning in caught if "was never awaited" in str(warning.message)]
+    assert session.ALLCOM == []
+    assert "ic_classification" not in session.EEG["etc"]
+
+
+def test_gui_main_window_shows_stale_iclabel_result_warning(emscripten_iclabel_window, modal_answers, monkeypatch):
+    window = emscripten_iclabel_window
+    session = window.session
+    backend = gate_iclabel_backend(monkeypatch)
+
+    async def scenario():
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        _iclabel_action(window).trigger()
+        (task,) = _pending_tasks()
+        await backend.wait_started(task)
+        session.EEG["setname"] = "edited during inference"
+        backend.release.set()
+        await asyncio.gather(*_pending_tasks())
+
+    asyncio.run(scenario())
+
+    assert modal_answers.texts[0] == "ICLabel"
+    assert modal_answers.texts[1].startswith("ICLabel result discarded because the selected dataset was modified")
+    assert session.ALLCOM == []
+    assert session.EEG["setname"] == "edited during inference"
+    assert "ic_classification" not in session.EEG["etc"]
+
+
+def test_gui_main_window_cancelled_async_menu_action_changes_nothing(
+    emscripten_iclabel_window, modal_answers, monkeypatch, caplog
+):
+    window = emscripten_iclabel_window
+    session = window.session
+    backend = gate_iclabel_backend(monkeypatch)
+
+    async def scenario():
+        _answer_iclabel_dialog_and_next_warning(modal_answers)
+        _iclabel_action(window).trigger()
+        (task,) = _pending_tasks()
+        await backend.wait_started(task)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        return task
+
+    with caplog.at_level(logging.ERROR):
+        task = asyncio.run(scenario())
+
+    assert task.cancelled()
+    assert not caplog.records
+    assert session.ALLCOM == []
+    assert "ic_classification" not in session.EEG["etc"]
+
+
+def test_gui_main_window_logs_async_menu_failure_that_escapes_the_dispatcher(
+    emscripten_iclabel_window, modal_answers, caplog
+):
+    window = emscripten_iclabel_window
+    session = window.session
+
+    def failing_listener(event, _action):
+        if event == "end":
+            raise RuntimeError("gui action listener failed")
+
+    session.add_gui_action_listener(failing_listener)
+
+    async def scenario():
+        modal_answers.answer_next(accept=False)
+        _iclabel_action(window).trigger()
+        await asyncio.gather(*_pending_tasks(), return_exceptions=True)
+        await asyncio.sleep(0)
+
+    with caplog.at_level(logging.ERROR, logger="eegprep.functions.guifunc.main_window"):
+        asyncio.run(scenario())
+
+    (record,) = [record for record in caplog.records if record.name == "eegprep.functions.guifunc.main_window"]
+    assert record.getMessage() == "Asynchronous EEGPrep GUI menu action failed: gui action listener failed"
+    assert session.ALLCOM == []

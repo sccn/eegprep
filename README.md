@@ -50,8 +50,9 @@ lean package with:
 uv add eegprep
 ```
 
-To install all optional extras, including GUI, console, docs, and classifier
-dependencies, use:
+To install all optional extras, including GUI, console, docs, the ICLabel
+runtime (Open Neural Network Exchange (ONNX) Runtime), EDF/BDF export, MATLAB/Octave parity, and system-aware
+job scheduling dependencies, use:
 
 ```bash
 uv add "eegprep[all]"
@@ -69,12 +70,13 @@ For a source checkout:
 ```bash
 git clone https://github.com/sccn/eegprep.git
 cd eegprep
-uv sync --group dev
+uv sync --group dev --extra iclabel
 ```
 
-The complete install can pull in large optional binaries on some platforms,
-especially for ICLabel/PyTorch support. You can install a lightweight CPU-only
-PyTorch build manually if that better matches your system.
+The `iclabel` extra installs ONNX Runtime, which `pop_iclabel` and the gallery
+examples need. PyTorch is not required for ICLabel and is not part of
+`eegprep[all]`; the separate `torch` extra is only for regenerating the packaged
+ICLabel network from `netICL.mat` (see `docs/source/releasing.rst`).
 
 ## Quick Start
 

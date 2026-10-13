@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QSlider
 
+from eegprep.utils.testing import has_optional_dependency
 from tests.eeglab_tests import eeglab_test
 
 import tomllib
@@ -69,8 +70,6 @@ def test_public_api_and_plugins_example_runs() -> None:
 
 # One illustration script per user guide section. These run for real against
 # sample_data/, so a failure here means the documented workflow is broken.
-# plot_reject_artifacts.py calls ICLabel, which needs the torch extra and raises
-# ImportError without it rather than skipping; install eegprep[torch] to run.
 USER_GUIDE_EXAMPLES = (
     "plot_quickstart_tour.py",
     "plot_data_structures.py",
@@ -78,7 +77,12 @@ USER_GUIDE_EXAMPLES = (
     "plot_dataset_management.py",
     "plot_preprocess_data.py",
     "plot_extract_epochs.py",
-    "plot_reject_artifacts.py",
+    pytest.param(
+        "plot_reject_artifacts.py",
+        marks=pytest.mark.skipif(
+            not has_optional_dependency("onnxruntime"), reason="install eegprep[iclabel] to run ICLabel"
+        ),
+    ),
     "plot_data_plotting.py",
     "plot_source_analysis_dipfit.py",
     "plot_group_analysis_study.py",
@@ -125,10 +129,12 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
         "resources/headplot/mheadnew.transform",
         "resources/headplot/mheadnew.xyz",
         "resources/montages/standard-10-5-342ch.locs",
-        "plugins/ICLabel/netICL.mat",
+        "plugins/ICLabel/iclabel.onnx",
     } <= packaged
     assert "eeglab/**" in excluded
     assert not any(path.startswith("eeglab/") for path in packaged)
+    # netICL.mat is only read to regenerate iclabel.onnx, so it must not ship.
+    assert not any(path.endswith("netICL.mat") for path in packaged)
 
 
 def _read_pyproject() -> dict:

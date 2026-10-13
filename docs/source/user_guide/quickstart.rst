@@ -113,7 +113,10 @@ Load Epoched ICA Data
 =====================
 
 Use the ICA sample when you want to review ICLabel/component workflows without
-waiting for a decomposition:
+waiting for a decomposition. ICLabel runs on Open Neural Network Exchange (ONNX) Runtime, which the
+``iclabel`` extra installs. For a source checkout, run
+``uv sync --group dev --extra iclabel``; for an installed package, run
+``uv add "eegprep[iclabel]"`` (or ``pip install "eegprep[iclabel]"`` outside uv):
 
 .. code-block:: python
 

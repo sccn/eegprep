@@ -291,7 +291,13 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 
         # not yet loaded, do so now
         if rt == 'oct':
-            from oct2py import Oct2Py, get_log
+            try:
+                from oct2py import Oct2Py, get_log
+            except ImportError as exc:
+                raise ImportError(
+                    f"oct2py is required to use the Octave runtime ({exc}). "
+                    'Install it with pip install "eegprep[eeglab]" (or uv pip install "eegprep[eeglab]").'
+                ) from exc
 
             engine = Oct2Py(logger=get_log())
             engine.logger = get_log("new_log")

@@ -30,6 +30,7 @@ dependencies = [
   # substitute another version. Their floors are therefore a ceiling: raising one
   # past what Pyodide ships makes the install impossible, not merely larger.
   # Shipped by 0.29.5: h5py 3.13.0, matplotlib 3.8.4, numpy 2.2.5, scipy 1.14.1.
+  # Keep the Pyodide version in sync with tools/pyodide/package.json.
   # threadpoolctl is bundled too but is pure Python, so micropip can fetch any
   # version from PyPI and its floor is not constrained this way.
   # tests/test_browser_dependency_floors.py enforces the distinction.
@@ -38,11 +39,8 @@ dependencies = [
   "mne>=1.10.0",
   "neo>=0.14.2",
   "numpy>=2.1.0",
-  "oct2py>=5.5.0",
   "packaging>=23.0",
-  "psutil>=7.0.0",
   "pybids>=0.4",
-  "pyedflib>=0.1.42",
   "pyyaml>=6.0",
   "python-picard>=0.8,<0.9",
   # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
@@ -54,8 +52,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Developer-only, and very large: regenerates the shipped iclabel.onnx from netICL.mat, together
+# with the iclabel extra (onnxruntime). tools/iclabel/export_iclabel_onnx.py needs torch and
+# onnx; tools/iclabel/quantize_iclabel_onnx.py needs onnx and documents the full sequence. Not
+# needed to run ICLabel, and deliberately left out of ``all``; the iclabel extra is the runtime.
+# torch 2.4 is the first release whose torch.onnx.export accepts the dynamo=False argument the
+# export script passes: the keyword exists on torch.onnx.utils.export, which torch.onnx.export
+# re-exports, from 2.4.0 (it is absent from the signature in 2.3.1).
 torch = [
-  "torch>=2.0"
+  "torch>=2.4",
+  "onnx>=1.14",
+]
+# Runtime for ICLabel classification (pop_iclabel, iclabel). 1.20 is the first release usable with
+# the base numpy>=2.1 on every supported Python: 1.18.1 pins numpy<2 (1.18.0 is built against numpy
+# 1.x), 1.19 added numpy 2 support, and 1.20 added the first cp313 wheels (requires-python is >=3.12).
+iclabel = [
+  "onnxruntime>=1.20",
 ]
 gui = [
   "pyqtgraph>=0.13.7",
@@ -76,11 +88,26 @@ docs = [
   "sphinx-togglebutton>=0.3.0",
   "sphinxcontrib-spelling>=7.1.0"
 ]
+# EEGLAB/MATLAB parity helpers: the Octave runtime used by eegprep.functions.adminfunc.eeglabcompat.
+eeglab = [
+  "oct2py>=5.5.0",
+]
+# System RAM probing for memory reservations such as num_jobs_from_reservation("4GB").
+sys = [
+  "psutil>=7.0.0",
+]
+# EDF and BDF output of pop_writeeeg; GDF output and EDF/BDF input do not need it.
+edf = [
+  "pyedflib>=0.1.42",
+]
 all = [
-  "eegprep[torch]",
+  "eegprep[iclabel]",
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
+  "eegprep[eeglab]",
+  "eegprep[sys]",
+  "eegprep[edf]",
 ]
 
 [project.scripts]
@@ -95,6 +122,10 @@ dev = [
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
   "pytest>=8.0",
+  # Same package as the ``edf`` extra: tests write EDF/BDF files through pop_writeeeg and build
+  # synthetic EDF fixtures. eegprep reads EDF through mne/neo and imports pyedflib only to write
+  # EDF and BDF.
+  "pyedflib>=0.1.42",
   "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",
   "PySide6>=6.6",
@@ -219,8 +250,8 @@ exclude = ["eegprep.eeglab*"]
   "resources/**/*.xyz",
   "plugins/**/*.json",
   "plugins/**/*.locs",
-  "plugins/**/*.mat",
   "plugins/**/*.md",
+  "plugins/**/*.onnx",
   "plugins/**/*.sfp",
   "plugins/**/*.tsv",
   "plugins/**/*.txt",

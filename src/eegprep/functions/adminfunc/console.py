@@ -13,6 +13,7 @@ import sys
 import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from types import CodeType
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -21,7 +22,12 @@ import eegprep
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.functions.adminfunc.eeglab import gui
-from eegprep.functions.guifunc.session import EEGPrepSession, follow_dataset_selection, normalize_dataset_indices
+from eegprep.functions.guifunc.session import (
+    DatasetStateToken,
+    EEGPrepSession,
+    follow_dataset_selection,
+    normalize_dataset_indices,
+)
 from eegprep.functions.popfunc.pop_eegplot import eegplot_accept_creates_dataset
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
@@ -209,6 +215,10 @@ class ConsolePopFunction(LazyWorkspaceExport):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         function = self.resolve()
+        if inspect.iscoroutinefunction(function):
+            # Capture the selection now, not when the coroutine starts, so changes made
+            # between the call and its first await also invalidate the result.
+            return self._call_async(function, self.bridge.session.dataset_state_token(), args, kwargs)
         call_kwargs = dict(kwargs)
         recorded_commands: set[str] = set()
         if self.name == "pop_eegplot" and "command_callback" not in call_kwargs:
@@ -258,6 +268,20 @@ class ConsolePopFunction(LazyWorkspaceExport):
                 return ConsolePopResult(self.bridge.session.EEG, command, updated=False)
         return self.bridge.accept_pop_result(result, args, kwargs)
 
+    async def _call_async(
+        self,
+        function: Callable[..., Any],
+        target_state: DatasetStateToken,
+        args: tuple[Any, ...],
+        kwargs: Mapping[str, Any],
+    ) -> Any:
+        call_kwargs = dict(kwargs)
+        if _accepts_return_com(function) and "return_com" not in call_kwargs:
+            call_kwargs["return_com"] = True
+        result = await function(*args, **call_kwargs)
+        self.bridge.session.require_dataset_state_unchanged(target_state, self.name)
+        return self.bridge.accept_pop_result(result, args, kwargs)
+
     def __repr__(self) -> str:
         return f"<EEGPrep console pop function {self.name}>"
 
@@ -288,7 +312,14 @@ class ConsoleEegh:
     def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
         self.bridge = bridge
 
-    def __call__(self, command: Any = None, *args: Any) -> str:
+    def __call__(self, command: Any = None, *args: Any) -> Any:
+        """Show, search, edit, or replay session history like EEGLAB ``eegh``.
+
+        ``eegh(n)`` with a positive ``n`` replays history entry ``n`` and returns its
+        text. An entry with a top-level ``await``, such as
+        ``EEG = await pop_iclabel_async(EEG, 'default');``, cannot run synchronously,
+        so ``eegh(n)`` returns an awaitable for it instead: use ``await eegh(n)``.
+        """
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":
@@ -308,9 +339,14 @@ class ConsoleEegh:
                 self.bridge.pull_from_session()
                 return ""
             history_command = session.history_command_at(value)
-            if history_command:
-                self.bridge.execute_history_command(history_command)
-            return history_command
+            if not history_command:
+                return history_command
+            try:
+                return self.bridge.execute_history_command(history_command)
+            except SyntaxError as exc:
+                raise SyntaxError(
+                    f"History entry {value} could not be replayed as Python: {history_command!r} ({exc.msg})"
+                ) from exc
         session = self.bridge.session
         normalized = str(command).strip()
         if normalized:
@@ -585,11 +621,25 @@ class EEGPrepConsoleWorkspace:
         finally:
             self._syncing = False
 
-    def execute_history_command(self, command: str) -> None:
-        """Execute an EEGLAB history command through the console namespace."""
+    def execute_history_command(self, command: str) -> Any:
+        """Execute an EEGLAB history command through the console namespace.
+
+        Returns ``command``. A command with a top-level ``await`` is compiled as a
+        coroutine, so an awaitable that runs it and resolves to ``command`` is
+        returned instead.
+        """
         source = _console_python_command(command)
-        exec(source, self.namespace)
+        code = compile(source, "<eegprep-history>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        if code.co_flags & inspect.CO_COROUTINE:
+            return self._execute_history_coroutine(code, source, command)
+        exec(code, self.namespace)
         self.after_execute(source)
+        return command
+
+    async def _execute_history_coroutine(self, code: CodeType, source: str, command: str) -> str:
+        await eval(code, self.namespace)
+        self.after_execute(source)
+        return command
 
     def _refresh(self) -> None:
         if self.refresh is not None:
@@ -1239,7 +1289,13 @@ def _install_prompt_safe_logging() -> Callable[[], None]:
     patched: list[tuple[logging.StreamHandler[Any], Any]] = []
     for logger in _logging_tree():
         for handler in logger.handlers:
-            if isinstance(handler, logging.StreamHandler) and not isinstance(handler.stream, _PromptSafeStream):
+            # A handler without a stream yet, such as torch's lazily opened trace handler, has
+            # nothing to wrap, and wrapping None would break its first flush.
+            if (
+                isinstance(handler, logging.StreamHandler)
+                and handler.stream is not None
+                and not isinstance(handler.stream, _PromptSafeStream)
+            ):
                 original_stream = handler.stream
                 handler.setStream(_PromptSafeStream(original_stream))
                 patched.append((handler, original_stream))

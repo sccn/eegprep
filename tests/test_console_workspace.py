@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 from contextlib import redirect_stderr
 import io
 import importlib
@@ -31,6 +32,8 @@ from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+from eegprep.plugins.ICLabel.iclabel import iclabel
+from tests.fixtures import gate_iclabel_backend
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -203,6 +206,338 @@ def test_storedisk_session_retrieve_and_console_pop_call_stay_synchronized(tmp_p
         EEG_OPTIONS.update(old_options)
 
 
+ICLABEL_ASYNC_COMMAND = "EEG = await pop_iclabel_async(EEG, 'default');"
+
+
+def _iclabel_console(sample_ica_eeg, *setnames):
+    session = EEGPrepSession()
+    for setname in setnames or ("sample",):
+        session.store_current(dict(sample_ica_eeg, setname=setname), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+    workspace.namespace["np"] = np
+    return session, workspace
+
+
+@pytest.fixture
+def iclabel_console(sample_ica_eeg):
+    """Open consoles like ``_iclabel_console`` and close each one at teardown, even after a failure."""
+    workspaces = []
+
+    def open_console(*setnames):
+        session, workspace = _iclabel_console(sample_ica_eeg, *setnames)
+        workspaces.append(workspace)
+        return session, workspace
+
+    yield open_console
+    for workspace in workspaces:
+        workspace.close()
+
+
+def _run_during_console_iclabel(workspace, backend, during):
+    """Start console ``pop_iclabel_async``, call ``during`` while inference is suspended, then finish it."""
+
+    async def scenario():
+        task = asyncio.create_task(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+        await backend.wait_started(task)
+        try:
+            during()
+        finally:
+            backend.release.set()
+        return await task
+
+    return asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "first_sample = EEG['data'].flat[0]",
+        "weights = EEG['icaweights'].copy()\nnp.fill_diagonal(weights, 0.0)",
+        "scratch = EEG['data'].copy()\nscratch *= 2",
+        "ordered = np.sort(EEG['data'])",
+        "scratch = EEG.copy()\nscratch['setname'] = 'scratch'",
+    ],
+)
+def test_console_scratch_work_during_async_iclabel_keeps_the_result(sample_ica_eeg, monkeypatch, source):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    result = _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, source))
+
+    assert result.eeg is session.EEG
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    workspace.close()
+
+
+def test_console_save_flag_change_during_async_iclabel_keeps_the_result(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    result = _run_during_console_iclabel(workspace, backend, session.mark_current_saved)
+
+    assert result.eeg is session.EEG
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    workspace.close()
+
+
+def test_console_bare_iclabel_async_returns_its_result_without_a_freshness_check(iclabel_console, monkeypatch):
+    session, workspace = iclabel_console("first", "second")
+    session.retrieve(1)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    async def scenario():
+        task = asyncio.create_task(workspace.namespace["iclabel_async"](workspace.namespace["EEG"]))
+        await backend.wait_started(task)
+        session.retrieve(2)
+        backend.release.set()
+        return await task
+
+    classified = asyncio.run(scenario())
+
+    assert classified["setname"] == "first"
+    assert classified["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert session.CURRENTSET == [2]
+    assert all("ic_classification" not in dataset["etc"] for dataset in session.ALLEEG)
+    assert session.ALLCOM == []
+
+
+def test_console_sync_pop_during_async_iclabel_runs_and_discards_the_stale_result(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="discarded"):
+        _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, "EEG = pop_reref(EEG, [])"))
+
+    assert session.ALLCOM == ["EEG = pop_reref( EEG, []);"]
+    assert "ic_classification" not in session.EEG["etc"]
+    workspace.close()
+
+
+def test_console_reads_gui_edits_made_while_async_iclabel_is_in_flight(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    backend = gate_iclabel_backend(monkeypatch)
+
+    def gui_rename_then_console_read():
+        session.EEG["setname"] = "renamed in GUI"
+        _run_console(workspace, "seen = EEG['setname']")
+
+    with pytest.raises(RuntimeError, match="discarded"):
+        _run_during_console_iclabel(workspace, backend, gui_rename_then_console_read)
+
+    assert workspace.namespace["seen"] == "renamed in GUI"
+    assert session.EEG["setname"] == "renamed in GUI"
+    assert "ic_classification" not in session.EEG["etc"]
+    workspace.close()
+
+
+def test_console_pop_iclabel_async_commits_the_real_classification_once(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    expected = iclabel(session.EEG)["etc"]["ic_classification"]["ICLabel"]["classifications"]
+
+    result = asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+    workspace.after_execute("await pop_iclabel_async(EEG, 'default')")
+
+    assert result.eeg is session.EEG
+    np.testing.assert_array_equal(session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"], expected)
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    assert workspace.namespace["LASTCOM"] == ICLABEL_ASYNC_COMMAND
+    workspace.close()
+
+
+def test_console_pop_iclabel_async_captures_the_selection_when_called(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+    session.retrieve(1)
+
+    pending = workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default")
+    session.retrieve(2)
+
+    with pytest.raises(RuntimeError, match="the dataset selection changed"):
+        asyncio.run(pending)
+    assert session.CURRENTSET == [2]
+    assert all("ic_classification" not in dataset["etc"] for dataset in session.ALLEEG)
+    assert session.ALLCOM == []
+    workspace.close()
+
+
+def _console(source):
+    return lambda session, workspace: _run_console(workspace, source)
+
+
+def _gui_store_new(session, _workspace):
+    session.store_current(dict(session.EEG, setname="stored as new"), new=True)
+
+
+@pytest.mark.parametrize(
+    ("during", "message", "edit_survives"),
+    [
+        (
+            _console("EEG['data'][0, 0] = 99.0"),
+            "the selected dataset was modified",
+            lambda session: session.EEG["data"][0, 0] == 99.0,
+        ),
+        (
+            _console("np.putmask(EEG['data'], EEG['data'] > 0, 0.0)"),
+            "the selected dataset was modified",
+            lambda session: not (session.EEG["data"] > 0).any(),
+        ),
+        (
+            _console("ALLEEG[1]['setname'] = 'edited through ALLEEG'"),
+            "the selected dataset was modified",
+            lambda session: session.EEG["setname"] == "edited through ALLEEG",
+        ),
+        (
+            _console("CURRENTSET = 1"),
+            "the dataset selection changed",
+            lambda session: session.CURRENTSET == [1],
+        ),
+        (
+            _gui_store_new,
+            "the dataset selection changed",
+            lambda session: session.CURRENTSET == [3] and session.EEG["setname"] == "stored as new",
+        ),
+    ],
+    ids=["data-edit", "putmask", "alleeg-alias", "retrieve", "store-new"],
+)
+def test_console_edit_during_async_iclabel_discards_the_result_and_keeps_the_edit(
+    sample_ica_eeg, monkeypatch, during, message, edit_survives
+):
+    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+    backend = gate_iclabel_backend(monkeypatch)
+
+    with pytest.raises(RuntimeError, match=f"pop_iclabel_async result discarded because {message}"):
+        _run_during_console_iclabel(workspace, backend, lambda: during(session, workspace))
+
+    assert edit_survives(session)
+    assert ICLABEL_ASYNC_COMMAND not in session.ALLCOM
+    assert all("ic_classification" not in dataset["etc"] for dataset in session.ALLEEG)
+    assert "ic_classification" not in session.EEG["etc"]
+    workspace.close()
+
+
+def test_console_edit_of_one_selected_dataset_discards_a_multi_dataset_async_iclabel(sample_ica_eeg, monkeypatch):
+    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+    session.retrieve([1, 2])
+    backend = gate_iclabel_backend(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="the selected dataset was modified"):
+        _run_during_console_iclabel(
+            workspace, backend, lambda: _run_console(workspace, "EEG[1]['setname'] = 'edited second'")
+        )
+
+    assert [dataset["setname"] for dataset in session.EEG] == ["first", "edited second"]
+    assert all("ic_classification" not in dataset["etc"] for dataset in session.ALLEEG)
+    workspace.close()
+
+
+@pytest.mark.parametrize(
+    "during",
+    [
+        "eegh('pop_eegplot(EEG, 1, 1, 1);', EEG)",
+        "ALLEEG[0]['setname'] = 'unselected edit'",
+    ],
+    ids=["history-only", "unselected-dataset"],
+)
+def test_console_history_and_unselected_edits_during_async_iclabel_keep_the_result(sample_ica_eeg, monkeypatch, during):
+    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+    backend = gate_iclabel_backend(monkeypatch)
+
+    result = _run_during_console_iclabel(workspace, backend, lambda: _run_console(workspace, during))
+
+    assert result.eeg is session.EEG
+    assert session.CURRENTSET == [2]
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert session.ALLCOM[-1] == ICLABEL_ASYNC_COMMAND
+    workspace.close()
+
+
+def test_console_second_concurrent_async_iclabel_reports_the_concurrent_commit(iclabel_console, monkeypatch):
+    session, workspace = iclabel_console()
+    backend = gate_iclabel_backend(monkeypatch)
+    classify = workspace.namespace["pop_iclabel_async"]
+
+    async def scenario():
+        first = asyncio.create_task(classify(workspace.namespace["EEG"], "default"))
+        second = asyncio.create_task(classify(workspace.namespace["EEG"], "default"))
+        await backend.wait_started(first, second, calls=2)
+        backend.release.set()
+        return await asyncio.gather(first, second, return_exceptions=True)
+
+    first_result, second_result = asyncio.run(scenario())
+
+    assert first_result.eeg is session.EEG
+    assert isinstance(second_result, RuntimeError)
+    assert "concurrent pop_iclabel_async call" in str(second_result)
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+
+
+def test_console_async_iclabel_preserves_ordered_multi_dataset_selection(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg, "first", "second")
+    session.retrieve([2, 1])
+
+    asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+
+    assert session.CURRENTSET == [2, 1]
+    assert [session.ALLEEG[index - 1]["setname"] for index in session.CURRENTSET] == ["second", "first"]
+    assert all(dataset["etc"]["ic_classification"]["ICLabel"]["version"] == "default" for dataset in session.ALLEEG)
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    workspace.close()
+
+
+class _DefaultIclabelDialog:
+    """Headless ICLabel version dialog that chooses the default network."""
+
+    def run(self, spec, initial_values=None):
+        return {"icversion": 1}
+
+
+def test_gui_async_iclabel_reaches_the_console_and_replays_there_on_another_dataset(iclabel_console):
+    session, workspace = iclabel_console("first", "second")
+    session.retrieve(1)
+
+    asyncio.run(MenuActionDispatcher(session).dispatch_gui_async("pop_iclabel", None, renderer=_DefaultIclabelDialog()))
+
+    first = workspace.namespace["EEG"]
+    assert first["setname"] == "first"
+    assert first["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert workspace.namespace["ALLCOM"] == [ICLABEL_ASYNC_COMMAND]
+    assert workspace.namespace["LASTCOM"] == ICLABEL_ASYNC_COMMAND
+
+    _run_console(workspace, "CURRENTSET = 2")
+    replayed = asyncio.run(workspace.namespace["eegh"](2))
+
+    second = workspace.namespace["EEG"]
+    assert replayed == ICLABEL_ASYNC_COMMAND
+    assert second is session.ALLEEG[1]
+    assert second["setname"] == "second"
+    np.testing.assert_array_equal(
+        second["etc"]["ic_classification"]["ICLabel"]["classifications"],
+        first["etc"]["ic_classification"]["ICLabel"]["classifications"],
+    )
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND, "CURRENTSET = 2", ICLABEL_ASYNC_COMMAND]
+
+    # As in EEGLAB's eegh, a command identical to the most recent entry is
+    # recorded once, so running ICLabel again adds no second entry.
+    asyncio.run(workspace.namespace["eegh"](1))
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND, "CURRENTSET = 2", ICLABEL_ASYNC_COMMAND]
+
+
+def test_console_async_iclabel_without_ica_raises_and_leaves_the_session_unchanged():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+
+    with pytest.raises(ValueError, match="requires an ICA decomposition"):
+        asyncio.run(workspace.namespace["pop_iclabel_async"](workspace.namespace["EEG"], "default"))
+
+    assert session.EEG["setname"] == "demo"
+    assert session.CURRENTSET == [1]
+    assert session.ALLCOM == []
+    workspace.close()
+
+
 def test_console_currentset_reassignment_preserves_both_datasets():
     session = EEGPrepSession()
     session.store_current(_demo_eeg("first"), new=True)
@@ -369,6 +704,48 @@ def test_console_eegh_positive_index_replays_command_through_workspace():
     workspace.close()
 
 
+def test_console_eegh_replays_await_history_entry_as_an_awaitable(sample_ica_eeg):
+    session, workspace = _iclabel_console(sample_ica_eeg)
+    session.add_history(ICLABEL_ASYNC_COMMAND)
+
+    replay = workspace.namespace["eegh"](1)
+    assert "ic_classification" not in session.EEG["etc"]
+    replayed = asyncio.run(replay)
+
+    assert replayed == ICLABEL_ASYNC_COMMAND
+    assert session.EEG["etc"]["ic_classification"]["ICLabel"]["classifications"].shape == (32, 7)
+    assert session.ALLCOM == [ICLABEL_ASYNC_COMMAND]
+    workspace.close()
+
+
+def test_console_eegh_replays_await_text_inside_a_string_synchronously():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+    command = "EEG = pop_editset(EEG, 'setname', 'await review');"
+    session.add_history(command)
+
+    replayed = workspace.namespace["eegh"](1)
+
+    assert replayed == command
+    assert session.EEG["setname"] == "await review"
+    workspace.close()
+
+
+def test_console_eegh_names_the_history_entry_that_cannot_be_replayed():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session)
+    session.add_history("EEG = pop_editset(EEG, 'setname', ;")
+
+    with pytest.raises(
+        SyntaxError, match=r"History entry 1 could not be replayed as Python: .*pop_editset.*never closed"
+    ):
+        workspace.namespace["eegh"](1)
+
+    workspace.close()
+
+
 def test_console_eegh_clear_and_remove_notify_session_listeners():
     session = EEGPrepSession()
     workspace = EEGPrepConsoleWorkspace(session, exports={})
@@ -439,6 +816,27 @@ def test_gui_action_buffers_logger_warnings_until_command_echo():
     assert console_output.index("In [1]: EEG = pop_demo(EEG);") < console_output.index(
         "WARNING (eegprep.tests.console_gui) logger warning before command"
     )
+
+
+def test_prompt_safe_logging_leaves_handlers_that_have_no_stream_yet(tmp_path):
+    # A FileHandler with delay=True has stream None until its first record, like torch's
+    # lazily opened trace handler, which a CI run reaches by importing torch.
+    logger = logging.getLogger("eegprep.tests.console_lazy_handler")
+    logger.propagate = False
+    lazy = logging.FileHandler(tmp_path / "lazy.log", delay=True)
+    logger.addHandler(lazy)
+    assert lazy.stream is None
+
+    restore = console_module._install_prompt_safe_logging()
+    try:
+        assert lazy.stream is None
+    finally:
+        restore()
+        logger.removeHandler(lazy)
+        logger.propagate = True
+        lazy.close()
+
+    assert lazy.stream is None
 
 
 def test_gui_action_buffers_late_created_logger_handlers_until_command_echo():

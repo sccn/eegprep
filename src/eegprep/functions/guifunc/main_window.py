@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import ctypes
 import ctypes.util
+import logging
 import sys
+from collections.abc import Coroutine
 from typing import Any
 
 import numpy as np
@@ -33,6 +36,7 @@ APP_NAME = "EEGPrep"
 _MACOS_MENU_BRANDING_RETRY_MS = 100
 COMING_SOON_SUFFIX = " (coming soon)"
 COMING_SOON_TOOLTIP = "This workflow is not available in EEGPrep yet."
+logger = logging.getLogger(__name__)
 
 
 def _require_qt() -> tuple[Any, Any, Any]:
@@ -87,6 +91,7 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
+        self._async_menu_tasks: set[asyncio.Task[None]] = set()
         self._build_central_widget()
         self.refresh()
 
@@ -221,9 +226,38 @@ class EEGPrepMainWindow:
 
     def _dispatch_menu_action(self, action_id: str) -> None:
         try:
-            self.dispatcher.dispatch_gui(action_id, self.window)
+            pending = self.dispatcher.dispatch_gui(action_id, self.window)
+            if pending is not None:
+                self._schedule_async_menu_action(action_id, pending)
         finally:
             self._queue_application_branding()
+
+    def _schedule_async_menu_action(self, action_id: str, coroutine: Coroutine[Any, Any, None]) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Exceptions cannot propagate out of a Qt slot, so tell the user directly.
+            coroutine.close()
+            self._qt_widgets.QMessageBox.warning(
+                self.window,
+                APP_NAME,
+                f"Cannot run {action_id}: it waits for an asynchronous backend, and no asyncio event loop is running.",
+            )
+            return
+        task = loop.create_task(coroutine)
+        # The loop keeps only weak references to tasks; hold this one until it finishes.
+        self._async_menu_tasks.add(task)
+        task.add_done_callback(self._finish_async_menu_action)
+
+    def _finish_async_menu_action(self, task: asyncio.Task[None]) -> None:
+        self._async_menu_tasks.discard(task)
+        if task.cancelled():
+            return
+        # The dispatcher already shows action errors to the user; anything that
+        # reaches here escaped that handling, so record it instead of losing it.
+        exception = task.exception()
+        if exception is not None:
+            logger.error("Asynchronous EEGPrep GUI menu action failed: %s", exception, exc_info=exception)
 
     def _current_menu_specs(self) -> tuple[MenuItemSpec, ...]:
         specs = []

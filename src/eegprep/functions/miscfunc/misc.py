@@ -205,10 +205,11 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
     if reserve.endswith('B'):
         try:
             import psutil
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
-                "psutil is required to determine available system RAM. Please install it with 'uv pip install psutil'."
-            )
+                f"psutil is required to determine available system RAM ({exc}). "
+                'Install it with pip install "eegprep[sys]" (or uv pip install "eegprep[sys]").'
+            ) from exc
         avail_amt = psutil.virtual_memory().available
         unit = reserve[-2:].upper()
         multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]

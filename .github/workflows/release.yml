@@ -135,8 +135,37 @@ jobs:
           fi
 
           # Packaged data the runtime needs.
-          if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" = "0" ]; then
-            echo "::error::ICLabel weights (netICL.mat) missing from the wheel"; exit 1
+          if [ "$(unzip -l "$whl" | grep -c 'eegprep/plugins/ICLabel/iclabel.onnx' || true)" = "0" ]; then
+            echo "::error::ICLabel network (iclabel.onnx) missing from the wheel"; exit 1
+          fi
+          if [ "$(unzip -l "$whl" | grep -c 'netICL.mat' || true)" != "0" ]; then
+            echo "::error::ICLabel weights (netICL.mat) should not ship in the wheel; export iclabel.onnx instead"; exit 1
+          fi
+          packaged_model_sha256=$(unzip -p "$whl" eegprep/plugins/ICLabel/iclabel.onnx | sha256sum | cut -d' ' -f1)
+          source_model_sha256=$(sha256sum src/eegprep/plugins/ICLabel/iclabel.onnx | cut -d' ' -f1)
+          if [ "$packaged_model_sha256" != "$source_model_sha256" ]; then
+            echo "::error::Packaged ICLabel network differs from the source artifact"; exit 1
+          fi
+          sdist_model_path=$(tar tzf "$sdist" | grep '/src/eegprep/plugins/ICLabel/iclabel.onnx$' | head -n 1 || true)
+          if [ -z "$sdist_model_path" ]; then
+            echo "::error::ICLabel network (iclabel.onnx) missing from the sdist"; exit 1
+          fi
+          if [ "$(tar tzf "$sdist" | grep -c '/src/eegprep/plugins/ICLabel/netICL.mat$' || true)" != "0" ]; then
+            echo "::error::ICLabel weights (netICL.mat) should not ship in the sdist; export iclabel.onnx instead"; exit 1
+          fi
+          sdist_model_sha256=$(tar xOf "$sdist" "$sdist_model_path" | sha256sum | cut -d' ' -f1)
+          if [ "$sdist_model_sha256" != "$source_model_sha256" ]; then
+            echo "::error::Sdist ICLabel network differs from the source artifact"; exit 1
+          fi
+          # tools/iclabel/quantize_iclabel_onnx.py writes the report only when the
+          # parity gate passes; the shipped model must be the one it describes.
+          report_gate_pass=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["gate_pass"])')
+          if [ "$report_gate_pass" != "True" ]; then
+            echo "::error::tools/iclabel/parity_report.json records a failed ICLabel parity gate"; exit 1
+          fi
+          report_model_sha256=$(python3 -c 'import json; print(json.load(open("tools/iclabel/parity_report.json"))["packaged_model"]["sha256"])')
+          if [ "$source_model_sha256" != "$report_model_sha256" ]; then
+            echo "::error::Source ICLabel network does not match tools/iclabel/parity_report.json; regenerate both with tools/iclabel/quantize_iclabel_onnx.py"; exit 1
           fi
           if [ "$(unzip -l "$whl" | grep -c 'resources/help/.*\.md' || true)" = "0" ]; then
             echo "::error::Packaged help resources missing from the wheel"; exit 1
@@ -151,17 +180,71 @@ jobs:
         run: |
           set -euo pipefail
           uv venv --python 3.12 /tmp/relcheck
-          VIRTUAL_ENV=/tmp/relcheck uv pip install dist/*.whl
-          VIRTUAL_ENV=/tmp/relcheck uv run --no-project python -c "
+          wheel=$(ls dist/*.whl)
+          # Pin onnxruntime to the uv.lock version that the frozen teacher
+          # probabilities were computed with (tools/iclabel/evaluation_manifest.json)
+          # and that the test suite runs, so the released model is smoke-tested on
+          # the runtime it was validated with. Users still get any version the
+          # iclabel extra allows; bump this with uv.lock.
+          VIRTUAL_ENV=/tmp/relcheck uv pip install "${wheel}[iclabel]" "onnxruntime==1.30.0"
+          VIRTUAL_ENV=/tmp/relcheck uv run --no-project python - <<'PY'
           import eegprep
-          print('installed', eegprep.__version__)
-          from eegprep.plugins.clean_rawdata.private.yulewalk import yulewalk
+          from importlib.resources import files
           import numpy as np
-          f = np.concatenate((np.array([0,2,3,13,16,40,80])*2.0/258, [1.0]))
-          B, A = yulewalk(8, f, np.array([3,.75,.33,.33,1,1,3,3], float))
+
+          print('installed', eegprep.__version__)
+          model = files('eegprep.plugins.ICLabel').joinpath('iclabel.onnx')
+          assert model.is_file(), 'installed ICLabel model is missing'
+          assert model.read_bytes(), 'installed ICLabel model is empty'
+          from eegprep.functions.popfunc.pop_loadset import pop_loadset
+          from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+
+          eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
+          labeled = pop_iclabel(eeg, 'default')
+          probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
+          assert np.isfinite(probabilities).all()
+          print('installed-wheel ICLabel smoke test passed')
+
+          from eegprep.plugins.clean_rawdata.private.yulewalk import yulewalk
+          f = np.concatenate((np.array((0,2,3,13,16,40,80))*2.0/258, (1.0,)))
+          B, A = yulewalk(8, f, np.array((3,.75,.33,.33,1,1,3,3), float))
           assert np.all(np.abs(np.roots(A)) < 1), 'unstable ASR shaping filter'
           print('ASR shaping filter designs and is stable at 258 Hz')
-          "
+          PY
+
+      - name: Smoke test the built sdist
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 /tmp/relcheck-sdist
+          sdist=$(ls dist/*.tar.gz)
+          # Same onnxruntime pin as the wheel smoke test above.
+          VIRTUAL_ENV=/tmp/relcheck-sdist uv pip install "${sdist}[iclabel]" "onnxruntime==1.30.0"
+          VIRTUAL_ENV=/tmp/relcheck-sdist uv run --no-project python - <<'PY'
+          import eegprep
+          from importlib.resources import files
+          import numpy as np
+
+          print('installed from sdist', eegprep.__version__)
+          model = files('eegprep.plugins.ICLabel').joinpath('iclabel.onnx')
+          assert model.is_file(), 'installed ICLabel model is missing'
+          assert model.read_bytes(), 'installed ICLabel model is empty'
+          from eegprep.functions.popfunc.pop_loadset import pop_loadset
+          from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel
+
+          eeg = pop_loadset('sample_data/eeglab_data_with_ica_tmp.set')
+          labeled = pop_iclabel(eeg, 'default')
+          probabilities = np.asarray(labeled['etc']['ic_classification']['ICLabel']['classifications'])
+          assert probabilities.ndim == 2 and probabilities.shape[1] == 7
+          assert np.isfinite(probabilities).all()
+          print('installed-sdist ICLabel smoke test passed')
+
+          from eegprep.plugins.clean_rawdata.private.yulewalk import yulewalk
+          f = np.concatenate((np.array((0,2,3,13,16,40,80))*2.0/258, (1.0,)))
+          B, A = yulewalk(8, f, np.array((3,.75,.33,.33,1,1,3,3), float))
+          assert np.all(np.abs(np.roots(A)) < 1), 'unstable ASR shaping filter'
+          print('ASR shaping filter designs and is stable at 258 Hz')
+          PY
 
       - uses: actions/upload-artifact@v4
         with:

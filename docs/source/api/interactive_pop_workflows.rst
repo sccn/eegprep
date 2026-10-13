@@ -111,6 +111,7 @@ ICA and Components
    eegprep.pop_expica
    eegprep.pop_icathresh
    eegprep.pop_iclabel
+   eegprep.pop_iclabel_async
    eegprep.pop_prop
    eegprep.pop_prop_extended
    eegprep.pop_runica

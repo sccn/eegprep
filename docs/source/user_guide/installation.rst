@@ -31,7 +31,9 @@ For a project managed by uv, add eegprep with:
 
     uv add eegprep
 
-To include all optional EEGPrep dependencies:
+To include the optional EEGPrep dependencies listed under
+:ref:`optional-extras` below (all of them except the developer-only ``torch``
+extra):
 
 .. code-block:: bash
 
@@ -56,44 +58,129 @@ To install eegprep from source for development:
 
     git clone https://github.com/sccn/eegprep.git
     cd eegprep
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution. The development
-environment includes the GUI and console runtime dependencies, so a fresh
-checkout can immediately launch ``uv run eegprep-console --full``.
+environment includes the GUI, console, and ICLabel runtime dependencies, so a
+fresh checkout can immediately launch ``uv run eegprep-console --full`` and
+run the ICLabel quickstart.
 
 To develop or build documentation from source, include the docs extra:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs
+    uv sync --group dev --extra docs --extra iclabel
+
+.. _optional-extras:
 
 Optional Dependencies
 =====================
 
-eegprep has several optional dependencies that enable additional functionality:
+A plain ``eegprep`` install is deliberately lean. Features that need additional
+packages raise an ``ImportError`` that names the extra to install when it is
+missing.
 
-PyTorch (for GPU acceleration)
-------------------------------
+.. list-table::
+   :header-rows: 1
+   :widths: 14 24 62
 
-To use GPU-accelerated processing with PyTorch:
+   * - Extra
+     - Installs
+     - Needed for
+   * - ``iclabel``
+     - ``onnxruntime`` 1.20 or newer
+     - ``pop_iclabel`` and ``iclabel`` component classification.
+   * - ``gui``
+     - ``PySide6``, ``pyqtgraph``
+     - The EEGPrep windows and dialogs.
+   * - ``console``
+     - ``gui`` and ``ipython``
+     - ``eegprep-console``, the shared GUI and Python workspace.
+   * - ``edf``
+     - ``pyedflib``
+     - EDF and BDF output of ``pop_writeeeg``. GDF output and EDF/BDF input do
+       not need it.
+   * - ``eeglab``
+     - ``oct2py``
+     - Calling a real EEGLAB through Octave for parity checks.
+   * - ``sys``
+     - ``psutil``
+     - Memory-based reservations such as ``ReservePerJob="4GB"``.
+   * - ``docs``
+     - Sphinx and its extensions
+     - Building this documentation.
+   * - ``torch``
+     - ``torch``, ``onnx``
+     - Developers only: rebuilding the packaged ICLabel network. Not part of
+       ``all``.
+   * - ``all``
+     - Every extra above except ``torch``
+     - Everything a user may need.
+
+ICLabel (component classification)
+-----------------------------------
+
+``pop_iclabel`` and ``iclabel`` classify independent components with a packaged
+Open Neural Network Exchange (ONNX) network run by ``onnxruntime``. Install the ``iclabel`` extra to enable
+them:
 
 .. code-block:: bash
 
-    uv add torch
+    uv add "eegprep[iclabel]"
 
-For CUDA support (NVIDIA GPUs):
+PyTorch is not required to run ICLabel classification. The packaged
+``iclabel.onnx`` stores the network weights as 8-bit integers (about 2.9 MB);
+:ref:`iclabel_measured_agreement` reports how closely it matches the
+full-precision network. Developers who change the network rebuild it with the
+``torch`` extra, following :ref:`releasing`.
+
+EDF and BDF Export
+------------------
+
+``pop_writeeeg`` writes EDF and BDF files through ``pyedflib``, which is not
+installed by default. Install it with the ``edf`` extra:
 
 .. code-block:: bash
 
-    uv add torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    uv add "eegprep[edf]"
 
-For CPU-only PyTorch:
+Without this extra, writing an EDF or BDF file raises an ``ImportError`` naming
+this extra. GDF output has its own writer and works without it, and EDF/BDF
+files are read through MNE and Neo, which are always installed.
+
+MATLAB/Octave Parity Helpers
+-----------------------------
+
+``eeg_checkset`` in ``eegprep.functions.adminfunc.eeglabcompat``, ``clean_drifts``,
+and other helpers there can call into a real EEGLAB installation through Octave
+for development and parity testing. This path needs ``oct2py``, which is not
+installed by default because it pulls in several packages with no
+WebAssembly build. Install it with the ``eeglab`` extra:
 
 .. code-block:: bash
 
-    uv add torch --index-url https://download.pytorch.org/whl/cpu
+    uv add "eegprep[eeglab]"
+
+Without this extra, calling ``get_eeglab('OCT')`` raises an ``ImportError``
+naming this extra, provided an EEGLAB checkout is found first (``EEGPREP_EEGLAB_ROOT``
+or a checkout next to the repository); otherwise it reports the missing checkout.
+
+System-Aware Parallel Jobs
+---------------------------
+
+``bids_preproc``'s ``ReservePerJob`` argument can size the number of
+parallel jobs from available system RAM (for example ``"4GB"``). This needs
+``psutil``, which is not installed by default. Install it with the ``sys``
+extra:
+
+.. code-block:: bash
+
+    uv add "eegprep[sys]"
+
+Without this extra, a memory-based ``ReservePerJob`` reservation raises an
+``ImportError`` naming this extra. CPU-based reservations (for example
+``"2CPU"``) do not need it.
 
 AMICA
 -----
@@ -125,7 +212,7 @@ To build the documentation locally:
 
 .. code-block:: bash
 
-    uv sync --group dev --extra docs
+    uv sync --group dev --extra docs --extra iclabel
     uv run --no-sync sphinx-build -b html docs/source docs/_build/html
 
 The ``docs/Makefile`` target is also available:
@@ -147,7 +234,7 @@ Or with specific extras:
 
 .. code-block:: bash
 
-    uv add "eegprep[torch,gui,docs]"
+    uv add "eegprep[iclabel,gui,edf,docs,eeglab,sys]"
 
 Verification
 ============
@@ -194,7 +281,7 @@ If installing from source, ensure you're in the correct directory and use:
 
 .. code-block:: bash
 
-    uv sync --group dev
+    uv sync --group dev --extra iclabel
 
 Version Conflicts
 -----------------
@@ -208,28 +295,6 @@ Version Conflicts
     uv venv eegprep_env
     source eegprep_env/bin/activate  # On Windows: eegprep_env\Scripts\activate
     uv pip install eegprep
-
-PyTorch Installation Issues
-----------------------------
-
-**Problem**: PyTorch installation fails or GPU not detected
-
-**Solution**:
-
-1. Check your CUDA version:
-
-.. code-block:: bash
-
-    nvidia-smi
-
-2. Install the matching PyTorch version from https://pytorch.org/get-started/locally/
-
-3. Verify PyTorch installation:
-
-.. code-block:: python
-
-    import torch
-    print(torch.cuda.is_available())
 
 EEGLAB File Format Issues
 --------------------------
@@ -264,7 +329,6 @@ Memory Issues
 1. Process data in chunks or epochs
 2. Reduce the number of channels if possible
 3. Increase available RAM or use a machine with more memory
-4. Use GPU acceleration if available
 
 Getting Help
 ============

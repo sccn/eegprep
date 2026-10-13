@@ -14,6 +14,7 @@ import pytest
 
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
+from tests.fixtures import load_sample_ica_eeg
 from tools.eeglab_test_port_audit import validate_suite_checkout
 
 
@@ -37,6 +38,16 @@ def _preload_matlab_libstdcxx() -> None:
 
 
 _preload_matlab_libstdcxx()
+
+
+@pytest.fixture(scope="module")
+def sample_ica_eeg():
+    """Bundled 32-channel sample dataset with its ICA decomposition, loaded once per test module.
+
+    Tests share this dict: copy it, for example with ``EEGPrepSession.store_current``,
+    before changing it.
+    """
+    return load_sample_ica_eeg()
 
 
 def _eeglab_support_directory(value):
@@ -274,7 +285,6 @@ MATLAB_FILE_SUFFIXES = (
     "tests/test_eeg_rpsd_parity.py",
     "tests/test_eegfindboundaries.py",
     "tests/test_envtopo_parity.py",
-    "tests/test_iclabel.py",
     "tests/test_parity_rng.py",
     "tests/test_pinv.py",
     "tests/test_pipeline.py",
@@ -334,6 +344,7 @@ MATLAB_NODEID_PARTS = (
     "tests/test_eeg_interp.py::TestSphericalSplineParity::",
     "tests/test_eeg_picard.py::TestEegPicard::",
     "tests/test_epoch.py::TestEpochParity::",
+    "tests/test_iclabel.py::TestICLabelEngines::",
     "tests/test_pop_reref.py::TestPopReref::test_parity_",
     "tests/test_pop_firfilt.py::TestPopFirfiltParity::",
     "tests/test_pop_rmbase.py::TestPopRmbaseParity::",

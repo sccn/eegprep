@@ -82,6 +82,46 @@ Assignment-style calls also work:
 This console behavior is specific to ``eegprep-console``. Normal Python imports
 keep standard Python semantics, where returned values must be assigned manually.
 
+Browser ICLabel
+===============
+
+When the console is hosted inside a Pyodide/Emscripten browser runtime, ICLabel
+uses the asynchronous Open Neural Network Exchange (ONNX) Runtime Web path. Run it with ``await`` so the
+result is committed to the same GUI/console session:
+
+.. code-block:: python
+
+   EEG = await pop_iclabel_async(EEG, "default")
+
+The browser-specific synchronous calls ``pop_iclabel`` and ``iclabel`` fail
+fast with an instruction to use their async counterparts. A browser host must
+set ``globalThis.eegprep_iclabel_web`` to the ONNX Runtime Web bridge (see
+:doc:`plugins` for its ``run(...)`` contract); placing Pyodide in a Web Worker is
+recommended for UI responsiveness. The async history command is recorded with
+``await`` and can be replayed with:
+
+.. code-block:: python
+
+   await eegh(1)
+
+For an entry that has a top-level ``await``, ``eegh(n)`` returns an awaitable instead of running it,
+so always replay such entries with ``await eegh(n)``.
+Like EEGLAB's ``eegh``, EEGPrep records a command only once when it is identical to the most recent history entry,
+so running ``EEG = await pop_iclabel_async(EEG, 'default');`` twice in a row, or replaying it with ``eegh(1)``, adds a single entry.
+
+The result is stored only if the selected datasets are unchanged when classification finishes.
+If you select another dataset while it runs,
+or edit the data, events, channel locations, or any other field of a selected dataset from the console or the GUI,
+``pop_iclabel_async`` raises ``RuntimeError``, keeps your edit, and discards the result;
+run it again on the current dataset.
+Recording history, a change of the ``saved`` flag, refreshing the GUI, and edits to unselected datasets do not discard it.
+When two ``pop_iclabel_async`` calls overlap, the first to finish stores its result and the other is discarded.
+
+The check covers the console's ``pop_iclabel_async`` and ``eegprep.pop_iclabel_async``, which store their result.
+``iclabel_async`` only returns a classified copy and stores nothing, so it is not checked.
+A function imported from its defining module, as in ``from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async``, is the plain function:
+assigning its result to ``EEG`` stores it like any other assignment, without the check.
+
 In-place Workspace Edits
 ========================
 

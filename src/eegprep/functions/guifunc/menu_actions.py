@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import logging
 import webbrowser
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -19,9 +19,12 @@ from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.plugins.ICLabel.iclabel import IS_EMSCRIPTEN
 
 
 logger = logging.getLogger(__name__)
+# The only menu action whose backend is an awaitable JavaScript Promise under Emscripten.
+_ASYNC_ICLABEL_ACTION = "pop_iclabel"
 
 
 def _with_file_dialog_override(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -275,11 +278,45 @@ class MenuActionDispatcher:
         self.extension_runtime = extension_runtime or ExtensionRuntime.empty()
         self._long_tasks: list[LongTaskHandle] = []
 
-    def dispatch_gui(self, action: str, parent: Any | None = None) -> None:
-        """Run a menu action from Qt and show user-facing errors."""
+    def dispatch_gui(self, action: str, parent: Any | None = None) -> Coroutine[Any, Any, None] | None:
+        """Run a menu action from Qt and show user-facing errors.
+
+        Returns ``None`` after running the action. Under Emscripten, ICLabel awaits a
+        JavaScript Promise and cannot run synchronously, so for that action the
+        :meth:`dispatch_gui_async` coroutine is returned instead and the caller must
+        schedule it on the running event loop.
+        """
+        if IS_EMSCRIPTEN and action.partition(":")[0] == _ASYNC_ICLABEL_ACTION:
+            return self.dispatch_gui_async(action, parent)
         with self.session.gui_action(action):
             try:
                 self.dispatch(action, parent)
+            except Exception as exc:
+                logger.exception("EEGPrep GUI menu action failed: %s", action)
+                if parent is None:
+                    raise
+                self._warn(parent, str(exc))
+
+    async def dispatch_gui_async(
+        self,
+        action: str,
+        parent: Any | None = None,
+        *,
+        renderer: Any | None = None,
+    ) -> None:
+        """Run a menu action from an asyncio host and show user-facing errors.
+
+        ICLabel awaits ``pop_iclabel_async`` and stores the result only if the
+        selected datasets did not change meanwhile; other actions run synchronously
+        through :meth:`dispatch_gui`. ``renderer`` replaces the Qt renderer of the
+        ICLabel version dialog, for example in headless hosts and tests.
+        """
+        if action.partition(":")[0] != _ASYNC_ICLABEL_ACTION:
+            self.dispatch_gui(action, parent)
+            return
+        with self.session.gui_action(action):
+            try:
+                await self._run_pop_iclabel_async(parent, renderer=renderer)
             except Exception as exc:
                 logger.exception("EEGPrep GUI menu action failed: %s", action)
                 if parent is None:
@@ -1318,6 +1355,20 @@ class MenuActionDispatcher:
             else:
                 self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
+
+    async def _run_pop_iclabel_async(self, parent: Any | None, *, renderer: Any | None = None) -> None:
+        selection = self._current_selection_or_warn(parent, allow_multiple=True)
+        if selection is None:
+            return
+        from eegprep.plugins.ICLabel.pop_iclabel import pop_iclabel_async
+
+        target_state = self.session.dataset_state_token()
+        eeg_out, command = await pop_iclabel_async(selection, renderer=renderer, return_com=True)
+        if not command:
+            return
+        self.session.require_dataset_state_unchanged(target_state, "ICLabel")
+        self._store_current_from_gui(eeg_out, command=command)
+        self._refresh()
 
     def _run_pop_runica_long_task(
         self,
