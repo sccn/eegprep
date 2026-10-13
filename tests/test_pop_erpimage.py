@@ -272,6 +272,45 @@ def test_invalid_selections_raise(change, arguments, message) -> None:
         pop_erpimage(eeg, call.pop("typeplot"), call.pop("channel"), noshow=True)
 
 
+def test_channels_accept_ranges_brackets_and_labels_in_any_case(epochs) -> None:
+    expected = np.mean(np.asarray(epochs["data"], dtype=float)[2:5], axis=0)
+    for channel in ("3:5", "[3 4 5]", [3, 4, 5], "{'F3', 'fz', 'F4'}"):
+        np.testing.assert_allclose(pop_erpimage(epochs, 1, channel, smooth=1, noshow=True).outdata, expected)
+
+
+def test_projection_channels_are_numbers_or_labels_and_ignored_for_channels(epochs) -> None:
+    by_label = pop_erpimage(epochs, 0, 6, "poz", smooth=1, noshow=True)
+    by_text = pop_erpimage(epochs, 0, 6, "27", smooth=1, noshow=True)
+    np.testing.assert_array_equal(by_label.outdata, by_text.outdata)
+    mixed = pop_erpimage(epochs, 0, 6, [27, "Oz"], smooth=1, noshow=True)
+    np.testing.assert_array_equal(mixed.outdata, pop_erpimage(epochs, 0, 6, "27:4:31", smooth=1, noshow=True).outdata)
+    with pytest.raises(ValueError, match=r"projection channel 40 is outside 1\.\.32"):
+        pop_erpimage(epochs, 0, 6, 40, noshow=True)
+    with pytest.raises(ValueError, match="unknown projection channel label 'Q9'"):
+        pop_erpimage(epochs, 0, 6, "Q9", noshow=True)
+    ignored = pop_erpimage(epochs, 1, 14, 2.5, smooth=1, noshow=True)
+    np.testing.assert_array_equal(ignored.outdata, pop_erpimage(epochs, 1, 14, smooth=1, noshow=True).outdata)
+
+
+def test_a_string_sortingtype_is_one_event_type_even_with_spaces() -> None:
+    eeg = create_erpimage_epochs()
+    for event in eeg["event"]:
+        event["type"] = "S  1" if event["type"] == "rt" else "Stimulus/S 2"
+    result = pop_erpimage(eeg, 1, 1, sortingtype="S  1", sortingeventfield="rt", smooth=1, noshow=True)
+    np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
+    listed = pop_erpimage(eeg, 1, 1, sortingtype=["S  1"], sortingeventfield="rt", smooth=1, noshow=True)
+    np.testing.assert_array_equal(listed.sortidx, result.sortidx)
+
+
+@pytest.mark.parametrize("requested", [[2.0], [2], ["2"], ["2.0"], np.array([2], dtype=np.uint16)])
+def test_numeric_event_types_are_matched_by_value(requested) -> None:
+    eeg = create_erpimage_epochs()
+    for event in eeg["event"]:
+        event["type"] = 2.0 if event["type"] == "rt" else 1.0
+    result = pop_erpimage(eeg, 1, 1, sortingtype=requested, sortingeventfield="rt", smooth=1, noshow=True)
+    np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
+
+
 def test_several_components_need_a_projection_channel(epochs) -> None:
     with pytest.raises(ValueError, match="select a channel to plot the sum of several component projections"):
         pop_erpimage(epochs, 0, [1, 2], noshow=True)

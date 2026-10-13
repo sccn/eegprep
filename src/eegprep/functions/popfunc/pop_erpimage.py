@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 import numpy as np
@@ -11,13 +10,16 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.value_parsing import parse_text_tokens
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._event_utils import events_as_list
-from eegprep.functions.popfunc.eeg_getepochevent import eeg_getepochevent
+from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
+from eegprep.functions.popfunc.eeg_getepochevent import eeg_getepochevent, event_type_text
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_map_data,
     eeg_epoch_data,
+    numeric_vector,
     parse_plot_options_text,
     python_literal,
     show_figures,
@@ -103,10 +105,11 @@ def pop_erpimage(
     plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
     user_options = dict(erpimage_option_items(options, **kwargs))
     channels = _selected_items(EEG, channel, typeplot)
-    projection = _projection_channels(projchan)
+    projection = [] if typeplot else _items(projchan)
+    projection_numbers = _channel_numbers(EEG, projection, "projection channel") if projection else []
     if not typeplot and len(channels) > 1 and not projection:
         raise ValueError("pop_erpimage(): select a channel to plot the sum of several component projections")
-    data = _activity(EEG, typeplot, channels, projection)
+    data = _activity(EEG, typeplot, channels, projection_numbers)
     times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
     sortvar = _sorting_variable(EEG, sortingtype, sortingwin, sortingeventfield)
     settings = {**_default_options(EEG, typeplot, channels, projection, plotmap=plotmap), **user_options}
@@ -159,65 +162,68 @@ def _plotmap_flag(value: Any) -> bool:
 
 def _selected_items(EEG: dict[str, Any], value: Any, typeplot: int) -> list[int]:
     """1-based channels (numbers or labels) or components to plot."""
-    items = _tokens(value)
     kind = "channel" if typeplot else "component"
+    items = _items(value)
     if not items:
         raise ValueError(f"pop_erpimage(): select at least one {kind}")
     if typeplot:
-        labels = channel_labels(EEG)
-        indices = [_channel_index(item, labels) for item in items]
-        count = len(labels)
-    else:
-        indices = [_index_number(item, kind) for item in items]
-        count = np.asarray(EEG["icaweights"]).shape[0]
-    outside = [index for index in indices if not 1 <= index <= count]
-    if outside:
-        raise ValueError(f"pop_erpimage(): {kind} {outside[0]} is outside 1..{count}")
-    return indices
+        return _channel_numbers(EEG, items, "channel")
+    labels = [item for item in items if isinstance(item, str)]
+    if labels:
+        raise ValueError(f"pop_erpimage(): components are given by number, got {labels[0]!r}")
+    count = np.asarray(EEG["icaweights"]).shape[0]
+    return _checked_numbers(items, count, kind)
 
 
-def _tokens(value: Any) -> list[Any]:
+def _items(value: Any) -> list[Any]:
+    """Numbers and labels in a value; text splits at spaces and commas, keeps quoted labels and expands '3:5'."""
     if value is None:
         return []
     if isinstance(value, str):
-        return [token for token in re.split(r"[\s,]+", value.strip()) if token]
-    return list(np.ravel(np.asarray(value, dtype=object)))
+        raw: list[Any] = parse_text_tokens(value.strip().strip("[]{}"))
+    else:
+        raw = list(np.ravel(np.asarray(value, dtype=object)))
+    items: list[Any] = []
+    for item in raw:
+        if not isinstance(item, str):
+            items.append(item)
+            continue
+        try:
+            items.extend(numeric_vector(item).tolist())
+        except ValueError:
+            items.append(item)
+    return items
 
 
-def _channel_index(item: Any, labels: list[str]) -> int:
-    if isinstance(item, str) and not _is_number_text(item):
-        matches = [index for index, label in enumerate(labels, start=1) if label.casefold() == item.casefold()]
-        if not matches:
-            raise ValueError(f"pop_erpimage(): unknown channel label '{item}'")
-        return matches[0]
-    return _index_number(item, "channel")
+def _channel_numbers(EEG: dict[str, Any], items: list[Any], kind: str) -> list[int]:
+    """1-based channel numbers; labels are looked up as EEGLAB's eeg_decodechan does (ignoring case)."""
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    numbers: list[Any] = []
+    for item in items:
+        if not isinstance(item, str):
+            numbers.append(item)
+            continue
+        try:
+            indices, _labels = eeg_decodechan(chanlocs, [item])
+        except ValueError as error:
+            raise ValueError(f"pop_erpimage(): unknown {kind} label {item!r}") from error
+        numbers.extend(index + 1 for index in indices)
+    return _checked_numbers(numbers, len(channel_labels(EEG)), kind)
 
 
-def _index_number(item: Any, kind: str) -> int:
-    try:
-        number = float(item)
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"pop_erpimage(): {kind}s are given by number, got {item!r}") from error
-    if not number.is_integer():
-        raise ValueError(f"pop_erpimage(): {kind} numbers must be whole numbers, got {item!r}")
-    return int(number)
-
-
-def _is_number_text(text: str) -> bool:
-    try:
-        float(text)
-    except ValueError:
-        return False
-    return True
-
-
-def _projection_channels(projchan: Any) -> list[Any]:
-    """Channels to back-project components onto: 1-based numbers or labels."""
-    return [_index_number(item, "projection channel") if _is_number(item) else str(item) for item in _tokens(projchan)]
-
-
-def _is_number(item: Any) -> bool:
-    return not isinstance(item, str) or _is_number_text(item)
+def _checked_numbers(items: list[Any], count: int, kind: str) -> list[int]:
+    numbers = []
+    for item in items:
+        try:
+            number = float(item)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"pop_erpimage(): {kind}s are given by number or label, got {item!r}") from error
+        if not number.is_integer():
+            raise ValueError(f"pop_erpimage(): {kind} numbers must be whole numbers, got {item!r}")
+        if not 1 <= number <= count:
+            raise ValueError(f"pop_erpimage(): {kind} {int(number)} is outside 1..{count}")
+        numbers.append(int(number))
+    return numbers
 
 
 def _activity(EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any]) -> np.ndarray:
@@ -240,7 +246,7 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
         raise ValueError("pop_erpimage(): the dataset has no events to sort the trials by")
     if not any(field in event for event in events):
         raise ValueError(f"pop_erpimage(): events have no '{field}' field to sort the trials by")
-    types = [str(item) for item in _tokens(sortingtype)]
+    types = [sortingtype] if isinstance(sortingtype, str) else _event_types(sortingtype)
     window = _number_list(sortingwin, "sortingwin")
     if window.size not in (0, 2):
         raise ValueError(f"pop_erpimage(): sortingwin must be [start end] in ms, got {window.tolist()}")
@@ -266,10 +272,19 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
     return values
 
 
-def _event_selection_text(types: list[str], window: np.ndarray, field: str) -> str:
+def _event_types(sortingtype: Any) -> list[Any]:
+    if sortingtype is None:
+        return []
+    return [
+        item.item() if isinstance(item, np.generic) else item
+        for item in np.ravel(np.asarray(sortingtype, dtype=object))
+    ]
+
+
+def _event_selection_text(types: list[Any], window: np.ndarray, field: str) -> str:
     text = f"event '{field}' value"
     if types:
-        text += " for event type " + " ".join(repr(item) for item in types)
+        text += " for event type " + " ".join(repr(event_type_text(item)) for item in types)
     if window.size:
         text += f" between {window[0]:g} and {window[1]:g} ms"
     return text
@@ -395,7 +410,7 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     labels = channel_labels(EEG)
     events = events_as_list(EEG.get("event", []))
     field_names = list(dict.fromkeys(name for event in events for name in event))
-    event_types = list(dict.fromkeys(str(event["type"]) for event in events if "type" in event))
+    event_types = _unique_types(event["type"] for event in events if "type" in event)
     controls: list[ControlSpec] = [
         ControlSpec("text", "Channel" if is_channel else "Component(s)", font_weight="bold"),
         ControlSpec("edit", tag="chan", value="1"),
@@ -670,6 +685,14 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     )
 
 
+def _unique_types(types: Any) -> list[str]:
+    """Event types sorted like EEGLAB's unique(): numerically for numeric types, else as text."""
+    values = list(types)
+    numeric = all(isinstance(value, (int, float, np.number)) and not isinstance(value, bool) for value in values)
+    ordered = sorted(set(values), key=float) if numeric else sorted({str(value) for value in values})
+    return [event_type_text(value) for value in ordered]
+
+
 def _channel_button(tag: str, target: str, labels: list[str], *, enabled: bool) -> ControlSpec:
     return ControlSpec(
         "pushbutton",
@@ -697,10 +720,10 @@ def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None)
     result = inputgui(pop_erpimage_dialog_spec(EEG, typeplot=typeplot), renderer=renderer)
     if result is None:
         return None
-    return _dialog_call(EEG, result)
+    return _dialog_call(EEG, typeplot, result)
 
 
-def _dialog_call(EEG: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> dict[str, Any]:
     """``pop_erpimage`` arguments from the dialog values, mapped as ``pop_erpimage.m`` does."""
     options: dict[str, Any] = {}
     for flag in ("erp", "cbar", "plotmap"):
@@ -709,14 +732,14 @@ def _dialog_call(EEG: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     limits = _dialog_limits(EEG, result)
     if limits is not None:
         options["limits"] = limits
-    caxis = _text_numbers(result, "caxis", "Color limits")
+    caxis = _dialog_numbers(result, "caxis", "Color limits")
     if caxis.size:
         options["caxis"] = caxis.tolist()
     field = _text(result, "field").strip("'\"")
     renorm = _text(result, "renorm") or NO_RENORM
     if field and renorm.lower() != NO_RENORM:
         options["renorm"] = renorm
-    align = _text_numbers(result, "align", "Align", sizes=(1,))
+    align = _dialog_numbers(result, "align", "Align", sizes=(1,))
     if align.size:
         options["align"] = float(align[0])
     for flag in ("nosort", "noplot"):
@@ -731,18 +754,19 @@ def _dialog_call(EEG: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     if coher:
         options["coher"] = coher
     for tag, label in (("spec", "Plot spectrum"), ("vert", "Mark times")):
-        values = _text_numbers(result, tag, label)
+        values = _dialog_numbers(result, tag, label)
         if values.size:
             options[tag] = values.tolist()
     options.update(_more_options(_text(result, "others")))
-    window = _text_numbers(result, "eventrange", "Event time range", sizes=(2,))
+    window = _dialog_numbers(result, "eventrange", "Event time range", sizes=(2,))
+    channel_label = "Channel" if typeplot else "Component(s)"
     return {
-        "channel": _index_or_labels(_text(result, "chan") or "1"),
-        "projchan": _index_or_labels(_text(result, "projchan")),
+        "channel": _dialog_items(result, "chan", channel_label, required=True),
+        "projchan": _dialog_items(result, "projchan", "Project to channel #", required=False),
         "titleplot": _text(result, "title"),
-        "smooth": _text_number(result, "smooth", "Smoothing"),
-        "decimate": _text_number(result, "decimate", "Downsampling"),
-        "sortingtype": _event_types_text(_text(result, "type")) or None,
+        "smooth": _dialog_number(result, "smooth", "Smoothing"),
+        "decimate": _dialog_number(result, "decimate", "Downsampling"),
+        "sortingtype": parse_text_tokens(_text(result, "type")) or None,
         "sortingwin": window.tolist() if window.size else None,
         "sortingeventfield": field,
         "options": options,
@@ -753,53 +777,55 @@ def _text(result: dict[str, Any], tag: str) -> str:
     return str(result.get(tag, "") or "").strip()
 
 
-def _index_or_labels(text: str) -> Any:
-    """Typed channels as an int, a list of ints, or the label text."""
-    tokens = [token.strip("'\"") for token in re.split(r"[\s,]+", text) if token.strip("'\"")]
-    if not tokens:
+def _dialog_items(result: dict[str, Any], tag: str, label: str, *, required: bool) -> Any:
+    """Typed channels or components: one number or label, or a list of them."""
+    items = _items(_text(result, tag))
+    if not items:
+        if required:
+            raise ValueError(f"pop_erpimage(): '{label}' is required")
         return None
-    if not all(_is_number_text(token) for token in tokens):
-        return " ".join(tokens)
-    numbers = [_index_number(token, "channel") for token in tokens]
-    return numbers[0] if len(numbers) == 1 else numbers
+    plain = [int(item) if isinstance(item, float) and item.is_integer() else item for item in items]
+    return plain[0] if len(plain) == 1 else plain
 
 
-def _text_numbers(result: dict[str, Any], tag: str, label: str, *, sizes: tuple[int, ...] | None = None) -> np.ndarray:
+def _dialog_numbers(
+    result: dict[str, Any], tag: str, label: str, *, sizes: tuple[int, ...] | None = None
+) -> np.ndarray:
     text = _text(result, tag)
-    if not text:
-        return np.zeros(0)
     try:
-        values = np.array([float(token) for token in re.split(r"[\s,]+", text.strip("[]").strip()) if token])
+        values = numeric_vector(text.strip("{}"))
     except ValueError as error:
         raise ValueError(f"pop_erpimage(): '{label}' must be numbers, got {text!r}") from error
-    if sizes is not None and values.size not in sizes:
+    if sizes is not None and values.size and values.size not in sizes:
         expected = " or ".join(str(size) for size in sizes)
         raise ValueError(f"pop_erpimage(): '{label}' takes {expected} value(s), got {text!r}")
     return values
 
 
-def _text_number(result: dict[str, Any], tag: str, label: str) -> float | int:
-    values = _text_numbers(result, tag, label, sizes=(1,))
-    value = float(values[0]) if values.size else 0.0
+def _dialog_number(result: dict[str, Any], tag: str, label: str) -> float | int:
+    values = _dialog_numbers(result, tag, label, sizes=(1,))
+    if not values.size:
+        raise ValueError(f"pop_erpimage(): '{label}' is empty")
+    value = float(values[0])
     return int(value) if value.is_integer() else value
 
 
 def _dialog_limits(EEG: dict[str, Any], result: dict[str, Any]) -> list[float] | None:
     """EEGLAB's limits(1:9); the time limits only when they were edited."""
     limits = [np.nan] * 8
-    erp = _text_numbers(result, "limerp", "ERP limits", sizes=(2,))
+    erp = _dialog_numbers(result, "limerp", "ERP limits", sizes=(2,))
     if erp.size:
         limits[2:4] = erp.tolist()
     time_text = _text(result, "limtime")
     if time_text and time_text != _epoch_limits_text(EEG):
-        limits[0:2] = _text_numbers(result, "limtime", "Time limits (ms)", sizes=(2,)).tolist()
-    amplitude = _text_numbers(result, "limamp", "Amplitude limits (dB)", sizes=(2,))
+        limits[0:2] = _dialog_numbers(result, "limtime", "Time limits (ms)", sizes=(2,)).tolist()
+    amplitude = _dialog_numbers(result, "limamp", "Amplitude limits (dB)", sizes=(2,))
     if amplitude.size:
         limits[4:6] = amplitude.tolist()
-    coherence = _text_numbers(result, "limcoher", "Coher limits", sizes=(2,))
+    coherence = _dialog_numbers(result, "limcoher", "Coher limits", sizes=(2,))
     if coherence.size:
         limits[6:8] = coherence.tolist()
-    baseline = _text_numbers(result, "limbaseamp", "Baseline ampl. (dB)", sizes=(1,))
+    baseline = _dialog_numbers(result, "limbaseamp", "Baseline ampl. (dB)", sizes=(1,))
     if baseline.size:
         limits.append(float(baseline[0]))
     return None if np.all(np.isnan(limits)) else limits
@@ -808,11 +834,11 @@ def _dialog_limits(EEG: dict[str, Any], result: dict[str, Any]) -> list[float] |
 def _dialog_phasesort(result: dict[str, Any]) -> list[float]:
     """[center pct freq(s)] from the phase row, growing like a MATLAB array."""
     values: list[float] = []
-    frequencies = _text_numbers(result, "phase", "Sort by phase frequency")
+    frequencies = _dialog_numbers(result, "phase", "Sort by phase frequency")
     if frequencies.size:
         values = [0.0, 0.0, *frequencies.tolist()]
     for tag, label, position in (("phase2", "Percent low-amp. trials", 1), ("phase3", "Window center", 0)):
-        value = _text_numbers(result, tag, label, sizes=(1,))
+        value = _dialog_numbers(result, tag, label, sizes=(1,))
         if value.size:
             values = _set_position(values, position, float(value[0]))
     return values
@@ -820,8 +846,8 @@ def _dialog_phasesort(result: dict[str, Any]) -> list[float]:
 
 def _dialog_coher(result: dict[str, Any]) -> list[float]:
     """[freq(s) alpha]; a single frequency is repeated when a significance level is given."""
-    values = _text_numbers(result, "coher", "Coherence frequency").tolist()
-    alpha = _text_numbers(result, "coher2", "Signif. level", sizes=(1,))
+    values = _dialog_numbers(result, "coher", "Coherence frequency").tolist()
+    alpha = _dialog_numbers(result, "coher2", "Signif. level", sizes=(1,))
     if alpha.size:
         if len(values) == 1:
             values.append(values[0])
@@ -833,10 +859,6 @@ def _set_position(values: list[float], position: int, value: float) -> list[floa
     padded = values + [0.0] * max(0, position + 1 - len(values))
     padded[position] = value
     return padded
-
-
-def _event_types_text(text: str) -> list[str]:
-    return [token for token in (item.strip("'\"{} ") for item in re.split(r"[\s,]+", text)) if token]
 
 
 def _more_options(text: str) -> dict[str, Any]:
