@@ -22,7 +22,7 @@ from eegprep.functions.popfunc.plot_utils import component_map_data
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc import erpimage as erpimage_module
 from eegprep.functions.sigprocfunc.erpimage import erpimage
-from eegprep.functions.sigprocfunc.topoplot import topoplot
+from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
 from tests.eeglab_tests import load_matlab_test_fixture
 from tests.fixtures import create_erpimage_epochs, matlab_engine_available
 
@@ -150,6 +150,22 @@ def test_titles_from_the_argument_or_the_title_option(epochs) -> None:
     assert option.axhndls[0].get_title() == "Option title"
 
 
+def test_default_titles_list_every_channel_and_component(epochs) -> None:
+    # EEGPrep's own titles for several items; EEGLAB's multi-channel title was not checked against MATLAB.
+    averaged = pop_erpimage(create_erpimage_epochs(), 1, [1, 3], smooth=1, plot="off")
+    assert averaged.axhndls[0].get_title() == "A C"
+    projected = pop_erpimage(epochs, 0, [6, 7], [27, 31], smooth=1, plot="off")
+    assert projected.axhndls[0].get_title() == "Comp. 6 7 -> Chan. 27 31"
+
+
+def test_channel_scalp_map_marks_the_plotted_electrode() -> None:
+    eeg = create_erpimage_epochs()
+    for channel, theta in ((1, -40.0), (3, 40.0)):
+        result = pop_erpimage(eeg, 1, channel, smooth=1, plot="off")
+        marker = result.axhndls[5].collections[-1].get_offsets()
+        np.testing.assert_allclose(marker, [topo_screen_coords(theta, 0.3)])
+
+
 def test_nosort_keeps_the_trial_order_and_draws_the_values() -> None:
     eeg = create_erpimage_epochs()
     result = pop_erpimage(eeg, 1, 1, sortingtype="rt", sortingeventfield="rt", smooth=1, nosort=True, plot="off")
@@ -201,6 +217,35 @@ def test_several_latencies_in_an_epoch_use_the_first_with_a_warning(caplog) -> N
     assert "multiple event latencies found in epochs [1, 2, 3, 4, 5, 6]; the first is used." in caplog.text
 
 
+def test_only_latency_sorting_warns_about_several_events(caplog) -> None:
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        pop_erpimage(create_erpimage_epochs(), 1, 1, smooth=1, sortingeventfield="rt", noshow=True)
+    assert "multiple event latencies" not in caplog.text
+
+
+def test_events_may_carry_the_sorting_field_on_some_events_only() -> None:
+    eeg = create_erpimage_epochs()
+    for event in eeg["event"]:
+        if event["type"] == "stim":
+            del event["rt"]
+    result = pop_erpimage(eeg, 1, 1, smooth=1, sortingtype="rt", sortingeventfield="rt", noshow=True)
+    np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
+
+
+def test_missing_event_error_names_the_types_and_the_time_window() -> None:
+    message = r"no epoch has an event 'latency' value for event type 'stim' 'rt' between 500 and 900 ms"
+    with pytest.raises(ValueError, match=message):
+        pop_erpimage(
+            create_erpimage_epochs(),
+            1,
+            1,
+            sortingtype=["stim", "rt"],
+            sortingwin=[500, 900],
+            sortingeventfield="latency",
+            noshow=True,
+        )
+
+
 @pytest.mark.parametrize(
     ("change", "arguments", "message"),
     [
@@ -243,8 +288,9 @@ def test_invalid_smoothing_limits_and_options_raise(arguments, message) -> None:
         pop_erpimage(create_erpimage_epochs(), 1, 1, noshow=True, **arguments)
 
 
-def test_zero_smoothing_shows_every_trial() -> None:
-    assert pop_erpimage(create_erpimage_epochs(), 1, 1, smooth=0, noshow=True).outdata.shape == (32, 6)
+def test_zero_smoothing_shows_every_trial_unchanged() -> None:
+    eeg = create_erpimage_epochs()
+    np.testing.assert_array_equal(pop_erpimage(eeg, 1, 1, smooth=0, noshow=True).outdata, eeg["data"][0])
 
 
 def test_limits_set_the_axes_without_cropping_the_data(epochs) -> None:
@@ -272,6 +318,18 @@ def test_invalid_selections_raise(change, arguments, message) -> None:
     call = {"typeplot": 1, "channel": 1, **arguments}
     with pytest.raises(ValueError, match=message):
         pop_erpimage(eeg, call.pop("typeplot"), call.pop("channel"), gui=False, noshow=True)
+
+
+def test_last_channel_and_component_are_accepted_and_the_next_one_is_rejected(epochs) -> None:
+    eeg = create_erpimage_epochs()
+    np.testing.assert_array_equal(pop_erpimage(eeg, 1, 3, smooth=0, noshow=True).outdata, eeg["data"][2])
+    with pytest.raises(ValueError, match=r"channel 4 is outside 1\.\.3"):
+        pop_erpimage(eeg, 1, 4, noshow=True)
+    count = np.asarray(epochs["icaweights"]).shape[0]
+    last = pop_erpimage(epochs, 0, count, smooth=0, noshow=True)
+    np.testing.assert_allclose(last.outdata, _activations(epochs)[count - 1], rtol=1e-6, atol=1e-6)
+    with pytest.raises(ValueError, match=rf"component {count + 1} is outside 1\.\.{count}"):
+        pop_erpimage(epochs, 0, count + 1, noshow=True)
 
 
 def test_channels_accept_ranges_brackets_and_labels_in_any_case(epochs) -> None:
@@ -423,9 +481,11 @@ def test_history_command_replays_the_same_image(epochs) -> None:
         "sortingeventfield='latency', erp=True, phasesort=[0, 25, 10], coher=[10, 10, 0.01], noshow=True, "
         "plotmap=False, rng=5)"
     )
+    assert result.cohsig is not None and result.cohers.size
     replayed = eval(command, {"EEG": epochs, "pop_erpimage": pop_erpimage})
     np.testing.assert_array_equal(replayed.outdata, result.outdata)
     np.testing.assert_array_equal(replayed.cohsig, result.cohsig)
+    np.testing.assert_array_equal(replayed.cohers, result.cohers)
 
 
 def test_history_writes_an_explicit_scalp_map_with_the_dataset_locations(epochs) -> None:
@@ -511,8 +571,10 @@ def test_pop_erpimage_matches_matlab_fixture(name: str) -> None:
 
 
 def test_pop_fixture_keeps_all_erpimage_fixtures_small() -> None:
-    sizes = FIXTURE.stat().st_size + (FIXTURE.parent / "erpimage_engine_fixtures.mat").stat().st_size
-    assert sizes < 200_000
+    """The committed erpimage MATLAB fixtures (engine and pop) share a 200 KB repository budget."""
+    fixtures = list(FIXTURE.parent.glob("*erpimage*_fixtures.mat"))
+    assert FIXTURE in fixtures
+    assert sum(path.stat().st_size for path in fixtures) < 200_000
 
 
 @pytest.mark.matlab
