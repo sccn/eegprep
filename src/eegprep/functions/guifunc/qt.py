@@ -1182,7 +1182,8 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any], wid
         if not event_types:
             qt_widgets.QMessageBox.critical(button, "Error", str(params.get("no_types_message", "No event types")))
         else:
-            _chanlist, selected, _labels = pop_chansel(event_types, select=target.text().strip(), parent=button)
+            # As in EEGLAB, the list opens without a preselection and replaces the typed types.
+            _chanlist, selected, _labels = pop_chansel(event_types, parent=button)
             if selected:
                 target.setText(selected)
         _remind_if_empty(button, widgets, params)

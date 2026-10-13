@@ -223,3 +223,37 @@ def test_qt_dialog_wires_the_event_lists_and_frequency_mirrors(qt_dialogs) -> No
     widgets["phase"].editingFinished.emit()
     assert (widgets["field"].text(), widgets["type"].text(), widgets["coher"].text()) == ("latency", "rt", "8 12")
     assert qt_dialogs.messages == [("Warning", "Do not forget to select an event type in the next edit box")]
+
+
+FIELD_REMINDER = ("Warning", "Do not forget to select an epoch-sorting field in the previous edit box")
+TYPE_REMINDER = ("Warning", "Do not forget to select an event type in the next edit box")
+
+
+def test_coherence_frequency_is_mirrored_into_the_phase_box(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    widgets["phase"].setText("8 12")
+    widgets["coher"].setText("10 10")
+    widgets["coher"].editingFinished.emit()
+    assert widgets["phase"].text() == "10 10"
+
+
+def test_event_type_list_replaces_typed_types_and_reminds_about_the_field(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    widgets["type"].setText("bogus")
+    widgets["type_button"].click()  # cancelled
+    assert widgets["type"].text() == "bogus"
+    assert qt_dialogs.messages == [FIELD_REMINDER]
+    qt_dialogs.messages.clear()
+    qt_dialogs.answers["types"] = ([1, 2], 1, "")
+    widgets["field"].setText("latency")
+    widgets["type_button"].click()
+    assert widgets["type"].text() == "rt stim"
+    assert qt_dialogs.messages == []
+
+
+def test_event_field_list_cancel_keeps_the_field_and_reminds_about_the_type(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    widgets["field"].setText("latency")
+    widgets["field_button"].click()  # cancelled
+    assert widgets["field"].text() == "latency"
+    assert qt_dialogs.messages == [TYPE_REMINDER]
