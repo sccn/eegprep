@@ -10,7 +10,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
-from eegprep.functions.miscfunc.value_parsing import parse_text_tokens
+from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_text_tokens
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._event_utils import events_as_list
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
@@ -35,6 +35,7 @@ DIALOG_DECIMATE = 1
 MAX_DIALOG_SMOOTH = 10
 MICROVOLT_LABEL = "\\muV"
 NO_RENORM = "no"
+COLOR_LIMITS_HELP = "Color axis limits [low high], or the fraction of the data range to use"
 
 
 def pop_erpimage(
@@ -94,7 +95,7 @@ def pop_erpimage(
     _check_dataset(EEG, typeplot)
     show_figures(None, plot=plot)  # rejects an invalid 'plot' before anything is drawn
     if gui is None:
-        gui = channel is None
+        gui = is_empty_value(channel)
     if gui:
         call = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
         if call is None:
@@ -104,7 +105,7 @@ def pop_erpimage(
         sortingtype, sortingwin, sortingeventfield = call["sortingtype"], call["sortingwin"], call["sortingeventfield"]
         kwargs = {**kwargs, **call["options"]}
     plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
-    user_options = dict(erpimage_option_items(options, **kwargs))
+    user_options = _ordered_options(options, kwargs)
     channels = _selected_items(EEG, channel, typeplot)
     projection = [] if typeplot else _items(projchan)
     projection_numbers = _channel_numbers(EEG, projection, "projection channel") if projection else []
@@ -113,7 +114,8 @@ def pop_erpimage(
     data = _activity(EEG, typeplot, channels, projection_numbers)
     times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
     sortvar = _sorting_variable(EEG, sortingtype, sortingwin, sortingeventfield)
-    settings = {**_default_options(EEG, typeplot, channels, projection, plotmap=plotmap), **user_options}
+    defaults = _default_options(EEG, typeplot, channels, projection, plotmap=plotmap)
+    settings = {name: value for name, value in defaults.items() if name not in user_options} | user_options
     title = (
         settings.pop("title")
         if "title" in settings
@@ -140,6 +142,15 @@ def pop_erpimage(
     # A caller's target figure is the caller's to show or close.
     show_figures(None if target is not None else result.figure, plot=plot)
     return (result, command) if return_com else result
+
+
+def _ordered_options(tokens: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
+    """erpimage options keyed by name, in the order of their last occurrence (a later token wins, as in EEGLAB)."""
+    ordered: dict[str, Any] = {}
+    for name, value in erpimage_option_items(tokens, **kwargs):
+        ordered.pop(name, None)
+        ordered[name] = value
+    return ordered
 
 
 def _plot_type(typeplot: Any) -> int:
@@ -236,7 +247,6 @@ def _activity(EEG: dict[str, Any], typeplot: int, channels: list[int], projectio
     if typeplot:
         return np.mean(eeg_epoch_data(EEG)[np.asarray(channels) - 1], axis=0)
     activity = eeg_getdatact(EEG, component=channels, projchan=projection or None)
-    # Several projection channels are averaged, an EEGPrep extension (EEGLAB accepts one).
     return np.mean(activity, axis=0) if projection else activity[0]
 
 
@@ -245,6 +255,10 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
     trials = int(EEG["trials"])
     field = str(field or "").strip()
     if not field:
+        if not (is_empty_value(sortingtype) and is_empty_value(sortingwin)):
+            logger.warning(
+                "pop_erpimage(): sortingtype and sortingwin need sortingeventfield; the trials are not sorted."
+            )
         return np.full(trials, float(EEG["xmax"]) * 1000)
     events = events_as_list(EEG.get("event", []))
     if not events:
@@ -266,8 +280,8 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
     if missing.size == trials:
         raise ValueError(f"pop_erpimage(): no epoch has an {selection}")
     if missing.size:
-        logger.info(
-            "pop_erpimage(): %d of %d epochs have no %s (epochs %s); erpimage leaves them out.",
+        logger.warning(
+            "pop_erpimage(): %d of %d epochs have no %s (epochs %s, counted from 1); erpimage leaves them out.",
             missing.size,
             trials,
             selection,
@@ -341,7 +355,7 @@ def _scalp_map(EEG: dict[str, Any], typeplot: int, channels: list[int]) -> tuple
             return None
         return np.mean(maps[:, np.asarray(channels) - 1], axis=1), map_chanlocs
     if len(channels) > 1:
-        logger.info(
+        logger.warning(
             "pop_erpimage(): the scalp map marks one channel, so it is left out for %d channels.", len(channels)
         )
         return None
@@ -378,7 +392,7 @@ def _history_command(
     """Replayable Python call; empty arguments and the default decorations are omitted."""
     pieces = ["EEG", str(typeplot), python_literal(channel)]
     for name, value in arguments.items():
-        if name in {"smooth", "decimate"} or not _is_empty(value):
+        if name in {"smooth", "decimate"} or not is_empty_value(value):
             pieces.append(f"{name}={python_literal(value)}")
     for name, value in options.items():
         pieces.append(f"{name}={_option_literal(EEG, name, value)}")
@@ -387,14 +401,6 @@ def _history_command(
     if isinstance(rng, (int, np.integer)) and not isinstance(rng, bool):
         pieces.append(f"rng={int(rng)}")
     return f"pop_erpimage({', '.join(pieces)})"
-
-
-def _is_empty(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    return np.asarray(value, dtype=object).size == 0
 
 
 def _option_literal(EEG: dict[str, Any], name: str, value: Any) -> str:
@@ -447,7 +453,6 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
                     ),
                 ),
                 ControlSpec("edit", tag="projchan", value=""),
-                # EEGLAB disables this picker for components; EEGPrep lets the user pick the channel.
                 _channel_button("projchan_button", "projchan", labels, enabled=bool(labels)),
                 ControlSpec("text", "Fig. title", font_weight="bold"),
                 ControlSpec("edit", tag="title", value=""),
@@ -487,14 +492,8 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
             ControlSpec("edit", tag="limerp", value=""),
             ControlSpec("text", "Time limits (ms)", font_weight="bold", tooltip="Select time subset in ms"),
             ControlSpec("edit", tag="limtime", value=_epoch_limits_text(EEG)),
-            ControlSpec(
-                "checkbox", "Plot colorbar", tag="cbar", value=True, tooltip="Plot a colorbar right of the ERP image"
-            ),
-            ControlSpec(
-                "text",
-                "Color limits (see Help)",
-                tooltip="Color axis limits [low high], or the fraction of the data range to use",
-            ),
+            ControlSpec("checkbox", "Plot colorbar", tag="cbar", value=True, tooltip=COLOR_LIMITS_HELP),
+            ControlSpec("text", "Color limits (see Help)", tooltip=COLOR_LIMITS_HELP),
             ControlSpec("edit", tag="caxis", value=""),
             ControlSpec("spacer"),
             ControlSpec("text", "Sort/align trials by epoch event values", font_weight="bold"),
@@ -672,7 +671,10 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         help_text="pophelp('pop_erpimage')",
         size=(1113, 831),
         row_spacing=4,
-        known_differences=("The component dialog's projection-channel picker is enabled (EEGLAB disables it).",),
+        known_differences=(
+            "The component dialog's projection-channel picker is enabled (EEGLAB disables it).",
+            "The event-type reminder names the epoch-sorting field (EEGLAB's text says 'event type').",
+        ),
         extra_stylesheet="""
             QDialog#pop_erpimage QLabel,
             QDialog#pop_erpimage QCheckBox,
@@ -874,7 +876,7 @@ def _more_options(text: str) -> dict[str, Any]:
         return parse_plot_options_text(text)
     except ValueError as error:
         raise ValueError(
-            "pop_erpimage(): More options needs 'key', value pairs (for example 'erpstd', 'on')"
+            f"pop_erpimage(): More options needs 'key', value pairs (for example 'erpstd', 'on'): {error}"
         ) from error
 
 

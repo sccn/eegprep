@@ -973,7 +973,6 @@ def test_pop_erpimage_sorts_channel_trials_and_projects_components(epoched_eeg: 
 
     channel_values = epoched_eeg["data"][1]
     np.testing.assert_allclose(channels.outdata, channel_values[:, ::-1])
-    # Two projection channels are averaged (EEGPrep extension; EEGLAB takes one).
     projection = epoched_eeg["icawinv"][[0, 2], 1].mean() * epoched_eeg["icaact"][1]
     np.testing.assert_allclose(components.outdata, projection)
     with pytest.raises(ValueError, match="unknown option 'phase2'"):

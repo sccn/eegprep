@@ -185,10 +185,12 @@ def test_rescale_maps_the_event_values_into_the_epoch() -> None:
 def test_epochs_without_a_matching_event_are_left_out_and_logged(caplog) -> None:
     eeg = create_erpimage_epochs()
     eeg["event"] = [event for event in eeg["event"] if not (event["type"] == "rt" and event["epoch"] in (2, 5))]
-    with caplog.at_level(logging.INFO, logger=pop_erpimage_module.logger.name):
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
         result = pop_erpimage(eeg, 1, 1, sortingtype="rt", sortingeventfield="latency", smooth=1, noshow=True)
     assert sorted(result.sortidx.tolist()) == [0, 2, 3, 5]
-    assert "2 of 6 epochs have no event 'latency' value for event type 'rt' (epochs [2, 5])" in caplog.text
+    assert "2 of 6 epochs have no event 'latency' value for event type 'rt' (epochs [2, 5], counted from 1)" in (
+        caplog.text
+    )
 
 
 def test_several_latencies_in_an_epoch_use_the_first_with_a_warning(caplog) -> None:
@@ -269,7 +271,7 @@ def test_invalid_selections_raise(change, arguments, message) -> None:
         change(eeg)
     call = {"typeplot": 1, "channel": 1, **arguments}
     with pytest.raises(ValueError, match=message):
-        pop_erpimage(eeg, call.pop("typeplot"), call.pop("channel"), noshow=True)
+        pop_erpimage(eeg, call.pop("typeplot"), call.pop("channel"), gui=False, noshow=True)
 
 
 def test_channels_accept_ranges_brackets_and_labels_in_any_case(epochs) -> None:
@@ -352,6 +354,29 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     for location in components["chanlocs"]:
         location["theta"] = np.nan
     assert len(pop_erpimage(components, 0, 6, plot="off").axhndls) == 5
+
+
+def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
+    drawn = pop_erpimage(epochs, 1, 14, None, "", 5, 0, None, None, "", "coher", [10, 10, 0.05], "erp", "off", rng=1)
+    assert drawn.axhndls[2] is None and drawn.erp is None
+    switched = pop_erpimage(epochs, 1, 14, None, "", 5, 0, None, None, "", "erp", "off", "erp", "on", noshow=True)
+    assert switched.erp is not None
+
+
+def test_sorting_types_or_window_without_a_field_are_reported(caplog) -> None:
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        result = pop_erpimage(create_erpimage_epochs(), 1, 1, sortingtype="rt", smooth=1, noshow=True)
+    np.testing.assert_array_equal(result.sortidx, np.arange(6))
+    assert "sortingtype and sortingwin need sortingeventfield; the trials are not sorted" in caplog.text
+
+
+@pytest.mark.parametrize("channel", ["", [], None])
+def test_an_empty_channel_opens_the_dialog(channel) -> None:
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return None
+
+    assert pop_erpimage(create_erpimage_epochs(), 1, channel, renderer=Renderer(), return_com=True) == (None, "")
 
 
 def test_several_components_need_a_projection_channel(epochs) -> None:

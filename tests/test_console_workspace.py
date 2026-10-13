@@ -706,7 +706,6 @@ def test_gui_pop_erpimage_history_replays_in_the_console(monkeypatch):
     dialog_values = {"chan": "B", "smooth": "1", "field": "rt", "type": "rt", "nosort": True}
 
     def dialog(spec, initial_values=None, renderer=None):
-        # The modal dialog is the I/O boundary: answer it with the user's entries.
         defaults = {
             tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"
         }
@@ -718,7 +717,6 @@ def test_gui_pop_erpimage_history_replays_in_the_console(monkeypatch):
     command = "pop_erpimage(EEG, 1, 'B', smooth=1, decimate=1, sortingtype=['rt'], sortingeventfield='rt', nosort=True)"
     assert session.ALLCOM == [command]
     assert workspace.namespace["LASTCOM"] == command
-    # The researcher edits the recorded call in the console: sort the trials but hide the values.
     edited = workspace.namespace["LASTCOM"].replace("nosort=True", "noplot=True")
     replayed, replay_command = eval(edited, workspace.namespace)
     workspace.after_execute(edited)
