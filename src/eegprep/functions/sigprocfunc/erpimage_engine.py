@@ -41,7 +41,6 @@ PLOTAMPS_CAXIS_FRACTION = 0.8
 NEAR_ZERO = 1e-22
 EEGLAB_SIGN_BIAS_ISSUE = "https://github.com/sccn/eeglab/issues/976"
 
-# Flag keys take an optional 'on'/'off' value; value keys always consume the next token.
 _FLAG_KEYS = {
     "nosort": "nosort",
     "showwin": "showwin",
@@ -108,13 +107,6 @@ _VALUE_KEYS_CI = {
     "cbar_title": "cbar_title",
 }
 _BARE_KEYS_CI = {"erp_grid": "erp_grid"}
-_KWARG_NAMES = (
-    set(_FLAG_KEYS.values())
-    | set(_FLAG_KEYS_CI.values())
-    | set(_VALUE_KEYS.values())
-    | set(_VALUE_KEYS_CI.values())
-    | set(_BARE_KEYS_CI.values())
-)
 
 
 @dataclass(frozen=True, eq=False)
@@ -227,10 +219,11 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
     """Parse EEGLAB ``'key', value`` tokens and Python keyword options.
 
     Tokens follow EEGLAB's grammar: flag keys (``'erp'``, ``'cbar'``,
-    ``'nosort'``, ...) take an optional ``'on'``/``'off'`` value, value keys
-    always consume the next token. Keyword arguments use the same names in
-    lower case (``noshow`` for ``'NoShow'``) and accept booleans for flags.
-    Keyword options are applied after the tokens.
+    ``'nosort'``, ...) take an optional ``'on'``/``'off'`` (or boolean) value,
+    value keys always consume the next token. Keyword arguments use the same
+    names in lower case (``noshow`` for ``'NoShow'``) and accept booleans for
+    flags. Keyword options are applied after the tokens. Invalid values raise
+    ``ValueError`` naming the option.
     """
     values: dict[str, Any] = {}
     index = 0
@@ -238,15 +231,14 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
     while index < len(tokens):
         key = tokens[index]
         if not isinstance(key, str):
-            shape = np.shape(key)
-            raise ValueError(f"erpimage(): unknown arg {index + 1}, size{shape}")
-        following = tokens[index + 1] if index + 1 < len(tokens) else None
+            raise ValueError(f"erpimage(): unknown arg {index + 1}, size{np.shape(key)}")
         has_following = index + 1 < len(tokens)
+        following = tokens[index + 1] if has_following else None
         lower = key.lower()
         if key in _FLAG_KEYS or lower in _FLAG_KEYS_CI:
             name = _FLAG_KEYS.get(key) or _FLAG_KEYS_CI[lower]
-            consumed, value = _flag_value(name, following) if has_following else (False, True)
-            _set_option(values, name, value)
+            consumed, value = _flag_token(name, following) if has_following else (False, True)
+            values.update(_OPTION_PARSERS[name](value, key, values))
             index += 2 if consumed else 1
             continue
         if lower in _BARE_KEYS_CI:
@@ -258,246 +250,379 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
             raise ValueError(f"erpimage(): unknown arg {key}")
         if not has_following:
             raise ValueError(f"erpimage(): option '{key}' needs a value")
-        _set_option(values, name, following)
+        values.update(_OPTION_PARSERS[name](following, key, values))
         index += 2
     for key, value in kwargs.items():
         name = key.lower()
-        if name not in _KWARG_NAMES:
+        if name not in _OPTION_PARSERS:
             raise ValueError(f"erpimage(): unknown option '{key}'")
-        if name in {"nosort", "showwin", "noplot", "cbar", "plotamps", "noxlabel", "rmerp", "erpstd", "erp_grid"}:
-            value = _on_off(value, key)
-        _set_option(values, name, value)
+        values.update(_OPTION_PARSERS[name](value, key, values))
     return ErpimageOptions(**values)
 
 
-def _flag_value(name: str, following: Any) -> tuple[bool, Any]:
+def _flag_token(name: str, following: Any) -> tuple[bool, Any]:
+    """Whether the token after a flag key is its value, and that value."""
+    if isinstance(following, (bool, np.bool_)):
+        return True, bool(following)
     if isinstance(following, str):
-        if following.lower() == "on":
-            return True, True
-        if following.lower() == "off":
-            return True, False
+        if following.lower() in {"on", "off"}:
+            return True, following.lower() == "on"
         if name == "erp" and following in {"1", "2", "3", "4"}:
             return True, int(following)
         return False, True
-    if (
-        name == "erp"
-        and isinstance(following, (int, float, np.ndarray, list, tuple))
-        and not isinstance(following, bool)
-    ):
+    if name == "erp" and isinstance(following, (int, float, np.number, np.ndarray, list, tuple)):
         first = np.asarray(following, dtype=float).ravel()
         if first.size and first[0] in (1.0, 2.0, 3.0, 4.0):
             return True, int(first[0])
     return False, True
 
 
-def _on_off(value: Any, key: str) -> bool:
+def _numbers(value: Any, key: str, *, sizes: tuple[int, ...] | None = None, finite: bool = False) -> np.ndarray:
+    """A numeric vector option; raises ``ValueError`` naming the option otherwise."""
+    if isinstance(value, (str, bytes)) or value is None:
+        raise ValueError(f"erpimage(): '{key}' must be numeric, got {value!r}")
+    try:
+        array = np.asarray(value, dtype=float).ravel()
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"erpimage(): '{key}' must be numeric, got {value!r}") from error
+    if array.size == 0:
+        raise ValueError(f"erpimage(): '{key}' needs a value")
+    if sizes is not None and array.size not in sizes:
+        expected = " or ".join(str(size) for size in sizes)
+        raise ValueError(f"erpimage(): '{key}' takes {expected} value{'' if sizes == (1,) else 's'}, got {array.size}")
+    if finite and not np.all(np.isfinite(array)):
+        raise ValueError(f"erpimage(): '{key}' values must be finite, got {array.tolist()}")
+    return array
+
+
+def _number(value: Any, key: str, *, finite: bool = True) -> float:
+    return float(_numbers(value, key, sizes=(1,), finite=finite)[0])
+
+
+def _matrix(value: Any, key: str) -> np.ndarray:
+    if isinstance(value, (str, bytes)) or value is None:
+        raise ValueError(f"erpimage(): '{key}' must be numeric, got {value!r}")
+    try:
+        return np.asarray(value, dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"erpimage(): '{key}' must be numeric") from error
+
+
+def _switch(value: Any, key: str) -> bool:
     if isinstance(value, (bool, np.bool_)):
         return bool(value)
     if isinstance(value, str) and value.lower() in {"on", "off"}:
         return value.lower() == "on"
-    raise ValueError(f"erpimage(): '{key}' must be True/False or 'on'/'off'")
+    raise ValueError(f"erpimage(): '{key}' must be True/False or 'on'/'off', got {value!r}")
 
 
-def _vector(value: Any, name: str) -> np.ndarray:
+def _text(value: Any) -> str:
+    return "" if value is None else str(value)
+
+
+def _parse_erp(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, (bool, np.bool_)):
+        return {"erp": int(value)}
+    if isinstance(value, str):
+        ptiles = {"on": 1, "off": 0, "1": 1, "2": 2, "3": 3, "4": 4}.get(value.lower())
+    else:
+        number = _number(value, key, finite=False)
+        ptiles = int(number) if number in (0.0, 1.0, 2.0, 3.0, 4.0) else None
+    if ptiles is None:
+        raise ValueError(f"erpimage(): '{key}' must be 'on', 'off' or an integer from 1 to 4, got {value!r}")
+    return {"erp": ptiles}
+
+
+def _parse_caxis(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    caxis = _numbers(value, key, sizes=(1, 2), finite=True)
+    if np.ndim(value) > 1 and np.shape(value)[0] != 1:
+        raise ValueError("erpimage(): caxis arg must be a scalar or (1,2) vector.")
+    if caxis.size == 2 and not caxis[0] < caxis[1]:
+        raise ValueError(f"erpimage(): 'caxis' limits must be increasing, got {caxis.tolist()}")
+    if caxis.size == 1 and not caxis[0] > 0:
+        raise ValueError(f"erpimage(): a 'caxis' fraction must be positive, got {caxis[0]:g}")
+    return {"caxis": caxis}
+
+
+def _parse_coher(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    coher = _numbers(value, key, sizes=(1, 2, 3), finite=True)
+    if np.any(coher[: min(coher.size, 2)] <= 0):
+        raise ValueError(f"erpimage(): 'coher' frequencies must be positive, got {coher.tolist()}")
+    if coher.size >= 2 and coher[1] < coher[0]:
+        raise ValueError(f"erpimage(): 'coher' frequency range must be increasing, got {coher[:2].tolist()}")
+    if coher.size == 3 and not 0 <= coher[2] <= 0.1:
+        raise ValueError(f"erpimage(): alpha value {coher[2]:g} out of bounds.")
+    # As in EEGLAB, 'coher' also turns the ERP trace on.
+    return {"coher": coher, "erp": max(values.get("erp", 0), 1)}
+
+
+def _parse_timewarp(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    parts = list(value) if isinstance(value, (list, tuple)) else [value]
+    events = _matrix(parts[0], key)
+    if events.ndim != 2 or events.size == 0:
+        raise ValueError("erpimage(): 'timewarp' events must be a (trials, events) matrix of latencies in ms")
+    warpms = _numbers(parts[1], key, finite=True) if len(parts) > 1 and np.size(parts[1]) else None
+    styles = parts[2] if len(parts) > 2 and parts[2] is not None else ()
+    return {"timewarp": (events, warpms, tuple(str(style) for style in styles))}
+
+
+def _parse_topo(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    parts = tuple(value) if isinstance(value, (list, tuple)) else tuple(np.asarray(value, dtype=object).ravel())
+    if len(parts) not in (2, 3):
+        raise ValueError("erpimage(): topo arg must be a list of length 2 or 3.")
+    return {"topo": parts}
+
+
+def _parse_spec(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    spec = _numbers(value, key, sizes=(2,), finite=True)
+    if spec[0] < 0 or spec[1] <= spec[0]:
+        raise ValueError(f"erpimage(): 'spec' must be an increasing [low high] Hz band, got {spec.tolist()}")
+    return {"spec": spec}
+
+
+def _parse_specaxis(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    axis = _text(value).lower()
+    if axis not in {"lin", "log"}:
+        raise ValueError("erpimage(): spectrum axis type must be 'lin' or 'log'.")
+    return {"specaxis": "linear" if axis == "lin" else "log"}
+
+
+def _parse_noshow(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, (bool, np.bool_)):
+        return {"noshow": bool(value)}
+    if isinstance(value, str) and value.lower() in {"on", "off", "yes", "no"}:
+        return {"noshow": value.lower() in {"on", "yes"}}
+    raise ValueError(f"erpimage(): '{key}' must be True/False or 'on'/'off', got {value!r}")
+
+
+def _parse_align(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    align = _number(value, key, finite=False)
+    if np.isnan(align):
+        raise ValueError("erpimage(): 'align' must be a latency in ms or Inf (median sortvar)")
+    return {"align": align}
+
+
+def _parse_limits(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    limits = _numbers(value, key)
+    if np.ndim(value) > 1 and np.shape(value)[0] != 1 or not 2 <= limits.size <= 9:
+        raise ValueError("erpimage(): limits arg must be a vector sized (1,2<->9).")
+    if not np.isnan(limits[0]) and limits[1] <= limits[0]:
+        raise ValueError("erpimage(): time limits out of order or out of range.")
+    padded = np.full(9, np.nan)
+    padded[: limits.size] = limits
+    if not np.isnan(padded[3]) and padded[3] <= padded[2]:
+        raise ValueError("erpimage(): erp limits args out of order.")
+    if padded[5] <= padded[4]:
+        raise ValueError("erpimage(): amp limits args out of order.")
+    if padded[7] <= padded[6]:
+        raise ValueError("erpimage(): coh limits args out of order.")
+    return {"limits": limits}
+
+
+def _parse_positive(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    number = _number(value, key)
+    if number <= 0:
+        raise ValueError(f"erpimage(): '{key}' must be positive, got {number:g}")
+    return {_canonical(key): number}
+
+
+def _parse_auxvar(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    is_pair = isinstance(value, (list, tuple)) and len(value) == 2
+    styles = value[1] if is_pair else None
+    if isinstance(styles, str) or (
+        isinstance(styles, (list, tuple)) and styles and all(isinstance(style, str) for style in styles)
+    ):
+        names = (styles,) if isinstance(styles, str) else tuple(styles)
+        return {"auxvar": np.atleast_2d(_matrix(value[0], key)), "auxcolors": names}
+    return {"auxvar": np.atleast_2d(_matrix(value, key))}
+
+
+def _parse_lines(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    array = _matrix(value, key)
+    if array.size == 0:
+        raise ValueError(f"erpimage(): '{key}' needs a value")
+    return {_canonical(key): array if array.ndim == 2 else array.ravel()}
+
+
+def _parse_signif(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    return {"signif": _numbers(value, key, sizes=(3,))}
+
+
+def _parse_allcohers(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    raise ValueError("erpimage(): 'allcohers' is not implemented (erpimage.m marks it UNIMPLEMENTED)")
+
+
+def _parse_phasesort(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    phargs = _numbers(value, key, finite=True)
+    if phargs.size > 5:
+        raise ValueError("erpimage(): Too many arguments for keyword 'phasesort'")
+    if phargs.size < 3:
+        raise ValueError("erpimage(): 'phasesort' needs at least [ms_center prct freq]")
+    if phargs[2] < 0:
+        raise ValueError("erpimage(): Invalid negative frequency argument for keyword 'phasesort'")
+    if phargs.size >= 4 and phargs[3] < 0:
+        raise ValueError("erpimage(): Invalid negative argument for keyword 'phasesort'")
+    if phargs[1] >= 100 or phargs[1] < -100:
+        raise ValueError("erpimage(): %-argument for keyword 'phasesort' must be (-100;100)")
+    if phargs.size >= 4 and phargs[2] > phargs[3]:
+        raise ValueError("erpimage(): Phase sorting frequency range must be increasing.")
+    if phargs.size == 5 and not -180 <= phargs[4] <= 180:
+        raise ValueError(f"erpimage(): coher topphase ({phargs[4]:g}) out of range.")
+    return {"phasesort": phargs}
+
+
+def _parse_ampsort(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    ampargs = _numbers(value, key)
+    if ampargs.size > 4:
+        raise ValueError("erpimage(): Too many arguments for keyword 'ampsort'")
+    if ampargs.size < 3:
+        raise ValueError("erpimage(): 'ampsort' needs at least [center_ms prcnt freq]")
+    if np.isnan(ampargs[0]) or not np.all(np.isfinite(ampargs[1:])):
+        raise ValueError(f"erpimage(): 'ampsort' values must be finite (the center may be Inf), got {ampargs.tolist()}")
+    if ampargs.size >= 4 and ampargs[3] < 0:
+        raise ValueError("erpimage(): Invalid negative argument for keyword 'ampsort'")
+    if ampargs[1] >= 100 or ampargs[1] < -100:
+        raise ValueError("erpimage(): percentile argument for keyword 'ampsort' must be (-100;100)")
+    if ampargs.size == 4 and abs(ampargs[2]) > abs(ampargs[3]):
+        raise ValueError("erpimage(): Amplitude sorting frequency range must be increasing.")
+    return {"ampsort": ampargs}
+
+
+def _parse_sortwin(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    sortwin = _numbers(value, key, finite=True)
+    if sortwin.size > 2:
+        raise ValueError("erpimage(): Too many arguments for keyword 'sortwin'")
+    if sortwin.size > 1 and sortwin[0] > sortwin[1]:
+        raise ValueError("erpimage(): Value sorting time range must be increasing.")
+    return {"sortwin": sortwin}
+
+
+def _parse_valsort(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    valargs = _numbers(value, key, finite=True)
+    if valargs.size > 3:
+        raise ValueError("erpimage(): Too many arguments for keyword 'valsort'")
+    if valargs.size > 1 and valargs[0] > valargs[1]:
+        raise ValueError("erpimage(): Value sorting time range must be increasing.")
+    if valargs.size == 3 and valargs[2] == 0:
+        raise ValueError("erpimage(): Value sorting direction must be +1 or -1.")
+    return {"valsort": valargs}
+
+
+def _parse_erpalpha(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    alpha = _number(value, key)
+    if alpha < MIN_ERPALPHA or alpha > MAX_ERPALPHA:
+        raise ValueError(f"erpimage(): erpalpha value is out of bounds [{MIN_ERPALPHA:g}, {MAX_ERPALPHA:g}]")
+    return {"erpalpha": alpha}
+
+
+def _parse_avg_type(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    avg_type = _text(value).lower()
+    if avg_type not in {"gaussian", "boxcar"}:
+        raise ValueError("erpimage(): Invalid value for optional argument 'avg_type'.")
+    return {"avg_type": avg_type}
+
+
+def _parse_replace_ties(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
     try:
-        return np.asarray(value, dtype=float).ravel()
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"erpimage(): '{name}' must be numeric") from error
+        return {"replace_ties": _switch(value, key)}
+    except ValueError as error:
+        raise ValueError(
+            "erpimage(): Argument 'replace_ties' needs to be followed by the string 'on' or 'off'."
+        ) from error
 
 
-def _set_option(values: dict[str, Any], name: str, value: Any) -> None:  # noqa: C901
-    if name == "erp":
-        if isinstance(value, (bool, np.bool_)):
-            values["erp"] = 1 if value else 0
-        elif isinstance(value, str):
-            ptiles = {"on": 1, "off": 0, "1": 1, "2": 2, "3": 3, "4": 4}.get(value.lower())
-            if ptiles is None:
-                raise ValueError("erpimage(): 'erp' must be 'on', 'off' or 1 to 4")
-            values["erp"] = ptiles
-        else:
-            ptiles = int(_vector(value, "erp")[0])
-            if ptiles not in (0, 1, 2, 3, 4):
-                raise ValueError("erpimage(): 'erp' must be 'on', 'off' or 1 to 4")
-            values["erp"] = ptiles
-        return
-    if name in {"nosort", "showwin", "noplot", "cbar", "plotamps", "noxlabel", "rmerp", "erpstd", "erp_grid"}:
-        values[name] = bool(value)
-        return
-    if name == "caxis":
-        caxis = np.asarray(value, dtype=float)
-        if caxis.ndim > 1 and caxis.shape[0] != 1 or caxis.size not in (1, 2):
-            raise ValueError("erpimage(): caxis arg must be a scalar or (1,2) vector.")
-        values["caxis"] = caxis.ravel()
-        return
-    if name == "coher":
-        coher = _vector(value, "coher")
-        if coher.size < 1 or coher.size > 3:
-            raise ValueError("erpimage(): coher arg must be size <= 3.")
-        if coher.size == 3 and (coher[2] < 0 or coher[2] > 0.1):
-            raise ValueError(f"erpimage(): alpha value {coher[2]:g} out of bounds.")
-        values["coher"] = coher
-        values["erp"] = max(values.get("erp", 0), 1)
-        return
-    if name == "timewarp":
-        parts = list(value) if isinstance(value, (list, tuple)) else [value]
-        events = np.atleast_2d(np.asarray(parts[0], dtype=float))
-        warpms = _vector(parts[1], "timewarp") if len(parts) > 1 and np.size(parts[1]) else None
-        colors = tuple(str(color) for color in parts[2]) if len(parts) > 2 and parts[2] is not None else ()
-        values["timewarp"] = (events, warpms, colors)
-        return
-    if name == "topo":
-        parts = tuple(value) if isinstance(value, (list, tuple)) else tuple(np.asarray(value, dtype=object).ravel())
-        if len(parts) < 2:
-            raise ValueError("erpimage(): topo arg must be a list of length 2 or 3.")
-        values["topo"] = parts
-        return
-    if name == "spec":
-        spec = _vector(value, "spec")
-        if spec.size != 2:
-            raise ValueError("erpimage(): 'spec' flag argument must be a numeric array of length 2.")
-        values["spec"] = spec
-        return
-    if name == "specaxis":
-        axis = str(value).lower()
-        if axis not in {"lin", "log"}:
-            raise ValueError("erpimage(): spectrum axis type must be 'lin' or 'log'.")
-        values["specaxis"] = "linear" if axis == "lin" else "log"
-        return
-    if name == "noshow":
-        values["noshow"] = (
-            bool(value) if isinstance(value, (bool, np.bool_)) else str(value).lower() not in {"off", "no"}
-        )
-        return
-    if name == "align":
-        values["align"] = float(_vector(value, "align")[0])
-        return
-    if name == "limits":
-        limits = np.asarray(value, dtype=float)
-        if limits.ndim > 1 and limits.shape[0] != 1 or not 2 <= limits.size <= 9:
-            raise ValueError("erpimage(): limits arg must be a vector sized (1,2<->9).")
-        limits = limits.ravel()
-        if not np.isnan(limits[0]) and limits[1] <= limits[0]:
-            raise ValueError("erpimage(): time limits out of order or out of range.")
-        padded = np.full(9, np.nan)
-        padded[: limits.size] = limits
-        if not np.isnan(padded[3]) and padded[3] <= padded[2]:
-            raise ValueError("erpimage(): erp limits args out of order.")
-        if padded[5] <= padded[4]:
-            raise ValueError("erpimage(): amp limits args out of order.")
-        if padded[7] <= padded[6]:
-            raise ValueError("erpimage(): coh limits args out of order.")
-        values["limits"] = limits
-        return
-    if name in {"srate", "cycles"}:
-        values[name] = float(_vector(value, name)[0])
-        return
-    if name == "auxvar":
-        if isinstance(value, (list, tuple)) and len(value) == 2 and not np.isscalar(value[0]):
-            values["auxvar"] = np.atleast_2d(np.asarray(value[0], dtype=float))
-            values["auxcolors"] = tuple(str(color) for color in value[1])
-        elif isinstance(value, (list, tuple)) and value and not np.isscalar(value[0]) and len(value) != 2:
-            raise ValueError("erpimage(): auxvars argument must be a matrix or length-2 cell array.")
-        else:
-            values["auxvar"] = np.atleast_2d(np.asarray(value, dtype=float))
-        return
-    if name in {"vert", "horz"}:
-        array = np.asarray(value, dtype=float)
-        values[name] = np.atleast_2d(array) if array.ndim == 2 else array.ravel()
-        return
-    if name == "signif":
-        signif = _vector(value, "signif")
-        if signif.size != 3:
-            raise ValueError("erpimage(): signif arg must have 3 values")
-        values["signif"] = signif
-        return
-    if name == "allcohers":
-        raise ValueError("erpimage(): 'allcohers' is deprecated and not functional in EEGLAB")
-    if name == "phasesort":
-        phargs = _vector(value, "phasesort")
-        if phargs.size > 5:
-            raise ValueError("erpimage(): Too many arguments for keyword 'phasesort'")
-        if phargs.size < 3:
-            raise ValueError("erpimage(): 'phasesort' needs at least [ms_center prct freq]")
-        if phargs[2] < 0:
-            raise ValueError("erpimage(): Invalid negative frequency argument for keyword 'phasesort'")
-        if phargs.size >= 4 and phargs[3] < 0:
-            raise ValueError("erpimage(): Invalid negative argument for keyword 'phasesort'")
-        if phargs[1] >= 100 or phargs[1] < -100:
-            raise ValueError("erpimage(): %-argument for keyword 'phasesort' must be (-100;100)")
-        if phargs.size >= 4 and phargs[2] > phargs[3]:
-            raise ValueError("erpimage(): Phase sorting frequency range must be increasing.")
-        values["phasesort"] = phargs
-        return
-    if name == "ampsort":
-        ampargs = _vector(value, "ampsort")
-        if ampargs.size > 4:
-            raise ValueError("erpimage(): Too many arguments for keyword 'ampsort'")
-        if ampargs.size < 3:
-            raise ValueError("erpimage(): 'ampsort' needs at least [center_ms prcnt freq]")
-        if ampargs.size >= 4 and ampargs[3] < 0:
-            raise ValueError("erpimage(): Invalid negative argument for keyword 'ampsort'")
-        if ampargs[1] >= 100 or ampargs[1] < -100:
-            raise ValueError("erpimage(): percentile argument for keyword 'ampsort' must be (-100;100)")
-        if ampargs.size == 4 and abs(ampargs[2]) > abs(ampargs[3]):
-            raise ValueError("erpimage(): Amplitude sorting frequency range must be increasing.")
-        values["ampsort"] = ampargs
-        return
-    if name == "sortwin":
-        sortwin = _vector(value, "sortwin")
-        if sortwin.size > 2:
-            raise ValueError("erpimage(): Too many arguments for keyword 'sortwin'")
-        if sortwin.size > 1 and sortwin[0] > sortwin[1]:
-            raise ValueError("erpimage(): Value sorting time range must be increasing.")
-        values["sortwin"] = sortwin
-        return
-    if name == "valsort":
-        valargs = _vector(value, "valsort")
-        if valargs.size > 3 or valargs.size == 0:
-            raise ValueError("erpimage(): Too many arguments for keyword 'valsort'")
-        if valargs.size > 1 and valargs[0] > valargs[1]:
-            raise ValueError("erpimage(): Value sorting time range must be increasing.")
-        if valargs.size == 3 and valargs[2] == 0:
-            raise ValueError("erpimage(): Value sorting direction must be +1 or -1.")
-        values["valsort"] = valargs
-        return
-    if name == "erpalpha":
-        alpha = float(_vector(value, "erpalpha")[0])
-        if alpha < MIN_ERPALPHA or alpha > MAX_ERPALPHA:
-            raise ValueError(f"erpimage(): erpalpha value is out of bounds [{MIN_ERPALPHA:g}, {MAX_ERPALPHA:g}]")
-        values["erpalpha"] = alpha
-        return
-    if name == "avg_type":
-        avg_type = str(value).lower()
-        if avg_type not in {"gaussian", "boxcar"}:
-            raise ValueError("erpimage(): Invalid value for optional argument 'avg_type'.")
-        values["avg_type"] = avg_type
-        return
-    if name == "replace_ties":
-        if isinstance(value, (bool, np.bool_)):
-            values["replace_ties"] = bool(value)
-        elif isinstance(value, str) and value.lower() in {"on", "off"}:
-            values["replace_ties"] = value.lower() == "on"
-        else:
-            raise ValueError("erpimage(): Argument 'replace_ties' needs to be followed by the string 'on' or 'off'.")
-        return
-    if name == "sortvar_limits":
-        if isinstance(value, str) or np.size(value) != 2:
-            raise ValueError("erpimage(): Argument 'sortvar_limits' needs to be followed by a two element vector.")
-        values["sortvar_limits"] = _vector(value, name)
-        return
-    if name == "baselinedb":
-        baselinedb = _vector(value, name)
-        if baselinedb.size > 2:
-            raise ValueError("'baselinedb' need to be a 2 argument vector")
-        values["baselinedb"] = baselinedb
-        return
-    if name in {"baseline", "filt", "erp_vltg_ticks", "img_trialax_ticks", "sortvarpercent"}:
-        values[name] = _vector(value, name)
-        return
-    if name in {"renorm", "yerplabel", "plotmode", "title", "img_trialax_label", "cbar_title"}:
-        values[name] = "" if value is None else str(value)
-        return
-    raise ValueError(f"erpimage(): unknown option '{name}'")  # pragma: no cover - table and setter agree
+def _parse_sortvar_limits(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, str) or np.size(value) != 2:
+        raise ValueError("erpimage(): Argument 'sortvar_limits' needs to be followed by a two element vector.")
+    return {"sortvar_limits": _numbers(value, key, sizes=(2,), finite=True)}
+
+
+def _parse_baseline(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    baseline = _numbers(value, key, sizes=(2,), finite=True)
+    return {"baseline": baseline}
+
+
+def _parse_baselinedb(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    baselinedb = _numbers(value, key)
+    if baselinedb.size > 2:
+        raise ValueError("'baselinedb' need to be a 2 argument vector")
+    return {"baselinedb": baselinedb}
+
+
+def _parse_sortvarpercent(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    percent = _numbers(value, key, finite=True)
+    if np.any((percent < 0) | (percent > 1)):
+        raise ValueError(f"erpimage(): 'sortvarpercent' values are fractions from 0 to 1, got {percent.tolist()}")
+    return {"sortvarpercent": percent}
+
+
+def _parse_vector(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    return {_canonical(key): _numbers(value, key)}
+
+
+def _parse_plotmode(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    mode = _text(value)
+    if mode not in {"normal", "topo"}:
+        raise ValueError(f"erpimage(): 'plotmode' must be 'normal' or 'topo', got {value!r}")
+    return {"plotmode": mode}
+
+
+def _parse_text(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    return {_canonical(key): _text(value)}
+
+
+def _parse_flag(value: Any, key: str, values: dict[str, Any]) -> dict[str, Any]:
+    return {_canonical(key): _switch(value, key)}
+
+
+def _canonical(key: str) -> str:
+    lower = key.lower()
+    return (
+        _FLAG_KEYS.get(key)
+        or _FLAG_KEYS_CI.get(lower)
+        or _VALUE_KEYS.get(key)
+        or _VALUE_KEYS_CI.get(lower)
+        or _BARE_KEYS_CI.get(lower)
+        or lower
+    )
+
+
+_OPTION_PARSERS: dict[str, Callable[[Any, str, dict[str, Any]], dict[str, Any]]] = {
+    "erp": _parse_erp,
+    **dict.fromkeys(
+        ("nosort", "showwin", "noplot", "cbar", "plotamps", "noxlabel", "rmerp", "erpstd", "erp_grid"), _parse_flag
+    ),
+    "caxis": _parse_caxis,
+    "coher": _parse_coher,
+    "timewarp": _parse_timewarp,
+    "topo": _parse_topo,
+    "spec": _parse_spec,
+    "specaxis": _parse_specaxis,
+    "noshow": _parse_noshow,
+    "align": _parse_align,
+    "limits": _parse_limits,
+    "srate": _parse_positive,
+    "cycles": _parse_positive,
+    "auxvar": _parse_auxvar,
+    "vert": _parse_lines,
+    "horz": _parse_lines,
+    "signif": _parse_signif,
+    "allcohers": _parse_allcohers,
+    "phasesort": _parse_phasesort,
+    "ampsort": _parse_ampsort,
+    "sortwin": _parse_sortwin,
+    "valsort": _parse_valsort,
+    "erpalpha": _parse_erpalpha,
+    "avg_type": _parse_avg_type,
+    "replace_ties": _parse_replace_ties,
+    "sortvar_limits": _parse_sortvar_limits,
+    "baseline": _parse_baseline,
+    "baselinedb": _parse_baselinedb,
+    "sortvarpercent": _parse_sortvarpercent,
+    **dict.fromkeys(("filt", "erp_vltg_ticks", "img_trialax_ticks"), _parse_vector),
+    "plotmode": _parse_plotmode,
+    **dict.fromkeys(("renorm", "yerplabel", "title", "img_trialax_label", "cbar_title"), _parse_text),
+}
 
 
 @dataclass(frozen=True, eq=False)

@@ -396,12 +396,30 @@ def test_renorm_formulas(formula, expected) -> None:
         ([], {"bogus": 1}, "unknown option"),
         ([1.0], {}, "unknown arg 1"),
         (["title"], {}, "needs a value"),
-        (["allcohers", 1], {}, "deprecated"),
+        (["allcohers", 1], {}, "UNIMPLEMENTED"),
         (["erp", "5"], {}, "unknown arg 5"),
         ([], {"erp": "sometimes"}, "'erp' must be"),
-        (["caxis", [1, 2, 3]], {}, "caxis arg"),
-        (["coher", [1, 2, 3, 4]], {}, "coher arg"),
+        ([], {"erp": 2.5}, "'erp' must be"),
+        (["caxis", [1, 2, 3]], {}, "'caxis' takes 1 or 2 values"),
+        (["caxis", "erp"], {}, "'caxis' must be numeric, got 'erp'"),
+        ([], {"caxis": [5, -5]}, "increasing"),
+        ([], {"caxis": -1.0}, "fraction must be positive"),
+        ([], {"caxis": np.nan}, "finite"),
+        (["coher", [1, 2, 3, 4]], {}, "'coher' takes 1 or 2 or 3 values"),
         (["coher", [10, 10, 0.5]], {}, "alpha value"),
+        ([], {"coher": [np.nan]}, "finite"),
+        ([], {"srate": [100, 200]}, "'srate' takes 1 value, got 2"),
+        ([], {"cycles": 0}, "'cycles' must be positive"),
+        ([], {"cycles": np.nan}, "finite"),
+        ([], {"noshow": 0}, "'noshow' must be True/False"),
+        ([], {"plotmode": "bogus"}, "'plotmode' must be"),
+        ([], {"align": np.nan}, "latency in ms or Inf"),
+        ([], {"sortvarpercent": 1.5}, "fractions from 0 to 1"),
+        ([], {"sortvarpercent": -0.2}, "fractions from 0 to 1"),
+        ([], {"baseline": [0]}, "'baseline' takes 2 values"),
+        ([], {"baseline": []}, "'baseline' needs a value"),
+        ([], {"baseline": [np.nan, 0]}, "finite"),
+        (["phasesort", [100, 0, 10, 12, 200]], {}, "topphase"),
         (["limits", [5, 1]], {}, "time limits"),
         (["limits", [0, 1, 5, 1]], {}, "erp limits"),
         (["phasesort", [0, 120, 10]], {}, "phasesort"),
@@ -413,7 +431,7 @@ def test_renorm_formulas(formula, expected) -> None:
         (["avg_type", "triangle"], {}, "avg_type"),
         (["replace_ties", "maybe"], {}, "replace_ties"),
         (["sortvar_limits", [1, 2, 3]], {}, "two element"),
-        (["spec", [1]], {}, "length 2"),
+        (["spec", [1]], {}, "'spec' takes 2 values"),
         (["specaxis", "semilog"], {}, "lin"),
         (["signif", [1, 2]], {}, "3 values"),
         (["topo", [1]], {}, "length 2 or 3"),
@@ -431,6 +449,8 @@ def test_option_grammar_follows_eeglab() -> None:
             "erp",
             2,
             "cbar",
+            "noxlabel",
+            False,
             "nosort",
             "off",
             "colorbar",
@@ -445,6 +465,7 @@ def test_option_grammar_follows_eeglab() -> None:
         ]
     )
     assert options.erp == 2 and options.cbar and not options.nosort and options.noshow and options.erp_grid
+    assert not options.noxlabel
     assert options.specaxis == "linear"
     # 'coher' turns the ERP on, as in EEGLAB, unless a later 'erp' turns it off.
     assert engine.parse_erpimage_options(["coher", 10]).erp == 1
@@ -675,7 +696,6 @@ def test_small_helpers_cover_degenerate_inputs() -> None:
         (["limits", np.zeros(10)], "sized"),
         (["limits", [0, 1, np.nan, np.nan, 5, 1]], "amp limits"),
         (["limits", [0, 1, np.nan, np.nan, np.nan, np.nan, 1, 0]], "coh limits"),
-        (["auxvar", ([1, 2], [3, 4], [5, 6])], "length-2 cell"),
         (["phasesort", [0, 0, 10, 12, 0, 1]], "Too many"),
         (["phasesort", [0, 0, -10]], "negative frequency"),
         (["phasesort", [0, 0, 10, -1]], "negative argument"),
@@ -706,6 +726,10 @@ def test_keyword_flags_accept_eeglab_strings_and_erp_strings() -> None:
         engine.parse_erpimage_options(erp=7)
     auxvar = engine.parse_erpimage_options(auxvar=(np.zeros((2, 5)), ["r", "b--"]))
     assert auxvar.auxcolors == ("r", "b--")
+    # A list is (matrix, colors) only when its second item names line styles.
+    rows = engine.parse_erpimage_options(auxvar=[[1, 2, 3], [4, 5, 6]])
+    assert rows.auxvar.shape == (2, 3) and rows.auxcolors is None
+    assert engine.parse_erpimage_options(auxvar=[[1, 2], [3, 4], [5, 6]]).auxvar.shape == (3, 2)
 
 
 @pytest.mark.parametrize(
