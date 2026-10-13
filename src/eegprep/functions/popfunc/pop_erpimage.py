@@ -796,6 +796,9 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         help_text="pophelp('pop_erpimage')",
         size=(1113, 831),
         row_spacing=4,
+        content_margins=(37, 17, 37, 13),
+        weighted_columns=True,
+        column_spacing=27,
         known_differences=(
             "The component dialog's projection-channel picker is enabled (EEGLAB disables it).",
             "The event-type reminder names the epoch-sorting field (EEGLAB's text says 'event type').",

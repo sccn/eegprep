@@ -480,6 +480,24 @@ FIELD_REMINDER = ("Warning", "Do not forget to select an epoch-sorting field in 
 TYPE_REMINDER = ("Warning", "Do not forget to select an event type in the next edit box")
 
 
+def test_dialog_columns_follow_eeglab_supergui_weights(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    dialog = qt_dialogs.dialogs[-1]
+    dialog.show()
+    qt_dialogs.qt.QtWidgets.QApplication.processEvents()
+
+    def span(tag):
+        left = widgets[tag].mapTo(dialog, qt_dialogs.qt.QtCore.QPoint(0, 0)).x()
+        return np.array([left, left + widgets[tag].width()])
+
+    # The sorting buttons sit above their fields, and controls are 27 px apart within 37 px margins (1113 px wide).
+    np.testing.assert_allclose(span("field_button"), span("field"), atol=1)
+    np.testing.assert_allclose(span("type_button"), span("type"), atol=1)
+    assert abs(span("plotmap")[0] - span("smooth")[1] - 27) <= 1
+    assert abs(span("field")[0] - 37) <= 1 and abs(span("title")[1] - (1113 - 37)) <= 1
+    np.testing.assert_allclose(span("chan_button")[1] - span("chan_button")[0], 58, atol=2)
+
+
 def test_coherence_frequency_is_mirrored_into_the_phase_box(qt_dialogs) -> None:
     widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
     widgets["phase"].setText("8 12")

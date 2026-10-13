@@ -177,6 +177,7 @@ class QtDialogRenderer:
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
         index = 0
+        most_columns = max((len(self._row_weights(row)) for row in spec.geometry), default=1)
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
@@ -184,7 +185,7 @@ class QtDialogRenderer:
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(4)
+            row_layout.setSpacing(spec.column_spacing)
             added_visible_widget = False
             for weight in weights:
                 if index >= len(spec.controls):
@@ -193,6 +194,12 @@ class QtDialogRenderer:
                 widget = self._build_widget(qt_widgets, control, initial_values)
                 if control.tag:
                     widgets[control.tag] = widget
+                if spec.weighted_columns:
+                    widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
+                    row_layout.addWidget(widget, _supergui_stretch(weight, sum(weights), most_columns))
+                    added_visible_widget = added_visible_widget or control.style.lower() != "spacer"
+                    index += 1
+                    continue
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
@@ -735,6 +742,17 @@ def _row_weights(row_geometry: Any) -> list[float]:
     if isinstance(row_geometry, (list, tuple)):
         return [max(0.01, float(value)) for value in row_geometry]
     return [1.0] * max(1, int(row_geometry))
+
+
+def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int:
+    """A control's share of its row as EEGLAB's supergui sizes it.
+
+    supergui gives each control its weight's share of the row minus 1.5 times
+    the normalized spacing (0.1 divided by the most controls in any row); with
+    the spec's column_spacing as the pixel gap this reproduces its widths.
+    """
+    spacing = 0.1 / most_columns
+    return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
 
 
 def _row_stretch(spec: DialogSpec, row_index: int) -> int:
