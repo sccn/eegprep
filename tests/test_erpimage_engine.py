@@ -986,6 +986,16 @@ def test_more_invalid_options_raise(tokens, message) -> None:
         engine.parse_erpimage_options(tokens)
 
 
+def test_option_items_follow_eeglab_grammar_and_aliases() -> None:
+    items = engine.erpimage_option_items(
+        ["colorbar", "phase", [0, 25, 10], "erp", 3, "NoShow", "on", "erp_grid"], colorbar=False, noshow=False
+    )
+    assert [name for name, _value in items] == ["cbar", "phasesort", "erp", "noshow", "erp_grid", "cbar", "noshow"]
+    assert [value for _name, value in items][2:] == [3, "on", True, False, False]
+    options = engine.parse_erpimage_options(["cbar"], colorbar=False, phase=[0, 25, 10])
+    assert not options.cbar and options.phasesort.tolist() == [0, 25, 10]
+
+
 def test_keyword_flags_accept_eeglab_strings_and_erp_strings() -> None:
     options = engine.parse_erpimage_options(["erp", "2"], cbar="on", nosort="off", erp_grid=True)
     assert options.erp == 2 and options.cbar and not options.nosort and options.erp_grid
