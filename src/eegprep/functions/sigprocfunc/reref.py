@@ -24,7 +24,8 @@ def reref(
 
     Numeric channel indices are 0-based, matching existing EEGPrep channel
     selection helpers. String channel labels are resolved by ``pop_reref``
-    before calling this low-level helper.
+    before calling this low-level helper. A NaN stays on a channel only when
+    that channel's sample or the reference subtracted from it is NaN.
 
     Args:
         data: EEG data with shape ``(channels, points)`` or

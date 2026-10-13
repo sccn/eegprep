@@ -18,6 +18,34 @@ from .private.stats import fit_eeg_distribution
 logger = logging.getLogger(__name__)
 
 
+def _window_rms_mu_sigma(
+    rms: np.ndarray,
+    *,
+    min_clean_fraction: float,
+    max_dropout_fraction: float,
+    quants: Tuple[float, float],
+    step_sizes: Tuple[float, float],
+    beta: Union[np.ndarray, Sequence[float]],
+) -> tuple[float, float]:
+    mu, sig, *_rest = fit_eeg_distribution(
+        rms,
+        min_clean_fraction=min_clean_fraction,
+        max_dropout_fraction=max_dropout_fraction,
+        quants=quants,
+        step_sizes=step_sizes,
+        beta=beta,
+    )
+    if np.isfinite(mu) and np.isfinite(sig) and sig > 0.0:
+        return float(mu), float(sig)
+    center = float(np.nanmedian(rms))
+    scale = float(np.nanmedian(np.abs(rms - center)) * 1.4826)
+    if not np.isfinite(center):
+        center = 0.0
+    if not np.isfinite(scale) or scale <= 0.0:
+        scale = 1.0
+    return center, scale
+
+
 def clean_windows(
     EEG: Dict[str, Any],
     max_bad_channels: Union[int, float] = 0.2,
@@ -36,7 +64,9 @@ def clean_windows(
     Specifically, only windows are retained which have less than a certain
     fraction of *bad* channels, where a channel is bad in a window if its RMS
     power is above or below some *z*-threshold relative to a robust estimate
-    of clean EEG power in that channel.
+    of clean EEG power in that channel. When the generalized-Gaussian fit does
+    not return a positive scale, that estimate is the median and MAD of the
+    window RMS values, and windows outside the thresholds are still removed.
 
     Args
     ----
@@ -120,9 +150,7 @@ def clean_windows(
         # Gather samples for all windows using broadcasting (W, N)
         indices = offsets[:, None] + wnd[None, :]
         rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
-
-        # Fit distribution to clean EEG portion
-        mu, sig, *_ = fit_eeg_distribution(
+        mu, sig = _window_rms_mu_sigma(
             rms,
             min_clean_fraction=min_clean_fraction,
             max_dropout_fraction=max_dropout_fraction,
@@ -130,14 +158,6 @@ def clean_windows(
             step_sizes=step_sizes,
             beta=shape_range,
         )
-        if sig == 0 or np.isnan(sig):
-            # Fallback to robust MAD if fitting failed
-            sig = np.median(np.abs(rms - np.median(rms))) * 1.4826
-            mu = np.median(rms)
-            if sig == 0:
-                sig = 1.0  # avoid division by zero
-
-        # z-score relative to fitted distribution
         wz[c, :] = (rms - mu) / sig
     logger.info('done.')
 

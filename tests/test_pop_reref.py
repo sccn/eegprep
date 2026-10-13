@@ -111,6 +111,35 @@ def test_reference_reref(eeglab_backend, eeglab_suite_root):
     assert_matlab_near([output.shape], [[30, data.shape[1] * data.shape[2]]])
 
 
+def test_reref_nan_stays_on_channels_that_depend_on_it():
+    data = np.array(
+        [
+            [1.0, 2.0, np.nan],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [3.0, np.nan, 1.0],
+        ]
+    )
+    explicit, *_rest = reref(data, ref=[2], keepref="off")
+    np.testing.assert_allclose(
+        explicit,
+        np.array([[1.0, 2.0, np.nan], [4.0, 5.0, 6.0], [3.0, np.nan, 1.0]]) - np.array([7.0, 8.0, 9.0]),
+        equal_nan=True,
+    )
+    assert np.isnan(explicit[0, 2])
+    assert np.isfinite(explicit[1]).all()
+    assert np.isnan(explicit[2, 1]) and np.isfinite(explicit[2, [0, 2]]).all()
+
+    referenced, *_rest = reref(data, ref=[0], keepref="off")
+    assert np.isnan(referenced[:, 2]).all()
+    assert np.isfinite(referenced[:, 0]).all()
+
+    excluded, *_rest = reref(data, ref=[], exclude=[0])
+    assert np.isnan(excluded[0, 2])
+    assert np.isfinite(excluded[1:, 2]).all()
+    assert np.isnan(excluded[1:, 1]).all()
+
+
 def test_python_regression_low_level_reref_continuous_and_epoched_contracts():
     rng = np.random.default_rng(42)
     locs = [{"labels": f"Ch{index + 1}"} for index in range(32)]
