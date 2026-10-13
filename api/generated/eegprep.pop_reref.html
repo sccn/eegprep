@@ -639,7 +639,8 @@
 <p>Numeric channel indices are 0-based to match existing EEGPrep channel
 selection APIs. String channel labels are resolved case-insensitively
 against <code class="docutils literal notranslate"><span class="pre">EEG[&quot;chanlocs&quot;]</span></code>. Calling <code class="docutils literal notranslate"><span class="pre">pop_reref(EEG)</span></code> launches the GUI;
-pass <code class="docutils literal notranslate"><span class="pre">ref=[]</span></code> or <code class="docutils literal notranslate"><span class="pre">ref=None</span></code> for command-line average reference.</p>
+pass <code class="docutils literal notranslate"><span class="pre">ref=[]</span></code> or <code class="docutils literal notranslate"><span class="pre">ref=None</span></code> for command-line average reference. A NaN
+stays on a channel only when that channel’s sample or its reference is NaN.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

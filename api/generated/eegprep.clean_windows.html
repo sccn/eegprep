@@ -547,7 +547,9 @@
 Specifically, only windows are retained which have less than a certain
 fraction of <em>bad</em> channels, where a channel is bad in a window if its RMS
 power is above or below some <em>z</em>-threshold relative to a robust estimate
-of clean EEG power in that channel.</p>
+of clean EEG power in that channel. When the generalized-Gaussian fit does
+not return a positive scale, that estimate is the median and MAD of the
+window RMS values, and windows outside the thresholds are still removed.</p>
 <section id="args">
 <h2>Args<a class="headerlink" href="#args" title="Link to this heading">#</a></h2>
 <dl class="simple">

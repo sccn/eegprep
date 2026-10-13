@@ -662,6 +662,33 @@ order. For example, <code class="docutils literal notranslate"><span class="pre"
 <code class="docutils literal notranslate"><span class="pre">&quot;boundary&quot;</span></code>; it does not become <code class="docutils literal notranslate"><span class="pre">&quot;42.0&quot;</span></code>. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> may
 subsequently normalize mixed event types to strings as part of event validation.</p>
 </section>
+<section id="known-differences-from-eeglab">
+<h2>Known Differences from EEGLAB<a class="headerlink" href="#known-differences-from-eeglab" title="Link to this heading">#</a></h2>
+<p>These are intentional. EEGPrep does not reproduce the EEGLAB result.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Topic</p></th>
+<th class="head"><p>What EEGPrep does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>ASR calibration on a short recording</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still removes high-power calibration windows when
+<code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution</span></code> does not return a positive scale. The scale is
+then the median and MAD of each channel’s window RMS. EEGLAB’s fit
+errors once only a few windows are available, and <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> then
+calibrates on every sample.</p></td>
+</tr>
+<tr class="row-odd"><td><p>NaNs during re-referencing</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> leaves a NaN on a channel only when that sample or the
+reference subtracted from it is NaN. EEGLAB multiplies by a reference
+matrix that contains explicit zeros, so <code class="docutils literal notranslate"><span class="pre">0*NaN</span></code> marks every channel
+at that time.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="plugin-migration">
 <h2>Plugin Migration<a class="headerlink" href="#plugin-migration" title="Link to this heading">#</a></h2>
 <p>Bundled plugins are importable from <code class="docutils literal notranslate"><span class="pre">eegprep</span></code>:</p>
@@ -735,6 +762,7 @@ behavior.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#history-replay">History Replay</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indexing-boundaries">Indexing Boundaries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#matlab-structure-transport">MATLAB Structure Transport</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#known-differences-from-eeglab">Known Differences from EEGLAB</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plugin-migration">Plugin Migration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-stay-in-mne-or-matlab">When to Stay in MNE or MATLAB</a></li>
 </ul>
