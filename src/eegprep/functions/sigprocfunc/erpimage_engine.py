@@ -661,8 +661,6 @@ def compute_erpimage(
     erp, erpsig, erp_std, minerp, maxerp = _erp_stage(erp_data, urdata, opts, rng, plotted, limits[2], limits[3])
     minamp, maxamp, mincoh, maxcoh = limits[4:8]
     if not np.isnan(coherfreq):
-        if ordered.freq[0] > 0:
-            coherfreq = float(np.mean(ordered.freq))
         if not opts.plotamps:
             spectral = _coherence(urdata, opts, coherfreq, alpha, time_values, srate, rng, limits[8])
         if plotted:
@@ -967,9 +965,14 @@ def _value_sort(trials: _Trials, valargs: np.ndarray, times: np.ndarray) -> _Sor
 
 
 def _analysis_frequency(coherfreq: Any, freq: np.ndarray, urdata: np.ndarray, frames: int, srate: float) -> float:
-    if isinstance(coherfreq, np.ndarray) and coherfreq.size == 2 and coherfreq[0] != coherfreq[1] and freq[0] <= 0:
+    """The 'coher' analysis frequency; a phase or amplitude sorting frequency takes precedence (erpimage.m 2116, 3054)."""
+    if not isinstance(coherfreq, np.ndarray):
+        return np.nan
+    if freq[0] > 0:
+        return float(np.mean(freq))
+    if coherfreq.size == 2 and coherfreq[0] != coherfreq[1]:
         return _peak_frequency(urdata, frames, srate, coherfreq[0], coherfreq[1])
-    return float(np.atleast_1d(coherfreq)[0])
+    return float(coherfreq[0])
 
 
 def _smoothed(

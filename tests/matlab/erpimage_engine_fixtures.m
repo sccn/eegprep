@@ -52,49 +52,54 @@ datasets = struct('synth', synth, 'synth_nan', synth_nan, 'real_channel', 27, ..
 S = {};
 % name, data, sortvar, times ('omitted' for nargin<3), avewidth, decimate, options, modes
 S{end+1} = {'times_omitted', synth, [], 'omitted', 1, 1, {}, {'plot'}};
-S{end+1} = {'times_empty', synth, [], [], 1, 1, {'erp', 'on'}, {'noplot', 'plot'}};
-S{end+1} = {'times_compact', synth, rt, [-125 frames srate], 3, 1, {'erp'}, {'noplot'}};
-S{end+1} = {'vector_input', reshape(synth, 1, []), 1:trials, times, 2, 1, {}, {'noplot'}};
-S{end+1} = {'pop_default', synth, ones(1, trials) * times(end), times, 5, 0, {'erp', 'on', 'cbar', 'on'}, {'noplot', 'plot'}};
-S{end+1} = {'nan_ties', synth_nan, ties, times, 3, 1, {'erp', 'on', 'erpstd', 'on'}, {'noplot', 'plot'}};
-S{end+1} = {'replace_ties', synth, ties, times, 3, 1, {'replace_ties', 'on', 'erp'}, {'noplot'}};
-S{end+1} = {'nosort', synth, rt, times, 5, 2, {'nosort', 'on', 'erp'}, {'noplot'}};
-S{end+1} = {'valsort_up', synth, rt, times, 3, 1, {'valsort', [0 100]}, {'noplot'}};
-S{end+1} = {'valsort_down', synth, rt, times, 1, 1, {'valsort', [50 50 -1]}, {'noplot'}};
-S{end+1} = {'renorm_yes', synth, rt, times, 3, 1, {'renorm', 'yes', 'erp'}, {'noplot'}};
-S{end+1} = {'renorm_align', synth, rt, times, 3, 1, {'renorm', '0.5*x+20', 'align', Inf, 'erp'}, {'noplot'}};
-S{end+1} = {'align_value', synth, rt, times, 1, 1, {'align', 150, 'erp', 'on'}, {'noplot'}};
-S{end+1} = {'smooth_decimate', synth, rt, times, 7, 3, {'erp'}, {'noplot'}};
-S{end+1} = {'decimate_fraction', synth, rt, times, 3, 2.5, {}, {'noplot'}};
-S{end+1} = {'decimate_large', synth, rt, times, 4, 10, {}, {'noplot'}};
-S{end+1} = {'decimate_negative', synth, rt, times, 4, -10, {}, {'noplot'}};
-S{end+1} = {'boxcar_clamp', synth, rt, times, 40, 1, {}, {'noplot'}};
-S{end+1} = {'gaussian', synth, rt, times, 2, 1, {'avg_type', 'Gaussian', 'erp'}, {'noplot'}};
-S{end+1} = {'gaussian_clamp', synth, rt, times, 10, 2, {'avg_type', 'gaussian'}, {'noplot'}};
-S{end+1} = {'phasesort_coher', synth, rt, times, 5, 1, {'phasesort', [100 25 10], 'coher', [10 10 0.01], 'erp'}, {'noplot', 'plot'}};
-S{end+1} = {'phasesort_band', synth, rt, times, 2, 1, {'phasesort', [100 -20 10 14 90], 'erp'}, {'noplot'}};
-S{end+1} = {'phasesort_cycles', synth, rt, times, 3, 1, {'phasesort', [50 0 12], 'cycles', 2}, {'noplot'}};
-S{end+1} = {'ampsort', synth, rt, times, 3, 1, {'ampsort', [100 10 10]}, {'noplot'}};
-S{end+1} = {'ampsort_band', synth, rt, times, 3, 1, {'ampsort', [100 -10 10 14]}, {'noplot'}};
-S{end+1} = {'ampsort_allfreqs', synth, rt, times, 3, 1, {'ampsort', [100 0 -9 11]}, {'noplot'}};
-S{end+1} = {'ampsort_sortwin', synth, rt, times, 3, 1, {'ampsort', [Inf 10 10], 'sortwin', [30 60]}, {'noplot'}};
-S{end+1} = {'coher_band', synth, rt, times, 3, 1, {'coher', [10 14 0.05], 'baselinedb', [-100 0]}, {'noplot', 'plot'}};
-S{end+1} = {'coher_nobase', synth, rt, times, 3, 1, {'coher', 10, 'baselinedb', NaN}, {'noplot', 'plot'}};
+S{end+1} = {'times_empty', synth, [], [], 1, 1, {'erp', 'on'}, {'noshow', 'plot'}};
+S{end+1} = {'times_compact', synth, rt, [-125 frames srate], 3, 1, {'erp'}, {'noshow'}};
+S{end+1} = {'vector_input', reshape(synth, 1, []), 1:trials, times, 2, 1, {}, {'noshow'}};
+S{end+1} = {'pop_default', synth, ones(1, trials) * times(end), times, 5, 0, {'erp', 'on', 'cbar', 'on'}, {'noshow', 'plot'}};
+S{end+1} = {'nan_ties', synth_nan, ties, times, 3, 1, {'erp', 'on', 'erpstd', 'on'}, {'noshow', 'plot'}};
+S{end+1} = {'replace_ties', synth, ties, times, 3, 1, {'replace_ties', 'on', 'erp'}, {'noshow'}};
+S{end+1} = {'nosort', synth, rt, times, 5, 2, {'nosort', 'on', 'erp'}, {'noshow'}};
+S{end+1} = {'valsort_up', synth, rt, times, 3, 1, {'valsort', [0 100]}, {'noshow'}};
+S{end+1} = {'valsort_down', synth, rt, times, 1, 1, {'valsort', [50 50 -1]}, {'noshow'}};
+S{end+1} = {'renorm_yes', synth, rt, times, 3, 1, {'renorm', 'yes', 'erp'}, {'noshow'}};
+S{end+1} = {'renorm_align', synth, rt, times, 3, 1, {'renorm', '0.5*x+20', 'align', Inf, 'erp'}, {'noshow'}};
+S{end+1} = {'align_value', synth, rt, times, 1, 1, {'align', 150, 'erp', 'on'}, {'noshow'}};
+S{end+1} = {'smooth_decimate', synth, rt, times, 7, 3, {'erp'}, {'noshow'}};
+S{end+1} = {'decimate_fraction', synth, rt, times, 3, 2.5, {}, {'noshow'}};
+S{end+1} = {'decimate_large', synth, rt, times, 4, 10, {}, {'noshow'}};
+S{end+1} = {'decimate_negative', synth, rt, times, 4, -10, {}, {'noshow'}};
+S{end+1} = {'boxcar_clamp', synth, rt, times, 40, 1, {}, {'noshow'}};
+S{end+1} = {'gaussian', synth, rt, times, 2, 1, {'avg_type', 'Gaussian', 'erp'}, {'noshow'}};
+S{end+1} = {'gaussian_clamp', synth, rt, times, 10, 2, {'avg_type', 'gaussian'}, {'noshow'}};
+S{end+1} = {'phasesort_coher', synth, rt, times, 5, 1, {'phasesort', [100 25 10], 'coher', [10 10 0.01], 'erp'}, {'noshow', 'plot'}};
+S{end+1} = {'phasesort_band', synth, rt, times, 2, 1, {'phasesort', [100 -20 10 14 90], 'erp'}, {'noshow'}};
+S{end+1} = {'phasesort_cycles', synth, rt, times, 3, 1, {'phasesort', [50 0 12], 'cycles', 2}, {'noshow'}};
+S{end+1} = {'ampsort', synth, rt, times, 3, 1, {'ampsort', [100 10 10]}, {'noshow'}};
+S{end+1} = {'ampsort_band', synth, rt, times, 3, 1, {'ampsort', [100 -10 10 14]}, {'noshow'}};
+S{end+1} = {'ampsort_allfreqs', synth, rt, times, 3, 1, {'ampsort', [100 0 -9 11]}, {'noshow'}};
+S{end+1} = {'ampsort_sortwin', synth, rt, times, 3, 1, {'ampsort', [Inf 10 10], 'sortwin', [30 60]}, {'noshow'}};
+S{end+1} = {'coher_band', synth, rt, times, 3, 1, {'coher', [10 14 0.05], 'baselinedb', [-100 0]}, {'noshow', 'plot'}};
+S{end+1} = {'coher_nobase', synth, rt, times, 3, 1, {'coher', 10, 'baselinedb', NaN}, {'noshow', 'plot'}};
 % 'signif' with 'coher' alone errors on R2025b (vector operand to ||), so it is recorded with 'plotamps'.
 S{end+1} = {'plotamps_signif_basedb', synth, rt, times, 3, 1, {'plotamps', 'on', 'coher', [10 10 0.05], ...
-    'signif', [0.5 2 0.4], 'limits', [NaN NaN NaN NaN NaN NaN NaN NaN 3]}, {'noplot'}};
-S{end+1} = {'plotamps', synth, rt, times, 3, 1, {'plotamps', 'on', 'coher', [10 10 0.05]}, {'noplot', 'plot'}};
-S{end+1} = {'plotamps_phase', synth, rt, times, 3, 1, {'phasesort', [100 0 10], 'plotamps', 'coher', [10 10 0.05]}, {'noplot'}};
-S{end+1} = {'erp_ptiles', synth, rt, times, 1, 1, {'erp', 3}, {'noplot', 'plot'}};
-S{end+1} = {'rmerp_baseline', synth, rt, times, 1, 1, {'rmerp', 'on', 'baseline', [-100 0], 'erp'}, {'noplot'}};
-S{end+1} = {'erpalpha', synth, rt, times, 1, 1, {'erp', 'erpalpha', 0.05}, {'noplot', 'plot'}};
-S{end+1} = {'sortvarpercent', synth, rt, times, 5, 1, {'sortvarpercent', [0.1 0.5 0.9]}, {'noplot'}};
-S{end+1} = {'sortvar_limits', synth, rt, times, 3, 1, {'sortvar_limits', [60 160], 'erp'}, {'noplot'}};
-S{end+1} = {'limits_all', synth, rt, times, 3, 1, {'limits', [0 200 -50 50 -3 3 0 1], 'erp', 'coher', 10}, {'noplot', 'plot'}};
-S{end+1} = {'auxvar', synth, rt, times, 3, 1, {'auxvar', auxvar, 'erp'}, {'noplot'}};
-S{end+1} = {'timewarp', synth, [], times, 3, 1, {'timewarp', {events}, 'erp'}, {'noplot'}};
-S{end+1} = {'filt', synth, rt, times, 3, 1, {'filt', [0 30], 'erp'}, {'noplot'}};
-S{end+1} = {'sample_slice', real_data, real_sortvar, real_times(real_pick), 'POz', 5, 3, {'erp', 'cbar'}, {'noplot'}};
+    'signif', [0.5 2 0.4], 'limits', [NaN NaN NaN NaN NaN NaN NaN NaN 3]}, {'noshow'}};
+S{end+1} = {'plotamps', synth, rt, times, 3, 1, {'plotamps', 'on', 'coher', [10 10 0.05]}, {'noshow', 'plot'}};
+S{end+1} = {'plotamps_phase', synth, rt, times, 3, 1, {'phasesort', [100 0 10], 'plotamps', 'coher', [10 10 0.05]}, {'noshow'}};
+% With phase or amplitude sorting, the amplitude image uses the sorting frequency, not the 'coher' one.
+S{end+1} = {'plotamps_phase_coher12', synth, rt, times, 3, 1, {'phasesort', [100 0 10], 'plotamps', 'coher', [12 12 0.05]}, {'noshow'}};
+S{end+1} = {'plotamps_phase_band', synth, rt, times, 3, 1, {'phasesort', [100 0 9 13], 'plotamps', 'coher', [12 12 0.05]}, {'noshow'}};
+S{end+1} = {'plotamps_ampsort', synth, rt, times, 3, 1, {'ampsort', [100 0 10], 'plotamps', 'coher', [12 12 0.05]}, {'noshow'}};
+S{end+1} = {'phasesort_decimate', synth, rt, times, 3, 10, {'phasesort', [100 25 10]}, {'noshow'}};
+S{end+1} = {'erp_ptiles', synth, rt, times, 1, 1, {'erp', 3}, {'noshow', 'plot'}};
+S{end+1} = {'rmerp_baseline', synth, rt, times, 1, 1, {'rmerp', 'on', 'baseline', [-100 0], 'erp'}, {'noshow'}};
+S{end+1} = {'erpalpha', synth, rt, times, 1, 1, {'erp', 'erpalpha', 0.05}, {'noshow', 'plot'}};
+S{end+1} = {'sortvarpercent', synth, rt, times, 5, 1, {'sortvarpercent', [0.1 0.5 0.9]}, {'noshow'}};
+S{end+1} = {'sortvar_limits', synth, rt, times, 3, 1, {'sortvar_limits', [60 160], 'erp'}, {'noshow'}};
+S{end+1} = {'limits_all', synth, rt, times, 3, 1, {'limits', [0 200 -50 50 -3 3 0 1], 'erp', 'coher', 10}, {'noshow', 'plot'}};
+S{end+1} = {'auxvar', synth, rt, times, 3, 1, {'auxvar', auxvar, 'erp'}, {'noshow'}};
+S{end+1} = {'timewarp', synth, [], times, 3, 1, {'timewarp', {events}, 'erp'}, {'noshow'}};
+S{end+1} = {'filt', synth, rt, times, 3, 1, {'filt', [0 30], 'erp'}, {'noshow'}};
+S{end+1} = {'sample_slice', real_data, real_sortvar, real_times(real_pick), 'POz', 5, 3, {'erp', 'cbar'}, {'noshow'}};
 
 out = struct();
 stored = {};  % large arrays already saved, for deduplication: {label, value}
@@ -128,8 +133,10 @@ for i = 1:numel(S)
         fprintf('%s %s\n', name, modes{m});
         res = cell(1, 15);
         rng(seed, 'twister');
-        if strcmp(modes{m}, 'noplot')
-            args = [{data, sortvar, times_arg, title, avewidth, decimate}, options, {'noplot', 'on'}];
+        if strcmp(modes{m}, 'noshow')
+            % 'NoShow' is erpimage's documented compute-only switch ('noplot' happens to suppress
+            % the figure too, contrary to its help text).
+            args = [{data, sortvar, times_arg, title, avewidth, decimate}, options, {'NoShow', 'on'}];
             evalc('[res{:}] = erpimage(args{:});');
             prefix = '';
         else

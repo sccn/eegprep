@@ -165,7 +165,7 @@ def _assert_scenario(fixture: dict, name: str) -> None:
     record = fixture[name][0, 0]
     inputs = _scenario_inputs(fixture, name)
     data_scale = float(np.nanmax(np.abs(inputs["data"])))
-    for mode, prefix, fields in (("noplot", "", OUTPUTS), ("plot", "plot_", ("limits", "erpsig"))):
+    for mode, prefix, fields in (("noshow", "", OUTPUTS), ("plot", "plot_", ("limits", "erpsig"))):
         if prefix + "limits" not in record.dtype.names:
             continue
         result = _compute(fixture, name, plotted=mode == "plot")
@@ -179,7 +179,7 @@ def _assert_scenario(fixture: dict, name: str) -> None:
                 expected = _expected_outvar(expected)
             scale = data_scale if field in DATA_DOMAIN else 0.0
             _assert_close(f"{name} {mode} {field}", expected, getattr(result, field), scale)
-        if mode == "noplot":
+        if mode == "noshow":
             sortvar = np.asarray(inputs["sortvar"], dtype=float).ravel()
             trials = inputs["data"].shape[1] if not sortvar.size else sortvar.size
             kept = np.arange(trials) if not sortvar.size else np.flatnonzero(~np.isnan(sortvar))
