@@ -30,7 +30,11 @@ from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.adminfunc.pop_delset import pop_delset
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
+from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.popfunc import pop_erpimage as pop_erpimage_module
+from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef
+from tests.fixtures import create_erpimage_epochs
 
 
 def _demo_eeg(setname: str = "demo"):
@@ -672,6 +676,57 @@ def test_non_mutating_pop_plot_call_records_history_without_storing_dataset():
     assert result == (["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])")
     assert session.EEG is original_eeg
     assert session.ALLCOM == ["pop_topoplot(EEG, typeplot=1, items=[0])"]
+
+
+def test_console_pop_erpimage_records_history_without_storing_a_dataset():
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    original_eeg = session.EEG
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_erpimage": pop_erpimage})
+
+    result = workspace.namespace["pop_erpimage"](
+        workspace.namespace["EEG"], 1, 2, smooth=1, sortingtype="rt", sortingeventfield="rt", plot="off"
+    )
+    workspace.after_execute("pop_erpimage(EEG, 1, 2, smooth=1, sortingtype='rt', sortingeventfield='rt', plot='off')")
+
+    image, command = result
+    assert command == "pop_erpimage(EEG, 1, 2, smooth=1, decimate=0, sortingtype='rt', sortingeventfield='rt')"
+    assert session.EEG is original_eeg and len(session.ALLEEG) == 1
+    assert session.ALLCOM == [command]
+    assert workspace.namespace["LASTCOM"] == command
+    np.testing.assert_array_equal(image.sortidx, [3, 1, 5, 0, 4, 2])
+    assert "array" not in repr(image).replace("<array", "")
+    plt.close("all")
+
+
+def test_gui_pop_erpimage_history_replays_in_the_console(monkeypatch):
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_erpimage": pop_erpimage})
+    dialog_values = {"chan": "B", "smooth": "1", "field": "rt", "type": "rt", "nosort": True}
+
+    def dialog(spec, initial_values=None, renderer=None):
+        # The modal dialog is the I/O boundary: answer it with the user's entries.
+        defaults = {
+            tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"
+        }
+        return {**defaults, **dialog_values}
+
+    monkeypatch.setattr(pop_erpimage_module, "inputgui", dialog)
+    MenuActionDispatcher(session).dispatch("pop_erpimage:channels")
+
+    command = "pop_erpimage(EEG, 1, 'B', smooth=1, decimate=1, sortingtype=['rt'], sortingeventfield='rt', nosort=True)"
+    assert session.ALLCOM == [command]
+    assert workspace.namespace["LASTCOM"] == command
+    # The researcher edits the recorded call in the console: sort the trials but hide the values.
+    edited = workspace.namespace["LASTCOM"].replace("nosort=True", "noplot=True")
+    replayed, replay_command = eval(edited, workspace.namespace)
+    workspace.after_execute(edited)
+    assert replay_command == edited
+    assert session.ALLCOM == [command, edited]
+    assert workspace.namespace["LASTCOM"] == edited
+    np.testing.assert_array_equal(replayed.sortidx, [3, 1, 5, 0, 4, 2])
+    plt.close("all")
 
 
 def test_timewarped_pop_newtimef_console_call_records_replayable_history():
