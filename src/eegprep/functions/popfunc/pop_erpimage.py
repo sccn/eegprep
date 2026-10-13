@@ -714,6 +714,7 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         known_differences=(
             "The component dialog's projection-channel picker is enabled (EEGLAB disables it).",
             "The event-type reminder names the epoch-sorting field (EEGLAB's text says 'event type').",
+            "More options is filled from the call or the restored command (EEGLAB leaves it empty).",
         ),
         extra_stylesheet="""
             QDialog#pop_erpimage QLabel,

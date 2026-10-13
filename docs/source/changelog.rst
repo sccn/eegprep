@@ -40,7 +40,10 @@ Unreleased
   are EEGLAB's (``smooth=5``, ``decimate=0``) with the ERP trace, colorbar and
   scalp map on. Trials are sorted with ``eeg_getepochevent`` (first latency,
   last value of other fields, text sorted alphabetically); events without the
-  field or without a match raise clear errors, and epochs left out are logged.
+  field, or no epoch with a match, raise clear errors, and epochs left out are
+  logged with a warning.
+  A string ``sortingtype`` is one event type, even with spaces,
+  and numeric event types match by value.
   ``nosort`` and ``noplot`` are passed to ``erpimage``, and phase sorting,
   coherence, alignment and renormalization formulas are available from both
   the command line and the dialog. Smoothing and decimation now follow
@@ -55,6 +58,11 @@ Unreleased
   phase and coherence frequencies mirror each other, and every field (limits,
   phase sorting, coherence, spectrum, marks, More options) reaches
   ``erpimage``. Its history command replays in ``eegprep-console``.
+  The menu reopens the dialog with the last matching command,
+  as EEGLAB's does, and ``lastcom=`` or ``gui=True`` with arguments fill it from the console;
+  the dialog's values then replace the arguments, and More options overrides the other fields.
+  The event-type list is sorted like EEGLAB's ``unique()``,
+  and the scalp map is left out, with a warning, when several channels are averaged.
 - ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
   including the sortvar trace at the right edge and rounded ERP axis ticks,
   and raises ``ValueError`` when the activity is all NaN.

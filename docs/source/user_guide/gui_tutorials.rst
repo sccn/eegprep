@@ -174,8 +174,11 @@ hides become visible. With the ICA sample loaded:
      <code>rt</code>, and press OK.</p>
      <p>In the console, <code>LASTCOM</code> holds the Python call, for example
      <code>pop_erpimage(EEG, 1, 'Cz', smooth=10, decimate=1, sortingtype=['rt'], sortingeventfield='latency')</code>.</p>
-     <p>Edit and run it there, for example with <code>'phasesort', [0, 25, 10]</code>
-     added, to try options the dialog does not show.</p>
+     <p>Edit and run it there, for example with <code>erpstd='on'</code>
+     added, to try options the dialog does not show. EEGLAB-style
+     <code>'key', value</code> pairs work only after all ten positional
+     arguments, so add keywords to this call.</p>
+     <p>Choose the menu again: the dialog reopens with these values.</p>
    </div>
 
 Equivalent console call:
@@ -191,6 +194,7 @@ Equivalent console call:
 Both the menu and the console record the same command in ``ALLCOM``; an ERP
 image does not change ``EEG`` or ``ALLEEG``. Epochs without a matching event
 are left out of the image, and the number is reported in the console log.
+When no epoch has a matching event, ``pop_erpimage`` raises an error instead.
 ``Plot > Component ERP image`` works the same way for components, with an
 optional channel to project them onto.
 

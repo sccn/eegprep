@@ -332,6 +332,9 @@ Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
 accepts every :func:`~eegprep.erpimage` option, such as phase sorting or
 inter-trial coherence. See :ref:`gui_tutorials` for the dialog.
 
+GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
+returns replayable Python history commands for these wrappers.
+
 Epoch and Baseline
 ==================
 
