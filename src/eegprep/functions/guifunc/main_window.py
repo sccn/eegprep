@@ -233,7 +233,6 @@ class EEGPrepMainWindow:
             self._queue_application_branding()
 
     def _schedule_async_menu_action(self, action_id: str, coroutine: Coroutine[Any, Any, None]) -> None:
-        """Run an async menu action as a task on the running asyncio event loop."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:

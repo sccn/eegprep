@@ -637,7 +637,7 @@ class EEGPrepConsoleWorkspace:
         return command
 
     async def _execute_history_coroutine(self, code: CodeType, source: str, command: str) -> str:
-        await eval(code, self.namespace)  # noqa: S307 - replaying the session's own history
+        await eval(code, self.namespace)
         self.after_execute(source)
         return command
 

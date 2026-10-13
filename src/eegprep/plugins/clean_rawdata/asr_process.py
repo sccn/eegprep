@@ -11,14 +11,10 @@ from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
 
-# Base memory budget (MB) used when max_mem is not given. It matches the maxmem=64 default of
-# asr_calibrate(), so the ASR pipeline starts from the same budget without probing the runtime
-# environment (psutil is an optional dependency and has no WebAssembly build). EEGLAB's
-# asr_process.m falls back to half of the free RAM when this budget cannot hold the fixed
-# lookahead overhead; asr_process() instead uses twice that overhead whenever that exceeds this
-# base budget (that is, whenever the overhead is above half of it), which is deterministic and
-# needs no RAM probe. That gives small blocks, so processing beyond the plain default is logged
-# as a warning; see plan_blocks().
+# Base memory budget (MB) when max_mem is not given; matches the maxmem=64 default of
+# asr_calibrate(). When this budget cannot hold the fixed lookahead overhead, asr_process.m falls
+# back to half of the free RAM; plan_blocks() uses twice the overhead instead, which is
+# deterministic and needs no RAM probe (psutil is optional and has no WebAssembly build).
 DEFAULT_MAX_MEM_MB = 64
 
 # Upper limit on the number of blocks, as in asr_process.m: the block-count formula can ask for
@@ -35,7 +31,7 @@ class BlockPlan(NamedTuple):
     overhead_mb: float  # fixed memory of the lookahead buffers, independent of the number of blocks
     budget_raised: bool  # the default budget was raised above DEFAULT_MAX_MEM_MB to fit the overhead
     splits: int  # number of blocks, at most MAX_BLOCKS
-    block_samples: float  # average block length in samples
+    block_samples: float
     peak_mb: float  # estimated peak memory: the overhead plus the working memory of one block
     capped: bool  # MAX_BLOCKS made the blocks larger than the budget allows
 
@@ -77,9 +73,8 @@ def plan_blocks(C, S, P, step_size, max_mem=None):
             f'rate or the lookahead.'
         )
 
-    # Memory bytes needed to process all samples at once (following the reference implementation formula)
+    # Memory formula of asr_process.m, line 138
     bytes_needed = C * C * S * 8 * 8 + C * C * 8 * S / step_size + C * S * 8 * 2 + S * 8 * 5
-    # Memory available to the working set of one block, after the fixed overhead
     mem_available = max(max_mem * 1024**2 - C * C * P * 8 * 3, 1)
     wanted = int(np.ceil(bytes_needed / mem_available))
     splits = min(wanted, MAX_BLOCKS)
