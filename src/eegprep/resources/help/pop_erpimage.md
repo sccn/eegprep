@@ -1,54 +1,65 @@
 # pop_erpimage
 
-Plots an ERP image for one channel or component.
+Plots an ERP image of one channel or component: single trials stacked as rows,
+sorted by an event value and smoothed across trials, with the ERP underneath.
 
 ```python
-result, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
+result, com = pop_erpimage(EEG, 1, 14, return_com=True)
 ```
 
-`typeplot=1` selects channel data. `typeplot=0` selects ICA component data. The
-dataset must be epoched.
+The arguments follow EEGLAB's order:
 
-Supported plot options include `title`, `limits`, `caxis`, `cbar`, `erp`,
-`vert`, `smooth`, `decimate`, `sort_values`, and component projection through
-`projchan`. Channel plots draw a small scalp map above the image with the
-plotted electrode marked; pass `plotmap=False` to suppress it.
+```python
+pop_erpimage(EEG, typeplot, channel, projchan, titleplot, smooth, decimate,
+             sortingtype, sortingwin, sortingeventfield, *erpimage_options)
+```
 
-By default the color axis is symmetric about zero (as in EEGLAB); pass `caxis`
-to set explicit limits. A solid vertical line marks time zero on both the image
-and the ERP trace.
+- `typeplot`: 1 for channels, 0 for ICA components. The dataset must be epoched.
+- `channel`: 1-based channel number(s) or labels (`"Cz"`), or component
+  number(s). Several channels are averaged.
+- `projchan`: channel(s) to back-project the component(s) onto, in microvolts.
+  Several components need a projection channel and are summed; several
+  projection channels are averaged.
+- `titleplot`: figure title; by default the channel label, `Comp. 6` or
+  `Comp. 6 -> Chan. 27`.
+- `smooth` (default 5) and `decimate` (default 0): the moving-average width in
+  trials and the window advance, as in `erpimage`.
+- `sortingtype`, `sortingwin`, `sortingeventfield`: sort the trials by the
+  value of an event field (for example `"latency"` of `"rt"` events) within a
+  time window in ms. Text values sort alphabetically. Epochs without a
+  matching event are left out, and the count is logged. Without a field the
+  trials keep their order.
 
-Event-field sorting is available with EEGLAB-style names:
+Any `erpimage` option can follow, as EEGLAB tokens or keywords, for example
+`'phasesort', [0, 25, 10]`, `coher=[10, 10, 0.01]`, `align=float('inf')`,
+`renorm='yes'`, `nosort=True` (keep the trial order but plot the event values)
+or `noplot=True` (sort without drawing the values).
+
+Unlike a bare `erpimage` call, `pop_erpimage` draws the ERP trace, the colorbar
+and a scalp map (the channel location, or the component map) by default; use
+`erp=False`, `cbar=False` or `plotmap=False` to leave them out. The function
+returns the `erpimage` result (`result.outdata`, `result.sortidx`,
+`result.figure`, ...).
 
 ```python
 result, com = pop_erpimage(
-    EEG,
-    typeplot=1,
-    index=1,
-    sortingeventfield="rt",
-    sortingtype=["target"],
-    sortingwin=[0, 800],
-    return_com=True,
+    EEG, 1, "POz", None, "", 10, 1, ["rt"], [0, 1000], "latency",
+    "phasesort", [0, 25, 10], return_com=True,
 )
 ```
 
-Use `nosort=True` to keep trials in dataset order. `noplot` is accepted and
-kept in the history command, but it does not change the plot yet.
-`renorm="yes"` rescales finite event values to 0..1.
+## Dialog
 
-The image itself comes from `erpimage`, which follows EEGLAB's sorting,
-moving-average smoothing and decimation: `smooth` is the moving-window width in
-trials, `decimate` is the window advance, and edge windows that would be
-incomplete are trimmed. Trials whose sorting value is missing are left out.
+`Plot > Channel ERP image` and `Plot > Component ERP image` open EEGLAB's
+dialog. The `Epoch-sorting field` and `Event type(s)` buttons list the fields
+and types of the dataset's events. The phase-sorting and coherence frequencies
+mirror each other when both are filled. The time limits are passed only when
+you change them. `More options` takes `erpimage` options as `'key', value`
+pairs. For components, the `...` button next to `Project to channel #` picks
+the channel (EEGLAB disables it).
 
-This dialog does not expose EEGLAB's phase sorting, coherence, spectrum inset,
-amplitude image, event alignment or renormalization formulas. Those options
-raise a `ValueError` that points to `erpimage`, which supports all of them:
+The command recorded in history (`LASTCOM`) is a Python call that you can edit
+and run in `eegprep-console`. Making an ERP image does not change the dataset.
 
-```python
-from eegprep import erpimage
-
-erpimage(data, rt, times, "", 5, 1, "phasesort", [400, 0, 10], "coher", [10, 10, 0.01])
-```
-
-When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.
+When scripting, pass `plot='off'` to build the figure without opening a
+window, or `target=` a Matplotlib Figure or SubFigure to draw into it.

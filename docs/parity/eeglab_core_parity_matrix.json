@@ -4053,14 +4053,14 @@
       "eegprep_equivalent": "src/eegprep/functions/popfunc/pop_erpimage.py",
       "gap_category": "3_unsupported_options",
       "status": "implemented",
-      "rationale": "Phase 5 added event-field/type/window sorting, nosort handling and More-options parsing; the image is drawn by the faithful erpimage port. The dialog does not expose phase sorting, coherence, the spectrum inset, amplitude images, event alignment or renorm formulas: those raise ValueError pointing to erpimage, which supports them. noplot is accepted and kept in history but not applied yet.",
+      "rationale": "Port of pop_erpimage.m: EEGLAB argument order with erpimage options as tokens or keywords, channel means, component activity and projections (several projection channels averaged, an EEGPrep extension), eeg_getepochevent sorting with clear errors for unusable events, EEGLAB default titles, and the erpimage result returned. ERP trace, colorbar and scalp map are on by default as in the dialog. The dialog follows EEGLAB's layout and result mapping (limits(1:9), phase, coherence, yerplabel, flags, More options) with list buttons for event fields and types and mirrored phase/coherence frequencies; the component projection-channel picker stays enabled (EEGLAB disables it).",
       "responsible_phase": "none",
       "user_facing_surface": [
         "api",
         "console",
         "gui"
       ],
-      "test_notes": "Covered by the time-limit/decimation, symmetric default color axis, event-field sorting, and scalp-inset placement tests in tests/test_phase4_plot_wrappers.py."
+      "test_notes": "tests/test_pop_erpimage.py compares five MATLAB R2025b pop_erpimage calls on the sample epochs (tests/matlab/pop_erpimage_fixtures.mat, live regeneration when MATLAB is available) and covers sorting, projections, options, errors and history replay; tests/test_gui_pop_erpimage.py covers the dialog spec, result mapping and Qt callbacks; tests/test_console_workspace.py covers console and GUI history."
     },
     {
       "eeglab_path": "functions/popfunc/pop_eventstat.m",

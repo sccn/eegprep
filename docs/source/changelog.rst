@@ -28,18 +28,33 @@ Unreleased
   past (clamped widths, removed NaN trials, an ``'erp'`` above 1 reduced to one
   ERP by ``'erpalpha'``, ignored options) are logged; see :ref:`erpimage_api`
   for every difference.
-- ``pop_erpimage`` images change shape because ``smooth`` and ``decimate`` now
-  follow EEGLAB: ``decimate`` is the moving window's advance in trials (values
-  above the square root of the trial count give that many rows), and the
-  moving window no longer pads incomplete edge windows. On
+- ``pop_erpimage`` follows EEGLAB's ``pop_erpimage``: it takes
+  ``(EEG, typeplot, channel, projchan, titleplot, smooth, decimate,
+  sortingtype, sortingwin, sortingeventfield, ...)`` followed by any
+  ``erpimage`` option, and returns the ``erpimage`` result instead of a
+  ``{"figure", "image"}`` dictionary (``result.outdata`` is ``(frames,
+  trials)``, the transpose of the old ``"image"``). ``index=`` becomes
+  ``channel`` (numbers or labels; several channels are averaged),
+  ``sort_values`` and the ``field``, ``type`` and ``eventrange`` aliases are
+  gone, and ``limits`` sets the axes instead of cropping the data. Defaults
+  are EEGLAB's (``smooth=5``, ``decimate=0``) with the ERP trace, colorbar and
+  scalp map on. Trials are sorted with ``eeg_getepochevent`` (first latency,
+  last value of other fields, text sorted alphabetically); events without the
+  field or without a match raise clear errors, and epochs left out are logged.
+  ``nosort`` and ``noplot`` are passed to ``erpimage``, and phase sorting,
+  coherence, alignment and renormalization formulas are available from both
+  the command line and the dialog. Smoothing and decimation now follow
+  EEGLAB's moving window, so images change shape: on
   ``sample_data/eeglab_data_epochs_ica.set`` channel 14 (80 epochs),
-  ``smooth=10, decimate=2`` gives 36 rows (previously 40), ``smooth=10,
-  decimate=20`` gives 18 (previously 4) and ``smooth=3, decimate=1`` gives 78
-  (previously 80). Sorting is stable, epochs whose sorting value is missing
-  are left out, component images leave the ERP axis label empty as EEGLAB
-  does (previously "uV"), and smoothing fewer than 4 epochs raises
-  ``ValueError``. Options the dialog does not expose now point to
-  ``erpimage``, which supports them.
+  ``smooth=10, decimate=2`` gives 36 rows (previously 40) and ``smooth=10,
+  decimate=20`` gives 18 (previously 4). Default titles are the channel label,
+  ``Comp. N`` or ``Comp. N -> Chan. X``, as in EEGLAB.
+- The ``pop_erpimage`` dialog restores EEGLAB's layout and behavior: the
+  component variant has the ``Plot scalp map`` checkbox and draws the
+  component map, the event-field and event-type buttons open list dialogs, the
+  phase and coherence frequencies mirror each other, and every field (limits,
+  phase sorting, coherence, spectrum, marks, More options) reaches
+  ``erpimage``. Its history command replays in ``eegprep-console``.
 - ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
   including the sortvar trace at the right edge and rounded ERP axis ticks,
   and raises ``ValueError`` when the activity is all NaN.

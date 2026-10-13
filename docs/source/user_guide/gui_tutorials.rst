@@ -156,6 +156,44 @@ Equivalent console calls:
 Use the empty component list in ``pop_subcomp(EEG, [])`` to remove components
 currently marked in ``EEG.reject.gcompreject``.
 
+Sort Trials in an ERP Image
+===========================
+
+An ERP image stacks the single trials of one channel or component as colored
+rows, sorted by an event value, so latency or phase effects that the average
+hides become visible. With the ICA sample loaded:
+
+.. raw:: html
+
+   <div class="eegprep-path">
+     <p>Choose <strong>Plot > Channel ERP image</strong>.</p>
+     <p>Enter <code>Cz</code> (or <code>14</code>) as the channel and keep
+     smoothing at 10.</p>
+     <p>Press <strong>Epoch-sorting field</strong> and pick
+     <code>latency</code>, then <strong>Event type(s)</strong> and pick
+     <code>rt</code>, and press OK.</p>
+     <p>In the console, <code>LASTCOM</code> holds the Python call, for example
+     <code>pop_erpimage(EEG, 1, 'Cz', smooth=10, decimate=1, sortingtype=['rt'], sortingeventfield='latency')</code>.</p>
+     <p>Edit and run it there, for example with <code>'phasesort', [0, 25, 10]</code>
+     added, to try options the dialog does not show.</p>
+   </div>
+
+Equivalent console call:
+
+.. code-block:: python
+
+   from eegprep import pop_erpimage
+
+   result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
+   result.outdata.shape  # (frames, smoothed trials)
+   result.sortidx[:5]  # 0-based input trials, in plotted order
+
+Both the menu and the console record the same command in ``ALLCOM``; an ERP
+image does not change ``EEG`` or ``ALLEEG``. Epochs without a matching event
+are left out of the image, and the number is reported in the console log.
+``Plot > Component ERP image`` works the same way for components, with an
+optional channel to project them onto.
+
 Use EEGBrowser for Rejection
 ============================
 

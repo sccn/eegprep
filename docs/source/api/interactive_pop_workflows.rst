@@ -150,9 +150,12 @@ Plotting and Review
    eegprep.pop_topochansel
    eegprep.pop_topoplot
 
-``pop_erpimage`` draws with the EEGLAB-faithful ``erpimage`` described under
-:ref:`erpimage_api`, which also accepts EEGLAB's compact
-``[start_ms, frames, sampling_rate]`` time specification.
+``pop_erpimage`` follows EEGLAB's ``pop_erpimage`` arguments
+(``typeplot, channel, projchan, titleplot, smooth, decimate, sortingtype,
+sortingwin, sortingeventfield`` and then any ``erpimage`` option), sorts the
+trials by event values with ``eeg_getepochevent``, and returns the
+``erpimage`` result described under :ref:`erpimage_api`. Unlike ``erpimage``,
+it draws the ERP trace, a colorbar and a scalp map by default.
 ``newtimef`` accepts EEGLAB's default ``outputformat='plot'`` option; other
 output layouts are not yet implemented.
 

@@ -319,23 +319,18 @@ yet part of the standalone wrapper.
 
 Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
 ``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
-``pop_erpimage`` for channel or component images:
+``pop_erpimage`` for channel or component images, with EEGLAB's arguments:
 
 .. code-block:: python
 
    from eegprep import pop_erpimage
 
-   image, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
+   # Channel Cz, sorted by reaction-time latency, smoothed over 10 trials.
+   result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
 
-Channel ERP images use a symmetric color axis, a solid line marking time zero on
-both the image and the ERP trace, and a small scalp map at the upper left with
-the plotted channel marked, matching EEGLAB's ERP-image layout.
-
-GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
-returns replayable Python history commands for these wrappers. The
-``pop_erpimage`` dialog does not expose event alignment, phase sorting,
-coherence or renormalization formulas; those requests raise an error that
-points to :func:`~eegprep.erpimage`, which supports them.
+``pop_erpimage`` draws the ERP trace, a colorbar and a scalp map by default and
+accepts every :func:`~eegprep.erpimage` option, such as phase sorting or
+inter-trial coherence. See :ref:`gui_tutorials` for the dialog.
 
 Epoch and Baseline
 ==================
