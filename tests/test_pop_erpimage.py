@@ -1,4 +1,4 @@
-"""``pop_erpimage``: argument handling, event sorting, figures and history."""
+"""``pop_erpimage``: argument handling, event sorting, dialog mapping, history and MATLAB parity."""
 
 from __future__ import annotations
 
@@ -14,16 +14,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root, get_eeglab
 from eegprep.functions.popfunc import pop_erpimage as pop_erpimage_module
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc import erpimage as erpimage_module
 from eegprep.functions.sigprocfunc.erpimage import erpimage
-from tests.fixtures import create_erpimage_epochs
+from tests.eeglab_tests import load_matlab_test_fixture
+from tests.fixtures import create_erpimage_epochs, matlab_engine_available
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EPOCHS_PATH = REPO_ROOT / "sample_data" / "eeglab_data_epochs_ica.set"
+FIXTURE = REPO_ROOT / "tests" / "matlab" / "pop_erpimage_fixtures.mat"
+RTOL = 1e-10
 
 
 @pytest.fixture(scope="module")
@@ -310,3 +314,94 @@ def test_history_writes_an_explicit_scalp_map_with_the_dataset_locations(epochs)
 def test_missing_dataset_returns_nothing() -> None:
     assert pop_erpimage(None) is None
     assert pop_erpimage(None, return_com=True) == (None, "")
+
+
+# ----------------------------------------------------------------------------- MATLAB parity
+
+
+def _matlab_value(value: np.ndarray):
+    if value.dtype.kind in "US":
+        return str(value.ravel()[0]) if value.size else ""
+    if value.dtype == object:
+        return [_matlab_value(item) for item in value.ravel()]
+    return np.asarray(value, dtype=float)
+
+
+def _parity_dataset() -> dict:
+    """The sample epochs in double precision with ICA activity recomputed, as the fixture script uses them."""
+    eeg = pop_loadset(str(EPOCHS_PATH))
+    eeg["data"] = np.asarray(eeg["data"], dtype=float)
+    eeg["icaact"] = np.array([])
+    return eeg
+
+
+def _assert_scenario(fixture: dict, name: str, eeg: dict) -> None:
+    record = fixture[name][0, 0]
+    label = _matlab_value(record["channel_label"])
+    channel = label or record["channel"].ravel().astype(int).tolist()
+    projchan = record["projchan"].ravel().astype(int).tolist()
+    window = record["sortingwin"].ravel().tolist()
+    result = pop_erpimage(
+        eeg,
+        int(record["typeplot"].ravel()[0]),
+        channel,
+        projchan or None,
+        "",
+        float(record["smooth"].ravel()[0]),
+        float(record["decimate"].ravel()[0]),
+        _matlab_value(record["sortingtype"]) or None,
+        window or None,
+        _matlab_value(record["field"]),
+        *[_matlab_value(item) for item in record["options"].ravel()],
+        "erp",
+        "NoShow",
+        "on",
+    )
+    scale = float(np.max(np.abs(result.outdata)))
+    np.testing.assert_allclose(result.outvar, record["outvar"].ravel(), rtol=RTOL, err_msg=f"{name} outvar")
+    np.testing.assert_allclose(result.outtrials, record["outtrials"].ravel(), rtol=RTOL, err_msg=f"{name} outtrials")
+    # EEGLAB's sortidx indexes the trials left after removing those without an event value.
+    kept = np.flatnonzero(~np.isnan(record["sortvar"].ravel()))
+    expected_order = kept[record["sortidx"].ravel().astype(int) - 1]
+    np.testing.assert_array_equal(result.sortidx, expected_order, err_msg=f"{name} sortidx")
+    rows = result.outdata.sum(axis=0)
+    np.testing.assert_allclose(rows, record["outdata_rows"].ravel(), rtol=0, atol=RTOL * scale * eeg["pnts"])
+    frames = record["frames"].ravel().astype(int) - 1
+    np.testing.assert_allclose(result.outdata[frames], record["outdata_frames"], rtol=0, atol=RTOL * scale)
+    np.testing.assert_allclose(result.erp.ravel()[frames], record["erp_frames"].ravel(), rtol=0, atol=RTOL * scale)
+    np.testing.assert_allclose(result.erp.sum(), float(record["erp_sum"].ravel()[0]), atol=RTOL * scale * eeg["pnts"])
+
+
+PARITY_SCENARIOS = ["channel_rt", "label_position_renorm", "channels_window", "component", "projected"]
+
+
+@pytest.mark.parity
+@pytest.mark.parametrize("name", PARITY_SCENARIOS)
+def test_pop_erpimage_matches_matlab_fixture(name: str) -> None:
+    _assert_scenario(load_matlab_test_fixture(FIXTURE), name, _parity_dataset())
+
+
+def test_pop_fixture_keeps_all_erpimage_fixtures_small() -> None:
+    sizes = FIXTURE.stat().st_size + (FIXTURE.parent / "erpimage_engine_fixtures.mat").stat().st_size
+    assert sizes < 200_000
+
+
+@pytest.mark.matlab
+class TestPopErpimageMatlabParity:
+    """Regenerate the pop_erpimage fixture with live MATLAB and compare again."""
+
+    @pytest.fixture(scope="class")
+    def regenerated(self, tmp_path_factory):
+        if not matlab_engine_available():
+            pytest.skip("MATLAB engine not available or skipped")
+        try:
+            matlab = get_eeglab("MAT", auto_file_roundtrip=False)
+        except Exception as exc:  # MATLAB start-up failures are environment problems, not test failures
+            pytest.skip(f"MATLAB not available: {exc}")
+        output = tmp_path_factory.mktemp("pop_erpimage") / "pop_erpimage_fixtures.mat"
+        matlab.pop_erpimage_fixtures(str(_resolve_eeglab_root()), str(EPOCHS_PATH), str(output), nargout=0)
+        return load_matlab_test_fixture(output)
+
+    @pytest.mark.parametrize("name", PARITY_SCENARIOS)
+    def test_parity_live(self, regenerated, name: str) -> None:
+        _assert_scenario(regenerated, name, _parity_dataset())
