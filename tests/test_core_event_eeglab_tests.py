@@ -663,7 +663,15 @@ def test_eeg_getepochevent_matches_text_event_types_exactly():
     np.testing.assert_allclose(spaced, [0, 1, 3])
 
 
-@pytest.mark.parametrize("epoch", [np.nan, None, 0, 4, 1.5, []])
+def test_eeg_getepochevent_text_does_not_match_numeric_event_types():
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = 2.0
+    values, _all_values = eeg_getepochevent(eeg, "type", "rt", "fieldname", "urevent")
+    assert np.all(np.isnan(values))
+
+
+@pytest.mark.parametrize("epoch", [np.nan, None, 0, 4, 1.5, [], np.array([4]), np.array([])])
 def test_eeg_getepochevent_names_the_event_with_an_invalid_epoch(epoch):
     eeg = _epoched_event_eeg()
     eeg["event"][2]["epoch"] = epoch

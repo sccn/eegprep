@@ -206,9 +206,10 @@ def test_lastcom_that_cannot_be_used_raises(epochs, channel, lastcom, message) -
 def test_dialog_values_replace_the_callers_options(epochs) -> None:
     renderer = _Renderer({"cbar": True, "others": ""})
     _result, command = pop_erpimage(
-        epochs, 1, 14, gui=True, cbar=False, erpstd=True, renderer=renderer, plot="off", return_com=True
+        epochs, 1, 14, gui=True, cbar=False, erp=2, erpstd=True, renderer=renderer, plot="off", return_com=True
     )
-    assert renderer.initial_values["cbar"] is False and renderer.initial_values["others"] == "erpstd=True"
+    assert renderer.initial_values["cbar"] is False and "erp" not in renderer.initial_values
+    assert renderer.initial_values["others"] == "erp=2, erpstd=True"
     assert command == "pop_erpimage(EEG, 1, 14, smooth=10, decimate=1)"
 
 

@@ -309,6 +309,7 @@ def test_limits_set_the_axes_without_cropping_the_data(epochs) -> None:
         (None, {"channel": "Q"}, "unknown channel label 'Q'"),
         (None, {"channel": 1.5}, "whole numbers"),
         (None, {"channel": []}, "select at least one channel"),
+        (None, {"channel": [None]}, "channels are given by number or label, got None"),
     ],
 )
 def test_invalid_selections_raise(change, arguments, message) -> None:
@@ -412,6 +413,12 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     for location in components["chanlocs"]:
         location["theta"] = np.nan
     assert len(pop_erpimage(components, 0, 6, plot="off").axhndls) == 5
+    eeg.update(icaweights=np.eye(2), icasphere=np.eye(2), icawinv=np.eye(2), icachansind=np.array([0, 1]))
+    eeg["icaact"] = np.array([])
+    eeg["chanlocs"][0]["theta"] = np.nan
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        assert len(pop_erpimage(eeg, 0, 1, plot="off").axhndls) == 5
+    assert "the ICA channels have no locations, so the scalp map is left out" in caplog.text
 
 
 def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
