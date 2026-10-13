@@ -23,6 +23,7 @@ from eegprep.functions.popfunc.plot_utils import (
     eeg_epoch_data,
     numeric_vector,
     parse_plot_options_text,
+    plot_enabled,
     python_literal,
     show_figures,
 )
@@ -116,7 +117,7 @@ def pop_erpimage(
         return (None, "") if return_com else None
     typeplot = _plot_type(typeplot)
     _check_dataset(EEG, typeplot)
-    show_figures(None, plot=plot)  # rejects an invalid 'plot' before anything is drawn
+    display = plot_enabled(plot)
     arguments = {
         "channel": channel,
         "projchan": projchan,
@@ -133,6 +134,7 @@ def pop_erpimage(
         if not all(is_empty_value(value) for value in arguments.values()) or options or kwargs:
             raise ValueError("pop_erpimage(): lastcom holds the arguments; pass no others with it")
         arguments, options, kwargs = _previous_call(lastcom)
+    _check_positional(arguments)
     plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
     user_options = _ordered_options(options, kwargs)
     if gui:
@@ -179,7 +181,7 @@ def pop_erpimage(
     )
     result = erpimage(data, sortvar, times, title, smooth, decimate, target=target, rng=rng, **settings)
     # A caller's target figure is the caller's to show or close.
-    show_figures(None if target is not None else result.figure, plot=plot)
+    show_figures(None if target is not None else result.figure, plot=display)
     return (result, command) if return_com else result
 
 
@@ -209,10 +211,32 @@ def _is_matrix(value: Any) -> bool:
     return value is not None and np.asarray(value).ndim == 2 and np.asarray(value).size > 0
 
 
+def _check_positional(arguments: dict[str, Any]) -> None:
+    """Reject an erpimage option that landed in a positional argument; EEGLAB tokens follow all ten."""
+    hint = "put EEGLAB-style options after all ten positional arguments, or pass them as keywords"
+    for name in ("projchan", "titleplot"):
+        value = arguments[name]
+        if isinstance(value, str) and value == value.lower() and _is_erpimage_option(value):
+            raise ValueError(f"pop_erpimage(): {value!r} was passed as {name} but is an erpimage option; {hint}")
+    title = arguments["titleplot"]
+    if title is not None and not isinstance(title, str):
+        raise ValueError(f"pop_erpimage(): titleplot must be text, got {title!r}; {hint}")
+
+
+def _is_erpimage_option(name: str) -> bool:
+    try:
+        erpimage_option_items(**{name: None})
+    except ValueError:
+        return False
+    return True
+
+
 def _plotmap_flag(value: Any) -> bool:
-    if isinstance(value, (bool, np.bool_)):
+    if isinstance(value, (bool, np.bool_)) or (isinstance(value, (int, np.integer)) and value in (0, 1)):
         return bool(value)
-    raise ValueError(f"pop_erpimage(): plotmap must be True or False, got {value!r}")
+    if isinstance(value, str) and value.lower() in {"on", "off"}:
+        return value.lower() == "on"
+    raise ValueError(f"pop_erpimage(): plotmap must be True/False, 'on'/'off' or 1/0, got {value!r}")
 
 
 def _selected_items(EEG: dict[str, Any], value: Any, typeplot: int) -> list[int]:
@@ -251,7 +275,7 @@ def _items(value: Any) -> list[Any]:
 
 
 def _channel_numbers(EEG: dict[str, Any], items: list[Any], kind: str) -> list[int]:
-    """1-based channel numbers; labels are looked up as EEGLAB's eeg_decodechan does (ignoring case)."""
+    """1-based channel numbers; labels are resolved with eeg_decodechan (ignoring case)."""
     chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     numbers: list[Any] = []
     for item in items:
@@ -761,8 +785,9 @@ def _unique_types(types: Any) -> list[str]:
     """Event types sorted like EEGLAB's unique(): numerically for numeric types, else as text."""
     values = list(types)
     numeric = all(isinstance(value, (int, float, np.number)) and not isinstance(value, bool) for value in values)
-    ordered = sorted(set(values), key=float) if numeric else sorted({str(value) for value in values})
-    return [event_type_text(value) for value in ordered]
+    if numeric:
+        return [event_type_text(value) for value in sorted(set(values), key=float)]
+    return sorted({event_type_text(value) for value in values})
 
 
 def _channel_button(tag: str, target: str, labels: list[str], *, enabled: bool) -> ControlSpec:
@@ -1029,7 +1054,7 @@ def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> 
         "titleplot": _text(result, "title"),
         "smooth": _dialog_number(result, "smooth", "Smoothing"),
         "decimate": _dialog_number(result, "decimate", "Downsampling"),
-        "sortingtype": parse_text_tokens(_text(result, "type")) or None,
+        "sortingtype": _dialog_types(_text(result, "type")),
         "sortingwin": window.tolist() if window.size else None,
         "sortingeventfield": field,
     }
@@ -1038,6 +1063,14 @@ def _dialog_call(EEG: dict[str, Any], typeplot: int, result: dict[str, Any]) -> 
 
 def _text(result: dict[str, Any], tag: str) -> str:
     return str(result.get(tag, "") or "").strip()
+
+
+def _dialog_types(text: str) -> list[str] | None:
+    """Typed event types; types with spaces are quoted."""
+    types = parse_text_tokens(text)
+    if any(not item or item[0] in "'\"" for item in types):
+        raise ValueError(f"pop_erpimage(): 'Event type(s)' has an empty or unclosed quoted type: {text!r}")
+    return types or None
 
 
 def _dialog_items(result: dict[str, Any], tag: str, label: str, *, required: bool) -> Any:

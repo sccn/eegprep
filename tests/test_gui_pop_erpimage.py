@@ -324,6 +324,20 @@ def test_dialog_fields_replace_more_options_as_in_eeglab(epochs, caplog) -> None
     assert unchecked.axhndls[2] is not None
 
 
+@pytest.mark.parametrize("typed", ["''", "'S 22", "rt '' stim"])
+def test_dialog_event_types_with_empty_or_unclosed_quotes_raise(epochs, typed) -> None:
+    with pytest.raises(ValueError, match="'Event type\\(s\\)' has an empty or unclosed quoted type"):
+        _command(epochs, {"field": "latency", "type": typed})
+
+
+def test_dialog_lists_mixed_event_types_as_text() -> None:
+    eeg = create_erpimage_epochs()
+    for event, value in zip(eeg["event"], [1.0, "boundary", 2.0, 10.0] * 3):
+        event["type"] = value
+    tags = controls_by_tag(pop_erpimage_dialog_spec(eeg))
+    assert tags["type_button"].callback.params["event_types"] == ["1", "10", "2", "boundary"]
+
+
 def test_dialog_rescale_needs_a_sorting_field(epochs) -> None:
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer({"renorm": "yes"}), noshow=True, return_com=True)
     assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True)"

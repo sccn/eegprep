@@ -143,6 +143,15 @@ def test_several_channels_have_no_scalp_map(epochs, caplog) -> None:
     assert "the scalp map marks one channel, so it is left out for 2 channels" in caplog.text
 
 
+@pytest.mark.parametrize("plotmap", ["off", 0, False])
+def test_plotmap_takes_on_off_words_and_numbers(plotmap) -> None:
+    result, command = pop_erpimage(
+        create_erpimage_epochs(), 1, 1, smooth=1, plotmap=plotmap, plot="off", return_com=True
+    )
+    assert len(result.axhndls) == 5 and command.endswith("plotmap=False)")
+    assert len(pop_erpimage(create_erpimage_epochs(), 1, 1, smooth=1, plotmap="on", plot="off").axhndls) == 6
+
+
 def test_titles_from_the_argument_or_the_title_option(epochs) -> None:
     named = pop_erpimage(epochs, 1, 14, None, "My title", plot="off", plotmap=False)
     assert named.axhndls[0].get_title() == "My title"
@@ -285,7 +294,7 @@ def test_sorting_events_that_cannot_be_used_raise(change, arguments, message) ->
         ({"limits": [600, -200]}, "time limits out of order"),
         ({"limits": [5000, 6000]}, "do not overlap the data"),
         ({"limits": [100]}, r"limits arg must be a vector sized"),
-        ({"plotmap": "yes"}, "plotmap must be True or False"),
+        ({"plotmap": "yes"}, "plotmap must be True/False, 'on'/'off' or 1/0"),
         ({"bogus": 1}, "unknown option 'bogus'"),
     ],
 )
@@ -426,6 +435,25 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
         assert len(pop_erpimage(eeg, 0, 1, plot="off").axhndls) == 5
     assert "the ICA channels have no locations, so the scalp map is left out" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (("phasesort", [0, 25, 10]), "'phasesort' was passed as projchan but is an erpimage option"),
+        (("nosort",), "'nosort' was passed as projchan"),
+        ((None, "erp", 3), "'erp' was passed as titleplot"),
+        ((None, [0, 25, 10]), r"titleplot must be text, got \[0, 25, 10\]"),
+    ],
+)
+def test_options_in_positional_places_raise(arguments, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        pop_erpimage(create_erpimage_epochs(), 1, 1, *arguments, noshow=True)
+
+
+def test_a_title_may_name_an_option_in_capitals() -> None:
+    result = pop_erpimage(create_erpimage_epochs(), 1, 1, None, "ERP", smooth=1, plot="off", plotmap=False)
+    assert result.axhndls[0].get_title() == "ERP"
 
 
 def test_projection_titles_quote_labels_as_eeglab_does(epochs) -> None:

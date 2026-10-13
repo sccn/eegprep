@@ -28,7 +28,7 @@ def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
     closed (unregistered from pyplot) so an interactive session cannot auto-display
     them; the caller keeps the returned Figure, which stays usable for ``savefig``.
     """
-    if not _plot_enabled(plot):
+    if not plot_enabled(plot):
         for figure in _as_figure_list(figures):
             plt.close(figure)
         return
@@ -265,7 +265,7 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
     return f"{function_name}({', '.join(pieces)})"
 
 
-def _plot_enabled(plot: str | bool) -> bool:
+def plot_enabled(plot: str | bool) -> bool:
     """Whether the ``plot`` flag requests a window: ``'on'/'off'`` or ``True/False``."""
     if isinstance(plot, bool):
         return plot
