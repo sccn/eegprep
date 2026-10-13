@@ -18,9 +18,11 @@ from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root, get_e
 from eegprep.functions.popfunc import pop_erpimage as pop_erpimage_module
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
+from eegprep.functions.popfunc.plot_utils import component_map_data
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc import erpimage as erpimage_module
 from eegprep.functions.sigprocfunc.erpimage import erpimage
+from eegprep.functions.sigprocfunc.topoplot import topoplot
 from tests.eeglab_tests import load_matlab_test_fixture
 from tests.fixtures import create_erpimage_epochs, matlab_engine_available
 
@@ -124,6 +126,21 @@ def test_component_figure_shows_its_map_and_projection_units(epochs) -> None:
     projected = pop_erpimage(epochs, 0, 6, 27, plot="off")
     assert projected.axhndls[0].get_title() == "Comp. 6 -> Chan. 27"
     assert projected.axhndls[2].get_ylabel() == "µV"
+
+
+def test_projected_components_show_their_mean_map(epochs) -> None:
+    result = pop_erpimage(epochs, 0, [6, 7], 27, plot="off")
+    maps, chanlocs = component_map_data(epochs)
+    expected_axes = plt.figure().add_subplot()
+    topoplot(maps[:, [5, 6]].mean(axis=1), chanlocs, electrodes="off", axes=expected_axes)
+    np.testing.assert_allclose(result.axhndls[5].images[0].get_array(), expected_axes.images[0].get_array())
+
+
+def test_several_channels_have_no_scalp_map(epochs, caplog) -> None:
+    with caplog.at_level(logging.INFO, logger=pop_erpimage_module.logger.name):
+        result = pop_erpimage(epochs, 1, [3, 7], plot="off")
+    assert len(result.axhndls) == 5
+    assert "the scalp map marks one channel, so it is left out for 2 channels" in caplog.text
 
 
 def test_titles_from_the_argument_or_the_title_option(epochs) -> None:
@@ -309,6 +326,11 @@ def test_history_writes_an_explicit_scalp_map_with_the_dataset_locations(epochs)
     assert command == "pop_erpimage(EEG, 1, 14, smooth=5, decimate=0, topo=(14, EEG['chanlocs']))"
     replayed = eval(command, {"EEG": epochs, "pop_erpimage": pop_erpimage})
     assert replayed.axhndls[5] is not None
+
+
+def test_history_keeps_empty_smoothing_arguments() -> None:
+    _result, command = pop_erpimage(create_erpimage_epochs(), 1, 1, None, "", [], [], noshow=True, return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 1, smooth=[], decimate=[], noshow=True)"
 
 
 def test_missing_dataset_returns_nothing() -> None:

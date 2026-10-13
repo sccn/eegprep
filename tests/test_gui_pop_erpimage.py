@@ -108,6 +108,11 @@ def test_unchanged_time_limits_are_not_passed_and_a_single_coher_frequency_is_ke
     assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True, erp=False, coher=[10, 12])"
 
 
+def test_dialog_rescale_needs_a_sorting_field(epochs) -> None:
+    _result, command = pop_erpimage(epochs, 1, renderer=_Renderer({"renorm": "yes"}), noshow=True, return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True)"
+
+
 def test_component_dialog_maps_the_projection_and_keeps_the_scalp_map(epochs) -> None:
     renderer = _Renderer({"chan": "6", "projchan": "POz"})
     result, command = pop_erpimage(epochs, 0, renderer=renderer, plot="off", return_com=True)
