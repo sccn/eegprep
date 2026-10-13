@@ -21,10 +21,28 @@ Unreleased
   ``topo``. Defaults now follow EEGLAB (no ERP trace, no colorbar). The
   ``erpalpha`` permutation test uses unbiased random signs, so its thresholds
   differ slightly from EEGLAB's
-  (`sccn/eeglab#976 <https://github.com/sccn/eeglab/issues/976>`_); see
-  :ref:`erpimage_api` for every difference.
+  (`sccn/eeglab#976 <https://github.com/sccn/eeglab/issues/976>`_).
+  Invalid inputs raise ``ValueError`` instead of producing a wrong image,
+  ``'allcohers'`` raises, ``NoShow`` cannot be combined with ``target``, and
+  ``rng`` also accepts an integer seed. The notes EEGLAB prints and continues
+  past (clamped widths, removed NaN trials, an ``'erp'`` above 1 reduced to one
+  ERP by ``'erpalpha'``, ignored options) are logged; see :ref:`erpimage_api`
+  for every difference.
+- ``pop_erpimage`` images change shape because ``smooth`` and ``decimate`` now
+  follow EEGLAB: ``decimate`` is the moving window's advance in trials (values
+  above the square root of the trial count give that many rows), and the
+  moving window no longer pads incomplete edge windows. On
+  ``sample_data/eeglab_data_epochs_ica.set`` channel 14 (80 epochs),
+  ``smooth=10, decimate=2`` gives 36 rows (previously 40), ``smooth=10,
+  decimate=20`` gives 18 (previously 4) and ``smooth=3, decimate=1`` gives 78
+  (previously 80). Sorting is stable, epochs whose sorting value is missing
+  are left out, component images leave the ERP axis label empty as EEGLAB
+  does (previously "uV"), and smoothing fewer than 4 epochs raises
+  ``ValueError``. Options the dialog does not expose now point to
+  ``erpimage``, which supports them.
 - ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
-  including the sortvar trace at the right edge and rounded ERP axis ticks.
+  including the sortvar trace at the right edge and rounded ERP axis ticks,
+  and raises ``ValueError`` when the activity is all NaN.
 
 Version 0.4.0
 =============

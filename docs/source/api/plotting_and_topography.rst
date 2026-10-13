@@ -95,17 +95,20 @@ ampsig, outamps, phsangls, phsamp, sortidx, erpsig, figure = result``, and the
 same values are available as attributes (``result.outdata``). ``outdata`` is
 ``(frames, smoothed_trials)``; outputs that were not computed are ``None``.
 Pass ``target=`` a Matplotlib Figure or SubFigure to draw into it, ``NoShow=True``
-to compute without drawing, and ``rng=`` a NumPy random generator to make the
-coherence bootstrap and the ``erpalpha`` permutations reproducible
-(``numpy.random.RandomState(seed)`` gives the same bootstrap draws as MATLAB's
-``rng(seed, 'twister')``).
+to compute without drawing (not combined with ``target``), and ``rng=`` a seed
+or NumPy random generator to make the coherence bootstrap and the ``erpalpha``
+permutations reproducible (``numpy.random.RandomState(seed)`` gives the same
+bootstrap draws as MATLAB's ``rng(seed, 'twister')``).
 
 The numbers come from ``eegprep.functions.sigprocfunc.erpimage_engine``, a
-module that needs only NumPy. Its outputs match EEGLAB's ``erpimage`` run on
-MATLAB R2025b to a relative tolerance of ``1e-12`` across 42 recorded
-scenarios (sorting, smoothing and decimation, phase and amplitude sorting,
-coherence and its significance, amplitude images, time warping, percentile
-ERPs and axis limits).
+single module that needs only NumPy and the Python standard library (``ast``,
+``dataclasses``, ``logging``, ``typing``). Across 46 recorded scenarios
+(sorting, smoothing and decimation, phase and amplitude sorting with trial
+rejection, coherence and its significance, amplitude images, time warping,
+percentile ERPs and axis limits), every output matches EEGLAB's ``erpimage``
+run on MATLAB R2025b to within ``1e-12`` of the output's largest magnitude
+(of the input data's largest magnitude for outputs in data units, such as the
+image and the ERP).
 
 Differences from EEGLAB
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,8 +133,27 @@ Where EEGLAB's behavior contradicts its own help text, EEGPrep follows the help:
 
 Other behavior to know when moving from EEGLAB:
 
-* Invalid inputs raise ``ValueError`` with EEGLAB's message, where EEGLAB
-  prints the message and returns.
+* Invalid inputs raise ``ValueError`` where EEGLAB prints a message and
+  returns, or carries on with a wrong result: option values of the wrong size
+  or type (EEGLAB often uses the first element), data whose trial count does
+  not match ``sortvar``, data containing infinite values, ``limits`` or
+  ``baseline`` windows without samples, ``renorm`` ``'yes'`` on a constant
+  ``sortvar``, amplitude rejection that leaves fewer than two trials,
+  ``'timewarp'`` events outside the epoch or with the wrong number of rows,
+  ``'plotamps'`` or ``'coher'`` with zero wavelet amplitude (no dB value),
+  a ``'topo'`` channel outside the channel locations, and a ``'spec'`` band
+  above the Nyquist frequency. ``'allcohers'``, which ``erpimage.m`` marks
+  UNIMPLEMENTED, raises. ``target`` must be a Figure or SubFigure
+  (``TypeError``).
+* The notes EEGLAB prints and then continues past go to the
+  ``eegprep.functions.sigprocfunc.erpimage_engine`` logger: replaced NaN data,
+  removed NaN-``sortvar`` trials, clamped ``avewidth`` and ``decimate``, trials
+  kept after amplitude rejection, alignment shifts larger than the epoch,
+  clipped ``limits``, sorting bands reduced to the Nyquist frequency, a single
+  ERP drawn because ``'erpalpha'`` was given with ``'erp'`` above 1, and options
+  that have no effect in the chosen sorting mode.
+* A negative ``decimate`` must lie between minus the trial count and the trial
+  count; EEGLAB allocates as many output rows as asked.
 * Boxcar ``avewidth`` must be a whole number of trials, as on MATLAB R2025b,
   which rejects non-integer window sizes.
 * A three-sample ``times`` vector is a time vector, not EEGLAB's compact

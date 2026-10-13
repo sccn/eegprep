@@ -313,10 +313,10 @@ both the image and the ERP trace, and a small scalp map at the upper left with
 the plotted channel marked, matching EEGLAB's ERP-image layout.
 
 GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
-returns replayable Python history commands for these wrappers. Some MATLAB-only
-``pop_erpimage`` event-alignment and advanced renormalization options are not
-standalone EEGPrep features; those requests raise explicit errors instead of
-silently substituting a different analysis.
+returns replayable Python history commands for these wrappers. The
+``pop_erpimage`` dialog does not expose event alignment, phase sorting,
+coherence or renormalization formulas; those requests raise an error that
+points to :func:`~eegprep.erpimage`, which supports them.
 
 Epoch and Baseline
 ==================

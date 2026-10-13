@@ -32,13 +32,23 @@ result, com = pop_erpimage(
 )
 ```
 
-Use `nosort=True` to disable value sorting and `noplot=True` to suppress the
-event-value curve option from history replay. `renorm="yes"` rescales finite
-event values to 0..1; custom renormalization formulas are not evaluated.
+Use `nosort=True` to keep trials in dataset order. `noplot` is accepted and
+kept in the history command, but it does not change the plot yet.
+`renorm="yes"` rescales finite event values to 0..1.
 
-EEGPrep does not implement EEGLAB's phase-sorting, coherence, spectrum inset,
-amplitude-image, or event-alignment workflows in this standalone ERP-image
-wrapper. Those options raise clear `ValueError` messages instead of falling
-through to MATLAB-only behavior.
+The image itself comes from `erpimage`, which follows EEGLAB's sorting,
+moving-average smoothing and decimation: `smooth` is the moving-window width in
+trials, `decimate` is the window advance, and edge windows that would be
+incomplete are trimmed. Trials whose sorting value is missing are left out.
+
+This dialog does not expose EEGLAB's phase sorting, coherence, spectrum inset,
+amplitude image, event alignment or renormalization formulas. Those options
+raise a `ValueError` that points to `erpimage`, which supports all of them:
+
+```python
+from eegprep import erpimage
+
+erpimage(data, rt, times, "", 5, 1, "phasesort", [400, 0, 10], "coher", [10, 10, 0.01])
+```
 
 When scripting, pass `plot='off'` to build the figure without opening a window; the default `plot='on'` displays it.
