@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QSlider
 
+from eegprep.utils.testing import has_optional_dependency
 from tests.eeglab_tests import eeglab_test
 
 import tomllib
@@ -69,7 +70,6 @@ def test_public_api_and_plugins_example_runs() -> None:
 
 # One illustration script per user guide section. These run for real against
 # sample_data/, so a failure here means the documented workflow is broken.
-# plot_reject_artifacts.py runs ICLabel, so it needs the iclabel extra (eegprep[iclabel]).
 USER_GUIDE_EXAMPLES = (
     "plot_quickstart_tour.py",
     "plot_data_structures.py",
@@ -77,7 +77,12 @@ USER_GUIDE_EXAMPLES = (
     "plot_dataset_management.py",
     "plot_preprocess_data.py",
     "plot_extract_epochs.py",
-    "plot_reject_artifacts.py",
+    pytest.param(
+        "plot_reject_artifacts.py",
+        marks=pytest.mark.skipif(
+            not has_optional_dependency("onnxruntime"), reason="install eegprep[iclabel] to run ICLabel"
+        ),
+    ),
     "plot_data_plotting.py",
     "plot_source_analysis_dipfit.py",
     "plot_group_analysis_study.py",
