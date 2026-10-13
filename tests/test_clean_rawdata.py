@@ -224,21 +224,29 @@ class TestCleanArtifacts(DebuggableTestCase):
 
     def test_clean_artifacts_defaults(self):
         """Compare Python clean_artifacts against MATLAB implementation (default params)."""
-        with use_64bit_eeg_options():
-            # --- Python version ---
-            cleaned_py, _, _, _ = clean_artifacts(deepcopy(self.EEG))
+        eeglab = None
+        try:
+            with use_64bit_eeg_options():
+                # --- Python version ---
+                eeg = deepcopy(self.EEG)
+                eeg['data'] = np.asarray(eeg['data'], dtype=np.float64)
+                cleaned_py, _, _, _ = clean_artifacts(deepcopy(eeg))
 
-            # --- MATLAB reference ---
-            eeglab = eeglabcompat.get_eeglab('MAT')
-            expected_mat = eeglab.clean_artifacts(self.EEG)
+                # --- MATLAB reference ---
+                eeglab = eeglabcompat.get_eeglab('MAT')
+                eeglab.engine.eval('clear eeg_options', nargout=0)
+                expected_mat = eeglab.clean_artifacts(eeg)
 
-            compare_eeg(
-                cleaned_py['data'],
-                expected_mat['data'],
-                rtol=0,
-                atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
-                err_msg='clean_artifacts() failed vs MATLAB',
-            )
+                compare_eeg(
+                    cleaned_py['data'],
+                    expected_mat['data'],
+                    rtol=0,
+                    atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+                    err_msg='clean_artifacts() failed vs MATLAB',
+                )
+        finally:
+            if eeglab is not None:
+                eeglab.engine.eval('clear eeg_options', nargout=0)
 
 
 class TestCleanArtifactsAdvanced(DebuggableTestCase):

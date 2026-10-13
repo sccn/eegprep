@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 
 import numpy as np
 import numpy.testing as npt
+import pytest
 
 from eegprep.functions.popfunc.pop_comments import pop_comments
 from tests.eeglab_tests import eeglab_test
@@ -50,17 +52,31 @@ def test_reference_comments_concatenation(eeglab_backend):
     npt.assert_array_equal(result, _source_strvcat(*old, *new))
 
 
+def _reference_step(label: str) -> None:
+    # A killed runner never flushes pytest's capture.
+    os.write(1, f"pop_comments workflow: {label}\n".encode())
+
+
 @eeglab_test("unittesting_popfunc/pop_comments/popfunc_pop_comments_wrapperTest.m", "test_test_pop_comments")
 def test_reference_comments_original_workflow(eeglab_backend, eeglab_suite_root):
     for old in ("", "another "):
         new = "test pass!"
+        _reference_step(f"replace {old!r}")
         new = eeglab_backend("pop_comments", old, "Testing!", new, 0.0)
+        _reference_step(f"concat {old!r}")
         new = eeglab_backend("pop_comments", old, "Testing!", new, 1.0)
     new = np.array([["test pass!", "pass again!"]], dtype=object)
+    _reference_step("cell replace")
     new = eeglab_backend("pop_comments", "another ", "Testing!", new, 0.0)
+    _reference_step("cell concat")
     new = eeglab_backend("pop_comments", "another ", "Testing!", new, 1.0)
-    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
+    dataset = eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"
+    if not dataset.is_file():
+        pytest.fail(f"sample dataset missing: {dataset}", pytrace=False)
+    _reference_step("pop_loadset")
+    eeg = eeglab_backend("pop_loadset", str(dataset))
     for concatenate in (1.0, 0.0):
+        _reference_step(f"dataset concat {concatenate}")
         eeg["comments"] = eeglab_backend(
             "pop_comments",
             eeg["comments"],
