@@ -33,7 +33,6 @@ SAMPLE_ICA_SET = REPO_ROOT / "sample_data" / "eeglab_data_with_ica_tmp.set"
 # Packages that only an extra provides and that a base install must run without.
 OPTIONAL_PACKAGES = ["psutil", "oct2py", "pyedflib", "onnxruntime", "torch", "onnx"]
 
-# Import name -> PyPI distribution name, where the two differ.
 DISTRIBUTION_OF_IMPORT = {
     "IPython": "ipython",
     "PySide6": "pyside6",

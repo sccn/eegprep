@@ -239,8 +239,6 @@ def test_native_parity_report_feeds_the_comparison(tmp_path, capsys):
     assert native["model_sha256"] == hashlib.sha256(packaged_model.read_bytes()).hexdigest()
     assert native["shape"] == [32, 7]
 
-    # A second report from an independently perturbed copy of the real classifications:
-    # a difference inside the tolerance passes, one beyond it fails.
     values = np.asarray(native["classifications"], dtype=np.float64)
     within = {**native, "platform": "pyodide", "classifications": (values + 1e-6).tolist()}
     beyond = {**native, "platform": "pyodide", "classifications": (values + 1e-3).tolist()}

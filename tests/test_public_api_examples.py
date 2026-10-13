@@ -69,8 +69,7 @@ def test_public_api_and_plugins_example_runs() -> None:
 
 # One illustration script per user guide section. These run for real against
 # sample_data/, so a failure here means the documented workflow is broken.
-# plot_reject_artifacts.py calls ICLabel, which needs the iclabel extra and raises
-# ImportError without it rather than skipping; install eegprep[iclabel] to run.
+# plot_reject_artifacts.py runs ICLabel, so it needs the iclabel extra (eegprep[iclabel]).
 USER_GUIDE_EXAMPLES = (
     "plot_quickstart_tour.py",
     "plot_data_structures.py",
@@ -129,8 +128,7 @@ def test_setuptools_package_data_covers_runtime_resources() -> None:
     } <= packaged
     assert "eeglab/**" in excluded
     assert not any(path.startswith("eeglab/") for path in packaged)
-    # netICL.mat is the MATLAB source of the ICLabel weights. It is only read to regenerate
-    # iclabel.onnx, so it must not ship (verified against built wheel and sdist).
+    # netICL.mat is only read to regenerate iclabel.onnx, so it must not ship.
     assert not any(path.endswith("netICL.mat") for path in packaged)
 
 

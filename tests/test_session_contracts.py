@@ -179,9 +179,6 @@ def test_dataset_state_token_detects_memmap_data_mutation(tmp_path):
     assert session.dataset_state_token() != token
 
 
-# Values other than dicts, lists, tuples, and arrays are hashed through repr(), so an
-# in-place edit that leaves repr() unchanged, such as changing a stored value of a
-# scipy.sparse matrix, is not detected.
 def test_dataset_state_token_detects_edits_in_the_iclabel_classes_object_array(sample_ica_eeg):
     session = EEGPrepSession()
     session.store_current(iclabel(sample_ica_eeg), new=True)

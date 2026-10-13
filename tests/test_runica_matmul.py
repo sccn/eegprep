@@ -41,8 +41,7 @@ def test_runica_runs_its_training_products_through_dgemm_on_emscripten(monkeypat
             calls["dgemm"] += 1
             return dgemm(**kwargs)
 
-        # Patching after the import also shows that runica looks the backend up at
-        # call time, which test_runica_blas_backend_matches_numpy_backend relies on.
+        # Patching after the reload also shows that runica looks the backend up at call time.
         monkeypatch.setattr(selected, "runica_matmul", count_backend)
         monkeypatch.setattr(selected, "_dgemm", count_dgemm)
         data = np.random.default_rng(385).standard_normal((3, 100))

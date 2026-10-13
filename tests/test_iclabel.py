@@ -71,9 +71,8 @@ def test_sync_entry_points_fail_fast_under_emscripten(emscripten_iclabel):
 
 
 def test_emscripten_iclabel_never_imports_onnxruntime():
-    # A fresh interpreter that imports ICLabel as Pyodide would. The probe has
-    # no JavaScript host, so the browser bridge call itself fails; what matters
-    # is that neither entry point reached for native onnxruntime first.
+    # The probe has no JavaScript host, so the bridge call itself fails; what matters
+    # is that neither entry point imported native onnxruntime first.
     output = _run_python(
         f"""
         import asyncio
@@ -197,13 +196,11 @@ def test_eeglab_engines_are_unavailable_under_emscripten(sample_ica_eeg, emscrip
 
 
 # Shipped int8 model versus the float32 network on eeglab_data_with_ica_tmp.set
-# (32 components), measured with ONNX Runtime 1.30.0 and PyTorch 2.12.0: max
-# abs diff 0.0079, mean 0.00061, identical argmax and default pop_icflag
-# decisions, with the closest top-two margin at 0.019 and the closest Eye
-# probability 0.062 away from its 0.9 threshold. The frozen gate accepts up to
-# 0.015 on its 217 evaluation components (measured 0.0135, mean 0.0008). These
-# bounds are tighter than the gate yet above the measured drift by far more
-# than the ~1e-6 float32 differences between CPUs.
+# (32 components), measured with ONNX Runtime 1.30.0 and PyTorch 2.12.0: max abs diff 0.0079,
+# mean 0.00061, identical argmax and default pop_icflag decisions (closest top-two margin 0.019,
+# closest Eye probability 0.062 from its 0.9 threshold). The frozen quantization gate allows up to
+# 0.015 on its 217 evaluation components, so these bounds are tighter than the gate while leaving
+# far more room than the ~1e-6 float32 differences between CPUs.
 _INT8_MAX_ABS_DIFF = 1e-2
 _INT8_MEAN_ABS_DIFF = 1e-3
 
@@ -273,11 +270,9 @@ class TestICLabelEngines(unittest.TestCase):
         print(f"Python autocorr max: {np.max(features_python[2]):.6f}, min: {np.min(features_python[2]):.6f}")
         print(f"{'=' * 60}\n")
 
-        # MATLAB runs the float32 network and iclabel() the shipped int8 one.
-        # MATLAB matched the Python float32 network within 3.37e-06 on this
-        # dataset, so by the triangle inequality the int8 drift bounds above
-        # still hold, and the class and keep-or-reject margins (0.019 and 0.062)
-        # exceed twice that drift, so those decisions must agree exactly.
+        # MATLAB runs the float32 network and iclabel() the shipped int8 one. MATLAB matched the
+        # Python float32 network within 3.37e-06 on this dataset, so the int8 drift bounds above
+        # still hold and the class and keep-or-reject decisions (margins 0.019 and 0.062) must agree.
         EEG_matlab = iclabel(self.EEG, algorithm='default', engine='matlab')
 
         res1 = iclabel(self.EEG)['etc']['ic_classification']['ICLabel']['classifications']
