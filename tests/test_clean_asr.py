@@ -6,8 +6,11 @@ processing switches.
 """
 
 import unittest
+from pathlib import Path
+
 import numpy as np
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 
 
@@ -37,6 +40,26 @@ class TestCleanASRParameters(unittest.TestCase):
         """Test that unsupported full Riemannian ASR processing fails clearly."""
         with self.assertRaisesRegex(ValueError, "full Riemannian ASR processing is not ported"):
             clean_asr(self.test_eeg, useriemannian=True)
+
+
+def test_short_recording_calibration_is_not_the_whole_recording():
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    data = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
+    pnts = int(data.shape[1])
+    eeg = {
+        "data": data,
+        "srate": float(source["srate"]),
+        "nbchan": int(data.shape[0]),
+        "pnts": pnts,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (pnts - 1) / float(source["srate"]),
+        "event": [],
+    }
+    windowed = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
+    whole = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    assert windowed["data"].shape == data.shape
+    assert np.max(np.abs(windowed["data"] - whole["data"])) > 50.0
 
 
 if __name__ == '__main__':

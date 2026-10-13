@@ -92,5 +92,53 @@ class TestCleanWindows(unittest.TestCase):
         self.assertEqual(EEG_out['data'].dtype, EEG_in['data'].dtype)
 
 
+def _eeg(data: np.ndarray, srate: float = 128.0) -> dict:
+    pnts = int(data.shape[1])
+    return {
+        "data": np.array(data, dtype=np.float64, copy=True),
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": pnts,
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (pnts - 1) / srate,
+        "event": [],
+    }
+
+
+def test_unidentified_window_fit_keeps_median_mad_scale():
+    """Two windows do not identify a positive fit scale.
+
+    The louder window's robust z-score stays below 2, so it is kept. Treating
+    a zero fit scale as infinite would reject it.
+    """
+    from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
+
+    mu, sig, *_rest = fit_eeg_distribution(np.array([]))
+    assert not np.isfinite(mu)
+    assert not np.isfinite(sig)
+
+    samples = 180
+    data = np.ones((4, samples), dtype=np.float64)
+    data[:, 44:172] += 50.0
+    _cleaned, mask = clean_windows(_eeg(data), 0.075, (-3.5, 2.0), 1.0)
+    assert mask.shape == (samples,)
+    assert mask.all()
+
+
+def test_short_calibration_still_drops_a_high_power_window():
+    from pathlib import Path
+
+    from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    data = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
+    _cleaned, mask = clean_windows(_eeg(data), 0.075, (-3.5, 5.5), 1.0)
+    assert int(mask.sum()) == 128
+    assert mask[:87].all()
+    assert not mask[87:215].any()
+    assert mask[215:].all()
+
+
 if __name__ == '__main__':
     unittest.main()
