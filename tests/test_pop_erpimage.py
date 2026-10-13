@@ -311,6 +311,49 @@ def test_numeric_event_types_are_matched_by_value(requested) -> None:
     np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
 
 
+@pytest.mark.parametrize("plot", ["maybe", None, 1])
+def test_an_invalid_plot_flag_raises_before_drawing(plot) -> None:
+    before = plt.get_fignums()
+    with pytest.raises(ValueError, match="plot must be 'on'/'off'"):
+        pop_erpimage(create_erpimage_epochs(), 1, 1, plot=plot)
+    assert plt.get_fignums() == before
+
+
+def test_history_names_a_copy_of_the_dataset_locations_as_the_dataset_locations(epochs) -> None:
+    _result, command = pop_erpimage(epochs, 1, 14, topo=(14, deepcopy(epochs["chanlocs"])), plot="off", return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 14, smooth=5, decimate=0, topo=(14, EEG['chanlocs']))"
+
+
+@pytest.mark.parametrize(("field", "value"), [("icaweights", None), ("icasphere", np.array([])), ("icaweights", [])])
+def test_components_need_ica_weights_and_sphere(epochs, field, value) -> None:
+    eeg = deepcopy(epochs)
+    eeg[field] = value
+    with pytest.raises(ValueError, match="no ICA data for this set, first run ICA"):
+        pop_erpimage(eeg, 0, 1, noshow=True)
+
+
+def test_sorting_needs_epoch_numbers_in_the_events() -> None:
+    eeg = create_erpimage_epochs()
+    for event in eeg["event"]:
+        del event["epoch"]
+    with pytest.raises(ValueError, match="events have no 'epoch' field; epoch the data before sorting by events"):
+        pop_erpimage(eeg, 1, 1, sortingeventfield="latency", noshow=True)
+
+
+def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
+    eeg = create_erpimage_epochs()
+    eeg["chanlocs"][1]["theta"] = np.nan
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        unlocated = pop_erpimage(eeg, 1, 2, plot="off")
+    assert len(unlocated.axhndls) == 5
+    assert "channel 2 has no location, so the scalp map is left out" in caplog.text
+    assert len(pop_erpimage(eeg, 1, 1, plot="off").axhndls) == 6
+    components = deepcopy(epochs)
+    for location in components["chanlocs"]:
+        location["theta"] = np.nan
+    assert len(pop_erpimage(components, 0, 6, plot="off").axhndls) == 5
+
+
 def test_several_components_need_a_projection_channel(epochs) -> None:
     with pytest.raises(ValueError, match="select a channel to plot the sum of several component projections"):
         pop_erpimage(epochs, 0, [1, 2], noshow=True)

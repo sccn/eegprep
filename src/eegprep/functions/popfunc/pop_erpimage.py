@@ -92,6 +92,7 @@ def pop_erpimage(
         return (None, "") if return_com else None
     typeplot = _plot_type(typeplot)
     _check_dataset(EEG, typeplot)
+    show_figures(None, plot=plot)  # rejects an invalid 'plot' before anything is drawn
     if gui is None:
         gui = channel is None
     if gui:
@@ -118,7 +119,6 @@ def pop_erpimage(
         if "title" in settings
         else titleplot or _default_title(EEG, typeplot, channels, projection)
     )
-    result = erpimage(data, sortvar, times, title, smooth, decimate, target=target, rng=rng, **settings)
     command = _history_command(
         EEG,
         typeplot,
@@ -136,6 +136,7 @@ def pop_erpimage(
         plotmap=plotmap,
         rng=rng,
     )
+    result = erpimage(data, sortvar, times, title, smooth, decimate, target=target, rng=rng, **settings)
     # A caller's target figure is the caller's to show or close.
     show_figures(None if target is not None else result.figure, plot=plot)
     return (result, command) if return_com else result
@@ -148,10 +149,14 @@ def _plot_type(typeplot: Any) -> int:
 
 
 def _check_dataset(EEG: dict[str, Any], typeplot: int) -> None:
-    if not typeplot and np.asarray(EEG.get("icaweights", [])).size == 0:
-        raise ValueError("pop_erpimage(): no ICA data for this dataset; run ICA first")
+    if not typeplot and not all(_is_matrix(EEG.get(name)) for name in ("icaweights", "icasphere")):
+        raise ValueError("pop_erpimage(): no ICA data for this set, first run ICA")
     if int(EEG.get("trials", 1) or 1) <= 1:
         raise ValueError("pop_erpimage(): an ERP image needs epoched data with more than one trial")
+
+
+def _is_matrix(value: Any) -> bool:
+    return value is not None and np.asarray(value).ndim == 2 and np.asarray(value).size > 0
 
 
 def _plotmap_flag(value: Any) -> bool:
@@ -246,6 +251,8 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
         raise ValueError("pop_erpimage(): the dataset has no events to sort the trials by")
     if not any(field in event for event in events):
         raise ValueError(f"pop_erpimage(): events have no '{field}' field to sort the trials by")
+    if trials > 1 and not any("epoch" in event for event in events):
+        raise ValueError("pop_erpimage(): events have no 'epoch' field; epoch the data before sorting by events")
     types = [sortingtype] if isinstance(sortingtype, str) else _event_types(sortingtype)
     window = _number_list(sortingwin, "sortingwin")
     if window.size not in (0, 2):
@@ -325,21 +332,27 @@ def _default_options(
 def _scalp_map(EEG: dict[str, Any], typeplot: int, channels: list[int]) -> tuple[Any, list[dict[str, Any]]] | None:
     """The channel's location or the (mean) component map, when the channels have locations."""
     chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
-    if not _has_locations(chanlocs):
+    if not any(_located(location) for location in chanlocs):
         return None
     if not typeplot:
         maps, map_chanlocs = component_map_data(EEG)
+        if not any(_located(location) for location in map_chanlocs):
+            logger.warning("pop_erpimage(): the ICA channels have no locations, so the scalp map is left out.")
+            return None
         return np.mean(maps[:, np.asarray(channels) - 1], axis=1), map_chanlocs
     if len(channels) > 1:
         logger.info(
             "pop_erpimage(): the scalp map marks one channel, so it is left out for %d channels.", len(channels)
         )
         return None
+    if not _located(chanlocs[channels[0] - 1]):
+        logger.warning("pop_erpimage(): channel %d has no location, so the scalp map is left out.", channels[0])
+        return None
     return channels[0], chanlocs
 
 
-def _has_locations(chanlocs: list[dict[str, Any]]) -> bool:
-    return any(_converts_to_float(location.get("theta")) for location in chanlocs)
+def _located(location: dict[str, Any]) -> bool:
+    return _converts_to_float(location.get("theta")) and bool(np.isfinite(float(location["theta"])))
 
 
 def _default_title(EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any]) -> str:
@@ -363,10 +376,10 @@ def _history_command(
     rng: Any,
 ) -> str:
     """Replayable Python call; empty arguments and the default decorations are omitted."""
-    pieces = ["EEG", str(typeplot), python_literal(_plain(channel))]
+    pieces = ["EEG", str(typeplot), python_literal(channel)]
     for name, value in arguments.items():
         if name in {"smooth", "decimate"} or not _is_empty(value):
-            pieces.append(f"{name}={python_literal(_plain(value))}")
+            pieces.append(f"{name}={python_literal(value)}")
     for name, value in options.items():
         pieces.append(f"{name}={_option_literal(EEG, name, value)}")
     if not plotmap:
@@ -374,17 +387,6 @@ def _history_command(
     if isinstance(rng, (int, np.integer)) and not isinstance(rng, bool):
         pieces.append(f"rng={int(rng)}")
     return f"pop_erpimage({', '.join(pieces)})"
-
-
-def _plain(value: Any) -> Any:
-    """Arrays and NumPy scalars as Python lists and numbers for the history literal."""
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, (list, tuple)):
-        return type(value)(_plain(item) for item in value)
-    return value
 
 
 def _is_empty(value: Any) -> bool:
@@ -396,11 +398,17 @@ def _is_empty(value: Any) -> bool:
 
 
 def _option_literal(EEG: dict[str, Any], name: str, value: Any) -> str:
-    if name == "topo" and isinstance(value, (list, tuple)) and len(value) >= 2:
-        chanlocs = value[1]
-        if chanlocs is EEG.get("chanlocs") or chanlocs == chanlocs_as_list(EEG.get("chanlocs", [])):
-            return f"({python_literal(_plain(value[0]))}, EEG['chanlocs'])"
-    return python_literal(_plain(value))
+    """Python literal of an option; a scalp map drawn on the dataset's channels names ``EEG['chanlocs']``."""
+    if name == "topo" and isinstance(value, (list, tuple)) and len(value) >= 2 and _same_channels(value[1], EEG):
+        return f"({python_literal(value[0])}, EEG['chanlocs'])"
+    return python_literal(value)
+
+
+def _same_channels(chanlocs: Any, EEG: dict[str, Any]) -> bool:
+    def labels(locations: Any) -> list[str]:
+        return [str(location.get("labels")) for location in chanlocs_as_list(locations)]
+
+    return chanlocs is EEG.get("chanlocs") or labels(chanlocs) == labels(EEG.get("chanlocs", []))
 
 
 def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> DialogSpec:
