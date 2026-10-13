@@ -5,8 +5,10 @@ function pop_erpimage_fixtures(eeglab_root, sample_set, output_file)
 % ICA activity is recomputed, as the Python test does, so the comparison is not
 % limited by single precision. Only EEGLAB function folders are added; eeglab.m
 % is never run and no option file is read or written. To keep the committed file
-% small, the image is stored as row sums and three frames; sortvar is EEGLAB's
-% eeg_getepochevent output, from which sortidx (into the trials kept) is mapped.
+% small, the image is stored as row sums, frame-weighted row sums (which change
+% when frames are reordered) and three frames, and the ERP as its sum, weighted
+% sum and three frames; sortvar is EEGLAB's eeg_getepochevent output, from which
+% sortidx (into the trials kept) is mapped.
 % Regenerate from a headless MATLAB session:
 % pop_erpimage_fixtures('/path/to/eeglab', ...
 %     '/path/to/sample_data/eeglab_data_epochs_ica.set', ...
@@ -57,9 +59,11 @@ for i = 1:numel(S)
     record.sortidx = uint16(res{14});
     record.frames = frames;
     record.outdata_rows = sum(outdata, 1);
+    record.outdata_weighted = (1:size(outdata, 1)) * outdata;
     record.outdata_frames = outdata(frames, :);
     record.erp_frames = res{6}(frames);
     record.erp_sum = sum(res{6});
+    record.erp_weighted = (1:numel(res{6})) * res{6}(:);
     out.(name) = record;
 end
 save(output_file, '-struct', 'out', '-v7');

@@ -555,10 +555,17 @@ def _assert_scenario(fixture: dict, name: str, eeg: dict) -> None:
     np.testing.assert_array_equal(result.sortidx, expected_order, err_msg=f"{name} sortidx")
     rows = result.outdata.sum(axis=0)
     np.testing.assert_allclose(rows, record["outdata_rows"].ravel(), rtol=0, atol=RTOL * scale * eeg["pnts"])
+    weights = np.arange(1, result.outdata.shape[0] + 1)
+    weighted_tolerance = RTOL * scale * eeg["pnts"] ** 2
+    np.testing.assert_allclose(
+        weights @ result.outdata, record["outdata_weighted"].ravel(), rtol=0, atol=weighted_tolerance
+    )
     frames = record["frames"].ravel().astype(int) - 1
     np.testing.assert_allclose(result.outdata[frames], record["outdata_frames"], rtol=0, atol=RTOL * scale)
     np.testing.assert_allclose(result.erp.ravel()[frames], record["erp_frames"].ravel(), rtol=0, atol=RTOL * scale)
     np.testing.assert_allclose(result.erp.sum(), float(record["erp_sum"].ravel()[0]), atol=RTOL * scale * eeg["pnts"])
+    erp_weighted = float(record["erp_weighted"].ravel()[0])
+    np.testing.assert_allclose(weights @ result.erp.ravel(), erp_weighted, rtol=0, atol=weighted_tolerance)
 
 
 PARITY_SCENARIOS = ["channel_rt", "label_position_renorm", "channels_window", "component", "projected"]
