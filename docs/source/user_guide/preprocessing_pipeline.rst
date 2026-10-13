@@ -318,19 +318,20 @@ Two-condition comparisons (contrasting two datasets in a single figure) are not
 yet part of the standalone wrapper.
 
 Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
-``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
-``pop_erpimage`` for channel or component images, with EEGLAB's arguments:
+``pop_newtimef`` and ``pop_newcrossf`` implementations.
+ERP-image workflows use ``pop_erpimage`` for channel or component images of epoched data
+(see `Epoch and Baseline`_ below), with EEGLAB's arguments:
 
 .. code-block:: python
 
    from eegprep import pop_erpimage
 
-   # Channel Cz, sorted by reaction-time latency, smoothed over 10 trials.
+   # Channel Cz of epoched data, sorted by reaction-time latency, smoothed over 10 trials.
    result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
 
-``pop_erpimage`` draws the ERP trace, a colorbar and a scalp map by default and
-accepts every :func:`~eegprep.erpimage` option, such as phase sorting or
-inter-trial coherence. See :ref:`gui_tutorials` for the dialog.
+``pop_erpimage`` draws the ERP trace, a colorbar and a scalp map by default,
+and accepts every :func:`~eegprep.erpimage` option, such as phase sorting or inter-trial coherence.
+See :ref:`gui_tutorials` for the dialog.
 
 GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
 returns replayable Python history commands for these wrappers.

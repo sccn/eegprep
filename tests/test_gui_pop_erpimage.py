@@ -355,7 +355,7 @@ def test_dialog_lists_mixed_event_types_as_text() -> None:
 def test_dialog_rescale_needs_a_sorting_field(epochs) -> None:
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer({"renorm": "yes"}), noshow=True, return_com=True)
     assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True)"
-    for renorm in ("No", ""):  # pop_erpimage.m compares with strcmpi(res.renorm, 'no'); blank keeps no rescaling
+    for renorm in ("No", ""):  # EEGLAB passes 'No' on and erpimage.m lowercases it; blank means no rescaling
         assert "renorm" not in _command(epochs, {"field": "latency", "type": "rt", "renorm": renorm})
 
 

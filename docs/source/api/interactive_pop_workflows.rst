@@ -151,13 +151,14 @@ Plotting and Review
    eegprep.pop_topoplot
 
 ``pop_erpimage`` follows EEGLAB's ``pop_erpimage`` arguments
-(``typeplot, channel, projchan, titleplot, smooth, decimate, sortingtype,
-sortingwin, sortingeventfield`` and then any ``erpimage`` option), sorts the
-trials by event values with ``eeg_getepochevent``, and returns the
-``erpimage`` result described under :ref:`erpimage_api`. Unlike ``erpimage``,
-it draws the ERP trace, a colorbar and a scalp map by default.
+(``typeplot, channel, projchan, titleplot, smooth, decimate, sortingtype, sortingwin, sortingeventfield``
+and then any ``erpimage`` option),
+sorts the trials by event values with ``eeg_getepochevent``,
+and returns the ``erpimage`` result described under :ref:`erpimage_api`.
+Unlike ``erpimage``, it draws the ERP trace, a colorbar and a scalp map by default.
 Its ``lastcom=`` keyword reopens the dialog with an earlier history command,
 as the ``Plot`` menu does.
+
 ``newtimef`` accepts EEGLAB's default ``outputformat='plot'`` option; other
 output layouts are not yet implemented.
 

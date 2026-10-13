@@ -77,27 +77,35 @@ def pop_erpimage(
     return_com: bool = False,
     **kwargs: Any,
 ) -> ErpimageResult | tuple[ErpimageResult | None, str] | None:
-    """Plot an ERP image of channel or component activity, as EEGLAB ``pop_erpimage``.
+    """EEGLAB-style ``pop_erpimage``: an event-related potential (ERP) image of a channel or component.
 
-    The positional arguments follow EEGLAB: ``typeplot`` is 1 for channels and
-    0 for components, ``channel`` the 1-based channel(s) (numbers or labels)
-    or component(s), ``projchan`` the channel(s) to back-project components
-    onto, then the title, the moving-average width ``smooth`` (trials; 5 by
-    default), the window advance ``decimate`` (0 by default), and the events
-    that sort the trials:
-    ``sortingtype`` (event types), ``sortingwin`` ([start end] in ms) and
-    ``sortingeventfield`` (for example ``'latency'``). Remaining arguments are
-    :func:`~eegprep.erpimage` options, as EEGLAB tokens or keywords
-    (``'phasesort', [0, 25, 10]`` or ``phasesort=[0, 25, 10]``).
+    Single trials are stacked as rows, sorted by an event value and smoothed
+    across trials, with the ERP underneath. Remaining positional arguments are
+    :func:`~eegprep.erpimage` options as EEGLAB tokens, which can follow only
+    after all ten positional arguments (``'phasesort', [0, 25, 10]``); keyword
+    options work anywhere (``phasesort=[0, 25, 10]``). Unlike a bare
+    ``erpimage`` call (and EEGLAB's command line), the ERP trace, the colorbar
+    and the scalp map are on by default.
 
-    Unlike a bare ``erpimage`` call, the ERP trace, the colorbar and the scalp
-    map are on by default, as in the dialog; turn them off with ``erp=False``,
-    ``cbar=False`` or ``plotmap=False``. Without ``channel`` (or with
-    ``gui=True``) the dialog opens, filled with the given arguments and
-    options; its values then replace them. Options no dialog field can show
-    (for example ``topo`` with its own channel locations) are applied as given.
+    Without ``channel`` (or with ``gui=True``) the dialog opens, filled with
+    the given arguments and options; its values then replace them. Options no
+    dialog field can show (for example ``topo`` with its own channel
+    locations) are applied as given.
 
     Args:
+        EEG: epoched dataset with more than one trial.
+        typeplot: 1 for channels, 0 for independent component analysis (ICA) components.
+        channel: 1-based channel numbers, ranges or labels (several are
+            averaged), or component numbers.
+        projchan: channels to back-project the components onto (ignored for channels).
+        titleplot: figure title; EEGLAB's default title when empty.
+        smooth: moving-average width in trials; 5 by default, and the dialog
+            starts at the number of trials minus 5, kept between 0 and 10.
+        decimate: window advance in trials; 0 by default, 1 in the dialog.
+        sortingtype: event types to sort by; a string is one type.
+        sortingwin: ``[start end]`` event window in ms.
+        sortingeventfield: event field to sort by, for example ``'latency'``.
+        *options: EEGLAB-style ``erpimage`` tokens.
         gui: open the dialog; defaults to an empty ``channel``.
         renderer: dialog renderer used instead of the Qt dialog.
         plot: ``'off'`` builds the figure without displaying it.
@@ -105,15 +113,24 @@ def pop_erpimage(
         rng: seed or NumPy random generator for the coherence bootstrap and
             the ``erpalpha`` permutations; only an integer seed is written to
             the history command.
-        lastcom: an earlier ``pop_erpimage`` history command whose arguments
-            fill the dialog, as EEGLAB's ``lastcom``; pass no other arguments
-            with it.
+        lastcom: an earlier ``pop_erpimage`` history command, as EEGLAB's
+            ``lastcom``. Its arguments, options and integer seed fill the
+            dialog (or are replayed with ``gui=False``); the ``typeplot``
+            argument wins over the one in the command.
         return_com: also return the Python history command.
+        **kwargs: ``erpimage`` keyword options, plus ``plotmap`` (True/False,
+            ``'on'``/``'off'`` or 1/0) for the scalp map.
 
     Returns:
         The :class:`~eegprep.functions.sigprocfunc.erpimage.ErpimageResult`, or
         ``(result, command)`` with ``return_com=True``; ``None`` (or
         ``(None, "")``) when the dialog is cancelled.
+
+    Raises:
+        ValueError: the dataset or a selection cannot be used, an ``erpimage``
+            option landed in ``projchan`` or ``titleplot``, ``lastcom`` is not
+            a ``pop_erpimage`` command or comes with other arguments, no epoch
+            has a matching sorting event, or a dialog entry is invalid.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -780,6 +797,10 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
             "The component dialog's projection-channel picker is enabled (EEGLAB disables it).",
             "The event-type reminder names the epoch-sorting field (EEGLAB's text says 'event type').",
             "More options is filled from the call or the restored command (EEGLAB leaves it empty).",
+            "Event time range takes exactly two values.",
+            "The previous command is passed as the lastcom keyword (EEGLAB passes it in place of the channel).",
+            "The ERP trace, colorbar and scalp map are also on from the command line.",
+            "The scalp map carries no chaninfo, and the figure keeps Matplotlib's window name and colors.",
         ),
         extra_stylesheet="""
             QDialog#pop_erpimage QLabel,
