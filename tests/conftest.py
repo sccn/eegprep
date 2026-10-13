@@ -366,6 +366,7 @@ VISUAL_FILE_SUFFIXES = ("tests/test_visual_parity.py",)
 
 GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_clean_rawdata.py",
+    "tests/test_gui_pop_erpimage.py",
     "tests/test_gui_pop_firfilt.py",
     "tests/test_gui_pop_iclabel.py",
     "tests/test_gui_pop_prop_extended.py",

@@ -1,248 +1,614 @@
-"""EEGLAB-style ERP image wrapper."""
+"""EEGLAB ``pop_erpimage``: ERP image of a channel or component, with its dialog."""
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
+from eegprep.functions.popfunc._event_utils import events_as_list
+from eegprep.functions.popfunc.eeg_getepochevent import eeg_getepochevent
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
-    component_activations,
-    component_maps,
+    component_map_data,
     eeg_epoch_data,
-    eeg_times_ms,
-    history_command,
-    numeric_vector,
     parse_plot_options_text,
+    python_literal,
     show_figures,
 )
-from eegprep.functions.popfunc._pop_utils import is_on
-from eegprep.functions.sigprocfunc.erpimage import erpimage
+from eegprep.functions.sigprocfunc.erpimage import ErpimageResult, erpimage
+from eegprep.functions.sigprocfunc.erpimage_engine import erpimage_option_items
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_SMOOTH = 5
+DEFAULT_DECIMATE = 0
+DIALOG_DECIMATE = 1
+MAX_DIALOG_SMOOTH = 10
+MICROVOLT_LABEL = "\\muV"
+NO_RENORM = "no"
 
 
 def pop_erpimage(
     EEG: dict[str, Any] | None = None,
     typeplot: int = 1,
-    index: int | None = None,
-    *args: Any,
+    channel: Any = None,
+    projchan: Any = None,
+    titleplot: str = "",
+    smooth: Any = DEFAULT_SMOOTH,
+    decimate: Any = DEFAULT_DECIMATE,
+    sortingtype: Any = None,
+    sortingwin: Any = None,
+    sortingeventfield: str = "",
+    *options: Any,
     gui: bool | None = None,
     renderer: Any | None = None,
     plot: str | bool = "on",
+    target: Any = None,
+    rng: Any = None,
     return_com: bool = False,
     **kwargs: Any,
-):
-    """Plot an ERP image for one channel or component.
+) -> ErpimageResult | tuple[ErpimageResult | None, str] | None:
+    """Plot an ERP image of channel or component activity, as EEGLAB ``pop_erpimage``.
 
-    Pass ``plot='off'`` to build and return the figure without opening a window.
+    The positional arguments follow EEGLAB: ``typeplot`` is 1 for channels and
+    0 for components, ``channel`` the 1-based channel(s) (numbers or labels)
+    or component(s), ``projchan`` the channel(s) to back-project components
+    onto, then the title, the moving-average width ``smooth`` (trials), the
+    window advance ``decimate``, and the events that sort the trials:
+    ``sortingtype`` (event types), ``sortingwin`` ([start end] in ms) and
+    ``sortingeventfield`` (for example ``'latency'``). Remaining arguments are
+    :func:`~eegprep.erpimage` options, as EEGLAB tokens or keywords
+    (``'phasesort', [0, 25, 10]`` or ``phasesort=[0, 25, 10]``).
+
+    Unlike a bare ``erpimage`` call, the ERP trace, the colorbar and the scalp
+    map are on by default, as in the dialog; turn them off with ``erp=False``,
+    ``cbar=False`` or ``plotmap=False``. Without ``channel`` (or with
+    ``gui=True``) the dialog opens.
+
+    Args:
+        gui: open the dialog; defaults to ``channel is None``.
+        renderer: dialog renderer used instead of the Qt dialog.
+        plot: ``'off'`` builds the figure without displaying it.
+        target: Matplotlib Figure or SubFigure to draw into.
+        rng: seed or NumPy random generator for the coherence bootstrap and
+            the ``erpalpha`` permutations.
+        return_com: also return the Python history command.
+
+    Returns:
+        The :class:`~eegprep.functions.sigprocfunc.erpimage.ErpimageResult`, or
+        ``(result, command)`` with ``return_com=True``; ``None`` (or
+        ``(None, "")``) when the dialog is cancelled.
     """
     if EEG is None:
         return (None, "") if return_com else None
-    typeplot = int(typeplot)
+    typeplot = _plot_type(typeplot)
+    _check_dataset(EEG, typeplot)
     if gui is None:
-        gui = index is None
+        gui = channel is None
     if gui:
-        result = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
-        if result is None:
+        call = _run_gui(EEG, typeplot=typeplot, renderer=renderer)
+        if call is None:
             return (None, "") if return_com else None
-        index = result["index"]
-        kwargs.update(result["options"])
-    if index is None:
-        index = 1
-    _raise_for_unsupported_kwargs(kwargs)
-    command_kwargs = dict(kwargs)
-    projchan = kwargs.pop("projchan", None)
-    plotmap = bool(kwargs.pop("plotmap", True))
-    values = _erpimage_values(EEG, typeplot, int(index), projchan=projchan)
-    times = eeg_times_ms(EEG)
-    sort_values = kwargs.pop("sort_values", None)
-    sorting_field = kwargs.pop("sortingeventfield", kwargs.pop("field", ""))
-    sorting_type = kwargs.pop("sortingtype", kwargs.pop("type", []))
-    sorting_window = kwargs.pop("sortingwin", kwargs.pop("eventrange", []))
-    renorm = kwargs.pop("renorm", "no")
-    if sorting_field:
-        sort_values = _event_sort_values(EEG, sorting_field, sorting_type, sorting_window, renorm)
-    if is_on(kwargs.pop("nosort", False)):
-        sort_values = None
-    kwargs.pop("noplot", None)
-    align = numeric_vector(kwargs.pop("align", []))
-    if align.size:
-        raise ValueError("pop_erpimage event alignment is not exposed by pop_erpimage; call erpimage directly")
-    limits = numeric_vector(kwargs.pop("limits", []))
-    if limits.size == 2:
-        mask = (times >= limits[0]) & (times <= limits[1])
-        if not np.any(mask):
-            raise ValueError("limits do not contain any samples")
-        values = values[mask, :]
-        times = times[mask]
-    chan_locs, channel_index = _scalp_map_arguments(EEG, typeplot, int(index), plotmap=plotmap)
-    options: dict[str, Any] = {
-        "erp": bool(kwargs.pop("erp", True)),
-        "cbar": bool(kwargs.pop("cbar", True)),
-        # EEGLAB's dialog labels channel and projected ERPs in microvolts, component activity unitless.
-        "yerplabel": "\\muV" if typeplot or numeric_vector(projchan).size else "",
-    }
-    caxis = numeric_vector(kwargs.pop("caxis", []))
-    if caxis.size:
-        options["caxis"] = caxis
-    vert = numeric_vector(kwargs.pop("vert", []))
-    if vert.size:
-        options["vert"] = vert
-    if chan_locs is not None:
-        options["topo"] = (channel_index, chan_locs)
-    result = erpimage(
-        values,
-        sort_values,
-        times,
-        str(kwargs.pop("title", _default_title(typeplot, int(index), projchan=projchan))),
-        _first_int(kwargs.pop("smooth", None), default=1),
-        _first_int(kwargs.pop("decimate", None), default=1),
-        **options,
+        channel, projchan, titleplot = call["channel"], call["projchan"], call["titleplot"]
+        smooth, decimate = call["smooth"], call["decimate"]
+        sortingtype, sortingwin, sortingeventfield = call["sortingtype"], call["sortingwin"], call["sortingeventfield"]
+        kwargs = {**kwargs, **call["options"]}
+    plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
+    user_options = dict(erpimage_option_items(options, **kwargs))
+    channels = _selected_items(EEG, channel, typeplot)
+    projection = _projection_channels(projchan)
+    if not typeplot and len(channels) > 1 and not projection:
+        raise ValueError("pop_erpimage(): select a channel to plot the sum of several component projections")
+    data = _activity(EEG, typeplot, channels, projection)
+    times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
+    sortvar = _sorting_variable(EEG, sortingtype, sortingwin, sortingeventfield)
+    settings = {**_default_options(EEG, typeplot, channels, projection, plotmap=plotmap), **user_options}
+    title = (
+        settings.pop("title")
+        if "title" in settings
+        else titleplot or _default_title(EEG, typeplot, channels, projection)
     )
-    command = history_command("pop_erpimage", typeplot, int(index), **command_kwargs)
-    show_figures(result.figure, plot=plot)
-    output = {"figure": result.figure, "image": result.outdata.T}
-    return (output, command) if return_com else output
+    result = erpimage(data, sortvar, times, title, smooth, decimate, target=target, rng=rng, **settings)
+    command = _history_command(
+        EEG,
+        typeplot,
+        channel,
+        {
+            "projchan": projchan,
+            "titleplot": titleplot,
+            "smooth": smooth,
+            "decimate": decimate,
+            "sortingtype": sortingtype,
+            "sortingwin": sortingwin,
+            "sortingeventfield": sortingeventfield,
+        },
+        user_options,
+        plotmap=plotmap,
+        rng=rng,
+    )
+    # A caller's target figure is the caller's to show or close.
+    show_figures(None if target is not None else result.figure, plot=plot)
+    return (result, command) if return_com else result
+
+
+def _plot_type(typeplot: Any) -> int:
+    if isinstance(typeplot, bool) or typeplot not in (0, 1):
+        raise ValueError(f"pop_erpimage(): typeplot must be 1 (channels) or 0 (components), got {typeplot!r}")
+    return int(typeplot)
+
+
+def _check_dataset(EEG: dict[str, Any], typeplot: int) -> None:
+    if not typeplot and np.asarray(EEG.get("icaweights", [])).size == 0:
+        raise ValueError("pop_erpimage(): no ICA data for this dataset; run ICA first")
+    if int(EEG.get("trials", 1) or 1) <= 1:
+        raise ValueError("pop_erpimage(): an ERP image needs epoched data with more than one trial")
+
+
+def _plotmap_flag(value: Any) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    raise ValueError(f"pop_erpimage(): plotmap must be True or False, got {value!r}")
+
+
+def _selected_items(EEG: dict[str, Any], value: Any, typeplot: int) -> list[int]:
+    """1-based channels (numbers or labels) or components to plot."""
+    items = _tokens(value)
+    kind = "channel" if typeplot else "component"
+    if not items:
+        raise ValueError(f"pop_erpimage(): select at least one {kind}")
+    if typeplot:
+        labels = channel_labels(EEG)
+        indices = [_channel_index(item, labels) for item in items]
+        count = len(labels)
+    else:
+        indices = [_index_number(item, kind) for item in items]
+        count = np.asarray(EEG["icaweights"]).shape[0]
+    outside = [index for index in indices if not 1 <= index <= count]
+    if outside:
+        raise ValueError(f"pop_erpimage(): {kind} {outside[0]} is outside 1..{count}")
+    return indices
+
+
+def _tokens(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [token for token in re.split(r"[\s,]+", value.strip()) if token]
+    return list(np.ravel(np.asarray(value, dtype=object)))
+
+
+def _channel_index(item: Any, labels: list[str]) -> int:
+    if isinstance(item, str) and not _is_number_text(item):
+        matches = [index for index, label in enumerate(labels, start=1) if label.casefold() == item.casefold()]
+        if not matches:
+            raise ValueError(f"pop_erpimage(): unknown channel label '{item}'")
+        return matches[0]
+    return _index_number(item, "channel")
+
+
+def _index_number(item: Any, kind: str) -> int:
+    try:
+        number = float(item)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"pop_erpimage(): {kind}s are given by number, got {item!r}") from error
+    if not number.is_integer():
+        raise ValueError(f"pop_erpimage(): {kind} numbers must be whole numbers, got {item!r}")
+    return int(number)
+
+
+def _is_number_text(text: str) -> bool:
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _projection_channels(projchan: Any) -> list[Any]:
+    """Channels to back-project components onto: 1-based numbers or labels."""
+    return [_index_number(item, "projection channel") if _is_number(item) else str(item) for item in _tokens(projchan)]
+
+
+def _is_number(item: Any) -> bool:
+    return not isinstance(item, str) or _is_number_text(item)
+
+
+def _activity(EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any]) -> np.ndarray:
+    """(frames, trials) activity: the mean of the channels, or component activity or its projection."""
+    if typeplot:
+        return np.mean(eeg_epoch_data(EEG)[np.asarray(channels) - 1], axis=0)
+    activity = eeg_getdatact(EEG, component=channels, projchan=projection or None)
+    # Several projection channels are averaged, an EEGPrep extension (EEGLAB accepts one).
+    return np.mean(activity, axis=0) if projection else activity[0]
+
+
+def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, field: Any) -> np.ndarray:
+    """Per-trial sorting values from ``eeg_getepochevent``, or EEGLAB's constant ``xmax`` (ms) without a field."""
+    trials = int(EEG["trials"])
+    field = str(field or "").strip()
+    if not field:
+        return np.full(trials, float(EEG["xmax"]) * 1000)
+    events = events_as_list(EEG.get("event", []))
+    if not events:
+        raise ValueError("pop_erpimage(): the dataset has no events to sort the trials by")
+    if not any(field in event for event in events):
+        raise ValueError(f"pop_erpimage(): events have no '{field}' field to sort the trials by")
+    types = [str(item) for item in _tokens(sortingtype)]
+    window = _number_list(sortingwin, "sortingwin")
+    if window.size not in (0, 2):
+        raise ValueError(f"pop_erpimage(): sortingwin must be [start end] in ms, got {window.tolist()}")
+    values, all_values = eeg_getepochevent(EEG, type=types, timewin=window.tolist(), fieldname=field)
+    selection = _event_selection_text(types, window, field)
+    if not isinstance(values, np.ndarray):
+        unusable = [index for index, value in enumerate(values, start=1) if not _converts_to_float(value)]
+        raise ValueError(f"pop_erpimage(): {selection}s that are not numbers or text in epochs {unusable[:10]}")
+    missing = np.flatnonzero(np.isnan(values)) + 1
+    if missing.size == trials:
+        raise ValueError(f"pop_erpimage(): no epoch has an {selection}")
+    if missing.size:
+        logger.info(
+            "pop_erpimage(): %d of %d epochs have no %s (epochs %s); erpimage leaves them out.",
+            missing.size,
+            trials,
+            selection,
+            missing.tolist(),
+        )
+    repeated = [index for index, epoch_values in enumerate(all_values, start=1) if len(epoch_values) > 1]
+    if field == "latency" and repeated:
+        logger.warning("pop_erpimage(): multiple event latencies found in epochs %s; the first is used.", repeated)
+    return values
+
+
+def _event_selection_text(types: list[str], window: np.ndarray, field: str) -> str:
+    text = f"event '{field}' value"
+    if types:
+        text += " for event type " + " ".join(repr(item) for item in types)
+    if window.size:
+        text += f" between {window[0]:g} and {window[1]:g} ms"
+    return text
+
+
+def _converts_to_float(value: Any) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _number_list(value: Any, name: str) -> np.ndarray:
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return np.zeros(0)
+    try:
+        return np.asarray(value, dtype=float).ravel()
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"pop_erpimage(): {name} must be numbers, got {value!r}") from error
+
+
+def _default_options(
+    EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any], *, plotmap: bool
+) -> dict[str, Any]:
+    """The dialog's decorations: ERP trace, colorbar, ERP label and scalp map."""
+    options: dict[str, Any] = {
+        "erp": True,
+        "cbar": True,
+        "yerplabel": MICROVOLT_LABEL if typeplot or projection else "",
+    }
+    scalp_map = _scalp_map(EEG, typeplot, channels) if plotmap else None
+    if scalp_map is not None:
+        options["topo"] = scalp_map
+    return options
+
+
+def _scalp_map(EEG: dict[str, Any], typeplot: int, channels: list[int]) -> tuple[Any, list[dict[str, Any]]] | None:
+    """The channel's location or the (mean) component map, when the channels have locations."""
+    chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
+    if not _has_locations(chanlocs):
+        return None
+    if not typeplot:
+        maps, map_chanlocs = component_map_data(EEG)
+        return np.mean(maps[:, np.asarray(channels) - 1], axis=1), map_chanlocs
+    if len(channels) > 1:
+        logger.info(
+            "pop_erpimage(): the scalp map marks one channel, so it is left out for %d channels.", len(channels)
+        )
+        return None
+    return channels[0], chanlocs
+
+
+def _has_locations(chanlocs: list[dict[str, Any]]) -> bool:
+    return any(_converts_to_float(location.get("theta")) for location in chanlocs)
+
+
+def _default_title(EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any]) -> str:
+    if typeplot:
+        labels = channel_labels(EEG)
+        return " ".join(labels[index - 1] for index in channels)
+    title = "Comp. " + " ".join(str(index) for index in channels)
+    if projection:
+        title += " -> Chan. " + " ".join(str(item) for item in projection)
+    return title
+
+
+def _history_command(
+    EEG: dict[str, Any],
+    typeplot: int,
+    channel: Any,
+    arguments: dict[str, Any],
+    options: dict[str, Any],
+    *,
+    plotmap: bool,
+    rng: Any,
+) -> str:
+    """Replayable Python call; empty arguments and the default decorations are omitted."""
+    pieces = ["EEG", str(typeplot), python_literal(_plain(channel))]
+    for name, value in arguments.items():
+        if name in {"smooth", "decimate"} or not _is_empty(value):
+            pieces.append(f"{name}={python_literal(_plain(value))}")
+    for name, value in options.items():
+        pieces.append(f"{name}={_option_literal(EEG, name, value)}")
+    if not plotmap:
+        pieces.append("plotmap=False")
+    if isinstance(rng, (int, np.integer)) and not isinstance(rng, bool):
+        pieces.append(f"rng={int(rng)}")
+    return f"pop_erpimage({', '.join(pieces)})"
+
+
+def _plain(value: Any) -> Any:
+    """Arrays and NumPy scalars as Python lists and numbers for the history literal."""
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, (list, tuple)):
+        return type(value)(_plain(item) for item in value)
+    return value
+
+
+def _is_empty(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return np.asarray(value, dtype=object).size == 0
+
+
+def _option_literal(EEG: dict[str, Any], name: str, value: Any) -> str:
+    if name == "topo" and isinstance(value, (list, tuple)) and len(value) >= 2:
+        chanlocs = value[1]
+        if chanlocs is EEG.get("chanlocs") or chanlocs == chanlocs_as_list(EEG.get("chanlocs", [])):
+            return f"({python_literal(_plain(value[0]))}, EEG['chanlocs'])"
+    return python_literal(_plain(value))
 
 
 def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> DialogSpec:
-    """Return the EEGLAB-like dialog spec for ``pop_erpimage``."""
+    """Return the EEGLAB ``pop_erpimage`` dialog spec (channel or component variant)."""
     is_channel = bool(int(typeplot))
-    label = "Channel" if is_channel else "Component(s)"
-    title_label = "Channel" if is_channel else "Component"
-    smooth = min(max(int(EEG.get("trials", 1) or 1) - 5, 0), 10)
+    smooth = min(max(int(EEG.get("trials", 1) or 1) - 5, 0), MAX_DIALOG_SMOOTH)
     labels = channel_labels(EEG)
-    channel_selector = ControlSpec(
-        "pushbutton",
-        "...",
-        tag="index_button",
-        enabled=is_channel and bool(labels),
-        callback=CallbackSpec(
-            "select_channels",
-            params={
-                "button": "index_button",
-                "target": "index",
-                "channels": labels,
-                "selectionmode": "single",
-                "return_indices": True,
-            },
-            matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')",
-        ),
-    )
+    events = events_as_list(EEG.get("event", []))
+    field_names = list(dict.fromkeys(name for event in events for name in event))
+    event_types = list(dict.fromkeys(str(event["type"]) for event in events if "type" in event))
     controls: list[ControlSpec] = [
-        ControlSpec("text", label, font_weight="bold"),
-        ControlSpec("edit", tag="index", value="1"),
+        ControlSpec("text", "Channel" if is_channel else "Component(s)", font_weight="bold"),
+        ControlSpec("edit", tag="chan", value="1"),
     ]
     if is_channel:
-        controls.append(channel_selector)
-    else:
-        controls.append(ControlSpec("spacer"))
         controls.extend(
             [
-                ControlSpec("spacer"),
-                ControlSpec("spacer"),
-                ControlSpec("text", "Project to channel #", font_weight="bold"),
-                ControlSpec("edit", tag="projchan", value=""),
-                ControlSpec(
-                    "pushbutton",
-                    "...",
-                    tag="projchan_button",
-                    enabled=bool(labels),
-                    callback=CallbackSpec(
-                        "select_channels",
-                        params={
-                            "button": "projchan_button",
-                            "target": "projchan",
-                            "channels": labels,
-                            "selectionmode": "single",
-                            "return_indices": True,
-                        },
-                        matlab_callback=(
-                            "pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')"
-                        ),
-                    ),
-                ),
+                _channel_button("chan_button", "chan", labels, enabled=bool(chanlocs_as_list(EEG.get("chanlocs")))),
                 ControlSpec("text", "Fig. title", font_weight="bold"),
                 ControlSpec("edit", tag="title", value=""),
             ]
         )
-    if is_channel:
+    else:
         controls.extend(
             [
+                ControlSpec("spacer"),
+                ControlSpec("spacer"),
+                ControlSpec("spacer"),
+                ControlSpec(
+                    "text",
+                    "Project to channel #",
+                    font_weight="bold",
+                    tooltip=(
+                        "Project component(s) to data channel\n"
+                        "This allows plotting projected component activity at one channel in microvolts"
+                    ),
+                ),
+                ControlSpec("edit", tag="projchan", value=""),
+                # EEGLAB disables this picker for components; EEGPrep lets the user pick the channel.
+                _channel_button("projchan_button", "projchan", labels, enabled=bool(labels)),
                 ControlSpec("text", "Fig. title", font_weight="bold"),
                 ControlSpec("edit", tag="title", value=""),
             ]
         )
     controls.extend(
         [
-            ControlSpec("text", "Smoothing", font_weight="bold"),
-            ControlSpec("edit", tag="smooth", value=str(smooth)),
-            # EEGLAB shows no scalp map for components, so only offer the checkbox for channels.
-            ControlSpec("checkbox", "Plot scalp map", tag="plotmap", value=True)
-            if is_channel
-            else ControlSpec("spacer"),
-            ControlSpec("spacer"),
-            ControlSpec("spacer"),
-            ControlSpec("text", "Downsampling", font_weight="bold"),
-            ControlSpec("edit", tag="decimate", value="1"),
-            ControlSpec("checkbox", "Plot ERP", tag="erp", value=True),
-            ControlSpec("text", "ERP limits (uV)" if is_channel else "ERP limits"),
-            ControlSpec("edit", tag="limerp", value=""),
-            ControlSpec("text", "Time limits (ms)", font_weight="bold"),
             ControlSpec(
-                "edit",
-                tag="limtime",
-                value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+                "text",
+                "Smoothing",
+                font_weight="bold",
+                tooltip="Number of trials smoothed (vertically) by the moving average",
             ),
-            ControlSpec("checkbox", "Plot colorbar", tag="cbar", value=True),
-            ControlSpec("text", "Color limits (see Help)"),
+            ControlSpec("edit", tag="smooth", value=str(smooth)),
+            ControlSpec(
+                "checkbox",
+                "Plot scalp map",
+                tag="plotmap",
+                value=True,
+                tooltip="plot a 2-d head map (vector) at upper left",
+            ),
+            ControlSpec("spacer"),
+            ControlSpec("spacer"),
+            ControlSpec(
+                "text",
+                "Downsampling",
+                font_weight="bold",
+                tooltip="Moving-window advance in trials; values above sqrt(trials) give that many image rows",
+            ),
+            ControlSpec("edit", tag="decimate", value=str(DIALOG_DECIMATE)),
+            ControlSpec("checkbox", "Plot ERP", tag="erp", value=True, tooltip="Plot the ERP below the ERP image"),
+            ControlSpec(
+                "text",
+                "ERP limits (uV)" if is_channel else "ERP limits",
+                tooltip="Plotting limits for ERP trace [min_uV max_uV]\n{Default: ERP data limits}",
+            ),
+            ControlSpec("edit", tag="limerp", value=""),
+            ControlSpec("text", "Time limits (ms)", font_weight="bold", tooltip="Select time subset in ms"),
+            ControlSpec("edit", tag="limtime", value=_epoch_limits_text(EEG)),
+            ControlSpec(
+                "checkbox", "Plot colorbar", tag="cbar", value=True, tooltip="Plot a colorbar right of the ERP image"
+            ),
+            ControlSpec(
+                "text",
+                "Color limits (see Help)",
+                tooltip="Color axis limits [low high], or the fraction of the data range to use",
+            ),
             ControlSpec("edit", tag="caxis", value=""),
             ControlSpec("spacer"),
             ControlSpec("text", "Sort/align trials by epoch event values", font_weight="bold"),
-            ControlSpec("pushbutton", "Epoch-sorting field"),
-            ControlSpec("pushbutton", "Event type(s)"),
-            ControlSpec("text", "Event time range"),
-            ControlSpec("text", "Rescale"),
-            ControlSpec("text", "Align"),
-            ControlSpec("checkbox", "Don't sort by value", tag="nosort", value=False),
+            ControlSpec(
+                "pushbutton",
+                "Epoch-sorting field",
+                tag="field_button",
+                tooltip="Epoch-sorting event field name (Ex: latency; default: no sorting):",
+                callback=CallbackSpec(
+                    "select_event_field",
+                    params={
+                        "button": "field_button",
+                        "target": "field",
+                        "fields": field_names,
+                        "reminder_source": "type",
+                        "reminder": "Do not forget to select an event type in the next edit box",
+                    },
+                    matlab_callback="listdlg2('PromptString', 'Select fields', 'SelectionMode', 'single', ...)",
+                ),
+            ),
+            ControlSpec(
+                "pushbutton",
+                "Event type(s)",
+                tag="type_button",
+                tooltip="Event type(s) subset (default: all):\n(See '/Edit/Edit event values' for event types)",
+                callback=CallbackSpec(
+                    "select_event_types",
+                    params={
+                        "button": "type_button",
+                        "target": "type",
+                        "event_types": event_types,
+                        "selectionmode": "multiple",
+                        "no_types_message": "No type field",
+                        "reminder_source": "field",
+                        "reminder": "Do not forget to select an epoch-sorting field in the previous edit box",
+                    },
+                    matlab_callback="pop_chansel(unique({tmpevent.type}))",
+                ),
+            ),
+            ControlSpec(
+                "text",
+                "Event time range",
+                tooltip=(
+                    "Sorting event window [start, end] in milliseconds (default: whole epoch):\n"
+                    "events are only selected within this time window (can be useful if several\n"
+                    "events of the same type are in the same epoch, or for selecting trials with given response time)"
+                ),
+            ),
+            ControlSpec("text", "Rescale", tooltip="Rescale sorting variable to plot window (yes|no|a*x+b)(Ex:3*x+2):"),
+            ControlSpec(
+                "text",
+                "Align",
+                tooltip="Align the trials on this latency (ms), or Inf for the median sorting value",
+            ),
+            ControlSpec(
+                "checkbox",
+                "Don't sort by value",
+                tag="nosort",
+                value=False,
+                tooltip="Keep the trials in their order but plot the event values",
+            ),
             ControlSpec("edit", tag="field", value=""),
             ControlSpec("edit", tag="type", value=""),
             ControlSpec("edit", tag="eventrange", value=""),
-            ControlSpec("edit", tag="renorm", value="no"),
+            ControlSpec("edit", tag="renorm", value=NO_RENORM),
             ControlSpec("edit", tag="align", value=""),
-            ControlSpec("checkbox", "Don't plot values", tag="noplot", value=False),
+            ControlSpec(
+                "checkbox",
+                "Don't plot values",
+                tag="noplot",
+                value=False,
+                tooltip="Sort the trials by the event values without drawing them",
+            ),
             ControlSpec("spacer"),
             ControlSpec("text", "Sort trials by phase", font_weight="bold"),
-            ControlSpec("text", "Frequency (Hz | minHz maxHz)"),
-            ControlSpec("text", "Percent low-amp. trials to ignore"),
-            ControlSpec("text", "Window center (ms)"),
-            ControlSpec("text", "Wavelet cycles"),
+            ControlSpec(
+                "text",
+                "Frequency (Hz | minHz maxHz)",
+                tooltip=(
+                    "sort by phase at maximum-power frequency\nin the data within the range [minHz,maxHz]\n"
+                    "(overrides frequency specified in 'coher' flag)"
+                ),
+            ),
+            ControlSpec(
+                "text",
+                "Percent low-amp. trials to ignore",
+                tooltip=(
+                    "percent of trials to reject for low amplitude. Else,\n"
+                    "if prct is in the range [-100,0] -> percent to reject for high amplitude"
+                ),
+            ),
+            ControlSpec("text", "Window center (ms)", tooltip="Center time of the n-cycle window"),
+            ControlSpec("text", "Wavelet cycles", tooltip="cycles per wavelet window"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="phase", value=""),
+            ControlSpec("edit", tag="phase", value="", callback=_mirror("phase", "coher")),
             ControlSpec("edit", tag="phase2", value=""),
             ControlSpec("edit", tag="phase3", value=""),
             ControlSpec("text", "        3"),
             ControlSpec("spacer"),
             ControlSpec("spacer"),
             ControlSpec("text", "Inter-trial coherence options", font_weight="bold"),
-            ControlSpec("text", "Frequency (Hz | minHz maxHz)"),
-            ControlSpec("text", "Signif. level (<0.20)"),
+            ControlSpec(
+                "text",
+                "Frequency (Hz | minHz maxHz)",
+                tooltip=(
+                    "[freq] -> plot erp plus amp & coher at freq (Hz)\n[minHz maxHz] -> find max in frequency range\n"
+                    "(or at phase freq above, if specified)"
+                ),
+            ),
+            ControlSpec(
+                "text",
+                "Signif. level (<0.20)",
+                tooltip="add coher. signif. level line at alpha (alpha range: (0,0.1])",
+            ),
             ControlSpec("text", "Amplitude limits (dB)"),
             ControlSpec("text", "Coher limits (<=1)"),
-            ControlSpec("checkbox", "Image amps", tag="plotamps", value=False),
-            ControlSpec("edit", tag="coher", value=""),
+            ControlSpec(
+                "checkbox",
+                "Image amps",
+                tag="plotamps",
+                value=False,
+                tooltip="Image the spectral amplitude at the coherence frequency instead of the potential",
+            ),
+            ControlSpec("edit", tag="coher", value="", callback=_mirror("coher", "phase")),
             ControlSpec("edit", tag="coher2", value=""),
             ControlSpec("edit", tag="limamp", value=""),
             ControlSpec("edit", tag="limcoher", value=""),
             ControlSpec("text", "   (Requires signif.)"),
             ControlSpec("spacer"),
             ControlSpec("text", "Other options", font_weight="bold"),
-            ControlSpec("text", "Plot spectrum (minHz maxHz)"),
-            ControlSpec("text", "Baseline ampl. (dB)"),
-            ControlSpec("text", "Mark times (ms)"),
+            ControlSpec(
+                "text",
+                "Plot spectrum (minHz maxHz)",
+                tooltip="Plot the data spectrum between these frequencies at upper right",
+            ),
+            ControlSpec("text", "Baseline ampl. (dB)", tooltip="Use it to fix baseline amplitude"),
+            ControlSpec("text", "Mark times (ms)", tooltip="Draw dashed vertical lines at these latencies"),
             ControlSpec("text", "More options (see >> help erpimage)"),
             ControlSpec("edit", tag="spec", value=""),
             ControlSpec("edit", tag="limbaseamp", value=""),
@@ -275,7 +641,7 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     if not is_channel:
         geometry.insert(0, (1, 1, 0.1, 0.8, 2.1))
     return DialogSpec(
-        title=f"{title_label} ERP image -- pop_erpimage()",
+        title=f"{'Channel' if is_channel else 'Component'} ERP image -- pop_erpimage()",
         controls=tuple(controls),
         geometry=tuple(geometry),
         function_name="pop_erpimage",
@@ -283,6 +649,7 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
         help_text="pophelp('pop_erpimage')",
         size=(1113, 831),
         row_spacing=4,
+        known_differences=("The component dialog's projection-channel picker is enabled (EEGLAB disables it).",),
         extra_stylesheet="""
             QDialog#pop_erpimage QLabel,
             QDialog#pop_erpimage QCheckBox,
@@ -303,255 +670,182 @@ def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     )
 
 
+def _channel_button(tag: str, target: str, labels: list[str], *, enabled: bool) -> ControlSpec:
+    return ControlSpec(
+        "pushbutton",
+        "...",
+        tag=tag,
+        enabled=enabled,
+        callback=CallbackSpec(
+            "select_channels",
+            params={"button": tag, "target": target, "channels": labels, "selectionmode": "single"},
+            matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')",
+        ),
+    )
+
+
+def _mirror(source: str, target: str) -> CallbackSpec:
+    """EEGLAB's commandphase and commandcoher: copy the frequency when both boxes are filled."""
+    return CallbackSpec("mirror_text", params={"source": source, "target": target})
+
+
+def _epoch_limits_text(EEG: dict[str, Any]) -> str:
+    return " ".join(f"{value:.10g}" for value in 1000 * np.array([float(EEG["xmin"]), float(EEG["xmax"])]))
+
+
 def _run_gui(EEG: dict[str, Any], *, typeplot: int, renderer: Any | None = None) -> dict[str, Any] | None:
     result = inputgui(pop_erpimage_dialog_spec(EEG, typeplot=typeplot), renderer=renderer)
     if result is None:
         return None
-    _raise_for_unsupported_gui_options(result)
-    other_options = _normalise_other_options(result.get("others", ""))
-    values = numeric_vector(result.get("index", 1), dtype=int)
-    options = {
-        "title": str(result.get("title", "") or ""),
-        "smooth": numeric_vector(result.get("smooth", [])).tolist(),
-        "decimate": numeric_vector(result.get("decimate", [])).tolist(),
-        "limits": numeric_vector(result.get("limtime", [])).tolist(),
-        "erp": bool(result.get("erp", True)),
-        "cbar": bool(result.get("cbar", True)),
-        "caxis": numeric_vector(result.get("caxis", [])).tolist(),
-        "vert": numeric_vector(result.get("vert", [])).tolist(),
-    }
-    field = str(result.get("field", "") or "").strip()
-    if field:
-        options["sortingeventfield"] = field
-        event_type = str(result.get("type", "") or "").strip()
-        if event_type:
-            options["sortingtype"] = _parse_event_type_text(event_type)
-        eventrange = numeric_vector(result.get("eventrange", [])).tolist()
-        if eventrange:
-            options["sortingwin"] = eventrange
-        renorm = str(result.get("renorm", "") or "no").strip()
-        if renorm and renorm.lower() != "no":
-            options["renorm"] = renorm
-    if bool(result.get("nosort", False)):
-        options["nosort"] = True
-    if bool(result.get("noplot", False)):
-        options["noplot"] = True
-    options.update(other_options)
-    projchan = numeric_vector(result.get("projchan", []), dtype=int)
-    if projchan.size:
-        options["projchan"] = projchan.tolist()
-    # Only components lack the scalp-map checkbox; recording plotmap for them is history noise.
-    if bool(int(typeplot)):
-        options["plotmap"] = bool(result.get("plotmap", True))
+    return _dialog_call(EEG, result)
+
+
+def _dialog_call(EEG: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """``pop_erpimage`` arguments from the dialog values, mapped as ``pop_erpimage.m`` does."""
+    options: dict[str, Any] = {}
+    for flag in ("erp", "cbar", "plotmap"):
+        if not bool(result.get(flag, True)):
+            options[flag] = False
+    limits = _dialog_limits(EEG, result)
+    if limits is not None:
+        options["limits"] = limits
+    caxis = _text_numbers(result, "caxis", "Color limits")
+    if caxis.size:
+        options["caxis"] = caxis.tolist()
+    field = _text(result, "field").strip("'\"")
+    renorm = _text(result, "renorm") or NO_RENORM
+    if field and renorm.lower() != NO_RENORM:
+        options["renorm"] = renorm
+    align = _text_numbers(result, "align", "Align", sizes=(1,))
+    if align.size:
+        options["align"] = float(align[0])
+    for flag in ("nosort", "noplot"):
+        if bool(result.get(flag, False)):
+            options[flag] = True
+    phasesort = _dialog_phasesort(result)
+    if phasesort:
+        options["phasesort"] = phasesort
+    if bool(result.get("plotamps", False)):
+        options["plotamps"] = True
+    coher = _dialog_coher(result)
+    if coher:
+        options["coher"] = coher
+    for tag, label in (("spec", "Plot spectrum"), ("vert", "Mark times")):
+        values = _text_numbers(result, tag, label)
+        if values.size:
+            options[tag] = values.tolist()
+    options.update(_more_options(_text(result, "others")))
+    window = _text_numbers(result, "eventrange", "Event time range", sizes=(2,))
     return {
-        "index": int(values[0]) if values.size else 1,
+        "channel": _index_or_labels(_text(result, "chan") or "1"),
+        "projchan": _index_or_labels(_text(result, "projchan")),
+        "titleplot": _text(result, "title"),
+        "smooth": _text_number(result, "smooth", "Smoothing"),
+        "decimate": _text_number(result, "decimate", "Downsampling"),
+        "sortingtype": _event_types_text(_text(result, "type")) or None,
+        "sortingwin": window.tolist() if window.size else None,
+        "sortingeventfield": field,
         "options": options,
     }
 
 
-def _erpimage_values(EEG: dict[str, Any], typeplot: int, index: int, *, projchan: Any = None) -> np.ndarray:
-    if int(EEG.get("trials", 1) or 1) <= 1:
-        raise ValueError("pop_erpimage requires epoched data")
-    if typeplot:
-        data = eeg_epoch_data(EEG)
-        if index < 1 or index > data.shape[0]:
-            raise ValueError("channel index is outside available channels")
-        return data[index - 1, :, :]
-    acts = component_activations(EEG)
-    if index < 1 or index > acts.shape[0]:
-        raise ValueError("component index is outside available ICA components")
-    values = acts[index - 1, :, :]
-    proj_indices = numeric_vector(projchan, dtype=int)
-    if proj_indices.size == 0:
-        return values
-    maps = component_maps(EEG)
-    if np.any(proj_indices < 1) or np.any(proj_indices > maps.shape[0]):
-        raise ValueError(f"projected channel indices must be 1-based and within 1..{maps.shape[0]}")
-    weights = maps[proj_indices - 1, index - 1]
-    projected = values[np.newaxis, :, :] * weights[:, np.newaxis, np.newaxis]
-    return np.nanmean(projected, axis=0)
+def _text(result: dict[str, Any], tag: str) -> str:
+    return str(result.get(tag, "") or "").strip()
 
 
-def _default_title(typeplot: int, index: int, *, projchan: Any = None) -> str:
-    if typeplot:
-        return f"Channel {index} ERP image"
-    proj_indices = numeric_vector(projchan, dtype=int)
-    if proj_indices.size:
-        return f"Component {index} -> Channel {' '.join(str(value) for value in proj_indices.tolist())} ERP image"
-    return f"Component {index} ERP image"
+def _index_or_labels(text: str) -> Any:
+    """Typed channels as an int, a list of ints, or the label text."""
+    tokens = [token.strip("'\"") for token in re.split(r"[\s,]+", text) if token.strip("'\"")]
+    if not tokens:
+        return None
+    if not all(_is_number_text(token) for token in tokens):
+        return " ".join(tokens)
+    numbers = [_index_number(token, "channel") for token in tokens]
+    return numbers[0] if len(numbers) == 1 else numbers
 
 
-def _first_int(value: Any, *, default: int) -> int:
-    vector = numeric_vector(value, dtype=int)
-    if vector.size == 0:
-        return default
-    return int(vector[0])
-
-
-def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
-    unsupported_text_fields = {
-        "align": "event alignment",
-        "phase": "phase sorting",
-        "phase2": "phase sorting",
-        "phase3": "phase sorting",
-        "coher": "inter-trial coherence",
-        "coher2": "inter-trial coherence",
-        "limamp": "inter-trial coherence amplitude limits",
-        "limcoher": "inter-trial coherence limits",
-        "spec": "spectrum inset",
-        "limbaseamp": "baseline amplitude limits",
-    }
-    for field, label in unsupported_text_fields.items():
-        if str(result.get(field, "") or "").strip():
-            raise ValueError(f"pop_erpimage {label} is not exposed by pop_erpimage; call erpimage directly")
-    unsupported_checks = {
-        "plotamps": "amplitude image mode",
-    }
-    for field, label in unsupported_checks.items():
-        if bool(result.get(field, False)):
-            raise ValueError(f"pop_erpimage {label} is not exposed by pop_erpimage; call erpimage directly")
-
-
-def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
-    supported = {
-        "title",
-        "sort_values",
-        "smooth",
-        "decimate",
-        "limits",
-        "caxis",
-        "cbar",
-        "erp",
-        "vert",
-        "projchan",
-        "plotmap",
-        "sortingeventfield",
-        "sortingtype",
-        "sortingwin",
-        "field",
-        "type",
-        "eventrange",
-        "renorm",
-        "nosort",
-        "noplot",
-        "align",
-    }
-    unsupported = sorted(set(kwargs) - supported)
-    if unsupported:
-        raise ValueError(
-            "pop_erpimage option(s) not exposed by pop_erpimage (call erpimage directly): " + ", ".join(unsupported)
-        )
-
-
-def _scalp_map_arguments(EEG: dict[str, Any], typeplot: int, index: int, *, plotmap: bool) -> tuple[Any, int | None]:
-    """Return ``(chan_locs, channel_index)`` for the scalp inset, or ``(None, None)``.
-
-    EEGLAB only draws the small ERP-image scalp map for channel plots; component
-    scalp maps are shown by other pop-functions and are outside this dialog's default.
-    """
-    if not plotmap or not typeplot:
-        return None, None
-    chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
-    if not chanlocs:
-        return None, None
-    return chanlocs, index
-
-
-def _event_sort_values(EEG: dict[str, Any], field: Any, event_types: Any, eventrange: Any, renorm: Any) -> np.ndarray:
-    field_name = str(field).strip()
-    if not field_name:
-        return np.asarray([])
-    if str(renorm).strip().lower() not in {"", "no", "yes"}:
-        raise ValueError("pop_erpimage renorm formulas are not exposed by pop_erpimage; call erpimage directly")
-    trials = int(EEG.get("trials", 1) or 1)
-    pnts = int(EEG.get("pnts", 0) or 0)
-    srate = float(EEG.get("srate", 1) or 1)
-    xmin = float(EEG.get("xmin", 0) or 0)
-    types = _event_type_set(event_types)
-    window = numeric_vector(eventrange)
-    if window.size not in {0, 2}:
-        raise ValueError("sortingwin/eventrange must contain [start end] in milliseconds")
-    values = np.full(trials, np.nan)
-    needs_latency = window.size == 2 or field_name == "latency"
-    for event in _event_records(EEG.get("event")):
-        epoch = _event_epoch(event, pnts)
-        if epoch < 1 or epoch > trials:
-            continue
-        if types and str(event.get("type", "")) not in types:
-            continue
-        latency_ms = _event_latency_ms(event, epoch, pnts, srate, xmin) if needs_latency else np.nan
-        if window.size == 2 and not (window[0] <= latency_ms <= window[1]):
-            continue
-        if not np.isnan(values[epoch - 1]):
-            continue
-        raw_value = latency_ms if field_name == "latency" else event.get(field_name, np.nan)
-        try:
-            values[epoch - 1] = float(raw_value)
-        except (TypeError, ValueError):
-            values[epoch - 1] = np.nan
-    if np.all(np.isnan(values)):
-        raise ValueError("pop_erpimage event sorting found no matching event values")
-    if str(renorm).strip().lower() == "yes":
-        finite = np.isfinite(values)
-        if np.any(finite):
-            minimum = float(np.nanmin(values))
-            maximum = float(np.nanmax(values))
-            if maximum > minimum:
-                values[finite] = (values[finite] - minimum) / (maximum - minimum)
+def _text_numbers(result: dict[str, Any], tag: str, label: str, *, sizes: tuple[int, ...] | None = None) -> np.ndarray:
+    text = _text(result, tag)
+    if not text:
+        return np.zeros(0)
+    try:
+        values = np.array([float(token) for token in re.split(r"[\s,]+", text.strip("[]").strip()) if token])
+    except ValueError as error:
+        raise ValueError(f"pop_erpimage(): '{label}' must be numbers, got {text!r}") from error
+    if sizes is not None and values.size not in sizes:
+        expected = " or ".join(str(size) for size in sizes)
+        raise ValueError(f"pop_erpimage(): '{label}' takes {expected} value(s), got {text!r}")
     return values
 
 
-def _event_records(events: Any) -> list[dict[str, Any]]:
-    if events is None:
-        return []
-    if isinstance(events, np.ndarray):
-        events = events.tolist()
-    if isinstance(events, dict):
-        return [dict(events)]
-    return [dict(event) for event in events]
+def _text_number(result: dict[str, Any], tag: str, label: str) -> float | int:
+    values = _text_numbers(result, tag, label, sizes=(1,))
+    value = float(values[0]) if values.size else 0.0
+    return int(value) if value.is_integer() else value
 
 
-def _event_epoch(event: dict[str, Any], pnts: int) -> int:
-    if event.get("epoch") not in (None, ""):
-        return int(float(event["epoch"]))
-    if pnts <= 0:
-        return 1
-    return int(np.floor((float(event.get("latency", 1)) - 1) / pnts)) + 1
+def _dialog_limits(EEG: dict[str, Any], result: dict[str, Any]) -> list[float] | None:
+    """EEGLAB's limits(1:9); the time limits only when they were edited."""
+    limits = [np.nan] * 8
+    erp = _text_numbers(result, "limerp", "ERP limits", sizes=(2,))
+    if erp.size:
+        limits[2:4] = erp.tolist()
+    time_text = _text(result, "limtime")
+    if time_text and time_text != _epoch_limits_text(EEG):
+        limits[0:2] = _text_numbers(result, "limtime", "Time limits (ms)", sizes=(2,)).tolist()
+    amplitude = _text_numbers(result, "limamp", "Amplitude limits (dB)", sizes=(2,))
+    if amplitude.size:
+        limits[4:6] = amplitude.tolist()
+    coherence = _text_numbers(result, "limcoher", "Coher limits", sizes=(2,))
+    if coherence.size:
+        limits[6:8] = coherence.tolist()
+    baseline = _text_numbers(result, "limbaseamp", "Baseline ampl. (dB)", sizes=(1,))
+    if baseline.size:
+        limits.append(float(baseline[0]))
+    return None if np.all(np.isnan(limits)) else limits
 
 
-def _event_latency_ms(event: dict[str, Any], epoch: int, pnts: int, srate: float, xmin: float) -> float:
-    latency = float(event.get("latency", 1))
-    sample_in_epoch = latency - (epoch - 1) * pnts
-    return ((sample_in_epoch - 1) / srate + xmin) * 1000.0
+def _dialog_phasesort(result: dict[str, Any]) -> list[float]:
+    """[center pct freq(s)] from the phase row, growing like a MATLAB array."""
+    values: list[float] = []
+    frequencies = _text_numbers(result, "phase", "Sort by phase frequency")
+    if frequencies.size:
+        values = [0.0, 0.0, *frequencies.tolist()]
+    for tag, label, position in (("phase2", "Percent low-amp. trials", 1), ("phase3", "Window center", 0)):
+        value = _text_numbers(result, tag, label, sizes=(1,))
+        if value.size:
+            values = _set_position(values, position, float(value[0]))
+    return values
 
 
-def _event_type_set(value: Any) -> set[str]:
-    if value is None or (isinstance(value, str) and not value.strip()):
-        return set()
-    if isinstance(value, np.ndarray):
-        value = value.ravel().tolist()
-    if isinstance(value, (list, tuple, set)):
-        return {str(item) for item in value}
-    return {str(value)}
+def _dialog_coher(result: dict[str, Any]) -> list[float]:
+    """[freq(s) alpha]; a single frequency is repeated when a significance level is given."""
+    values = _text_numbers(result, "coher", "Coherence frequency").tolist()
+    alpha = _text_numbers(result, "coher2", "Signif. level", sizes=(1,))
+    if alpha.size:
+        if len(values) == 1:
+            values.append(values[0])
+        values = _set_position(values, 2, float(alpha[0]))
+    return values
 
 
-def _parse_event_type_text(text: str) -> list[str]:
-    return [token.strip("'\"") for token in text.replace(",", " ").split() if token.strip("'\"")]
+def _set_position(values: list[float], position: int, value: float) -> list[float]:
+    padded = values + [0.0] * max(0, position + 1 - len(values))
+    padded[position] = value
+    return padded
 
 
-def _normalise_other_options(text: Any) -> dict[str, Any]:
-    parsed = parse_plot_options_text(text)
-    options: dict[str, Any] = {}
-    aliases = {"avewidth": "smooth", "limit": "limits"}
-    for key, value in parsed.items():
-        normalised = aliases.get(key, key)
-        if normalised in {"erp", "cbar", "nosort", "noplot"}:
-            options[normalised] = is_on(value)
-        elif normalised in {"title", "smooth", "decimate", "limits", "caxis", "vert"}:
-            options[normalised] = value
-        else:
-            raise ValueError(f"pop_erpimage More options does not support '{key}' in EEGPrep")
-    return options
+def _event_types_text(text: str) -> list[str]:
+    return [token for token in (item.strip("'\"{} ") for item in re.split(r"[\s,]+", text)) if token]
+
+
+def _more_options(text: str) -> dict[str, Any]:
+    try:
+        return parse_plot_options_text(text)
+    except ValueError as error:
+        raise ValueError(
+            "pop_erpimage(): More options needs 'key', value pairs (for example 'erpstd', 'on')"
+        ) from error
 
 
 __all__ = ["pop_erpimage", "pop_erpimage_dialog_spec"]

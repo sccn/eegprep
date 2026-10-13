@@ -191,3 +191,31 @@ def create_test_eeg_with_ica(n_channels=32, n_samples=1000, srate=250.0, n_compo
         )
 
     return eeg
+
+
+def create_erpimage_epochs(trials=6):
+    """Six 32-point trials at 100 Hz with 'stim' and 'rt' events and per-event fields."""
+    eeg = create_test_eeg(n_channels=3, n_samples=32, srate=100.0, n_trials=trials)
+    rng = np.random.default_rng(3)
+    eeg["data"] = rng.normal(size=(3, 32, trials))
+    eeg["xmin"], eeg["xmax"] = -0.1, 0.21
+    eeg["times"] = np.linspace(eeg["xmin"] * 1000, eeg["xmax"] * 1000, eeg["pnts"])
+    rt = [120.0, 60.0, 180.0, 30.0, 150.0, 90.0][:trials]
+    events = []
+    for trial in range(trials):
+        offset = trial * 32
+        events.append({"type": "stim", "latency": offset + 11, "epoch": trial + 1, "code": "x", "rt": np.nan})
+        events.append(
+            {
+                "type": "rt",
+                "latency": offset + 11 + rt[trial] / 10,
+                "epoch": trial + 1,
+                "code": "cab"[trial % 3],
+                "rt": rt[trial],
+            }
+        )
+    eeg["event"] = events
+    eeg["chanlocs"] = [
+        {"labels": label, "theta": theta, "radius": 0.3} for label, theta in (("A", -40.0), ("B", 0.0), ("C", 40.0))
+    ]
+    return eeg
