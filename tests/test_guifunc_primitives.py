@@ -7,6 +7,7 @@ import pytest
 
 from eegprep.functions.guifunc.inputdlg2 import inputdlg2
 from eegprep.functions.guifunc.listdlg2 import build_listdlg2_dialog
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
 
@@ -158,3 +159,136 @@ def test_listdlg2_selects_one_based_initial_values(qt_widgets):
 
     assert [index + 1 for index in range(list_widget.count()) if list_widget.item(index).isSelected()] == [1, 3]
     dialog.close()
+
+
+def _event_dialog(fields, types, *, selectionmode="multiple"):
+    """Field and type edits with EEGLAB's list buttons, and two mirrored frequency edits."""
+    controls = (
+        ControlSpec(
+            "pushbutton",
+            "Field",
+            tag="field_button",
+            callback=CallbackSpec(
+                "select_event_field",
+                params={
+                    "button": "field_button",
+                    "target": "field",
+                    "fields": fields,
+                    "reminder_source": "type",
+                    "reminder": "pick a type",
+                },
+            ),
+        ),
+        ControlSpec(
+            "pushbutton",
+            "Types",
+            tag="type_button",
+            callback=CallbackSpec(
+                "select_event_types",
+                params={
+                    "button": "type_button",
+                    "target": "type",
+                    "event_types": types,
+                    "selectionmode": selectionmode,
+                    "no_types_message": "No type field",
+                    "reminder_source": "field",
+                    "reminder": "pick a field",
+                },
+            ),
+        ),
+        ControlSpec("edit", tag="field", value=""),
+        ControlSpec("edit", tag="type", value=""),
+        ControlSpec("edit", tag="phase", callback=CallbackSpec("mirror_text", {"source": "phase", "target": "coher"})),
+        ControlSpec("edit", tag="coher", callback=CallbackSpec("mirror_text", {"source": "coher", "target": "phase"})),
+    )
+    return DialogSpec(
+        title="events", controls=controls, geometry=((1, 1), (1, 1), (1, 1)), function_name="events", eeglab_source=""
+    )
+
+
+@pytest.fixture
+def qt_renderer(qt_widgets, monkeypatch):
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    messages = []
+    message_box = qt_module.QtWidgets.QMessageBox
+    monkeypatch.setattr(message_box, "warning", lambda _parent, title, text: messages.append((title, text)))
+    monkeypatch.setattr(message_box, "critical", lambda _parent, title, text: messages.append((title, text)))
+    dialogs = []
+
+    def build(spec):
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+        dialogs.append(dialog)
+        return widgets
+
+    yield qt_module, build, messages
+    for dialog in dialogs:
+        dialog.close()
+
+
+def test_event_field_list_fills_the_field_and_reminds_about_an_empty_type(qt_renderer, monkeypatch):
+    qt_module, build, messages = qt_renderer
+    shown = {}
+
+    def listdlg2(**kwargs):
+        shown.update(kwargs)
+        return [2], 1, "rt"
+
+    monkeypatch.setattr(qt_module, "listdlg2", listdlg2)
+    widgets = build(_event_dialog(["latency", "rt"], ["stim"]))
+    widgets["field_button"].click()
+    assert widgets["field"].text() == "rt"
+    assert shown["promptstring"] == "Select fields" and shown["selectionmode"] == "single"
+    assert messages == [("Warning", "pick a type")]
+    messages.clear()
+    widgets["type"].setText("stim")
+    monkeypatch.setattr(qt_module, "listdlg2", lambda **kwargs: ([], 0, ""))
+    widgets["field_button"].click()
+    assert widgets["field"].text() == "rt" and messages == []
+    build(_event_dialog([], ["stim"]))["field_button"].click()
+    assert messages == [("Error", "No events"), ("Warning", "pick a type")]
+
+
+def test_event_type_list_selects_several_types_and_reminds_about_an_empty_field(qt_renderer, monkeypatch):
+    qt_module, build, messages = qt_renderer
+    calls = []
+
+    def pop_chansel(values, **kwargs):
+        calls.append((values, kwargs["select"]))
+        return [1, 2], "stim rt", ["stim", "rt"]
+
+    monkeypatch.setattr(qt_module, "pop_chansel", pop_chansel)
+    widgets = build(_event_dialog(["latency"], ["stim", "rt"]))
+    widgets["type"].setText("stim")
+    widgets["type_button"].click()
+    assert widgets["type"].text() == "stim rt"
+    assert calls == [(["stim", "rt"], "stim")]
+    assert messages == [("Warning", "pick a field")]
+    messages.clear()
+    build(_event_dialog(["latency"], []))["type_button"].click()
+    assert messages[0] == ("Error", "No type field")
+
+
+def test_single_event_type_selection_appends_the_chosen_type(qt_renderer, monkeypatch):
+    qt_module, build, messages = qt_renderer
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", lambda *args, **kwargs: ("rt", True))
+    widgets = build(_event_dialog(["latency"], ["stim", "rt"], selectionmode="single"))
+    widgets["type"].setText("stim")
+    widgets["type_button"].click()
+    assert widgets["type"].text() == "stim rt" and messages == []
+
+
+def test_mirrored_edits_copy_only_when_both_are_filled(qt_renderer):
+    _qt_module, build, _messages = qt_renderer
+    widgets = build(_event_dialog([], []))
+    widgets["phase"].setText("10")
+    widgets["phase"].editingFinished.emit()
+    assert widgets["coher"].text() == ""
+    widgets["coher"].setText("12")
+    widgets["phase"].editingFinished.emit()
+    assert widgets["coher"].text() == "10"
+    widgets["coher"].setText("8 12")
+    widgets["coher"].editingFinished.emit()
+    assert widgets["phase"].text() == "8 12"

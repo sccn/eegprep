@@ -114,6 +114,8 @@ class QtDialogRenderer:
     _plot_fir_response: Any
     _sync_numeric: Any
     _select_event_types: Any
+    _select_event_field: Any
+    _mirror_text: Any
     _select_channels: Any
     _navigate_event: Any
     _navigate_channel: Any
@@ -298,7 +300,15 @@ class QtDialogRenderer:
         elif callback.name == "select_event_types":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
-            button.clicked.connect(lambda: self._select_event_types(button, target, params))
+            button.clicked.connect(lambda: self._select_event_types(button, target, params, widgets))
+        elif callback.name == "select_event_field":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_event_field(button, target, params, widgets))
+        elif callback.name == "mirror_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            source.editingFinished.connect(lambda: self._mirror_text(source, target))
         elif callback.name == "select_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -1164,12 +1174,22 @@ def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
     target.setText(f"{value:g}")
 
 
-def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+def _select_event_types(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """Pick event types: one at a time (appended), or several in a ``pop_chansel`` list."""
     event_types = [str(value) for value in params.get("event_types", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if params.get("selectionmode") == "multiple":
+        if not event_types:
+            qt_widgets.QMessageBox.critical(button, "Error", str(params.get("no_types_message", "No event types")))
+        else:
+            _chanlist, selected, _labels = pop_chansel(event_types, select=target.text().strip(), parent=button)
+            if selected:
+                target.setText(selected)
+        _remind_if_empty(button, widgets, params)
+        return
     if not event_types:
         return
     current = target.text().strip()
-    _qt_core, qt_widgets = _require_qt()
     value, accepted = qt_widgets.QInputDialog.getItem(
         button,
         "Select event type",
@@ -1180,6 +1200,34 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> 
     )
     if accepted and value:
         target.setText((current + " " + value).strip())
+
+
+def _select_event_field(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """EEGLAB's event-field list (``listdlg2``, single selection)."""
+    fields = [str(value) for value in params.get("fields", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if not fields:
+        qt_widgets.QMessageBox.critical(button, "Error", "No events")
+    else:
+        positions, accepted, _text = listdlg2(
+            promptstring="Select fields", liststring=fields, selectionmode="single", parent=button
+        )
+        if accepted and positions:
+            target.setText(fields[positions[0] - 1])
+    _remind_if_empty(button, widgets, params)
+
+
+def _remind_if_empty(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    other = widgets.get(params.get("reminder_source", ""))
+    if other is not None and params.get("reminder") and not other.text().strip():
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", str(params["reminder"]))
+
+
+def _mirror_text(source: Any, target: Any) -> None:
+    """Copy ``source`` into ``target`` when both are filled (EEGLAB's phase and coherence frequencies)."""
+    if source.text().strip() and target.text().strip():
+        target.setText(source.text())
 
 
 def _navigate_event(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
@@ -1722,6 +1770,8 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_plot_fir_response",
     "_sync_numeric",
     "_select_event_types",
+    "_select_event_field",
+    "_mirror_text",
     "_select_channels",
     "_navigate_event",
     "_navigate_channel",
