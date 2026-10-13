@@ -6,6 +6,8 @@ tests cover argument handling, the returned outputs and what is drawn.
 
 from __future__ import annotations
 
+import logging
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -18,6 +20,7 @@ import pytest
 import eegprep
 from eegprep.functions.sigprocfunc import erpimage as erpimage_module
 from eegprep.functions.sigprocfunc.erpimage import ErpimageResult, erpimage
+from eegprep.functions.sigprocfunc.erpimage_engine import welch_psd
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.assertions import assert_matlab_struct_near
 
@@ -263,6 +266,33 @@ def test_erpimage_draws_into_a_target_subfigure() -> None:
     assert all(axis.get_figure() is target for axis in result.axhndls if axis is not None)
 
 
+def test_scalp_map_inset_stays_round_in_a_subfigure() -> None:
+    data, times = _trials()
+    chanlocs = [{"labels": "C3", "theta": -90.0, "radius": 0.25}, {"labels": "C4", "theta": 90.0, "radius": 0.25}]
+    figure = plt.figure(figsize=(10, 4))
+    target = figure.subfigures(1, 2)[1]
+    result = erpimage(data, None, times, topo=(1, chanlocs), target=target)
+    box = result.axhndls[5].get_window_extent()
+    assert box.width == pytest.approx(box.height, rel=1e-6)
+
+
+def test_target_must_be_a_figure_and_cannot_be_combined_with_noshow() -> None:
+    data, times = _trials()
+    figure = plt.figure()
+    with pytest.raises(TypeError, match="target must be a matplotlib Figure or SubFigure, got Axes"):
+        erpimage(data, None, times, target=figure.add_subplot())
+    with pytest.raises(ValueError, match="'NoShow' draws no figure"):
+        erpimage(data, None, times, "", 1, 1, "NoShow", "on", target=figure)
+
+
+def test_a_drawing_error_closes_the_new_figure() -> None:
+    data, times = _trials()
+    before = plt.get_fignums()
+    with pytest.raises(ValueError):
+        erpimage(data, None, times, auxvar=(np.zeros((1, 30)), "notacolor"))
+    assert plt.get_fignums() == before
+
+
 def test_noshow_returns_outputs_without_a_figure() -> None:
     data, times = _trials()
     before = plt.get_fignums()
@@ -410,3 +440,44 @@ def test_butterworth_filter_modes() -> None:
     for edges in ([0, 20], [10, 64], [-20, -30], [10, 20]):
         filtered = erpimage_module.butterworth_filter(signal, np.asarray(edges, dtype=float), 128.0)
         assert filtered.shape == signal.shape and np.all(np.isfinite(filtered))
+
+
+def test_log_spectrum_axis_starts_at_the_first_analyzed_frequency() -> None:
+    data, times = _trials()
+    result = erpimage(data, None, times, spec=[0, 50])
+    _psd, freqs = welch_psd(data.reshape(-1, order="F"), data.shape[0], SRATE)
+    assert result.axhndls[5].get_xscale() == "log"
+    assert result.axhndls[5].get_xlim() == pytest.approx((freqs[1], 50.0))
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"topo": (3, [{"labels": "C3"}, {"labels": "C4"}])}, "'topo' channel 3 is not a channel number from 1 to 2"),
+        ({"topo": (1.5, [{"labels": "C3"}, {"labels": "C4"}])}, "'topo' channel 1.5"),
+        ({"topo": ([0.1, 0.2, 0.3], [{"labels": "C3"}, {"labels": "C4"}])}, "'topo' map has 3 values for 2 channels"),
+        ({"spec": [70, 90]}, "starts above the Nyquist frequency"),
+    ],
+)
+def test_insets_that_would_draw_nothing_raise_before_a_figure_exists(options, message) -> None:
+    data, times = _trials()
+    before = plt.get_fignums()
+    with pytest.raises(ValueError, match=message):
+        erpimage(data, None, times, **options)
+    assert plt.get_fignums() == before
+
+
+def test_ignored_inset_and_tick_inputs_are_logged(caplog) -> None:
+    data, times = _trials()
+    chanlocs = [{"labels": "C3", "theta": -90.0, "radius": 0.25}, {"labels": "C4", "theta": 90.0, "radius": 0.25}]
+    with caplog.at_level(logging.WARNING, logger=erpimage_module.logger.name):
+        erpimage(
+            data,
+            np.linspace(100, 300, 30),
+            times,
+            topo=(1, chanlocs, {}),
+            img_trialax_label="RT (ms)",
+            img_trialax_ticks=[150, 900],
+        )
+    assert "the third 'topo' element (EEG.chaninfo) is not used" in caplog.text
+    assert "'img_trialax_ticks' exceed smoothed sorting variable values" in caplog.text

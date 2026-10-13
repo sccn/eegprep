@@ -7,8 +7,10 @@ Butterworth ``'filt'`` (SciPy) and draws the figure with Matplotlib.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, NamedTuple
 
+from matplotlib.figure import FigureBase
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
@@ -52,6 +54,8 @@ SORTED_TRIAL_LABELS = {
 BUTTERWORTH_ORDER = 3
 LABEL_OFFSET_FRACTION = 0.03  # value labels left of the trace panels, as a fraction of the time span
 TITLE_OFFSET_FRACTION = 0.08  # rotated ERSP/ITC labels further left
+
+logger = logging.getLogger(__name__)
 
 
 class ErpimageResult(NamedTuple):
@@ -121,20 +125,30 @@ def erpimage(
     for its permutation test (EEGLAB's ``sign(randn-0.5)`` is +1 only 31% of
     the time, https://github.com/sccn/eeglab/issues/976), so ``erpalpha``
     thresholds differ slightly from MATLAB. Non-integer boxcar widths raise
-    ``ValueError``, as MATLAB R2025b does.
+    ``ValueError``, as MATLAB R2025b does. Invalid inputs raise ``ValueError``;
+    the notes EEGLAB prints and continues past (clamped widths, removed NaN
+    trials, ignored options) are logged through :mod:`logging`.
 
     Args:
         target: Matplotlib Figure or SubFigure to draw into instead of a new
-            figure window.
+            figure window; not allowed with ``NoShow``.
         title_fontsize: font size of the image title.
-        rng: ``numpy.random.Generator`` or ``RandomState`` for the coherence
-            bootstrap and the ``erpalpha`` permutations.
+        rng: seed, ``numpy.random.Generator`` or ``RandomState`` for the
+            coherence bootstrap and the ``erpalpha`` permutations.
 
     Returns:
         :class:`ErpimageResult` with the 15 EEGLAB outputs and the figure
         (``None`` with ``NoShow``).
+
+    Raises:
+        TypeError: ``target`` is not a Matplotlib Figure or SubFigure.
+        ValueError: invalid data, sorting variable or option values.
     """
+    if target is not None and not isinstance(target, FigureBase):
+        raise TypeError(f"erpimage(): target must be a matplotlib Figure or SubFigure, got {type(target).__name__}")
     opts = parse_erpimage_options(options, **kwargs)
+    if opts.noshow and target is not None:
+        raise ValueError("erpimage(): 'NoShow' draws no figure, so it cannot be combined with target")
     if opts.title is not None:
         title = opts.title
     result = compute_erpimage(
@@ -150,6 +164,7 @@ def erpimage(
     )
     if opts.noshow:
         return _result(result, (None, None, None, None, None), None)
+    _check_insets(result, opts)
     figure, axes = _draw(result, opts, str(title or ""), target, title_fontsize)
     return _result(result, axes, figure)
 
@@ -197,19 +212,54 @@ def _outsort(result: ErpimageComputation) -> np.ndarray:
     return np.asarray(result.outvar[0] if isinstance(result.outvar, tuple) else result.outvar, dtype=float)
 
 
+def _check_insets(result: ErpimageComputation, opts: ErpimageOptions) -> None:
+    """Reject scalp-map and spectrum insets that would draw nothing, before a figure exists."""
+    if opts.topo is not None:
+        values = np.asarray(opts.topo[0], dtype=float).ravel()
+        nchans = len(opts.topo[1])
+        if values.size == 1 and (values[0] != np.floor(values[0]) or not 1 <= values[0] <= nchans):
+            raise ValueError(f"erpimage(): 'topo' channel {values[0]:g} is not a channel number from 1 to {nchans}")
+        if values.size != 1 and values.size != nchans:
+            raise ValueError(f"erpimage(): 'topo' map has {values.size} values for {nchans} channels")
+        if len(opts.topo) == 3:
+            logger.warning("erpimage(): the third 'topo' element (EEG.chaninfo) is not used.")
+    if opts.spec is not None and opts.spec[0] >= result.srate / 2:
+        raise ValueError(
+            f"erpimage(): 'spec' band {opts.spec.tolist()} Hz starts above the Nyquist frequency ({result.srate / 2:g} Hz)"
+        )
+
+
 def _draw(
     result: ErpimageComputation, opts: ErpimageOptions, title: str, target: Any, title_fontsize: float | None
 ) -> tuple[Any, tuple[Any, ...]]:
-    has_erp = result.erp is not None
-    has_coher = result.amps is not None and result.cohers is not None
     insets = opts.topo is not None or opts.spec is not None
     height_ratios: list[float] = [1.0] if insets else []
     height_ratios.append(3.0)
-    if has_erp:
+    if result.erp is not None:
         height_ratios.append(1.0)
-    if has_coher:
+    if result.amps is not None and result.cohers is not None:
         height_ratios.extend([1.0, 1.0])
-    figure = target if target is not None else plt.figure(figsize=(7.5, 1.2 * sum(height_ratios) + 0.6))
+    if target is not None:
+        return target, _draw_panels(target, result, opts, title, title_fontsize, height_ratios)
+    figure = plt.figure(figsize=(7.5, 1.2 * sum(height_ratios) + 0.6))
+    try:
+        return figure, _draw_panels(figure, result, opts, title, title_fontsize, height_ratios)
+    except Exception:
+        plt.close(figure)
+        raise
+
+
+def _draw_panels(
+    figure: Any,
+    result: ErpimageComputation,
+    opts: ErpimageOptions,
+    title: str,
+    title_fontsize: float | None,
+    height_ratios: list[float],
+) -> tuple[Any, ...]:
+    has_erp = result.erp is not None
+    has_coher = result.amps is not None and result.cohers is not None
+    insets = opts.topo is not None or opts.spec is not None
     # A narrow colorbar column only when a colorbar is drawn; image and traces stay flush like EEGLAB.
     grid = figure.add_gridspec(
         nrows=len(height_ratios),
@@ -240,7 +290,7 @@ def _draw(
     axes: tuple[Any, ...] = (image_ax, colorbar_ax, erp_ax, amp_ax, coh_ax)
     if insets:
         axes += _draw_insets(figure, grid, result, opts)
-    return figure, axes
+    return axes
 
 
 def _pixel_extent(values: np.ndarray) -> tuple[float, float]:
@@ -382,6 +432,12 @@ def _tick_values(low: float, high: float, requested: np.ndarray | None) -> np.nd
     """EEGLAB's order-of-magnitude trial-axis ticks within [low, high]."""
     if requested is not None:
         values = np.unique(np.asarray(requested, dtype=float))
+        if np.any((values < low) | (values > high)):
+            logger.warning(
+                "erpimage(): 'img_trialax_ticks' exceed smoothed sorting variable values. Max/min values are %g/%g.",
+                high,
+                low,
+            )
     else:
         order = order_of_magnitude(high - low)
         bounds = np.array([low, high]) / order
@@ -627,10 +683,10 @@ def _draw_insets(figure: Any, grid: Any, result: ErpimageComputation, opts: Erpi
     """Scalp map at upper left and data spectrum at upper right, as EEGLAB places them."""
     insets: tuple[Any, ...] = ()
     cell = grid[0, 0].get_position(figure)
-    width, height = figure.figure.get_size_inches()
     if opts.topo is not None:
         # Keep the scalp map square in display coordinates.
-        ax = figure.add_axes((cell.x0 + 0.10 * cell.width, cell.y0, cell.height * height / width, cell.height))
+        aspect = figure.bbox.height / figure.bbox.width
+        ax = figure.add_axes((cell.x0 + 0.10 * cell.width, cell.y0, cell.height * aspect, cell.height))
         values = np.asarray(opts.topo[0], dtype=float).ravel()
         chanlocs = list(opts.topo[1])
         if values.size == 1:
@@ -646,7 +702,9 @@ def _draw_insets(figure: Any, grid: Any, result: ErpimageComputation, opts: Erpi
         ax.plot(freqs, decibels)
         band = (freqs >= opts.spec[0]) & (freqs <= opts.spec[1])
         ax.set_xscale(opts.specaxis)
-        ax.set_xlim(opts.spec[0], opts.spec[1])
+        # A log axis cannot start at 0 Hz; it starts at the first analyzed frequency instead.
+        low = freqs[1] if opts.specaxis == "log" and opts.spec[0] <= 0 else opts.spec[0]
+        ax.set_xlim(low, opts.spec[1])
         if np.any(band):
             ax.set_ylim(np.min(decibels[band]) - 1, np.max(decibels[band]) + 1)
         ax.set_ylabel("dB", fontsize=LABELFONT)
