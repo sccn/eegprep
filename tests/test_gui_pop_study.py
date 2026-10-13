@@ -214,6 +214,7 @@ def _reaction_time_study():
     return pop_study(None, [eeg], name="RT study")
 
 
+@pytest.mark.modal_dialogs
 def test_pop_studydesign_new_button_opens_add_variable_for_rt():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from eegprep.functions.guifunc.qt import QtDialogRenderer, _require_qt
@@ -514,6 +515,7 @@ def _on_modal(qt_core, qt_widgets, predicate, action):
     qt_core.QTimer.singleShot(10, poll)
 
 
+@pytest.mark.modal_dialogs
 def test_pop_studydesign_offscreen_buttons_match_std_makedesign(tmp_path):
     qt_core, qt_widgets, renderer_type = _gui()
     study, alleeg = _two_condition_study()

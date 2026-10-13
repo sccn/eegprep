@@ -187,7 +187,8 @@ addopts = [
   "--strict-config",
   "--strict-markers",
 ]
-# The thread method also stops a test blocked in Qt's event loop by a modal dialog.
+# Repository-wide limit per test. Use the thread method: the signal method cannot
+# interrupt a test blocked in Qt's event loop by a modal dialog.
 timeout = 300
 timeout_method = "thread"
 markers = [
@@ -199,6 +200,7 @@ markers = [
   "visual: visual parity capture or comparison tests",
   "parity: numerical or behavioral parity tests against EEGLAB/MATLAB",
   "eeglab_contract: tests that dispatch through the explicit EEGLAB reference backend",
+  "modal_dialogs: tests that drive real modal Qt dialogs, for example with QTimer.singleShot",
 ]
 
 [tool.setuptools]

@@ -210,6 +210,28 @@ def pytest_addoption(parser):
     )
 
 
+@pytest.fixture(autouse=True)
+def _no_unanswered_modal_dialogs(request, monkeypatch):
+    """Fail a test that opens a modal Qt dialog nobody answers, instead of hanging the whole run.
+
+    Tests answer dialogs through ``qt_dialogs``, or drive real ones and carry the
+    ``modal_dialogs`` marker.
+    """
+    if "qt_dialogs" in request.fixturenames or request.node.get_closest_marker("modal_dialogs"):
+        return
+    try:
+        from PySide6 import QtWidgets
+    except ImportError:
+        return
+
+    def refuse(*_args, **_kwargs):
+        raise RuntimeError("a modal Qt dialog opened during a test; answer it with the qt_dialogs fixture")
+
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", refuse)
+    for name in ("warning", "critical", "information", "question"):
+        monkeypatch.setattr(QtWidgets.QMessageBox, name, refuse)
+
+
 @pytest.fixture
 def qt_dialogs(monkeypatch):
     """The Qt dialog renderer with every modal call answered and Qt slot exceptions collected.
