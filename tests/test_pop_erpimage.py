@@ -403,6 +403,21 @@ def test_an_invalid_plot_flag_raises_before_drawing(plot) -> None:
 def test_history_names_a_copy_of_the_dataset_locations_as_the_dataset_locations(epochs) -> None:
     _result, command = pop_erpimage(epochs, 1, 14, topo=(14, deepcopy(epochs["chanlocs"])), plot="off", return_com=True)
     assert command == "pop_erpimage(EEG, 1, 14, smooth=5, decimate=0, topo=(14, EEG['chanlocs']))"
+    chaninfo = {"nosedir": "+X"}
+    _result, command = pop_erpimage(epochs, 1, 14, topo=(14, epochs["chanlocs"], chaninfo), plot="off", return_com=True)
+    assert command.endswith("topo=(14, EEG['chanlocs'], {'nosedir': '+X'}))")
+
+
+def test_history_writes_other_locations_in_full(caplog) -> None:
+    eeg = create_erpimage_epochs()
+    moved = deepcopy(eeg["chanlocs"])
+    moved[0]["theta"] = -60.0
+    result, command = pop_erpimage(eeg, 1, 1, smooth=1, topo=(1, moved), plot="off", return_com=True)
+    assert "EEG['chanlocs']" not in command and "'theta': -60" in command
+    replayed = eval(command, {"EEG": eeg, "pop_erpimage": pop_erpimage})
+    np.testing.assert_allclose(
+        replayed.axhndls[5].collections[-1].get_offsets(), result.axhndls[5].collections[-1].get_offsets()
+    )
 
 
 @pytest.mark.parametrize(("field", "value"), [("icaweights", None), ("icasphere", np.array([])), ("icaweights", [])])

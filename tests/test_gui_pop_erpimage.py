@@ -182,12 +182,18 @@ def test_lastcom_reopens_the_dialog_with_the_previous_command(epochs) -> None:
     assert renderer.initial_values["phase"] == "10 12" and renderer.initial_values["align"] == "inf"
 
 
-def test_lastcom_skips_expressions_and_replays_without_the_dialog(epochs, caplog) -> None:
-    lastcom = "image = pop_erpimage(EEG, 1, 14, smooth=3, topo=(14, EEG['chanlocs']), rng=2)"
+def test_lastcom_restores_the_seed_and_dataset_locations_and_skips_expressions(epochs, caplog) -> None:
+    lastcom = "image = pop_erpimage(EEG, 1, 14, smooth=3, topo=(14, EEG['chanlocs']), title=name, rng=2, **extra)"
     with caplog.at_level(logging.INFO, logger="eegprep.functions.popfunc.pop_erpimage"):
-        _result, command = pop_erpimage(epochs, 1, lastcom=lastcom, gui=False, plot="off", return_com=True)
-    assert command == "pop_erpimage(EEG, 1, 14, smooth=3, decimate=0)"
-    assert "topo of the previous command is not a literal, so it is not restored" in caplog.text
+        result, command = pop_erpimage(epochs, 1, lastcom=lastcom, gui=False, plot="off", return_com=True)
+    assert command == "pop_erpimage(EEG, 1, 14, smooth=3, decimate=0, topo=(14, EEG['chanlocs']), rng=2)"
+    assert result.axhndls[5] is not None
+    assert "title of the previous command is not a literal, so it is not restored" in caplog.text
+    assert "**extra of the previous command is not restored" in caplog.text
+    seeded = "pop_erpimage(EEG, 1, 14, coher=[10, 10, 0.01], rng=5)"
+    first = pop_erpimage(epochs, 1, lastcom=seeded, gui=False, plot="off")
+    second = pop_erpimage(epochs, 1, 14, coher=[10, 10, 0.01], rng=5, plot="off")
+    assert first.cohsig == second.cohsig
 
 
 @pytest.mark.parametrize(
@@ -196,11 +202,21 @@ def test_lastcom_skips_expressions_and_replays_without_the_dialog(epochs, caplog
         (14, "pop_erpimage(EEG, 1, 3)", "lastcom holds the arguments; pass no others with it"),
         (None, "pop_erpimage(EEG, 1, 3", "lastcom is not a Python command"),
         (None, "pop_topoplot(EEG, 1, 3)", "lastcom is not a pop_erpimage command"),
+        (None, "pop_erpimage(EEG, 1, " + "[" * 5000 + "]" * 5000 + ")", "lastcom is not a Python command"),
     ],
 )
 def test_lastcom_that_cannot_be_used_raises(epochs, channel, lastcom, message) -> None:
     with pytest.raises(ValueError, match=message):
         pop_erpimage(epochs, 1, channel, lastcom=lastcom, renderer=_Renderer({}))
+
+
+@pytest.mark.parametrize("extra", [{"cbar": False}, {"options": ("erp", "off")}])
+def test_lastcom_takes_no_options_besides_it(epochs, extra) -> None:
+    tokens = extra.pop("options", ())
+    with pytest.raises(ValueError, match="lastcom holds the arguments; pass no others with it"):
+        pop_erpimage(
+            epochs, 1, None, None, "", None, None, None, None, "", *tokens, lastcom="pop_erpimage(EEG, 1, 3)", **extra
+        )
 
 
 def test_dialog_values_replace_the_callers_options(epochs) -> None:

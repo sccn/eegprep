@@ -53,6 +53,7 @@ CHECKBOX_OPTIONS = ("erp", "cbar", "nosort", "noplot", "plotamps")
 # The dialog always sets these, so More options cannot carry them.
 DIALOG_SET_OPTIONS = ("erp", "cbar", "yerplabel")
 MAX_LISTED_EPOCHS = 10
+DATASET_LOCATIONS = "EEG['chanlocs']"
 
 
 def pop_erpimage(
@@ -134,7 +135,8 @@ def pop_erpimage(
     if lastcom:
         if not all(is_empty_value(value) for value in arguments.values()) or options or kwargs:
             raise ValueError("pop_erpimage(): lastcom holds the arguments; pass no others with it")
-        arguments, options, kwargs = _previous_call(lastcom)
+        arguments, options, kwargs, previous_rng = _previous_call(lastcom, EEG)
+        rng = previous_rng if rng is None else rng
     _check_positional(arguments)
     plotmap = _plotmap_flag(kwargs.pop("plotmap", True))
     user_options = _ordered_options(options, kwargs)
@@ -503,15 +505,21 @@ def _history_command(
 def _option_literal(EEG: dict[str, Any], name: str, value: Any) -> str:
     """Python literal of an option; a scalp map drawn on the dataset's channels names ``EEG['chanlocs']``."""
     if name == "topo" and isinstance(value, (list, tuple)) and len(value) >= 2 and _same_channels(value[1], EEG):
-        return f"({python_literal(value[0])}, EEG['chanlocs'])"
+        items = [python_literal(value[0]), DATASET_LOCATIONS, *(python_literal(item) for item in value[2:])]
+        return "(" + ", ".join(items) + ")"
     return python_literal(value)
 
 
 def _same_channels(chanlocs: Any, EEG: dict[str, Any]) -> bool:
-    def labels(locations: Any) -> list[str]:
-        return [str(location.get("labels")) for location in chanlocs_as_list(locations)]
+    """Whether locations match the dataset's in label and position (theta, radius)."""
 
-    return chanlocs is EEG.get("chanlocs") or labels(chanlocs) == labels(EEG.get("chanlocs", []))
+    def positions(locations: Any) -> list[str]:
+        return [
+            python_literal([location.get(key) for key in ("labels", "theta", "radius")])
+            for location in chanlocs_as_list(locations)
+        ]
+
+    return chanlocs is EEG.get("chanlocs") or positions(chanlocs) == positions(EEG.get("chanlocs", []))
 
 
 def pop_erpimage_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> DialogSpec:
@@ -968,49 +976,60 @@ def _numbers_text(numbers: np.ndarray) -> str:
     return " ".join(str(int(number)) if number.is_integer() else repr(number) for number in map(float, numbers))
 
 
-def _previous_call(lastcom: str) -> tuple[dict[str, Any], tuple[Any, ...], dict[str, Any]]:
-    """Arguments, EEGLAB tokens and keyword options of an earlier ``pop_erpimage`` command."""
+def _previous_call(
+    lastcom: str, EEG: dict[str, Any]
+) -> tuple[dict[str, Any], tuple[Any, ...], dict[str, Any], int | None]:
+    """Arguments, EEGLAB tokens, keyword options and integer rng seed of an earlier ``pop_erpimage`` command.
+
+    Nothing is evaluated: values are read as literals (``float('nan')`` and
+    ``float('inf')`` included), and ``EEG['chanlocs']`` names this dataset's locations.
+    """
     try:
-        tree = ast.parse(lastcom.strip())
-    except SyntaxError as error:
-        raise ValueError(f"pop_erpimage(): lastcom is not a Python command: {lastcom!r}") from error
-    call = next(
-        (
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call) and ast.unparse(node.func).split(".")[-1] == "pop_erpimage"
-        ),
-        None,
-    )
-    if call is None:
-        raise ValueError(f"pop_erpimage(): lastcom is not a pop_erpimage command: {lastcom!r}")
-    positional = [None, *(_restored_value(node, f"argument {index}") for index, node in enumerate(call.args[1:], 2))]
-    keywords = {}
-    for keyword in call.keywords:
-        value = _restored_value(keyword.value, str(keyword.arg))
-        if keyword.arg is not None and value is not None:
-            keywords[keyword.arg] = value
+        call = _pop_erpimage_call(ast.parse(lastcom.strip()), lastcom)
+        positional = [None]
+        for index, node in enumerate(call.args[1:], 2):
+            positional.append(_restored_value(node, f"argument {index}", EEG))
+        keywords = {}
+        for keyword in call.keywords:
+            if keyword.arg is None:
+                logger.info("pop_erpimage(): **%s of the previous command is not restored.", ast.unparse(keyword.value))
+                continue
+            value = _restored_value(keyword.value, keyword.arg, EEG)
+            if value is not None:
+                keywords[keyword.arg] = value
+    except (SyntaxError, RecursionError, MemoryError) as error:
+        raise ValueError(f"pop_erpimage(): lastcom is not a Python command: {lastcom[:200]!r}") from error
     bound = inspect.signature(pop_erpimage).bind_partial(*positional, **keywords)
     bound.apply_defaults()
     values = bound.arguments
-    return {name: values[name] for name in ARGUMENT_NAMES}, tuple(values["options"]), dict(values["kwargs"])
+    seed = values["rng"] if isinstance(values["rng"], int) else None
+    return {name: values[name] for name in ARGUMENT_NAMES}, tuple(values["options"]), dict(values["kwargs"]), seed
 
 
-def _restored_value(node: ast.expr, name: str) -> Any:
-    """A literal of a history command, or None (logged) when it is an expression such as ``EEG['chanlocs']``."""
+def _pop_erpimage_call(tree: ast.AST, lastcom: str) -> ast.Call:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and ast.unparse(node.func).split(".")[-1] == "pop_erpimage":
+            return node
+    raise ValueError(f"pop_erpimage(): lastcom is not a pop_erpimage command: {lastcom[:200]!r}")
+
+
+def _restored_value(node: ast.expr, name: str, EEG: dict[str, Any]) -> Any:
+    """A literal of a history command, or None (logged) for any other expression."""
     try:
-        return _literal(node)
+        return _literal(node, EEG)
     except (TypeError, ValueError):
         logger.info("pop_erpimage(): %s of the previous command is not a literal, so it is not restored.", name)
         return None
 
 
-def _literal(node: ast.expr) -> Any:
-    """``ast.literal_eval`` that also reads ``float('nan')`` and ``float('inf')``, as history commands write them."""
+def _literal(node: ast.expr, EEG: dict[str, Any]) -> Any:
+    """``ast.literal_eval`` that also reads ``float('nan')``, ``float('inf')`` and ``EEG['chanlocs']``."""
+    if ast.unparse(node) == DATASET_LOCATIONS:
+        return EEG.get("chanlocs")
     if isinstance(node, ast.Call) and ast.unparse(node.func) == "float" and len(node.args) == 1:
-        return float(_literal(node.args[0]))
+        return float(_literal(node.args[0], EEG))
     if isinstance(node, (ast.List, ast.Tuple)):
-        items = [_literal(item) for item in node.elts]
+        items = [_literal(item, EEG) for item in node.elts]
         return items if isinstance(node, ast.List) else tuple(items)
     return ast.literal_eval(node)
 
