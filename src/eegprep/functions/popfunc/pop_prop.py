@@ -36,8 +36,8 @@ COMPONENT_MAP_NUMCONTOUR = 3
 # The ERP-image title is long ("<name> activity (global offset ...)"); a smaller font keeps
 # it inside the panel (EEGLAB shrinks the parenthetical part, pop_prop.m:203).
 ERP_IMAGE_TITLE_FONTSIZE = 11
-# pop_prop.m sorts every trial on 10000 ms, past the epoch end, so trials keep their order
-# and erpimage clips the sortvar trace to the right edge of the image.
+# pop_prop.m sorts every trial on 10000 ms, so trials keep their order; for epochs shorter
+# than 10 s that is past the epoch end and erpimage clips the sortvar trace to the right edge.
 ERP_IMAGE_SORTVAR_MS = 10000.0
 # Panel placement for the three-panel figure. hspace leaves room for the ERP-image time
 # axis above the spectrum title; wspace keeps the ERP y-label clear of the scalp map.
@@ -194,6 +194,9 @@ def _plot_one_property(EEG: dict[str, Any], typecomp: int, index: int, spec_opt:
             # maplimits='absmax' centers the color axis on 0 (EEGLAB topoplot default), so the
             # map is not forced to matplotlib's asymmetric [min, max] auto range.
             topoplot(component_map, map_chanlocs, axes=ax, numcontour=COMPONENT_MAP_NUMCONTOUR, maplimits="absmax")
+
+    if np.all(np.isnan(trace)):
+        raise ValueError(f"{basename} activity is all NaN; there is nothing to plot")
 
     # EEGLAB draws a 500x500 window: scalp map upper-left, ERP image + trace upper-right,
     # power spectrum across the bottom (pop_prop.m:155/176/248). A manual GridSpec with

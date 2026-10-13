@@ -70,7 +70,7 @@ def pop_erpimage(
     kwargs.pop("noplot", None)
     align = numeric_vector(kwargs.pop("align", []))
     if align.size:
-        raise ValueError("pop_erpimage event alignment is not available in EEGPrep's standalone ERP image plot")
+        raise ValueError("pop_erpimage event alignment is not exposed by pop_erpimage; call erpimage directly")
     limits = numeric_vector(kwargs.pop("limits", []))
     if limits.size == 2:
         mask = (times >= limits[0]) & (times <= limits[1])
@@ -403,13 +403,13 @@ def _raise_for_unsupported_gui_options(result: dict[str, Any]) -> None:
     }
     for field, label in unsupported_text_fields.items():
         if str(result.get(field, "") or "").strip():
-            raise ValueError(f"pop_erpimage {label} is not available in EEGPrep's standalone ERP image plot")
+            raise ValueError(f"pop_erpimage {label} is not exposed by pop_erpimage; call erpimage directly")
     unsupported_checks = {
         "plotamps": "amplitude image mode",
     }
     for field, label in unsupported_checks.items():
         if bool(result.get(field, False)):
-            raise ValueError(f"pop_erpimage {label} is not available in EEGPrep's standalone ERP image plot")
+            raise ValueError(f"pop_erpimage {label} is not exposed by pop_erpimage; call erpimage directly")
 
 
 def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
@@ -439,7 +439,7 @@ def _raise_for_unsupported_kwargs(kwargs: dict[str, Any]) -> None:
     unsupported = sorted(set(kwargs) - supported)
     if unsupported:
         raise ValueError(
-            "pop_erpimage option(s) are not available in EEGPrep's standalone ERP image plot: " + ", ".join(unsupported)
+            "pop_erpimage option(s) not exposed by pop_erpimage (call erpimage directly): " + ", ".join(unsupported)
         )
 
 
@@ -462,7 +462,7 @@ def _event_sort_values(EEG: dict[str, Any], field: Any, event_types: Any, eventr
     if not field_name:
         return np.asarray([])
     if str(renorm).strip().lower() not in {"", "no", "yes"}:
-        raise ValueError("pop_erpimage renorm formulas are not available in EEGPrep; use 'yes' or 'no'")
+        raise ValueError("pop_erpimage renorm formulas are not exposed by pop_erpimage; call erpimage directly")
     trials = int(EEG.get("trials", 1) or 1)
     pnts = int(EEG.get("pnts", 0) or 0)
     srate = float(EEG.get("srate", 1) or 1)

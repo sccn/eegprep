@@ -165,6 +165,15 @@ def test_erp_image_follows_pop_prop_erpimage_call() -> None:
     plt.close("all")
 
 
+def test_all_nan_activity_raises_before_a_figure_exists() -> None:
+    eeg = _epoched_eeg()
+    eeg["data"][0] = np.nan
+    before = plt.get_fignums()
+    with pytest.raises(ValueError, match="Channel 1 activity is all NaN"):
+        pop_prop(eeg, 1, 1, plot="off")
+    assert plt.get_fignums() == before
+
+
 def test_continuous_data_erp_image_uses_one_second_lines() -> None:
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=3000, srate=100.0, n_trials=1)
     fig = pop_prop(eeg, 1, 1, plot="off")

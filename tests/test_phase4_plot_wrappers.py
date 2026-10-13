@@ -955,7 +955,7 @@ def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     plt.close(result["figure"])
     plt.close(unsorted["figure"])
 
-    with pytest.raises(ValueError, match="standalone ERP image"):
+    with pytest.raises(ValueError, match="not exposed by pop_erpimage; call erpimage directly"):
         pop_erpimage(eeg, typeplot=1, index=1, align=[0])
 
 
