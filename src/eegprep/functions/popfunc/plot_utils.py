@@ -202,7 +202,7 @@ def python_literal(value: Any) -> str:
     """Return a pasteable Python literal for EEGPrep console history."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, (np.integer, np.floating)):
+    if isinstance(value, np.generic):
         value = value.item()
     if isinstance(value, float):
         if np.isnan(value):
@@ -217,6 +217,8 @@ def python_literal(value: Any) -> str:
         return "[" + ", ".join(python_literal(item) for item in value) + "]"
     if isinstance(value, tuple):
         return "(" + ", ".join(python_literal(item) for item in value) + ("," if len(value) == 1 else "") + ")"
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{python_literal(key)}: {python_literal(item)}" for key, item in value.items()) + "}"
     return repr(value)
 
 

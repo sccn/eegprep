@@ -36,6 +36,7 @@ from eegprep.functions.popfunc.plot_utils import (
     component_activations,
     data_time_slice,
     parse_plot_options_text,
+    python_literal,
 )
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
@@ -879,6 +880,14 @@ def test_pop_comperp_significance_shading_marks_known_effect(sample_epoch):
     ]
     assert significant_patches
     plt.close(result["figure"])
+
+
+def test_python_literal_writes_numpy_values_as_plain_literals():
+    values = [np.str_("rt"), np.int64(3), np.float32(0.5), np.bool_(True), np.float64(np.nan)]
+    assert python_literal(values) == "['rt', 3, 0.5, True, float('nan')]"
+    location = {"labels": np.str_("Fz"), "theta": np.float64(-20.0), "radius": np.array([0.25])}
+    assert python_literal(location) == "{'labels': 'Fz', 'theta': -20, 'radius': [0.25]}"
+    assert python_literal(("x",)) == "('x',)"
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):
