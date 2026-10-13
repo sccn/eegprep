@@ -412,13 +412,32 @@ def _located(location: dict[str, Any]) -> bool:
 
 
 def _default_title(EEG: dict[str, Any], typeplot: int, channels: list[int], projection: list[Any]) -> str:
+    """EEGLAB's titles: labels joined without a separator, component numbers as int2str prints them."""
     if typeplot:
+        if not chanlocs_as_list(EEG.get("chanlocs")):
+            return _int2str(channels)
         labels = channel_labels(EEG)
-        return " ".join(labels[index - 1] for index in channels)
-    title = "Comp. " + " ".join(str(index) for index in channels)
+        return "".join(labels[index - 1] for index in channels)
+    title = "Comp. " + _int2str(channels)
     if projection:
-        title += " -> Chan. " + " ".join(str(item) for item in projection)
+        title += " -> Chan. " + _projection_title(projection)
     return title
+
+
+def _int2str(numbers: list[int]) -> str:
+    """MATLAB's int2str of a row vector: right-aligned columns two spaces wider than the longest number."""
+    width = max(len(str(number)) for number in numbers) + 2
+    return "".join(f"{number:>{width}d}" for number in numbers).lstrip()
+
+
+def _projection_title(projection: list[Any]) -> str:
+    """Projection channels as EEGLAB's vararg2str writes them, with double quotes around labels."""
+    texts = [f'"{item}"' if isinstance(item, str) else event_type_text(item) for item in projection]
+    if len(texts) == 1:
+        return texts[0]
+    if all(not isinstance(item, str) for item in projection):
+        return "[" + " ".join(texts) + "]"
+    return "{" + ",".join(texts) + "}"
 
 
 def _history_command(

@@ -151,11 +151,11 @@ def test_titles_from_the_argument_or_the_title_option(epochs) -> None:
 
 
 def test_default_titles_list_every_channel_and_component(epochs) -> None:
-    # EEGPrep's own titles for several items; EEGLAB's multi-channel title was not checked against MATLAB.
+    # As pop_erpimage.m builds them: [EEG.chanlocs(channel).labels] and 'Comp. ' int2str(channel).
     averaged = pop_erpimage(create_erpimage_epochs(), 1, [1, 3], smooth=1, plot="off")
-    assert averaged.axhndls[0].get_title() == "A C"
+    assert averaged.axhndls[0].get_title() == "AC"
     projected = pop_erpimage(epochs, 0, [6, 7], [27, 31], smooth=1, plot="off")
-    assert projected.axhndls[0].get_title() == "Comp. 6 7 -> Chan. 27 31"
+    assert projected.axhndls[0].get_title() == "Comp. 6  7 -> Chan. [27 31]"
 
 
 def test_channel_scalp_map_marks_the_plotted_electrode() -> None:
@@ -426,6 +426,12 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
         assert len(pop_erpimage(eeg, 0, 1, plot="off").axhndls) == 5
     assert "the ICA channels have no locations, so the scalp map is left out" in caplog.text
+
+
+def test_projection_titles_quote_labels_as_eeglab_does(epochs) -> None:
+    assert pop_erpimage(epochs, 0, 6, "POz", plot="off").axhndls[0].get_title() == 'Comp. 6 -> Chan. "POz"'
+    mixed = pop_erpimage(epochs, 0, 6, [27, "Oz"], plot="off", plotmap=False)
+    assert mixed.axhndls[0].get_title() == 'Comp. 6 -> Chan. {27,"Oz"}'
 
 
 def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
