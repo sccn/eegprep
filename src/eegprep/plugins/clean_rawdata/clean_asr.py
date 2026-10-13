@@ -38,7 +38,10 @@ def clean_asr(
     This is an automated artifact rejection function that ensures that the data
     contains no events that have abnormally strong power; the subspaces on which
     those events occur are reconstructed (interpolated) based on the rest of the
-    EEG signal during these time periods.
+    EEG signal during these time periods. A calibration recording that is too
+    short for the generalized-Gaussian fit still drops high-power windows; the
+    window scale is then the median and MAD of each channel's window RMS.
+    EEGLAB's fit throws in that situation and calibrates on every sample.
 
     Args:
         EEG (Dict[str, Any]): EEG data structure. Expected fields:

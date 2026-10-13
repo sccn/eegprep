@@ -123,6 +123,28 @@ order. For example, ``42.0`` remains a MATLAB double when another record holds
 ``"boundary"``; it does not become ``"42.0"``. EEGLAB's ``eeg_checkset`` may
 subsequently normalize mixed event types to strings as part of event validation.
 
+Known Differences from EEGLAB
+=============================
+
+These are intentional. EEGPrep does not reproduce the EEGLAB result.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Topic
+     - What EEGPrep does
+   * - ASR calibration on a short recording
+     - ``clean_asr`` still removes high-power calibration windows when
+       ``fit_eeg_distribution`` does not return a positive scale. The scale is
+       then the median and MAD of each channel's window RMS. EEGLAB's fit
+       errors once only a few windows are available, and ``clean_asr`` then
+       calibrates on every sample.
+   * - NaNs during re-referencing
+     - ``pop_reref`` leaves a NaN on a channel only when that sample or the
+       reference subtracted from it is NaN. EEGLAB multiplies by a reference
+       matrix that contains explicit zeros, so ``0*NaN`` marks every channel
+       at that time.
+
 Plugin Migration
 ================
 
