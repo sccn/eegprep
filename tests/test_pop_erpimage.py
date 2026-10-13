@@ -137,10 +137,14 @@ def test_projected_components_show_their_mean_map(epochs) -> None:
 
 
 def test_several_channels_have_no_scalp_map(epochs, caplog) -> None:
-    with caplog.at_level(logging.INFO, logger=pop_erpimage_module.logger.name):
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
         result = pop_erpimage(epochs, 1, [3, 7], plot="off")
     assert len(result.axhndls) == 5
     assert "the scalp map marks one channel, so it is left out for 2 channels" in caplog.text
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        mapped = pop_erpimage(epochs, 1, [3, 4, 5], topo=(4, epochs["chanlocs"]), plot="off")
+    assert len(mapped.axhndls) == 6 and caplog.text == ""
 
 
 @pytest.mark.parametrize("plotmap", ["off", 0, False])
@@ -428,13 +432,28 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     components = deepcopy(epochs)
     for location in components["chanlocs"]:
         location["theta"] = np.nan
-    assert len(pop_erpimage(components, 0, 6, plot="off").axhndls) == 5
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        assert len(pop_erpimage(components, 0, 6, plot="off").axhndls) == 5
+    assert "the channels have no locations, so the scalp map is left out" in caplog.text
     eeg.update(icaweights=np.eye(2), icasphere=np.eye(2), icawinv=np.eye(2), icachansind=np.array([0, 1]))
     eeg["icaact"] = np.array([])
     eeg["chanlocs"][0]["theta"] = np.nan
     with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
         assert len(pop_erpimage(eeg, 0, 1, plot="off").axhndls) == 5
     assert "the ICA channels have no locations, so the scalp map is left out" in caplog.text
+
+
+def test_datasets_without_locations_draw_no_scalp_map(caplog) -> None:
+    eeg = create_erpimage_epochs()
+    eeg["chanlocs"] = []
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        bare = pop_erpimage(eeg, 1, [2, 3], smooth=1, plot="off")
+    assert len(bare.axhndls) == 5 and bare.axhndls[0].get_title() == "2  3" and caplog.text == ""
+    eeg["chanlocs"] = [{"labels": label} for label in "ABC"]
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        assert len(pop_erpimage(eeg, 1, 2, smooth=1, plot="off").axhndls) == 5
+    assert "the channels have no locations" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -460,6 +479,17 @@ def test_projection_titles_quote_labels_as_eeglab_does(epochs) -> None:
     assert pop_erpimage(epochs, 0, 6, "POz", plot="off").axhndls[0].get_title() == 'Comp. 6 -> Chan. "POz"'
     mixed = pop_erpimage(epochs, 0, 6, [27, "Oz"], plot="off", plotmap=False)
     assert mixed.axhndls[0].get_title() == 'Comp. 6 -> Chan. {27,"Oz"}'
+
+
+def test_long_lists_of_epochs_are_shortened_in_messages(caplog) -> None:
+    eeg = create_erpimage_epochs(trials=30)
+    eeg["event"] = [event for event in eeg["event"] if not (event["type"] == "rt" and event["epoch"] <= 12)]
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        pop_erpimage(eeg, 1, 1, sortingtype="rt", sortingeventfield="rt", smooth=1, noshow=True)
+    assert (
+        "12 of 30 epochs have no event 'rt' value for event type 'rt' (epochs [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...]"
+        in (caplog.text)
+    )
 
 
 def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:

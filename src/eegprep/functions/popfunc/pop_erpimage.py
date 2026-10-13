@@ -52,6 +52,7 @@ ARGUMENT_NAMES = (
 CHECKBOX_OPTIONS = ("erp", "cbar", "nosort", "noplot", "plotamps")
 # The dialog always sets these, so More options cannot carry them.
 DIALOG_SET_OPTIONS = ("erp", "cbar", "yerplabel")
+MAX_LISTED_EPOCHS = 10
 
 
 def pop_erpimage(
@@ -155,7 +156,7 @@ def pop_erpimage(
     data = _activity(EEG, typeplot, channels, projection_numbers)
     times = np.linspace(float(EEG["xmin"]) * 1000, float(EEG["xmax"]) * 1000, data.shape[0])
     sortvar = _sorting_variable(EEG, sortingtype, sortingwin, sortingeventfield)
-    defaults = _default_options(EEG, typeplot, channels, projection, plotmap=plotmap)
+    defaults = _default_options(EEG, typeplot, channels, projection, plotmap=plotmap and "topo" not in user_options)
     settings = {name: value for name, value in defaults.items() if name not in user_options} | user_options
     title = (
         settings.pop("title")
@@ -338,22 +339,31 @@ def _sorting_variable(EEG: dict[str, Any], sortingtype: Any, sortingwin: Any, fi
     selection = _event_selection_text(types, window, field)
     if not isinstance(values, np.ndarray):
         unusable = [index for index, value in enumerate(values, start=1) if not _converts_to_float(value)]
-        raise ValueError(f"pop_erpimage(): {selection}s that are not numbers or text in epochs {unusable[:10]}")
-    missing = np.flatnonzero(np.isnan(values)) + 1
-    if missing.size == trials:
+        raise ValueError(f"pop_erpimage(): {selection}s that are not numbers or text in epochs {_epoch_list(unusable)}")
+    missing = (np.flatnonzero(np.isnan(values)) + 1).tolist()
+    if len(missing) == trials:
         raise ValueError(f"pop_erpimage(): no epoch has an {selection}")
-    if missing.size:
+    if missing:
         logger.warning(
             "pop_erpimage(): %d of %d epochs have no %s (epochs %s, counted from 1); erpimage leaves them out.",
-            missing.size,
+            len(missing),
             trials,
             selection,
-            missing.tolist(),
+            _epoch_list(missing),
         )
     repeated = [index for index, epoch_values in enumerate(all_values, start=1) if len(epoch_values) > 1]
     if field == "latency" and repeated:
-        logger.warning("pop_erpimage(): multiple event latencies found in epochs %s; the first is used.", repeated)
+        logger.warning(
+            "pop_erpimage(): multiple event latencies found in epochs %s; the first is used.", _epoch_list(repeated)
+        )
     return values
+
+
+def _epoch_list(numbers: list[int]) -> str:
+    """Epoch numbers for a message: all of them, or the first ten followed by '...'."""
+    if len(numbers) <= MAX_LISTED_EPOCHS:
+        return str(numbers)
+    return str(numbers[:MAX_LISTED_EPOCHS])[:-1] + ", ...]"
 
 
 def _event_types(sortingtype: Any) -> list[Any]:
@@ -413,6 +423,8 @@ def _scalp_map(EEG: dict[str, Any], typeplot: int, channels: list[int]) -> tuple
     """The channel's location or the (mean) component map, when the channels have locations."""
     chanlocs = chanlocs_as_list(EEG.get("chanlocs", []))
     if not any(_located(location) for location in chanlocs):
+        if chanlocs:
+            logger.warning("pop_erpimage(): the channels have no locations, so the scalp map is left out.")
         return None
     if not typeplot:
         maps, map_chanlocs = component_map_data(EEG)
