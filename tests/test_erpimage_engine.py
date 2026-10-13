@@ -9,6 +9,7 @@ MATLAB is available.
 from __future__ import annotations
 
 import ast
+import logging
 from pathlib import Path
 import subprocess
 import sys
@@ -48,7 +49,8 @@ OUTPUTS = (
 # Data-unit outputs are compared on the input scale: an ERP after 'rmerp' is rounding noise.
 DATA_DOMAIN = {"outdata", "erp", "erpsig"}
 NON_SCENARIO_KEYS = {"datasets", "seed", "matlab_version"}
-ENGINE_IMPORTS = {"__future__", "ast", "dataclasses", "typing", "numpy"}
+ENGINE_IMPORTS = {"__future__", "ast", "dataclasses", "logging", "typing", "numpy"}
+SRATE = 128.0
 
 
 def _load(path: Path) -> dict:
@@ -90,6 +92,11 @@ def _sample_slice(fixture: dict) -> np.ndarray:
         eeg = pop_loadset(str(SAMPLE_SET))
         _SAMPLE_CACHE["real"] = np.asarray(eeg["data"], dtype=float)[channel][np.ix_(samples, epochs)]
     return _SAMPLE_CACHE["real"]
+
+
+def _noise(frames: int = 64, trials: int = 12, seed: int = 11) -> tuple[np.ndarray, np.ndarray]:
+    """Gaussian noise trials and their latencies (-100 ms onward at 128 Hz)."""
+    return np.random.default_rng(seed).normal(size=(frames, trials)), -100 + np.arange(frames) * 1000 / SRATE
 
 
 def _scenario_inputs(fixture: dict, name: str) -> dict:
@@ -227,12 +234,16 @@ def test_erpalpha_is_reproducible_with_a_seeded_rng() -> None:
         engine.compute_erpimage(data, None, None, 1, 1, options, rng=np.random.default_rng(seed), plotted=False)
         for seed in (5, 5, 6)
     )
+    seeded = engine.compute_erpimage(data, None, None, 1, 1, options, rng=5, plotted=False)
     assert first.erpsig is not None
     np.testing.assert_array_equal(first.erpsig, second.erpsig)
+    np.testing.assert_array_equal(first.erpsig, seeded.erpsig)
     assert not np.array_equal(first.erpsig, other.erpsig)
     assert first.erpsig.shape == (data.shape[0],)
     plotted = engine.compute_erpimage(data, None, None, 1, 1, options, rng=np.random.default_rng(5))
     np.testing.assert_array_equal(plotted.erpsig, np.vstack([first.erpsig, -first.erpsig]))
+    with pytest.raises(TypeError, match="rng must be"):
+        engine.compute_erpimage(data, None, None, 1, 1, options, rng="seed")
 
 
 def test_engine_imports_only_numpy_and_the_standard_library() -> None:
@@ -322,11 +333,13 @@ def test_wavelet_transform_matches_a_direct_per_frame_projection(frames, trials,
     np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12 * np.max(np.abs(expected)))
 
 
-def test_sortidx_indexes_the_original_trials_after_nan_removal() -> None:
+def test_sortidx_indexes_the_original_trials_after_nan_removal(caplog) -> None:
     data = np.arange(60.0).reshape(10, 6)
-    result = engine.compute_erpimage(data, [3.0, np.nan, 1.0, 2.0, 1.0, np.nan], None, 1, 1, plotted=False)
+    with caplog.at_level(logging.WARNING, logger=engine.logger.name):
+        result = engine.compute_erpimage(data, [3.0, np.nan, 1.0, 2.0, 1.0, np.nan], None, 1, 1, plotted=False)
     np.testing.assert_array_equal(result.sortidx, [2, 4, 3, 0])  # stable: equal sortvar keeps input order
     np.testing.assert_array_equal(result.outdata, data[:, [2, 4, 3, 0]])
+    assert "Removing 2 trials with NaN sortvar values (input trials [1, 5], 0-based)" in caplog.text
 
 
 def test_noplot_hides_only_the_sortvar_trace() -> None:
@@ -480,9 +493,26 @@ def test_option_grammar_follows_eeglab() -> None:
     [
         ((np.zeros((10, 1)),), {}, "times vector"),
         ((np.zeros((10, 4)), [1.0]), {}, "too few trials"),
-        ((np.zeros((10, 4)), [1.0, 2.0, 3.0]), {}, "doesn't divide"),
-        ((np.zeros((10, 4)), [np.nan, np.nan, np.nan, 1.0]), {}, "Too few trials"),
-        ((np.zeros((10, 3)), None, None, 2), {}, "too short"),
+        ((np.zeros((1, 10)), [1.0, 2.0, 3.0], np.arange(3.0)), {}, "doesn't divide"),
+        ((np.zeros((10, 4)), [1.0, 2.0, 3.0]), {}, r"data are \(10, 4\) but sortvar has 3 values"),
+        ((np.zeros((4, 10)), np.arange(4.0), np.arange(10.0)), {}, r"data are \(4, 10\) but sortvar has 4 values"),
+        ((np.zeros((10, 4)), np.zeros((4, 2))), {}, "sortvar must be a vector"),
+        ((np.zeros((10, 4)), [np.nan] * 4), {}, "all 4 sortvar values are NaN"),
+        ((np.zeros((10, 4)), [np.nan, np.nan, np.nan, 1.0]), {}, "only one trial"),
+        ((np.full((10, 4), np.inf),), {}, "40 infinite values"),
+        ((np.zeros((2, 3, 4, 5)), None, np.arange(3.0)), {}, r"\(frames, trials\)"),
+        ((np.zeros((10, 3)), None, None, 2), {}, "smoothing needs at least 4 trials, got 3"),
+        ((np.zeros((10, 6)), None, None, [5, 7]), {}, "avewidth must be a single number"),
+        ((np.zeros((10, 6)), None, None, "5"), {}, "avewidth must be a single number"),
+        ((np.zeros((10, 6)), None, None, np.inf), {}, "avewidth must be finite"),
+        ((np.zeros((10, 6)), None, None, np.nan), {"avg_type": "gaussian"}, "avewidth must be finite"),
+        ((np.zeros((10, 6)), None, None, 0.5), {"avg_type": "gaussian"}, "cannot be < 1"),
+        ((np.zeros((10, 6)), None, None, 1, np.nan), {}, "decimate must be finite"),
+        ((np.zeros((10, 6)), None, None, 1, -7), {}, "use a value from -6 to 6"),
+        ((np.zeros((10, 6)), None, np.zeros(10)), {}, "strictly increasing"),
+        ((np.zeros((10, 6)), None, np.arange(10.0)[::-1]), {}, "strictly increasing"),
+        ((np.zeros((10, 6)), None, [0.0, 10.0, -5.0]), {}, "srate > 0"),
+        ((np.zeros((1, 6)), np.arange(6.0), [0.0]), {}, "at least 2 frames"),
         ((np.zeros((10, 6)), None, None, 2.5), {}, "integer"),
         ((np.zeros((10, 6)), None, None, 0.5), {}, "cannot be < 1"),
         ((np.zeros((10, 6)), None, [0.0, 20.0, 100.0]), {}, "gives 20 frames"),
@@ -495,6 +525,12 @@ def test_option_grammar_follows_eeglab() -> None:
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"filt": [0, 30]}, "trial filter"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"filt": [0, 900]}, "sampling rate"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"baseline": [5, 1]}, "baseline"),
+        ((np.zeros((40, 6)), None, np.arange(40.0) * 4), {"baseline": [10.5, 11.5]}, "contains no samples"),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"limits": [100, 200]}, "do not overlap the data"),
+        ((np.zeros((40, 6)), np.ones(6), np.arange(40.0)), {"renorm": "yes"}, "not all equal"),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"phasesort": [10, 0, 600]}, "less than Nyquist"),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"ampsort": [10, 0, 600]}, "less than Nyquist"),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"coher": [100, 100, 0.01]}, "'coher' amplitude is zero"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"vert": np.zeros((3, 2))}, "vert arg matrix"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"auxvar": np.zeros((3, 2))}, "auxvar size"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"renorm": "x+x"}, "renormalizing"),
@@ -506,6 +542,28 @@ def test_option_grammar_follows_eeglab() -> None:
             "timewarp",
         ),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"timewarp": (np.array([[10.0, 5.0]] * 6),)}, "ascending"),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"timewarp": (np.full((5, 1), 10.0),)}, "one row per trial"),
+        (
+            (np.zeros((40, 6)), None, np.arange(40.0)),
+            {"timewarp": (np.array([[10.0], [np.nan], [10.0], [10.0], [10.0], [10.0]]),)},
+            "trial 2 has",
+        ),
+        ((np.zeros((40, 6)), None, np.arange(40.0)), {"timewarp": (np.full((6, 1), 90.0),)}, "lie in the epoch"),
+        (
+            (np.zeros((40, 6)), None, np.arange(40.0)),
+            {"timewarp": (np.full((6, 2), [10.0, 20.0]), [15.0])},
+            "one reference latency per event column",
+        ),
+        (
+            (np.zeros((40, 6)), None, np.arange(40.0)),
+            {"timewarp": (np.full((6, 1), 10.0), [90.0])},
+            "reference latencies .* must lie in the epoch",
+        ),
+        (
+            (np.zeros((40, 6)), None, np.arange(40.0)),
+            {"timewarp": (np.full((6, 2), [10.0, 20.0]), [25.0, 15.0])},
+            "reference latencies must be in ascending order",
+        ),
         (
             (np.zeros((40, 6)), None, np.arange(40.0)),
             {"timewarp": (np.full((6, 1), 10.0),), "align": 10},
@@ -605,15 +663,21 @@ def test_auxvar_follows_alignment_ties_and_orientation() -> None:
     np.testing.assert_allclose(aligned.auxvar[0], auxvar[aligned.sortidx, 0] + shifts)
 
 
-@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
-def test_nan_after_smoothing_zeroes_the_whole_row_column_block() -> None:
-    data = np.ones((6, 8))
-    data[2, 3], data[2, 4] = np.inf, -np.inf  # inf - inf turns into NaN inside the moving average
-    data[4, 6] = np.inf
-    data[4, 7] = -np.inf
-    result = engine.compute_erpimage(data, None, np.arange(6.0), 2, 1, plotted=False)
-    rows, columns = np.nonzero(result.outdata == 0)
-    assert set(rows) == {2, 4} and set(columns) >= {3, 6}
+def test_nan_data_is_replaced_by_zeros_and_logged(caplog) -> None:
+    data, times = _noise()
+    data[[3, 5], 2] = np.nan
+    with caplog.at_level(logging.WARNING, logger=engine.logger.name):
+        result = engine.compute_erpimage(data, None, times, 1, 1, plotted=False)
+    np.testing.assert_array_equal(result.outdata[[3, 5], 2], [0.0, 0.0])
+    assert "Replaced 2 NaN values in data with 0s." in caplog.text
+
+
+def test_plotamps_rejects_trials_without_amplitude() -> None:
+    data, times = _noise()
+    data[:, 4] = np.nan
+    options = engine.parse_erpimage_options(plotamps=True, coher=[10, 20, 0.01])
+    with pytest.raises(ValueError, match="1 of 12 trials have zero wavelet amplitude"):
+        engine.compute_erpimage(data, None, times, 1, 1, options, rng=0)
 
 
 def test_percentile_erps_with_fewer_trials_than_groups_give_missing_rows() -> None:
@@ -648,6 +712,64 @@ def test_engine_option_branches(options, check) -> None:
         data, np.arange(8.0), times, avewidth, 0, engine.parse_erpimage_options(options), rng=np.random.RandomState(0)
     )
     assert check(result)
+
+
+def test_decimate_above_the_trial_count_is_clamped(caplog) -> None:
+    data, _times = _noise(30, 24)
+    sortvar = np.random.default_rng(0).permutation(24).astype(float)
+    with caplog.at_level(logging.WARNING, logger=engine.logger.name):
+        clamped = engine.compute_erpimage(data, sortvar, None, 3, 100, plotted=False)
+    at_count = engine.compute_erpimage(data, sortvar, None, 3, 24, plotted=False)
+    np.testing.assert_array_equal(clamped.outdata, at_count.outdata)
+    np.testing.assert_array_equal(clamped.outtrials, at_count.outtrials)
+    assert "Setting variable decfactor to max 24." in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("args", "kwargs", "message"),
+    [
+        ((20,), {}, "Setting variable avewidth to max 12."),
+        ((3,), {"avg_type": "gaussian"}, "Gaussian avewidth 3 is too big for 12 trials"),
+        ((1, 50), {}, "Setting variable decfactor to max 12."),
+        ((1, 1), {"phasesort": [100, -25, 10]}, "Retaining 9 epochs (75 percent) with smallest power"),
+        ((1, 1), {"ampsort": [100, 25, 10]}, "Retaining 9 epochs (75 percent) with largest power"),
+        ((1, 1), {"ampsort": [100, 0, 10, 100]}, "Reducing max 'ampsort' frequency to Nyquist rate (64 Hz)"),
+        ((1, 1), {"limits": [-500, 1000]}, "Adjusting mintime limit to first data value -100"),
+        ((1, 1), {"limits": [-500, 1000]}, "Adjusting maxtime limit to last data value 392.188"),
+        ((1, 1), {"phasesort": [100, 0, 10], "nosort": True}, "'phasesort' takes precedence over 'nosort'"),
+        ((1, 1), {"sortwin": [0, 100]}, "'sortwin' applies only to 'ampsort' with an Inf center"),
+        ((1, 1), {"showwin": True}, "'showwin' has no sorting window"),
+        ((1, 1), {"valsort": [0, 100], "sortvar_limits": [1, 5]}, "no effect when sorting by value"),
+        ((1, 1), {"ampsort": [100, 0, 10], "img_trialax_label": "RT"}, "no effect when sorting by amp"),
+        ((1, 1), {"erp": 3, "erpalpha": 0.05}, "Only plotting one ERP (not 3 percentile ERPs)"),
+        ((1, 1), {"sortvarpercent": [0.5]}, "'sortvarpercent' needs smoothing or decimation"),
+    ],
+)
+def test_eeglab_notes_are_logged(caplog, args, kwargs, message) -> None:
+    data, times = _noise()
+    with caplog.at_level(logging.INFO, logger=engine.logger.name):
+        engine.compute_erpimage(
+            data, np.arange(12.0), times, *args, options=engine.parse_erpimage_options(**kwargs), rng=0, plotted=False
+        )
+    assert message in caplog.text
+
+
+def test_too_large_alignment_shifts_leave_empty_trials_and_are_logged(caplog) -> None:
+    data, times = _noise()
+    sortvar = np.r_[5000.0, np.full(11, 100.0)]
+    with caplog.at_level(logging.WARNING, logger=engine.logger.name):
+        result = engine.compute_erpimage(
+            data, sortvar, times, 1, 1, engine.parse_erpimage_options(align=100.0), plotted=False
+        )
+    np.testing.assert_array_equal(result.outdata[:, result.sortidx == 0], 0.0)
+    assert "No aligned data for input trials [0] (0-based): shifts of [-627] frames are too large." in caplog.text
+
+
+def test_amplitude_rejection_must_leave_two_trials() -> None:
+    data, times = _noise()
+    for option in ({"phasesort": [100, 90, 10]}, {"ampsort": [100, 90, 10]}):
+        with pytest.raises(ValueError, match="amplitude rejection leaves 1 of 12 trials"):
+            engine.compute_erpimage(data, None, times, options=engine.parse_erpimage_options(**option), plotted=False)
 
 
 def test_decimation_reuses_the_rejection_fraction_like_eeglab() -> None:
@@ -735,7 +857,6 @@ def test_keyword_flags_accept_eeglab_strings_and_erp_strings() -> None:
 @pytest.mark.parametrize(
     ("args", "kwargs", "message"),
     [
-        ((np.zeros((40, 6)), None, np.arange(40.0)[::-1]), {}, "srate"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"ampsort": [500, 0, 100]}, "amplitude sorting"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"valsort": [0, 500]}, "value sorting"),
         ((np.zeros((40, 6)), None, np.arange(40.0)), {"coher": [10]}, "too low"),

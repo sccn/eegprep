@@ -9,19 +9,25 @@ limits EEGLAB draws with. Plotting lives in
 :mod:`eegprep.functions.sigprocfunc.erpimage`.
 
 The module is deliberately self-contained: it imports only NumPy and the
-standard library (``ast``, ``dataclasses``, ``typing``) and nothing from
-``eegprep``, so the browser distribution can include this single file.
+standard library (``ast``, ``dataclasses``, ``logging``, ``typing``) and nothing
+from ``eegprep``, so the browser distribution can include this single file. For
+that reason it keeps private copies of ``movav``, ``nan_mean``, ``gauss`` and
+``timewarp`` instead of importing the package versions; tests pin them together.
 
-Conventions differ from MATLAB only at the Python boundary: absent outputs are
-``None``, row vectors are 1-D arrays, and ``sortidx`` holds 0-based indices
-into the original input trials. ``outtrials`` keeps EEGLAB's 1-based trial-axis
-coordinates because they are plot positions, not indices.
+Outputs follow EEGLAB with Python conventions: absent outputs are ``None``, row
+vectors are 1-D arrays, and ``sortidx`` holds 0-based indices into the original
+input trials. ``outtrials`` keeps EEGLAB's 1-based trial-axis coordinates
+because they are plot positions, not indices. Where EEGLAB's code contradicts
+its documentation (``'erpalpha'`` sign draws, the ``'noplot'`` token), the
+documented meaning is implemented; invalid inputs raise ``ValueError`` and
+the messages EEGLAB prints and continues past are logged.
 """
 
 from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, replace
+import logging
 from typing import Any, Callable
 
 import numpy as np
@@ -40,6 +46,9 @@ WAVELET_TRIAL_BLOCK = 256  # trials per FFT block, bounding memory for large dat
 PLOTAMPS_CAXIS_FRACTION = 0.8
 NEAR_ZERO = 1e-22
 EEGLAB_SIGN_BIAS_ISSUE = "https://github.com/sccn/eeglab/issues/976"
+MIN_SMOOTHING_TRIALS = 4  # movav refuses fewer columns
+
+logger = logging.getLogger(__name__)
 
 _FLAG_KEYS = {
     "nosort": "nosort",
@@ -710,8 +719,8 @@ def compute_erpimage(
         decimate: window advance in trials; values above sqrt(trials) give
             that many output rows; negative values subtract the window width.
         options: options from :func:`parse_erpimage_options`.
-        rng: ``numpy.random.Generator`` or ``RandomState`` used for the
-            coherence bootstrap and the ``erpalpha`` permutations.
+        rng: seed, ``numpy.random.Generator`` or ``RandomState`` used for
+            the coherence bootstrap and the ``erpalpha`` permutations.
             ``RandomState(seed)`` reproduces MATLAB ``rng(seed,'twister')``
             uniform draws.
         plotted: mirror EEGLAB's plotted call (axis limits in ``limits`` and a
@@ -720,26 +729,23 @@ def compute_erpimage(
             ``'filt'`` Butterworth filter; required only with ``filt``.
     """
     opts = options if options is not None else ErpimageOptions()
-    rng = np.random.default_rng() if rng is None else rng
+    rng = _random_source(rng)
     values, times_passed = _data_matrix(data, times)
     sortvar_values, show_sortvar = _sort_values(sortvar, values.shape[1], opts.noplot)
     ntrials = sortvar_values.size
-    frames = values.size // ntrials
-    if frames * ntrials != values.size:
-        raise ValueError("erpimage(): length of sortvar doesn't divide number of data elements")
+    values = _trials_matrix(values, ntrials)
+    frames = values.shape[0]
     time_values, srate = _time_axis(times, frames)
     srate = opts.srate if opts.srate is not None else srate
-    decfactor = _first_value(decimate, 0.0)
-    decfactor = 1.0 if decfactor == 0 else min(decfactor, float(ntrials))
+    decfactor = _decimation(decimate, ntrials)
+    avewidth = _scalar_argument(avewidth, "avewidth", 1.0)
 
     _check_option_times(opts, time_values)
     if opts.plotamps and (opts.coher is None or opts.coher.size != 3):
         raise ValueError("erpimage(): allamps and allcohers flags require coher freq, srate, and cohsig.")
-    if not srate > 0:
-        raise ValueError("erpimage(): Data srate must be specified and > 0.")
     auxvar = None if opts.auxvar is None else _trial_matrix(opts.auxvar, ntrials, "auxvar")
     verttimes = None if opts.vert is None else _vert_times(opts.vert, ntrials)
-    marks, ref, vert_colors = _timewarp_setup(opts, auxvar is None, time_values, srate)
+    marks, ref, vert_colors = _timewarp_setup(opts, auxvar is None, time_values, srate, ntrials)
     if vert_colors is not None:
         verttimes = ((ref[[bool(color) for color in vert_colors]] - 1) / srate + time_values[0] / 1000) * 1000
         vert_colors = tuple(color for color in vert_colors if color)
@@ -748,21 +754,16 @@ def compute_erpimage(
     coherfreq = _check_coherence(opts.coher, opts.cycles, srate, frames)
     limits, timelimits, aligntime = _limit_settings(opts, time_values)
 
-    values[np.isnan(values)] = 0
-    if values.shape[1] != ntrials:
-        values = values.reshape(-1, order="F").reshape(frames, ntrials, order="F")
+    _replace_missing_data(values)
     per_trial_vert = verttimes if verttimes is not None and verttimes.ndim == 2 else None
-    trials = _Trials(values, sortvar_values, np.arange(ntrials), auxvar, per_trial_vert, marks)
-    if np.any(np.isnan(sortvar_values)):
-        trials = trials.take(np.flatnonzero(~np.isnan(sortvar_values)))
-        if trials.count <= 1:
-            raise ValueError("erpimage(): Too few trials")
-    avewidth, weights = _smoothing_window(_first_value(avewidth, 1.0), opts.avg_type, trials.count)
+    trials = _drop_nan_sortvar(_Trials(values, sortvar_values, np.arange(ntrials), auxvar, per_trial_vert, marks))
+    avewidth, weights = _smoothing_window(avewidth, opts.avg_type, trials.count)
     trials, aligntime = _preprocess(trials, opts, time_values, srate, aligntime, trial_filter)
     ordered = _sort_trials(trials, opts, phargs, ampargs, time_values, srate)
     trials = ordered.trials
     decfactor = _adjust_decimation(decfactor, trials.count, avewidth, ordered.rejection)
     smoothing = (avewidth, decfactor, weights, ordered.mode == "phase", opts.sortvarpercent)
+    _log_ignored_options(opts, ordered.mode, avewidth > 1 or decfactor > 1)
 
     urdata = trials.values.copy()
     coherfreq = _analysis_frequency(coherfreq, ordered.freq, urdata, frames, srate)
@@ -853,8 +854,43 @@ def _alpha_given(options: ErpimageOptions) -> bool:
     return options.coher is not None and options.coher.size == 3
 
 
-def _first_value(value: Any, default: float) -> float:
-    return default if value is None or np.size(value) == 0 else float(np.ravel(value)[0])
+def _random_source(rng: Any) -> Any:
+    """A NumPy Generator or RandomState; an integer seeds ``numpy.random.default_rng``."""
+    if rng is None:
+        return np.random.default_rng()
+    if isinstance(rng, (np.random.Generator, np.random.RandomState)):
+        return rng
+    if isinstance(rng, (int, np.integer)) and not isinstance(rng, bool):
+        return np.random.default_rng(int(rng))
+    raise TypeError(f"erpimage(): rng must be a seed, numpy.random.Generator or RandomState, got {type(rng).__name__}")
+
+
+def _scalar_argument(value: Any, name: str, default: float) -> float:
+    """A positional numeric argument (``avewidth``, ``decimate``); empty means EEGLAB's default."""
+    if value is None or (not isinstance(value, str) and np.size(value) == 0):
+        return default
+    if isinstance(value, (str, bytes, bool, np.bool_)) or np.size(value) != 1:
+        raise ValueError(f"erpimage(): {name} must be a single number, got {value!r}")
+    number = float(np.ravel(value)[0])
+    if not np.isfinite(number):
+        raise ValueError(f"erpimage(): {name} must be finite, got {number:g}")
+    return number
+
+
+def _decimation(decimate: Any, ntrials: int) -> float:
+    decfactor = _scalar_argument(decimate, "decimate", 0.0)
+    if decfactor == 0:
+        return 1.0
+    if decfactor > ntrials:
+        logger.warning("erpimage(): Setting variable decfactor to max %d.", ntrials)
+        return float(ntrials)
+    if decfactor < -ntrials:
+        # A negative decimate asks for about |decimate| interpolated rows; more rows than trials is refused.
+        raise ValueError(
+            f"erpimage(): decimate {decfactor:g} would interpolate about {-decfactor:g} rows from {ntrials} trials; "
+            f"use a value from -{ntrials} to {ntrials}"
+        )
+    return decfactor
 
 
 def _data_matrix(data: Any, times: Any) -> tuple[np.ndarray, bool]:
@@ -868,10 +904,29 @@ def _data_matrix(data: Any, times: Any) -> tuple[np.ndarray, bool]:
     times_passed = not (times is None or np.size(times) == 0)
     if not times_passed and 1 in values.shape:
         raise ValueError("erpimage(): either input a times vector or make data size = (frames,trials).")
+    infinite = int(np.count_nonzero(np.isinf(values)))
+    if infinite:
+        raise ValueError(f"erpimage(): data contain {infinite} infinite values")
     return values.copy(), times_passed
 
 
+def _trials_matrix(values: np.ndarray, ntrials: int) -> np.ndarray:
+    """(frames, trials) data; a single row or column is EEGLAB's trial-after-trial concatenation."""
+    if values.shape[1] == ntrials:
+        return values
+    if 1 in values.shape:
+        if values.size % ntrials:
+            raise ValueError("erpimage(): length of sortvar doesn't divide number of data elements")
+        return values.reshape(-1, order="F").reshape(values.size // ntrials, ntrials, order="F")
+    raise ValueError(
+        f"erpimage(): data are {values.shape} but sortvar has {ntrials} values; "
+        "expected (frames, trials) or a (1, frames*trials) concatenation"
+    )
+
+
 def _sort_values(sortvar: Any, columns: int, noplot: bool) -> tuple[np.ndarray, bool]:
+    if sortvar is not None and sum(size > 1 for size in np.shape(sortvar)) > 1:
+        raise ValueError(f"erpimage(): sortvar must be a vector, got shape {np.shape(sortvar)}")
     values = None if sortvar is None else np.asarray(sortvar, dtype=float).ravel()
     if values is None or values.size == 0:
         values, show = np.arange(1.0, columns + 1.0), False
@@ -880,6 +935,63 @@ def _sort_values(sortvar: Any, columns: int, noplot: bool) -> tuple[np.ndarray, 
     if values.size < 2:
         raise ValueError("erpimage(): too few trials.")
     return values, show
+
+
+def _replace_missing_data(values: np.ndarray) -> None:
+    missing = np.isnan(values)
+    if np.any(missing):
+        logger.warning("erpimage(): Replaced %d NaN values in data with 0s.", int(np.count_nonzero(missing)))
+        values[missing] = 0
+
+
+def _drop_nan_sortvar(trials: _Trials) -> _Trials:
+    missing = np.flatnonzero(np.isnan(trials.sortvar))
+    if missing.size == 0:
+        return trials
+    remaining = trials.count - missing.size
+    if remaining == 0:
+        raise ValueError(f"erpimage(): all {trials.count} sortvar values are NaN")
+    if remaining == 1:
+        raise ValueError("erpimage(): only one trial has a sortvar value that is not NaN; at least 2 are needed")
+    logger.warning(
+        "erpimage(): Removing %d trials with NaN sortvar values (input trials %s, 0-based).",
+        missing.size,
+        missing.tolist(),
+    )
+    return trials.take(np.flatnonzero(~np.isnan(trials.sortvar)))
+
+
+def _log_ignored_options(opts: ErpimageOptions, mode: str, smoothed: bool) -> None:
+    """Warn about options EEGLAB accepts but does not apply in this configuration."""
+    requested = [
+        name
+        for name, given in (
+            ("phasesort", opts.phasesort is not None),
+            ("ampsort", opts.ampsort is not None),
+            ("nosort", opts.nosort),
+            ("valsort", opts.valsort is not None),
+        )
+        if given
+    ]
+    if len(requested) > 1:
+        logger.warning("erpimage(): '%s' takes precedence over %s.", requested[0], ", ".join(map(repr, requested[1:])))
+    if opts.sortwin is not None and (opts.ampsort is None or not np.isinf(opts.ampsort[0]) or mode != "amp"):
+        logger.warning("erpimage(): 'sortwin' applies only to 'ampsort' with an Inf center; it is ignored.")
+    if opts.showwin and mode not in {"phase", "amp", "value"}:
+        logger.warning("erpimage(): 'showwin' has no sorting window to show without phase, amplitude or value sorting.")
+    if opts.sortvar_limits is not None and mode in {"phase", "amp", "value"}:
+        logger.warning("erpimage(): Specifying sorting variable limits has no effect when sorting by %s.", mode)
+    custom_axis = (opts.img_trialax_label or "trials").lower() != "trials" or opts.img_trialax_ticks is not None
+    if custom_axis and mode in {"phase", "amp", "value"}:
+        logger.warning(
+            "erpimage(): 'img_trialax_label' and 'img_trialax_ticks' have no effect when sorting by %s.", mode
+        )
+    if opts.erpalpha is not None and opts.erp > 1:
+        logger.warning(
+            "erpimage(): Only plotting one ERP (not %d percentile ERPs) because 'erpalpha' was chosen.", opts.erp
+        )
+    if opts.sortvarpercent is not None and not smoothed:
+        logger.warning("erpimage(): 'sortvarpercent' needs smoothing or decimation; no percentile traces are drawn.")
 
 
 def _check_option_times(opts: ErpimageOptions, times: np.ndarray) -> None:
@@ -902,22 +1014,32 @@ def _check_sort_frequencies(
     phargs = None if opts.phasesort is None else opts.phasesort.copy()
     ampargs = None if opts.ampsort is None else opts.ampsort.copy()
     cycles = opts.cycles
+    nyquist = srate / 2
     if phargs is not None:
+        if phargs[2] > nyquist:
+            raise ValueError(
+                f"erpimage(): Phase-sorting frequency ({phargs[2]:g} Hz) must be less than Nyquist rate ({nyquist:g} Hz)."
+            )
         if frames < cycles * srate / phargs[2]:
             raise ValueError(
                 f"erpimage(): phase-sorting freq. ({phargs[2]:g}) too low: epoch length < {cycles:g} cycles."
             )
-        if phargs.size == 4 and phargs[3] > srate / 2:
-            phargs[3] = srate / 2
-        if phargs.size == 5 and not -180 <= phargs[4] <= 180:
-            raise ValueError(f"erpimage(): coher topphase ({phargs[4]:g}) out of range.")
+        if phargs.size >= 4 and phargs[3] > nyquist:
+            logger.warning("erpimage(): Reducing max 'phasesort' frequency to Nyquist rate (%g Hz).", nyquist)
+            phargs[3] = nyquist
     if ampargs is not None:
+        if abs(ampargs[2]) > nyquist:
+            raise ValueError(
+                f"erpimage(): amplitude-sorting frequency ({abs(ampargs[2]):g} Hz) must be less than Nyquist rate "
+                f"({nyquist:g} Hz)."
+            )
         if frames < cycles * srate / abs(ampargs[2]):
             raise ValueError(
                 f"erpimage(): amplitude-sorting freq. ({abs(ampargs[2]):g}) too low: epoch length < {cycles:g} cycles."
             )
-        if ampargs.size == 4 and abs(ampargs[3]) > srate / 2:
-            ampargs[3] = srate / 2
+        if ampargs.size == 4 and abs(ampargs[3]) > nyquist:
+            logger.warning("erpimage(): Reducing max 'ampsort' frequency to Nyquist rate (%g Hz).", nyquist)
+            ampargs[3] = nyquist
     return phargs, ampargs
 
 
@@ -939,8 +1061,17 @@ def _limit_settings(opts: ErpimageOptions, times: np.ndarray) -> tuple[np.ndarra
     align_window = timelimits
     if opts.limits is not None:
         limits[: opts.limits.size] = opts.limits
-        limits[0] = max(limits[0], np.min(times)) if not np.isnan(limits[0]) else limits[0]
-        limits[1] = min(limits[1], np.max(times))
+        if limits[0] < np.min(times):
+            logger.info("erpimage(): Adjusting mintime limit to first data value %g.", np.min(times))
+            limits[0] = np.min(times)
+        if limits[1] > np.max(times):
+            logger.info("erpimage(): Adjusting maxtime limit to last data value %g.", np.max(times))
+            limits[1] = np.max(times)
+        if not np.isnan(limits[0]) and limits[1] <= limits[0]:
+            raise ValueError(
+                f"erpimage(): time limits {opts.limits[:2].tolist()} ms do not overlap the data "
+                f"({np.min(times):g} to {np.max(times):g} ms)"
+            )
         align_window = limits[:2]
         if not np.isnan(limits[0]):
             timelimits = limits[:2].copy()
@@ -978,6 +1109,13 @@ def _preprocess(
             aligntime = float(np.median(sortvar))
         shifts = _mround((aligntime - sortvar) * srate / 1000).astype(int)
         values = _shift_trials(values, shifts)
+        lost = np.flatnonzero(np.abs(shifts) >= values.shape[0])
+        if lost.size:
+            logger.warning(
+                "erpimage(): No aligned data for input trials %s (0-based): shifts of %s frames are too large.",
+                trials.index[lost].tolist(),
+                shifts[lost].tolist(),
+            )
         if auxvar is not None:
             auxvar = auxvar + shifts  # EEGLAB adds frame shifts to the (ms) auxvar values
     if opts.rmerp:
@@ -1060,12 +1198,9 @@ def _amplitude_sort(
         center_ms = np.median(window + 1) / srate * 1000 + times[0]
         phases = phases + 2 * np.pi * (center_ms - ampargs[0]) * freqs[-1]
     rejection = ampargs[1] / 100
-    keep = np.argsort(amplitude, kind="stable")
-    if rejection >= 0:
-        keep = keep[int(np.ceil(rejection * keep.size)) :]
-    else:
+    keep = _reject_by_amplitude(amplitude, rejection)
+    if rejection < 0:
         rejection = 1 + rejection
-        keep = keep[: int(np.floor(rejection * keep.size))]
     order = np.argsort(amplitude[keep], kind="stable")
     return _Sorted(
         trials.take(keep).take(order),
@@ -1118,11 +1253,6 @@ def _potential_image(
     else:
         maxdat = float(max(abs(np.nanmin(outdata)), abs(np.nanmax(outdata))))
         clim = _fraction_clim(-maxdat, maxdat, None if caxis is None else float(caxis[0]))
-    rows, columns = np.nonzero(np.isnan(outdata))
-    if rows.size:
-        # EEGLAB zeroes the full row-by-column block of NaN positions (data(i,j) = 0).
-        outdata = outdata.copy()
-        outdata[np.ix_(np.unique(rows), np.unique(columns))] = 0
     return _Image(outdata, outtrials, outsort, auxvar, percentiles, clim)
 
 
@@ -1150,6 +1280,12 @@ def _amplitude_image(
     if base.size < 2:
         base = np.arange(times.size // 4)
     outdata, outtrials, outsort, auxvar, percentiles = _smoothed(allamps, trials, smoothing)
+    if np.any(outdata == 0) or np.any(amps == 0):
+        silent = int(np.count_nonzero(np.any(allamps == 0, axis=0)))
+        raise ValueError(
+            f"erpimage(): 'plotamps' images amplitudes in dB, but {silent} of {trials.count} trials have zero "
+            "wavelet amplitude (all-zero data, or NaN data replaced by 0)"
+        )
     outdata = 20 * np.log10(outdata)
     amps = 20 * np.log10(amps)
     # EEGLAB converts given 'signif' amplitudes to dB again here; emath keeps MATLAB's complex results.
@@ -1185,14 +1321,22 @@ def _coherence(
 ) -> _Spectral:
     """'coher': wavelet amplitude (dB, baseline removed) and inter-trial coherence."""
     signifs = _given_signif(opts.signif)
+    bootstrap = signifs is None and _alpha_given(opts)
     cohsig = ampsig = None
-    if signifs is not None or not _alpha_given(opts):
+    if bootstrap:
+        amps, cohers, cohsig, ampsig, _allamps, _phases = _phasecoher(urdata, srate, coherfreq, opts.cycles, alpha, rng)
+    else:
         amps, cohers, _cohsig, _ampsig, _allamps, _phases = _phasecoher(urdata, srate, coherfreq, opts.cycles)
         if signifs is not None:
             ampsig, cohsig = signifs[:2].copy(), float(signifs[2])
-    else:
-        amps, cohers, cohsig, ampsig, _allamps, _phases = _phasecoher(urdata, srate, coherfreq, opts.cycles, alpha, rng)
-        ampsig = None if ampsig is None else 20 * np.emath.log10(ampsig)
+    silent = int(np.count_nonzero(amps == 0))
+    if silent:
+        raise ValueError(
+            f"erpimage(): 'coher' amplitude is zero at {silent} of {amps.size} frames "
+            f"(every trial below {MIN_AMP:g} there), so it has no dB value"
+        )
+    if bootstrap and ampsig is not None:
+        ampsig = 20 * np.emath.log10(ampsig)
     amps = 20 * np.log10(amps)
     if not np.isnan(baseamp):
         amps = amps - baseamp
@@ -1314,6 +1458,8 @@ def _nan_std(values: np.ndarray) -> np.ndarray:
 
 
 def _time_axis(times: Any, frames: int) -> tuple[np.ndarray, float]:
+    if frames < 2:
+        raise ValueError(f"erpimage(): data need at least 2 frames per trial, got {frames}")
     if times is None:
         values = np.zeros(1)
     elif np.size(times) == 0:
@@ -1322,18 +1468,19 @@ def _time_axis(times: Any, frames: int) -> tuple[np.ndarray, float]:
         values = np.asarray(times, dtype=float).ravel()
     if values.size == 1:
         values = np.arange(0.0, frames, dtype=float)
-        srate = 1000 * (values.size - 1) / (values[-1] - values[0]) if frames > 1 else np.nan
     elif values.size == 3 and frames != 3:
         # EEGLAB's compact [start_ms frames srate] form; a real 3-sample time vector keeps its meaning.
         mintime, count, srate = float(values[0]), values[1], float(values[2])
         if count != frames:
             raise ValueError(f"erpimage(): times [start frames srate] gives {count:g} frames, data has {frames}.")
+        if not (np.isfinite(mintime) and np.isfinite(srate) and srate > 0):
+            raise ValueError(f"erpimage(): times [start frames srate] needs a finite start and srate > 0, got {values}")
         values = _colon(mintime, 1000 / srate, mintime + (frames - 1) * 1000 / srate)
-    else:
-        srate = 1000 * (values.size - 1) / (values[-1] - values[0])
     if values.size != frames:
         raise ValueError(f"erpimage(): length(times) ({values.size}) differs from frames per epoch ({frames}).")
-    return values, float(srate)
+    if not np.all(np.isfinite(values)) or np.any(np.diff(values) <= 0):
+        raise ValueError("erpimage(): times must be finite and strictly increasing")
+    return values, float(1000 * (values.size - 1) / (values[-1] - values[0]))
 
 
 def _trial_matrix(values: np.ndarray, ntrials: int, name: str) -> np.ndarray:
@@ -1354,6 +1501,34 @@ def _vert_times(vert: np.ndarray, ntrials: int) -> np.ndarray:
     if vert.shape[0] != ntrials:
         raise ValueError(f"erpimage(): vert arg matrix must have 1 or {ntrials} rows")
     return vert.copy()
+
+
+def _check_timewarp(events: np.ndarray, warpms: np.ndarray | None, times: np.ndarray, ntrials: int) -> None:
+    if events.shape[0] != ntrials:
+        raise ValueError(
+            f"erpimage(): timewarp events must have one row per trial: got {events.shape[0]} rows for {ntrials} trials"
+        )
+    outside = ~np.isfinite(events) | (events < times[0]) | (events > times[-1])
+    if np.any(outside):
+        trial = int(np.flatnonzero(np.any(outside, axis=1))[0])
+        raise ValueError(
+            f"erpimage(): timewarp event latencies must lie in the epoch ({times[0]:g} to {times[-1]:g} ms); "
+            f"trial {trial + 1} has {events[trial].tolist()}"
+        )
+    if warpms is None:
+        return
+    if warpms.size != events.shape[1]:
+        raise ValueError(
+            f"erpimage(): timewarp needs one reference latency per event column: got {warpms.size} "
+            f"for {events.shape[1]} events"
+        )
+    if np.any(warpms < times[0]) or np.any(warpms > times[-1]):
+        raise ValueError(
+            f"erpimage(): timewarp reference latencies {warpms.tolist()} must lie in the epoch "
+            f"({times[0]:g} to {times[-1]:g} ms)"
+        )
+    if np.any(np.diff(warpms) < 0):
+        raise ValueError(f"erpimage(): timewarp reference latencies must be in ascending order, got {warpms.tolist()}")
 
 
 def _timewarp_marks(
@@ -1380,7 +1555,7 @@ def _timewarp_marks(
 
 
 def _timewarp_setup(
-    opts: ErpimageOptions, no_auxvar: bool, times: np.ndarray, srate: float
+    opts: ErpimageOptions, no_auxvar: bool, times: np.ndarray, srate: float, ntrials: int
 ) -> tuple[np.ndarray | None, np.ndarray | None, tuple[str, ...] | None]:
     """Warp marks and reference frames; the line styles when the warped events replace 'vert'."""
     if opts.timewarp is None:
@@ -1390,6 +1565,7 @@ def _timewarp_setup(
             "erpimage(): 'timewarp' with phase sorting, amplitude sorting or 'plotamps' is not supported "
             "(EEGLAB applies the warp marks inconsistently there)"
         )
+    _check_timewarp(opts.timewarp[0], opts.timewarp[1], times, ntrials)
     marks, ref, styles = _timewarp_marks(opts.timewarp, times, srate, times.size)
     if not no_auxvar:
         return marks, ref, None
@@ -1438,6 +1614,12 @@ def _smoothing_window(avewidth: float, avg_type: str, ntrials: int) -> tuple[flo
         weights = _gaussian_weights(avewidth)
         if weights.size > ntrials:
             sdev = float(np.floor((ntrials - 1) / 6))
+            logger.warning(
+                "erpimage(): Gaussian avewidth %g is too big for %d trials; changing it to maximum possible size: %g",
+                avewidth,
+                ntrials,
+                sdev,
+            )
             weights = _gaussian_weights(DEFAULT_SDEV if sdev == 0 else sdev)
         return float(weights.size), weights
     if avewidth == 0:
@@ -1445,6 +1627,7 @@ def _smoothing_window(avewidth: float, avg_type: str, ntrials: int) -> tuple[flo
     elif avewidth < 1:
         raise ValueError("erpimage(): Variable avewidth cannot be < 1.")
     elif avewidth > ntrials:
+        logger.warning("erpimage(): Setting variable avewidth to max %d.", ntrials)
         avewidth = float(ntrials)
     if avewidth != np.floor(avewidth):
         # EEGLAB documents non-integer widths, but ones(1,avewidth) rejects them on MATLAB R2025b.
@@ -1524,15 +1707,18 @@ def _remove_baseline(values: np.ndarray, baseline: np.ndarray, times: np.ndarray
         else int(np.floor(find_corresponding_point(baseline[1], times, positions)))
     )
     window = values[start - 1 : stop]
+    if window.shape[0] == 0:
+        raise ValueError(f"erpimage(): baseline window {baseline.tolist()} ms contains no samples")
     return values - _seqsum(window, axis=0) / window.shape[0]
 
 
 def _renorm(sortvar: np.ndarray, renorm: str, times: np.ndarray) -> np.ndarray:
     key = renorm.lower()
     if key == "yes":
+        if np.max(sortvar) == np.min(sortvar):
+            raise ValueError("erpimage(): renorm 'yes' needs sortvar values that are not all equal")
         span = np.max(times) - np.min(times)
-        with np.errstate(invalid="ignore", divide="ignore"):
-            scaled = (sortvar - np.min(sortvar)) / (np.max(sortvar) - np.min(sortvar))
+        scaled = (sortvar - np.min(sortvar)) / (np.max(sortvar) - np.min(sortvar))
         return scaled * 0.5 * span + np.min(times) + 0.4 * span
     if key == "no" or not renorm:
         return sortvar
@@ -1588,8 +1774,22 @@ def _shift_trials(values: np.ndarray, shifts: np.ndarray) -> np.ndarray:
 def _reject_by_amplitude(amplitudes: np.ndarray, fraction: float) -> np.ndarray:
     order = np.argsort(amplitudes, kind="stable")
     if fraction >= 0:
-        return order[int(np.ceil(fraction * order.size)) :]
-    return order[: int(np.floor((1 + fraction) * order.size))]
+        return _retained(order[int(np.ceil(fraction * order.size)) :], order.size, "largest")
+    return _retained(order[: int(np.floor((1 + fraction) * order.size))], order.size, "smallest")
+
+
+def _retained(keep: np.ndarray, ntrials: int, power: str) -> np.ndarray:
+    if keep.size < 2:
+        raise ValueError(
+            f"erpimage(): amplitude rejection leaves {keep.size} of {ntrials} trials; at least 2 are needed"
+        )
+    logger.info(
+        "erpimage(): Retaining %d epochs (%g percent) with %s power at the analysis frequency.",
+        keep.size,
+        100 * keep.size / ntrials,
+        power,
+    )
+    return keep
 
 
 def _sort_window(minx: int, cycles: float, srate: float, freq: float, frames: int) -> np.ndarray:
@@ -1661,8 +1861,8 @@ def _moving_average(
 ) -> tuple[np.ndarray, np.ndarray]:
     """EEGLAB ``movav(values, 1:n, width, advance, [], [], weights)`` on (rows, n) data."""
     rows, ntrials = values.shape
-    if ntrials < 4:
-        raise ValueError("movav(): data are too short")
+    if ntrials < MIN_SMOOTHING_TRIALS:
+        raise ValueError(f"erpimage(): smoothing needs at least {MIN_SMOOTHING_TRIALS} trials, got {ntrials}")
     advance = 1.0 if advance == 0 else float(advance)
     width = float(width)
     count = max(int(np.floor(((ntrials - 1.0 + advance + 1) - width) / advance)), 1)
