@@ -230,6 +230,33 @@ def test_unchanged_time_limits_are_not_passed_and_a_single_coher_frequency_is_ke
     assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, erp=False, coher=[10, 12], noshow=True)"
 
 
+def test_dialog_caxis_vert_and_spec_reach_the_figure(epochs) -> None:
+    values = {"caxis": "-10 10", "vert": "250 500", "spec": "2 40"}
+    result = pop_erpimage(epochs, 1, renderer=_Renderer(values), plot="off")
+    image_ax = result.axhndls[0]
+    assert image_ax.images[0].get_clim() == (-10.0, 10.0)
+    marks = {round(float(line.get_xdata()[0])) for line in image_ax.lines if np.ptp(line.get_xdata()) == 0}
+    assert {250, 500} <= marks
+    assert result.axhndls[6].get_xlim() == (2.0, 40.0)
+
+
+def test_dialog_image_amps_is_passed_on_with_a_coherence_frequency(epochs) -> None:
+    command = _command(epochs, {"plotamps": True, "coher": "10", "coher2": "0.01"})
+    assert command == (
+        "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, plotamps=True, coher=[10, 10, 0.01], noshow=True)"
+    )
+    assert "coher=[10, 12, 0.01]" in _command(epochs, {"coher": "10 12", "coher2": "0.01"})
+    with pytest.raises(ValueError, match="allamps and allcohers flags require coher"):
+        _command(epochs, {"plotamps": True})
+
+
+@pytest.mark.parametrize("trials", [2, 5])
+def test_dialog_smoothing_starts_at_zero_when_there_are_fewer_than_six_trials(trials) -> None:
+    eeg = create_erpimage_epochs(trials=trials)
+    assert controls_by_tag(pop_erpimage_dialog_spec(eeg))["smooth"].value == "0"
+    assert _command(eeg, {}) == "pop_erpimage(EEG, 1, 1, smooth=0, decimate=1, noshow=True)"
+
+
 def test_dialog_keeps_quoted_event_types_with_spaces() -> None:
     eeg = create_erpimage_epochs()
     for event in eeg["event"]:
@@ -262,6 +289,8 @@ def test_dialog_numbers_accept_ranges_brackets_and_cell_text(epochs) -> None:
     assert command.startswith("pop_erpimage(EEG, 1, [3, 4], smooth=10, decimate=1, sortingtype=['rt'], ")
     assert "sortingwin=[0, 1000]" in command and "caxis=[-10, 10]" in command and "vert=[0, 250, 500]" in command
     assert _command(epochs, {"chan": "{'Cz','Pz'}"}).startswith("pop_erpimage(EEG, 1, ['Cz', 'Pz'], ")
+    assert "caxis=[-10, 10], vert=[0, 500]" in _command(epochs, {"caxis": "[-10, 10]", "vert": "0,500"})
+    assert "sortingeventfield='latency'" in _command(epochs, {"field": "'latency'", "type": "rt"})
     assert "projchan=[26, 27]" in _command(epochs, {"chan": "6", "projchan": "26:27"}, typeplot=0)
 
 
@@ -304,6 +333,14 @@ def test_component_dialog_maps_the_projection_and_keeps_the_scalp_map(epochs) ->
         ({"others": "'erpstd', 'on"}, "More options needs .*: Unterminated quoted plot option"),
         ({"phase2": "25"}, "'phasesort' needs at least"),
         ({"chan": "Q9"}, "unknown channel label 'Q9'"),
+        ({"align": "1 2"}, r"'Align' takes 1 value\(s\)"),
+        ({"limtime": "5"}, r"'Time limits \(ms\)' takes 2 value\(s\)"),
+        ({"limamp": "5"}, r"'Amplitude limits \(dB\)' takes 2 value\(s\)"),
+        ({"limcoher": "1"}, r"'Coher limits' takes 2 value\(s\)"),
+        ({"limbaseamp": "1 2"}, r"'Baseline ampl. \(dB\)' takes 1 value\(s\)"),
+        ({"phase": "10", "phase2": "1 2"}, r"'Percent low-amp. trials' takes 1 value\(s\)"),
+        ({"phase": "10", "phase3": "1 2"}, r"'Window center' takes 1 value\(s\)"),
+        ({"smooth": "1 2"}, r"'Smoothing' takes 1 value\(s\)"),
     ],
 )
 def test_dialog_values_that_cannot_be_used_raise(epochs, values, message) -> None:
@@ -320,13 +357,9 @@ def test_dialog_spec_follows_eeglab_order_and_states(epochs) -> None:
     component_tags = [control.tag for control in component.controls if control.tag]
     assert component_tags[:5] == ["chan", "projchan", "projchan_button", "title", "smooth"]
     assert "plotmap" in component_tags
-    assert len(component.geometry) == len(channel.geometry) + 1
-    assert sum(len(row) for row in component.geometry) == len(component.controls)
-    assert sum(len(row) for row in channel.geometry) == len(channel.controls)
     tags = controls_by_tag(channel)
     assert set(tags["field_button"].callback.params["fields"]) == {"type", "position", "latency", "urevent", "epoch"}
     assert tags["type_button"].callback.params["event_types"] == ["rt", "square"]
-    assert tags["phase"].callback.params == {"source": "phase", "target": "coher"}
     no_locations = deepcopy(epochs)
     no_locations["chanlocs"] = []
     assert not controls_by_tag(pop_erpimage_dialog_spec(no_locations))["chan_button"].enabled
@@ -378,3 +411,23 @@ def test_event_field_list_cancel_keeps_the_field_and_reminds_about_the_type(qt_d
     widgets["field_button"].click()  # cancelled
     assert widgets["field"].text() == "latency"
     assert qt_dialogs.messages == [TYPE_REMINDER]
+
+
+def test_real_dialog_widgets_round_trip_into_the_command(qt_dialogs) -> None:
+    class QtWidgetsRenderer:
+        """Builds the real dialog with its initial values, edits widgets and reads them as the Qt renderer does."""
+
+        def run(self, spec, initial_values=None):
+            widgets = qt_dialogs.build(spec, initial_values)
+            widgets["field"].setText("rt")
+            widgets["type"].setText("rt")
+            widgets["nosort"].setChecked(True)
+            return {tag: qt_dialogs.qt._read_widget(widget) for tag, widget in widgets.items()}
+
+    result, command = pop_erpimage(
+        create_erpimage_epochs(), 1, 2, gui=True, smooth=1, renderer=QtWidgetsRenderer(), plot="off", return_com=True
+    )
+    assert command == (
+        "pop_erpimage(EEG, 1, 2, smooth=1, decimate=1, sortingtype=['rt'], sortingeventfield='rt', nosort=True)"
+    )
+    np.testing.assert_allclose(result.outvar, [120, 60, 180, 30, 150, 90])

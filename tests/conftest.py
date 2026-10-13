@@ -217,7 +217,7 @@ def qt_dialogs(monkeypatch):
     Message boxes are recorded in ``messages``; item and list pickers return the
     ``answers`` entries (cancelled by default), so a dialog can never block the
     test. Qt only prints exceptions raised inside slots, so they are collected and
-    fail the test. ``build(spec)`` returns the widgets of a dialog built offscreen.
+    fail the test. ``build(spec, initial_values)`` returns the widgets of a dialog built offscreen.
     """
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     pytest.importorskip("PySide6")
@@ -242,8 +242,8 @@ def qt_dialogs(monkeypatch):
     monkeypatch.setattr(pop_chansel_module, "listdlg2", lambda **_kwargs: state.answers["types"])
     monkeypatch.setattr(sys, "excepthook", lambda _type, error, _traceback: state.slot_errors.append(error))
 
-    def build(spec):
-        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+    def build(spec, initial_values=None):
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec, initial_values=initial_values)
         state.dialogs.append(dialog)
         return widgets
 
