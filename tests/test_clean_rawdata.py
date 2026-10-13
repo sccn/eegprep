@@ -198,13 +198,23 @@ class TestRiemannianASRMatlab(DebuggableTestCase):
             'xmin': 0.0,
         }
         expected = engine.clean_asr(signal, 5.0, None, None, None, 'off', None, None, False, True, 64.0)
+        matlab_data = np.asarray(expected['data'], dtype=float)
+        python_data = np.asarray(cleaned['data'], dtype=float)
+        abs_gap = np.abs(python_data - matlab_data)
+        denominator = np.abs(matlab_data)
+        rel_gap = np.divide(abs_gap, denominator, out=np.zeros_like(abs_gap), where=denominator > 0)
+        rel_gap = np.where((denominator == 0) & (abs_gap > 0), np.inf, rel_gap)
+        worst = np.unravel_index(int(np.argmax(rel_gap)), rel_gap.shape)
         compare_eeg(
-            cleaned['data'],
-            np.asarray(expected['data'], dtype=float),
+            python_data,
+            matlab_data,
             atol=0,
             rtol=1e-8,
             use_32_bit=False,
-            err_msg='Riemannian clean_asr() failed vs MATLAB',
+            err_msg=(
+                'Riemannian clean_asr() failed vs MATLAB '
+                f'max_rel={float(np.max(rel_gap)):.6e} max_abs={float(np.max(abs_gap)):.6e} at index {worst}'
+            ),
         )
 
 
