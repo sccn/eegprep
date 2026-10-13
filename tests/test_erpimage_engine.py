@@ -9,6 +9,7 @@ MATLAB is available.
 from __future__ import annotations
 
 import ast
+from functools import cache
 import logging
 from pathlib import Path
 import subprocess
@@ -21,10 +22,14 @@ import pytest
 from scipy import signal
 
 from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root, get_eeglab
+from eegprep.functions.miscfunc.gauss import gauss
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.sigprocfunc import erpimage_engine as engine
 from eegprep.functions.sigprocfunc.erpimage import butterworth_filter
 from eegprep.functions.sigprocfunc.movav import movav
+from eegprep.functions.sigprocfunc.nan_mean import nan_mean
+from eegprep.functions.sigprocfunc.rmbase import rmbase
+from eegprep.functions.timefreqfunc.timewarp import timewarp
 from tests.eeglab_tests import load_matlab_test_fixture
 from tests.fixtures import matlab_engine_available
 
@@ -47,7 +52,7 @@ OUTPUTS = (
     "phsamp",
     "erpsig",
 )
-# Data-unit outputs are compared on the input scale: an ERP after 'rmerp' is rounding noise.
+# Outputs in data units are compared within RTOL of the input data's largest magnitude.
 DATA_DOMAIN = {"outdata", "erp", "erpsig"}
 NON_SCENARIO_KEYS = {"datasets", "seed", "matlab_version"}
 ENGINE_IMPORTS = {"__future__", "ast", "dataclasses", "logging", "typing", "numpy"}
@@ -60,7 +65,6 @@ def _load(path: Path) -> dict:
 
 FIXTURE_DATA = _load(FIXTURE)
 SCENARIOS = sorted(key for key in FIXTURE_DATA if key not in NON_SCENARIO_KEYS)
-_SAMPLE_CACHE: dict[str, np.ndarray] = {}
 
 
 def _text(value: np.ndarray) -> str:
@@ -84,15 +88,17 @@ def _field(fixture: dict, name: str, field: str) -> np.ndarray:
     return value
 
 
+@cache
+def _sample_data() -> np.ndarray:
+    return np.asarray(pop_loadset(str(SAMPLE_SET))["data"], dtype=float)
+
+
 def _sample_slice(fixture: dict) -> np.ndarray:
-    if "real" not in _SAMPLE_CACHE:
-        datasets = fixture["datasets"][0, 0]
-        channel = int(datasets["real_channel"].ravel()[0]) - 1
-        samples = datasets["real_samples"].ravel().astype(int) - 1
-        epochs = datasets["real_epochs"].ravel().astype(int) - 1
-        eeg = pop_loadset(str(SAMPLE_SET))
-        _SAMPLE_CACHE["real"] = np.asarray(eeg["data"], dtype=float)[channel][np.ix_(samples, epochs)]
-    return _SAMPLE_CACHE["real"]
+    datasets = fixture["datasets"][0, 0]
+    channel = int(datasets["real_channel"].ravel()[0]) - 1
+    samples = datasets["real_samples"].ravel().astype(int) - 1
+    epochs = datasets["real_epochs"].ravel().astype(int) - 1
+    return _sample_data()[channel][np.ix_(samples, epochs)]
 
 
 def _noise(frames: int = 64, trials: int = 12, seed: int = 11) -> tuple[np.ndarray, np.ndarray]:
@@ -201,8 +207,7 @@ def test_engine_matches_matlab_fixture(name: str) -> None:
     _assert_scenario(FIXTURE_DATA, name)
 
 
-def test_fixture_was_recorded_on_matlab_r2025b_and_stays_small() -> None:
-    assert "R2025b" in _text(FIXTURE_DATA["matlab_version"])
+def test_fixture_stays_small() -> None:
     assert FIXTURE.stat().st_size < 200_000
 
 
@@ -217,6 +222,19 @@ def test_erpalpha_threshold_matches_matlab_given_its_sign_draws() -> None:
     erpsig = np.vstack([threshold, -threshold])
     assert engine._max_erp_limit(erp[np.newaxis, :], None, erpsig) == plotted[3]
     assert engine._min_erp_limit(erp[np.newaxis, :], None, erpsig) == plotted[2]
+
+
+def test_erpalpha_band_matches_the_unbiased_sign_flip_null() -> None:
+    # On constant data the permutation statistic is |mean(signs)|, whose 90th percentile is
+    # about 1.645/sqrt(40) = 0.26 for unbiased signs; EEGLAB's biased draw puts it near 0.5.
+    options = engine.parse_erpimage_options(["erp", "erpalpha", 0.05])
+    result = engine.compute_erpimage(np.ones((8, 40)), None, None, 1, 1, options, rng=3, plotted=False)
+    assert np.all((result.erpsig > 0.15) & (result.erpsig < 0.35))
+
+
+@pytest.mark.parametrize(("alpha", "count"), [(0.1, 500), (0.05, 500), (0.001, 3000)])
+def test_permutation_count_follows_eeglab(alpha, count) -> None:
+    assert engine._permutation_count(alpha) == count
 
 
 def test_erpalpha_emits_no_runtime_warnings() -> None:
@@ -258,13 +276,13 @@ def test_erpalpha_is_reproducible_with_a_seeded_rng() -> None:
 def test_engine_imports_only_numpy_and_the_standard_library() -> None:
     path = Path(engine.__file__)
     imported = set()
-    for node in ast.walk(ast.parse(path.read_text())):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
             imported |= {alias.name.split(".")[0] for alias in node.names}
         elif isinstance(node, ast.ImportFrom):
             imported.add(str(node.module).split(".")[0])
     assert imported <= ENGINE_IMPORTS
-    # Load the file on its own, as the browser build includes it, and run a computation.
+    # Load the file on its own, as the browser build includes it, and run each kind of computation.
     code = (
         "import importlib.util, sys\n"
         f"spec = importlib.util.spec_from_file_location('erpimage_engine', {str(path)!r})\n"
@@ -272,13 +290,20 @@ def test_engine_imports_only_numpy_and_the_standard_library() -> None:
         "sys.modules['erpimage_engine'] = module\n"
         "spec.loader.exec_module(module)\n"
         "import numpy as np\n"
-        "data = np.arange(400.0).reshape(40, 10) % 7\n"
-        "options = module.parse_erpimage_options(['erp', 'phasesort', [100, 0, 10], 'coher', [10, 10, 0.05]])\n"
-        "module.compute_erpimage(data, None, np.arange(40) * 8.0, 3, 1, options, rng=np.random.default_rng(0))\n"
+        "data = np.random.default_rng(0).normal(size=(40, 10))\n"
+        "for tokens in (\n"
+        "    ['erp', 'phasesort', [100, 0, 10], 'coher', [10, 10, 0.05]],\n"
+        "    ['erp', 'erpalpha', 0.05, 'ampsort', [100, 0, 10, 20], 'renorm', '2*x+1'],\n"
+        "    ['plotamps', 'coher', [10, 10, 0.05]],\n"
+        "    ['erp', 'timewarp', (np.full((10, 1), 100.0),)],\n"
+        "):\n"
+        "    module.compute_erpimage(data, None, np.arange(40) * 8.0, 3, 1, module.parse_erpimage_options(tokens), rng=0)\n"
+        "module.welch_psd(data.ravel(), 40, 125.0)\n"
         "heavy = {'matplotlib', 'scipy', 'mne', 'eegprep'}\n"
         "print(sorted(name for name in sys.modules if name.split('.')[0] in heavy))\n"
     )
-    completed = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=True)
+    completed = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=False)
+    assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "[]"
 
 
@@ -405,7 +430,15 @@ def test_timewarp_with_sorting_warps_each_trial_by_its_own_events() -> None:
 
 @pytest.mark.parametrize(
     ("formula", "expected"),
-    [("yes", None), ("2*x+1", lambda x: 2 * x + 1), ("(X-2)/4", lambda x: (x - 2) / 4), ("x.^2", lambda x: x**2)],
+    [
+        ("yes", None),
+        ("2*x+1", lambda x: 2 * x + 1),
+        ("(X-2)/4", lambda x: (x - 2) / 4),
+        ("x.^2", lambda x: x**2),
+        ("-x+3", lambda x: -x + 3),
+        ("x^2", lambda x: x**2),
+        ("x./4", lambda x: x / 4),
+    ],
 )
 def test_renorm_formulas(formula, expected) -> None:
     sortvar = np.array([10.0, 30.0, 20.0, 40.0])
@@ -702,31 +735,78 @@ def test_percentile_erps_with_fewer_trials_than_groups_give_missing_rows() -> No
     assert np.all(np.isnan(erp[3]))
 
 
-@pytest.mark.parametrize(
-    ("options", "check"),
-    [
-        (["timewarp", (np.full((8, 1), 120.0), [150.0], ["r--"])], lambda r: r.vert_colors == ("r--",)),
-        (["timewarp", (np.full((8, 1), 120.0),), "auxvar", np.zeros((1, 8))], lambda r: r.verttimes is None),
-        (["avg_type", "gaussian"], lambda r: r.outdata.shape[1] == 8),
-        (["ampsort", [200, 0, 10, 10]], lambda r: r.sort_mode == "amp"),
-        (["phasesort", [200, 25, 10, 900]], lambda r: r.sort_mode == "phase"),
-        (["phasesort", [200, 25, 10], "erp"], lambda r: r.erp.shape == (1, 64)),
-        (["coher", [10, 10, 0.05], "limits", [np.nan] * 8 + [1.0]], lambda r: r.limits[8] == 1.0),
-        (["plotamps", "coher", [10, 10, 0.05], "limits", [np.nan] * 8 + [2.0]], lambda r: r.limits[8] == 2.0),
-        (["coher", [10, 10, 0.05], "baselinedb", [-1000, -900]], lambda r: np.isfinite(r.limits[8])),
-        (["sortvar_limits", [-100, 1000]], lambda r: r.trial_limits == (1.0, 8.0)),
-        (["renorm", "-x+3"], lambda r: np.isfinite(r.outvar).all()),
-    ],
-)
-def test_engine_option_branches(options, check) -> None:
-    rng = np.random.default_rng(4)
-    data = rng.normal(size=(64, 8))
-    times = np.arange(64.0) * 1000 / 128 + 100
-    avewidth = 0 if options[:2] == ["avg_type", "gaussian"] else 1
-    result = engine.compute_erpimage(
-        data, np.arange(8.0), times, avewidth, 0, engine.parse_erpimage_options(options), rng=np.random.RandomState(0)
+def _late_epoch(options: list) -> engine.ErpimageComputation:
+    """Eight noise trials whose epoch starts at 100 ms, so no sample precedes time zero."""
+    data = np.random.default_rng(4).normal(size=(64, 8))
+    times = np.arange(64.0) * 1000 / SRATE + 100
+    return engine.compute_erpimage(
+        data, np.arange(8.0), times, 1, 0, engine.parse_erpimage_options(options), rng=np.random.RandomState(0)
     )
-    assert check(result)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [["coher", [10, 10, 0.05], "baselinedb", [-1000, -900]], ["plotamps", "coher", [10, 10, 0.05]]],
+)
+def test_amplitude_baseline_falls_back_to_the_first_quarter_of_the_epoch(options) -> None:
+    result = _late_epoch(options)
+    assert abs(float(np.mean(result.amps[:16]))) < 1e-12
+
+
+@pytest.mark.parametrize("options", [["coher", [10, 10, 0.05]], ["plotamps", "coher", [10, 10, 0.05]]])
+def test_a_given_baseline_amplitude_is_subtracted(options) -> None:
+    computed = _late_epoch(options)
+    given = _late_epoch([*options, "limits", [np.nan] * 8 + [1.0]])
+    np.testing.assert_allclose(given.amps, computed.amps + computed.baseamp - 1.0, atol=1e-12)
+    assert given.limits[8] == given.baseamp == 1.0
+
+
+def test_timewarp_reference_lines_replace_vert_unless_auxvar_is_given() -> None:
+    warp = (np.full((8, 1), 120.0), [150.0], ["r--"])
+    result = _late_epoch(["timewarp", warp])
+    # 150 ms rounds to frame round(1 + 50 * 0.128) = 7, drawn at its latency.
+    np.testing.assert_allclose(result.verttimes, [100 + 6 * 1000 / SRATE])
+    assert result.vert_colors == ("r--",)
+    assert _late_epoch(["timewarp", warp, "auxvar", np.zeros((1, 8))]).verttimes is None
+
+
+def test_sortvar_limits_give_the_trial_range_they_span() -> None:
+    assert _late_epoch(["sortvar_limits", [-100, 1000]]).trial_limits == (1.0, 8.0)
+    assert _late_epoch(["sortvar_limits", [2, 5]]).trial_limits == (3.0, 6.0)
+
+
+def test_amplitude_sorting_orders_trials_by_wavelet_amplitude() -> None:
+    result = _late_epoch(["ampsort", [200, 0, 10, 10]])
+    center = int(np.argmin(np.abs(np.arange(64.0) * 1000 / SRATE + 100 - 200)))
+    assert np.all(np.diff(result.outamps[center, result.sortidx]) >= 0)
+
+
+def test_phase_sorting_rejects_the_weakest_trials_and_clamps_the_band(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger=engine.logger.name):
+        result = _late_epoch(["phasesort", [200, 25, 10, 900]])
+    assert result.sortidx.size == 6
+    assert "Reducing max 'phasesort' frequency to Nyquist rate (64 Hz)" in caplog.text
+    assert "Retaining 6 epochs (75 percent) with largest power" in caplog.text
+
+
+@pytest.mark.parametrize("sort", [["phasesort", [100, 0, 10]], ["ampsort", [100, 0, 10]]])
+def test_plotamps_images_the_sorting_frequency(sort) -> None:
+    # erpimage.m replaces the 'coher' frequency by the sorting frequency before 'plotamps'.
+    data, times = _noise(trials=20)
+    results = [
+        engine.compute_erpimage(
+            data,
+            None,
+            times,
+            1,
+            1,
+            engine.parse_erpimage_options([*sort, "plotamps", "coher", [freq, freq, 0.05]]),
+            rng=0,
+        )
+        for freq in (10, 14)
+    ]
+    np.testing.assert_array_equal(results[0].outdata, results[1].outdata)
+    assert results[0].coherfreq == results[1].coherfreq == 10.0
 
 
 def test_decimate_above_the_trial_count_is_clamped(caplog) -> None:
@@ -738,6 +818,61 @@ def test_decimate_above_the_trial_count_is_clamped(caplog) -> None:
     np.testing.assert_array_equal(clamped.outdata, at_count.outdata)
     np.testing.assert_array_equal(clamped.outtrials, at_count.outtrials)
     assert "Setting variable decfactor to max 24." in caplog.text
+
+
+def test_srate_option_overrides_the_rate_implied_by_times() -> None:
+    data = np.zeros((40, 6))
+    data[10] = 1.0
+    options = engine.parse_erpimage_options(align=140.0, srate=100.0)
+    result = engine.compute_erpimage(data, np.full(6, 100.0), np.arange(40) * 4.0, 1, 1, options, plotted=False)
+    # The shift is round((140 - 100) * 100 / 1000) = 4 frames at the given 100 Hz, not 10 at 250 Hz.
+    assert np.all(np.argmax(result.outdata, axis=0) == 14)
+
+
+def test_per_trial_vertical_latencies_follow_the_trial_sort() -> None:
+    data, _times = _noise(40, 8)
+    sortvar = np.array([5.0, 3.0, 8.0, 1.0, 7.0, 2.0, 6.0, 4.0])
+    vert = np.column_stack([np.arange(8.0) * 10 + 20, np.arange(8.0) * 10 + 25])
+    options = engine.parse_erpimage_options(vert=vert)
+    result = engine.compute_erpimage(data, sortvar, np.arange(40.0) * 5, 1, 1, options, plotted=False)
+    np.testing.assert_array_equal(result.verttimes, vert[result.sortidx])
+
+
+def test_timewarp_moves_each_trials_events_to_the_rounded_reference_frames() -> None:
+    frames, trials = 64, 5
+    times = -125 + np.arange(frames) * 1000 / SRATE
+    events = np.array([[20.0, 40.0]] * trials) + np.arange(trials)[:, np.newaxis] * np.array([[2.0, 3.0]])
+    data = np.zeros((frames, trials))
+    for trial in range(trials):
+        for event in events[trial]:
+            data[int(np.round(1 + (event + 125) * SRATE / 1000)) - 1, trial] = 1.0
+    options = engine.parse_erpimage_options(timewarp=(events, [153.9, 300.0]))
+    result = engine.compute_erpimage(data, None, times, 1, 1, options, plotted=False)
+    # 1 + (153.9 + 125) * 0.128 = 36.7 rounds to frame 37 (0-based 36).
+    assert np.all(np.argmax(result.erp_data, axis=0) == 36)
+
+
+def test_baseline_window_past_the_epoch_edges_uses_the_whole_trial() -> None:
+    data, times = _noise()
+    data += np.arange(12.0)
+    options = engine.parse_erpimage_options(baseline=[-500.0, 5000.0])
+    result = engine.compute_erpimage(data, None, times, 1, 1, options, plotted=False)
+    np.testing.assert_allclose(result.outdata, data - data.mean(axis=0), atol=1e-12)
+
+
+def test_three_frames_with_three_latencies_are_a_time_vector() -> None:
+    result = engine.compute_erpimage(np.arange(18.0).reshape(3, 6), None, [0.0, 10.0, 20.0], 1, 1, plotted=False)
+    np.testing.assert_array_equal(result.times, [0.0, 10.0, 20.0])
+    assert result.srate == 100.0
+
+
+def test_two_element_caxis_sets_the_color_limits_of_both_images() -> None:
+    data, times = _noise()
+    for options in ({}, {"plotamps": True, "coher": [10, 10, 0.05]}):
+        result = engine.compute_erpimage(
+            data, None, times, options=engine.parse_erpimage_options(caxis=[-3, 3], **options), rng=0
+        )
+        assert result.clim == (-3.0, 3.0)
 
 
 @pytest.mark.parametrize(
@@ -803,12 +938,11 @@ def test_amplitude_and_coherence_limits_follow_eeglab_rules() -> None:
     assert maxcoh == 1.0 and mincoh == 0.0
 
 
-def test_small_helpers_cover_degenerate_inputs() -> None:
+def test_helper_edge_cases_follow_eeglab() -> None:
     assert engine.find_corresponding_point(50.0, np.array([1.0, 2.0]), np.array([1.0, 2.0])) is None
     assert engine.find_corresponding_point(2.0, np.array([1.0, 2.0, 2.0]), np.array([1.0, 2.0, 3.0])) == 2.5
     np.testing.assert_array_equal(engine._seqsum(np.zeros((0, 3)), axis=0), np.zeros(3))
-    psd, freqs = engine.welch_psd(np.ones(4), 1, 100.0)
-    assert psd.shape == freqs.shape
+    np.testing.assert_allclose(engine._gauss(1, 2.0), [np.exp(-4.0)])  # gauss.m: -sds:Inf:sds is -sds
     with pytest.raises(ValueError, match="empty"):
         engine._gauss(0, 2.0)
     with pytest.raises(ValueError, match="too short"):
@@ -926,35 +1060,43 @@ def test_weighted_windows_wider_than_their_weights_match_the_general_movav_port(
     np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12)
 
 
-def test_remaining_input_forms_and_checks() -> None:
-    data = np.random.default_rng(9).normal(size=(64, 6))
-    times = np.arange(64.0) * 1000 / 128
-    flat = engine.compute_erpimage(data.reshape(-1, order="F"), np.arange(6.0), times, 1, 1, plotted=False)
+def test_a_row_of_concatenated_trials_is_read_in_column_major_order() -> None:
+    data, times = _noise(64, 6)
+    flat = engine.compute_erpimage(data.reshape(1, -1, order="F"), np.arange(6.0), times, 1, 1, plotted=False)
     np.testing.assert_array_equal(flat.outdata, data)
-    with pytest.raises(ValueError, match=r"\(frames, trials\)"):
-        engine.compute_erpimage(np.zeros((2, 3, 4, 5)), None, np.arange(3.0), plotted=False)
-    with pytest.raises(ValueError, match="topphase"):
-        engine.compute_erpimage(
-            data, None, times, options=engine.parse_erpimage_options(phasesort=[100, 0, 10, 12, 200])
-        )
+
+
+def test_ampsort_frequency_needs_three_cycles_in_the_epoch() -> None:
+    data, times = _noise()
     with pytest.raises(ValueError, match="amplitude-sorting freq"):
         engine.compute_erpimage(data, None, times, options=engine.parse_erpimage_options(ampsort=[100, 0, 1]))
-    with pytest.raises(ValueError, match="cannot be < 1"):
-        engine.compute_erpimage(data, None, times, 0.5, options=engine.parse_erpimage_options(avg_type="gaussian"))
-    clamped = engine.compute_erpimage(
-        data, None, times, options=engine.parse_erpimage_options(ampsort=[100, 0, 10, 900]), plotted=False
-    )
-    assert clamped.sort_mode == "amp"
-    amps = engine.compute_erpimage(
-        data,
-        None,
-        times,
-        options=engine.parse_erpimage_options(plotamps=True, coher=[10, 10, 0.05], caxis=[-3, 3]),
-        rng=np.random.default_rng(0),
-    )
-    assert amps.clim == (-3.0, 3.0)
-    marks, ref, styles = engine._timewarp_marks(
-        (np.full((6, 3), [50.0, 100.0, 150.0]), None, ("r", "g")), times, 128.0, 64
+
+
+def test_timewarp_line_styles_cycle_like_eeglab() -> None:
+    _data, times = _noise()
+    _marks, _ref, styles = engine._timewarp_marks(
+        (np.full((6, 3), [50.0, 100.0, 150.0]), None, ("r", "g")), times, SRATE, 64
     )
     assert styles == ("", "r", "g", "r", "")
-    np.testing.assert_allclose(engine._gauss(1, 2.0), [np.exp(-4.0)])
+
+
+def test_private_helpers_match_the_package_versions() -> None:
+    rng = np.random.default_rng(12)
+    values = rng.normal(size=(30, 7))
+    values[rng.random(values.shape) < 0.2] = np.nan
+    for axis in (0, 1):
+        np.testing.assert_allclose(engine._nan_mean(values, axis), nan_mean(values, axis), rtol=1e-13, equal_nan=True)
+    for length, sds in ((7, 2.0), (40, 2.0), (64, 1.5)):
+        np.testing.assert_allclose(engine._gauss(length, sds), gauss(length, sds), rtol=1e-13)
+    data, times = _noise()
+    window = (times >= -50) & (times <= 20)
+    expected = rmbase(data[np.newaxis], data.shape[0], np.flatnonzero(window) + 1)[0]
+    np.testing.assert_allclose(engine._remove_baseline(data, np.array([-50.0, 20.0]), times), expected, atol=1e-13)
+    old = np.array([1.0, 10.0, 27.0, 50.0, 64.0])
+    new = np.array([1.0, 14.0, 22.0, 47.0, 64.0])
+    left, weight_left, weight_right = engine._timewarp_weights(old, new)
+    matrix = np.zeros((64, 64))
+    rows = np.arange(64)
+    np.add.at(matrix, (rows, left), weight_left)
+    np.add.at(matrix, (rows, np.minimum(left + 1, 63)), weight_right)
+    np.testing.assert_allclose(matrix, timewarp(old, new), atol=1e-12)

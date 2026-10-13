@@ -28,7 +28,6 @@ import pytest
 
 from eegprep.functions.popfunc.plot_utils import component_activations
 from eegprep.functions.popfunc.pop_prop import pop_prop
-from eegprep.functions.sigprocfunc import erpimage_engine as engine
 from eegprep.functions.sigprocfunc.spectopo import compute_spectra
 from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords
 from tests.fixtures import create_test_eeg_with_ica
@@ -148,20 +147,34 @@ def test_channel_topo_marks_only_the_selected_channel() -> None:
 def test_erp_image_follows_pop_prop_erpimage_call() -> None:
     """pop_prop sorts on 10000 ms (clipped to the right edge) and passes rounded ERP ticks."""
     eeg = _epoched_eeg()
+    # A zero-mean ERP peaking at 2.7 and dipping to -0.46 in every trial.
+    era = np.full(eeg["pnts"], -(2.7 - 0.46) / (eeg["pnts"] - 2))
+    era[10], era[20] = 2.7, -0.46
+    eeg["data"][1] = era[:, np.newaxis]
     fig = pop_prop(eeg, 1, 2, plot="off")
 
     image_ax = _find_axis(fig, lambda a: bool(a.get_images()))
     right_edge = image_ax.get_xlim()[1]
     sortvar_traces = [line for line in image_ax.lines if np.allclose(line.get_xdata(), right_edge)]
     assert sortvar_traces, "the clipped sortvar trace marks the right edge, as in EEGLAB"
-    trace = np.asarray(eeg["data"][1], dtype=float)
-    era = np.nanmean(trace - np.nanmean(trace), axis=1)
-    # get_era_limits: extremes rounded to their order of magnitude.
-    expected = [
-        engine.order_of_magnitude(value) * np.round(value / engine.order_of_magnitude(value))
-        for value in (np.min(era), np.max(era))
-    ]
-    np.testing.assert_allclose(_erp_average_axis(fig).get_yticks(), expected)
+    # get_era_limits: each extreme rounded at its own order of magnitude.
+    np.testing.assert_allclose(_erp_average_axis(fig).get_yticks(), [-0.5, 3.0])
+    plt.close("all")
+
+
+@pytest.mark.parametrize(("trials", "rows"), [(5, 5), (6, 4)])
+def test_epoched_erp_image_smooths_from_six_trials(trials: int, rows: int) -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=128, srate=128.0, n_trials=trials)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+    assert _find_axis(fig, lambda a: bool(a.get_images())).get_images()[0].get_array().shape[0] == rows
+    plt.close("all")
+
+
+@pytest.mark.parametrize(("samples", "rows"), [(1000, 9), (1100, 8)])
+def test_continuous_erp_image_smooths_from_ten_lines(samples: int, rows: int) -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=samples, srate=100.0, n_trials=1)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+    assert _find_axis(fig, lambda a: bool(a.get_images())).get_images()[0].get_array().shape[0] == rows
     plt.close("all")
 
 

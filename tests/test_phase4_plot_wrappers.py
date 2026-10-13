@@ -912,6 +912,15 @@ def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
     plt.close(result["figure"])
 
 
+def test_pop_erpimage_labels_channel_erps_in_microvolts_and_component_erps_blank(sample_epoch, ica_epoch):
+    channel, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    component, _command = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
+    assert "µV" in [ax.get_ylabel() for ax in channel["figure"].axes]
+    assert "µV" not in [ax.get_ylabel() for ax in component["figure"].axes]
+    plt.close(channel["figure"])
+    plt.close(component["figure"])
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(

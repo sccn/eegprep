@@ -7,6 +7,8 @@ tests cover argument handling, the returned outputs and what is drawn.
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 
 import matplotlib
 
@@ -17,7 +19,6 @@ from matplotlib.axes import Axes
 import numpy as np
 import pytest
 
-import eegprep
 from eegprep.functions.sigprocfunc import erpimage as erpimage_module
 from eegprep.functions.sigprocfunc.erpimage import ErpimageResult, erpimage
 from eegprep.functions.sigprocfunc.erpimage_engine import welch_psd
@@ -36,38 +37,48 @@ def _reference_erpimage_data():
     )
 
 
-def _expect_reference_failure(eeglab_backend, request, *args) -> None:
-    # EEGLAB prints help and returns on these inputs; the legacy wrappers pass on that return.
-    # EEGPrep raises instead (an accepted deviation: fail fast rather than print and return).
+def _expect_reference_failure(eeglab_backend, request, error: type[Exception], match: str, *args) -> None:
+    # EEGLAB prints help and returns on these inputs, which the MATLAB wrappers accept; EEGPrep
+    # raises instead. These tests run only with --eeglab-backend; use --eeglab-backend=python
+    # to check the EEGPrep errors.
     if request.config.getoption("--eeglab-backend") == "matlab":
         eeglab_backend("erpimage", *args, nargout=0)
         return
-    with pytest.raises((TypeError, ValueError)):
+    with pytest.raises(error, match=match):
         eeglab_backend("erpimage", *args, nargout=0)
 
 
 @pytest.mark.gui
 @eeglab_test(_ERPIMAGE_SOURCE, "test_fail_continuous")
 def test_reference_erpimage_continuous(eeglab_backend, request):
-    _expect_reference_failure(eeglab_backend, request, np.arange(21.0, 41.0)[None, :])
+    _expect_reference_failure(eeglab_backend, request, ValueError, "times vector", np.arange(21.0, 41.0)[None, :])
 
 
 @pytest.mark.gui
 @eeglab_test(_ERPIMAGE_SOURCE, "test_fail_no_arg")
 def test_reference_erpimage_no_arg(eeglab_backend, request):
-    _expect_reference_failure(eeglab_backend, request)
+    _expect_reference_failure(eeglab_backend, request, TypeError, "data")
 
 
 @pytest.mark.gui
 @eeglab_test(_ERPIMAGE_SOURCE, "test_fail_one_trial")
 def test_reference_erpimage_one_trial(eeglab_backend, request):
-    _expect_reference_failure(eeglab_backend, request, _reference_erpimage_data(), np.array([[1.0]]))
+    _expect_reference_failure(
+        eeglab_backend, request, ValueError, "too few trials", _reference_erpimage_data(), np.array([[1.0]])
+    )
 
 
 @pytest.mark.gui
 @eeglab_test(_ERPIMAGE_SOURCE, "test_fail_trial_div")
 def test_reference_erpimage_trial_div(eeglab_backend, request):
-    _expect_reference_failure(eeglab_backend, request, _reference_erpimage_data(), np.arange(1.0, 6.0)[None, :])
+    _expect_reference_failure(
+        eeglab_backend,
+        request,
+        ValueError,
+        "sortvar has 5 values",
+        _reference_erpimage_data(),
+        np.arange(1.0, 6.0)[None, :],
+    )
 
 
 def _as_matlab_outputs(outputs) -> list:
@@ -209,8 +220,31 @@ def _image_axis(result: ErpimageResult) -> Axes:
     return result.axhndls[0]
 
 
-def test_erpimage_is_a_lazy_eegprep_export() -> None:
-    assert eegprep.erpimage is erpimage
+def test_erpimage_loads_only_when_first_used() -> None:
+    code = (
+        "import sys, eegprep\n"
+        "name = 'eegprep.functions.sigprocfunc.erpimage'\n"
+        "before = name in sys.modules\n"
+        "function = eegprep.erpimage\n"
+        "print(before, function is sys.modules[name].erpimage)\n"
+    )
+    completed = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.split() == ["False", "True"]
+
+
+def test_image_rows_run_bottom_to_top_in_sorted_order() -> None:
+    values = np.linspace(-1, 1, 6)
+    data = np.tile(values, (8, 1))  # trial k is the constant values[k]
+    result = erpimage(data, np.arange(6.0), np.arange(8) * 10.0, caxis=[-1, 1])
+    ax = _image_axis(result)
+    ax.figure.canvas.draw()
+    pixels = np.asarray(ax.figure.canvas.buffer_rgba())
+    image = ax.images[0]
+    for trial in range(1, 5):  # the outer rows are half clipped by the axis limits
+        x, y = ax.transData.transform((35.0, result.outtrials[trial]))
+        observed = pixels[int(pixels.shape[0] - 1 - y), int(x)] / 255
+        np.testing.assert_allclose(observed, image.to_rgba(values[trial]), atol=0.02)
 
 
 def test_scalar_caxis_sets_symmetric_fraction_of_max() -> None:
@@ -236,6 +270,7 @@ def test_erpimage_sorts_trials_and_draws_zero_and_vertical_lines() -> None:
     assert vertical and vertical[0].get_linestyle() == "--"
     sortvar_trace = [line for line in lines if line.get_linestyle() == "-" and len(line.get_xdata()) == 3]
     np.testing.assert_allclose(sortvar_trace[0].get_xdata(), [10.0, 20.0, 30.0])
+    np.testing.assert_allclose(sortvar_trace[0].get_ydata(), result.outtrials)
 
 
 def test_eeglab_tokens_and_keywords_are_equivalent() -> None:
@@ -291,6 +326,17 @@ def test_a_drawing_error_closes_the_new_figure() -> None:
     with pytest.raises(ValueError):
         erpimage(data, None, times, auxvar=(np.zeros((1, 30)), "notacolor"))
     assert plt.get_fignums() == before
+
+
+def test_rng_makes_the_coherence_bootstrap_reproducible() -> None:
+    data, times = _trials()
+    first, second, other, seeded = (
+        erpimage(data, None, times, "", 3, 1, coher=[10, 10, 0.05], rng=rng)
+        for rng in (np.random.RandomState(7), np.random.RandomState(7), np.random.RandomState(8), 7)
+    )
+    assert first.cohsig == second.cohsig != other.cohsig
+    np.testing.assert_array_equal(first.ampsig, second.ampsig)
+    assert seeded.cohsig is not None
 
 
 def test_noshow_returns_outputs_without_a_figure() -> None:
@@ -435,11 +481,45 @@ def test_trace_ticks_and_hanning_helpers() -> None:
     np.testing.assert_allclose(erpimage_module._hanning(3), [0.5, 1.0, 0.5])
 
 
-def test_butterworth_filter_modes() -> None:
-    signal = np.random.default_rng(3).standard_normal((256, 2))
-    for edges in ([0, 20], [10, 64], [-20, -30], [10, 20]):
-        filtered = erpimage_module.butterworth_filter(signal, np.asarray(edges, dtype=float), 128.0)
-        assert filtered.shape == signal.shape and np.all(np.isfinite(filtered))
+@pytest.mark.parametrize(
+    ("edges", "keeps_5hz", "keeps_40hz"),
+    [([0, 20], True, False), ([20, 64], False, True), ([30, 50], False, True), ([-30, -50], True, False)],
+)
+def test_butterworth_filter_passes_and_stops_the_expected_bands(edges, keeps_5hz, keeps_40hz) -> None:
+    seconds = np.arange(512) / SRATE
+    low, high = np.sin(2 * np.pi * 5 * seconds), np.sin(2 * np.pi * 40 * seconds)
+    filtered = erpimage_module.butterworth_filter(np.column_stack([low, high]), np.asarray(edges, dtype=float), SRATE)
+    gains = np.linalg.norm(filtered, axis=0) / np.linalg.norm(np.column_stack([low, high]), axis=0)
+    for gain, kept in zip(gains, (keeps_5hz, keeps_40hz), strict=True):
+        assert gain > 0.9 if kept else gain < 0.1
+
+
+def test_two_element_caxis_sets_the_color_limits_of_the_potential_image() -> None:
+    data, _times = _trials()
+    assert _image_axis(erpimage(data, caxis=[-3, 3])).images[0].get_clim() == (-3.0, 3.0)
+
+
+def test_colorbar_has_five_ticks_over_the_color_limits() -> None:
+    data, _times = _trials()
+    result = erpimage(data, caxis=[-3, 3], cbar=True)
+    np.testing.assert_allclose(result.axhndls[1].get_yticks(), [-3, -1.5, 0, 1.5, 3])
+
+
+def test_coherence_significance_band_spans_zero_to_cohsig() -> None:
+    data, times = _trials()
+    result = erpimage(data, None, times, "", 3, 1, coher=[10, 10, 0.05], rng=np.random.RandomState(1))
+    vertices = np.vstack([patch.get_xy() for patch in result.axhndls[4].patches])
+    assert np.max(vertices[:, 1]) == pytest.approx(result.cohsig)
+    assert np.min(vertices[:, 1]) == pytest.approx(0.0)
+
+
+def test_spectrum_inset_plots_decibels_of_the_data_spectrum() -> None:
+    data, times = _trials()
+    result = erpimage(data, None, times, "", 3, 1, spec=[2, 40], erp=True)
+    psd, freqs = welch_psd(data.reshape(-1, order="F"), data.shape[0], SRATE)
+    line = result.axhndls[5].lines[0]
+    np.testing.assert_allclose(line.get_xdata(), freqs)
+    np.testing.assert_allclose(line.get_ydata(), 10 * np.log10(psd))
 
 
 def test_log_spectrum_axis_starts_at_the_first_analyzed_frequency() -> None:
@@ -448,6 +528,23 @@ def test_log_spectrum_axis_starts_at_the_first_analyzed_frequency() -> None:
     _psd, freqs = welch_psd(data.reshape(-1, order="F"), data.shape[0], SRATE)
     assert result.axhndls[5].get_xscale() == "log"
     assert result.axhndls[5].get_xlim() == pytest.approx((freqs[1], 50.0))
+
+
+def test_per_trial_vert_lines_follow_the_sort_and_mark_median_latencies() -> None:
+    data, times = _trials()
+    vert = np.column_stack([np.linspace(50, 150, 30), np.linspace(100, 180, 30)])
+    result = erpimage(data, np.linspace(100, 300, 30)[::-1], times, "", 1, 1, vert=vert, erp=True)
+    image_ax, _colorbar, erp_ax = result.axhndls[:3]
+    dashed = [line for line in image_ax.lines if line.get_linestyle() == "--" and len(line.get_xdata()) == 30]
+    assert len(dashed) == 2
+    np.testing.assert_allclose(dashed[0].get_xdata(), vert[result.sortidx, 0])
+    np.testing.assert_allclose(dashed[0].get_ydata(), result.outtrials)
+    marks = {
+        round(float(line.get_xdata()[0]), 6)
+        for line in erp_ax.lines
+        if line.get_linestyle() == "--" and line.get_xdata()[0] == line.get_xdata()[1]
+    }
+    assert marks == {round(float(median), 6) for median in np.sort(vert, axis=0)[14]}
 
 
 @pytest.mark.parametrize(
