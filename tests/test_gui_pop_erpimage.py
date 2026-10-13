@@ -182,12 +182,33 @@ def test_lastcom_restores_the_seed_and_dataset_locations_and_skips_expressions(e
     assert first.cohsig == second.cohsig
 
 
+def test_lastcom_reads_tuples_and_padded_commands_and_names_skipped_arguments(epochs, caplog) -> None:
+    lastcom = "  pop_erpimage(EEG, 1, chan, smooth=float(), sortingtype=('rt',), sortingeventfield='latency')"
+    with caplog.at_level(logging.INFO, logger="eegprep.functions.popfunc.pop_erpimage"):
+        renderer = _Renderer({"chan": "14"})
+        _result, command = pop_erpimage(epochs, 1, lastcom=lastcom, renderer=renderer, plot="off", return_com=True)
+    assert "argument 3 of the previous command is not a literal" in caplog.text
+    assert "smooth of the previous command is not a literal" in caplog.text
+    assert renderer.initial_values["type"] == "rt"
+    tuples = "pop_erpimage(EEG, 1, 14, sortingtype=('rt',), sortingeventfield='latency')"
+    assert "sortingtype=('rt',)" in pop_erpimage(epochs, 1, lastcom=tuples, gui=False, plot="off", return_com=True)[1]
+
+
+def test_call_values_no_field_can_show_stay_out_of_the_fields(epochs) -> None:
+    renderer = _Renderer(None)
+    pop_erpimage(epochs, 1, 14, None, "", "x", gui=True, renderer=renderer, renorm=1, caxis=True, vert=[[0, 1], [2, 3]])
+    values = renderer.initial_values
+    assert values["smooth"] == "x" and values["others"] == "renorm=1, caxis=True"
+    assert not {"renorm", "caxis", "vert"} & set(values)
+
+
 @pytest.mark.parametrize(
     ("channel", "lastcom", "message"),
     [
         (14, "pop_erpimage(EEG, 1, 3)", "lastcom holds the arguments; pass no others with it"),
         (None, "pop_erpimage(EEG, 1, 3", "lastcom is not a Python command"),
         (None, "pop_topoplot(EEG, 1, 3)", "lastcom is not a pop_erpimage command"),
+        (None, "pop_erpimage_dialog_spec(EEG)", "lastcom is not a pop_erpimage command"),
         (None, "pop_erpimage(EEG, 1, " + "[" * 5000 + "]" * 5000 + ")", "lastcom is not a Python command"),
     ],
 )
@@ -403,6 +424,9 @@ def test_dialog_spec_follows_eeglab_order_and_states(epochs) -> None:
     assert channel_tags[-4:] == ["spec", "limbaseamp", "vert", "others"]
     component_tags = [control.tag for control in component.controls if control.tag]
     assert component_tags[:5] == ["chan", "projchan", "projchan_button", "title", "smooth"]
+    labels = [[control.string for control in spec.controls if control.style == "text"] for spec in (channel, component)]
+    assert (labels[0][0], labels[1][0]) == ("Channel", "Component(s)")
+    assert "ERP limits (uV)" in labels[0] and "ERP limits" in labels[1]
     assert "plotmap" in component_tags
     tags = controls_by_tag(channel)
     assert set(tags["field_button"].callback.params["fields"]) == {"type", "position", "latency", "urevent", "epoch"}
@@ -467,6 +491,7 @@ def test_coherence_frequency_is_mirrored_into_the_phase_box(qt_dialogs) -> None:
 def test_event_type_list_replaces_typed_types_and_reminds_about_the_field(qt_dialogs) -> None:
     widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
     widgets["type"].setText("bogus")
+    widgets["field"].setText("  ")
     widgets["type_button"].click()  # cancelled
     assert widgets["type"].text() == "bogus"
     assert qt_dialogs.messages == [FIELD_REMINDER]

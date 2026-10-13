@@ -244,6 +244,8 @@ def test_sorting_field_ignores_surrounding_spaces() -> None:
 
 
 def test_missing_event_error_names_the_types_and_the_time_window() -> None:
+    with pytest.raises(ValueError, match="for event type '2' '7.5'"):
+        pop_erpimage(create_erpimage_epochs(), 1, 1, sortingtype=[2.0, 7.5], sortingeventfield="latency", noshow=True)
     message = r"no epoch has an event 'latency' value for event type 'stim' 'rt' between 500 and 900 ms"
     with pytest.raises(ValueError, match=message):
         pop_erpimage(
@@ -413,7 +415,10 @@ def test_history_writes_other_locations_in_full(caplog) -> None:
     )
 
 
-@pytest.mark.parametrize(("field", "value"), [("icaweights", None), ("icasphere", np.array([])), ("icaweights", [])])
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("icaweights", None), ("icasphere", np.array([])), ("icaweights", []), ("icaweights", np.ones(32))],
+)
 def test_components_need_ica_weights_and_sphere(epochs, field, value) -> None:
     eeg = deepcopy(epochs)
     eeg[field] = value
@@ -427,6 +432,10 @@ def test_sorting_needs_epoch_numbers_in_the_events() -> None:
         del event["epoch"]
     with pytest.raises(ValueError, match="events have no 'epoch' field; epoch the data before sorting by events"):
         pop_erpimage(eeg, 1, 1, sortingeventfield="latency", noshow=True)
+    partial = create_erpimage_epochs()
+    del partial["event"][3]["epoch"]
+    with pytest.raises(ValueError, match="event 4 has no 'epoch' field, while other events have one"):
+        pop_erpimage(partial, 1, 1, sortingeventfield="latency", noshow=True)
 
 
 def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
@@ -514,8 +523,28 @@ def test_long_lists_of_epochs_are_shortened_in_messages(caplog) -> None:
 def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
     drawn = pop_erpimage(epochs, 1, 14, None, "", 5, 0, None, None, "", "coher", [10, 10, 0.05], "erp", "off", rng=1)
     assert drawn.axhndls[2] is None and drawn.erp is None
-    switched = pop_erpimage(epochs, 1, 14, None, "", 5, 0, None, None, "", "erp", "off", "erp", "on", noshow=True)
+    switched, command = pop_erpimage(
+        epochs,
+        1,
+        14,
+        None,
+        "",
+        5,
+        0,
+        None,
+        None,
+        "",
+        "erp",
+        "off",
+        "cbar",
+        "off",
+        "erp",
+        "on",
+        noshow=True,
+        return_com=True,
+    )
     assert switched.erp is not None
+    assert command.endswith("cbar=False, erp=True, noshow=True)")
 
 
 def test_amplitude_image_and_erp_deviation_reach_erpimage(epochs) -> None:
