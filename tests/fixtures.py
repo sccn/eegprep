@@ -11,6 +11,8 @@ import unittest
 
 import numpy as np
 
+from eegprep.functions.guifunc.spec import controls_by_tag
+
 
 SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
 
@@ -219,3 +221,9 @@ def create_erpimage_epochs(trials=6):
         {"labels": label, "theta": theta, "radius": 0.3} for label, theta in (("A", -40.0), ("B", 0.0), ("C", 40.0))
     ]
     return eeg
+
+
+def opened_dialog_values(spec, initial_values=None):
+    """Values of a dialog accepted as it opens: control defaults, then its initial values."""
+    defaults = {tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"}
+    return {**defaults, **(initial_values or {})}

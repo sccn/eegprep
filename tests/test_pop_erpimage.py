@@ -32,15 +32,7 @@ FIXTURE = REPO_ROOT / "tests" / "matlab" / "pop_erpimage_fixtures.mat"
 RTOL = 1e-10
 
 
-@pytest.fixture(scope="module")
-def epochs() -> dict:
-    return pop_loadset(str(EPOCHS_PATH))
-
-
-@pytest.fixture(autouse=True)
-def _close_figures():
-    yield
-    plt.close("all")
+pytestmark = pytest.mark.usefixtures("close_figures")
 
 
 def _rt_latencies(EEG: dict) -> np.ndarray:
@@ -323,7 +315,8 @@ def test_limits_set_the_axes_without_cropping_the_data(epochs) -> None:
     [
         (None, {"typeplot": 2}, "typeplot must be 1"),
         (None, {"typeplot": True}, "typeplot must be 1"),
-        (lambda eeg: eeg.update(icaweights=np.zeros((0, 0))), {"typeplot": 0}, "no ICA data"),
+        (lambda eeg: eeg.update(icaweights=np.zeros((0, 0)), icasphere=np.eye(3)), {"typeplot": 0}, "no ICA data"),
+        (lambda eeg: eeg.update(icaweights=np.eye(3), icasphere=np.zeros((0, 0))), {"typeplot": 0}, "no ICA data"),
         (lambda eeg: eeg.update(trials=1), {}, "more than one trial"),
         (None, {"channel": 0}, r"channel 0 is outside 1\.\.3"),
         (None, {"channel": "Q"}, "unknown channel label 'Q'"),
@@ -515,19 +508,51 @@ def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
 
 
 def test_amplitude_image_and_erp_deviation_reach_erpimage(epochs) -> None:
-    plain = pop_erpimage(epochs, 1, 14, coher=[10, 10, 0.01], rng=1, noshow=True)
     amplitudes = pop_erpimage(epochs, 1, 14, coher=[10, 10, 0.01], plotamps=True, rng=1, noshow=True)
-    assert not np.allclose(amplitudes.outdata, plain.outdata)
+    direct = erpimage(
+        np.asarray(epochs["data"], dtype=float)[13],
+        np.full(epochs["trials"], epochs["xmax"] * 1000),
+        _times(epochs),
+        "",
+        5,
+        0,
+        coher=[10, 10, 0.01],
+        plotamps=True,
+        rng=1,
+        noshow=True,
+    )
+    np.testing.assert_allclose(amplitudes.outdata, direct.outdata)
     bare = pop_erpimage(epochs, 1, 14, plot="off")
     deviation = pop_erpimage(epochs, 1, 14, erpstd=True, plot="off")
     assert len(deviation.axhndls[2].lines) > len(bare.axhndls[2].lines)
 
 
-def test_sorting_types_or_window_without_a_field_are_reported(caplog) -> None:
+@pytest.mark.parametrize("arguments", [{"sortingtype": "rt"}, {"sortingwin": [0, 100]}])
+def test_sorting_types_or_window_without_a_field_are_reported(caplog, arguments) -> None:
     with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
-        result = pop_erpimage(create_erpimage_epochs(), 1, 1, sortingtype="rt", smooth=1, noshow=True)
+        result = pop_erpimage(create_erpimage_epochs(), 1, 1, smooth=1, noshow=True, **arguments)
     np.testing.assert_array_equal(result.sortidx, np.arange(6))
     assert "sortingtype and sortingwin need sortingeventfield; the trials are not sorted" in caplog.text
+
+
+def test_one_latency_per_epoch_needs_no_warning_and_a_blank_window_is_none(caplog) -> None:
+    eeg = create_erpimage_epochs()
+    with caplog.at_level(logging.WARNING, logger=pop_erpimage_module.logger.name):
+        result, command = pop_erpimage(
+            eeg,
+            1,
+            1,
+            smooth=1,
+            sortingtype="rt",
+            sortingwin="",
+            sortingeventfield="latency",
+            noshow=True,
+            rng=np.int64(5),
+            return_com=True,
+        )
+    assert caplog.text == ""
+    np.testing.assert_allclose(result.outvar, np.sort([120, 60, 180, 30, 150, 90]))
+    assert command.endswith("sortingtype='rt', sortingeventfield='latency', noshow=True, rng=5)")
 
 
 @pytest.mark.parametrize("channel", ["", [], None])
@@ -542,8 +567,22 @@ def test_an_empty_channel_opens_the_dialog(channel) -> None:
 def test_several_components_need_a_projection_channel(epochs) -> None:
     with pytest.raises(ValueError, match="select a channel to plot the sum of several component projections"):
         pop_erpimage(epochs, 0, [1, 2], noshow=True)
-    with pytest.raises(ValueError, match="components are given by number"):
+    with pytest.raises(ValueError, match="components are given by number, got 'first'"):
         pop_erpimage(epochs, 0, "first", noshow=True)
+
+
+def test_components_are_bounded_by_the_ica_size_not_the_channels() -> None:
+    eeg = create_erpimage_epochs()
+    eeg.update(
+        icaweights=np.eye(2, 3),
+        icasphere=np.eye(3),
+        icawinv=np.eye(3, 2),
+        icachansind=np.arange(3),
+        icaact=np.array([]),
+    )
+    np.testing.assert_allclose(pop_erpimage(eeg, 0, 2, smooth=0, noshow=True).outdata, eeg["data"][1])
+    with pytest.raises(ValueError, match=r"component 3 is outside 1\.\.2"):
+        pop_erpimage(eeg, 0, 3, noshow=True)
 
 
 def test_plot_off_target_and_noshow(epochs) -> None:
@@ -660,14 +699,14 @@ def _assert_scenario(fixture: dict, name: str, eeg: dict) -> None:
     weights = np.arange(1, result.outdata.shape[0] + 1)
     weighted_tolerance = RTOL * scale * eeg["pnts"] ** 2
     np.testing.assert_allclose(
-        weights @ result.outdata, record["outdata_weighted"].ravel(), rtol=0, atol=weighted_tolerance
+        np.dot(weights, result.outdata), record["outdata_weighted"].ravel(), rtol=0, atol=weighted_tolerance
     )
     frames = record["frames"].ravel().astype(int) - 1
     np.testing.assert_allclose(result.outdata[frames], record["outdata_frames"], rtol=0, atol=RTOL * scale)
     np.testing.assert_allclose(result.erp.ravel()[frames], record["erp_frames"].ravel(), rtol=0, atol=RTOL * scale)
     np.testing.assert_allclose(result.erp.sum(), float(record["erp_sum"].ravel()[0]), atol=RTOL * scale * eeg["pnts"])
     erp_weighted = float(record["erp_weighted"].ravel()[0])
-    np.testing.assert_allclose(weights @ result.erp.ravel(), erp_weighted, rtol=0, atol=weighted_tolerance)
+    np.testing.assert_allclose(np.dot(weights, result.erp.ravel()), erp_weighted, rtol=0, atol=weighted_tolerance)
 
 
 PARITY_SCENARIOS = ["channel_rt", "label_position_renorm", "channels_window", "component", "projected"]

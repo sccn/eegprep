@@ -4,31 +4,20 @@ from __future__ import annotations
 
 import logging
 from copy import deepcopy
-from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage, pop_erpimage_dialog_spec
-from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from tests.fixtures import create_erpimage_epochs
+from tests.fixtures import create_erpimage_epochs, opened_dialog_values
 
 
-@pytest.fixture(scope="module")
-def epochs() -> dict:
-    return pop_loadset(str(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"))
-
-
-@pytest.fixture(autouse=True)
-def _close_figures():
-    yield
-    plt.close("all")
+pytestmark = pytest.mark.usefixtures("close_figures")
 
 
 class _Renderer:
@@ -43,10 +32,7 @@ class _Renderer:
         self.spec, self.initial_values = spec, initial_values
         if self.values is None:
             return None
-        defaults = {
-            tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"
-        }
-        return {**defaults, **(initial_values or {}), **self.values}
+        return {**opened_dialog_values(spec, initial_values), **self.values}
 
 
 def _command(eeg: dict, values: dict, typeplot: int = 1) -> str:
@@ -276,6 +262,18 @@ def test_dialog_smoothing_starts_at_zero_when_there_are_fewer_than_six_trials(tr
     eeg = create_erpimage_epochs(trials=trials)
     assert controls_by_tag(pop_erpimage_dialog_spec(eeg))["smooth"].value == "0"
     assert _command(eeg, {}) == "pop_erpimage(EEG, 1, 1, smooth=0, decimate=1, noshow=True)"
+
+
+def test_dialog_quotes_seeded_types_with_commas_or_apostrophes() -> None:
+    eeg = create_erpimage_epochs()
+    for event in eeg["event"]:
+        event["type"] = "a,b" if event["type"] == "rt" else "it's"
+    renderer = _Renderer({"smooth": "1"})
+    _result, command = pop_erpimage(
+        eeg, 1, 1, sortingtype=["a,b", "it's"], sortingeventfield="rt", gui=True, renderer=renderer, return_com=True
+    )
+    assert renderer.initial_values["type"] == "'a,b' \"it's\""
+    assert "sortingtype=['a,b', \"it's\"]" in command
 
 
 def test_dialog_keeps_quoted_event_types_with_spaces() -> None:

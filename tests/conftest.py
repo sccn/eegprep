@@ -14,6 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, PYTHON_BACKEND_XFAILS
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
@@ -208,6 +209,21 @@ def pytest_addoption(parser):
         default=False,
         help="Overwrite tests/parity_expected/ds003061_pipeline.json with this machine's measured pipeline summary.",
     )
+
+
+@pytest.fixture(scope="module")
+def epochs() -> dict:
+    """The ICA sample epochs (sample_data/eeglab_data_epochs_ica.set), loaded once per module."""
+    return pop_loadset(str(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"))
+
+
+@pytest.fixture
+def close_figures():
+    """Close the Matplotlib figures a test leaves open, even when it fails."""
+    yield
+    pyplot = sys.modules.get("matplotlib.pyplot")
+    if pyplot is not None:
+        pyplot.close("all")
 
 
 @pytest.fixture(autouse=True)
@@ -444,7 +460,6 @@ VISUAL_FILE_SUFFIXES = ("tests/test_visual_parity.py",)
 
 GUI_FILE_SUFFIXES = (
     "tests/test_gui_pop_clean_rawdata.py",
-    "tests/test_gui_pop_erpimage.py",
     "tests/test_gui_pop_firfilt.py",
     "tests/test_gui_pop_iclabel.py",
     "tests/test_gui_pop_prop_extended.py",
@@ -572,7 +587,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if _path_has_suffix(path, VISUAL_FILE_SUFFIXES):
             item.add_marker(pytest.mark.visual)
 
-        if _path_has_suffix(path, GUI_FILE_SUFFIXES) or _nodeid_has_part(lower_nodeid, GUI_NODEID_PARTS):
+        if (
+            _path_has_suffix(path, GUI_FILE_SUFFIXES)
+            or _nodeid_has_part(lower_nodeid, GUI_NODEID_PARTS)
+            or "qt_dialogs" in getattr(item, "fixturenames", ())
+        ):
             item.add_marker(pytest.mark.gui)
 
         if "parity" in lower_nodeid:
