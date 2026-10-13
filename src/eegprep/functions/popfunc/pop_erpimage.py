@@ -447,10 +447,13 @@ def _scalp_map(EEG: dict[str, Any], typeplot: int, channels: list[int]) -> tuple
         return None
     if not typeplot:
         maps, map_chanlocs = component_map_data(EEG)
-        if not any(_located(location) for location in map_chanlocs):
+        # topoplot draws only the channels with a location, as EEGLAB's does.
+        located = [index for index, location in enumerate(map_chanlocs) if _located(location)]
+        if not located:
             logger.warning("pop_erpimage(): the ICA channels have no locations, so the scalp map is left out.")
             return None
-        return np.mean(maps[:, np.asarray(channels) - 1], axis=1), map_chanlocs
+        mean_map = np.mean(maps[np.ix_(located, np.asarray(channels) - 1)], axis=1)
+        return mean_map, [map_chanlocs[index] for index in located]
     if len(channels) > 1:
         logger.warning(
             "pop_erpimage(): the scalp map marks one channel, so it is left out for %d channels.", len(channels)

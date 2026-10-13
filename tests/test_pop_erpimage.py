@@ -452,6 +452,17 @@ def test_the_scalp_map_is_left_out_without_a_location(epochs, caplog) -> None:
     assert "the ICA channels have no locations, so the scalp map is left out" in caplog.text
 
 
+def test_component_maps_skip_channels_without_a_location(epochs) -> None:
+    partial = deepcopy(epochs)
+    partial["chanlocs"][3].update(theta=None, radius=None)
+    result = pop_erpimage(partial, 0, 1, plot="off")
+    maps, _chanlocs = component_map_data(partial)
+    expected_axes = plt.figure().add_subplot()
+    located = [index for index in range(32) if index != 3]
+    topoplot(maps[located, 0], [partial["chanlocs"][index] for index in located], electrodes="off", axes=expected_axes)
+    np.testing.assert_allclose(result.axhndls[5].images[0].get_array(), expected_axes.images[0].get_array())
+
+
 def test_datasets_without_locations_draw_no_scalp_map(caplog) -> None:
     eeg = create_erpimage_epochs()
     eeg["chanlocs"] = []
