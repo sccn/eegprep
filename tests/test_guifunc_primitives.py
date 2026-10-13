@@ -206,83 +206,50 @@ def _event_dialog(fields, types, *, selectionmode="multiple"):
     )
 
 
-@pytest.fixture
-def qt_renderer(qt_widgets, monkeypatch):
-    from eegprep.functions.guifunc import qt as qt_module
-
-    if qt_module.QtCore is None or qt_module.QtWidgets is None:
-        pytest.skip("PySide6 Qt libraries unavailable in this environment")
-    messages = []
-    message_box = qt_module.QtWidgets.QMessageBox
-    monkeypatch.setattr(message_box, "warning", lambda _parent, title, text: messages.append((title, text)))
-    monkeypatch.setattr(message_box, "critical", lambda _parent, title, text: messages.append((title, text)))
-    dialogs = []
-
-    def build(spec):
-        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
-        dialogs.append(dialog)
-        return widgets
-
-    yield qt_module, build, messages
-    for dialog in dialogs:
-        dialog.close()
-
-
-def test_event_field_list_fills_the_field_and_reminds_about_an_empty_type(qt_renderer, monkeypatch):
-    qt_module, build, messages = qt_renderer
+def test_event_field_list_fills_the_field_and_reminds_about_an_empty_type(qt_dialogs, monkeypatch):
     shown = {}
 
     def listdlg2(**kwargs):
         shown.update(kwargs)
         return [2], 1, "rt"
 
-    monkeypatch.setattr(qt_module, "listdlg2", listdlg2)
-    widgets = build(_event_dialog(["latency", "rt"], ["stim"]))
+    monkeypatch.setattr(qt_dialogs.qt, "listdlg2", listdlg2)
+    widgets = qt_dialogs.build(_event_dialog(["latency", "rt"], ["stim"]))
     widgets["field_button"].click()
     assert widgets["field"].text() == "rt"
     assert shown["promptstring"] == "Select fields" and shown["selectionmode"] == "single"
-    assert messages == [("Warning", "pick a type")]
-    messages.clear()
+    assert qt_dialogs.messages == [("Warning", "pick a type")]
+    qt_dialogs.messages.clear()
     widgets["type"].setText("stim")
-    monkeypatch.setattr(qt_module, "listdlg2", lambda **kwargs: ([], 0, ""))
+    monkeypatch.setattr(qt_dialogs.qt, "listdlg2", lambda **kwargs: ([], 0, ""))
     widgets["field_button"].click()
-    assert widgets["field"].text() == "rt" and messages == []
-    build(_event_dialog([], ["stim"]))["field_button"].click()
-    assert messages == [("Error", "No events"), ("Warning", "pick a type")]
+    assert widgets["field"].text() == "rt" and qt_dialogs.messages == []
+    qt_dialogs.build(_event_dialog([], ["stim"]))["field_button"].click()
+    assert qt_dialogs.messages == [("Error", "No events"), ("Warning", "pick a type")]
 
 
-def test_event_type_list_selects_several_types_and_reminds_about_an_empty_field(qt_renderer, monkeypatch):
-    qt_module, build, messages = qt_renderer
-    calls = []
-
-    def pop_chansel(values, **kwargs):
-        calls.append((values, kwargs["select"]))
-        return [1, 2], "stim rt", ["stim", "rt"]
-
-    monkeypatch.setattr(qt_module, "pop_chansel", pop_chansel)
-    widgets = build(_event_dialog(["latency"], ["stim", "rt"]))
+def test_event_type_list_selects_several_types_and_reminds_about_an_empty_field(qt_dialogs):
+    widgets = qt_dialogs.build(_event_dialog(["latency"], ["stim", "rt"]))
+    qt_dialogs.answers["types"] = ([1, 2], 1, "")
     widgets["type"].setText("stim")
     widgets["type_button"].click()
     assert widgets["type"].text() == "stim rt"
-    assert calls == [(["stim", "rt"], "stim")]
-    assert messages == [("Warning", "pick a field")]
-    messages.clear()
-    build(_event_dialog(["latency"], []))["type_button"].click()
-    assert messages[0] == ("Error", "No type field")
+    assert qt_dialogs.messages == [("Warning", "pick a field")]
+    qt_dialogs.messages.clear()
+    qt_dialogs.build(_event_dialog(["latency"], []))["type_button"].click()
+    assert qt_dialogs.messages[0] == ("Error", "No type field")
 
 
-def test_single_event_type_selection_appends_the_chosen_type(qt_renderer, monkeypatch):
-    qt_module, build, messages = qt_renderer
-    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", lambda *args, **kwargs: ("rt", True))
-    widgets = build(_event_dialog(["latency"], ["stim", "rt"], selectionmode="single"))
+def test_single_event_type_selection_appends_the_chosen_type(qt_dialogs):
+    qt_dialogs.answers["item"] = ("rt", True)
+    widgets = qt_dialogs.build(_event_dialog(["latency"], ["stim", "rt"], selectionmode="single"))
     widgets["type"].setText("stim")
     widgets["type_button"].click()
-    assert widgets["type"].text() == "stim rt" and messages == []
+    assert widgets["type"].text() == "stim rt" and qt_dialogs.messages == []
 
 
-def test_mirrored_edits_copy_only_when_both_are_filled(qt_renderer):
-    _qt_module, build, _messages = qt_renderer
-    widgets = build(_event_dialog([], []))
+def test_mirrored_edits_copy_only_when_both_are_filled(qt_dialogs):
+    widgets = qt_dialogs.build(_event_dialog([], []))
     widgets["phase"].setText("10")
     widgets["phase"].editingFinished.emit()
     assert widgets["coher"].text() == ""

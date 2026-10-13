@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import os
 from pathlib import Path
 
 import matplotlib
@@ -161,28 +160,14 @@ def test_dialog_spec_follows_eeglab_order_and_states(epochs) -> None:
     assert controls_by_tag(pop_erpimage_dialog_spec(create_erpimage_epochs()))["smooth"].value == "1"
 
 
-def test_qt_dialog_wires_the_event_lists_and_frequency_mirrors(monkeypatch) -> None:
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    pytest.importorskip("PySide6")
-    from eegprep.functions.guifunc import qt as qt_module
-
-    if qt_module.QtCore is None or qt_module.QtWidgets is None:
-        pytest.skip("PySide6 Qt libraries unavailable in this environment")
-    messages = []
-    message_box = qt_module.QtWidgets.QMessageBox
-    monkeypatch.setattr(message_box, "warning", lambda _parent, title, text: messages.append((title, text)))
-    monkeypatch.setattr(qt_module, "listdlg2", lambda **kwargs: ([kwargs["liststring"].index("rt") + 1], 1, "rt"))
-    monkeypatch.setattr(qt_module, "pop_chansel", lambda values, **kwargs: ([values.index("rt") + 1], "rt", ["rt"]))
-    _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(
-        pop_erpimage_dialog_spec(create_erpimage_epochs())
-    )
-    try:
-        widgets["field_button"].click()
-        widgets["type_button"].click()
-        widgets["coher"].setText("10 10")
-        widgets["phase"].setText("8 12")
-        widgets["phase"].editingFinished.emit()
-        assert (widgets["field"].text(), widgets["type"].text(), widgets["coher"].text()) == ("rt", "rt", "8 12")
-        assert messages == [("Warning", "Do not forget to select an event type in the next edit box")]
-    finally:
-        dialog.close()
+def test_qt_dialog_wires_the_event_lists_and_frequency_mirrors(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    qt_dialogs.answers["fields"] = ([2], 1, "")  # type, latency, epoch, code, rt: the events' field order
+    widgets["field_button"].click()
+    qt_dialogs.answers["types"] = ([2], 1, "")
+    widgets["type_button"].click()
+    widgets["coher"].setText("10 10")
+    widgets["phase"].setText("8 12")
+    widgets["phase"].editingFinished.emit()
+    assert (widgets["field"].text(), widgets["type"].text(), widgets["coher"].text()) == ("latency", "rt", "8 12")
+    assert qt_dialogs.messages == [("Warning", "Do not forget to select an event type in the next edit box")]

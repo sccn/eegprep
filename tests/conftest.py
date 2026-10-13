@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -206,6 +208,50 @@ def pytest_addoption(parser):
         default=False,
         help="Overwrite tests/parity_expected/ds003061_pipeline.json with this machine's measured pipeline summary.",
     )
+
+
+@pytest.fixture
+def qt_dialogs(monkeypatch):
+    """The Qt dialog renderer with every modal call answered and Qt slot exceptions collected.
+
+    Message boxes are recorded in ``messages``; item and list pickers return the
+    ``answers`` entries (cancelled by default), so a dialog can never block the
+    test. Qt only prints exceptions raised inside slots, so they are collected and
+    fail the test. ``build(spec)`` returns the widgets of a dialog built offscreen.
+    """
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.functions.popfunc import pop_chansel as pop_chansel_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    state = SimpleNamespace(
+        qt=qt_module,
+        messages=[],
+        answers={"item": ("", False), "text": ("", False), "fields": ([], 0, ""), "types": ([], 0, "")},
+        slot_errors=[],
+        dialogs=[],
+    )
+    box = qt_module.QtWidgets.QMessageBox
+    for name in ("warning", "critical", "information"):
+        monkeypatch.setattr(box, name, lambda _parent, title, text, *_args: state.messages.append((title, text)))
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", lambda *_args, **_kwargs: state.answers["item"])
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getText", lambda *_args, **_kwargs: state.answers["text"])
+    monkeypatch.setattr(qt_module, "listdlg2", lambda **_kwargs: state.answers["fields"])
+    monkeypatch.setattr(pop_chansel_module, "listdlg2", lambda **_kwargs: state.answers["types"])
+    monkeypatch.setattr(sys, "excepthook", lambda _type, error, _traceback: state.slot_errors.append(error))
+
+    def build(spec):
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+        state.dialogs.append(dialog)
+        return widgets
+
+    state.build = build
+    yield state
+    for dialog in state.dialogs:
+        dialog.close()
+    assert state.slot_errors == [], f"exceptions inside Qt slots: {state.slot_errors}"
 
 
 @pytest.fixture(scope="session")
