@@ -1273,7 +1273,7 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
         chanlist, value, _allchanstr = pop_chansel(
             channels,
             withindex="on",
-            select=target.text().strip(),
+            select=target.text().strip() if params.get("preselect", True) else None,
             selectionmode=str(params.get("selectionmode", "multiple")),
             parent=button,
         )

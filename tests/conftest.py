@@ -215,9 +215,10 @@ def qt_dialogs(monkeypatch):
     """The Qt dialog renderer with every modal call answered and Qt slot exceptions collected.
 
     Message boxes are recorded in ``messages``; item and list pickers return the
-    ``answers`` entries (cancelled by default), so a dialog can never block the
-    test. Qt only prints exceptions raised inside slots, so they are collected and
-    fail the test. ``build(spec, initial_values)`` returns the widgets of a dialog built offscreen.
+    ``answers`` entries (cancelled by default) and record their keyword arguments
+    in ``calls``, so a dialog can never block the test. Qt only prints exceptions
+    raised inside slots, so they are collected and fail the test.
+    ``build(spec, initial_values)`` returns the widgets of a dialog built offscreen.
     """
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     pytest.importorskip("PySide6")
@@ -229,17 +230,26 @@ def qt_dialogs(monkeypatch):
     state = SimpleNamespace(
         qt=qt_module,
         messages=[],
-        answers={"item": ("", False), "text": ("", False), "fields": ([], 0, ""), "types": ([], 0, "")},
+        answers={"item": ("", False), "text": ("", False), "listdlg2": ([], 0, ""), "chansel": ([], 0, "")},
+        calls=[],
         slot_errors=[],
         dialogs=[],
     )
+
+    def answer(name):
+        def respond(*_args, **kwargs):
+            state.calls.append((name, kwargs))
+            return state.answers[name]
+
+        return respond
+
     box = qt_module.QtWidgets.QMessageBox
     for name in ("warning", "critical", "information"):
         monkeypatch.setattr(box, name, lambda _parent, title, text, *_args: state.messages.append((title, text)))
-    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", lambda *_args, **_kwargs: state.answers["item"])
-    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getText", lambda *_args, **_kwargs: state.answers["text"])
-    monkeypatch.setattr(qt_module, "listdlg2", lambda **_kwargs: state.answers["fields"])
-    monkeypatch.setattr(pop_chansel_module, "listdlg2", lambda **_kwargs: state.answers["types"])
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", answer("item"))
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getText", answer("text"))
+    monkeypatch.setattr(qt_module, "listdlg2", answer("listdlg2"))
+    monkeypatch.setattr(pop_chansel_module, "listdlg2", answer("chansel"))
     monkeypatch.setattr(sys, "excepthook", lambda _type, error, _traceback: state.slot_errors.append(error))
 
     def build(spec, initial_values=None):

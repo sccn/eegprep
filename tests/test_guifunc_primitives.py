@@ -230,7 +230,7 @@ def test_event_field_list_fills_the_field_and_reminds_about_an_empty_type(qt_dia
 
 def test_event_type_list_selects_several_types_and_reminds_about_an_empty_field(qt_dialogs):
     widgets = qt_dialogs.build(_event_dialog(["latency"], ["stim", "rt"]))
-    qt_dialogs.answers["types"] = ([1, 2], 1, "")
+    qt_dialogs.answers["chansel"] = ([1, 2], 1, "")
     widgets["type"].setText("stim")
     widgets["type_button"].click()
     assert widgets["type"].text() == "stim rt"

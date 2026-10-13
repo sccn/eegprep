@@ -376,15 +376,41 @@ def test_dialog_spec_follows_eeglab_order_and_states(epochs) -> None:
 
 def test_qt_dialog_wires_the_event_lists_and_frequency_mirrors(qt_dialogs) -> None:
     widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
-    qt_dialogs.answers["fields"] = ([2], 1, "")  # type, latency, epoch, code, rt: the events' field order
+    qt_dialogs.answers["listdlg2"] = ([2], 1, "")  # type, latency, epoch, code, rt: the events' field order
     widgets["field_button"].click()
-    qt_dialogs.answers["types"] = ([1], 1, "")
+    qt_dialogs.answers["chansel"] = ([1], 1, "")
     widgets["type_button"].click()
     widgets["coher"].setText("10 10")
     widgets["phase"].setText("8 12")
     widgets["phase"].editingFinished.emit()
     assert (widgets["field"].text(), widgets["type"].text(), widgets["coher"].text()) == ("latency", "rt", "8 12")
     assert qt_dialogs.messages == [("Warning", "Do not forget to select an event type in the next edit box")]
+    (_name, fields), (_name, types) = qt_dialogs.calls
+    assert (fields["liststring"], fields["selectionmode"]) == (["type", "latency", "epoch", "code", "rt"], "single")
+    assert (types["liststring"], types["initialvalue"], types["selectionmode"]) == (["rt", "stim"], [], "multiple")
+
+
+def test_channel_lists_open_without_a_preselection(epochs, qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(epochs))
+    widgets["chan"].setText("3:5")
+    widgets["chan_button"].click()  # cancelled
+    assert widgets["chan"].text() == "3:5"
+    qt_dialogs.answers["chansel"] = ([27], 1, "")
+    widgets["chan_button"].click()
+    component = qt_dialogs.build(pop_erpimage_dialog_spec(epochs, typeplot=0))
+    component["projchan"].setText("{'Fz','Cz'}")
+    component["projchan_button"].click()
+    assert (widgets["chan"].text(), component["projchan"].text()) == ("POz", "POz")
+    for _name, call in qt_dialogs.calls:
+        assert (call["initialvalue"], call["selectionmode"], len(call["liststring"])) == ([], "single", 32)
+
+
+def test_event_field_list_accepted_without_a_choice_changes_nothing(qt_dialogs) -> None:
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
+    qt_dialogs.answers["listdlg2"] = ([], 1, "")
+    widgets["field_button"].click()
+    assert widgets["field"].text() == ""
+    assert qt_dialogs.messages == [TYPE_REMINDER]
 
 
 FIELD_REMINDER = ("Warning", "Do not forget to select an epoch-sorting field in the previous edit box")
@@ -406,7 +432,7 @@ def test_event_type_list_replaces_typed_types_and_reminds_about_the_field(qt_dia
     assert widgets["type"].text() == "bogus"
     assert qt_dialogs.messages == [FIELD_REMINDER]
     qt_dialogs.messages.clear()
-    qt_dialogs.answers["types"] = ([1, 2], 1, "")
+    qt_dialogs.answers["chansel"] = ([1, 2], 1, "")
     widgets["field"].setText("latency")
     widgets["type_button"].click()
     assert widgets["type"].text() == "rt stim"

@@ -745,6 +745,7 @@ def _unique_types(types: Any) -> list[str]:
 
 
 def _channel_button(tag: str, target: str, labels: list[str], *, enabled: bool) -> ControlSpec:
+    """EEGLAB's commandchan: a single-channel list opened without a preselection."""
     return ControlSpec(
         "pushbutton",
         "...",
@@ -752,7 +753,13 @@ def _channel_button(tag: str, target: str, labels: list[str], *, enabled: bool) 
         enabled=enabled,
         callback=CallbackSpec(
             "select_channels",
-            params={"button": tag, "target": target, "channels": labels, "selectionmode": "single"},
+            params={
+                "button": tag,
+                "target": target,
+                "channels": labels,
+                "selectionmode": "single",
+                "preselect": False,
+            },
             matlab_callback="pop_chansel({tmpchanlocs.labels}, 'withindex', 'on', 'selectionmode', 'single')",
         ),
     )
