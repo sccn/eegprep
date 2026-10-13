@@ -105,10 +105,8 @@ def main() -> int:
 
 if __name__ == "__main__":
     if sys.platform == "emscripten":
-        # Host contract with tools/pyodide/run_pyodide.mjs: after runpy.run_path
-        # returns, the host awaits the coroutine stored in this global, because
-        # asyncio.run cannot block Pyodide's already-running event loop. A
-        # non-zero integer result becomes the exit status.
+        # run_pyodide.mjs awaits this global after runpy returns, because asyncio.run cannot
+        # block Pyodide's already-running event loop.
         __eegprep_async_result__ = _async_main()
     else:
         raise SystemExit(main())

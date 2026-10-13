@@ -63,12 +63,8 @@ if [[ ! -f "$WHEEL_PATH" || ! -f "$SCRIPT_PATH" ]]; then
   exit 2
 fi
 
-# Bun is the JavaScript package manager for this repository: it installs the
-# exact pyodide and onnxruntime-web versions pinned in bun.lock. The harness
-# itself stays on Node.js, one of the JavaScript hosts Pyodide documents
-# (browsers are the other). It has been run by hand under Bun, but Bun is not
-# exercised in CI, so it is not claimed as a supported runtime here.
-# Check both tools before any download so a missing one fails immediately.
+# Bun installs the pyodide and onnxruntime-web versions pinned in bun.lock; the harness
+# itself runs on Node.js. Check both tools before any download so a missing one fails fast.
 if ! command -v bun >/dev/null 2>&1; then
   echo "bun is required to install the pinned Pyodide packages (https://bun.sh)" >&2
   exit 2

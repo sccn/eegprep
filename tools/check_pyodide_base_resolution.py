@@ -40,8 +40,7 @@ HTTP_TIMEOUT_S = 30
 
 # The live harness (tools/pyodide/prepare_docopt_wheel.py) builds this exact sdist into a local
 # universal wheel before asking micropip to resolve eegprep. Keep the package out of
-# ``KNOWN_GAPS`` so the static check cannot accidentally turn a known local transport into a
-# silent exception.
+# ``KNOWN_GAPS`` so a known local transport is not recorded as a silent exception.
 KNOWN_GAPS: dict[str, str] = {}
 LOCAL_WHEEL_PACKAGES = {"docopt"}
 

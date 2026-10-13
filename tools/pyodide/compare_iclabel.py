@@ -11,9 +11,8 @@ from typing import Any
 import numpy as np
 
 
-# Tight on purpose: both runtimes execute the same packaged int8 weights in
-# float32 arithmetic, so only small numerical differences between the runtimes
-# are expected.
+# Both runtimes execute the same packaged int8 weights in float32 arithmetic, so only
+# small numerical differences are expected.
 RTOL = 1e-4
 ATOL = 1e-5
 SCHEMA_VERSION = 2

@@ -38,12 +38,10 @@ ICLABEL_DIR = REPO_ROOT / 'src' / 'eegprep' / 'plugins' / 'ICLabel'
 DEFAULT_MAT_PATH = ICLABEL_DIR / 'netICL.mat'
 DEFAULT_ONNX_PATH = REPO_ROOT / 'build' / 'iclabel' / 'iclabel_float32.onnx'
 
-# Pinned per issue #377. The network only uses Conv2d, LeakyReLU, Softmax,
-# Concat, and Reshape, all supported since opset 7-9, so the choice is driven
-# by runtime compatibility rather than op coverage: opset 17 has been
-# supported by onnxruntime since 1.14 (2023), giving broad compatibility
-# while staying modern enough for the ONNX Runtime Web (WebAssembly) backend
-# used in the browser.
+# Pinned per issue #377. The network only uses Conv2d, LeakyReLU, Softmax, Concat, and
+# Reshape, all supported since opset 7-9, so the choice is driven by runtime compatibility:
+# opset 17 has been supported by onnxruntime since 1.14 and works with the ONNX Runtime Web
+# (WebAssembly) backend used in the browser.
 ONNX_OPSET_VERSION = 17
 
 _INPUT_SHAPES = ((1, 1, 32, 32), (1, 1, 1, 100), (1, 1, 1, 100))

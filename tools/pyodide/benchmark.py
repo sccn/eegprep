@@ -27,10 +27,8 @@ WARMUP_RUNS = 1
 MEASURED_RUNS = 3
 RUNICA_BLOCK = 49
 MATMUL_REPETITIONS = 3
-# Pyodide has no pthread support, so one instance cannot run several threads for
-# a single ICA call. Keep the native comparison on the same one-thread budget;
-# browser concurrency belongs at the Web Worker/job level rather than inside
-# one ICA call.
+# Pyodide has no pthread support, so one ICA call runs on a single thread. Keep the
+# native comparison on the same one-thread budget.
 THREAD_COUNT = 1
 
 # These are the two products called out in runica's training loop for 64

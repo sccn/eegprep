@@ -68,11 +68,10 @@ DEFAULT_TEACHER_PROBABILITIES = Path(__file__).with_name("evaluation_teacher_pro
 DEFAULT_REPORT = Path(__file__).with_name("parity_report.json")
 COMPONENTS_PER_RECORDING = 31
 _HASH_CHUNK_SIZE = 1024 * 1024
-# ONNX Runtime float32 results for these probabilities differ across CPUs by
-# about 1e-6 (eager PyTorch versus ONNX Runtime: 1.19e-06 on the evaluation
-# set), and the drift metrics move by at most as much. The other metrics are
-# counts and ratios whose decisions sit at least 0.0024 from a tie or threshold,
-# so they must match exactly.
+# ONNX Runtime float32 probabilities differ across CPUs by about 1e-6 (eager PyTorch versus
+# ONNX Runtime: 1.19e-06 on the evaluation set), and the drift metrics move by at most as much.
+# The other metrics are counts and ratios whose decisions sit at least 0.0024 from a tie or
+# threshold, so they must match exactly.
 _DRIFT_METRICS = ("max_probability_abs_diff", "mean_probability_abs_diff")
 _DRIFT_METRIC_TOLERANCE = 1e-5
 
