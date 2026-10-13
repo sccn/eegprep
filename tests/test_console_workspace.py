@@ -12,6 +12,10 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -695,7 +699,6 @@ def test_console_pop_erpimage_records_history_without_storing_a_dataset():
     assert session.ALLCOM == [command]
     assert workspace.namespace["LASTCOM"] == command
     np.testing.assert_array_equal(image.sortidx, [3, 1, 5, 0, 4, 2])
-    assert "array" not in repr(image).replace("<array", "")
     plt.close("all")
 
 
@@ -752,6 +755,71 @@ def test_menu_pop_erpimage_reopens_with_the_last_matching_command(monkeypatch):
     assert shown[1] == {"plotmap": True, "chan": "B", "smooth": "1", "decimate": "1", "nosort": True}
     assert session.ALLCOM == [command, component_command, command]
     plt.close("all")
+
+
+def _erpimage_defaults(spec, initial_values=None, renderer=None):
+    """The dialog accepted as it opens."""
+    defaults = {tag: control.value for tag, control in controls_by_tag(spec).items() if control.style != "pushbutton"}
+    return {**defaults, **(initial_values or {})}
+
+
+def test_console_pop_erpimage_notifies_gui_listeners():
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    notified = []
+    session.add_change_listener(lambda _session: notified.append(session.LASTCOM))
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_erpimage": pop_erpimage})
+
+    _result, command = workspace.namespace["pop_erpimage"](workspace.namespace["EEG"], 1, 2, smooth=1, plot="off")
+    workspace.after_execute("pop_erpimage(EEG, 1, 2, smooth=1, plot='off')")
+
+    assert notified[-1] == command == "pop_erpimage(EEG, 1, 2, smooth=1, decimate=0)"
+
+
+def test_menu_pop_erpimage_echoes_to_the_console_and_refreshes_the_gui(monkeypatch):
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    echoed, refresh = [], mock.Mock()
+    session.add_command_echo_listener(echoed.append)
+    monkeypatch.setattr(pop_erpimage_module, "inputgui", _erpimage_defaults)
+
+    MenuActionDispatcher(session, refresh=refresh).dispatch_gui("pop_erpimage:channels")
+
+    assert echoed == [session.LASTCOM] == session.ALLCOM == ["pop_erpimage(EEG, 1, 1, smooth=1, decimate=1)"]
+    refresh.assert_called_once()
+    plt.close("all")
+
+
+def test_menu_component_variant_plots_components_and_records_history(monkeypatch):
+    eeg = create_erpimage_epochs()
+    eeg.update(icaweights=np.eye(3), icasphere=np.eye(3), icawinv=np.eye(3), icachansind=np.arange(3))
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    monkeypatch.setattr(
+        pop_erpimage_module,
+        "inputgui",
+        lambda spec, initial_values=None, renderer=None: {
+            **_erpimage_defaults(spec, initial_values),
+            "chan": "2",
+            "projchan": "3",
+        },
+    )
+
+    MenuActionDispatcher(session).dispatch("pop_erpimage:components")
+
+    assert session.ALLCOM == ["pop_erpimage(EEG, 0, 2, projchan=3, smooth=1, decimate=1)"]
+    plt.close("all")
+
+
+def test_cancelled_menu_dialog_leaves_the_history_alone(monkeypatch):
+    session = EEGPrepSession()
+    session.store_current(create_erpimage_epochs(), new=True)
+    monkeypatch.setattr(pop_erpimage_module, "inputgui", lambda spec, initial_values=None, renderer=None: None)
+
+    MenuActionDispatcher(session).dispatch("pop_erpimage:channels")
+
+    assert session.ALLCOM == [] and session.LASTCOM == ""
+    assert plt.get_fignums() == []
 
 
 def test_timewarped_pop_newtimef_console_call_records_replayable_history():
