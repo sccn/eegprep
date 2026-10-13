@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 import subprocess
 import sys
+import warnings
 
 from hypothesis import given, settings, strategies as st
 import numpy as np
@@ -218,6 +219,14 @@ def test_erpalpha_threshold_matches_matlab_given_its_sign_draws() -> None:
     assert engine._min_erp_limit(erp[np.newaxis, :], None, erpsig) == plotted[2]
 
 
+def test_erpalpha_emits_no_runtime_warnings() -> None:
+    data, _times = _noise(30, 24)
+    options = engine.parse_erpimage_options(["erp", "erpalpha", 0.05])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        engine.compute_erpimage(data, None, None, 1, 1, options, rng=0, plotted=False)
+
+
 def test_erpalpha_signs_are_unbiased_unlike_eeglab() -> None:
     eeglab_signs = np.asarray(FIXTURE_DATA["erpalpha"][0, 0]["matlab_signs"], dtype=float)
     # EEGLAB's sign(randn - 0.5) is +1 with probability 0.31 (sccn/eeglab#976).
@@ -328,7 +337,7 @@ def test_wavelet_transform_matches_a_direct_per_frame_projection(frames, trials,
     expected = np.empty((frames, trials), dtype=complex)
     for frame in range(frames):
         epoch = extended[frame : frame + length] - extended[frame : frame + length].mean(axis=0)
-        expected[frame] = coswin @ epoch + 1j * (sinwin @ epoch)
+        expected[frame] = np.dot(coswin, epoch) + 1j * np.dot(sinwin, epoch)
     actual = engine._wavelet_transform(extended, frames, coswin, sinwin)
     np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-12 * np.max(np.abs(expected)))
 
@@ -362,10 +371,16 @@ def test_signif_with_coher_applies_the_given_thresholds() -> None:
     np.testing.assert_allclose(result.ampsig, np.array([-2.0, 2.0]) - result.baseamp)
 
 
+@pytest.mark.timeout(30)
 def test_zero_data_keeps_eeglab_limits_without_hanging() -> None:
-    result = engine.compute_erpimage(np.zeros((20, 6)), None, None, 1, 1, engine.parse_erpimage_options(["erp"]))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)  # no overflow in the limit rounding loops
+        result = engine.compute_erpimage(np.zeros((20, 6)), None, None, 1, 1, engine.parse_erpimage_options(["erp"]))
+        zero = engine._amp_coh_limits(np.zeros(3), np.zeros(3), np.array([-3.0, 5.0]), True, *[np.nan] * 4)
     assert np.isnan(result.limits[2]) and np.isnan(result.limits[3])
     assert result.clim == (0.0, 0.0)
+    # Amplitude limits fall back to 0 without the 'ampsig' comparison; the coherence limit stays NaN.
+    assert zero[:2] == (0.0, 0.0) and np.isnan(zero[2]) and zero[3] == 0.0
 
 
 def test_timewarp_with_sorting_warps_each_trial_by_its_own_events() -> None:
@@ -786,8 +801,6 @@ def test_amplitude_and_coherence_limits_follow_eeglab_rules() -> None:
     )
     assert maxamp == pytest.approx(5.05) and minamp == pytest.approx(-3.03)
     assert maxcoh == 1.0 and mincoh == 0.0
-    zero = engine._amp_coh_limits(np.zeros(3), np.zeros(3), None, False, np.nan, np.nan, np.nan, np.nan)
-    assert zero[:2] == (0.0, 0.0)
 
 
 def test_small_helpers_cover_degenerate_inputs() -> None:
@@ -900,7 +913,7 @@ def test_wavelet_transform_ignores_trial_offsets_and_spans_trial_blocks() -> Non
     direct = np.empty((frames, trials), dtype=complex)
     for frame in range(frames):
         epoch = values[frame : frame + length] - values[frame : frame + length].mean(axis=0)
-        direct[frame] = coswin @ epoch + 1j * (sinwin @ epoch)
+        direct[frame] = np.dot(coswin, epoch) + 1j * np.dot(sinwin, epoch)
     offset = engine._wavelet_transform(values + 1e6, frames, coswin, sinwin)
     np.testing.assert_allclose(offset, direct, rtol=0, atol=1e-9 * np.max(np.abs(direct)))
 

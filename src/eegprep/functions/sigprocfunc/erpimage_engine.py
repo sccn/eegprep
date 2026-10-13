@@ -45,7 +45,6 @@ AMPSORT_WINDOW_STEP_MS = 10.0
 WAVELET_TRIAL_BLOCK = 256  # trials per FFT block, bounding memory for large datasets
 PLOTAMPS_CAXIS_FRACTION = 0.8
 NEAR_ZERO = 1e-22
-EEGLAB_SIGN_BIAS_ISSUE = "https://github.com/sccn/eeglab/issues/976"
 MIN_SMOOTHING_TRIALS = 4  # movav refuses fewer columns
 
 logger = logging.getLogger(__name__)
@@ -1872,7 +1871,7 @@ def _moving_average(
     steps[0] = 1.0 + width / 2
     centers = np.cumsum(steps)
     high = low + width
-    first = np.maximum(np.ceil(low), 1).astype(int)  # 1-based first trial in each window
+    first = np.maximum(np.ceil(low), 1).astype(int)
     last = np.minimum(np.ceil(high) - 1, ntrials).astype(int)
     lengths = last - first + 1
     output = np.zeros((rows, count))
@@ -1921,8 +1920,7 @@ def _weighted_windows(values: np.ndarray, columns: np.ndarray, weights: np.ndarr
             present |= finite[:, columns + tap]
         total[~present] = np.nan
     elif np.all(weights == weights[0]):
-        # Boxcar: O(trials) sliding sums instead of one pass per tap. The same terms are
-        # added in a different order, so results agree within (2*width)*eps*max|x|.
+        # Boxcar: O(trials) sliding sums instead of one pass per tap.
         total = _sliding_sums(values, columns, weights.size) * weights[0]
     else:
         total = np.zeros((values.shape[0], columns.size))
@@ -2077,7 +2075,7 @@ def _permutation_threshold(values: np.ndarray, alpha: float, signs: np.ndarray) 
     empty = counts == 0
     counts[empty] = 1
     mean = _seqsum(clean, axis=0) / counts
-    permuted = np.sort(np.abs((signs @ clean) / counts), axis=0)
+    permuted = np.sort(np.abs(np.dot(signs, clean) / counts), axis=0)
     bound = int(np.floor(2 * alpha * signs.shape[0]))
     threshold = permuted[signs.shape[0] - 1 - bound]
     mean[empty] = np.nan
@@ -2085,32 +2083,34 @@ def _permutation_threshold(values: np.ndarray, alpha: float, signs: np.ndarray) 
 
 
 def _max_erp_limit(erp: np.ndarray, std: np.ndarray | None, erpsig: np.ndarray | None) -> float:
-    with np.errstate(over="ignore", invalid="ignore"):
-        peak = _matlab_max(erp)
-        fac, limit = 10.0, np.zeros(1)
-        while np.all(limit == 0):
-            limit = _mround(fac * YEXPAND * peak) / fac
-            fac *= 10
-        if std is not None:
-            fac /= 10
-            limit = np.maximum(limit, _mround(fac * YEXPAND * _matlab_max(erp + std)) / fac)
-        if erpsig is not None:
-            limit = np.maximum(limit, _mround(fac * YEXPAND * _matlab_max(erpsig)) / fac)
+    peak = _matlab_max(erp)
+    if np.all(peak == 0):
+        return np.nan  # EEGLAB's rounding loop runs fac to Inf and ends with NaN
+    fac, limit = 10.0, np.zeros(1)
+    while np.all(limit == 0):
+        limit = _mround(fac * YEXPAND * peak) / fac
+        fac *= 10
+    if std is not None:
+        fac /= 10
+        limit = np.maximum(limit, _mround(fac * YEXPAND * _matlab_max(erp + std)) / fac)
+    if erpsig is not None:
+        limit = np.maximum(limit, _mround(fac * YEXPAND * _matlab_max(erpsig)) / fac)
     return float(np.max(limit))
 
 
 def _min_erp_limit(erp: np.ndarray, std: np.ndarray | None, erpsig: np.ndarray | None) -> float:
-    with np.errstate(over="ignore", invalid="ignore"):
-        trough = _matlab_min(erp)
-        fac, limit = 1.0, np.zeros(1)
-        while np.all(limit == 0):
-            limit = _mround(fac * YEXPAND * trough) / fac
-            fac *= 10
-        if std is not None:
-            fac /= 10
-            limit = np.minimum(limit, _mround(fac * YEXPAND * _matlab_min(erp - std)) / fac)
-        if erpsig is not None:
-            limit = np.minimum(limit, _mround(fac * YEXPAND * _matlab_min(erpsig)) / fac)
+    trough = _matlab_min(erp)
+    if np.all(trough == 0):
+        return np.nan  # as in _max_erp_limit
+    fac, limit = 1.0, np.zeros(1)
+    while np.all(limit == 0):
+        limit = _mround(fac * YEXPAND * trough) / fac
+        fac *= 10
+    if std is not None:
+        fac /= 10
+        limit = np.minimum(limit, _mround(fac * YEXPAND * _matlab_min(erp - std)) / fac)
+    if erpsig is not None:
+        limit = np.minimum(limit, _mround(fac * YEXPAND * _matlab_min(erpsig)) / fac)
     return float(np.min(limit))
 
 
@@ -2137,38 +2137,34 @@ def _amp_coh_limits(
     maxcoh: float,
     mincoh: float,
 ) -> tuple[float, float, float, float]:
-    with np.errstate(over="ignore", invalid="ignore"):
-        if np.isnan(maxamp):
-            fac, maxamp = 1.0, 0.0
-            while maxamp == 0:
-                maxamp = np.floor(YEXPAND * fac * np.max(amps)) / fac
-                fac *= 10
-            maxamp = maxamp + 10 / fac
-            if cohsig_flag and ampsig is not None and np.real(ampsig[1]) > maxamp:
-                maxamp = 1.01 * np.real(ampsig[1]) if np.real(ampsig[1]) > 0 else 0.99 * np.real(ampsig[1])
-        if np.isnan(maxamp):
-            maxamp = 0.0
-        if np.isnan(minamp):
-            fac, minamp = 1.0, 0.0
-            while minamp == 0:
-                minamp = np.floor(YEXPAND * fac * np.max(-amps)) / fac
-                fac *= 10
-            minamp = -(minamp + 10 / fac)
-            if cohsig_flag and ampsig is not None and np.real(ampsig[0]) < minamp:
-                minamp = 1.01 * np.real(ampsig[0]) if np.real(ampsig[0]) < 0 else 0.99 * np.real(ampsig[0])
-        if np.isnan(minamp):
-            minamp = 0.0
-        if np.isnan(maxcoh):
-            fac, maxcoh = 1.0, 0.0
-            while maxcoh == 0:
-                maxcoh = np.floor(YEXPAND * fac * np.max(cohers)) / fac
-                fac *= 10
-            maxcoh = maxcoh + 10 / fac
-            if maxcoh > 1:
-                maxcoh = 1.0
-        if np.isnan(mincoh):
-            mincoh = 0.0
+    # EEGLAB's rounding loops run fac to Inf when the peak is 0 and end with NaN: amplitude
+    # limits then fall back to 0 (skipping the 'ampsig' comparisons), coherence stays NaN.
+    if np.isnan(maxamp) and np.max(amps) != 0:
+        maxamp = _rounded_peak(float(np.max(amps)))
+        if cohsig_flag and ampsig is not None and np.real(ampsig[1]) > maxamp:
+            maxamp = 1.01 * np.real(ampsig[1]) if np.real(ampsig[1]) > 0 else 0.99 * np.real(ampsig[1])
+    if np.isnan(maxamp):
+        maxamp = 0.0
+    if np.isnan(minamp) and np.max(-amps) != 0:
+        minamp = -_rounded_peak(float(np.max(-amps)))
+        if cohsig_flag and ampsig is not None and np.real(ampsig[0]) < minamp:
+            minamp = 1.01 * np.real(ampsig[0]) if np.real(ampsig[0]) < 0 else 0.99 * np.real(ampsig[0])
+    if np.isnan(minamp):
+        minamp = 0.0
+    if np.isnan(maxcoh) and np.max(cohers) != 0:
+        maxcoh = min(_rounded_peak(float(np.max(cohers))), 1.0)
+    if np.isnan(mincoh):
+        mincoh = 0.0
     return float(maxamp), float(minamp), float(maxcoh), float(mincoh)
+
+
+def _rounded_peak(peak: float) -> float:
+    """EEGLAB's ``floor(1.3*fac*peak)/fac`` with fac growing until nonzero, plus ``10/fac``."""
+    fac, limit = 1.0, 0.0
+    while limit == 0:
+        limit = np.floor(YEXPAND * fac * peak) / fac
+        fac *= 10
+    return limit + 10 / fac
 
 
 # ----------------------------------------------------------------------------- spectra
@@ -2255,9 +2251,9 @@ def _wavelet_transform(extended: np.ndarray, frames: int, coswin: np.ndarray, si
     """EEGLAB's per-frame projection of each demeaned window onto the wavelet.
 
     ``coswin . (epoch - mean(epoch))`` equals a correlation of the data with the
-    demeaned kernel, computed here with FFTs (agreeing within a few eps of
-    ``max|result|``). The kernel sums to zero, so removing each trial's mean first
-    changes nothing but keeps rounding relative to the signal, not its offset.
+    demeaned kernel, computed here with FFTs. The kernel sums to zero, so removing
+    each trial's mean first changes nothing but keeps rounding relative to the
+    signal, not its offset.
     """
     length = coswin.size
     real_kernel = coswin - _seqsum(coswin, axis=0) / length
