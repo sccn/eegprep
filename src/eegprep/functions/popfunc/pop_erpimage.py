@@ -438,7 +438,7 @@ def _history_command(
         pieces.append(f"{name}={_option_literal(EEG, name, value)}")
     if not plotmap:
         pieces.append("plotmap=False")
-    if isinstance(rng, (int, np.integer)) and not isinstance(rng, bool):
+    if isinstance(rng, (int, np.integer)):
         pieces.append(f"rng={int(rng)}")
     return f"pop_erpimage({', '.join(pieces)})"
 
