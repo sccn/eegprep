@@ -232,6 +232,12 @@ def test_events_may_carry_the_sorting_field_on_some_events_only() -> None:
     np.testing.assert_array_equal(result.sortidx, [3, 1, 5, 0, 4, 2])
 
 
+def test_sorting_field_ignores_surrounding_spaces() -> None:
+    eeg = create_erpimage_epochs()
+    spaced = pop_erpimage(eeg, 1, 1, smooth=1, sortingtype="rt", sortingeventfield=" rt ", noshow=True)
+    np.testing.assert_array_equal(spaced.sortidx, [3, 1, 5, 0, 4, 2])
+
+
 def test_missing_event_error_names_the_types_and_the_time_window() -> None:
     message = r"no epoch has an event 'latency' value for event type 'stim' 'rt' between 500 and 900 ms"
     with pytest.raises(ValueError, match=message):
@@ -303,6 +309,7 @@ def test_limits_set_the_axes_without_cropping_the_data(epochs) -> None:
     ("change", "arguments", "message"),
     [
         (None, {"typeplot": 2}, "typeplot must be 1"),
+        (None, {"typeplot": True}, "typeplot must be 1"),
         (lambda eeg: eeg.update(icaweights=np.zeros((0, 0))), {"typeplot": 0}, "no ICA data"),
         (lambda eeg: eeg.update(trials=1), {}, "more than one trial"),
         (None, {"channel": 0}, r"channel 0 is outside 1\.\.3"),
@@ -335,7 +342,7 @@ def test_last_channel_and_component_are_accepted_and_the_next_one_is_rejected(ep
 
 def test_channels_accept_ranges_brackets_and_labels_in_any_case(epochs) -> None:
     expected = np.mean(np.asarray(epochs["data"], dtype=float)[2:5], axis=0)
-    for channel in ("3:5", "[3 4 5]", [3, 4, 5], "{'F3', 'fz', 'F4'}"):
+    for channel in ("3:5", "[3 4 5]", [3, 4, 5], "{'F3', 'fz', 'F4'}", "['F3', 'Fz', 'F4']"):
         np.testing.assert_allclose(pop_erpimage(epochs, 1, channel, smooth=1, noshow=True).outdata, expected)
 
 
@@ -426,6 +433,15 @@ def test_a_later_option_token_wins_as_in_eeglab(epochs) -> None:
     assert drawn.axhndls[2] is None and drawn.erp is None
     switched = pop_erpimage(epochs, 1, 14, None, "", 5, 0, None, None, "", "erp", "off", "erp", "on", noshow=True)
     assert switched.erp is not None
+
+
+def test_amplitude_image_and_erp_deviation_reach_erpimage(epochs) -> None:
+    plain = pop_erpimage(epochs, 1, 14, coher=[10, 10, 0.01], rng=1, noshow=True)
+    amplitudes = pop_erpimage(epochs, 1, 14, coher=[10, 10, 0.01], plotamps=True, rng=1, noshow=True)
+    assert not np.allclose(amplitudes.outdata, plain.outdata)
+    bare = pop_erpimage(epochs, 1, 14, plot="off")
+    deviation = pop_erpimage(epochs, 1, 14, erpstd=True, plot="off")
+    assert len(deviation.axhndls[2].lines) > len(bare.axhndls[2].lines)
 
 
 def test_sorting_types_or_window_without_a_field_are_reported(caplog) -> None:

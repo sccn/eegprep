@@ -223,6 +223,10 @@ def test_options_the_dialog_cannot_show_are_applied_as_given(epochs) -> None:
     assert "others" not in renderer.initial_values and "limtime" not in renderer.initial_values
     assert command.endswith("decimate=1, topo=(14, EEG['chanlocs']), limits=[-200, 800, float('nan'), 5])")
     assert result.axhndls[5] is not None
+    edited = pop_erpimage(
+        epochs, 1, 14, gui=True, limits=limits, renderer=_Renderer({"limerp": "-5 5"}), noshow=True, return_com=True
+    )[1]
+    assert "limits=[float('nan'), float('nan'), -5, 5, " in edited and "800" not in edited
 
 
 def test_unchanged_time_limits_are_not_passed_and_a_single_coher_frequency_is_kept(epochs) -> None:
@@ -312,6 +316,8 @@ def test_blank_required_dialog_entries_raise(epochs, values, typeplot, message) 
 def test_dialog_rescale_needs_a_sorting_field(epochs) -> None:
     _result, command = pop_erpimage(epochs, 1, renderer=_Renderer({"renorm": "yes"}), noshow=True, return_com=True)
     assert command == "pop_erpimage(EEG, 1, 1, smooth=10, decimate=1, noshow=True)"
+    for renorm in ("No", ""):  # pop_erpimage.m compares with strcmpi(res.renorm, 'no'); blank keeps no rescaling
+        assert "renorm" not in _command(epochs, {"field": "latency", "type": "rt", "renorm": renorm})
 
 
 def test_component_dialog_maps_the_projection_and_keeps_the_scalp_map(epochs) -> None:
@@ -342,6 +348,7 @@ def test_component_dialog_maps_the_projection_and_keeps_the_scalp_map(epochs) ->
         ({"phase": "10", "phase2": "1 2"}, r"'Percent low-amp. trials' takes 1 value\(s\)"),
         ({"phase": "10", "phase3": "1 2"}, r"'Window center' takes 1 value\(s\)"),
         ({"smooth": "1 2"}, r"'Smoothing' takes 1 value\(s\)"),
+        ({"coher": "10", "coher2": "0.01 0.02"}, r"'Signif. level' takes 1 value\(s\)"),
     ],
 )
 def test_dialog_values_that_cannot_be_used_raise(epochs, values, message) -> None:
@@ -406,6 +413,15 @@ def test_event_type_list_replaces_typed_types_and_reminds_about_the_field(qt_dia
     assert qt_dialogs.messages == []
 
 
+def test_event_lists_report_a_dataset_without_events(qt_dialogs) -> None:
+    eeg = create_erpimage_epochs()
+    eeg["event"] = []
+    widgets = qt_dialogs.build(pop_erpimage_dialog_spec(eeg))
+    widgets["field_button"].click()
+    widgets["type_button"].click()
+    assert qt_dialogs.messages == [("Error", "No events"), TYPE_REMINDER, ("Error", "No type field"), FIELD_REMINDER]
+
+
 def test_event_field_list_cancel_keeps_the_field_and_reminds_about_the_type(qt_dialogs) -> None:
     widgets = qt_dialogs.build(pop_erpimage_dialog_spec(create_erpimage_epochs()))
     widgets["field"].setText("latency")
@@ -414,7 +430,7 @@ def test_event_field_list_cancel_keeps_the_field_and_reminds_about_the_type(qt_d
     assert qt_dialogs.messages == [TYPE_REMINDER]
 
 
-def test_real_dialog_widgets_round_trip_into_the_command(qt_dialogs) -> None:
+def test_real_dialog_widgets_round_trip_into_the_command(epochs, qt_dialogs) -> None:
     class QtWidgetsRenderer:
         """Builds the real dialog with its initial values, edits widgets and reads them as the Qt renderer does."""
 
@@ -432,3 +448,5 @@ def test_real_dialog_widgets_round_trip_into_the_command(qt_dialogs) -> None:
         "pop_erpimage(EEG, 1, 2, smooth=1, decimate=1, sortingtype=['rt'], sortingeventfield='rt', nosort=True)"
     )
     np.testing.assert_allclose(result.outvar, [120, 60, 180, 30, 150, 90])
+    component = qt_dialogs.build(pop_erpimage_dialog_spec(epochs, typeplot=0))
+    assert component["projchan"].isEnabled() and component["projchan_button"].isEnabled()
