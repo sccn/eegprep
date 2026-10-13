@@ -23,6 +23,7 @@ from eegprep import (
     eeg_mergelocs,
     eeg_timeinterp,
 )
+from eegprep.functions.popfunc.eeg_getepochevent import event_type_text
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 from tests.eeglab_tests.gui import close_reference_gui
@@ -661,6 +662,37 @@ def test_eeg_getepochevent_matches_text_event_types_exactly():
     assert np.all(np.isnan(values))
     spaced, _all_values = eeg_getepochevent(eeg, "type", "S  1", "fieldname", "urevent")
     np.testing.assert_allclose(spaced, [0, 1, 3])
+
+
+def test_eeg_getepochevent_needs_an_epoch_on_every_event_once_one_has_it():
+    eeg = _epoched_event_eeg()
+    del eeg["event"][2]["epoch"]
+    with pytest.raises(ValueError, match="event 3 has no 'epoch' field, while other events have one"):
+        eeg_getepochevent(eeg, "type", "rt", "fieldname", "urevent")
+    continuous = _epoched_event_eeg(include_event_epochs=False)
+    continuous["trials"] = 1
+    values, all_values = eeg_getepochevent(continuous, "type", "rt", "fieldname", "urevent")
+    np.testing.assert_array_equal(values, [4])
+    assert all_values == [[2, 4]]
+
+
+@pytest.mark.parametrize(
+    ("value", "text"), [(2.0, "2"), (np.int64(0), "0"), (2.5, "2.5"), (-1.0, "-1"), ("2.0", "2.0"), (True, "True")]
+)
+def test_event_type_text_drops_only_a_zero_fraction(value, text):
+    assert event_type_text(value) == text
+
+
+@pytest.mark.parametrize(
+    ("stored", "requested", "matches"),
+    [(2.5, 2.5, True), (2.0, 2.5, False), (2.5, "2", False), (0, "0", True), (0.0, "x", False)],
+)
+def test_eeg_getepochevent_compares_fractional_and_zero_types_by_value(stored, requested, matches):
+    eeg = _epoched_event_eeg()
+    for event in eeg["event"]:
+        event["type"] = stored if event["type"] == "rt" else 7
+    values, _all_values = eeg_getepochevent(eeg, "type", requested, "fieldname", "urevent")
+    assert bool(np.any(~np.isnan(values))) is matches
 
 
 def test_eeg_getepochevent_text_does_not_match_numeric_event_types():

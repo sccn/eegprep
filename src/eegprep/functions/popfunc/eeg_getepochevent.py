@@ -21,6 +21,13 @@ def eeg_getepochevent(
     Both EEGLAB's positional form ``(type, timewin, fieldname)`` and its
     key/value form are accepted. Trial selections are 1-based; stored event
     fields such as ``urevent`` are returned in EEGPrep's 0-based form.
+    As in EEGLAB, numeric event types match by value (``2``, ``2.0`` and
+    ``"2"``) and text types match exactly.
+    Events of continuous data, where no event has an ``epoch`` field, belong to epoch 1.
+
+    Raises:
+        ValueError: an event has no ``epoch`` while others have one, or its
+            epoch is outside 1..trials.
     """
     options = _parse_options(args, kwargs)
     if isinstance(EEG, list):
@@ -30,13 +37,14 @@ def eeg_getepochevent(
     field_name = str(options["fieldname"])
     events = events_as_list(EEG.get("event", []))
     trial_count = int(EEG.get("trials", 1))
+    has_epochs = any("epoch" in event for event in events)
     epoch_values: list[Any] = [np.nan] * trial_count
     all_epoch_values: list[list[Any]] = [[] for _ in range(trial_count)]
 
     for number, event in enumerate(events, start=1):
         if not _matches_type(event.get("type"), event_types) or field_name not in event:
             continue
-        epoch = _event_epoch(event, number, trial_count)
+        epoch = _event_epoch(event, number, trial_count) if has_epochs else 1
         latency_ms = float(
             eeg_point2lat(
                 [event["latency"]],
@@ -161,7 +169,9 @@ def _number_or_none(value: Any) -> float | None:
 
 
 def _event_epoch(event: dict[str, Any], number: int, trial_count: int) -> int:
-    value = event.get("epoch", 1)
+    if "epoch" not in event:
+        raise ValueError(f"event {number} has no 'epoch' field, while other events have one")
+    value = event["epoch"]
     if isinstance(value, np.ndarray):
         value = value.ravel()[0] if value.size else None
     elif isinstance(value, (list, tuple)):
@@ -214,4 +224,4 @@ def event_type_text(value: Any) -> str:
     return str(value)
 
 
-__all__ = ["eeg_getepochevent"]
+__all__ = ["eeg_getepochevent", "event_type_text"]
