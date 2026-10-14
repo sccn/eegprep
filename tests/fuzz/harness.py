@@ -342,13 +342,29 @@ def compare_data(
     return _srate_or_match(python_srate, oracle_srate, max_abs, max_rel)
 
 
+def _same_failure(python: SideResult, oracle: SideResult) -> bool:
+    if python.error_type == oracle.error_type:
+        return True
+    message = (python.error_message or "").strip()
+    return bool(message) and message == (oracle.error_message or "").strip()
+
+
+def _oracle_filter_unavailable(oracle: SideResult) -> bool:
+    # asr_calibrate.m reports this for every yulewalk failure, including a
+    # missing Signal Processing Toolbox and a rejected breakpoint grid.
+    if oracle.ok:
+        return False
+    return "yulewalk() function was not found" in (oracle.error_message or "")
+
+
 def judge(python: SideResult, oracle: SideResult, tolerance: Tolerance, case: FuzzCase, digest: str) -> Outcome:
+    if _oracle_filter_unavailable(oracle):
+        return _outcome(case, False, False, "oracle-infrastructure", 0.0, 0.0, oracle.error_message or "", digest)
     if not python.ok and not oracle.ok:
-        same = python.error_type == oracle.error_type
         detail = (
             f"python {python.error_type}: {python.error_message}; oracle {oracle.error_type}: {oracle.error_message}"
         )
-        if same:
+        if _same_failure(python, oracle):
             return _outcome(case, False, False, "both-error", 0.0, 0.0, detail, digest)
         error_class = f"exception-mismatch:{python.error_type}/{oracle.error_type}"
         return _outcome(case, True, False, error_class, 0.0, 0.0, detail, digest)

@@ -52,7 +52,8 @@ def pop_resample(
     Returns
     -------
     EEG : dict
-        EEGLAB EEG structure with resampled data.
+        EEGLAB EEG structure with resampled data. The default resampler leaves a
+        NaN only on samples whose nonzero anti-aliasing taps touch a missing sample.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -333,7 +334,17 @@ def _resample_poly_segment(segment, p, q, *, fc, df):
     n_pad = int(np.ceil((m / 2) / q) * q)
     pad_width = [(0, 0), (n_pad, n_pad), *[(0, 0) for _ in range(segment.ndim - 2)]]
     padded = np.pad(segment, pad_width, mode="edge").astype(np.float64)
-    resampled = resample_poly(padded, p, q, axis=1, window=b).astype(np.float32)
+    if np.isnan(padded).any():
+        # resample_poly zero-pads its filter so the first sample stays put.
+        # A zero tap times a NaN is NaN, which marks outputs EEGLAB leaves finite.
+        missing = np.isnan(padded)
+        values = np.where(missing, 0.0, padded)
+        resampled = resample_poly(values, p, q, axis=1, window=b)
+        weight = resample_poly(missing.astype(np.float64), p, q, axis=1, window=np.abs(np.asarray(b, dtype=float)))
+        resampled = resampled.astype(np.float32)
+        resampled[weight > 0] = np.nan
+    else:
+        resampled = resample_poly(padded, p, q, axis=1, window=b).astype(np.float32)
     n_pad_after = n_pad * p // q
     if n_pad_after == 0:
         return resampled

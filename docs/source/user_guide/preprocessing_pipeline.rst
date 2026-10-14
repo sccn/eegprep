@@ -175,6 +175,7 @@ appropriate:
 
 GUI path: ``Tools > Change sampling rate``. Continuous data with boundary
 events is resampled by segment. Event latencies and the time vector are updated.
+A missing sample stays missing only where a nonzero anti-aliasing tap touches it.
 
 Re-Reference and Interpolate
 ============================
