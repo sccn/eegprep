@@ -1,0 +1,26 @@
+{
+  "command": "uv run python -m tests.fuzz reproduce repros/pop_resample-nan-mask-na.json",
+  "detail": "non-finite mask differs at 5 samples",
+  "error_class": "nan-mask",
+  "function": "pop_resample",
+  "input_sha256": "17515c68ebf3d2ea392ca9d67dd60f5648178d21b34a1e8f93d1199ef6c6021c",
+  "max_abs": 5.0,
+  "max_rel": 0.0,
+  "params": {
+    "freq": 200
+  },
+  "report": "pop_resample",
+  "seed": 20261013,
+  "signature": "pop_resample|nan-mask|na",
+  "spec": {
+    "channels": [
+      0
+    ],
+    "decimate": 4,
+    "length": 1497,
+    "nan_channel": 0,
+    "nan_length": 1,
+    "nan_start": 0,
+    "start": 0
+  }
+}

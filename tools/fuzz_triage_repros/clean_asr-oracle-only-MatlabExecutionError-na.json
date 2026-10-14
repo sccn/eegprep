@@ -1,0 +1,52 @@
+{
+  "command": "uv run python -m tests.fuzz reproduce repros/clean_asr-oracle-only-MatlabExecutionError-na.json",
+  "detail": "oracle MatlabExecutionError: Index in position 1 is invalid. Array indices must be positive integers or logical values.",
+  "error_class": "oracle-only:MatlabExecutionError",
+  "function": "clean_asr",
+  "input_sha256": "5ed6af2c5614c329b010bb3cf150785af3a7cbd6a223d8af39f716b205df18d7",
+  "max_abs": 0.0,
+  "max_rel": 0.0,
+  "params": {
+    "cutoff": 5.0,
+    "entry": "clean_asr",
+    "ref_maxbadchannels": "off",
+    "window_len": null
+  },
+  "report": "clean_asr",
+  "seed": 20261013,
+  "signature": "clean_asr|oracle-only:MatlabExecutionError|na",
+  "spec": {
+    "channels": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "decimate": 2,
+    "length": 62,
+    "nan_channel": -1,
+    "nan_length": 0,
+    "nan_start": 0,
+    "start": 90
+  }
+}

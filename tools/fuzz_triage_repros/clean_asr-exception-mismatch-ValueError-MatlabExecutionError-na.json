@@ -1,0 +1,29 @@
+{
+  "command": "uv run python -m tests.fuzz reproduce repros/clean_asr-exception-mismatch-ValueError-MatlabExecutionError-na.json",
+  "detail": "python ValueError: ASR calibration failed: ff must be non-decreasing.; oracle MatlabExecutionError: The yulewalk() function was not found and there is no pre-computed spectral filter for your sampling rate. If you would like to use the default spectral filter please try to resample to one of the supported rates (100,128,200,256,300,500,512) or get the \"Signal Processing Toolbox\" license (you can a",
+  "error_class": "exception-mismatch:ValueError/MatlabExecutionError",
+  "function": "clean_asr",
+  "input_sha256": "1b953cf71a6274a310333307b59435df472952588a3da9983eaf7381cc5c22db",
+  "max_abs": 0.0,
+  "max_rel": 0.0,
+  "params": {
+    "cutoff": 5.0,
+    "entry": "clean_asr",
+    "ref_maxbadchannels": "off",
+    "window_len": null
+  },
+  "report": "clean_asr",
+  "seed": 20261014,
+  "signature": "clean_asr|exception-mismatch:ValueError/MatlabExecutionError|na",
+  "spec": {
+    "channels": [
+      0
+    ],
+    "decimate": 4,
+    "length": 939,
+    "nan_channel": -1,
+    "nan_length": 0,
+    "nan_start": 0,
+    "start": 0
+  }
+}

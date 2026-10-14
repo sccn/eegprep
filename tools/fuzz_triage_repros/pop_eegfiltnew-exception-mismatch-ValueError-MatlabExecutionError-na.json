@@ -1,0 +1,31 @@
+{
+  "command": "uv run python -m tests.fuzz reproduce repros/pop_eegfiltnew-exception-mismatch-ValueError-MatlabExecutionError-na.json",
+  "detail": "python ValueError: Filter order too low. Minimum required filter order is 212.; oracle MatlabExecutionError: Filter order too low. Minimum required filter order is 212.",
+  "error_class": "exception-mismatch:ValueError/MatlabExecutionError",
+  "function": "pop_eegfiltnew",
+  "input_sha256": "c91ef4bd21a589939fe3a8ddf16c39dda3d20e3fa1d63350302abbcc74e20f57",
+  "max_abs": 0.0,
+  "max_rel": 0.0,
+  "params": {
+    "filtorder": 40,
+    "hicutoff": null,
+    "locutoff": 1,
+    "minphase": false,
+    "revfilt": false,
+    "usefftfilt": false
+  },
+  "report": "pop_eegfiltnew",
+  "seed": 20261014,
+  "signature": "pop_eegfiltnew|exception-mismatch:ValueError/MatlabExecutionError|na",
+  "spec": {
+    "channels": [
+      0
+    ],
+    "decimate": 1,
+    "length": 256,
+    "nan_channel": -1,
+    "nan_length": 0,
+    "nan_start": 0,
+    "start": 0
+  }
+}

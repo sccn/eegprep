@@ -1,0 +1,29 @@
+{
+  "command": "uv run python -m tests.fuzz reproduce repros/pop_clean_rawdata-python-only-ValueError-na.json",
+  "detail": "python ValueError: ASR calibration failed: ff must be non-decreasing.",
+  "error_class": "python-only:ValueError",
+  "function": "clean_asr",
+  "input_sha256": "6329b31ef8be3404b2df55778cdf746457107ab087a94e4d347b0f6094abfc36",
+  "max_abs": 0.0,
+  "max_rel": 0.0,
+  "params": {
+    "cutoff": 5.0,
+    "entry": "clean_rawdata",
+    "ref_maxbadchannels": "off",
+    "window_len": null
+  },
+  "report": "pop_clean_rawdata",
+  "seed": 20261013,
+  "signature": "pop_clean_rawdata|python-only:ValueError|na",
+  "spec": {
+    "channels": [
+      0
+    ],
+    "decimate": 4,
+    "length": 256,
+    "nan_channel": -1,
+    "nan_length": 0,
+    "nan_start": 0,
+    "start": 0
+  }
+}
