@@ -70,6 +70,31 @@ class PopResamplePythonTests(unittest.TestCase):
         self.assertAlmostEqual(out["event"][0]["latency"], 13.5)
         self.assertAlmostEqual(out["event"][0]["duration"], 1.0)
 
+    def test_leading_nan_stops_where_antialias_taps_are_zero(self):
+        # 32 Hz to 200 Hz, one leading NaN. EEGLAB resample (R2024b) marks 101
+        # outputs; zero-padded delay taps used to mark five more.
+        length = 200
+        clean = {
+            "data": np.ones((1, length), dtype=np.float64),
+            "nbchan": 1,
+            "pnts": length,
+            "trials": 1,
+            "srate": 32.0,
+            "xmin": 0.0,
+            "event": [],
+        }
+        missing = {
+            **clean,
+            "data": clean["data"].copy(),
+        }
+        missing["data"][0, 0] = np.nan
+        finite = pop_resample(clean, 200, gui=False)["data"]
+        output = pop_resample(missing, 200, gui=False)["data"]
+        self.assertEqual(int(np.count_nonzero(~np.isfinite(output))), 101)
+        self.assertTrue(np.all(~np.isfinite(output[0, :101])))
+        self.assertTrue(np.all(np.isfinite(output[0, 101:])))
+        np.testing.assert_array_equal(output[0, 101:], finite[0, 101:])
+
 
 def _epoched_resample_eeg():
     eeg = _continuous_eeg()

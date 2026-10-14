@@ -145,6 +145,50 @@ def test_compare_respects_tolerance_shape_and_nan_mask():
     assert both.diverged is False
     assert both.both_ok is False
 
+    message = "Filter order too low. Minimum required filter order is 212."
+    same_text = judge(
+        side_from_error(ValueError(message)),
+        side_from_error(RuntimeError(message)),
+        tolerance,
+        _reref_case(),
+        "abc",
+    )
+    assert same_text.diverged is False
+    assert same_text.error_class == "both-error"
+
+    different_text = judge(
+        side_from_error(ValueError("ff must be non-decreasing.")),
+        side_from_error(RuntimeError("Index in position 1 is invalid.")),
+        tolerance,
+        _reref_case(),
+        "abc",
+    )
+    assert different_text.diverged is True
+
+    yulewalk = judge(
+        SideResult(True, np.ones((1, 4)), 32.0, None, None),
+        side_from_error(
+            RuntimeError(
+                "The yulewalk() function was not found and there is no pre-computed spectral filter "
+                "for your sampling rate."
+            )
+        ),
+        tolerance,
+        _reref_case(),
+        "abc",
+    )
+    assert yulewalk.diverged is False
+    assert yulewalk.error_class == "oracle-infrastructure"
+
+    index_error = judge(
+        SideResult(True, np.ones((1, 4)), 32.0, None, None),
+        side_from_error(RuntimeError("Index in position 1 is invalid.")),
+        tolerance,
+        _reref_case(),
+        "abc",
+    )
+    assert index_error.diverged is True
+
 
 def _matrix_reref(data: np.ndarray, ref: int) -> np.ndarray:
     """EEGLAB reref.m's ``refmatrix * data``, which spreads NaNs through explicit zeros."""
