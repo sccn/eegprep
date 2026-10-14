@@ -559,7 +559,10 @@ considered bad. ‘off’ disables line-noise check. Default 4.0.</p>
 </dd>
 <dt>BurstCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>ASR standard-deviation cutoff for high-amplitude bursts; values above this
 relative to calibration data are repaired (or removed if BurstRejection=’on’).
-‘off’ skips ASR. Default 5.0.</p>
+‘off’ skips ASR. Default 5.0. When the sampling rate makes the default
+spectral shaping filter impossible to design, ASR is skipped, a warning
+explains the rate and the breakpoint problem, and the recording at this
+stage is left unchanged.</p>
 </dd>
 <dt>WindowCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Fraction (0-1) or count of channels allowed to be bad per window; windows with
 more bad channels are removed. ‘off’ disables final window removal. Default 0.25.</p>

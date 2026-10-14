@@ -549,7 +549,10 @@ those events occur are reconstructed (interpolated) based on the rest of the
 EEG signal during these time periods. A calibration recording that is too
 short for the generalized-Gaussian fit still drops high-power windows; the
 window scale is then the median and MAD of each channel’s window RMS.
-EEGLAB’s fit throws in that situation and calibrates on every sample.</p>
+EEGLAB’s fit throws in that situation and calibrates on every sample.
+A recording that is too short for EEGLAB’s calibration-time RMS fit, which
+indexes a zero window width, is still calibrated here. A sampling rate whose
+default spectral breakpoints are not monotonic raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

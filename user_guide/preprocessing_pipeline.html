@@ -628,10 +628,12 @@ should use the first value or call <code class="docutils literal notranslate"><s
 </section>
 <section id="sampling-rates">
 <h2>Sampling Rates<a class="headerlink" href="#sampling-rates" title="Link to this heading">#</a></h2>
-<p>ASR calibration designs its spectral-shaping filter for whatever sampling rate
-the dataset has, so no resampling is required beforehand. Clinical and
-consumer amplifier rates that are not round numbers, such as 258 Hz, work
-directly.</p>
+<p>ASR calibration designs its spectral-shaping filter for the dataset’s sampling
+rate, so ordinary clinical rates, including non-integer rates such as 258 Hz,
+need no resampling first. A rate whose default frequency breakpoints are not
+monotonic, such as 32 Hz, cannot be calibrated. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises an error
+that names the rate. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warn and
+leave that recording unchanged.</p>
 </section>
 <section id="riemannian-asr-notes">
 <h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>

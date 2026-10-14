@@ -679,6 +679,18 @@ then the median and MAD of each channel’s window RMS. EEGLAB’s fit
 errors once only a few windows are available, and <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> then
 calibrates on every sample.</p></td>
 </tr>
+<tr class="row-odd"><td><p>ASR on a very short recording</p></td>
+<td><p>With calibration reference selection off, <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still returns
+cleaned data when only two or three RMS windows are available.
+EEGLAB’s calibration fit indexes a zero window width and errors.</p></td>
+</tr>
+<tr class="row-even"><td><p>ASR at a low sampling rate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises an error naming the sampling rate when the default
+spectral breakpoints are not monotonic. <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and
+leaves the recording unchanged. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> reports that
+<code class="docutils literal notranslate"><span class="pre">yulewalk</span></code> was not found, and <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> prints that message
+and returns the recording.</p></td>
+</tr>
 <tr class="row-odd"><td><p>NaNs during re-referencing</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> leaves a NaN on a channel only when that sample or the
 reference subtracted from it is NaN. EEGLAB multiplies by a reference
