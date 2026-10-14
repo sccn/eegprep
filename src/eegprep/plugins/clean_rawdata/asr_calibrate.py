@@ -14,6 +14,38 @@ from .private.yulewalk import yulewalk
 logger = logging.getLogger(__name__)
 
 
+class ASRCalibrationError(ValueError):
+    """ASR could not build a calibration state from this recording."""
+
+
+def spectral_shaping_filter_available(srate: float) -> bool:
+    """Return whether the default ASR shaping filter can be designed at ``srate``."""
+    freqvals, _amps = _spectral_breakpoints(float(srate))
+    return _breakpoints_are_valid(freqvals)
+
+
+def _spectral_breakpoints(srate: float):
+    """Frequency and amplitude breakpoints from asr_calibrate.m."""
+    freqvals = np.concatenate((np.array([0, 2, 3, 13, 16, 40, min(80.0, srate / 2.0 - 1.0)]) * 2.0 / srate, [1.0]))
+    amps = np.array([3, 0.75, 0.33, 0.33, 1, 1, 3, 3], dtype=np.float64)
+    if srate < 80:
+        # min(80, srate/2-1) is already below 40 Hz here, so drop that breakpoint
+        # rather than attenuating it.
+        freqvals = np.delete(freqvals, freqvals.size - 3)
+        amps = amps[:-1]
+    return freqvals, amps
+
+
+def _breakpoints_are_valid(freqvals: np.ndarray) -> bool:
+    """Same grid checks as ``yulewalk`` before it rejects a breakpoint vector."""
+    if freqvals.size == 0:
+        return False
+    tolerance = np.finfo(float).eps
+    if abs(freqvals[0]) > tolerance or abs(freqvals[-1] - 1.0) > tolerance:
+        return False
+    return not bool(np.any(np.diff(freqvals) < 0))
+
+
 def asr_calibrate(
     X,
     srate,
@@ -90,6 +122,11 @@ def asr_calibrate(
     -------
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
             needed for `asr_process`.
+
+    Raises
+    ------
+    ASRCalibrationError
+        The default spectral breakpoints are not monotonic at ``srate``.
     """
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
@@ -121,16 +158,15 @@ def asr_calibrate(
 
     # Spectral-shaping filter for the artifact statistics. asr_calibrate.m designs
     # this with yulewalk() at the dataset's own sampling rate; the frequency/amplitude
-    # breakpoints below are its emphasis curve (attenuate the 3-13 Hz alpha/theta
-    # range, emphasise DC drift and high-frequency muscle).
+    # breakpoints are its emphasis curve (attenuate the 3-13 Hz alpha/theta range,
+    # emphasise DC drift and high-frequency muscle).
     if B is None or A is None:
-        freqvals = np.concatenate((np.array([0, 2, 3, 13, 16, 40, min(80.0, srate / 2.0 - 1.0)]) * 2.0 / srate, [1.0]))
-        amps = np.array([3, 0.75, 0.33, 0.33, 1, 1, 3, 3], dtype=np.float64)
-        if srate < 80:
-            # min(80, srate/2-1) is already below 40 Hz here, so drop that breakpoint
-            # rather than attenuating it.
-            freqvals = np.delete(freqvals, freqvals.size - 3)
-            amps = amps[:-1]
+        if not spectral_shaping_filter_available(srate):
+            raise ASRCalibrationError(
+                f"ASR cannot design its spectral shaping filter at {srate:g} Hz. "
+                "The default frequency breakpoints are not monotonic at this sampling rate."
+            )
+        freqvals, amps = _spectral_breakpoints(srate)
         B, A = yulewalk(8, freqvals, amps)
 
     X[~np.isfinite(X)] = 0.0

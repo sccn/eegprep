@@ -5,9 +5,12 @@ This module tests the clean_artifacts function that provides comprehensive
 artifact removal including flatline channels, drifts, noisy channels, bursts, and windows.
 """
 
+import logging
 import unittest
 import sys
+
 import numpy as np
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -72,6 +75,54 @@ class TestCleanArtifactsHpSnapshot(DebuggableTestCase):
         # the same etc object or carry the later mask.
         self.assertIsNot(HP['etc'], EEG['etc'])
         self.assertNotIn('clean_sample_mask', HP['etc'])
+
+
+def _low_rate_eeg():
+    return {
+        "data": np.ones((1, 256), dtype=np.float64),
+        "srate": 32.0,
+        "nbchan": 1,
+        "pnts": 256,
+        "trials": 1,
+        "xmin": 0.0,
+        "event": [],
+    }
+
+
+def test_low_rate_burst_calibration_leaves_the_recording_unchanged(caplog):
+    eeg = _low_rate_eeg()
+    with caplog.at_level(logging.WARNING):
+        cleaned, _hp, burst, _removed = clean_artifacts(
+            eeg,
+            FlatlineCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            BurstCriterion=5.0,
+            BurstCriterionRefMaxBadChns="off",
+            WindowCriterion="off",
+        )
+    np.testing.assert_array_equal(cleaned["data"], eeg["data"])
+    np.testing.assert_array_equal(burst["data"], eeg["data"])
+    assert any("32" in record.message and "spectral" in record.message.lower() for record in caplog.records)
+
+
+def test_short_recording_without_a_spectral_filter_failure_still_raises():
+    eeg = _low_rate_eeg()
+    eeg["data"] = np.ones((1, 10), dtype=np.float64)
+    eeg["pnts"] = 10
+    eeg["srate"] = 128.0
+    with pytest.raises(ValueError, match="Not enough calibration data"):
+        clean_artifacts(
+            eeg,
+            FlatlineCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            BurstCriterion=5.0,
+            BurstCriterionRefMaxBadChns="off",
+            WindowCriterion="off",
+        )
 
 
 class TestCleanArtifactsErrorSurfacing(DebuggableTestCase):

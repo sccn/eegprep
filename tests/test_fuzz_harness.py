@@ -299,6 +299,74 @@ def test_clean_asr_short_recording_numeric_error_still_diverges():
     assert outcome.diverged is True
 
 
+def test_very_short_reference_off_index_error_is_not_a_divergence():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(24)), 90, 62, 2, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": "off", "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    def index_error(_case, _dataset):
+        raise RuntimeError("Index in position 1 is invalid. Array indices must be positive integers or logical values.")
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(index_error), load_tolerances())
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+
+def test_low_rate_clean_rawdata_returning_the_input_is_not_a_divergence():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0,), 0, 256, 4, -1, 0, 0),
+        freeze_params({"entry": "clean_rawdata", "cutoff": 5.0, "ref_maxbadchannels": "off", "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+    original = np.asarray(eeg["data"], dtype=np.float64)
+
+    def unchanged(_case, dataset):
+        return np.asarray(dataset["data"], dtype=np.float32)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+    assert np.array_equal(np.asarray(dispatch_python(case, eeg)["data"]), original)
+
+
+def test_long_reference_off_index_error_still_diverges():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec(tuple(range(11)), 0, 1024, 1, -1, 0, 0),
+        freeze_params({"entry": "clean_asr", "cutoff": 5.0, "ref_maxbadchannels": "off", "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    def index_error(_case, _dataset):
+        raise RuntimeError("Index in position 1 is invalid. Array indices must be positive integers or logical values.")
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(index_error), load_tolerances())
+    assert outcome.diverged is True
+
+
+def test_low_rate_clean_rawdata_error_still_diverges():
+    case = FuzzCase(
+        "clean_asr",
+        EEGSpec((0,), 0, 256, 4, -1, 0, 0),
+        freeze_params({"entry": "clean_rawdata", "cutoff": 5.0, "ref_maxbadchannels": "off", "window_len": None}),
+    )
+    eeg = materialize_eeg(case)
+
+    class _Raise:
+        def run(self, _case, _eeg):
+            return side_from_error(ValueError("ff must be non-decreasing."))
+
+    def unchanged(_case, dataset):
+        return np.asarray(dataset["data"], dtype=np.float32)
+
+    outcome = evaluate_case(case, lambda _case: eeg, _Raise(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is True
+
+
 def test_clean_asr_long_recording_all_data_oracle_still_diverges():
     case = _asr_case(length=1024, start=0)
     eeg = materialize_eeg(case)

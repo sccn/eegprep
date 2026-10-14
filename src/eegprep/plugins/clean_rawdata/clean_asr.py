@@ -12,7 +12,7 @@ import math
 import numpy as np
 
 # Assuming these utilities exist and are correctly ported/placed
-from .asr_calibrate import asr_calibrate
+from .asr_calibrate import ASRCalibrationError, asr_calibrate
 from .asr_process import asr_process
 from .clean_windows import clean_windows
 from ...functions.miscfunc.misc import round_mat
@@ -42,6 +42,9 @@ def clean_asr(
     short for the generalized-Gaussian fit still drops high-power windows; the
     window scale is then the median and MAD of each channel's window RMS.
     EEGLAB's fit throws in that situation and calibrates on every sample.
+    A recording that is too short for EEGLAB's calibration-time RMS fit, which
+    indexes a zero window width, is still calibrated here. A sampling rate whose
+    default spectral breakpoints are not monotonic raises ``ASRCalibrationError``.
 
     Args:
         EEG (Dict[str, Any]): EEG data structure. Expected fields:
@@ -158,9 +161,10 @@ def clean_asr(
     # We only pass the core parameters specified in the clean_asr call signature.
     try:
         state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
+    except ASRCalibrationError:
+        raise
     except ValueError as e:
-        # Catch specific errors like not enough calibration data
-        raise ValueError(f"ASR calibration failed: {e}")
+        raise ValueError(f"ASR calibration failed: {e}") from e
 
     del ref_section_data  # Free memory
 
