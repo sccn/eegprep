@@ -139,6 +139,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        then the median and MAD of each channel's window RMS. EEGLAB's fit
        errors once only a few windows are available, and ``clean_asr`` then
        calibrates on every sample.
+   * - ASR on a very short recording
+     - With calibration reference selection off, ``clean_asr`` still returns
+       cleaned data when only two or three RMS windows are available.
+       EEGLAB's calibration fit indexes a zero window width and errors.
+   * - ASR at a low sampling rate
+     - ``clean_asr`` raises an error naming the sampling rate when the default
+       spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and
+       leaves the recording unchanged. EEGLAB's ``clean_asr`` reports that
+       ``yulewalk`` was not found, and ``clean_artifacts`` prints that message
+       and returns the recording.
    * - NaNs during re-referencing
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference

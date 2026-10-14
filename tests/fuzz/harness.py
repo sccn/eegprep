@@ -28,6 +28,7 @@ from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_available
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
@@ -274,6 +275,8 @@ _FIT_MIN_WIDTH = 0.25 * _FIT_MAX_WIDTH
 _FIT_WIDTH_STEP = 0.01
 _CLEAN_WINDOW_OVERLAP = 0.66
 _ASR_REF_WNDLEN = 1.0
+# asr_calibrate's RMS window. clean_asr does not forward its processing window_len.
+_ASR_CALIB_WINDOW = 0.5
 
 
 def _matlab_colon(start: float, step: float, stop: float) -> np.ndarray:
@@ -309,6 +312,28 @@ def _fit_eeg_distribution_throws(n_windows: int) -> bool:
         return False
     widths = _matlab_colon(_FIT_MAX_WIDTH, -_FIT_WIDTH_STEP, _FIT_MIN_WIDTH)
     return any(int(round_mat(n_windows * width)) < 2 for width in widths)
+
+
+def _asr_rms_window_count(n_samples: int, srate: float) -> int:
+    """Windows in asr_calibrate.m's ``1:N*(1-overlap):S-N`` RMS colon."""
+    width = float(round_mat(_ASR_CALIB_WINDOW * srate))
+    step = width * (1.0 - _CLEAN_WINDOW_OVERLAP)
+    stop = n_samples - width
+    if width <= 0.0 or step <= 0.0 or stop < 1.0:
+        return 0
+    return int(_matlab_colon(1.0, step, stop).size)
+
+
+def _fit_width_reaches_zero(n_windows: int) -> bool:
+    """True when asr_calibrate.m's nested fit indexes ``X(m,:)`` with m = 0.
+
+    One window is rejected earlier with a different error. Two or three windows
+    include a rounded width of 0; four or more stay at 1 or above.
+    """
+    if n_windows < 2:
+        return False
+    widths = _matlab_colon(_FIT_MAX_WIDTH, -_FIT_WIDTH_STEP, _FIT_MIN_WIDTH)
+    return any(int(round_mat(n_windows * width)) == 0 for width in widths)
 
 
 def compare_data(
@@ -795,6 +820,42 @@ def _asr_short_calibration_is_oracle_defect(
     return not fallback_gap
 
 
+def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
+    """EEGLAB's calibration RMS fit indexes a zero window width and errors."""
+    if case.function != "clean_asr" or not python.ok or oracle.ok:
+        return False
+    if "Index in position 1 is invalid" not in (oracle.error_message or ""):
+        return False
+    params = thaw_params(case.params)
+    if params["ref_maxbadchannels"] != "off":
+        return False
+    return _fit_width_reaches_zero(_asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"])))
+
+
+def _low_rate_spectral_filter_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """The default ASR breakpoints are not monotonic, so calibration is skipped.
+
+    ``clean_artifacts`` returns the recording unchanged. A direct ``clean_asr``
+    error stays with ``judge``, which already ignores EEGLAB's missing-yulewalk
+    report. A Python error here is still a divergence.
+    """
+    if case.function != "clean_asr" or not python.ok or python.data is None:
+        return False
+    if spectral_shaping_filter_available(float(eeg["srate"])):
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    if not np.array_equal(np.asarray(python.data, dtype=np.float64), original):
+        return False
+    if not oracle.ok:
+        return "yulewalk() function was not found" in (oracle.error_message or "")
+    if oracle.data is None:
+        return False
+    gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
+    return not gap
+
+
 def _explicit_reref(data: np.ndarray, ref: list[int], exclude: list[int], keepref: str, *, matrix: bool) -> np.ndarray:
     excluded = set(exclude)
     chansin = [index for index in range(data.shape[0]) if index not in excluded]
@@ -840,6 +901,14 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # clean_windows.m fits one RMS value per window. With only a few windows,
         # fit_eeg_distribution.m:126 throws, and clean_asr.m calibrates on every
         # sample. EEGPrep's fit succeeds, so it still drops the bad window.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _asr_zero_width_index_is_known(case, eeg, python, oracle):
+        # asr_calibrate.m's own RMS fit, with reference selection off, indexes
+        # X(m,:) at m = 0 for two or three windows. EEGPrep still calibrates.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
+        # Below the rate where the default breakpoints stay monotonic,
+        # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     return judge(python, oracle, tolerance, case, digest)
 

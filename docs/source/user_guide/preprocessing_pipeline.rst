@@ -133,10 +133,12 @@ should use the first value or call ``pop_clean_rawdata``.
 Sampling Rates
 ==============
 
-ASR calibration designs its spectral-shaping filter for whatever sampling rate
-the dataset has, so no resampling is required beforehand. Clinical and
-consumer amplifier rates that are not round numbers, such as 258 Hz, work
-directly.
+ASR calibration designs its spectral-shaping filter for the dataset's sampling
+rate, so ordinary clinical rates, including non-integer rates such as 258 Hz,
+need no resampling first. A rate whose default frequency breakpoints are not
+monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
+that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
+leave that recording unchanged.
 
 Riemannian ASR Notes
 ====================
