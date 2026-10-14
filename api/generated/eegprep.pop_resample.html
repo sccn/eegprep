@@ -654,7 +654,8 @@
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEGLAB EEG structure with resampled data.</p>
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEGLAB EEG structure with resampled data. The default resampler leaves a
+NaN only on samples whose nonzero anti-aliasing taps touch a missing sample.</p>
 </dd>
 </dl>
 </section>
