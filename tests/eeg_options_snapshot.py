@@ -20,6 +20,11 @@ def eeg_options_snapshot(engine):
 
 
 def restore_eeg_options(path, original):
+    """Write back the options file captured by ``eeg_options_snapshot``.
+
+    When that snapshot found no file, delete ``path`` instead of leaving one
+    that ``pop_editoptions`` created.
+    """
     if path is None:
         return
     if original is None:

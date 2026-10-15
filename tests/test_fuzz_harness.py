@@ -38,8 +38,8 @@ from tests.fuzz.harness import (
     resume_eeg_options,
     run_repro,
     run_session,
-    suspend_option_single,
     side_from_error,
+    suspend_option_single,
     thaw_params,
     tolerance_for,
 )
@@ -611,9 +611,10 @@ def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
         _replay_cases(engine, tolerances)
     finally:
         resume_eeg_options(eeglab_matlab_engine, snapshot)
-    if path is not None and original is not None:
-        print(f"eeg_options path={path} bytes={len(original)}")
-        assert path.read_bytes() == original
+    if path is None or original is None:
+        pytest.fail(f"eeglab_options did not load an options file to restore (path={path})")
+    print(f"eeg_options path={path} bytes={len(original)}")
+    assert path.read_bytes() == original
 
 
 def _replay_cases(engine, tolerances):

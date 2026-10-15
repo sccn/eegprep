@@ -37,8 +37,6 @@ from eegprep.functions.miscfunc.event_utils import is_boundary_event
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
-from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
-from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
@@ -46,10 +44,11 @@ from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_subcomp import pop_subcomp
-from eegprep.plugins.ICLabel.iclabel import iclabel
 from eegprep.plugins.clean_rawdata.clean_artifacts import clean_artifacts
+from eegprep.plugins.ICLabel.iclabel import iclabel
+from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
-
 
 SUBJECT = "sub-001"
 EPOCH_TYPES = ["standard", "oddball", "oddball_with_reponse"]
