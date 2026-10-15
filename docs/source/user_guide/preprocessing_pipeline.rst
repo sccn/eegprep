@@ -71,6 +71,8 @@ GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
 ICA activations, and returns a replayable history command. ``minphase=True``
 converts the FIR to minimum phase with the real cepstrum before causal filtering.
+``usefftfilt=True`` filters each segment by overlap-add, so a missing sample
+stays inside the FFT block that contains it.
 
 Use FIRFilt helpers for custom filter design:
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+import copy
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import numpy as np
 import pytest
 from hypothesis import strategies as st
 
+from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from tests.fuzz.harness import (
@@ -22,6 +24,7 @@ from tests.fuzz.harness import (
     compare_data,
     data_sha256,
     default_sanity,
+    dispatch_matlab,
     dispatch_python,
     draw_cases,
     evaluate_case,
@@ -33,6 +36,8 @@ from tests.fuzz.harness import (
     run_repro,
     run_session,
     side_from_error,
+    thaw_params,
+    tolerance_for,
 )
 from tests.fuzz.issues import (
     FUNCTION_ROWS,
@@ -397,6 +402,210 @@ def test_materialize_crops_decimates_and_injects_nans():
     assert eeg["event"].size == 0
     np.testing.assert_allclose(eeg["data"], expected, equal_nan=True)
     assert len(data_sha256(eeg["data"])) == 64
+
+
+def _nightly_case(function: str, spec: dict, params: dict) -> FuzzCase:
+    return FuzzCase(
+        function,
+        EEGSpec(
+            channels=tuple(spec["channels"]),
+            start=spec["start"],
+            length=spec["length"],
+            decimate=spec["decimate"],
+            nan_channel=spec["nan_channel"],
+            nan_start=spec["nan_start"],
+            nan_length=spec["nan_length"],
+        ),
+        freeze_params(params),
+    )
+
+
+def _channels(count: int) -> list[int]:
+    return list(range(count))
+
+
+_REREF_2E5 = _nightly_case(
+    "pop_reref",
+    {
+        "channels": _channels(23),
+        "start": 2797,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0,
+    },
+    {"exclude": [], "keepref": "off", "ref": []},
+)
+_REREF_1E5 = _nightly_case(
+    "pop_reref",
+    {
+        "channels": _channels(20),
+        "start": 769,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0,
+    },
+    {"exclude": [], "keepref": "off", "ref": []},
+)
+_MINPHASE_NAN = _nightly_case(
+    "pop_eegfiltnew",
+    {
+        "channels": _channels(25),
+        "start": 9325,
+        "length": 421,
+        "decimate": 1,
+        "nan_channel": 24,
+        "nan_start": 42,
+        "nan_length": 4,
+    },
+    {
+        "filtorder": 60,
+        "hicutoff": None,
+        "locutoff": 7,
+        "minphase": True,
+        "revfilt": False,
+        "usefftfilt": True,
+    },
+)
+_ONE_WINDOW_ASR = _nightly_case(
+    "clean_asr",
+    {
+        "channels": _channels(27),
+        "start": 2797,
+        "length": 71,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0,
+    },
+    {"cutoff": 5.0, "entry": "clean_asr", "ref_maxbadchannels": 0.2, "window_len": None},
+)
+_REFERENCE_DATA_ERROR = (
+    "No enough reference data, call the function from the command line and "
+    "try changing the 'BurstCriterionRefTolerances' parameters"
+)
+
+
+@pytest.mark.parametrize(
+    ("case", "index", "gap"),
+    [
+        (_REREF_2E5, 1698, 1.54453775067509e-05),
+        (_REREF_1E5, 953, 9.751319886674992e-06),
+    ],
+)
+def test_average_reref_survey_stays_single_precision(case, index, gap):
+    """The filed 1e-5 gap is float64 times the same float32 samples."""
+    eeg = materialize_eeg(case)
+    assert eeg["data"].dtype == np.float32
+    single = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
+    wide = np.asarray(
+        dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float64)})["data"],
+        dtype=np.float64,
+    )
+    diff = np.abs(single - wide)
+    assert int(np.argmax(diff)) == index
+    assert float(diff.max()) == pytest.approx(gap)
+    tolerance = load_tolerances()["pop_reref"]
+    assert compare_data(single, wide, 128.0, 128.0, tolerance)[0] is True
+    assert compare_data(single, single, 128.0, 128.0, tolerance)[0] is False
+
+
+def test_minphase_fftfilt_nan_stays_in_one_block():
+    """Order-60 causal fftfilt uses a 256-point block, so 196 of 421 samples are NaN."""
+    eeg = materialize_eeg(_MINPHASE_NAN)
+    out = np.asarray(dispatch_python(_MINPHASE_NAN, eeg)["data"])
+    bad = ~np.isfinite(out)
+    assert int(bad.sum()) == 196
+    assert int(bad[24].sum()) == 196
+    assert int(bad[:24].sum()) == 0
+    assert int(np.flatnonzero(bad[24])[-1]) == 195
+    params = thaw_params(_MINPHASE_NAN.params)
+    params["usefftfilt"] = False
+    time_case = FuzzCase(_MINPHASE_NAN.function, _MINPHASE_NAN.spec, freeze_params(params))
+    time = np.asarray(dispatch_python(time_case, eeg)["data"])
+    np.testing.assert_allclose(out[0], time[0], atol=1e-8, rtol=1e-8)
+
+
+def test_one_rms_window_is_the_same_failure_as_eeglab():
+    eeg = materialize_eeg(_ONE_WINDOW_ASR)
+
+    def oracle_error(_case, _dataset):
+        raise RuntimeError(_REFERENCE_DATA_ERROR)
+
+    outcome = evaluate_case(
+        _ONE_WINDOW_ASR,
+        lambda _case: eeg,
+        PythonBackend(),
+        _Backend(oracle_error),
+        load_tolerances(),
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+    assert "Not enough windows possible" in outcome.detail
+    assert "Need length > 64, got 71" in outcome.detail
+    assert "No enough reference data" in outcome.detail
+
+
+def test_one_rms_window_message_does_not_hide_a_different_error():
+    outcome = judge(
+        side_from_error(ValueError("ASR calibration failed: Not enough windows possible. Need length > 64, got 71.")),
+        side_from_error(RuntimeError("Index in position 1 is invalid.")),
+        Tolerance(0.0, 1e-6),
+        _ONE_WINDOW_ASR,
+        "abc",
+    )
+    assert outcome.diverged is True
+
+
+def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
+    """Replay the 20261015 filings against EEGLAB. Run with --eeglab-backend=matlab -s."""
+    engine = MatlabWrapper(eeglab_matlab_engine)
+    eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
+    option_single = eeglab_matlab_engine.eval("option_single", nargout=1)
+    print(f"option_single={option_single}")
+    tolerances = load_tolerances()
+
+    for name, case in (
+        ("pop_reref 2e-5", _REREF_2E5),
+        ("pop_reref 1e-5", _REREF_1E5),
+        ("pop_eegfiltnew", _MINPHASE_NAN),
+    ):
+        eeg = materialize_eeg(case)
+        python = np.asarray(dispatch_python(case, copy.deepcopy(eeg))["data"], dtype=np.float64)
+        oracle = np.asarray(dispatch_matlab(engine, case, copy.deepcopy(eeg))["data"], dtype=np.float64)
+        diverged, error_class, max_abs, max_rel, detail = compare_data(
+            python,
+            oracle,
+            float(eeg["srate"]),
+            float(eeg["srate"]),
+            tolerance_for(case.function, tolerances),
+        )
+        python_bad = int(np.count_nonzero(~np.isfinite(python)))
+        oracle_bad = int(np.count_nonzero(~np.isfinite(oracle)))
+        print(
+            f"{name} diverged={diverged} class={error_class} abs={max_abs} rel={max_rel} "
+            f"python_nonfinite={python_bad} oracle_nonfinite={oracle_bad} {detail}"
+        )
+        assert diverged is False, detail
+
+    eeg = materialize_eeg(_ONE_WINDOW_ASR)
+    python_message = ""
+    oracle_message = ""
+    try:
+        dispatch_python(_ONE_WINDOW_ASR, copy.deepcopy(eeg))
+    except Exception as exc:
+        python_message = str(exc).splitlines()[0]
+    try:
+        dispatch_matlab(engine, _ONE_WINDOW_ASR, copy.deepcopy(eeg))
+    except Exception as exc:
+        oracle_message = str(exc).splitlines()[0]
+    print(f"clean_asr python={python_message}")
+    print(f"clean_asr oracle={oracle_message}")
+    assert "Not enough windows possible" in python_message
+    assert "No enough reference data" in oracle_message
 
 
 def test_reref_sanity_signal_matches_across_float32_and_float64():

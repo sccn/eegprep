@@ -229,12 +229,13 @@ def materialize_eeg(case: FuzzCase) -> dict:
     eeg = _copy_eeg(source)
     sample_index = np.arange(spec.start, spec.start + span, spec.decimate)
     data = np.asarray(source["data"])
-    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64)
+    # Keep the sample file's float32 values. Promoting them makes average
+    # reference run in float64 while EEGLAB's default option_single path
+    # multiplies in single, a gap of about 1e-5 µV.
+    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], copy=True)
     if case.sanity and case.function == "pop_reref":
-        # eeglab_data.set is float32. Average reference on those values differs
-        # by about 1e-4 (see test_parity_data_reref_with_matlab), which is
-        # outside the 1e-6 bar but is not a broken bridge. Sanity uses an
-        # integer signal whose mean is exact in float32 and float64.
+        # Sanity checks the bridge with values whose mean is exact in float32
+        # and float64, rather than with the sample recording.
         cropped = _exact_reref_signal(cropped.shape)
     if spec.nan_channel >= 0 and spec.nan_length > 0:
         stop = spec.nan_start + spec.nan_length
@@ -371,7 +372,15 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
     if python.error_type == oracle.error_type:
         return True
     message = (python.error_message or "").strip()
-    return bool(message) and message == (oracle.error_message or "").strip()
+    oracle_message = (oracle.error_message or "").strip()
+    if message and message == oracle_message:
+        return True
+    # asr_calibrate.m uses one "No enough reference data" error both when the
+    # calibration is shorter than one RMS window and when that series has a
+    # single window. EEGPrep names which of those happened.
+    return "No enough reference data" in oracle_message and (
+        "Not enough windows possible" in message or "Not enough calibration data" in message
+    )
 
 
 def _oracle_filter_unavailable(oracle: SideResult) -> bool:
