@@ -14,6 +14,8 @@ initialization). The EEGLAB PICARD 2.0 extension draws a seeded random start.
 
 The numeric ceilings are unchanged. MATLAB comparison data is the double array
 from the function result; ``pop_saveset`` still writes the dataset file as single.
+The chain matches rejected components by absolute correlation of mixing
+columns, so a permutation or sign flip still has to reject the same components.
 """
 
 from __future__ import annotations
@@ -113,11 +115,10 @@ def amari_distance(unmixing, mixing):
     return float((row_term + column_term) / (2 * width))
 
 
-def matched_mixing_correlation(left, right):
-    """Return mean and minimum absolute correlation of uniquely matched mixing columns."""
+def _mixing_correlation(left, right):
     left = np.asarray(left, dtype=float)
     right = np.asarray(right, dtype=float)
-    if left.shape != right.shape:
+    if left.ndim != 2 or left.shape != right.shape:
         raise AssertionError(f"mixing shape {left.shape} vs {right.shape}")
     components = left.shape[1]
     correlation = np.empty((components, components))
@@ -126,9 +127,51 @@ def matched_mixing_correlation(left, right):
             correlation[row, column] = np.corrcoef(left[:, row], right[:, column])[0, 1]
     if not np.isfinite(correlation).all():
         raise AssertionError("mixing-matrix correlation was not finite")
+    return correlation
+
+
+def matched_mixing_correlation(left, right):
+    """Return mean and minimum absolute correlation of uniquely matched mixing columns."""
+    correlation = _mixing_correlation(left, right)
     assignment = linear_sum_assignment(-np.abs(correlation))
     matched = np.abs(correlation[assignment])
     return float(matched.mean()), float(matched.min())
+
+
+def matched_components(left, right):
+    """Return the right-hand column matched to each left-hand mixing column.
+
+    Matching uses absolute correlation and is a bijection. Each pair must be
+    the unique best match in its row and column, at or above
+    ``PICARD_CORR_MIN``, with every runner-up below that bar.
+    """
+    correlation = np.abs(_mixing_correlation(left, right))
+    components = correlation.shape[0]
+    if components == 0:
+        return np.zeros(0, dtype=int)
+    rows, columns = linear_sum_assignment(-correlation)
+    partner = np.empty(components, dtype=int)
+    partner[rows] = columns
+    if len(set(partner.tolist())) != components:
+        raise AssertionError("component match is not one-to-one")
+    for python_index, matlab_index in enumerate(partner.tolist()):
+        score = float(correlation[python_index, matlab_index])
+        row = correlation[python_index]
+        column = correlation[:, matlab_index]
+        if int(np.argmax(row)) != matlab_index or np.count_nonzero(row == score) != 1:
+            raise AssertionError(f"component {python_index} has no unique row match")
+        if int(np.argmax(column)) != python_index or np.count_nonzero(column == score) != 1:
+            raise AssertionError(f"component {python_index} -> {matlab_index} has no unique column match")
+        runner_up = max(
+            float(np.max(np.delete(row, matlab_index))) if components > 1 else -np.inf,
+            float(np.max(np.delete(column, python_index))) if components > 1 else -np.inf,
+        )
+        if score < PICARD_CORR_MIN or runner_up >= PICARD_CORR_MIN:
+            raise AssertionError(
+                f"component {python_index} -> {matlab_index} correlation {score:.6f} "
+                f"is not separated from the runner-up {runner_up:.6f}"
+            )
+    return partner
 
 
 def test_amari_distance_is_zero_for_a_signed_permutation():
@@ -148,7 +191,36 @@ def test_amari_distance_is_zero_for_a_signed_permutation():
 
 def test_pipeline_expected_summary_file_is_a_platform_map():
     payload = json.loads(EXPECTED_SUMMARY.read_text(encoding="utf-8"))
-    assert isinstance(payload["platforms"], dict)
+    recorded = payload["platforms"]["linux_x86_64_R2025b"]
+    assert set(recorded) == {f"sub-{index:03d}" for index in range(1, 14)}
+
+
+def test_rejected_components_follow_a_signed_permutation():
+    generator = np.random.default_rng(1)
+    mixing = generator.standard_normal((64, 5))
+    order = np.array([3, 0, 4, 1, 2])
+    signs = np.array([1.0, -1.0, 1.0, -1.0, 1.0])
+    other = mixing[:, order] * signs
+    partner = matched_components(other, mixing)
+
+    np.testing.assert_array_equal(partner, order)
+    python_eeg = {"icawinv": other, "reject": {"gcompreject": [1, 0, 1, 0, 0]}}
+    matlab_flags = np.zeros(5, dtype=int)
+    matlab_flags[order[[0, 2]]] = 1
+    matlab_eeg = {"icawinv": mixing, "reject": {"gcompreject": matlab_flags}}
+    _assert_same_rejected_components("sub-signed", python_eeg, matlab_eeg)
+
+    matlab_eeg["reject"]["gcompreject"] = np.array([1, 0, 0, 0, 0])
+    with pytest.raises(AssertionError, match="rejected"):
+        _assert_same_rejected_components("sub-signed", python_eeg, matlab_eeg)
+
+
+def test_component_match_rejects_an_ambiguous_runner_up():
+    mixing = np.eye(4)
+    tied = mixing.copy()
+    tied[:, 1] = mixing[:, 0]
+    with pytest.raises(AssertionError, match="runner-up|unique"):
+        matched_components(mixing, tied)
 
 
 def _run1_eeg_set(suite_root, subject):
@@ -247,6 +319,25 @@ def _flags(eeg):
         return np.zeros(0, dtype=int)
     values = np.asarray(reject.get("gcompreject", []), dtype=float).ravel()
     return (values != 0).astype(int)
+
+
+def _assert_same_rejected_components(subject, python_eeg, matlab_eeg):
+    partner = matched_components(python_eeg["icawinv"], matlab_eeg["icawinv"])
+    python_flags = _flags(python_eeg)
+    matlab_flags = _flags(matlab_eeg)
+    if python_flags.shape != (partner.size,) or matlab_flags.shape != (partner.size,):
+        raise AssertionError(
+            f"{subject} rejection flags {python_flags.shape} and {matlab_flags.shape} "
+            f"do not match {partner.size} components"
+        )
+    python_rejected = {int(index) for index in np.flatnonzero(python_flags)}
+    matlab_rejected = {int(index) for index in np.flatnonzero(matlab_flags)}
+    mapped = {int(partner[index]) for index in python_rejected}
+    assert mapped == matlab_rejected, (
+        f"{subject} rejected Python components {sorted(python_rejected)} "
+        f"map to {sorted(mapped)}, MATLAB rejected {sorted(matlab_rejected)}; "
+        f"python {_threshold_report(python_eeg)}; matlab {_threshold_report(matlab_eeg)}"
+    )
 
 
 def _numeric_diff(python_eeg, matlab_eeg, name):
@@ -625,17 +716,12 @@ def _chain_subject(subject, imported, engine):
     python_eeg, matlab_eeg, _max_abs, _rms = _step_pair("iclabel", python.label, matlab.label, python_eeg, matlab_eeg)
     python_eeg, matlab_eeg, _max_abs, _rms = _step_pair("icflag", python.icflag, matlab.icflag, python_eeg, matlab_eeg)
     python_flags = _flags(python_eeg)
-    matlab_flags = _flags(matlab_eeg)
     warnings.warn(
         f"{subject} pop_icflag: python={_threshold_report(python_eeg)} matlab={_threshold_report(matlab_eeg)}",
         UserWarning,
         stacklevel=1,
     )
-    assert python_flags.shape == matlab_flags.shape
-    assert int(python_flags.sum()) == int(matlab_flags.sum()), (
-        f"{subject} rejected {int(python_flags.sum())} Python components and {int(matlab_flags.sum())} MATLAB components; "
-        f"python {_threshold_report(python_eeg)}; matlab {_threshold_report(matlab_eeg)}"
-    )
+    _assert_same_rejected_components(subject, python_eeg, matlab_eeg)
     rejected = int(python_flags.sum())
     python_eeg, matlab_eeg, max_abs, rms = _step_pair("subcomp", python.subcomp, matlab.subcomp, python_eeg, matlab_eeg)
     summary["subcomp"] = {"max_abs": max_abs, "rms": rms, "rejected": rejected}
