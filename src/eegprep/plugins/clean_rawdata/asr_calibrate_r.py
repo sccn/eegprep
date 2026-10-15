@@ -130,7 +130,10 @@ def asr_calibrate_r(
         step = 1
     window_starts = round_mat(np.arange(0, samples - window_samples, step)).astype(int)
     if len(window_starts) <= 1:
-        raise ValueError(f'Not enough windows possible. Need length > {window_samples}, got {samples}.')
+        raise ValueError(
+            f"Fewer than 2 calibration windows: got {len(window_starts)} "
+            f"from {samples} samples with window length {window_samples}."
+        )
     window_indices = window_starts[:, None] + np.arange(window_samples)
 
     mu = np.zeros(channels)

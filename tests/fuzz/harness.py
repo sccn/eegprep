@@ -32,6 +32,7 @@ from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fuzz.issues import FUNCTION_ROWS, publish_findings
 from tests.matlab_batch_engine import install
 
@@ -229,12 +230,15 @@ def materialize_eeg(case: FuzzCase) -> dict:
     eeg = _copy_eeg(source)
     sample_index = np.arange(spec.start, spec.start + span, spec.decimate)
     data = np.asarray(source["data"])
-    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64)
+    # The sample file is float32. EEGLAB's default option_single casts a
+    # double recording to single before reref.m multiplies, about 1e-5 µV
+    # from this float64 product. That single product also changes with the
+    # BLAS kernel, so the survey compares float64 and connect_matlab turns
+    # option_single off.
+    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64, copy=True)
     if case.sanity and case.function == "pop_reref":
-        # eeglab_data.set is float32. Average reference on those values differs
-        # by about 1e-4 (see test_parity_data_reref_with_matlab), which is
-        # outside the 1e-6 bar but is not a broken bridge. Sanity uses an
-        # integer signal whose mean is exact in float32 and float64.
+        # Sanity checks the bridge with values whose mean is exact in float32
+        # and float64, rather than with the sample recording.
         cropped = _exact_reref_signal(cropped.shape)
     if spec.nan_channel >= 0 and spec.nan_length > 0:
         stop = spec.nan_start + spec.nan_length
@@ -371,7 +375,15 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
     if python.error_type == oracle.error_type:
         return True
     message = (python.error_message or "").strip()
-    return bool(message) and message == (oracle.error_message or "").strip()
+    oracle_message = (oracle.error_message or "").strip()
+    if message and message == oracle_message:
+        return True
+    # asr_calibrate.m uses one "No enough reference data" error both when the
+    # calibration is shorter than one RMS window and when fewer than two
+    # windows can be formed. EEGPrep names which of those happened.
+    return "No enough reference data" in oracle_message and (
+        "Fewer than 2 calibration windows" in message or "Not enough calibration data" in message
+    )
 
 
 def _oracle_filter_unavailable(oracle: SideResult) -> bool:
@@ -420,6 +432,7 @@ class MatlabBackend:
 
     def __init__(self):
         self._engine = None
+        self._options = None
 
     def run(self, case: FuzzCase, eeg: dict) -> SideResult:
         try:
@@ -429,8 +442,15 @@ class MatlabBackend:
 
     def engine(self):
         if self._engine is None:
-            self._engine = connect_matlab()
+            self._engine, self._options = connect_matlab()
         return self._engine
+
+    def close(self):
+        if self._engine is None or self._options is None:
+            return
+        snapshot = self._options
+        self._options = None
+        resume_eeg_options(self._engine.engine, snapshot)
 
 
 class FakeOracle:
@@ -465,7 +485,28 @@ def connect_matlab():
         )
     install(batch)
     os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(REPO_ROOT / "src" / "eegprep" / "eeglab"))
-    return get_eeglab()
+    engine = get_eeglab()
+    # eeg_checkset applies option_single on pop_loadset, before the called
+    # function runs. Leave the recording in double for the session, then
+    # MatlabBackend.close writes the original options file back.
+    return engine, suspend_option_single(engine.engine)
+
+
+def suspend_option_single(engine):
+    """Turn ``option_single`` off and return the options-file snapshot."""
+    snapshot = eeg_options_snapshot(engine)
+    try:
+        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    except Exception:
+        restore_eeg_options(*snapshot)
+        raise
+    return snapshot
+
+
+def resume_eeg_options(engine, snapshot):
+    """Write the snapshotted options file back and drop MATLAB's cached script."""
+    restore_eeg_options(*snapshot)
+    engine.eval("clear functions", nargout=0)
 
 
 def default_strategies() -> dict:
