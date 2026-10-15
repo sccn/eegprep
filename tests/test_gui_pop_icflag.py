@@ -77,6 +77,14 @@ class PopIcflagGuiTests(unittest.TestCase):
 
         np.testing.assert_array_equal(out["reject"]["gcompreject"], [0, 0, 1])
 
+    def test_eeg_icflag_replaces_an_empty_reject_array(self):
+        eeg = _eeg()
+        eeg["reject"] = np.array([])
+
+        out = eeg_icflag(eeg, DEFAULT_ICFLAG_THRESHOLDS)
+
+        np.testing.assert_array_equal(out["reject"]["gcompreject"], [0, 1, 1])
+
 
 if __name__ == "__main__":
     unittest.main()

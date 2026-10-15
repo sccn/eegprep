@@ -1,0 +1,4 @@
+{
+  "description": "Per-platform ceilings for the chained ds003061 run-1 pipeline. A platform key is '{system}_{machine}_{matlab release}', for example linux_x86_64_R2024b. Record one with pytest --eeglab-backend=matlab --run-heavy-reference --record-parity-summary.",
+  "platforms": {}
+}

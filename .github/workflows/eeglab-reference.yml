@@ -26,8 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         # std_precomp, std_preclust, and the full-recording runica call stay in
-        # their own shard. The other four shards split the suite by file.
-        shard: [heavy, hybrid, stats, study, misc, core]
+        # their own shard. ds003061 stage comparisons stay in the parity shard.
+        # The other shards split the rest of the suite by file.
+        shard: [heavy, hybrid, stats, study, misc, core, parity]
 
     steps:
       - uses: actions/checkout@v4
@@ -316,6 +317,9 @@ jobs:
             tests/test_eeg_point2lat.py
             tests/test_eeglab_execmenu.py
           )
+          parity_files=(
+            tests/test_ds003061_stage_parity.py
+          )
           case "${{ matrix.shard }}" in
             heavy)
               args=("${heavy_files[@]}" -k "$heavy_k")
@@ -332,9 +336,12 @@ jobs:
             misc)
               args=("${misc_files[@]}")
               ;;
+            parity)
+              args=("${parity_files[@]}")
+              ;;
             core)
               args=(tests)
-              for path in "${hybrid_files[@]}" "${stats_files[@]}" "${study_files[@]}" "${misc_files[@]}"; do
+              for path in "${hybrid_files[@]}" "${stats_files[@]}" "${study_files[@]}" "${misc_files[@]}" "${parity_files[@]}"; do
                 args+=(--ignore="$path")
               done
               ;;
