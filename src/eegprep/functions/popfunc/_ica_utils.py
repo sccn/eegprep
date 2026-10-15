@@ -1,5 +1,6 @@
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_checkset import option_scaleicarms
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 from eegprep.functions.miscfunc.pinv import pinv
 
@@ -54,4 +55,50 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
                 EEG['icaweights'][r, :] = -EEG['icaweights'][r, :]
 
     EEG['icawinv'] = finite_pinv(finite_matmul(EEG['icaweights'], EEG['icasphere']), solver=pinv)
+    return EEG
+
+
+def scale_ica_to_rms_microvolt(EEG):
+    """Scale each component so its mixing column has RMS 1.
+
+    EEGLAB applies this in ``eeg_checkset`` when ``option_scaleicarms`` is on,
+    including when a dataset is saved. ICLabel reads the scaled activations
+    and topography, so the decomposition is scaled before it is returned.
+    The pre-scale weights and sphere are kept in ``EEG['etc']``.
+    """
+    if not option_scaleicarms:
+        return EEG
+    weights = np.asarray(EEG.get("icaweights", []))
+    sphere = np.asarray(EEG.get("icasphere", []))
+    mixing = np.asarray(EEG.get("icawinv", []))
+    if weights.ndim != 2 or sphere.ndim != 2 or mixing.ndim != 2:
+        return EEG
+    if weights.size == 0 or sphere.size == 0 or mixing.size == 0:
+        return EEG
+    if mixing.shape[1] != weights.shape[0]:
+        return EEG
+
+    scaling = np.sqrt(np.mean(mixing.astype(float) ** 2, axis=0))
+    etc = EEG.get("etc")
+    if not isinstance(etc, dict):
+        etc = {}
+        EEG["etc"] = etc
+    etc["icaweights_beforerms"] = np.array(weights, copy=True)
+    etc["icasphere_beforerms"] = np.array(sphere, copy=True)
+
+    EEG["icaweights"] = weights.astype(float) * scaling[:, np.newaxis]
+    EEG["icawinv"] = finite_pinv(finite_matmul(EEG["icaweights"], sphere), solver=pinv)
+    activations = np.asarray(EEG.get("icaact", []))
+    if activations.ndim >= 2 and activations.shape[0] == scaling.shape[0]:
+        factors = scaling.reshape((scaling.shape[0],) + (1,) * (activations.ndim - 1))
+        EEG["icaact"] = activations.astype(float) * factors
+        return EEG
+    if "data" not in EEG or "pnts" not in EEG or "trials" not in EEG:
+        return EEG
+    data = flatten_ica_data(np.asarray(EEG["data"], dtype=float))
+    channel_index = np.asarray(EEG.get("icachansind", []))
+    if channel_index.size:
+        data = data[channel_index.astype(int)]
+    recomputed = finite_matmul(finite_matmul(EEG["icaweights"], sphere), data)
+    EEG["icaact"] = reshape_ica_activations(recomputed, EEG["pnts"], EEG["trials"])
     return EEG

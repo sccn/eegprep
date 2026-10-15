@@ -4,7 +4,12 @@ import copy
 
 from picard import picard
 import numpy as np
-from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
+from ._ica_utils import (
+    finalize_ica_fields,
+    flatten_ica_data,
+    reshape_ica_activations,
+    scale_ica_to_rms_microvolt,
+)
 from ..miscfunc.pinv import pinv
 
 
@@ -12,6 +17,8 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     """Perform ICA decomposition using Picard algorithm.
 
     This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
+    When ``option_scaleicarms`` is enabled, components are scaled so each
+    mixing column has RMS 1, matching EEGLAB ``eeg_checkset``.
 
     Parameters
     ----------
@@ -60,17 +67,15 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             n_components = params.get('n_components') or data.shape[0]
             params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
-        weighting_matrix, unmixing_matrix, sources = picard(data, **params)
+        weighting_matrix, unmixing_matrix, _sources = picard(data, **params)
 
         EEG['icasphere'] = np.eye(EEG['nbchan'])
         EEG['icaweights'] = unmixing_matrix @ weighting_matrix
         # use pinv from the imported pinv
         EEG['icawinv'] = pinv(EEG['icaweights'] @ EEG['icasphere'])
-
-        EEG['icaact'] = sources
-
-        # reshape EEG['icaact'] back to 3D as EEG['data']
-        EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
+        # EEGLAB stores W*X. Picard returns the centered sources W*(X - mean).
+        activations = (EEG['icaweights'] @ EEG['icasphere']) @ data
+        EEG['icaact'] = reshape_ica_activations(activations, EEG['pnts'], EEG['trials'])
         EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     else:
@@ -79,4 +84,4 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # sorting/normalization options)
         EEG = engine.eeg_picard(EEG, **kwargs)
 
-    return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)
+    return scale_ica_to_rms_microvolt(finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact))

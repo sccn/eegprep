@@ -18,6 +18,44 @@ from tests.eeglab_tests import eeglab_test
 # test_parity_custom_time_range	        2.49e-04	2.02e-03 (0.20%)	Custom time range, 3 channels
 
 
+def test_spherical_interpolation_follows_the_input_dtype():
+    coords = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    chanlocs = [
+        {"labels": f"E{index + 1}", "X": float(x), "Y": float(y), "Z": float(z)}
+        for index, (x, y, z) in enumerate(coords)
+    ]
+    values = np.random.RandomState(5).standard_normal((5, 40)) * 80.0
+    eeg64 = {
+        "data": values.astype(np.float64),
+        "nbchan": 5,
+        "pnts": 40,
+        "trials": 1,
+        "srate": 100,
+        "xmin": 0.0,
+        "xmax": 0.39,
+        "chanlocs": chanlocs,
+    }
+    eeg32 = copy.deepcopy(eeg64)
+    eeg32["data"] = values.astype(np.float32)
+
+    out64 = eeg_interp(eeg64, [0])
+    out32 = eeg_interp(eeg32, [0])
+    explicit64 = eeg_interp(eeg64, [0], dtype="float64")
+
+    assert out64["data"].dtype == np.float64
+    assert out32["data"].dtype == np.float32
+    np.testing.assert_allclose(out64["data"], explicit64["data"])
+    assert np.max(np.abs(out64["data"][0] - out32["data"][0].astype(np.float64))) > 0
+
+
 def test_current_suite_checkinterp_preserves_existing_channels_when_restoring_montage():
     eeg = pop_loadset("sample_data/eeglab_data.set")
     eeg["data"] = eeg["data"][:, :1000]

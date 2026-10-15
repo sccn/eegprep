@@ -87,7 +87,34 @@ def test_eeg_picard_initialization(n_components):
     np.testing.assert_array_equal(default['icaweights'], identity['icaweights'])
     np.testing.assert_array_equal(seeded['icaweights'], repeated['icaweights'])
     assert not np.allclose(seeded['icaweights'], other['icaweights'])
-    np.testing.assert_allclose(seeded['icaweights'], w @ k, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(seeded['etc']['icaweights_beforerms'], w @ k, rtol=1e-12, atol=1e-12)
+    assert not np.allclose(seeded['icaweights'], seeded['etc']['icaweights_beforerms'])
+    column_rms = np.sqrt(np.mean(np.asarray(seeded['icawinv'], dtype=float) ** 2, axis=0))
+    np.testing.assert_allclose(column_rms, 1.0, rtol=1e-8, atol=1e-8)
+
+
+def test_eeg_picard_rms_scaling_follows_option_scaleicarms(monkeypatch):
+    eeg = _create_test_eeg(n_channels=4, n_samples=200, n_trials=1)
+    eeg["data"] = np.random.RandomState(3).standard_normal((4, 200)) + 4.0
+    monkeypatch.setattr("eegprep.functions.popfunc._ica_utils.option_scaleicarms", False)
+
+    out = eeg_picard(eeg, verbose=False, max_iter=2)
+
+    assert "icaweights_beforerms" not in out.get("etc", {})
+    column_rms = np.sqrt(np.mean(np.asarray(out["icawinv"], dtype=float) ** 2, axis=0))
+    assert np.max(np.abs(column_rms - 1.0)) > 1e-3
+
+
+def test_eeg_picard_activations_are_unmixing_times_data():
+    generator = np.random.default_rng(0)
+    data = generator.standard_normal((4, 300)) + 25.0
+    eeg = {"data": data, "nbchan": 4, "pnts": 300, "trials": 1, "srate": 100.0}
+
+    out = eeg_picard(eeg, verbose=False)
+    activations = np.asarray(out["icaact"]).reshape(4, -1, order="F")
+    expected = (out["icaweights"] @ out["icasphere"]) @ data
+
+    np.testing.assert_allclose(activations, expected, rtol=1e-8, atol=1e-8)
 
 
 class TestEegPicardSimple(DebuggableTestCase):

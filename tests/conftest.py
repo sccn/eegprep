@@ -89,6 +89,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run heavy EEGLAB reference tests that are skipped unless this flag is passed.",
     )
+    group.addoption(
+        "--record-parity-summary",
+        action="store_true",
+        default=False,
+        help="Overwrite tests/parity_expected/ds003061_pipeline.json with this machine's measured pipeline summary.",
+    )
 
 
 @pytest.fixture(scope="session")
