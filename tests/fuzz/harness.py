@@ -229,10 +229,12 @@ def materialize_eeg(case: FuzzCase) -> dict:
     eeg = _copy_eeg(source)
     sample_index = np.arange(spec.start, spec.start + span, spec.decimate)
     data = np.asarray(source["data"])
-    # Keep the sample file's float32 values. Promoting them makes average
-    # reference run in float64 while EEGLAB's default option_single path
-    # multiplies in single, a gap of about 1e-5 µV.
-    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], copy=True)
+    # The sample file is float32. EEGLAB's default option_single casts a
+    # double recording to single before reref.m multiplies, about 1e-5 µV
+    # from this float64 product. That single product also changes with the
+    # BLAS kernel, so the survey compares float64 and connect_matlab turns
+    # option_single off.
+    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64, copy=True)
     if case.sanity and case.function == "pop_reref":
         # Sanity checks the bridge with values whose mean is exact in float32
         # and float64, rather than with the sample recording.
@@ -474,7 +476,12 @@ def connect_matlab():
         )
     install(batch)
     os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(REPO_ROOT / "src" / "eegprep" / "eeglab"))
-    return get_eeglab()
+    engine = get_eeglab()
+    # eeg_checkset applies option_single on pop_loadset, before the called
+    # function runs. Leave the recording in double so average reference
+    # matches the float64 product.
+    engine.engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    return engine
 
 
 def default_strategies() -> dict:

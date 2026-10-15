@@ -489,28 +489,21 @@ _REFERENCE_DATA_ERROR = (
 )
 
 
-@pytest.mark.parametrize(
-    ("case", "index", "gap"),
-    [
-        (_REREF_2E5, 1698, 1.54453775067509e-05),
-        (_REREF_1E5, 953, 9.751319886674992e-06),
-    ],
-)
-def test_average_reref_survey_stays_single_precision(case, index, gap):
-    """The filed 1e-5 gap is float64 times the same float32 samples."""
+@pytest.mark.parametrize("case", [_REREF_2E5, _REREF_1E5])
+def test_average_reref_survey_compares_the_float64_product(case):
+    """The filed 1e-5 gap is the float32 product. The survey compares float64."""
     eeg = materialize_eeg(case)
-    assert eeg["data"].dtype == np.float32
-    single = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
-    wide = np.asarray(
-        dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float64)})["data"],
+    assert eeg["data"].dtype == np.float64
+    wide = np.asarray(dispatch_python(case, eeg)["data"], dtype=np.float64)
+    narrow = np.asarray(
+        dispatch_python(case, {**eeg, "data": np.asarray(eeg["data"], dtype=np.float32)})["data"],
         dtype=np.float64,
     )
-    diff = np.abs(single - wide)
-    assert int(np.argmax(diff)) == index
-    assert float(diff.max()) == pytest.approx(gap)
     tolerance = load_tolerances()["pop_reref"]
-    assert compare_data(single, wide, 128.0, 128.0, tolerance)[0] is True
-    assert compare_data(single, single, 128.0, 128.0, tolerance)[0] is False
+    diverged, _, max_abs, _, _ = compare_data(narrow, wide, 128.0, 128.0, tolerance)
+    assert diverged is True
+    assert 1e-6 < max_abs < 1e-3
+    assert compare_data(wide, wide, 128.0, 128.0, tolerance)[0] is False
 
 
 def test_minphase_fftfilt_nan_stays_in_one_block():
@@ -564,10 +557,22 @@ def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
     """Replay the 20261015 filings against EEGLAB. Run with --eeglab-backend=matlab -s."""
     engine = MatlabWrapper(eeglab_matlab_engine)
     eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
+    before = eeglab_matlab_engine.eval("option_single", nargout=1)
+    print(f"option_single={before}")
+    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
     option_single = eeglab_matlab_engine.eval("option_single", nargout=1)
     print(f"option_single={option_single}")
+    assert int(option_single) == 0
     tolerances = load_tolerances()
 
+    try:
+        _replay_cases(engine, tolerances)
+    finally:
+        eeglab_matlab_engine.eval(f"pop_editoptions('option_single', {int(before)});", nargout=0)
+
+
+def _replay_cases(engine, tolerances):
     for name, case in (
         ("pop_reref 2e-5", _REREF_2E5),
         ("pop_reref 1e-5", _REREF_1E5),
