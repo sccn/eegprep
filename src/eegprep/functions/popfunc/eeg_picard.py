@@ -60,17 +60,15 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             n_components = params.get('n_components') or data.shape[0]
             params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
-        weighting_matrix, unmixing_matrix, sources = picard(data, **params)
+        weighting_matrix, unmixing_matrix, _sources = picard(data, **params)
 
         EEG['icasphere'] = np.eye(EEG['nbchan'])
         EEG['icaweights'] = unmixing_matrix @ weighting_matrix
         # use pinv from the imported pinv
         EEG['icawinv'] = pinv(EEG['icaweights'] @ EEG['icasphere'])
-
-        EEG['icaact'] = sources
-
-        # reshape EEG['icaact'] back to 3D as EEG['data']
-        EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
+        # EEGLAB stores W*X. Picard returns the centered sources W*(X - mean).
+        activations = (EEG['icaweights'] @ EEG['icasphere']) @ data
+        EEG['icaact'] = reshape_ica_activations(activations, EEG['pnts'], EEG['trials'])
         EEG['icachansind'] = np.arange(EEG['nbchan'])
 
     else:

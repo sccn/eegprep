@@ -62,12 +62,17 @@ class TestMatlabWrapper(DebuggableTestCase):
         empty = _prepare_matlab_arg([])
         strings = _prepare_matlab_arg(["square", "rt"])
         numbers = _prepare_matlab_arg([1, 2])
+        highpass = _prepare_matlab_arg((0.25, 0.75))
+        tolerances = _prepare_matlab_arg((-np.inf, 7.0))
 
         self.assertEqual(empty.shape, (0,))
         self.assertEqual(empty.dtype, np.dtype("float64"))
         self.assertEqual(strings.shape, (1, 2))
         self.assertEqual(strings.dtype, np.dtype("O"))
         np.testing.assert_array_equal(numbers, np.asarray([1.0, 2.0]))
+        np.testing.assert_array_equal(highpass, np.asarray([0.25, 0.75]))
+        np.testing.assert_array_equal(tolerances, np.asarray([-np.inf, 7.0]))
+        self.assertEqual(highpass.dtype, np.dtype("float64"))
 
 
 if __name__ == '__main__':

@@ -4,12 +4,14 @@ Each stage test loads one saved dataset and runs that stage in Python and in
 EEGLAB. The chained pipeline is opt-in (``--run-heavy-reference``) because it
 is the only check that lets earlier differences accumulate.
 
-The numeric ceilings are the harness targets for a matched BLAS: Picard AMARI
-at or below 1e-5, Hungarian-matched mixing-matrix correlation at or above
-0.9999, and average reference within 1e-5 µV. A Linux reference run pairs
-MATLAB's MKL with NumPy's BLAS, so those ceilings still have to be confirmed
-on the local R2025b run. They are intentionally not loosened ahead of that
-measurement. ``eeg_interp`` of channels that were absent from the input uses
+MATLAB ``option_single`` is turned off for these calls and restored afterward.
+EEGLAB otherwise stores the shared input as single, so Picard and interpolation
+see different numbers from the Python float64 arrays. Picard must be
+mind-inria/picard 617ce6a (identity initialization). The EEGLAB PICARD 2.0
+extension draws a seeded random start.
+
+The numeric ceilings are unchanged pending a decision on the R2025b
+measurements. ``eeg_interp`` of channels that were absent from the input uses
 1e-4 µV because the harness only published a cumulative figure for that step.
 """
 
@@ -338,18 +340,64 @@ def _unmixing(eeg):
     return np.asarray(eeg["icaweights"], dtype=float) @ np.asarray(eeg["icasphere"], dtype=float)
 
 
-def _require_plugins(engine):
+def _as_float64(eeg):
+    copied = copy.deepcopy(eeg)
+    copied["data"] = np.asarray(copied["data"], dtype=np.float64)
+    return copied
+
+
+def _require_clean(engine):
     skip_without_matlab_plugin(engine, "clean_artifacts", "clean_rawdata")
-    skip_without_matlab_plugin(engine, "eeg_picard", "picard")
+
+
+def _require_iclabel(engine):
     skip_without_matlab_plugin(engine, "iclabel", "ICLabel")
     skip_without_matlab_plugin(engine, "pop_icflag", "ICLabel")
-    skip_without_matlab_plugin(engine, "eeg_interp", "EEGLAB")
+
+
+def _require_picard(engine):
+    skip_without_matlab_plugin(engine, "eeg_picard", "PICARD")
+    skip_without_matlab_plugin(engine, "picard_python_port", "PICARD")
+    source = str(engine.eval("fileread(which('eeg_picard'))", nargout=1))
+    if "picard_python_port" not in source:
+        pytest.fail(
+            "MATLAB eeg_picard does not call picard_python_port. Install mind-inria/picard "
+            "617ce6ae669cfbd1dfedba6a5fce39a602b99ac3. The EEGLAB PICARD 2.0 extension uses a seeded random start."
+        )
+
+
+def _eeg_options_snapshot(engine):
+    raw = engine.eval(
+        "eeglab_options; if exist('option_file', 'var'), char(option_file), else, '', end",
+        nargout=1,
+    )
+    text = str(raw).strip()
+    if not text:
+        return None, None
+    path = Path(text).expanduser()
+    original = path.read_bytes() if path.is_file() else None
+    return path, original
+
+
+def _restore_eeg_options(path, original):
+    if path is None:
+        return
+    if original is None:
+        path.unlink(missing_ok=True)
+        return
+    path.write_bytes(original)
 
 
 @pytest.fixture
 def matlab(eeglab_matlab_engine):
-    yield MatlabWrapper(eeglab_matlab_engine)
-    eeglab_matlab_engine.eval("clear EEG OUT args reduced reference out", nargout=0)
+    options_path, original = _eeg_options_snapshot(eeglab_matlab_engine)
+    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    try:
+        yield MatlabWrapper(eeglab_matlab_engine)
+    finally:
+        _restore_eeg_options(options_path, original)
+        eeglab_matlab_engine.eval("clear functions", nargout=0)
+        eeglab_matlab_engine.eval("clear EEG OUT args reduced reference out", nargout=0)
 
 
 @pytest.fixture(scope="session")
@@ -384,7 +432,6 @@ def pipeline_parity(request):
 
 def test_average_reference_matches_matlab_on_64_channel_float32(p300_imported, matlab):
     """Guard the column-major float32 accumulation against EEGLAB on a real 64-channel recording."""
-    _require_plugins(matlab.engine)
     source = p300_imported
     assert int(source["nbchan"]) == 64
     assert np.asarray(source["data"]).dtype == np.float32
@@ -397,7 +444,7 @@ def test_average_reference_matches_matlab_on_64_channel_float32(p300_imported, m
 
 
 def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab):
-    _require_plugins(matlab.engine)
+    _require_clean(matlab.engine)
     source = p300_reref
     python_eeg = _Side().clean(source)
     matlab_eeg = _Side(matlab.engine).clean(source)
@@ -417,7 +464,8 @@ def test_clean_artifacts_matches_matlab_with_burst_rejection(p300_reref, matlab)
 
 
 def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, p300_picard, matlab):
-    _require_plugins(matlab.engine)
+    _require_picard(matlab.engine)
+    assert np.asarray(p300_clean["data"]).dtype == np.float64
     matlab_eeg = _Side(matlab.engine).picard(p300_clean)
     python_unmixing = _unmixing(p300_picard)
     matlab_unmixing = _unmixing(matlab_eeg)
@@ -439,7 +487,6 @@ def test_picard_amari_and_matched_correlation_on_cleaned_data(p300_clean, p300_p
 
 
 def test_epoch_and_time_range_baseline_match_matlab_after_sample_rejection(p300_clean, matlab, tmp_path):
-    _require_plugins(matlab.engine)
     source = p300_clean
     assert _boundary_count(source) > 0, "sample rejection did not insert a boundary event to epoch across"
 
@@ -461,8 +508,7 @@ def test_epoch_and_time_range_baseline_match_matlab_after_sample_rejection(p300_
 
 
 def test_interp_restores_the_full_montage_like_matlab(p300_reref, matlab, tmp_path):
-    _require_plugins(matlab.engine)
-    full = p300_reref
+    full = _as_float64(p300_reref)
     count = int(full["nbchan"])
     drop = set(range(0, count, 8))
     keep = [index for index in range(count) if index not in drop]
@@ -496,7 +542,7 @@ def test_interp_restores_the_full_montage_like_matlab(p300_reref, matlab, tmp_pa
 
 
 def test_icflag_and_subcomp_match_matlab_on_the_same_classification(p300_picard, matlab):
-    _require_plugins(matlab.engine)
+    _require_iclabel(matlab.engine)
     classified = iclabel(p300_picard)
     python_flagged = _Side().icflag(classified)
     matlab_flagged = _Side(matlab.engine).icflag(classified)
@@ -544,6 +590,8 @@ def _chain_subject(subject, imported, engine):
     summary = {}
     python_ref, matlab_ref, max_abs, rms = _step_pair("reref", python.reref, matlab.reref, imported, imported)
     summary["reref"] = {"max_abs": max_abs, "rms": rms}
+    python_ref = _as_float64(python_ref)
+    matlab_ref = _as_float64(matlab_ref)
 
     python_eeg, matlab_eeg, max_abs, rms = _step_pair(
         "clean_artifacts", python.clean, matlab.clean, python_ref, matlab_ref
@@ -572,9 +620,15 @@ def _chain_subject(subject, imported, engine):
     python_eeg, matlab_eeg, _max_abs, _rms = _step_pair("icflag", python.icflag, matlab.icflag, python_eeg, matlab_eeg)
     python_flags = _flags(python_eeg)
     matlab_flags = _flags(matlab_eeg)
+    warnings.warn(
+        f"{subject} pop_icflag: python={_threshold_report(python_eeg)} matlab={_threshold_report(matlab_eeg)}",
+        UserWarning,
+        stacklevel=1,
+    )
     assert python_flags.shape == matlab_flags.shape
     assert int(python_flags.sum()) == int(matlab_flags.sum()), (
-        f"{subject} rejected {int(python_flags.sum())} Python components and {int(matlab_flags.sum())} MATLAB components"
+        f"{subject} rejected {int(python_flags.sum())} Python components and {int(matlab_flags.sum())} MATLAB components; "
+        f"python {_threshold_report(python_eeg)}; matlab {_threshold_report(matlab_eeg)}"
     )
     rejected = int(python_flags.sum())
     python_eeg, matlab_eeg, max_abs, rms = _step_pair("subcomp", python.subcomp, matlab.subcomp, python_eeg, matlab_eeg)
@@ -657,9 +711,39 @@ def _run1_set_count(root, subject):
     return len(list((root / subject / "eeg").glob("*_run-1_eeg.set"))) == 1
 
 
+def _classifications(eeg):
+    etc = eeg.get("etc")
+    if not isinstance(etc, dict):
+        return None
+    record = etc.get("ic_classification")
+    if not isinstance(record, dict):
+        return None
+    iclabel_record = record.get("ICLabel")
+    if not isinstance(iclabel_record, dict):
+        return None
+    values = iclabel_record.get("classifications")
+    if values is None:
+        return None
+    return np.asarray(values, dtype=float)
+
+
+def _threshold_report(eeg):
+    values = _classifications(eeg)
+    if values is None or values.ndim != 2 or values.shape[1] < 3:
+        return "no ICLabel classifications"
+    parts = []
+    for name, column in (("Muscle", 1), ("Eye", 2)):
+        scores = values[:, column]
+        index = int(np.argmin(np.abs(scores - 0.9)))
+        parts.append(f"{name}[{index + 1}]={scores[index]:.8f}")
+    return " ".join(parts)
+
+
 def test_chained_pipeline_matches_stored_platform_summary(pipeline_parity, matlab, eeglab_suite_root, request):
     """Compare the full chain, including sub-012, with the stored summary for this platform."""
-    _require_plugins(matlab.engine)
+    _require_clean(matlab.engine)
+    _require_picard(matlab.engine)
+    _require_iclabel(matlab.engine)
     subjects = _subjects(eeglab_suite_root)
     if "sub-012" not in subjects:
         pytest.fail("ds003061 sub-012 run-1 is not in the eeglab_tests checkout")
@@ -670,6 +754,10 @@ def test_chained_pipeline_matches_stored_platform_summary(pipeline_parity, matla
 
     key = _platform_key(matlab.engine)
     payload = json.loads(EXPECTED_SUMMARY.read_text(encoding="utf-8"))
+    sub012 = measured["sub-012"]
+    assert sub012.get("epoch_failed") is False, sub012
+    assert int(sub012["epoch"]["trials"]) == 71
+
     if request.config.getoption("--record-parity-summary"):
         payload.setdefault("platforms", {})[key] = measured
         EXPECTED_SUMMARY.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -684,4 +772,3 @@ def test_chained_pipeline_matches_stored_platform_summary(pipeline_parity, matla
             f"updated {EXPECTED_SUMMARY.name}. Measured:\n{rendered}"
         )
     _assert_stored_summary(measured, stored)
-    assert "epoch_failed" in measured["sub-012"]

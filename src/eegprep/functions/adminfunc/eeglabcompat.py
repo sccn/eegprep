@@ -45,7 +45,7 @@ def _prepare_matlab_arg(arg: Any) -> Any:
         return np.array([], dtype=np.float64)
     if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
         return np.array(arg, dtype=object).reshape(1, -1)
-    if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
         return np.array(arg, dtype=np.float64)
     if isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
         return np.array(arg, dtype=np.float64)

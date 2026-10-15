@@ -90,6 +90,18 @@ def test_eeg_picard_initialization(n_components):
     np.testing.assert_allclose(seeded['icaweights'], w @ k, rtol=1e-12, atol=1e-12)
 
 
+def test_eeg_picard_activations_are_unmixing_times_data():
+    generator = np.random.default_rng(0)
+    data = generator.standard_normal((4, 300)) + 25.0
+    eeg = {"data": data, "nbchan": 4, "pnts": 300, "trials": 1, "srate": 100.0}
+
+    out = eeg_picard(eeg, verbose=False)
+    activations = np.asarray(out["icaact"]).reshape(4, -1, order="F")
+    expected = (out["icaweights"] @ out["icasphere"]) @ data
+
+    np.testing.assert_allclose(activations, expected, rtol=1e-8, atol=1e-8)
+
+
 class TestEegPicardSimple(DebuggableTestCase):
     """Simple test cases for eeg_picard function (Python implementation only)."""
 
