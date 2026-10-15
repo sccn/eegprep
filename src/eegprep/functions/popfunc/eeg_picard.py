@@ -4,7 +4,12 @@ import copy
 
 from picard import picard
 import numpy as np
-from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
+from ._ica_utils import (
+    finalize_ica_fields,
+    flatten_ica_data,
+    reshape_ica_activations,
+    scale_ica_to_rms_microvolt,
+)
 from ..miscfunc.pinv import pinv
 
 
@@ -12,6 +17,8 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
     """Perform ICA decomposition using Picard algorithm.
 
     This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
+    When ``option_scaleicarms`` is enabled, components are scaled so each
+    mixing column has RMS 1, matching EEGLAB ``eeg_checkset``.
 
     Parameters
     ----------
@@ -77,4 +84,4 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
         # sorting/normalization options)
         EEG = engine.eeg_picard(EEG, **kwargs)
 
-    return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)
+    return scale_ica_to_rms_microvolt(finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact))

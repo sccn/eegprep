@@ -5,14 +5,15 @@ EEGLAB. The chained pipeline is opt-in (``--run-heavy-reference``) because it
 is the only check that lets earlier differences accumulate.
 
 MATLAB ``option_single`` is turned off for these calls and restored afterward.
-EEGLAB otherwise stores the shared input as single, so Picard and interpolation
-see different numbers from the Python float64 arrays. Picard must be
-mind-inria/picard 617ce6a (identity initialization). The EEGLAB PICARD 2.0
-extension draws a seeded random start.
+The snapshot reads the ``option_file`` left in the base workspace by
+``eeglab_options`` (``~/eeg_options.m`` when that file is the one EEGLAB
+loads) and writes those bytes back. EEGLAB otherwise stores the shared input
+as single, so Picard and interpolation see different numbers from the Python
+float64 arrays. Picard must be mind-inria/picard 617ce6a (identity
+initialization). The EEGLAB PICARD 2.0 extension draws a seeded random start.
 
-The numeric ceilings are unchanged pending a decision on the R2025b
-measurements. ``eeg_interp`` of channels that were absent from the input uses
-1e-4 µV because the harness only published a cumulative figure for that step.
+The numeric ceilings are unchanged. MATLAB comparison data is the double array
+from the function result; ``pop_saveset`` still writes the dataset file as single.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ import numpy as np
 import pytest
 from scipy.optimize import linear_sum_assignment
 
-from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
+from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper, _restore_double_eeg_data
 from eegprep.functions.miscfunc.event_utils import is_boundary_event
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
@@ -273,17 +274,22 @@ def _matlab_restore_montage(engine, reduced, full, directory):
     reduced_path = Path(directory) / "reduced.set"
     full_path = Path(directory) / "full.set"
     output_path = Path(directory) / "interp.set"
+    double_path = Path(directory) / "interp.double.mat"
     pop_saveset(reduced, str(reduced_path))
     pop_saveset(full, str(full_path))
     engine.eval(
         "reduced = pop_loadset('" + _matlab_string(reduced_path) + "'); "
         "reference = pop_loadset('" + _matlab_string(full_path) + "'); "
         "out = eeg_interp(reduced, reference.chanlocs, 'spherical'); "
+        "eegprep_roundtrip_data = double(out.data); "
+        "save('" + _matlab_string(double_path) + "', 'eegprep_roundtrip_data', '-v7'); "
         "pop_saveset(out, '" + _matlab_string(output_path) + "'); "
-        "clear reduced reference out;",
+        "clear reduced reference out eegprep_roundtrip_data;",
         nargout=0,
     )
-    return pop_loadset(str(output_path))
+    restored = pop_loadset(str(output_path))
+    _restore_double_eeg_data(restored, str(double_path))
+    return restored
 
 
 class _Side:
@@ -367,10 +373,10 @@ def _require_picard(engine):
 
 
 def _eeg_options_snapshot(engine):
-    raw = engine.eval(
-        "eeglab_options; if exist('option_file', 'var'), char(option_file), else, '', end",
-        nargout=1,
-    )
+    # eeglab_options is a script. A returned if-statement is illegal in MATLAB;
+    # the option_file variable it assigns is a valid expression on its own.
+    engine.eval("eeglab_options;", nargout=0)
+    raw = engine.eval("char(option_file)", nargout=1)
     text = str(raw).strip()
     if not text:
         return None, None

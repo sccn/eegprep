@@ -39,6 +39,36 @@ def _temp_dir() -> str:
     return temp_dir
 
 
+def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
+    """Save ``varname.data`` as double before EEGLAB writes the dataset.
+
+    ``pop_saveset`` stores numeric EEG data as single. The in-memory result is
+    still double when the MATLAB function computed in double, and that is the
+    array the comparison should see.
+    """
+    engine.eval(
+        (
+            f"if isstruct({varname}) && isfield({varname}, 'data') && isnumeric({varname}.data), "
+            f"eegprep_roundtrip_data = double({varname}.data); "
+            f"save('{path}', 'eegprep_roundtrip_data', '-v7'); "
+            "clear eegprep_roundtrip_data; "
+            "end"
+        ),
+        nargout=0,
+    )
+
+
+def _restore_double_eeg_data(eeg, path: str) -> None:
+    """Replace loaded single data with the double copy saved beside it."""
+    if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
+        return
+    stashed = np.asarray(scipy.io.loadmat(path)["eegprep_roundtrip_data"])
+    current = np.asarray(eeg["data"])
+    if stashed.size != current.size:
+        return
+    eeg["data"] = np.reshape(stashed, current.shape, order="F")
+
+
 def _prepare_matlab_arg(arg: Any) -> Any:
     """Return one Python value in the shape expected by MATLAB ``savemat``."""
     if isinstance(arg, (list, tuple)) and len(arg) == 0:
@@ -175,6 +205,7 @@ class MatlabWrapper:
                     temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
+                double_data_filename = temp_filename1 + '.double.mat'
                 logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
@@ -210,8 +241,10 @@ class MatlabWrapper:
                     and int(nargout) > 1
                     and name not in numeric_output_functions
                 ):
+                    _stash_double_eeg_data(self.engine, "OUT1", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT1, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     extra_names = ",".join(f"'OUT{i}'" for i in range(2, int(nargout) + 1))
                     self.engine.eval(f"save('-mat', '{result_extra_filename}', {extra_names});", nargout=0)
                     extra_data = scipy.io.loadmat(result_extra_filename, squeeze_me=True)
@@ -219,8 +252,10 @@ class MatlabWrapper:
                     return (OUT, *extras)
                 elif (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
+                    _stash_double_eeg_data(self.engine, "OUT", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     return OUT
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
@@ -258,6 +293,8 @@ class MatlabWrapper:
                         os.remove(result_filename.replace('result.set', 'result.fdt'))
                     if os.path.exists(result_extra_filename):
                         os.remove(result_extra_filename)
+                    if os.path.exists(double_data_filename):
+                        os.remove(double_data_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
 
