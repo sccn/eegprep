@@ -542,7 +542,9 @@
 <dt class="sig sig-object py" id="eegprep.eeg_picard">
 <span class="sig-name descname"><span class="pre">eeg_picard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">engine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">posact</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'off'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sortcomps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'off'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_picard" title="Link to this definition">#</a></dt>
 <dd><p>Perform ICA decomposition using Picard algorithm.</p>
-<p>This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.</p>
+<p>This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
+When <code class="docutils literal notranslate"><span class="pre">option_scaleicarms</span></code> is enabled, components are scaled so each
+mixing column has RMS 1, matching EEGLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code>.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">

@@ -541,7 +541,7 @@
 <h1>eeg_interp<a class="headerlink" href="#eeg-interp" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_interp">
-<span class="sig-name descname"><span class="pre">eeg_interp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bad_chans</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spherical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'float32'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_interp" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">eeg_interp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bad_chans</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'spherical'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_interp" title="Link to this definition">#</a></dt>
 <dd><p>Interpolate missing or bad EEG channels using spherical spline.</p>
 <p>interpolation.</p>
 <section id="parameters">
@@ -562,9 +562,10 @@ a subset of the requested channel structure.</p>
 </dd>
 <dt>params<span class="classifier">tuple, optional</span></dt><dd><p>Method-specific parameters</p>
 </dd>
-<dt>dtype<span class="classifier">str or dtype, optional</span></dt><dd><p>Precision for the interpolation computation. Use <code class="docutils literal notranslate"><span class="pre">&quot;float32&quot;</span></code> to
-match MATLAB-oriented workflows with lower memory use, or
-<code class="docutils literal notranslate"><span class="pre">&quot;float64&quot;</span></code> for full precision.</p>
+<dt>dtype<span class="classifier">str or dtype, optional</span></dt><dd><p>Precision for the spherical-spline computation. The default follows
+the floating-point dtype of <code class="docutils literal notranslate"><span class="pre">EEG['data']</span></code>, and uses <code class="docutils literal notranslate"><span class="pre">float64</span></code> when
+the data are not floating point. Pass <code class="docutils literal notranslate"><span class="pre">&quot;float32&quot;</span></code> for the
+lower-memory path.</p>
 </dd>
 </dl>
 </section>

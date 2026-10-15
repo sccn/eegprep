@@ -556,6 +556,12 @@ random starting point, call <code class="docutils literal notranslate"><span cla
 An explicit <code class="docutils literal notranslate"><span class="pre">w_init</span></code> matrix takes precedence over the seed. Passing
 <code class="docutils literal notranslate"><span class="pre">random_state=None</span></code> explicitly uses NumPy’s global random state, as in
 Python Picard. Different starts can converge to equivalent ICA solutions.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eeg_picard</span></code> and <code class="docutils literal notranslate"><span class="pre">eeg_runica</span></code> then scale each component so the RMS of its
+mixing column is 1, matching EEGLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> with
+<code class="docutils literal notranslate"><span class="pre">option_scaleicarms</span></code> on. The unscaled weights and sphere are stored in
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;icaweights_beforerms&quot;]</span></code> and
+<code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;icasphere_beforerms&quot;]</span></code>. ICLabel uses those scaled activations
+and topographies, so label probabilities change if the scale is skipped.</p>
 </section>
 <section id="iclabel-workflow">
 <h2>ICLabel Workflow<a class="headerlink" href="#iclabel-workflow" title="Link to this heading">#</a></h2>

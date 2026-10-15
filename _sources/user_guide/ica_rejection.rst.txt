@@ -51,6 +51,13 @@ An explicit ``w_init`` matrix takes precedence over the seed. Passing
 ``random_state=None`` explicitly uses NumPy's global random state, as in
 Python Picard. Different starts can converge to equivalent ICA solutions.
 
+``eeg_picard`` and ``eeg_runica`` then scale each component so the RMS of its
+mixing column is 1, matching EEGLAB ``eeg_checkset`` with
+``option_scaleicarms`` on. The unscaled weights and sphere are stored in
+``EEG["etc"]["icaweights_beforerms"]`` and
+``EEG["etc"]["icasphere_beforerms"]``. ICLabel uses those scaled activations
+and topographies, so label probabilities change if the scale is skipped.
+
 ICLabel Workflow
 ================
 
