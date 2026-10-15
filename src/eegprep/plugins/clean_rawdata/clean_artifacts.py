@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _DISTANCE_MODES = {
     'euclidian': None,
     'euclidean': None,
-    'riemannian': 'calib',
+    'riemannian': True,
 }
 
 #                               Public API
@@ -115,9 +115,9 @@ def clean_artifacts(
     MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
     Distance : str
-        Distance metric for ASR calibration ('euclidian' or 'riemannian'). The
-        Riemannian path uses EEGPrep's calibration-time estimate; full
-        Riemannian ASR processing is not ported.
+        ASR geometry, ``'euclidian'`` or ``'riemannian'``. ``'riemannian'`` runs
+        Riemannian calibration and Riemannian processing, the same choice as
+        ``clean_asr(..., useriemannian=True)``.
     Channels : sequence of str or None
         List of channel labels to include before cleaning (pop_select). The
         returned dataset contains only these channels; channels outside this list

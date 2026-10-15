@@ -39,10 +39,13 @@ class TestCleanASRParameters(unittest.TestCase):
             'event': [],
         }
 
-    def test_clean_asr_rejects_full_riemannian_processing_request(self):
-        """Test that unsupported full Riemannian ASR processing fails clearly."""
-        with self.assertRaisesRegex(ValueError, "full Riemannian ASR processing is not ported"):
-            clean_asr(self.test_eeg, useriemannian=True)
+    def test_clean_asr_full_riemannian_keeps_shape_and_input(self):
+        """useriemannian=True runs Riemannian ASR instead of refusing."""
+        original = self.test_eeg['data'].copy()
+        cleaned = clean_asr(self.test_eeg, ref_maxbadchannels='off', useriemannian=True)
+        np.testing.assert_array_equal(self.test_eeg['data'], original)
+        self.assertEqual(cleaned['data'].shape, original.shape)
+        self.assertTrue(np.isfinite(cleaned['data']).all())
 
 
 def test_short_recording_calibration_is_not_the_whole_recording():

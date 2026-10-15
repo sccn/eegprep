@@ -9153,12 +9153,12 @@
       "eegprep_equivalent": "src/eegprep/plugins/clean_rawdata/clean_asr.py",
       "gap_category": "3_unsupported_options",
       "status": "implemented",
-      "rationale": "Phase 5 clarified that EEGPrep supports Riemannian ASR calibration via useriemannian=calib and Distance=Riemannian, while full Riemannian ASR processing remains an explicit non-goal.",
+      "rationale": "EEGPrep supports Euclidean ASR, the calibration-only Riemannian estimate (useriemannian=calib), and full Riemannian ASR (useriemannian=True and Distance=Riemannian) via asr_calibrate_r and asr_process_r.",
       "responsible_phase": "none",
       "user_facing_surface": [
         "helper"
       ],
-      "test_notes": "Covered by the full-Riemannian-processing limitation test in tests/test_clean_asr.py, the clean_asr test in tests/test_clean_rawdata.py, tests/test_utils_asr.py, and the sample-data Riemannian ASR test (test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_noise) in tests/test_sample_data_pop_functions.py."
+      "test_notes": "Covered by tests/test_riemannian_asr.py, the clean_asr MATLAB parity tests in tests/test_clean_rawdata.py, tests/test_utils_asr.py, and the sample-data Riemannian ASR test (test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_noise) in tests/test_sample_data_pop_functions.py."
     }
   ]
 }

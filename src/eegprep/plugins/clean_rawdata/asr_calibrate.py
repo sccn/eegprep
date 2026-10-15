@@ -104,10 +104,11 @@ def asr_calibrate(
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
       min_clean_fraction (float, optional): Minimum fraction (0-1) of windows that must be clean. Default: 0.25.
       maxmem (int, optional): Maximum memory in MB (for very large data/many channels). Default: 64.
-      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
-            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
-            different baseline rejection threshold; as a result it is suggested to visually check results and adjust
-            the cutoff as needed. Default: None (disabled).
+      useriemannian (str, optional): Set to ``'calib'`` to use a Riemannian covariance
+            estimate at calibration time and the Euclidean processor. Full Riemannian
+            processing is ``asr_calibrate_r`` / ``clean_asr(..., useriemannian=True)``.
+            The calibration-only estimate makes different statistical tradeoffs than
+            the default; check the result and adjust ``cutoff`` if needed. Default: None.
       compatibility (str, optional): MATLAB compatibility level.
         * 'standard' (default) aims for 5 significant digits compatibility and may apply
           slightly better numerical methods (e.g. using SOS filters for IIR filtering)

@@ -20,6 +20,7 @@ from eegprep import (
 )
 from eegprep.functions.adminfunc import eeglabcompat
 from eegprep.utils.testing import DebuggableTestCase, compare_eeg, is_debug, use_64bit_eeg_options
+from tests.fixtures import create_test_eeg, matlab_engine_available
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +167,54 @@ class TestCleanASR(DebuggableTestCase):
             atol=0,
             rtol=1e-6,  # because of eigh() precision differences
             err_msg='clean_asr() failed vs MATLAB',
+        )
+
+
+@unittest.skipUnless(matlab_engine_available(), 'MATLAB engine not available or skipped')
+class TestRiemannianASRMatlab(DebuggableTestCase):
+    """MATLAB reference for clean_asr(..., useriemannian=True).
+
+    The batch engine receives a double-precision struct. The .set round-trip
+    stores this burst in single precision and disagrees by about 2e-6.
+    """
+
+    def test_clean_asr_riemannian_matches_matlab(self):
+        eeg = create_test_eeg(n_channels=6, n_samples=1536, srate=128.0)
+        time = np.arange(eeg['pnts']) / eeg['srate']
+        rng = np.random.default_rng(443)
+        data = np.vstack([(1.0 + 0.04 * channel) * np.sin(2 * np.pi * 8 * time) for channel in range(eeg['nbchan'])])
+        data += 0.05 * rng.standard_normal(data.shape)
+        data[:, 600:760] += 25.0
+        eeg['data'] = data
+
+        cleaned = clean_asr(deepcopy(eeg), cutoff=5, ref_maxbadchannels='off', useriemannian=True, maxmem=64)
+        engine = eeglabcompat.get_eeglab('MAT', auto_file_roundtrip=False)
+        signal = {
+            'data': data,
+            'srate': float(eeg['srate']),
+            'nbchan': float(eeg['nbchan']),
+            'pnts': float(eeg['pnts']),
+            'trials': 1.0,
+            'xmin': 0.0,
+        }
+        expected = engine.clean_asr(signal, 5.0, None, None, None, 'off', None, None, False, True, 64.0)
+        matlab_data = np.asarray(expected['data'], dtype=float)
+        python_data = np.asarray(cleaned['data'], dtype=float)
+        abs_gap = np.abs(python_data - matlab_data)
+        denominator = np.abs(matlab_data)
+        rel_gap = np.divide(abs_gap, denominator, out=np.zeros_like(abs_gap), where=denominator > 0)
+        rel_gap = np.where((denominator == 0) & (abs_gap > 0), np.inf, rel_gap)
+        worst = np.unravel_index(int(np.argmax(rel_gap)), rel_gap.shape)
+        compare_eeg(
+            python_data,
+            matlab_data,
+            atol=0,
+            rtol=1e-8,
+            use_32_bit=False,
+            err_msg=(
+                'Riemannian clean_asr() failed vs MATLAB '
+                f'max_rel={float(np.max(rel_gap)):.6e} max_abs={float(np.max(abs_gap)):.6e} at index {worst}'
+            ),
         )
 
 

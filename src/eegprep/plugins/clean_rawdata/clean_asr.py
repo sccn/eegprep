@@ -11,9 +11,10 @@ from copy import deepcopy
 import math
 import numpy as np
 
-# Assuming these utilities exist and are correctly ported/placed
 from .asr_calibrate import ASRCalibrationError, asr_calibrate
+from .asr_calibrate_r import asr_calibrate_r
 from .asr_process import asr_process
+from .asr_process_r import asr_process_r
 from .clean_windows import clean_windows
 from ...functions.miscfunc.misc import round_mat
 
@@ -69,8 +70,9 @@ def clean_asr(
                                     for a channel to be considered 'bad' during calibration data selection. Default: (-3.5, 5.5). Use 'off' to disable.
         ref_wndlen (Union[float, str], optional): Window length in seconds for calibration data selection granularity. Default: 1.0. Use 'off' to disable.
         use_gpu (bool, optional): Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.
-        useriemannian (str, optional): Option to use a Riemannian ASR variant. Set to 'calib' to use a Riemannian estimate
-            at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. Default: None (disabled).
+        useriemannian (str, optional): Riemannian ASR variant. ``None`` or ``'off'`` uses Euclidean ASR.
+            ``'calib'`` uses a Riemannian covariance estimate at calibration time and the Euclidean processor.
+            ``True`` or ``'on'`` runs Riemannian calibration and Riemannian processing. Default: None.
         maxmem (Optional[int], optional): Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.
 
     Returns
@@ -80,7 +82,7 @@ def clean_asr(
     Raises
     ------
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
-    ValueError : If input arguments are invalid, full Riemannian ASR processing is requested, or calibration fails critically.
+    ValueError : If input arguments are invalid or calibration fails critically.
     """
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
@@ -160,7 +162,12 @@ def clean_asr(
     # The Python asr_calibrate uses its own defaults for blocksize, filters, etc.
     # We only pass the core parameters specified in the clean_asr call signature.
     try:
-        state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
+        if useriemannian == 'all':
+            # clean_asr.m passes empty window arguments, so asr_calibrate_r keeps
+            # its own defaults (0.1 s windows, overlap 0.5, clean fraction 0.3).
+            state = asr_calibrate_r(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem)
+        else:
+            state = asr_calibrate(ref_section_data, srate, cutoff=cutoff, maxmem=maxmem, useriemannian=useriemannian)
     except ASRCalibrationError:
         raise
     except ValueError as e:
@@ -192,7 +199,8 @@ def clean_asr(
     # --- Process Signal using ASR ---
     logger.info('Applying ASR processing...')
     lookahead_sec = window_len / 2.0  # asr_process expects lookahead in seconds
-    outdata, _ = asr_process(
+    process = asr_process_r if useriemannian == 'all' else asr_process
+    outdata, _ = process(
         sig,
         srate,
         state,
@@ -217,18 +225,14 @@ def clean_asr(
 def _normalise_useriemannian(value: Optional[str]) -> Optional[str]:
     if value is None:
         return None
-    if isinstance(value, bool):
-        if not value:
-            return None
-        raise ValueError("clean_asr supports useriemannian='calib' only; full Riemannian ASR processing is not ported.")
+    if isinstance(value, (bool, np.bool_)):
+        return 'all' if value else None
     if isinstance(value, str):
         lower = value.strip().lower()
-        if lower in {"", "0", "false", "no", "none", "off"}:
+        if lower in {'', '0', 'false', 'no', 'none', 'off'}:
             return None
-        if lower in {"calib", "calibration"}:
-            return "calib"
-        if lower in {"1", "true", "yes", "on", "all", "process", "riemannian"}:
-            raise ValueError(
-                "clean_asr supports useriemannian='calib' only; full Riemannian ASR processing is not ported."
-            )
-    raise ValueError("clean_asr useriemannian must be None, 'off', or 'calib'.")
+        if lower in {'calib', 'calibration'}:
+            return 'calib'
+        if lower in {'1', 'true', 'yes', 'on', 'all', 'process', 'riemannian'}:
+            return 'all'
+    raise ValueError("clean_asr useriemannian must be None, 'off', 'calib', or a full-processing flag such as True.")

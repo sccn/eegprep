@@ -143,11 +143,16 @@ leave that recording unchanged.
 Riemannian ASR Notes
 ====================
 
-EEGPrep supports the Riemannian ASR calibration variant through
-``clean_asr(EEG, useriemannian="calib")`` and
-``clean_artifacts(EEG, Distance="Riemannian")``. Full Riemannian ASR
-processing is not ported, so direct full-process requests fail clearly instead
-of silently substituting MATLAB-only behavior.
+``clean_asr(EEG, useriemannian=True)`` and
+``clean_artifacts(EEG, Distance="Riemannian")`` run Riemannian ASR.
+Calibration takes the geometric median of block covariances and sets
+component thresholds from the nonlinear eigenspace of the mixing matrix.
+Processing uses one sample covariance per chunk. A later chunk averages that
+covariance with the previous chunk along the affine-invariant geodesic.
+
+``clean_asr(EEG, useriemannian="calib")`` keeps the smaller variant: a
+Riemannian covariance during calibration, then the Euclidean ASR processor.
+Passing an unknown ``useriemannian`` value raises ``ValueError``.
 
 Review Rejected Segments
 ========================
