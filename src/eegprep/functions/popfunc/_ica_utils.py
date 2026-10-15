@@ -88,12 +88,17 @@ def scale_ica_to_rms_microvolt(EEG):
 
     EEG["icaweights"] = weights.astype(float) * scaling[:, np.newaxis]
     EEG["icawinv"] = finite_pinv(finite_matmul(EEG["icaweights"], sphere), solver=pinv)
+    activations = np.asarray(EEG.get("icaact", []))
+    if activations.ndim >= 2 and activations.shape[0] == scaling.shape[0]:
+        factors = scaling.reshape((scaling.shape[0],) + (1,) * (activations.ndim - 1))
+        EEG["icaact"] = activations.astype(float) * factors
+        return EEG
     if "data" not in EEG or "pnts" not in EEG or "trials" not in EEG:
         return EEG
     data = flatten_ica_data(np.asarray(EEG["data"], dtype=float))
     channel_index = np.asarray(EEG.get("icachansind", []))
     if channel_index.size:
         data = data[channel_index.astype(int)]
-    activations = finite_matmul(finite_matmul(EEG["icaweights"], sphere), data)
-    EEG["icaact"] = reshape_ica_activations(activations, EEG["pnts"], EEG["trials"])
+    recomputed = finite_matmul(finite_matmul(EEG["icaweights"], sphere), data)
+    EEG["icaact"] = reshape_ica_activations(recomputed, EEG["pnts"], EEG["trials"])
     return EEG
