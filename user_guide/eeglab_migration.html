@@ -684,14 +684,21 @@ calibrates on every sample.</p></td>
 cleaned data when only two or three RMS windows are available.
 EEGLAB’s calibration fit indexes a zero window width and errors.</p></td>
 </tr>
-<tr class="row-even"><td><p>ASR at a low sampling rate</p></td>
+<tr class="row-even"><td><p>One ASR calibration window</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when fewer than two calibration
+RMS windows are available, and when the calibration is shorter than
+one window. The error names the window count, the sample count, and
+the window length. EEGLAB raises an error that asks for different
+<code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code>. Neither call returns cleaned data.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ASR at a low sampling rate</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises an error naming the sampling rate when the default
 spectral breakpoints are not monotonic. <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and
 leaves the recording unchanged. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> reports that
 <code class="docutils literal notranslate"><span class="pre">yulewalk</span></code> was not found, and <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> prints that message
 and returns the recording.</p></td>
 </tr>
-<tr class="row-odd"><td><p>NaNs during re-referencing</p></td>
+<tr class="row-even"><td><p>NaNs during re-referencing</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_reref</span></code> leaves a NaN on a channel only when that sample or the
 reference subtracted from it is NaN. EEGLAB multiplies by a reference
 matrix that contains explicit zeros, so <code class="docutils literal notranslate"><span class="pre">0*NaN</span></code> marks every channel

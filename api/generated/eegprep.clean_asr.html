@@ -551,8 +551,12 @@ short for the generalized-Gaussian fit still drops high-power windows; the
 window scale is then the median and MAD of each channel’s window RMS.
 EEGLAB’s fit throws in that situation and calibrates on every sample.
 A recording that is too short for EEGLAB’s calibration-time RMS fit, which
-indexes a zero window width, is still calibrated here. A sampling rate whose
-default spectral breakpoints are not monotonic raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>.</p>
+indexes a zero window width, is still calibrated here. Fewer than two
+calibration RMS windows raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> naming the window count, the
+sample count, and the window length. EEGLAB raises an error that asks for
+different <code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code> in that case, and when the
+calibration is shorter than one window. A sampling rate whose default
+spectral breakpoints are not monotonic raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
