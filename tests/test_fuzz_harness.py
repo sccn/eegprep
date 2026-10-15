@@ -6,6 +6,7 @@ from datetime import date
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -17,6 +18,7 @@ from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from tests.fuzz.harness import (
     EEGSpec,
     FuzzCase,
+    MatlabBackend,
     Outcome,
     PythonBackend,
     SideResult,
@@ -33,8 +35,10 @@ from tests.fuzz.harness import (
     load_tolerances,
     materialize_eeg,
     nightly_seed,
+    resume_eeg_options,
     run_repro,
     run_session,
+    suspend_option_single,
     side_from_error,
     thaw_params,
     tolerance_for,
@@ -537,14 +541,50 @@ def test_one_rms_window_is_the_same_failure_as_eeglab():
     )
     assert outcome.diverged is False
     assert outcome.error_class == "both-error"
-    assert "Not enough windows possible" in outcome.detail
-    assert "Need length > 64, got 71" in outcome.detail
+    assert "Fewer than 2 calibration windows" in outcome.detail
+    assert "got 1" in outcome.detail
+    assert "71 samples" in outcome.detail
+    assert "window length 64" in outcome.detail
     assert "No enough reference data" in outcome.detail
+
+
+class _OptionsFileEngine:
+    def __init__(self, path: Path):
+        self.path = path
+
+    def eval(self, statement, nargout=0):
+        if statement in {"eeglab_options;", "clear functions"}:
+            return None
+        if statement == "char(option_file)":
+            return str(self.path)
+        if statement.startswith("pop_editoptions"):
+            self.path.write_bytes(b"% EEGLAB full options\noption_single = 0;\n")
+            return None
+        raise AssertionError(statement)
+
+
+def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
+    path = tmp_path / "eeg_options.m"
+    original = b"% local note\noption_single = 1;\n"
+    path.write_bytes(original)
+    raw = _OptionsFileEngine(path)
+    backend = MatlabBackend()
+    backend._engine = SimpleNamespace(engine=raw)
+    backend._options = suspend_option_single(raw)
+    assert path.read_bytes() != original
+    backend.close()
+    assert path.read_bytes() == original
+    backend.close()
+    assert path.read_bytes() == original
 
 
 def test_one_rms_window_message_does_not_hide_a_different_error():
     outcome = judge(
-        side_from_error(ValueError("ASR calibration failed: Not enough windows possible. Need length > 64, got 71.")),
+        side_from_error(
+            ValueError(
+                "ASR calibration failed: Fewer than 2 calibration windows: got 1 from 71 samples with window length 64."
+            )
+        ),
         side_from_error(RuntimeError("Index in position 1 is invalid.")),
         Tolerance(0.0, 1e-6),
         _ONE_WINDOW_ASR,
@@ -559,17 +599,21 @@ def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
     eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
     before = eeglab_matlab_engine.eval("option_single", nargout=1)
     print(f"option_single={before}")
-    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    snapshot = suspend_option_single(eeglab_matlab_engine)
     eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
     option_single = eeglab_matlab_engine.eval("option_single", nargout=1)
     print(f"option_single={option_single}")
     assert int(option_single) == 0
     tolerances = load_tolerances()
+    path, original = snapshot
 
     try:
         _replay_cases(engine, tolerances)
     finally:
-        eeglab_matlab_engine.eval(f"pop_editoptions('option_single', {int(before)});", nargout=0)
+        resume_eeg_options(eeglab_matlab_engine, snapshot)
+    if path is not None and original is not None:
+        print(f"eeg_options path={path} bytes={len(original)}")
+        assert path.read_bytes() == original
 
 
 def _replay_cases(engine, tolerances):
@@ -609,7 +653,10 @@ def _replay_cases(engine, tolerances):
         oracle_message = str(exc).splitlines()[0]
     print(f"clean_asr python={python_message}")
     print(f"clean_asr oracle={oracle_message}")
-    assert "Not enough windows possible" in python_message
+    assert "Fewer than 2 calibration windows" in python_message
+    assert "got 1" in python_message
+    assert "71 samples" in python_message
+    assert "window length 64" in python_message
     assert "No enough reference data" in oracle_message
 
 

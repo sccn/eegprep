@@ -32,6 +32,7 @@ from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fuzz.issues import FUNCTION_ROWS, publish_findings
 from tests.matlab_batch_engine import install
 
@@ -378,10 +379,10 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
     if message and message == oracle_message:
         return True
     # asr_calibrate.m uses one "No enough reference data" error both when the
-    # calibration is shorter than one RMS window and when that series has a
-    # single window. EEGPrep names which of those happened.
+    # calibration is shorter than one RMS window and when fewer than two
+    # windows can be formed. EEGPrep names which of those happened.
     return "No enough reference data" in oracle_message and (
-        "Not enough windows possible" in message or "Not enough calibration data" in message
+        "Fewer than 2 calibration windows" in message or "Not enough calibration data" in message
     )
 
 
@@ -431,6 +432,7 @@ class MatlabBackend:
 
     def __init__(self):
         self._engine = None
+        self._options = None
 
     def run(self, case: FuzzCase, eeg: dict) -> SideResult:
         try:
@@ -440,8 +442,15 @@ class MatlabBackend:
 
     def engine(self):
         if self._engine is None:
-            self._engine = connect_matlab()
+            self._engine, self._options = connect_matlab()
         return self._engine
+
+    def close(self):
+        if self._engine is None or self._options is None:
+            return
+        snapshot = self._options
+        self._options = None
+        resume_eeg_options(self._engine.engine, snapshot)
 
 
 class FakeOracle:
@@ -478,10 +487,26 @@ def connect_matlab():
     os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(REPO_ROOT / "src" / "eegprep" / "eeglab"))
     engine = get_eeglab()
     # eeg_checkset applies option_single on pop_loadset, before the called
-    # function runs. Leave the recording in double so average reference
-    # matches the float64 product.
-    engine.engine.eval("pop_editoptions('option_single', 0);", nargout=0)
-    return engine
+    # function runs. Leave the recording in double for the session, then
+    # MatlabBackend.close writes the original options file back.
+    return engine, suspend_option_single(engine.engine)
+
+
+def suspend_option_single(engine):
+    """Turn ``option_single`` off and return the options-file snapshot."""
+    snapshot = eeg_options_snapshot(engine)
+    try:
+        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    except Exception:
+        restore_eeg_options(*snapshot)
+        raise
+    return snapshot
+
+
+def resume_eeg_options(engine, snapshot):
+    """Write the snapshotted options file back and drop MATLAB's cached script."""
+    restore_eeg_options(*snapshot)
+    engine.eval("clear functions", nargout=0)
 
 
 def default_strategies() -> dict:

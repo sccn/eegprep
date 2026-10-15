@@ -144,9 +144,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        cleaned data when only two or three RMS windows are available.
        EEGLAB's calibration fit indexes a zero window width and errors.
    * - One ASR calibration window
-     - ``clean_asr`` raises ``ValueError`` when the calibration RMS series has
-       one window, and when the calibration is shorter than one window.
-       EEGLAB raises an error that asks for different
+     - ``clean_asr`` raises ``ValueError`` when fewer than two calibration
+       RMS windows are available, and when the calibration is shorter than
+       one window. The error names the window count, the sample count, and
+       the window length. EEGLAB raises an error that asks for different
        ``BurstCriterionRefTolerances``. Neither call returns cleaned data.
    * - ASR at a low sampling rate
      - ``clean_asr`` raises an error naming the sampling rate when the default

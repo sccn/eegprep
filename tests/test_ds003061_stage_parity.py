@@ -38,6 +38,7 @@ from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.eeg_picard import eeg_picard
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.plugins.ICLabel.pop_icflag import pop_icflag
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_reref import pop_reref
@@ -463,36 +464,14 @@ def _require_picard(engine):
         )
 
 
-def _eeg_options_snapshot(engine):
-    # eeglab_options is a script. A returned if-statement is illegal in MATLAB;
-    # the option_file variable it assigns is a valid expression on its own.
-    engine.eval("eeglab_options;", nargout=0)
-    raw = engine.eval("char(option_file)", nargout=1)
-    text = str(raw).strip()
-    if not text:
-        return None, None
-    path = Path(text).expanduser()
-    original = path.read_bytes() if path.is_file() else None
-    return path, original
-
-
-def _restore_eeg_options(path, original):
-    if path is None:
-        return
-    if original is None:
-        path.unlink(missing_ok=True)
-        return
-    path.write_bytes(original)
-
-
 @pytest.fixture
 def matlab(eeglab_matlab_engine):
-    options_path, original = _eeg_options_snapshot(eeglab_matlab_engine)
+    options_path, original = eeg_options_snapshot(eeglab_matlab_engine)
     eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
     try:
         yield MatlabWrapper(eeglab_matlab_engine)
     finally:
-        _restore_eeg_options(options_path, original)
+        restore_eeg_options(options_path, original)
         eeglab_matlab_engine.eval("clear functions", nargout=0)
         eeglab_matlab_engine.eval("clear EEG OUT args reduced reference out", nargout=0)
 

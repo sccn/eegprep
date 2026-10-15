@@ -44,9 +44,10 @@ def clean_asr(
     window scale is then the median and MAD of each channel's window RMS.
     EEGLAB's fit throws in that situation and calibrates on every sample.
     A recording that is too short for EEGLAB's calibration-time RMS fit, which
-    indexes a zero window width, is still calibrated here. A calibration RMS
-    series of one window raises ``ValueError``. EEGLAB raises an error that asks
-    for different ``BurstCriterionRefTolerances`` in that case, and when the
+    indexes a zero window width, is still calibrated here. Fewer than two
+    calibration RMS windows raises ``ValueError`` naming the window count, the
+    sample count, and the window length. EEGLAB raises an error that asks for
+    different ``BurstCriterionRefTolerances`` in that case, and when the
     calibration is shorter than one window. A sampling rate whose default
     spectral breakpoints are not monotonic raises ``ASRCalibrationError``.
 

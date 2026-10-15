@@ -53,6 +53,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         oracle = MatlabBackend()
 
+    try:
+        return _run(args, python, oracle)
+    finally:
+        close = getattr(oracle, "close", None)
+        if close is not None:
+            close()
+
+
+def _run(args, python, oracle) -> int:
     if args.command == "reproduce":
         outcome = run_repro(args.path, python_backend=python, oracle_backend=oracle)
         print(
