@@ -637,11 +637,15 @@ leave that recording unchanged.</p>
 </section>
 <section id="riemannian-asr-notes">
 <h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>
-<p>EEGPrep supports the Riemannian ASR calibration variant through
-<code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">useriemannian=&quot;calib&quot;)</span></code> and
-<code class="docutils literal notranslate"><span class="pre">clean_artifacts(EEG,</span> <span class="pre">Distance=&quot;Riemannian&quot;)</span></code>. Full Riemannian ASR
-processing is not ported, so direct full-process requests fail clearly instead
-of silently substituting MATLAB-only behavior.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">useriemannian=True)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">clean_artifacts(EEG,</span> <span class="pre">Distance=&quot;Riemannian&quot;)</span></code> run Riemannian ASR.
+Calibration takes the geometric median of block covariances and sets
+component thresholds from the nonlinear eigenspace of the mixing matrix.
+Processing uses one sample covariance per chunk. A later chunk averages that
+covariance with the previous chunk along the affine-invariant geodesic.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">useriemannian=&quot;calib&quot;)</span></code> keeps the smaller variant: a
+Riemannian covariance during calibration, then the Euclidean ASR processor.
+Passing an unknown <code class="docutils literal notranslate"><span class="pre">useriemannian</span></code> value raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
 </section>
 <section id="review-rejected-segments">
 <h2>Review Rejected Segments<a class="headerlink" href="#review-rejected-segments" title="Link to this heading">#</a></h2>

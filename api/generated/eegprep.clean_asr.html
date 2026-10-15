@@ -578,8 +578,9 @@ np.ndarray: Directly provides the calibration data (channels x samples).</p></li
 for a channel to be considered ‘bad’ during calibration data selection. Default: (-3.5, 5.5). Use ‘off’ to disable.</p></li>
 <li><p><strong>ref_wndlen</strong> (<em>Union</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em><em>, </em><a class="reference internal" href="eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Window length in seconds for calibration data selection granularity. Default: 1.0. Use ‘off’ to disable.</p></li>
 <li><p><strong>use_gpu</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a><em>, </em><a class="reference internal" href="eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Whether to try using GPU (requires compatible hardware and libraries, currently ignored). Default: False.</p></li>
-<li><p><strong>useriemannian</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference internal" href="eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Option to use a Riemannian ASR variant. Set to ‘calib’ to use a Riemannian estimate
-at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. Default: None (disabled).</p></li>
+<li><p><strong>useriemannian</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference internal" href="eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Riemannian ASR variant. <code class="docutils literal notranslate"><span class="pre">None</span></code> or <code class="docutils literal notranslate"><span class="pre">'off'</span></code> uses Euclidean ASR.
+<code class="docutils literal notranslate"><span class="pre">'calib'</span></code> uses a Riemannian covariance estimate at calibration time and the Euclidean processor.
+<code class="docutils literal notranslate"><span class="pre">True</span></code> or <code class="docutils literal notranslate"><span class="pre">'on'</span></code> runs Riemannian calibration and Riemannian processing. Default: None.</p></li>
 <li><p><strong>maxmem</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em>]</em><em>, </em><a class="reference internal" href="eegprep.ExtensionDependency.html#eegprep.ExtensionDependency.optional" title="eegprep.ExtensionDependency.optional"><em>optional</em></a>) – Maximum memory in MB (passed to asr_calibrate/process, but chunking based on it is not implemented in Python port). Default: 64.</p></li>
 </ul>
 </dd>
@@ -594,7 +595,7 @@ at calibration time. Full Riemannian ASR processing is not ported in EEGPrep. De
 <section id="raises">
 <h2>Raises<a class="headerlink" href="#raises" title="Link to this heading">#</a></h2>
 <p>ImportError : If automatic calibration data selection is needed (<cite>ref_maxbadchannels</cite> is float) but <cite>clean_windows</cite> cannot be imported.
-ValueError : If input arguments are invalid, full Riemannian ASR processing is requested, or calibration fails critically.</p>
+ValueError : If input arguments are invalid or calibration fails critically.</p>
 </section>
 </dd></dl>
 

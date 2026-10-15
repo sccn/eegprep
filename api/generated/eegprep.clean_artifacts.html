@@ -600,9 +600,9 @@ Default 0.1.</p>
 </dd>
 <dt>MaxMem<span class="classifier">int</span></dt><dd><p>Maximum memory in MB for ASR processing. Default 64.</p>
 </dd>
-<dt>Distance<span class="classifier">str</span></dt><dd><p>Distance metric for ASR calibration (‘euclidian’ or ‘riemannian’). The
-Riemannian path uses EEGPrep’s calibration-time estimate; full
-Riemannian ASR processing is not ported.</p>
+<dt>Distance<span class="classifier">str</span></dt><dd><p>ASR geometry, <code class="docutils literal notranslate"><span class="pre">'euclidian'</span></code> or <code class="docutils literal notranslate"><span class="pre">'riemannian'</span></code>. <code class="docutils literal notranslate"><span class="pre">'riemannian'</span></code> runs
+Riemannian calibration and Riemannian processing, the same choice as
+<code class="docutils literal notranslate"><span class="pre">clean_asr(...,</span> <span class="pre">useriemannian=True)</span></code>.</p>
 </dd>
 <dt>Channels<span class="classifier">sequence of str or None</span></dt><dd><p>List of channel labels to include before cleaning (pop_select). The
 returned dataset contains only these channels; channels outside this list

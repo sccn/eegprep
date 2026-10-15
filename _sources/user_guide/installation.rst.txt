@@ -72,7 +72,11 @@ To develop or build documentation from source, include the docs extra:
 Optional Dependencies
 =====================
 
-eegprep has several optional dependencies that enable additional functionality:
+eegprep has several optional dependencies that enable additional functionality.
+
+Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
+``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
+separate manifold package to install.
 
 PyTorch (for GPU acceleration)
 ------------------------------
