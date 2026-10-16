@@ -365,7 +365,14 @@ def eeg_checkset(EEG, *checks, load_data=True):
                     np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1)
                 )
                 EEG['icaact'] = EEG['icaact'].astype(np.float32)
-                EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
+                # eeg_checkset.m:1032 reshape(..., EEG.pnts, EEG.trials) drops a trailing singleton.
+                components = EEG['icaweights'].shape[0]
+                pnts = int(EEG['pnts'])
+                trials = int(EEG['trials'])
+                if trials == 1:
+                    EEG['icaact'] = EEG['icaact'].reshape(components, pnts)
+                else:
+                    EEG['icaact'] = EEG['icaact'].reshape(components, pnts, trials)
         except exception_type as e:
             logger.error("Error computing ICA activations: " + str(e))
             EEG['icaact'] = np.array([])
@@ -375,8 +382,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
         if isinstance(check, str) and check.lower() == 'eventconsistency':
             EEG = _eventconsistency(EEG)
 
-    # Build epoch structure from events (for epoched data)
-    # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
+    # Build epoch structure from events when the dataset is epoched.
     try:
         if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
             if 'epoch' not in EEG:

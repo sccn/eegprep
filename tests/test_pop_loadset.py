@@ -188,6 +188,7 @@ _MATLAB_SINGLETON_SETUP = {
         EEG.chanlocs = struct('labels', 'Cz', 'X', 1, 'Y', 2, 'Z', 3);
         EEG.event = struct('type', {'square','rt','square'}, 'latency', {1, 6, 11}, 'urevent', {1, 2, 3}, 'epoch', {1, 2, 3});
         EEG.urevent = struct('type', {'square','rt','square'}, 'latency', {1, 6, 11});
+        EEG = eeg_checkset(EEG, 'eventconsistency');
     """,
     "one_sample": """
         EEG = eeg_emptyset;
@@ -261,7 +262,18 @@ def test_matlab_pop_loadset_singleton_shapes_match_matlab(eeglab_matlab_engine, 
 
     assert loaded["data"].shape == matlab_shape
     np.testing.assert_array_equal(np.asarray(loaded["data"]), matlab_data)
-    for field in ("icaweights", "icasphere", "icawinv", "icaact"):
+    # pop_saveset.m:225-226 stores icaact=[], so both sides recompute icawinv with pinv.
+    ica_fields = (
+        ("icaweights", "icasphere", "icaact")
+        if kind == "one_component"
+        else (
+            "icaweights",
+            "icasphere",
+            "icawinv",
+            "icaact",
+        )
+    )
+    for field in ica_fields:
         _assert_ica_field(eeglab_matlab_engine, loaded, field)
     _assert_times(eeglab_matlab_engine, loaded)
     _assert_chanlocs(eeglab_matlab_engine, loaded)
@@ -405,6 +417,78 @@ def test_pop_loadset_eeg_variable_keeps_one_by_one_sphere(tmp_path):
     assert len(loaded["event"]) == 1
     assert loaded["event"][0]["type"] == "square"
     assert loaded["event"][0]["urevent"] == 0
+
+
+def test_pop_loadset_keeps_cell_struct_and_empty_shapes(tmp_path):
+    einfo = np.empty((3, 2), dtype=object)
+    for index, value in enumerate(range(6)):
+        einfo[np.unravel_index(index, (3, 2), order="F")] = np.array([[float(value)]])
+    pinfo = np.empty((2, 5), dtype=object)
+    for index, label in enumerate("abcdefghij"):
+        pinfo[np.unravel_index(index, (2, 5), order="F")] = label
+    structs = np.empty((2, 3), dtype=[("a", "f8"), ("b", "f8")])
+    structs["a"] = np.arange(6, dtype=np.float64).reshape(2, 3, order="F")
+    structs["b"] = structs["a"] + 10
+    row = np.empty((1, 3), dtype=object)
+    for index, value in enumerate((1.0, 2.0, 3.0)):
+        row[0, index] = np.array([[value]])
+    wrapped = np.empty((1, 1), dtype=object)
+    wrapped[0, 0] = np.array([[7.0]])
+    path = tmp_path / "shapes.set"
+    scipy.io.savemat(
+        path,
+        {
+            "EEG": {
+                "setname": "shapes",
+                "filename": path.name,
+                "filepath": str(tmp_path),
+                "nbchan": [[1.0]],
+                "pnts": [[4.0]],
+                "trials": [[1.0]],
+                "srate": [[128.0]],
+                "xmin": [[0.0]],
+                "xmax": [[3 / 128]],
+                "data": np.arange(4, dtype=np.float64).reshape(1, 4),
+                "chaninfo": {"nodatchans": np.zeros((0, 1))},
+                "BIDS": {"eInfo": einfo, "pInfo": pinfo},
+                "layout": structs,
+                "row": row,
+                "wrapped": wrapped,
+                "blank": np.zeros((0, 0)),
+                "selection": np.zeros((32, 0)),
+                "flag": np.array([[True, False], [False, True]]),
+            }
+        },
+        appendmat=False,
+    )
+
+    loaded = pop_loadset(path)
+
+    assert loaded["BIDS"]["eInfo"].shape == (3, 2)
+    assert [loaded["BIDS"]["eInfo"].reshape(-1, order="F")[index] for index in range(6)] == [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+    ]
+    assert loaded["BIDS"]["pInfo"].shape == (2, 5)
+    assert loaded["BIDS"]["pInfo"][0, 0] == "a"
+    assert loaded["BIDS"]["pInfo"][1, 0] == "b"
+    assert loaded["BIDS"]["pInfo"][0, 1] == "c"
+    assert loaded["layout"].shape == (2, 3)
+    assert loaded["layout"][0, 0]["a"] == 0.0
+    assert loaded["layout"][1, 0]["a"] == 1.0
+    assert loaded["layout"][0, 1]["a"] == 2.0
+    assert loaded["layout"][0, 1]["b"] == 12.0
+    assert loaded["row"] == [1.0, 2.0, 3.0]
+    assert loaded["wrapped"] == [7.0]
+    assert loaded["chaninfo"]["nodatchans"].shape == (0, 1)
+    assert loaded["blank"].shape == (0, 0)
+    assert loaded["selection"].shape == (32, 0)
+    assert loaded["flag"].dtype == np.bool_
+    assert loaded["flag"].shape == (2, 2)
 
 
 def test_pop_loadset_single_event_and_single_channel_set(tmp_path):

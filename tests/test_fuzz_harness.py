@@ -628,11 +628,10 @@ _ASR_SHAPE_20261016 = _nightly_case(
 _SHAPE_INPUT_SHA256 = "c91ef4bd21a589939fe3a8ddf16c39dda3d20e3fa1d63350302abbcc74e20f57"
 
 
-def _isolate_eeg_options(engine, directory: Path) -> tuple[str, str]:
-    """Point EEGLAB's option file at ``directory`` and return ``(path, home)``."""
+def _isolate_eeg_options(engine, directory: Path) -> str:
+    """Point EEGLAB's option file at ``directory`` via ``EEGOPTION_PATH``."""
     directory.mkdir()
     original_path = engine.path()
-    original_home = str(engine.eval("getenv('HOME')", nargout=1)).strip()
     original_icadefs = str(engine.which("icadefs")).replace("'", "''")
     options_path = str(directory).replace("'", "''")
     (directory / "icadefs.m").write_text(
@@ -640,8 +639,8 @@ def _isolate_eeg_options(engine, directory: Path) -> tuple[str, str]:
         encoding="utf-8",
     )
     engine.addpath(str(directory), "-begin", nargout=0)
-    engine.eval(f"setenv('HOME', '{options_path}'); clear icadefs eeg_options; icadefs;", nargout=0)
-    return original_path, original_home
+    engine.eval("clear icadefs eeg_options; icadefs;", nargout=0)
+    return original_path
 
 
 def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine, tmp_path):
@@ -653,7 +652,7 @@ def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine, tmp_path):
     home = Path.home() / "eeg_options.m"
     home_bytes = home.read_bytes() if home.is_file() else None
     options_dir = tmp_path / "eeg_options"
-    original_path, original_home = _isolate_eeg_options(eeglab_matlab_engine, options_dir)
+    original_path = _isolate_eeg_options(eeglab_matlab_engine, options_dir)
     engine = MatlabWrapper(eeglab_matlab_engine)
     try:
         eeglab_matlab_engine.eval("clear functions; eeglab_options;", nargout=0)
@@ -697,11 +696,7 @@ def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine, tmp_path):
             resume_eeg_options(eeglab_matlab_engine, snapshot)
     finally:
         eeglab_matlab_engine.path(original_path, nargout=0)
-        home_literal = original_home.replace("'", "''")
-        eeglab_matlab_engine.eval(
-            f"setenv('HOME', '{home_literal}'); clear icadefs eeg_options; eeglab_options;",
-            nargout=0,
-        )
+        eeglab_matlab_engine.eval("clear icadefs eeg_options; eeglab_options;", nargout=0)
         assert (home.read_bytes() if home.is_file() else None) == home_bytes
 
 
