@@ -361,9 +361,10 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 )
                 EEG['icaact'] = np.array([])
             else:
-                EEG['icaact'] = np.dot(
-                    np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1)
-                )
+                flat = np.asarray(ica_data).reshape(ica_data.shape[0], -1)
+                unmixing = np.dot(np.asarray(EEG['icaweights']), np.asarray(EEG['icasphere']))
+                # eeg_checkset.m:1030 multiplies (icaweights*icasphere)*data in the class of data.
+                EEG['icaact'] = np.dot(unmixing.astype(flat.dtype, copy=False), flat)
                 EEG['icaact'] = EEG['icaact'].astype(np.float32)
                 # eeg_checkset.m:1032 reshape(..., EEG.pnts, EEG.trials) drops a trailing singleton.
                 components = EEG['icaweights'].shape[0]
