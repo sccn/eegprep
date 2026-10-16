@@ -132,7 +132,8 @@ Clustering
 ==========
 
 ``kmeans_st`` and ``kmeanscluster`` operate on observations in rows and return
-zero-based labels. Supply ``random_state`` for reproducible random starts.
+zero-based labels aligned with the centroid rows of the selected start. Supply
+``random_state`` for reproducible random starts.
 
 .. autosummary::
    :toctree: generated/

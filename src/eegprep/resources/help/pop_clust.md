@@ -3,6 +3,10 @@
 `pop_clust` clusters the rows in `STUDY["etc"]["preclust"]["preclustdata"]`
 and writes EEGLAB-style child entries into `STUDY["cluster"]`.
 
+`Cls 1` contains the components assigned to the first centroid of the winning
+start. Later cluster numbers keep that centroid order. The same `random_state`
+reproduces the numbering.
+
 ```python
 STUDY, com = pop_clust(
     STUDY,

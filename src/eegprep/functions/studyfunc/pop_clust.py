@@ -31,7 +31,11 @@ def pop_clust(
     return_com: bool = False,
     **kwargs: Any,
 ) -> Any:
-    """Run deterministic k-means clustering on ``STUDY.etc.preclust``."""
+    """Run deterministic k-means clustering on ``STUDY.etc.preclust``.
+
+    ``Cls k`` contains the components assigned to centroid ``k`` of the winning
+    start. The same ``random_state`` reproduces that numbering.
+    """
     study, datasets = checked_study_and_datasets(STUDY, ALLEEG)
     if args:
         if len(args) % 2:

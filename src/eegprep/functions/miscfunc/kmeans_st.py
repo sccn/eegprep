@@ -21,9 +21,10 @@ def kmeans_st(
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """Partition observations into clusters with minimum within-cluster SSE.
 
-    Observations are rows and features are columns. Cluster labels are zero-based,
-    following Python indexing. The first solution and every requested restart use
-    independent deterministic initial centers derived from ``random_state``.
+    Observations are rows and features are columns. Cluster labels are zero-based
+    and stay aligned with the centroid rows of the winning start. The first
+    solution and every requested restart draw independent initial centers from
+    ``random_state``. A label is that start's centroid index.
 
     Args:
         data: Two-dimensional observation matrix.
@@ -98,7 +99,7 @@ def _kmeans_labels(
 
     if best_labels is None or best_centers is None:
         raise ValueError("k-means failed to initialize clusters")
-    return _canonicalize_clusters(best_labels, best_centers)
+    return best_labels, best_centers
 
 
 def _validated_observations(data: Any, clusters: int) -> np.ndarray:
@@ -130,13 +131,6 @@ def _recompute_centers(
         available.remove(fallback)
         new_centers[cluster] = data[fallback]
     return new_centers
-
-
-def _canonicalize_clusters(labels: np.ndarray, centers: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    order = np.lexsort(tuple(centers[:, column] for column in reversed(range(centers.shape[1]))))
-    inverse = np.empty_like(order)
-    inverse[order] = np.arange(order.size)
-    return inverse[labels], centers[order]
 
 
 __all__ = ["kmeans_st"]
