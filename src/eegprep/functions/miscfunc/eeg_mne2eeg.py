@@ -4,13 +4,28 @@ from pathlib import Path
 import tempfile
 
 import mne
-from mne.export import export_raw, export_epochs
+import numpy as np
+from mne.export import export_epochs, export_raw
 
 from ..popfunc.pop_loadset import pop_loadset
+from ._eeg_mne import (
+    _consistent_durations,
+    _duration_samples,
+    _mne_epochs_to_eeg_events,
+    _mne_subject,
+    _rebuild_epoch_structure,
+    _restore_numeric_event_types,
+)
 
 
 def _mne_events_to_eeglab_events(raw_or_epochs):
-    """Convert MNE Annotations or events to EEGLAB event structure (list of dicts)."""
+    """Convert MNE annotations or events to EEGLAB event records.
+
+    Durations are stored in samples. When any duration is nonzero, every event
+    has ``duration``, with 0 for a zero duration. An integer event type is
+    restored only when ``str(int(text))`` reproduces the text, and a float
+    only when ``str(float(text))`` does.
+    """
     events = []
     sfreq = raw_or_epochs.info['sfreq']
     if (
@@ -20,34 +35,53 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
     ):
         for ann in raw_or_epochs.annotations:
             latency = int(ann['onset'] * sfreq) + 1  # EEGLAB is 1-based
-            events.append({'latency': latency, 'type': ann['description']})
+            event = {'latency': latency, 'type': ann['description']}
+            if ann['duration']:
+                event['duration'] = _duration_samples(ann['duration'], sfreq)
+            events.append(event)
     elif hasattr(raw_or_epochs, 'events') and raw_or_epochs.events is not None:
         for ev in raw_or_epochs.events:
             latency = int(ev[0]) + 1  # sample index, 1-based
             event_type = None
             if hasattr(raw_or_epochs, 'event_id'):
-                for k, v in raw_or_epochs.event_id.items():
-                    if v == ev[2]:
-                        event_type = k
+                for name, code in raw_or_epochs.event_id.items():
+                    if code == ev[2]:
+                        event_type = str(name)
                         break
             if event_type is None:
                 event_type = str(ev[2])
             events.append({'latency': latency, 'type': event_type})
-    return events
+    return _consistent_durations(_restore_numeric_event_types(events))
 
 
 def eeg_mne2eeg(raw):
-    """Convert MNE Raw object to EEG data structure.
+    """Convert an MNE Raw or Epochs object to an EEG dataset.
+
+    ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``. For
+    epochs, the time-locking event is placed at time 0 and other events whose
+    onset falls in ``[xmin, xmax + 1/srate)`` are kept. ``eeg_checkset`` builds
+    ``EEG['epoch']``. Annotation durations are stored on ``event['duration']``
+    in samples (seconds times ``srate``). When any duration is nonzero, every
+    event has that field, and a zero duration is 0. Recordings with no
+    durations omit the field. An integer type is restored only when
+    ``str(int(text))`` reproduces the text, so ``'001'`` stays ``'001'``. A
+    float type is restored only when ``str(float(text))`` reproduces the text,
+    so ``'2.50'`` stays ``'2.50'``. A non-numeric type keeps every type as text.
+
+    The urevent table and ``event['urevent']`` do not survive. Boolean,
+    non-finite, and non-scalar event fields do not survive. Annotation fields
+    ``onset``, ``description``, ``ch_names``, and ``hed_string`` cannot be
+    stored as extra event fields.
 
     Parameters
     ----------
-    raw : mne.io.Raw | mne.BaseEpochs
+    raw : mne.io.BaseRaw | mne.BaseEpochs
         MNE Raw or Epochs object.
 
     Returns
     -------
-    EEG : dict
-        EEG data structure
+    dict
+        EEG data structure.
     """
     raw_or_epochs = raw
 
@@ -59,8 +93,14 @@ def eeg_mne2eeg(raw):
             export_raw(str(set_path), raw_or_epochs, fmt='eeglab')
         EEG = pop_loadset(str(set_path))
 
-    # Inject events/annotations from MNE object into EEGLAB structure
+    EEG['subject'] = _mne_subject(raw_or_epochs)
+    if isinstance(raw_or_epochs, mne.BaseEpochs):
+        EEG['event'] = _mne_epochs_to_eeg_events(raw_or_epochs)
+        EEG['urevent'] = np.array([])
+        return _rebuild_epoch_structure(EEG)
+
     eeglab_events = _mne_events_to_eeglab_events(raw_or_epochs)
     if eeglab_events:
         EEG['event'] = eeglab_events
+        EEG['urevent'] = np.array([])
     return EEG
