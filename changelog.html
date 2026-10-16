@@ -476,6 +476,13 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>, <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code>, and <code class="docutils literal notranslate"><span class="pre">asr_calibrate_r</span></code> place RMS
+windows with MATLAB’s colon operator. A fractional overlap such as 0.66 no
+longer adds one extra window at the end of some recordings.
+<code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> keeps <code class="docutils literal notranslate"><span class="pre">window_len</span> <span class="pre">*</span> <span class="pre">srate</span></code> unrounded, as
+<code class="docutils literal notranslate"><span class="pre">clean_windows.m</span></code> does: <code class="docutils literal notranslate"><span class="pre">0:N-1</span></code> indexes <code class="docutils literal notranslate"><span class="pre">floor(N)</span></code> samples and the
+RMS divisor is that unrounded product. <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> still rounds the
+window length, as <code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> does.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_clust</span></code>, <code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code>, and <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> no longer sort clusters
 by coordinates, and <code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code> now follows EEGLAB’s UPGMA Hartigan-Wong
 algorithm. <code class="docutils literal notranslate"><span class="pre">Cls</span></code> numbers and memberships can change on existing studies
