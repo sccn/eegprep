@@ -1,13 +1,21 @@
 # test_pop_select.py
 import os
 import unittest
+import math
+from pathlib import Path
 import numpy as np
 import copy
+import pytest
+import scipy.io
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 # where the test resources
@@ -271,6 +279,462 @@ class TestPopSelectEdgeCases(unittest.TestCase):
             self.assertNotIn('epoch', event)
         # epoch list should be empty
         self.assertEqual(np.asarray(EEG_out['epoch']).size, 0)
+
+
+def _dataset(events, *, trials=1, pnts=100):
+    data = np.arange(2 * pnts * trials, dtype=np.float64).reshape(2, pnts, trials)
+    if trials == 1:
+        data = data[:, :, 0]
+    srate = 100.0
+    xmin = 0.0 if trials == 1 else -0.1
+    xmax = xmin + (pnts - 1) / srate
+    return {
+        'setname': 'eventconsistency',
+        'data': data,
+        'nbchan': 2,
+        'pnts': pnts,
+        'trials': trials,
+        'srate': srate,
+        'xmin': xmin,
+        'xmax': xmax,
+        'times': np.linspace(xmin * 1000, xmax * 1000, pnts),
+        'chanlocs': [
+            {'labels': 'Fz', 'type': 'EEG'},
+            {'labels': 'Cz', 'type': 'EOG'},
+        ],
+        'event': events,
+        'epoch': [],
+        'chaninfo': {},
+        'reject': {},
+        'stats': {},
+    }
+
+
+def _event_rows(eeg):
+    events = eeg.get('event')
+    if events is None:
+        return []
+    if isinstance(events, np.ndarray):
+        events = [] if events.size == 0 else list(events)
+    rows = []
+    for event in events:
+        event_type = event.get('type', '')
+        if isinstance(event_type, bytes):
+            event_type = event_type.decode()
+        duration = event.get('duration', 0)
+        rows.append((str(event_type), float(event['latency']), float(0 if duration is None else duration)))
+    return rows
+
+
+class TestPopSelectEventConsistency(unittest.TestCase):
+    def test_leading_boundary_with_duration_zero_is_removed(self):
+        eeg = _dataset(
+            [
+                {'type': 'Boundary', 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 10, 'duration': 1},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('stim', 10.0, 1.0)])
+        np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
+
+    def test_leading_boundary_latency_in_open_unit_interval_is_clamped(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 0.25, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('boundary', 0.5, 2.0), ('stim', 10.0, 0.0)])
+
+    def test_duplicate_boundaries_merge_every_duration_and_sort(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 40, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(
+            _event_rows(out),
+            [('stim', 10.0, 0.0), ('boundary', 20.0, 7.0), ('stim', 40.0, 0.0)],
+        )
+
+    def test_out_of_range_epoch_numbers_are_removed(self):
+        eeg = _dataset(
+            [
+                {'type': 'late', 'latency': 30, 'epoch': 4, 'duration': 0},
+                {'type': 'second', 'latency': 5, 'epoch': np.int64(2), 'duration': 0},
+                {'type': 'bad', 'latency': 12, 'epoch': 0, 'duration': 0},
+                {'type': 'first', 'latency': 30, 'epoch': 1, 'duration': 0},
+            ],
+            trials=3,
+            pnts=20,
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('first', 30.0, 0.0), ('second', 5.0, 0.0)])
+        np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
+
+    def test_numeric_boundary_type_follows_option_boundary99(self):
+        eeg = _dataset(
+            [
+                {'type': -99, 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 8, 'duration': 0},
+            ],
+            pnts=20,
+        )
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 1
+        try:
+            out = pop_select(eeg, channel=['Fz'])
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
+        self.assertEqual(_event_rows(out), [('stim', 8.0, 0.0)])
+
+    def test_numeric_boundary_duplicates_are_merged(self):
+        eeg = _dataset(
+            [
+                {'type': -99, 'latency': 20, 'duration': 1},
+                {'type': -99, 'latency': 20, 'duration': 2},
+            ]
+        )
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 1
+        try:
+            out = pop_select(eeg, channel=['Fz'])
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
+        self.assertEqual(_event_rows(out), [('-99', 20.0, 3.0)])
+
+    def test_boundary_runs_chain_only_consecutive_equal_latencies(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 30, 'duration': 8},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(
+            _event_rows(out),
+            [
+                ('stim', 10.0, 0.0),
+                ('boundary', 20.0, 5.0),
+                ('boundary', 20.0, 2.0),
+                ('boundary', 30.0, 8.0),
+            ],
+        )
+
+    def test_epoched_events_sort_by_epoch_then_latency(self):
+        crossed = _dataset(
+            [
+                {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
+                {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
+                {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
+                {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
+            ],
+            trials=3,
+            pnts=50,
+        )
+        same_epoch = _dataset(
+            [
+                {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+                {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
+                {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
+            ],
+            trials=3,
+            pnts=50,
+        )
+        self.assertEqual(
+            _epoch_rows(pop_select(crossed, channel=['Fz'])),
+            [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
+        )
+        self.assertEqual(
+            _epoch_rows(pop_select(same_epoch, channel=['Fz'])),
+            [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
+        )
+
+
+def _epoch_rows(eeg):
+    events = eeg.get('event')
+    if isinstance(events, np.ndarray):
+        events = [] if events.size == 0 else list(events)
+    return [(str(event['type']), float(event['latency']), float(event['epoch'])) for event in events or []]
+
+
+def _eeg_channel_labels(eeg):
+    locations = eeg.get('chanlocs')
+    if isinstance(locations, np.ndarray):
+        locations = [] if locations.size == 0 else list(locations)
+    labels = []
+    for location in locations or []:
+        channel_type = location.get('type')
+        if isinstance(channel_type, bytes):
+            channel_type = channel_type.decode()
+        if str(channel_type) == 'EEG':
+            labels.append(str(location.get('labels', '')))
+    return labels
+
+
+def _exact_number(left, right):
+    left = float(left)
+    right = float(right)
+    if math.isnan(left) or math.isnan(right):
+        return math.isnan(left) and math.isnan(right)
+    return left == right
+
+
+def _matlab_strings(value):
+    strings = []
+    for item in np.asarray(value, dtype=object).ravel():
+        if isinstance(item, np.ndarray):
+            if item.dtype.kind in 'SU':
+                strings.append(''.join(item.astype(str).ravel()))
+            elif item.size == 0:
+                strings.append('')
+            else:
+                strings.append(str(item.reshape(-1)[0]))
+        elif isinstance(item, bytes):
+            strings.append(item.decode())
+        else:
+            strings.append(str(item))
+    return strings
+
+
+def _matlab_literal(path):
+    return str(path).replace('\\', '/').replace("'", "''")
+
+
+def _matlab_pop_select(engine, set_path, labels, mat_path):
+    channel = ', '.join("'" + label.replace("'", "''") + "'" for label in labels)
+    engine.eval(
+        "EEG = pop_loadset('filename', '" + _matlab_literal(set_path) + "'); "
+        "EEG = pop_select(EEG, 'channel', {" + channel + "}); "
+        "n = numel(EEG.event); "
+        "event_type = cell(1, n); "
+        "event_latency = nan(1, n); "
+        "event_duration = nan(1, n); "
+        "event_epoch = nan(1, n); "
+        "has_epoch = isfield(EEG.event, 'epoch'); "
+        "for iEvent = 1:n, "
+        "event_type{iEvent} = char(string(EEG.event(iEvent).type)); "
+        "event_latency(iEvent) = double(EEG.event(iEvent).latency); "
+        "if isfield(EEG.event, 'duration') && ~isempty(EEG.event(iEvent).duration), "
+        "event_duration(iEvent) = double(EEG.event(iEvent).duration); "
+        "end; "
+        "if has_epoch && ~isempty(EEG.event(iEvent).epoch), "
+        "event_epoch(iEvent) = double(EEG.event(iEvent).epoch); "
+        "end; "
+        "end; "
+        "data = double(EEG.data); "
+        "save('"
+        + _matlab_literal(mat_path)
+        + "', 'event_type', 'event_latency', 'event_duration', 'event_epoch', 'data', '-v7'); "
+        "clear EEG data event_type event_latency event_duration event_epoch;",
+        nargout=0,
+    )
+    return scipy.io.loadmat(mat_path, squeeze_me=False)
+
+
+def _assert_matlab_match(python_eeg, saved):
+    python_rows = _event_rows(python_eeg)
+    matlab_types = _matlab_strings(saved['event_type'])
+    matlab_latency = np.asarray(saved['event_latency'], dtype=float).ravel()
+    matlab_duration = np.asarray(saved['event_duration'], dtype=float).ravel()
+    assert len(python_rows) == len(matlab_types) == matlab_latency.size == matlab_duration.size, (
+        f'{len(python_rows)} Python events vs {len(matlab_types)} MATLAB events'
+    )
+    for index, (event_type, latency, duration) in enumerate(python_rows):
+        assert event_type == matlab_types[index], f'event {index} type {event_type} vs {matlab_types[index]}'
+        assert _exact_number(latency, matlab_latency[index]), (
+            f'event {index} latency {latency} vs {matlab_latency[index]}'
+        )
+        assert _exact_number(duration, matlab_duration[index]), (
+            f'event {index} duration {duration} vs {matlab_duration[index]}'
+        )
+    python_data = np.asarray(python_eeg['data'], dtype=np.float64)
+    matlab_data = np.asarray(saved['data'], dtype=np.float64)
+    np.testing.assert_allclose(python_data, matlab_data, rtol=0, atol=1e-7, equal_nan=True)
+
+
+@pytest.fixture
+def eventconsistency_matlab(eeglab_matlab_engine):
+    options_path, original = eeg_options_snapshot(eeglab_matlab_engine)
+    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    try:
+        yield eeglab_matlab_engine
+    finally:
+        restore_eeg_options(options_path, original)
+        eeglab_matlab_engine.eval('clear functions', nargout=0)
+
+
+def _matlab_event_rows(saved, *, with_epoch=False):
+    event_types = _matlab_strings(saved['event_type'])
+    latency = np.asarray(saved['event_latency'], dtype=float).ravel()
+    duration = np.asarray(saved['event_duration'], dtype=float).ravel()
+    if not with_epoch:
+        return [
+            (event_types[index], float(latency[index]), float(duration[index])) for index in range(len(event_types))
+        ]
+    epoch = np.asarray(saved['event_epoch'], dtype=float).ravel()
+    return [(event_types[index], float(latency[index]), float(epoch[index])) for index in range(len(event_types))]
+
+
+def _require_empty_saved_epoch(eeg, name):
+    if np.size(eeg.get('epoch')) != 0:
+        raise AssertionError(
+            f'{name} must save an empty epoch array; a cell of empty structs makes EEGLAB open errordlg2'
+        )
+
+
+def _save_and_compare(engine, eeg, tmp_path, name):
+    set_path = tmp_path / f'{name}.set'
+    _require_empty_saved_epoch(eeg, name)
+    pop_saveset(eeg, str(set_path))
+    labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+    if not labels:
+        raise AssertionError(f'{name} has no EEG-type channels')
+    python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+    saved = _matlab_pop_select(engine, set_path, labels, tmp_path / f'{name}.mat')
+    _assert_matlab_match(python_eeg, saved)
+
+
+SYNTHETIC_CASES = {
+    'leading_boundary': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 0.5, 'duration': 0},
+            {'type': 'stim', 'latency': 10, 'duration': 1},
+        ]
+    ),
+    'duplicate_boundaries': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 20, 'duration': 4},
+            {'type': 'stim', 'latency': 40, 'duration': 0},
+            {'type': 'boundary', 'latency': 20, 'duration': 1},
+            {'type': 'boundary', 'latency': 20, 'duration': 2},
+            {'type': 'stim', 'latency': 10, 'duration': 0},
+        ]
+    ),
+    'invalid_epochs': lambda: _dataset(
+        [
+            {'type': 'late', 'latency': 30, 'epoch': 4, 'duration': 0},
+            {'type': 'second', 'latency': 5, 'epoch': np.int64(2), 'duration': 0},
+            {'type': 'bad', 'latency': 12, 'epoch': 0, 'duration': 0},
+            {'type': 'first', 'latency': 30, 'epoch': 1, 'duration': 0},
+        ],
+        trials=3,
+        pnts=20,
+    ),
+    'split_boundary_run': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 20, 'duration': 4},
+            {'type': 'stim', 'latency': 10, 'duration': 0},
+            {'type': 'boundary', 'latency': 20, 'duration': 1},
+            {'type': 'boundary', 'latency': 30, 'duration': 8},
+            {'type': 'boundary', 'latency': 20, 'duration': 2},
+        ]
+    ),
+}
+
+
+_EPOCH_SORT_CASES = {
+    'crossed_epochs': (
+        [
+            {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
+            {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
+            {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
+            {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
+        ],
+        [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
+        [('B', 15.0, 1.0), ('A', 75.0, 2.0), ('C', 5.0, 1.0), ('D', 145.0, 3.0)],
+    ),
+    'same_epoch_pair': (
+        [
+            {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+            {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
+            {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
+        ],
+        [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
+        [('X', 85.0, 2.0), ('Z', 8.0, 1.0), ('Y', 72.0, 2.0)],
+    ),
+}
+
+
+@pytest.mark.parametrize('case_name', list(SYNTHETIC_CASES))
+def test_pop_select_synthetic_events_match_matlab(case_name, eventconsistency_matlab, tmp_path):
+    _save_and_compare(eventconsistency_matlab, SYNTHETIC_CASES[case_name](), tmp_path, case_name)
+
+
+@pytest.mark.parametrize('case_name', list(_EPOCH_SORT_CASES))
+def test_epoched_sort_differs_from_eeglab(case_name, eventconsistency_matlab, tmp_path):
+    events, python_order, matlab_order = _EPOCH_SORT_CASES[case_name]
+    eeg = _dataset(events, trials=3, pnts=50)
+    _require_empty_saved_epoch(eeg, case_name)
+    set_path = tmp_path / f'{case_name}.set'
+    pop_saveset(eeg, str(set_path))
+    labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+    python_rows = _epoch_rows(pop_select(pop_loadset(str(set_path)), channel=labels))
+    saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'{case_name}.mat')
+    assert python_rows == python_order
+    assert _matlab_event_rows(saved, with_epoch=True) == matlab_order
+
+
+def test_numeric_boundary_merge_differs_from_eeglab(eventconsistency_matlab, tmp_path):
+    eeg = _dataset(
+        [
+            {'type': -99, 'latency': 20, 'duration': 1},
+            {'type': -99, 'latency': 20, 'duration': 2},
+        ]
+    )
+    previous = EEG_OPTIONS['option_boundary99']
+    EEG_OPTIONS['option_boundary99'] = 1
+    try:
+        eventconsistency_matlab.eval("pop_editoptions('option_boundary99', 1);", nargout=0)
+        _require_empty_saved_epoch(eeg, 'numeric_boundary')
+        set_path = tmp_path / 'numeric_boundary.set'
+        pop_saveset(eeg, str(set_path))
+        labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+        python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+        saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / 'numeric_boundary.mat')
+    finally:
+        EEG_OPTIONS['option_boundary99'] = previous
+        eventconsistency_matlab.eval(f"pop_editoptions('option_boundary99', {int(previous)});", nargout=0)
+
+    def _numeric_rows(rows):
+        return [(float(event_type), latency, duration) for event_type, latency, duration in rows]
+
+    assert _numeric_rows(_event_rows(python_eeg)) == [(-99.0, 20.0, 3.0)]
+    assert _numeric_rows(_matlab_event_rows(saved)) == [(-99.0, 20.0, 1.0), (-99.0, 20.0, 2.0)]
+
+
+@pytest.mark.parametrize('run', [1, 2])
+def test_ds003061_sub001_pop_select_matches_matlab(run, eventconsistency_matlab, eeglab_suite_root, tmp_path):
+    directory = Path(eeglab_suite_root) / 'ds003061' / 'sub-001' / 'eeg'
+    matches = sorted(directory.glob(f'*_run-{run}_eeg.set'))
+    if len(matches) != 1:
+        pytest.fail(f'expected one sub-001 run-{run} .set under {directory}, found {[str(path) for path in matches]}')
+    imported = pop_load_frombids(
+        str(matches[0]),
+        bidsmetadata=True,
+        bidschanloc=True,
+        bidsevent=True,
+        eventtype='value',
+        verbose=False,
+    )
+    labels = _eeg_channel_labels(imported)
+    if not labels:
+        pytest.fail(f'run-{run} import has no EEG-type channels')
+    set_path = tmp_path / matches[0].name
+    pop_saveset(imported, str(set_path))
+    python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+    saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'run-{run}.mat')
+    _assert_matlab_match(python_eeg, saved)
 
 
 if __name__ == '__main__':

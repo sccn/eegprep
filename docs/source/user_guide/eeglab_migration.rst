@@ -219,6 +219,20 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        back to 1, so the samples stay continuous and only the first event
        is removed. When the length does not divide evenly, EEGLAB leaves
        the events in place.
+   * - Epoched event sort
+     - ``eeg_checkset(..., 'eventconsistency')`` sorts by epoch, then by
+       latency. EEGLAB asks ``pop_editeventvals`` to sort on epoch and then
+       latency, but that function takes the epoch order from the unsorted
+       events and applies it to the latency-sorted list. Events A (epoch 2,
+       latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
+       and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
+       out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - Numeric boundary types
+     - Consecutive equal-latency boundaries are merged whether ``type`` is
+       the string ``boundary`` or the number ``-99`` with
+       ``option_boundary99`` on. EEGLAB skips that merge when the first
+       event type is numeric, so two ``-99`` boundaries with durations 1
+       and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
 
 Plugin Migration
 ================
