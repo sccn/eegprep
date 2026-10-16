@@ -27,7 +27,9 @@ Two-File ``.set`` / ``.fdt`` Datasets
 
 The ``.fdt`` sidecar uses EEGLAB's channel-fast float32 layout. Continuous data
 round-trips as ``(nbchan, pnts)`` and epoched data round-trips as
-``(nbchan, pnts, trials)``.
+``(nbchan, pnts, trials)``. Length-1 channel, sample, and trial axes are kept
+when the array is stored inside the ``.set`` file as well. ICA weight, sphere,
+and inverse matrices keep a length-1 component or channel axis.
 
 When an existing two-file dataset is saved with ``savemode="resave"``,
 EEGPrep keeps writing the same ``.fdt`` sidecar. A plain save without

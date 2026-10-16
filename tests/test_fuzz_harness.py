@@ -593,6 +593,96 @@ def test_one_rms_window_message_does_not_hide_a_different_error():
     assert outcome.diverged is True
 
 
+_ONE_CHANNEL_256 = {
+    "channels": [0],
+    "start": 0,
+    "length": 256,
+    "decimate": 1,
+    "nan_channel": -1,
+    "nan_start": 0,
+    "nan_length": 0,
+}
+_FILT_SHAPE_20261016 = _nightly_case(
+    "pop_eegfiltnew",
+    _ONE_CHANNEL_256,
+    {
+        "filtorder": 40,
+        "hicutoff": 5,
+        "locutoff": None,
+        "minphase": False,
+        "revfilt": False,
+        "usefftfilt": False,
+    },
+)
+_REREF_SHAPE_20261016 = _nightly_case(
+    "pop_reref",
+    _ONE_CHANNEL_256,
+    {"exclude": [], "keepref": "off", "ref": []},
+)
+_RESAMPLE_SHAPE_20261016 = _nightly_case("pop_resample", _ONE_CHANNEL_256, {"freq": 64})
+_ASR_SHAPE_20261016 = _nightly_case(
+    "clean_asr",
+    _ONE_CHANNEL_256,
+    {"cutoff": 5.0, "entry": "clean_asr", "ref_maxbadchannels": "off", "window_len": None},
+)
+_SHAPE_INPUT_SHA256 = "c91ef4bd21a589939fe3a8ddf16c39dda3d20e3fa1d63350302abbcc74e20f57"
+
+
+def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine):
+    """Replay the 20261016 shape signatures with no home eeg_options.m, as CI does.
+
+    Run with --eeglab-backend=matlab. pop_editoptions then writes a fresh options
+    file from eeg_optionsbackup.m, which saves data inside the .set.
+    """
+    home = Path.home() / "eeg_options.m"
+    original = home.read_bytes() if home.is_file() else None
+    home.unlink(missing_ok=True)
+    engine = MatlabWrapper(eeglab_matlab_engine)
+    try:
+        eeglab_matlab_engine.eval("clear functions", nargout=0)
+        snapshot = suspend_option_single(eeglab_matlab_engine)
+        try:
+            eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
+            option_file = str(eeglab_matlab_engine.eval("char(option_file)", nargout=1)).strip()
+            savetwo = int(eeglab_matlab_engine.eval("option_savetwofiles", nargout=1))
+            print(f"option_file={option_file} option_savetwofiles={savetwo}")
+            assert savetwo == 0
+            tolerances = load_tolerances()
+            for name, case in (
+                ("pop_eegfiltnew", _FILT_SHAPE_20261016),
+                ("pop_reref", _REREF_SHAPE_20261016),
+                ("pop_resample", _RESAMPLE_SHAPE_20261016),
+                ("clean_asr", _ASR_SHAPE_20261016),
+            ):
+                eeg = materialize_eeg(case)
+                digest = data_sha256(np.asarray(eeg["data"]))
+                assert digest == _SHAPE_INPUT_SHA256
+                python_eeg = dispatch_python(case, copy.deepcopy(eeg))
+                oracle_eeg = dispatch_matlab(engine, case, copy.deepcopy(eeg))
+                python = np.asarray(python_eeg["data"], dtype=np.float64)
+                oracle = np.asarray(oracle_eeg["data"], dtype=np.float64)
+                diverged, error_class, max_abs, max_rel, detail = compare_data(
+                    python,
+                    oracle,
+                    float(python_eeg["srate"]),
+                    float(oracle_eeg["srate"]),
+                    tolerance_for(case.function, tolerances),
+                )
+                print(
+                    f"{name} diverged={diverged} class={error_class} abs={max_abs} rel={max_rel} "
+                    f"python_shape={python.shape} oracle_shape={oracle.shape} {detail}"
+                )
+                assert diverged is False, detail
+        finally:
+            resume_eeg_options(eeglab_matlab_engine, snapshot)
+    finally:
+        if original is None:
+            home.unlink(missing_ok=True)
+        else:
+            home.write_bytes(original)
+        eeglab_matlab_engine.eval("clear functions", nargout=0)
+
+
 def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
     """Replay the 20261015 filings against EEGLAB. Run with --eeglab-backend=matlab -s."""
     engine = MatlabWrapper(eeglab_matlab_engine)

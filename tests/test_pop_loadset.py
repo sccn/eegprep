@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
@@ -66,6 +67,158 @@ def test_pop_loadset_epoch_eventurevent_is_zero_based_like_event_urevent(path):
     assert list(eeg["epoch"][0]["eventurevent"]) == [0, 1, 2]
     for ep in eeg["epoch"]:
         assert list(ep["eventurevent"]) == [eeg["event"][i]["urevent"] for i in ep["event"]]
+
+
+def _singleton_eeg(data: np.ndarray) -> dict:
+    eeg = eeg_emptyset()
+    trials = int(data.shape[2]) if data.ndim == 3 else 1
+    pnts = int(data.shape[1])
+    eeg.update(
+        {
+            "setname": "singleton",
+            "data": np.array(data, dtype=np.float64, copy=True),
+            "nbchan": int(data.shape[0]),
+            "pnts": pnts,
+            "trials": trials,
+            "srate": 100.0,
+            "xmin": 0.0,
+            "xmax": (pnts - 1) / 100.0,
+            "times": np.arange(pnts, dtype=float),
+            "chanlocs": [{"labels": f"Ch{index}"} for index in range(1, int(data.shape[0]) + 1)],
+            "event": [],
+            "saved": "no",
+        }
+    )
+    return eeg
+
+
+def _singleton_case(kind: str) -> tuple[dict, dict[str, tuple[int, ...]]]:
+    if kind == "one_channel":
+        data = np.arange(16, dtype=np.float64).reshape(1, 16)
+        return _singleton_eeg(data), {}
+    if kind == "one_channel_epochs":
+        data = np.arange(5 * 3, dtype=np.float64).reshape(1, 5, 3)
+        return _singleton_eeg(data), {}
+    if kind == "one_sample":
+        data = np.arange(6, dtype=np.float64).reshape(6, 1)
+        return _singleton_eeg(data), {}
+    if kind == "one_component":
+        nchan = 4
+        data = np.arange(nchan * 8, dtype=np.float64).reshape(nchan, 8)
+        weights = np.array([[0.25, -0.5, 0.125, 0.125]], dtype=np.float64)
+        sphere = np.eye(nchan, dtype=np.float64)
+        eeg = _singleton_eeg(data)
+        eeg["icaweights"] = weights
+        eeg["icasphere"] = sphere
+        eeg["icawinv"] = np.linalg.pinv(weights @ sphere)
+        eeg["icachansind"] = np.arange(nchan, dtype=int)
+        eeg["icaact"] = weights @ sphere @ data
+        return eeg, {
+            "icaweights": (1, nchan),
+            "icasphere": (nchan, nchan),
+            "icawinv": (nchan, 1),
+        }
+    raise AssertionError(kind)
+
+
+@pytest.mark.parametrize("savemode", ["onefile", "twofiles"])
+@pytest.mark.parametrize("kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component"])
+def test_pop_loadset_roundtrip_keeps_singleton_dimensions(tmp_path, savemode, kind):
+    eeg, ica_shapes = _singleton_case(kind)
+    expected = np.array(eeg["data"], copy=True)
+    saved = pop_saveset(eeg, "filename", f"{kind}.set", "filepath", tmp_path, "savemode", savemode)
+
+    loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
+
+    assert loaded["data"].shape == expected.shape
+    np.testing.assert_array_equal(loaded["data"], expected)
+    assert loaded["nbchan"] == expected.shape[0]
+    assert loaded["pnts"] == expected.shape[1]
+    for field, shape in ica_shapes.items():
+        assert loaded[field].shape == shape
+        assert loaded[field].ndim == 2
+
+
+def _matlab_shape(engine, expression: str) -> tuple[int, ...]:
+    values = np.array(engine.eval(f"size({expression})", nargout=1), dtype=int).reshape(-1)
+    return tuple(int(value) for value in values)
+
+
+_MATLAB_SINGLETON_SETUP = {
+    "one_channel": """
+        EEG = eeg_emptyset;
+        EEG.nbchan = 1;
+        EEG.pnts = 16;
+        EEG.trials = 1;
+        EEG.srate = 128;
+        EEG.xmin = 0;
+        EEG.xmax = 15/128;
+        EEG.data = reshape(double(1:16), 1, 16);
+    """,
+    "one_channel_epochs": """
+        EEG = eeg_emptyset;
+        EEG.nbchan = 1;
+        EEG.pnts = 5;
+        EEG.trials = 3;
+        EEG.srate = 128;
+        EEG.xmin = 0;
+        EEG.xmax = 4/128;
+        EEG.data = reshape(double(1:(5*3)), 1, 5, 3);
+    """,
+    "one_sample": """
+        EEG = eeg_emptyset;
+        EEG.nbchan = 6;
+        EEG.pnts = 1;
+        EEG.trials = 1;
+        EEG.srate = 128;
+        EEG.xmin = 0;
+        EEG.xmax = 0;
+        EEG.data = double((1:6)');
+    """,
+    "one_component": """
+        EEG = eeg_emptyset;
+        EEG.nbchan = 4;
+        EEG.pnts = 8;
+        EEG.trials = 1;
+        EEG.srate = 128;
+        EEG.xmin = 0;
+        EEG.xmax = 7/128;
+        EEG.data = reshape(double(1:(4*8)), 4, 8);
+        EEG.icaweights = [0.25 -0.5 0.125 0.125];
+        EEG.icasphere = eye(4);
+        EEG.icawinv = pinv(EEG.icaweights * EEG.icasphere);
+        EEG.icachansind = 1:4;
+        EEG.icaact = (EEG.icaweights * EEG.icasphere) * EEG.data;
+    """,
+}
+
+
+@pytest.mark.parametrize("savemode", ["onefile", "twofiles"])
+@pytest.mark.parametrize("kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component"])
+def test_matlab_pop_loadset_singleton_shapes_match_matlab(eeglab_matlab_engine, tmp_path, savemode, kind):
+    """MATLAB writes each singleton case. EEGPrep's shape matches size() and the data matches."""
+    folder = tmp_path.as_posix().replace("'", "''")
+    filename = f"{kind}_{savemode}.set"
+    # v7 stays on scipy loadmat. pop_saveset's default v7.3 is HDF5.
+    eeglab_matlab_engine.eval(
+        _MATLAB_SINGLETON_SETUP[kind]
+        + f"""
+        EEG = pop_saveset(EEG, 'filename', '{filename}', 'filepath', '{folder}', 'savemode', '{savemode}', 'version', '7');
+        ML = pop_loadset('{filename}', '{folder}');
+        """,
+        nargout=0,
+    )
+    matlab_shape = _matlab_shape(eeglab_matlab_engine, "ML.data")
+    matlab_data = np.array(eeglab_matlab_engine.eval("ML.data", nargout=1))
+
+    loaded = pop_loadset(tmp_path / filename)
+
+    assert loaded["data"].shape == matlab_shape
+    np.testing.assert_array_equal(np.asarray(loaded["data"]), matlab_data)
+    if kind != "one_component":
+        return
+    for field in ("icaweights", "icasphere", "icawinv"):
+        assert loaded[field].shape == _matlab_shape(eeglab_matlab_engine, f"ML.{field}")
 
 
 def test_pop_loadset_single_event_and_single_channel_set(tmp_path):

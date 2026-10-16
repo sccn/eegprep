@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_loadset`` reads v7 ``.set`` files without dropping singleton
+  dimensions. ``data`` stays ``nbchan`` by ``pnts`` by ``trials``, and
+  ``icaweights``, ``icasphere``, ``icawinv``, and ``icaact`` keep a
+  length-1 component or channel axis, including a 1-by-1 sphere. MATLAB
+  ``load`` keeps those dimensions, and ``eeg_checkset`` requires
+  ``size(EEG.data, 1) == EEG.nbchan``.
 - Breaking change: ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``,
   ``hungarian``, ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use
   1-based indices. ``abspeak`` frames, ``hungarian`` row assignments
