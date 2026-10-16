@@ -82,7 +82,7 @@ def _desired_response(ff, aa, npt, lap):
             start = start - lap / 2
             stop = start + lap
         else:
-            stop = int(np.fix(ff[index + 1] * npt))
+            stop = int(np.trunc(ff[index + 1] * npt))
         if start < 0 or stop > npt:
             raise ValueError("Frequency breakpoints fall outside the response grid.")
         grid = np.arange(start, stop + 1)
