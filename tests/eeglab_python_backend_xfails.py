@@ -227,25 +227,29 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells": _gap(
         STRUCT, AttributeError
     ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_dataset_array": _gap(STRUCT, TypeError),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_dataset_array": _gap(
+        STRUCT, AttributeError
+    ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_delete_unselected_events": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_allowed": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_error": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_explicit_error_nonempty_selection": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
-    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_inverse_epochs": _gap(STRUCT, TypeError),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_inverse_epochs": _gap(
+        STRUCT, AttributeError
+    ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_keep_epochs_delete_events": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_retains_matching_epochs": _gap(
-        STRUCT, TypeError
+        STRUCT, AttributeError
     ),
     "tests/test_phase2_file_channel_location.py::test_reference_convertlocs_cart2all": _gap(STRUCT, AttributeError),
     "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_nine_recorded_location_calls": _gap(
