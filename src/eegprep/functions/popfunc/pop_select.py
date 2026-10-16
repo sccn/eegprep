@@ -157,16 +157,27 @@ def _pop_select_apply(EEG, **kwargs):
         _, idx = np.unique(trial_seq, return_index=True)
         g['trial'] = trial_seq[np.sort(idx)].tolist()
 
-    if g['trial'] and (min(g['trial']) < 1 or max(g['trial']) > trials):
+    if np.size(g['trial']) and (np.min(g['trial']) < 1 or np.max(g['trial']) > trials):
         raise ValueError('Wrong trial range')
 
     # 2) Channel selection by name or type, with mutual exclusion
     def _decode_list(x):
-        if x is None or x == []:
+        if x is None:
             return []
-        if isinstance(x, (list, tuple, np.ndarray)):
+        if isinstance(x, np.ndarray):
+            return [] if x.size == 0 else list(x.ravel())
+        if isinstance(x, (list, tuple)):
             return list(x)
+        if x == []:
+            return []
         return [x]
+
+    def _is_channel_index(value):
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, np.integer)):
+            return True
+        return isinstance(value, (float, np.floating)) and float(value).is_integer()
 
     def _numeric_channel_indices(values):
         inds = [int(value) for value in values]
@@ -183,12 +194,12 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['channel']):
             ch_list = _decode_list(g['channel'])
-            if all(isinstance(c, (int, np.integer)) for c in ch_list):
+            if ch_list and all(_is_channel_index(c) for c in ch_list):
                 inds = _numeric_channel_indices(ch_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['channel']):
+            if len(inds) != len(ch_list):
                 logger.warning("%s channels not found", len(g['channel']) - len(inds))
             if len(inds) == 0:
                 raise ValueError(f"Channels not found: {g['channel']}")
@@ -197,13 +208,13 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['nochannel']):
             nc_list = _decode_list(g['nochannel'])
-            if all(isinstance(c, (int, np.integer)) for c in nc_list):
+            if nc_list and all(_is_channel_index(c) for c in nc_list):
                 inds = _numeric_channel_indices(nc_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['nochannel']):
+            if len(inds) != len(nc_list):
                 logger.warning("%s channels not found", len(g['nochannel']) - len(inds))
 
     else:
@@ -226,12 +237,12 @@ def _pop_select_apply(EEG, **kwargs):
         if x.size == 0:
             return x.reshape(0, 2)
         x = x.astype(float)
-        if x.ndim == 1:
-            if x.size <= 2:
-                return np.array(x).reshape(1, 2)
-            # vector form → [first last]
+        if x.ndim == 1 or x.shape[1] > 2:
+            flat = x.reshape(-1, order="F")
+            if flat.size <= 2 and x.ndim == 1:
+                return np.array(flat).reshape(1, 2)
             logger.warning("Vector format for point/time range is deprecated")
-            return np.array([x[0], x[-1]], dtype=float).reshape(1, 2)
+            return np.array([flat[0], flat[-1]], dtype=float).reshape(1, 2)
         if x.shape[1] != 2:
             raise ValueError('Time/point range must contain exactly 2 columns')
         return x

@@ -89,24 +89,24 @@ def _presentation_records(
     with Path(filename).open(encoding="utf-8-sig", errors="replace", newline="") as stream:
         rows = list(csv.reader(stream, delimiter="\t"))
     expected = {typefield.casefold(), latfield.casefold()}
-    start = max(skipline, 0)
     header_index = next(
-        (
-            index
-            for index, row in enumerate(rows[start:], start=start)
-            if expected.issubset({value.strip().casefold() for value in row})
-        ),
+        (index for index, row in enumerate(rows) if expected.issubset({value.strip().casefold() for value in row})),
         None,
     )
     if header_index is None:
         return None
     header = [value.strip() for value in rows[header_index]]
     renamed = [_presentation_field_name(value, typefield, latfield, durfield) for value in header]
+    row_start = header_index + 1
+    if skipline > row_start:
+        row_start = skipline
     records = []
-    for row in rows[header_index + 1 :]:
+    for row in rows[row_start:]:
         if not row or all(not value.strip() for value in row):
             continue
-        if len(row) != len(header):
+        if len(row) < len(header):
+            row = [*row, *[""] * (len(header) - len(row))]
+        elif len(row) > len(header):
             raise ValueError("Presentation LOG rows must have the same number of columns as the header")
         records.append(dict(zip(renamed, (_coerce_presentation_value(value) for value in row))))
     return records

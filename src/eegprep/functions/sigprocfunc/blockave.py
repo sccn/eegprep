@@ -7,13 +7,14 @@ from typing import Any
 import numpy as np
 
 
-def blockave(data: Any, frames: int, epochs: Any = None, weights: Any = None) -> np.ndarray:
+def blockave(data: Any, frames: Any, epochs: Any = None, weights: Any = None) -> np.ndarray:
     """Return an epoch average from channel-major concatenated data.
 
     Args:
         data: Array shaped ``(channels, frames * epochs)``. A one-dimensional
             input is treated as one channel.
-        frames: Number of samples in each epoch.
+        frames: Whole-number sample count in each epoch. A floating value is
+            accepted when it is an integer.
         epochs: Optional EEGLAB-facing 1-based epoch indices. Empty or zero
             selects every epoch.
         weights: Optional weight for every epoch. The selected weights are
@@ -27,9 +28,7 @@ def blockave(data: Any, frames: int, epochs: Any = None, weights: Any = None) ->
         array = array.reshape(1, -1)
     if array.ndim != 2:
         raise ValueError("data must have shape (channels, frames * epochs)")
-    if not isinstance(frames, (int, np.integer)) or int(frames) <= 0:
-        raise ValueError("frames must be a positive integer")
-    frames = int(frames)
+    frames = _frame_count(frames)
     if array.shape[1] % frames:
         raise ValueError("frames must divide the data length")
 
@@ -38,6 +37,18 @@ def blockave(data: Any, frames: int, epochs: Any = None, weights: Any = None) ->
     blocks = array.reshape(array.shape[0], epoch_count, frames)[:, selected, :]
     selected_weights = _selected_weights(weights, selected, epoch_count)
     return np.average(blocks, axis=1, weights=selected_weights)
+
+
+def _frame_count(frames: Any) -> int:
+    if isinstance(frames, bool):
+        raise ValueError("frames must be a positive integer")
+    value = np.asarray(frames)
+    if value.size != 1:
+        raise ValueError("frames must be a positive integer")
+    number = float(value.reshape(-1)[0])
+    if not number.is_integer() or number <= 0:
+        raise ValueError("frames must be a positive integer")
+    return int(number)
 
 
 def _selected_epochs(epochs: Any, epoch_count: int) -> np.ndarray:

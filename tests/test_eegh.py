@@ -234,7 +234,7 @@ def test_eegh_displays_finds_removes_and_clears_newest_first():
 def test_eegh_command_appends_to_eeg_history():
     eeg = {"history": "EEG = pop_loadset('sample.set');"}
 
-    assert eegh("EEG = pop_resample(EEG, 64);", eeg) == "EEG = pop_resample(EEG, 64);"
+    assert eegh("EEG = pop_resample(EEG, 64);", eeg) is eeg
 
     assert eeg["history"].splitlines() == [
         "EEG = pop_loadset('sample.set');",
@@ -258,10 +258,10 @@ def test_eegh_marks_commands_applied_to_multiple_datasets(include_history):
         for eeg in datasets:
             eeg["history"] = ""
 
-    assert eegh("command3", datasets) == "command3"
+    assert eegh("command3", datasets) is datasets
 
     assert [eeg["data"] for eeg in datasets] == [[1], [2]]
     assert [eeg["history"] for eeg in datasets] == [
-        "% multiple datasets command: command3;",
-        "% multiple datasets command: command3;",
+        "\n% multiple datasets command: command3",
+        "\n% multiple datasets command: command3",
     ]

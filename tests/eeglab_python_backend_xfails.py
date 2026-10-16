@@ -35,15 +35,12 @@ TRUTH = "a MATLAB array is used as a logical condition"
 POSITIONAL = "the function does not accept MATLAB positional arguments beyond its Python signature"
 STUDY = "the sample STUDY fixture is not valid UTF-8"
 VALUES = "numeric or text values do not match the MATLAB result"
-EPOCH_EMPTY = "epoch selection uses 1-based event latencies and finds no epochs"
-BROADCAST = "a MATLAB selection does not broadcast against an empty index"
-BLOCKAVE = "blockave rejects the double frame count used by the EEGLAB call"
-POINT2LAT = "a MATLAB scalar epoch is not broadcast across the latency array"
-IMPORTPRES = "presentation log rows do not have the MATLAB column count"
-EVAL = "the EEGLAB call evaluates name/value text that is not a Python expression"
 EVENT_EDIT = "an event-field edit is passed as a MATLAB cell rather than an index, field, and value"
-IMPORT_TABLE = "imported rows do not match the MATLAB field or channel layout"
-CELLTOMAT = "celltomat is given MATLAB cells rather than numeric arrays"
+RMART = (
+    "rmart.m:94 returns when rem(length(data), nchans) == 0, inverting the "
+    "divisibility test, so the documented regression never runs; EEGPrep keeps "
+    "the reachable correction. This is a permanent EEGLAB difference"
+)
 
 PYTHON_BACKEND_XFAILS = {
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND_ZERO, AssertionError),
@@ -113,7 +110,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_case": _gap(STRUCT, TypeError),
     "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_new_case": _gap(STRUCT, TypeError),
     "tests/test_eeg_store.py::test_reference_eeg_store_original_new_case": _gap(STRUCT, TypeError),
-    "tests/test_eegh.py::test_reference_eegh_add_history": _gap(STRUCT, TypeError),
     "tests/test_eegh.py::test_reference_eegh_add_multiple_history": _gap(STRUCT, TypeError),
     "tests/test_eegh.py::test_reference_eegh_add_multiple_history_default_empty": _gap(STRUCT, TypeError),
     "tests/test_finputcheck.py::test_reference_finputcheck_original_regression_fixture": _gap(STRUCT, TypeError),
@@ -260,13 +256,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_default_time_unit": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_general_case": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_epoch_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_latency_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_default_time_unit": _gap(INDEX, IndexError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_general_case": _gap(INDEX, IndexError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
     "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(INDEX, IndexError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(INDEX, ValueError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(RMART, ValueError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-10]": _gap(INDEX, IndexError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-11]": _gap(INDEX, IndexError),
@@ -420,48 +411,13 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
-    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(VALUES, AssertionError),
-    "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _gap(VALUES, AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]": _gap(
-        EPOCH_EMPTY, ValueError
-    ),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch_after_rejection]": _gap(
-        EPOCH_EMPTY, ValueError
-    ),
-    "tests/test_pop_epoch.py::test_reference_pop_epoch_original_square_event_workflow": _gap(EPOCH_EMPTY, ValueError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_select]": _gap(
-        BROADCAST, ValueError
-    ),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_select]": _gap(
-        BROADCAST, ValueError
-    ),
-    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_blockave": _gap(BLOCKAVE, ValueError),
-    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_empty_epoch_defaults_to_one": _gap(
-        POINT2LAT, ValueError
-    ),
-    "tests/test_binary_eeglab_tests.py::test_upstream_pop_importpres_original_recording_and_log": _gap(
-        IMPORTPRES, ValueError
-    ),
-    "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _gap(EVAL, SyntaxError),
+    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(SHAPE, AssertionError),
     "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
         EVENT_EDIT, ValueError
     ),
-    "tests/test_phase7_long_tail_helpers.py::test_reference_rejtrend": _gap(IMPORT_TABLE, ValueError),
-    "tests/test_pop_importepoch_current.py::test_reference_importepoch_all_four_original_cases": _gap(
-        IMPORT_TABLE, ValueError
-    ),
-    "tests/test_pop_importevent_current.py::test_reference_importevent_all_twenty_one_original_cases": _gap(
-        IMPORT_TABLE, ValueError
-    ),
-    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_celltomat": _gap(CELLTOMAT, TypeError),
 }
 
 PYTHON_BACKEND_SUBTEST_XFAILS = {
-    "tests/test_eegplot.py::test_reference_eegplot2event_original_marks": {
-        "(source='multiple_events')": _gap(VALUES, AssertionError),
-        "(source='multiple_events_colorin')": _gap(VALUES, AssertionError),
-        "(source='multiple_events_notfound')": _gap(VALUES, AssertionError),
-    },
     "tests/test_eegplot.py::test_reference_eegplot2trial_original_marks": {
         "(source='general')": _gap(SHAPE, AssertionError),
         "(source='multiple')": _gap(SHAPE, AssertionError),

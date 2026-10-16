@@ -8,7 +8,7 @@ from typing import Any
 def eegh(
     command: Any = None,
     history: list[str] | dict[str, Any] | list[dict[str, Any]] | None = None,
-) -> str:
+) -> Any:
     """Display or update EEGLAB-style command history.
 
     Args:
@@ -19,6 +19,8 @@ def eegh(
 
     Returns:
         The normalized command, rendered history text, or matched history item.
+        Passing an EEG dataset returns that dataset. Its history is the previous
+        text, a newline, and the command, with no added semicolon.
     """
     if isinstance(command, str) and command.strip().lower() == "find":
         return _find_history(history if _is_command_history(history) else [], None)
@@ -33,10 +35,12 @@ def eegh(
         multiple_command = f"% multiple datasets command: {normalized}"
         for eeg in history:
             _append_eeg_history(eeg, multiple_command)
-    elif isinstance(history, list):
+        return history
+    if isinstance(history, list):
         _append_history(history, normalized)
     elif isinstance(history, dict):
         _append_eeg_history(history, normalized)
+        return history
     return normalized
 
 
@@ -60,12 +64,13 @@ def _is_eeg_collection(history: Any) -> bool:
 
 
 def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:
+    if not command or "pop_loadset" in command:
+        return
     history_value = eeg.get("history")
     existing = "" if history_value is None or getattr(history_value, "size", 1) == 0 else str(history_value)
-    line = command.rstrip(";") + ";"
-    if existing.rstrip().splitlines()[-1:] == [line]:
+    if existing.splitlines()[-1:] == [command]:
         return
-    eeg["history"] = (existing.rstrip() + "\n" + line).lstrip()
+    eeg["history"] = existing + "\n" + command
 
 
 def _render_history(history: list[str]) -> str:

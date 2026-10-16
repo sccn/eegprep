@@ -288,7 +288,7 @@ class ConsoleEegh:
     def __init__(self, bridge: EEGPrepConsoleWorkspace) -> None:
         self.bridge = bridge
 
-    def __call__(self, command: Any = None, *args: Any) -> str:
+    def __call__(self, command: Any = None, *args: Any) -> Any:
         if command is None:
             return eegh(None, self.bridge.session.ALLCOM)
         if isinstance(command, str) and command.strip().lower() == "find":
@@ -316,12 +316,18 @@ class ConsoleEegh:
             return history_command
         session = self.bridge.session
         normalized = str(command).strip()
+        target = args[0] if args else None
+        if isinstance(target, dict) and normalized and session.ALLCOM and session.ALLCOM[-1] == normalized:
+            self.bridge.pull_from_session()
+            return target
         if normalized:
             session.add_history(command)
         else:
             session.clear_last_command()
-        if args and isinstance(args[0], dict):
-            eegh(normalized, args[0])
+        if isinstance(target, dict):
+            updated = eegh(normalized, target)
+            self.bridge.pull_from_session()
+            return updated
         self.bridge.pull_from_session()
         return normalized
 
