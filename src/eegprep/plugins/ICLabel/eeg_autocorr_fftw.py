@@ -30,8 +30,13 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
     ncomp = EEG['icaact'].shape[0]
     ac = np.zeros((ncomp, nfft))
 
-    for it in range(EEG['icaact'].shape[0]):
-        X = fft(EEG['icaact'][it, :, :], n=nfft, axis=0)
+    activations = np.asarray(EEG['icaact'])
+    for it in range(activations.shape[0]):
+        # MATLAB icaact(it,:,:) still works when trials == 1 drops the last dimension.
+        component = activations[it]
+        if component.ndim == 1:
+            component = component[:, np.newaxis]
+        X = fft(component, n=nfft, axis=0)
         ac[it, :] = np.mean(np.abs(X) ** 2, axis=1)
 
     # Inverse FFT to get autocorrelation
