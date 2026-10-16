@@ -109,6 +109,9 @@ EEGPrep intentionally keeps both conventions visible:
 
 * Python arrays are zero-based: ``EEG["data"][0, :]`` is the first channel.
 * GUI channel/component/dataset selectors are one-based.
+* ``abspeak``, ``matcorr``, ``matperm``, ``hungarian``, ``getchanlist``,
+  ``shuffle``, and ``eeg_amplitudearea`` use 1-based indices, including
+  ``shuffle``'s dimension. Subtract 1 before indexing a NumPy array.
 * Event ``latency`` fields are sample positions in the EEGLAB-facing event
   model.
 * ``icachansind`` is normalized after loading so internal indexing is

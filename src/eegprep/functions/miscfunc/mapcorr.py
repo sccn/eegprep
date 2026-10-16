@@ -20,7 +20,11 @@ def mapcorr(
     method: int = 2,
     weighting: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Match rows after aligning map columns by common channel labels."""
+    """Match rows after aligning map columns by common channel labels.
+
+    Returned indices are 0-based positions in the aligned maps. ``matcorr``
+    row numbers are 1-based.
+    """
     left = real_array(first, "first")
     right = real_array(second, "second")
     if left.ndim != 2 or right.ndim != 2:

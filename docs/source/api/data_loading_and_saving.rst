@@ -4,6 +4,7 @@ Data Loading and Saving
 =======================
 
 Readers and writers for EEG datasets, channel locations, and MNE interchange.
+``getchanlist`` returns 1-based channel numbers.
 
 .. autosummary::
    :toctree: generated/

@@ -10,11 +10,13 @@ from ._validation import integer_scalar
 
 
 def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return absolute peaks, zero-based frames, and signs for each epoch.
+    """Return absolute peaks, 1-based frames, and signs for each epoch.
 
-    NaNs are ignored when finite or infinite observations exist. An all-NaN
-    channel/epoch returns ``NaN`` amplitude, frame ``-1``, and sign ``NaN``.
-    Tied peaks use the last frame, matching EEGLAB's stable-sort behavior.
+    Frames start at 1. NaNs are ignored when finite or infinite observations
+    exist. An all-NaN channel or epoch returns ``NaN`` amplitude, frame ``-1``,
+    and sign ``NaN``; EEGLAB's sort still reports a frame in that case. Tied
+    peaks use the last frame. ``frames_per_epoch`` must divide the data length.
+    EEGLAB prints a message and returns no outputs when it does not.
     """
     values = np.asarray(data)
     if values.ndim != 2:
@@ -42,7 +44,7 @@ def abspeak(data: Any, frames_per_epoch: int | None = None) -> tuple[np.ndarray,
             peak = np.nanmax(np.abs(row))
             frame = int(np.flatnonzero(valid & (np.abs(row) == peak))[-1])
             amplitudes[channel, epoch] = peak
-            frames[channel, epoch] = frame
+            frames[channel, epoch] = frame + 1
             signs[channel, epoch] = _phase(row[frame], peak)
     return amplitudes, frames, signs
 

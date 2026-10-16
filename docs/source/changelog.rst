@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Breaking change: ``abspeak``, ``matcorr``, ``matperm``, ``hungarian``,
+  ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use 1-based indices.
+  ``abspeak`` frames, ``hungarian`` row assignments (``assignment[j]`` is the
+  row of column ``j + 1``), ``matcorr`` and ``matperm`` row numbers,
+  ``getchanlist`` channel numbers, and ``eeg_amplitudearea`` channel numbers
+  start at 1. ``shuffle``'s dimension argument is now ``dim`` and is 1-based
+  (it was ``axis``, 0-based); its forward and inverse indices also start at 1.
+  Subtract 1 before using any of these values as a NumPy index. An ``abspeak``
+  channel or epoch that is all NaN still returns frame ``-1``.
 - ``eeg_hist``, ``is_sccn``, ``iseeglabdeployed``, ``eeg_helphelp``,
   ``helpforexe``, and ``disp`` are available from ``eegprep``. ``eeg_hist``
   appends a command on its own line and skips commands that contain

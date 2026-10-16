@@ -11,11 +11,12 @@ MATLAB or an EEGLAB checkout.
 Indexing and compatibility
 ==========================
 
-Array indices are zero-based. This applies to peak frames returned by
-``abspeak``, assignments returned by ``hungarian`` and ``matcorr``, permutation
-vectors, ``matsel`` selections, and ``shuffle`` axes. Kernel peak coordinates
-remain one-based because they describe the sampled coordinate system in the
-EEGLAB formulas rather than Python array indices.
+``abspeak`` peak frames, ``hungarian`` row assignments, and ``matcorr`` and
+``matperm`` row numbers are 1-based. ``shuffle`` takes a 1-based dimension and
+returns 1-based permutation indices. Subtract 1 before using those values as
+NumPy indices. ``mapcorr`` indices and ``matsel`` selections stay 0-based.
+Kernel peak coordinates remain 1-based because they describe the sampled
+coordinate system in the EEGLAB formulas rather than Python array indices.
 
 ``covary`` deliberately retains EEGLAB's grand-mean centering before computing
 column second moments; use NumPy's variance functions when ordinary per-column

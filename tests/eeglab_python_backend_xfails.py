@@ -34,7 +34,6 @@ OUTPUTS = "the function does not return the MATLAB output count"
 TRUTH = "a MATLAB array is used as a logical condition"
 POSITIONAL = "the function does not accept MATLAB positional arguments beyond its Python signature"
 STUDY = "the sample STUDY fixture is not valid UTF-8"
-SHUFFLE = "shuffle treats the EEGLAB dimension as a 0-based axis and returns 0-based indices, so the 1-based check reads past the array"
 VALUES = "numeric or text values do not match the MATLAB result"
 EPOCH_EMPTY = "epoch selection uses 1-based event latencies and finds no epochs"
 BROADCAST = "a MATLAB selection does not broadcast against an empty index"
@@ -251,9 +250,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_nan_mean": _gap(SHAPE, AssertionError),
     "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_quantile": _gap(SHAPE, AssertionError),
     "tests/test_statistics_package.py::test_reference_concatdata_original_arrays": _gap(SHAPE, AssertionError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_amplitudearea_preserves_both_epoched_workflows": _gap(
-        INDEX, ValueError
-    ),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_epoch_case": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_latency_case": _gap(INDEX, IndexError),
     "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_clamps_out_of_range_latency": _gap(
@@ -270,7 +266,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(INDEX, IndexError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(INDEX, ValueError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
-    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matperm": _gap(INDEX, IndexError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-10]": _gap(INDEX, IndexError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-11]": _gap(INDEX, IndexError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-12]": _gap(INDEX, IndexError),
@@ -423,11 +418,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
-    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_shuffle": _gap(SHUFFLE, IndexError),
     "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(VALUES, AssertionError),
     "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _gap(VALUES, AssertionError),
-    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_abspeak": _gap(VALUES, AssertionError),
-    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matcorr": _gap(VALUES, AssertionError),
     "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]": _gap(
         EPOCH_EMPTY, ValueError
     ),
