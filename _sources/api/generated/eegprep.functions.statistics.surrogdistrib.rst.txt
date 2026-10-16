@@ -1,6 +1,0 @@
-﻿surrogdistrib
-=============
-
-.. currentmodule:: eegprep.functions.statistics
-
-.. autofunction:: surrogdistrib

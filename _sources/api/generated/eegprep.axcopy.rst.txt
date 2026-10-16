@@ -1,0 +1,6 @@
+﻿axcopy
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: axcopy

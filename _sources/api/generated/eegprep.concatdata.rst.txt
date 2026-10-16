@@ -1,0 +1,6 @@
+﻿concatdata
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: concatdata

@@ -1,0 +1,6 @@
+﻿ttest\_cell
+===========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: ttest_cell

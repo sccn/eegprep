@@ -1,0 +1,6 @@
+﻿eeg\_ms2f
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_ms2f

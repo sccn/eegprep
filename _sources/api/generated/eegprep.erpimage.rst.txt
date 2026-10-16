@@ -1,0 +1,6 @@
+﻿erpimage
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: erpimage

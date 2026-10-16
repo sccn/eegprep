@@ -498,6 +498,12 @@ latency. Consecutive entries of the boundary list that share a latency
 (event order, before that sort) chain their durations into the last entry
 of the run. A later boundary at the same latency stays separate when a
 different latency stands between the two entries.</p></li>
+<li><p>The top-level <code class="docutils literal notranslate"><span class="pre">eegprep</span></code> package exports the public statistics helpers
+(<code class="docutils literal notranslate"><span class="pre">statcond</span></code>, <code class="docutils literal notranslate"><span class="pre">fdr</span></code>, <code class="docutils literal notranslate"><span class="pre">statcondfieldtrip</span></code>, and the condition-test,
+surrogate, and concatenation helpers) and the public signal helpers
+<code class="docutils literal notranslate"><span class="pre">numdim</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_ms2f</span></code>, <code class="docutils literal notranslate"><span class="pre">spher</span></code>, <code class="docutils literal notranslate"><span class="pre">eegplot2event</span></code>,
+<code class="docutils literal notranslate"><span class="pre">eegplot2trial</span></code>, <code class="docutils literal notranslate"><span class="pre">envtopo</span></code>, <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>, <code class="docutils literal notranslate"><span class="pre">timtopo</span></code>, <code class="docutils literal notranslate"><span class="pre">plottopo</span></code>,
+<code class="docutils literal notranslate"><span class="pre">spectopo</span></code>, <code class="docutils literal notranslate"><span class="pre">axcopy</span></code>, and <code class="docutils literal notranslate"><span class="pre">runamica</span></code>.</p></li>
 <li><p>ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB’s
 pseudoinverse cutoff <code class="docutils literal notranslate"><span class="pre">max(size)*eps(norm)</span></code>. NumPy’s default cutoff could
 invert a numerical null direction and amplify the signal by about 1e13.</p></li>

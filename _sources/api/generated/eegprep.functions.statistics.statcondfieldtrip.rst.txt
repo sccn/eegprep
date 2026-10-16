@@ -1,6 +1,0 @@
-﻿statcondfieldtrip
-=================
-
-.. currentmodule:: eegprep.functions.statistics
-
-.. autofunction:: statcondfieldtrip

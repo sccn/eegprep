@@ -635,10 +635,21 @@ can override MATLAB’s visibility default: the original LIMO workflows call
 <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>/<code class="docutils literal notranslate"><span class="pre">eeglab</span> <span class="pre">redraw</span></code> and are marked <code class="docutils literal notranslate"><span class="pre">gui</span></code> and <code class="docutils literal notranslate"><span class="pre">slow</span></code>. Use
 <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&quot;not</span> <span class="pre">gui&quot;</span></code> when desktop windows must stay closed; those workflows then
 remain unvalidated, rather than being counted as passes.</p>
-<p>The same tests can be selected with <code class="docutils literal notranslate"><span class="pre">--eeglab-backend=python</span></code> later to expose
-implementation gaps. A missing Python feature must fail honestly; it is not a
-reason to change the reference expectation, skip a case, or weaken a tolerance.
-Report source accounting, live MATLAB results, and unresolved blockers
+<p>The same tests run in CI with <code class="docutils literal notranslate"><span class="pre">--eeglab-backend=python</span></code> and
+<code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">&quot;parity</span> <span class="pre">and</span> <span class="pre">not</span> <span class="pre">slow</span> <span class="pre">and</span> <span class="pre">not</span> <span class="pre">gui&quot;</span></code> against the pinned <code class="docutils literal notranslate"><span class="pre">eeglab_tests</span></code>
+checkout, including its Git LFS data. The job has no <code class="docutils literal notranslate"><span class="pre">continue-on-error</span></code>,
+so it fails on any new failure or strict XPASS. Maintainers should mark it
+required in branch protection. A missing Python feature must fail honestly; it
+is not a reason to change the reference expectation, skip a case, or weaken a
+tolerance. Gaps that already fail on that lane are listed one test at a time
+in <code class="docutils literal notranslate"><span class="pre">tests/eeglab_python_backend_xfails.py</span></code> and marked <code class="docutils literal notranslate"><span class="pre">xfail(strict=True)</span></code>
+only for the Python backend. The reason names the gap, and <code class="docutils literal notranslate"><span class="pre">raises</span></code> names
+the stable exception type, so a test that fails for a new reason is a failure.
+A listed test that starts passing fails the job until its entry is removed.
+GUI and slow contracts stay outside this lane. MATLAB-oracle unittest classes
+such as <code class="docutils literal notranslate"><span class="pre">TestPinvParity</span></code> stay out as well: they need MATLAB, and this lane
+deselects them instead of recording that absence as a Python gap.</p>
+<p>Report source accounting, live MATLAB results, and unresolved blockers
 separately. Neither a source-count match nor a passing subset establishes full
 suite validation.</p>
 </section>

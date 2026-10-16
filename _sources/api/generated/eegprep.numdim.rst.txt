@@ -1,0 +1,6 @@
+﻿numdim
+======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: numdim

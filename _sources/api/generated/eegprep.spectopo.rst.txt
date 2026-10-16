@@ -1,0 +1,6 @@
+﻿spectopo
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: spectopo

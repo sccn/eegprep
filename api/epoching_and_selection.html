@@ -429,6 +429,7 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_getepochevent.html">eeg_getepochevent</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_insertbound.html">eeg_insertbound</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_lat2point.html">eeg_lat2point</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_ms2f.html">eeg_ms2f</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_point2lat.html">eeg_point2lat</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_regepochs.html">eeg_regepochs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_urlatency.html">eeg_urlatency</a></li>
@@ -530,34 +531,37 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_lat2point.html#eegprep.eeg_lat2point" title="eegprep.eeg_lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_lat2point</span></code></a>(lat_array, ...[, timeunit])</p></td>
 <td><p>Convert latencies in time units (relative to per-epoch time 0) to latencies in data points assuming concatenated epochs (EEGLAB style).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat" title="eegprep.eeg_point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_point2lat</span></code></a>(lat_array[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_ms2f.html#eegprep.eeg_ms2f" title="eegprep.eeg_ms2f"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_ms2f</span></code></a>(EEG, ms)</p></td>
+<td><p>Convert an epoch latency in milliseconds to the nearest epoch frame.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_point2lat.html#eegprep.eeg_point2lat" title="eegprep.eeg_point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_point2lat</span></code></a>(lat_array[, ...])</p></td>
 <td><p>Convert event latencies in data points to latencies in time units (default seconds).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_regepochs.html#eegprep.eeg_regepochs" title="eegprep.eeg_regepochs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_regepochs</span></code></a>(EEG, *args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_regepochs.html#eegprep.eeg_regepochs" title="eegprep.eeg_regepochs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_regepochs</span></code></a>(EEG, *args, **kwargs)</p></td>
 <td><p>Insert regular events and optionally extract consecutive epochs.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_urlatency.html#eegprep.eeg_urlatency" title="eegprep.eeg_urlatency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_urlatency</span></code></a>(events, latencies)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_urlatency.html#eegprep.eeg_urlatency" title="eegprep.eeg_urlatency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_urlatency</span></code></a>(events, latencies)</p></td>
 <td><p>Map current-data latencies to their original continuous positions.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.epoch.html#eegprep.epoch" title="eegprep.epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.epoch</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.epoch.html#eegprep.epoch" title="eegprep.epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.epoch</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap pop_epoch.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eventalign.html#eegprep.eventalign" title="eegprep.eventalign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventalign</span></code></a>(factor, a, b[, measure])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eventalign.html#eegprep.eventalign" title="eegprep.eventalign"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventalign</span></code></a>(factor, a, b[, measure])</p></td>
 <td><p>Return the mean or median nearest alignment error.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eventlock.html#eegprep.eventlock" title="eegprep.eventlock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventlock</span></code></a>(data, frames_or_xvals, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eventlock.html#eegprep.eventlock" title="eegprep.eventlock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eventlock</span></code></a>(data, frames_or_xvals, ...)</p></td>
 <td><p>Shift epochs so their event frames or time values align.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.findboundaries.html#eegprep.findboundaries" title="eegprep.findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.findboundaries</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.findboundaries.html#eegprep.findboundaries" title="eegprep.findboundaries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.findboundaries</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_findboundaries.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.lat2point.html#eegprep.lat2point" title="eegprep.lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.lat2point</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.lat2point.html#eegprep.lat2point" title="eegprep.lat2point"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.lat2point</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_lat2point.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.point2lat.html#eegprep.point2lat" title="eegprep.point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.point2lat</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.point2lat.html#eegprep.point2lat" title="eegprep.point2lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.point2lat</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_point2lat.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.select.html#eegprep.select" title="eegprep.select"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.select.html#eegprep.select" title="eegprep.select"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.select</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap pop_select.</p></td>
 </tr>
 </tbody>

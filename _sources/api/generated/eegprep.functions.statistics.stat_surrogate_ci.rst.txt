@@ -1,6 +1,0 @@
-﻿stat\_surrogate\_ci
-===================
-
-.. currentmodule:: eegprep.functions.statistics
-
-.. autofunction:: stat_surrogate_ci

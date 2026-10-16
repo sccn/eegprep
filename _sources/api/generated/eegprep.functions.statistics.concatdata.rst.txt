@@ -1,6 +1,0 @@
-﻿concatdata
-==========
-
-.. currentmodule:: eegprep.functions.statistics
-
-.. autofunction:: concatdata

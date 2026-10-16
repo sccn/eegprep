@@ -1,0 +1,6 @@
+﻿runamica
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: runamica

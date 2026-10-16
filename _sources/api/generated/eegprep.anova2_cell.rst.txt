@@ -1,0 +1,6 @@
+﻿anova2\_cell
+============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: anova2_cell

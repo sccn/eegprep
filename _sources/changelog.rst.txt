@@ -32,6 +32,12 @@ Unreleased
   (event order, before that sort) chain their durations into the last entry
   of the run. A later boundary at the same latency stays separate when a
   different latency stands between the two entries.
+- The top-level ``eegprep`` package exports the public statistics helpers
+  (``statcond``, ``fdr``, ``statcondfieldtrip``, and the condition-test,
+  surrogate, and concatenation helpers) and the public signal helpers
+  ``numdim``, ``eeg_ms2f``, ``spher``, ``eegplot2event``,
+  ``eegplot2trial``, ``envtopo``, ``erpimage``, ``timtopo``, ``plottopo``,
+  ``spectopo``, ``axcopy``, and ``runamica``.
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
   pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
   invert a numerical null direction and amplify the signal by about 1e13.

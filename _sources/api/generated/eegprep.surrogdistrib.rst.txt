@@ -1,0 +1,6 @@
+﻿surrogdistrib
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: surrogdistrib

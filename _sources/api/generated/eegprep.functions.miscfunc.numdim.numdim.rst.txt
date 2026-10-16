@@ -1,6 +1,0 @@
-﻿numdim
-======
-
-.. currentmodule:: eegprep.functions.miscfunc.numdim
-
-.. autofunction:: numdim

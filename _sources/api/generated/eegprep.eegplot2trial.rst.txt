@@ -1,0 +1,6 @@
+﻿eegplot2trial
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegplot2trial

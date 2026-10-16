@@ -1,0 +1,6 @@
+﻿eegplot2event
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eegplot2event

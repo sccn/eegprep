@@ -1,0 +1,6 @@
+﻿plottopo
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: plottopo

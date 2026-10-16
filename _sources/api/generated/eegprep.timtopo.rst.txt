@@ -1,0 +1,6 @@
+﻿timtopo
+=======
+
+.. currentmodule:: eegprep
+
+.. autofunction:: timtopo

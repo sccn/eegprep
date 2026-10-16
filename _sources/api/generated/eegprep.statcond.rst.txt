@@ -1,0 +1,6 @@
+﻿statcond
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: statcond

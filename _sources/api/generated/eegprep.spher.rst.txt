@@ -1,0 +1,6 @@
+﻿spher
+=====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: spher
