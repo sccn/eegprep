@@ -113,10 +113,11 @@ class TestUtilFuncs(DebuggableTestCase):
         from scipy.stats import genextreme
 
         x = genextreme.rvs(0.1, size=5007)
-        observed, *_ = fit_eeg_distribution(x)
-        expected = self.eeglab.fit_eeg_distribution(x)
-        # compare numbers
-        np.testing.assert_almost_equal(observed, expected, err_msg='fit_eeg_distribution() test failed')
+        observed = fit_eeg_distribution(x)
+        expected = self.eeglab.fit_eeg_distribution(x, nargout=4)
+        self.assertEqual(len(expected), 4)
+        for name, got, want in zip(('mu', 'sigma', 'alpha', 'beta'), observed, expected):
+            np.testing.assert_almost_equal(got, want, err_msg=f'fit_eeg_distribution() {name} test failed')
 
 
 class TestCleanDrifts(DebuggableTestCase):
