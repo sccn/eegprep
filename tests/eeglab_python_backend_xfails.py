@@ -71,9 +71,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_none": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_pair": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_unpair": _gap(STRUCT, AttributeError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_chanevent_original_recording_and_33_calls": _gap(
-        STRUCT, TypeError
-    ),
     "tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording": _gap(
         STRUCT, ValueError
     ),
@@ -361,7 +358,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_phase2_file_channel_location.py::test_reference_floatread_offset": _gap(TRUTH, ValueError),
     "tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339": _gap(TRUTH, ValueError),
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_text_file": _gap(
-        TRUTH, ValueError
+        "importevent returns a list of event dicts rather than a MATLAB struct array",
+        AttributeError,
     ),
     "tests/test_sample_data_pop_functions.py::test_reference_saveh_original_global_and_recording_history": _gap(
         TRUTH, ValueError
