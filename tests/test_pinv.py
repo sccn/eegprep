@@ -6,6 +6,13 @@ import unittest
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.miscfunc.pinv import pinv
 
+# Seeded 32x32 matrix in test_parity_ill_conditioned_matrix: its smallest
+# singular value is about 2.57 times MATLAB's cutoff max(size)*eps(norm(A)).
+# An SVD backward error of n*eps*||A|| changes 1/sigma by the relative amount
+# n*eps*||A||/sigma_min ≈ 0.523. This rtol covers that sensitivity and still
+# fails if a singular component is dropped.
+ILL_CONDITIONED_RTOL = 0.53
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPinvParity(unittest.TestCase):
@@ -47,19 +54,17 @@ class TestPinvParity(unittest.TestCase):
         py_out = pinv(A)
         ml_out = self.eeglab.pinv(A)
 
-        print("\nIll-conditioned matrix test (32x32):")
-        print(f"Condition number: {np.linalg.cond(A):.2e}")
-        print(f"Python output shape: {py_out.shape}, dtype: {py_out.dtype}")
-        print(f"MATLAB output shape: {ml_out.shape}, dtype: {ml_out.dtype}")
+        singular_values = np.linalg.svd(A, compute_uv=False)
+        cutoff = max(A.shape) * np.spacing(singular_values[0])
+        sensitivity = max(A.shape) * np.finfo(float).eps * singular_values[0] / singular_values[-1]
+        self.assertGreater(singular_values[-1], cutoff)
+        self.assertLess(sensitivity, ILL_CONDITIONED_RTOL)
 
         max_diff = np.max(np.abs(py_out - ml_out))
-        print(f"Maximum absolute difference: {max_diff:.2e}")
-
-        adaptive_tol = max(1e-8, max_diff * 5)
-        success_adaptive = np.allclose(py_out, ml_out, rtol=adaptive_tol, atol=adaptive_tol)
-        print(f"Adaptive tolerance ({adaptive_tol:.2e}) success: {success_adaptive}")
-
-        self.assertTrue(success_adaptive, f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.2e}")
+        self.assertTrue(
+            np.allclose(py_out, ml_out, rtol=ILL_CONDITIONED_RTOL, atol=0.0),
+            f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.2e}",
+        )
 
 
 class TestPinvFunctional(unittest.TestCase):
@@ -75,6 +80,67 @@ class TestPinvFunctional(unittest.TestCase):
 
         # Test A_pinv * A * A_pinv = A_pinv (within numerical precision)
         self.assertTrue(np.allclose(A_pinv @ A @ A_pinv, A_pinv, atol=1e-12))
+
+    def test_explicit_tol_is_an_absolute_cutoff(self):
+        """tol is MATLAB's absolute singular-value cutoff, not a relative rtol."""
+        matrix = np.diag([100.0, 0.05])
+
+        for method in ('scipy', 'svd'):
+            with self.subTest(method=method):
+                inverse = pinv(matrix, tol=1e-3, method=method)
+                # 0.05 is below a relative cutoff of 1e-3 * 100 and above the absolute cutoff 1e-3.
+                np.testing.assert_allclose(inverse, np.diag([0.01, 20.0]), atol=1e-12)
+
+    def test_ill_conditioned_bound_covers_cutoff_sensitivity(self):
+        """The fixed parity rtol stays above this matrix's cutoff sensitivity."""
+        np.random.seed(99999)
+        matrix = np.random.randn(32, 32).astype(np.float64)
+        left, singular_values, right = np.linalg.svd(matrix)
+        singular_values[20:] *= 1e-12
+        matrix = left @ np.diag(singular_values) @ right
+
+        singular_values = np.linalg.svd(matrix, compute_uv=False)
+        cutoff = max(matrix.shape) * np.spacing(singular_values[0])
+        sensitivity = max(matrix.shape) * np.finfo(float).eps * singular_values[0] / singular_values[-1]
+
+        self.assertGreater(singular_values[-1], cutoff)
+        self.assertLess(sensitivity, ILL_CONDITIONED_RTOL)
+
+    def test_default_cutoff_matches_matlab_spacing_at_the_norm(self):
+        """Keep a singular value between MATLAB's cutoff and SciPy's relative default."""
+        matrix = _spectrum_matrix(5e-13)
+        singular_values = np.linalg.svd(matrix, compute_uv=False)
+        cutoff = max(matrix.shape) * np.spacing(singular_values[0])
+        scipy_cutoff = max(matrix.shape) * np.finfo(float).eps * singular_values[0]
+        self.assertGreater(singular_values[-1], cutoff)
+        self.assertLess(singular_values[-1], scipy_cutoff)
+
+        inverse = pinv(matrix)
+
+        np.testing.assert_allclose(np.linalg.norm(inverse, 2), 1.0 / singular_values[-1], rtol=1e-6, atol=0.0)
+
+    def test_default_cutoff_drops_a_numpy_null_singular_value(self):
+        """Drop a numerical null that NumPy's 1e-15 cutoff would invert."""
+        matrix = _spectrum_matrix(2e-13)
+        singular_values = np.linalg.svd(matrix, compute_uv=False)
+        cutoff = max(matrix.shape) * np.spacing(singular_values[0])
+        numpy_cutoff = 1e-15 * singular_values[0]
+        self.assertLess(singular_values[-1], cutoff)
+        self.assertGreater(singular_values[-1], numpy_cutoff)
+        retained = singular_values[singular_values > cutoff]
+
+        inverse = pinv(matrix)
+
+        np.testing.assert_allclose(np.linalg.norm(inverse, 2), 1.0 / retained[-1], rtol=1e-6, atol=0.0)
+        self.assertLess(np.linalg.norm(inverse, 2), 1.0 / cutoff)
+
+
+def _spectrum_matrix(smallest, channels=62):
+    singular_values = np.linspace(45.11, 1.42, channels)
+    singular_values[-1] = smallest
+    left, _ = np.linalg.qr(np.random.default_rng(306).standard_normal((channels, channels)))
+    right, _ = np.linalg.qr(np.random.default_rng(457).standard_normal((channels, channels)))
+    return left @ np.diag(singular_values) @ right.T
 
 
 if __name__ == '__main__':

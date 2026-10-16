@@ -2,7 +2,8 @@
 
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
+from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.miscfunc.pinv import pinv
 
 
 # Helper function (vectorized version of MATLAB's interpMx)
@@ -161,7 +162,7 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     C[n_src, :n_src] = muGss  # Row of ones * muGss
     # C[n_src, n_src] remains 0
 
-    iC = finite_pinv(C)  # [N+1 x N+1]
+    iC = pinv(C)  # [N+1 x N+1]
 
     type_lower = type.lower()
     if type_lower == 'spline':

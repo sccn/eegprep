@@ -41,6 +41,45 @@ def test_nonlinear_eigenspace_is_eigenbasis_of_shifted_covariance():
         np.testing.assert_allclose(vectors[:, index], sign * eigenvectors[:, index], atol=1e-8)
 
 
+def test_reconstruction_drops_a_singular_value_below_the_matlab_cutoff():
+    channels = 62
+    mixing = _spectrum_mixing(channels, 2e-13)
+    observed = np.linalg.svd(mixing, compute_uv=False)
+    cutoff = channels * np.spacing(observed[0])
+    numpy_cutoff = 1e-15 * observed[0]
+    assert observed[-1] < cutoff
+    assert observed[-1] > numpy_cutoff
+
+    reconstructed = asr_subspace_reconstruction(mixing, np.eye(channels), np.ones(channels, dtype=bool))
+
+    # Inverting this component reproduces the identity and coefficients near 1e13.
+    assert np.linalg.norm(reconstructed, 2) < 2.0
+    assert np.linalg.norm(reconstructed - np.eye(channels), 2) > 0.5
+
+
+def test_reconstruction_keeps_a_singular_value_above_the_matlab_cutoff():
+    channels = 62
+    mixing = _spectrum_mixing(channels, 5e-13)
+    observed = np.linalg.svd(mixing, compute_uv=False)
+    cutoff = channels * np.spacing(observed[0])
+    scipy_cutoff = channels * np.finfo(float).eps * observed[0]
+    assert observed[-1] > cutoff
+    assert observed[-1] < scipy_cutoff
+
+    reconstructed = asr_subspace_reconstruction(mixing, np.eye(channels), np.ones(channels, dtype=bool))
+
+    # Keeping the component reproduces the identity up to the conditioning of sigma_min.
+    assert np.linalg.norm(reconstructed - np.eye(channels), 2) < 0.2
+
+
+def _spectrum_mixing(channels, smallest):
+    singular_values = np.linspace(45.11, 1.42, channels)
+    singular_values[-1] = smallest
+    left, _ = np.linalg.qr(np.random.default_rng(306).standard_normal((channels, channels)))
+    right, _ = np.linalg.qr(np.random.default_rng(457).standard_normal((channels, channels)))
+    return left @ np.diag(singular_values) @ right
+
+
 def test_reconstruction_is_invariant_to_eigenvector_sign_flips():
     rng = np.random.default_rng(2)
     mixing = rng.normal(size=(4, 4))
