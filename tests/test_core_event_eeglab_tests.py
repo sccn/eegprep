@@ -13,7 +13,6 @@ from matplotlib import pyplot as plt
 from eegprep import (
     eeg_addnewevents,
     eeg_amplitudearea,
-    getchanlist,
     eeg_chaninds,
     eeg_context,
     eeg_eventhist,
@@ -23,6 +22,7 @@ from eegprep import (
     eeg_mergechan,
     eeg_mergelocs,
     eeg_timeinterp,
+    getchanlist,
 )
 from eegprep.functions.popfunc.eeg_getepochevent import event_type_text
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -831,7 +831,6 @@ def test_reference_urlatency_missing_duration(eeglab_backend):
     assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[np.nan]])
 
 
-@eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")
 def test_getchanlist_returns_one_based_first_and_last_channels():
     locations = [
         {"labels": "Fp1", "type": "EEG"},
@@ -845,6 +844,7 @@ def test_getchanlist_returns_one_based_first_and_last_channels():
     assert getchanlist([]) == []
 
 
+@eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")
 def test_reference_getchanlist_multiple_types_and_missing_type(eeglab_backend):
     result = eeglab_backend("getchanlist", _reference_typed_locations(), np.array([["e", "f"]], dtype=object))
     assert_matlab_near(result, [[2.0]])
