@@ -1,17 +1,13 @@
 # test_pinv.py
 import os
+import warnings
+
 import numpy as np
 import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.miscfunc.pinv import pinv
-
-# Seeded 32x32 matrix in test_parity_ill_conditioned_matrix: its smallest
-# singular value is about 2.57 times MATLAB's cutoff max(size)*eps(norm(A)).
-# An SVD backward error of n*eps*||A|| changes 1/sigma by the relative amount
-# n*eps*||A||/sigma_min ≈ 0.523. The matching absolute tolerance is that
-# relative amount divided by sigma_min.
-ILL_CONDITIONED_RTOL = 0.53
+from eegprep.plugins.clean_rawdata.private.riemann import asr_subspace_reconstruction
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
@@ -42,31 +38,67 @@ class TestPinvParity(unittest.TestCase):
         self.assertTrue(np.allclose(py_out, ml_out, atol=1e-12))
 
     def test_parity_ill_conditioned_matrix(self):
-        """Test pseudoinverse of an ill-conditioned matrix."""
-        np.random.seed(99999)
-        A = np.random.randn(32, 32).astype(np.float64)
+        """Compare Penrose products and the ASR projector, not pinv entries.
 
-        # Make it ill-conditioned by scaling some singular values very small
-        U, s, Vt = np.linalg.svd(A)
-        s[20:] *= 1e-12  # Make some singular values very small
-        A = U @ np.diag(s) @ Vt
-
-        py_out = pinv(A)
-        ml_out = self.eeglab.pinv(A)
-
-        singular_values = np.linalg.svd(A, compute_uv=False)
-        cutoff = max(A.shape) * np.spacing(singular_values[0])
-        sensitivity = max(A.shape) * np.finfo(float).eps * singular_values[0] / singular_values[-1]
+        Singular vectors tied to singular values a few times the cutoff are
+        not identified across LAPACK builds, so element-wise ``pinv`` values
+        are not a parity check. ``A @ pinv(A) @ A``, ``pinv(A) @ A @ pinv(A)``,
+        and ``M @ pinv(V' M) @ V'`` are.
+        """
+        matrix = _ill_conditioned_matrix()
+        singular_values = np.linalg.svd(matrix, compute_uv=False)
+        cutoff = max(matrix.shape) * np.spacing(singular_values[0])
         self.assertGreater(singular_values[-1], cutoff)
-        self.assertLess(sensitivity, ILL_CONDITIONED_RTOL)
 
-        max_diff = np.max(np.abs(py_out - ml_out))
-        absolute_bound = ILL_CONDITIONED_RTOL / singular_values[-1]
-        self.assertTrue(
-            np.allclose(py_out, ml_out, rtol=ILL_CONDITIONED_RTOL, atol=absolute_bound),
-            f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.3e} "
-            f"atol={absolute_bound:.3e} rtol={ILL_CONDITIONED_RTOL}",
+        python_inverse = pinv(matrix)
+        matlab_inverse = np.asarray(self.eeglab.pinv(matrix), dtype=np.float64)
+        bound = _projector_bound(singular_values)
+        python_errors = _penrose_errors(matrix, python_inverse)
+        matlab_errors = _penrose_errors(matrix, matlab_inverse)
+        reconstruction_gap = np.linalg.norm(
+            (matrix @ python_inverse @ matrix) - (matrix @ matlab_inverse @ matrix),
+            2,
         )
+        reconstruction_bound = 2.0 * bound * float(singular_values[0])
+        asr_gap = _asr_reconstruction_gap(matrix, self.eeglab.pinv)
+        asr_bound = 2.0 * bound
+        warnings.warn(
+            "ill-conditioned pinv "
+            f"projector py={python_errors[0]:.6e} ml={matlab_errors[0]:.6e} bound={bound:.6e} "
+            f"recon py={python_errors[1]:.6e} ml={matlab_errors[1]:.6e} "
+            f"bound={bound * singular_values[0]:.6e} cross={reconstruction_gap:.6e} "
+            f"penrose py={python_errors[2]:.6e} ml={matlab_errors[2]:.6e} "
+            f"bound={bound / singular_values[-1]:.6e} "
+            f"asr_cross={asr_gap:.6e} bound={asr_bound:.6e}",
+            UserWarning,
+            stacklevel=2,
+        )
+        self._assert_penrose('python', python_errors, bound, singular_values)
+        self._assert_penrose('matlab', matlab_errors, bound, singular_values)
+        self.assertLessEqual(
+            reconstruction_gap,
+            reconstruction_bound,
+            f"A@pinv@A cross={reconstruction_gap:.6e} bound={reconstruction_bound:.6e}",
+        )
+        self.assertLessEqual(
+            asr_gap,
+            asr_bound,
+            f"ASR projector cross={asr_gap:.6e} bound={asr_bound:.6e}",
+        )
+
+    def _assert_penrose(self, label, errors, bound, singular_values):
+        limits = (
+            bound,
+            bound * float(singular_values[0]),
+            bound / float(singular_values[-1]),
+        )
+        names = ('projector', 'A@pinv@A', 'pinv@A@pinv')
+        for name, error, limit in zip(names, errors, limits, strict=True):
+            self.assertLessEqual(
+                error,
+                limit,
+                f"{label} {name}={error:.6e} bound={limit:.6e}",
+            )
 
 
 class TestPinvFunctional(unittest.TestCase):
@@ -87,26 +119,25 @@ class TestPinvFunctional(unittest.TestCase):
         """tol is MATLAB's absolute singular-value cutoff, not a relative rtol."""
         matrix = np.diag([100.0, 0.05])
 
-        for method in ('scipy', 'svd'):
-            with self.subTest(method=method):
-                inverse = pinv(matrix, tol=1e-3, method=method)
-                # 0.05 is below a relative cutoff of 1e-3 * 100 and above the absolute cutoff 1e-3.
-                np.testing.assert_allclose(inverse, np.diag([0.01, 20.0]), atol=1e-12)
+        inverse = pinv(matrix, tol=1e-3)
+        # 0.05 is below a relative cutoff of 1e-3 * 100 and above the absolute cutoff 1e-3.
+        np.testing.assert_allclose(inverse, np.diag([0.01, 20.0]), atol=1e-12)
 
-    def test_ill_conditioned_bound_covers_cutoff_sensitivity(self):
-        """The fixed parity rtol stays above this matrix's cutoff sensitivity."""
-        np.random.seed(99999)
-        matrix = np.random.randn(32, 32).astype(np.float64)
-        left, singular_values, right = np.linalg.svd(matrix)
-        singular_values[20:] *= 1e-12
-        matrix = left @ np.diag(singular_values) @ right
-
+    def test_ill_conditioned_products_meet_the_projector_bound(self):
+        """The derived projector bound covers this matrix and rejects a rank drop."""
+        matrix = _ill_conditioned_matrix()
         singular_values = np.linalg.svd(matrix, compute_uv=False)
         cutoff = max(matrix.shape) * np.spacing(singular_values[0])
-        sensitivity = max(matrix.shape) * np.finfo(float).eps * singular_values[0] / singular_values[-1]
-
         self.assertGreater(singular_values[-1], cutoff)
-        self.assertLess(sensitivity, ILL_CONDITIONED_RTOL)
+        bound = _projector_bound(singular_values)
+        errors = _penrose_errors(matrix, pinv(matrix))
+        self.assertLessEqual(errors[0], bound)
+        self.assertLessEqual(errors[1], bound * singular_values[0])
+        self.assertLessEqual(errors[2], bound / singular_values[-1])
+
+        dropped = pinv(matrix, tol=float(np.sqrt(singular_values[-1] * singular_values[-2])))
+        dropped_projector = np.linalg.norm(matrix @ dropped - np.eye(matrix.shape[0]), 2)
+        self.assertGreater(dropped_projector, bound)
 
     def test_default_cutoff_matches_matlab_spacing_at_the_norm(self):
         """Keep a singular value between MATLAB's cutoff and SciPy's relative default."""
@@ -135,6 +166,46 @@ class TestPinvFunctional(unittest.TestCase):
 
         np.testing.assert_allclose(np.linalg.norm(inverse, 2), 1.0 / retained[-1], rtol=1e-6, atol=0.0)
         self.assertLess(np.linalg.norm(inverse, 2), 1.0 / cutoff)
+
+
+def _projector_bound(singular_values):
+    """Return ``sqrt(n) * eps * cond(A)`` for ``||A @ pinv(A) - I||_2``.
+
+    A backward-stable SVD is exact for a matrix within one unit roundoff of
+    ``A``. That perturbation moves the projector by ``eps * cond(A)``. The
+    products that form the projector are length ``n``, and independent
+    roundoff adds in root-sum-square, which contributes ``sqrt(n)``.
+    """
+    order = singular_values.shape[0]
+    condition = float(singular_values[0] / singular_values[-1])
+    return float(np.sqrt(order) * np.finfo(np.float64).eps * condition)
+
+
+def _penrose_errors(matrix, inverse):
+    eye = np.eye(matrix.shape[0], dtype=matrix.dtype)
+    projector = float(np.linalg.norm(matrix @ inverse - eye, 2))
+    reconstructed = float(np.linalg.norm(matrix @ inverse @ matrix - matrix, 2))
+    penrose = float(np.linalg.norm(inverse @ matrix @ inverse - inverse, 2))
+    return projector, reconstructed, penrose
+
+
+def _asr_reconstruction_gap(matrix, matlab_pinv):
+    """``||R_python - R_matlab||_2`` for ``R = M @ pinv(V' M) @ V'``."""
+    order = matrix.shape[0]
+    basis, _ = np.linalg.qr(np.random.default_rng(306).standard_normal((order, order)))
+    python_reconstruction = asr_subspace_reconstruction(matrix, basis, np.ones(order, dtype=bool))
+    factor = basis.T @ matrix
+    matlab_inverse = np.asarray(matlab_pinv(factor), dtype=np.float64)
+    matlab_reconstruction = np.real(matrix @ matlab_inverse @ basis.T)
+    return float(np.linalg.norm(python_reconstruction - matlab_reconstruction, 2))
+
+
+def _ill_conditioned_matrix():
+    np.random.seed(99999)
+    matrix = np.random.randn(32, 32).astype(np.float64)
+    left, singular_values, right = np.linalg.svd(matrix)
+    singular_values[20:] *= 1e-12
+    return left @ np.diag(singular_values) @ right
 
 
 def _spectrum_matrix(smallest, channels=62):

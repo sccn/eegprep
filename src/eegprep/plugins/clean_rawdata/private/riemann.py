@@ -15,7 +15,7 @@ makes:
 import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul
-from eegprep.functions.miscfunc.pinv import pinv
+from eegprep.functions.miscfunc.pinv import matlab_pinv_rcond
 
 from .covariance import cov_sqrtm, cov_rsqrtm
 
@@ -79,8 +79,9 @@ def asr_subspace_reconstruction(mixing, basis, keep):
     """
     keep_mask = np.asarray(keep, dtype=bool)[np.newaxis, :]
     projected = finite_matmul(np.asarray(basis).T, mixing)
-    masked = keep_mask * projected.T
-    return np.real(finite_matmul(finite_matmul(mixing, pinv(masked.T)), np.asarray(basis).T))
+    masked = np.asarray(keep_mask * projected.T, dtype=np.float64)
+    inverse = np.linalg.pinv(masked.T, rtol=matlab_pinv_rcond(masked.T))
+    return np.real(finite_matmul(finite_matmul(mixing, inverse), np.asarray(basis).T))
 
 
 def _solve_spd(matrix, rhs):
