@@ -34,7 +34,6 @@ OUTPUTS = "the function does not return the MATLAB output count"
 TRUTH = "a MATLAB array is used as a logical condition"
 POSITIONAL = "the function does not accept MATLAB positional arguments beyond its Python signature"
 STUDY = "the sample STUDY fixture is not valid UTF-8"
-MISSING = "eeg_hist, is_sccn, iseeglabdeployed, helpforexe, eeg_helphelp, or disp is not provided"
 SHUFFLE = "shuffle treats the EEGLAB dimension as a 0-based axis and returns 0-based indices, so the 1-based check reads past the array"
 VALUES = "numeric or text values do not match the MATLAB result"
 EPOCH_EMPTY = "epoch selection uses 1-based event latencies and finds no epochs"
@@ -43,7 +42,6 @@ BLOCKAVE = "blockave rejects the double frame count used by the EEGLAB call"
 POINT2LAT = "a MATLAB scalar epoch is not broadcast across the latency array"
 IMPORTPRES = "presentation log rows do not have the MATLAB column count"
 EVAL = "the EEGLAB call evaluates name/value text that is not a Python expression"
-HELPVAR = "help-variable text does not match the EEGLAB help block"
 EVENT_EDIT = "an event-field edit is passed as a MATLAB cell rather than an index, field, and value"
 IMPORT_TABLE = "imported rows do not match the MATLAB field or channel layout"
 CELLTOMAT = "celltomat is given MATLAB cells rather than numeric arrays"
@@ -425,12 +423,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
-    "tests/test_eegh.py::test_reference_eeg_hist_general": _gap(MISSING, AttributeError),
-    "tests/test_eegh.py::test_reference_eegh_execute_command": _gap(MISSING, NameError),
-    "tests/test_eeglab.py::test_reference_is_sccn": _gap(MISSING, AttributeError),
-    "tests/test_eeglab.py::test_reference_iseeglabdeployed": _gap(MISSING, AttributeError),
-    "tests/test_guifunc_pophelp_chansel.py::test_reference_eeg_helphelp": _gap(MISSING, AttributeError),
-    "tests/test_misc_visual_movie_eeglab_tests.py::test_reference_helpforexe": _gap(MISSING, AttributeError),
     "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_shuffle": _gap(SHUFFLE, IndexError),
     "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(VALUES, AssertionError),
     "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _gap(VALUES, AssertionError),
@@ -457,8 +449,6 @@ PYTHON_BACKEND_XFAILS = {
         IMPORTPRES, ValueError
     ),
     "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _gap(EVAL, SyntaxError),
-    "tests/test_gethelpvar.py::test_reference_gethelpvar_all": _gap(HELPVAR, AssertionError),
-    "tests/test_gethelpvar.py::test_reference_gethelpvar_general": _gap(HELPVAR, AssertionError),
     "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
         EVENT_EDIT, ValueError
     ),

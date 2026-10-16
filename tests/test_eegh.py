@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
+from eegprep.functions.adminfunc.eeg_hist import eeg_hist
 from eegprep.functions.adminfunc.eegh import eegh
 from eegprep.functions.guifunc.session import EEGPrepSession
 from tests.eeglab_tests import eeglab_test
@@ -161,6 +162,19 @@ def test_reference_eeg_hist_general(eeglab_backend):
     eeg = eeglab_backend("eeg_emptyset")
     result = eeglab_backend("eeg_hist", eeg, "a command")
     assert_matlab_struct_near(result["history"], "\na command")
+
+
+def test_eeg_hist_appends_a_command_on_its_own_line():
+    eeg = {}
+    assert eeg_hist(eeg, "a command") is eeg
+    assert eeg["history"] == "\na command"
+
+    eeg_hist(eeg, "EEG = pop_loadset('sample.set');")
+    eeg_hist(eeg, "")
+    assert eeg["history"] == "\na command"
+
+    eeg_hist(eeg, "EEG = pop_resample(EEG, 64);")
+    assert eeg["history"] == "\na command\nEEG = pop_resample(EEG, 64);"
 
 
 def test_eegh_records_only_non_empty_commands():

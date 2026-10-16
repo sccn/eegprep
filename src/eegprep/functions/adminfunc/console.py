@@ -310,6 +310,8 @@ class ConsoleEegh:
             history_command = session.history_command_at(value)
             if history_command:
                 self.bridge.execute_history_command(history_command)
+                # eegh.m:116-117 runs the stack entry, then records that same command.
+                session.add_history(history_command)
             return history_command
         session = self.bridge.session
         normalized = str(command).strip()

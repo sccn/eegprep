@@ -6,9 +6,11 @@ import tomllib
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eeg_helphelp import eeg_helphelp
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
 from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.pophelp import pophelp_text
+from eegprep.functions.miscfunc.helpforexe import helpforexe
 from eegprep.functions.popfunc.pop_chansel import (
     pop_chansel_selected_string,
 )
@@ -42,6 +44,20 @@ def test_reference_eeg_helphelp(eeglab_backend, request):
         eeglab_backend("eegprep_test_run_script", "eeg_helphelp", np.empty((1, 0), dtype=object), nargout=0)
     else:
         eeglab_backend("eeg_helphelp", nargout=0)
+
+
+def test_eeg_helphelp_prints_its_docstring(capsys):
+    eeg_helphelp()
+    printed = capsys.readouterr().out
+    assert "How EEGPrep help is organized." in printed
+    assert "return_com=True" in printed
+
+
+def test_helpforexe_writes_docstring_disp_lines(tmp_path):
+    helpforexe(np.array([["eeg_helphelp.m"]], dtype=object), tmp_path)
+    script = (tmp_path / "help_eeg_helphelp.m").read_text(encoding="utf-8")
+    assert "disp('How EEGPrep help is organized.');\n" in script
+    assert "disp(' ');\n" in script
 
 
 class PopHelpAndChanSelTests(unittest.TestCase):

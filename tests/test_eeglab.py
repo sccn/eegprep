@@ -1,9 +1,14 @@
+import os
+import subprocess
+import sys
 from unittest import mock
 
 import numpy as np
 
 
 from eegprep.functions.adminfunc import eeglab as eeglab_module
+from eegprep.functions.adminfunc.is_sccn import is_sccn
+from eegprep.functions.adminfunc.iseeglabdeployed import iseeglabdeployed
 from tests.eeglab_tests import eeglab_test
 
 
@@ -26,6 +31,33 @@ def test_reference_is_sccn(eeglab_backend):
 @eeglab_test(IS_DEPLOYED_WRAPPER, "test_test_iseeglabdeployed")
 def test_reference_iseeglabdeployed(eeglab_backend):
     assert np.all(np.asarray(eeglab_backend("iseeglabdeployed")) == 0)
+
+
+def test_is_sccn_uses_the_unix_hostname(monkeypatch):
+    def hostname(text: str):
+        def run(*_args, **_kwargs):
+            completed = subprocess.CompletedProcess(["hostname"], 0, stdout=text, stderr="")
+            return completed
+
+        return run
+
+    monkeypatch.setattr(os, "name", "posix")
+    monkeypatch.setattr(subprocess, "run", hostname("lab.ucsd.edu\n"))
+    assert is_sccn() == 1
+
+    monkeypatch.setattr(subprocess, "run", hostname("localhost\n"))
+    assert is_sccn() == 0
+
+    monkeypatch.setattr(os, "name", "nt")
+    monkeypatch.setattr(subprocess, "run", hostname("lab.ucsd.edu\n"))
+    assert is_sccn() == 0
+
+
+def test_iseeglabdeployed_follows_sys_frozen(monkeypatch):
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    assert iseeglabdeployed() == 0
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    assert iseeglabdeployed() == 1
 
 
 def test_eeglab_main_parses_nogui_and_full_plugin_options():
