@@ -31,8 +31,8 @@ def pop_readegi(
     channel-by-point-by-trial arrays. An ``epoc`` event with no ``tim0`` event
     is stored as ``boundary``. When both codes are present, the sample count
     divides evenly into one more trial than there are ``epoc`` events, and each
-    ``epoc`` latency is the last sample of one of those trials, the continuous
-    recording is returned as those trials and the ``epoc`` events are removed.
+    ``epoc`` latency is the last sample of one of those trials, the pauses
+    become the trial boundaries and the ``epoc`` events are removed.
     """
     path = Path(filename)
     header, trial_data, event_data, categories = readegi(path, datachunks, forceversion)

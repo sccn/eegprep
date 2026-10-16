@@ -26,8 +26,8 @@ the recording header.
 RAW files, including event channels and segment categories. An ``epoc`` event
 with no ``tim0`` event is stored as ``boundary``. When both codes are present,
 every ``epoc`` latency is the last sample of a trial, and the sample count
-divides evenly into one more trial than there are ``epoc`` events, a continuous
-recording is returned as those equal trials and the ``epoc`` events are removed.
+divides evenly into one more trial than there are ``epoc`` events, the pauses
+become the trial boundaries and the ``epoc`` events are removed.
 ``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.

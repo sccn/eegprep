@@ -202,8 +202,8 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        present, the sample count divides evenly by the number of ``epoc``
        events plus one, and the ``epoc`` latencies are exactly ``k * pnts``
        for ``k = 1 .. n``. That latency is the last sample of epoch ``k``.
-       The ``epoc`` events are then removed; the trial count is the record
-       of those pauses, and the other events stay. If the pauses are spaced
+       The ``epoc`` events are then removed; the pauses become the trial
+       boundaries, and the other events stay. If the pauses are spaced
        differently, or the length does not divide, the recording stays
        continuous and every event stays. EEGLAB deletes ``EEG.event(1)``
        with the channel-loop index and sets ``trials`` to that epoch count.
