@@ -223,6 +223,45 @@ def _event_sort_key(event):
     return (0 if epoch is None else epoch, 0 if latency is None else latency)
 
 
+def _is_empty_value(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    try:
+        return len(value) == 0
+    except TypeError:
+        return False
+
+
+def _coerce_etc(EEG) -> None:
+    value = EEG.get("etc")
+    if isinstance(value, dict):
+        return
+    if "etc" not in EEG or _is_empty_value(value):
+        EEG["etc"] = {}
+        return
+    raise ValueError(f"EEG etc must be a dictionary, not {type(value).__name__}")
+
+
+def _ica_needs_refresh(EEG) -> bool:
+    data = EEG.get("data")
+    weights = EEG.get("icaweights")
+    if (
+        not isinstance(data, np.ndarray)
+        or data.ndim < 2
+        or data.dtype.kind not in "iufc"
+        or not isinstance(weights, np.ndarray)
+        or weights.ndim < 1
+        or weights.size == 0
+    ):
+        return False
+    icaact = EEG.get("icaact")
+    if not isinstance(icaact, np.ndarray) or icaact.ndim < 2 or icaact.size == 0:
+        return True
+    return icaact.shape[0] != weights.shape[0] or icaact.shape[1] != data.shape[1]
+
+
 def eeg_checkset(EEG, *checks, load_data=True):
     """Validate and set up EEG dataset structure.
 
@@ -281,9 +320,14 @@ def eeg_checkset(EEG, *checks, load_data=True):
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape(EEG['pnts'] * EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
-    # Scale ICA components to RMS microvolt (matches MATLAB's option_scaleicarms)
+    # eeg_checkset.m:1266, 1297-1298
+    _coerce_etc(EEG)
+
+    # eeg_checkset.m:1000-1016 scales only when icaact is empty or mis-sized.
+    refresh_ica = _ica_needs_refresh(EEG)
     if (
-        option_scaleicarms
+        refresh_ica
+        and option_scaleicarms
         and 'icaweights' in EEG
         and 'icasphere' in EEG
         and 'icawinv' in EEG
@@ -306,9 +350,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # scaling shape: (n_components,)
                 scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
 
-                if not isinstance(EEG.get('etc'), dict):
-                    logger.debug("Replacing non-dict EEG['etc'] during ICA RMS scaling backup")
-                    EEG['etc'] = {}
                 EEG['etc']['icaweights_beforerms'] = EEG['icaweights'].copy()
                 EEG['etc']['icasphere_beforerms'] = EEG['icasphere'].copy()
 
@@ -322,7 +363,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
             logger.error("Error scaling ICA components: " + str(e))
 
     if (
-        'icaweights' in EEG
+        refresh_ica
+        and 'icaweights' in EEG
         and 'icasphere' in EEG
         and hasattr(EEG['icaweights'], 'size')
         and hasattr(EEG['icasphere'], 'size')

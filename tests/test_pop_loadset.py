@@ -105,22 +105,29 @@ def test_pop_loadset_corrupt_v7_set_surfaces_real_error_not_h5py(tmp_path):
     assert "mat file" in message or "unknown mat file" in message
 
 
-def test_pop_loadset_h5_unicode_decodes_via_general_path(tmp_path):
-    # The general uint16 -> UTF-8 decode (no hard-coded emoji branch) returns the
-    # correct character. The bytes below are UTF-8 for U+1F496 (sparkling heart).
+def test_pop_loadset_h5_unicode_decodes_uint16_code_units(tmp_path):
+    # U+1F496 is the UTF-16 surrogate pair U+D83D U+DC96, stored as a MATLAB char row.
     filepath = tmp_path / "unicode.set"
-    with h5py.File(filepath, "w") as f:
-        eeg_group = f.create_group("EEG")
-        unicode_bytes = np.array([104, 101, 108, 108, 111, 32, 240, 159, 146, 150], dtype=np.uint16)
-        eeg_group.create_dataset("unicode_string", data=unicode_bytes)
-        eeg_group.create_dataset("srate", data=np.array([[500.0]]))
-        eeg_group.create_dataset("nbchan", data=np.array([[4]]))
-        eeg_group.create_dataset("pnts", data=np.array([[100]]))
-        eeg_group.create_dataset("trials", data=np.array([[1]]))
-        eeg_group.create_dataset("xmin", data=np.array([[-1.0]]))
-        eeg_group.create_dataset("xmax", data=np.array([[1.0]]))
-        eeg_group.create_dataset("data", data=np.zeros((4, 100), dtype=np.float32))
+    codes = np.array([[ord(c)] for c in "hello "] + [[0xD83D], [0xDC96]], dtype=np.uint16)
+    with h5py.File(filepath, "w") as handle:
+        eeg_group = handle.create_group("EEG")
+        text = eeg_group.create_dataset("unicode_string", data=codes)
+        text.attrs["MATLAB_class"] = "char"
+        text.attrs["MATLAB_int_decode"] = np.int32(2)
+        for name, value in (
+            ("srate", 500.0),
+            ("nbchan", 4),
+            ("pnts", 100),
+            ("trials", 1),
+            ("xmin", -1.0),
+            ("xmax", 1.0),
+        ):
+            field = eeg_group.create_dataset(name, data=np.array([[value]], dtype=np.float64))
+            field.attrs["MATLAB_class"] = "double"
+        data = eeg_group.create_dataset("data", data=np.zeros((100, 4), dtype=np.float32))
+        data.attrs["MATLAB_class"] = "single"
 
     eeg = pop_loadset_h5(str(filepath))
 
     assert eeg["unicode_string"] == "hello \U0001f496"
+    assert eeg["data"].shape == (4, 100)

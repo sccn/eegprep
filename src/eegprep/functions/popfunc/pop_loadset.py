@@ -101,12 +101,12 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
 
     # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
     if 'icachansind' in EEG:
-        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
+        EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=True)
 
     info_data = None
     if info_only:
         info_data = _info_mode_data(EEG, Path(file_path))
-    elif not loaded_with_h5:
+    else:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
     # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
@@ -116,9 +116,7 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 
-    # pop_loadset_h5 already did this.
-    if not loaded_with_h5:
-        ur_indices_to_zero_based(EEG)
+    ur_indices_to_zero_based(EEG)
 
     EEG = eeg_checkset(EEG)
     if info_data is not None:

@@ -629,6 +629,7 @@ def _update_ica(
         return
     EEG["icaweights"] = np.linalg.pinv(EEG["icawinv"])
     EEG["icasphere"] = np.eye(len(EEG["icachansind"]))
+    EEG["icaact"] = np.array([])
 
 
 def _clear_ica(EEG: dict) -> None:

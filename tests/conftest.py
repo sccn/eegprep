@@ -452,7 +452,6 @@ MATLAB_NODEID_PARTS = (
     "tests/test_eeg_interp.py::TestSphericalSplineParity::",
     "tests/test_eeg_picard.py::TestEegPicard::",
     "tests/test_epoch.py::TestEpochParity::",
-    "tests/test_pop_loadset_h5.py::TestPopLoadsetH5Parity::",
     "tests/test_pop_reref.py::TestPopReref::test_parity_",
     "tests/test_pop_firfilt.py::TestPopFirfiltParity::",
     "tests/test_pop_rmbase.py::TestPopRmbaseParity::",

@@ -8,6 +8,7 @@ EEG data structures, ensuring required fields exist and have correct types.
 import unittest
 import sys
 import numpy as np
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -93,6 +94,46 @@ class TestEegChecksetStrictMode(DebuggableTestCase):
 
         with self.assertRaises(Exception):
             eeg_checkset(eeg2)
+
+
+def test_eeg_checkset_etc_empty_becomes_dict_and_other_values_error():
+    missing = create_minimal_eeg()
+    missing.pop("etc", None)
+    assert eeg_checkset(missing)["etc"] == {}
+
+    for empty in (None, [], "", np.array([])):
+        eeg = create_minimal_eeg()
+        eeg["etc"] = empty
+        assert eeg_checkset(eeg)["etc"] == {}
+
+    kept = create_minimal_eeg()
+    kept["etc"] = {"note": "keep"}
+    assert eeg_checkset(kept)["etc"]["note"] == "keep"
+
+    for bad in ("notes", [{"field": 1}], np.array([1.0])):
+        eeg = create_minimal_eeg()
+        eeg["etc"] = bad
+        with pytest.raises(ValueError, match="etc must be a dictionary"):
+            eeg_checkset(eeg)
+
+
+def test_eeg_checkset_ica_scaling_is_idempotent():
+    eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
+    weights = eeg["icaweights"].copy()
+    win = eeg["icawinv"].copy()
+    sphere = eeg["icasphere"].copy()
+    before = eeg["etc"]["icaweights_beforerms"].copy()
+    sphere_before = eeg["etc"]["icasphere_beforerms"].copy()
+    activations = eeg["icaact"].copy()
+
+    again = eeg_checkset(eeg)
+
+    np.testing.assert_array_equal(again["icaweights"], weights)
+    np.testing.assert_array_equal(again["icawinv"], win)
+    np.testing.assert_array_equal(again["icasphere"], sphere)
+    np.testing.assert_array_equal(again["etc"]["icaweights_beforerms"], before)
+    np.testing.assert_array_equal(again["etc"]["icasphere_beforerms"], sphere_before)
+    np.testing.assert_array_equal(again["icaact"], activations)
 
 
 if __name__ == '__main__':
