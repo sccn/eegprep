@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from picard import picard
 
-from eegprep import eeg_picard, pop_loadset, pop_saveset
+from eegprep import eeg_picard, pop_loadset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
@@ -140,7 +140,6 @@ class TestEegPicard(unittest.TestCase):
 
         print("Running Picard with Python engine...")
         EEG_python = eeg_picard(self.EEG.copy())
-        pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_picard_python.set'))
         print("Python engine test completed.")
 
         with _matlab_double_precision(engine):
@@ -148,12 +147,12 @@ class TestEegPicard(unittest.TestCase):
             self.assertEqual(option_single, 0)
             print("Running Picard with MATLAB engine...")
             EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
-            pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
             print("MATLAB engine test completed.")
 
         # --- Assertions ---
 
-        for eeg_result, engine_name in [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]:
+        results = [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]
+        for eeg_result, engine_name in results:
             with self.subTest(engine=engine_name):
                 self.assertIn('icaweights', eeg_result)
                 self.assertIn('icasphere', eeg_result)
@@ -166,19 +165,12 @@ class TestEegPicard(unittest.TestCase):
         n_pnts = self.EEG['pnts']
         n_trials = self.EEG['trials']
 
-        all_results = {
-            "Python": EEG_python,
-            "MATLAB": EEG_matlab,
-        }
-
-        for engine_name, eeg_result in all_results.items():
+        for eeg_result, engine_name in results:
             with self.subTest(engine=f"{engine_name} shape check"):
                 self.assertEqual(eeg_result['icaweights'].shape[1], n_chans)
                 self.assertEqual(eeg_result['icasphere'].shape, (n_chans, n_chans))
                 self.assertEqual(eeg_result['icaact'].shape[1], n_pnts)
                 self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
-
-        print("All engines produced ICA fields with consistent shapes.")
 
         np.testing.assert_allclose(
             EEG_python['icasphere'],
