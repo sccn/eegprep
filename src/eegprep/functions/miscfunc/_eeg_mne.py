@@ -97,19 +97,22 @@ def _drop_dangling_urevent(events, urevent):
 
 
 def _parse_numeric_token(value):
-    """Return an int or float when ``value`` is a numeric token."""
+    """Return a number only when ``str(number)`` reproduces the text."""
     text = str(value)
     if _INTEGER_TYPE.fullmatch(text):
-        return int(text)
+        number = int(text)
+        if str(number) == text:
+            return number
+        return None
     if _FLOAT_TYPE.fullmatch(text):
         number = float(text)
-        if np.isfinite(number):
+        if np.isfinite(number) and str(number) == text:
             return number
     return None
 
 
 def _restore_numeric_event_types(events):
-    """Keep numeric event types when every type is numeric."""
+    """Restore numeric event types when every conversion is lossless."""
     parsed = [_parse_numeric_token(event.get('type', '')) for event in events]
     if events and all(value is not None for value in parsed):
         for event, value in zip(events, parsed):
@@ -117,6 +120,22 @@ def _restore_numeric_event_types(events):
         return events
     for event in events:
         event['type'] = str(event.get('type', ''))
+    return events
+
+
+def _duration_is_nonzero(duration):
+    return duration not in (None, '', 0)
+
+
+def _consistent_durations(events):
+    """Give every event a duration when any duration is nonzero."""
+    if not any(_duration_is_nonzero(event.get('duration')) for event in events):
+        for event in events:
+            event.pop('duration', None)
+        return events
+    for event in events:
+        if not _duration_is_nonzero(event.get('duration')):
+            event['duration'] = 0
     return events
 
 
@@ -191,8 +210,9 @@ def _mne_epochs_to_eeg_events(epochs):
     """Build EEGLAB events for one MNE Epochs object.
 
     The time-locking event is placed at time 0. Other annotations are included
-    when their onset falls in ``[tmin, tmax + 1/sfreq)``. Nonzero annotation
-    durations become ``event['duration']`` in samples.
+    when their onset falls in ``[tmin, tmax + 1/sfreq)``. Annotation durations
+    become ``event['duration']`` in samples. When any event has a duration,
+    every event has one.
     """
     sfreq = float(epochs.info['sfreq'])
     raw_sfreq = float(epochs._raw_sfreq)
@@ -245,7 +265,7 @@ def _mne_epochs_to_eeg_events(epochs):
             )
         epoch_events.sort(key=lambda event: float(event['latency']))
         events.extend(epoch_events)
-    return _restore_numeric_event_types(events)
+    return _consistent_durations(_restore_numeric_event_types(events))
 
 
 def _apply_eeg_events_to_mne(epochs, EEG):
@@ -274,6 +294,8 @@ def _apply_eeg_events_to_mne(epochs, EEG):
     extras = []
     next_id = 1
     for epoch_index, group in enumerate(grouped):
+        if not group:
+            raise ValueError(f'epoch {epoch_index + 1} has no events')
         relatives = [_relative_seconds(event, epoch_index, pnts, srate, xmin) for event in group]
         lock_at = min(range(len(group)), key=lambda index: (abs(relatives[index]), index))
         locking_type = str(group[lock_at]['type'])

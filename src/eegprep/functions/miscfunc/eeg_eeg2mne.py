@@ -27,15 +27,15 @@ def eeg_eeg2mne(EEG):
 
     Continuous data becomes Raw. Epoched data becomes Epochs. ``EEG['subject']``
     is stored as ``info['subject_info']['his_id']``. Events whose onset falls in
-    ``[xmin, xmax + 1/srate)`` are kept with the time-locking event. Nonzero
+    ``[xmin, xmax + 1/srate)`` are kept with the time-locking event.
     ``event['duration']`` values, in samples, become annotation durations in
-    seconds.
+    seconds. On the way back, every event includes ``duration`` when any
+    duration is nonzero, and a zero duration is 0.
 
     The urevent table and ``event['urevent']`` do not survive. Boolean,
     non-finite, and non-scalar event fields do not survive. Annotation fields
     ``onset``, ``description``, ``ch_names``, and ``hed_string`` cannot be
-    stored as extra event fields. A duration of zero is omitted on the way
-    back to EEG.
+    stored as extra event fields. Recordings with no durations omit the field.
 
     Parameters
     ----------

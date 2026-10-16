@@ -17,15 +17,16 @@ def eeg_mne2eeg_epochs(epochs, ica):
 
     The time-locking event of each epoch is placed at time 0. Other events
     whose onset falls in ``[tmin, tmax + 1/srate)`` are included.
-    ``eeg_checkset`` builds ``EEG['epoch']``. Nonzero annotation durations are
-    stored on ``event['duration']`` in samples. Event types stay numbers when
-    every type is numeric. ``info['subject_info']['his_id']`` is copied to
-    ``EEG['subject']``.
+    ``eeg_checkset`` builds ``EEG['epoch']``. Annotation durations are stored
+    on ``event['duration']`` in samples. When any duration is nonzero, every
+    event has that field, and a zero duration is 0. An integer type is restored
+    only when ``str(int(text))`` reproduces the text. ``info['subject_info']['his_id']``
+    is copied to ``EEG['subject']``.
 
     The urevent table and ``event['urevent']`` do not survive. Boolean,
     non-finite, and non-scalar event fields do not survive. Annotation fields
     ``onset``, ``description``, ``ch_names``, and ``hed_string`` cannot be
-    stored as extra event fields. A duration of zero is omitted.
+    stored as extra event fields. Recordings with no durations omit the field.
 
     Parameters
     ----------

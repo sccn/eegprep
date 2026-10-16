@@ -22,7 +22,7 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
-from eegprep.functions.miscfunc._eeg_mne import _subject_text
+from eegprep.functions.miscfunc._eeg_mne import _apply_eeg_events_to_mne, _subject_text
 from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -310,8 +310,19 @@ class TestMNERoundTrip(unittest.TestCase):
         self.assertEqual([event['type'] for event in restored['event']], [1, 2])
         self.assertTrue(all(type(event['type']) is int for event in restored['event']))
         self.assertEqual(restored['event'][0]['duration'], 16)
-        self.assertNotIn('duration', restored['event'][1])
+        self.assertEqual(restored['event'][1]['duration'], 0)
+        self.assertTrue(all('duration' in event for event in restored['event']))
         self.assertTrue(all('urevent' not in event for event in restored['event']))
+
+        padded = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        padded['event'] = [
+            {'type': '001', 'latency': 1, 'epoch': 1},
+            {'type': '002', 'latency': 51, 'epoch': 2},
+        ]
+        padded['urevent'] = []
+        padded_restored = eeg_mne2eeg(eeg_eeg2mne(padded))
+        self.assertEqual([event['type'] for event in padded_restored['event']], ['001', '002'])
+        self.assertTrue(all(type(event['type']) is str for event in padded_restored['event']))
 
         mixed = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
         mixed['event'] = [
@@ -344,6 +355,29 @@ class TestMNERoundTrip(unittest.TestCase):
         restored = eeg_mne2eeg(epochs)
         self.assertTrue(all(type(event['type']) is str for event in restored['event']))
         self.assertEqual(restored['event'][0]['type'], 'stimulus')
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_apply_eeg_events_to_mne_rejects_empty_epoch(self):
+        info = mne.create_info(['EEG000'], 100.0, ch_types='eeg')
+        data = np.zeros((2, 1, 10))
+        epochs = mne.EpochsArray(
+            data,
+            info,
+            np.array([[0, 0, 1], [10, 0, 1]]),
+            tmin=0.0,
+            event_id={'target': 1},
+            verbose=False,
+        )
+        eeg = {
+            'trials': 2,
+            'pnts': 10,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.09,
+            'event': [{'type': 'target', 'latency': 1, 'epoch': 1}],
+        }
+        with self.assertRaisesRegex(ValueError, 'epoch 2 has no events'):
+            _apply_eeg_events_to_mne(epochs, eeg)
 
     def test_subject_text_rejects_multiple_values(self):
         self.assertEqual(_subject_text(np.array([])), '')

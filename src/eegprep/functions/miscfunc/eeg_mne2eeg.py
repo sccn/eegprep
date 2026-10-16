@@ -9,6 +9,7 @@ from mne.export import export_epochs, export_raw
 
 from ..popfunc.pop_loadset import pop_loadset
 from ._eeg_mne import (
+    _consistent_durations,
     _duration_samples,
     _mne_epochs_to_eeg_events,
     _mne_subject,
@@ -20,8 +21,9 @@ from ._eeg_mne import (
 def _mne_events_to_eeglab_events(raw_or_epochs):
     """Convert MNE annotations or events to EEGLAB event records.
 
-    Nonzero annotation durations are stored in samples. Event types stay
-    numbers when every type is numeric.
+    Durations are stored in samples. When any duration is nonzero, every event
+    has ``duration``, with 0 for a zero duration. An integer event type is
+    restored only when ``str(int(text))`` reproduces the text.
     """
     events = []
     sfreq = raw_or_epochs.info['sfreq']
@@ -48,7 +50,7 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
             if event_type is None:
                 event_type = str(ev[2])
             events.append({'latency': latency, 'type': event_type})
-    return _restore_numeric_event_types(events)
+    return _consistent_durations(_restore_numeric_event_types(events))
 
 
 def eeg_mne2eeg(raw):
@@ -57,10 +59,12 @@ def eeg_mne2eeg(raw):
     ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``. For
     epochs, the time-locking event is placed at time 0 and other events whose
     onset falls in ``[xmin, xmax + 1/srate)`` are kept. ``eeg_checkset`` builds
-    ``EEG['epoch']``. Nonzero annotation durations are stored on
-    ``event['duration']`` in samples (seconds times ``srate``). A duration of
-    zero is omitted. Event types stay numbers when every type is numeric, and
-    are stored as text when any type is not numeric.
+    ``EEG['epoch']``. Annotation durations are stored on ``event['duration']``
+    in samples (seconds times ``srate``). When any duration is nonzero, every
+    event has that field, and a zero duration is 0. Recordings with no
+    durations omit the field. An integer type is restored only when
+    ``str(int(text))`` reproduces the text, so ``'001'`` stays ``'001'``. A
+    non-numeric type keeps every type as text.
 
     The urevent table and ``event['urevent']`` do not survive. Boolean,
     non-finite, and non-scalar event fields do not survive. Annotation fields
