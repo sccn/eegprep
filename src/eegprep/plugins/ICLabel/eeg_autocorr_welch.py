@@ -38,16 +38,22 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     ).astype(int)
     index = index.T
 
+    # MATLAB icaact(:,index,:) still works when trials == 1 drops the last dimension.
+    activations = np.asarray(EEG['icaact'])
+    if activations.ndim == 2:
+        selected = activations[:, index]
+    else:
+        selected = activations[:, index, :]
+    shaped = np.reshape(selected, (ncomp, *index.shape, EEG['trials']))
     # separate data segments
     if pct_data != 100:
         random.seed(0)
         n_seg = index.shape[0] * EEG['trials']
         subset = random.sample(range(n_seg), int(np.ceil(n_seg * pct_data / 100)))
         random.seed()  # restore normal random behavior
-        temp = np.reshape(EEG['icaact'][:, index, :], (ncomp, *index.shape, EEG['trials']))
-        segments = temp[:, :, subset]
+        segments = shaped[:, :, subset]
     else:
-        segments = np.reshape(EEG['icaact'][:, index, :], (ncomp, *index.shape, EEG['trials']))
+        segments = shaped
 
     # calc autocorrelation
     ac = np.zeros((ncomp, nfft))

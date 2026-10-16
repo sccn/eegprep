@@ -57,8 +57,14 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     subset = rng.permutation(n_seg)[: int(n_seg * pct_data / 100)]
 
     psdmed = np.zeros((ncomp, nfreqs))
+    activations = np.asarray(EEG['icaact'])
     for it in range(ncomp):
-        temp = np.reshape(EEG['icaact'][it, index, :], (1, index.shape[0], index.shape[1] * EEG['trials']))
+        # MATLAB icaact(it,:,:) still works when trials == 1 drops the last dimension.
+        if activations.ndim == 2:
+            selected = activations[it, index]
+        else:
+            selected = activations[it, index, :]
+        temp = np.reshape(selected, (1, index.shape[0], index.shape[1] * EEG['trials']))
         temp = temp[:, :, subset] * window[:, np.newaxis]
         temp = fft(temp, int(n_points), axis=1)
         temp = np.abs(temp) ** 2
