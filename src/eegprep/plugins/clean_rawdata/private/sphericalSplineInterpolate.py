@@ -162,7 +162,7 @@ def sphericalSplineInterpolate(src, dest, lambda_reg=1e-5, order=4, type='spline
     C[n_src, :n_src] = muGss  # Row of ones * muGss
     # C[n_src, n_src] remains 0
 
-    iC = pinv(C)  # [N+1 x N+1]
+    iC = pinv(C)
 
     type_lower = type.lower()
     if type_lower == 'spline':

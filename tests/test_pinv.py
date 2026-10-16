@@ -9,6 +9,8 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.plugins.clean_rawdata.private.riemann import asr_subspace_reconstruction
 
+DROPPED_NULL_RECONSTRUCTION_GAP = 0.5
+
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPinvParity(unittest.TestCase):
@@ -118,16 +120,7 @@ class TestPinvParity(unittest.TestCase):
 
     def test_parity_masked_rank_deficient_reconstruction(self):
         """Partial keep mask: the masked factor is the rank-deficient ASR path."""
-        mixing, basis, keep = _masked_asr_case()
-        factor = _masked_factor(mixing, basis, keep)
-        singular_values = np.linalg.svd(factor, compute_uv=False)
-        cutoff = max(factor.shape) * np.spacing(singular_values[0])
-        numpy_cutoff = 1e-15 * singular_values[0]
-        retained = singular_values[singular_values > cutoff]
-        self.assertFalse(np.all(keep))
-        self.assertGreater(np.count_nonzero((singular_values > numpy_cutoff) & (singular_values <= cutoff)), 0)
-        self.assertGreater(retained.size, 0)
-
+        mixing, basis, keep, _factor, retained = _prepare_masked_null_case(self)
         gap = _asr_reconstruction_gap(mixing, self.eeglab.pinv, keep, basis)
         bound = 2.0 * _projector_bound(retained, order=mixing.shape[0])
         warnings.warn(
@@ -188,19 +181,14 @@ class TestPinvFunctional(unittest.TestCase):
 
     def test_partial_keep_drops_the_masked_null(self):
         """A partial keep mask still drops a singular value NumPy's cutoff would invert."""
-        mixing, basis, keep = _masked_asr_case()
-        factor = _masked_factor(mixing, basis, keep)
-        singular_values = np.linalg.svd(factor, compute_uv=False)
-        cutoff = max(factor.shape) * np.spacing(singular_values[0])
-        numpy_cutoff = 1e-15 * singular_values[0]
-        self.assertFalse(np.all(keep))
-        self.assertGreater(np.count_nonzero((singular_values > numpy_cutoff) & (singular_values <= cutoff)), 0)
-
-        retained = singular_values[singular_values > cutoff]
+        mixing, basis, keep, factor, retained = _prepare_masked_null_case(self)
         reconstructed = asr_subspace_reconstruction(mixing, basis, keep)
         numpy_reconstructed = np.real(mixing @ np.linalg.pinv(factor) @ np.asarray(basis).T)
         np.testing.assert_allclose(np.linalg.norm(pinv(factor), 2), 1.0 / retained[-1], rtol=1e-6, atol=0.0)
-        self.assertGreater(np.linalg.norm(reconstructed - numpy_reconstructed, 2), 0.5)
+        self.assertGreater(
+            np.linalg.norm(reconstructed - numpy_reconstructed, 2),
+            DROPPED_NULL_RECONSTRUCTION_GAP,
+        )
 
     def test_default_cutoff_matches_matlab_spacing_at_the_norm(self):
         """Keep a singular value between MATLAB's cutoff and SciPy's relative default."""
@@ -261,6 +249,20 @@ def _asr_reconstruction_gap(matrix, matlab_pinv, keep, basis=None):
     matlab_inverse = np.asarray(matlab_pinv(factor), dtype=np.float64)
     matlab_reconstruction = np.real(matrix @ matlab_inverse @ np.asarray(basis).T)
     return float(np.linalg.norm(python_reconstruction - matlab_reconstruction, 2))
+
+
+def _prepare_masked_null_case(test):
+    mixing, basis, keep = _masked_asr_case()
+    factor = _masked_factor(mixing, basis, keep)
+    singular_values = np.linalg.svd(factor, compute_uv=False)
+    cutoff = max(factor.shape) * np.spacing(singular_values[0])
+    numpy_cutoff = 1e-15 * singular_values[0]
+    retained = singular_values[singular_values > cutoff]
+    in_gap = int(np.count_nonzero((singular_values > numpy_cutoff) & (singular_values <= cutoff)))
+    test.assertFalse(np.all(keep))
+    test.assertGreater(in_gap, 0)
+    test.assertGreater(retained.size, 0)
+    return mixing, basis, keep, factor, retained
 
 
 def _masked_factor(mixing, basis, keep):
