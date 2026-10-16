@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.sigprocfunc.kmeanscluster import kmeanscluster
 from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels, squared_distances
 from eegprep.functions.studyfunc.optimal_kmeans import optimal_kmeans
 
@@ -38,6 +39,9 @@ def robust_kmeans(
             active_labels, centers, _sumd, _distances = optimal_kmeans(
                 values[active], [2, cluster_count], random_state=random_state
             )
+        elif method.lower() == "kmeanscluster":
+            active_labels, centers, _previous, _matrix = kmeanscluster(values[active], cluster_count)
+            active_labels = active_labels + 1
         else:
             active_labels, centers = kmeans_labels(values[active], cluster_count, random_state)
         distances = np.sqrt(squared_distances(values, centers))

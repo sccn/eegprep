@@ -133,6 +133,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - STUDY ``pop_clust`` algorithm ``kmeans``
+     - EEGLAB calls ``kmeans(data, k, 'replicates', 10, 'emptyaction', 'drop')``.
+       Cluster numbers follow MATLAB's random stream and are not reproduced.
+       EEGPrep uses a seeded NumPy initialization and Lloyd updates.
+   * - STUDY clustering dialog
+     - EEGLAB's dialog calls ``kmeans_st(real(clustdata), clus_num, 150)``
+       with random restarts. The command-line path calls ``kmeanscluster()``.
+       EEGPrep's dialog uses the ``kmeanscluster`` route.
    * - ASR calibration on a short recording
      - ``clean_asr`` still removes high-power calibration windows when
        ``fit_eeg_distribution`` does not return a positive scale. The scale is

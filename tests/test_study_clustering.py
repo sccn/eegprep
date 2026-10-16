@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import ast
+from pathlib import Path
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.miscfunc.kmeans_st import kmeans_st
+from eegprep.functions.sigprocfunc.kmeanscluster import kmeanscluster
 from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust
@@ -19,6 +24,20 @@ from eegprep.functions.studyfunc.std_mergeclust import std_mergeclust
 from eegprep.functions.studyfunc.std_movecomp import std_movecomp
 from eegprep.functions.studyfunc.std_moveoutlier import std_moveoutlier
 from eegprep.functions.studyfunc.std_rejectoutliers import std_rejectoutliers
+from tests.eeglab_tests.backend import call_matlab
+
+
+_INITIAL_CENTROID_OBSERVATIONS = np.array(
+    [
+        [0.0, 10.0],
+        [0.0, 0.0],
+        [0.2, 10.1],
+        [-0.1, 9.7],
+        [0.3, 0.2],
+        [-0.2, 0.4],
+    ]
+)
+_SAMPLE_EPOCHS = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
 
 
 class _Renderer:
@@ -341,3 +360,153 @@ def test_clustedit_gui_maps_component_list_rows_to_cluster_local_positions():
     assert f"cluster={source_cluster}" in command
     assert moved["cluster"][source_cluster - 1]["comps"] == source_before[1:]
     assert moved["cluster"][-1]["comps"] == [source_before[0]]
+
+
+def test_pop_clust_kmeanscluster_uses_first_rows_as_centroids():
+    study, alleeg, data = _sample_preclust_matrix(3)
+    labels, _centers, previous, _matrix = kmeanscluster(data, 4)
+    expected = std_createclust(
+        study,
+        alleeg,
+        clusterind=labels + 1,
+        algorithm=["Kmeans", 4],
+        name="Cls",
+    )
+
+    clustered = pop_clust(study, alleeg, algorithm="kmeanscluster", clus_num=4)
+    repeated = pop_clust(study, alleeg, algorithm="kmeanscluster", clus_num=4, random_state=1)
+    seeded = pop_clust(study, alleeg, algorithm="kmeans", clus_num=4, random_state=0)
+    seeded_again = pop_clust(study, alleeg, algorithm="kmeans", clus_num=4, random_state=0)
+
+    assert np.array_equal(previous, labels)
+    assert _cls_comps(clustered) == _cls_comps(expected)
+    assert _cls_comps(repeated) == _cls_comps(expected)
+    assert _cls_comps(seeded) == _cls_comps(seeded_again)
+    assert _cls_comps(seeded) != _cls_comps(clustered)
+
+
+def test_kmeans_st_restarts_are_seeded_and_the_first_pass_is_not():
+    _study, _alleeg, data = _sample_preclust_matrix(3)
+
+    centers, labels, sse = kmeans_st(data, 4, random_state=0)
+    other_centers, other_labels, other_sse = kmeans_st(data, 4, random_state=7)
+    restarted_centers, restarted_labels, restarted_sse = kmeans_st(data, 4, 2, random_state=0)
+    repeated_centers, repeated_labels, repeated_sse = kmeans_st(data, 4, 2, random_state=0)
+
+    np.testing.assert_array_equal(labels, other_labels)
+    np.testing.assert_array_equal(centers, other_centers)
+    assert sse == other_sse
+    np.testing.assert_array_equal(restarted_labels, repeated_labels)
+    np.testing.assert_array_equal(restarted_centers, repeated_centers)
+    assert restarted_sse == repeated_sse
+    assert restarted_sse <= sse
+    assert restarted_centers.shape == (4, data.shape[1])
+    assert set(restarted_labels.tolist()) <= set(range(4))
+    assert set(labels.tolist()) <= set(range(4))
+
+
+def test_matlab_kmeans_numbering_matches_fixed_initial_centroids(eeglab_matlab_engine):
+    found = eeglab_matlab_engine.which("kmeans")
+    found_text = found if isinstance(found, str) else ""
+    if "toolbox/stats" not in found_text.replace("\\", "/").lower():
+        pytest.skip(f"Statistics Toolbox kmeans is not on the path ({found_text})")
+
+    data = _INITIAL_CENTROID_OBSERVATIONS
+    labels, centers, previous, _observations = kmeanscluster(data, 2)
+    np.testing.assert_array_equal(previous, labels)
+    matlab_labels, matlab_centers, _matlab_previous, _matlab_data = call_matlab(
+        eeglab_matlab_engine,
+        "kmeanscluster",
+        data,
+        2.0,
+        nargout=4,
+    )
+    stats_labels, stats_centers = call_matlab(
+        eeglab_matlab_engine,
+        "kmeans",
+        data,
+        2.0,
+        "Start",
+        data[:2].copy(),
+        "EmptyAction",
+        "error",
+        "OnlinePhase",
+        "off",
+        "MaxIter",
+        300.0,
+        "Display",
+        "off",
+        nargout=2,
+    )
+
+    np.testing.assert_array_equal(np.asarray(matlab_labels).ravel(), labels + 1)
+    np.testing.assert_allclose(np.asarray(matlab_centers, dtype=float), centers, rtol=0, atol=1e-12)
+    np.testing.assert_array_equal(np.asarray(stats_labels).ravel(), labels + 1)
+    np.testing.assert_allclose(np.asarray(stats_centers, dtype=float), centers, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("npca", [3, 10])
+def test_matlab_kmeans_st_first_pass_matches_sample_membership(eeglab_matlab_engine, npca):
+    _study, _alleeg, data = _sample_preclust_matrix(npca)
+    centers, labels, sse = kmeans_st(data, 4)
+    matlab_centers, matlab_labels, matlab_sse = call_matlab(
+        eeglab_matlab_engine,
+        "kmeans_st",
+        data,
+        4.0,
+        nargout=3,
+    )
+
+    np.testing.assert_array_equal(np.asarray(matlab_labels).ravel(), labels + 1)
+    np.testing.assert_allclose(np.asarray(matlab_centers, dtype=float), centers, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(np.asarray(matlab_sse, dtype=float).reshape(-1), [sse], rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("npca", [3, 10])
+def test_matlab_pop_clust_kmeanscluster_matches_sample_membership(eeglab_matlab_engine, npca):
+    study, alleeg, data = _sample_preclust_matrix(npca)
+    clustered = pop_clust(study, alleeg, algorithm="kmeanscluster", clus_num=4)
+    component_numbers = np.asarray(study["cluster"][0]["comps"], dtype=float).reshape(1, -1)
+    matlab_labels = call_matlab(
+        eeglab_matlab_engine,
+        "eegprep_test_pop_clust_kmeanscluster",
+        data,
+        component_numbers,
+        4.0,
+    )
+
+    np.testing.assert_array_equal(
+        np.asarray(matlab_labels).ravel(),
+        _labels_from_clusters(clustered, component_numbers.ravel().astype(int)),
+    )
+
+
+def _sample_preclust_matrix(npca: int) -> tuple[dict, list, np.ndarray]:
+    eeg = pop_loadset(str(_SAMPLE_EPOCHS))
+    study, alleeg = pop_study(None, [eeg], name="Sample study")
+    study, alleeg = pop_preclust(
+        study,
+        alleeg,
+        preproc=[{"measure": "scalp", "npca": npca, "norm": 1, "weight": 1, "abso": 1}],
+    )
+    return study, alleeg, np.asarray(study["etc"]["preclust"]["preclustdata"], dtype=float)
+
+
+def _cls_comps(study: dict) -> dict[str, list]:
+    return {
+        str(cluster["name"]): list(cluster["comps"])
+        for cluster in study["cluster"]
+        if str(cluster.get("name") or "").lower().startswith("cls ")
+    }
+
+
+def _labels_from_clusters(study: dict, component_numbers: np.ndarray) -> np.ndarray:
+    labels = np.zeros(component_numbers.size, dtype=int)
+    for cluster in study["cluster"]:
+        name = str(cluster.get("name") or "")
+        if not name.lower().startswith("cls "):
+            continue
+        label = int(name.rsplit(" ", 1)[-1])
+        rows = np.flatnonzero(np.isin(component_numbers, np.asarray(cluster["comps"], dtype=int)))
+        labels[rows] = label
+    return labels

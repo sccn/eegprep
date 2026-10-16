@@ -9,6 +9,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import numeric_vector
+from eegprep.functions.sigprocfunc.kmeanscluster import kmeanscluster
 from eegprep.functions.studyfunc._cluster_kmeans import kmeans_labels
 from eegprep.functions.studyfunc._cluster_utils import checked_study_and_datasets, cluster_command
 from eegprep.functions.studyfunc.robust_kmeans import robust_kmeans
@@ -31,7 +32,12 @@ def pop_clust(
     return_com: bool = False,
     **kwargs: Any,
 ) -> Any:
-    """Run deterministic k-means clustering on ``STUDY.etc.preclust``."""
+    """Cluster STUDY component rows in ``STUDY.etc.preclust``.
+
+    ``algorithm="kmeanscluster"`` initializes centroids from the first
+    ``clus_num`` rows. ``algorithm="kmeans"`` keeps the lowest-SSE result of
+    ten seeded starts. ``Cls k`` is centroid ``k`` of that result.
+    """
     study, datasets = checked_study_and_datasets(STUDY, ALLEEG)
     if args:
         if len(args) % 2:
@@ -79,7 +85,11 @@ def pop_clust(
         )
         algorithm_provenance = ["robust_kmeans", clus_num]
     else:
-        labels, _centers = kmeans_labels(data, clus_num, random_state)
+        if algorithm == "kmeanscluster":
+            labels, _centers, _previous, _matrix = kmeanscluster(data, clus_num)
+            labels = labels + 1
+        else:
+            labels, _centers = kmeans_labels(data, clus_num, random_state)
     study = std_createclust(
         study,
         datasets,
