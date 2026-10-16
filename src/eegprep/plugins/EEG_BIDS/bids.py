@@ -5,6 +5,8 @@ from typing import Sequence, Dict, Any, Optional
 
 import bids
 
+from .sidecar import bids_json_decoding
+
 
 __all__ = ['root_for_fpath', 'gen_derived_fpath', 'layout_for_fpath', 'layout_get_lenient', 'query_for_adjacent_fpath']
 
@@ -135,7 +137,8 @@ def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
     try:
         return layout_cache[bids_root]
     except KeyError:
-        layout = bids.BIDSLayout(bids_root, validate=False)
+        with bids_json_decoding():
+            layout = bids.BIDSLayout(bids_root, validate=False)
         layout_cache[bids_root] = layout
         return layout
 

@@ -133,6 +133,20 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - BIDS TSV bytes
+     - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
+       A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays
+       µ and ``0x80`` stays U+0080. On MATLAB R2025b with
+       ``DefaultCharacterSet`` UTF-8, EEGLAB ``loadtxt`` maps both bytes to
+       U+FFFD and leaves the BOM as U+FEFF on the first header. A Windows-1252
+       MATLAB session maps ``0x80`` to the euro sign.
+   * - BIDS JSON bytes
+     - JSON sidecars must be UTF-8. A leading UTF-8 BOM is removed and the
+       file is accepted. Bytes that are not UTF-8 raise
+       ``UnicodeDecodeError``. EEGLAB ``bids_loadfile`` reads a Latin-1 JSON
+       file and replaces the undecodable byte, so the bytes for ``café``
+       become ``caf`` followed by U+FFFD. The same reader errors when the
+       file starts with a UTF-8 BOM.
    * - STUDY ``pop_clust`` algorithm ``kmeans``
      - EEGLAB calls ``kmeans(data, k, 'replicates', 10, 'emptyaction', 'drop')``.
        Cluster numbers follow MATLAB's random stream and are not reproduced.

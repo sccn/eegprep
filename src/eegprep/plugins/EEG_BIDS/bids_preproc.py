@@ -22,6 +22,7 @@ from ...functions.miscfunc.misc import (
     num_jobs_from_reservation,
 )
 from .bids import layout_for_fpath, root_for_fpath
+from .sidecar import read_bids_json
 from .coords import chanloc_has_coords
 
 # EpochBaseline is seconds; pop_rmbase timerange uses EEG["times"] milliseconds.
@@ -1055,8 +1056,7 @@ def bids_preproc(
                 # rewrite/update the _eeg.json file
                 fpath_eeg = gen_derived_fpath(fn, outputdir=OutputDir, suffix='eeg', extension='.json')
                 if os.path.exists(fpath_eeg):
-                    with open(fpath_eeg, 'r') as fp:
-                        content = json.load(fp)
+                    content = read_bids_json(fpath_eeg)
                 else:
                     content = {}
 
@@ -1187,8 +1187,7 @@ def bids_preproc(
         dataset_desc_path = os.path.join(root, 'dataset_description.json')
         if os.path.exists(dataset_desc_path):
             logger.info(f"Updating derived dataset_description.json from {dataset_desc_path}")
-            with open(dataset_desc_path, 'r') as f:
-                desc = json.load(f)
+            desc = read_bids_json(dataset_desc_path)
             if not isinstance(desc, dict):
                 raise ValueError(f"Expected {dataset_desc_path} to contain a JSON object")
         else:
