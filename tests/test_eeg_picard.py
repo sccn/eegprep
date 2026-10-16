@@ -1,64 +1,37 @@
 import os
 import unittest
+import warnings
+from contextlib import contextmanager
+
 import numpy as np
 import pytest
 from picard import picard
-from eegprep import pop_loadset, eeg_picard, pop_saveset
+
+from eegprep import eeg_picard, pop_loadset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
-
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fixtures import create_test_eeg as _create_test_eeg
+from tests.test_ds003061_stage_parity import (
+    PICARD_AMARI_MAX,
+    PICARD_CORR_MIN,
+    amari_distance,
+    matched_mixing_correlation,
+)
 
 
-def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
-    """Compare ICA weight matrices accounting for permutation and sign ambiguity.
-
-    ICA solutions are unique only up to permutation and sign of components.
-    This function computes the correlation matrix between components and checks
-    that each component in weights1 has a highly correlated match in weights2.
-
-    Parameters
-    ----------
-    weights1 : ndarray
-        First ICA weight matrix (n_components x n_channels)
-    weights2 : ndarray
-        Second ICA weight matrix (n_components x n_channels)
-    rtol : float
-        Relative tolerance for correlation check
-    atol : float
-        Absolute tolerance - max correlation should be at least (1 - atol)
-
-    Returns
-    -------
-    matched : bool
-        True if all components have high-correlation matches
-    max_correlations : ndarray
-        Maximum absolute correlation for each component in weights1
-    best_matches : ndarray
-        Index of best matching component in weights2 for each component in weights1
-    """
-    n_comp = weights1.shape[0]
-
-    # weights1 rows correlated with weights2 rows
-    corr_matrix = np.zeros((n_comp, n_comp))
-    for i in range(n_comp):
-        for j in range(n_comp):
-            corr_matrix[i, j] = np.corrcoef(weights1[i, :], weights2[j, :])[0, 1]
-
-    abs_corr = np.abs(corr_matrix)
-    max_correlations = np.max(abs_corr, axis=1)
-    best_matches = np.argmax(abs_corr, axis=1)
-
-    min_acceptable_corr = 1.0 - atol
-    matched = np.all(max_correlations >= min_acceptable_corr)
-
-    return matched, max_correlations, best_matches, corr_matrix
-
-
-# ASSESSMENT OF THE TEST RESULTS
-# The current conclusion is that while MATLAB and Octave are not exactly the same, they are close enough.
-# However, Python is quite different. The image is saved in the test folder of the difference between the 2-D arrays.
-# More investigation is needed to understand why this is the case. The implementation are quite different to start with.
+@contextmanager
+def _matlab_double_precision(engine):
+    """Turn ``option_single`` off and write the snapshotted options file back."""
+    options_path, original = eeg_options_snapshot(engine)
+    try:
+        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        engine.eval("eeglab_options;", nargout=0)
+        yield
+    finally:
+        restore_eeg_options(options_path, original)
+        engine.eval("clear functions", nargout=0)
+        engine.eval("eeglab_options;", nargout=0)
 
 
 # where the test resources
@@ -147,26 +120,39 @@ class TestEegPicard(unittest.TestCase):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
     def test_picard_engines(self):
-        """Test eeg_picard with Python, MATLAB, and Octave engines."""
+        """Compare Python and MATLAB Picard on the sample set in double precision.
+
+        MATLAB ``eeg_picard`` must call ``picard_python_port`` (identity
+        initialization). ``option_single`` is turned off for the call and the
+        options file is restored afterward.
+        """
 
         eeglab_mat = get_eeglab('MAT')
+        engine = eeglab_mat.engine
         if not matlab_function_exists(eeglab_mat, 'eeg_picard'):
             self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+        source = str(engine.eval("fileread(which('eeg_picard'))", nargout=1))
+        if "picard_python_port" not in source:
+            self.fail(
+                "MATLAB eeg_picard does not call picard_python_port. Install mind-inria/picard "
+                "617ce6ae669cfbd1dfedba6a5fce39a602b99ac3. The EEGLAB PICARD 2.0 extension uses a seeded random start."
+            )
 
         print("Running Picard with Python engine...")
         EEG_python = eeg_picard(self.EEG.copy())
-        pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_picard_python.set'))
         print("Python engine test completed.")
 
-        # --- MATLAB Engine ---
-        print("Running Picard with MATLAB engine...")
-        EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
-        pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
-        print("MATLAB engine test completed.")
+        with _matlab_double_precision(engine):
+            option_single = int(engine.eval("option_single", nargout=1))
+            self.assertEqual(option_single, 0)
+            print("Running Picard with MATLAB engine...")
+            EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
+            print("MATLAB engine test completed.")
 
         # --- Assertions ---
 
-        for eeg_result, engine_name in [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]:  # , (EEG_octave, 'Octave')]:
+        results = [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]
+        for eeg_result, engine_name in results:
             with self.subTest(engine=engine_name):
                 self.assertIn('icaweights', eeg_result)
                 self.assertIn('icasphere', eeg_result)
@@ -179,55 +165,13 @@ class TestEegPicard(unittest.TestCase):
         n_pnts = self.EEG['pnts']
         n_trials = self.EEG['trials']
 
-        all_results = {
-            "Python": EEG_python,
-            "MATLAB": EEG_matlab,
-            # "Octave": EEG_octave
-        }
-
-        for engine_name, eeg_result in all_results.items():
+        for eeg_result, engine_name in results:
             with self.subTest(engine=f"{engine_name} shape check"):
                 self.assertEqual(eeg_result['icaweights'].shape[1], n_chans)
                 self.assertEqual(eeg_result['icasphere'].shape, (n_chans, n_chans))
                 self.assertEqual(eeg_result['icaact'].shape[1], n_pnts)
                 self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
 
-        print("All engines produced ICA fields with consistent shapes.")
-
-        # plot the difference between each 2-D array and the difference between the 2-D arrays and save the figure
-        if False:
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-            im1 = axes[0].imshow(EEG_python['icaweights'], aspect='auto', cmap='viridis')
-            axes[0].set_title('Python icaweights')
-            fig.colorbar(im1, ax=axes[0])
-
-            im2 = axes[1].imshow(EEG_matlab['icaweights'], aspect='auto', cmap='viridis')
-            axes[1].set_title('MATLAB icaweights')
-            fig.colorbar(im2, ax=axes[1])
-
-            diff = np.abs(EEG_python['icaweights'] - EEG_matlab['icaweights'])
-            im3 = axes[2].imshow(diff, aspect='auto', cmap='magma')
-            axes[2].set_title('Absolute Difference')
-            fig.colorbar(im3, ax=axes[2])
-            plt.savefig(os.path.join(local_url, 'icaweights_comparison.png'))
-            plt.close()
-
-        # save weights to MATLAB file
-        import scipy.io
-
-        scipy.io.savemat(
-            os.path.join(local_url, 'icaweights_comparison.mat'),
-            {'pArray': EEG_python['icaweights'], 'mArray': EEG_matlab['icaweights']},
-        )  # , 'oArray': EEG_octave['icaweights']})
-
-        # Compare Python and MATLAB results using correlation-based comparison
-        # ICA solutions are unique only up to permutation and sign of components
-        # Therefore we use correlation to match components rather than element-wise comparison
-        print("Comparing Python and Matlab results using correlation-based matching...")
-
-        # icasphere should be identity for both (exact match expected)
         np.testing.assert_allclose(
             EEG_python['icasphere'],
             EEG_matlab['icasphere'],
@@ -236,33 +180,23 @@ class TestEegPicard(unittest.TestCase):
             err_msg='Python and Matlab icasphere differ beyond tolerance',
         )
 
-        # Compare icaweights using correlation (handles permutation and sign ambiguity)
-        matched, max_corrs, best_matches, corr_matrix = compare_ica_components(
-            EEG_python['icaweights'], EEG_matlab['icaweights'], atol=0.35
+        python_unmixing = np.asarray(EEG_python['icaweights'], dtype=float) @ np.asarray(
+            EEG_python['icasphere'], dtype=float
         )
-
-        print(f"  Min correlation across components: {np.min(max_corrs):.4f}")
-        print(f"  Mean correlation across components: {np.mean(max_corrs):.4f}")
-        print(f"  Components with correlation < 0.95: {np.sum(max_corrs < 0.95)}")
-        print(f"  Components with correlation < 0.65: {np.sum(max_corrs < 0.65)}")
-
-        # Check for unique matching (each Python component maps to a different MATLAB component)
-        unique_matches = len(set(best_matches)) == len(best_matches)
-        if not unique_matches:
-            print(f"  WARNING: Non-unique matching detected. Best matches: {best_matches}")
-
-        self.assertTrue(
-            matched,
-            f"ICA components do not match well. Min correlation: {np.min(max_corrs):.4f}. "
-            f"Expected >= 0.65 for all components. Mean: {np.mean(max_corrs):.4f}",
+        distance = amari_distance(python_unmixing, np.asarray(EEG_matlab['icawinv'], dtype=float))
+        mean_correlation, min_correlation = matched_mixing_correlation(EEG_python['icawinv'], EEG_matlab['icawinv'])
+        parity = (
+            f"picard sample parity: amari={distance:.6e} "
+            f"corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}"
         )
-
-        # Note: icawinv = pinv(icaweights), so if icaweights match, icawinv is
-        # mathematically determined. We skip explicit icawinv comparison since
-        # the component order differs between Python and MATLAB, and reordering
-        # would be redundant with the icaweights check above.
-
-        print("Python and MATLAB ICA results match (accounting for permutation/sign).")
+        print(parity)
+        warnings.warn(parity, UserWarning, stacklevel=1)
+        self.assertLessEqual(distance, PICARD_AMARI_MAX, f"AMARI {distance:.6e} exceeds {PICARD_AMARI_MAX:.6e}")
+        self.assertGreaterEqual(
+            min_correlation,
+            PICARD_CORR_MIN,
+            f"min matched correlation {min_correlation:.6f} is below {PICARD_CORR_MIN}",
+        )
 
 
 if __name__ == '__main__':
