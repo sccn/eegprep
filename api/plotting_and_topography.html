@@ -571,8 +571,8 @@ tick labels are stored as the plain tick value, so MATLAB can read the file.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.envtopo.html#eegprep.envtopo" title="eegprep.envtopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.envtopo</span></code></a>(data, weights, *[, ...])</p></td>
 <td><p>Rank component contributions to a data epoch and plot their envelopes/maps.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.erpimage.html#eegprep.erpimage" title="eegprep.erpimage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.erpimage</span></code></a>(data, *[, times, title, ...])</p></td>
-<td><p>Plot trials as an EEGLAB-style ERP image plus the average ERP.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.erpimage.html#eegprep.erpimage" title="eegprep.erpimage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.erpimage</span></code></a>(data[, sortvar, times, ...])</p></td>
+<td><p>Image single trials sorted and smoothed across trials, as EEGLAB <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.forcelocs.html#eegprep.forcelocs" title="eegprep.forcelocs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.forcelocs</span></code></a>(chanlocs, *locations)</p></td>
 <td><p>Rotate an electrode montage to force named channels to X/Y positions.</p></td>
@@ -659,6 +659,93 @@ reusable 3-D spline maps; <code class="docutils literal notranslate"><span class
 <code class="docutils literal notranslate"><span class="pre">headplot(&quot;cartesian&quot;)</span></code> return and print the corresponding electrode-file
 examples for interactive use.</p>
 </section>
+<section id="erp-images">
+<span id="erpimage-api"></span><h2>ERP images<a class="headerlink" href="#erp-images" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">erpimage</span></code> images single trials of one channel or component, sorted and
+smoothed across trials, with the ERP and, optionally, wavelet amplitude and
+inter-trial coherence traces underneath. It takes EEGLAB’s arguments in
+EEGLAB’s order, <code class="docutils literal notranslate"><span class="pre">erpimage(data,</span> <span class="pre">sortvar,</span> <span class="pre">times,</span> <span class="pre">title,</span> <span class="pre">avewidth,</span> <span class="pre">decimate)</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">data</span></code> is <code class="docutils literal notranslate"><span class="pre">(frames,</span> <span class="pre">trials)</span></code> (for example <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;][ch]</span></code>),
+<code class="docutils literal notranslate"><span class="pre">sortvar</span></code> holds one value per trial and <code class="docutils literal notranslate"><span class="pre">times</span></code> holds latencies in ms.
+Options follow either as EEGLAB tokens or as keywords; these two calls are
+equivalent:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">erpimage</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">erpimage</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">rt</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="s2">&quot;Pz&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;erp&quot;</span><span class="p">,</span> <span class="s2">&quot;cbar&quot;</span><span class="p">,</span> <span class="s2">&quot;phasesort&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">300</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">erpimage</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">rt</span><span class="p">,</span> <span class="n">times</span><span class="p">,</span> <span class="s2">&quot;Pz&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">erp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">phasesort</span><span class="o">=</span><span class="p">[</span><span class="mi">300</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>The result unpacks like EEGLAB’s fifteen outputs, followed by the figure:
+<code class="docutils literal notranslate"><span class="pre">outdata,</span> <span class="pre">outvar,</span> <span class="pre">outtrials,</span> <span class="pre">limits,</span> <span class="pre">axhndls,</span> <span class="pre">erp,</span> <span class="pre">amps,</span> <span class="pre">cohers,</span> <span class="pre">cohsig,</span>
+<span class="pre">ampsig,</span> <span class="pre">outamps,</span> <span class="pre">phsangls,</span> <span class="pre">phsamp,</span> <span class="pre">sortidx,</span> <span class="pre">erpsig,</span> <span class="pre">figure</span> <span class="pre">=</span> <span class="pre">result</span></code>, and the
+same values are available as attributes (<code class="docutils literal notranslate"><span class="pre">result.outdata</span></code>). <code class="docutils literal notranslate"><span class="pre">outdata</span></code> is
+<code class="docutils literal notranslate"><span class="pre">(frames,</span> <span class="pre">smoothed_trials)</span></code>; outputs that were not computed are <code class="docutils literal notranslate"><span class="pre">None</span></code>.
+Pass <code class="docutils literal notranslate"><span class="pre">target=</span></code> a Matplotlib Figure or SubFigure to draw into it, <code class="docutils literal notranslate"><span class="pre">NoShow=True</span></code>
+to compute without drawing (not combined with <code class="docutils literal notranslate"><span class="pre">target</span></code>), and <code class="docutils literal notranslate"><span class="pre">rng=</span></code> a seed
+or NumPy random generator to make the coherence bootstrap and the <code class="docutils literal notranslate"><span class="pre">erpalpha</span></code>
+permutations reproducible (<code class="docutils literal notranslate"><span class="pre">numpy.random.RandomState(seed)</span></code> gives the same
+bootstrap draws as MATLAB’s <code class="docutils literal notranslate"><span class="pre">rng(seed,</span> <span class="pre">'twister')</span></code>).</p>
+<p>The numbers come from <code class="docutils literal notranslate"><span class="pre">eegprep.functions.sigprocfunc.erpimage_engine</span></code>, a
+single module that needs only NumPy and the Python standard library (<code class="docutils literal notranslate"><span class="pre">ast</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dataclasses</span></code>, <code class="docutils literal notranslate"><span class="pre">logging</span></code>, <code class="docutils literal notranslate"><span class="pre">typing</span></code>). Across 46 recorded scenarios
+(sorting, smoothing and decimation, phase and amplitude sorting with trial
+rejection, coherence and its significance, amplitude images, time warping,
+percentile ERPs and axis limits), every output matches EEGLAB’s <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>
+run on MATLAB R2025b to within <code class="docutils literal notranslate"><span class="pre">1e-12</span></code> of the output’s largest magnitude
+(of the input data’s largest magnitude for outputs in data units, such as the
+image and the ERP).</p>
+<section id="differences-from-eeglab">
+<h3>Differences from EEGLAB<a class="headerlink" href="#differences-from-eeglab" title="Link to this heading">#</a></h3>
+<p>Where EEGLAB’s behavior contradicts its own help text, EEGPrep follows the help:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sortidx</span></code> holds 0-based indices into the input trials. EEGLAB returns
+1-based indices into the trials left after removing NaN <code class="docutils literal notranslate"><span class="pre">sortvar</span></code> values.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'noplot'</span></code> hides only the sortvar trace. In EEGLAB it suppresses the whole
+figure.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'erpalpha'</span></code> draws unbiased random signs for its permutation test. EEGLAB
+draws <code class="docutils literal notranslate"><span class="pre">sign(randn</span> <span class="pre">-</span> <span class="pre">0.5)</span></code>, which is +1 only about 31% of the time (mean sign
+-0.38), so its thresholds are inflated
+(<a class="reference external" href="https://github.com/sccn/eeglab/issues/976">sccn/eeglab#976</a>). EEGPrep’s
+<code class="docutils literal notranslate"><span class="pre">erpalpha</span></code> bands therefore differ slightly from MATLAB’s; the rest of the
+computation is unchanged.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'signif'</span></code> with <code class="docutils literal notranslate"><span class="pre">'coher'</span></code> uses the given thresholds. On MATLAB R2025b this
+combination stops with an error (a vector operand to <code class="docutils literal notranslate"><span class="pre">||</span></code>).</p></li>
+<li><p>Per-trial <code class="docutils literal notranslate"><span class="pre">'timewarp'</span></code> events and per-trial <code class="docutils literal notranslate"><span class="pre">'vert'</span></code> latencies stay with
+their trials through sorting and trial rejection; EEGLAB applies them by
+position after sorting.</p></li>
+</ul>
+<p>Other behavior to know when moving from EEGLAB:</p>
+<ul class="simple">
+<li><p>Invalid inputs raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> where EEGLAB prints a message and
+returns, or carries on with a wrong result: option values of the wrong size
+or type (EEGLAB often uses the first element), data whose trial count does
+not match <code class="docutils literal notranslate"><span class="pre">sortvar</span></code>, data containing infinite values, <code class="docutils literal notranslate"><span class="pre">limits</span></code> or
+<code class="docutils literal notranslate"><span class="pre">baseline</span></code> windows without samples, <code class="docutils literal notranslate"><span class="pre">renorm</span></code> <code class="docutils literal notranslate"><span class="pre">'yes'</span></code> on a constant
+<code class="docutils literal notranslate"><span class="pre">sortvar</span></code>, amplitude rejection that leaves fewer than two trials,
+<code class="docutils literal notranslate"><span class="pre">'timewarp'</span></code> events outside the epoch or with the wrong number of rows,
+<code class="docutils literal notranslate"><span class="pre">'plotamps'</span></code> or <code class="docutils literal notranslate"><span class="pre">'coher'</span></code> with zero wavelet amplitude (no dB value),
+a <code class="docutils literal notranslate"><span class="pre">'topo'</span></code> channel outside the channel locations, and a <code class="docutils literal notranslate"><span class="pre">'spec'</span></code> band
+above the Nyquist frequency. <code class="docutils literal notranslate"><span class="pre">'allcohers'</span></code>, which <code class="docutils literal notranslate"><span class="pre">erpimage.m</span></code> marks
+UNIMPLEMENTED, raises. <code class="docutils literal notranslate"><span class="pre">target</span></code> must be a Figure or SubFigure
+(<code class="docutils literal notranslate"><span class="pre">TypeError</span></code>).</p></li>
+<li><p>The notes EEGLAB prints and then continues past go to the
+<code class="docutils literal notranslate"><span class="pre">eegprep.functions.sigprocfunc.erpimage_engine</span></code> logger: replaced NaN data,
+removed NaN-<code class="docutils literal notranslate"><span class="pre">sortvar</span></code> trials, clamped <code class="docutils literal notranslate"><span class="pre">avewidth</span></code> and <code class="docutils literal notranslate"><span class="pre">decimate</span></code>, trials
+kept after amplitude rejection, alignment shifts larger than the epoch,
+clipped <code class="docutils literal notranslate"><span class="pre">limits</span></code>, sorting bands reduced to the Nyquist frequency, a single
+ERP drawn because <code class="docutils literal notranslate"><span class="pre">'erpalpha'</span></code> was given with <code class="docutils literal notranslate"><span class="pre">'erp'</span></code> above 1, and options
+that have no effect in the chosen sorting mode.</p></li>
+<li><p>A negative <code class="docutils literal notranslate"><span class="pre">decimate</span></code> must lie between minus the trial count and the trial
+count; EEGLAB allocates as many output rows as asked.</p></li>
+<li><p>Boxcar <code class="docutils literal notranslate"><span class="pre">avewidth</span></code> must be a whole number of trials, as on MATLAB R2025b,
+which rejects non-integer window sizes.</p></li>
+<li><p>A three-sample <code class="docutils literal notranslate"><span class="pre">times</span></code> vector is a time vector, not EEGLAB’s compact
+<code class="docutils literal notranslate"><span class="pre">[start_ms,</span> <span class="pre">frames,</span> <span class="pre">srate]</span></code> form, when the data also have three frames.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'timewarp'</span></code> cannot be combined with <code class="docutils literal notranslate"><span class="pre">'phasesort'</span></code>, <code class="docutils literal notranslate"><span class="pre">'ampsort'</span></code> or
+<code class="docutils literal notranslate"><span class="pre">'plotamps'</span></code>; EEGLAB applies the warp marks inconsistently there.</p></li>
+</ul>
+</section>
+</section>
 </section>
 
 
@@ -709,6 +796,10 @@ examples for interactive use.</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#low-level-eeglab-plotting-workflows">Low-level EEGLAB plotting workflows</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#erp-images">ERP images</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#differences-from-eeglab">Differences from EEGLAB</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 

@@ -476,6 +476,39 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">erpimage</span></code> is now a faithful port of EEGLAB’s <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>: it takes
+EEGLAB’s arguments and options (as tokens or keywords) and returns its fifteen
+outputs plus the figure. Sorting, smoothing and decimation, phase and
+amplitude sorting, coherence with bootstrap significance, amplitude images,
+time warping and axis limits match MATLAB R2025b, computed by a NumPy-only
+engine. <code class="docutils literal notranslate"><span class="pre">erpimage(data,</span> <span class="pre">times=...,</span> <span class="pre">sort_values=...,</span> <span class="pre">smooth=...)</span></code> calls
+become <code class="docutils literal notranslate"><span class="pre">erpimage(data,</span> <span class="pre">sortvar,</span> <span class="pre">times,</span> <span class="pre">title,</span> <span class="pre">avewidth,</span> <span class="pre">decimate,</span> <span class="pre">...)</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">plot_erp</span></code>, <code class="docutils literal notranslate"><span class="pre">chan_locs</span></code> and <code class="docutils literal notranslate"><span class="pre">channel_index</span></code> become <code class="docutils literal notranslate"><span class="pre">erp</span></code> and
+<code class="docutils literal notranslate"><span class="pre">topo</span></code>. Defaults now follow EEGLAB (no ERP trace, no colorbar). The
+<code class="docutils literal notranslate"><span class="pre">erpalpha</span></code> permutation test uses unbiased random signs, so its thresholds
+differ slightly from EEGLAB’s
+(<a class="reference external" href="https://github.com/sccn/eeglab/issues/976">sccn/eeglab#976</a>).
+Invalid inputs raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> instead of producing a wrong image,
+<code class="docutils literal notranslate"><span class="pre">'allcohers'</span></code> raises, <code class="docutils literal notranslate"><span class="pre">NoShow</span></code> cannot be combined with <code class="docutils literal notranslate"><span class="pre">target</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">rng</span></code> also accepts an integer seed. The notes EEGLAB prints and continues
+past (clamped widths, removed NaN trials, an <code class="docutils literal notranslate"><span class="pre">'erp'</span></code> above 1 reduced to one
+ERP by <code class="docutils literal notranslate"><span class="pre">'erpalpha'</span></code>, ignored options) are logged; see <a class="reference internal" href="api/plotting_and_topography.html#erpimage-api"><span class="std std-ref">ERP images</span></a>
+for every difference.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> images change shape because <code class="docutils literal notranslate"><span class="pre">smooth</span></code> and <code class="docutils literal notranslate"><span class="pre">decimate</span></code> now
+follow EEGLAB: <code class="docutils literal notranslate"><span class="pre">decimate</span></code> is the moving window’s advance in trials (values
+above the square root of the trial count give that many rows), and the
+moving window no longer pads incomplete edge windows. On
+<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data_epochs_ica.set</span></code> channel 14 (80 epochs),
+<code class="docutils literal notranslate"><span class="pre">smooth=10,</span> <span class="pre">decimate=2</span></code> gives 36 rows (previously 40), <code class="docutils literal notranslate"><span class="pre">smooth=10,</span>
+<span class="pre">decimate=20</span></code> gives 18 (previously 4) and <code class="docutils literal notranslate"><span class="pre">smooth=3,</span> <span class="pre">decimate=1</span></code> gives 78
+(previously 80). Sorting is stable, epochs whose sorting value is missing
+are left out, component images leave the ERP axis label empty as EEGLAB
+does (previously “uV”), and smoothing fewer than 4 epochs raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. Options the dialog does not expose now point to
+<code class="docutils literal notranslate"><span class="pre">erpimage</span></code>, which supports them.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> draws its ERP image with EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> arguments,
+including the sortvar trace at the right edge and rounded ERP axis ticks,
+and raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when the activity is all NaN.</p></li>
 <li><p>BIDS EDF and BDF files are imported with <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>. The previous
 neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
 and ds004279.</p></li>
