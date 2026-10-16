@@ -35,7 +35,7 @@ Unreleased
 - The top-level ``eegprep`` package exports the public statistics helpers
   (``statcond``, ``fdr``, ``statcondfieldtrip``, and the condition-test,
   surrogate, and concatenation helpers) and the public signal helpers
-  ``numdim``, ``eeg_ms2f``, ``pinv``, ``spher``, ``eegplot2event``,
+  ``numdim``, ``eeg_ms2f``, ``spher``, ``eegplot2event``,
   ``eegplot2trial``, ``envtopo``, ``erpimage``, ``timtopo``, ``plottopo``,
   ``spectopo``, ``axcopy``, and ``runamica``.
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's

@@ -12,7 +12,7 @@ import subprocess
 
 import pytest
 
-from _pytest.subtests import SubtestReport, failed_subtests_key
+from _pytest.subtests import failed_subtests_key
 
 from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, PYTHON_BACKEND_XFAILS
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
@@ -49,38 +49,85 @@ def _eeglab_support_directory(value):
     return directory
 
 
-_PYTEST_CONFIG = None
+# These unittest classes call MATLAB directly. The Python lane deselects them.
+PYTHON_BACKEND_MATLAB_ORACLE_PREFIXES = (
+    "tests/test_eeg_interp.py::TestComputeGParity::",
+    "tests/test_eeg_interp.py::TestEegInterpParity::",
+    "tests/test_eeg_interp.py::TestSphericalSplineParity::",
+    "tests/test_eegfindboundaries.py::TestEegFindBoundariesParity::",
+    "tests/test_epoch.py::TestEpochParity::",
+    "tests/test_pinv.py::TestPinvParity::",
+    "tests/test_pop_select.py::TestPopSelectParity::",
+)
 
 
-def _expect_subtest_failure(report) -> None:
+def _subtest_description(context) -> str:
+    parts = []
+    if context.msg is not None:
+        parts.append(f"[{context.msg}]")
+    if context.kwargs:
+        params = ", ".join(f"{key}={value!r}" for key, value in context.kwargs.items())
+        parts.append(f"({params})")
+    return " ".join(parts) or "(<subtest>)"
+
+
+def _reported_exception_name(report) -> str | None:
+    crash = getattr(report.longrepr, "reprcrash", None)
+    if crash is None:
+        return None
+    name, separator, _message = crash.message.partition(":")
+    if not separator:
+        return None
+    return name.rsplit(".", 1)[-1]
+
+
+def _expect_subtest_failure(config: pytest.Config, report) -> None:
     """Strict-xfail one subtest before pytest records it.
 
-    The subtest call returns after the failure is stored, so a marker on the
-    parent would be an unexpected pass. Pytest has already counted the failure
-    toward failing that parent; clear that count when the failure is expected.
+    The parent returns after the failure is stored, so a parent marker would
+    be an unexpected pass. Pytest has already counted the subtest toward
+    failing that parent.
     """
-    if _PYTEST_CONFIG is None or _PYTEST_CONFIG.getoption("--eeglab-backend") != "python":
+    if config.getoption("--eeglab-backend") != "python":
         return
-    if not isinstance(report, SubtestReport) or report.when != "call":
+    context = getattr(report, "context", None)
+    if context is None or report.when != "call":
         return
-    reason = PYTHON_BACKEND_SUBTEST_XFAILS.get(report.nodeid, {}).get(report._sub_test_description())
-    if reason is None:
+    entry = PYTHON_BACKEND_SUBTEST_XFAILS.get(report.nodeid, {}).get(_subtest_description(context))
+    if entry is None:
         return
-    counts = _PYTEST_CONFIG.stash[failed_subtests_key]
+    expected = entry.raises if isinstance(entry.raises, tuple) else (entry.raises,)
+    counts = config.stash[failed_subtests_key]
     if report.failed:
+        if _reported_exception_name(report) not in {item.__name__ for item in expected}:
+            return
         report.outcome = "skipped"
-        report.wasxfail = reason
+        report.wasxfail = entry.reason
         counts[report.nodeid] -= 1
         return
     if report.passed:
         report.outcome = "failed"
-        report.longrepr = f"[XPASS(strict)] {reason}"
+        report.longrepr = f"[XPASS(strict)] {entry.reason}"
         counts[report.nodeid] += 1
 
 
+class _PythonBackendReports:
+    def __init__(self, config: pytest.Config) -> None:
+        self.config = config
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_logreport(self, report: pytest.TestReport):
+        # Runs before the session hook that increments testsfailed.
+        _expect_subtest_failure(self.config, report)
+        # A killed runner never flushes pytest's capture.
+        text = report.longreprtext
+        if report.failed and text:
+            os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())
+        return (yield)
+
+
 def pytest_configure(config):
-    global _PYTEST_CONFIG
-    _PYTEST_CONFIG = config
+    config.pluginmanager.register(_PythonBackendReports(config), "eegprep-python-backend-reports")
     # CI: MATLAB served by matlab-batch (the batch token cannot license the Engine
     # API), against the vendored EEGLAB. Set here, after option parsing, so that
     # --eeglab-root keeps its default and the pinned eeglab_tests lane stays opted out.
@@ -428,9 +475,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.skip(reason=HEAVY_REFERENCE_SKIP_REASON))
 
         if backend == "python":
-            reason = PYTHON_BACKEND_XFAILS.get(nodeid)
-            if reason is not None:
-                item.add_marker(pytest.mark.xfail(reason=reason, strict=True))
+            entry = PYTHON_BACKEND_XFAILS.get(nodeid)
+            if entry is not None:
+                item.add_marker(pytest.mark.xfail(reason=entry.reason, raises=entry.raises, strict=True))
 
 
 @pytest.hookimpl(specname="pytest_collection_modifyitems", trylast=True)
@@ -444,6 +491,8 @@ def pytest_filter_eeglab_contracts(config, items):
         transport = "eeglab_matlab_engine" in getattr(item, "fixturenames", ())
         if (contract and backend is None) or (transport and backend != "matlab"):
             deselected.append(item)
+        elif backend == "python" and item.nodeid.startswith(PYTHON_BACKEND_MATLAB_ORACLE_PREFIXES):
+            deselected.append(item)
         if backend == "matlab" and not contract and not transport and upstream_references(getattr(item, "obj", None)):
             unconverted.append(item.nodeid)
     if unconverted:
@@ -454,14 +503,3 @@ def pytest_filter_eeglab_contracts(config, items):
     if deselected:
         config.hook.pytest_deselected(items=deselected)
         items[:] = [item for item in items if item not in deselected]
-
-
-@pytest.hookimpl(wrapper=True, tryfirst=True)
-def pytest_runtest_logreport(report: pytest.TestReport):
-    # Runs before the session hook that increments testsfailed.
-    _expect_subtest_failure(report)
-    # A killed runner never flushes pytest's capture.
-    text = getattr(report, "longreprtext", "")
-    if report.failed and text:
-        os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())
-    return (yield)

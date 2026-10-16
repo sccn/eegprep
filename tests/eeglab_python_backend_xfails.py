@@ -1,409 +1,594 @@
 """Expected failures for --eeglab-backend=python.
 
-PYTHON_BACKEND_XFAILS marks whole tests. PYTHON_BACKEND_SUBTEST_XFAILS marks
-individual subtests whose test function returns after recording the failure.
+Each entry names one gap. ``raises`` is the stable exception type: a different
+exception fails the job, and strict mode fails the job when the test passes.
 """
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedFailure:
+    reason: str
+    raises: type[BaseException] | tuple[type[BaseException], ...]
+
+
+def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], ...]) -> ExpectedFailure:
+    return ExpectedFailure(f"{reason} (#430)", raises)
+
+
+STATCOND = "statcond is keyword-only and does not accept MATLAB name/value pairs such as mode and verbose"
+STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
+SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"
+INDEX = "an EEGLAB index or dimension is 1-based"
+NAMEVALUE = "MATLAB name/value arguments are not accepted"
+OUTPUTS = "the function does not return the MATLAB output count"
+TRUTH = "a MATLAB array is used as a logical condition"
+POSITIONAL = "the function does not accept MATLAB positional arguments beyond its Python signature"
+STUDY = "the sample STUDY fixture is not valid UTF-8"
+MISSING = "eeg_hist, is_sccn, iseeglabdeployed, helpforexe, eeg_helphelp, or disp is not provided"
+SHUFFLE = "shuffle treats the EEGLAB dimension as a 0-based axis and returns 0-based indices, so the 1-based check reads past the array. The reported index changes because the permutation is unseeded"
+VALUES = "numeric or text values do not match the MATLAB result"
+EPOCH_EMPTY = "epoch selection uses 1-based event latencies and finds no epochs"
+BROADCAST = "a MATLAB selection does not broadcast against an empty index"
+BLOCKAVE = "blockave rejects the double frame count used by the EEGLAB call"
+POINT2LAT = "a MATLAB scalar epoch is not broadcast across the latency array"
+IMPORTPRES = "presentation log rows do not have the MATLAB column count"
+EVAL = "the EEGLAB call evaluates name/value text that is not a Python expression"
+HELPVAR = "help-variable text does not match the EEGLAB help block"
+EVENT_EDIT = "an event-field edit is passed as a MATLAB cell rather than an index, field, and value"
+IMPORT_TABLE = "imported rows do not match the MATLAB field or channel layout"
+CELLTOMAT = "celltomat is given MATLAB cells rather than numeric arrays"
+
 PYTHON_BACKEND_XFAILS = {
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_channel_types': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_general_header': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_invalid_digital_limits': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_invalid_physical_limits': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_reversed_digital_limits': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_reversed_physical_limits': 'AssertionError: openbdf did not return 2 outputs (#430)',
-    'tests/test_bdf_records_eeglab_tests.py::test_upstream_readbdf_original_record_selection': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_invalid_fiducials': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_labels': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_none': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_original_39_calls': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_pair': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_unpair': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_chanevent_original_recording_and_33_calls': "TypeError: 'float' object is not iterable (#430)",
-    'tests/test_binary_eeglab_tests.py::test_upstream_pop_biosig_original_bdf_blockrange': 'TypeError: pop_biosig() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_binary_eeglab_tests.py::test_upstream_pop_importpres_original_recording_and_log': 'ValueError: Presentation LOG rows must have the same number of columns as the header (#430)',
-    'tests/test_cart2topo.py::test_reference_cart2topo_original_coordinate_matrices': 'AssertionError: (6,) != (6, 1) (#430)',
-    'tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_channels_with_locations': 'ValueError: The truth value of an empty array is ambiguous. Use `array.size > 0` to check that an array is not empty. (#430)',
-    'tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_rejection': 'ValueError: The truth value of an empty array is ambiguous. Use `array.size > 0` to check that an array is not empty. (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_amplitudearea_preserves_both_epoched_workflows': 'ValueError: channels must be 0-based and within EEG.nbchan (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording': "ValueError: Channel '['p7']' not found (#430)",
-    'tests/test_core_event_eeglab_tests.py::test_reference_eegrej_boundary_events_follow_original_regression': "AttributeError: 'list' object has no attribute 'shape' (#430)",
-    'tests/test_core_event_eeglab_tests.py::test_reference_eegrej_preserves_metadata_and_recorded_data_cases': 'AssertionError: (0,) != (0, 0) (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_eventtypes_preserves_inverted_source_condition': 'ValueError: dictionary update sequence element #0 has length 1; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_case_insensitive_type': 'AssertionError: (1,) != (1, 2) (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_default_all_channels': 'AssertionError: (1,) != (1, 5) (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_multiple_types_and_missing_type': 'AssertionError: (1,) != (1, 1) (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_no_match': "AttributeError: 'list' object has no attribute 'size' (#430)",
-    'tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_latency': 'ValueError: dictionary update sequence element #0 has length 5; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_time_window': 'ValueError: dictionary update sequence element #0 has length 5; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_duration_old_and_new_calls': 'ValueError: dictionary update sequence element #0 has length 6; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_four_argument_window': 'ValueError: dictionary update sequence element #0 has length 5; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_without_epoch_field': 'ValueError: dictionary update sequence element #0 has length 4; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_insertbound_original_epoched_events': 'ValueError: dictionary update sequence element #0 has length 5; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_matchchans_original_complete_locations': 'TypeError: list indices must be integers or slices, not str (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_mergechan_uses_original_montages': 'TypeError: list indices must be integers or slices, not tuple (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_mergelocs_uses_original_montages': 'TypeError: list indices must be integers or slices, not tuple (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_urlatency_boundary_durations': 'ValueError: dictionary update sequence element #0 has length 3; 2 is required (#430)',
-    'tests/test_core_event_eeglab_tests.py::test_reference_urlatency_missing_duration': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_eeg_decodechan.py::test_reference_decodechan_original_channel_names': "ValueError: Channel '['cz' 'pz' 'fz']' not found (#430)",
-    'tests/test_eeg_interp.py::TestComputeGParity::test_parity_computeg_different_params': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_custom_params': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_custom_time_range': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_multiple_trials': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_spherical_basic': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_spherical_crd': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestEegInterpParity::test_parity_spherical_kang': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::TestSphericalSplineParity::test_parity_spheric_spline_different_params': "KeyError: 'mat' (#430)",
-    'tests/test_eeg_interp.py::test_reference_interp_original_methods_and_shuffled_montage': "TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'ndarray' (#430)",
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_epoch_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_latency_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_clamps_out_of_range_latency': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_default_time_unit': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_general_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_single_epoch_broadcast': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_ms2f.py::test_reference_eeg_ms2f_original_dataset_and_latencies': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_eeg_options.py::test_reference_eeg_readoptions_backup': 'ValueError: dictionary update sequence element #0 has length 1; 2 is required (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_epoch_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_latency_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_default_time_unit': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_empty_epoch_defaults_to_one': 'ValueError: eeg_point2lat: latency and epoch arrays must have the same length (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_general_case': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_single_epoch_broadcast': 'IndexError: index 1 is out of bounds for axis 0 with size 1 (#430)',
-    'tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case': 'IndexError: list index out of range (#430)',
-    'tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_multiple_case': 'TypeError: only length-1 arrays can be converted to Python scalars (#430)',
-    'tests/test_eeg_store.py::test_reference_eeg_store_original_general_case': 'TypeError: list indices must be integers or slices, not tuple (#430)',
-    'tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_case': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_new_case': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_eeg_store.py::test_reference_eeg_store_original_new_case': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_eegfindboundaries.py::TestEegFindBoundariesParity::test_parity_string_types_eventlist': "KeyError: 'mat' (#430)",
-    'tests/test_eegfindboundaries.py::TestEegFindBoundariesParity::test_parity_string_types_struct': "KeyError: 'mat' (#430)",
-    'tests/test_eegh.py::test_reference_eeg_hist_general': "KeyError: 'eeg_hist' (#430)",
-    'tests/test_eegh.py::test_reference_eegh_add_history': "TypeError: string indices must be integers, not 'str' (#430)",
-    'tests/test_eegh.py::test_reference_eegh_add_multiple_history': "TypeError: string indices must be integers, not 'str' (#430)",
-    'tests/test_eegh.py::test_reference_eegh_add_multiple_history_default_empty': "TypeError: string indices must be integers, not 'str' (#430)",
-    'tests/test_eegh.py::test_reference_eegh_empty_command': 'ValueError: The truth value of an empty array is ambiguous. Use `array.size > 0` to check that an array is not empty. (#430)',
-    'tests/test_eegh.py::test_reference_eegh_execute_command': "NameError: name 'disp' is not defined (#430)",
-    'tests/test_eeglab.py::test_reference_is_sccn': "KeyError: 'is_sccn' (#430)",
-    'tests/test_eeglab.py::test_reference_iseeglabdeployed': "KeyError: 'iseeglabdeployed' (#430)",
-    'tests/test_eegobj.py::test_reference_eegobj_collection_operations': 'TypeError: pop_editoptions() takes from 0 to 1 positional arguments but 2 were given (#430)',
-    'tests/test_epoch.py::TestEpochParity::test_parity_rereference_allevents': "KeyError: 'mat' (#430)",
-    'tests/test_finputcheck.py::test_reference_finputcheck_original_regression_fixture': "TypeError: unhashable type: 'numpy.ndarray' (#430)",
-    'tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases': "assert False == ('empty' != 'strings') (#430)",
-    'tests/test_gethelpvar.py::test_reference_gethelpvar_all': 'AssertionError (#430)',
-    'tests/test_gethelpvar.py::test_reference_gethelpvar_general': 'AssertionError (#430)',
-    'tests/test_gethelpvar.py::test_reference_gethelpvar_no_var': "TypeError: unhashable type: 'numpy.ndarray' (#430)",
-    'tests/test_gethelpvar.py::test_reference_gethelpvar_some': "TypeError: unhashable type: 'numpy.ndarray' (#430)",
-    'tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix': 'File "<unknown>", line 0 (#430)',
-    'tests/test_getkeyval.py::test_reference_getkeyval_original_presence_cases': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases': "AssertionError: assert '[3 1 4 1 6]' == '4' (#430)",
-    'tests/test_guifunc_pophelp_chansel.py::test_reference_eeg_helphelp': "KeyError: 'eeg_helphelp' (#430)",
-    'tests/test_legacy_signal_io_eeglab_tests.py::test_reference_blockave': 'ValueError: frames must be a positive integer (#430)',
-    'tests/test_legacy_signal_io_eeglab_tests.py::test_reference_movav': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_legacy_signal_io_eeglab_tests.py::test_reference_parsetxt': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_loadtxt_force': 'AssertionError: (30,) != (1, 30) (#430)',
-    'tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_readneurodat_original_file': 'TypeError: list indices must be integers or slices, not str (#430)',
-    'tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart': 'ValueError: rmart: eogchan must contain one-based channel numbers (#430)',
-    'tests/test_misc_data_event_eeglab_tests.py::test_reference_shortread_original_two_million_samples': 'ValueError: The truth value of an empty array is ambiguous. Use `array.size > 0` to check that an array is not empty. (#430)',
-    'tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells': "AttributeError: 'list' object has no attribute 'shape' (#430)",
-    'tests/test_misc_visual_movie_eeglab_tests.py::test_reference_helpforexe': "KeyError: 'helpforexe' (#430)",
-    'tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_make_timewarp': 'TypeError: make_timewarp() takes 2 positional arguments but 8 were given (#430)',
-    'tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_runicalowmem': 'TypeError: runicalowmem() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_varsort': 'AssertionError: runica did not return 7 outputs (#430)',
-    'tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_zica': 'AssertionError: runica did not return 7 outputs (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_abspeak': 'AssertionError: Values differ by more than 0.0001: [[ 2. 3. -1.] (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_covary': 'AssertionError: (4,) != (1, 4) (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_datlim': 'AssertionError: (2,) != (1, 2) (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss': 'IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_hungarian': 'AssertionError: (4,) != (1, 4) (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matcorr': 'AssertionError: Values differ by more than 0.0001: [[7. 8. 9.] (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matperm': 'IndexError: first_indices are out of range (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_nan_std': 'AssertionError: (2,) != (1, 2) (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_pcsquash': 'AssertionError: (2,) != (1, 2) (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_perminv': 'ValueError: permutation must be one-dimensional (#430)',
-    'tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_uniquef': 'AssertionError: (3,) != (3, 1) (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-10]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-11]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-12]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-13]': 'IndexError: index 8 is out of bounds for axis 1 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-14]': 'IndexError: index 10 is out of bounds for axis 1 with size 10 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-15]': 'IndexError: index 10 is out of bounds for axis 0 with size 10 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-3]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-5]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-6]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-7]': 'IndexError: index 8 is out of bounds for axis 1 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-8]': 'IndexError: index 2 is out of bounds for axis 2 with size 2 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-9]': 'IndexError: index 2 is out of bounds for axis 2 with size 2 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_copy_on_write_diagnostics': 'IndexError: string index out of range (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-3]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-4]': 'IndexError: index 11 is out of bounds for axis 1 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-5]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]': 'ValueError: pop_epoch(): empty epoch range (no epochs were found). (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch_after_rejection]': 'ValueError: pop_epoch(): empty epoch range (no epochs were found). (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter_after_rejection]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_select]': 'ValueError: operands could not be broadcast together with shapes (1,10) (0,) (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_filter]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_select]': 'ValueError: operands could not be broadcast together with shapes (1,10) (0,) (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_returned_workspace': 'IndexError: string index out of range (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case0]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case1]': 'AssertionError: Arrays are not equal (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case2]': 'IndexError: index 8 is out of bounds for axis 1 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case3]': 'IndexError: index 2 is out of bounds for axis 2 with size 2 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case4]': 'IndexError: index 2 is out of bounds for axis 2 with size 2 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case5]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case6]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case7]': 'IndexError: index 8 is out of bounds for axis 0 with size 8 (#430)',
-    'tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case8]': 'IndexError: index 8 is out of bounds for axis 1 with size 8 (#430)',
-    'tests/test_numdim.py::test_reference_numdim': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_original_set_out': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_recorded_dataset_calls': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_dataset_array': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_delete_unselected_events': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_allowed': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_error': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_explicit_error_nonempty_selection': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_inverse_epochs': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_keep_epochs_delete_events': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_retains_matching_epochs': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_chancenter_2d': 'AssertionError: (4,) != (1, 4) (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_chancenter_all_negative': 'AssertionError: (4,) != (1, 4) (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_chancenter_optimize': 'AssertionError: (6,) != (1, 6) (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_chancenter_scalar': 'AssertionError: (1,) != (1, 1) (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_chancenter_zero_radius': 'AssertionError: (4,) != (1, 4) (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_convertlocs_cart2all': "AttributeError: 'list' object has no attribute 'get' (#430)",
-    'tests/test_phase2_file_channel_location.py::test_reference_floatread_offset': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_empty_center': 'AssertionError: pop_chancenter did not return 3 outputs (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_nine_recorded_location_calls': "TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'ndarray' (#430)",
-    'tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_no_omitchans': 'AssertionError: pop_chancenter did not return 3 outputs (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_with_omitchans': 'AssertionError: pop_chancenter did not return 3 outputs (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_readeetraklocs_original_file': "AttributeError: 'list' object has no attribute 'shape' (#430)",
-    'tests/test_phase2_file_channel_location.py::test_reference_readegilocs_all_original_channel_counts': "AttributeError: 'list' object has no attribute 'shape' (#430)",
-    'tests/test_phase2_file_channel_location.py::test_reference_readelp_five_outputs': 'AssertionError: readelp did not return 5 outputs (#430)',
-    'tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_phase4_timefreq_statistics.py::test_reference_angtimewarp': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_phase4_timefreq_statistics.py::test_reference_newtimef_original_baseline_formulas': 'TypeError: dftfilt3() takes 3 positional arguments but 5 were given (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh': 'AssertionError: (2,) != (1, 2) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_all_rejected': 'AssertionError: (0,) != (1, 0) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_none_rejected': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_one_electrode': 'AssertionError: (3,) != (1, 3) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_entropy_rej_vectors': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_fdr': 'AssertionError: fdr did not return 2 outputs (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_kurt': 'AssertionError: (1,) != (1, 1) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_realproba': 'AssertionError: (1,) != (1, 1) (#430)',
-    'tests/test_phase7_long_tail_helpers.py::test_reference_rejtrend': 'ValueError: pointrange must be between 2 and the number of points (#430)',
-    'tests/test_pinv.py::TestPinvParity::test_parity_ill_conditioned_matrix': "KeyError: 'mat' (#430)",
-    'tests/test_pinv.py::TestPinvParity::test_parity_masked_rank_deficient_reconstruction': "KeyError: 'mat' (#430)",
-    'tests/test_pinv.py::TestPinvParity::test_parity_nonfinite_input': "KeyError: 'mat' (#430)",
-    'tests/test_pinv.py::TestPinvParity::test_parity_singular_matrix': "KeyError: 'mat' (#430)",
-    'tests/test_pinv.py::TestPinvParity::test_parity_with_custom_tolerance': "KeyError: 'mat' (#430)",
-    'tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous': 'IndexError: only integers, slices (`:`), ellipsis (`...`), numpy.newaxis (`None`) and integer or boolean arrays are valid indices (#430)',
-    'tests/test_pop_adjustevents.py::test_reference_adjustevents_epoched': 'IndexError: only integers, slices (`:`), ellipsis (`...`), numpy.newaxis (`None`) and integer or boolean arrays are valid indices (#430)',
-    'tests/test_pop_comments.py::test_reference_comments_concatenation': 'AssertionError: pop_comments did not return 2 outputs (#430)',
-    'tests/test_pop_comments.py::test_reference_comments_replacement': 'AssertionError: pop_comments did not return 2 outputs (#430)',
-    'tests/test_pop_delset.py::test_reference_delset_original_datasets': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_add_field_file': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_add_field_file_indices': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_add_field_vector': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_delimiters': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_delold_invalid': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_delold_yes': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_description_missing_field': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_field_description': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_invalid_rename': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_latency_timeunit': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_modify_field': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_modify_field_indices': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_remove_missing_field': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_rename_field': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_rename_missing_field': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventfield_current.py::test_reference_skip_lines': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording': 'ValueError: changefield requires [event_index, field, value] (#430)',
-    'tests/test_pop_epoch.py::test_reference_pop_epoch_original_square_event_workflow': 'ValueError: pop_epoch(): empty epoch range (no epochs were found). (#430)',
-    'tests/test_pop_importepoch_current.py::test_reference_importepoch_all_four_original_cases': 'ValueError: All rows must have the same number of values as field names (#430)',
-    'tests/test_pop_importevent_current.py::test_reference_importevent_all_twenty_one_original_cases': 'ValueError: nbchan does not match imported data (#430)',
-    'tests/test_pop_interp.py::test_reference_pop_interp_original_locations_and_recording': "TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'ndarray' (#430)",
-    'tests/test_pop_reref.py::test_reference_pop_reref_original_bugzilla_270_input': "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'list' (#430)",
-    'tests/test_pop_reref.py::test_reference_reref': 'TypeError: EEG must be a dictionary (#430)',
-    'tests/test_pop_resample_python.py::test_reference_pop_resample_original_half_sample_boundary_workflow': "KeyError: 'latency' (#430)",
-    'tests/test_pop_rmbase.py::test_reference_pop_rmbase_original_baselines_and_complete_commands': 'AssertionError: pop_rmbase did not return 2 outputs (#430)',
-    'tests/test_pop_rmbase.py::test_reference_rmbase': 'AssertionError: rmbase did not return 2 outputs (#430)',
-    'tests/test_pop_select.py::TestPopSelectParity::test_parity_trial_subset': "KeyError: 'mat' (#430)",
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_chanedit_original_locations': "TypeError: argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'ndarray' (#430)",
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_named_workspace_variables': 'ValueError: Unsupported import data format: array (#430)',
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_text_file': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_mergeset_all_eight_recorded_data_calls': 'TypeError: Cannot compare structured or void to non-void arrays. (#430)',
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_newset_original_eight_datasets_and_saved_files': "AttributeError: 'list' object has no attribute 'dtype' (#430)",
-    'tests/test_popfunc_dataset_eeglab_tests.py::test_reference_selectevent_original_overlapping_epoch_workflow': "AttributeError: 'numpy.ndarray' object has no attribute 'pop'. Did you mean: 'ptp'? (#430)",
-    'tests/test_rejection_workflows.py::test_reference_pop_rejchan': 'AssertionError: pop_rejchan did not return 4 outputs (#430)',
-    'tests/test_rejection_workflows.py::test_reference_pop_rejtrend': 'AssertionError: pop_rejtrend did not return 2 outputs (#430)',
-    'tests/test_rejection_workflows.py::test_reference_rejsuperpose_all': 'AssertionError: (6,) != (1, 6) (#430)',
-    'tests/test_rejection_workflows.py::test_reference_rejsuperpose_all_ica': 'AssertionError: (6,) != (1, 6) (#430)',
-    'tests/test_rejection_workflows.py::test_reference_rejsuperpose_empty': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_rejection_workflows.py::test_reference_rejsuperpose_general': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_rejection_workflows.py::test_reference_rejsuperpose_zero': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_runica.py::test_reference_runica_extended': 'TypeError: runica() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_runica.py::test_reference_runica_extended_noise': 'TypeError: runica() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_runica.py::test_reference_runica_general_smoke': 'TypeError: runica() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_runica.py::test_reference_runica_pca': 'TypeError: runica() takes 1 positional argument but 3 were given (#430)',
-    'tests/test_sample_data_pop_functions.py::test_reference_expica_original_recording_and_ascii_outputs': 'ValueError: Key/value arguments must be in pairs (#430)',
-    'tests/test_sample_data_pop_functions.py::test_reference_saveh_original_global_and_recording_history': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_sample_data_pop_functions.py::test_reference_select_original_time_trials_and_channel': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
-    'tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options': 'TypeError: pop_fileio() takes 1 positional argument but 5 were given (#430)',
-    'tests/test_sigproc_eegrej.py::test_reference_eegrej_explicit_and_omitted_events': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_sigproc_eegrej.py::test_reference_eegrej_original_boundary_reconstruction': 'TypeError: list indices must be integers or slices, not str (#430)',
-    'tests/test_sigproc_eegrej.py::test_reference_eegrej_overlapping_regions': 'AssertionError: () != (1, 1) (#430)',
-    'tests/test_sigprocfunc_ica_legacy_eeglab_tests.py::test_reference_kmeanscluster': 'AssertionError: (4,) != (4, 1) (#430)',
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_celltomat': "TypeError: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe'' (#430)",
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_matsel': 'AssertionError: (2, 1) != (2, 3) (#430)',
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell': "AttributeError: 'list' object has no attribute 'shape' (#430)",
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_nan_mean': 'AssertionError: (5,) != (1, 5) (#430)',
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_quantile': 'AssertionError: (3,) != (3, 1) (#430)',
-    'tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_shuffle': 'IndexError: index 46 is out of bounds for axis 0 with size 32 (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_legacy_statcond_workflow': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired1Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired2Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim1Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim2Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDimTTest': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedTTest': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_01': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_02': 'TypeError: statcond() takes 1 positional argument but 9 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_07': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_08': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_09': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_10': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_11': 'TypeError: statcond() takes 1 positional argument but 9 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_12': 'TypeError: statcond() takes 1 positional argument but 9 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_13': 'TypeError: statcond() takes 1 positional argument but 9 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_14': 'TypeError: statcond() takes 1 positional argument but 9 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_18': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_19': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_20': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_21': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_22': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_23': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_24': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_25': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_26': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_27': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_28': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_29': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_30': 'TypeError: statcond() takes 1 positional argument but 7 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_31': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_32': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_33': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_34': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_35': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_36': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_37': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_38': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_39': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_40': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_41': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_42': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_43': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_44': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_45': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_46': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_47': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_48': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_49': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_50': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_51': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_52': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_53': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_54': 'TypeError: statcond() takes 1 positional argument but 11 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_55': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_56': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_57': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_58': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_59': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_60': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_61': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_62': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_63': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_64': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_65': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_66': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_67': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_68': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_69': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_70': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_71': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_72': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_73': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_74': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_75': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_76': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_77': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_78': 'TypeError: statcond() takes 1 positional argument but 13 were given (#430)',
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-off]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-on]': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired1Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired2Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim1Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim2Anova': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDimTTest': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedTTest': "TypeError: statcond() got an unexpected keyword argument 'verbose' (#430)",
-    'tests/test_statistics_package.py::test_reference_concatdata_original_arrays': 'AssertionError: concatdata did not return 3 outputs (#430)',
-    'tests/test_statistics_package.py::test_reference_fdr_original_correlated_random_data': 'AssertionError: fdr did not return 2 outputs (#430)',
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_erpimparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_erpparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_erspparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_specparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_params_eeglab_tests.py::test_reference_pop_statparams[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_workflows_eeglab_tests.py::test_reference_pop_clust[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_workflows_eeglab_tests.py::test_reference_std_makedesign[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb8 in position 652: invalid start byte (#430)",
-    'tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]': "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe4 in position 637: invalid continuation byte (#430)",
-    'tests/test_vararg2str.py::test_reference_vararg2str_all_eight_original_calls': 'ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all() (#430)',
+    "tests/test_statcond_eeglab_tests.py::test_reference_legacy_statcond_workflow": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired1Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired2Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim1Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim2Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDimTTest": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedTTest": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_01": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_02": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_07": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_08": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_09": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_10": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_11": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_12": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_13": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_14": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_18": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_19": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_20": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_21": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_22": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_23": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_24": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_25": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_26": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_27": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_28": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_29": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_30": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_31": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_32": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_33": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_34": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_35": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_36": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_37": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_38": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_39": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_40": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_41": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_42": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_43": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_44": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_45": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_46": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_47": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_48": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_49": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_50": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_51": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_52": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_53": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_54": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_55": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_56": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_57": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_58": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_59": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_60": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_61": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_62": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_63": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_64": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_65": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_66": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_67": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_68": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_69": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_70": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_71": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_72": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_73": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_74": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_75": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_76": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_77": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_78": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-off]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-on]": _gap(
+        STATCOND, TypeError
+    ),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired1Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired2Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim1Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim2Anova": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDimTTest": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedTTest": _gap(STATCOND, TypeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_invalid_fiducials": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_labels": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_none": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_pair": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_unpair": _gap(STRUCT, AttributeError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chanevent_original_recording_and_33_calls": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_boundary_events_follow_original_regression": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_eventtypes_preserves_inverted_source_condition": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_no_match": _gap(STRUCT, AttributeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_latency": _gap(STRUCT, ValueError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_default_time_window": _gap(STRUCT, ValueError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_duration_old_and_new_calls": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_four_argument_window": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getepochevent_without_epoch_field": _gap(STRUCT, ValueError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_insertbound_original_epoched_events": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_matchchans_original_complete_locations": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_mergechan_uses_original_montages": _gap(STRUCT, TypeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_mergelocs_uses_original_montages": _gap(STRUCT, TypeError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_urlatency_boundary_durations": _gap(STRUCT, ValueError),
+    "tests/test_eeg_decodechan.py::test_reference_decodechan_original_channel_names": _gap(STRUCT, ValueError),
+    "tests/test_eeg_interp.py::test_reference_interp_original_methods_and_shuffled_montage": _gap(STRUCT, TypeError),
+    "tests/test_eeg_options.py::test_reference_eeg_readoptions_backup": _gap(STRUCT, ValueError),
+    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_multiple_case": _gap(STRUCT, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_general_case": _gap(STRUCT, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_case": _gap(STRUCT, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_multiple_new_case": _gap(STRUCT, TypeError),
+    "tests/test_eeg_store.py::test_reference_eeg_store_original_new_case": _gap(STRUCT, TypeError),
+    "tests/test_eegh.py::test_reference_eegh_add_history": _gap(STRUCT, TypeError),
+    "tests/test_eegh.py::test_reference_eegh_add_multiple_history": _gap(STRUCT, TypeError),
+    "tests/test_eegh.py::test_reference_eegh_add_multiple_history_default_empty": _gap(STRUCT, TypeError),
+    "tests/test_finputcheck.py::test_reference_finputcheck_original_regression_fixture": _gap(STRUCT, TypeError),
+    "tests/test_gethelpvar.py::test_reference_gethelpvar_no_var": _gap(STRUCT, TypeError),
+    "tests/test_gethelpvar.py::test_reference_gethelpvar_some": _gap(STRUCT, TypeError),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_readneurodat_original_file": _gap(STRUCT, TypeError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, TypeError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, TypeError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_dataset_array": _gap(STRUCT, TypeError),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_delete_unselected_events": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_allowed": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_empty_selection_error": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_explicit_error_nonempty_selection": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_inverse_epochs": _gap(STRUCT, TypeError),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_keep_epochs_delete_events": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_selectevent_retains_matching_epochs": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_convertlocs_cart2all": _gap(STRUCT, AttributeError),
+    "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_nine_recorded_location_calls": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_readeetraklocs_original_file": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_readegilocs_all_original_channel_counts": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_pop_interp.py::test_reference_pop_interp_original_locations_and_recording": _gap(STRUCT, TypeError),
+    "tests/test_pop_reref.py::test_reference_pop_reref_original_bugzilla_270_input": _gap(STRUCT, TypeError),
+    "tests/test_pop_reref.py::test_reference_reref": _gap(STRUCT, TypeError),
+    "tests/test_pop_resample_python.py::test_reference_pop_resample_original_half_sample_boundary_workflow": _gap(
+        STRUCT, KeyError
+    ),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_chanedit_original_locations": _gap(STRUCT, TypeError),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_named_workspace_variables": _gap(
+        STRUCT, ValueError
+    ),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_mergeset_all_eight_recorded_data_calls": _gap(
+        STRUCT, TypeError
+    ),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_newset_original_eight_datasets_and_saved_files": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_selectevent_original_overlapping_epoch_workflow": _gap(
+        STRUCT, AttributeError
+    ),
+    "tests/test_sigproc_eegrej.py::test_reference_eegrej_original_boundary_reconstruction": _gap(STRUCT, TypeError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell": _gap(STRUCT, AttributeError),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_readbdf_original_record_selection": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_cart2topo.py::test_reference_cart2topo_original_coordinate_matrices": _gap(SHAPE, AssertionError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_preserves_metadata_and_recorded_data_cases": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_case_insensitive_type": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_default_all_channels": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_multiple_types_and_missing_type": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_core_event_eeglab_tests.py::test_reference_urlatency_missing_duration": _gap(SHAPE, AssertionError),
+    "tests/test_eeg_ms2f.py::test_reference_eeg_ms2f_original_dataset_and_latencies": _gap(SHAPE, AssertionError),
+    "tests/test_getkeyval.py::test_reference_getkeyval_original_presence_cases": _gap(SHAPE, AssertionError),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_movav": _gap(SHAPE, AssertionError),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_parsetxt": _gap(SHAPE, AssertionError),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_loadtxt_force": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_covary": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_datlim": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_hungarian": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_nan_std": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_pcsquash": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_perminv": _gap(SHAPE, ValueError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_uniquef": _gap(SHAPE, AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-6]": _gap(SHAPE, AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-3]": _gap(SHAPE, AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-5]": _gap(SHAPE, AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter]": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter_after_rejection]": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_filter]": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case1]": _gap(
+        SHAPE, AssertionError
+    ),
+    "tests/test_numdim.py::test_reference_numdim": _gap(SHAPE, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_chancenter_2d": _gap(SHAPE, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_chancenter_all_negative": _gap(SHAPE, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_chancenter_optimize": _gap(SHAPE, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_chancenter_scalar": _gap(SHAPE, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_chancenter_zero_radius": _gap(SHAPE, AssertionError),
+    "tests/test_phase4_timefreq_statistics.py::test_reference_angtimewarp": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_all_rejected": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_none_rejected": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_eegthresh_one_electrode": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_entropy_rej_vectors": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_kurt": _gap(SHAPE, AssertionError),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_realproba": _gap(SHAPE, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_rejsuperpose_all": _gap(SHAPE, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_rejsuperpose_all_ica": _gap(SHAPE, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_rejsuperpose_empty": _gap(SHAPE, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_rejsuperpose_general": _gap(SHAPE, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_rejsuperpose_zero": _gap(SHAPE, AssertionError),
+    "tests/test_sigproc_eegrej.py::test_reference_eegrej_explicit_and_omitted_events": _gap(SHAPE, AssertionError),
+    "tests/test_sigproc_eegrej.py::test_reference_eegrej_overlapping_regions": _gap(SHAPE, AssertionError),
+    "tests/test_sigprocfunc_ica_legacy_eeglab_tests.py::test_reference_kmeanscluster": _gap(SHAPE, AssertionError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_matsel": _gap(SHAPE, AssertionError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_nan_mean": _gap(SHAPE, AssertionError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_quantile": _gap(SHAPE, AssertionError),
+    "tests/test_statistics_package.py::test_reference_concatdata_original_arrays": _gap(SHAPE, AssertionError),
+    "tests/test_core_event_eeglab_tests.py::test_reference_amplitudearea_preserves_both_epoched_workflows": _gap(
+        INDEX, ValueError
+    ),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_epoch_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_cell_latency_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_clamps_out_of_range_latency": _gap(
+        INDEX, IndexError
+    ),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_default_time_unit": _gap(INDEX, IndexError),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_general_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_lat2point.py::test_eeg_lat2point_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_epoch_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_cell_latency_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_default_time_unit": _gap(INDEX, IndexError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_general_case": _gap(INDEX, IndexError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_single_epoch_broadcast": _gap(INDEX, IndexError),
+    "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(INDEX, IndexError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(INDEX, ValueError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matperm": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-10]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-11]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-12]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-13]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-14]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-15]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-3]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-5]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-7]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-8]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-9]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_copy_on_write_diagnostics": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-4]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_returned_workspace": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case0]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case2]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case3]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case4]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case5]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case6]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case7]": _gap(INDEX, IndexError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case8]": _gap(INDEX, IndexError),
+    "tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous": _gap(INDEX, IndexError),
+    "tests/test_pop_adjustevents.py::test_reference_adjustevents_epoched": _gap(INDEX, IndexError),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_original_set_out": _gap(
+        NAMEVALUE, ValueError
+    ),
+    "tests/test_pop_delset.py::test_reference_delset_original_datasets": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_file_indices": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_add_field_vector": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_delimiters": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_delold_invalid": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_delold_yes": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_description_missing_field": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_field_description": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_invalid_rename": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_latency_timeunit": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_modify_field": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_modify_field_indices": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_remove_missing_field": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_rename_field": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_rename_missing_field": _gap(NAMEVALUE, ValueError),
+    "tests/test_pop_editeventfield_current.py::test_reference_skip_lines": _gap(NAMEVALUE, ValueError),
+    "tests/test_sample_data_pop_functions.py::test_reference_expica_original_recording_and_ascii_outputs": _gap(
+        NAMEVALUE, ValueError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_channel_types": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_general_header": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_invalid_digital_limits": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_invalid_physical_limits": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_reversed_digital_limits": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_bdf_records_eeglab_tests.py::test_upstream_openbdf_original_reversed_physical_limits": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_varsort": _gap(OUTPUTS, AssertionError),
+    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_zica": _gap(OUTPUTS, AssertionError),
+    "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_empty_center": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_no_omitchans": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_pop_chancenter_with_omitchans": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_readelp_five_outputs": _gap(OUTPUTS, AssertionError),
+    "tests/test_pop_comments.py::test_reference_comments_concatenation": _gap(OUTPUTS, AssertionError),
+    "tests/test_pop_comments.py::test_reference_comments_replacement": _gap(OUTPUTS, AssertionError),
+    "tests/test_pop_rmbase.py::test_reference_pop_rmbase_original_baselines_and_complete_commands": _gap(
+        OUTPUTS, AssertionError
+    ),
+    "tests/test_pop_rmbase.py::test_reference_rmbase": _gap(OUTPUTS, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_pop_rejchan": _gap(OUTPUTS, AssertionError),
+    "tests/test_rejection_workflows.py::test_reference_pop_rejtrend": _gap(OUTPUTS, AssertionError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_original_39_calls": _gap(TRUTH, ValueError),
+    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_channels_with_locations": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering": _gap(TRUTH, ValueError),
+    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection": _gap(TRUTH, ValueError),
+    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_rejection": _gap(TRUTH, ValueError),
+    "tests/test_eegh.py::test_reference_eegh_empty_command": _gap(TRUTH, ValueError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_shortread_original_two_million_samples": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_recorded_dataset_calls": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_phase2_file_channel_location.py::test_reference_floatread_offset": _gap(TRUTH, ValueError),
+    "tests/test_phase2_file_channel_location.py::test_reference_readlocs_bugzilla_339": _gap(TRUTH, ValueError),
+    "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_importevent_original_text_file": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_sample_data_pop_functions.py::test_reference_saveh_original_global_and_recording_history": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_sample_data_pop_functions.py::test_reference_select_original_time_trials_and_channel": _gap(
+        TRUTH, ValueError
+    ),
+    "tests/test_vararg2str.py::test_reference_vararg2str_all_eight_original_calls": _gap(TRUTH, ValueError),
+    "tests/test_binary_eeglab_tests.py::test_upstream_pop_biosig_original_bdf_blockrange": _gap(POSITIONAL, TypeError),
+    "tests/test_eegobj.py::test_reference_eegobj_collection_operations": _gap(POSITIONAL, TypeError),
+    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_make_timewarp": _gap(POSITIONAL, TypeError),
+    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_runicalowmem": _gap(POSITIONAL, TypeError),
+    "tests/test_phase4_timefreq_statistics.py::test_reference_newtimef_original_baseline_formulas": _gap(
+        POSITIONAL, TypeError
+    ),
+    "tests/test_runica.py::test_reference_runica_extended": _gap(POSITIONAL, TypeError),
+    "tests/test_runica.py::test_reference_runica_extended_noise": _gap(POSITIONAL, TypeError),
+    "tests/test_runica.py::test_reference_runica_general_smoke": _gap(POSITIONAL, TypeError),
+    "tests/test_runica.py::test_reference_runica_pca": _gap(POSITIONAL, TypeError),
+    "tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options": _gap(
+        POSITIONAL, TypeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erpimparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erpparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_erspparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_specparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_params_eeglab_tests.py::test_reference_pop_statparams[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_pop_clust[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_std_makedesign[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
+        STUDY, UnicodeDecodeError
+    ),
+    "tests/test_eegh.py::test_reference_eeg_hist_general": _gap(MISSING, AttributeError),
+    "tests/test_eegh.py::test_reference_eegh_execute_command": _gap(MISSING, NameError),
+    "tests/test_eeglab.py::test_reference_is_sccn": _gap(MISSING, AttributeError),
+    "tests/test_eeglab.py::test_reference_iseeglabdeployed": _gap(MISSING, AttributeError),
+    "tests/test_guifunc_pophelp_chansel.py::test_reference_eeg_helphelp": _gap(MISSING, AttributeError),
+    "tests/test_misc_visual_movie_eeglab_tests.py::test_reference_helpforexe": _gap(MISSING, AttributeError),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_shuffle": _gap(SHUFFLE, IndexError),
+    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(VALUES, AssertionError),
+    "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _gap(VALUES, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_abspeak": _gap(VALUES, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_matcorr": _gap(VALUES, AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]": _gap(
+        EPOCH_EMPTY, ValueError
+    ),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch_after_rejection]": _gap(
+        EPOCH_EMPTY, ValueError
+    ),
+    "tests/test_pop_epoch.py::test_reference_pop_epoch_original_square_event_workflow": _gap(EPOCH_EMPTY, ValueError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_select]": _gap(
+        BROADCAST, ValueError
+    ),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_select]": _gap(
+        BROADCAST, ValueError
+    ),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_blockave": _gap(BLOCKAVE, ValueError),
+    "tests/test_eeg_point2lat.py::test_eeg_point2lat_current_suite_empty_epoch_defaults_to_one": _gap(
+        POINT2LAT, ValueError
+    ),
+    "tests/test_binary_eeglab_tests.py::test_upstream_pop_importpres_original_recording_and_log": _gap(
+        IMPORTPRES, ValueError
+    ),
+    "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _gap(EVAL, SyntaxError),
+    "tests/test_gethelpvar.py::test_reference_gethelpvar_all": _gap(HELPVAR, AssertionError),
+    "tests/test_gethelpvar.py::test_reference_gethelpvar_general": _gap(HELPVAR, AssertionError),
+    "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
+        EVENT_EDIT, ValueError
+    ),
+    "tests/test_phase7_long_tail_helpers.py::test_reference_rejtrend": _gap(IMPORT_TABLE, ValueError),
+    "tests/test_pop_importepoch_current.py::test_reference_importepoch_all_four_original_cases": _gap(
+        IMPORT_TABLE, ValueError
+    ),
+    "tests/test_pop_importevent_current.py::test_reference_importevent_all_twenty_one_original_cases": _gap(
+        IMPORT_TABLE, ValueError
+    ),
+    "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_celltomat": _gap(CELLTOMAT, TypeError),
 }
 
 PYTHON_BACKEND_SUBTEST_XFAILS = {
     "tests/test_eegplot.py::test_reference_eegplot2event_original_marks": {
-        "(source='multiple_events')": "AssertionError: Values differ by more than 0.0001 (#430)",
-        "(source='multiple_events_colorin')": "AssertionError: Values differ by more than 0.0001 (#430)",
-        "(source='multiple_events_notfound')": "AssertionError: Values differ by more than 0.0001 (#430)",
+        "(source='multiple_events')": _gap(VALUES, AssertionError),
+        "(source='multiple_events_colorin')": _gap(VALUES, AssertionError),
+        "(source='multiple_events_notfound')": _gap(VALUES, AssertionError),
     },
     "tests/test_eegplot.py::test_reference_eegplot2trial_original_marks": {
-        "(source='general')": "AssertionError: (3,) != (1, 3) (#430)",
-        "(source='multiple')": "AssertionError: (3,) != (1, 3) (#430)",
-        "(source='multiple_color')": "AssertionError: (3,) != (1, 3) (#430)",
-        "(source='multiple_colorin')": "AssertionError: (3,) != (1, 3) (#430)",
-        "(source='multiple_colorout')": "AssertionError: (3,) != (1, 3) (#430)",
+        "(source='general')": _gap(SHAPE, AssertionError),
+        "(source='multiple')": _gap(SHAPE, AssertionError),
+        "(source='multiple_color')": _gap(SHAPE, AssertionError),
+        "(source='multiple_colorin')": _gap(SHAPE, AssertionError),
+        "(source='multiple_colorout')": _gap(SHAPE, AssertionError),
     },
     "tests/test_epoch.py::test_reference_epoch_original_five_output_contracts": {
-        "(case='allevents')": "ValueError: pop_epoch: unsupported option(s): srate (#430)",
-        "(case='boundary')": "ValueError: pop_epoch: unsupported option(s): srate (#430)",
-        "(case='general')": "ValueError: pop_epoch: unsupported option(s): srate (#430)",
-        "(case='no_srate')": "ValueError: pop_epoch: unsupported option(s): srate (#430)",
-        "(case='valuelim')": "ValueError: pop_epoch: unsupported option(s): srate (#430)",
+        "(case='no_srate')": _gap(STRUCT, ValueError),
+        "(case='general')": _gap(NAMEVALUE, ValueError),
+        "(case='boundary')": _gap(NAMEVALUE, ValueError),
+        "(case='valuelim')": _gap(NAMEVALUE, ValueError),
+        "(case='allevents')": _gap(NAMEVALUE, ValueError),
     },
     "tests/test_sigprocfunc_plotting_eeglab_tests.py::test_reference_forcelocs_complete_original_coordinates": {
-        "(source='x')": "AttributeError: 'list' object has no attribute 'get' (#430)",
-        "(source='y')": "AttributeError: 'list' object has no attribute 'get' (#430)",
+        "(source='x')": _gap(STRUCT, AttributeError),
+        "(source='y')": _gap(STRUCT, AttributeError),
     },
 }

@@ -287,10 +287,11 @@ jobs:
         run: |
           uv pip list
 
-  # Separate from the unit-test matrix. Known Python-backend gaps are strict
-  # per-test xfails, so this job stays green until a gap starts passing or a
-  # new contract fails. GUI and slow contracts are excluded because modal Qt
-  # dialogs hang under offscreen Qt and the slow set exceeds this lane.
+  # Required check: no continue-on-error. A new failure or a strict unexpected
+  # pass fails the pull request. Known Python gaps are individual strict xfails.
+  # GUI and slow contracts stay out because modal Qt dialogs hang under
+  # offscreen Qt and the slow set exceeds this lane. MATLAB-oracle unittest
+  # classes are deselected in the Python lane; they are not Python gaps.
   eeglab-python:
     name: EEGLAB Python backend
     runs-on: ubuntu-22.04
