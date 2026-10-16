@@ -72,10 +72,11 @@ def test_short_windows_stay_channel_major_for_edf_bdf_and_gdf(tmp_path: Path) ->
 
     The EDF and GDF fixtures here are Python-only. The cropped window has 8
     samples and the whole short recordings have 4. EEGLAB ``pop_biosig`` cannot
-    load them: ``biosig2eeglab.m`` line 198 reads ``EEG.data(end, 1:100)`` and
-    errors when the imported recording has fewer than 100 samples. Recordings
-    of at least 100 samples are compared with EEGLAB in
-    ``test_reference_pop_biosig_short_edf_and_gdf``.
+    load them: ``biosig2eeglab.m`` line 198 reads ``EEG.data(end, 1:100)`` only
+    for non-BDF files whose header has no events
+    (``elseif isempty(dat.EVENT.POS)``) and errors when that recording has
+    fewer than 100 samples. Recordings of at least 100 samples are compared
+    with EEGLAB in ``test_reference_pop_biosig_short_edf_and_gdf``.
     """
     srate = 8
     nchan = 12

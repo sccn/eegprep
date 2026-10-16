@@ -52,7 +52,6 @@ from tests.eeglab_tests.recordings import (
 _FILES = "unittesting_binary/testfiles"
 _WIDE_CHANNELS = 150
 _WIDE_RATE = 128
-_EDF_QUANTIZATION_ATOL = 2 / 65535
 _BVA_CALLS = (
     ("brainvision_genericdataformat_binarymultiplexed_int16.vhdr", 1, list(range(1, 33))),
     ("BVA_withchanlocs.vhdr", None, None),
@@ -277,10 +276,13 @@ def test_reference_pop_biosig_short_edf_and_gdf(eeglab_backend, tmp_path: Path, 
 
     150 channels at 128 Hz make ``blockrange=[0.5, 1.5]`` and a one-second
     recording 128 samples, which is fewer than the channel count and at least
-    100 samples. ``biosig2eeglab.m`` line 198 can index ``EEG.data(end, 1:100)``.
-    The sample count and the channel count differ by more than one, so EEGLAB
-    transposes the read and both sides stay channel-major. EDF values agree
-    within one digital step.
+    100 samples. ``biosig2eeglab.m`` line 198 reads ``EEG.data(end, 1:100)``
+    only for non-BDF files whose header has no events
+    (``elseif isempty(dat.EVENT.POS)``). These EDF and GDF files take that
+    branch. The sample count and the channel count differ by more than one,
+    so EEGLAB transposes the read and both sides stay channel-major. EEGLAB
+    returns single precision, and the comparison is exact after casting the
+    Python data to ``float32``.
     """
     _skip_plugin(request, "sopen", "Biosig")
     cases = (
@@ -298,7 +300,7 @@ def test_reference_pop_biosig_short_edf_and_gdf(eeglab_backend, tmp_path: Path, 
             else:
                 matlab = eeglab_backend("pop_biosig", str(path), "blockrange", np.array([blockrange], dtype=float))
                 python = pop_biosig(path, blockrange=blockrange)
-            _assert_quantized_biosig_window(
+            _assert_single_biosig_window(
                 python,
                 matlab,
                 label=f"pop_biosig {suffix} {name}",
@@ -393,23 +395,26 @@ def _assert_short_biosig_window(
         raise AssertionError(f"{label} events {python_events} != {matlab_events}, expected {expected_events}")
 
 
-def _assert_quantized_biosig_window(
+def _assert_single_biosig_window(
     python: dict,
     matlab: dict,
     *,
     label: str,
     expected_shape: tuple[int, int],
 ) -> None:
-    """Compare one EDF or GDF window that both readers keep channel-major."""
-    python_data = np.asarray(python["data"], dtype=float)
-    matlab_data = np.asarray(matlab["data"], dtype=float)
+    """Compare one EDF or GDF window that both readers keep channel-major.
+
+    EEGLAB returns single precision. The values match exactly after the Python
+    samples are cast to ``float32``.
+    """
+    python_data = np.asarray(python["data"])
+    matlab_data = np.asarray(matlab["data"])
     if python_data.shape != expected_shape or matlab_data.shape != expected_shape:
         raise AssertionError(f"{label} shape {python_data.shape} != {matlab_data.shape}, expected {expected_shape}")
     if python_data.shape[0] <= python_data.shape[1]:
         raise AssertionError(f"{label} has at least as many samples as channels")
-    difference = np.nanmax(np.abs(python_data - matlab_data))
-    if difference > _EDF_QUANTIZATION_ATOL:
-        raise AssertionError(f"{label} values differ; max abs diff {difference}")
+    if not np.array_equal(matlab_data, python_data.astype(np.float32)):
+        raise AssertionError(f"{label} values are not equal after casting Python data to float32")
     _assert_same_biosig_metadata(python, matlab, label=label)
     python_events = _events(python.get("event"))
     matlab_events = _events(matlab.get("event"))
