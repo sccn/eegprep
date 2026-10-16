@@ -912,6 +912,23 @@ def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
     plt.close(result["figure"])
 
 
+def test_pop_erpimage_draws_requested_vertical_marks(sample_epoch):
+    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, vert=[100], return_com=True)
+    image_ax = next(ax for ax in result["figure"].axes if ax.images)
+    marks = [line for line in image_ax.lines if np.allclose(line.get_xdata(), [100.0, 100.0])]
+    assert marks and marks[0].get_linestyle() == "--"
+    plt.close(result["figure"])
+
+
+def test_pop_erpimage_labels_channel_erps_in_microvolts_and_component_erps_blank(sample_epoch, ica_epoch):
+    channel, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    component, _command = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
+    assert "µV" in [ax.get_ylabel() for ax in channel["figure"].axes]
+    assert "µV" not in [ax.get_ylabel() for ax in component["figure"].axes]
+    plt.close(channel["figure"])
+    plt.close(component["figure"])
+
+
 def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     eeg = deepcopy(sample_epoch)
     eeg["data"] = np.asarray(
@@ -955,8 +972,20 @@ def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
     plt.close(result["figure"])
     plt.close(unsorted["figure"])
 
-    with pytest.raises(ValueError, match="standalone ERP image"):
+    with pytest.raises(ValueError, match="not exposed by pop_erpimage; call erpimage directly"):
         pop_erpimage(eeg, typeplot=1, index=1, align=[0])
+    with pytest.raises(ValueError, match="renorm formulas are not exposed by pop_erpimage"):
+        pop_erpimage(eeg, typeplot=1, index=1, sortingeventfield="rt", renorm="2*x")
+
+
+@pytest.mark.parametrize(("field", "value"), [("phase", "100 0 10"), ("coher", "10 10 0.01"), ("plotamps", True)])
+def test_pop_erpimage_dialog_points_to_erpimage_for_options_it_does_not_expose(sample_epoch, field, value):
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {field: value}
+
+    with pytest.raises(ValueError, match="not exposed by pop_erpimage; call erpimage directly"):
+        pop_erpimage(sample_epoch, typeplot=1, gui=True, renderer=Renderer())
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):

@@ -142,3 +142,66 @@ def test_channel_topo_marks_only_the_selected_channel() -> None:
     screen_x, screen_y = topo_screen_coords(float(loc["theta"]), float(loc["radius"]))
     np.testing.assert_allclose(points[0], [screen_x, screen_y], atol=1e-6)
     plt.close("all")
+
+
+def test_erp_image_follows_pop_prop_erpimage_call() -> None:
+    """pop_prop sorts on 10000 ms (clipped to the right edge) and passes rounded ERP ticks."""
+    eeg = _epoched_eeg()
+    # A zero-mean ERP peaking at 2.7 and dipping to -0.46 in every trial.
+    era = np.full(eeg["pnts"], -(2.7 - 0.46) / (eeg["pnts"] - 2))
+    era[10], era[20] = 2.7, -0.46
+    eeg["data"][1] = era[:, np.newaxis]
+    fig = pop_prop(eeg, 1, 2, plot="off")
+
+    image_ax = _find_axis(fig, lambda a: bool(a.get_images()))
+    right_edge = image_ax.get_xlim()[1]
+    sortvar_traces = [line for line in image_ax.lines if np.allclose(line.get_xdata(), right_edge)]
+    assert sortvar_traces, "the clipped sortvar trace marks the right edge, as in EEGLAB"
+    # get_era_limits: each extreme rounded at its own order of magnitude.
+    np.testing.assert_allclose(_erp_average_axis(fig).get_yticks(), [-0.5, 3.0])
+    plt.close("all")
+
+
+@pytest.mark.parametrize(("trials", "rows"), [(5, 5), (6, 4)])
+def test_epoched_erp_image_smooths_from_six_trials(trials: int, rows: int) -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=128, srate=128.0, n_trials=trials)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+    assert _find_axis(fig, lambda a: bool(a.get_images())).get_images()[0].get_array().shape[0] == rows
+    plt.close("all")
+
+
+@pytest.mark.parametrize(("samples", "rows"), [(1000, 9), (1100, 8)])
+def test_continuous_erp_image_smooths_from_ten_lines(samples: int, rows: int) -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=samples, srate=100.0, n_trials=1)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+    assert _find_axis(fig, lambda a: bool(a.get_images())).get_images()[0].get_array().shape[0] == rows
+    plt.close("all")
+
+
+def test_all_nan_activity_raises_before_a_figure_exists() -> None:
+    eeg = _epoched_eeg()
+    eeg["data"][0] = np.nan
+    before = plt.get_fignums()
+    with pytest.raises(ValueError, match="Channel 1 activity is all NaN"):
+        pop_prop(eeg, 1, 1, plot="off")
+    assert plt.get_fignums() == before
+
+
+def test_continuous_data_erp_image_uses_one_second_lines() -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=3000, srate=100.0, n_trials=1)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+
+    image_ax = _find_axis(fig, lambda a: a.get_title() == "Continuous data")
+    assert image_ax is not None
+    lines, frames = 27, 3000 // 27
+    # Smoothing 3 trials (lines >= 10) leaves lines - 2 rows of frames samples.
+    assert image_ax.get_images()[0].get_array().shape == (lines - 2, frames)
+    assert image_ax.get_xlabel() == "Frames"
+    plt.close("all")
+
+
+def test_continuous_data_too_short_for_an_erp_image() -> None:
+    eeg = create_test_eeg_with_ica(n_channels=4, n_samples=40, srate=100.0, n_trials=1)
+    fig = pop_prop(eeg, 1, 1, plot="off")
+    assert any("No ERP image plotted" in text.get_text() for ax in _all_axes(fig) for text in ax.texts)
+    plt.close("all")

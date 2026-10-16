@@ -74,3 +74,97 @@ spherical and topographic fields after every rotation. ``headplot`` renders
 reusable 3-D spline maps; ``headplot("example")`` and
 ``headplot("cartesian")`` return and print the corresponding electrode-file
 examples for interactive use.
+
+.. _erpimage_api:
+
+ERP images
+----------
+
+``erpimage`` images single trials of one channel or component, sorted and
+smoothed across trials, with the ERP and, optionally, wavelet amplitude and
+inter-trial coherence traces underneath. It takes EEGLAB's arguments in
+EEGLAB's order, ``erpimage(data, sortvar, times, title, avewidth, decimate)``,
+where ``data`` is ``(frames, trials)`` (for example ``EEG["data"][ch]``),
+``sortvar`` holds one value per trial and ``times`` holds latencies in ms.
+Options follow either as EEGLAB tokens or as keywords; these two calls are
+equivalent:
+
+.. code-block:: python
+
+   from eegprep import erpimage
+
+   result = erpimage(data, rt, times, "Pz", 10, 1, "erp", "cbar", "phasesort", [300, 25, 10])
+   result = erpimage(data, rt, times, "Pz", 10, 1, erp=True, cbar=True, phasesort=[300, 25, 10])
+
+The result unpacks like EEGLAB's fifteen outputs, followed by the figure:
+``outdata, outvar, outtrials, limits, axhndls, erp, amps, cohers, cohsig,
+ampsig, outamps, phsangls, phsamp, sortidx, erpsig, figure = result``, and the
+same values are available as attributes (``result.outdata``). ``outdata`` is
+``(frames, smoothed_trials)``; outputs that were not computed are ``None``.
+Pass ``target=`` a Matplotlib Figure or SubFigure to draw into it, ``NoShow=True``
+to compute without drawing (not combined with ``target``), and ``rng=`` a seed
+or NumPy random generator to make the coherence bootstrap and the ``erpalpha``
+permutations reproducible (``numpy.random.RandomState(seed)`` gives the same
+bootstrap draws as MATLAB's ``rng(seed, 'twister')``).
+
+The numbers come from ``eegprep.functions.sigprocfunc.erpimage_engine``, a
+single module that needs only NumPy and the Python standard library (``ast``,
+``dataclasses``, ``logging``, ``typing``). Across 46 recorded scenarios
+(sorting, smoothing and decimation, phase and amplitude sorting with trial
+rejection, coherence and its significance, amplitude images, time warping,
+percentile ERPs and axis limits), every output matches EEGLAB's ``erpimage``
+run on MATLAB R2025b to within ``1e-12`` of the output's largest magnitude
+(of the input data's largest magnitude for outputs in data units, such as the
+image and the ERP).
+
+Differences from EEGLAB
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Where EEGLAB's behavior contradicts its own help text, EEGPrep follows the help:
+
+* ``sortidx`` holds 0-based indices into the input trials. EEGLAB returns
+  1-based indices into the trials left after removing NaN ``sortvar`` values.
+* ``'noplot'`` hides only the sortvar trace. In EEGLAB it suppresses the whole
+  figure.
+* ``'erpalpha'`` draws unbiased random signs for its permutation test. EEGLAB
+  draws ``sign(randn - 0.5)``, which is +1 only about 31% of the time (mean sign
+  -0.38), so its thresholds are inflated
+  (`sccn/eeglab#976 <https://github.com/sccn/eeglab/issues/976>`_). EEGPrep's
+  ``erpalpha`` bands therefore differ slightly from MATLAB's; the rest of the
+  computation is unchanged.
+* ``'signif'`` with ``'coher'`` uses the given thresholds. On MATLAB R2025b this
+  combination stops with an error (a vector operand to ``||``).
+* Per-trial ``'timewarp'`` events and per-trial ``'vert'`` latencies stay with
+  their trials through sorting and trial rejection; EEGLAB applies them by
+  position after sorting.
+
+Other behavior to know when moving from EEGLAB:
+
+* Invalid inputs raise ``ValueError`` where EEGLAB prints a message and
+  returns, or carries on with a wrong result: option values of the wrong size
+  or type (EEGLAB often uses the first element), data whose trial count does
+  not match ``sortvar``, data containing infinite values, ``limits`` or
+  ``baseline`` windows without samples, ``renorm`` ``'yes'`` on a constant
+  ``sortvar``, amplitude rejection that leaves fewer than two trials,
+  ``'timewarp'`` events outside the epoch or with the wrong number of rows,
+  ``'plotamps'`` or ``'coher'`` with zero wavelet amplitude (no dB value),
+  a ``'topo'`` channel outside the channel locations, and a ``'spec'`` band
+  above the Nyquist frequency. ``'allcohers'``, which ``erpimage.m`` marks
+  UNIMPLEMENTED, raises. ``target`` must be a Figure or SubFigure
+  (``TypeError``).
+* The notes EEGLAB prints and then continues past go to the
+  ``eegprep.functions.sigprocfunc.erpimage_engine`` logger: replaced NaN data,
+  removed NaN-``sortvar`` trials, clamped ``avewidth`` and ``decimate``, trials
+  kept after amplitude rejection, alignment shifts larger than the epoch,
+  clipped ``limits``, sorting bands reduced to the Nyquist frequency, a single
+  ERP drawn because ``'erpalpha'`` was given with ``'erp'`` above 1, and options
+  that have no effect in the chosen sorting mode.
+* A negative ``decimate`` must lie between minus the trial count and the trial
+  count; EEGLAB allocates as many output rows as asked.
+* Boxcar ``avewidth`` must be a whole number of trials, as on MATLAB R2025b,
+  which rejects non-integer window sizes.
+* A three-sample ``times`` vector is a time vector, not EEGLAB's compact
+  ``[start_ms, frames, srate]`` form, when the data also have three frames.
+* ``'timewarp'`` cannot be combined with ``'phasesort'``, ``'ampsort'`` or
+  ``'plotamps'``; EEGLAB applies the warp marks inconsistently there.
+

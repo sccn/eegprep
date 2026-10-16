@@ -150,8 +150,9 @@ Plotting and Review
    eegprep.pop_topochansel
    eegprep.pop_topoplot
 
-The low-level ``erpimage`` helper accepts either one time value per sample or
-EEGLAB's compact ``[start_ms, frames, sampling_rate]`` time specification.
+``pop_erpimage`` draws with the EEGLAB-faithful ``erpimage`` described under
+:ref:`erpimage_api`, which also accepts EEGLAB's compact
+``[start_ms, frames, sampling_rate]`` time specification.
 ``newtimef`` accepts EEGLAB's default ``outputformat='plot'`` option; other
 output layouts are not yet implemented.
 
