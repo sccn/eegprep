@@ -160,7 +160,7 @@ def test_pop_readegi_builds_an_epoched_dataset_with_events_and_categories(tmp_pa
     assert eeg["xmax"] == pytest.approx(3 / 250)
     np.testing.assert_allclose(eeg["times"], [0, 4, 8, 12])
     assert [event["type"] for event in eeg["event"]] == ["stim", "stim"]
-    assert [event["latency"] for event in eeg["event"]] == [3, 7]
+    assert [event["latency"] for event in eeg["event"]] == [2, 6]
     assert [event["epoch"] for event in eeg["event"]] == [1, 2]
     assert [event["category"] for event in eeg["event"]] == ["Eyes open", "Eyes closed"]
     assert [event["urevent"] for event in eeg["event"]] == [0, 1]
@@ -286,14 +286,15 @@ def test_pop_readegi_creates_time_locking_events_when_segment_event_channels_are
     assert [event["category"] for event in eeg["event"]] == ["Eyes closed", "Eyes open"]
 
 
-def test_pop_readegi_places_leading_edges_on_the_first_nonzero_sample(tmp_path: Path) -> None:
+def test_pop_readegi_places_leading_edges_on_the_sample_before_the_new_level(tmp_path: Path) -> None:
     filename = tmp_path / "leading-edge.raw"
     events = np.array([[4, 0, 0, 7, 0]], dtype=float)
     _write_egi_raw(filename, 2, np.ones((2, 5)), events=events, event_codes=("stim",))
 
     eeg = pop_readegi(filename, fileloc="")
 
-    assert [event["latency"] for event in eeg["event"]] == [1, 4]
+    assert [event["type"] for event in eeg["event"]] == ["stim"]
+    assert [event["latency"] for event in eeg["event"]] == [3]
 
 
 def test_pop_readegi_removes_an_empty_trailing_reference_channel(tmp_path: Path) -> None:

@@ -10,8 +10,11 @@ Loading and Saving
 
 ``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. BioSemi BDF import removes the ``Status`` channel and stores a
-trigger event at each rising edge of its lower 16 bits. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+formats. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
+4, rising edges of the lower 16 bits), stores those triggers when
+``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
+``on``. A requested time range reads only the overlapping BDF records.
+``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
 and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
 metadata-only and 1-based channel loading through ``loadmode``.
 ``pop_importpres`` recognizes tab-delimited Presentation headers and also

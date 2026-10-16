@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import eeg_from_data
 from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.sigprocfunc.readegi import readegi
 from eegprep.functions.sigprocfunc.readegilocs import readegilocs
 
@@ -68,12 +69,12 @@ def _egi_to_eeg(
         chanlocs=channel_locations,
     )
 
+    eeg = _import_event_channels(eeg, event_data, list(header["eventcode"]))
     points, trials = _dataset_dimensions(header, trial_data.shape[1])
     eeg["pnts"] = points
     eeg["trials"] = trials
     eeg["xmax"] = (points - 1) / float(header["samp_rate"]) if points else 0.0
     eeg["times"] = np.arange(points, dtype=float) / float(header["samp_rate"]) * 1000.0
-    eeg["event"] = np.asarray(_event_records(event_data, header["eventcode"], points, trials), dtype=object)
 
     if _has_empty_reference(eeg["data"]):
         eeg["data"] = np.asarray(eeg["data"][:-1, :])
@@ -93,25 +94,34 @@ def _egi_to_eeg(
     return eeg
 
 
-def _event_records(
-    event_data: np.ndarray,
-    event_codes: list[str],
-    points: int,
-    trials: int,
-) -> list[dict[str, Any]]:
-    if event_data.shape[1] == 0:
-        return []
-    events = []
-    for event_index in range(event_data.shape[0] - 1, -1, -1):
-        values = np.asarray(event_data[event_index])
-        differences = np.diff(np.abs(np.r_[0, values]))
-        for latency in np.flatnonzero(differences > 0) + 1:
-            event = {"type": event_codes[event_index], "latency": int(latency)}
-            if trials > 1:
-                event["epoch"] = 1 + int((latency - 1) // points)
-            events.append(event)
-    events.sort(key=lambda event: (int(event.get("epoch", 0)), int(event["latency"])))
-    return events
+def _import_event_channels(eeg: dict[str, Any], event_data: np.ndarray, event_codes: list[str]) -> dict[str, Any]:
+    """Import EGI event channels with EEGLAB's ``pop_chanevent`` call.
+
+    Channels are scanned from last to first on the concatenated 2-D recording.
+    Each call keeps existing events, names the event from the channel code, and
+    deletes the channel. A leading edge is the sample before the new level.
+    """
+    if event_data.shape[0] == 0 or event_data.size == 0:
+        return eeg
+    for index in range(event_data.shape[0] - 1, -1, -1):
+        data = np.asarray(eeg["data"])
+        eeg["data"] = np.vstack((data, event_data[index]))
+        eeg["nbchan"] = int(eeg["data"].shape[0])
+        eeg = pop_chanevent(
+            eeg,
+            int(eeg["nbchan"]),
+            "edge",
+            "leading",
+            "delevent",
+            "off",
+            "typename",
+            event_codes[index],
+            "nbtype",
+            1,
+            "delchan",
+            "on",
+        )
+    return eeg
 
 
 def _dataset_dimensions(header: dict[str, Any], loaded_samples: int) -> tuple[int, int]:

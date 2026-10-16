@@ -160,6 +160,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time.
+   * - BioSemi ``rmeventchan``
+     - ``pop_biosig(..., rmeventchan="off")`` keeps the ``Status`` channel
+       after importing its triggers. EEGLAB's ``biosig2eeglab`` removes that
+       channel whenever events are imported, so ``rmeventchan`` off still
+       drops it there.
+   * - BDF event modes 3 and 5
+     - ``pop_biosig`` keeps each trigger code on the rising or falling edge
+       that produced it. BIOSIG builds one position list in time order and a
+       separate type list of all rises followed by all falls, so those two
+       arrays no longer correspond.
 
 Plugin Migration
 ================
