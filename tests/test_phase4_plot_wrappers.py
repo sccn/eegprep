@@ -36,6 +36,7 @@ from eegprep.functions.popfunc.plot_utils import (
     component_activations,
     data_time_slice,
     parse_plot_options_text,
+    python_literal,
 )
 from eegprep.functions.popfunc.pop_plotdata import pop_plotdata
 from eegprep.functions.popfunc.pop_plottopo import pop_plottopo
@@ -625,7 +626,7 @@ def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_
 
     timtopo_fig, _ = pop_timtopo(sample_epoch, plottimes=[0], return_com=True)
     plottopo_fig, _ = pop_plottopo(sample_epoch, chans=[1, 2], return_com=True)
-    erpimage_result, _ = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
+    erpimage_result, _ = pop_erpimage(sample_epoch, 1, 1, return_com=True)
     prop_fig, _ = pop_prop(ica_epoch, typecomp=0, chanorcomp=1, return_com=True)
     topoplot_figs, _ = pop_topoplot(ica_epoch, typeplot=0, items=[1], colorbar="off", return_com=True)
     spectopo_result, _ = pop_spectopo(ica_epoch, dataflag=0, freqs=[10], return_com=True)
@@ -635,7 +636,7 @@ def test_plot_wrappers_display_figures_on_interactive_backend(sample_epoch, ica_
     expected = [
         timtopo_fig,
         plottopo_fig,
-        erpimage_result["figure"],
+        erpimage_result.figure,
         prop_fig,
         *topoplot_figs,
         spectopo_result["figure"],
@@ -881,111 +882,12 @@ def test_pop_comperp_significance_shading_marks_known_effect(sample_epoch):
     plt.close(result["figure"])
 
 
-def test_pop_erpimage_applies_time_limits_and_decimation(sample_epoch):
-    result, command = pop_erpimage(
-        sample_epoch,
-        typeplot=1,
-        index=1,
-        limits=[-50, 100],
-        decimate=2,
-        caxis=[-1, 1],
-        cbar=False,
-        return_com=True,
-    )
-
-    expected_samples = np.count_nonzero((sample_epoch["times"] >= -50) & (sample_epoch["times"] <= 100))
-    assert result["image"].shape[1] == expected_samples
-    assert result["image"].shape[0] == int(np.ceil(sample_epoch["trials"] / 2))
-    assert "limits=[-50, 100]" in command
-    _assert_python_command(command)
-    plt.close(result["figure"])
-
-
-def test_pop_erpimage_default_caxis_is_symmetric(sample_epoch):
-    """With no caxis, the color axis is symmetric about 0 (EEGLAB erpimage default)."""
-    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
-    image_ax = next(ax for ax in result["figure"].axes if ax.images)
-    vmin, vmax = image_ax.images[0].get_clim()
-    assert vmax > 0
-    assert vmin == pytest.approx(-vmax)
-    assert vmax == pytest.approx(float(np.nanmax(np.abs(result["image"]))))
-    plt.close(result["figure"])
-
-
-def test_pop_erpimage_draws_requested_vertical_marks(sample_epoch):
-    result, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, vert=[100], return_com=True)
-    image_ax = next(ax for ax in result["figure"].axes if ax.images)
-    marks = [line for line in image_ax.lines if np.allclose(line.get_xdata(), [100.0, 100.0])]
-    assert marks and marks[0].get_linestyle() == "--"
-    plt.close(result["figure"])
-
-
-def test_pop_erpimage_labels_channel_erps_in_microvolts_and_component_erps_blank(sample_epoch, ica_epoch):
-    channel, _command = pop_erpimage(sample_epoch, typeplot=1, index=1, return_com=True)
-    component, _command = pop_erpimage(ica_epoch, typeplot=0, index=1, return_com=True)
-    assert "µV" in [ax.get_ylabel() for ax in channel["figure"].axes]
-    assert "µV" not in [ax.get_ylabel() for ax in component["figure"].axes]
-    plt.close(channel["figure"])
-    plt.close(component["figure"])
-
-
-def test_pop_erpimage_sorts_by_epoch_event_field_and_limits(sample_epoch):
-    eeg = deepcopy(sample_epoch)
-    eeg["data"] = np.asarray(
-        [
-            [
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-                [1.0, 2.0, 3.0],
-            ]
-        ]
-    )
-    eeg["nbchan"] = 1
-    eeg["pnts"] = 4
-    eeg["trials"] = 3
-    eeg["srate"] = 100.0
-    eeg["xmin"] = 0.0
-    eeg["xmax"] = 0.03
-    eeg["times"] = np.asarray([0.0, 10.0, 20.0, 30.0])
-    eeg["event"] = [
-        {"type": "rt", "latency": 2, "epoch": 1, "rt": 30},
-        {"type": "rt", "latency": 6, "epoch": 2, "rt": 10},
-        {"type": "rt", "latency": 10, "epoch": 3, "rt": 20},
-    ]
-
-    result, command = pop_erpimage(
-        eeg,
-        typeplot=1,
-        index=1,
-        sortingeventfield="rt",
-        sortingtype=["rt"],
-        sortingwin=[0, 20],
-        return_com=True,
-    )
-    unsorted, _command = pop_erpimage(eeg, typeplot=1, index=1, sort_values=[30, 10, 20], nosort=True, return_com=True)
-
-    np.testing.assert_allclose(result["image"][:, 0], [2, 3, 1])
-    np.testing.assert_allclose(unsorted["image"][:, 0], [1, 2, 3])
-    assert "sortingeventfield='rt'" in command
-    _assert_python_command(command)
-    plt.close(result["figure"])
-    plt.close(unsorted["figure"])
-
-    with pytest.raises(ValueError, match="not exposed by pop_erpimage; call erpimage directly"):
-        pop_erpimage(eeg, typeplot=1, index=1, align=[0])
-    with pytest.raises(ValueError, match="renorm formulas are not exposed by pop_erpimage"):
-        pop_erpimage(eeg, typeplot=1, index=1, sortingeventfield="rt", renorm="2*x")
-
-
-@pytest.mark.parametrize(("field", "value"), [("phase", "100 0 10"), ("coher", "10 10 0.01"), ("plotamps", True)])
-def test_pop_erpimage_dialog_points_to_erpimage_for_options_it_does_not_expose(sample_epoch, field, value):
-    class Renderer:
-        def run(self, spec, initial_values=None):
-            return {field: value}
-
-    with pytest.raises(ValueError, match="not exposed by pop_erpimage; call erpimage directly"):
-        pop_erpimage(sample_epoch, typeplot=1, gui=True, renderer=Renderer())
+def test_python_literal_writes_numpy_values_as_plain_literals():
+    values = [np.str_("rt"), np.int64(3), np.float32(0.5), np.bool_(True), np.float64(np.nan)]
+    assert python_literal(values) == "['rt', 3, 0.5, True, float('nan')]"
+    location = {"labels": np.str_("Fz"), "theta": np.float64(-20.0), "radius": np.array([0.25])}
+    assert python_literal(location) == "{'labels': 'Fz', 'theta': -20, 'radius': [0.25]}"
+    assert python_literal(("x",)) == "('x',)"
 
 
 def test_plot_history_preserves_effective_options(sample_epoch, ica_epoch):

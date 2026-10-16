@@ -229,11 +229,30 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
     Tokens follow EEGLAB's grammar: flag keys (``'erp'``, ``'cbar'``,
     ``'nosort'``, ...) take an optional ``'on'``/``'off'`` (or boolean) value,
     value keys always consume the next token. Keyword arguments use the same
-    names in lower case (``noshow`` for ``'NoShow'``) and accept booleans for
-    flags. Keyword options are applied after the tokens. Invalid values raise
-    ``ValueError`` naming the option.
+    names in lower case (``noshow`` for ``'NoShow'``), accept EEGLAB's aliases
+    (``colorbar``, ``phase``) and booleans for flags. Keyword options are
+    applied after the tokens. Invalid values raise ``ValueError`` naming the
+    option.
     """
     values: dict[str, Any] = {}
+    for name, key, value in _option_items(tokens, kwargs):
+        values.update(_OPTION_PARSERS[name](value, key, values))
+    return ErpimageOptions(**values)
+
+
+def erpimage_option_items(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: Any) -> list[tuple[str, Any]]:
+    """EEGLAB tokens and keyword options as ``(name, value)`` pairs, in the order they apply.
+
+    Names are the keyword names :func:`parse_erpimage_options` accepts
+    (``'colorbar'`` gives ``cbar``, ``'NoShow'`` gives ``noshow``); values are
+    not validated yet.
+    """
+    return [(name, value) for name, _key, value in _option_items(tokens, kwargs)]
+
+
+def _option_items(tokens: tuple[Any, ...] | list[Any], kwargs: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """``(name, key as given, value)`` for each option, tokens first."""
+    items: list[tuple[str, str, Any]] = []
     index = 0
     tokens = list(tokens)
     while index < len(tokens):
@@ -246,11 +265,11 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
         if key in _FLAG_KEYS or lower in _FLAG_KEYS_CI:
             name = _FLAG_KEYS.get(key) or _FLAG_KEYS_CI[lower]
             consumed, value = _flag_token(name, following) if has_following else (False, True)
-            values.update(_OPTION_PARSERS[name](value, key, values))
+            items.append((name, key, value))
             index += 2 if consumed else 1
             continue
         if lower in _BARE_KEYS_CI:
-            values[_BARE_KEYS_CI[lower]] = True
+            items.append((_BARE_KEYS_CI[lower], key, True))
             index += 1
             continue
         name = _VALUE_KEYS.get(key) or _VALUE_KEYS_CI.get(lower)
@@ -258,14 +277,14 @@ def parse_erpimage_options(tokens: tuple[Any, ...] | list[Any] = (), **kwargs: A
             raise ValueError(f"erpimage(): unknown arg {key}")
         if not has_following:
             raise ValueError(f"erpimage(): option '{key}' needs a value")
-        values.update(_OPTION_PARSERS[name](following, key, values))
+        items.append((name, key, following))
         index += 2
     for key, value in kwargs.items():
-        name = key.lower()
+        name = _canonical(key)
         if name not in _OPTION_PARSERS:
             raise ValueError(f"erpimage(): unknown option '{key}'")
-        values.update(_OPTION_PARSERS[name](value, key, values))
-    return ErpimageOptions(**values)
+        items.append((name, key, value))
+    return items
 
 
 def _flag_token(name: str, following: Any) -> tuple[bool, Any]:
@@ -2315,6 +2334,7 @@ __all__ = [
     "ErpimageComputation",
     "ErpimageOptions",
     "compute_erpimage",
+    "erpimage_option_items",
     "find_corresponding_point",
     "order_of_magnitude",
     "parse_erpimage_options",

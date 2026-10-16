@@ -114,6 +114,8 @@ class QtDialogRenderer:
     _plot_fir_response: Any
     _sync_numeric: Any
     _select_event_types: Any
+    _select_event_field: Any
+    _mirror_text: Any
     _select_channels: Any
     _navigate_event: Any
     _navigate_channel: Any
@@ -175,6 +177,7 @@ class QtDialogRenderer:
         initial_values = initial_values or {}
         widgets: dict[str, Any] = {}
         index = 0
+        most_columns = max((len(self._row_weights(row)) for row in spec.geometry), default=1)
         for row_index, row_geometry in enumerate(spec.geometry):
             weights = self._row_weights(row_geometry)
             row_container = qt_widgets.QWidget()
@@ -182,7 +185,7 @@ class QtDialogRenderer:
                 row_container.setSizePolicy(qt_widgets.QSizePolicy.Expanding, qt_widgets.QSizePolicy.Fixed)
             row_layout = qt_widgets.QHBoxLayout(row_container)
             row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(4)
+            row_layout.setSpacing(spec.column_spacing)
             added_visible_widget = False
             for weight in weights:
                 if index >= len(spec.controls):
@@ -191,6 +194,12 @@ class QtDialogRenderer:
                 widget = self._build_widget(qt_widgets, control, initial_values)
                 if control.tag:
                     widgets[control.tag] = widget
+                if spec.weighted_columns:
+                    widget.setSizePolicy(qt_widgets.QSizePolicy.Ignored, widget.sizePolicy().verticalPolicy())
+                    row_layout.addWidget(widget, _supergui_stretch(weight, sum(weights), most_columns))
+                    added_visible_widget = added_visible_widget or control.style.lower() != "spacer"
+                    index += 1
+                    continue
                 stretch = max(1, round(float(weight) * 100))
                 if control.style.lower() == "spacer":
                     row_layout.addStretch(stretch)
@@ -298,7 +307,15 @@ class QtDialogRenderer:
         elif callback.name == "select_event_types":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
-            button.clicked.connect(lambda: self._select_event_types(button, target, params))
+            button.clicked.connect(lambda: self._select_event_types(button, target, params, widgets))
+        elif callback.name == "select_event_field":
+            button = widgets[params["button"]]
+            target = widgets[params["target"]]
+            button.clicked.connect(lambda: self._select_event_field(button, target, params, widgets))
+        elif callback.name == "mirror_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            source.editingFinished.connect(lambda: self._mirror_text(source, target))
         elif callback.name == "select_channels":
             button = widgets[params["button"]]
             target = widgets[params["target"]]
@@ -725,6 +742,17 @@ def _row_weights(row_geometry: Any) -> list[float]:
     if isinstance(row_geometry, (list, tuple)):
         return [max(0.01, float(value)) for value in row_geometry]
     return [1.0] * max(1, int(row_geometry))
+
+
+def _supergui_stretch(weight: float, row_total: float, most_columns: int) -> int:
+    """A control's share of its row as EEGLAB's supergui sizes it.
+
+    supergui gives each control its weight's share of the row minus 1.5 times
+    the normalized spacing (0.1 divided by the most controls in any row); with
+    the spec's column_spacing as the pixel gap this reproduces its widths.
+    """
+    spacing = 0.1 / most_columns
+    return max(1, round((weight / row_total - 1.5 * spacing) * 10000))
 
 
 def _row_stretch(spec: DialogSpec, row_index: int) -> int:
@@ -1164,12 +1192,23 @@ def _sync_numeric(source: Any, target: Any, multiplier: float) -> None:
     target.setText(f"{value:g}")
 
 
-def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> None:
+def _select_event_types(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """Pick event types: one at a time (appended), or several in a ``pop_chansel`` list."""
     event_types = [str(value) for value in params.get("event_types", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if params.get("selectionmode") == "multiple":
+        if not event_types:
+            qt_widgets.QMessageBox.critical(button, "Error", str(params.get("no_types_message", "No event types")))
+        else:
+            # As in EEGLAB, the list opens without a preselection and replaces the typed types.
+            _chanlist, selected, _labels = pop_chansel(event_types, parent=button)
+            if selected:
+                target.setText(selected)
+        _remind_if_empty(button, widgets, params)
+        return
     if not event_types:
         return
     current = target.text().strip()
-    _qt_core, qt_widgets = _require_qt()
     value, accepted = qt_widgets.QInputDialog.getItem(
         button,
         "Select event type",
@@ -1180,6 +1219,34 @@ def _select_event_types(button: Any, target: Any, params: Mapping[str, Any]) -> 
     )
     if accepted and value:
         target.setText((current + " " + value).strip())
+
+
+def _select_event_field(button: Any, target: Any, params: Mapping[str, Any], widgets: Mapping[str, Any]) -> None:
+    """EEGLAB's event-field list (``listdlg2``, single selection)."""
+    fields = [str(value) for value in params.get("fields", ())]
+    _qt_core, qt_widgets = _require_qt()
+    if not fields:
+        qt_widgets.QMessageBox.critical(button, "Error", "No events")
+    else:
+        positions, accepted, _text = listdlg2(
+            promptstring="Select fields", liststring=fields, selectionmode="single", parent=button
+        )
+        if accepted and positions:
+            target.setText(fields[positions[0] - 1])
+    _remind_if_empty(button, widgets, params)
+
+
+def _remind_if_empty(button: Any, widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
+    other = widgets.get(params.get("reminder_source", ""))
+    if other is not None and params.get("reminder") and not other.text().strip():
+        _qt_core, qt_widgets = _require_qt()
+        qt_widgets.QMessageBox.warning(button, "Warning", str(params["reminder"]))
+
+
+def _mirror_text(source: Any, target: Any) -> None:
+    """Copy ``source`` into ``target`` when both are filled (EEGLAB's phase and coherence frequencies)."""
+    if source.text().strip() and target.text().strip():
+        target.setText(source.text())
 
 
 def _navigate_event(widgets: Mapping[str, Any], params: Mapping[str, Any]) -> None:
@@ -1224,7 +1291,7 @@ def _select_channels(button: Any, target: Any, params: Mapping[str, Any]) -> Non
         chanlist, value, _allchanstr = pop_chansel(
             channels,
             withindex="on",
-            select=target.text().strip(),
+            select=target.text().strip() if params.get("preselect", True) else None,
             selectionmode=str(params.get("selectionmode", "multiple")),
             parent=button,
         )
@@ -1722,6 +1789,8 @@ _QT_RENDERER_STATIC_HELPERS = (
     "_plot_fir_response",
     "_sync_numeric",
     "_select_event_types",
+    "_select_event_field",
+    "_mirror_text",
     "_select_channels",
     "_navigate_event",
     "_navigate_channel",

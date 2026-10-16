@@ -41,7 +41,7 @@ def parse_key_value_args(
 def parse_text_tokens(text: Any, *, parse_ints: bool = False) -> list[Any]:
     """Parse MATLAB text/cell-list token strings used by GUI dialogs."""
     tokens = _TOKEN_PATTERN.findall(str(text).strip().strip("{}"))
-    values = [next(part for part in token if part) for token in tokens]
+    values = [next((part for part in token if part), "") for token in tokens]
     if not parse_ints:
         return values
     parsed = []
@@ -112,8 +112,8 @@ def _parse_range_token(match: re.Match[str], *, dtype: type) -> list[Any]:
     second = _parse_numeric_atom(match.group(2))
     third = match.group(3)
     if third is None:
-        start, stop = first, second
-        step = 1.0 if stop >= start else -1.0
+        # As in MATLAB, a:b counts up by one, so 5:3 is empty.
+        start, step, stop = first, 1.0, second
     else:
         start, step, stop = first, second, _parse_numeric_atom(third)
     if step == 0 or not np.all(np.isfinite([start, step, stop])):

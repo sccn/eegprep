@@ -9,9 +9,12 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
+from types import SimpleNamespace
 
 import pytest
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, PYTHON_BACKEND_XFAILS
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
@@ -206,6 +209,97 @@ def pytest_addoption(parser):
         default=False,
         help="Overwrite tests/parity_expected/ds003061_pipeline.json with this machine's measured pipeline summary.",
     )
+
+
+@pytest.fixture(scope="module")
+def epochs() -> dict:
+    """The ICA sample epochs (sample_data/eeglab_data_epochs_ica.set), loaded once per module."""
+    return pop_loadset(str(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"))
+
+
+@pytest.fixture
+def close_figures():
+    """Close the Matplotlib figures a test leaves open, even when it fails."""
+    yield
+    pyplot = sys.modules.get("matplotlib.pyplot")
+    if pyplot is not None:
+        pyplot.close("all")
+
+
+@pytest.fixture(autouse=True)
+def _no_unanswered_modal_dialogs(request, monkeypatch):
+    """Fail a test that opens a modal Qt dialog nobody answers, instead of hanging the whole run.
+
+    Tests answer dialogs through ``qt_dialogs``, or drive real ones and carry the
+    ``modal_dialogs`` marker.
+    """
+    if "qt_dialogs" in request.fixturenames or request.node.get_closest_marker("modal_dialogs"):
+        return
+    try:
+        from PySide6 import QtWidgets
+    except ImportError:
+        return
+
+    def refuse(*_args, **_kwargs):
+        raise RuntimeError("a modal Qt dialog opened during a test; answer it with the qt_dialogs fixture")
+
+    monkeypatch.setattr(QtWidgets.QDialog, "exec", refuse)
+    for name in ("warning", "critical", "information", "question"):
+        monkeypatch.setattr(QtWidgets.QMessageBox, name, refuse)
+
+
+@pytest.fixture
+def qt_dialogs(monkeypatch):
+    """The Qt dialog renderer with every modal call answered and Qt slot exceptions collected.
+
+    Message boxes are recorded in ``messages``; item and list pickers return the
+    ``answers`` entries (cancelled by default) and record their keyword arguments
+    in ``calls``, so a dialog can never block the test. Qt only prints exceptions
+    raised inside slots, so they are collected and fail the test.
+    ``build(spec, initial_values)`` returns the widgets of a dialog built offscreen.
+    """
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+    from eegprep.functions.popfunc import pop_chansel as pop_chansel_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    state = SimpleNamespace(
+        qt=qt_module,
+        messages=[],
+        answers={"item": ("", False), "text": ("", False), "listdlg2": ([], 0, ""), "chansel": ([], 0, "")},
+        calls=[],
+        slot_errors=[],
+        dialogs=[],
+    )
+
+    def answer(name):
+        def respond(*_args, **kwargs):
+            state.calls.append((name, kwargs))
+            return state.answers[name]
+
+        return respond
+
+    box = qt_module.QtWidgets.QMessageBox
+    for name in ("warning", "critical", "information"):
+        monkeypatch.setattr(box, name, lambda _parent, title, text, *_args: state.messages.append((title, text)))
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getItem", answer("item"))
+    monkeypatch.setattr(qt_module.QtWidgets.QInputDialog, "getText", answer("text"))
+    monkeypatch.setattr(qt_module, "listdlg2", answer("listdlg2"))
+    monkeypatch.setattr(pop_chansel_module, "listdlg2", answer("chansel"))
+    monkeypatch.setattr(sys, "excepthook", lambda _type, error, _traceback: state.slot_errors.append(error))
+
+    def build(spec, initial_values=None):
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec, initial_values=initial_values)
+        state.dialogs.append(dialog)
+        return widgets
+
+    state.build = build
+    yield state
+    for dialog in state.dialogs:
+        dialog.close()
+    assert state.slot_errors == [], f"exceptions inside Qt slots: {state.slot_errors}"
 
 
 @pytest.fixture(scope="session")
@@ -452,6 +546,7 @@ MATLAB_NODEID_PARTS = (
     "tests/test_eeg_interp.py::TestSphericalSplineParity::",
     "tests/test_eeg_picard.py::TestEegPicard::",
     "tests/test_erpimage_engine.py::TestErpimageMatlabParity::",
+    "tests/test_pop_erpimage.py::TestPopErpimageMatlabParity::",
     "tests/test_epoch.py::TestEpochParity::",
     "tests/test_pop_loadset_h5.py::TestPopLoadsetH5Parity::",
     "tests/test_pop_reref.py::TestPopReref::test_parity_",
@@ -492,7 +587,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if _path_has_suffix(path, VISUAL_FILE_SUFFIXES):
             item.add_marker(pytest.mark.visual)
 
-        if _path_has_suffix(path, GUI_FILE_SUFFIXES) or _nodeid_has_part(lower_nodeid, GUI_NODEID_PARTS):
+        if (
+            _path_has_suffix(path, GUI_FILE_SUFFIXES)
+            or _nodeid_has_part(lower_nodeid, GUI_NODEID_PARTS)
+            or "qt_dialogs" in getattr(item, "fixturenames", ())
+        ):
             item.add_marker(pytest.mark.gui)
 
         if "parity" in lower_nodeid:

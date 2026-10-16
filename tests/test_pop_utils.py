@@ -3,6 +3,7 @@ from pathlib import PureWindowsPath
 
 import numpy as np
 
+from eegprep.functions.miscfunc.value_parsing import parse_text_tokens
 from eegprep.functions.popfunc._pop_utils import (
     format_history_value,
     parse_key_value_args,
@@ -22,6 +23,12 @@ class PopUtilsTests(unittest.TestCase):
         self.assertEqual(parse_numeric_sequence("[1, 2.5 4]", dtype=float), [1.0, 2.5, 4.0])
         self.assertEqual(parse_numeric_sequence("[1 2; 3 4]", dtype=int), [1, 2, 3, 4])
         self.assertEqual(parse_numeric_sequence(["1:2", 4], dtype=int), [1, 2, 4])
+        self.assertEqual(parse_numeric_sequence("5:3", dtype=int), [])
+        self.assertEqual(parse_numeric_sequence("1:0 7", dtype=int), [7])
+        self.assertEqual(parse_numeric_sequence("3:3", dtype=int), [3])
+
+    def test_parse_text_tokens_keeps_quoted_and_empty_tokens(self):
+        self.assertEqual(parse_text_tokens("'S 22', rt \"it's\" ''"), ["S 22", "rt", "it's", ""])
 
         parsed = parse_numeric_sequence("nan Inf -Inf", dtype=float)
         self.assertTrue(np.isnan(parsed[0]))
