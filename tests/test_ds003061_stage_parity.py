@@ -300,7 +300,7 @@ def _assert_events_match(python_eeg, matlab_eeg):
         assert abs(python_row[1] - matlab_row[1]) <= EVENT_ATOL, (
             f"event {index} latency {python_row[1]} vs {matlab_row[1]}"
         )
-        assert abs(python_row[2] - matlab_row[2]) <= EVENT_ATOL, (
+        assert np.isclose(python_row[2], matlab_row[2], rtol=0.0, atol=EVENT_ATOL, equal_nan=True), (
             f"event {index} duration {python_row[2]} vs {matlab_row[2]}"
         )
 
