@@ -476,6 +476,14 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clust</span></code>, <code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code>, and <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> no longer sort clusters
+by coordinates, and <code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code> now follows EEGLAB’s UPGMA Hartigan-Wong
+algorithm. <code class="docutils literal notranslate"><span class="pre">Cls</span></code> numbers and memberships can change on existing studies
+for the same <code class="docutils literal notranslate"><span class="pre">random_state</span></code>. On the sample epochs STUDY, the <code class="docutils literal notranslate"><span class="pre">kmeans</span></code>
+path swaps <code class="docutils literal notranslate"><span class="pre">Cls</span> <span class="pre">2</span></code> and <code class="docutils literal notranslate"><span class="pre">Cls</span> <span class="pre">3</span></code> relative to develop.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clust(algorithm=&quot;kmeanscluster&quot;)</span></code> now calls <code class="docutils literal notranslate"><span class="pre">kmeanscluster()</span></code>.
+It previously used the same Lloyd starts as <code class="docutils literal notranslate"><span class="pre">kmeans</span></code>, so those
+memberships change too.</p></li>
 <li><p>ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB’s
 pseudoinverse cutoff <code class="docutils literal notranslate"><span class="pre">max(size)*eps(norm)</span></code>. NumPy’s default cutoff could
 invert a numerical null direction and amplify the signal by about 1e13.</p></li>

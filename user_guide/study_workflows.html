@@ -726,6 +726,10 @@ identical test fixtures across subjects.</p>
 created cluster’s algorithm provenance. Infinite <code class="docutils literal notranslate"><span class="pre">outliers</span></code> keeps the plain
 k-means path. In both cases command history remains pasteable in
 <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">algorithm=&quot;kmeanscluster&quot;</span></code> numbers <code class="docutils literal notranslate"><span class="pre">Cls</span> <span class="pre">k</span></code> from the <code class="docutils literal notranslate"><span class="pre">k</span></code>-th
+preclustering row. <code class="docutils literal notranslate"><span class="pre">algorithm=&quot;kmeans&quot;</span></code> numbers <code class="docutils literal notranslate"><span class="pre">Cls</span> <span class="pre">k</span></code> from centroid
+<code class="docutils literal notranslate"><span class="pre">k</span></code> of the lowest-SSE seeded start. The same <code class="docutils literal notranslate"><span class="pre">random_state</span></code> reproduces
+the <code class="docutils literal notranslate"><span class="pre">kmeans</span></code> numbering.</p>
 </section>
 </section>
 <section id="dipfit-source-localization">

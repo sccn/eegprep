@@ -672,6 +672,16 @@ subsequently normalize mixed event types to strings as part of event validation.
 </tr>
 </thead>
 <tbody>
+<tr class="row-even"><td><p>STUDY <code class="docutils literal notranslate"><span class="pre">pop_clust</span></code> algorithm <code class="docutils literal notranslate"><span class="pre">kmeans</span></code></p></td>
+<td><p>EEGLAB calls <code class="docutils literal notranslate"><span class="pre">kmeans(data,</span> <span class="pre">k,</span> <span class="pre">'replicates',</span> <span class="pre">10,</span> <span class="pre">'emptyaction',</span> <span class="pre">'drop')</span></code>.
+Cluster numbers follow MATLAB’s random stream and are not reproduced.
+EEGPrep uses a seeded NumPy initialization and Lloyd updates.</p></td>
+</tr>
+<tr class="row-odd"><td><p>STUDY clustering dialog</p></td>
+<td><p>EEGLAB’s dialog calls <code class="docutils literal notranslate"><span class="pre">kmeans_st(real(clustdata),</span> <span class="pre">clus_num,</span> <span class="pre">150)</span></code>
+with random restarts. The command-line path calls <code class="docutils literal notranslate"><span class="pre">kmeanscluster()</span></code>.
+EEGPrep’s dialog uses the <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> route.</p></td>
+</tr>
 <tr class="row-even"><td><p>ASR calibration on a short recording</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still removes high-power calibration windows when
 <code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution</span></code> does not return a positive scale. The scale is

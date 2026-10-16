@@ -274,7 +274,7 @@ Component measures, preclustering array, and k-means clustering
  .. code-block:: none
 
     clusters: ['ParentCluster', 'Cls 1', 'Cls 2', 'Cls 3']
-    cluster sizes: [128, 56, 20, 52]
+    cluster sizes: [128, 52, 56, 20]
 
 
 
@@ -312,7 +312,7 @@ Save and reload the ``.study`` file (``File > Save current study as`` and
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 4.241 seconds)
+   **Total running time of the script:** (0 minutes 3.816 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_group_analysis_study.py:

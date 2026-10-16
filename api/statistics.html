@@ -667,12 +667,14 @@ explicitly unsupported.</p>
 </section>
 <section id="clustering">
 <h2>Clustering<a class="headerlink" href="#clustering" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code> and <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> operate on observations in rows and return
-zero-based labels. Supply <code class="docutils literal notranslate"><span class="pre">random_state</span></code> for reproducible random starts.</p>
+<p><code class="docutils literal notranslate"><span class="pre">kmeans_st</span></code> partitions rows with a UPGMA start and single-point moves.
+Labels are zero-based indices of those centroid rows. Restarts use a NumPy
+permutation, not MATLAB <code class="docutils literal notranslate"><span class="pre">randperm</span></code>. <code class="docutils literal notranslate"><span class="pre">kmeanscluster</span></code> initializes from the
+first rows and keeps that numbering.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.kmeans_st.html#eegprep.kmeans_st" title="eegprep.kmeans_st"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kmeans_st</span></code></a>(data, clusters[, ...])</p></td>
-<td><p>Partition observations into clusters with minimum within-cluster SSE.</p></td>
+<td><p>Partition rows with EEGLAB's Hartigan-Wong k-means.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.kmeanscluster.html#eegprep.kmeanscluster" title="eegprep.kmeanscluster"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.kmeanscluster</span></code></a>(data[, clusters, ...])</p></td>
 <td><p>Cluster row-wise observations using EEGLAB's simple k-means contract.</p></td>
