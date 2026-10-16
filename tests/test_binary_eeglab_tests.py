@@ -12,6 +12,8 @@ from pyedflib import highlevel
 
 from eegprep.functions.popfunc._file_io import eeg_from_data
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
+from eegprep.functions.popfunc.pop_fileio import pop_fileio
+from eegprep.functions.sigprocfunc.writegdf import writegdf
 from eegprep.functions.popfunc.pop_chancoresp import pop_chancoresp
 from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_importpres import pop_importpres
@@ -63,6 +65,84 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
     np.testing.assert_array_equal(cropped["data"], complete["data"][:, srate : 10 * srate])
     assert "'blockrange', [1 10]" in command
     assert cropped["history"] == command
+
+
+def test_short_windows_stay_channel_major_for_edf_bdf_and_gdf(tmp_path: Path) -> None:
+    """Keep EDF, BDF, and GDF windows channel-major when they are shorter than the channel count.
+
+    The EDF and GDF fixtures here are Python-only. The cropped window has 8
+    samples and the whole short recordings have 4. EEGLAB ``pop_biosig`` cannot
+    load them: ``biosig2eeglab.m`` line 198 reads ``EEG.data(end, 1:100)`` only
+    for non-BDF files whose header has no events
+    (``elseif isempty(dat.EVENT.POS)``) and errors when that recording has
+    fewer than 100 samples. Recordings of at least 100 samples are compared
+    with EEGLAB in ``test_reference_pop_biosig_short_edf_and_gdf``.
+    """
+    srate = 8
+    nchan = 12
+    samples = np.arange(nchan * srate * 3, dtype=float).reshape(nchan, srate * 3)
+    samples = samples - samples.mean()
+    edf = tmp_path / "wide.edf"
+    bdf = tmp_path / "wide.bdf"
+    _write_edf_family(edf, samples, srate)
+    _write_edf_family(bdf, samples, srate, bdf=True)
+    gdf = tmp_path / "wide.gdf"
+    writegdf(gdf, samples, srate, labels=[f"E{index}" for index in range(1, nchan + 1)])
+
+    for path in (edf, bdf, gdf):
+        full = pop_biosig(path)
+        window = pop_biosig(path, blockrange=[0.5, 1.5])
+        file_window = pop_fileio(path, blockrange=[0.5, 1.5])
+        start = int(0.5 * full["srate"])
+        stop = int(1.5 * full["srate"])
+        assert full["nbchan"] == nchan
+        assert window["nbchan"] == nchan
+        assert window["pnts"] == stop - start
+        assert window["nbchan"] > window["pnts"]
+        assert window["srate"] == full["srate"]
+        assert window["xmin"] == 0
+        assert window["xmax"] == pytest.approx((window["pnts"] - 1) / window["srate"])
+        assert [loc["labels"] for loc in window["chanlocs"]] == [loc["labels"] for loc in full["chanlocs"]]
+        np.testing.assert_allclose(window["data"], full["data"][:, start:stop])
+        np.testing.assert_allclose(file_window["data"], full["data"][:, start:stop])
+        assert file_window["data"].shape == (nchan, stop - start)
+
+    short = samples[:, :4]
+    short_edf = tmp_path / "short.edf"
+    short_gdf = tmp_path / "short.gdf"
+    _write_edf_family(short_edf, short, 4)
+    writegdf(short_gdf, short, 4, labels=[f"E{index}" for index in range(1, nchan + 1)])
+    for path in (short_edf, short_gdf):
+        loaded = pop_biosig(path)
+        via_fileio = pop_fileio(path)
+        assert loaded["data"].shape == (nchan, 4)
+        assert loaded["nbchan"] == nchan
+        assert loaded["pnts"] == 4
+        assert via_fileio["data"].shape == (nchan, 4)
+        np.testing.assert_allclose(loaded["data"], via_fileio["data"])
+
+
+def test_pop_snapread_imports_a_recording_shorter_than_its_channel_count(tmp_path: Path) -> None:
+    filename = tmp_path / "short.sma"
+    values = np.array(
+        [
+            [0.0, 3.0],
+            [1.0, 2.0],
+            [3.0, 4.0],
+            [5.0, 6.0],
+        ],
+        dtype="<f4",
+    )
+    header = b'"NCHAN%"=4\n"NUM.POINTS"=2\n"ACT.FREQ"=100\n"TR"\n2026-06-05\n'
+    filename.write_bytes(header + b"\xaa" + values.tobytes(order="F"))
+
+    eeg = pop_snapread(filename)
+
+    assert eeg["nbchan"] == 3
+    assert eeg["pnts"] == 2
+    assert eeg["srate"] == 100
+    np.testing.assert_array_equal(eeg["data"], values[1:])
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [(1, 2)]
 
 
 CHANCORRESP_SOURCE = f"{BINARY_SUITE}/pop_chancoresp/binary_pop_chancoresp_wrapperTest.m"

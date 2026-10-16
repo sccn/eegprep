@@ -27,6 +27,7 @@ def pop_snapread(
         data,
         srate=float(params[2]),
         setname="SnapMaster file",
+        nbchan=int(params[0]),
         comments=f"Original file: {path}",
         chanlocs=[{"labels": f"Ch{index}"} for index in range(1, data.shape[0] + 1)],
         filename=path.name,

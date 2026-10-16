@@ -10,7 +10,8 @@ Loading and Saving
 
 ``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
+formats. A window or a whole recording with fewer samples than channels stays
+channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
 4, rising edges of the lower 16 bits), stores those triggers when
 ``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
 ``on``. A requested time range reads only the overlapping BDF records.
