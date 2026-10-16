@@ -24,13 +24,21 @@ tick labels are stored as the plain tick value, so MATLAB can read the file.
 
    eegprep.savefig
    eegprep.hist2
+   eegprep.axcopy
    eegprep.cbar
    eegprep.copyaxis
+   eegprep.eegplot2event
+   eegprep.eegplot2trial
+   eegprep.envtopo
+   eegprep.erpimage
    eegprep.forcelocs
    eegprep.headplot
    eegprep.plotcurve
+   eegprep.plottopo
    eegprep.sbplot
    eegprep.slider
+   eegprep.spectopo
+   eegprep.timtopo
    eegprep.gradmap
    eegprep.gradplot
    eegprep.imagesclogy

@@ -23,14 +23,14 @@ at a time.
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.statcond
-   eegprep.functions.statistics.statcondfieldtrip
-   eegprep.functions.statistics.ttest_cell
-   eegprep.functions.statistics.ttest2_cell
-   eegprep.functions.statistics.anova1_cell
-   eegprep.functions.statistics.anova1rm_cell
-   eegprep.functions.statistics.anova2_cell
-   eegprep.functions.statistics.anova2rm_cell
+   eegprep.statcond
+   eegprep.statcondfieldtrip
+   eegprep.ttest_cell
+   eegprep.ttest2_cell
+   eegprep.anova1_cell
+   eegprep.anova1rm_cell
+   eegprep.anova2_cell
+   eegprep.anova2rm_cell
 
 Two-way factor order
 --------------------
@@ -113,10 +113,10 @@ Multiple Comparisons and Surrogates
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.fdr
-   eegprep.functions.statistics.stat_surrogate_pvals
-   eegprep.functions.statistics.stat_surrogate_ci
-   eegprep.functions.statistics.surrogdistrib
+   eegprep.fdr
+   eegprep.stat_surrogate_pvals
+   eegprep.stat_surrogate_ci
+   eegprep.surrogdistrib
 
 Data Helpers
 ============
@@ -124,9 +124,9 @@ Data Helpers
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.concatdata
-   eegprep.functions.statistics.corrcoef_cell
-   eegprep.functions.statistics.teststat
+   eegprep.concatdata
+   eegprep.corrcoef_cell
+   eegprep.teststat
 
 Clustering
 ==========
@@ -151,4 +151,4 @@ so exactly rank-deficient inputs return a finite effective dimension.
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.miscfunc.numdim.numdim
+   eegprep.numdim

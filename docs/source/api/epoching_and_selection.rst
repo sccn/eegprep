@@ -13,6 +13,7 @@ Extracting epochs, selecting data, and converting between latencies and sample p
    eegprep.eeg_getepochevent
    eegprep.eeg_insertbound
    eegprep.eeg_lat2point
+   eegprep.eeg_ms2f
    eegprep.eeg_point2lat
    eegprep.eeg_regepochs
    eegprep.eeg_urlatency

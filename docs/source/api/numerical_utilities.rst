@@ -53,6 +53,7 @@ Peaks, summaries, and transforms
    eegprep.means
    eegprep.nan_mean
    eegprep.nan_std
+   eegprep.pinv
    eegprep.quantile
    eegprep.vectdata
 
