@@ -728,14 +728,27 @@ type on <code class="docutils literal notranslate"><span class="pre">event(index
 event’s type or an empty type that EEGLAB returns as NaN. The
 latencies match.</p></td>
 </tr>
-<tr class="row-odd"><td><p>BDF trigger codes</p></td>
+<tr class="row-odd"><td><p>BDF window shorter than the channel count</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps a short window channel-major. One second of
+<code class="docutils literal notranslate"><span class="pre">jo1_3.bdf</span></code> is 256 channels by 256 samples after <code class="docutils literal notranslate"><span class="pre">Status</span></code> is
+removed, at 256 Hz, from sample <code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">*</span> <span class="pre">srate</span></code> inclusive through
+<code class="docutils literal notranslate"><span class="pre">stop</span> <span class="pre">*</span> <span class="pre">srate</span></code> exclusive. <code class="docutils literal notranslate"><span class="pre">biosig2eeglab.m</span></code> lines 72-74 transpose
+<code class="docutils literal notranslate"><span class="pre">sread</span></code> output only when <code class="docutils literal notranslate"><span class="pre">abs(dat.NS</span> <span class="pre">-</span> <span class="pre">size(DAT,1))</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>. <code class="docutils literal notranslate"><span class="pre">sopen</span></code>
+has already removed <code class="docutils literal notranslate"><span class="pre">Status</span></code>, so that window is 256 by 256 while
+<code class="docutils literal notranslate"><span class="pre">NS</span></code> is still 257. EEGLAB leaves the matrix sample-major: the
+returned data is the transpose, and <code class="docutils literal notranslate"><span class="pre">nbchan</span></code>, <code class="docutils literal notranslate"><span class="pre">pnts</span></code>, the rate,
+<code class="docutils literal notranslate"><span class="pre">xmin</span></code>, <code class="docutils literal notranslate"><span class="pre">xmax</span></code>, and the channel labels still match. The <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">4]</span></code>
+window keeps trigger 34 at sample 96. The <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code> window has no
+events.</p></td>
+</tr>
+<tr class="row-even"><td><p>BDF trigger codes</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> stores the integer Status code, including codes above
 255. With no <code class="docutils literal notranslate"><span class="pre">blockrange</span></code>, EEGLAB’s <code class="docutils literal notranslate"><span class="pre">importannot</span></code> (default on)
 maps codes above 255 through BioSig <code class="docutils literal notranslate"><span class="pre">eventcodes.txt</span></code>, so <code class="docutils literal notranslate"><span class="pre">0x105</span></code>
 becomes <code class="docutils literal notranslate"><span class="pre">artifact:Failing</span> <span class="pre">Electrode</span></code>. <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> then stores
 every event type as a string.</p></td>
 </tr>
-<tr class="row-even"><td><p>BioSemi Status channel</p></td>
+<tr class="row-odd"><td><p>BioSemi Status channel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> removes <code class="docutils literal notranslate"><span class="pre">Status</span></code> only when <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> is
 <code class="docutils literal notranslate"><span class="pre">on</span></code>. <code class="docutils literal notranslate"><span class="pre">rmeventchan=&quot;off&quot;</span></code> keeps the channel both when triggers are
 imported and when <code class="docutils literal notranslate"><span class="pre">importevent=&quot;off&quot;</span></code>. <code class="docutils literal notranslate"><span class="pre">importevent=&quot;off&quot;</span></code> leaves
@@ -744,20 +757,20 @@ deletes the Status column from <code class="docutils literal notranslate"><span 
 1037-1038) for every BDF file before the samples are read, so the
 returned data never contains <code class="docutils literal notranslate"><span class="pre">Status</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>BDF event modes 3 and 5</p></td>
+<tr class="row-even"><td><p>BDF event modes 3 and 5</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> keeps each trigger code on the rising or falling edge
 that produced it. <code class="docutils literal notranslate"><span class="pre">bdf2biosig_events.m</span></code> lines 88-89 and 104-105 build
 <code class="docutils literal notranslate"><span class="pre">POS</span></code> in time order and <code class="docutils literal notranslate"><span class="pre">TYP</span></code> as all rises followed by all falls,
 so those two arrays no longer correspond.</p></td>
 </tr>
-<tr class="row-even"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> pauses</p></td>
+<tr class="row-odd"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> pauses</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> renames every <code class="docutils literal notranslate"><span class="pre">epoc</span></code> event to <code class="docutils literal notranslate"><span class="pre">boundary</span></code> when no
 <code class="docutils literal notranslate"><span class="pre">tim0</span></code> event is present. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">index</span> <span class="pre">=</span> <span class="pre">indepoc</span></code> walks a
 column vector once. A single pause is renamed. Two or more pauses make
 <code class="docutils literal notranslate"><span class="pre">EEG.event(index).type</span></code> fail, the surrounding <code class="docutils literal notranslate"><span class="pre">try</span></code> discards the
 error, and every pause stays <code class="docutils literal notranslate"><span class="pre">epoc</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> with <code class="docutils literal notranslate"><span class="pre">tim0</span></code></p></td>
+<tr class="row-even"><td><p>EGI <code class="docutils literal notranslate"><span class="pre">epoc</span></code> with <code class="docutils literal notranslate"><span class="pre">tim0</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> reshapes a continuous recording when both codes are
 present, the sample count divides evenly by the number of <code class="docutils literal notranslate"><span class="pre">epoc</span></code>
 events plus one, and the <code class="docutils literal notranslate"><span class="pre">epoc</span></code> latencies are exactly <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">pnts</span></code>
@@ -772,7 +785,7 @@ back to 1, so the samples stay continuous and only the first event
 is removed. When the length does not divide evenly, EEGLAB leaves
 the events in place.</p></td>
 </tr>
-<tr class="row-even"><td><p>Epoched event sort</p></td>
+<tr class="row-odd"><td><p>Epoched event sort</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset(...,</span> <span class="pre">'eventconsistency')</span></code> sorts by epoch, then by
 latency. EEGLAB asks <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code> to sort on epoch and then
 latency, but that function takes the epoch order from the unsorted
@@ -781,7 +794,7 @@ latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
 and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
 out Z, Y, X here and X, Z, Y in EEGLAB.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Numeric boundary types</p></td>
+<tr class="row-even"><td><p>Numeric boundary types</p></td>
 <td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
 the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with
 <code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code> on. EEGLAB skips that merge when the first

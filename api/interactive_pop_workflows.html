@@ -634,7 +634,8 @@
 <h2>Loading and Saving<a class="headerlink" href="#loading-and-saving" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> accept <code class="docutils literal notranslate"><span class="pre">blockrange=[start,</span> <span class="pre">stop]</span></code> for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. BioSemi BDF import decodes <code class="docutils literal notranslate"><span class="pre">Status</span></code> with <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code> (default
+formats. A window or a whole recording with fewer samples than channels stays
+channel-major. BioSemi BDF import decodes <code class="docutils literal notranslate"><span class="pre">Status</span></code> with <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code> (default
 4, rising edges of the lower 16 bits), stores those triggers when
 <code class="docutils literal notranslate"><span class="pre">importevent</span></code> is <code class="docutils literal notranslate"><span class="pre">on</span></code>, and removes <code class="docutils literal notranslate"><span class="pre">Status</span></code> when <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> is
 <code class="docutils literal notranslate"><span class="pre">on</span></code>. A requested time range reads only the overlapping BDF records.

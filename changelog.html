@@ -476,6 +476,11 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Importing a recording or time window with fewer samples than channels no
+longer raises an orientation error. <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pop_read_erpss</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_snapread</span></code> pass the channel count they already
+know into the dataset builder. A one-second BioSemi window stays
+channel-major. EEGLAB leaves that square matrix sample-major.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code>, <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code>, and <code class="docutils literal notranslate"><span class="pre">asr_calibrate_r</span></code> place RMS
 windows with MATLAB’s colon operator. A fractional overlap such as 0.66 no
 longer adds one extra window at the end of some recordings.
