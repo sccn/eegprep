@@ -7,6 +7,13 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
+Unreleased
+==========
+
+- ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
+  pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
+  invert a numerical null direction and amplify the signal by about 1e13.
+
 Version 0.4.0
 =============
 
