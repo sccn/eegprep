@@ -30,6 +30,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import scipy.io
 from scipy.optimize import linear_sum_assignment
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper, _restore_double_eeg_data
@@ -807,6 +808,122 @@ def _threshold_report(eeg):
         index = int(np.argmin(np.abs(scores - 0.9)))
         parts.append(f"{name}[{index + 1}]={scores[index]:.8f}")
     return " ".join(parts)
+
+
+def _saved_strings(value):
+    array = np.asarray(value)
+    if array.dtype.kind in "SU":
+        return [str(item) for item in array.ravel()]
+    strings = []
+    for item in np.asarray(value, dtype=object).ravel():
+        if isinstance(item, np.ndarray):
+            if item.dtype.kind in "SU":
+                strings.append("".join(item.astype(str).ravel()))
+            elif item.size == 0:
+                strings.append("")
+            else:
+                strings.append(str(item.reshape(-1)[0]))
+        elif isinstance(item, bytes):
+            strings.append(item.decode())
+        else:
+            strings.append(str(item))
+    return strings
+
+
+def _matlab_import_run1(engine, bids_root, subject, output_dir, mat_path):
+    """Import one subject with MATLAB pop_importbids and save run-1 arrays."""
+    bids = _matlab_string(bids_root)
+    out = _matlab_string(output_dir)
+    mat = _matlab_string(mat_path)
+    subject_id = subject.replace("'", "''")
+    engine.eval(
+        "clear ALLEEG STUDY EEG; "
+        f"[~, ALLEEG] = pop_importbids('{bids}', "
+        f"'outputdir', '{out}', "
+        "'bidsevent', 'on', "
+        "'bidschanloc', 'off', "
+        "'bidscoord', 'off', "
+        "'eventtype', 'value', "
+        f"'subjects', {{'{subject_id}'}}); "
+        "if isempty(ALLEEG), error('pop_importbids returned no datasets'); end; "
+        "keep = []; "
+        "for k = 1:numel(ALLEEG), "
+        "name = ALLEEG(k).filename; "
+        "if contains(name, '_run-1_'), keep(end+1) = k; end; "
+        "end; "
+        "if numel(keep) ~= 1, error('expected one run-1 dataset, found %d', numel(keep)); end; "
+        "EEG = ALLEEG(keep); "
+        "n = numel(EEG.event); "
+        "event_type = cell(1, n); "
+        "event_latency = nan(1, n); "
+        "event_duration = nan(1, n); "
+        "for iEvent = 1:n, "
+        "event_type{iEvent} = char(string(EEG.event(iEvent).type)); "
+        "event_latency(iEvent) = double(EEG.event(iEvent).latency); "
+        "event_duration(iEvent) = double(EEG.event(iEvent).duration); "
+        "end; "
+        "nbchan = double(EEG.nbchan); "
+        "pnts = double(EEG.pnts); "
+        "srate = double(EEG.srate); "
+        "trials = double(EEG.trials); "
+        "data = double(EEG.data); "
+        f"save('{mat}', 'event_type', 'event_latency', 'event_duration', "
+        "'nbchan', 'pnts', 'srate', 'trials', 'data', '-v7'); "
+        "clear ALLEEG STUDY EEG data event_type event_latency event_duration;",
+        nargout=0,
+    )
+
+
+def test_load_frombids_matches_matlab_pop_importbids(pipeline_parity, matlab, eeglab_suite_root, tmp_path):
+    """Compare chain step 1 with MATLAB pop_importbids, not a second Python import."""
+    skip_without_matlab_plugin(matlab.engine, "pop_importbids", "EEG-BIDS")
+    bids_root = Path(eeglab_suite_root) / "ds003061"
+    subjects = _subjects(eeglab_suite_root)
+    if "sub-001" not in subjects:
+        pytest.fail("ds003061 sub-001 run-1 is not in the eeglab_tests checkout")
+
+    for subject in subjects:
+        python_eeg = pop_load_frombids(
+            str(_run1_eeg_set(eeglab_suite_root, subject)),
+            eventtype="value",
+            bidsevent=True,
+            bidschanloc=False,
+            infer_locations="standard-10-5-342ch.locs",
+            verbose=False,
+        )
+        mat_path = tmp_path / f"{subject}-run1.mat"
+        output_dir = tmp_path / subject
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _matlab_import_run1(matlab.engine, bids_root, subject, output_dir, mat_path)
+        saved = scipy.io.loadmat(mat_path, squeeze_me=True, chars_as_strings=True)
+
+        assert int(python_eeg["nbchan"]) == int(saved["nbchan"]), subject
+        assert int(python_eeg["pnts"]) == int(saved["pnts"]), subject
+        assert int(python_eeg["trials"]) == int(saved["trials"]), subject
+        assert float(python_eeg["srate"]) == float(saved["srate"]), subject
+        python_data = np.asarray(python_eeg["data"], dtype=np.float64)
+        matlab_data = np.asarray(saved["data"], dtype=np.float64)
+        assert python_data.shape == matlab_data.shape, f"{subject} data {python_data.shape} vs {matlab_data.shape}"
+        data_diff = float(np.max(np.abs(python_data - matlab_data))) if python_data.size else 0.0
+        assert data_diff == 0.0, f"{subject} import data max_abs={data_diff:.6e}"
+
+        python_rows = _event_rows(python_eeg)
+        matlab_types = _saved_strings(saved["event_type"])
+        matlab_latency = np.asarray(saved["event_latency"], dtype=float).ravel()
+        matlab_duration = np.asarray(saved["event_duration"], dtype=float).ravel()
+        assert len(python_rows) == len(matlab_types) == matlab_latency.size == matlab_duration.size, (
+            f"{subject} events {len(python_rows)} vs {len(matlab_types)}"
+        )
+        for index, python_row in enumerate(python_rows):
+            assert python_row[0] == matlab_types[index], (
+                f"{subject} event {index} type {python_row[0]} vs {matlab_types[index]}"
+            )
+            assert abs(python_row[1] - float(matlab_latency[index])) <= EVENT_ATOL, (
+                f"{subject} event {index} latency {python_row[1]} vs {matlab_latency[index]}"
+            )
+            assert np.isclose(python_row[2], float(matlab_duration[index]), atol=EVENT_ATOL, equal_nan=True), (
+                f"{subject} event {index} duration {python_row[2]} vs {matlab_duration[index]}"
+            )
 
 
 def test_chained_pipeline_matches_stored_platform_summary(pipeline_parity, matlab, eeglab_suite_root, request):

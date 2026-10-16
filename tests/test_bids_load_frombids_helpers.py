@@ -70,6 +70,53 @@ def test_raw_edf_loader_returns_one_based_event_latencies(tmp_path: Path) -> Non
     assert [int(event["latency"]) for event in eeg["event"]] == [1, 101, 1000]
 
 
+def test_pop_load_frombids_duration_is_duration_times_srate(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "duration", "BIDSVersion": "1.8.0"}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    samples = np.zeros(EDF_SRATE * EDF_SECONDS)
+    writer = pyedflib.EdfWriter(str(edf_path), 1, file_type=pyedflib.FILETYPE_EDF)
+    writer.setSignalHeaders(
+        [
+            {
+                "label": "Cz",
+                "dimension": "uV",
+                "sample_frequency": EDF_SRATE,
+                "physical_min": -100,
+                "physical_max": 100,
+                "digital_min": -32768,
+                "digital_max": 32767,
+                "transducer": "",
+                "prefilter": "",
+            }
+        ]
+    )
+    writer.writeSamples([samples])
+    writer.close()
+    (eeg_dir / "sub-01_task-x_eeg.json").write_text(
+        json.dumps({"TaskName": "x", "SamplingFrequency": EDF_SRATE, "EEGReference": "Cz", "PowerLineFrequency": 50})
+    )
+    (eeg_dir / "sub-01_task-x_channels.tsv").write_text("name\ttype\tunits\nCz\tEEG\tuV\n")
+    # 0 stays 0, 1.5 samples stays 1.5, n/a stays missing. 0.5 s is an exact 50 samples.
+    (eeg_dir / "sub-01_task-x_events.tsv").write_text(
+        "onset\tduration\ttrial_type\n0.0\t0\tzero\n0.015\t0.015\tfrac\n1.0\tn/a\tmissing\n2.0\t0.5\thalf\n"
+    )
+
+    imported = pop_load_frombids(str(edf_path), verbose=False)
+    by_type = {str(event["type"]): event["duration"] for event in imported["event"]}
+    expected = EDF_SRATE * np.array([0.0, 0.015, np.nan, 0.5])
+
+    assert list(by_type) == ["zero", "frac", "missing", "half"]
+    np.testing.assert_allclose(
+        [by_type["zero"], by_type["frac"], by_type["missing"], by_type["half"]],
+        expected,
+        equal_nan=True,
+    )
+
+
 def test_pop_load_frombids_merge_deduplicates_raw_and_tsv_events(tmp_path: Path) -> None:
     from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 

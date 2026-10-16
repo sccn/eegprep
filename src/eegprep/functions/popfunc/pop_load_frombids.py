@@ -16,7 +16,7 @@ from eegprep.plugins.EEG_BIDS.coords import (
 )
 from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
-from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug, round_mat
+from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug
 
 import numpy as np
 
@@ -432,13 +432,12 @@ def pop_load_frombids(
                 ev_lats = ev_lats + 1
 
                 try:
-                    durations = events['duration'].to_numpy(dtype=float).copy()
-                    durations[np.isnan(durations)] = 0.0  # replace NaNs with zero
+                    durations = events['duration'].to_numpy(dtype=float)
                 except KeyError:
                     # fall back to zero duration
                     durations = np.zeros_like(onsets, dtype=float)
-                # convert to EEGLAB's sample-based durations
-                ev_durs = round_mat(np.maximum(1, Fs * durations)).astype(int)
+                # bids_importeventfile.m:68 stores duration*srate, including 0 and NaN.
+                ev_durs = Fs * durations
 
                 # set of column names that we've already carried over into the
                 # event data structure

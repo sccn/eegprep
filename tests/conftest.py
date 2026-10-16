@@ -320,6 +320,8 @@ HEAVY_REFERENCE_NODEIDS = (
     "tests/test_eeglab_hybrid.py::test_matlab_aggregate_outputs_over_two_gib_remain_complete",
     "tests/test_eeglab_hybrid.py::test_matlab_inputs_over_four_gib_remain_complete[False]",
     "tests/test_eeglab_hybrid.py::test_matlab_inputs_over_four_gib_remain_complete[True]",
+    # ds003061 import versus MATLAB pop_importbids. The later chain stays separate.
+    "tests/test_ds003061_stage_parity.py::test_load_frombids_matches_matlab_pop_importbids",
     # Tutorial reference workflows. The plain BIDS face test is not in this list.
     "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_bids_p300",
     "tests/test_tutorial_eeglab_tests.py::test_reference_tutorial_event_processing_single_dataset",
