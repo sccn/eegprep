@@ -222,13 +222,14 @@ class PopRerefIcaRegressionTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result["data"]).all())
 
 
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopReref(DebuggableTestCase):
     """Test cases for pop_reref function."""
 
     def setUp(self):
         """Set up test fixtures."""
-        # Set up MATLAB compatibility for parity tests
+        if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
+            self.matlab_available = False
+            return
         try:
             self.eeglab = get_eeglab()
             self.matlab_available = True
