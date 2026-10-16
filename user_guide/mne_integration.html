@@ -576,10 +576,18 @@ dataset with MNE functions.</p>
 </section>
 <section id="mne-epochs-to-eegprep">
 <h2>MNE Epochs to EEGPrep<a class="headerlink" href="#mne-epochs-to-eegprep" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg</span></code> accepts MNE Epochs objects through MNE’s EEGLAB exporter. Use
-<code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg_epochs</span></code> when you specifically need the ICA-aware epochs
-conversion helper; that helper expects both an MNE <code class="docutils literal notranslate"><span class="pre">Epochs</span></code> object and an MNE
-<code class="docutils literal notranslate"><span class="pre">ICA</span></code> object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg</span></code> accepts MNE Epochs objects through MNE’s EEGLAB exporter. Each
+epoch keeps its time-locking event at time 0 and any other event whose onset
+falls in the half-open window <code class="docutils literal notranslate"><span class="pre">[xmin,</span> <span class="pre">xmax</span> <span class="pre">+</span> <span class="pre">1/srate)</span></code>. Annotation
+durations are stored as <code class="docutils literal notranslate"><span class="pre">event['duration']</span></code> in samples. When any duration
+is nonzero, every event has that field, and a zero duration is 0. An integer
+event type is restored only when <code class="docutils literal notranslate"><span class="pre">str(int(text))</span></code> reproduces the text, so
+<code class="docutils literal notranslate"><span class="pre">001</span></code> stays <code class="docutils literal notranslate"><span class="pre">001</span></code>. A float is restored only when <code class="docutils literal notranslate"><span class="pre">str(float(text))</span></code>
+reproduces the text, so <code class="docutils literal notranslate"><span class="pre">2.50</span></code> stays <code class="docutils literal notranslate"><span class="pre">2.50</span></code>. <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> then
+builds <code class="docutils literal notranslate"><span class="pre">EEG['epoch']</span></code> from those events. Use <code class="docutils literal notranslate"><span class="pre">eeg_mne2eeg_epochs</span></code> when you
+specifically need the ICA-aware epochs conversion helper; that helper expects
+both an MNE <code class="docutils literal notranslate"><span class="pre">Epochs</span></code> object and an MNE <code class="docutils literal notranslate"><span class="pre">ICA</span></code> object and applies the same
+event and epoch rules.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">mne</span>
 
@@ -619,6 +627,12 @@ display EEG data in microvolt-oriented workflows. Inspect units before
 comparing absolute amplitudes.</p></li>
 <li><p>EEGPrep event latencies are EEGLAB-facing sample positions. MNE annotations
 are onset times in seconds and events arrays are sample-index rows.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code> is stored in <code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code> and
+restored from that field.</p></li>
+<li><p>The urevent table and <code class="docutils literal notranslate"><span class="pre">event['urevent']</span></code> are dropped. Boolean, non-finite,
+and non-scalar event fields are dropped. Recordings with no durations omit
+<code class="docutils literal notranslate"><span class="pre">event['duration']</span></code>. <code class="docutils literal notranslate"><span class="pre">onset</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">ch_names</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">hed_string</span></code> cannot be stored as extra event fields.</p></li>
 <li><p>Conversion helpers use temporary EEGLAB files internally, so keep output paths
 writable and avoid using them inside tight real-time loops.</p></li>
 <li><p>For BIDS projects, use <a class="reference internal" href="bids_workflow.html#bids-workflow"><span class="std std-ref">BIDS Workflow</span></a> when you want EEGPrep’s BIDS

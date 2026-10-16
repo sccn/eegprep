@@ -552,7 +552,19 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_mne2eeg_epochs">
 <span class="sig-name descname"><span class="pre">eeg_mne2eeg_epochs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epochs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ica</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg_epochs" title="Link to this definition">#</a></dt>
-<dd><p>Convert MNE epochs with ICA to EEGLAB dataset format.</p>
+<dd><p>Convert MNE epochs with ICA to an EEG dataset.</p>
+<p>The time-locking event of each epoch is placed at time 0. Other events
+whose onset falls in <code class="docutils literal notranslate"><span class="pre">[tmin,</span> <span class="pre">tmax</span> <span class="pre">+</span> <span class="pre">1/srate)</span></code> are included.
+<code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> builds <code class="docutils literal notranslate"><span class="pre">EEG['epoch']</span></code>. Annotation durations are stored
+on <code class="docutils literal notranslate"><span class="pre">event['duration']</span></code> in samples. When any duration is nonzero, every
+event has that field, and a zero duration is 0. An integer type is restored
+only when <code class="docutils literal notranslate"><span class="pre">str(int(text))</span></code> reproduces the text, and a float only when
+<code class="docutils literal notranslate"><span class="pre">str(float(text))</span></code> does, so <code class="docutils literal notranslate"><span class="pre">'2.50'</span></code> stays text.
+<code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code> is copied to <code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code>.</p>
+<p>The urevent table and <code class="docutils literal notranslate"><span class="pre">event['urevent']</span></code> do not survive. Boolean,
+non-finite, and non-scalar event fields do not survive. Annotation fields
+<code class="docutils literal notranslate"><span class="pre">onset</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">ch_names</span></code>, and <code class="docutils literal notranslate"><span class="pre">hed_string</span></code> cannot be
+stored as extra event fields. Recordings with no durations omit the field.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">
@@ -565,7 +577,7 @@
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>dict</dt><dd><p>EEGLAB-compatible dataset dictionary.</p>
+<dt>dict</dt><dd><p>EEG dataset dictionary.</p>
 </dd>
 </dl>
 </section>

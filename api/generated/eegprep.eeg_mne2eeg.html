@@ -552,18 +552,32 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_mne2eeg">
 <span class="sig-name descname"><span class="pre">eeg_mne2eeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg" title="Link to this definition">#</a></dt>
-<dd><p>Convert MNE Raw object to EEG data structure.</p>
+<dd><p>Convert an MNE Raw or Epochs object to an EEG dataset.</p>
+<p><code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code> is copied to <code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code>. For
+epochs, the time-locking event is placed at time 0 and other events whose
+onset falls in <code class="docutils literal notranslate"><span class="pre">[xmin,</span> <span class="pre">xmax</span> <span class="pre">+</span> <span class="pre">1/srate)</span></code> are kept. <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> builds
+<code class="docutils literal notranslate"><span class="pre">EEG['epoch']</span></code>. Annotation durations are stored on <code class="docutils literal notranslate"><span class="pre">event['duration']</span></code>
+in samples (seconds times <code class="docutils literal notranslate"><span class="pre">srate</span></code>). When any duration is nonzero, every
+event has that field, and a zero duration is 0. Recordings with no
+durations omit the field. An integer type is restored only when
+<code class="docutils literal notranslate"><span class="pre">str(int(text))</span></code> reproduces the text, so <code class="docutils literal notranslate"><span class="pre">'001'</span></code> stays <code class="docutils literal notranslate"><span class="pre">'001'</span></code>. A
+float type is restored only when <code class="docutils literal notranslate"><span class="pre">str(float(text))</span></code> reproduces the text,
+so <code class="docutils literal notranslate"><span class="pre">'2.50'</span></code> stays <code class="docutils literal notranslate"><span class="pre">'2.50'</span></code>. A non-numeric type keeps every type as text.</p>
+<p>The urevent table and <code class="docutils literal notranslate"><span class="pre">event['urevent']</span></code> do not survive. Boolean,
+non-finite, and non-scalar event fields do not survive. Annotation fields
+<code class="docutils literal notranslate"><span class="pre">onset</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">ch_names</span></code>, and <code class="docutils literal notranslate"><span class="pre">hed_string</span></code> cannot be
+stored as extra event fields.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>raw<span class="classifier">mne.io.Raw | mne.BaseEpochs</span></dt><dd><p>MNE Raw or Epochs object.</p>
+<dt>raw<span class="classifier">mne.io.BaseRaw | mne.BaseEpochs</span></dt><dd><p>MNE Raw or Epochs object.</p>
 </dd>
 </dl>
 </section>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
+<dt>dict</dt><dd><p>EEG data structure.</p>
 </dd>
 </dl>
 </section>

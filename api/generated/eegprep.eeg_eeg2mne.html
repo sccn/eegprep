@@ -552,18 +552,35 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_eeg2mne">
 <span class="sig-name descname"><span class="pre">eeg_eeg2mne</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eeg2mne" title="Link to this definition">#</a></dt>
-<dd><p>Convert EEG data structure to MNE Raw object.</p>
+<dd><p>Convert an EEG dataset to an MNE Raw or Epochs object.</p>
+<p>Continuous data becomes Raw. Epoched data becomes Epochs. <code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code>
+is stored as <code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code>. Events whose onset falls in
+<code class="docutils literal notranslate"><span class="pre">[xmin,</span> <span class="pre">xmax</span> <span class="pre">+</span> <span class="pre">1/srate)</span></code> are kept with the time-locking event.
+<code class="docutils literal notranslate"><span class="pre">event['duration']</span></code> values, in samples, become annotation durations in
+seconds. On the way back, every event includes <code class="docutils literal notranslate"><span class="pre">duration</span></code> when any
+duration is nonzero, and a zero duration is 0.</p>
+<p>The urevent table and <code class="docutils literal notranslate"><span class="pre">event['urevent']</span></code> do not survive. Boolean,
+non-finite, and non-scalar event fields do not survive. Annotation fields
+<code class="docutils literal notranslate"><span class="pre">onset</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">ch_names</span></code>, and <code class="docutils literal notranslate"><span class="pre">hed_string</span></code> cannot be
+stored as extra event fields. Recordings with no durations omit the field.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure.</p>
 </dd>
 </dl>
 </section>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>raw<span class="classifier">mne.io.Raw</span></dt><dd><p>MNE Raw object</p>
+<dt>mne.io.BaseRaw | mne.BaseEpochs</dt><dd><p>MNE object for the dataset.</p>
+</dd>
+</dl>
+</section>
+<section id="raises">
+<h2>Raises<a class="headerlink" href="#raises" title="Link to this heading">#</a></h2>
+<dl class="simple">
+<dt>ValueError</dt><dd><p>If an epoch has no events. The message names that epoch, 1-based.</p>
 </dd>
 </dl>
 </section>
