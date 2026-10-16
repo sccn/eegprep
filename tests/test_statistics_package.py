@@ -31,6 +31,15 @@ from tests.fixtures import matlab_engine_available
 
 ANOVA_PARITY_RTOL = 1e-4
 ANOVA_PARITY_ATOL = 1e-5
+# t and df are the Welch or pooled closed form, a few dozen flops on 12 and 9
+# cases. 1e-12 is about 5e3 units in the last place, enough for MATLAB and
+# NumPy to reduce those sums in different orders. A Statistics Toolbox probe
+# met this on t and df. p is 2*tcdf(-abs(t), df) in statcond.m against
+# 2*scipy.stats.t.sf; those cdf implementations differ by more than the
+# statistic, and the same probe passed at 1e-10. Tightening either bound
+# below that probe is not justified.
+STATCOND_UNPAIRED_T_DF_RTOL = 1e-12
+STATCOND_UNPAIRED_P_RTOL = 1e-10
 
 
 def test_fdr_matches_bh_and_by_thresholds():
@@ -132,56 +141,21 @@ def test_corrcoef_and_concatdata_contracts():
     assert concatenated.grid_shape == (1, 2)
 
 
-def test_statcond_unpaired_default_uses_welch_variance():
-    # 12 and 9 cases give pooled df 19. These sample moments are the MATLAB
-    # statcond default check: Welch t=-0.66579, df=8.42.
-    first = np.array(
-        [
-            -2.7260099855438673,
-            -2.448659887431253,
-            -2.1713097893186384,
-            -1.8939596912060237,
-            -1.616609593093409,
-            -1.3392594949807946,
-            -1.0619093968681799,
-            -0.7845592987555654,
-            -0.5072092006429507,
-            -0.22985910253033615,
-            0.04749099558227843,
-            0.3248410936948929,
-        ]
-    )
-    second = np.array(
-        [
-            -7.799532046910862,
-            -5.8496490351831465,
-            -3.899766023455431,
-            -1.9498830117277155,
-            0.0,
-            1.9498830117277155,
-            3.899766023455431,
-            5.8496490351831465,
-            7.799532046910862,
-        ]
-    )
+def _unpaired_statcond_sample() -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(1)
+    return rng.normal(size=(3, 12)), rng.normal(loc=0.2, scale=1.4, size=(3, 9))
 
-    result = statcond([first, second], paired="off")
+
+def test_statcond_unpaired_default_matches_explicit_inhomogenous_variance():
+    first, second = _unpaired_statcond_sample()
+    default = statcond([first, second], paired="off")
     explicit = statcond([first, second], paired="off", variance="inhomogenous")
     pooled = statcond([first, second], paired="off", variance="homogenous")
-    welch_stat, welch_df = ttest2_cell(first, second, variance="inhomogenous")
-    pooled_stat, pooled_df = ttest2_cell(first, second)
 
-    npt.assert_allclose(result.stat, explicit.stat)
-    npt.assert_allclose(result.df, explicit.df)
-    npt.assert_allclose(result.stat, welch_stat)
-    npt.assert_allclose(result.df, welch_df)
-    assert f"{float(np.ravel(result.stat)[0]):.5f}" == "-0.66579"
-    assert f"{float(np.ravel(result.df)[0]):.2f}" == "8.42"
-    assert f"{float(np.ravel(pooled.stat)[0]):.5f}" == "-0.76747"
-    assert pooled.df == 19
-    npt.assert_allclose(pooled.stat, pooled_stat)
-    assert pooled_df == 19
-    assert not np.allclose(result.stat, pooled.stat)
+    npt.assert_array_equal(default.stat, explicit.stat)
+    npt.assert_array_equal(np.asarray(default.df), np.asarray(explicit.df))
+    npt.assert_array_equal(default.pvalue, explicit.pvalue)
+    assert not np.allclose(default.stat, pooled.stat)
 
 
 def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():
@@ -484,3 +458,38 @@ def test_matlab_parity_for_ttests_corrcoef_and_anova(matlab_statistics_engine, t
     npt.assert_allclose(repeated.df_rows, matlab["rmDfR"])
     npt.assert_allclose(repeated.df_columns, matlab["rmDfC"])
     npt.assert_allclose(repeated.df_interaction, matlab["rmDfI"])
+
+
+@pytest.mark.matlab
+def test_matlab_statcond_unpaired_default_matches_eeglab(matlab_statistics_engine, tmp_path):
+    stats_dir = _eeglab_statistics_reference_dir()
+    assert stats_dir is not None
+    guifunc = stats_dir.parent / "guifunc"
+    if not (guifunc / "finputcheck.m").is_file():
+        pytest.fail(f"statcond default parity needs {guifunc / 'finputcheck.m'}")
+    matlab_statistics_engine.addpath(str(guifunc), nargout=0)
+
+    first, second = _unpaired_statcond_sample()
+    matlab = _run_matlab_statistics(
+        matlab_statistics_engine,
+        tmp_path,
+        {"first": first, "second": second},
+        (
+            "if exist('finputcheck','file') ~= 2, "
+            "error('finputcheck must be on the path so statcond defaults to inhomogenous'); "
+            "end; "
+            "[defaultT, defaultDf, defaultP] = statcond({first, second}, 'paired', 'off'); "
+            "[pooledT, pooledDf, pooledP] = statcond({first, second}, 'paired', 'off', "
+            "'variance', 'homogenous');"
+        ),
+        ["defaultT", "defaultDf", "defaultP", "pooledT", "pooledDf", "pooledP"],
+    )
+    default = statcond([first, second], paired="off")
+    pooled = statcond([first, second], paired="off", variance="homogenous")
+
+    npt.assert_allclose(np.ravel(default.stat), np.ravel(matlab["defaultT"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
+    npt.assert_allclose(np.ravel(default.df), np.ravel(matlab["defaultDf"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
+    npt.assert_allclose(np.ravel(default.pvalue), np.ravel(matlab["defaultP"]), rtol=STATCOND_UNPAIRED_P_RTOL, atol=0)
+    npt.assert_allclose(np.ravel(pooled.stat), np.ravel(matlab["pooledT"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
+    npt.assert_allclose(np.ravel(pooled.df), np.ravel(matlab["pooledDf"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
+    npt.assert_allclose(np.ravel(pooled.pvalue), np.ravel(matlab["pooledP"]), rtol=STATCOND_UNPAIRED_P_RTOL, atol=0)
