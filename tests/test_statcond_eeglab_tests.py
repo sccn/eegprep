@@ -44,9 +44,64 @@ def _assert_matlab_value(actual, expected, *, atol, rtol):
         np.testing.assert_allclose(actual, expected, atol=atol, rtol=rtol)
 
 
+# Cases 1, 2, and 7-14 are double t-tests with stored zero tolerances.
+# The Python backend derives a tolerance from float64 eps and the t-test;
+# the MATLAB backend still uses the stored zero tolerance.
+_PYTHON_TTEST_REGRESSION_CASES = frozenset({1, 2, *range(7, 15)})
+
+
+def _ttest_accumulation_length(arguments: list) -> int:
+    """Return the number of cases reduced into the t statistic.
+
+    A paired test accumulates one difference per case, so ``n`` is that case
+    count. An unpaired test accumulates both samples, because each case enters
+    a mean and the pooled variance, so ``n`` is the sum of the two case counts.
+    """
+
+    conditions = [np.asarray(cell) for cell in np.asarray(arguments[0]).ravel()]
+    paired = next(arguments[index + 1] for index in range(1, len(arguments) - 1, 2) if arguments[index] == "paired")
+    case_counts = [condition.shape[-1] for condition in conditions]
+    if paired == "on":
+        return case_counts[0]
+    return sum(case_counts)
+
+
+def _two_tailed_t_condition(stat: np.ndarray, df: np.ndarray, pvalue: np.ndarray) -> float:
+    """Return ``max |t| * 2 * pdf(|t|, df) / |p|`` on the stored reference.
+
+    The two-tailed p-value is ``2 * sf(|t|, df)``, so this factor is
+    ``|d log p / d log t|``. The maximum is one bound for the whole array: a
+    per-element bound is tighter than the last-bit ``tcdf`` difference on
+    elements whose ``t`` already matches.
+    """
+
+    t_abs = np.abs(np.asarray(stat, dtype=np.float64))
+    degrees = np.asarray(df, dtype=np.float64)
+    probability = np.abs(np.asarray(pvalue, dtype=np.float64))
+    return float(np.max(t_abs * 2.0 * scipy_stats.t.pdf(t_abs, degrees) / probability))
+
+
+def _assert_python_ttest_regression(actual, reference, arguments) -> None:
+    """Compare a double t-test at ``n * eps`` and the p-value condition bound.
+
+    ``eps`` is float64 machine epsilon. The statistic uses ``n * eps``. The
+    p-value uses that tolerance times :func:`_two_tailed_t_condition`. Degrees
+    of freedom and the empty parametric surrogate stay exact, with absolute and
+    relative tolerance zero.
+    """
+
+    assert actual.shape == reference.shape
+    assert actual.dtype == object and reference.dtype == object
+    stat_rtol = _ttest_accumulation_length(arguments) * float(np.finfo(np.float64).eps)
+    p_rtol = stat_rtol * _two_tailed_t_condition(reference[0, 0], reference[0, 1], reference[0, 2])
+    output_rtols = (stat_rtol, 0.0, p_rtol, 0.0)
+    for index in range(reference.shape[1]):
+        _assert_matlab_value(actual[0, index], reference[0, index], atol=0.0, rtol=output_rtols[index])
+
+
 def _statcond_regression_test(number):
     @eeglab_test(STATCOND_REGRESSION, f"test_{number}")
-    def test(seeded_statcond, statcond_regression_data):
+    def test(seeded_statcond, statcond_regression_data, request):
         fixture = statcond_regression_data
         arguments = list(fixture["inputs"][0, number - 1][0])
         # This spelling correction is performed by t_statcond.TestClassSetup.
@@ -64,9 +119,13 @@ def _statcond_regression_test(number):
                 outputs[0, index] = output
             actual = outputs
         reference = fixture[f"test_{number}"]
+        expected = reference["value"][0, 0]
+        if number in _PYTHON_TTEST_REGRESSION_CASES and request.config.getoption("--eeglab-backend") == "python":
+            _assert_python_ttest_regression(actual, expected, arguments)
+            return
         _assert_matlab_value(
             actual,
-            reference["value"][0, 0],
+            expected,
             atol=reference["absTol"][0, 0].item(),
             rtol=reference["relTol"][0, 0].item(),
         )

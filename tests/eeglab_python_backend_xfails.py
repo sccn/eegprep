@@ -18,10 +18,8 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
 
 
 STATCOND_ZERO = (
-    "stored statcond fixtures use zero tolerance and double inputs. "
-    "t-test cases 1, 2, and 7-14 differ in the last bits "
-    "(worst statistic relative error 8.8e-16, p-value 1.9e-14). "
-    "ANOVA cases 3-6 and 15-30 are single because EEGLAB accumulates in single "
+    "stored statcond ANOVA fixtures use zero tolerance. "
+    "Cases 3-6 and 15-30 are single because EEGLAB accumulates in single "
     "(anova1rm_cell.m:67-68, anova1_cell.m:98/107/116, anova2_cell.m:98-99, "
     "anova2rm_cell.m:83-131) and then evaluates single 1-fcdf. "
     "F errors reach absolute 6.1e-2 and relative 5.9e-3 from cancellation in "
@@ -51,20 +49,10 @@ IMPORT_TABLE = "imported rows do not match the MATLAB field or channel layout"
 CELLTOMAT = "celltomat is given MATLAB cells rather than numeric arrays"
 
 PYTHON_BACKEND_XFAILS = {
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_01": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_02": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_07": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_08": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_09": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_10": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_11": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_12": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_13": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_14": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17": _gap(STATCOND_ZERO, AssertionError),

@@ -273,19 +273,34 @@ maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
 matching the hybrid failures. These are retained reference fixture/platform
 discrepancies, not established EEGPrep defects. The original tolerances and
 failing assertions remain unchanged. The Python backend now runs the same
-fixtures. Cases 31-78 match, including the seeded resampling arrays. Cases
-1-30 still miss the stored zero tolerance. Every fixture input is double.
-The t-test cases (1, 2, and 7-14) differ in the last bits: the worst
-statistic relative error is ``8.8e-16`` and the worst p-value relative error
-is ``1.9e-14``. The ANOVA cases (3-6 and 15-30) are single in EEGLAB because
-those routines accumulate in single (``anova1rm_cell.m`` lines 67-68,
-``anova1_cell.m`` lines 98, 107, and 116, ``anova2_cell.m`` lines 98-99, and
-``anova2rm_cell.m`` lines 83-131) and then evaluate ``1-fcdf`` in single.
-Cancellation in ``ssA`` and ``ssAS`` (``anova1rm_cell.m`` lines 97-104) lets
-the F error reach an absolute ``6.1e-2`` and a relative ``5.9e-3``, and the
-single-precision p-value saturates to 0 below about ``6e-8``. EEGPrep computes
-these statistics in double. The gap is an EEGLAB precision quirk. Those thirty
-cases stay expected failures. The tolerances are unchanged.
+fixtures. Cases 31-78 match, including the seeded resampling arrays. Every
+fixture input is double. Cases 1, 2, and 7-14 are t-tests. On the Python
+backend their statistic tolerance is ``n * eps``, where ``eps`` is float64
+machine epsilon and ``n`` is the accumulation length: the case count of the
+paired difference, or the sum of both case counts for an unpaired test,
+because both samples enter the means and the pooled variance. On these
+fixtures that tolerance is about ``2.2e-15`` to ``4.4e-15``. The two-tailed
+p-value is ``2 * sf(|t|, df)``. Its relative condition number in ``t`` is
+``|t| * 2 * pdf(|t|, df) / |p|``. The p-value tolerance is the statistic
+tolerance times the maximum of that factor on the stored reference, one
+bound for the whole array, about ``1e-13`` here. A per-element bound is
+tighter than the last-bit ``tcdf`` difference on some elements whose ``t``
+already matches. Degrees of freedom and the empty parametric surrogate stay
+exact. The stored fixture tolerances remain zero, and the MATLAB backend
+still uses them. The worst residuals inside this bound are a statistic
+relative error of ``8.8e-16`` and a p-value relative error of ``1.9e-14``.
+
+The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
+single in EEGLAB because those routines accumulate in single
+(``anova1rm_cell.m`` lines 67-68, ``anova1_cell.m`` lines 98, 107, and 116,
+``anova2_cell.m`` lines 98-99, and ``anova2rm_cell.m`` lines 83-131) and then
+evaluate ``1-fcdf`` in single. Cancellation in ``ssA`` and ``ssAS``
+(``anova1rm_cell.m`` lines 97-104) lets the F error reach an absolute
+``6.1e-2`` and a relative ``5.9e-3``, and the single-precision p-value
+saturates to 0 below about ``6e-8``. EEGPrep computes these statistics in
+double. That single-precision gap stays an expected failure pending a
+decision on whether to match the accumulation. The stored tolerances are
+unchanged.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
