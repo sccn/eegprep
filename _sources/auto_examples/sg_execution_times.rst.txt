@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:25.557** total execution time for 17 files **from auto_examples**:
+**00:37.307** total execution time for 17 files **from auto_examples**:
 
 .. container::
 
@@ -33,53 +33,53 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_examples_plot_reject_artifacts.py` (``plot_reject_artifacts.py``)
-     - 00:06.585
+     - 00:09.149
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_artifact_removal.py` (``plot_artifact_removal.py``)
-     - 00:05.272
+     - 00:08.164
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_data_plotting.py` (``plot_data_plotting.py``)
-     - 00:03.553
+     - 00:04.922
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_group_analysis_study.py` (``plot_group_analysis_study.py``)
-     - 00:03.092
+     - 00:04.509
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_and_iclabel.py` (``plot_ica_and_iclabel.py``)
-     - 00:02.496
+     - 00:03.836
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_basic_preprocessing.py` (``plot_basic_preprocessing.py``)
-     - 00:02.321
+     - 00:03.566
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_channel_interpolation.py` (``plot_channel_interpolation.py``)
-     - 00:00.763
+     - 00:01.069
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_source_analysis_dipfit.py` (``plot_source_analysis_dipfit.py``)
-     - 00:00.520
+     - 00:00.787
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_import_data.py` (``plot_import_data.py``)
-     - 00:00.232
+     - 00:00.327
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_preprocess_data.py` (``plot_preprocess_data.py``)
-     - 00:00.210
+     - 00:00.283
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_history_to_script.py` (``plot_history_to_script.py``)
-     - 00:00.198
+     - 00:00.266
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_dataset_management.py` (``plot_dataset_management.py``)
-     - 00:00.130
+     - 00:00.183
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_bids_pipeline.py` (``plot_bids_pipeline.py``)
-     - 00:00.059
+     - 00:00.080
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_data_structures.py` (``plot_data_structures.py``)
-     - 00:00.055
+     - 00:00.074
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_extract_epochs.py` (``plot_extract_epochs.py``)
-     - 00:00.040
-     - 0.0
-   * - :ref:`sphx_glr_auto_examples_plot_quickstart_tour.py` (``plot_quickstart_tour.py``)
-     - 00:00.017
+     - 00:00.049
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_public_api_and_plugins.py` (``plot_public_api_and_plugins.py``)
-     - 00:00.014
+     - 00:00.022
+     - 0.0
+   * - :ref:`sphx_glr_auto_examples_plot_quickstart_tour.py` (``plot_quickstart_tour.py``)
+     - 00:00.021
      - 0.0

@@ -598,8 +598,12 @@ resampling without modifying the source mapping.</p></li>
 <li><p>Added standalone low-level signal and text helpers <code class="docutils literal notranslate"><span class="pre">blockave</span></code>, <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code>,
 <code class="docutils literal notranslate"><span class="pre">env</span></code>, <code class="docutils literal notranslate"><span class="pre">movav</span></code>, <code class="docutils literal notranslate"><span class="pre">loadeeg</span></code>, <code class="docutils literal notranslate"><span class="pre">loadtxt</span></code>, <code class="docutils literal notranslate"><span class="pre">parsetxt</span></code>,
 <code class="docutils literal notranslate"><span class="pre">readneurodat</span></code>, and <code class="docutils literal notranslate"><span class="pre">readtxtfile</span></code>. Legacy <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code> now supports the
-even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
-and truncated Neuroscan files retain complete sweeps without returning an
+even-tap least-squares filters and shortest valid epochs accepted by EEGLAB.
+Zero-phase filtering pads each segment with three times the filter order,
+matching MATLAB <code class="docutils literal notranslate"><span class="pre">filtfilt</span></code>. Segments long enough for SciPy’s previous
+default pad, including the continuous EEGLAB sample recording, keep the
+same samples; the shorter pad is what admits those short epochs.
+Truncated Neuroscan files retain complete sweeps without returning an
 incomplete zero-filled tail.</p></li>
 <li><p>Regular epoch generation, preceding-event timing, event alignment, BioSig
 event conversion, sphering, RMS summaries, int16 matrix reads, legacy
