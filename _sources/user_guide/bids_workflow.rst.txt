@@ -126,6 +126,10 @@ Common loading options:
      - Infer locations only when no channel locations are present. Pass
        ``True``, ``False``, or a montage filename for explicit behavior.
 
+BIDS event ``duration`` is in seconds. ``pop_load_frombids`` stores each
+event's ``duration`` as that value times the sampling rate, including zero
+and fractional sample counts. A missing duration stays missing.
+
 Preprocess a BIDS Dataset
 =========================
 
