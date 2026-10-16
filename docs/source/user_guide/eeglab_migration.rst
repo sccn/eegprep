@@ -160,6 +160,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time.
+   * - BIDS BrainVision reference
+     - Import keeps the header reference on each channel and, when the sidecar
+       contains ``EEGReference``, uses that value as the dataset reference.
+       EEGLAB ``pop_loadbv`` sets the dataset reference to ``common``.
 
 Plugin Migration
 ================

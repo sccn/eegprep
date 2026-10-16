@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.miscfunc.misc import ToolError
+from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,12 @@ def load_raw_eeg_file(
         times_sec = eeg["times"] / 1000.0
         return eeg, srate, times_sec, report
 
-    if ext in [".edf", ".bdf", ".vhdr"]:
+    if ext == ".vhdr":
+        eeg, srate, times_sec, raw_report = _load_brainvision_file(filename, dtype=dtype)
+        report.update(raw_report)
+        return eeg, srate, times_sec, report
+
+    if ext in [".edf", ".bdf"]:
         eeg, srate, times_sec, raw_report = _load_neo_raw_file(
             filename,
             ext=ext,
@@ -59,6 +65,23 @@ def load_raw_eeg_file(
     raise ValueError(f"Unsupported file format: {ext}. Supported formats are .set, .edf, .bdf, .vhdr.")
 
 
+def _load_brainvision_file(
+    filename: str,
+    *,
+    dtype: np.dtype,
+) -> tuple[dict[str, Any], float, np.ndarray, dict[str, Any]]:
+    eeg = pop_loadbv(filename)
+    eeg["data"] = np.asarray(eeg["data"], dtype=dtype)
+    srate = float(np.asarray(eeg["srate"]).reshape(-1)[0])
+    times_sec = np.asarray(eeg["times"], dtype=float) / 1000.0
+    # BrainVision stores the reference on each channel. The dataset reference
+    # from pop_loadbv is EEGLAB's default, so a BIDS EEGReference can still apply.
+    if eeg.get("ref") == "common":
+        eeg["ref"] = "unknown"
+    eeg["chaninfo"].setdefault("nosedir", "+X")
+    return eeg, srate, times_sec, {"ImporterUsed": "pop_loadbv"}
+
+
 def _load_neo_raw_file(
     filename: str,
     *,
@@ -70,19 +93,13 @@ def _load_neo_raw_file(
     verbose: bool,
 ) -> tuple[dict[str, Any], float, np.ndarray, dict[str, Any]]:
     from neo import NeoReadWriteError
+    from neo.rawio.edfrawio import EDFRawIO
 
-    if ext == ".vhdr":
-        from neo.rawio.brainvisionrawio import BrainVisionRawIO as NeoIO
-
-        importer_used = "neo.rawio.brainvisionrawio.BrainVisionRawIO"
-    elif ext in [".edf", ".bdf"]:
-        from neo.rawio.edfrawio import EDFRawIO as NeoIO
-
-        importer_used = "neo.rawio.edfrawio.EDFRawIO"
-    else:
+    if ext not in {".edf", ".bdf"}:
         raise ValueError(f"Unexpected file format: {ext}. Please add support for this format if needed.")
 
-    io = NeoIO(filename)
+    importer_used = "neo.rawio.edfrawio.EDFRawIO"
+    io = EDFRawIO(filename)
     try:
         io.parse_header()
     except NeoReadWriteError as exc:
@@ -164,7 +181,6 @@ def _load_neo_raw_file(
 
     labels = channels["name"].tolist()
     chanlocs = np.asarray([_empty_chanloc(label, numeric_null) for label in labels])
-    _apply_neo_channel_coordinates(io, ext, filename, chanlocs, n_channels, warning=warning, verbose=verbose)
     events = _read_neo_events(io, ext, times_sec, numeric_null, verbose=verbose)
 
     eeg = {
@@ -235,60 +251,6 @@ def _empty_chanloc(label: str, numeric_null: Any) -> dict[str, Any]:
     }
 
 
-def _apply_neo_channel_coordinates(
-    io: Any,
-    ext: str,
-    filename: str,
-    chanlocs: np.ndarray,
-    n_channels: int,
-    *,
-    warning: Callable[[str], None],
-    verbose: bool,
-) -> None:
-    if ext == ".vhdr":
-        if verbose:
-            logger.info("  parsing VHDR-specific channel locations...")
-        try:
-            annots = io.raw_annotations["blocks"][0]["segments"][0]["signals"][0]["__array_annotations__"]
-            sph_radius = annots["coordinates_0"]
-            theta = annots["coordinates_1"]
-            phi = annots["coordinates_2"]
-            valid = (sph_radius != 0) | (theta != 0) | (phi != 0)
-            sph_theta = phi - 90 * np.sign(theta)
-            sph_phi = -np.abs(theta) + 90
-        except KeyError:
-            warning(f"Channel coordinates not found in {filename}. Using default values for channel locations.")
-            valid = np.zeros(n_channels, dtype=bool)
-    elif ext in [".edf", ".bdf"]:
-        valid = np.zeros(n_channels, dtype=bool)
-    else:
-        raise ValueError(
-            f"Unsupported file format for channel coordinates extraction: {ext}. "
-            f"Supported formats are .edf, .bdf, .vhdr."
-        )
-
-    if not np.any(valid):
-        return
-
-    if verbose:
-        logger.info("  applying channel locations from EEG file...")
-    for loc, val, sph_r, sph_p, sph_t in zip(chanlocs, valid, sph_radius, sph_phi, sph_theta):
-        if not val:
-            continue
-        loc["sph_radius"] = sph_r
-        loc["sph_theta"] = sph_t
-        loc["sph_phi"] = sph_p
-        az = sph_p
-        horiz = sph_t
-        loc["theta"] = -horiz
-        loc["radius"] = 0.5 - az / 180
-        az = np.deg2rad(sph_t)
-        elev = np.deg2rad(sph_p)
-        loc["Z"] = sph_r * np.sin(elev)
-        loc["X"] = sph_r * np.cos(elev) * np.cos(az)
-        loc["Y"] = sph_r * np.cos(elev) * np.sin(az)
-
-
 def _read_neo_events(io: Any, ext: str, times_sec: np.ndarray, numeric_null: Any, *, verbose: bool) -> Any:
     if (event_channels := io.event_channels_count()) <= 0:
         return numeric_null
@@ -315,16 +277,10 @@ def _read_neo_events(io: Any, ext: str, times_sec: np.ndarray, numeric_null: Any
         all_channels.extend(np.repeat(io.header["event_channels"][event_channel_index]["name"], len(event_times)))
         all_data.extend(event_labels)
 
-    if ext == ".vhdr":
-        event_types = all_data
-        event_codes = all_channels
-    elif ext in [".edf", ".bdf"]:
-        event_types = [str(value) for value in all_data]
-        event_codes = [str(channel) for channel in all_channels]
-    else:
-        raise ValueError(
-            f"Unsupported file format for event extraction: {ext}. Supported formats are .edf, .bdf, .vhdr."
-        )
+    if ext not in {".edf", ".bdf"}:
+        raise ValueError(f"Unsupported file format for event extraction: {ext}. Supported formats are .edf, .bdf.")
+    event_types = [str(value) for value in all_data]
+    event_codes = [str(channel) for channel in all_channels]
 
     # 1-based sample indices (EEGLAB convention), same rounding as the events.tsv path
     event_latencies = np.searchsorted(times_sec, all_times) + 1

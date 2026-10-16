@@ -45,7 +45,9 @@ def pop_load_frombids(
 ) -> Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load an EEG data file of a supported format from a BIDS dataset.
 
-    Supported formats are EDF, BrainVision, EEGLAB SET, BDF.
+    Supported formats are EDF, BrainVision, EEGLAB SET, and BDF. BrainVision
+    headers, including vectorized data, are read with ``pop_loadbv``. A BIDS
+    ``EEGReference`` value becomes the dataset reference.
 
     Parameters
     ----------

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pyedflib
+import pytest
 
 EDF_SRATE = 100
 EDF_SECONDS = 10
@@ -92,6 +93,79 @@ def test_pop_load_frombids_merge_deduplicates_raw_and_tsv_events(tmp_path: Path)
         ("D", 501),
         ("C", 1000),
     ]
+
+
+def _write_brainvision_bids(root: Path, *, orientation: str) -> Path:
+    """Write a two-channel BrainVision BIDS recording with a dataset reference."""
+    eeg_dir = root / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (root / "dataset_description.json").write_text(json.dumps({"Name": "brainvision", "BIDSVersion": "1.8.0"}))
+    stem = "sub-01_task-rest_eeg"
+    raw = np.array([[1, 2, 3, 4], [10, 20, 30, 40]], dtype=np.int16)
+    on_disk = raw.T if orientation == "MULTIPLEXED" else raw
+    data_name = f"{stem}.dat"
+    on_disk.tofile(eeg_dir / data_name)
+    marker_name = f"{stem}.vmrk"
+    (eeg_dir / f"{stem}.vhdr").write_text(
+        "Brain Vision Data Exchange Header File Version 1.0\n"
+        "\n[Common Infos]\n"
+        f"DataFile={data_name}\n"
+        f"MarkerFile={marker_name}\n"
+        "DataFormat=BINARY\n"
+        "DataType=TIMEDOMAIN\n"
+        f"DataOrientation={orientation}\n"
+        "NumberOfChannels=2\n"
+        "DataPoints=4\n"
+        "SamplingInterval=4000\n"
+        "\n[Binary Infos]\n"
+        "BinaryFormat=INT_16\n"
+        "UseBigEndianOrder=NO\n"
+        "\n[Channel Infos]\n"
+        "Ch1=Cz,A1,1,µV\n"
+        "Ch2=Pz,A2,0.5,µV\n",
+        encoding="utf-8",
+    )
+    (eeg_dir / marker_name).write_text(
+        "Brain Vision Data Exchange Marker File, Version 1.0\n"
+        "\n[Common Infos]\n"
+        f"DataFile={data_name}\n"
+        "\n[Marker Infos]\n"
+        "Mk1=Stimulus,S  1,2,1,1\n",
+        encoding="utf-8",
+    )
+    (eeg_dir / f"{stem}.json").write_text(
+        json.dumps({"TaskName": "rest", "SamplingFrequency": 250, "EEGReference": "linked mastoids"})
+    )
+    return eeg_dir / f"{stem}.vhdr"
+
+
+@pytest.mark.parametrize("orientation", ["VECTORIZED", "MULTIPLEXED"])
+def test_pop_load_frombids_reads_brainvision_with_pop_loadbv(tmp_path: Path, orientation: str) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    header = _write_brainvision_bids(tmp_path, orientation=orientation)
+
+    eeg, report = pop_load_frombids(
+        str(header),
+        bidsevent=False,
+        infer_locations=False,
+        dtype=np.float64,
+        return_report=True,
+        verbose=False,
+    )
+
+    expected = np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 10.0, 15.0, 20.0]])
+    np.testing.assert_allclose(eeg["data"], expected)
+    assert eeg["data"].shape == (2, 4)
+    assert eeg["srate"] == 250
+    assert eeg["nbchan"] == 2
+    assert eeg["pnts"] == 4
+    assert eeg["trials"] == 1
+    assert [channel["labels"] for channel in eeg["chanlocs"]] == ["Cz", "Pz"]
+    assert [channel["ref"] for channel in eeg["chanlocs"]] == ["A1", "A2"]
+    assert [(event["type"], int(event["latency"])) for event in eeg["event"]] == [("S  1", 2)]
+    assert eeg["ref"] == "linked mastoids"
+    assert report["ImporterUsed"] == "pop_loadbv"
 
 
 def test_montage_inference_uses_packaged_montage_resources() -> None:

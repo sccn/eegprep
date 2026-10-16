@@ -14,7 +14,9 @@ EEG, report = pop_load_frombids(
 ```
 
 Supported data files include EEGLAB `.set`, EDF, BDF, and BrainVision `.vhdr`
-files when the required readers are installed. `bidsevent` can be `"replace"`,
+files. BrainVision headers, including vectorized binary data, are read with
+`pop_loadbv`. A BIDS `EEGReference` value becomes the dataset reference;
+channel references from the header stay on each channel. `bidsevent` can be `"replace"`,
 `"merge"`, `"append"`, or disabled. `infer_locations` can infer channel
 locations from known channel labels or a packaged montage resource.
 
