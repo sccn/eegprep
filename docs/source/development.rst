@@ -285,10 +285,14 @@ p-value is ``2 * sf(|t|, df)``. Its relative condition number in ``t`` is
 tolerance times the maximum of that factor on the stored reference, one
 bound for the whole array, about ``1e-13`` here. A per-element bound is
 tighter than the last-bit ``tcdf`` difference on some elements whose ``t``
-already matches. Degrees of freedom and the empty parametric surrogate stay
-exact. The stored fixture tolerances remain zero, and the MATLAB backend
-still uses them. The worst residuals inside this bound are a statistic
-relative error of ``8.8e-16`` and a p-value relative error of ``1.9e-14``.
+already matches. The statistic matches bit for bit in 9 of these 10 cases,
+so the p-value bound covers ``tcdf`` implementation differences. Zero and
+subnormal reference probabilities stay exact: they are left out of the
+maximum, and a non-finite bound fails the comparison. Degrees of freedom
+and the empty parametric surrogate stay exact. The stored fixture
+tolerances remain zero, and the MATLAB backend still uses them. The worst
+residuals inside this bound are a statistic relative error of ``8.8e-16``
+and a p-value relative error of ``1.9e-14``.
 
 The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
 single in EEGLAB because those routines accumulate in single

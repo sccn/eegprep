@@ -11,6 +11,7 @@ from scipy import io as scipy_io
 from scipy import stats as scipy_stats
 
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
+from tests.test_statcond_eeglab_tests import _assert_derived_p
 from eegprep.functions.statistics import (
     TwoWayEffects,
     anova1_cell,
@@ -31,15 +32,6 @@ from tests.fixtures import matlab_engine_available
 
 ANOVA_PARITY_RTOL = 1e-4
 ANOVA_PARITY_ATOL = 1e-5
-# t and df are the Welch or pooled closed form, a few dozen flops on 12 and 9
-# cases. 1e-12 is about 5e3 units in the last place, enough for MATLAB and
-# NumPy to reduce those sums in different orders. A Statistics Toolbox probe
-# met this on t and df. p is 2*tcdf(-abs(t), df) in statcond.m against
-# 2*scipy.stats.t.sf; those cdf implementations differ by more than the
-# statistic, and the same probe passed at 1e-10. Tightening either bound
-# below that probe is not justified.
-STATCOND_UNPAIRED_T_DF_RTOL = 1e-12
-STATCOND_UNPAIRED_P_RTOL = 1e-10
 
 
 def test_fdr_matches_bh_and_by_thresholds():
@@ -486,10 +478,17 @@ def test_matlab_statcond_unpaired_default_matches_eeglab(matlab_statistics_engin
     )
     default = statcond([first, second], paired="off")
     pooled = statcond([first, second], paired="off", variance="homogenous")
-
-    npt.assert_allclose(np.ravel(default.stat), np.ravel(matlab["defaultT"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
-    npt.assert_allclose(np.ravel(default.df), np.ravel(matlab["defaultDf"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
-    npt.assert_allclose(np.ravel(default.pvalue), np.ravel(matlab["defaultP"]), rtol=STATCOND_UNPAIRED_P_RTOL, atol=0)
-    npt.assert_allclose(np.ravel(pooled.stat), np.ravel(matlab["pooledT"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
-    npt.assert_allclose(np.ravel(pooled.df), np.ravel(matlab["pooledDf"]), rtol=STATCOND_UNPAIRED_T_DF_RTOL, atol=0)
-    npt.assert_allclose(np.ravel(pooled.pvalue), np.ravel(matlab["pooledP"]), rtol=STATCOND_UNPAIRED_P_RTOL, atol=0)
+    # Both samples enter the means and the variance, so t and df use
+    # (n1 + n2) * float64 eps. p uses that times the two-tailed condition
+    # number on the MATLAB reference.
+    stat_rtol = (first.shape[-1] + second.shape[-1]) * float(np.finfo(np.float64).eps)
+    for actual, prefix in ((default, "default"), (pooled, "pooled")):
+        npt.assert_allclose(np.ravel(actual.stat), np.ravel(matlab[f"{prefix}T"]), rtol=stat_rtol, atol=0)
+        npt.assert_allclose(np.ravel(actual.df), np.ravel(matlab[f"{prefix}Df"]), rtol=stat_rtol, atol=0)
+        _assert_derived_p(
+            np.ravel(actual.pvalue),
+            np.ravel(matlab[f"{prefix}T"]),
+            np.ravel(matlab[f"{prefix}Df"]),
+            np.ravel(matlab[f"{prefix}P"]),
+            stat_rtol=stat_rtol,
+        )
