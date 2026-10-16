@@ -551,6 +551,13 @@ read with <code class="docutils literal notranslate"><span class="pre">pop_loadb
 dataset reference stays <code class="docutils literal notranslate"><span class="pre">common</span></code>. A sidecar <code class="docutils literal notranslate"><span class="pre">EEGReference</span></code> value is kept
 in <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;BIDS&quot;]</span></code>. <code class="docutils literal notranslate"><span class="pre">report[&quot;ImporterUsed&quot;]</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;pop_loadbv&quot;</span></code> for
 these files.</p>
+<p>EDF and BDF recordings are read with <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>. <code class="docutils literal notranslate"><span class="pre">report[&quot;ImporterUsed&quot;]</span></code>
+is <code class="docutils literal notranslate"><span class="pre">&quot;pop_biosig&quot;</span></code> for these files. The dataset reference stays <code class="docutils literal notranslate"><span class="pre">common</span></code>,
+and a sidecar <code class="docutils literal notranslate"><span class="pre">EEGReference</span></code> value is kept in <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;BIDS&quot;]</span></code>.</p>
+<p>BIDS sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed. A TSV
+that is not valid UTF-8 is decoded as Latin-1, so each byte keeps its Unicode
+code point. The byte <code class="docutils literal notranslate"><span class="pre">0xB5</span></code> in a <code class="docutils literal notranslate"><span class="pre">channels.tsv</span></code> units field stays µ. JSON
+that is not UTF-8 is rejected.</p>
 </section>
 <section id="create-a-small-tutorial-export">
 <h2>Create a Small Tutorial Export<a class="headerlink" href="#create-a-small-tutorial-export" title="Link to this heading">#</a></h2>

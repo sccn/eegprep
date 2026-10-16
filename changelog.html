@@ -476,6 +476,13 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>BIDS EDF and BDF files are imported with <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>. The previous
+neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
+and ds004279.</p></li>
+<li><p>BIDS TSV and JSON sidecars are decoded as UTF-8, and a leading UTF-8 BOM
+is removed. A TSV that is not valid UTF-8 is decoded as Latin-1, so the
+<code class="docutils literal notranslate"><span class="pre">0xB5</span></code> unit in ds003620 <code class="docutils literal notranslate"><span class="pre">channels.tsv</span></code> stays µ. JSON that is not UTF-8
+is rejected.</p></li>
 <li><p>Importing a recording or time window with fewer samples than channels no
 longer raises an orientation error. <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>,
 <code class="docutils literal notranslate"><span class="pre">pop_read_erpss</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_snapread</span></code> pass the channel count they already

@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- BIDS EDF and BDF files are imported with ``pop_biosig``. The previous
+  neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
+  and ds004279.
+- BIDS TSV and JSON sidecars are decoded as UTF-8, and a leading UTF-8 BOM
+  is removed. A TSV that is not valid UTF-8 is decoded as Latin-1, so the
+  ``0xB5`` unit in ds003620 ``channels.tsv`` stays µ. JSON that is not UTF-8
+  is rejected.
 - Importing a recording or time window with fewer samples than channels no
   longer raises an orientation error. ``pop_biosig``, ``pop_fileio``,
   ``pop_read_erpss``, and ``pop_snapread`` pass the channel count they already

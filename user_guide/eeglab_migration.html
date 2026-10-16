@@ -672,6 +672,22 @@ subsequently normalize mixed event types to strings as part of event validation.
 </tr>
 </thead>
 <tbody>
+<tr class="row-even"><td><p>BIDS TSV bytes</p></td>
+<td><p>TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
+A file that is not valid UTF-8 is decoded as Latin-1, so <code class="docutils literal notranslate"><span class="pre">0xB5</span></code> stays
+µ and <code class="docutils literal notranslate"><span class="pre">0x80</span></code> stays U+0080. On MATLAB R2025b with
+<code class="docutils literal notranslate"><span class="pre">DefaultCharacterSet</span></code> UTF-8, EEGLAB <code class="docutils literal notranslate"><span class="pre">loadtxt</span></code> maps both bytes to
+U+FFFD and leaves the BOM as U+FEFF on the first header. A Windows-1252
+MATLAB session maps <code class="docutils literal notranslate"><span class="pre">0x80</span></code> to the euro sign.</p></td>
+</tr>
+<tr class="row-odd"><td><p>BIDS JSON bytes</p></td>
+<td><p>JSON sidecars must be UTF-8. A leading UTF-8 BOM is removed and the
+file is accepted. Bytes that are not UTF-8 raise
+<code class="docutils literal notranslate"><span class="pre">UnicodeDecodeError</span></code>. EEGLAB <code class="docutils literal notranslate"><span class="pre">bids_loadfile</span></code> reads a Latin-1 JSON
+file and replaces the undecodable byte, so the bytes for <code class="docutils literal notranslate"><span class="pre">café</span></code>
+become <code class="docutils literal notranslate"><span class="pre">caf</span></code> followed by U+FFFD. The same reader errors when the
+file starts with a UTF-8 BOM.</p></td>
+</tr>
 <tr class="row-even"><td><p>STUDY <code class="docutils literal notranslate"><span class="pre">pop_clust</span></code> algorithm <code class="docutils literal notranslate"><span class="pre">kmeans</span></code></p></td>
 <td><p>EEGLAB calls <code class="docutils literal notranslate"><span class="pre">kmeans(data,</span> <span class="pre">k,</span> <span class="pre">'replicates',</span> <span class="pre">10,</span> <span class="pre">'emptyaction',</span> <span class="pre">'drop')</span></code>.
 Cluster numbers follow MATLAB’s random stream and are not reproduced.
