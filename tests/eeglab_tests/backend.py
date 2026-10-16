@@ -13,10 +13,6 @@ import pytest
 from scipy.io import loadmat, savemat
 from scipy.sparse import issparse
 
-from eegprep.functions.statistics.concatdata import ConcatenatedData
-from eegprep.functions.statistics.fdr import FDRResult
-
-
 _MAT_INLINE_LIMIT = 2**30
 _MAT_PART_LIMIT = 2**28
 
@@ -94,26 +90,36 @@ def _save_matlab_arguments(filename, arguments, inline_limit_bytes=_MAT_INLINE_L
     savemat(filename, {"arguments": arguments}, long_field_names=True)
 
 
-def _matlab_outputs(result):
-    if isinstance(result, (FDRResult, ConcatenatedData)):
-        return tuple(result)
-    return None
+def _declared_matlab_outputs(result):
+    """Return field values for a result that declares MATLAB nargout order.
+
+    Result dataclasses opt in with ``matlab_outputs``, a tuple of field names.
+    Tuples are already multiple outputs. Arrays, lists, and other iterables
+    stay one value.
+    """
+    names = getattr(type(result), "matlab_outputs", None)
+    if not isinstance(names, tuple):
+        return None
+    return tuple(getattr(result, name) for name in names)
 
 
-def call_python(name, *args, nargout=1, **kwargs):
-    """Resolve lazily, treating tuples and statistics results as multiple outputs."""
-    function = getattr(importlib.import_module("eegprep"), name)
-    result = function(*args, **kwargs)
+def _python_outputs(name, result, nargout):
     if nargout == 0:
         return None
     outputs = result if isinstance(result, tuple) else None
     if outputs is None and nargout > 1:
-        outputs = _matlab_outputs(result)
+        outputs = _declared_matlab_outputs(result)
     if outputs is not None and len(outputs) >= nargout:
         return outputs[0] if nargout == 1 else outputs[:nargout]
     if nargout > 1:
         raise AssertionError(f"{name} did not return {nargout} outputs")
     return result
+
+
+def call_python(name, *args, nargout=1, **kwargs):
+    """Resolve lazily, treating tuples and declared result objects as multiple outputs."""
+    function = getattr(importlib.import_module("eegprep"), name)
+    return _python_outputs(name, function(*args, **kwargs), nargout)
 
 
 def _decode(value, typed, directory=None):

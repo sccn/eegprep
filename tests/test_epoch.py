@@ -1,6 +1,7 @@
 # test_epoch.py
 import os
 import numpy as np
+import pytest
 import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -173,6 +174,7 @@ def test_epoch_upstream_rereferences_all_events_with_zero_based_indices():
         np.testing.assert_array_equal(actual, expected)
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEpochParity(unittest.TestCase):
     def setUp(self):

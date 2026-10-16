@@ -2,6 +2,7 @@ import copy
 import os
 import unittest
 import numpy as np
+import pytest
 
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -155,6 +156,7 @@ class TestEegInterpPlanarGeometry(unittest.TestCase):
         np.testing.assert_allclose(by_theta["data"], by_xy["data"], rtol=1e-12, atol=1e-12)
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestEegInterpParity(unittest.TestCase):
     """Test parity between Python eeg_interp and MATLAB eeg_interp.m"""
@@ -339,6 +341,7 @@ class TestEegInterpParity(unittest.TestCase):
         self._compare_eeg_results(py_result, ml_result)
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestSphericalSplineParity(unittest.TestCase):
     """Test parity between Python spheric_spline and MATLAB spheric_spline"""
@@ -393,6 +396,7 @@ class TestSphericalSplineParity(unittest.TestCase):
                 self.assertTrue(np.allclose(py_result, ml_interpolated, atol=1e-10))
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestComputeGParity(unittest.TestCase):
     """Test parity between Python computeg and MATLAB computeg"""

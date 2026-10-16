@@ -13,16 +13,20 @@ from eegprep.functions.statistics._shared import condition_grid, flatten_grid
 
 @dataclass(frozen=True)
 class ConcatenatedData:
-    """Data concatenated across condition case axes."""
+    """Data concatenated across condition case axes.
+
+    ``matlab_outputs`` is the field order used when a caller asks for more
+    than one return value.
+    """
 
     data: np.ndarray
     lengths: np.ndarray
     grid_shape: tuple[int, int]
+    matlab_outputs = ("data", "lengths", "grid_shape")
 
     def __iter__(self) -> Iterator[np.ndarray | tuple[int, int]]:
-        yield self.data
-        yield self.lengths
-        yield self.grid_shape
+        for name in self.matlab_outputs:
+            yield getattr(self, name)
 
 
 def concatdata(data: Any, *, axis: int = -1) -> ConcatenatedData:

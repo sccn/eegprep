@@ -287,11 +287,11 @@ jobs:
         run: |
           uv pip list
 
-  # Required check: no continue-on-error. A new failure or a strict unexpected
-  # pass fails the pull request. Known Python gaps are individual strict xfails.
-  # GUI and slow contracts stay out because modal Qt dialogs hang under
-  # offscreen Qt and the slow set exceeds this lane. MATLAB-oracle unittest
-  # classes are deselected in the Python lane; they are not Python gaps.
+  # No continue-on-error, so the job fails on any new failure or strict XPASS.
+  # Maintainers should mark it required in branch protection. Known Python gaps
+  # are individual strict xfails. GUI and slow contracts stay out because modal
+  # Qt dialogs hang under offscreen Qt and the slow set exceeds this lane.
+  # This lane deselects MATLAB-oracle unittest classes; they are not Python gaps.
   eeglab-python:
     name: EEGLAB Python backend
     runs-on: ubuntu-22.04
