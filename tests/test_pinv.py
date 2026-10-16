@@ -9,8 +9,8 @@ from eegprep.functions.miscfunc.pinv import pinv
 # Seeded 32x32 matrix in test_parity_ill_conditioned_matrix: its smallest
 # singular value is about 2.57 times MATLAB's cutoff max(size)*eps(norm(A)).
 # An SVD backward error of n*eps*||A|| changes 1/sigma by the relative amount
-# n*eps*||A||/sigma_min ≈ 0.523. This rtol covers that sensitivity and still
-# fails if a singular component is dropped.
+# n*eps*||A||/sigma_min ≈ 0.523. The matching absolute tolerance is that
+# relative amount divided by sigma_min.
 ILL_CONDITIONED_RTOL = 0.53
 
 
@@ -61,9 +61,11 @@ class TestPinvParity(unittest.TestCase):
         self.assertLess(sensitivity, ILL_CONDITIONED_RTOL)
 
         max_diff = np.max(np.abs(py_out - ml_out))
+        absolute_bound = ILL_CONDITIONED_RTOL / singular_values[-1]
         self.assertTrue(
-            np.allclose(py_out, ml_out, rtol=ILL_CONDITIONED_RTOL, atol=0.0),
-            f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.2e}",
+            np.allclose(py_out, ml_out, rtol=ILL_CONDITIONED_RTOL, atol=absolute_bound),
+            f"Ill-conditioned matrix pseudoinverse failed with max_diff={max_diff:.3e} "
+            f"atol={absolute_bound:.3e} rtol={ILL_CONDITIONED_RTOL}",
         )
 
 
