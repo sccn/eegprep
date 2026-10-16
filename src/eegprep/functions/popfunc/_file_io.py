@@ -14,6 +14,7 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
+from eegprep.functions.popfunc._matlab_fields import matlab_index
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 
 
@@ -44,12 +45,19 @@ def ur_indices_to_zero_based(EEG: dict[str, Any]) -> None:
     chanlocs = EEG.get('chanlocs')
     if chanlocs is not None and len(chanlocs) > 0 and 'urchan' in chanlocs[0]:
         for chanloc in chanlocs:
-            chanloc['urchan'] = chanloc['urchan'] - 1
+            chanloc['urchan'] = _zero_based_index(chanloc['urchan'])
     events = EEG.get('event')
     if events is not None and len(events) > 0 and 'urevent' in events[0]:
         for event in events:
             if 'urevent' in event and event['urevent'] is not None:
-                event['urevent'] = event['urevent'] - 1
+                event['urevent'] = _zero_based_index(event['urevent'])
+
+
+def _zero_based_index(value):
+    index = matlab_index(value)
+    if index is None:
+        return value - 1
+    return index - 1
 
 
 def infer_dataformat(filename: str | Path | None, dataformat: str | None = None) -> str:

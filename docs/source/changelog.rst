@@ -16,7 +16,9 @@ Unreleased
   length-1 component or channel axis, including a 1-by-1 sphere.
   Multi-dimensional cells and struct arrays keep their MATLAB shape, and
   empty arrays keep the dimensions stored in the file, so ``[]`` stays
-  0-by-0. Continuous ``icaact`` is ``ncomp`` by ``pnts``. MATLAB ``load``
+  0-by-0. Continuous ``icaact`` is ``ncomp`` by ``pnts`` and is computed in
+  the data array's dtype. Event and channel indices load as integers, and
+  integral ``run`` and ``session`` labels stay integers. MATLAB ``load``
   keeps those dimensions, and ``eeg_checkset`` requires
   ``size(EEG.data, 1) == EEG.nbchan``.
 - Breaking change: ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``,

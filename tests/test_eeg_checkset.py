@@ -75,6 +75,33 @@ class TestEegChecksetDataSqueezing(DebuggableTestCase):
 
         self.assertEqual(result['icaact'].shape, (1, 8))
 
+    def test_icaact_product_uses_the_data_dtype(self):
+        weights = np.array([[0.25, -0.5, 0.125, 0.125]], dtype=np.float64)
+        sphere = np.eye(4, dtype=np.float64)
+        data = np.arange(1, 33, dtype=np.float32).reshape(4, 8)
+        eeg = {
+            'data': data,
+            'nbchan': 4,
+            'pnts': 8,
+            'trials': 1,
+            'srate': 128.0,
+            'xmin': 0.0,
+            'xmax': 7 / 128,
+            'icaweights': weights,
+            'icasphere': sphere,
+            'icawinv': np.linalg.pinv(weights @ sphere),
+            'icachansind': np.arange(4),
+            'icaact': np.array([]),
+        }
+
+        result = eeg_checkset(eeg)
+
+        flat = np.asarray(result['data']).reshape(result['data'].shape[0], -1)
+        unmixing = np.asarray(result['icaweights']) @ np.asarray(result['icasphere'])
+        expected = np.dot(unmixing.astype(flat.dtype, copy=False), flat).astype(np.float32)
+        self.assertEqual(result['icaact'].dtype, np.float32)
+        np.testing.assert_array_equal(result['icaact'], expected)
+
     def test_single_trial_clears_epoch_and_event_epoch_field(self):
         """Like eeg_checkset.m, trials == 1 drops the epoch struct and event.epoch."""
         eeg = pop_loadset('sample_data/eeglab_data_epochs_ica.set')

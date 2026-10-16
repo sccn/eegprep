@@ -14,6 +14,10 @@ MATRIX_FIELDS = frozenset({"data", "icaact", "icaweights", "icasphere", "icawinv
 VECTOR_FIELDS = frozenset({"times", "icachansind"})
 SCALAR_FIELDS = frozenset({"nbchan", "pnts", "trials", "srate", "xmin", "xmax"})
 STRUCT_ARRAY_FIELDS = frozenset({"chanlocs", "urchanlocs", "event", "urevent", "epoch"})
+# Pointers Python uses as list indices. ``epoch`` here is event.epoch; the
+# EEG.epoch struct array is not numeric, so it does not take this path.
+INDEX_FIELDS = frozenset({"urevent", "urchan", "epoch", "event", "eventurevent"})
+LABEL_FIELDS = frozenset({"run", "session"})
 # eeg_checkset coerces chanlocs, event, and epoch. These stay arrays.
 _ARRAY_FIELDS = frozenset(
     {
@@ -47,13 +51,31 @@ def matlab_empty(value) -> np.ndarray:
     """Keep the shape and dtype of an empty MATLAB array.
 
     ``[]`` is 0-by-0. A missing channel list can be 0-by-1, and a selection
-    can be 32-by-0. The v7 and v7.3 readers share this through
+    can be 32-by-0. Empty char ``''`` is 0-by-0 even when the MAT reader
+    reports shape ``(0,)``. The v7 and v7.3 readers share this through
     :func:`apply_field_rules`.
     """
     array = np.asarray(value)
-    if array.ndim == 0:
+    if array.dtype.kind in "SU" or array.ndim == 0:
         return np.empty((0, 0), dtype=array.dtype)
     return np.empty(array.shape, dtype=array.dtype)
+
+
+def matlab_index(value):
+    """Return an integral index as a Python int, or an int vector.
+
+    Non-integral numbers are left unchanged so latencies stay floats. Returns
+    ``None`` when ``value`` is not an integral numeric array.
+    """
+    array = np.asarray(value)
+    if array.size == 0 or array.dtype.kind not in "iuf":
+        return None
+    flat = array.reshape(-1, order="F")
+    if not np.all(flat == np.trunc(flat)):
+        return None
+    if flat.size == 1:
+        return int(flat[0])
+    return flat.astype(int)
 
 
 def apply_field_rules(field: str | None, value):
@@ -93,6 +115,10 @@ def normalize_numeric(field: str | None, value):
         return array
     if field in VECTOR_FIELDS:
         return np.ravel(array, order="F")
+    if field in INDEX_FIELDS or field in LABEL_FIELDS:
+        index = matlab_index(array)
+        if index is not None:
+            return index
     if field in SCALAR_FIELDS or array.size == 1:
         return _python_scalar(array)
     squeezed = np.squeeze(array)

@@ -22,7 +22,8 @@ reloads as `(1, pnts)`, and a one-component or one-channel ICA matrix stays
 two-dimensional, including a 1-by-1 sphere. A multi-dimensional cell or
 struct array keeps its MATLAB shape. Empty arrays keep the dimensions stored
 in the file, so `[]` stays 0-by-0. Continuous `icaact` reloads as
-`(ncomp, pnts)`.
+`(ncomp, pnts)`. Event and channel indices load as integers, and integral
+`run` and `session` labels stay integers.
 
 When `EEG_OPTIONS["option_memmapdata"] = 1`, two-file datasets saved with an
 `.fdt` sidecar load through a NumPy-compatible memory map. Single-file `.set`

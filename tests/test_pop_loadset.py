@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import scipy.io
 
+from eegprep.functions.popfunc._matlab_fields import apply_field_rules
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
@@ -489,6 +490,54 @@ def test_pop_loadset_keeps_cell_struct_and_empty_shapes(tmp_path):
     assert loaded["selection"].shape == (32, 0)
     assert loaded["flag"].dtype == np.bool_
     assert loaded["flag"].shape == (2, 2)
+
+
+def test_pop_loadset_index_fields_and_integral_labels_are_ints(tmp_path):
+    path = tmp_path / "indices.set"
+    scipy.io.savemat(
+        path,
+        {
+            "EEG": {
+                "setname": "indices",
+                "filename": path.name,
+                "filepath": str(tmp_path),
+                "nbchan": [[1.0]],
+                "pnts": [[4.0]],
+                "trials": [[1.0]],
+                "srate": [[128.0]],
+                "xmin": [[0.0]],
+                "xmax": [[3 / 128]],
+                "data": np.arange(4, dtype=np.float64).reshape(1, 4),
+                "run": [[1.0]],
+                "session": [[2.0]],
+                "blank": np.array("", dtype="U"),
+                "chanlocs": {"labels": "Cz", "urchan": [[2.0]], "X": [[0.0]], "Y": [[0.0]], "Z": [[0.0]]},
+                "event": {"type": "square", "latency": [[4.0]], "urevent": [[3.0]], "epoch": [[1.0]]},
+                "urevent": {"type": "square", "latency": [[4.0]]},
+            }
+        },
+        appendmat=False,
+    )
+
+    loaded = pop_loadset(path)
+
+    assert loaded["run"] == 1
+    assert isinstance(loaded["run"], int)
+    assert loaded["session"] == 2
+    assert isinstance(loaded["session"], int)
+    assert loaded["event"][0]["urevent"] == 2
+    assert isinstance(loaded["event"][0]["urevent"], int)
+    assert isinstance(loaded["event"][0]["latency"], float)
+    assert loaded["chanlocs"][0]["urchan"] == 1
+    assert isinstance(loaded["chanlocs"][0]["urchan"], int)
+    assert isinstance(loaded["chanlocs"][0]["X"], float)
+    assert loaded["blank"].shape == (0, 0)
+    assert apply_field_rules("epoch", np.array([[1.0]])) == 1
+    assert apply_field_rules("eventurevent", np.array([[4.0]])) == 4
+    indices = apply_field_rules("event", np.array([[1.0, 2.0]]))
+    assert indices.dtype == int
+    assert indices.tolist() == [1, 2]
+    assert apply_field_rules("session", np.array([[1.5]])) == 1.5
 
 
 def test_pop_loadset_single_event_and_single_channel_set(tmp_path):
