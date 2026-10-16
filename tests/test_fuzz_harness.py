@@ -628,24 +628,44 @@ _ASR_SHAPE_20261016 = _nightly_case(
 _SHAPE_INPUT_SHA256 = "c91ef4bd21a589939fe3a8ddf16c39dda3d20e3fa1d63350302abbcc74e20f57"
 
 
-def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine):
-    """Replay the 20261016 shape signatures with no home eeg_options.m, as CI does.
+def _isolate_eeg_options(engine, directory: Path) -> tuple[str, str]:
+    """Point EEGLAB's option file at ``directory`` and return ``(path, home)``."""
+    directory.mkdir()
+    original_path = engine.path()
+    original_home = str(engine.eval("getenv('HOME')", nargout=1)).strip()
+    original_icadefs = str(engine.which("icadefs")).replace("'", "''")
+    options_path = str(directory).replace("'", "''")
+    (directory / "icadefs.m").write_text(
+        f"run('{original_icadefs}');\nEEGOPTION_PATH = '{options_path}';\n",
+        encoding="utf-8",
+    )
+    engine.addpath(str(directory), "-begin", nargout=0)
+    engine.eval(f"setenv('HOME', '{options_path}'); clear icadefs eeg_options; icadefs;", nargout=0)
+    return original_path, original_home
+
+
+def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine, tmp_path):
+    """Replay the 20261016 shape signatures with no eeg_options.m, as CI does.
 
     Run with --eeglab-backend=matlab. pop_editoptions then writes a fresh options
     file from eeg_optionsbackup.m, which saves data inside the .set.
     """
     home = Path.home() / "eeg_options.m"
-    original = home.read_bytes() if home.is_file() else None
-    home.unlink(missing_ok=True)
+    home_bytes = home.read_bytes() if home.is_file() else None
+    options_dir = tmp_path / "eeg_options"
+    original_path, original_home = _isolate_eeg_options(eeglab_matlab_engine, options_dir)
     engine = MatlabWrapper(eeglab_matlab_engine)
     try:
-        eeglab_matlab_engine.eval("clear functions", nargout=0)
+        eeglab_matlab_engine.eval("clear functions; eeglab_options;", nargout=0)
+        option_file = Path(str(eeglab_matlab_engine.eval("char(option_file)", nargout=1)).strip()).expanduser()
+        print(f"option_file={option_file}")
+        assert option_file.resolve().is_relative_to(options_dir.resolve())
+        assert not option_file.is_file()
         snapshot = suspend_option_single(eeglab_matlab_engine)
         try:
             eeglab_matlab_engine.eval("eeglab_options;", nargout=0)
-            option_file = str(eeglab_matlab_engine.eval("char(option_file)", nargout=1)).strip()
             savetwo = int(eeglab_matlab_engine.eval("option_savetwofiles", nargout=1))
-            print(f"option_file={option_file} option_savetwofiles={savetwo}")
+            print(f"option_savetwofiles={savetwo}")
             assert savetwo == 0
             tolerances = load_tolerances()
             for name, case in (
@@ -676,11 +696,13 @@ def test_replay_20261016_fuzz_mismatches(eeglab_matlab_engine):
         finally:
             resume_eeg_options(eeglab_matlab_engine, snapshot)
     finally:
-        if original is None:
-            home.unlink(missing_ok=True)
-        else:
-            home.write_bytes(original)
-        eeglab_matlab_engine.eval("clear functions", nargout=0)
+        eeglab_matlab_engine.path(original_path, nargout=0)
+        home_literal = original_home.replace("'", "''")
+        eeglab_matlab_engine.eval(
+            f"setenv('HOME', '{home_literal}'); clear icadefs eeg_options; eeglab_options;",
+            nargout=0,
+        )
+        assert (home.read_bytes() if home.is_file() else None) == home_bytes
 
 
 def test_replay_20261015_fuzz_mismatches(eeglab_matlab_engine):
