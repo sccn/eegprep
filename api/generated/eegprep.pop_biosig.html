@@ -636,6 +636,10 @@
 <dt class="sig sig-object py" id="eegprep.pop_biosig">
 <span class="sig-name descname"><span class="pre">pop_biosig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_biosig" title="Link to this definition">#</a></dt>
 <dd><p>Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.</p>
+<p>BioSemi BDF files decode the <code class="docutils literal notranslate"><span class="pre">Status</span></code> channel with <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code>
+(default 4: rising edges of the lower 16 bits). <code class="docutils literal notranslate"><span class="pre">importevent</span></code> (default
+<code class="docutils literal notranslate"><span class="pre">on</span></code>) stores those triggers, and <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> (default <code class="docutils literal notranslate"><span class="pre">on</span></code>) removes
+<code class="docutils literal notranslate"><span class="pre">Status</span></code> from the data. Unsupported values raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

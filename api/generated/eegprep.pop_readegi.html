@@ -639,7 +639,11 @@
 <p><code class="docutils literal notranslate"><span class="pre">datachunks</span></code> uses EEGLAB-facing 1-based frame or segment numbers. EGI
 integer A/D values are converted to microvolts by <a class="reference internal" href="eegprep.readegi.html#eegprep.readegi" title="eegprep.readegi"><code class="xref py py-func docutils literal notranslate"><span class="pre">readegi()</span></code></a>, event
 channels become dataset events, and segmented recordings are returned as
-channel-by-point-by-trial arrays.</p>
+channel-by-point-by-trial arrays. An <code class="docutils literal notranslate"><span class="pre">epoc</span></code> event with no <code class="docutils literal notranslate"><span class="pre">tim0</span></code> event
+is stored as <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. When both codes are present, the sample count
+divides evenly into one more trial than there are <code class="docutils literal notranslate"><span class="pre">epoc</span></code> events, and each
+<code class="docutils literal notranslate"><span class="pre">epoc</span></code> latency is the last sample of one of those trials, the pauses
+become the trial boundaries and the <code class="docutils literal notranslate"><span class="pre">epoc</span></code> events are removed.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

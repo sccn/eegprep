@@ -633,7 +633,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.parsetxt.html#eegprep.parsetxt" title="eegprep.parsetxt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.parsetxt</span></code></a>(txt[, delims])</p></td>
 <td><p>Split text at any delimiter character and discard empty tokens.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_loadbv.html#eegprep.pop_loadbv" title="eegprep.pop_loadbv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadbv</span></code></a>(path[, hdrfile, srange, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_loadbv.html#eegprep.pop_loadbv" title="eegprep.pop_loadbv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadbv</span></code></a>(-&gt; dict[str, ~typing.Any])</p></td>
 <td><p>Load a BrainVision <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> recording.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_loadcnt.html#eegprep.pop_loadcnt" title="eegprep.pop_loadcnt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_loadcnt</span></code></a>(filename, *args[, ...])</p></td>
@@ -709,7 +709,8 @@ are supported. Voltage data is normalized to microvolts while the original
 unit and resolution remain in each channel’s <code class="docutils literal notranslate"><span class="pre">bvunit</span></code> and <code class="docutils literal notranslate"><span class="pre">bvresolution</span></code>
 fields. Use <code class="docutils literal notranslate"><span class="pre">metadata=True</span></code> to inspect dimensions, channels, and events
 without loading samples. Uniform marker-based or fixed-time segments are
-returned as trials rather than a flattened continuous array.</p>
+returned as trials rather than a flattened continuous array. BIDS import uses
+this same reader for <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> files.</p>
 <p><code class="docutils literal notranslate"><span class="pre">read_erpss</span></code> reads uncompressed and delta-compressed ERPSS <code class="docutils literal notranslate"><span class="pre">.RAW</span></code> and
 <code class="docutils literal notranslate"><span class="pre">.RDF</span></code> recordings without a compiled MEX extension. It preserves channel
 labels and 1-based event sample offsets, and supports both little- and

@@ -160,6 +160,57 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time.
+   * - BDF ``bdfeventmode``
+     - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
+       ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
+       so the brackets are ignored and EEGLAB always decodes mode 4.
+   * - BDF ``blockrange`` event types
+     - ``pop_biosig`` keeps each trigger code on the latency of its own edge
+       when ``blockrange`` starts after an earlier event.
+       ``biosig2eeglabevent`` writes the latency on ``event(count)`` and the
+       type on ``event(index)``. After events before the window are skipped,
+       ``count`` and ``index`` diverge, so a kept event receives another
+       event's type or an empty type that EEGLAB returns as NaN. The
+       latencies match.
+   * - BDF trigger codes
+     - ``pop_biosig`` stores the integer Status code, including codes above
+       255. With no ``blockrange``, EEGLAB's ``importannot`` (default on)
+       maps codes above 255 through BioSig ``eventcodes.txt``, so ``0x105``
+       becomes ``artifact:Failing Electrode``. ``eeg_checkset`` then stores
+       every event type as a string.
+   * - BioSemi Status channel
+     - ``pop_biosig`` removes ``Status`` only when ``rmeventchan`` is
+       ``on``. ``rmeventchan="off"`` keeps the channel both when triggers are
+       imported and when ``importevent="off"``. ``importevent="off"`` leaves
+       the events already stored by the file reader. EEGLAB's ``sopen``
+       deletes the Status column from ``ReRefMx`` (``sopen.m`` lines
+       1037-1038) for every BDF file before the samples are read, so the
+       returned data never contains ``Status``.
+   * - BDF event modes 3 and 5
+     - ``pop_biosig`` keeps each trigger code on the rising or falling edge
+       that produced it. ``bdf2biosig_events.m`` lines 88-89 and 104-105 build
+       ``POS`` in time order and ``TYP`` as all rises followed by all falls,
+       so those two arrays no longer correspond.
+   * - EGI ``epoc`` pauses
+     - ``pop_readegi`` renames every ``epoc`` event to ``boundary`` when no
+       ``tim0`` event is present. EEGLAB's ``for index = indepoc`` walks a
+       column vector once. A single pause is renamed. Two or more pauses make
+       ``EEG.event(index).type`` fail, the surrounding ``try`` discards the
+       error, and every pause stays ``epoc``.
+   * - EGI ``epoc`` with ``tim0``
+     - ``pop_readegi`` reshapes a continuous recording when both codes are
+       present, the sample count divides evenly by the number of ``epoc``
+       events plus one, and the ``epoc`` latencies are exactly ``k * pnts``
+       for ``k = 1 .. n``. That latency is the last sample of epoch ``k``.
+       The ``epoc`` events are then removed; the pauses become the trial
+       boundaries, and the other events stay. If the pauses are spaced
+       differently, or the length does not divide, the recording stays
+       continuous and every event stays. EEGLAB deletes ``EEG.event(1)``
+       with the channel-loop index and sets ``trials`` to that epoch count.
+       ``eeg_checkset`` then sees two-dimensional data and sets ``trials``
+       back to 1, so the samples stay continuous and only the first event
+       is removed. When the length does not divide evenly, EEGLAB leaves
+       the events in place.
 
 Plugin Migration
 ================

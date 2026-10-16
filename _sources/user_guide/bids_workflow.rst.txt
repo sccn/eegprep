@@ -37,6 +37,12 @@ EEGPrep's BIDS loader supports EEGLAB ``.set``/``.fdt``, BrainVision
 ``.vhdr``, EDF, and BDF EEG files. Sidecars can replace or merge metadata,
 events, and channel information into the returned EEG dictionary.
 
+BrainVision headers, including multiplexed and vectorized binary data, are
+read with ``pop_loadbv``. The header reference stays on each channel, and the
+dataset reference stays ``common``. A sidecar ``EEGReference`` value is kept
+in ``EEG["etc"]["BIDS"]``. ``report["ImporterUsed"]`` is ``"pop_loadbv"`` for
+these files.
+
 Create a Small Tutorial Export
 ==============================
 

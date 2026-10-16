@@ -546,6 +546,11 @@ recording:</p>
 <p>EEGPrep’s BIDS loader supports EEGLAB <code class="docutils literal notranslate"><span class="pre">.set</span></code>/<code class="docutils literal notranslate"><span class="pre">.fdt</span></code>, BrainVision
 <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code>, EDF, and BDF EEG files. Sidecars can replace or merge metadata,
 events, and channel information into the returned EEG dictionary.</p>
+<p>BrainVision headers, including multiplexed and vectorized binary data, are
+read with <code class="docutils literal notranslate"><span class="pre">pop_loadbv</span></code>. The header reference stays on each channel, and the
+dataset reference stays <code class="docutils literal notranslate"><span class="pre">common</span></code>. A sidecar <code class="docutils literal notranslate"><span class="pre">EEGReference</span></code> value is kept
+in <code class="docutils literal notranslate"><span class="pre">EEG[&quot;etc&quot;][&quot;BIDS&quot;]</span></code>. <code class="docutils literal notranslate"><span class="pre">report[&quot;ImporterUsed&quot;]</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;pop_loadbv&quot;</span></code> for
+these files.</p>
 </section>
 <section id="create-a-small-tutorial-export">
 <h2>Create a Small Tutorial Export<a class="headerlink" href="#create-a-small-tutorial-export" title="Link to this heading">#</a></h2>

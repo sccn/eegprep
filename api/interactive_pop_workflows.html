@@ -634,7 +634,11 @@
 <h2>Loading and Saving<a class="headerlink" href="#loading-and-saving" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> accept <code class="docutils literal notranslate"><span class="pre">blockrange=[start,</span> <span class="pre">stop]</span></code> for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> also accepts EEGLAB’s 1-based <code class="docutils literal notranslate"><span class="pre">channels</span></code> selection
+formats. BioSemi BDF import decodes <code class="docutils literal notranslate"><span class="pre">Status</span></code> with <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code> (default
+4, rising edges of the lower 16 bits), stores those triggers when
+<code class="docutils literal notranslate"><span class="pre">importevent</span></code> is <code class="docutils literal notranslate"><span class="pre">on</span></code>, and removes <code class="docutils literal notranslate"><span class="pre">Status</span></code> when <code class="docutils literal notranslate"><span class="pre">rmeventchan</span></code> is
+<code class="docutils literal notranslate"><span class="pre">on</span></code>. A requested time range reads only the overlapping BDF records.
+<code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> also accepts EEGLAB’s 1-based <code class="docutils literal notranslate"><span class="pre">channels</span></code> selection
 and inclusive <code class="docutils literal notranslate"><span class="pre">samples</span></code> and <code class="docutils literal notranslate"><span class="pre">trials</span></code> ranges. <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> supports
 metadata-only and 1-based channel loading through <code class="docutils literal notranslate"><span class="pre">loadmode</span></code>.
 <code class="docutils literal notranslate"><span class="pre">pop_importpres</span></code> recognizes tab-delimited Presentation headers and also
@@ -643,7 +647,12 @@ accepts EEGLAB’s positional event-type, time, and duration field names.
 and <code class="docutils literal notranslate"><span class="pre">.RDF</span></code> recordings. Pass a sampling rate only when timing is absent from
 the recording header.
 <code class="docutils literal notranslate"><span class="pre">pop_readegi</span></code> imports continuous or equal-length segmented EGI Simple Binary
-RAW files, including event channels and segment categories. <code class="docutils literal notranslate"><span class="pre">pop_readsegegi</span></code>
+RAW files, including event channels and segment categories. An <code class="docutils literal notranslate"><span class="pre">epoc</span></code> event
+with no <code class="docutils literal notranslate"><span class="pre">tim0</span></code> event is stored as <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. When both codes are present,
+every <code class="docutils literal notranslate"><span class="pre">epoc</span></code> latency is the last sample of a trial, and the sample count
+divides evenly into one more trial than there are <code class="docutils literal notranslate"><span class="pre">epoc</span></code> events, the pauses
+become the trial boundaries and the <code class="docutils literal notranslate"><span class="pre">epoc</span></code> events are removed.
+<code class="docutils literal notranslate"><span class="pre">pop_readsegegi</span></code>
 joins a numbered continuous series ending in <code class="docutils literal notranslate"><span class="pre">001.RAW</span></code>, <code class="docutils literal notranslate"><span class="pre">002.RAW</span></code>, and so
 on, and validates that acquisition headers agree before concatenating samples.
 <code class="docutils literal notranslate"><span class="pre">pop_importegimat</span></code> reads EGI Net Station MATLAB exports. Segment variables
