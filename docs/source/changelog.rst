@@ -13,8 +13,11 @@ Unreleased
 - ``pop_clust``, ``kmeans_st``, and ``kmeanscluster`` no longer sort clusters
   by coordinates, and ``kmeans_st`` now follows EEGLAB's UPGMA Hartigan-Wong
   algorithm. ``Cls`` numbers and memberships can change on existing studies
-  for the same ``random_state``. On the sample epochs STUDY, ``Cls 2`` and
-  ``Cls 3`` swap relative to develop.
+  for the same ``random_state``. On the sample epochs STUDY, the ``kmeans``
+  path swaps ``Cls 2`` and ``Cls 3`` relative to develop.
+- ``pop_clust(algorithm="kmeanscluster")`` now calls ``kmeanscluster()``.
+  It previously used the same Lloyd starts as ``kmeans``, so those
+  memberships change too.
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
   pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
   invert a numerical null direction and amplify the signal by about 1e13.
