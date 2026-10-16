@@ -633,6 +633,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
         )
         loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
         np.testing.assert_array_equal(loaded["data"], source["data"])
+        assert loaded["setname"] == source["setname"]
+        assert len(loaded["event"]) == len(source["event"])
+        assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
         assert np.asarray(loaded["datfile"]).size == 0
 
     saved = pop_saveset(
@@ -648,6 +651,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
     )
     loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
     np.testing.assert_array_equal(loaded["data"], source["data"])
+    assert loaded["setname"] == source["setname"]
+    assert len(loaded["event"]) == len(source["event"])
+    assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
     assert loaded["datfile"] == "twofiles.fdt"
     assert (tmp_path / "twofiles.fdt").exists()
 

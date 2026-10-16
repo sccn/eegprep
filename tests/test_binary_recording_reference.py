@@ -34,6 +34,9 @@ from eegprep.functions.sigprocfunc.readegi import readegi
 from tests.eeglab_tests import eeglab_test
 from tests.eeglab_tests.backend import skip_without_matlab_plugin
 from tests.eeglab_tests.recordings import (
+    _events,
+    _labels,
+    _number,
     assert_same_bdf_header,
     assert_same_cnt,
     assert_same_eeg,
@@ -239,6 +242,22 @@ def test_reference_pop_biosig_original_bdf(eeglab_backend, eeglab_suite_root, re
     assert_same_eeg(python, matlab, label="pop_biosig")
 
 
+@eeglab_test("unittesting_binary/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
+def test_reference_pop_biosig_short_blockrange(eeglab_backend, eeglab_suite_root, request):
+    """A one-second jo1_3 window is square after Status is removed.
+
+    EEGLAB's biosig2eeglab transposes sread output only when the row count
+    differs from the file channel count by more than one. sopen has already
+    dropped Status, so 256 samples against 257 file channels stay sample-major.
+    """
+    _skip_plugin(request, "sopen", "Biosig")
+    filename = str(_recording(eeglab_suite_root, "BDF/jo1_3.bdf"))
+    for start, stop in ((0.0, 1.0), (3.0, 4.0)):
+        matlab = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[start, stop]]))
+        python = pop_biosig(filename, blockrange=[start, stop])
+        _assert_short_biosig_window(python, matlab, label=f"pop_biosig [{start:g} {stop:g}]", types_match=start == 0.0)
+
+
 def test_reference_readbdf_original_bdf_recording(eeglab_backend, eeglab_suite_root, request):
     require_matlab_reference(request)
     found = request.getfixturevalue("eeglab_matlab_engine").which("openbdf")
@@ -256,3 +275,55 @@ def test_reference_readbdf_original_bdf_recording(eeglab_backend, eeglab_suite_r
     assert_same_samples(np.ravel(python_data["Valid"]), np.ravel(matlab_data["Valid"]), label="readbdf Valid")
     assert_same_samples(np.ravel(python_data["Idx"]), np.ravel(matlab_data["Idx"]), label="readbdf Idx")
     assert_same_samples(python_signal, matlab_signal, label="readbdf signal")
+
+
+def _same_values(actual, expected) -> bool:
+    """Return whether two arrays contain the same values, ignoring storage dtype."""
+    expected_array = np.asarray(expected)
+    actual_array = np.asarray(actual)
+    if actual_array.shape != expected_array.shape:
+        return False
+    compare_dtype = expected_array.dtype if expected_array.dtype.kind == "f" else np.dtype(float)
+    return np.array_equal(
+        actual_array.astype(compare_dtype, copy=False),
+        expected_array.astype(compare_dtype, copy=False),
+        equal_nan=True,
+    )
+
+
+def _assert_short_biosig_window(python: dict, matlab: dict, *, label: str, types_match: bool) -> None:
+    """Compare one short BioSemi window with EEGLAB's sample-major result.
+
+    Metadata, labels, and event latencies match. The sample matrix is the
+    transpose of EEGLAB's because ``biosig2eeglab`` did not orient it. Event
+    types match when the window starts at the first sample. A later window
+    keeps EEGLAB's separate ``biosig2eeglabevent`` type assignment.
+    """
+    if tuple(np.asarray(python["data"]).shape) != (256, 256):
+        raise AssertionError(f"{label} shape {np.asarray(python['data']).shape} != (256, 256)")
+    matlab_data = np.asarray(matlab["data"])
+    python_data = np.asarray(python["data"])
+    if python_data.shape != matlab_data.shape:
+        raise AssertionError(f"{label} shape {python_data.shape} != {matlab_data.shape}")
+    if _same_values(python_data, matlab_data):
+        raise AssertionError(f"{label} data matches EEGLAB's untransposed matrix")
+    assert_same_samples(python_data.T, matlab_data, label=f"{label} data")
+    for field in ("srate", "nbchan", "pnts", "trials", "xmin", "xmax"):
+        actual = _number(python[field])
+        expected = _number(matlab[field])
+        if actual != expected:
+            raise AssertionError(f"{label} {field} {actual} != {expected}")
+    actual_labels = _labels(python.get("chanlocs"))
+    expected_labels = _labels(matlab.get("chanlocs"))
+    if actual_labels != expected_labels:
+        raise AssertionError(f"{label} channels {actual_labels} != {expected_labels}")
+    python_events = _events(python.get("event"))
+    matlab_events = _events(matlab.get("event"))
+    python_latencies = [latency for _kind, latency in python_events]
+    matlab_latencies = [latency for _kind, latency in matlab_events]
+    if python_latencies != matlab_latencies:
+        raise AssertionError(f"{label} event latencies {python_latencies} != {matlab_latencies}")
+    python_types = [kind for kind, _latency in python_events]
+    matlab_types = [kind for kind, _latency in matlab_events]
+    if types_match and python_types != matlab_types:
+        raise AssertionError(f"{label} events {python_events} != {matlab_events}")

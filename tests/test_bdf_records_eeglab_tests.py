@@ -8,6 +8,7 @@ import pytest
 
 from eegprep import openbdf, readbdf
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
+from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from tests.eeglab_tests import eeglab_test
 
 
@@ -254,6 +255,43 @@ def test_pop_biosig_reads_only_blockrange_status_records(tmp_path: Path) -> None
     )
     anchored_eeg = pop_biosig(anchored, blockrange=[4, 6], bdfeventmode=7)
     assert _event_pairs(anchored_eeg) == [(32769, 2), (1, 4)]
+
+
+def test_pop_biosig_short_status_window_stays_channel_major(tmp_path: Path) -> None:
+    path = tmp_path / "short-status.bdf"
+    samples = 4
+    labels = [f"A{index}" for index in range(1, 6)] + ["Status"]
+    rows = [np.arange(samples, dtype=int) + 10 * index for index in range(5)]
+    status = np.array([0, 5, 5, 0], dtype=int)
+    _write_bdf(
+        path,
+        labels=labels,
+        samples_per_record=[samples] * len(labels),
+        records=[rows + [status]],
+        physical_minimum=[-262144] * 5 + [-8388608],
+        physical_maximum=[262144] * 5 + [8388607],
+        digital_minimum=[-8388608] * len(labels),
+        digital_maximum=[8388607] * len(labels),
+    )
+    opened = openbdf(path)
+    calibrated, _raw = readbdf(opened, [1])
+
+    window = pop_biosig(path, blockrange=[0, 1])
+    entire = pop_biosig(path)
+    via_fileio = pop_fileio(path, blockrange=[0, 1])
+
+    assert window["data"].shape == (5, 2)
+    assert window["nbchan"] == 5
+    assert window["pnts"] == 2
+    assert window["nbchan"] > window["pnts"]
+    assert [loc["labels"] for loc in window["chanlocs"]] == labels[:-1]
+    np.testing.assert_allclose(window["data"], calibrated["Record"][:5, :2])
+    assert _event_pairs(window) == [(5, 2)]
+    assert entire["data"].shape == (5, samples)
+    assert entire["nbchan"] > entire["pnts"]
+    np.testing.assert_allclose(entire["data"], calibrated["Record"][:5])
+    assert via_fileio["data"].shape == (len(labels), 2)
+    np.testing.assert_allclose(via_fileio["data"][:-1], window["data"])
 
 
 def test_openbdf_general_header_matches_current_suite(tmp_path: Path) -> None:

@@ -180,6 +180,20 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``count`` and ``index`` diverge, so a kept event receives another
        event's type or an empty type that EEGLAB returns as NaN. The
        latencies match.
+   * - BDF window shorter than the channel count
+     - ``pop_biosig`` keeps a short window channel-major. One second of
+       ``jo1_3.bdf`` is 256 channels by 256 samples after ``Status`` is
+       removed, at 256 Hz, from sample ``start * srate`` inclusive through
+       ``stop * srate`` exclusive. ``biosig2eeglab.m`` lines 72-74 transpose
+       ``sread`` output only when ``abs(dat.NS - size(DAT,1)) > 1``. ``sopen``
+       has already removed ``Status``, so that window is 256 by 256 while
+       ``NS`` is still 257. EEGLAB leaves the matrix sample-major: the
+       returned data is the transpose, and ``nbchan``, ``pnts``, the rate,
+       ``xmin``, ``xmax``, and the channel labels still match. Event
+       latencies match. A window that starts at the first sample also keeps
+       the same event types. A later one-second window has the same
+       event-type behavior as any other ``blockrange`` that starts after
+       an earlier trigger.
    * - BDF trigger codes
      - ``pop_biosig`` stores the integer Status code, including codes above
        255. With no ``blockrange``, EEGLAB's ``importannot`` (default on)

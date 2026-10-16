@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Importing a recording or time window with fewer samples than channels no
+  longer raises an orientation error. ``pop_biosig``, ``pop_fileio``,
+  ``pop_read_erpss``, and ``pop_snapread`` pass the channel count they already
+  know into the dataset builder. A one-second BioSemi window stays
+  channel-major. EEGLAB leaves that square matrix sample-major.
 - ``clean_windows``, ``asr_calibrate``, and ``asr_calibrate_r`` place RMS
   windows with MATLAB's colon operator. A fractional overlap such as 0.66 no
   longer adds one extra window at the end of some recordings.
