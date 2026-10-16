@@ -7,7 +7,6 @@ from functools import partial
 import importlib
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 
@@ -48,10 +47,6 @@ def _eeglab_support_directory(value):
     return directory
 
 
-# Pytest's parent summary is "contains N failed subtest(s)" after subtests fail.
-_SYNTHETIC_SUBTEST_FAILURE = re.compile(r"contains \d+ failed subtests?\Z")
-
-
 def _exception_matches(
     exc: BaseException | None, expected: type[BaseException] | tuple[type[BaseException], ...]
 ) -> bool:
@@ -84,11 +79,35 @@ class _PythonBackendReports:
         self._exceptions: dict[str, BaseException | None] = {}
         self._unexpected: dict[str, int] = {}
         self._xfailed: dict[str, int] = {}
+        self._in_call: set[str] = set()
+        self._passed_parents: set[str] = set()
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_runtest_call(self, item):
+        self._in_call.add(item.nodeid)
+        try:
+            return (yield)
+        finally:
+            self._in_call.discard(item.nodeid)
 
     @pytest.hookimpl(wrapper=True, tryfirst=True)
     def pytest_runtest_makereport(self, item, call):
         self._exceptions[item.nodeid] = None if call.excinfo is None else call.excinfo.value
-        return (yield)
+        report = yield
+        # Subtest reports are built while the call is still running. This is the
+        # parent call report, after those subtests have been recorded.
+        if (
+            call.when == "call"
+            and item.nodeid not in self._in_call
+            and self.config.getoption("--eeglab-backend") == "python"
+            and report.passed
+            and not self._unexpected.get(item.nodeid)
+            and self._xfailed.get(item.nodeid)
+        ):
+            report.outcome = "passed"
+            report.longrepr = None
+            self._passed_parents.add(item.nodeid)
+        return report
 
     def _expect_subtest_failure(self, report) -> None:
         if self.config.getoption("--eeglab-backend") != "python":
@@ -124,18 +143,13 @@ class _PythonBackendReports:
             os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())
         return (yield)
 
-    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    @pytest.hookimpl(tryfirst=True)
     def pytest_report_teststatus(self, report):
-        result = yield
-        if self.config.getoption("--eeglab-backend") != "python":
-            return result
-        if self._unexpected.get(report.nodeid) or not self._xfailed.get(report.nodeid):
-            return result
-        if isinstance(report.longrepr, str) and _SYNTHETIC_SUBTEST_FAILURE.fullmatch(report.longrepr):
-            report.outcome = "passed"
-            report.longrepr = None
-            return "passed", ".", "PASSED"
-        return result
+        if report.when != "call" or report.nodeid not in self._passed_parents:
+            return None
+        if _subtest_label(report) is not None:
+            return None
+        return "passed", ".", "PASSED"
 
 
 def pytest_configure(config):

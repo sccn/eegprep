@@ -177,9 +177,30 @@ def test_python_backend_subtest_xfail_matches_exception_type(pytester):
                 assert True
         """,
     )
+    root = str(Path(__file__).resolve().parents[1])
+    pytester.makeconftest(
+        f"""
+        import sys
+        from pathlib import Path
+
+        import pytest
+
+        sys.path.insert(0, {root!r})
+        pytest_plugins = ("tests.conftest",)
+
+        @pytest.hookimpl(trylast=True)
+        def pytest_runtest_logreport(report):
+            if report.when != "call":
+                return
+            domain = report.location[2]
+            if (report.head_line or "") == domain:
+                Path("parent-outcome.txt").write_text(report.outcome)
+        """
+    )
     result = pytester.runpytest_subprocess("--eeglab-backend=python")
     result.assert_outcomes(passed=1)
     assert result.ret == 0
+    assert (pytester.path / "parent-outcome.txt").read_text() == "passed"
 
 
 def test_python_backend_subtest_xfail_rejects_other_exceptions_and_passes(pytester):
