@@ -12,6 +12,9 @@ import subprocess
 
 import pytest
 
+from _pytest.subtests import SubtestReport, failed_subtests_key
+
+from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, PYTHON_BACKEND_XFAILS
 from tests.eeglab_tests import EEGLAB_TESTS_EEGLAB_COMMIT, upstream_references
 from tests.eeglab_tests.backend import call_matlab, call_python
 from tools.eeglab_test_port_audit import validate_suite_checkout
@@ -46,7 +49,38 @@ def _eeglab_support_directory(value):
     return directory
 
 
+_PYTEST_CONFIG = None
+
+
+def _expect_subtest_failure(report) -> None:
+    """Strict-xfail one subtest before pytest records it.
+
+    The subtest call returns after the failure is stored, so a marker on the
+    parent would be an unexpected pass. Pytest has already counted the failure
+    toward failing that parent; clear that count when the failure is expected.
+    """
+    if _PYTEST_CONFIG is None or _PYTEST_CONFIG.getoption("--eeglab-backend") != "python":
+        return
+    if not isinstance(report, SubtestReport) or report.when != "call":
+        return
+    reason = PYTHON_BACKEND_SUBTEST_XFAILS.get(report.nodeid, {}).get(report._sub_test_description())
+    if reason is None:
+        return
+    counts = _PYTEST_CONFIG.stash[failed_subtests_key]
+    if report.failed:
+        report.outcome = "skipped"
+        report.wasxfail = reason
+        counts[report.nodeid] -= 1
+        return
+    if report.passed:
+        report.outcome = "failed"
+        report.longrepr = f"[XPASS(strict)] {reason}"
+        counts[report.nodeid] += 1
+
+
 def pytest_configure(config):
+    global _PYTEST_CONFIG
+    _PYTEST_CONFIG = config
     # CI: MATLAB served by matlab-batch (the batch token cannot license the Engine
     # API), against the vendored EEGLAB. Set here, after option parsing, so that
     # --eeglab-root keeps its default and the pinned eeglab_tests lane stays opted out.
@@ -393,6 +427,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if not config.getoption("--run-heavy-reference") and nodeid in HEAVY_REFERENCE_NODEIDS:
             item.add_marker(pytest.mark.skip(reason=HEAVY_REFERENCE_SKIP_REASON))
 
+        if backend == "python":
+            reason = PYTHON_BACKEND_XFAILS.get(nodeid)
+            if reason is not None:
+                item.add_marker(pytest.mark.xfail(reason=reason, strict=True))
+
 
 @pytest.hookimpl(specname="pytest_collection_modifyitems", trylast=True)
 def pytest_filter_eeglab_contracts(config, items):
@@ -417,8 +456,12 @@ def pytest_filter_eeglab_contracts(config, items):
         items[:] = [item for item in items if item not in deselected]
 
 
-def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_logreport(report: pytest.TestReport):
+    # Runs before the session hook that increments testsfailed.
+    _expect_subtest_failure(report)
     # A killed runner never flushes pytest's capture.
     text = getattr(report, "longreprtext", "")
     if report.failed and text:
         os.write(2, f"\n=== {report.nodeid} [{report.when}] ===\n{text}\n".encode())
+    return (yield)

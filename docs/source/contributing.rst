@@ -194,9 +194,16 @@ can override MATLAB's visibility default: the original LIMO workflows call
 ``-m "not gui"`` when desktop windows must stay closed; those workflows then
 remain unvalidated, rather than being counted as passes.
 
-The same tests can be selected with ``--eeglab-backend=python`` later to expose
-implementation gaps. A missing Python feature must fail honestly; it is not a
-reason to change the reference expectation, skip a case, or weaken a tolerance.
+The same tests run in CI with ``--eeglab-backend=python`` and
+``-m "parity and not slow and not gui"`` against the pinned ``eeglab_tests``
+checkout, including its Git LFS data. A missing Python feature must fail
+honestly; it is not a reason to change the reference expectation, skip a case,
+or weaken a tolerance. Gaps that already fail on that lane are listed one
+test at a time in ``tests/eeglab_python_backend_xfails.py`` and marked
+``xfail(strict=True)`` only for the Python backend. A listed test that starts
+passing fails the job until its entry is removed. GUI and slow contracts stay
+outside this lane.
+
 Report source accounting, live MATLAB results, and unresolved blockers
 separately. Neither a source-count match nor a passing subset establishes full
 suite validation.
