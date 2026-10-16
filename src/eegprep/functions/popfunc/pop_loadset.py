@@ -1,5 +1,6 @@
 """EEGLAB dataset loading utilities."""
 
+import logging
 import os
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 
+logger = logging.getLogger(__name__)
+
 default_empty = np.array([])
 
 
@@ -22,6 +25,10 @@ def loadset(file_path):
 
 def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     """Load an EEGLAB dataset, its metadata, or selected channels.
+
+    A numeric array stored in the ``.set`` file is the dataset. A ``.fdt``
+    sidecar is read only when ``data`` names that file, or when ``data`` is
+    ``in set file`` and ``datfile`` names it.
 
     Parameters
     ----------
@@ -96,12 +103,11 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
-    if not loaded_with_h5 and not info_only:
-        _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
-
     info_data = None
     if info_only:
-        info_data = _string_value(EEG.get("datfile")) or "in set file"
+        info_data = _info_mode_data(EEG, Path(file_path))
+    elif not loaded_with_h5:
+        _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
     # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
     # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
@@ -190,17 +196,57 @@ def _select_loaded_channels(EEG, channel_selection) -> None:
 
 
 def _load_sidecar_data(EEG, file_path: Path, *, use_memmap: bool) -> None:
+    # pop_loadset.m lines 155-160: numeric data is already in the .set file.
     data_value = EEG.get("data")
-    datfile = _string_value(EEG.get("datfile"))
-    if not datfile and isinstance(data_value, str) and data_value not in {"", "in set file"}:
-        datfile = data_value
-    if not datfile:
+    data_name = data_value if isinstance(data_value, str) else ""
+    if data_name == "in set file":
+        logger.warning("Something is wrong with the data file, trying to use the associated .fdt file")
+        data_name = _string_value(EEG.get("datfile"))
+    if not data_name or data_name == "in set file":
         return
-    datfile_path = Path(datfile)
-    if not datfile_path.is_absolute():
-        datfile_path = file_path.parent / datfile_path.name
-    EEG["datfile"] = datfile_path.name
-    EEG["data"] = memmap_fdt(datfile_path, EEG) if use_memmap else read_fdt(datfile_path, EEG)
+    sidecar = _sidecar_path(data_name, file_path)
+    EEG["datfile"] = sidecar.name
+    EEG["data"] = memmap_fdt(sidecar, EEG) if use_memmap else read_fdt(sidecar, EEG)
+
+
+def _info_mode_data(EEG, file_path: Path) -> str | None:
+    # pop_loadset.m lines 139-154. None keeps a numeric array loaded from the .set file.
+    datfile = _string_value(EEG.get("datfile"))
+    if not datfile:
+        return "in set file"
+    if _sidecar_path(datfile, file_path).is_file():
+        return datfile
+    data_value = EEG.get("data")
+    logger.warning(".fdt file not found, checking if .set contains data")
+    if not _is_numeric_data(data_value) and not _is_empty_data(data_value):
+        logger.warning(".fdt file not found, but data found in .set EEGLAB file")
+        return "in set file"
+    if _is_empty_data(data_value) or not _is_numeric_data(data_value):
+        logger.warning(".fdt file not found, this EEGLAB file is missing raw data")
+    return None
+
+
+def _sidecar_path(datfile: str, file_path: Path) -> Path:
+    path = Path(datfile)
+    if path.is_absolute():
+        return path
+    return file_path.parent / path.name
+
+
+def _is_numeric_data(value) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.dtype.kind in "iufc"
+    return isinstance(value, np.number)
+
+
+def _is_empty_data(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    return False
 
 
 def _string_value(value):
