@@ -133,8 +133,12 @@ Version 0.4.0
 - Added standalone low-level signal and text helpers ``blockave``, ``eegfilt``,
   ``env``, ``movav``, ``loadeeg``, ``loadtxt``, ``parsetxt``,
   ``readneurodat``, and ``readtxtfile``. Legacy ``eegfilt`` now supports the
-  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
-  and truncated Neuroscan files retain complete sweeps without returning an
+  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB.
+  Zero-phase filtering pads each segment with three times the filter order,
+  matching MATLAB ``filtfilt``. Segments long enough for SciPy's previous
+  default pad, including the continuous EEGLAB sample recording, keep the
+  same samples; the shorter pad is what admits those short epochs.
+  Truncated Neuroscan files retain complete sweeps without returning an
   incomplete zero-filled tail.
 - Regular epoch generation, preceding-event timing, event alignment, BioSig
   event conversion, sphering, RMS summaries, int16 matrix reads, legacy

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import struct
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,7 @@ import pytest
 import matplotlib.pyplot as plt
 from scipy.signal import freqz
 
-from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, readneurodat
+from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, pop_loadset, readneurodat
 from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
@@ -147,6 +148,119 @@ def test_reference_eegfilt(eeglab_backend, request):
             eeglab_backend("close", "all", nargout=0)
         else:
             plt.close("all")
+
+
+def _epoch_major_rows(data: np.ndarray) -> tuple[np.ndarray, int]:
+    channels, points, trials = data.shape
+    rows = np.transpose(data, (0, 2, 1)).reshape(channels, points * trials)
+    return rows, points
+
+
+def _edge_and_interior(delta: np.ndarray, frames: int, edge: int) -> tuple[float, float]:
+    pad = min(edge, frames)
+    edge_max = 0.0
+    interior: list[float] = []
+    for start in range(0, delta.shape[1], frames):
+        part = delta[:, start : start + frames]
+        if pad >= frames:
+            edge_max = max(edge_max, float(part.max()))
+            continue
+        edge_max = max(edge_max, float(part[:, :pad].max()), float(part[:, -pad:].max()))
+        if frames > 2 * pad:
+            interior.append(float(part[:, pad:-pad].max()))
+    return edge_max, max(interior) if interior else float("nan")
+
+
+def _passband_mean_amplitude(data: np.ndarray, srate: float, locutoff: float, hicutoff: float, frames: int) -> float:
+    means = []
+    for start in range(0, data.shape[1], frames):
+        part = data[:, start : start + frames]
+        spectrum = np.abs(np.fft.rfft(part, axis=1))
+        freqs = np.fft.rfftfreq(part.shape[1], d=1.0 / srate)
+        band = np.ones(freqs.shape, dtype=bool)
+        if locutoff > 0:
+            band &= freqs >= locutoff
+        if hicutoff > 0:
+            band &= freqs <= hicutoff
+        means.append(float(spectrum[:, band].mean()))
+    return float(np.mean(means))
+
+
+def _eegfilt_parity_message(
+    name: str,
+    python: np.ndarray,
+    matlab: np.ndarray,
+    python_b: np.ndarray,
+    matlab_b: np.ndarray,
+    srate: float,
+    locutoff: float,
+    hicutoff: float,
+    epochframes: int,
+) -> str:
+    python_b = np.ravel(python_b)
+    matlab_b = np.ravel(matlab_b)
+    if python.shape != matlab.shape or python_b.shape != matlab_b.shape:
+        return f"{name}: shape data {python.shape} vs {matlab.shape}, coeff {python_b.size} vs {matlab_b.size}"
+    delta = np.abs(python - matlab)
+    frames = epochframes or python.shape[1]
+    edge_max, interior_max = _edge_and_interior(delta, frames, 3 * (python_b.size - 1))
+    passband_python = _passband_mean_amplitude(python, srate, locutoff, hicutoff, frames)
+    passband_matlab = _passband_mean_amplitude(matlab, srate, locutoff, hicutoff, frames)
+    return (
+        f"{name}: coeff_max_abs={float(np.max(np.abs(python_b - matlab_b))):.6e} "
+        f"data_max_abs={float(delta.max()):.6e} edge_max_abs={edge_max:.6e} "
+        f"interior_max_abs={interior_max:.6e} "
+        f"passband_mean_abs_python={passband_python:.6e} "
+        f"passband_mean_abs_matlab={passband_matlab:.6e}"
+    )
+
+
+def test_eegfilt_sample_data_matches_matlab(eeglab_backend, request):
+    """Compare eegfilt with EEGLAB eegfilt on the checked-in sample recordings."""
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.skip("compares EEGPrep eegfilt with EEGLAB eegfilt")
+
+    continuous = np.asarray(pop_loadset("sample_data/eeglab_data.set")["data"], dtype=np.float64)
+    epoched, epochframes = _epoch_major_rows(
+        np.asarray(pop_loadset("sample_data/eeglab_data_epochs_ica.set")["data"], dtype=np.float64)
+    )
+    srate = 128.0
+    cases = (
+        ("continuous_highpass_default_order", continuous, 1.0, 0.0, 0, 0),
+        ("continuous_bandpass_order_100", continuous, 1.0, 40.0, 0, 100),
+        ("epoched_lowpass_order_126", epoched, 0.0, 40.0, epochframes, 126),
+        ("epoched_lowpass_order_127", epoched, 0.0, 40.0, epochframes, 127),
+    )
+    for name, data, locutoff, hicutoff, frames, order in cases:
+        python, python_b = eegfilt(data, srate, locutoff, hicutoff, frames, order)
+        matlab, matlab_b = eeglab_backend(
+            "eegfilt",
+            data,
+            srate,
+            locutoff,
+            hicutoff,
+            float(frames),
+            float(order),
+            0.0,
+            "firls",
+            0.0,
+            nargout=2,
+        )
+        python = np.asarray(python, dtype=float)
+        matlab = np.asarray(matlab, dtype=float)
+        message = _eegfilt_parity_message(
+            name, python, matlab, python_b, np.asarray(matlab_b), srate, locutoff, hicutoff, frames
+        )
+        warnings.warn(message, UserWarning, stacklevel=1)
+        assert python.shape == matlab.shape, message
+        np.testing.assert_allclose(
+            np.ravel(python_b),
+            np.ravel(np.asarray(matlab_b, dtype=float)),
+            rtol=1e-7,
+            atol=0,
+            err_msg=message,
+        )
+        np.testing.assert_allclose(python, matlab, rtol=1e-7, atol=1e-8, err_msg=message)
 
 
 def test_python_regression_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
