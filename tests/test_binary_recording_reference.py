@@ -18,7 +18,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pyedflib
 import pytest
+from pyedflib import highlevel
 
 from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from eegprep.functions.popfunc.pop_importegimat import pop_importegimat
@@ -29,6 +31,7 @@ from eegprep.functions.popfunc.pop_readegi import pop_readegi
 from eegprep.functions.popfunc.pop_readsegegi import pop_readsegegi
 from eegprep.functions.sigprocfunc.loadcnt import loadcnt
 from eegprep.functions.sigprocfunc.openbdf import openbdf
+from eegprep.functions.sigprocfunc.writegdf import writegdf
 from eegprep.functions.sigprocfunc.readbdf import readbdf
 from eegprep.functions.sigprocfunc.readegi import readegi
 from tests.eeglab_tests import eeglab_test
@@ -47,6 +50,9 @@ from tests.eeglab_tests.recordings import (
 
 
 _FILES = "unittesting_binary/testfiles"
+_WIDE_CHANNELS = 150
+_WIDE_RATE = 128
+_EDF_QUANTIZATION_ATOL = 2 / 65535
 _BVA_CALLS = (
     ("brainvision_genericdataformat_binarymultiplexed_int16.vhdr", 1, list(range(1, 33))),
     ("BVA_withchanlocs.vhdr", None, None),
@@ -249,13 +255,55 @@ def test_reference_pop_biosig_short_blockrange(eeglab_backend, eeglab_suite_root
     EEGLAB's biosig2eeglab transposes sread output only when the row count
     differs from the file channel count by more than one. sopen has already
     dropped Status, so 256 samples against 257 file channels stay sample-major.
+    ``[0, 1]`` contains no triggers. ``[3, 4]`` contains trigger 34 at sample 96.
     """
     _skip_plugin(request, "sopen", "Biosig")
     filename = str(_recording(eeglab_suite_root, "BDF/jo1_3.bdf"))
+    expected_events = {(0.0, 1.0): [], (3.0, 4.0): [(34, 96.0)]}
     for start, stop in ((0.0, 1.0), (3.0, 4.0)):
         matlab = eeglab_backend("pop_biosig", filename, "blockrange", np.array([[start, stop]]))
         python = pop_biosig(filename, blockrange=[start, stop])
-        _assert_short_biosig_window(python, matlab, label=f"pop_biosig [{start:g} {stop:g}]", types_match=start == 0.0)
+        _assert_short_biosig_window(
+            python,
+            matlab,
+            label=f"pop_biosig [{start:g} {stop:g}]",
+            expected_events=expected_events[(start, stop)],
+        )
+
+
+@eeglab_test("unittesting_binary/pop_biosig/binary_pop_biosig_wrapperTest.m", "test_test_pop_biosig")
+def test_reference_pop_biosig_short_edf_and_gdf(eeglab_backend, tmp_path: Path, request):
+    """Compare EDF and GDF windows that EEGLAB can import.
+
+    150 channels at 128 Hz make ``blockrange=[0.5, 1.5]`` and a one-second
+    recording 128 samples, which is fewer than the channel count and at least
+    100 samples. ``biosig2eeglab.m`` line 198 can index ``EEG.data(end, 1:100)``.
+    The sample count and the channel count differ by more than one, so EEGLAB
+    transposes the read and both sides stay channel-major. EDF values agree
+    within one digital step.
+    """
+    _skip_plugin(request, "sopen", "Biosig")
+    cases = (
+        ("window", _WIDE_RATE * 2, [0.5, 1.5], _WIDE_RATE),
+        ("short", _WIDE_RATE, None, _WIDE_RATE),
+    )
+    for name, samples, blockrange, expected_points in cases:
+        data = _wide_data(samples)
+        for suffix, write in (("edf", _write_wide_edf), ("gdf", _write_wide_gdf)):
+            path = tmp_path / f"{name}.{suffix}"
+            write(path, data)
+            if blockrange is None:
+                matlab = eeglab_backend("pop_biosig", str(path))
+                python = pop_biosig(path)
+            else:
+                matlab = eeglab_backend("pop_biosig", str(path), "blockrange", np.array([blockrange], dtype=float))
+                python = pop_biosig(path, blockrange=blockrange)
+            _assert_quantized_biosig_window(
+                python,
+                matlab,
+                label=f"pop_biosig {suffix} {name}",
+                expected_shape=(_WIDE_CHANNELS, expected_points),
+            )
 
 
 def test_reference_readbdf_original_bdf_recording(eeglab_backend, eeglab_suite_root, request):
@@ -291,13 +339,43 @@ def _same_values(actual, expected) -> bool:
     )
 
 
-def _assert_short_biosig_window(python: dict, matlab: dict, *, label: str, types_match: bool) -> None:
+def _wide_data(samples: int) -> np.ndarray:
+    """Return a 150-channel recording whose rows are distinct and inside (-1, 1)."""
+    time = np.arange(samples) / _WIDE_RATE
+    channel = np.arange(1, _WIDE_CHANNELS + 1)[:, None]
+    return 0.5 * np.sin(2 * np.pi * channel * time)
+
+
+def _write_wide_edf(path: Path, data: np.ndarray) -> None:
+    """Write one plain EDF recording with a physical range of -1 to 1."""
+    labels = [f"E{index}" for index in range(1, data.shape[0] + 1)]
+    headers = highlevel.make_signal_headers(
+        labels,
+        sample_frequency=_WIDE_RATE,
+        physical_min=-1,
+        physical_max=1,
+    )
+    assert highlevel.write_edf(str(path), data, headers, file_type=pyedflib.FILETYPE_EDF)
+
+
+def _write_wide_gdf(path: Path, data: np.ndarray) -> None:
+    """Write one float64 GDF recording."""
+    labels = [f"E{index}" for index in range(1, data.shape[0] + 1)]
+    writegdf(path, data, _WIDE_RATE, labels=labels)
+
+
+def _assert_short_biosig_window(
+    python: dict,
+    matlab: dict,
+    *,
+    label: str,
+    expected_events: list[tuple],
+) -> None:
     """Compare one short BioSemi window with EEGLAB's sample-major result.
 
-    Metadata, labels, and event latencies match. The sample matrix is the
-    transpose of EEGLAB's because ``biosig2eeglab`` did not orient it. Event
-    types match when the window starts at the first sample. A later window
-    keeps EEGLAB's separate ``biosig2eeglabevent`` type assignment.
+    Metadata and labels match. The sample matrix is the transpose of EEGLAB's
+    because ``biosig2eeglab`` did not orient it. ``expected_events`` is the
+    trigger list both sides return.
     """
     if tuple(np.asarray(python["data"]).shape) != (256, 256):
         raise AssertionError(f"{label} shape {np.asarray(python['data']).shape} != (256, 256)")
@@ -308,6 +386,39 @@ def _assert_short_biosig_window(python: dict, matlab: dict, *, label: str, types
     if _same_values(python_data, matlab_data):
         raise AssertionError(f"{label} data matches EEGLAB's untransposed matrix")
     assert_same_samples(python_data.T, matlab_data, label=f"{label} data")
+    _assert_same_biosig_metadata(python, matlab, label=label)
+    python_events = _events(python.get("event"))
+    matlab_events = _events(matlab.get("event"))
+    if python_events != expected_events or matlab_events != expected_events:
+        raise AssertionError(f"{label} events {python_events} != {matlab_events}, expected {expected_events}")
+
+
+def _assert_quantized_biosig_window(
+    python: dict,
+    matlab: dict,
+    *,
+    label: str,
+    expected_shape: tuple[int, int],
+) -> None:
+    """Compare one EDF or GDF window that both readers keep channel-major."""
+    python_data = np.asarray(python["data"], dtype=float)
+    matlab_data = np.asarray(matlab["data"], dtype=float)
+    if python_data.shape != expected_shape or matlab_data.shape != expected_shape:
+        raise AssertionError(f"{label} shape {python_data.shape} != {matlab_data.shape}, expected {expected_shape}")
+    if python_data.shape[0] <= python_data.shape[1]:
+        raise AssertionError(f"{label} has at least as many samples as channels")
+    difference = np.nanmax(np.abs(python_data - matlab_data))
+    if difference > _EDF_QUANTIZATION_ATOL:
+        raise AssertionError(f"{label} values differ; max abs diff {difference}")
+    _assert_same_biosig_metadata(python, matlab, label=label)
+    python_events = _events(python.get("event"))
+    matlab_events = _events(matlab.get("event"))
+    if python_events != matlab_events:
+        raise AssertionError(f"{label} events {python_events} != {matlab_events}")
+
+
+def _assert_same_biosig_metadata(python: dict, matlab: dict, *, label: str) -> None:
+    """Compare rate, dimensions, time bounds, and channel labels."""
     for field in ("srate", "nbchan", "pnts", "trials", "xmin", "xmax"):
         actual = _number(python[field])
         expected = _number(matlab[field])
@@ -317,13 +428,3 @@ def _assert_short_biosig_window(python: dict, matlab: dict, *, label: str, types
     expected_labels = _labels(matlab.get("chanlocs"))
     if actual_labels != expected_labels:
         raise AssertionError(f"{label} channels {actual_labels} != {expected_labels}")
-    python_events = _events(python.get("event"))
-    matlab_events = _events(matlab.get("event"))
-    python_latencies = [latency for _kind, latency in python_events]
-    matlab_latencies = [latency for _kind, latency in matlab_events]
-    if python_latencies != matlab_latencies:
-        raise AssertionError(f"{label} event latencies {python_latencies} != {matlab_latencies}")
-    python_types = [kind for kind, _latency in python_events]
-    matlab_types = [kind for kind, _latency in matlab_events]
-    if types_match and python_types != matlab_types:
-        raise AssertionError(f"{label} events {python_events} != {matlab_events}")

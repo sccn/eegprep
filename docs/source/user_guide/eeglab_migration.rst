@@ -189,11 +189,9 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        has already removed ``Status``, so that window is 256 by 256 while
        ``NS`` is still 257. EEGLAB leaves the matrix sample-major: the
        returned data is the transpose, and ``nbchan``, ``pnts``, the rate,
-       ``xmin``, ``xmax``, and the channel labels still match. Event
-       latencies match. A window that starts at the first sample also keeps
-       the same event types. A later one-second window has the same
-       event-type behavior as any other ``blockrange`` that starts after
-       an earlier trigger.
+       ``xmin``, ``xmax``, and the channel labels still match. The ``[3, 4]``
+       window keeps trigger 34 at sample 96. The ``[0, 1]`` window has no
+       events.
    * - BDF trigger codes
      - ``pop_biosig`` stores the integer Status code, including codes above
        255. With no ``blockrange``, EEGLAB's ``importannot`` (default on)
