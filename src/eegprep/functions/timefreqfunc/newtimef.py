@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +10,7 @@ from matplotlib.ticker import MaxNLocator
 
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
+from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
 from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
 from eegprep.functions.sigprocfunc.topoplot import topo_screen_coords, topoplot
 from eegprep.functions.statistics.fdr import fdr
@@ -26,13 +26,17 @@ from eegprep.functions.timefreqfunc.newtimeftrialbaseln import newtimeftrialbase
 from eegprep.functions.timefreqfunc.timefreq import as_channel_epoch_data, timefreq
 
 
-@dataclass(frozen=True)
-class TimeFrequencyResult:
-    """Computed event-related spectral perturbation and ITC arrays."""
+class TimeFrequencyResult(NamedTuple):
+    """Computed event-related spectral perturbation and ITC arrays.
+
+    The first five fields are MATLAB ``[P, R, mbase, timesout, freqs]``.
+    ``powbase`` is EEGLAB ``mbase``: dB only with log scale, a baseline, and
+    ``trialbase`` off; otherwise absolute power.
+    """
 
     ersp: np.ndarray
     itc: np.ndarray
-    powbase: np.ndarray  # EEGLAB mbase: dB only with log scale, a baseline, and trialbase off; else absolute power
+    powbase: np.ndarray
     times: np.ndarray
     freqs: np.ndarray
     tfdata: np.ndarray
@@ -46,64 +50,148 @@ class TimeFrequencyResult:
     timewarp_markers: np.ndarray | None = None
 
 
+# finputcheck defaults in newtimef.m:513-587. None stands in for MATLAB NaN or [].
+_NEWTIMEF_DEFAULTS = {
+    "winsize": None,
+    "freqs": None,
+    "freqrange": None,
+    "nfreqs": None,
+    "freqscale": None,
+    "timesout": None,
+    "padratio": None,
+    "overlap": None,
+    "baseline": 0,
+    "scale": "log",
+    "basenorm": "off",
+    "trialbase": "off",
+    "powbase": None,
+    "alpha": None,
+    "pboot": None,
+    "rboot": None,
+    "erspboot": None,
+    "itcboot": None,
+    "naccu": 200,
+    "boottype": "shuffle",
+    "baseboot": 1,
+    "mcorrect": "none",
+    "itctype": "phasecoher",
+    "type": None,
+    "subitc": "off",
+    "plottype": "image",
+    "plotersp": "on",
+    "plotitc": "on",
+    "plotphase": "on",
+    "plotphasesign": "on",
+    "plotphaseonly": "off",
+    "pcontour": "off",
+    "erspmax": None,
+    "itcmax": None,
+    "topovec": None,
+    "elocs": None,
+    "caption": None,
+    "title": "",
+    "rng": None,
+    "detrend": "off",
+    "causal": "off",
+    "wletmethod": "dftfilt3",
+    "timewarp": None,
+    "timewarpms": None,
+    "timewarpidx": None,
+    "vert": None,
+    "verbose": "on",
+    "outputformat": "plot",
+}
+
+
 def newtimef(
     data: Any,
     frames: int,
     tlimits: Any,
     srate: float,
     cycles: Any = 0,
-    *,
-    winsize: Any = None,
-    freqs: Any = None,
-    freqrange: Any = None,
-    nfreqs: Any = None,
-    freqscale: Any = None,
-    timesout: Any = None,
-    padratio: Any = None,
-    overlap: Any = None,
-    baseline: Any = 0,
-    scale: str = "log",
-    basenorm: str = "off",
-    trialbase: str = "off",
-    powbase: Any = None,
-    alpha: Any = None,
-    pboot: Any = None,
-    rboot: Any = None,
-    erspboot: Any = None,
-    itcboot: Any = None,
-    naccu: int = 200,
-    boottype: str = "shuffle",
-    baseboot: Any = 1,
-    mcorrect: str = "none",
-    itctype: str = "phasecoher",
-    type: str | None = None,
-    subitc: str = "off",
-    plottype: str = "image",
-    plot: Any = "on",
-    plotersp: Any = "on",
-    plotitc: Any = "on",
-    plotphase: Any = "on",
-    plotphasesign: Any = "on",
-    plotphaseonly: Any = "off",
-    pcontour: Any = "off",
-    erspmax: Any = None,
-    itcmax: Any = None,
-    topovec: Any = None,
-    elocs: Any = None,
-    caption: Any = None,
-    title: str = "Time-frequency",
-    rng: Any = None,
-    detrend: str = "off",
-    causal: str = "off",
-    wletmethod: str = "dftfilt3",
-    timewarp: Any = None,
-    timewarpms: Any = None,
-    timewarpidx: Any = None,
-    vert: Any = None,
-    verbose: str = "off",
-    outputformat: str = "plot",
+    *args: Any,
+    **kwargs: Any,
 ) -> TimeFrequencyResult:
-    """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition."""
+    """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition.
+
+    Positional name/value pairs and keywords use the ``finputcheck`` names in
+    ``newtimef.m`` lines 513-587. Defaults follow that list: ``baseline`` 0,
+    ``scale`` ``"log"``, ``basenorm`` and ``trialbase`` ``"off"``, ``naccu``
+    200, ``boottype`` ``"shuffle"``, ``timesout`` 200, ``padratio`` 2,
+    ``verbose`` ``"on"``, and an empty ``title``. ``freqs`` defaults to
+    ``[0, min(50, Nyquist)]`` (``DEFAULT_MAXFREQ`` at line 435). ``alpha``,
+    ``powbase``, ``pboot``, and ``rboot`` default to empty, the Python stand-in
+    for the NaN defaults at lines 438, 526, 527, and 528. ``elocs`` stays unset
+    instead of the ``chan.locs`` path at line 437. An omitted ``cycles`` pair
+    keeps the fifth argument (``DEFAULT_VARWIN`` 0 at line 428). A figure is
+    drawn when ``plotersp`` or ``plotitc`` is on (line 1426); pass ``plot`` to
+    override that. Unrecognized names raise ``ValueError``. EEGLAB's
+    ``finputcheck`` call uses mode ``ignore`` at line 587.
+    """
+    if isinstance(frames, (float, np.floating)) and float(frames).is_integer():
+        frames = int(frames)
+    options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    if "cycles" in options and not _is_empty_value(options["cycles"]):
+        cycles = options.pop("cycles")
+    else:
+        options.pop("cycles", None)
+    unknown = sorted(set(options) - set(_NEWTIMEF_DEFAULTS) - {"plot"})
+    if unknown:
+        names = ", ".join(repr(name) for name in unknown)
+        raise ValueError(f"newtimef() got an unexpected option {names}")
+    plot_supplied = "plot" in options
+    selected = {name: options.get(name, default) for name, default in _NEWTIMEF_DEFAULTS.items()}
+    winsize = selected["winsize"]
+    freqs = selected["freqs"]
+    freqrange = selected["freqrange"]
+    nfreqs = selected["nfreqs"]
+    freqscale = selected["freqscale"]
+    timesout = selected["timesout"]
+    padratio = selected["padratio"]
+    overlap = selected["overlap"]
+    baseline = selected["baseline"]
+    scale = selected["scale"]
+    basenorm = selected["basenorm"]
+    trialbase = selected["trialbase"]
+    powbase = selected["powbase"]
+    alpha = selected["alpha"]
+    pboot = selected["pboot"]
+    rboot = selected["rboot"]
+    erspboot = selected["erspboot"]
+    itcboot = selected["itcboot"]
+    naccu = selected["naccu"]
+    boottype = selected["boottype"]
+    baseboot = selected["baseboot"]
+    mcorrect = selected["mcorrect"]
+    itctype = selected["itctype"]
+    type = selected["type"]
+    subitc = selected["subitc"]
+    plottype = selected["plottype"]
+    plotersp = selected["plotersp"]
+    plotitc = selected["plotitc"]
+    plotphase = selected["plotphase"]
+    plotphasesign = selected["plotphasesign"]
+    plotphaseonly = selected["plotphaseonly"]
+    pcontour = selected["pcontour"]
+    erspmax = selected["erspmax"]
+    itcmax = selected["itcmax"]
+    topovec = selected["topovec"]
+    elocs = selected["elocs"]
+    caption = selected["caption"]
+    title = selected["title"]
+    rng = selected["rng"]
+    detrend = selected["detrend"]
+    causal = selected["causal"]
+    wletmethod = selected["wletmethod"]
+    timewarp = selected["timewarp"]
+    timewarpms = selected["timewarpms"]
+    timewarpidx = selected["timewarpidx"]
+    vert = selected["vert"]
+    verbose = selected["verbose"]
+    outputformat = selected["outputformat"]
+    plot = options["plot"] if plot_supplied else ("on" if _is_on(plotersp) or _is_on(plotitc) else "off")
+    if isinstance(naccu, (float, np.floating)) and float(naccu).is_integer():
+        naccu = int(naccu)
     if overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
     if str(boottype).lower() != "shuffle":
@@ -274,10 +362,12 @@ def newtimef(
     ):
         # EEGLAB newtimef.m:1399 returns the baseline power spectrum in dB for log scale (trialbase off).
         powbase_out = 10.0 * np.log10(powbase_out)
+    # newtimef.m:1453 returns mbase as a row.
+    powbase_out = np.reshape(powbase_out, (1, -1))
     return TimeFrequencyResult(
         ersp,
         itc,
-        powbase_out.squeeze(),
+        powbase_out,
         decomp.times,
         decomp.freqs,
         tfdata,

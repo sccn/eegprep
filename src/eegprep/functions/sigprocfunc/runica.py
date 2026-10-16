@@ -66,7 +66,7 @@ DEFAULT_PCAFLAG = 'off'
 DEFAULT_POSACTFLAG = 'off'
 DEFAULT_VERBOSE = 1
 DEFAULT_BIASFLAG = 1
-DEFAULT_RESETRANDOMSEED = False  # Note: Changed to False in 2015 (was True before)
+DEFAULT_RESETRANDOMSEED = False
 
 
 def _integer_count(value):
@@ -154,8 +154,7 @@ def runica(data, *args, **kwargs):
             Draw interrupt figure. Options: 'on', 'off'.
 
         rndreset : str or bool, default='off' or False
-            Reset the random seed based on time of day. Default 'off' means
-            ICA will always return the SAME decomposition (deterministic).
+            Reset the random seed from the clock. Omitted calls stay off.
 
         seed : int, optional
             Random seed for RNG initialization. If provided, overrides rndreset
@@ -191,8 +190,15 @@ def runica(data, *args, **kwargs):
     This is a direct translation of EEGLAB's MATLAB runica.m function.
     Uses float64 precision throughout for numerical consistency.
 
-    The RNG uses np.random.RandomState with seed 5489 (MATLAB default)
-    when rndreset='off', or a time-based seed when rndreset='on'.
+    ``runica.m`` line 205 sets ``DEFAULT_RESETRANDOMSEED = true``, so an omitted
+    ``rndreset`` takes the clock reseed at lines 816-817
+    (``rand('state', sum(100*clock))``). The help at lines 48-50 says the
+    default has been ``'off'`` since 2015, so repeated calls return the same
+    decomposition, and the off branch at line 819 is ``rand('state', 0)``.
+    EEGPrep follows that help text. An omitted ``rndreset`` is off and uses
+    ``RandomState(5489)``, the MT19937 stream ``pythoncompat`` selects at line
+    814 (``rng(5489, 'twister')``), rather than the legacy ``rand('state', 0)``
+    stream. ``rndreset='on'`` seeds from the clock.
 
     MATLAB Parity Validation Report
     -------------------------------

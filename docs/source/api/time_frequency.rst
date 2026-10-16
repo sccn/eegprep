@@ -5,6 +5,11 @@ Time-Frequency
 
 Time-frequency decomposition, coherence, phase-amplitude coupling, and time warping.
 
+``newtimef`` accepts the ``finputcheck`` names from ``newtimef.m`` as keywords
+or positional name/value pairs. Defaults follow that list, including
+``baseline`` 0, ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2.
+A figure is drawn when ``plotersp`` or ``plotitc`` is on.
+
 ``make_timewarp`` accepts ``baselineLatency``, ``eventConditions``,
 ``maxSTDForAbsolute``, and ``maxSTDForRelative`` as keywords or positional
 name/value pairs. The Python names ``baseline_latency``, ``event_conditions``,

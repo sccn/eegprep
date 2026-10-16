@@ -10,9 +10,13 @@ Low-level decomposition helpers accept channel/component-major matrices. The
 delegate to the maintained ``runica`` implementation, preventing numerical
 drift between historical copies of the infomax engine. ``runica`` and
 ``runicalowmem`` accept EEGLAB positional name/value pairs, such as
-``runica(data, "extended", 1)``, in addition to keywords. An unspecified
-``rndreset`` stays off, so repeated calls use MATLAB's default random stream
-instead of reseeding from the clock. ``varsort`` and ``zica`` return
+``runica(data, "extended", 1)``, in addition to keywords. ``runica.m`` line 205
+sets ``DEFAULT_RESETRANDOMSEED = true`` (clock reseed at lines 816-817), while
+the help at lines 48-50 says the default has been ``'off'`` since 2015.
+EEGPrep follows the help text: an omitted ``rndreset`` is off and uses
+``RandomState(5489)``, the same MT19937 stream as ``rng(5489, 'twister')``
+(``pythoncompat``, line 814), rather than the legacy ``rand('state', 0)``
+stream at line 819. ``varsort`` and ``zica`` return
 zero-based component and sample indices.
 
 .. autosummary::

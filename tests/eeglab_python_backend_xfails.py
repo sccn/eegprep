@@ -335,10 +335,6 @@ PYTHON_BACKEND_XFAILS = {
         TRUTH, ValueError
     ),
     "tests/test_vararg2str.py::test_reference_vararg2str_all_eight_original_calls": _gap(TRUTH, ValueError),
-    "tests/test_phase4_timefreq_statistics.py::test_reference_newtimef_original_baseline_formulas": _gap(
-        "newtimef is keyword-only and does not accept MATLAB name/value pairs such as timesout and plotitc",
-        TypeError,
-    ),
     "tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),

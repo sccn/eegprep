@@ -280,9 +280,9 @@ def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
     baseline_abs = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="abs", **common)
     baseline_log = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="log", **common)
     np.testing.assert_allclose(baseline_abs.ersp[:, 1], power[1] / power[0], rtol=0, atol=1e-12)
-    np.testing.assert_allclose(baseline_abs.powbase, power[0], rtol=0, atol=1e-14)
+    np.testing.assert_allclose(np.ravel(baseline_abs.powbase), power[0], rtol=0, atol=1e-14)
     np.testing.assert_allclose(baseline_log.ersp[:, 1], 10 * np.log10(power[1] / power[0]), rtol=0, atol=1e-12)
-    np.testing.assert_allclose(baseline_log.powbase, 10 * np.log10(power[0]), rtol=0, atol=1e-13)
+    np.testing.assert_allclose(np.ravel(baseline_log.powbase), 10 * np.log10(power[0]), rtol=0, atol=1e-13)
 
     trial_abs = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="abs", trialbase="on", **common)
     trial_log = newtimef(data, 100, [0, 990], 100, 0, baseline=250, scale="log", trialbase="on", **common)
@@ -368,8 +368,8 @@ def test_newtimef_supplied_powbase_shifts_ersp_by_db_offset():
     base3 = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], powbase=np.full(nfreq, 3.0), **common)
     np.testing.assert_allclose(base3.ersp, base0.ersp - 3.0, rtol=1e-6, atol=1e-6)
     # the supplied dB spectrum round-trips (dB -> linear on input, linear -> dB on return)
-    np.testing.assert_allclose(base0.powbase, np.zeros(nfreq), atol=1e-9)
-    np.testing.assert_allclose(base3.powbase, np.full(nfreq, 3.0), rtol=1e-9)
+    np.testing.assert_allclose(np.ravel(base0.powbase), np.zeros(nfreq), atol=1e-9)
+    np.testing.assert_allclose(np.ravel(base3.powbase), np.full(nfreq, 3.0), rtol=1e-9)
 
 
 def test_newtimef_baseline_forms_control_powbase_units():
