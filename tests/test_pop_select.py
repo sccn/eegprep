@@ -434,18 +434,18 @@ class TestPopSelectEventConsistency(unittest.TestCase):
     def test_epoched_events_sort_by_epoch_then_latency(self):
         crossed = _dataset(
             [
-                {'type': 'A', 'latency': 25, 'epoch': 2, 'duration': 0},
+                {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
                 {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
                 {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
-                {'type': 'D', 'latency': 45, 'epoch': 3, 'duration': 0},
+                {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
             ],
             trials=3,
             pnts=50,
         )
         same_epoch = _dataset(
             [
-                {'type': 'X', 'latency': 35, 'epoch': 2, 'duration': 0},
-                {'type': 'Y', 'latency': 22, 'epoch': 2, 'duration': 0},
+                {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+                {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
                 {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
             ],
             trials=3,
@@ -453,11 +453,11 @@ class TestPopSelectEventConsistency(unittest.TestCase):
         )
         self.assertEqual(
             _epoch_rows(pop_select(crossed, channel=['Fz'])),
-            [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 25.0, 2.0), ('D', 45.0, 3.0)],
+            [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
         )
         self.assertEqual(
             _epoch_rows(pop_select(same_epoch, channel=['Fz'])),
-            [('Z', 8.0, 1.0), ('Y', 22.0, 2.0), ('X', 35.0, 2.0)],
+            [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
         )
 
 
@@ -646,22 +646,22 @@ SYNTHETIC_CASES = {
 _EPOCH_SORT_CASES = {
     'crossed_epochs': (
         [
-            {'type': 'A', 'latency': 25, 'epoch': 2, 'duration': 0},
+            {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
             {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
             {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
-            {'type': 'D', 'latency': 45, 'epoch': 3, 'duration': 0},
+            {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
         ],
-        [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 25.0, 2.0), ('D', 45.0, 3.0)],
-        [('B', 15.0, 1.0), ('A', 25.0, 2.0), ('C', 5.0, 1.0), ('D', 45.0, 3.0)],
+        [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
+        [('B', 15.0, 1.0), ('A', 75.0, 2.0), ('C', 5.0, 1.0), ('D', 145.0, 3.0)],
     ),
     'same_epoch_pair': (
         [
-            {'type': 'X', 'latency': 35, 'epoch': 2, 'duration': 0},
-            {'type': 'Y', 'latency': 22, 'epoch': 2, 'duration': 0},
+            {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+            {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
             {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
         ],
-        [('Z', 8.0, 1.0), ('Y', 22.0, 2.0), ('X', 35.0, 2.0)],
-        [('X', 35.0, 2.0), ('Z', 8.0, 1.0), ('Y', 22.0, 2.0)],
+        [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
+        [('X', 85.0, 2.0), ('Z', 8.0, 1.0), ('Y', 72.0, 2.0)],
     ),
 }
 

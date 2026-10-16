@@ -120,11 +120,7 @@ def _eventconsistency(EEG):
         if 'duration' in event and (event['duration'] is None or event['duration'] == ''):
             event['duration'] = 0
 
-    # Consecutive boundary-list entries with equal latency, in event order and
-    # before sorting, chain their durations into the later entry (eeg_checkset.m
-    # 521-546). A later boundary at the same latency stays when a different
-    # latency stands between them. EEGLAB skips this block when the first event
-    # type is numeric; string and numeric boundary types are merged alike.
+    # 6. Chain durations of consecutive equal-latency boundary-list entries (MATLAB lines 521-546)
     boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
     if boundary_idx:
         boundary_lats = [events[index].get('latency', float('nan')) for index in boundary_idx]
@@ -151,8 +147,7 @@ def _eventconsistency(EEG):
             for index in sorted(to_remove, reverse=True):
                 events.pop(index)
 
-    # Epoch, then latency. EEGLAB calls pop_editeventvals, which applies the
-    # epoch permutation of the unsorted events to the latency-sorted list.
+    # 7. Sort events by epoch, then latency
     events.sort(key=_event_sort_key)
 
     # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
