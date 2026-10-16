@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep import openbdf, readbdf
+from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from tests.eeglab_tests import eeglab_test
 
 
@@ -100,6 +101,159 @@ def _write_bdf(
                 raise ValueError("record signal length does not match samples_per_record")
             data.extend(_encode_signed_24(array))
     path.write_bytes(fixed + signal_header + data)
+
+
+def test_pop_biosig_drops_bdf_status_and_reads_trigger_edges(tmp_path: Path) -> None:
+    path = tmp_path / "status.bdf"
+    labels = ["A1", "A2", "Status"]
+    eeg_a = np.arange(8, dtype=int)
+    eeg_b = np.arange(8, dtype=int) + 20
+    status = np.array([0, 0, 5, 5, 0, 0, 7, 0], dtype=int)
+    _write_bdf(
+        path,
+        labels=labels,
+        samples_per_record=[8, 8, 8],
+        records=[[eeg_a, eeg_b, status]],
+        physical_minimum=[-262144, -262144, -8388608],
+        physical_maximum=[262144, 262144, 8388607],
+        digital_minimum=[-8388608, -8388608, -8388608],
+        digital_maximum=[8388607, 8388607, 8388607],
+    )
+
+    eeg = pop_biosig(path)
+    opened = openbdf(path)
+    calibrated, _raw = readbdf(opened, [1])
+
+    assert [loc["labels"] for loc in eeg["chanlocs"]] == ["A1", "A2"]
+    assert eeg["nbchan"] == 2
+    assert eeg["data"].shape == (2, 8)
+    np.testing.assert_allclose(eeg["data"], calibrated["Record"][:2])
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [(5, 3), (7, 7)]
+    _eeg, command = pop_biosig(path, return_com=True)
+    assert "bdfeventmode" not in command
+    assert "rmeventchan" not in command
+    assert "importevent" not in command
+
+
+def _write_status_bdf(
+    path: Path,
+    status_records: Sequence[np.ndarray],
+    *,
+    declared_records: int | None = None,
+) -> None:
+    records = [np.asarray(record, dtype=int) for record in status_records]
+    length = int(records[0].shape[0])
+    labels = ["A1", "A2", "Status"]
+    _write_bdf(
+        path,
+        labels=labels,
+        samples_per_record=[length, length, length],
+        records=[[np.zeros(length, dtype=int), np.zeros(length, dtype=int), record] for record in records],
+        declared_records=declared_records,
+        physical_minimum=[-262144, -262144, -8388608],
+        physical_maximum=[262144, 262144, 8388607],
+        digital_minimum=[-8388608, -8388608, -8388608],
+        digital_maximum=[8388607, 8388607, 8388607],
+    )
+
+
+def _event_pairs(eeg: dict) -> list[tuple[object, object]]:
+    return [(event["type"], event["latency"]) for event in eeg["event"]]
+
+
+def test_pop_biosig_honors_status_import_and_removal(tmp_path: Path) -> None:
+    path = tmp_path / "options.bdf"
+    _write_status_bdf(path, [np.array([0, 0, 5, 5, 0, 0, 7, 0])])
+
+    kept, command = pop_biosig(path, rmeventchan="off", return_com=True)
+    assert [loc["labels"] for loc in kept["chanlocs"]] == ["A1", "A2", "Status"]
+    assert kept["nbchan"] == 3
+    assert kept["data"].shape == (3, 8)
+    assert _event_pairs(kept) == [(5, 3), (7, 7)]
+    assert "'rmeventchan', 'off'" in command
+
+    without_events = pop_biosig(path, importevent="off")
+    assert [loc["labels"] for loc in without_events["chanlocs"]] == ["A1", "A2"]
+    assert _event_pairs(without_events) == []
+
+    kept_without_events = pop_biosig(path, importevent="off", rmeventchan="off")
+    assert [loc["labels"] for loc in kept_without_events["chanlocs"]] == ["A1", "A2", "Status"]
+    assert _event_pairs(kept_without_events) == []
+
+
+def test_pop_biosig_rejects_unsupported_bdf_event_options(tmp_path: Path) -> None:
+    path = tmp_path / "options.bdf"
+    _write_status_bdf(path, [np.array([0, 5, 0, 0])])
+
+    with pytest.raises(ValueError, match="bdfeventmode"):
+        pop_biosig(path, bdfeventmode=9)
+    with pytest.raises(ValueError, match="bdfeventmode"):
+        pop_biosig(path, bdfeventmode=4.5)
+    with pytest.raises(ValueError, match="bdfeventmode"):
+        pop_biosig(path, bdfeventmode="4")
+    with pytest.raises(ValueError, match="rmeventchan"):
+        pop_biosig(path, rmeventchan="maybe")
+    with pytest.raises(ValueError, match="importevent"):
+        pop_biosig(path, importevent="yes")
+
+
+def test_pop_biosig_decodes_each_supported_bdfeventmode(tmp_path: Path) -> None:
+    path = tmp_path / "modes.bdf"
+    _write_status_bdf(path, [np.array([5, 0, 0x105, 0x10005, 4])])
+    expected = {
+        1: [(5, 1), (32773, 2), (5, 3), (32766, 4), (32773, 4), (65534, 5), (32773, 5)],
+        2: [(5, 1), (261, 3)],
+        3: [(5, 1), (32773, 2), (261, 3), (33029, 4), (4, 5)],
+        4: [(5, 1), (261, 3), (4, 5)],
+        5: [(5, 1), (32773, 2), (5, 3), (32773, 4), (4, 5)],
+        6: [(5, 1), (5, 3), (4, 5)],
+        7: [(1, 2), (3, 2), (32769, 3), (32771, 3), (9, 3), (32777, 4), (1, 5)],
+        8: [(1, 1), (3, 1), (1, 3), (3, 3), (9, 3)],
+        99: [(5, 1), (32773, 2), (261, 3), (33029, 4), (32773, 5)],
+    }
+
+    for mode, pairs in expected.items():
+        eeg, command = pop_biosig(path, bdfeventmode=mode, return_com=True)
+        assert _event_pairs(eeg) == pairs
+        assert all(type(event["type"]) is int for event in eeg["event"])
+        assert f"'bdfeventmode', {mode}" in command
+        assert [loc["labels"] for loc in eeg["chanlocs"]] == ["A1", "A2"]
+    assert _event_pairs(pop_biosig(path, bdfeventmode=4.0)) == expected[4]
+
+    high_bit = tmp_path / "high-bit.bdf"
+    _write_status_bdf(high_bit, [np.array([0, 0x8001, 0])])
+    assert _event_pairs(pop_biosig(high_bit, bdfeventmode=3)) == [(0x8001, 2), (0x8001 + 0x8000, 3)]
+    assert _event_pairs(pop_biosig(high_bit, bdfeventmode=99)) == [(0x8001, 2), (0x8001 | 0x8000, 3)]
+
+
+@pytest.mark.filterwarnings("ignore:Number of records from the header does not match the file size:RuntimeWarning")
+def test_pop_biosig_reads_only_blockrange_status_records(tmp_path: Path) -> None:
+    early = tmp_path / "early.bdf"
+    _write_status_bdf(early, [np.array([0, 5, 0, 0])], declared_records=6)
+    early_eeg = pop_biosig(early, blockrange=[0, 2])
+    assert _event_pairs(early_eeg) == [(5, 2)]
+
+    window = tmp_path / "window.bdf"
+    _write_status_bdf(
+        window,
+        [np.array([0, 0, 1, 1]), np.array([1, 0, 4, 0])],
+        declared_records=6,
+    )
+    window_eeg = pop_biosig(window, blockrange=[2, 4])
+    assert _event_pairs(window_eeg) == [(4, 3)]
+
+    typed = tmp_path / "typed.bdf"
+    _write_status_bdf(typed, [np.array([0, 5, 0, 0]), np.array([0, 7, 0, 9])])
+    assert _event_pairs(pop_biosig(typed, blockrange=[2, 4])) == [(7, 2), (9, 4)]
+
+    anchored = tmp_path / "anchored.bdf"
+    _write_status_bdf(
+        anchored,
+        [np.ones(4, dtype=int), np.zeros(4, dtype=int), np.array([0, 1, 1, 0])],
+        declared_records=6,
+    )
+    anchored_eeg = pop_biosig(anchored, blockrange=[4, 6], bdfeventmode=7)
+    assert _event_pairs(anchored_eeg) == [(32769, 2), (1, 4)]
 
 
 def test_openbdf_general_header_matches_current_suite(tmp_path: Path) -> None:
