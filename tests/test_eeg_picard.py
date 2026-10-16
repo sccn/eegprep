@@ -1,13 +1,18 @@
 import os
 import unittest
+import warnings
+from contextlib import contextmanager
+
 import numpy as np
 import pytest
 from picard import picard
-from eegprep import pop_loadset, eeg_picard, pop_saveset
+
+from eegprep import eeg_picard, pop_loadset, pop_saveset
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
-
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fixtures import create_test_eeg as _create_test_eeg
+from tests.test_ds003061_stage_parity import amari_distance, matched_mixing_correlation
 
 
 def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
@@ -55,10 +60,16 @@ def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
     return matched, max_correlations, best_matches, corr_matrix
 
 
-# ASSESSMENT OF THE TEST RESULTS
-# The current conclusion is that while MATLAB and Octave are not exactly the same, they are close enough.
-# However, Python is quite different. The image is saved in the test folder of the difference between the 2-D arrays.
-# More investigation is needed to understand why this is the case. The implementation are quite different to start with.
+@contextmanager
+def _matlab_double_precision(engine):
+    """Turn ``option_single`` off and write the snapshotted options file back."""
+    options_path, original = eeg_options_snapshot(engine)
+    try:
+        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        yield
+    finally:
+        restore_eeg_options(options_path, original)
+        engine.eval("clear functions", nargout=0)
 
 
 # where the test resources
@@ -147,22 +158,36 @@ class TestEegPicard(unittest.TestCase):
         self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
 
     def test_picard_engines(self):
-        """Test eeg_picard with Python, MATLAB, and Octave engines."""
+        """Compare Python and MATLAB Picard on the sample set in double precision.
+
+        MATLAB ``eeg_picard`` must call ``picard_python_port`` (identity
+        initialization). ``option_single`` is turned off for the call and the
+        options file is restored afterward.
+        """
 
         eeglab_mat = get_eeglab('MAT')
+        engine = eeglab_mat.engine
         if not matlab_function_exists(eeglab_mat, 'eeg_picard'):
             self.skipTest("MATLAB EEGLAB Picard plugin is not installed")
+        source = str(engine.eval("fileread(which('eeg_picard'))", nargout=1))
+        if "picard_python_port" not in source:
+            self.fail(
+                "MATLAB eeg_picard does not call picard_python_port. Install mind-inria/picard "
+                "617ce6ae669cfbd1dfedba6a5fce39a602b99ac3. The EEGLAB PICARD 2.0 extension uses a seeded random start."
+            )
 
         print("Running Picard with Python engine...")
         EEG_python = eeg_picard(self.EEG.copy())
         pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_picard_python.set'))
         print("Python engine test completed.")
 
-        # --- MATLAB Engine ---
-        print("Running Picard with MATLAB engine...")
-        EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
-        pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
-        print("MATLAB engine test completed.")
+        with _matlab_double_precision(engine):
+            option_single = int(engine.eval("option_single", nargout=1))
+            self.assertEqual(option_single, 0)
+            print("Running Picard with MATLAB engine...")
+            EEG_matlab = eeg_picard(self.EEG.copy(), engine=eeglab_mat)
+            pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_picard_matlab.set'))
+            print("MATLAB engine test completed.")
 
         # --- Assertions ---
 
@@ -246,6 +271,18 @@ class TestEegPicard(unittest.TestCase):
         print(f"  Components with correlation < 0.95: {np.sum(max_corrs < 0.95)}")
         print(f"  Components with correlation < 0.65: {np.sum(max_corrs < 0.65)}")
 
+        python_unmixing = np.asarray(EEG_python['icaweights'], dtype=float) @ np.asarray(
+            EEG_python['icasphere'], dtype=float
+        )
+        distance = amari_distance(python_unmixing, np.asarray(EEG_matlab['icawinv'], dtype=float))
+        mean_correlation, min_correlation = matched_mixing_correlation(EEG_python['icawinv'], EEG_matlab['icawinv'])
+        parity = (
+            f"picard sample parity: amari={distance:.6e} "
+            f"corr_mean={mean_correlation:.6f} corr_min={min_correlation:.6f}"
+        )
+        print(parity)
+        warnings.warn(parity, UserWarning, stacklevel=1)
+
         # Check for unique matching (each Python component maps to a different MATLAB component)
         unique_matches = len(set(best_matches)) == len(best_matches)
         if not unique_matches:
@@ -256,11 +293,6 @@ class TestEegPicard(unittest.TestCase):
             f"ICA components do not match well. Min correlation: {np.min(max_corrs):.4f}. "
             f"Expected >= 0.65 for all components. Mean: {np.mean(max_corrs):.4f}",
         )
-
-        # Note: icawinv = pinv(icaweights), so if icaweights match, icawinv is
-        # mathematically determined. We skip explicit icawinv comparison since
-        # the component order differs between Python and MATLAB, and reordering
-        # would be redundant with the icaweights check above.
 
         print("Python and MATLAB ICA results match (accounting for permutation/sign).")
 
