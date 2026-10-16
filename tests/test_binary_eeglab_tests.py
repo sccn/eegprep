@@ -53,6 +53,7 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
 
     complete = pop_biosig(filename)
     cropped, command = pop_biosig(filename, blockrange=[1, 10], return_com=True)
+    positional = pop_biosig(filename, "blockrange", [1, 10])
 
     assert cropped["data"].shape == (2, 9 * srate)
     assert cropped["nbchan"] == 2
@@ -63,6 +64,7 @@ def test_pop_biosig_reads_bdf_blockrange_with_exact_metadata(tmp_path: Path) -> 
     assert cropped["xmax"] == pytest.approx((9 * srate - 1) / srate)
     assert [loc["labels"] for loc in cropped["chanlocs"]] == ["E1", "E2"]
     np.testing.assert_array_equal(cropped["data"], complete["data"][:, srate : 10 * srate])
+    np.testing.assert_array_equal(positional["data"], cropped["data"])
     assert "'blockrange', [1 10]" in command
     assert cropped["history"] == command
 

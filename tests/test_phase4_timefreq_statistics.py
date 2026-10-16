@@ -1640,3 +1640,16 @@ def _eeglab_reference_root() -> Path | None:
         if (candidate / "functions" / "sigprocfunc" / "signalstat.m").exists():
             return candidate
     return None
+
+
+def test_dftfilt3_accepts_matlab_name_value_pairs_and_rejects_type():
+    keyword = dftfilt3([6, 10], [3, 5], 128, cycleinc="linear", timesupport=7)
+    positional = dftfilt3([6, 10], [3, 5], 128, "cycleinc", "linear", "timesupport", 7)
+
+    for left, right in zip(keyword[0], positional[0], strict=True):
+        np.testing.assert_array_equal(left, right)
+    np.testing.assert_array_equal(keyword[1], positional[1])
+    np.testing.assert_array_equal(keyword[2], positional[2])
+    np.testing.assert_array_equal(keyword[3], positional[3])
+    with pytest.raises(ValueError, match="unexpected option 'type'"):
+        dftfilt3([6, 10], 3, 128, "type", "morlet")

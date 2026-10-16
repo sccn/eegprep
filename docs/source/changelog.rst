@@ -73,6 +73,13 @@ Unreleased
   on single-precision input in single precision (falling back to double only on
   error, :213-215), so its result differs from this one by single-precision
   rounding.
+- ``runica``, ``runicalowmem``, ``dftfilt3``, ``make_timewarp``,
+  ``pop_biosig``, ``pop_fileio``, and ``pop_editoptions`` accept EEGLAB
+  positional name/value pairs as well as keywords. ``make_timewarp`` also
+  accepts ``baselineLatency``, ``eventConditions``, ``maxSTDForAbsolute``,
+  and ``maxSTDForRelative``. ``pop_editoptions("option_storedisk", 1)``
+  updates that option. ``dftfilt3`` still rejects ``type``; EEGLAB's error
+  text lists it, but ``dftfilt3.m`` does not accept it.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

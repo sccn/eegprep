@@ -286,6 +286,36 @@ def test_python_regression_make_timewarp_default_outlier_and_condition_calls():
     assert conditioned["event_sequence"] == ["square", "rt"]
 
 
+def test_make_timewarp_accepts_eeglab_name_value_pairs_and_row_cells():
+    eeg = _timewarp_eeg()
+    sequence = np.array([["square", "rt"]], dtype=object)
+    conditions = np.array([["latency < 20000", "latency > 1000 || accuracy == 1"]], dtype=object)
+    paired = make_timewarp(
+        eeg,
+        sequence,
+        "baselineLatency",
+        0.0,
+        "eventConditions",
+        conditions,
+        "maxSTDForAbsolute",
+        3.0,
+        "maxSTDForRelative",
+        2.0,
+    )
+    keyword = make_timewarp(
+        eeg,
+        ["square", "rt"],
+        baseline_latency=0,
+        event_conditions=["latency < 20000", "latency > 1000 || accuracy == 1"],
+        max_std_for_absolute=3,
+        max_std_for_relative=2,
+    )
+
+    np.testing.assert_array_equal(paired["epochs"], keyword["epochs"])
+    np.testing.assert_array_equal(paired["latencies"], keyword["latencies"])
+    assert paired["event_sequence"] == ["square", "rt"]
+
+
 def test_python_regression_promax_current_suite_reduced_rotation_operates_on_original_channels():
     data = np.asarray([[-1, 0, 1, 2], [5, -2, 3, -4], [0, 1, -1, 0]], dtype=float)
     rotation, orthogonal = promax(data, n_components=2)
@@ -356,6 +386,15 @@ def test_python_regression_runicalowmem_recovers_deterministic_independent_sourc
     assert standard_weights.shape == standard_sphere.shape == (3, 3)
     assert np.all(np.isfinite(standard_weights))
     assert np.all(np.isfinite(standard_sphere))
+
+
+def test_runicalowmem_name_value_pairs_match_keywords():
+    data = np.random.default_rng(0).standard_normal((3, 80))
+    keyword = runicalowmem(data, extended=1, seed=3, maxsteps=1, verbose="off")
+    positional = runicalowmem(data, "extended", 1.0, "seed", 3, "maxsteps", 1.0, "verbose", "off")
+
+    np.testing.assert_array_equal(positional[0], keyword[0])
+    np.testing.assert_array_equal(positional[1], keyword[1])
 
 
 def test_python_regression_runpca_current_suite_rank_one_data_reconstructs_and_orders_variance():

@@ -9,8 +9,20 @@ from typing import Any, cast
 
 import numpy as np
 
+from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
+
 
 Condition = str | Callable[[Mapping[str, Any]], bool] | None
+_TIMEWARP_OPTIONS = {
+    "baselinelatency": "baseline_latency",
+    "baseline_latency": "baseline_latency",
+    "eventconditions": "event_conditions",
+    "event_conditions": "event_conditions",
+    "maxstdforabsolute": "max_std_for_absolute",
+    "max_std_for_absolute": "max_std_for_absolute",
+    "maxstdforrelative": "max_std_for_relative",
+    "max_std_for_relative": "max_std_for_relative",
+}
 
 _BINARY_OPERATORS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
@@ -33,11 +45,12 @@ _COMPARISON_OPERATORS: dict[type[ast.cmpop], Callable[[Any, Any], bool]] = {
 def make_timewarp(
     eeg: Mapping[str, Any],
     event_sequence: Sequence[Any],
-    *,
+    *args: Any,
     baseline_latency: float = 0.0,
     event_conditions: Sequence[Condition] | None = None,
     max_std_for_absolute: float = np.inf,
     max_std_for_relative: float = np.inf,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Select epochs containing an ordered event sequence.
 
@@ -45,15 +58,35 @@ def make_timewarp(
     simple arithmetic/comparison strings such as ``"latency < 200"``. Strings
     are parsed with a restricted expression evaluator; arbitrary code is never
     executed. Returned epoch indices are zero-based.
+
+    EEGLAB names ``baselineLatency``, ``eventConditions``,
+    ``maxSTDForAbsolute``, and ``maxSTDForRelative`` are accepted as keywords
+    or positional name/value pairs. A MATLAB cell row is accepted as the event
+    sequence or the condition list.
     """
-    sequence = list(event_sequence)
+    supplied = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    parsed: dict[str, Any] = {}
+    for key, value in supplied.items():
+        canonical = _TIMEWARP_OPTIONS.get(key)
+        if canonical is None:
+            raise TypeError(f"make_timewarp() got an unexpected keyword argument {key!r}")
+        parsed[canonical] = value
+    if "baseline_latency" in parsed:
+        baseline_latency = parsed["baseline_latency"]
+    if "event_conditions" in parsed:
+        event_conditions = parsed["event_conditions"]
+    if "max_std_for_absolute" in parsed:
+        max_std_for_absolute = parsed["max_std_for_absolute"]
+    if "max_std_for_relative" in parsed:
+        max_std_for_relative = parsed["max_std_for_relative"]
+    sequence = _sequence_items(event_sequence)
     if not sequence:
         raise ValueError("event_sequence must contain at least one event type")
     if not np.isfinite(baseline_latency):
         raise ValueError("baseline_latency must be finite")
     absolute_limit = _standard_deviation_limit(max_std_for_absolute, "max_std_for_absolute")
     relative_limit = _standard_deviation_limit(max_std_for_relative, "max_std_for_relative")
-    conditions = [] if event_conditions is None else list(event_conditions)
+    conditions = [] if event_conditions is None else _sequence_items(event_conditions)
     if len(conditions) > len(sequence):
         raise ValueError("event_conditions cannot be longer than event_sequence")
     conditions.extend([None] * (len(sequence) - len(conditions)))
@@ -119,6 +152,12 @@ def _ordered_matches(
         result.append(match)
         minimum = match
     return result
+
+
+def _sequence_items(value: Any) -> list[Any]:
+    if isinstance(value, np.ndarray):
+        return value.reshape(-1).tolist()
+    return list(value)
 
 
 def _event_values(value: Any) -> list[Any]:

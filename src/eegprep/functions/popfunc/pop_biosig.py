@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.sigprocfunc.openbdf import openbdf
 from eegprep.functions.sigprocfunc.readbdf import readbdf
@@ -26,7 +26,7 @@ _EPOCH_END = 0xFFFE
 
 
 def pop_biosig(
-    filename: str | Path, *, return_com: bool = False, **kwargs: Any
+    filename: str | Path, *args: Any, return_com: bool = False, **kwargs: Any
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.
 
@@ -34,18 +34,20 @@ def pop_biosig(
     (default 4: rising edges of the lower 16 bits). ``importevent`` (default
     ``on``) stores those triggers, and ``rmeventchan`` (default ``on``) removes
     ``Status`` from the data. Unsupported values raise ``ValueError``.
+    Options may be keywords or positional name/value pairs.
     """
     path = Path(filename)
     if path.suffix.lower() not in _BIOSIG_SUFFIXES:
         raise ValueError(
             "pop_biosig supports EDF, BDF, and GDF files. Use pop_fileio or pop_loadset for other formats."
         )
-    history_options = dict(kwargs)
-    event_mode = _bdf_event_mode(kwargs.pop("bdfeventmode", 4))
-    remove_event_channel = _on_off("rmeventchan", kwargs.pop("rmeventchan", "on"))
-    import_events = _on_off("importevent", kwargs.pop("importevent", "on"))
-    blockrange = kwargs.get("blockrange")
-    eeg, _command = pop_fileio(filename, return_com=True, **kwargs)
+    options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    history_options = dict(options)
+    event_mode = _bdf_event_mode(options.pop("bdfeventmode", 4))
+    remove_event_channel = _on_off("rmeventchan", options.pop("rmeventchan", "on"))
+    import_events = _on_off("importevent", options.pop("importevent", "on"))
+    blockrange = options.get("blockrange")
+    eeg, _command = pop_fileio(filename, return_com=True, **options)
     if path.suffix.lower() == ".bdf":
         eeg = _import_bdf_status_channel(
             eeg,

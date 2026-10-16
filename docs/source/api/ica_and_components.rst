@@ -8,8 +8,12 @@ Decomposition, component classification, and component measures.
 Low-level decomposition helpers accept channel/component-major matrices. The
 ``runica_ml2``, ``runica_mlb``, and ``runicalowmem`` compatibility names all
 delegate to the maintained ``runica`` implementation, preventing numerical
-drift between historical copies of the infomax engine. ``varsort`` and ``zica``
-return zero-based component and sample indices.
+drift between historical copies of the infomax engine. ``runica`` and
+``runicalowmem`` accept EEGLAB positional name/value pairs, such as
+``runica(data, "extended", 1)``, in addition to keywords. An unspecified
+``rndreset`` stays off, so repeated calls use MATLAB's default random stream
+instead of reseeding from the clock. ``varsort`` and ``zica`` return
+zero-based component and sample indices.
 
 .. autosummary::
    :toctree: generated/

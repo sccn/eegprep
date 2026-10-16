@@ -26,6 +26,7 @@ import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
+from ..miscfunc.value_parsing import parse_key_value_args
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,22 @@ DEFAULT_BIASFLAG = 1
 DEFAULT_RESETRANDOMSEED = False  # Note: Changed to False in 2015 (was True before)
 
 
-def runica(data, **kwargs):
+def _integer_count(value):
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)) and float(value).is_integer():
+        return int(value)
+    return value
+
+
+def runica(data, *args, **kwargs):
     """
     Perform Independent Component Analysis (ICA) decomposition using infomax.
+
+    Positional EEGLAB name/value pairs, such as ``runica(data, 'extended', 1)``,
+    are accepted and merged with keywords. Pair names are case-insensitive.
 
     This function implements the logistic infomax ICA algorithm of Bell & Sejnowski
     (1995) with the natural gradient feature, or optionally the extended-ICA
@@ -232,8 +246,7 @@ def runica(data, **kwargs):
     if chans < 2:
         raise ValueError(f'runica(): data size ({chans},{frames}) too small.')
 
-    # Parse keyword arguments (case-insensitive)
-    kwargs_lower = {k.lower(): v for k, v in kwargs.items()}
+    kwargs_lower = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
 
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
@@ -357,6 +370,12 @@ def runica(data, **kwargs):
         if posact_val not in ['on', 'off']:
             raise ValueError('runica(): posact value must be on or off')
         posactflag = posact_val
+
+    maxsteps = _integer_count(maxsteps)
+    ncomps = _integer_count(ncomps)
+    chans = _integer_count(chans)
+    if user_seed is not None:
+        user_seed = _integer_count(user_seed)
 
     # Set annealstep based on extended mode if not provided
     if annealstep == 0:
