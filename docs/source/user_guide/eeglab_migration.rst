@@ -133,6 +133,12 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - STUDY ``pop_clust`` algorithm ``kmeans``
+     - EEGLAB draws random k-means++ starts and runs an online phase, so
+       cluster numbers depend on MATLAB's random stream and are not
+       reproduced across tools. EEGPrep uses a seeded NumPy initialization
+       and Lloyd updates. ``kmeanscluster`` keeps the deterministic
+       first-rows initialization.
    * - ASR calibration on a short recording
      - ``clean_asr`` still removes high-power calibration windows when
        ``fit_eeg_distribution`` does not return a positive scale. The scale is

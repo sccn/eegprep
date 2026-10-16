@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_clust``, ``kmeans_st``, and ``kmeanscluster`` no longer sort clusters
+  by coordinates, and ``kmeans_st`` now follows EEGLAB's UPGMA Hartigan-Wong
+  algorithm. ``Cls`` numbers and memberships can change on existing studies
+  for the same ``random_state``. On the sample epochs STUDY, ``Cls 2`` and
+  ``Cls 3`` swap relative to develop.
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
   pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
   invert a numerical null direction and amplify the signal by about 1e13.

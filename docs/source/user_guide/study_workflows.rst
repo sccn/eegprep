@@ -247,10 +247,10 @@ created cluster's algorithm provenance. Infinite ``outliers`` keeps the plain
 k-means path. In both cases command history remains pasteable in
 ``eegprep-console``.
 
-Cluster numbers follow the winning initialization. ``Cls 1`` holds the
-components assigned to that start's first centroid, and later clusters keep
-the same centroid order. Repeating ``pop_clust`` with the same
-``random_state`` reproduces those numbers.
+``algorithm="kmeanscluster"`` numbers ``Cls k`` from the ``k``-th
+preclustering row. ``algorithm="kmeans"`` numbers ``Cls k`` from centroid
+``k`` of the lowest-SSE seeded start. The same ``random_state`` reproduces
+the ``kmeans`` numbering.
 
 DIPFIT Source Localization
 ==========================

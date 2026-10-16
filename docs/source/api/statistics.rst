@@ -131,9 +131,10 @@ Data Helpers
 Clustering
 ==========
 
-``kmeans_st`` and ``kmeanscluster`` operate on observations in rows and return
-zero-based labels aligned with the centroid rows of the selected start. Supply
-``random_state`` for reproducible random starts.
+``kmeans_st`` partitions rows with a UPGMA start and single-point moves.
+Labels are zero-based indices of those centroid rows. Restarts use a NumPy
+permutation, not MATLAB ``randperm``. ``kmeanscluster`` initializes from the
+first rows and keeps that numbering.
 
 .. autosummary::
    :toctree: generated/
