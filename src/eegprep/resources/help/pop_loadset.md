@@ -19,7 +19,10 @@ fields, which no longer describe the selected channel matrix.
 
 A length-1 channel, sample, or trial axis is kept. A one-channel recording
 reloads as `(1, pnts)`, and a one-component or one-channel ICA matrix stays
-two-dimensional, including a 1-by-1 sphere.
+two-dimensional, including a 1-by-1 sphere. A multi-dimensional cell or
+struct array keeps its MATLAB shape. Empty arrays keep the dimensions stored
+in the file, so `[]` stays 0-by-0. Continuous `icaact` reloads as
+`(ncomp, pnts)`.
 
 When `EEG_OPTIONS["option_memmapdata"] = 1`, two-file datasets saved with an
 `.fdt` sidecar load through a NumPy-compatible memory map. Single-file `.set`

@@ -364,7 +364,11 @@ def _serialize_chaninfo(chaninfo):
     out = {}
     for k, v in chaninfo.items():
         if k in ('removedchans', 'nodatchans'):
-            if isinstance(v, (list, np.ndarray)) and len(v) > 0:
+            if isinstance(v, np.ndarray):
+                nonempty = v.size > 0
+            else:
+                nonempty = isinstance(v, list) and len(v) > 0
+            if nonempty:
                 first = v[0] if isinstance(v, list) else v.flat[0]
                 if isinstance(first, dict):
                     out[k] = _chanlocs_to_struct_array(v)

@@ -57,7 +57,13 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         EEG = pop_loadset_h5(file_path)
     else:
         # pop_loadset.m loads with MATLAB load, which keeps singleton dimensions.
-        loaded = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=False, appendmat=False)
+        loaded = scipy.io.loadmat(
+            file_path,
+            struct_as_record=False,
+            squeeze_me=False,
+            appendmat=False,
+            mat_dtype=True,
+        )
         EEG = dataset_from_mat(loaded)
 
     EEG['filepath'] = os.path.dirname(file_path)

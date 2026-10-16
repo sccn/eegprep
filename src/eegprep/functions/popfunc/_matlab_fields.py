@@ -43,21 +43,37 @@ def convert_matlab(value, field: str | None = None):
     return apply_field_rules(field, _unwrap(value))
 
 
+def matlab_empty(value) -> np.ndarray:
+    """Keep the shape and dtype of an empty MATLAB array.
+
+    ``[]`` is 0-by-0. A missing channel list can be 0-by-1, and a selection
+    can be 32-by-0. The v7 and v7.3 readers share this through
+    :func:`apply_field_rules`.
+    """
+    array = np.asarray(value)
+    if array.ndim == 0:
+        return np.empty((0, 0), dtype=array.dtype)
+    return np.empty(array.shape, dtype=array.dtype)
+
+
 def apply_field_rules(field: str | None, value):
     """Apply the EEGLAB shape for ``field``.
 
     Matrix fields keep the MATLAB shape, including a 1-by-1 ``icasphere``.
     Scalar fields and other non-matrix numerics drop length-1 axes. Vector
     fields become 1-d. A 1-by-1 ``chanlocs``, ``event``, or ``epoch`` struct
-    becomes a one-element list.
+    becomes a one-element list. Empty arrays keep the dimensions stored in
+    the file.
     """
+    if isinstance(value, np.ndarray) and value.size == 0:
+        return matlab_empty(value)
     if field in STRUCT_ARRAY_FIELDS and isinstance(value, dict):
         value = [value]
     if field in _ARRAY_FIELDS and isinstance(value, list):
         return _object_array(value)
     if field in MATRIX_FIELDS and _is_scalar(value):
         return np.asarray(value).reshape(1, 1)
-    if isinstance(value, np.ndarray) and (value.size == 0 or value.dtype.kind in "iufcb"):
+    if isinstance(value, np.ndarray) and value.dtype.kind in "iufcb":
         return normalize_numeric(field, value)
     return value
 
@@ -70,7 +86,7 @@ def normalize_numeric(field: str | None, value):
     if array.dtype.kind not in "iufcb":
         return value
     if array.size == 0:
-        return np.array([])
+        return matlab_empty(array)
     if field in MATRIX_FIELDS:
         if array.ndim == 0:
             return array.reshape(1, 1)
@@ -90,7 +106,7 @@ def _unwrap(value):
         return _struct_dict(value)
     if isinstance(value, np.ndarray):
         if value.size == 0:
-            return np.array([])
+            return matlab_empty(value)
         if value.dtype == object:
             return _unwrap_object(value)
         if value.dtype.kind in "SU":
@@ -101,9 +117,20 @@ def _unwrap(value):
     return value
 
 
+def _vector_shape(shape: tuple[int, ...]) -> bool:
+    return len(shape) <= 1 or (len(shape) == 2 and (shape[0] == 1 or shape[1] == 1))
+
+
 def _unwrap_object(value: np.ndarray):
+    if not _vector_shape(value.shape):
+        grid = np.empty(value.shape, dtype=object)
+        flat = value.reshape(-1, order="F")
+        for offset, item in enumerate(flat):
+            index = np.unravel_index(offset, value.shape, order="F")
+            grid[index] = _struct_dict(item) if isinstance(item, mat_struct) else convert_matlab(item)
+        return grid
     items = value.reshape(-1, order="F")
-    if all(isinstance(item, mat_struct) for item in items):
+    if len(items) and all(isinstance(item, mat_struct) for item in items):
         records = [_struct_dict(item) for item in items]
         if value.shape in {(1, 1), (1,), ()}:
             return records[0]
