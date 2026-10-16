@@ -8,8 +8,7 @@ import unittest
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.miscfunc.pinv import pinv
 from eegprep.plugins.clean_rawdata.private.riemann import asr_subspace_reconstruction
-
-DROPPED_NULL_RECONSTRUCTION_GAP = 0.5
+from tests.fixtures import DROPPED_NULL_RECONSTRUCTION_GAP
 
 
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")

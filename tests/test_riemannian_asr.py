@@ -11,8 +11,7 @@ from eegprep.plugins.clean_rawdata.private.riemann import (
     rasr_nonlinear_eigenspace,
     spd_geodesic_midpoint,
 )
-from tests.fixtures import create_test_eeg
-from tests.test_pinv import DROPPED_NULL_RECONSTRUCTION_GAP
+from tests.fixtures import DROPPED_NULL_RECONSTRUCTION_GAP, create_test_eeg
 
 MAX_STABLE_RECONSTRUCTION_NORM = 2.0
 
