@@ -51,12 +51,14 @@ stay in row, column, interaction order.
 
 ``statcond`` accepts the same options as keywords or as positional name/value
 pairs. ``mode`` selects the method when it is non-empty. ``verbose`` defaults
-to off. ``variance`` defaults to equal variance (``homogenous``); EEGLAB's
-option list defaults to inhomogenous variance, while ``ttest2_cell`` and
-``statcond`` keep the equal-variance formula unless asked otherwise.
-``cluster="on"`` replaces one-way permutation p-values with cluster-extent
-results. The cluster-forming threshold uses the t or F degrees of freedom of
-the test. EEGLAB passes the feature count to ``tcdf`` for that threshold.
+to off. Unpaired ``variance`` defaults to Welch's inhomogenous formula,
+matching EEGLAB ``statcond`` ``finputcheck``. ``ttest2_cell`` itself still
+defaults to equal variance. ``cluster="on"`` replaces one-way permutation
+p-values with cluster-extent results. The cluster-forming threshold uses the
+t or F degrees of freedom of the test. EEGLAB's ``statcond.m`` lines 470 and
+490 pass the feature count to ``tcdf``:
+``tcdf(-abs(surrogval), size(surrogval,1))`` and
+``tcdf(-abs(ori_vals), length(ori_vals))``.
 ``returnresamplingarray`` is the name/value form of
 ``return_resampling_array``. Those cells are drawn from a MATLAB
 ``rng('default')`` Twister. The Python ``samples`` stream is the ``rng``

@@ -18,8 +18,15 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
 
 
 STATCOND_ZERO = (
-    "stored statcond fixtures use zero tolerance; t and F statistics and p-values "
-    "differ by double rounding or by MATLAB single-precision ANOVA"
+    "stored statcond fixtures use zero tolerance and double inputs. "
+    "t-test cases 1, 2, and 7-14 differ in the last bits "
+    "(worst statistic relative error 8.8e-16, p-value 1.9e-14). "
+    "ANOVA cases 3-6 and 15-30 are single because EEGLAB accumulates in single "
+    "(anova1rm_cell.m:67-68, anova1_cell.m:98/107/116, anova2_cell.m:98-99, "
+    "anova2rm_cell.m:83-131) and then evaluates single 1-fcdf. "
+    "F errors reach absolute 6.1e-2 and relative 5.9e-3 from cancellation in "
+    "ssA/ssAS (anova1rm_cell.m:97-104), and p saturates to 0 below about 6e-8 "
+    "in single. eegprep computes these statistics in double"
 )
 STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
 SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"

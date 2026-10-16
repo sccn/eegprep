@@ -16,8 +16,12 @@ Unreleased
   statistic array, the resampling cell array, or the ``structoutput`` struct.
   Python callers still receive ``StatcondResult`` or ``SurrogateDistribution``.
   Unpaired two-way MATLAB cells stay in column, row, interaction order.
-  ``verbose`` still defaults to off, and unpaired variance still defaults to
-  equal variance. Cluster correction uses the test degrees of freedom.
+  ``verbose`` still defaults to off. Unpaired two-condition tests now default
+  to Welch's inhomogenous variance, matching ``statcond`` ``finputcheck``, so
+  calls that omit ``variance`` change. ``ttest2_cell`` still defaults to equal
+  variance. Cluster correction uses the test degrees of freedom. EEGLAB forms
+  that threshold with ``tcdf`` at ``statcond.m`` lines 470 and 490, using the
+  feature count as the degrees of freedom.
   Resampling cells follow MATLAB ``rng('default')``; pass ``rng`` to control
   the Python surrogate stream.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes

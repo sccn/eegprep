@@ -132,18 +132,56 @@ def test_corrcoef_and_concatdata_contracts():
     assert concatenated.grid_shape == (1, 2)
 
 
-def test_statcond_unpaired_default_uses_eeglab_homogenous_variance():
-    first = np.array([[1.0, 2.0, 3.0, 4.0], [1.5, 1.7, 2.2, 2.9]])
-    second = np.array([[2.0, 5.0, 8.0, 11.0, 14.0], [1.4, 2.1, 2.4, 4.8, 7.0]])
+def test_statcond_unpaired_default_uses_welch_variance():
+    # 12 and 9 cases give pooled df 19. These sample moments are the MATLAB
+    # statcond default check: Welch t=-0.66579, df=8.42.
+    first = np.array(
+        [
+            -2.7260099855438673,
+            -2.448659887431253,
+            -2.1713097893186384,
+            -1.8939596912060237,
+            -1.616609593093409,
+            -1.3392594949807946,
+            -1.0619093968681799,
+            -0.7845592987555654,
+            -0.5072092006429507,
+            -0.22985910253033615,
+            0.04749099558227843,
+            0.3248410936948929,
+        ]
+    )
+    second = np.array(
+        [
+            -7.799532046910862,
+            -5.8496490351831465,
+            -3.899766023455431,
+            -1.9498830117277155,
+            0.0,
+            1.9498830117277155,
+            3.899766023455431,
+            5.8496490351831465,
+            7.799532046910862,
+        ]
+    )
 
     result = statcond([first, second], paired="off")
-    pooled_stat, pooled_df = ttest2_cell(first, second, variance="homogenous")
+    explicit = statcond([first, second], paired="off", variance="inhomogenous")
+    pooled = statcond([first, second], paired="off", variance="homogenous")
     welch_stat, welch_df = ttest2_cell(first, second, variance="inhomogenous")
+    pooled_stat, pooled_df = ttest2_cell(first, second)
 
-    npt.assert_allclose(result.stat, pooled_stat)
-    assert result.df == pooled_df
-    assert not np.array_equal(result.df, welch_df)
-    assert not np.allclose(pooled_stat, welch_stat)
+    npt.assert_allclose(result.stat, explicit.stat)
+    npt.assert_allclose(result.df, explicit.df)
+    npt.assert_allclose(result.stat, welch_stat)
+    npt.assert_allclose(result.df, welch_df)
+    assert f"{float(np.ravel(result.stat)[0]):.5f}" == "-0.66579"
+    assert f"{float(np.ravel(result.df)[0]):.2f}" == "8.42"
+    assert f"{float(np.ravel(pooled.stat)[0]):.5f}" == "-0.76747"
+    assert pooled.df == 19
+    npt.assert_allclose(pooled.stat, pooled_stat)
+    assert pooled_df == 19
+    assert not np.allclose(result.stat, pooled.stat)
 
 
 def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():

@@ -109,9 +109,9 @@ def statcond(
             legacy alias and wins when it is non-empty.
         naccu: Number of surrogate samples for nonparametric methods.
         variance: ``"homogenous"`` or ``"inhomogenous"`` for unpaired t-tests.
-            The default is equal variance. EEGLAB's option parser defaults to
-            inhomogenous variance; ``ttest2_cell`` and this function use the
-            equal-variance formula unless asked otherwise.
+            The default is Welch's inhomogenous variance, matching EEGLAB
+            ``finputcheck`` in ``statcond.m:187``. ``ttest2_cell`` still
+            defaults to equal variance, matching ``ttest2_cell.m:79``.
         forceanova: Use one-way ANOVA instead of a two-condition t-test.
         tail: Empirical-tail mode for supplied or computed surrogates.
         axis: Axis in each condition array that stores cases.
@@ -130,8 +130,10 @@ def statcond(
             :class:`StatcondResult`; a single MATLAB output is the struct.
         cluster: ``"on"`` replaces pointwise permutation p-values with cluster
             extent results for one-way designs. The cluster-forming threshold
-            uses the test degrees of freedom. EEGLAB's ``statcond`` passes the
-            feature count to ``tcdf``; that degrees-of-freedom choice is not
+            uses the test degrees of freedom. EEGLAB's ``statcond.m:470`` calls
+            ``tcdf(-abs(surrogval), size(surrogval,1))`` and ``statcond.m:490``
+            calls ``tcdf(-abs(ori_vals), length(ori_vals))``, so both thresholds
+            use the feature count. That degrees-of-freedom choice is not
             reproduced.
 
     Returns:
@@ -440,7 +442,7 @@ def _statcond_options(args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> dict[
     naccu = _matlab_round(options.get("naccu", 200))
     if naccu < 1:
         raise ValueError("naccu must be at least 1")
-    variance = str(options.get("variance", "homogenous")).replace("homogeneous", "homogenous")
+    variance = str(options.get("variance", "inhomogenous")).replace("homogeneous", "homogenous")
     if variance not in {"homogenous", "inhomogenous"}:
         raise ValueError("variance must be 'homogenous' or 'inhomogenous'")
     if "returnresamplingarray" in options:
