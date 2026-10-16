@@ -772,6 +772,22 @@ back to 1, so the samples stay continuous and only the first event
 is removed. When the length does not divide evenly, EEGLAB leaves
 the events in place.</p></td>
 </tr>
+<tr class="row-even"><td><p>Epoched event sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset(...,</span> <span class="pre">'eventconsistency')</span></code> sorts by epoch, then by
+latency. EEGLAB asks <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code> to sort on epoch and then
+latency, but that function takes the epoch order from the unsorted
+events and applies it to the latency-sorted list. Events A (epoch 2,
+latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
+and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
+out Z, Y, X here and X, Z, Y in EEGLAB.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Numeric boundary types</p></td>
+<td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
+the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with
+<code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code> on. EEGLAB skips that merge when the first
+event type is numeric, so two <code class="docutils literal notranslate"><span class="pre">-99</span></code> boundaries with durations 1
+and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.</p></td>
+</tr>
 </tbody>
 </table>
 </div>

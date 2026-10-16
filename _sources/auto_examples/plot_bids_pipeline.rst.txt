@@ -335,7 +335,7 @@ with synthetic EEG data
 
     Creating minimal BIDS dataset for demonstration...
     ----------------------------------------------------------------------
-    Created temporary BIDS directory: /tmp/bids_example_5u1hbrxz
+    Created temporary BIDS directory: /tmp/bids_example__d8gxeit
     ✓ Created dataset_description.json
     ✓ Created participants.tsv
 
@@ -344,7 +344,7 @@ with synthetic EEG data
       ✓ Created subject sub-02 data
 
     BIDS dataset created successfully!
-    Dataset location: /tmp/bids_example_5u1hbrxz
+    Dataset location: /tmp/bids_example__d8gxeit
 
 
 

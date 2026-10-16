@@ -484,6 +484,13 @@ path swaps <code class="docutils literal notranslate"><span class="pre">Cls</spa
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_clust(algorithm=&quot;kmeanscluster&quot;)</span></code> now calls <code class="docutils literal notranslate"><span class="pre">kmeanscluster()</span></code>.
 It previously used the same Lloyd starts as <code class="docutils literal notranslate"><span class="pre">kmeans</span></code>, so those
 memberships change too.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code> finishes by checking event consistency. A leading boundary
+shorter than one sample is removed, events with an out-of-range epoch
+number are removed, and the remaining events are sorted by epoch, then
+latency. Consecutive entries of the boundary list that share a latency
+(event order, before that sort) chain their durations into the last entry
+of the run. A later boundary at the same latency stays separate when a
+different latency stands between the two entries.</p></li>
 <li><p>ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB’s
 pseudoinverse cutoff <code class="docutils literal notranslate"><span class="pre">max(size)*eps(norm)</span></code>. NumPy’s default cutoff could
 invert a numerical null direction and amplify the signal by about 1e13.</p></li>
