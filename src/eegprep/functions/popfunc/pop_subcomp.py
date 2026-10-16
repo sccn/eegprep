@@ -225,7 +225,8 @@ def _parse_component_token(value: str) -> list[int]:
 
 
 def _flagged_components(EEG: dict) -> list[int]:
-    flags = (EEG.get("reject") or {}).get("gcompreject", [])
+    reject = EEG.get("reject")
+    flags = reject.get("gcompreject", []) if isinstance(reject, dict) else []
     flags = np.asarray(flags, dtype=bool).ravel()
     return [index + 1 for index, flag in enumerate(flags) if flag]
 

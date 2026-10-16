@@ -10,7 +10,12 @@ Loading and Saving
 
 ``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
 half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+formats. A window or a whole recording with fewer samples than channels stays
+channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
+4, rising edges of the lower 16 bits), stores those triggers when
+``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
+``on``. A requested time range reads only the overlapping BDF records.
+``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
 and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
 metadata-only and 1-based channel loading through ``loadmode``.
 ``pop_importpres`` recognizes tab-delimited Presentation headers and also
@@ -19,7 +24,12 @@ accepts EEGLAB's positional event-type, time, and duration field names.
 and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
 the recording header.
 ``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
-RAW files, including event channels and segment categories. ``pop_readsegegi``
+RAW files, including event channels and segment categories. An ``epoc`` event
+with no ``tim0`` event is stored as ``boundary``. When both codes are present,
+every ``epoc`` latency is the last sample of a trial, and the sample count
+divides evenly into one more trial than there are ``epoc`` events, the pauses
+become the trial boundaries and the ``epoc`` events are removed.
+``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.
 ``pop_importegimat`` reads EGI Net Station MATLAB exports. Segment variables

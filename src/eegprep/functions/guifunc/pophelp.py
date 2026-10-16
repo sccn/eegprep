@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import html
-from importlib.abc import Traversable
 from importlib import resources
+from importlib.resources.abc import Traversable
 import re
 from typing import Any
 

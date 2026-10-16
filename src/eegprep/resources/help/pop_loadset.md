@@ -11,7 +11,9 @@ channel_10 = pop_loadset("sample.set", loadmode=10)
 ```
 
 `loadmode="info"` loads the dataset metadata while leaving `EEG["data"]` as
-the stored data filename (or `"in set file"`). An integer or sequence loads
+the stored data filename when that sidecar exists, or `"in set file"` when the
+samples are stored in the `.set`. A numeric array already stored in the `.set`
+is loaded even if `datfile` names a missing `.fdt`. An integer or sequence loads
 only those channels using EEGLAB's 1-based channel numbers and clears the ICA
 fields, which no longer describe the selected channel matrix.
 

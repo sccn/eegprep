@@ -81,7 +81,8 @@ are supported. Voltage data is normalized to microvolts while the original
 unit and resolution remain in each channel's ``bvunit`` and ``bvresolution``
 fields. Use ``metadata=True`` to inspect dimensions, channels, and events
 without loading samples. Uniform marker-based or fixed-time segments are
-returned as trials rather than a flattened continuous array.
+returned as trials rather than a flattened continuous array. BIDS import uses
+this same reader for ``.vhdr`` files.
 
 ``read_erpss`` reads uncompressed and delta-compressed ERPSS ``.RAW`` and
 ``.RDF`` recordings without a compiled MEX extension. It preserves channel

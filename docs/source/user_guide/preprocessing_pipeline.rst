@@ -48,7 +48,16 @@ selection:
    EEG, com = pop_select(EEG, channel=[1, 2, 3, 4, 5], return_com=True)
 
 GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
-EEGLAB-facing one-based values.
+EEGLAB-facing one-based values. ``pop_select`` then checks event consistency:
+a leading boundary whose duration is less than one sample is removed, a leading
+boundary latency in (0, 1) is set to 0.5, events with an epoch number outside
+the dataset are removed, and the remaining events are sorted by epoch, then
+latency. Consecutive entries of the boundary list that share a latency, taken
+in event order before that sort, chain their durations into the last entry of
+the run. A later boundary at the same latency stays separate when a different
+latency stands between the two entries. Boundary latencies 20, 20, 30, and 20
+with durations 4, 1, 8, and 2 sort to latency 20 duration 5, latency 20
+duration 2, and latency 30 duration 8.
 
 Filter
 ======
@@ -71,6 +80,8 @@ GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
 ICA activations, and returns a replayable history command. ``minphase=True``
 converts the FIR to minimum phase with the real cepstrum before causal filtering.
+``usefftfilt=True`` filters each segment by overlap-add, so a missing sample
+stays inside the FFT block that contains it.
 
 Use FIRFilt helpers for custom filter design:
 
@@ -133,19 +144,26 @@ should use the first value or call ``pop_clean_rawdata``.
 Sampling Rates
 ==============
 
-ASR calibration designs its spectral-shaping filter for whatever sampling rate
-the dataset has, so no resampling is required beforehand. Clinical and
-consumer amplifier rates that are not round numbers, such as 258 Hz, work
-directly.
+ASR calibration designs its spectral-shaping filter for the dataset's sampling
+rate, so ordinary clinical rates, including non-integer rates such as 258 Hz,
+need no resampling first. A rate whose default frequency breakpoints are not
+monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
+that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
+leave that recording unchanged.
 
 Riemannian ASR Notes
 ====================
 
-EEGPrep supports the Riemannian ASR calibration variant through
-``clean_asr(EEG, useriemannian="calib")`` and
-``clean_artifacts(EEG, Distance="Riemannian")``. Full Riemannian ASR
-processing is not ported, so direct full-process requests fail clearly instead
-of silently substituting MATLAB-only behavior.
+``clean_asr(EEG, useriemannian=True)`` and
+``clean_artifacts(EEG, Distance="Riemannian")`` run Riemannian ASR.
+Calibration takes the geometric median of block covariances and sets
+component thresholds from the nonlinear eigenspace of the mixing matrix.
+Processing uses one sample covariance per chunk. A later chunk averages that
+covariance with the previous chunk along the affine-invariant geodesic.
+
+``clean_asr(EEG, useriemannian="calib")`` keeps the smaller variant: a
+Riemannian covariance during calibration, then the Euclidean ASR processor.
+Passing an unknown ``useriemannian`` value raises ``ValueError``.
 
 Review Rejected Segments
 ========================
@@ -175,6 +193,7 @@ appropriate:
 
 GUI path: ``Tools > Change sampling rate``. Continuous data with boundary
 events is resampled by segment. Event latencies and the time vector are updated.
+A missing sample stays missing only where a nonzero anti-aliasing tap touches it.
 
 Re-Reference and Interpolate
 ============================

@@ -5,7 +5,8 @@ import logging
 import numpy as np
 import scipy.signal
 
-from ...functions.miscfunc.misc import finite_matmul, finite_pinv, round_mat
+from ...functions.miscfunc.misc import finite_matmul, round_mat
+from .private.riemann import asr_subspace_reconstruction
 from .private.sigproc import moving_average
 
 logger = logging.getLogger(__name__)
@@ -189,15 +190,8 @@ def asr_process(
 
             if not trivial:
                 try:
-                    # Following reference implementation:
-                    # Get V[:, keep] equivalent by multiplying V by a diagonal selection matrix
-                    keep_mask = keep[np.newaxis, :]  # Make column vector
-                    A = finite_matmul(V.T, M)  # V.T × M
-                    masked_A_T = keep_mask * A.T  # Zero out rows where keep is False
-                    Q = masked_A_T.T  # Back to original orientation
-
-                    Z = finite_pinv(Q)
-                    R = np.real(finite_matmul(finite_matmul(M, Z), V.T))
+                    # asr_process.m:176: R = real(M*pinv(bsxfun(@times,keep',V'*M))*V')
+                    R = asr_subspace_reconstruction(M, V, keep)
                 except np.linalg.LinAlgError:
                     logger.warning(f"Failed to calculate inverse at update point {j}. Using identity matrix.")
                     R = np.eye(C)

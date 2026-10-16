@@ -14,6 +14,8 @@ import numpy as np
 
 SAMPLE_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
 
+DROPPED_NULL_RECONSTRUCTION_GAP = 0.5
+
 
 def matlab_engine_available():
     """Check if MATLAB engine is available for Python.

@@ -426,6 +426,15 @@ def test_pop_subcomp_removes_requested_sample_component(sample_eeg_with_ica):
     assert command == "EEG = pop_subcomp(EEG, [1], 0);"
 
 
+def test_pop_subcomp_empty_component_list_tolerates_an_empty_reject_array(sample_eeg_with_ica):
+    eeg = copy.deepcopy(sample_eeg_with_ica)
+    eeg["reject"] = np.array([])
+
+    out = pop_subcomp(eeg, [], gui=False)
+
+    np.testing.assert_allclose(out["data"], sample_eeg_with_ica["data"])
+
+
 def test_pop_icflag_flags_sample_components_with_iclabel_probabilities(sample_eeg_with_ica):
     eeg = copy.deepcopy(sample_eeg_with_ica)
     classes = np.zeros((eeg["icaweights"].shape[0], 7), dtype=float)
@@ -624,6 +633,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
         )
         loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
         np.testing.assert_array_equal(loaded["data"], source["data"])
+        assert loaded["setname"] == source["setname"]
+        assert len(loaded["event"]) == len(source["event"])
+        assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
         assert np.asarray(loaded["datfile"]).size == 0
 
     saved = pop_saveset(
@@ -639,6 +651,9 @@ def test_pop_saveset_current_suite_onefile_and_twofiles_roundtrip(tmp_path):
     )
     loaded = pop_loadset(saved["filename"], "filepath", saved["filepath"])
     np.testing.assert_array_equal(loaded["data"], source["data"])
+    assert loaded["setname"] == source["setname"]
+    assert len(loaded["event"]) == len(source["event"])
+    assert np.issubdtype(np.asarray(loaded["icachansind"]).dtype, np.integer)
     assert loaded["datfile"] == "twofiles.fdt"
     assert (tmp_path / "twofiles.fdt").exists()
 

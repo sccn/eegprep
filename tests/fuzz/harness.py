@@ -28,9 +28,11 @@ from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_resample import pop_resample
 from eegprep.functions.popfunc.pop_reref import pop_reref
+from eegprep.plugins.clean_rawdata.asr_calibrate import spectral_shaping_filter_available
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fuzz.issues import FUNCTION_ROWS, publish_findings
 from tests.matlab_batch_engine import install
 
@@ -228,12 +230,15 @@ def materialize_eeg(case: FuzzCase) -> dict:
     eeg = _copy_eeg(source)
     sample_index = np.arange(spec.start, spec.start + span, spec.decimate)
     data = np.asarray(source["data"])
-    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64)
+    # The sample file is float32. EEGLAB's default option_single casts a
+    # double recording to single before reref.m multiplies, about 1e-5 µV
+    # from this float64 product. That single product also changes with the
+    # BLAS kernel, so the survey compares float64 and connect_matlab turns
+    # option_single off.
+    cropped = np.array(data[np.ix_(list(spec.channels), sample_index)], dtype=np.float64, copy=True)
     if case.sanity and case.function == "pop_reref":
-        # eeglab_data.set is float32. Average reference on those values differs
-        # by about 1e-4 (see test_parity_data_reref_with_matlab), which is
-        # outside the 1e-6 bar but is not a broken bridge. Sanity uses an
-        # integer signal whose mean is exact in float32 and float64.
+        # Sanity checks the bridge with values whose mean is exact in float32
+        # and float64, rather than with the sample recording.
         cropped = _exact_reref_signal(cropped.shape)
     if spec.nan_channel >= 0 and spec.nan_length > 0:
         stop = spec.nan_start + spec.nan_length
@@ -274,6 +279,8 @@ _FIT_MIN_WIDTH = 0.25 * _FIT_MAX_WIDTH
 _FIT_WIDTH_STEP = 0.01
 _CLEAN_WINDOW_OVERLAP = 0.66
 _ASR_REF_WNDLEN = 1.0
+# asr_calibrate's RMS window. clean_asr does not forward its processing window_len.
+_ASR_CALIB_WINDOW = 0.5
 
 
 def _matlab_colon(start: float, step: float, stop: float) -> np.ndarray:
@@ -311,6 +318,28 @@ def _fit_eeg_distribution_throws(n_windows: int) -> bool:
     return any(int(round_mat(n_windows * width)) < 2 for width in widths)
 
 
+def _asr_rms_window_count(n_samples: int, srate: float) -> int:
+    """Windows in asr_calibrate.m's ``1:N*(1-overlap):S-N`` RMS colon."""
+    width = float(round_mat(_ASR_CALIB_WINDOW * srate))
+    step = width * (1.0 - _CLEAN_WINDOW_OVERLAP)
+    stop = n_samples - width
+    if width <= 0.0 or step <= 0.0 or stop < 1.0:
+        return 0
+    return int(_matlab_colon(1.0, step, stop).size)
+
+
+def _fit_width_reaches_zero(n_windows: int) -> bool:
+    """True when asr_calibrate.m's nested fit indexes ``X(m,:)`` with m = 0.
+
+    One window is rejected earlier with a different error. Two or three windows
+    include a rounded width of 0; four or more stay at 1 or above.
+    """
+    if n_windows < 2:
+        return False
+    widths = _matlab_colon(_FIT_MAX_WIDTH, -_FIT_WIDTH_STEP, _FIT_MIN_WIDTH)
+    return any(int(round_mat(n_windows * width)) == 0 for width in widths)
+
+
 def compare_data(
     python_data: np.ndarray,
     oracle_data: np.ndarray,
@@ -342,13 +371,37 @@ def compare_data(
     return _srate_or_match(python_srate, oracle_srate, max_abs, max_rel)
 
 
+def _same_failure(python: SideResult, oracle: SideResult) -> bool:
+    if python.error_type == oracle.error_type:
+        return True
+    message = (python.error_message or "").strip()
+    oracle_message = (oracle.error_message or "").strip()
+    if message and message == oracle_message:
+        return True
+    # asr_calibrate.m uses one "No enough reference data" error both when the
+    # calibration is shorter than one RMS window and when fewer than two
+    # windows can be formed. EEGPrep names which of those happened.
+    return "No enough reference data" in oracle_message and (
+        "Fewer than 2 calibration windows" in message or "Not enough calibration data" in message
+    )
+
+
+def _oracle_filter_unavailable(oracle: SideResult) -> bool:
+    # asr_calibrate.m reports this for every yulewalk failure, including a
+    # missing Signal Processing Toolbox and a rejected breakpoint grid.
+    if oracle.ok:
+        return False
+    return "yulewalk() function was not found" in (oracle.error_message or "")
+
+
 def judge(python: SideResult, oracle: SideResult, tolerance: Tolerance, case: FuzzCase, digest: str) -> Outcome:
+    if _oracle_filter_unavailable(oracle):
+        return _outcome(case, False, False, "oracle-infrastructure", 0.0, 0.0, oracle.error_message or "", digest)
     if not python.ok and not oracle.ok:
-        same = python.error_type == oracle.error_type
         detail = (
             f"python {python.error_type}: {python.error_message}; oracle {oracle.error_type}: {oracle.error_message}"
         )
-        if same:
+        if _same_failure(python, oracle):
             return _outcome(case, False, False, "both-error", 0.0, 0.0, detail, digest)
         error_class = f"exception-mismatch:{python.error_type}/{oracle.error_type}"
         return _outcome(case, True, False, error_class, 0.0, 0.0, detail, digest)
@@ -379,6 +432,7 @@ class MatlabBackend:
 
     def __init__(self):
         self._engine = None
+        self._options = None
 
     def run(self, case: FuzzCase, eeg: dict) -> SideResult:
         try:
@@ -388,8 +442,15 @@ class MatlabBackend:
 
     def engine(self):
         if self._engine is None:
-            self._engine = connect_matlab()
+            self._engine, self._options = connect_matlab()
         return self._engine
+
+    def close(self):
+        if self._engine is None or self._options is None:
+            return
+        snapshot = self._options
+        self._options = None
+        resume_eeg_options(self._engine.engine, snapshot)
 
 
 class FakeOracle:
@@ -424,7 +485,28 @@ def connect_matlab():
         )
     install(batch)
     os.environ.setdefault("EEGPREP_EEGLAB_ROOT", str(REPO_ROOT / "src" / "eegprep" / "eeglab"))
-    return get_eeglab()
+    engine = get_eeglab()
+    # eeg_checkset applies option_single on pop_loadset, before the called
+    # function runs. Leave the recording in double for the session, then
+    # MatlabBackend.close writes the original options file back.
+    return engine, suspend_option_single(engine.engine)
+
+
+def suspend_option_single(engine):
+    """Turn ``option_single`` off and return the options-file snapshot."""
+    snapshot = eeg_options_snapshot(engine)
+    try:
+        engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    except Exception:
+        restore_eeg_options(*snapshot)
+        raise
+    return snapshot
+
+
+def resume_eeg_options(engine, snapshot):
+    """Write the snapshotted options file back and drop MATLAB's cached script."""
+    restore_eeg_options(*snapshot)
+    engine.eval("clear functions", nargout=0)
 
 
 def default_strategies() -> dict:
@@ -779,6 +861,42 @@ def _asr_short_calibration_is_oracle_defect(
     return not fallback_gap
 
 
+def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult) -> bool:
+    """EEGLAB's calibration RMS fit indexes a zero window width and errors."""
+    if case.function != "clean_asr" or not python.ok or oracle.ok:
+        return False
+    if "Index in position 1 is invalid" not in (oracle.error_message or ""):
+        return False
+    params = thaw_params(case.params)
+    if params["ref_maxbadchannels"] != "off":
+        return False
+    return _fit_width_reaches_zero(_asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"])))
+
+
+def _low_rate_spectral_filter_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """The default ASR breakpoints are not monotonic, so calibration is skipped.
+
+    ``clean_artifacts`` returns the recording unchanged. A direct ``clean_asr``
+    error stays with ``judge``, which already ignores EEGLAB's missing-yulewalk
+    report. A Python error here is still a divergence.
+    """
+    if case.function != "clean_asr" or not python.ok or python.data is None:
+        return False
+    if spectral_shaping_filter_available(float(eeg["srate"])):
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    if not np.array_equal(np.asarray(python.data, dtype=np.float64), original):
+        return False
+    if not oracle.ok:
+        return "yulewalk() function was not found" in (oracle.error_message or "")
+    if oracle.data is None:
+        return False
+    gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
+    return not gap
+
+
 def _explicit_reref(data: np.ndarray, ref: list[int], exclude: list[int], keepref: str, *, matrix: bool) -> np.ndarray:
     excluded = set(exclude)
     chansin = [index for index in range(data.shape[0]) if index not in excluded]
@@ -824,6 +942,14 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # clean_windows.m fits one RMS value per window. With only a few windows,
         # fit_eeg_distribution.m:126 throws, and clean_asr.m calibrates on every
         # sample. EEGPrep's fit succeeds, so it still drops the bad window.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _asr_zero_width_index_is_known(case, eeg, python, oracle):
+        # asr_calibrate.m's own RMS fit, with reference selection off, indexes
+        # X(m,:) at m = 0 for two or three windows. EEGPrep still calibrates.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
+        # Below the rate where the default breakpoints stay monotonic,
+        # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     return judge(python, oracle, tolerance, case, digest)
 

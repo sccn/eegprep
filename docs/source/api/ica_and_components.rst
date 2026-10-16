@@ -39,6 +39,8 @@ return zero-based component and sample indices.
    eegprep.posact
    eegprep.promax
    eegprep.robust_kmeans
+   eegprep.spher
+   eegprep.runamica
    eegprep.runica
    eegprep.runica_ml2
    eegprep.runica_mlb

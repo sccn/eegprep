@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import pytest
+import scipy.io
 
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
@@ -12,6 +13,40 @@ def test_pop_loadset_marks_loaded_dataset_justloaded():
     eeg = pop_loadset("sample_data/eeglab_data.set")
 
     assert eeg["saved"] == "justloaded"
+
+
+def test_pop_loadset_keeps_embedded_data_when_datfile_sidecar_is_missing(tmp_path):
+    data = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    set_file = tmp_path / "embedded.set"
+    scipy.io.savemat(
+        set_file,
+        {
+            "setname": "embedded",
+            "filename": set_file.name,
+            "filepath": str(tmp_path),
+            "nbchan": 2.0,
+            "pnts": 3.0,
+            "trials": 1.0,
+            "srate": 100.0,
+            "xmin": 0.0,
+            "xmax": 0.02,
+            "data": data,
+            "datfile": "stale.fdt",
+        },
+        appendmat=False,
+    )
+
+    loaded = pop_loadset(set_file)
+    info = pop_loadset(set_file, loadmode="info")
+
+    np.testing.assert_array_equal(loaded["data"], data)
+    np.testing.assert_array_equal(info["data"], data)
+    assert loaded["nbchan"] == 2
+    assert loaded["pnts"] == 3
+
+    np.zeros(data.size, dtype=np.float32).tofile(tmp_path / "stale.fdt")
+    reloaded = pop_loadset(set_file)
+    np.testing.assert_array_equal(reloaded["data"], data)
 
 
 def test_pop_loadset_normalizes_nonempty_icachansind_to_zero_based_integers():

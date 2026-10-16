@@ -39,13 +39,43 @@ def _temp_dir() -> str:
     return temp_dir
 
 
+def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
+    """Save ``varname.data`` as double before EEGLAB writes the dataset.
+
+    ``pop_saveset`` stores numeric EEG data as single. The in-memory result is
+    still double when the MATLAB function computed in double, and that is the
+    array the comparison should see.
+    """
+    engine.eval(
+        (
+            f"if isstruct({varname}) && isfield({varname}, 'data') && isnumeric({varname}.data), "
+            f"eegprep_roundtrip_data = double({varname}.data); "
+            f"save('{path}', 'eegprep_roundtrip_data', '-v7'); "
+            "clear eegprep_roundtrip_data; "
+            "end"
+        ),
+        nargout=0,
+    )
+
+
+def _restore_double_eeg_data(eeg, path: str) -> None:
+    """Replace loaded single data with the double copy saved beside it."""
+    if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
+        return
+    stashed = np.asarray(scipy.io.loadmat(path)["eegprep_roundtrip_data"])
+    current = np.asarray(eeg["data"])
+    if stashed.size != current.size:
+        return
+    eeg["data"] = np.reshape(stashed, current.shape, order="F")
+
+
 def _prepare_matlab_arg(arg: Any) -> Any:
     """Return one Python value in the shape expected by MATLAB ``savemat``."""
     if isinstance(arg, (list, tuple)) and len(arg) == 0:
         return np.array([], dtype=np.float64)
     if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
         return np.array(arg, dtype=object).reshape(1, -1)
-    if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
         return np.array(arg, dtype=np.float64)
     if isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
         return np.array(arg, dtype=np.float64)
@@ -54,6 +84,28 @@ def _prepare_matlab_arg(arg: Any) -> Any:
     if isinstance(arg, str):
         return arg
     return py2mat(arg)
+
+
+def _matching_dir(parent: str | Path, *names: str) -> str | None:
+    """Return the first existing directory ``parent/name``."""
+    root = Path(parent)
+    for name in names:
+        candidate = root / name
+        if candidate.is_dir():
+            return str(candidate)
+    return None
+
+
+def _picard_plugin_paths(eeglab_root: str) -> list[str]:
+    """Return the installed Picard plugin directory and its ``matlab_octave`` sources."""
+    plugin = _matching_dir(Path(eeglab_root) / "plugins", "PICARD", "picard")
+    if plugin is None:
+        return []
+    paths = [plugin]
+    sources = _matching_dir(plugin, "matlab_octave")
+    if sources is not None:
+        paths.append(sources)
+    return paths
 
 
 def _resolve_eeglab_root() -> Path:
@@ -175,6 +227,7 @@ class MatlabWrapper:
                     temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
+                double_data_filename = temp_filename1 + '.double.mat'
                 logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
@@ -210,8 +263,10 @@ class MatlabWrapper:
                     and int(nargout) > 1
                     and name not in numeric_output_functions
                 ):
+                    _stash_double_eeg_data(self.engine, "OUT1", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT1, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     extra_names = ",".join(f"'OUT{i}'" for i in range(2, int(nargout) + 1))
                     self.engine.eval(f"save('-mat', '{result_extra_filename}', {extra_names});", nargout=0)
                     extra_data = scipy.io.loadmat(result_extra_filename, squeeze_me=True)
@@ -219,8 +274,10 @@ class MatlabWrapper:
                     return (OUT, *extras)
                 elif (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
+                    _stash_double_eeg_data(self.engine, "OUT", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     return OUT
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
@@ -258,6 +315,8 @@ class MatlabWrapper:
                         os.remove(result_filename.replace('result.set', 'result.fdt'))
                     if os.path.exists(result_extra_filename):
                         os.remove(result_extra_filename)
+                    if os.path.exists(double_data_filename):
+                        os.remove(double_data_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
 
@@ -327,9 +386,21 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/dipfit')
         engine.addpath(path2eeglab + '/plugins/ICLabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
-        engine.addpath(path2eeglab + '/plugins/picard')
-        engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
+        for plugin_path in _picard_plugin_paths(path2eeglab):
+            engine.addpath(plugin_path)
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        # eegplugin_clean_rawdata adds these so rasr_nonlinear_eigenspace can call Manopt.
+        manopt_root = path2eeglab + '/plugins/clean_rawdata/manopt'
+        for relative in (
+            '',
+            '/manopt/manifolds/grassmann',
+            '/manopt/tools',
+            '/manopt/core',
+            '/manopt/solvers/trustregions',
+        ):
+            manopt_path = manopt_root + relative
+            if os.path.isdir(manopt_path):
+                engine.addpath(manopt_path, nargout=0)
         amica_path = path2eeglab + '/plugins/amica'
         if os.path.isdir(amica_path):
             engine.addpath(amica_path, nargout=0)

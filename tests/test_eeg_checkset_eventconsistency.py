@@ -3,6 +3,7 @@
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, _eventconsistency
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 
 
 class TestEventconsistencyOperations:
@@ -88,6 +89,91 @@ class TestEventconsistencyOperations:
         }
         result = _eventconsistency(EEG)
         assert result['event'][0]['type'] == 'stim'
+
+    def test_leading_boundary_duration_zero_and_open_unit_latency(self):
+        removed = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'Boundary', 'latency': 0.5, 'duration': 0},
+                    {'type': 'stim', 'latency': 10, 'duration': 1},
+                ],
+                'pnts': 100,
+                'trials': 1,
+            }
+        )
+        assert [(event['type'], event['latency']) for event in removed['event']] == [('stim', 10)]
+
+        clamped = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 0.25, 'duration': 2},
+                    {'type': 'stim', 'latency': 10, 'duration': 0},
+                ],
+                'pnts': 100,
+                'trials': 1,
+            }
+        )
+        assert [(event['type'], event['latency'], event['duration']) for event in clamped['event']] == [
+            ('boundary', 0.5, 2),
+            ('stim', 10, 0),
+        ]
+
+    def test_duplicate_boundary_run_keeps_every_duration(self):
+        EEG = {
+            'event': [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 40, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ],
+            'pnts': 100,
+            'trials': 1,
+            'setname': 'test',
+        }
+        result = _eventconsistency(EEG)
+        assert [(event['type'], event['latency'], event['duration']) for event in result['event']] == [
+            ('stim', 10, 0),
+            ('boundary', 20, 7),
+            ('stim', 40, 0),
+        ]
+
+    def test_final_boundary_at_even_pnts_plus_one_is_removed(self):
+        EEG = {
+            'event': [
+                {'type': 'boundary', 'latency': 4.5, 'duration': 1},
+                {'type': 'boundary', 'latency': 5, 'duration': 3},
+                {'type': 'stim', 'latency': 2, 'duration': 0},
+            ],
+            'pnts': 4,
+            'trials': 1,
+            'setname': 'test',
+        }
+        result = _eventconsistency(EEG)
+        assert [(event['type'], event['latency'], event['duration']) for event in result['event']] == [
+            ('stim', 2, 0),
+            ('boundary', 4.5, 1),
+        ]
+
+    def test_numeric_boundary_follows_option_boundary99(self):
+        EEG = {
+            'event': [
+                {'type': -99, 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 8, 'duration': 0},
+            ],
+            'pnts': 20,
+            'trials': 1,
+        }
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 0
+        try:
+            kept = _eventconsistency({**EEG, 'event': [dict(event) for event in EEG['event']]})
+            assert [event['type'] for event in kept['event']] == [-99, 'stim']
+            EEG_OPTIONS['option_boundary99'] = 1
+            removed = _eventconsistency(EEG)
+            assert [event['type'] for event in removed['event']] == ['stim']
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
 
     def test_eeg_checkset_accepts_eventconsistency_arg(self):
         """Verify eeg_checkset('eventconsistency') calls _eventconsistency."""

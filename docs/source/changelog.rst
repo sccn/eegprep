@@ -43,6 +43,49 @@ Unreleased
 - ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
   including the sortvar trace at the right edge and rounded ERP axis ticks,
   and raises ``ValueError`` when the activity is all NaN.
+- BIDS EDF and BDF files are imported with ``pop_biosig``. The previous
+  neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
+  and ds004279.
+- BIDS TSV and JSON sidecars are decoded as UTF-8, and a leading UTF-8 BOM
+  is removed. A TSV that is not valid UTF-8 is decoded as Latin-1, so the
+  ``0xB5`` unit in ds003620 ``channels.tsv`` stays µ. JSON that is not UTF-8
+  is rejected.
+- Importing a recording or time window with fewer samples than channels no
+  longer raises an orientation error. ``pop_biosig``, ``pop_fileio``,
+  ``pop_read_erpss``, and ``pop_snapread`` pass the channel count they already
+  know into the dataset builder. A one-second BioSemi window stays
+  channel-major. EEGLAB leaves that square matrix sample-major.
+- ``clean_windows``, ``asr_calibrate``, and ``asr_calibrate_r`` place RMS
+  windows with MATLAB's colon operator. A fractional overlap such as 0.66 no
+  longer adds one extra window at the end of some recordings.
+  ``clean_windows`` keeps ``window_len * srate`` unrounded, as
+  ``clean_windows.m`` does: ``0:N-1`` indexes ``floor(N)`` samples and the
+  RMS divisor is that unrounded product. ``asr_calibrate`` still rounds the
+  window length, as ``asr_calibrate.m`` does.
+- ``pop_clust``, ``kmeans_st``, and ``kmeanscluster`` no longer sort clusters
+  by coordinates, and ``kmeans_st`` now follows EEGLAB's UPGMA Hartigan-Wong
+  algorithm. ``Cls`` numbers and memberships can change on existing studies
+  for the same ``random_state``. On the sample epochs STUDY, the ``kmeans``
+  path swaps ``Cls 2`` and ``Cls 3`` relative to develop.
+- ``pop_clust(algorithm="kmeanscluster")`` now calls ``kmeanscluster()``.
+  It previously used the same Lloyd starts as ``kmeans``, so those
+  memberships change too.
+- ``pop_select`` finishes by checking event consistency. A leading boundary
+  shorter than one sample is removed, events with an out-of-range epoch
+  number are removed, and the remaining events are sorted by epoch, then
+  latency. Consecutive entries of the boundary list that share a latency
+  (event order, before that sort) chain their durations into the last entry
+  of the run. A later boundary at the same latency stays separate when a
+  different latency stands between the two entries.
+- The top-level ``eegprep`` package exports the public statistics helpers
+  (``statcond``, ``fdr``, ``statcondfieldtrip``, and the condition-test,
+  surrogate, and concatenation helpers) and the public signal helpers
+  ``numdim``, ``eeg_ms2f``, ``spher``, ``eegplot2event``,
+  ``eegplot2trial``, ``envtopo``, ``erpimage``, ``timtopo``, ``plottopo``,
+  ``spectopo``, ``axcopy``, and ``runamica``.
+- ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
+  pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
+  invert a numerical null direction and amplify the signal by about 1e13.
 
 Version 0.4.0
 =============
@@ -170,8 +213,12 @@ Version 0.4.0
 - Added standalone low-level signal and text helpers ``blockave``, ``eegfilt``,
   ``env``, ``movav``, ``loadeeg``, ``loadtxt``, ``parsetxt``,
   ``readneurodat``, and ``readtxtfile``. Legacy ``eegfilt`` now supports the
-  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
-  and truncated Neuroscan files retain complete sweeps without returning an
+  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB.
+  Zero-phase filtering pads each segment with three times the filter order,
+  matching MATLAB ``filtfilt``. Segments long enough for SciPy's previous
+  default pad, including the continuous EEGLAB sample recording, keep the
+  same samples; the shorter pad is what admits those short epochs.
+  Truncated Neuroscan files retain complete sweeps without returning an
   incomplete zero-filled tail.
 - Regular epoch generation, preceding-event timing, event alignment, BioSig
   event conversion, sphering, RMS summaries, int16 matrix reads, legacy

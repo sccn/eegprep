@@ -1,7 +1,12 @@
 import copy
 
 import numpy as np
-from ._ica_utils import finalize_ica_fields, flatten_ica_data, reshape_ica_activations
+from ._ica_utils import (
+    finalize_ica_fields,
+    flatten_ica_data,
+    reshape_ica_activations,
+    scale_ica_to_rms_microvolt,
+)
 from ..miscfunc.misc import finite_matmul, finite_pinv
 from ..miscfunc.pinv import pinv
 from ..sigprocfunc.runica import runica
@@ -10,6 +15,9 @@ from ..sigprocfunc.runica import runica
 def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     """
     Perform ICA decomposition using runica (infomax) algorithm.
+
+    When ``option_scaleicarms`` is enabled, components are scaled so each
+    mixing column has RMS 1, matching EEGLAB ``eeg_checkset``.
 
     Parameters
     ----------
@@ -49,4 +57,4 @@ def eeg_runica(EEG, posact='off', sortcomps='off', **kwargs):
     EEG['icaact'] = reshape_ica_activations(EEG['icaact'], EEG['pnts'], EEG['trials'])
     EEG['icachansind'] = np.arange(EEG['nbchan'])
 
-    return finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact)
+    return scale_ica_to_rms_microvolt(finalize_ica_fields(EEG, sortcomps=sortcomps, posact=posact))

@@ -36,7 +36,6 @@ dependencies = [
   "h5py>=3.12.1",
   "matplotlib>=3.8.0",
   "mne>=1.10.0",
-  "neo>=0.14.2",
   "numpy>=2.1.0",
   "oct2py>=5.5.0",
   "packaging>=23.0",
@@ -191,6 +190,7 @@ addopts = [
 markers = [
   "slow: tests that are too slow for quick local iteration",
   "matlab: tests that require MATLAB or MATLAB Engine",
+  "matlab_oracle: unittest classes that call MATLAB directly and are deselected on the Python backend",
   "octave: tests that require Octave",
   "gui: tests that exercise GUI behavior",
   "visual: visual parity capture or comparison tests",

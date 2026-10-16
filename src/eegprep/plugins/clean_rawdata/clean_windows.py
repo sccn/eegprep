@@ -14,6 +14,7 @@ from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
+from .private.windows import matlab_colon, matlab_window_offsets
 
 logger = logging.getLogger(__name__)
 
@@ -126,20 +127,22 @@ def clean_windows(
 
     shape_range = np.asarray(shape_range)
 
-    N = int(round_mat(window_len * Fs))  # samples per window
-    if N <= 0:
+    # clean_windows.m keeps N = window_len*srate. 0:N-1 is an integer index of
+    # length floor(N); the unrounded product is the colon step, the stop, and
+    # the RMS divisor.
+    N = float(window_len) * float(Fs)
+    wnd = matlab_colon(0.0, 1.0, N - 1.0)
+    if wnd.size == 0:
         raise ValueError('Window length too small - results in N <= 0.')
+    wnd = wnd.astype(int)
 
-    # MATLAB: offsets = round(1:N*(1-window_overlap):S-N)
     step = N * (1.0 - window_overlap)
     if step <= 0:
         # Avoid infinite loop when overlap >= 1
         step = 1.0
-    offsets = round_mat(np.arange(1, S - N + 1, step)).astype(int) - 1
+    offsets = matlab_window_offsets(S, N, step)
     if len(offsets) == 0:
         raise ValueError('Not enough data for even a single window.')
-
-    wnd = np.arange(N, dtype=int)
     W = len(offsets)
 
     logger.info('Determining time window rejection thresholds...')
@@ -182,7 +185,7 @@ def clean_windows(
     sample_mask = np.ones(S, dtype=bool)
     for w in removed_windows:
         start = offsets[w]
-        sample_mask[start : start + N] = False
+        sample_mask[start : start + wnd.size] = False
 
     kept_pct = 100.0 * np.mean(sample_mask)
     kept_seconds = np.count_nonzero(sample_mask) / Fs

@@ -13,7 +13,7 @@ from copy import deepcopy
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 
 
-def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype='float32'):
+def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dtype=None):
     """Interpolate missing or bad EEG channels using spherical spline.
 
     interpolation.
@@ -36,9 +36,10 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     params : tuple, optional
         Method-specific parameters
     dtype : str or dtype, optional
-        Precision for the interpolation computation. Use ``"float32"`` to
-        match MATLAB-oriented workflows with lower memory use, or
-        ``"float64"`` for full precision.
+        Precision for the spherical-spline computation. The default follows
+        the floating-point dtype of ``EEG['data']``, and uses ``float64`` when
+        the data are not floating point. Pass ``"float32"`` for the
+        lower-memory path.
 
     Returns
     -------
@@ -46,6 +47,9 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         Updated EEG structure with interpolated channels
     """
     EEG = deepcopy(EEG)
+    if dtype is None:
+        data_dtype = np.asarray(EEG['data']).dtype
+        dtype = data_dtype if np.issubdtype(data_dtype, np.floating) else np.dtype('float64')
     # set defaults
     method = _normalise_method(method)
     if method not in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast', 'invdist', 'v4', 'spacetime'):

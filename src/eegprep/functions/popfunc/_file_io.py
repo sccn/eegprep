@@ -249,6 +249,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
         data,
         srate=float(raw.info["sfreq"]),
         setname=setname,
+        nbchan=len(raw.ch_names),
         chanlocs=[{"labels": name, "type": "EEG"} for name in raw.ch_names],
         filename=Path(filename).name if filename else "",
         filepath=str(Path(filename).parent) if filename else "",

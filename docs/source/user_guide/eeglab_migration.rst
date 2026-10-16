@@ -133,17 +133,132 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 
    * - Topic
      - What EEGPrep does
+   * - BIDS TSV bytes
+     - TSV sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed.
+       A file that is not valid UTF-8 is decoded as Latin-1, so ``0xB5`` stays
+       µ and ``0x80`` stays U+0080. On MATLAB R2025b with
+       ``DefaultCharacterSet`` UTF-8, EEGLAB ``loadtxt`` maps both bytes to
+       U+FFFD and leaves the BOM as U+FEFF on the first header. A Windows-1252
+       MATLAB session maps ``0x80`` to the euro sign.
+   * - BIDS JSON bytes
+     - JSON sidecars must be UTF-8. A leading UTF-8 BOM is removed and the
+       file is accepted. Bytes that are not UTF-8 raise
+       ``UnicodeDecodeError``. EEGLAB ``bids_loadfile`` reads a Latin-1 JSON
+       file and replaces the undecodable byte, so the bytes for ``café``
+       become ``caf`` followed by U+FFFD. The same reader errors when the
+       file starts with a UTF-8 BOM.
+   * - STUDY ``pop_clust`` algorithm ``kmeans``
+     - EEGLAB calls ``kmeans(data, k, 'replicates', 10, 'emptyaction', 'drop')``.
+       Cluster numbers follow MATLAB's random stream and are not reproduced.
+       EEGPrep uses a seeded NumPy initialization and Lloyd updates.
+   * - STUDY clustering dialog
+     - EEGLAB's dialog calls ``kmeans_st(real(clustdata), clus_num, 150)``
+       with random restarts. The command-line path calls ``kmeanscluster()``.
+       EEGPrep's dialog uses the ``kmeanscluster`` route.
    * - ASR calibration on a short recording
      - ``clean_asr`` still removes high-power calibration windows when
        ``fit_eeg_distribution`` does not return a positive scale. The scale is
        then the median and MAD of each channel's window RMS. EEGLAB's fit
        errors once only a few windows are available, and ``clean_asr`` then
        calibrates on every sample.
+   * - ASR on a very short recording
+     - With calibration reference selection off, ``clean_asr`` still returns
+       cleaned data when only two or three RMS windows are available.
+       EEGLAB's calibration fit indexes a zero window width and errors.
+   * - One ASR calibration window
+     - ``clean_asr`` raises ``ValueError`` when fewer than two calibration
+       RMS windows are available, and when the calibration is shorter than
+       one window. The error names the window count, the sample count, and
+       the window length. EEGLAB raises an error that asks for different
+       ``BurstCriterionRefTolerances``. Neither call returns cleaned data.
+   * - ASR at a low sampling rate
+     - ``clean_asr`` raises an error naming the sampling rate when the default
+       spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and
+       leaves the recording unchanged. EEGLAB's ``clean_asr`` reports that
+       ``yulewalk`` was not found, and ``clean_artifacts`` prints that message
+       and returns the recording.
    * - NaNs during re-referencing
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time.
+   * - BDF ``bdfeventmode``
+     - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
+       ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
+       so the brackets are ignored and EEGLAB always decodes mode 4.
+   * - BDF ``blockrange`` event types
+     - ``pop_biosig`` keeps each trigger code on the latency of its own edge
+       when ``blockrange`` starts after an earlier event.
+       ``biosig2eeglabevent`` writes the latency on ``event(count)`` and the
+       type on ``event(index)``. After events before the window are skipped,
+       ``count`` and ``index`` diverge, so a kept event receives another
+       event's type or an empty type that EEGLAB returns as NaN. The
+       latencies match.
+   * - BDF window shorter than the channel count
+     - ``pop_biosig`` keeps a short window channel-major. One second of
+       ``jo1_3.bdf`` is 256 channels by 256 samples after ``Status`` is
+       removed, at 256 Hz, from sample ``start * srate`` inclusive through
+       ``stop * srate`` exclusive. ``biosig2eeglab.m`` lines 72-74 transpose
+       ``sread`` output only when ``abs(dat.NS - size(DAT,1)) > 1``. ``sopen``
+       has already removed ``Status``, so that window is 256 by 256 while
+       ``NS`` is still 257. EEGLAB leaves the matrix sample-major: the
+       returned data is the transpose, and ``nbchan``, ``pnts``, the rate,
+       ``xmin``, ``xmax``, and the channel labels still match. The ``[3, 4]``
+       window keeps trigger 34 at sample 96. The ``[0, 1]`` window has no
+       events.
+   * - BDF trigger codes
+     - ``pop_biosig`` stores the integer Status code, including codes above
+       255. With no ``blockrange``, EEGLAB's ``importannot`` (default on)
+       maps codes above 255 through BioSig ``eventcodes.txt``, so ``0x105``
+       becomes ``artifact:Failing Electrode``. ``eeg_checkset`` then stores
+       every event type as a string.
+   * - BioSemi Status channel
+     - ``pop_biosig`` removes ``Status`` only when ``rmeventchan`` is
+       ``on``. ``rmeventchan="off"`` keeps the channel both when triggers are
+       imported and when ``importevent="off"``. ``importevent="off"`` leaves
+       the events already stored by the file reader. EEGLAB's ``sopen``
+       deletes the Status column from ``ReRefMx`` (``sopen.m`` lines
+       1037-1038) for every BDF file before the samples are read, so the
+       returned data never contains ``Status``.
+   * - BDF event modes 3 and 5
+     - ``pop_biosig`` keeps each trigger code on the rising or falling edge
+       that produced it. ``bdf2biosig_events.m`` lines 88-89 and 104-105 build
+       ``POS`` in time order and ``TYP`` as all rises followed by all falls,
+       so those two arrays no longer correspond.
+   * - EGI ``epoc`` pauses
+     - ``pop_readegi`` renames every ``epoc`` event to ``boundary`` when no
+       ``tim0`` event is present. EEGLAB's ``for index = indepoc`` walks a
+       column vector once. A single pause is renamed. Two or more pauses make
+       ``EEG.event(index).type`` fail, the surrounding ``try`` discards the
+       error, and every pause stays ``epoc``.
+   * - EGI ``epoc`` with ``tim0``
+     - ``pop_readegi`` reshapes a continuous recording when both codes are
+       present, the sample count divides evenly by the number of ``epoc``
+       events plus one, and the ``epoc`` latencies are exactly ``k * pnts``
+       for ``k = 1 .. n``. That latency is the last sample of epoch ``k``.
+       The ``epoc`` events are then removed; the pauses become the trial
+       boundaries, and the other events stay. If the pauses are spaced
+       differently, or the length does not divide, the recording stays
+       continuous and every event stays. EEGLAB deletes ``EEG.event(1)``
+       with the channel-loop index and sets ``trials`` to that epoch count.
+       ``eeg_checkset`` then sees two-dimensional data and sets ``trials``
+       back to 1, so the samples stay continuous and only the first event
+       is removed. When the length does not divide evenly, EEGLAB leaves
+       the events in place.
+   * - Epoched event sort
+     - ``eeg_checkset(..., 'eventconsistency')`` sorts by epoch, then by
+       latency. EEGLAB asks ``pop_editeventvals`` to sort on epoch and then
+       latency, but that function takes the epoch order from the unsorted
+       events and applies it to the latency-sorted list. Events A (epoch 2,
+       latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
+       and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
+       out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - Numeric boundary types
+     - Consecutive equal-latency boundaries are merged whether ``type`` is
+       the string ``boundary`` or the number ``-99`` with
+       ``option_boundary99`` on. EEGLAB skips that merge when the first
+       event type is numeric, so two ``-99`` boundaries with durations 1
+       and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
 
 Plugin Migration
 ================

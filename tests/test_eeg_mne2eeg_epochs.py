@@ -167,6 +167,54 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"eeg_mne2eeg_epochs channel locations not available: {e}")
 
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_mne2eeg_epochs_keeps_in_window_events_and_subject(self):
+        """Time-locking events sit at time 0; events outside the window are dropped."""
+        sfreq = 100.0
+        n_times = 71
+        tmin = -0.2
+        n_channels = 4
+        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
+        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
+        data = np.random.default_rng(0).normal(size=(2, n_channels, n_times))
+        events = np.array([[0, 0, 1], [200, 0, 1]])
+        epochs = mne.EpochsArray(data, info, events, tmin=tmin, event_id={'target': 1}, verbose=False)
+        epochs.set_annotations(
+            mne.Annotations(
+                onset=[-0.05, 0.15, -0.5, 1.0, 2.8],
+                duration=[0, 0, 0, 0, 0],
+                description=['cue', 'response', 'early', 'between', 'after'],
+            )
+        )
+        epochs.info['subject_info'] = {'his_id': 'sub-01'}
+        ica = ICA(n_components=2, random_state=0, max_iter=5)
+        ica.fit(epochs, verbose=False)
+
+        result = eeg_mne2eeg_epochs(epochs, ica)
+
+        self.assertEqual(result['subject'], 'sub-01')
+        got = [(str(event['type']), event['latency'], int(event['epoch'])) for event in result['event']]
+        # Epoch samples: time 0 is sample 21; -50 ms is 16; 150 ms is 36; epoch 2 adds 71.
+        self.assertEqual(
+            got,
+            [
+                ('cue', 16.0, 1),
+                ('target', 21.0, 1),
+                ('response', 36.0, 1),
+                ('target', 92.0, 2),
+            ],
+        )
+        self.assertNotIn('early', [row[0] for row in got])
+        self.assertNotIn('between', [row[0] for row in got])
+        self.assertNotIn('after', [row[0] for row in got])
+        self.assertEqual(len(result['epoch']), 2)
+        self.assertEqual([str(value) for value in result['epoch'][0]['eventtype']], ['cue', 'target', 'response'])
+        self.assertEqual([float(value) for value in result['epoch'][0]['eventlatency']], [-50.0, 0.0, 150.0])
+        self.assertEqual([str(value) for value in result['epoch'][1]['eventtype']], ['target'])
+        self.assertEqual([float(value) for value in result['epoch'][1]['eventlatency']], [0.0])
+        self.assertEqual([int(value) for value in result['epoch'][0]['event']], [0, 1, 2])
+        self.assertEqual([int(value) for value in result['epoch'][1]['event']], [3])
+
 
 if __name__ == '__main__':
     unittest.main()

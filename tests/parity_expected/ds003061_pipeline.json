@@ -1,0 +1,436 @@
+{
+  "description": "Per-platform ceilings for the chained ds003061 run-1 pipeline. A platform key is '{system}_{machine}_{matlab release}', for example linux_x86_64_R2024b. Record one with pytest --eeglab-backend=matlab --run-heavy-reference --record-parity-summary.",
+  "platforms": {
+    "linux_x86_64_R2025b": {
+      "sub-001": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.1263878718636988e-11,
+          "rms": 1.0078473256877198e-12,
+          "channels_removed": 7,
+          "boundaries": 32,
+          "pnts": 187971
+        },
+        "picard": {
+          "amari": 2.651144894260046e-09,
+          "corr_min": 0.9999999999999993,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 5.065276303639621e-05,
+          "rms": 1.2786590423915232e-06,
+          "rejected": 2
+        },
+        "interp": {
+          "max_abs": 5.065276303639621e-05,
+          "rms": 1.2335340920759138e-06
+        },
+        "epoch": {
+          "max_abs": 5.106741507177048e-05,
+          "rms": 1.2285351904118119e-06,
+          "trials": 582
+        },
+        "epoch_failed": false
+      },
+      "sub-002": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.4659384817150567e-11,
+          "rms": 1.4562758253300551e-12,
+          "channels_removed": 31,
+          "boundaries": 72,
+          "pnts": 149647
+        },
+        "picard": {
+          "amari": 1.8520016496812318e-10,
+          "corr_min": 0.9999999999999996,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 3.591282347770175e-05,
+          "rms": 1.121576734930493e-06,
+          "rejected": 0
+        },
+        "interp": {
+          "max_abs": 3.591282347770175e-05,
+          "rms": 9.474971063182696e-07
+        },
+        "epoch": {
+          "max_abs": 3.668420819735729e-05,
+          "rms": 9.213859687160879e-07,
+          "trials": 406
+        },
+        "epoch_failed": false
+      },
+      "sub-003": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.3717027513848734e-11,
+          "rms": 1.0050335761666814e-12,
+          "channels_removed": 9,
+          "boundaries": 26,
+          "pnts": 185619
+        },
+        "picard": {
+          "amari": 1.3799087706832904e-08,
+          "corr_min": 0.9999999999999993,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 3.969788890856307e-05,
+          "rms": 1.2944860390122275e-06,
+          "rejected": 2
+        },
+        "interp": {
+          "max_abs": 3.969788890856307e-05,
+          "rms": 1.2311343424222294e-06
+        },
+        "epoch": {
+          "max_abs": 3.4310066851617194e-05,
+          "rms": 1.2279857236824514e-06,
+          "trials": 588
+        },
+        "epoch_failed": false
+      },
+      "sub-004": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.2024159445900295e-11,
+          "rms": 1.0674581824225313e-12,
+          "channels_removed": 8,
+          "boundaries": 61,
+          "pnts": 169692
+        },
+        "picard": {
+          "amari": 1.3938082434248956e-10,
+          "corr_min": 0.9999999999999993,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 3.9086772574137285e-05,
+          "rms": 9.437448024210701e-07,
+          "rejected": 0
+        },
+        "interp": {
+          "max_abs": 3.9086772574137285e-05,
+          "rms": 9.059894654929927e-07
+        },
+        "epoch": {
+          "max_abs": 3.838551243973143e-05,
+          "rms": 8.805630383156164e-07,
+          "trials": 483
+        },
+        "epoch_failed": false
+      },
+      "sub-005": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.3439915846902295e-11,
+          "rms": 1.1233386909462463e-12,
+          "channels_removed": 14,
+          "boundaries": 5,
+          "pnts": 191669
+        },
+        "picard": {
+          "amari": 2.414524765534054e-05,
+          "corr_min": 0.9999999998254391,
+          "corr_mean": 0.99999999998207
+        },
+        "subcomp": {
+          "max_abs": 5.1691211510274115e-05,
+          "rms": 4.056117992435206e-06,
+          "rejected": 3
+        },
+        "interp": {
+          "max_abs": 5.1691211510274115e-05,
+          "rms": 3.937833098744015e-06
+        },
+        "epoch": {
+          "max_abs": 5.538037895963521e-05,
+          "rms": 4.069460453292194e-06,
+          "trials": 622
+        },
+        "epoch_failed": false
+      },
+      "sub-006": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.9480861368492697e-11,
+          "rms": 1.0774015042071166e-12,
+          "channels_removed": 12,
+          "boundaries": 46,
+          "pnts": 195543
+        },
+        "picard": {
+          "amari": 2.710739853322836e-05,
+          "corr_min": 0.9999999997921915,
+          "corr_mean": 0.9999999999706299
+        },
+        "subcomp": {
+          "max_abs": 0.00030347343519065983,
+          "rms": 2.4049720394358007e-05,
+          "rejected": 2
+        },
+        "interp": {
+          "max_abs": 0.00030347343519065983,
+          "rms": 2.4157241224376878e-05
+        },
+        "epoch": {
+          "max_abs": 0.0003743076679461055,
+          "rms": 2.4466701421741777e-05,
+          "trials": 584
+        },
+        "epoch_failed": false
+      },
+      "sub-007": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 2.4451551894344448e-11,
+          "rms": 1.9529778690035912e-12,
+          "channels_removed": 10,
+          "boundaries": 114,
+          "pnts": 121668
+        },
+        "picard": {
+          "amari": 6.183300784970116e-12,
+          "corr_min": 0.9999999999999991,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 3.854690785232151e-05,
+          "rms": 1.600601800929981e-06,
+          "rejected": 0
+        },
+        "interp": {
+          "max_abs": 3.854690785232151e-05,
+          "rms": 1.5222673487537212e-06
+        },
+        "epoch": {
+          "max_abs": 3.2881418320585e-05,
+          "rms": 1.4931721369485417e-06,
+          "trials": 279
+        },
+        "epoch_failed": false
+      },
+      "sub-008": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.3921308550379763e-11,
+          "rms": 1.0803460443458672e-12,
+          "channels_removed": 5,
+          "boundaries": 30,
+          "pnts": 182255
+        },
+        "picard": {
+          "amari": 0.0001569158176088445,
+          "corr_min": 0.9999999828339836,
+          "corr_mean": 0.999999999046017
+        },
+        "subcomp": {
+          "max_abs": 0.0006397841179102137,
+          "rms": 3.378642496112641e-05,
+          "rejected": 2
+        },
+        "interp": {
+          "max_abs": 0.0006397841179102137,
+          "rms": 3.508342929476818e-05
+        },
+        "epoch": {
+          "max_abs": 0.00037042050350688527,
+          "rms": 3.075139876328577e-05,
+          "trials": 547
+        },
+        "epoch_failed": false
+      },
+      "sub-009": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 2.2537749444495603e-11,
+          "rms": 1.6064278080993008e-12,
+          "channels_removed": 7,
+          "boundaries": 129,
+          "pnts": 154286
+        },
+        "picard": {
+          "amari": 3.9663268381174706e-10,
+          "corr_min": 0.9999999999999991,
+          "corr_mean": 0.9999999999999999
+        },
+        "subcomp": {
+          "max_abs": 2.816193031662806e-05,
+          "rms": 1.1401423234172052e-06,
+          "rejected": 2
+        },
+        "interp": {
+          "max_abs": 2.816193031662806e-05,
+          "rms": 1.0992567961546095e-06
+        },
+        "epoch": {
+          "max_abs": 2.6564038279275337e-05,
+          "rms": 1.06151493197927e-06,
+          "trials": 376
+        },
+        "epoch_failed": false
+      },
+      "sub-010": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.8027634940409598e-11,
+          "rms": 1.1857602859735332e-12,
+          "channels_removed": 8,
+          "boundaries": 40,
+          "pnts": 181548
+        },
+        "picard": {
+          "amari": 1.682504295225889e-05,
+          "corr_min": 0.9999999997034748,
+          "corr_mean": 0.9999999999826866
+        },
+        "subcomp": {
+          "max_abs": 2.958388460427841e-05,
+          "rms": 1.2371735079391854e-06,
+          "rejected": 0
+        },
+        "interp": {
+          "max_abs": 2.958388460427841e-05,
+          "rms": 1.1773543753461855e-06
+        },
+        "epoch": {
+          "max_abs": 2.9628853113194964e-05,
+          "rms": 1.1652739305132187e-06,
+          "trials": 555
+        },
+        "epoch_failed": false
+      },
+      "sub-011": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 2.00335303901511e-11,
+          "rms": 1.5978960464118386e-12,
+          "channels_removed": 31,
+          "boundaries": 60,
+          "pnts": 176640
+        },
+        "picard": {
+          "amari": 9.731250956561284e-10,
+          "corr_min": 0.9999999999999996,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 5.871395086387565e-05,
+          "rms": 8.024829445865489e-07,
+          "rejected": 1
+        },
+        "interp": {
+          "max_abs": 5.871395086387565e-05,
+          "rms": 6.841217066301735e-07
+        },
+        "epoch": {
+          "max_abs": 5.898741994769807e-05,
+          "rms": 6.76146754231186e-07,
+          "trials": 513
+        },
+        "epoch_failed": false
+      },
+      "sub-012": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 6.148859199583967e-12,
+          "rms": 5.708218458493275e-13,
+          "channels_removed": 6,
+          "boundaries": 1,
+          "pnts": 24141
+        },
+        "picard": {
+          "amari": 4.633614890983971e-05,
+          "corr_min": 0.9999999995767688,
+          "corr_mean": 0.9999999999484892
+        },
+        "subcomp": {
+          "max_abs": 2.0880464965955525e-05,
+          "rms": 1.12360517979326e-06,
+          "rejected": 0
+        },
+        "interp": {
+          "max_abs": 2.0880464965955525e-05,
+          "rms": 1.0881177975340878e-06
+        },
+        "epoch": {
+          "max_abs": 2.0707767490080187e-05,
+          "rms": 1.0806005393842404e-06,
+          "trials": 71
+        },
+        "epoch_failed": false
+      },
+      "sub-013": {
+        "reref": {
+          "max_abs": 0.0,
+          "rms": 0.0
+        },
+        "clean_artifacts": {
+          "max_abs": 1.4415135751733033e-11,
+          "rms": 1.0132286510557997e-12,
+          "channels_removed": 4,
+          "boundaries": 102,
+          "pnts": 166132
+        },
+        "picard": {
+          "amari": 1.985149822303356e-11,
+          "corr_min": 0.9999999999999993,
+          "corr_mean": 1.0
+        },
+        "subcomp": {
+          "max_abs": 3.3242655632648166e-05,
+          "rms": 1.5270730626870783e-06,
+          "rejected": 1
+        },
+        "interp": {
+          "max_abs": 3.3242655632648166e-05,
+          "rms": 1.4955331602438978e-06
+        },
+        "epoch": {
+          "max_abs": 3.3454120995202175e-05,
+          "rms": 1.4939555039642187e-06,
+          "trials": 426
+        },
+        "epoch_failed": false
+      }
+    }
+  }
+}

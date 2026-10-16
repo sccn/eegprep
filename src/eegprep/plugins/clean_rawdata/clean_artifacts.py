@@ -11,6 +11,7 @@ from .clean_flatlines import clean_flatlines
 from .clean_drifts import clean_drifts
 from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
+from .asr_calibrate import ASRCalibrationError
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
 from .private.masks import mask_to_intervals
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 _DISTANCE_MODES = {
     'euclidian': None,
     'euclidean': None,
-    'riemannian': 'calib',
+    'riemannian': True,
 }
 
 #                               Public API
@@ -73,7 +74,10 @@ def clean_artifacts(
     BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
-        'off' skips ASR. Default 5.0.
+        'off' skips ASR. Default 5.0. When the sampling rate makes the default
+        spectral shaping filter impossible to design, ASR is skipped, a warning
+        explains the rate and the breakpoint problem, and the recording at this
+        stage is left unchanged.
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.
@@ -111,9 +115,9 @@ def clean_artifacts(
     MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
     Distance : str
-        Distance metric for ASR calibration ('euclidian' or 'riemannian'). The
-        Riemannian path uses EEGPrep's calibration-time estimate; full
-        Riemannian ASR processing is not ported.
+        ASR geometry, ``'euclidian'`` or ``'riemannian'``. ``'riemannian'`` runs
+        Riemannian calibration and Riemannian processing, the same choice as
+        ``clean_asr(..., useriemannian=True)``.
     Channels : sequence of str or None
         List of channel labels to include before cleaning (pop_select). The
         returned dataset contains only these channels; channels outside this list
@@ -242,15 +246,19 @@ def clean_artifacts(
         # result; clean_asr returns a fresh dataset (BUR) and leaves EEG intact.
         original_data = EEG['data'].copy() if BurstRejection else None
         useriemannian = _DISTANCE_MODES[distance]
-        BUR = clean_asr(
-            EEG,
-            cutoff=float(BurstCriterion),
-            ref_maxbadchannels=BurstCriterionRefMaxBadChns,
-            ref_tolerances=BurstCriterionRefTolerances,
-            use_gpu=False,
-            useriemannian=useriemannian,
-            maxmem=int(MaxMem),
-        )
+        try:
+            BUR = clean_asr(
+                EEG,
+                cutoff=float(BurstCriterion),
+                ref_maxbadchannels=BurstCriterionRefMaxBadChns,
+                ref_tolerances=BurstCriterionRefTolerances,
+                use_gpu=False,
+                useriemannian=useriemannian,
+                maxmem=int(MaxMem),
+            )
+        except ASRCalibrationError as exc:
+            logger.warning("ASR calibration failed and the recording was left unchanged. %s", exc)
+            BUR = EEG
 
         if BurstRejection:
             # Determine unchanged samples: compare the pre-repair snapshot with
