@@ -157,6 +157,96 @@ def test_statcond_arraycomp_off_streams_the_same_seeded_statistics():
     npt.assert_array_equal(iterative.pvalue, batched.pvalue)
 
 
+def test_matlab_twister_matches_rng_default_draws():
+    from eegprep.functions.statistics._matlab_rand import MatlabTwister
+
+    stream = MatlabTwister()
+    expected = np.array(
+        [
+            0.8147236863931789,
+            0.9057919370756192,
+            0.12698681629350606,
+            0.9133758561390194,
+            0.6323592462254095,
+        ]
+    )
+    npt.assert_array_equal(np.array([stream.rand() for _ in range(5)]), expected)
+
+
+def test_statcond_accepts_matlab_name_value_pairs():
+    first = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    second = first + 1.0
+    keyword = statcond([first, second], mode="param", verbose="off", paired="on")
+    positional = statcond([first, second], "mode", "param", "verbose", "off", "paired", "on")
+
+    npt.assert_array_equal(keyword.stat, positional.stat)
+    npt.assert_array_equal(keyword.pvalue, positional.pvalue)
+    assert keyword.df == positional.df
+    with pytest.raises(ValueError, match="unsupported option"):
+        statcond([first, second], "notanoption", 1)
+
+
+def test_statcond_unpaired_matlab_cells_follow_anova2_order():
+    grid = (
+        (np.array([1.0, 2, 4, 3, 5]), np.array([2.0, 2, 3, 5, 4]), np.array([3.0, 4, 2, 5, 6])),
+        (np.array([2.0, 3, 1, 4, 5]), np.array([4.0, 2, 5, 3, 6]), np.array([5.0, 6, 3, 7, 4])),
+    )
+    result = statcond(grid, method="param", paired="off")
+
+    assert result.matlab_stat.shape == (1, 3)
+    assert result.matlab_stat[0, 0].dtype == np.float32
+    npt.assert_array_equal(
+        result.matlab_stat[0, 0],
+        np.asarray(result.stat.columns, dtype=np.float32).reshape(1, 1),
+    )
+    npt.assert_array_equal(
+        result.matlab_stat[0, 1],
+        np.asarray(result.stat.rows, dtype=np.float32).reshape(1, 1),
+    )
+    npt.assert_array_equal(
+        result.matlab_stat[0, 2],
+        np.asarray(result.stat.interaction, dtype=np.float32).reshape(1, 1),
+    )
+    assert result.matlab_df[0, 0].shape == (1, 2)
+    assert result.matlab_df[0, 0].dtype == np.float64
+
+
+def test_statcond_cluster_uses_test_degrees_of_freedom():
+    n_features = 4
+    n_cases = 11
+    alpha = 0.25
+    data = [np.zeros((n_features, n_cases)), np.zeros((n_features, n_cases))]
+    real_critical = scipy_stats.t.ppf(1 - alpha / 2, n_cases - 1)
+    feature_count_critical = scipy_stats.t.ppf(1 - alpha / 2, n_features)
+    statistic = (real_critical + feature_count_critical) / 2
+    surrogate = np.zeros((n_features, 4))
+    surrogate[0, 1] = statistic
+    surrogate[:2, 2] = statistic
+    surrogate[:, 3] = statistic
+
+    clustered = statcond(
+        data,
+        method="perm",
+        paired="on",
+        cluster="on",
+        alpha=alpha,
+        surrog=surrogate,
+        stats=np.array([0.0, statistic, statistic, 0.0]),
+    )
+    isolated = statcond(
+        data,
+        method="perm",
+        paired="on",
+        cluster="on",
+        alpha=alpha,
+        surrog=surrogate,
+        stats=np.array([statistic, 0.0, 0.0, 0.0]),
+    )
+
+    npt.assert_array_equal(clustered.pvalue, [1.0, 0.0, 0.0, 1.0])
+    npt.assert_array_equal(isolated.pvalue, [1.0, 1.0, 1.0, 1.0])
+
+
 def test_statcond_supplied_surrogates_return_alpha_ci_and_mask():
     surrogate = np.array([[1.0, 2.0, 3.0, 4.0], [4.0, 5.0, 6.0, 7.0]])
     observed = np.array([3.5, 7.5])

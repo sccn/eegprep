@@ -17,7 +17,10 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
     return ExpectedFailure(f"{reason} (#430)", raises)
 
 
-STATCOND = "statcond is keyword-only and does not accept MATLAB name/value pairs such as mode and verbose"
+STATCOND_ZERO = (
+    "stored statcond fixtures use zero tolerance; t and F statistics and p-values "
+    "differ by double rounding or by MATLAB single-precision ANOVA"
+)
 STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
 SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"
 INDEX = "an EEGLAB index or dimension is 1-based"
@@ -41,133 +44,36 @@ IMPORT_TABLE = "imported rows do not match the MATLAB field or channel layout"
 CELLTOMAT = "celltomat is given MATLAB cells rather than numeric arrays"
 
 PYTHON_BACKEND_XFAILS = {
-    "tests/test_statcond_eeglab_tests.py::test_reference_legacy_statcond_workflow": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired1Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_paired2Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim1Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDim2Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedDimTTest": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_pairedTTest": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_01": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_02": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_07": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_08": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_09": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_10": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_11": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_12": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_13": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_14": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_18": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_19": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_20": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_21": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_22": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_23": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_24": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_25": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_26": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_27": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_28": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_29": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_30": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_31": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_32": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_33": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_34": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_35": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_36": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_37": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_38": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_39": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_40": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_41": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_42": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_43": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_44": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_45": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_46": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_47": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_48": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_49": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_50": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_51": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_52": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_53": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_54": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_55": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_56": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_57": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_58": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_59": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_60": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_61": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_62": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_63": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_64": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_65": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_66": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_67": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_68": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_69": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_70": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_71": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_72": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_73": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_74": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_75": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_76": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_77": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_78": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape0-2-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape1-3-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape2-2-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape3-3-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape4-2-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-off]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_shuffle_and_permutation[feature_shape5-3-on]": _gap(
-        STATCOND, TypeError
-    ),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired1Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpaired2Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim1Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDim2Anova": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedDimTTest": _gap(STATCOND, TypeError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_unpairedTTest": _gap(STATCOND, TypeError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_01": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_02": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_07": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_08": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_09": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_10": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_11": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_12": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_13": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_14": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_18": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_19": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_20": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_21": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_22": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_23": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_24": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_25": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_26": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_27": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_28": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_29": _gap(STATCOND_ZERO, AssertionError),
+    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_30": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials": _gap(STRUCT, AttributeError),

@@ -45,6 +45,23 @@ Although ``statcond`` documents rows, columns, and interaction, its unpaired
 branch forwards ``anova2_cell`` outputs in columns, rows, and interaction order.
 When translating positional unpaired MATLAB results, EEGPrep's ``rows`` value
 therefore corresponds to the second MATLAB cell and ``columns`` to the first.
+The MATLAB-shaped copies on ``matlab_stat``, ``matlab_df``, ``matlab_pvalue``,
+and ``matlab_surrogate`` keep that unpaired cell order. Paired two-way cells
+stay in row, column, interaction order.
+
+``statcond`` accepts the same options as keywords or as positional name/value
+pairs. ``mode`` selects the method when it is non-empty. ``verbose`` defaults
+to off. ``variance`` defaults to equal variance (``homogenous``); EEGLAB's
+option list defaults to inhomogenous variance, while ``ttest2_cell`` and
+``statcond`` keep the equal-variance formula unless asked otherwise.
+``cluster="on"`` replaces one-way permutation p-values with cluster-extent
+results. The cluster-forming threshold uses the t or F degrees of freedom of
+the test. EEGLAB passes the feature count to ``tcdf`` for that threshold.
+``returnresamplingarray`` is the name/value form of
+``return_resampling_array``. Those cells are drawn from a MATLAB
+``rng('default')`` Twister. The Python ``samples`` stream is the ``rng``
+argument. ``structoutput="on"`` puts the EEGLAB struct in the single MATLAB
+output; the Python return value remains a ``StatcondResult``.
 
 FieldTrip-style inference
 -------------------------

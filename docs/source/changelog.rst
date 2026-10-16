@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
+  ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
+  documented options) as well as keywords. A single MATLAB output is the
+  statistic array, the resampling cell array, or the ``structoutput`` struct.
+  Python callers still receive ``StatcondResult`` or ``SurrogateDistribution``.
+  Unpaired two-way MATLAB cells stay in column, row, interaction order.
+  ``verbose`` still defaults to off, and unpaired variance still defaults to
+  equal variance. Cluster correction uses the test degrees of freedom.
+  Resampling cells follow MATLAB ``rng('default')``; pass ``rng`` to control
+  the Python surrogate stream.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

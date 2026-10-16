@@ -10,6 +10,7 @@ from scipy.io import loadmat
 from scipy import stats as scipy_stats
 
 from eegprep.functions.statistics import StatcondResult, SurrogateDistribution, TwoWayEffects, statcond
+from eegprep.functions.statistics._matlab_rand import reset_matlab_rng
 from tests.eeglab_tests import eeglab_test
 
 
@@ -29,7 +30,7 @@ def seeded_statcond(eeglab_backend, request):
     if request.config.getoption("--eeglab-backend") == "matlab":
         request.getfixturevalue("eeglab_matlab_engine").rng("default", nargout=0)
     else:
-        np.random.seed(0)
+        reset_matlab_rng()
     return eeglab_backend
 
 

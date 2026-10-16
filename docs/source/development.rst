@@ -272,7 +272,12 @@ maximum p-value residuals are approximately ``6.07e-18``, ``2.78e-17``,
 ``7.81e-18`` and ``1.73e-17``; the direct fixture run passed 74 of 78 cases,
 matching the hybrid failures. These are retained reference fixture/platform
 discrepancies, not established EEGPrep defects. The original tolerances and
-failing assertions remain unchanged.
+failing assertions remain unchanged. The Python backend now runs the same
+fixtures. Cases 31-78 match, including the seeded resampling arrays. Cases
+1-30 still miss the stored zero tolerance: paired and unpaired t values and
+p-values differ in the last bits of double precision, and ANOVA F and p
+values differ because EEGLAB accumulates those statistics in single precision.
+Those thirty cases stay expected failures. The tolerances are unchanged.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
