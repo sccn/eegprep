@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pyedflib
 import pytest
+import scipy.io
+
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 EDF_SRATE = 100
 EDF_SECONDS = 10
@@ -57,13 +62,7 @@ def test_raw_edf_loader_returns_one_based_event_latencies(tmp_path: Path) -> Non
     from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
 
     edf_path = _write_edf_bids_dataset(tmp_path)
-    eeg, srate, times_sec, _report = load_raw_eeg_file(
-        str(edf_path),
-        dtype=np.float64,
-        numeric_null=np.array([]),
-        warning=lambda msg: None,
-        verbose=False,
-    )
+    eeg, srate, times_sec, _report = load_raw_eeg_file(str(edf_path), dtype=np.float64)
 
     assert srate == EDF_SRATE
     assert len(times_sec) == EDF_SRATE * EDF_SECONDS
@@ -279,3 +278,523 @@ def test_montage_inference_uses_packaged_montage_resources() -> None:
     assert report["ChanlocsFrom"] == "standard-10-5-342ch.locs"
     for chanloc in eeg["chanlocs"]:
         assert np.isfinite([chanloc["X"], chanloc["Y"], chanloc["Z"]]).all()
+
+
+def _signal_headers(
+    labels: list[str],
+    *,
+    srate: int,
+    digital_min: int,
+    digital_max: int,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "label": label,
+            "dimension": "uV",
+            "sample_frequency": srate,
+            "physical_min": -100,
+            "physical_max": 100,
+            "digital_min": digital_min,
+            "digital_max": digital_max,
+            "transducer": "",
+            "prefilter": "",
+        }
+        for label in labels
+    ]
+
+
+def _write_edf_family(
+    path: Path,
+    signals: list[np.ndarray],
+    *,
+    labels: list[str],
+    srate: int,
+    file_type: int,
+    digital_min: int,
+    digital_max: int,
+    annotations: list[tuple[float, str]] | None = None,
+) -> None:
+    writer = pyedflib.EdfWriter(str(path), len(signals), file_type=file_type)
+    writer.setSignalHeaders(_signal_headers(labels, srate=srate, digital_min=digital_min, digital_max=digital_max))
+    writer.writeSamples(signals)
+    for onset, text in annotations or []:
+        writer.writeAnnotation(onset, 0.5, text)
+    writer.close()
+
+
+def _reject_patient_byte(path: Path) -> None:
+    payload = bytearray(path.read_bytes())
+    payload[8] = 0x02
+    path.write_bytes(payload)
+
+
+def test_pop_load_frombids_reads_noncompliant_edf_with_pop_biosig(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_biosig import pop_biosig
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "edf", "BIDSVersion": "1.8.0"}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    samples = np.linspace(-20, 20, EDF_SRATE * 2)
+    _write_edf_family(
+        edf_path,
+        [samples, -samples],
+        labels=["C0", "C1"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDFPLUS,
+        digital_min=-32768,
+        digital_max=32767,
+        annotations=[(1.0, "mark")],
+    )
+    _reject_patient_byte(edf_path)
+    with pytest.raises(OSError):
+        pyedflib.EdfReader(str(edf_path))
+    (eeg_dir / "sub-01_task-x_eeg.json").write_text(
+        json.dumps({"TaskName": "x", "SamplingFrequency": EDF_SRATE, "EEGReference": "Cz"})
+    )
+
+    imported, report = pop_load_frombids(
+        str(edf_path),
+        bidsevent=False,
+        infer_locations=False,
+        dtype=np.float64,
+        return_report=True,
+        verbose=False,
+    )
+    direct = pop_biosig(str(edf_path))
+
+    assert report["ImporterUsed"] == "pop_biosig"
+    assert imported["nbchan"] == 2
+    assert imported["pnts"] == EDF_SRATE * 2
+    assert imported["srate"] == EDF_SRATE
+    assert [channel["labels"] for channel in imported["chanlocs"]] == ["C0", "C1"]
+    np.testing.assert_array_equal(imported["data"], np.asarray(direct["data"], dtype=np.float64))
+    assert [event["type"] for event in imported["event"]] == [event["type"] for event in direct["event"]]
+    assert [int(event["latency"]) for event in imported["event"]] == [
+        int(event["latency"]) for event in direct["event"]
+    ]
+    assert imported["ref"] == "common"
+    assert imported["etc"]["BIDS"]["EEGReference"] == "Cz"
+
+
+def test_pop_load_frombids_reads_bdf_with_pop_biosig(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_biosig import pop_biosig
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "bdf", "BIDSVersion": "1.8.0"}))
+    bdf_path = eeg_dir / "sub-01_task-x_eeg.bdf"
+    samples = np.linspace(-5, 5, EDF_SRATE)
+    _write_edf_family(
+        bdf_path,
+        [samples],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_BDFPLUS,
+        digital_min=-8_388_608,
+        digital_max=8_388_607,
+    )
+    (eeg_dir / "sub-01_task-x_eeg.json").write_text(
+        json.dumps({"TaskName": "x", "SamplingFrequency": EDF_SRATE, "EEGReference": "average"})
+    )
+
+    imported, report = pop_load_frombids(
+        str(bdf_path),
+        bidsevent=False,
+        infer_locations=False,
+        dtype=np.float64,
+        return_report=True,
+        verbose=False,
+    )
+    direct = pop_biosig(str(bdf_path))
+
+    assert report["ImporterUsed"] == "pop_biosig"
+    assert imported["data"].shape == (1, EDF_SRATE)
+    np.testing.assert_array_equal(imported["data"], np.asarray(direct["data"], dtype=np.float64))
+    assert [channel["labels"] for channel in imported["chanlocs"]] == ["Cz"]
+
+
+def test_pop_load_frombids_decodes_latin1_and_bom_sidecars(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+    from eegprep.plugins.EEG_BIDS.sidecar import read_bids_table
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "encoding", "BIDSVersion": "1.8.0"}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-x_eeg.json").write_bytes(
+        b"\xef\xbb\xbf"
+        + json.dumps(
+            {"TaskName": "x", "SamplingFrequency": EDF_SRATE, "EEGReference": "Cz", "PowerLineFrequency": 50}
+        ).encode()
+    )
+    (eeg_dir / "sub-01_task-x_channels.tsv").write_bytes(b"name\ttype\tunits\nCz\tEOG\t\xb5V\n")
+    (eeg_dir / "sub-01_task-x_electrodes.tsv").write_bytes(b"name\tx\ty\tz\tunits\nCz\t1\t2\t3\t\xb5V\n")
+    (eeg_dir / "sub-01_task-x_coordsystem.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({"EEGCoordinateSystem": "EEGLAB", "EEGCoordinateUnits": "mm"}).encode()
+    )
+    (eeg_dir / "sub-01_task-x_events.tsv").write_bytes(
+        b"\xef\xbb\xbfonset\tduration\ttrial_type\n0\t0\t" + "µ".encode() + b"\n"
+    )
+
+    channels = read_bids_table(eeg_dir / "sub-01_task-x_channels.tsv")
+    electrodes = read_bids_table(eeg_dir / "sub-01_task-x_electrodes.tsv")
+    assert channels["units"].iloc[0] == "µV"
+    assert electrodes["units"].iloc[0] == "µV"
+
+    imported, report = pop_load_frombids(
+        str(edf_path),
+        infer_locations=False,
+        dtype=np.float64,
+        return_report=True,
+        verbose=False,
+    )
+
+    assert imported["chanlocs"][0]["type"] == "EOG"
+    assert imported["event"][0]["type"] == "µ"
+    assert imported["etc"]["BIDS"]["TaskName"] == "x"
+    assert imported["etc"]["BIDS"]["EEGReference"] == "Cz"
+    assert imported["chanlocs"][0]["X"] == 1
+    assert imported["chanlocs"][0]["Y"] == 2
+    assert imported["chanlocs"][0]["Z"] == 3
+    assert report["ElectrodesFrom"].endswith("sub-01_task-x_electrodes.tsv")
+
+
+def test_bids_tsv_decoding_differs_from_eeglab(tmp_path: Path) -> None:
+    """Latin-1 TSV bytes stay code points, and a UTF-8 BOM is removed.
+
+    MATLAB R2025b ``loadtxt`` with ``DefaultCharacterSet`` UTF-8 maps ``0xB5``
+    and ``0x80`` to U+FFFD and leaves a BOM as U+FEFF on the first header. A
+    Windows-1252 session maps ``0x80`` to €.
+    """
+    from eegprep.plugins.EEG_BIDS.sidecar import decode_bids_text, read_bids_table
+
+    micro = decode_bids_text(b"name\tunits\nCz\t\xb5V\n", suffix=".tsv")
+    assert micro.splitlines()[1] == "Cz\tµV"
+    assert "\ufffd" not in micro
+
+    control = tmp_path / "channels.tsv"
+    control.write_bytes(b"name\ttype\nCz\t\x80\n")
+    decoded = decode_bids_text(control.read_bytes(), suffix=".tsv")
+    assert decoded.splitlines()[1].split("\t")[1] == "\u0080"
+    assert "\ufffd" not in decoded
+    assert "\u20ac" not in decoded
+    assert read_bids_table(control)["type"].iloc[0] == "\u0080"
+
+    bom = tmp_path / "events.tsv"
+    bom.write_bytes(b"\xef\xbb\xbfonset\tduration\ttrial_type\n0\t0\tmark\n")
+    table = read_bids_table(bom)
+    assert list(table.columns) == ["onset", "duration", "trial_type"]
+    assert not str(table.columns[0]).startswith("\ufeff")
+
+
+def test_bids_json_decoding_differs_from_eeglab(tmp_path: Path) -> None:
+    """Latin-1 JSON is rejected, and a UTF-8 BOM is accepted.
+
+    MATLAB ``bids_loadfile`` reads the Latin-1 bytes for café as ``caf`` plus
+    U+FFFD, and errors when the file starts with a UTF-8 BOM.
+    """
+    from eegprep.plugins.EEG_BIDS.sidecar import decode_bids_text, read_bids_json
+
+    with pytest.raises(UnicodeDecodeError):
+        decode_bids_text(b'{"TaskName": "caf\xe9"}', suffix=".json")
+
+    path = tmp_path / "eeg.json"
+    path.write_bytes(b'\xef\xbb\xbf{"TaskName": "x"}')
+    assert read_bids_json(path)["TaskName"] == "x"
+    assert not decode_bids_text(path.read_bytes(), suffix=".json").startswith("\ufeff")
+
+
+def test_pop_load_frombids_reads_bom_json_sidecars(tmp_path: Path) -> None:
+    import bids
+
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({"Name": "bom", "BIDSVersion": "1.8.0"}).encode()
+    )
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-x_eeg.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({"TaskName": "bom-task", "EEGReference": "Cz"}).encode()
+    )
+    with pytest.raises(OSError):
+        bids.BIDSLayout(tmp_path, validate=False)
+
+    imported = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)
+    assert imported["etc"]["BIDS"]["TaskName"] == "bom-task"
+    assert imported["etc"]["BIDS"]["EEGReference"] == "Cz"
+
+
+def test_pop_load_frombids_json_inheritance_overrides_lower_directories(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "ses-a" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "inherit", "BIDSVersion": "1.8.0"}))
+    (tmp_path / "task-x_eeg.json").write_text(
+        json.dumps({"TaskName": "root", "PowerLineFrequency": 50, "EEGReference": "root"})
+    )
+    (tmp_path / "sub-01" / "sub-01_task-x_eeg.json").write_text(
+        json.dumps({"EEGReference": "subject", "PowerLineFrequency": 60})
+    )
+    (tmp_path / "sub-01" / "ses-a" / "sub-01_ses-a_task-x_eeg.json").write_text(
+        json.dumps({"InstitutionName": "session"})
+    )
+    (eeg_dir / "sub-01_ses-a_task-x_eeg.json").write_text(json.dumps({"TaskName": "leaf"}))
+    (eeg_dir / "sub-01_ses-a_task-y_eeg.json").write_text(json.dumps({"TaskName": "nope", "EEGReference": "nope"}))
+    edf_path = eeg_dir / "sub-01_ses-a_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+
+    imported = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)
+    metadata = imported["etc"]["BIDS"]
+    assert metadata["TaskName"] == "leaf"
+    assert metadata["PowerLineFrequency"] == 60
+    assert metadata["EEGReference"] == "subject"
+    assert metadata["InstitutionName"] == "session"
+    assert metadata["subject"] == "01"
+    assert metadata["session"] == "a"
+    assert "nope" not in metadata.values()
+
+
+def test_pop_load_frombids_more_specific_sidecar_overrides_same_directory(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "specific", "BIDSVersion": "1.8.0"}))
+    # task-x sorts after sub-01_task-x, so path order would let the general file win.
+    (eeg_dir / "sub-01_task-x_eeg.json").write_text(json.dumps({"EEGReference": "specific"}))
+    (eeg_dir / "task-x_eeg.json").write_text(json.dumps({"EEGReference": "general", "PowerLineFrequency": 50}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+
+    metadata = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)["etc"]["BIDS"]
+    assert metadata["EEGReference"] == "specific"
+    assert metadata["PowerLineFrequency"] == 50
+
+
+def test_latin1_bids_json_is_rejected(tmp_path: Path) -> None:
+    import json as json_module
+
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "json", "BIDSVersion": "1.8.0"}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-x_eeg.json").write_bytes(b'{"TaskName": "caf\xe9"}')
+    original_load = json_module.load
+    with pytest.raises((UnicodeDecodeError, OSError)):
+        pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)
+    assert json_module.load is original_load
+
+
+_DS003194_FILES = (
+    "dataset_description.json",
+    "participants.tsv",
+    "sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_eeg.edf",
+    "sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_eeg.json",
+    "sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_channels.tsv",
+    "sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_events.tsv",
+)
+
+
+def _ds003194_root() -> Path:
+    override = os.environ.get("EEGPREP_OPENNEURO_ROOT")
+    if override:
+        root = Path(override)
+        if (root / "dataset_description.json").is_file():
+            return root
+        return root / "ds003194"
+    return Path(__file__).resolve().parents[1] / "openneuro" / "ds003194"
+
+
+def _saved_strings(value: object) -> list[str]:
+    array = np.asarray(value)
+    if array.dtype.kind in "SU":
+        return [str(item) for item in array.ravel()]
+    strings = []
+    for item in np.asarray(value, dtype=object).ravel():
+        if isinstance(item, np.ndarray):
+            if item.dtype.kind in "SU":
+                strings.append("".join(item.astype(str).ravel()))
+            elif item.size == 0:
+                strings.append("")
+            else:
+                strings.append(str(item.reshape(-1)[0]))
+        elif isinstance(item, bytes):
+            strings.append(item.decode())
+        else:
+            strings.append(str(item))
+    return strings
+
+
+def _event_token(value: object) -> str:
+    if isinstance(value, bytes):
+        value = value.decode()
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return ""
+        value = value.reshape(-1)[0]
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    if isinstance(value, (float, np.floating)):
+        number = float(value)
+        if np.isnan(number):
+            return "nan"
+        if number.is_integer():
+            return str(int(number))
+        return str(number)
+    return str(value).strip()
+
+
+def test_openneuro_edf_import_matches_matlab_pop_importbids(eeglab_matlab_engine, tmp_path: Path) -> None:
+    """Compare one OpenNeuro EDF import with MATLAB pop_importbids.
+
+    ``pop_importbids`` writes the dataset with ``pop_saveset``, which stores
+    data as single. Those samples match ``float32`` of the Python import.
+    """
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    skip_without_matlab_plugin(eeglab_matlab_engine, "pop_importbids", "EEG-BIDS")
+    skip_without_matlab_plugin(eeglab_matlab_engine, "sopen", "Biosig")
+    root = _ds003194_root()
+    missing = [name for name in _DS003194_FILES if not (root / name).is_file()]
+    if missing:
+        listed = "\n".join(f"https://s3.amazonaws.com/openneuro.org/ds003194/{name}" for name in _DS003194_FILES)
+        pytest.fail(
+            "ds003194 files are not available under "
+            f"{root} (missing {missing}). Fetch them from s3://openneuro.org/ds003194/ "
+            "or set EEGPREP_OPENNEURO_ROOT to the dataset root:\n" + listed
+        )
+
+    edf_path = root / _DS003194_FILES[2]
+    python_eeg = pop_load_frombids(
+        str(edf_path),
+        eventtype="value",
+        bidsevent="replace",
+        bidschanloc=True,
+        infer_locations=False,
+        dtype=np.float64,
+        verbose=False,
+    )
+    assert int(python_eeg["nbchan"]) == 20
+    assert int(python_eeg["pnts"]) == 162400
+    assert float(python_eeg["srate"]) == 200
+    assert len(python_eeg["event"]) == 572
+
+    output_dir = tmp_path / "derivatives"
+    output_dir.mkdir()
+    mat_path = tmp_path / "matlab_import.mat"
+    bids = str(root).replace("\\", "/").replace("'", "''")
+    out = str(output_dir).replace("\\", "/").replace("'", "''")
+    mat = str(mat_path).replace("\\", "/").replace("'", "''")
+    options_path, original = eeg_options_snapshot(eeglab_matlab_engine)
+    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    try:
+        eeglab_matlab_engine.eval(
+            "clear ALLEEG STUDY EEG; "
+            f"[~, ALLEEG] = pop_importbids('{bids}', "
+            f"'outputdir', '{out}', "
+            "'subjects', {'sub-NEPO01'}, "
+            "'sessions', {'ses-Nepopre'}, "
+            "'eventtype', 'value', "
+            "'bidsevent', 'on', "
+            "'bidschanloc', 'on'); "
+            "if numel(ALLEEG) ~= 1, error('expected one dataset, found %d', numel(ALLEEG)); end; "
+            "EEG = ALLEEG(1); "
+            "nChan = double(EEG.nbchan); "
+            "chan_labels = cell(1, nChan); "
+            "for iChan = 1:nChan, chan_labels{iChan} = char(EEG.chanlocs(iChan).labels); end; "
+            "n = numel(EEG.event); "
+            "event_type = cell(1, n); "
+            "event_latency = nan(1, n); "
+            "event_duration = nan(1, n); "
+            "for iEvent = 1:n, "
+            "event_type{iEvent} = char(string(EEG.event(iEvent).type)); "
+            "event_latency(iEvent) = double(EEG.event(iEvent).latency); "
+            "event_duration(iEvent) = double(EEG.event(iEvent).duration); "
+            "end; "
+            "nbchan = double(EEG.nbchan); "
+            "pnts = double(EEG.pnts); "
+            "srate = double(EEG.srate); "
+            "data = double(EEG.data); "
+            f"save('{mat}', 'chan_labels', 'event_type', 'event_latency', 'event_duration', "
+            "'nbchan', 'pnts', 'srate', 'data', '-v7'); "
+            "clear ALLEEG STUDY EEG data chan_labels event_type event_latency event_duration;",
+            nargout=0,
+        )
+    finally:
+        restore_eeg_options(options_path, original)
+        eeglab_matlab_engine.eval("clear functions", nargout=0)
+
+    saved = scipy.io.loadmat(mat_path, squeeze_me=True, chars_as_strings=True)
+    assert int(python_eeg["nbchan"]) == int(saved["nbchan"])
+    assert int(python_eeg["pnts"]) == int(saved["pnts"])
+    assert float(python_eeg["srate"]) == float(saved["srate"])
+    python_data = np.asarray(python_eeg["data"])
+    matlab_data = np.asarray(saved["data"])
+    assert matlab_data.shape == python_data.shape
+    assert np.array_equal(matlab_data, python_data.astype(np.float32))
+
+    python_labels = [str(channel["labels"]).strip() for channel in python_eeg["chanlocs"]]
+    assert python_labels == [label.strip() for label in _saved_strings(saved["chan_labels"])]
+
+    matlab_types = _saved_strings(saved["event_type"])
+    matlab_latency = np.asarray(saved["event_latency"], dtype=float).ravel()
+    matlab_duration = np.asarray(saved["event_duration"], dtype=float).ravel()
+    assert len(python_eeg["event"]) == len(matlab_types) == matlab_latency.size == matlab_duration.size
+    python_latency = np.array([float(event["latency"]) for event in python_eeg["event"]])
+    python_duration = np.array([float(event["duration"]) for event in python_eeg["event"]])
+    assert [_event_token(event["type"]) for event in python_eeg["event"]] == [
+        _event_token(token) for token in matlab_types
+    ]
+    np.testing.assert_allclose(python_latency, matlab_latency, rtol=0, atol=0)
+    np.testing.assert_allclose(python_duration, matlab_duration, rtol=0, atol=0, equal_nan=True)

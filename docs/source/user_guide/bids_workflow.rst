@@ -43,6 +43,15 @@ dataset reference stays ``common``. A sidecar ``EEGReference`` value is kept
 in ``EEG["etc"]["BIDS"]``. ``report["ImporterUsed"]`` is ``"pop_loadbv"`` for
 these files.
 
+EDF and BDF recordings are read with ``pop_biosig``. ``report["ImporterUsed"]``
+is ``"pop_biosig"`` for these files. The dataset reference stays ``common``,
+and a sidecar ``EEGReference`` value is kept in ``EEG["etc"]["BIDS"]``.
+
+BIDS sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed. A TSV
+that is not valid UTF-8 is decoded as Latin-1, so each byte keeps its Unicode
+code point. The byte ``0xB5`` in a ``channels.tsv`` units field stays µ. JSON
+that is not UTF-8 is rejected.
+
 Create a Small Tutorial Export
 ==============================
 

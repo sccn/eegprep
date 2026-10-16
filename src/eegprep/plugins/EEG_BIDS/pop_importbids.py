@@ -16,7 +16,12 @@ def pop_importbids(
     return_com: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any] | list[dict[str, Any]] | tuple[dict[str, Any] | list[dict[str, Any]], str]:
-    """Load one or more EEG files from a BIDS dataset."""
+    """Load one or more EEG files from a BIDS dataset.
+
+    EDF and BDF files are read with ``pop_biosig``. TSV sidecars are decoded
+    as UTF-8, then as Latin-1 when the bytes are not UTF-8. JSON sidecars
+    stay UTF-8, and a leading UTF-8 BOM is removed.
+    """
     source = Path(path)
     files = bids_list_eeg_files(str(source)) if source.is_dir() else [str(source)]
     if not files:

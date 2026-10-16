@@ -5,7 +5,13 @@ import copy
 from typing import Dict, Any, Tuple, Union, Optional
 import logging
 import warnings
-from eegprep.plugins.EEG_BIDS.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, root_for_fpath
+from eegprep.plugins.EEG_BIDS.bids import (
+    layout_for_fpath,
+    layout_get_lenient,
+    metadata_for_bids_file,
+    query_for_adjacent_fpath,
+    root_for_fpath,
+)
 from eegprep.plugins.EEG_BIDS.coords import (
     chanloc_has_coords,
     chanlocs_to_coords,
@@ -16,6 +22,7 @@ from eegprep.plugins.EEG_BIDS.coords import (
 )
 from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
+from eegprep.plugins.EEG_BIDS.sidecar import read_bids_json, read_bids_table
 from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug
 
 import numpy as np
@@ -45,10 +52,11 @@ def pop_load_frombids(
 ) -> Dict[str, Any] | Tuple[Dict[str, Any], Dict[str, Any]]:
     """Load an EEG data file of a supported format from a BIDS dataset.
 
-    Supported formats are EDF, BrainVision, EEGLAB SET, and BDF. BrainVision
-    headers, including vectorized data, are read with ``pop_loadbv``. The
-    dataset reference stays ``common``; a BIDS ``EEGReference`` value is stored
-    with the rest of the sidecar in ``EEG["etc"]["BIDS"]``.
+    Supported formats are EDF, BDF, BrainVision, and EEGLAB SET. EDF and BDF
+    are read with ``pop_biosig``. BrainVision headers, including vectorized
+    data, are read with ``pop_loadbv``. The dataset reference stays
+    ``common``; a BIDS ``EEGReference`` value is stored with the rest of the
+    sidecar in ``EEG["etc"]["BIDS"]``.
 
     Parameters
     ----------
@@ -128,13 +136,7 @@ def pop_load_frombids(
     if verbose:
         logger.info(f"Loading EEG data from {filename}...")
     basename = os.path.basename(filename)
-    EEG, Fs, times_sec, raw_report = load_raw_eeg_file(
-        filename,
-        dtype=dtype,
-        numeric_null=numeric_null,
-        warning=warning,
-        verbose=verbose,
-    )
+    EEG, Fs, times_sec, raw_report = load_raw_eeg_file(filename, dtype=dtype)
     report.update(raw_report)
 
     report['EEGFileHadLocations'] = sum(chanloc_has_coords(ch) for ch in EEG['chanlocs'])
@@ -148,7 +150,7 @@ def pop_load_frombids(
         import bids
 
         layout: bids.BIDSLayout = layout_for_fpath(filename)
-        metadata: Dict[str, Any] = layout.get_metadata(filename, include_entities=True)
+        metadata: Dict[str, Any] = metadata_for_bids_file(layout, filename, include_entities=True)
 
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':
@@ -176,12 +178,10 @@ def pop_load_frombids(
                 f"Using the first one only."
             )
         for fo in channel_file_list:
-            import pandas as pd
-
             if verbose:
                 logger.info(f"  applying BIDS channel locations from {fo.filename}...")
             report['ChanlocsFrom'] = os.path.relpath(fo.path, root)
-            chans: pd.DataFrame = fo.get_df()
+            chans = read_bids_table(fo.path)
 
             # this is used to override the type (e.g. 'EEG', 'EOG', 'ECG', etc.) and the ref (if present)
             notfound = []
@@ -239,12 +239,10 @@ def pop_load_frombids(
             )
             elec_file_list = elec_file_list[:1]
         for elec_fo in elec_file_list:
-            import pandas as pd
-
             if verbose:
                 logger.info(f"  applying BIDS electrode locations from {fo.filename}...")
             report['ElectrodesFrom'] = os.path.relpath(elec_fo.path, root)
-            elecs: pd.DataFrame = elec_fo.get_df()
+            elecs = read_bids_table(elec_fo.path)
 
             query_entities = query_for_adjacent_fpath(elec_fo.path, suffix='coordsystem', extension='.json')
             coordsystem_file_list = layout_get_lenient(
@@ -275,7 +273,7 @@ def pop_load_frombids(
                     if verbose:
                         logger.info(f"  applying BIDS coordsystem from {coordsystem_fo.filename}...")
                     report['CoordsystemFrom'] = os.path.relpath(coordsystem_fo.path, root)
-                    content: Dict[str, Any] = coordsystem_fo.get_dict()
+                    content = read_bids_json(coordsystem_fo.path)
                     EEG['etc']['BIDSCoordsystem'] = content
                     coord_system = content.get('EEGCoordinateSystem', 'RAS')  # default to RAS if not specified
                     if 'EEGLAB' in coord_system.upper():
@@ -398,12 +396,10 @@ def pop_load_frombids(
             # retrieve the list of all such files
             events_file_list = layout.get(**query_entities, return_type='object')
             for fo in events_file_list:
-                import pandas as pd
-
                 if verbose:
                     logger.info(f"  applying BIDS events from {fo.filename}...")
                 report['EventsFrom'] = os.path.relpath(fo.path, root)
-                events: pd.DataFrame = fo.get_df()
+                events = read_bids_table(fo.path)
 
                 try:
                     # opportunistically look for the 'sample' column, which may be present in some files
@@ -495,9 +491,10 @@ def pop_load_frombids(
                         keep = np.ones_like(ev_types, dtype=bool)
                     elif bidsevent == 'merge':
                         if len(EEG['event']):
-                            orig_lats = [e['latency'] for e in EEG['event']]
-                            indexes = np.searchsorted(orig_lats, ev_lats)
-                            orig_types = [ev['type'] for ev in EEG['event'][indexes]]
+                            orig_events = np.asarray(EEG['event'], dtype=object).reshape(-1)
+                            orig_lats = [event['latency'] for event in orig_events]
+                            indexes = np.atleast_1d(np.searchsorted(orig_lats, ev_lats))
+                            orig_types = [orig_events[int(index)]['type'] for index in indexes]
                             keep = [o != e for o, e in zip(orig_types, ev_types)]
                         else:
                             keep = np.ones_like(ev_types, dtype=bool)
