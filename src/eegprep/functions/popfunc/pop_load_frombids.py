@@ -5,7 +5,13 @@ import copy
 from typing import Dict, Any, Tuple, Union, Optional
 import logging
 import warnings
-from eegprep.plugins.EEG_BIDS.bids import layout_for_fpath, layout_get_lenient, query_for_adjacent_fpath, root_for_fpath
+from eegprep.plugins.EEG_BIDS.bids import (
+    layout_for_fpath,
+    layout_get_lenient,
+    metadata_for_bids_file,
+    query_for_adjacent_fpath,
+    root_for_fpath,
+)
 from eegprep.plugins.EEG_BIDS.coords import (
     chanloc_has_coords,
     chanlocs_to_coords,
@@ -144,7 +150,7 @@ def pop_load_frombids(
         import bids
 
         layout: bids.BIDSLayout = layout_for_fpath(filename)
-        metadata: Dict[str, Any] = layout.get_metadata(filename, include_entities=True)
+        metadata: Dict[str, Any] = metadata_for_bids_file(layout, filename, include_entities=True)
 
         EEG['subject'] = metadata.get('subject', '')
         if EEG['ref'] == 'unknown':

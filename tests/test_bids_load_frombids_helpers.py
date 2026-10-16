@@ -516,25 +516,74 @@ def test_bids_json_decoding_differs_from_eeglab(tmp_path: Path) -> None:
     assert not decode_bids_text(path.read_bytes(), suffix=".json").startswith("\ufeff")
 
 
-def test_bids_json_decoding_leaves_stdlib_json_load() -> None:
-    import json as json_module
+def test_pop_load_frombids_reads_bom_json_sidecars(tmp_path: Path) -> None:
+    import bids
 
-    import bids.layout.index as index_mod
-    import bids.layout.validation as validation_mod
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 
-    from eegprep.plugins.EEG_BIDS.sidecar import bids_json_decoding
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({"Name": "bom", "BIDSVersion": "1.8.0"}).encode()
+    )
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+    (eeg_dir / "sub-01_task-x_eeg.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({"TaskName": "bom-task", "EEGReference": "Cz"}).encode()
+    )
+    with pytest.raises(OSError):
+        bids.BIDSLayout(tmp_path, validate=False)
 
-    original = json_module.load
-    index_json = index_mod.json
-    validation_json = validation_mod.json
-    with bids_json_decoding():
-        assert json_module.load is original
-        assert index_mod.json is not index_json
-        assert validation_mod.json is not validation_json
-        assert index_mod.json.load is not original
-    assert json_module.load is original
-    assert index_mod.json is index_json
-    assert validation_mod.json is validation_json
+    imported = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)
+    assert imported["etc"]["BIDS"]["TaskName"] == "bom-task"
+    assert imported["etc"]["BIDS"]["EEGReference"] == "Cz"
+
+
+def test_pop_load_frombids_json_inheritance_overrides_lower_directories(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "ses-a" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "inherit", "BIDSVersion": "1.8.0"}))
+    (tmp_path / "task-x_eeg.json").write_text(
+        json.dumps({"TaskName": "root", "PowerLineFrequency": 50, "EEGReference": "root"})
+    )
+    (tmp_path / "sub-01" / "sub-01_task-x_eeg.json").write_text(
+        json.dumps({"EEGReference": "subject", "PowerLineFrequency": 60})
+    )
+    (tmp_path / "sub-01" / "ses-a" / "sub-01_ses-a_task-x_eeg.json").write_text(
+        json.dumps({"InstitutionName": "session"})
+    )
+    (eeg_dir / "sub-01_ses-a_task-x_eeg.json").write_text(json.dumps({"TaskName": "leaf"}))
+    (eeg_dir / "sub-01_ses-a_task-y_eeg.json").write_text(json.dumps({"TaskName": "nope", "EEGReference": "nope"}))
+    edf_path = eeg_dir / "sub-01_ses-a_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+
+    imported = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)
+    metadata = imported["etc"]["BIDS"]
+    assert metadata["TaskName"] == "leaf"
+    assert metadata["PowerLineFrequency"] == 60
+    assert metadata["EEGReference"] == "subject"
+    assert metadata["InstitutionName"] == "session"
+    assert metadata["subject"] == "01"
+    assert metadata["session"] == "a"
+    assert "nope" not in metadata.values()
 
 
 def test_latin1_bids_json_is_rejected(tmp_path: Path) -> None:

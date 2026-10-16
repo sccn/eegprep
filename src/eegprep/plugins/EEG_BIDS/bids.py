@@ -5,10 +5,17 @@ from typing import Sequence, Dict, Any, Optional
 
 import bids
 
-from .sidecar import bids_json_decoding
+from .sidecar import read_bids_json
 
 
-__all__ = ['root_for_fpath', 'gen_derived_fpath', 'layout_for_fpath', 'layout_get_lenient', 'query_for_adjacent_fpath']
+__all__ = [
+    'root_for_fpath',
+    'gen_derived_fpath',
+    'layout_for_fpath',
+    'layout_get_lenient',
+    'metadata_for_bids_file',
+    'query_for_adjacent_fpath',
+]
 
 
 # cache of BIDS layout objects, by root path
@@ -137,10 +144,52 @@ def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
     try:
         return layout_cache[bids_root]
     except KeyError:
-        with bids_json_decoding():
-            layout = bids.BIDSLayout(bids_root, validate=False)
+        layout = bids.BIDSLayout(
+            bids_root,
+            validate=False,
+            indexer=bids.BIDSLayoutIndexer(index_metadata=False),
+        )
         layout_cache[bids_root] = layout
         return layout
+
+
+def metadata_for_bids_file(
+    layout: 'bids.BIDSLayout',
+    filename: str,
+    *,
+    include_entities: bool = False,
+) -> Dict[str, Any]:
+    """Return JSON sidecar metadata for one BIDS data file.
+
+    A sidecar applies when it shares the data file's suffix, is in that file's
+    directory or a parent, and every filename entity matches the data file.
+    Values are loaded from the dataset root through subject, session, and
+    datatype directories, so a lower file overrides the same key. With
+    ``include_entities``, :meth:`parse_file_entities` is merged in as well.
+    """
+    data_entities = layout.parse_file_entities(filename)
+    metadata: Dict[str, Any] = {}
+    suffix = data_entities.get('suffix')
+    if suffix:
+        data_dir = os.path.dirname(os.path.abspath(filename))
+        root = os.path.abspath(str(layout.root))
+        applicable: list[tuple[int, str]] = []
+        for candidate in layout.get(extension='.json', suffix=suffix, return_type='object'):
+            path = os.path.abspath(candidate.path)
+            directory = os.path.dirname(path)
+            if os.path.commonpath([directory, data_dir]) != directory:
+                continue
+            entities = {key: value for key, value in candidate.entities.items() if key != 'extension'}
+            if any(data_entities.get(key) != value for key, value in entities.items()):
+                continue
+            relative = os.path.relpath(directory, root)
+            depth = 0 if relative == '.' else len(relative.split(os.sep))
+            applicable.append((depth, path))
+        for _depth, path in sorted(applicable):
+            metadata.update(read_bids_json(path))
+    if include_entities:
+        metadata.update(data_entities)
+    return metadata
 
 
 def layout_get_lenient(
