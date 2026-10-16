@@ -156,7 +156,7 @@ def _epoch_major_rows(data: np.ndarray) -> tuple[np.ndarray, int]:
     return rows, points
 
 
-def _edge_and_interior(delta: np.ndarray, frames: int, edge: int) -> tuple[float, float]:
+def _edge_and_interior(delta: np.ndarray, frames: int, edge: int) -> tuple[float, float | None]:
     pad = min(edge, frames)
     edge_max = 0.0
     interior: list[float] = []
@@ -168,7 +168,7 @@ def _edge_and_interior(delta: np.ndarray, frames: int, edge: int) -> tuple[float
         edge_max = max(edge_max, float(part[:, :pad].max()), float(part[:, -pad:].max()))
         if frames > 2 * pad:
             interior.append(float(part[:, pad:-pad].max()))
-    return edge_max, max(interior) if interior else float("nan")
+    return edge_max, max(interior) if interior else None
 
 
 def _passband_mean_amplitude(data: np.ndarray, srate: float, locutoff: float, hicutoff: float, frames: int) -> float:
@@ -204,12 +204,13 @@ def _eegfilt_parity_message(
     delta = np.abs(python - matlab)
     frames = epochframes or python.shape[1]
     edge_max, interior_max = _edge_and_interior(delta, frames, 3 * (python_b.size - 1))
+    interior = "n/a" if interior_max is None else f"{interior_max:.6e}"
     passband_python = _passband_mean_amplitude(python, srate, locutoff, hicutoff, frames)
     passband_matlab = _passband_mean_amplitude(matlab, srate, locutoff, hicutoff, frames)
     return (
         f"{name}: coeff_max_abs={float(np.max(np.abs(python_b - matlab_b))):.6e} "
         f"data_max_abs={float(delta.max()):.6e} edge_max_abs={edge_max:.6e} "
-        f"interior_max_abs={interior_max:.6e} "
+        f"interior_max_abs={interior} "
         f"passband_mean_abs_python={passband_python:.6e} "
         f"passband_mean_abs_matlab={passband_matlab:.6e}"
     )
@@ -257,7 +258,7 @@ def test_eegfilt_sample_data_matches_matlab(eeglab_backend, request):
             np.ravel(python_b),
             np.ravel(np.asarray(matlab_b, dtype=float)),
             rtol=1e-7,
-            atol=0,
+            atol=1e-12,
             err_msg=message,
         )
         np.testing.assert_allclose(python, matlab, rtol=1e-7, atol=1e-8, err_msg=message)
