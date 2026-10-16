@@ -55,6 +55,16 @@ def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_
     assert {path.name for values in paths.values() for path in values} == {"input.set", "output.set"}
 
 
+def test_picard_plugin_paths_follow_the_installed_folder_name(tmp_path):
+    plugin = tmp_path / "plugins" / "PICARD"
+    sources = plugin / "matlab_octave"
+    sources.mkdir(parents=True)
+
+    paths = eeglabcompat._picard_plugin_paths(str(tmp_path))
+
+    assert paths == [str(plugin), str(sources)]
+
+
 def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
     original = np.arange(24, dtype=np.float64).reshape((4, 3, 2), order="F")
     path = tmp_path / "roundtrip.mat"

@@ -86,6 +86,31 @@ def _prepare_matlab_arg(arg: Any) -> Any:
     return py2mat(arg)
 
 
+def _matching_dir(parent: str | Path, name: str) -> str | None:
+    root = Path(parent)
+    if not root.is_dir():
+        return None
+    exact = root / name
+    if exact.is_dir():
+        return str(exact)
+    wanted = name.casefold()
+    for child in root.iterdir():
+        if child.is_dir() and child.name.casefold() == wanted:
+            return str(child)
+    return None
+
+
+def _picard_plugin_paths(eeglab_root: str) -> list[str]:
+    plugin = _matching_dir(Path(eeglab_root) / "plugins", "picard")
+    if plugin is None:
+        return []
+    paths = [plugin]
+    sources = _matching_dir(plugin, "matlab_octave")
+    if sources is not None:
+        paths.append(sources)
+    return paths
+
+
 def _resolve_eeglab_root() -> Path:
     """Return an external EEGLAB checkout for MATLAB/Octave parity calls."""
     candidates = []
@@ -364,8 +389,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/dipfit')
         engine.addpath(path2eeglab + '/plugins/ICLabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
-        engine.addpath(path2eeglab + '/plugins/picard')
-        engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
+        for plugin_path in _picard_plugin_paths(path2eeglab):
+            engine.addpath(plugin_path, nargout=0)
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
         # eegplugin_clean_rawdata adds these so rasr_nonlinear_eigenspace can call Manopt.
         manopt_root = path2eeglab + '/plugins/clean_rawdata/manopt'

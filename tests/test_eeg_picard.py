@@ -66,10 +66,12 @@ def _matlab_double_precision(engine):
     options_path, original = eeg_options_snapshot(engine)
     try:
         engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        engine.eval("eeglab_options;", nargout=0)
         yield
     finally:
         restore_eeg_options(options_path, original)
         engine.eval("clear functions", nargout=0)
+        engine.eval("eeglab_options;", nargout=0)
 
 
 # where the test resources
