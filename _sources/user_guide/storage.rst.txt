@@ -51,9 +51,12 @@ the full sidecar into memory:
    EEG["data"].flush()
 
 Single-file ``.set`` datasets still load as in-memory NumPy arrays because no
-separate data file exists to map. Mutating a ``MemmapData`` value writes to the
-``.fdt`` sidecar; use normal EEGPrep save/history workflows when the dataset
-metadata should be marked clean.
+separate data file exists to map. A numeric array stored in the ``.set`` file
+is the dataset even when ``datfile`` names a missing or stale ``.fdt``. The
+sidecar is read only when ``data`` is a filename, or when ``data`` is
+``in set file`` and ``datfile`` names the sidecar. Mutating a ``MemmapData``
+value writes to the ``.fdt`` sidecar; use normal EEGPrep save/history workflows
+when the dataset metadata should be marked clean.
 
 ``MemmapData`` uses zero-based NumPy indices against the logical
 ``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
@@ -108,10 +111,11 @@ Selective Loading
 =================
 
 ``pop_loadset(path, loadmode="info")`` loads metadata without loading sample
-data. ``EEG["data"]`` contains the saved sidecar filename or ``"in set file"``
-so callers can tell where the samples live. Passing an integer or sequence as
-``loadmode`` loads those 1-based channels and clears ICA fields that no longer
-describe the selected channel matrix.
+data. ``EEG["data"]`` is the sidecar filename when that file exists, or
+``"in set file"`` when the samples live in the ``.set``. If the sidecar is
+missing and the ``.set`` already contains a numeric array, that array is kept.
+Passing an integer or sequence as ``loadmode`` loads those 1-based channels
+and clears ICA fields that no longer describe the selected channel matrix.
 
 Derived caches such as ``icaact`` are not managed by a separate lazy-storage
 layer, and EEGPrep does not provide multi-process write coordination for shared
