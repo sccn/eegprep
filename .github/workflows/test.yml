@@ -286,3 +286,101 @@ jobs:
         if: always()
         run: |
           uv pip list
+
+  # No continue-on-error, so the job fails on any new failure or strict XPASS.
+  # Maintainers should mark it required in branch protection. Known Python gaps
+  # are individual strict xfails. GUI and slow contracts stay out because modal
+  # Qt dialogs hang under offscreen Qt and the slow set exceeds this lane.
+  # This lane deselects MATLAB-oracle unittest classes; they are not Python gaps.
+  eeglab-python:
+    name: EEGLAB Python backend
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: |
+          uv python install 3.12
+
+      - name: Install Linux GUI runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git-lfs \
+            libegl1 \
+            libgl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xinerama0
+          echo "QT_QPA_PLATFORM=offscreen" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: |
+          uv sync --python 3.12 --all-extras --group dev
+
+      - name: Read pinned EEGLAB test commits
+        id: pins
+        run: |
+          uv run --no-sync python - <<'PY'
+          import os
+          from tests.eeglab_tests import (
+              EEGLAB_TESTS_COMMIT,
+              EEGLAB_TESTS_EEGLAB_COMMIT,
+              EEGLAB_TESTS_REPOSITORY,
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"suite-commit={EEGLAB_TESTS_COMMIT}\n")
+              handle.write(f"eeglab-commit={EEGLAB_TESTS_EEGLAB_COMMIT}\n")
+              handle.write(f"suite-repository={EEGLAB_TESTS_REPOSITORY}\n")
+          PY
+
+      - name: Checkout eeglab_tests
+        env:
+          SUITE_COMMIT: ${{ steps.pins.outputs.suite-commit }}
+          EEGLAB_COMMIT: ${{ steps.pins.outputs.eeglab-commit }}
+          SUITE_REPOSITORY: ${{ steps.pins.outputs.suite-repository }}
+        run: |
+          rm -rf eeglab_tests
+          git init eeglab_tests
+          git -C eeglab_tests remote add origin "$SUITE_REPOSITORY"
+          git -C eeglab_tests fetch --depth 1 origin "$SUITE_COMMIT"
+          git -C eeglab_tests checkout --detach FETCH_HEAD
+          if [[ "$(git -C eeglab_tests rev-parse HEAD)" != "$SUITE_COMMIT" ]]; then
+            echo "::error title=eeglab_tests pin mismatch::HEAD is not $SUITE_COMMIT"
+            exit 1
+          fi
+          git -C eeglab_tests submodule set-url eeglab https://github.com/sccn/eeglab.git
+          git -C eeglab_tests submodule sync -- eeglab
+          git -C eeglab_tests submodule update --init --depth 1 -- eeglab
+          if [[ "$(git -C eeglab_tests/eeglab rev-parse HEAD)" != "$EEGLAB_COMMIT" ]]; then
+            echo "::error title=EEGLAB pin mismatch::suite submodule is not $EEGLAB_COMMIT"
+            exit 1
+          fi
+          git -C eeglab_tests lfs install --local
+          git -C eeglab_tests lfs pull
+          # The working tree already holds the smudged files. The LFS cache copies them again.
+          rm -rf eeglab_tests/.git/lfs
+
+      - name: Run EEGLAB Python backend tests
+        run: |
+          uv run --no-sync pytest tests \
+            --eeglab-backend python \
+            --eeglab-suite-root "$GITHUB_WORKSPACE/eeglab_tests" \
+            -m "parity and not slow and not gui" \
+            --timeout=600 \
+            --timeout-method=signal

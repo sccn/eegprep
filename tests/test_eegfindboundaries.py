@@ -2,6 +2,8 @@
 import unittest
 import os
 
+import pytest
+
 if os.getenv('EEGPREP_SKIP_MATLAB') == '1':
     raise unittest.SkipTest("MATLAB not available")
 import numpy as np
@@ -10,6 +12,7 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 
 
+@pytest.mark.matlab_oracle
 class TestEegFindBoundariesParity(unittest.TestCase):
     def setUp(self):
         self.eeglab = get_eeglab('MAT')

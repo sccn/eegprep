@@ -10,6 +10,10 @@ import textwrap
 import eegprep
 
 
+def test_lazy_exports_stay_sorted() -> None:
+    assert list(eegprep._LAZY_EXPORTS) == sorted(eegprep._LAZY_EXPORTS, key=str.lower)
+
+
 def test_eegrej_export_matches_eeglab_low_level_function() -> None:
     from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
     from eegprep.functions.popfunc.eeg_multieegplot import eeg_multieegplot

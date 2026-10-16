@@ -15,6 +15,7 @@ from scipy.sparse import coo_matrix, issparse
 from tests.eeglab_tests import assert_matlab_equal
 from tests.eeglab_tests.backend import (
     _load_matlab_variable,
+    _python_outputs,
     _save_matlab_arguments,
     call_matlab,
     call_python,
@@ -84,10 +85,147 @@ def test_python_backend_selects_requested_outputs():
         call_python("eeg_lat2point", *arguments, nargout=3)
 
 
+def test_python_backend_unpacks_only_declared_matlab_outputs():
+    class _IterOnly:
+        def __iter__(self):
+            yield 1
+            yield 2
+
+    class _Declared:
+        matlab_outputs = ("left", "right")
+
+        def __init__(self):
+            self.left = 1
+            self.right = 2
+
+        def __iter__(self):
+            yield 9
+
+    pvals = [0.001, 0.01, 0.03, 0.2, 0.5]
+    assert not isinstance(call_python("fdr", pvals, 0.05), tuple)
+    assert len(call_python("fdr", pvals, 0.05, nargout=2)) == 2
+    with pytest.raises(AssertionError, match="3 outputs"):
+        call_python("fdr", pvals, 0.05, nargout=3)
+    conditions = [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])]
+    assert len(call_python("concatdata", conditions, nargout=3)) == 3
+    with pytest.raises(AssertionError, match="4 outputs"):
+        call_python("concatdata", conditions, nargout=4)
+    assert _python_outputs("pair", _Declared(), 2) == (1, 2)
+    assert _python_outputs("pair", _Declared(), 1).left == 1
+    with pytest.raises(AssertionError, match="2 outputs"):
+        _python_outputs("values", [1, 2], 2)
+    with pytest.raises(AssertionError, match="2 outputs"):
+        _python_outputs("values", np.array([1, 2]), 2)
+    with pytest.raises(AssertionError, match="2 outputs"):
+        _python_outputs("values", _IterOnly(), 2)
+
+
 def _isolated_suite(pytester, source):
     root = str(Path(__file__).resolve().parents[1])
     pytester.makeconftest(f'import sys\nsys.path.insert(0, {root!r})\npytest_plugins = ("tests.conftest",)')
     pytester.makepyfile(source)
+
+
+def test_subtest_headline_keeps_parameter_suffix(pytester):
+    pytester.makepyfile(
+        """
+        def test_sample(subtests):
+            with subtests.test(source="multiple_events"):
+                raise AssertionError("mismatch")
+        """
+    )
+    pytester.makeconftest(
+        """
+        from pathlib import Path
+
+        def pytest_runtest_logreport(report):
+            if report.when != "call":
+                return
+            domain = report.location[2]
+            headline = report.head_line or ""
+            if headline.startswith(domain + " "):
+                Path("headline.txt").write_text(headline)
+        """
+    )
+    pytester.runpytest_subprocess()
+    assert (pytester.path / "headline.txt").read_text() == "test_sample (source='multiple_events')"
+
+
+def test_python_backend_subtest_xfail_matches_exception_type(pytester):
+    _isolated_suite(
+        pytester,
+        """
+        from pathlib import Path
+
+        from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, _gap
+
+        class SubAssertion(AssertionError):
+            pass
+
+        nodeid = Path(__file__).name + "::test_cases"
+        PYTHON_BACKEND_SUBTEST_XFAILS[nodeid] = {
+            "(source='bare')": _gap("bare", AssertionError),
+            "(source='sub')": _gap("subclass", AssertionError),
+        }
+
+        def test_cases(subtests):
+            with subtests.test(source="bare"):
+                raise AssertionError()
+            with subtests.test(source="sub"):
+                raise SubAssertion("still an assertion")
+            with subtests.test(source="ok"):
+                assert True
+        """,
+    )
+    root = str(Path(__file__).resolve().parents[1])
+    pytester.makeconftest(
+        f"""
+        import sys
+        from pathlib import Path
+
+        import pytest
+
+        sys.path.insert(0, {root!r})
+        pytest_plugins = ("tests.conftest",)
+
+        @pytest.hookimpl(trylast=True)
+        def pytest_runtest_logreport(report):
+            if report.when != "call":
+                return
+            domain = report.location[2]
+            if (report.head_line or "") == domain:
+                Path("parent-outcome.txt").write_text(report.outcome)
+        """
+    )
+    result = pytester.runpytest_subprocess("--eeglab-backend=python")
+    result.assert_outcomes(passed=1)
+    assert result.ret == 0
+    assert (pytester.path / "parent-outcome.txt").read_text() == "passed"
+
+
+def test_python_backend_subtest_xfail_rejects_other_exceptions_and_passes(pytester):
+    _isolated_suite(
+        pytester,
+        """
+        from pathlib import Path
+
+        from tests.eeglab_python_backend_xfails import PYTHON_BACKEND_SUBTEST_XFAILS, _gap
+
+        nodeid = Path(__file__).name + "::test_cases"
+        PYTHON_BACKEND_SUBTEST_XFAILS[nodeid] = {
+            "(source='bad')": _gap("type", AssertionError),
+            "(source='passed')": _gap("strict", AssertionError),
+        }
+
+        def test_cases(subtests):
+            with subtests.test(source="bad"):
+                raise ValueError("nope")
+            with subtests.test(source="passed"):
+                assert True
+        """,
+    )
+    result = pytester.runpytest_subprocess("--eeglab-backend=python")
+    assert result.ret == 1
 
 
 def test_contracts_require_explicit_backend_selection(pytester):

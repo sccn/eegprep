@@ -3,6 +3,7 @@ import os
 import warnings
 
 import numpy as np
+import pytest
 import unittest
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -11,6 +12,7 @@ from eegprep.plugins.clean_rawdata.private.riemann import asr_subspace_reconstru
 from tests.fixtures import DROPPED_NULL_RECONSTRUCTION_GAP
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPinvParity(unittest.TestCase):
     """Test parity between Python pinv and MATLAB pinv functions."""
