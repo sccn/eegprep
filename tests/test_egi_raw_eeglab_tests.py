@@ -343,11 +343,31 @@ def test_pop_readegi_splits_epoc_and_tim0_when_the_length_divides(tmp_path: Path
     assert [(event["type"], event["latency"], event["epoch"]) for event in eeg["event"]] == [
         ("tim0", 5, 1),
         ("stim", 8, 1),
-        ("epoc", 20, 1),
         ("tim0", 25, 2),
-        ("epoc", 40, 2),
         ("tim0", 45, 3),
     ]
+
+
+def test_pop_readegi_keeps_uneven_epoc_pauses_continuous_when_the_length_divides(tmp_path: Path) -> None:
+    signals = np.arange(120, dtype=float).reshape(2, 60)
+    events = np.zeros((2, 60))
+    events[0, [10, 30]] = 1
+    events[1, 5] = 1
+    filename = tmp_path / "uneven.raw"
+    _write_egi_raw(filename, 2, signals, events=events, event_codes=("epoc", "tim0"))
+
+    eeg = pop_readegi(filename, fileloc="")
+
+    assert eeg["data"].shape == (2, 60)
+    assert eeg["trials"] == 1
+    assert eeg["pnts"] == 60
+    np.testing.assert_array_equal(eeg["data"], signals)
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [
+        ("tim0", 5),
+        ("epoc", 10),
+        ("epoc", 30),
+    ]
+    assert all("epoch" not in event for event in eeg["event"])
 
 
 def test_pop_readegi_keeps_epoc_and_tim0_continuous_when_the_length_does_not_divide(tmp_path: Path) -> None:

@@ -24,9 +24,10 @@ and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
 the recording header.
 ``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
 RAW files, including event channels and segment categories. An ``epoc`` event
-with no ``tim0`` event is stored as ``boundary``. When both codes are present
-and the sample count divides evenly into one more trial than there are
-``epoc`` events, a continuous recording is returned as those equal trials.
+with no ``tim0`` event is stored as ``boundary``. When both codes are present,
+every ``epoc`` latency is the last sample of a trial, and the sample count
+divides evenly into one more trial than there are ``epoc`` events, a continuous
+recording is returned as those equal trials and the ``epoc`` events are removed.
 ``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.

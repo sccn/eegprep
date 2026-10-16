@@ -198,15 +198,19 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``EEG.event(index).type`` fail, the surrounding ``try`` discards the
        error, and every pause stays ``epoc``.
    * - EGI ``epoc`` with ``tim0``
-     - When both codes are present and the sample count divides evenly by
-       the number of ``epoc`` events plus one, ``pop_readegi`` reshapes the
-       continuous recording into that many equal epochs and keeps every
-       event. Otherwise the recording stays continuous and every event stays.
-       EEGLAB deletes ``EEG.event(1)`` with the channel-loop index and sets
-       ``trials`` to that epoch count. ``eeg_checkset`` then sees
-       two-dimensional data and sets ``trials`` back to 1, so the samples
-       stay continuous and only the first event is removed. When the length
-       does not divide evenly, EEGLAB leaves the events in place.
+     - ``pop_readegi`` reshapes a continuous recording when both codes are
+       present, the sample count divides evenly by the number of ``epoc``
+       events plus one, and the ``epoc`` latencies are exactly ``k * pnts``
+       for ``k = 1 .. n``. That latency is the last sample of epoch ``k``.
+       The ``epoc`` events are then removed; the trial count is the record
+       of those pauses, and the other events stay. If the pauses are spaced
+       differently, or the length does not divide, the recording stays
+       continuous and every event stays. EEGLAB deletes ``EEG.event(1)``
+       with the channel-loop index and sets ``trials`` to that epoch count.
+       ``eeg_checkset`` then sees two-dimensional data and sets ``trials``
+       back to 1, so the samples stay continuous and only the first event
+       is removed. When the length does not divide evenly, EEGLAB leaves
+       the events in place.
 
 Plugin Migration
 ================

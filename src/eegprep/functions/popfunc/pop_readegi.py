@@ -29,9 +29,10 @@ def pop_readegi(
     integer A/D values are converted to microvolts by :func:`readegi`, event
     channels become dataset events, and segmented recordings are returned as
     channel-by-point-by-trial arrays. An ``epoc`` event with no ``tim0`` event
-    is stored as ``boundary``. When both codes are present and the sample count
-    divides evenly into one more trial than there are ``epoc`` events, a
-    continuous recording is returned as those equal trials.
+    is stored as ``boundary``. When both codes are present, the sample count
+    divides evenly into one more trial than there are ``epoc`` events, and each
+    ``epoc`` latency is the last sample of one of those trials, the continuous
+    recording is returned as those trials and the ``epoc`` events are removed.
     """
     path = Path(filename)
     header, trial_data, event_data, categories = readegi(path, datachunks, forceversion)
@@ -78,7 +79,10 @@ def _egi_to_eeg(
         eeg["nbchan"] = int(eeg["data"].shape[0])
         eeg["chanlocs"] = np.asarray(eeg["chanlocs"][:-1], dtype=object)
 
-    if header["segmented"] or not _split_continuous_epochs(eeg):
+    split_epochs = False
+    if not header["segmented"]:
+        split_epochs = _split_continuous_epochs(eeg)
+    if not split_epochs:
         _rename_epoc_pauses(eeg)
         points, trials = _dataset_dimensions(header, int(np.asarray(eeg["data"]).shape[1]))
         eeg["pnts"] = points
@@ -152,12 +156,28 @@ def _rename_epoc_pauses(eeg: dict[str, Any]) -> None:
     eeg["event"] = np.asarray(events, dtype=object)
 
 
+def _epoc_latencies_mark_boundaries(events: list[dict[str, Any]], points: int, epoc_count: int) -> bool:
+    """Return whether each ``epoc`` latency is the last sample of epoch ``k``.
+
+    Epoch ``k`` ends at latency ``k * points`` for ``k = 1 .. epoc_count``.
+    """
+    latencies = []
+    for event in events:
+        if _event_name(event) != "epoc":
+            continue
+        latency = float(event["latency"])
+        if not latency.is_integer():
+            return False
+        latencies.append(int(latency))
+    return set(latencies) == {points * index for index in range(1, epoc_count + 1)}
+
+
 def _split_continuous_epochs(eeg: dict[str, Any]) -> bool:
     """Reshape a continuous ``epoc`` plus ``tim0`` recording into equal trials.
 
     The trial count is the number of ``epoc`` events plus one. Returns False
-    when either code is absent or the sample count does not divide evenly.
-    Every event is kept.
+    unless every ``epoc`` latency is ``k * pnts`` for a distinct ``k`` from 1
+    through that count. The ``epoc`` events are removed after the split.
     """
     events = _event_dicts(eeg)
     epoc_count = sum(_event_name(event) == "epoc" for event in events)
@@ -168,15 +188,21 @@ def _split_continuous_epochs(eeg: dict[str, Any]) -> bool:
     if data.ndim != 2 or data.shape[1] % epoch_count:
         return False
     points = data.shape[1] // epoch_count
+    if not _epoc_latencies_mark_boundaries(events, points, epoc_count):
+        return False
     eeg["data"] = data.reshape(data.shape[0], epoch_count, points).transpose(0, 2, 1)
     eeg["pnts"] = points
     eeg["trials"] = epoch_count
     srate = float(eeg["srate"])
     eeg["xmax"] = (points - 1) / srate if points else 0.0
     eeg["times"] = np.arange(points, dtype=float) / srate * 1000.0
+    kept = []
     for event in events:
+        if _event_name(event) == "epoc":
+            continue
         event["epoch"] = 1 + int((float(event["latency"]) - 1) // points)
-    eeg["event"] = np.asarray(events, dtype=object)
+        kept.append(event)
+    eeg["event"] = np.asarray(kept, dtype=object)
     return True
 
 
