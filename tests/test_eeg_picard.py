@@ -12,52 +12,12 @@ from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.utils.testing import DebuggableTestCase, matlab_function_exists
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fixtures import create_test_eeg as _create_test_eeg
-from tests.test_ds003061_stage_parity import amari_distance, matched_mixing_correlation
-
-
-def compare_ica_components(weights1, weights2, rtol=0.01, atol=0.05):
-    """Compare ICA weight matrices accounting for permutation and sign ambiguity.
-
-    ICA solutions are unique only up to permutation and sign of components.
-    This function computes the correlation matrix between components and checks
-    that each component in weights1 has a highly correlated match in weights2.
-
-    Parameters
-    ----------
-    weights1 : ndarray
-        First ICA weight matrix (n_components x n_channels)
-    weights2 : ndarray
-        Second ICA weight matrix (n_components x n_channels)
-    rtol : float
-        Relative tolerance for correlation check
-    atol : float
-        Absolute tolerance - max correlation should be at least (1 - atol)
-
-    Returns
-    -------
-    matched : bool
-        True if all components have high-correlation matches
-    max_correlations : ndarray
-        Maximum absolute correlation for each component in weights1
-    best_matches : ndarray
-        Index of best matching component in weights2 for each component in weights1
-    """
-    n_comp = weights1.shape[0]
-
-    # weights1 rows correlated with weights2 rows
-    corr_matrix = np.zeros((n_comp, n_comp))
-    for i in range(n_comp):
-        for j in range(n_comp):
-            corr_matrix[i, j] = np.corrcoef(weights1[i, :], weights2[j, :])[0, 1]
-
-    abs_corr = np.abs(corr_matrix)
-    max_correlations = np.max(abs_corr, axis=1)
-    best_matches = np.argmax(abs_corr, axis=1)
-
-    min_acceptable_corr = 1.0 - atol
-    matched = np.all(max_correlations >= min_acceptable_corr)
-
-    return matched, max_correlations, best_matches, corr_matrix
+from tests.test_ds003061_stage_parity import (
+    PICARD_AMARI_MAX,
+    PICARD_CORR_MIN,
+    amari_distance,
+    matched_mixing_correlation,
+)
 
 
 @contextmanager
@@ -249,12 +209,6 @@ class TestEegPicard(unittest.TestCase):
             {'pArray': EEG_python['icaweights'], 'mArray': EEG_matlab['icaweights']},
         )  # , 'oArray': EEG_octave['icaweights']})
 
-        # Compare Python and MATLAB results using correlation-based comparison
-        # ICA solutions are unique only up to permutation and sign of components
-        # Therefore we use correlation to match components rather than element-wise comparison
-        print("Comparing Python and Matlab results using correlation-based matching...")
-
-        # icasphere should be identity for both (exact match expected)
         np.testing.assert_allclose(
             EEG_python['icasphere'],
             EEG_matlab['icasphere'],
@@ -262,16 +216,6 @@ class TestEegPicard(unittest.TestCase):
             atol=1e-5,
             err_msg='Python and Matlab icasphere differ beyond tolerance',
         )
-
-        # Compare icaweights using correlation (handles permutation and sign ambiguity)
-        matched, max_corrs, best_matches, corr_matrix = compare_ica_components(
-            EEG_python['icaweights'], EEG_matlab['icaweights'], atol=0.35
-        )
-
-        print(f"  Min correlation across components: {np.min(max_corrs):.4f}")
-        print(f"  Mean correlation across components: {np.mean(max_corrs):.4f}")
-        print(f"  Components with correlation < 0.95: {np.sum(max_corrs < 0.95)}")
-        print(f"  Components with correlation < 0.65: {np.sum(max_corrs < 0.65)}")
 
         python_unmixing = np.asarray(EEG_python['icaweights'], dtype=float) @ np.asarray(
             EEG_python['icasphere'], dtype=float
@@ -284,19 +228,12 @@ class TestEegPicard(unittest.TestCase):
         )
         print(parity)
         warnings.warn(parity, UserWarning, stacklevel=1)
-
-        # Check for unique matching (each Python component maps to a different MATLAB component)
-        unique_matches = len(set(best_matches)) == len(best_matches)
-        if not unique_matches:
-            print(f"  WARNING: Non-unique matching detected. Best matches: {best_matches}")
-
-        self.assertTrue(
-            matched,
-            f"ICA components do not match well. Min correlation: {np.min(max_corrs):.4f}. "
-            f"Expected >= 0.65 for all components. Mean: {np.mean(max_corrs):.4f}",
+        self.assertLessEqual(distance, PICARD_AMARI_MAX, f"AMARI {distance:.6e} exceeds {PICARD_AMARI_MAX:.6e}")
+        self.assertGreaterEqual(
+            min_correlation,
+            PICARD_CORR_MIN,
+            f"min matched correlation {min_correlation:.6f} is below {PICARD_CORR_MIN}",
         )
-
-        print("Python and MATLAB ICA results match (accounting for permutation/sign).")
 
 
 if __name__ == '__main__':
