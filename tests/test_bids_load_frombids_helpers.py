@@ -586,6 +586,31 @@ def test_pop_load_frombids_json_inheritance_overrides_lower_directories(tmp_path
     assert "nope" not in metadata.values()
 
 
+def test_pop_load_frombids_more_specific_sidecar_overrides_same_directory(tmp_path: Path) -> None:
+    from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+    eeg_dir = tmp_path / "sub-01" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (tmp_path / "dataset_description.json").write_text(json.dumps({"Name": "specific", "BIDSVersion": "1.8.0"}))
+    # task-x sorts after sub-01_task-x, so path order would let the general file win.
+    (eeg_dir / "sub-01_task-x_eeg.json").write_text(json.dumps({"EEGReference": "specific"}))
+    (eeg_dir / "task-x_eeg.json").write_text(json.dumps({"EEGReference": "general", "PowerLineFrequency": 50}))
+    edf_path = eeg_dir / "sub-01_task-x_eeg.edf"
+    _write_edf_family(
+        edf_path,
+        [np.zeros(EDF_SRATE)],
+        labels=["Cz"],
+        srate=EDF_SRATE,
+        file_type=pyedflib.FILETYPE_EDF,
+        digital_min=-32768,
+        digital_max=32767,
+    )
+
+    metadata = pop_load_frombids(str(edf_path), bidsevent=False, infer_locations=False, verbose=False)["etc"]["BIDS"]
+    assert metadata["EEGReference"] == "specific"
+    assert metadata["PowerLineFrequency"] == 50
+
+
 def test_latin1_bids_json_is_rejected(tmp_path: Path) -> None:
     import json as json_module
 

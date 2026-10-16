@@ -153,6 +153,12 @@ def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
         return layout
 
 
+def _filename_entity_count(path: str) -> int:
+    """Count key-value entities written in the file name."""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    return sum("-" in part for part in stem.split("_"))
+
+
 def metadata_for_bids_file(
     layout: 'bids.BIDSLayout',
     filename: str,
@@ -161,11 +167,13 @@ def metadata_for_bids_file(
 ) -> Dict[str, Any]:
     """Return JSON sidecar metadata for one BIDS data file.
 
-    A sidecar applies when it shares the data file's suffix, is in that file's
-    directory or a parent, and every filename entity matches the data file.
-    Values are loaded from the dataset root through subject, session, and
-    datatype directories, so a lower file overrides the same key. With
-    ``include_entities``, :meth:`parse_file_entities` is merged in as well.
+    A sidecar applies when it shares the data file's suffix and is in that
+    file's directory or a parent. Every entity in the sidecar's name must
+    match the data file: the sidecar's entities are a subset of the file's.
+    Values load from the dataset root downward, so a lower directory overrides
+    the same key. In one directory, the sidecar with more entities overrides
+    a more general one. With ``include_entities``,
+    :meth:`parse_file_entities` is merged in as well.
     """
     data_entities = layout.parse_file_entities(filename)
     metadata: Dict[str, Any] = {}
@@ -173,7 +181,7 @@ def metadata_for_bids_file(
     if suffix:
         data_dir = os.path.dirname(os.path.abspath(filename))
         root = os.path.abspath(str(layout.root))
-        applicable: list[tuple[int, str]] = []
+        applicable: list[tuple[int, int, str]] = []
         for candidate in layout.get(extension='.json', suffix=suffix, return_type='object'):
             path = os.path.abspath(candidate.path)
             directory = os.path.dirname(path)
@@ -184,8 +192,8 @@ def metadata_for_bids_file(
                 continue
             relative = os.path.relpath(directory, root)
             depth = 0 if relative == '.' else len(relative.split(os.sep))
-            applicable.append((depth, path))
-        for _depth, path in sorted(applicable):
+            applicable.append((depth, _filename_entity_count(path), path))
+        for _depth, _entity_count, path in sorted(applicable):
             metadata.update(read_bids_json(path))
     if include_entities:
         metadata.update(data_entities)
