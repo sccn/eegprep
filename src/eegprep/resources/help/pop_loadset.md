@@ -18,7 +18,8 @@ only those channels using EEGLAB's 1-based channel numbers and clears the ICA
 fields, which no longer describe the selected channel matrix.
 
 A length-1 channel, sample, or trial axis is kept. A one-channel recording
-reloads as `(1, pnts)`, and a one-component ICA matrix stays two-dimensional.
+reloads as `(1, pnts)`, and a one-component or one-channel ICA matrix stays
+two-dimensional, including a 1-by-1 sphere.
 
 When `EEG_OPTIONS["option_memmapdata"] = 1`, two-file datasets saved with an
 `.fdt` sidecar load through a NumPy-compatible memory map. Single-file `.set`

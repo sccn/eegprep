@@ -8,8 +8,9 @@ import h5py
 import numpy as np
 import scipy.io
 
-from eegprep.functions.adminfunc.storage import eeg_data_shape, memmap_enabled, memmap_fdt, read_fdt
+from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
+from eegprep.functions.popfunc._matlab_fields import dataset_from_mat
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 
@@ -49,44 +50,15 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     info_only = isinstance(loadmode, str) and loadmode == "info"
     channel_selection = [] if isinstance(loadmode, str) else loadmode
 
-    def new_check(obj):
-        if isinstance(obj, dict):
-            return {key: new_check(obj[key]) for key in obj}
-        elif isinstance(obj, list):
-            if len(obj) == 0:
-                return default_empty
-            else:
-                return [new_check(item) for item in obj]
-        elif isinstance(obj, np.ndarray):
-            if obj.size == 0:
-                return default_empty
-            elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
-                return obj
-            else:
-                return np.array([new_check(item) for item in obj], dtype=object)
-        elif np.isscalar(obj) or isinstance(obj, str):
-            return obj
-        elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
-            dict_obj = {}
-            for field_name in obj._fieldnames:
-                if field_name in ['tracking']:
-                    # used for fields that this code can't yet parse
-                    field_value = '<unsupported>'
-                else:
-                    field_value = getattr(obj, field_name)
-                dict_obj[field_name] = new_check(field_value)
-            return dict_obj
-
-    # Load MATLAB file. MAT v7.3 files are HDF5; older v5/v7 files are not.
+    # MAT v7.3 files are HDF5; older v5/v7 files are not.
     # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
     loaded_with_h5 = _is_hdf5_file(file_path)
     if loaded_with_h5:
         EEG = pop_loadset_h5(file_path)
     else:
-        EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
-        EEG = new_check(EEG)
-        if 'EEG' in EEG:
-            EEG = EEG['EEG']
+        # pop_loadset.m loads with MATLAB load, which keeps singleton dimensions.
+        loaded = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=False, appendmat=False)
+        EEG = dataset_from_mat(loaded)
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -109,10 +81,9 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     elif not loaded_with_h5:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
-    # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
-    # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
-    # bare dict for a 1x1 struct array, so wrap it in a list first.
-    for key in ('chanlocs', 'event'):
+    # 1-based urchan/urevent become 0-based before eeg_checkset copies
+    # event.urevent into epoch.eventurevent.
+    for key in ('chanlocs', 'event', 'urevent', 'urchanlocs', 'epoch'):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 
@@ -120,7 +91,6 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     if not loaded_with_h5:
         ur_indices_to_zero_based(EEG)
 
-    _restore_squeezed_matlab_shapes(EEG)
     EEG = eeg_checkset(EEG)
     if info_data is not None:
         EEG["data"] = info_data
@@ -232,84 +202,6 @@ def _sidecar_path(datfile: str, file_path: Path) -> Path:
     if path.is_absolute():
         return path
     return file_path.parent / path.name
-
-
-def _restore_squeezed_matlab_shapes(EEG: dict) -> None:
-    """Restore length-1 axes MATLAB ``load`` keeps for ``size(data, 1) == nbchan``."""
-    nbchan = _metadata_int(EEG, "nbchan")
-    pnts = _metadata_int(EEG, "pnts")
-    trials = _metadata_int(EEG, "trials") or 1
-    if nbchan is not None and pnts is not None:
-        _assign_unsqueezed(EEG, "data", eeg_data_shape({"nbchan": nbchan, "pnts": pnts, "trials": trials}))
-    ica_channels = _ica_channel_count(EEG, nbchan)
-    components = _component_count(EEG, ica_channels, pnts, trials)
-    if ica_channels is None or components is None:
-        return
-    _assign_unsqueezed(EEG, "icaweights", (components, ica_channels))
-    _assign_unsqueezed(EEG, "icasphere", (ica_channels, ica_channels))
-    _assign_unsqueezed(EEG, "icawinv", (ica_channels, components))
-    if pnts is not None:
-        _assign_unsqueezed(EEG, "icaact", eeg_data_shape({"nbchan": components, "pnts": pnts, "trials": trials}))
-
-
-def _metadata_int(EEG: dict, key: str) -> int | None:
-    value = EEG.get(key)
-    if value is None or isinstance(value, (str, bytes)):
-        return None
-    array = np.asarray(value)
-    if array.size != 1 or array.dtype.kind not in "iuf":
-        return None
-    return int(array.reshape(-1)[0])
-
-
-def _numeric_size(value) -> int:
-    if not _is_numeric_data(value):
-        return 0
-    return int(np.asarray(value).size)
-
-
-def _ica_channel_count(EEG: dict, nbchan: int | None) -> int | None:
-    count = _numeric_size(EEG.get("icachansind"))
-    if count:
-        return count
-    return nbchan or None
-
-
-def _component_count(EEG: dict, n_channels: int | None, pnts: int | None, trials: int) -> int | None:
-    if n_channels:
-        for key in ("icaweights", "icawinv"):
-            size = _numeric_size(EEG.get(key))
-            if size and size % n_channels == 0:
-                return size // n_channels
-    frames = (pnts or 0) * trials
-    size = _numeric_size(EEG.get("icaact"))
-    if frames and size and size % frames == 0:
-        return size // frames
-    return None
-
-
-def _assign_unsqueezed(EEG: dict, key: str, shape: tuple[int, ...]) -> None:
-    restored = _unsqueezed_numeric(EEG.get(key), shape)
-    if restored is not None:
-        EEG[key] = restored
-
-
-def _unsqueezed_numeric(value, shape: tuple[int, ...]):
-    if not _is_numeric_data(value):
-        return None
-    array = np.asarray(value)
-    if array.size == 0 or array.shape == shape:
-        return None
-    expected = 1
-    for dim in shape:
-        expected *= int(dim)
-    if array.size != expected:
-        return None
-    squeezed = tuple(dim for dim in shape if dim != 1)
-    loaded = () if array.ndim == 0 else tuple(int(dim) for dim in array.shape)
-    if loaded != squeezed:
-        return None
-    return np.reshape(array, shape, order="F")
 
 
 def _is_numeric_data(value) -> bool:

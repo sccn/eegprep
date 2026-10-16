@@ -4,6 +4,13 @@ import h5py
 import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
+from eegprep.functions.popfunc._matlab_fields import (
+    MATRIX_FIELDS,
+    SCALAR_FIELDS,
+    STRUCT_ARRAY_FIELDS,
+    VECTOR_FIELDS,
+    apply_field_rules,
+)
 
 
 def pop_loadset_h5(file_name):
@@ -188,10 +195,10 @@ def pop_loadset_h5(file_name):
         else:
             return group[()]
 
-    struct_array = ['chanlocs', 'epoch', 'event', 'urevent', 'urchanlocs']
+    struct_array = list(STRUCT_ARRAY_FIELDS)
     struct = ['chaninfo', 'eventdescription', 'epochdescription', 'reject', 'stats', 'dipfit', 'etc', 'roi']
-    arrays = ['data', 'icawinv', 'icasphere', 'icaweights', 'icachansind', 'times']
-    scalars = ['srate', 'pnts', 'xmin', 'xmax', 'nbchan', 'trials']
+    arrays = list((MATRIX_FIELDS - {"data", "icaact"}) | VECTOR_FIELDS)
+    scalars = list(SCALAR_FIELDS)
     strings = [
         'saved',
         'ref',
@@ -270,6 +277,10 @@ def pop_loadset_h5(file_name):
             if int(EEG['nbchan']) != data_arr.shape[0]:
                 data_arr = np.transpose(data_arr, (2, 1, 0))
         EEG['data'] = data_arr
+
+    for key in list(EEG):
+        if key in MATRIX_FIELDS or key in VECTOR_FIELDS or key in SCALAR_FIELDS or key in STRUCT_ARRAY_FIELDS:
+            EEG[key] = apply_field_rules(key, EEG[key])
 
     # Convert MATLAB-loaded 1-based doubles to EEGPrep's 0-based integer indices.
     if 'icachansind' in EEG:

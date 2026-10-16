@@ -118,11 +118,28 @@ def _singleton_case(kind: str) -> tuple[dict, dict[str, tuple[int, ...]]]:
             "icasphere": (nchan, nchan),
             "icawinv": (nchan, 1),
         }
+    if kind == "one_ica_channel":
+        data = np.arange(8, dtype=np.float64).reshape(1, 8)
+        weights = np.array([[0.5]], dtype=np.float64)
+        sphere = np.array([[1.0]], dtype=np.float64)
+        eeg = _singleton_eeg(data)
+        eeg["icaweights"] = weights
+        eeg["icasphere"] = sphere
+        eeg["icawinv"] = np.linalg.pinv(weights @ sphere)
+        eeg["icachansind"] = np.array([0])
+        eeg["icaact"] = weights @ sphere @ data
+        return eeg, {
+            "icaweights": (1, 1),
+            "icasphere": (1, 1),
+            "icawinv": (1, 1),
+        }
     raise AssertionError(kind)
 
 
 @pytest.mark.parametrize("savemode", ["onefile", "twofiles"])
-@pytest.mark.parametrize("kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component"])
+@pytest.mark.parametrize(
+    "kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component", "one_ica_channel"]
+)
 def test_pop_loadset_roundtrip_keeps_singleton_dimensions(tmp_path, savemode, kind):
     eeg, ica_shapes = _singleton_case(kind)
     expected = np.array(eeg["data"], copy=True)
@@ -135,6 +152,7 @@ def test_pop_loadset_roundtrip_keeps_singleton_dimensions(tmp_path, savemode, ki
     assert loaded["nbchan"] == expected.shape[0]
     assert loaded["pnts"] == expected.shape[1]
     for field, shape in ica_shapes.items():
+        assert isinstance(loaded[field], np.ndarray)
         assert loaded[field].shape == shape
         assert loaded[field].ndim == 2
 
@@ -154,6 +172,9 @@ _MATLAB_SINGLETON_SETUP = {
         EEG.xmin = 0;
         EEG.xmax = 15/128;
         EEG.data = reshape(double(1:16), 1, 16);
+        EEG.chanlocs = struct('labels', 'Cz', 'X', 1, 'Y', 0, 'Z', 0);
+        EEG.event = struct('type', 'square', 'latency', 4, 'urevent', 1);
+        EEG.urevent = struct('type', 'square', 'latency', 4);
     """,
     "one_channel_epochs": """
         EEG = eeg_emptyset;
@@ -164,6 +185,9 @@ _MATLAB_SINGLETON_SETUP = {
         EEG.xmin = 0;
         EEG.xmax = 4/128;
         EEG.data = reshape(double(1:(5*3)), 1, 5, 3);
+        EEG.chanlocs = struct('labels', 'Cz', 'X', 1, 'Y', 2, 'Z', 3);
+        EEG.event = struct('type', {'square','rt','square'}, 'latency', {1, 6, 11}, 'urevent', {1, 2, 3}, 'epoch', {1, 2, 3});
+        EEG.urevent = struct('type', {'square','rt','square'}, 'latency', {1, 6, 11});
     """,
     "one_sample": """
         EEG = eeg_emptyset;
@@ -174,6 +198,7 @@ _MATLAB_SINGLETON_SETUP = {
         EEG.xmin = 0;
         EEG.xmax = 0;
         EEG.data = double((1:6)');
+        EEG.chanlocs = struct('labels', {'E1','E2','E3','E4','E5','E6'});
     """,
     "one_component": """
         EEG = eeg_emptyset;
@@ -189,12 +214,33 @@ _MATLAB_SINGLETON_SETUP = {
         EEG.icawinv = pinv(EEG.icaweights * EEG.icasphere);
         EEG.icachansind = 1:4;
         EEG.icaact = (EEG.icaweights * EEG.icasphere) * EEG.data;
+        EEG.chanlocs = struct('labels', {'E1','E2','E3','E4'});
+    """,
+    "one_ica_channel": """
+        EEG = eeg_emptyset;
+        EEG.nbchan = 1;
+        EEG.pnts = 8;
+        EEG.trials = 1;
+        EEG.srate = 128;
+        EEG.xmin = 0;
+        EEG.xmax = 7/128;
+        EEG.data = reshape(double(1:8), 1, 8);
+        EEG.icaweights = 0.5;
+        EEG.icasphere = 1;
+        EEG.icawinv = pinv(EEG.icaweights * EEG.icasphere);
+        EEG.icachansind = 1;
+        EEG.icaact = (EEG.icaweights * EEG.icasphere) * EEG.data;
+        EEG.chanlocs = struct('labels', 'Cz', 'X', 1, 'Y', 0, 'Z', 0);
+        EEG.event = struct('type', 'square', 'latency', 4, 'urevent', 1);
+        EEG.urevent = struct('type', 'square', 'latency', 4);
     """,
 }
 
 
 @pytest.mark.parametrize("savemode", ["onefile", "twofiles"])
-@pytest.mark.parametrize("kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component"])
+@pytest.mark.parametrize(
+    "kind", ["one_channel", "one_channel_epochs", "one_sample", "one_component", "one_ica_channel"]
+)
 def test_matlab_pop_loadset_singleton_shapes_match_matlab(eeglab_matlab_engine, tmp_path, savemode, kind):
     """MATLAB writes each singleton case. EEGPrep's shape matches size() and the data matches."""
     folder = tmp_path.as_posix().replace("'", "''")
@@ -215,14 +261,153 @@ def test_matlab_pop_loadset_singleton_shapes_match_matlab(eeglab_matlab_engine, 
 
     assert loaded["data"].shape == matlab_shape
     np.testing.assert_array_equal(np.asarray(loaded["data"]), matlab_data)
-    if kind != "one_component":
+    for field in ("icaweights", "icasphere", "icawinv", "icaact"):
+        _assert_ica_field(eeglab_matlab_engine, loaded, field)
+    _assert_times(eeglab_matlab_engine, loaded)
+    _assert_chanlocs(eeglab_matlab_engine, loaded)
+    _assert_events(eeglab_matlab_engine, loaded)
+    _assert_epochs(eeglab_matlab_engine, loaded)
+
+
+def _assert_ica_field(engine, loaded, field: str) -> None:
+    shape = _matlab_shape(engine, f"ML.{field}")
+    matlab = np.array(engine.eval(f"ML.{field}", nargout=1))
+    python = np.asarray(loaded[field])
+    if int(np.prod(shape)) == 0:
+        assert python.size == 0
+        assert np.asarray(matlab).size == 0
         return
-    for field in ("icaweights", "icasphere", "icawinv"):
-        assert loaded[field].shape == _matlab_shape(eeglab_matlab_engine, f"ML.{field}")
+    assert isinstance(loaded[field], np.ndarray)
+    assert python.shape == shape
+    np.testing.assert_array_equal(python, matlab)
+
+
+def _assert_times(engine, loaded) -> None:
+    matlab = np.array(engine.eval("ML.times", nargout=1), dtype=np.float64).reshape(-1)
+    python = np.asarray(loaded["times"], dtype=np.float64).reshape(-1)
+    np.testing.assert_array_equal(python, matlab)
+
+
+def _matlab_text(engine, expression: str) -> str:
+    value = engine.eval(expression, nargout=1)
+    if isinstance(value, str):
+        return value
+    array = np.asarray(value)
+    if array.dtype.kind in "SU":
+        return "".join(str(part) for part in array.reshape(-1))
+    if array.size == 0:
+        return ""
+    return str(array.reshape(-1)[0])
+
+
+def _matlab_count(engine, field: str) -> int:
+    return int(np.array(engine.eval(f"numel(ML.{field})", nargout=1)).reshape(-1)[0])
+
+
+def _assert_chanlocs(engine, loaded) -> None:
+    count = _matlab_count(engine, "chanlocs")
+    chanlocs = [] if loaded.get("chanlocs") is None else list(loaded["chanlocs"])
+    assert len(chanlocs) == count
+    for index, chanloc in enumerate(chanlocs, start=1):
+        assert str(chanloc["labels"]) == _matlab_text(engine, f"ML.chanlocs({index}).labels")
+        for coord in ("X", "Y", "Z"):
+            present = int(np.array(engine.eval(f"isfield(ML.chanlocs, '{coord}')", nargout=1)).reshape(-1)[0])
+            if not present:
+                continue
+            matlab = np.array(engine.eval(f"ML.chanlocs({index}).{coord}", nargout=1), dtype=np.float64).reshape(-1)
+            if matlab.size == 0:
+                continue
+            np.testing.assert_array_equal(np.asarray(chanloc[coord], dtype=np.float64).reshape(-1), matlab)
+
+
+def _record_text(value) -> str:
+    if isinstance(value, str):
+        return value
+    array = np.asarray(value)
+    if array.dtype.kind in "SU":
+        return "".join(str(part) for part in array.reshape(-1))
+    if array.size == 0:
+        return ""
+    return str(array.reshape(-1)[0])
+
+
+def _assert_events(engine, loaded) -> None:
+    count = _matlab_count(engine, "event")
+    events = [] if loaded.get("event") is None else list(loaded["event"])
+    assert len(events) == count
+    for index, event in enumerate(events, start=1):
+        assert _record_text(event["type"]) == _matlab_text(engine, f"ML.event({index}).type")
+        matlab_latency = np.array(engine.eval(f"ML.event({index}).latency", nargout=1), dtype=np.float64).reshape(-1)
+        np.testing.assert_array_equal(np.asarray(event["latency"], dtype=np.float64).reshape(-1), matlab_latency)
+        matlab_urevent = np.array(engine.eval(f"ML.event({index}).urevent", nargout=1), dtype=np.float64).reshape(-1)
+        np.testing.assert_array_equal(np.asarray(event["urevent"], dtype=np.float64).reshape(-1), matlab_urevent - 1)
+
+
+def _assert_epochs(engine, loaded) -> None:
+    count = _matlab_count(engine, "epoch")
+    epochs = [] if loaded.get("epoch") is None else list(loaded["epoch"])
+    assert len(epochs) == count
+    for index, epoch in enumerate(epochs, start=1):
+        matlab_events = np.array(engine.eval(f"ML.epoch({index}).event", nargout=1), dtype=np.float64).reshape(-1)
+        np.testing.assert_array_equal(np.asarray(epoch["event"], dtype=np.float64).reshape(-1), matlab_events - 1)
+        matlab_types = engine.eval(f"ML.epoch({index}).eventtype", nargout=1)
+        python_types = epoch.get("eventtype", [])
+        if isinstance(python_types, str):
+            python_types = [python_types]
+        else:
+            python_types = [_record_text(item) for item in list(np.asarray(python_types, dtype=object).reshape(-1))]
+        if isinstance(matlab_types, str):
+            assert python_types == [matlab_types]
+        else:
+            matlab_list = [_record_text(item) for item in list(np.asarray(matlab_types, dtype=object).reshape(-1))]
+            assert python_types == matlab_list
+
+
+def test_pop_loadset_eeg_variable_keeps_one_by_one_sphere(tmp_path):
+    path = tmp_path / "sphere.set"
+    data = np.arange(1, 9, dtype=np.float64).reshape(1, 8)
+    scipy.io.savemat(
+        path,
+        {
+            "EEG": {
+                "setname": "one",
+                "filename": path.name,
+                "filepath": str(tmp_path),
+                "nbchan": [[1.0]],
+                "pnts": [[8.0]],
+                "trials": [[1.0]],
+                "srate": [[128.0]],
+                "xmin": [[0.0]],
+                "xmax": [[7 / 128]],
+                "data": data,
+                "icasphere": [[1.0]],
+                "icaweights": [[0.5]],
+                "icawinv": [[2.0]],
+                "icaact": data * 0.5,
+                "icachansind": [[1.0]],
+                "chanlocs": {"labels": "Cz", "X": [[1.0]], "Y": [[0.0]], "Z": [[0.0]]},
+                "event": {"type": "square", "latency": [[4.0]], "urevent": [[1.0]]},
+                "saved": "yes",
+            }
+        },
+        appendmat=False,
+    )
+
+    loaded = pop_loadset(path)
+
+    assert loaded["data"].shape == (1, 8)
+    np.testing.assert_array_equal(loaded["data"], data)
+    assert isinstance(loaded["icasphere"], np.ndarray)
+    assert loaded["icasphere"].shape == (1, 1)
+    np.testing.assert_array_equal(loaded["icasphere"], [[1.0]])
+    assert loaded["icaweights"].shape == (1, 1)
+    assert loaded["chanlocs"][0]["labels"] == "Cz"
+    assert len(loaded["event"]) == 1
+    assert loaded["event"][0]["type"] == "square"
+    assert loaded["event"][0]["urevent"] == 0
 
 
 def test_pop_loadset_single_event_and_single_channel_set(tmp_path):
-    # A 1x1 MATLAB struct array is read by scipy as a bare dict, not a list.
     eeg = pop_loadset("sample_data/eeglab_data.set")
     eeg = pop_select(eeg, channel=[0])
     eeg["event"] = [dict(eeg["event"][0])]
