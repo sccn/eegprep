@@ -108,6 +108,8 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
         info_data = _info_mode_data(EEG, Path(file_path))
     elif not loaded_with_h5:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
+        # load('-mat') keeps MATLAB's shape. squeeze_me drops a size-1 channel axis.
+        _restore_squeezed_channel_axis(EEG)
 
     # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
     # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
@@ -129,6 +131,20 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     EEG["saved"] = "justloaded"
 
     return EEG
+
+
+def _restore_squeezed_channel_axis(EEG) -> None:
+    """Return data to ``(nbchan, ...)`` when scipy dropped a singleton channel axis."""
+    data = EEG.get("data")
+    if not isinstance(data, np.ndarray) or data.ndim != 1 or data.dtype.kind not in "iufc":
+        return
+    nbchan = EEG.get("nbchan")
+    if nbchan is None or isinstance(nbchan, str):
+        return
+    nbchan = int(np.squeeze(nbchan))
+    if nbchan <= 0 or data.size % nbchan:
+        return
+    EEG["data"] = data.reshape((nbchan, data.size // nbchan))
 
 
 def _is_hdf5_file(file_path):
