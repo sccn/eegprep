@@ -539,22 +539,7 @@ def _pop_select_apply(EEG, **kwargs):
     EEG['reject']['rejmanual'] = []
     EEG['stats']['jp'] = []
 
-    # event consistency check: remove events with out-of-bounds latencies.
-    # MATLAB eeg_checkset('eventconsistency') uses latency < 0.5 as the lower
-    # bound (not < 1), preserving boundary events at the half-sample position.
-    if EEG['event'] is not None and len(EEG['event']) > 0:
-        total_pts = EEG['pnts'] * EEG['trials']
-        cleaned = []
-        for ev in EEG['event']:
-            if 'latency' in ev:
-                lat = float(ev['latency'])
-                if lat >= 0.5 and lat <= total_pts + 1:
-                    cleaned.append(ev)
-            else:
-                cleaned.append(ev)
-        EEG['event'] = cleaned
-
-    EEG = eeg_checkset(EEG)
+    EEG = eeg_checkset(EEG, 'eventconsistency')
     EEG["data"] = mapped_output_like(source_data, EEG["data"])
 
     return EEG

@@ -48,7 +48,11 @@ selection:
    EEG, com = pop_select(EEG, channel=[1, 2, 3, 4, 5], return_com=True)
 
 GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
-EEGLAB-facing one-based values.
+EEGLAB-facing one-based values. ``pop_select`` then checks event consistency:
+a leading boundary whose duration is less than one sample is removed, a leading
+boundary latency in (0, 1) is set to 0.5, events with an epoch number outside
+the dataset are removed, duplicate boundaries at the same latency are merged,
+and the remaining events are sorted by epoch and latency.
 
 Filter
 ======

@@ -2,11 +2,13 @@
 
 import logging
 import contextvars
+import math
 from contextlib import contextmanager
 
 import numpy as np
 import os
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
 
 logger = logging.getLogger(__name__)
@@ -51,7 +53,7 @@ def _eventconsistency(EEG):
 
     Performs, in order:
     1. Remove events with NaN latency
-    2. Handle first boundary event edge cases
+    2. Handle first boundary event edge cases (``eeg_isboundary``)
     3. Remove out-of-bounds events (latency < 0.5 or > pnts*trials+1)
     4. Remove events with invalid epoch numbers
     5. Set empty duration fields to 0
@@ -71,20 +73,21 @@ def _eventconsistency(EEG):
     if len(events) == 0:
         return EEG
 
-    events = [
-        e for e in events if not ('latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency']))
-    ]
+    events = [event for event in events if not _nan_latency(event)]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
 
-    # 2. First boundary event: if boundary with duration < 1 remove it;
-    #    if latency in (0, 1), clamp to 0.5  (MATLAB lines 424-430)
-    if events[0].get('type', '') == 'boundary' and 'duration' in events[0]:
-        if events[0].get('duration', 0) < 1:
+    # eeg_checkset.m: a leading boundary with duration < 1 is removed. Otherwise
+    # a leading-boundary latency in (0, 1) is clamped to 0.5 before the bounds check.
+    if _is_checkset_boundary(events[0]) and 'duration' in events[0]:
+        duration = _real_number(events[0].get('duration'))
+        if duration is not None and duration < 1:
             events.pop(0)
-        elif 0 < events[0].get('latency', 0) < 1:
-            events[0]['latency'] = 0.5
+        else:
+            latency = _real_number(events[0].get('latency'))
+            if latency is not None and 0 < latency < 1:
+                events[0]['latency'] = 0.5
 
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
@@ -94,7 +97,7 @@ def _eventconsistency(EEG):
     pnts = int(EEG.get('pnts', 0))
     trials = int(EEG.get('trials', 1))
     upper_bound = pnts * trials + 1
-    events = [e for e in events if 'latency' not in e or (e['latency'] >= 0.5 and e['latency'] <= upper_bound)]
+    events = [event for event in events if _latency_in_bounds(event, upper_bound)]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
@@ -102,64 +105,109 @@ def _eventconsistency(EEG):
     # 4. Remove events with invalid epoch numbers (MATLAB lines 456-477)
     if trials > 1:
         keep = []
-        for e in events:
-            ep = e.get('epoch')
-            if ep is None:
-                keep.append(e)
-            elif isinstance(ep, (int, float)) and 1 <= ep <= trials:
-                keep.append(e)
-            # else: drop (invalid epoch)
+        for event in events:
+            epoch = event.get('epoch')
+            if epoch is None:
+                keep.append(event)
+            elif _real_number(epoch) is not None and 1 <= epoch <= trials:
+                keep.append(event)
         if len(keep) < len(events):
             logger.info(f"eeg_checkset: {len(events) - len(keep)} events with invalid epoch removed")
         events = keep
 
     # 5. Set empty/None duration to 0 (MATLAB lines 481-489)
-    for e in events:
-        if 'duration' in e and (e['duration'] is None or e['duration'] == ''):
-            e['duration'] = 0
+    for event in events:
+        if 'duration' in event and (event['duration'] is None or event['duration'] == ''):
+            event['duration'] = 0
 
     # 6. Remove duplicate boundary events at same latency, merge durations
-    #    (MATLAB lines 521-546)
+    #    (MATLAB lines 521-546). Durations accumulate into the later event.
     boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
     if boundary_idx:
-        boundary_lats = [events[i].get('latency', float('nan')) for i in boundary_idx]
-        # Remove final boundary if past data end (single-trial only)
+        boundary_lats = [events[index].get('latency', float('nan')) for index in boundary_idx]
+        # MATLAB round ties away from zero, so round(latency-0.5) > pnts is floor(latency) > pnts.
         if trials == 1 and boundary_lats:
-            last_lat = boundary_lats[-1]
-            if isinstance(last_lat, (int, float)) and round(last_lat - 0.5) > pnts:
+            last_lat = _real_number(boundary_lats[-1])
+            if last_lat is not None and math.floor(last_lat) > pnts:
                 events.pop(boundary_idx[-1])
                 boundary_idx = boundary_idx[:-1]
                 boundary_lats = boundary_lats[:-1]
 
+        has_duration = any('duration' in events[index] for index in boundary_idx)
         to_remove = []
-        for j in range(len(boundary_lats) - 1, 0, -1):
-            if boundary_lats[j] == boundary_lats[j - 1]:
-                dur_this = events[boundary_idx[j]].get('duration', 0) or 0
-                dur_prev = events[boundary_idx[j - 1]].get('duration', 0) or 0
-                events[boundary_idx[j]]['duration'] = dur_this + dur_prev
-                to_remove.append(boundary_idx[j - 1])
+        for index in range(1, len(boundary_lats)):
+            if boundary_lats[index] != boundary_lats[index - 1]:
+                continue
+            later = boundary_idx[index]
+            earlier = boundary_idx[index - 1]
+            if has_duration:
+                events[later]['duration'] = _duration_value(events[later]) + _duration_value(events[earlier])
+            to_remove.append(earlier)
         if to_remove:
             logger.info("eeg_checkset: duplicate boundary events removed")
-            for idx in sorted(to_remove, reverse=True):
-                events.pop(idx)
+            for index in sorted(to_remove, reverse=True):
+                events.pop(index)
 
     # 7. Resort events by (epoch, latency)  (MATLAB lines 580-596)
-    def _sort_key(e):
-        ep = e.get('epoch', 0)
-        lat = e.get('latency', 0)
-        ep = ep if isinstance(ep, (int, float)) else 0
-        lat = lat if isinstance(lat, (int, float)) else 0
-        return (ep, lat)
-
-    events.sort(key=_sort_key)
+    events.sort(key=_event_sort_key)
 
     # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
     if events and 'latency' in events[0]:
-        if isinstance(events[0]['latency'], (int, float)) and events[0]['latency'] < 0.5:
+        latency = _real_number(events[0]['latency'])
+        if latency is not None and latency < 0.5:
             events[0]['latency'] = 0.5
 
     EEG['event'] = np.asarray(events, dtype=object)
     return EEG
+
+
+def _is_checkset_boundary(event):
+    """Return whether one event matches ``eeg_isboundary`` (exact, case-insensitive)."""
+    event_type = event.get('type')
+    if isinstance(event_type, bytes):
+        event_type = event_type.decode()
+    if isinstance(event_type, str):
+        return event_type.lower() == 'boundary'
+    event_type = _real_number(event_type)
+    return bool(EEG_OPTIONS['option_boundary99']) and event_type == -99
+
+
+def _real_number(value):
+    if isinstance(value, (bool, np.bool_)):
+        return None
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        number = float(value)
+        if math.isnan(number):
+            return None
+        return number
+    return None
+
+
+def _nan_latency(event):
+    latency = event.get('latency')
+    return 'latency' in event and isinstance(latency, (float, np.floating)) and np.isnan(latency)
+
+
+def _latency_in_bounds(event, upper_bound):
+    if 'latency' not in event:
+        return True
+    if _nan_latency(event):
+        return False
+    latency = event['latency']
+    return latency >= 0.5 and latency <= upper_bound
+
+
+def _duration_value(event):
+    duration = _real_number(event.get('duration'))
+    if duration is None:
+        return 0.0
+    return duration
+
+
+def _event_sort_key(event):
+    epoch = _real_number(event.get('epoch', 0))
+    latency = _real_number(event.get('latency', 0))
+    return (0 if epoch is None else epoch, 0 if latency is None else latency)
 
 
 def eeg_checkset(EEG, *checks, load_data=True):
