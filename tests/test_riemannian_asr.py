@@ -12,6 +12,9 @@ from eegprep.plugins.clean_rawdata.private.riemann import (
     spd_geodesic_midpoint,
 )
 from tests.fixtures import create_test_eeg
+from tests.test_pinv import DROPPED_NULL_RECONSTRUCTION_GAP
+
+MAX_STABLE_RECONSTRUCTION_NORM = 2.0
 
 
 def test_spd_geodesic_midpoint_of_diagonal_matrices_is_geometric_mean():
@@ -53,8 +56,8 @@ def test_reconstruction_drops_a_singular_value_below_the_matlab_cutoff():
     reconstructed = asr_subspace_reconstruction(mixing, np.eye(channels), np.ones(channels, dtype=bool))
 
     # Inverting this component reproduces the identity and coefficients near 1e13.
-    assert np.linalg.norm(reconstructed, 2) < 2.0
-    assert np.linalg.norm(reconstructed - np.eye(channels), 2) > 0.5
+    assert np.linalg.norm(reconstructed, 2) < MAX_STABLE_RECONSTRUCTION_NORM
+    assert np.linalg.norm(reconstructed - np.eye(channels), 2) > DROPPED_NULL_RECONSTRUCTION_GAP
 
 
 def test_reconstruction_keeps_a_singular_value_above_the_matlab_cutoff():
