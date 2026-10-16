@@ -299,6 +299,10 @@ def eeg_checkset(EEG, *checks, load_data=True):
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape(EEG['pnts'] * EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
+    # eeg_checkset.m:1266 and :1297-1298 always leave etc as a struct.
+    if not isinstance(EEG.get("etc"), dict):
+        EEG["etc"] = {}
+
     # eeg_checkset.m:1000-1016 scales only when icaact is empty or mis-sized.
     refresh_ica = _ica_needs_refresh(EEG)
     if (
@@ -326,9 +330,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # scaling shape: (n_components,)
                 scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
 
-                if not isinstance(EEG.get('etc'), dict):
-                    logger.debug("Replacing non-dict EEG['etc'] during ICA RMS scaling backup")
-                    EEG['etc'] = {}
                 EEG['etc']['icaweights_beforerms'] = EEG['icaweights'].copy()
                 EEG['etc']['icasphere_beforerms'] = EEG['icasphere'].copy()
 

@@ -15,7 +15,9 @@ Unreleased
   Empty arrays keep the dimensions stored in the file, so a 32-by-0 selection
   stays ``(32, 0)``. Complex values and sparse matrices are decoded. Numeric
   arrays use reversed HDF5 dimensions. ICA weights are scaled once, when
-  activations are missing or the wrong size.
+  activations are missing or the wrong size. ``etc`` is always a dictionary.
+  ``pop_reref`` with ``refica="backwardcomp"`` clears activations first, so
+  that scale runs.
 - BIDS EDF and BDF files are imported with ``pop_biosig``. The previous
   neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
   and ds004279.
