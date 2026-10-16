@@ -12,9 +12,10 @@ Unreleased
 
 - ``pop_loadset`` reads MATLAB v7.3 ``.set`` files by the stored MATLAB class.
   Character values, including channel labels and event types, are strings.
-  ``MATLAB_empty`` values such as ``event=[]`` load as empty arrays. Numeric
-  arrays use reversed HDF5 dimensions, so square and single-channel data stay
-  channel-major.
+  Empty arrays keep the dimensions stored in the file, so a 32-by-0 selection
+  stays ``(32, 0)``. Complex values and sparse matrices are decoded. Numeric
+  arrays use reversed HDF5 dimensions. ICA weights are scaled once, when
+  activations are missing or the wrong size.
 - BIDS EDF and BDF files are imported with ``pop_biosig``. The previous
   neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
   and ds004279.

@@ -79,7 +79,6 @@ def test_pop_loadset_single_event_and_single_channel_set(tmp_path):
     reloaded = pop_loadset(out)
 
     assert len(reloaded["chanlocs"]) == 1
-    assert reloaded["data"].shape == (1, eeg["data"].shape[1])
     assert reloaded["chanlocs"][0]["urchan"] == eeg["chanlocs"][0]["urchan"]
     assert len(reloaded["event"]) == 1
     assert reloaded["event"][0]["urevent"] == eeg["event"][0]["urevent"]

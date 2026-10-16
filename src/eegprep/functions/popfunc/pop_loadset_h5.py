@@ -2,9 +2,7 @@
 
 import h5py
 import numpy as np
-
-from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
+from scipy import sparse
 
 _NUMERIC = {
     "double": np.float64,
@@ -18,6 +16,17 @@ _NUMERIC = {
     "int64": np.int64,
     "uint64": np.uint64,
 }
+_KEEP_SHAPE = frozenset(
+    {
+        "data",
+        "icaact",
+        "icasphere",
+        "icasphere_beforerms",
+        "icawinv",
+        "icaweights",
+        "icaweights_beforerms",
+    }
+)
 
 
 def pop_loadset_h5(file_name):
@@ -35,15 +44,9 @@ def pop_loadset_h5(file_name):
     """
     with h5py.File(file_name, "r") as handle:
         source = handle["EEG"] if "EEG" in handle else handle
-        eeg = {key: _decode(source[key], squeeze=key != "data") for key in source if not str(key).startswith("#")}
-    if "icachansind" in eeg:
-        eeg["icachansind"] = normalize_icachansind(eeg["icachansind"], matlab_one_based=True)
-    # A 1-by-1 struct array is one record. scipy squeeze_me returns that as a dict.
-    for key in ("chanlocs", "event"):
-        if isinstance(eeg.get(key), dict):
-            eeg[key] = [eeg[key]]
-    ur_indices_to_zero_based(eeg)
-    return eeg_checkset(eeg)
+        return {
+            key: _decode(source[key], squeeze=key not in _KEEP_SHAPE) for key in source if not str(key).startswith("#")
+        }
 
 
 def _matlab_class(node):
@@ -124,7 +127,7 @@ def _decode_struct(group):
         return {}
     if any(_is_struct_array_field(group[field]) for field in fields):
         return _decode_struct_array(group, fields)
-    return {field: _decode(group[field]) for field in fields}
+    return {field: _decode(group[field], squeeze=field not in _KEEP_SHAPE) for field in fields}
 
 
 def _decode_struct_array(group, fields):
@@ -138,7 +141,11 @@ def _decode_struct_array(group, fields):
     records = np.empty(shape, dtype=object)
     for index in np.ndindex(shape):
         records[index] = {
-            field: _decode_ref(group.file, references[field][index]) if field in references else _decode(group[field])
+            field: (
+                _decode_ref(group.file, references[field][index])
+                if field in references
+                else _decode(group[field], squeeze=field not in _KEEP_SHAPE)
+            )
             for field in fields
         }
     records = np.squeeze(records)
@@ -147,20 +154,54 @@ def _decode_struct_array(group, fields):
     return records
 
 
+def _decode_empty(node):
+    shape = tuple(int(dim) for dim in np.asarray(node[()], dtype=np.int64).reshape(-1)[::-1])
+    kind = _matlab_class(node)
+    if kind == "char":
+        return np.empty(shape, dtype=np.uint16)
+    if kind == "logical":
+        return np.empty(shape, dtype=np.uint8)
+    if kind in {"cell", "struct"}:
+        return np.empty(shape, dtype=object)
+    return np.empty(shape, dtype=_NUMERIC.get(kind, np.float64))
+
+
+def _decode_sparse(group):
+    n_rows = int(np.asarray(group.attrs["MATLAB_sparse"]).reshape(-1)[0])
+    indptr = np.asarray(_decode(group["jc"], squeeze=False)).reshape(-1).astype(np.int64, copy=False)
+    n_cols = int(indptr.size - 1)
+    if "data" in group and "ir" in group:
+        data = np.asarray(_decode(group["data"], squeeze=False)).reshape(-1)
+        indices = np.asarray(_decode(group["ir"], squeeze=False)).reshape(-1).astype(np.int64, copy=False)
+    else:
+        data = np.array([], dtype=_NUMERIC.get(_matlab_class(group), np.float64))
+        indices = np.array([], dtype=np.int64)
+    return sparse.csc_matrix((data, indices, indptr), shape=(n_rows, n_cols))
+
+
 def _decode(node, squeeze=True):
     if isinstance(node, h5py.Group):
+        if "MATLAB_sparse" in node.attrs:
+            return _decode_sparse(node)
         return _decode_struct(node)
     if _is_empty(node):
-        return np.array([])
+        return _decode_empty(node)
     kind = _matlab_class(node)
     if kind == "char":
         return _decode_char(node[()])
     if kind == "logical":
-        return _squeeze_numeric(_matlab_order(np.asarray(node[()], dtype=np.uint8)))
+        values = _matlab_order(np.asarray(node[()], dtype=np.uint8))
+        if not squeeze:
+            return values
+        return _squeeze_numeric(values)
     if kind in {"cell", "struct"} or h5py.check_dtype(ref=node.dtype) is not None:
         return _decode_refs(node)
     values = np.asarray(node[()])
-    if kind in _NUMERIC:
+    names = values.dtype.names
+    if names and "real" in names and "imag" in names:
+        dtype = np.complex64 if kind == "single" else np.complex128
+        values = (values["real"] + 1j * values["imag"]).astype(dtype, copy=False)
+    elif kind in _NUMERIC:
         values = values.astype(_NUMERIC[kind], copy=False)
     values = _matlab_order(values)
     if not squeeze:

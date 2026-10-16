@@ -95,5 +95,24 @@ class TestEegChecksetStrictMode(DebuggableTestCase):
             eeg_checkset(eeg2)
 
 
+def test_eeg_checkset_ica_scaling_is_idempotent():
+    eeg = pop_loadset("sample_data/eeglab_data_epochs_ica.set")
+    weights = eeg["icaweights"].copy()
+    win = eeg["icawinv"].copy()
+    sphere = eeg["icasphere"].copy()
+    before = eeg["etc"]["icaweights_beforerms"].copy()
+    sphere_before = eeg["etc"]["icasphere_beforerms"].copy()
+    activations = eeg["icaact"].copy()
+
+    again = eeg_checkset(eeg)
+
+    np.testing.assert_array_equal(again["icaweights"], weights)
+    np.testing.assert_array_equal(again["icawinv"], win)
+    np.testing.assert_array_equal(again["icasphere"], sphere)
+    np.testing.assert_array_equal(again["etc"]["icaweights_beforerms"], before)
+    np.testing.assert_array_equal(again["etc"]["icasphere_beforerms"], sphere_before)
+    np.testing.assert_array_equal(again["icaact"], activations)
+
+
 if __name__ == '__main__':
     unittest.main()
