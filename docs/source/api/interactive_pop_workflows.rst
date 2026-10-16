@@ -23,7 +23,11 @@ accepts EEGLAB's positional event-type, time, and duration field names.
 and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
 the recording header.
 ``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
-RAW files, including event channels and segment categories. ``pop_readsegegi``
+RAW files, including event channels and segment categories. An ``epoc`` event
+with no ``tim0`` event is stored as ``boundary``. When both codes are present
+and the sample count divides evenly into one more trial than there are
+``epoc`` events, a continuous recording is returned as those equal trials.
+``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.
 ``pop_importegimat`` reads EGI Net Station MATLAB exports. Segment variables

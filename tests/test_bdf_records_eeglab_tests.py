@@ -174,11 +174,11 @@ def test_pop_biosig_honors_status_import_and_removal(tmp_path: Path) -> None:
 
     without_events = pop_biosig(path, importevent="off")
     assert [loc["labels"] for loc in without_events["chanlocs"]] == ["A1", "A2"]
-    assert _event_pairs(without_events) != [(5, 3), (7, 7)]
+    assert _event_pairs(without_events) == []
 
     kept_without_events = pop_biosig(path, importevent="off", rmeventchan="off")
     assert [loc["labels"] for loc in kept_without_events["chanlocs"]] == ["A1", "A2", "Status"]
-    assert _event_pairs(kept_without_events) != [(5, 3), (7, 7)]
+    assert _event_pairs(kept_without_events) == []
 
 
 def test_pop_biosig_rejects_unsupported_bdf_event_options(tmp_path: Path) -> None:
@@ -187,6 +187,8 @@ def test_pop_biosig_rejects_unsupported_bdf_event_options(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="bdfeventmode"):
         pop_biosig(path, bdfeventmode=9)
+    with pytest.raises(ValueError, match="bdfeventmode"):
+        pop_biosig(path, bdfeventmode=4.5)
     with pytest.raises(ValueError, match="bdfeventmode"):
         pop_biosig(path, bdfeventmode="4")
     with pytest.raises(ValueError, match="rmeventchan"):
@@ -213,8 +215,10 @@ def test_pop_biosig_decodes_each_supported_bdfeventmode(tmp_path: Path) -> None:
     for mode, pairs in expected.items():
         eeg, command = pop_biosig(path, bdfeventmode=mode, return_com=True)
         assert _event_pairs(eeg) == pairs
+        assert all(type(event["type"]) is int for event in eeg["event"])
         assert f"'bdfeventmode', {mode}" in command
         assert [loc["labels"] for loc in eeg["chanlocs"]] == ["A1", "A2"]
+    assert _event_pairs(pop_biosig(path, bdfeventmode=4.0)) == expected[4]
 
     high_bit = tmp_path / "high-bit.bdf"
     _write_status_bdf(high_bit, [np.array([0, 0x8001, 0])])
@@ -237,6 +241,10 @@ def test_pop_biosig_reads_only_blockrange_status_records(tmp_path: Path) -> None
     )
     window_eeg = pop_biosig(window, blockrange=[2, 4])
     assert _event_pairs(window_eeg) == [(4, 3)]
+
+    typed = tmp_path / "typed.bdf"
+    _write_status_bdf(typed, [np.array([0, 5, 0, 0]), np.array([0, 7, 0, 9])])
+    assert _event_pairs(pop_biosig(typed, blockrange=[2, 4])) == [(7, 2), (9, 4)]
 
     anchored = tmp_path / "anchored.bdf"
     _write_status_bdf(

@@ -28,7 +28,10 @@ def pop_readegi(
     ``datachunks`` uses EEGLAB-facing 1-based frame or segment numbers. EGI
     integer A/D values are converted to microvolts by :func:`readegi`, event
     channels become dataset events, and segmented recordings are returned as
-    channel-by-point-by-trial arrays.
+    channel-by-point-by-trial arrays. An ``epoc`` event with no ``tim0`` event
+    is stored as ``boundary``. When both codes are present and the sample count
+    divides evenly into one more trial than there are ``epoc`` events, a
+    continuous recording is returned as those equal trials.
     """
     path = Path(filename)
     header, trial_data, event_data, categories = readegi(path, datachunks, forceversion)
@@ -70,20 +73,21 @@ def _egi_to_eeg(
     )
 
     eeg = _import_event_channels(eeg, event_data, list(header["eventcode"]))
-    points, trials = _dataset_dimensions(header, trial_data.shape[1])
-    eeg["pnts"] = points
-    eeg["trials"] = trials
-    eeg["xmax"] = (points - 1) / float(header["samp_rate"]) if points else 0.0
-    eeg["times"] = np.arange(points, dtype=float) / float(header["samp_rate"]) * 1000.0
-
     if _has_empty_reference(eeg["data"]):
         eeg["data"] = np.asarray(eeg["data"][:-1, :])
         eeg["nbchan"] = int(eeg["data"].shape[0])
         eeg["chanlocs"] = np.asarray(eeg["chanlocs"][:-1], dtype=object)
 
-    if trials > 1:
-        flat = np.asarray(eeg["data"])
-        eeg["data"] = flat.reshape(flat.shape[0], trials, points).transpose(0, 2, 1)
+    if header["segmented"] or not _split_continuous_epochs(eeg):
+        _rename_epoc_pauses(eeg)
+        points, trials = _dataset_dimensions(header, int(np.asarray(eeg["data"]).shape[1]))
+        eeg["pnts"] = points
+        eeg["trials"] = trials
+        eeg["xmax"] = (points - 1) / float(header["samp_rate"]) if points else 0.0
+        eeg["times"] = np.arange(points, dtype=float) / float(header["samp_rate"]) * 1000.0
+        if trials > 1:
+            flat = np.asarray(eeg["data"])
+            eeg["data"] = flat.reshape(flat.shape[0], trials, points).transpose(0, 2, 1)
     _apply_segment_categories(eeg, header, categories)
     _rebuild_urevents(eeg)
     with strict_mode(False):
@@ -122,6 +126,58 @@ def _import_event_channels(eeg: dict[str, Any], event_data: np.ndarray, event_co
             "on",
         )
     return eeg
+
+
+def _event_name(event: dict[str, Any]) -> str:
+    return str(event.get("type", "")).strip().lower()
+
+
+def _event_dicts(eeg: dict[str, Any]) -> list[dict[str, Any]]:
+    events = eeg.get("event", [])
+    if events is None:
+        return []
+    return [dict(event) for event in events]
+
+
+def _rename_epoc_pauses(eeg: dict[str, Any]) -> None:
+    """Store every ``epoc`` event as ``boundary`` when ``tim0`` is absent."""
+    events = _event_dicts(eeg)
+    if any(_event_name(event) == "tim0" for event in events):
+        return
+    if not any(_event_name(event) == "epoc" for event in events):
+        return
+    for event in events:
+        if _event_name(event) == "epoc":
+            event["type"] = "boundary"
+    eeg["event"] = np.asarray(events, dtype=object)
+
+
+def _split_continuous_epochs(eeg: dict[str, Any]) -> bool:
+    """Reshape a continuous ``epoc`` plus ``tim0`` recording into equal trials.
+
+    The trial count is the number of ``epoc`` events plus one. Returns False
+    when either code is absent or the sample count does not divide evenly.
+    Every event is kept.
+    """
+    events = _event_dicts(eeg)
+    epoc_count = sum(_event_name(event) == "epoc" for event in events)
+    if epoc_count == 0 or not any(_event_name(event) == "tim0" for event in events):
+        return False
+    data = np.asarray(eeg["data"])
+    epoch_count = epoc_count + 1
+    if data.ndim != 2 or data.shape[1] % epoch_count:
+        return False
+    points = data.shape[1] // epoch_count
+    eeg["data"] = data.reshape(data.shape[0], epoch_count, points).transpose(0, 2, 1)
+    eeg["pnts"] = points
+    eeg["trials"] = epoch_count
+    srate = float(eeg["srate"])
+    eeg["xmax"] = (points - 1) / srate if points else 0.0
+    eeg["times"] = np.arange(points, dtype=float) / srate * 1000.0
+    for event in events:
+        event["epoch"] = 1 + int((float(event["latency"]) - 1) // points)
+    eeg["event"] = np.asarray(events, dtype=object)
+    return True
 
 
 def _dataset_dimensions(header: dict[str, Any], loaded_samples: int) -> tuple[int, int]:

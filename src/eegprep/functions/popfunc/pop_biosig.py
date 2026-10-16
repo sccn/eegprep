@@ -65,9 +65,14 @@ def pop_biosig(
 
 def _bdf_event_mode(value: Any) -> int:
     """Return a supported BIOSIG ``bdf2biosig_events`` mode."""
-    if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
+    if isinstance(value, bool):
         raise ValueError("bdfeventmode must be an integer BDF status mode")
-    mode = int(value)
+    if isinstance(value, (int, np.integer)):
+        mode = int(value)
+    elif isinstance(value, (float, np.floating)) and float(value).is_integer():
+        mode = int(value)
+    else:
+        raise ValueError("bdfeventmode must be an integer BDF status mode")
     if mode not in _SUPPORTED_BDF_EVENT_MODES:
         supported = ", ".join(str(item) for item in sorted(_SUPPORTED_BDF_EVENT_MODES))
         raise ValueError(f"bdfeventmode {mode} is not supported; supported modes are {supported}")
@@ -200,26 +205,21 @@ def _decode_bdf_status(words: np.ndarray, mode: int, *, anchor: int) -> list[tup
     if mode == 1:
         groups = _mode1_groups(words)
     elif mode == 2:
-        groups = _rising_groups(words & _LOWER_16, words & _LOWER_16)
+        groups = _rising_groups(words & _LOWER_16)
     elif mode == 3:
-        groups = _both_edge_groups(words, _LOWER_16, add_fall_bit=True)
+        groups = _both_edge_groups(words, _LOWER_16, or_fall_bit=False)
     elif mode == 4:
-        values = _trigger_values(words, _LOWER_16)
-        groups = _rising_groups(values, values)
+        groups = _rising_groups(_trigger_values(words, _LOWER_16))
     elif mode == 5:
-        groups = _both_edge_groups(words, _LOWER_8, add_fall_bit=True)
+        groups = _both_edge_groups(words, _LOWER_8, or_fall_bit=False)
     elif mode == 6:
-        values = _trigger_values(words, _LOWER_8)
-        groups = _rising_groups(values, values)
+        groups = _rising_groups(_trigger_values(words, _LOWER_8))
     elif mode == 7:
         groups = _bit_groups(words, anchor=anchor, falling=True)
     elif mode == 8:
         groups = _bit_groups(words, anchor=0, falling=False)
     elif mode == 99:
-        lower = words & _LOWER_16
-        groups = _both_edge_groups_from_values(lower, lower, add_fall_bit=False)
-    else:
-        raise ValueError(f"bdfeventmode {mode} is not supported")
+        groups = _both_edge_groups_from_values(words & _LOWER_16, or_fall_bit=True)
     return _sorted_events(groups)
 
 
@@ -247,25 +247,27 @@ def _trigger_values(words: np.ndarray, mask: int) -> np.ndarray:
     return values
 
 
-def _both_edge_groups(words: np.ndarray, mask: int, *, add_fall_bit: bool) -> list[tuple[np.ndarray, np.ndarray]]:
-    values = _trigger_values(words, mask)
-    return _both_edge_groups_from_values(values, values, add_fall_bit=add_fall_bit)
+def _both_edge_groups(words: np.ndarray, mask: int, *, or_fall_bit: bool) -> list[tuple[np.ndarray, np.ndarray]]:
+    return _both_edge_groups_from_values(_trigger_values(words, mask), or_fall_bit=or_fall_bit)
 
 
-def _both_edge_groups_from_values(
-    values: np.ndarray, types: np.ndarray, *, add_fall_bit: bool
-) -> list[tuple[np.ndarray, np.ndarray]]:
+def _both_edge_groups_from_values(values: np.ndarray, *, or_fall_bit: bool) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Pair each edge with its code.
+
+    ``or_fall_bit`` combines the previous code with the falling-edge flag by
+    bitwise or. Otherwise the flag is added, matching BIOSIG modes 3 and 5.
+    """
     changes = _changes(values)
     rises = np.flatnonzero(changes > 0)
     falls = np.flatnonzero(changes < 0)
-    previous = np.r_[np.int64(0), types[:-1]]
-    fall_types = previous[falls] + _FALL_BIT if add_fall_bit else previous[falls] | _FALL_BIT
-    return [(rises, types[rises]), (falls, fall_types)]
+    previous = np.r_[np.int64(0), values[:-1]]
+    fall_types = previous[falls] | _FALL_BIT if or_fall_bit else previous[falls] + _FALL_BIT
+    return [(rises, values[rises]), (falls, fall_types)]
 
 
-def _rising_groups(values: np.ndarray, types: np.ndarray) -> list[tuple[np.ndarray, np.ndarray]]:
+def _rising_groups(values: np.ndarray) -> list[tuple[np.ndarray, np.ndarray]]:
     rises = np.flatnonzero(_changes(values) > 0)
-    return [(rises, types[rises])]
+    return [(rises, values[rises])]
 
 
 def _bit_groups(words: np.ndarray, *, anchor: int, falling: bool) -> list[tuple[np.ndarray, np.ndarray]]:
