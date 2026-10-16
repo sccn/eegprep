@@ -72,10 +72,12 @@ Annotations become EEGPrep event records with EEGLAB-facing sample latencies.
 MNE Epochs to EEGPrep
 =====================
 
-``eeg_mne2eeg`` accepts MNE Epochs objects through MNE's EEGLAB exporter. Use
-``eeg_mne2eeg_epochs`` when you specifically need the ICA-aware epochs
-conversion helper; that helper expects both an MNE ``Epochs`` object and an MNE
-``ICA`` object.
+``eeg_mne2eeg`` accepts MNE Epochs objects through MNE's EEGLAB exporter. Each
+epoch keeps its time-locking event at time 0 and any other event whose onset
+falls inside the epoch window. ``eeg_checkset`` then builds ``EEG['epoch']``
+from those events. Use ``eeg_mne2eeg_epochs`` when you specifically need the
+ICA-aware epochs conversion helper; that helper expects both an MNE ``Epochs``
+object and an MNE ``ICA`` object and applies the same event and epoch rules.
 
 .. code-block:: python
 
@@ -121,6 +123,8 @@ Boundary Notes
   comparing absolute amplitudes.
 * EEGPrep event latencies are EEGLAB-facing sample positions. MNE annotations
   are onset times in seconds and events arrays are sample-index rows.
+* ``EEG['subject']`` is stored in ``info['subject_info']['his_id']`` and
+  restored from that field.
 * Conversion helpers use temporary EEGLAB files internally, so keep output paths
   writable and avoid using them inside tight real-time loops.
 * For BIDS projects, use :ref:`bids_workflow` when you want EEGPrep's BIDS

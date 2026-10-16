@@ -7,11 +7,18 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 
+from .eeg_mne2eeg import _mne_epochs_to_eeg_events, _mne_subject, _rebuild_epoch_structure
+
 logger = logging.getLogger(__name__)
 
 
 def eeg_mne2eeg_epochs(epochs, ica):
-    """Convert MNE epochs with ICA to EEGLAB dataset format.
+    """Convert MNE epochs with ICA to an EEG dataset.
+
+    The time-locking event of each epoch is placed at time 0. Other events
+    whose onset falls inside the epoch window are included, and events outside
+    that window are omitted. ``eeg_checkset`` builds ``EEG['epoch']``.
+    ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``.
 
     Parameters
     ----------
@@ -23,14 +30,14 @@ def eeg_mne2eeg_epochs(epochs, ica):
     Returns
     -------
     dict
-        EEGLAB-compatible dataset dictionary.
+        EEG dataset dictionary.
     """
     mne_data = epochs.get_data(copy=True)
     n_epochs, n_channels, n_times = mne_data.shape
     data = np.transpose(mne_data, (1, 2, 0))
 
     ica_channels = ica.info['ch_names']
-    raw_channels = epochs.info['ch_names']  # Assuming you have the raw object
+    raw_channels = epochs.info['ch_names']
     ica_channel_indices = [raw_channels.index(ch) for ch in ica_channels]
     ica_channel_indices = np.array(ica_channel_indices)
 
@@ -42,16 +49,16 @@ def eeg_mne2eeg_epochs(epochs, ica):
     )
 
     if 'custom_ref_applied' in epochs.info and epochs.info['custom_ref_applied']:
-        ref = 'common'  # Custom reference was applied
+        ref = 'common'
     else:
-        ref = 'average'  # Default to average reference
+        ref = 'average'
     logger.info("MNE reference metadata converted to EEGPrep ref=%s.", ref)
 
     eeglab_dict = {
         'setname': '',
         'filename': '',
         'filepath': '',
-        'subject': '',
+        'subject': _mne_subject(epochs),
         'group': '',
         'condition': '',
         'session': np.array([]),
@@ -73,10 +80,10 @@ def eeg_mne2eeg_epochs(epochs, ica):
         'urchanlocs': np.array([]),
         'chaninfo': np.array([]),
         'ref': ref,
-        'event': np.array([]),
+        'event': _mne_epochs_to_eeg_events(epochs),
         'urevent': np.array([]),
         'eventdescription': np.array([]),
-        'epoch': np.array([]),
+        'epoch': [],
         'epochdescription': np.array([]),
         'reject': np.array([]),
         'stats': np.array([]),
@@ -164,8 +171,7 @@ def eeg_mne2eeg_epochs(epochs, ica):
 
     d_list = np.array(d_list)
     eeglab_dict['chanlocs'] = d_list
-
-    return eeglab_dict
+    return _rebuild_epoch_structure(eeglab_dict)
 
 
 def _mne_ica_to_eeglab_fields(ica, data, n_times, n_epochs):

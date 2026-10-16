@@ -21,7 +21,9 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
+from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
 # Import fixtures - use absolute import to work with unittest discovery
 try:
@@ -146,7 +148,7 @@ class TestEEGMNE2EEG(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
         self.assertIn('event', result)
-        self.assertIsInstance(result['event'], list)
+        self.assertIsInstance(result['event'], (list, np.ndarray))
 
         self.assertEqual(len(result['event']), 5)
 
@@ -176,12 +178,87 @@ class TestEEGMNE2EEG(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
         self.assertIn('event', result)
-        self.assertIsInstance(result['event'], list)
+        self.assertIsInstance(result['event'], (list, np.ndarray))
         self.assertEqual(len(result['event']), 3)
 
         for event in result['event']:
             self.assertIsInstance(event['type'], str)
             self.assertEqual(event['type'], '999')
+
+
+def _event_rows(events):
+    return [
+        (
+            str(event['type']),
+            event['latency'],
+            int(event['epoch']),
+            event.get('position'),
+            event.get('urevent'),
+        )
+        for event in events
+    ]
+
+
+def _epoch_rows(epochs):
+    rows = []
+    for epoch in epochs:
+        rows.append(
+            (
+                [int(value) for value in epoch['event']],
+                [str(value) for value in epoch['eventtype']],
+                [float(value) for value in epoch['eventlatency']],
+                [int(value) for value in epoch['eventposition']],
+                [int(value) for value in epoch['eventurevent']],
+            )
+        )
+    return rows
+
+
+def _mne_rows(epochs):
+    subject = (epochs.info.get('subject_info') or {}).get('his_id')
+    names = {code: name for name, code in epochs.event_id.items()}
+    locking = [names[int(code)] for code in epochs.events[:, 2]]
+    per_epoch = epochs.get_annotations_per_epoch(with_extras=True)
+    markers = []
+    for epoch_annots in per_epoch:
+        markers.append(
+            tuple(
+                (str(description), extras.get('latency'), int(extras.get('epoch')))
+                for _onset, _duration, description, extras in epoch_annots
+            )
+        )
+    return subject, tuple(locking), tuple(markers)
+
+
+class TestMNERoundTrip(unittest.TestCase):
+    """EEG and MNE epoch conversions preserve events and subject."""
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_sample_epochs_round_trip_events_and_subject(self):
+        original = pop_loadset('sample_data/eeglab_data_epochs_ica.set')
+        original['subject'] = 'sub-01'
+        expected_events = _event_rows(original['event'])
+        expected_epochs = _epoch_rows(original['epoch'])
+
+        as_mne = eeg_eeg2mne(original)
+        restored = eeg_mne2eeg(as_mne)
+        self.assertEqual(restored['subject'], 'sub-01')
+        self.assertEqual(_event_rows(restored['event']), expected_events)
+        self.assertEqual(_epoch_rows(restored['epoch']), expected_epochs)
+
+        as_mne_again = eeg_eeg2mne(restored)
+        self.assertEqual(_mne_rows(as_mne_again), _mne_rows(as_mne))
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_sample_continuous_round_trip_subject(self):
+        original = pop_loadset('sample_data/eeglab_data.set')
+        original['subject'] = 'sub-02'
+        as_mne = eeg_eeg2mne(original)
+        self.assertEqual(as_mne.info['subject_info']['his_id'], 'sub-02')
+        restored = eeg_mne2eeg(as_mne)
+        self.assertEqual(restored['subject'], 'sub-02')
+        as_mne_again = eeg_eeg2mne(restored)
+        self.assertEqual(as_mne_again.info['subject_info']['his_id'], 'sub-02')
 
 
 class TestMNEEventsToEEGLABEvents(unittest.TestCase):
