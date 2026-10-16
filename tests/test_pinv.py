@@ -60,18 +60,19 @@ class TestPinvParity(unittest.TestCase):
             2,
         )
         reconstruction_bound = 2.0 * bound * float(singular_values[0])
-        asr_gap = _asr_reconstruction_gap(matrix, self.eeglab.pinv)
+        asr_gap = _asr_reconstruction_gap(matrix, self.eeglab.pinv, np.ones(matrix.shape[0], dtype=bool))
         asr_bound = 2.0 * bound
         warnings.warn(
             "ill-conditioned pinv "
             f"projector py={python_errors[0]:.6e} ml={matlab_errors[0]:.6e} bound={bound:.6e} "
             f"recon py={python_errors[1]:.6e} ml={matlab_errors[1]:.6e} "
-            f"bound={bound * singular_values[0]:.6e} cross={reconstruction_gap:.6e} "
+            f"bound={bound * singular_values[0]:.6e} "
+            f"cross={reconstruction_gap:.6e} cross_bound={reconstruction_bound:.6e} "
             f"penrose py={python_errors[2]:.6e} ml={matlab_errors[2]:.6e} "
             f"bound={bound / singular_values[-1]:.6e} "
             f"asr_cross={asr_gap:.6e} bound={asr_bound:.6e}",
             UserWarning,
-            stacklevel=2,
+            stacklevel=1,
         )
         self._assert_penrose('python', python_errors, bound, singular_values)
         self._assert_penrose('matlab', matlab_errors, bound, singular_values)
@@ -100,6 +101,42 @@ class TestPinvParity(unittest.TestCase):
                 f"{label} {name}={error:.6e} bound={limit:.6e}",
             )
 
+    def test_parity_nonfinite_input(self):
+        """NaN or Inf input matches MATLAB's all-NaN transposed result."""
+        matrices = (
+            np.array([[1.0, np.nan], [0.0, 2.0]]),
+            np.array([[np.inf, 0.0, 1.0], [2.0, 3.0, 4.0]]),
+        )
+        for matrix in matrices:
+            with self.subTest(matrix=matrix):
+                python_inverse = pinv(matrix)
+                matlab_inverse = np.asarray(self.eeglab.pinv(matrix), dtype=np.float64)
+                self.assertEqual(python_inverse.shape, (matrix.shape[1], matrix.shape[0]))
+                self.assertEqual(matlab_inverse.shape, python_inverse.shape)
+                self.assertTrue(np.isnan(python_inverse).all())
+                self.assertTrue(np.isnan(matlab_inverse).all())
+
+    def test_parity_masked_rank_deficient_reconstruction(self):
+        """Partial keep mask: the masked factor is the rank-deficient ASR path."""
+        mixing, basis, keep = _masked_asr_case()
+        factor = _masked_factor(mixing, basis, keep)
+        singular_values = np.linalg.svd(factor, compute_uv=False)
+        cutoff = max(factor.shape) * np.spacing(singular_values[0])
+        numpy_cutoff = 1e-15 * singular_values[0]
+        retained = singular_values[singular_values > cutoff]
+        self.assertFalse(np.all(keep))
+        self.assertGreater(np.count_nonzero((singular_values > numpy_cutoff) & (singular_values <= cutoff)), 0)
+        self.assertGreater(retained.size, 0)
+
+        gap = _asr_reconstruction_gap(mixing, self.eeglab.pinv, keep, basis)
+        bound = 2.0 * _projector_bound(retained, order=mixing.shape[0])
+        warnings.warn(
+            f"masked asr_cross={gap:.6e} bound={bound:.6e}",
+            UserWarning,
+            stacklevel=1,
+        )
+        self.assertLessEqual(gap, bound, f"masked ASR cross={gap:.6e} bound={bound:.6e}")
+
 
 class TestPinvFunctional(unittest.TestCase):
     """Functional tests for pinv without MATLAB comparison."""
@@ -123,6 +160,16 @@ class TestPinvFunctional(unittest.TestCase):
         # 0.05 is below a relative cutoff of 1e-3 * 100 and above the absolute cutoff 1e-3.
         np.testing.assert_allclose(inverse, np.diag([0.01, 20.0]), atol=1e-12)
 
+    def test_nonfinite_input_is_all_nan(self):
+        """NaN or Inf input returns all NaN with the transposed shape."""
+        nan_matrix = np.array([[1.0, np.nan], [0.0, 2.0]])
+        inf_matrix = np.array([[np.inf, 0.0, 1.0], [2.0, 3.0, 4.0]])
+        for matrix in (nan_matrix, inf_matrix):
+            with self.subTest(matrix=matrix):
+                inverse = pinv(matrix)
+                self.assertEqual(inverse.shape, (matrix.shape[1], matrix.shape[0]))
+                self.assertTrue(np.isnan(inverse).all())
+
     def test_ill_conditioned_products_meet_the_projector_bound(self):
         """The derived projector bound covers this matrix and rejects a rank drop."""
         matrix = _ill_conditioned_matrix()
@@ -138,6 +185,22 @@ class TestPinvFunctional(unittest.TestCase):
         dropped = pinv(matrix, tol=float(np.sqrt(singular_values[-1] * singular_values[-2])))
         dropped_projector = np.linalg.norm(matrix @ dropped - np.eye(matrix.shape[0]), 2)
         self.assertGreater(dropped_projector, bound)
+
+    def test_partial_keep_drops_the_masked_null(self):
+        """A partial keep mask still drops a singular value NumPy's cutoff would invert."""
+        mixing, basis, keep = _masked_asr_case()
+        factor = _masked_factor(mixing, basis, keep)
+        singular_values = np.linalg.svd(factor, compute_uv=False)
+        cutoff = max(factor.shape) * np.spacing(singular_values[0])
+        numpy_cutoff = 1e-15 * singular_values[0]
+        self.assertFalse(np.all(keep))
+        self.assertGreater(np.count_nonzero((singular_values > numpy_cutoff) & (singular_values <= cutoff)), 0)
+
+        retained = singular_values[singular_values > cutoff]
+        reconstructed = asr_subspace_reconstruction(mixing, basis, keep)
+        numpy_reconstructed = np.real(mixing @ np.linalg.pinv(factor) @ np.asarray(basis).T)
+        np.testing.assert_allclose(np.linalg.norm(pinv(factor), 2), 1.0 / retained[-1], rtol=1e-6, atol=0.0)
+        self.assertGreater(np.linalg.norm(reconstructed - numpy_reconstructed, 2), 0.5)
 
     def test_default_cutoff_matches_matlab_spacing_at_the_norm(self):
         """Keep a singular value between MATLAB's cutoff and SciPy's relative default."""
@@ -168,7 +231,7 @@ class TestPinvFunctional(unittest.TestCase):
         self.assertLess(np.linalg.norm(inverse, 2), 1.0 / cutoff)
 
 
-def _projector_bound(singular_values):
+def _projector_bound(singular_values, order=None):
     """Return ``sqrt(n) * eps * cond(A)`` for ``||A @ pinv(A) - I||_2``.
 
     A backward-stable SVD is exact for a matrix within one unit roundoff of
@@ -176,9 +239,9 @@ def _projector_bound(singular_values):
     products that form the projector are length ``n``, and independent
     roundoff adds in root-sum-square, which contributes ``sqrt(n)``.
     """
-    order = singular_values.shape[0]
+    count = singular_values.shape[0] if order is None else order
     condition = float(singular_values[0] / singular_values[-1])
-    return float(np.sqrt(order) * np.finfo(np.float64).eps * condition)
+    return float(np.sqrt(count) * np.finfo(np.float64).eps * condition)
 
 
 def _penrose_errors(matrix, inverse):
@@ -189,20 +252,42 @@ def _penrose_errors(matrix, inverse):
     return projector, reconstructed, penrose
 
 
-def _asr_reconstruction_gap(matrix, matlab_pinv):
-    """``||R_python - R_matlab||_2`` for ``R = M @ pinv(V' M) @ V'``."""
-    order = matrix.shape[0]
-    basis, _ = np.linalg.qr(np.random.default_rng(306).standard_normal((order, order)))
-    python_reconstruction = asr_subspace_reconstruction(matrix, basis, np.ones(order, dtype=bool))
-    factor = basis.T @ matrix
+def _asr_reconstruction_gap(matrix, matlab_pinv, keep, basis=None):
+    """``||R_python - R_matlab||_2`` for ``R = M @ pinv(keep .* (V' M)) @ V'``."""
+    if basis is None:
+        basis, _ = np.linalg.qr(np.random.default_rng(306).standard_normal((matrix.shape[0], matrix.shape[0])))
+    python_reconstruction = asr_subspace_reconstruction(matrix, basis, keep)
+    factor = _masked_factor(matrix, basis, keep)
     matlab_inverse = np.asarray(matlab_pinv(factor), dtype=np.float64)
-    matlab_reconstruction = np.real(matrix @ matlab_inverse @ basis.T)
+    matlab_reconstruction = np.real(matrix @ matlab_inverse @ np.asarray(basis).T)
     return float(np.linalg.norm(python_reconstruction - matlab_reconstruction, 2))
 
 
+def _masked_factor(mixing, basis, keep):
+    projected = np.asarray(basis).T @ mixing
+    return projected * np.asarray(keep, dtype=float)[:, None]
+
+
+def _masked_asr_case():
+    """Mixing whose kept rows include one singular value below MATLAB's cutoff."""
+    channels = 62
+    kept = channels - 4
+    rng = np.random.default_rng(306)
+    singular_values = np.linspace(45.11, 1.42, kept)
+    singular_values[-1] = 2e-13
+    left, _ = np.linalg.qr(rng.standard_normal((kept, kept)))
+    right, _ = np.linalg.qr(rng.standard_normal((channels, kept)))
+    basis, _ = np.linalg.qr(rng.standard_normal((channels, channels)))
+    projected = rng.standard_normal((channels, channels))
+    projected[:kept] = (left * singular_values) @ right.T
+    keep = np.zeros(channels, dtype=bool)
+    keep[:kept] = True
+    return basis @ projected, basis, keep
+
+
 def _ill_conditioned_matrix():
-    np.random.seed(99999)
-    matrix = np.random.randn(32, 32).astype(np.float64)
+    rng = np.random.default_rng(99999)
+    matrix = rng.standard_normal((32, 32))
     left, singular_values, right = np.linalg.svd(matrix)
     singular_values[20:] *= 1e-12
     return left @ np.diag(singular_values) @ right
