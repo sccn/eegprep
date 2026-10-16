@@ -379,6 +379,18 @@ class TestMNERoundTrip(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'epoch 2 has no events'):
             _apply_eeg_events_to_mne(epochs, eeg)
 
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_eeg2mne_rejects_epoch_without_events(self):
+        middle = create_test_eeg(n_channels=2, n_samples=20, srate=100.0, n_trials=3)
+        middle['event'] = [middle['event'][0], middle['event'][2]]
+        with self.assertRaisesRegex(ValueError, 'epoch 2 has no events'):
+            eeg_eeg2mne(middle)
+
+        last = create_test_eeg(n_channels=2, n_samples=20, srate=100.0, n_trials=3)
+        last['event'] = last['event'][:-1]
+        with self.assertRaisesRegex(ValueError, 'epoch 3 has no events'):
+            eeg_eeg2mne(last)
+
     def test_subject_text_rejects_multiple_values(self):
         self.assertEqual(_subject_text(np.array([])), '')
         with self.assertRaises(ValueError):

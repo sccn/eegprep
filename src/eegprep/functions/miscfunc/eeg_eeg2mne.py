@@ -7,7 +7,7 @@ import mne
 import numpy as np
 
 from ..popfunc.pop_saveset import pop_saveset
-from ._eeg_mne import _apply_eeg_events_to_mne, _eeg_subject, _set_mne_subject
+from ._eeg_mne import _apply_eeg_events_to_mne, _eeg_subject, _events_by_epoch, _set_mne_subject
 
 
 def _with_readable_chaninfo(EEG):
@@ -46,7 +46,15 @@ def eeg_eeg2mne(EEG):
     -------
     mne.io.BaseRaw | mne.BaseEpochs
         MNE object for the dataset.
+
+    Raises
+    ------
+    ValueError
+        If an epoch has no events. The message names that epoch, 1-based.
     """
+    if int(EEG.get('trials', 1) or 1) > 1:
+        _events_by_epoch(EEG)
+
     with tempfile.TemporaryDirectory(prefix="eegprep-eeg2mne-") as temp_dir:
         set_path = Path(temp_dir) / "bridge.set"
         pop_saveset(_with_readable_chaninfo(EEG), str(set_path))

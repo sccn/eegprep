@@ -20,8 +20,9 @@ def eeg_mne2eeg_epochs(epochs, ica):
     ``eeg_checkset`` builds ``EEG['epoch']``. Annotation durations are stored
     on ``event['duration']`` in samples. When any duration is nonzero, every
     event has that field, and a zero duration is 0. An integer type is restored
-    only when ``str(int(text))`` reproduces the text. ``info['subject_info']['his_id']``
-    is copied to ``EEG['subject']``.
+    only when ``str(int(text))`` reproduces the text, and a float only when
+    ``str(float(text))`` does, so ``'2.50'`` stays text.
+    ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``.
 
     The urevent table and ``event['urevent']`` do not survive. Boolean,
     non-finite, and non-scalar event fields do not survive. Annotation fields

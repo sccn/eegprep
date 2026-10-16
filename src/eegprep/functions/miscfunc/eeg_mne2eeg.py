@@ -23,7 +23,8 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
 
     Durations are stored in samples. When any duration is nonzero, every event
     has ``duration``, with 0 for a zero duration. An integer event type is
-    restored only when ``str(int(text))`` reproduces the text.
+    restored only when ``str(int(text))`` reproduces the text, and a float
+    only when ``str(float(text))`` does.
     """
     events = []
     sfreq = raw_or_epochs.info['sfreq']
@@ -64,7 +65,8 @@ def eeg_mne2eeg(raw):
     event has that field, and a zero duration is 0. Recordings with no
     durations omit the field. An integer type is restored only when
     ``str(int(text))`` reproduces the text, so ``'001'`` stays ``'001'``. A
-    non-numeric type keeps every type as text.
+    float type is restored only when ``str(float(text))`` reproduces the text,
+    so ``'2.50'`` stays ``'2.50'``. A non-numeric type keeps every type as text.
 
     The urevent table and ``event['urevent']`` do not survive. Boolean,
     non-finite, and non-scalar event fields do not survive. Annotation fields

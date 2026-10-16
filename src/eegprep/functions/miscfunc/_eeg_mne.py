@@ -123,18 +123,19 @@ def _restore_numeric_event_types(events):
     return events
 
 
-def _duration_is_nonzero(duration):
+def _has_nonzero_duration(duration):
+    """Return False for a missing, blank, or zero duration."""
     return duration not in (None, '', 0)
 
 
 def _consistent_durations(events):
     """Give every event a duration when any duration is nonzero."""
-    if not any(_duration_is_nonzero(event.get('duration')) for event in events):
+    if not any(_has_nonzero_duration(event.get('duration')) for event in events):
         for event in events:
             event.pop('duration', None)
         return events
     for event in events:
-        if not _duration_is_nonzero(event.get('duration')):
+        if not _has_nonzero_duration(event.get('duration')):
             event['duration'] = 0
     return events
 
@@ -172,6 +173,26 @@ def _epoch_index_for_event(event, pnts, trials):
         if 0 <= index < trials:
             return index
     return None
+
+
+def _events_by_epoch(EEG):
+    """Group events by epoch.
+
+    Epoched data must include at least one event in every epoch.
+    """
+    trials = int(EEG.get('trials', 1) or 1)
+    pnts = int(EEG['pnts'])
+    grouped = [[] for _ in range(trials)]
+    for event in _iter_events(EEG.get('event')):
+        index = _epoch_index_for_event(event, pnts, trials)
+        if index is None:
+            continue
+        grouped[index].append(event)
+    if trials > 1:
+        for epoch_index, group in enumerate(grouped):
+            if not group:
+                raise ValueError(f'epoch {epoch_index + 1} has no events')
+    return grouped
 
 
 def _relative_seconds(event, epoch_index, pnts, srate, xmin):
@@ -278,12 +299,7 @@ def _apply_eeg_events_to_mne(epochs, EEG):
     srate = float(EEG['srate'])
     xmin = float(EEG['xmin'])
     xmax = float(EEG['xmax'])
-    grouped = [[] for _ in range(trials)]
-    for event in eeg_events:
-        index = _epoch_index_for_event(event, pnts, trials)
-        if index is None:
-            continue
-        grouped[index].append(event)
+    grouped = _events_by_epoch(EEG)
 
     id_map = {}
     samples = []
@@ -294,8 +310,6 @@ def _apply_eeg_events_to_mne(epochs, EEG):
     extras = []
     next_id = 1
     for epoch_index, group in enumerate(grouped):
-        if not group:
-            raise ValueError(f'epoch {epoch_index + 1} has no events')
         relatives = [_relative_seconds(event, epoch_index, pnts, srate, xmin) for event in group]
         lock_at = min(range(len(group)), key=lambda index: (abs(relatives[index]), index))
         locking_type = str(group[lock_at]['type'])

@@ -78,7 +78,8 @@ falls in the half-open window ``[xmin, xmax + 1/srate)``. Annotation
 durations are stored as ``event['duration']`` in samples. When any duration
 is nonzero, every event has that field, and a zero duration is 0. An integer
 event type is restored only when ``str(int(text))`` reproduces the text, so
-``001`` stays ``001``. ``eeg_checkset`` then
+``001`` stays ``001``. A float is restored only when ``str(float(text))``
+reproduces the text, so ``2.50`` stays ``2.50``. ``eeg_checkset`` then
 builds ``EEG['epoch']`` from those events. Use ``eeg_mne2eeg_epochs`` when you
 specifically need the ICA-aware epochs conversion helper; that helper expects
 both an MNE ``Epochs`` object and an MNE ``ICA`` object and applies the same
