@@ -10,6 +10,7 @@ its entire source assertion oracle consists of the approved count exclusions.
 
 from __future__ import annotations
 
+import gc
 from copy import copy, deepcopy
 from pathlib import Path
 
@@ -87,6 +88,23 @@ _MMO_DELETIONS = [
 ]
 
 
+def _matlab_subscript_key(subscripts):
+    """Translate a MATLAB subscript list to a 0-based key, keeping its rank."""
+    return tuple(_matlab_subscript_indexer(part.strip()) for part in subscripts.split(","))
+
+
+def _matlab_subscript_indexer(part):
+    if part == ":":
+        return slice(None)
+    if part.startswith("[") and part.endswith("]"):
+        return np.asarray([int(piece) - 1 for piece in part[1:-1].split()], dtype=int)
+    if ":" in part:
+        start, stop = part.split(":")
+        # MATLAB 4:5 includes both ends; the Python slice stop is exclusive.
+        return slice(int(start) - 1, int(stop))
+    return int(part) - 1
+
+
 def _check_original_mmo_deletion(request, backend, directory, case, transposed):
     kind, subscripts, view_shape, axis, indices = case
     values = _original_mmo_values(kind, transposed)
@@ -95,12 +113,9 @@ def _check_original_mmo_deletion(request, backend, directory, case, transposed):
         actual = backend("eegprep_test_mmo_assignment", values, subscripts, np.empty((0, 0)), transposed)
     else:
         mapped = _python_mmo(values, directory, transposed)
-        if "," not in subscripts:
-            mapped.delete(indices)
-        else:
-            # Exercise the public deletion operation with the original axis
-            # and indices; the assertion retains MATLAB's implicit collapse.
-            mapped.delete(indices, axis=axis)
+        # The key rank is the MATLAB subscript count. Fewer subscripts than
+        # dimensions fold the trailing axes before the empty assignment.
+        mapped[_matlab_subscript_key(subscripts)] = np.empty((0, 0))
         actual = np.asarray(mapped)
     np.testing.assert_array_equal(_matlab_array_shape(actual), _matlab_array_shape(expected))
 
@@ -450,3 +465,38 @@ def test_transposeindices_exposes_logical_2d_and_3d_indices(tmp_path: Path):
     mapped3[2, 4, 1] = -21
     physical3_reloaded = np.fromfile(path3, dtype=np.float32).reshape(physical3.shape, order="F")
     assert physical3_reloaded[4, 1, 2] == -21
+
+
+def test_growth_does_not_mutate_a_shared_copy(tmp_path: Path):
+    values = _data((2, 4))
+    original = _mapping(tmp_path, "grow-shared", values)
+    shared = copy(original)
+    shared[0, 6] = -6
+    assert original.shape == values.shape
+    np.testing.assert_array_equal(np.asarray(original), values)
+    assert shared.shape == (2, 7)
+    assert shared[0, 6] == -6
+    assert shared[1, 6] == 0
+    assert shared[0, 3] == values[0, 3]
+
+
+def test_empty_assignment_removes_a_repeated_index_once(tmp_path: Path):
+    values = _data((1, 6))
+    mapped = _mapping(tmp_path, "duplicate-delete", values)
+    # MATLAB subsasgn shrinks by numel(index), counting repeated entries.
+    # Removing the selected samples once keeps the four survivors.
+    mapped[([1, 1, 3],)] = np.empty((0, 0))
+    np.testing.assert_array_equal(np.asarray(mapped), values[:, [0, 2, 4, 5]])
+
+
+def test_temporary_mapping_survives_until_views_are_released(tmp_path: Path):
+    mapped = MemmapData.empty((2, 3), filename=tmp_path / "held-view.fdt", temporary=True)
+    mapped[0, 0] = 4
+    view = mapped[0, :]
+    path = mapped.path
+    del mapped
+    gc.collect()
+    assert float(view[0]) == 4
+    del view
+    gc.collect()
+    assert not path.exists()

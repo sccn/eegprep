@@ -59,11 +59,17 @@ value writes to the ``.fdt`` sidecar; use normal EEGPrep save/history workflows
 when the dataset metadata should be marked clean.
 
 ``MemmapData`` uses zero-based NumPy indices against the logical
-``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
-``copy.deepcopy`` share the sidecar until one copy is written, then use a
+``(channels, samples[, trials])`` shape. Assignment past the end of an axis
+grows that axis and fills the new samples with zeros. Assigning an empty
+array deletes the indexed samples. A key with fewer entries than the array
+rank folds the trailing dimensions together before the deletion, so a
+channels-by-samples-by-trials array indexed with two subscripts is treated
+as channels by samples-times-trials. ``delete(indices, axis=...)`` addresses
+one axis of the full array and does not fold. Copies made with ``copy.copy``
+or ``copy.deepcopy`` share the sidecar until one copy is written, then use a
 private copy-on-write sidecar so processing a copied EEG does not mutate its
 source. ``resize`` retains the overlapping region and fills new samples with
-zeros by default; ``delete`` removes indices along a selected logical axis.
+zeros by default. A read-only handle is copied on the first write.
 
 EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
 rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,

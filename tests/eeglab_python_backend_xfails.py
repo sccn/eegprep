@@ -209,21 +209,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_pcsquash": _gap(SHAPE, AssertionError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_perminv": _gap(SHAPE, ValueError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_uniquef": _gap(SHAPE, AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-6]": _gap(SHAPE, AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-3]": _gap(SHAPE, AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-5]": _gap(SHAPE, AssertionError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter]": _gap(
-        SHAPE, AssertionError
-    ),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_filter_after_rejection]": _gap(
-        SHAPE, AssertionError
-    ),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[epoched_filter]": _gap(
-        SHAPE, AssertionError
-    ),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case1]": _gap(
-        SHAPE, AssertionError
-    ),
     "tests/test_numdim.py::test_reference_numdim": _gap(SHAPE, AssertionError),
     "tests/test_phase2_file_channel_location.py::test_reference_chancenter_2d": _gap(SHAPE, AssertionError),
     "tests/test_phase2_file_channel_location.py::test_reference_chancenter_all_negative": _gap(SHAPE, AssertionError),
@@ -261,28 +246,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_eeg_retrieve.py::test_reference_eeg_retrieve_original_general_case": _gap(INDEX, IndexError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_rmart": _gap(RMART, ValueError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_gauss": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-10]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-11]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-12]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-13]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-14]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-15]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-3]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-5]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-7]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-8]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_assignments[case-9]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_copy_on_write_diagnostics": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_deletions[case-4]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_returned_workspace": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case0]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case2]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case3]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case4]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case5]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case6]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case7]": _gap(INDEX, IndexError),
-    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_transposed_assignments[case8]": _gap(INDEX, IndexError),
     "tests/test_pop_adjustevents.py::test_reference_adjustevents_continuous": _gap(INDEX, IndexError),
     "tests/test_pop_adjustevents.py::test_reference_adjustevents_epoched": _gap(INDEX, IndexError),
     "tests/test_phase1b_file_edit_pop_functions.py::test_reference_copyset_original_set_out": _gap(

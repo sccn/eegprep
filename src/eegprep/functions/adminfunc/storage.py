@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import tempfile
 from typing import Any
+import weakref
 
 import numpy as np
 
@@ -22,6 +23,7 @@ class _BackingFile:
         self.path = path
         self.temporary = temporary
         self.references = 0
+        self.pending_delete = False
 
     def acquire(self) -> None:
         self.references += 1
@@ -29,17 +31,23 @@ class _BackingFile:
     def release(self) -> None:
         self.references -= 1
         if self.references == 0 and self.temporary:
-            self.path.unlink(missing_ok=True)
+            self.pending_delete = True
+            _unlink_temporary(self.path)
 
 
 class MemmapData:
     """NumPy-compatible handle for channel-major EEG data stored on disk.
 
     Indexing always uses the logical EEG shape and normal zero-based NumPy
-    indices. ``transposed=True`` maps EEGLAB ``.dat``-style storage whose
+    indices. Assigning past the end grows that axis with zeros. Assigning an
+    empty array deletes the indexed entries; a key shorter than the array rank
+    folds the trailing dimensions together first, as MATLAB does for fewer
+    subscripts. ``transposed=True`` maps EEGLAB ``.dat``-style storage whose
     physical axes are ``(samples, trials, channels)`` without exposing that
     layout to callers. Explicit and deep copies share the backing file until a
     copy is mutated, at which point that handle gets a private temporary file.
+    With ``debug=True``, a write prints ``using same copy`` when it updates the
+    current file and ``new copy created`` when copy-on-write replaces it.
     """
 
     __array_priority__ = 1000
@@ -249,30 +257,22 @@ class MemmapData:
     def delete(self, indices: Any, *, axis: int | None = None) -> None:
         """Delete logical indices and replace the sidecar with the smaller data.
 
-        ``axis=None`` follows MATLAB's column-major linear deletion. Matrix
-        results become row vectors, while column-vector inputs remain columns.
+        ``axis=None`` follows column-major linear deletion. Matrix results
+        become row vectors, while column-vector inputs remain columns. Deletion
+        along ``axis`` addresses that axis of the full array. Assigning an empty
+        array uses the key length to fold trailing dimensions before deleting.
         """
         if axis is None:
-            flat = np.asarray(self).reshape(-1, order="F")
-            result = np.delete(flat, indices)
-            if self.ndim == 2 and self.shape[1] == 1:
-                result = result.reshape((-1, 1), order="F")
-            else:
-                result = result.reshape((1, -1), order="F")
-        else:
-            normalized_axis = int(axis)
-            if normalized_axis < -self.ndim or normalized_axis >= self.ndim:
-                raise ValueError(f"axis {normalized_axis} is out of bounds for array of dimension {self.ndim}")
-            result = np.delete(np.asarray(self), indices, axis=normalized_axis)
-        if result.size == 0:
-            raise ValueError("MemmapData cannot represent an empty mapping")
-        replacement = MemmapData.from_array(
-            result,
-            dtype=self.dtype,
-            order=self.order,
-            transposed=self.transposed and result.ndim in {2, 3},
-        )
-        self._adopt(replacement)
+            self[(np.asarray(indices).reshape(-1),)] = np.empty(0)
+            return
+        normalized_axis = int(axis)
+        if normalized_axis < -self.ndim or normalized_axis >= self.ndim:
+            raise ValueError(f"axis {normalized_axis} is out of bounds for array of dimension {self.ndim}")
+        if normalized_axis < 0:
+            normalized_axis += self.ndim
+        key = [slice(None)] * self.ndim
+        key[normalized_axis] = indices
+        self[tuple(key)] = np.empty(0)
 
     def change_file(self, filename: str | Path, *, writable: bool = False) -> None:
         """Move a private mapping, or copy a shared mapping, to ``filename``."""
@@ -281,12 +281,17 @@ class MemmapData:
         self.flush()
         source = self.path
         shared = self._backing.references > 1
-        self.close()
+        array = self._array
+        self._array = None
+        if array is not None and not shared:
+            _close_memmap(array)
         if shared:
             shutil.copyfile(source, target)
         else:
+            self._backing.temporary = False
             shutil.move(source, target)
         self._replace_backing(_BackingFile(target), mode="r+" if writable else "r")
+        del array
 
     def reshape(self, *shape: Any, **kwargs: Any) -> np.ndarray:
         """Return a reshaped view using NumPy's reshape semantics."""
@@ -316,9 +321,23 @@ class MemmapData:
         return self._memmap()[key]
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        if not self.writable:
-            raise ValueError("assignment destination is read-only")
-        self._detach_for_write()
+        if _is_empty_assignment(value):
+            self._delete_at(key)
+            return
+        new_shape = _shape_after_growth(self._shape, key)
+        grew = new_shape != self._shape
+        copied = False
+        if grew:
+            self.resize(new_shape)
+        else:
+            copied = self._detach_for_write()
+        if self.debug:
+            if grew:
+                print("new copy created, old deleted")
+            elif copied:
+                print("new copy created")
+            else:
+                print("using same copy")
         self._memmap()[key] = value
 
     def __len__(self) -> int:
@@ -356,11 +375,15 @@ class MemmapData:
     def __del__(self) -> None:
         if getattr(self, "_released", True):
             return
-        try:
-            self.close()
-        finally:
-            self._backing.release()
-            self._released = True
+        self._released = True
+        array = getattr(self, "_array", None)
+        self._array = None
+        if array is not None:
+            array.flush()
+        backing = getattr(self, "_backing", None)
+        if backing is not None:
+            backing.release()
+        del array
 
     def _memmap(self) -> np.ndarray:
         if self._array is None:
@@ -371,6 +394,13 @@ class MemmapData:
                 shape=_physical_shape(self._shape, self.transposed),
                 order=self.order,
             )
+            if self._backing.temporary:
+                weakref.finalize(
+                    self._array,
+                    _finalize_temporary_map,
+                    self._backing,
+                    getattr(self._array, "_mmap", None),
+                )
         if not self.transposed:
             return self._array
         if self.ndim == 2:
@@ -387,31 +417,228 @@ class MemmapData:
         if actual != expected:
             raise ValueError(f"Memory-mapped data file has {actual} bytes, expected {expected}")
 
-    def _detach_for_write(self) -> None:
-        if self._backing.references <= 1:
-            return
+    def _detach_for_write(self) -> bool:
+        if self._backing.references <= 1 and self.mode != "r":
+            return False
         self.flush()
         new_path, _owns_file = _output_mapping_path(None)
         shutil.copyfile(self.path, new_path)
-        self.close()
-        self._replace_backing(_BackingFile(new_path, temporary=True), mode="r+")
+        self._retarget(_BackingFile(new_path, temporary=True), mode="r+")
+        return True
+
+    def _delete_at(self, key: Any) -> None:
+        if _empty_deletion_key(key, self.ndim):
+            return
+        result = _deleted_array(np.asarray(self._memmap()), key)
+        if result.size == 0:
+            raise ValueError("MemmapData cannot represent an empty mapping")
+        replacement = MemmapData.from_array(
+            result,
+            dtype=self.dtype,
+            order=self.order,
+            transposed=self.transposed and result.ndim in {2, 3},
+        )
+        self._adopt(replacement)
+        if self.debug:
+            print("new copy created, old deleted (length 1)")
 
     def _adopt(self, replacement: "MemmapData") -> None:
         replacement.flush()
-        self.close()
         self._shape = replacement.shape
         self._dtype = replacement.dtype
         self.order = replacement.order
         self.transposed = replacement.transposed
-        self._replace_backing(replacement._backing, mode="r+")
+        self._retarget(replacement._backing, mode="r+")
+
+    def _retarget(self, backing: "_BackingFile", *, mode: str) -> None:
+        array = self._array
+        self._array = None
+        if array is not None:
+            array.flush()
+        self._replace_backing(backing, mode=mode)
+        del array
 
     def _replace_backing(self, backing: _BackingFile, *, mode: str) -> None:
         old_backing = self._backing
         backing.acquire()
         self._backing = backing
         self.mode = mode
-        self._array = None
         old_backing.release()
+
+
+def _unlink_temporary(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except PermissionError:
+        return
+
+
+def _close_memmap(array: np.memmap) -> None:
+    handle = getattr(array, "_mmap", None)
+    if handle is None or getattr(handle, "closed", True):
+        return
+    handle.close()
+
+
+def _finalize_temporary_map(backing: _BackingFile, handle: Any) -> None:
+    if not backing.pending_delete:
+        return
+    if handle is not None and not getattr(handle, "closed", True):
+        try:
+            handle.close()
+        except (BufferError, ValueError):
+            return
+    _unlink_temporary(backing.path)
+
+
+def _is_empty_assignment(value: Any) -> bool:
+    if value is None or isinstance(value, (str, bytes)):
+        return False
+    if isinstance(value, (int, float, complex, np.number)):
+        return False
+    try:
+        return np.asarray(value).size == 0
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_colon(indexer: Any) -> bool:
+    return isinstance(indexer, slice) and indexer.start is None and indexer.stop is None and indexer.step in (None, 1)
+
+
+def _shape_after_growth(shape: tuple[int, ...], key: Any) -> tuple[int, ...]:
+    indexers = _growth_indexers(key, len(shape))
+    if indexers is None:
+        return shape
+    new_shape = list(shape)
+    for axis, indexer in enumerate(indexers):
+        extent = _indexer_extent(indexer, new_shape[axis])
+        if extent > new_shape[axis]:
+            new_shape[axis] = extent
+    return tuple(new_shape)
+
+
+def _growth_indexers(key: Any, ndim: int) -> tuple[Any, ...] | None:
+    if key is Ellipsis:
+        return (slice(None),) * ndim
+    if not isinstance(key, tuple):
+        key = (key,)
+    if any(item is None for item in key):
+        return None
+    if sum(item is Ellipsis for item in key) > 1:
+        return None
+    if any(item is Ellipsis for item in key):
+        index = key.index(Ellipsis)
+        missing = ndim - (len(key) - 1)
+        if missing < 0:
+            return None
+        key = key[:index] + (slice(None),) * missing + key[index + 1 :]
+    if len(key) > ndim:
+        if not all(_is_colon(item) for item in key[ndim:]):
+            return None
+        key = key[:ndim]
+    if len(key) < ndim:
+        key = key + (slice(None),) * (ndim - len(key))
+    for item in key:
+        if isinstance(item, np.ndarray) and item.dtype == bool:
+            return None
+    return key
+
+
+def _indexer_extent(indexer: Any, length: int) -> int:
+    if _is_colon(indexer):
+        return length
+    if isinstance(indexer, slice):
+        if indexer.step is not None and indexer.step < 0:
+            return length
+        if indexer.stop is None or indexer.stop < 0:
+            return length
+        return max(length, int(indexer.stop))
+    if isinstance(indexer, (int, np.integer)):
+        index = int(indexer)
+        if index < 0:
+            return length
+        return max(length, index + 1)
+    array = np.asarray(indexer)
+    if array.dtype == bool or array.size == 0 or not np.issubdtype(array.dtype, np.integer):
+        return length
+    if np.any(array < 0):
+        return length
+    return max(length, int(array.max()) + 1)
+
+
+def _empty_deletion_key(key: Any, ndim: int) -> bool:
+    """Return whether any subscript is an empty index list.
+
+    MATLAB ``subsasgn`` returns the original object when a subscript is empty.
+    A colon or numeric range is not empty; ``[]`` is.
+    """
+    for indexer in _deletion_indexers(key, ndim):
+        if _is_colon(indexer) or isinstance(indexer, (slice, int, np.integer)):
+            continue
+        if np.asarray(indexer).size == 0:
+            return True
+    return False
+
+
+def _deletion_indexers(key: Any, ndim: int) -> list[Any]:
+    if not isinstance(key, tuple):
+        key = (key,)
+    indexers = list(key)
+    while len(indexers) > ndim and _is_colon(indexers[-1]):
+        indexers.pop()
+    return indexers
+
+
+def _deletion_positions(indexer: Any, length: int) -> np.ndarray:
+    if isinstance(indexer, slice):
+        return np.arange(length)[indexer]
+    if isinstance(indexer, (int, np.integer)):
+        index = int(indexer)
+        if index < 0:
+            index += length
+        return np.asarray([index], dtype=int)
+    positions = np.asarray(indexer, dtype=int).reshape(-1)
+    return np.where(positions < 0, positions + length, positions)
+
+
+def _deleted_array(array: np.ndarray, key: Any) -> np.ndarray:
+    """Delete MATLAB-style indices, folding trailing axes when the key is short."""
+    indexers = _deletion_indexers(key, array.ndim)
+    non_colon = [axis for axis, indexer in enumerate(indexers) if not _is_colon(indexer)]
+    if len(non_colon) > 1:
+        raise ValueError("A null assignment can have only one non-colon index")
+    if not non_colon:
+        raise ValueError("MemmapData cannot represent an empty mapping")
+    if len(indexers) == 1:
+        flat = np.reshape(array, -1, order="F")
+        remove = _checked_positions(_deletion_positions(indexers[0], flat.size), flat.size)
+        keep = np.ones(flat.size, dtype=bool)
+        keep[remove] = False
+        result = flat[keep]
+        column = array.shape[0] > 1 and all(size == 1 for size in array.shape[1:])
+        if column:
+            return result.reshape((-1, 1), order="F")
+        return result.reshape((1, -1), order="F")
+
+    dims = list(array.shape)
+    if len(indexers) < len(dims):
+        last = len(indexers) - 1
+        dims = dims[:last] + [int(np.prod(dims[last:]))]
+        array = np.reshape(array, dims, order="F")
+    axis = non_colon[0]
+    remove = _checked_positions(_deletion_positions(indexers[axis], dims[axis]), dims[axis])
+    keep = np.ones(dims[axis], dtype=bool)
+    keep[remove] = False
+    selector = [slice(None)] * len(dims)
+    selector[axis] = keep
+    return np.asarray(array[tuple(selector)])
+
+
+def _checked_positions(positions: np.ndarray, length: int) -> np.ndarray:
+    if positions.size and (np.any(positions < 0) or np.any(positions >= length)):
+        raise IndexError(f"index {int(positions[np.argmax((positions < 0) | (positions >= length))])} is out of bounds")
+    return positions
 
 
 def _physical_shape(shape: tuple[int, ...], transposed: bool) -> tuple[int, ...]:

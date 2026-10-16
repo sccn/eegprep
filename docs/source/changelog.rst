@@ -58,6 +58,14 @@ Unreleased
   feature count as the degrees of freedom.
   Resampling cells follow MATLAB ``rng('default')``; pass ``rng`` to control
   the Python surrogate stream.
+- ``MemmapData`` grows when an assignment extends past the end of an axis and
+  fills the new samples with zeros. Assigning an empty array deletes those
+  entries. A shorter index folds trailing dimensions together before the
+  deletion, matching fewer MATLAB subscripts. Shared copies stay unchanged
+  until they are written, and ``debug=True`` prints whether that write reused
+  the file. Single-precision EEG stays single precision through FIR filtering:
+  the filter runs in float64 and the result is cast back, so a memory-mapped
+  dataset and the same dataset in memory now match.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

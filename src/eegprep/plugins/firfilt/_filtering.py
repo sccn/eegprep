@@ -227,6 +227,8 @@ def apply_fir_filter(
     channel_indices, _history = resolve_channel_indices(output, channels, chantype)
 
     flattened = data.transpose(0, 2, 1).reshape(nbchan, pnts * trials) if data.ndim == 3 else data.copy()
+    # EEGLAB fir_filterdcpadded filters in double and casts single input back to single.
+    was_single = flattened.dtype == np.float32
     filtered = flattened.astype(np.float64, copy=True)
     bounds = _epoched_bounds(pnts, trials) if trials > 1 else _continuous_bounds(output, pnts)
     for start, stop in zip(bounds[:-1], bounds[1:]):
@@ -234,6 +236,8 @@ def apply_fir_filter(
             continue
         window = np.ix_(channel_indices, np.arange(start, stop))
         filtered[window] = _filter_segment(b, filtered[window], causal=causal, usefftfilt=usefftfilt)
+    if was_single:
+        filtered = filtered.astype(np.float32)
 
     filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
     output["data"] = mapped_output_like(source_data, filtered_data)
@@ -262,6 +266,7 @@ def apply_eegfilt_legacy(
     pnts = int(output.get("pnts", data.shape[1]))
     trials = int(output.get("trials", data.shape[2] if data.ndim == 3 else 1))
     flattened = data.transpose(0, 2, 1).reshape(nbchan, pnts * trials) if data.ndim == 3 else data.copy()
+    was_single = flattened.dtype == np.float32
     filtered = flattened.astype(np.float64, copy=True)
     bounds = _epoched_bounds(pnts, trials) if trials > 1 else _continuous_bounds(output, pnts)
     order = int(filtorder if filtorder is not None else b.size - 1)
@@ -272,6 +277,8 @@ def apply_eegfilt_legacy(
         if segment.shape[1] <= order * 3 and not causal:
             raise ValueError("epochframes must be at least 3 times the filtorder.")
         filtered[:, start:stop] = _legacy_filter_segment(b, segment, causal=causal)
+    if was_single:
+        filtered = filtered.astype(np.float32)
     filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
     output["data"] = mapped_output_like(source_data, filtered_data)
     output["icaact"] = np.array([])
