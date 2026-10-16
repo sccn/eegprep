@@ -396,7 +396,7 @@ def test_signif_with_coher_applies_the_given_thresholds() -> None:
     np.testing.assert_allclose(result.ampsig, np.array([-2.0, 2.0]) - result.baseamp)
 
 
-@pytest.mark.timeout(30, method="signal")
+@pytest.mark.timeout(30)
 def test_zero_data_keeps_eeglab_limits_without_hanging() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)  # no overflow in the limit rounding loops
