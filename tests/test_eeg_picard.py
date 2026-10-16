@@ -153,7 +153,7 @@ class TestEegPicard(unittest.TestCase):
 
         # --- Assertions ---
 
-        for eeg_result, engine_name in [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]:  # , (EEG_octave, 'Octave')]:
+        for eeg_result, engine_name in [(EEG_python, 'Python'), (EEG_matlab, 'MATLAB')]:
             with self.subTest(engine=engine_name):
                 self.assertIn('icaweights', eeg_result)
                 self.assertIn('icasphere', eeg_result)
@@ -169,7 +169,6 @@ class TestEegPicard(unittest.TestCase):
         all_results = {
             "Python": EEG_python,
             "MATLAB": EEG_matlab,
-            # "Octave": EEG_octave
         }
 
         for engine_name, eeg_result in all_results.items():
@@ -180,34 +179,6 @@ class TestEegPicard(unittest.TestCase):
                 self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
 
         print("All engines produced ICA fields with consistent shapes.")
-
-        # plot the difference between each 2-D array and the difference between the 2-D arrays and save the figure
-        if False:
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-            im1 = axes[0].imshow(EEG_python['icaweights'], aspect='auto', cmap='viridis')
-            axes[0].set_title('Python icaweights')
-            fig.colorbar(im1, ax=axes[0])
-
-            im2 = axes[1].imshow(EEG_matlab['icaweights'], aspect='auto', cmap='viridis')
-            axes[1].set_title('MATLAB icaweights')
-            fig.colorbar(im2, ax=axes[1])
-
-            diff = np.abs(EEG_python['icaweights'] - EEG_matlab['icaweights'])
-            im3 = axes[2].imshow(diff, aspect='auto', cmap='magma')
-            axes[2].set_title('Absolute Difference')
-            fig.colorbar(im3, ax=axes[2])
-            plt.savefig(os.path.join(local_url, 'icaweights_comparison.png'))
-            plt.close()
-
-        # save weights to MATLAB file
-        import scipy.io
-
-        scipy.io.savemat(
-            os.path.join(local_url, 'icaweights_comparison.mat'),
-            {'pArray': EEG_python['icaweights'], 'mArray': EEG_matlab['icaweights']},
-        )  # , 'oArray': EEG_octave['icaweights']})
 
         np.testing.assert_allclose(
             EEG_python['icasphere'],

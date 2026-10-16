@@ -86,22 +86,19 @@ def _prepare_matlab_arg(arg: Any) -> Any:
     return py2mat(arg)
 
 
-def _matching_dir(parent: str | Path, name: str) -> str | None:
+def _matching_dir(parent: str | Path, *names: str) -> str | None:
+    """Return the first existing directory ``parent/name``."""
     root = Path(parent)
-    if not root.is_dir():
-        return None
-    exact = root / name
-    if exact.is_dir():
-        return str(exact)
-    wanted = name.casefold()
-    for child in root.iterdir():
-        if child.is_dir() and child.name.casefold() == wanted:
-            return str(child)
+    for name in names:
+        candidate = root / name
+        if candidate.is_dir():
+            return str(candidate)
     return None
 
 
 def _picard_plugin_paths(eeglab_root: str) -> list[str]:
-    plugin = _matching_dir(Path(eeglab_root) / "plugins", "picard")
+    """Return the installed Picard plugin directory and its ``matlab_octave`` sources."""
+    plugin = _matching_dir(Path(eeglab_root) / "plugins", "PICARD", "picard")
     if plugin is None:
         return []
     paths = [plugin]
@@ -390,7 +387,7 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/ICLabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
         for plugin_path in _picard_plugin_paths(path2eeglab):
-            engine.addpath(plugin_path, nargout=0)
+            engine.addpath(plugin_path)
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
         # eegplugin_clean_rawdata adds these so rasr_nonlinear_eigenspace can call Manopt.
         manopt_root = path2eeglab + '/plugins/clean_rawdata/manopt'
