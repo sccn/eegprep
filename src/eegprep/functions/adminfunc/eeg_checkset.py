@@ -57,8 +57,8 @@ def _eventconsistency(EEG):
     3. Remove out-of-bounds events (latency < 0.5 or > pnts*trials+1)
     4. Remove events with invalid epoch numbers
     5. Set empty duration fields to 0
-    6. Remove duplicate boundary events (merge durations)
-    7. Resort events by {epoch, latency}
+    6. Chain durations of consecutive equal-latency boundary-list entries
+    7. Sort events by epoch, then latency
     8. Clamp first-event latency to >= 0.5
     """
     from ..popfunc.eeg_findboundaries import eeg_findboundaries
@@ -120,8 +120,11 @@ def _eventconsistency(EEG):
         if 'duration' in event and (event['duration'] is None or event['duration'] == ''):
             event['duration'] = 0
 
-    # 6. Remove duplicate boundary events at same latency, merge durations
-    #    (MATLAB lines 521-546). Durations accumulate into the later event.
+    # Consecutive boundary-list entries with equal latency, in event order and
+    # before sorting, chain their durations into the later entry (eeg_checkset.m
+    # 521-546). A later boundary at the same latency stays when a different
+    # latency stands between them. EEGLAB skips this block when the first event
+    # type is numeric; string and numeric boundary types are merged alike.
     boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
     if boundary_idx:
         boundary_lats = [events[index].get('latency', float('nan')) for index in boundary_idx]
@@ -148,7 +151,8 @@ def _eventconsistency(EEG):
             for index in sorted(to_remove, reverse=True):
                 events.pop(index)
 
-    # 7. Resort events by (epoch, latency)  (MATLAB lines 580-596)
+    # Epoch, then latency. EEGLAB calls pop_editeventvals, which applies the
+    # epoch permutation of the unsorted events to the latency-sorted list.
     events.sort(key=_event_sort_key)
 
     # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
@@ -173,6 +177,10 @@ def _is_checkset_boundary(event):
 
 
 def _real_number(value):
+    """Return ``value`` as a finite float, or None for a non-numeric value or NaN.
+
+    Booleans are not numeric. NumPy integers and floats are.
+    """
     if isinstance(value, (bool, np.bool_)):
         return None
     if isinstance(value, (int, float, np.integer, np.floating)):
@@ -184,11 +192,16 @@ def _real_number(value):
 
 
 def _nan_latency(event):
+    """Return whether the event has a floating-point NaN latency."""
     latency = event.get('latency')
     return 'latency' in event and isinstance(latency, (float, np.floating)) and np.isnan(latency)
 
 
 def _latency_in_bounds(event, upper_bound):
+    """Return whether latency is absent or inside ``[0.5, upper_bound]``.
+
+    A NaN latency is out of bounds. An event with no latency field is kept.
+    """
     if 'latency' not in event:
         return True
     if _nan_latency(event):
@@ -198,6 +211,7 @@ def _latency_in_bounds(event, upper_bound):
 
 
 def _duration_value(event):
+    """Return the event duration as a float, or 0 when it is missing or not numeric."""
     duration = _real_number(event.get('duration'))
     if duration is None:
         return 0.0
@@ -205,6 +219,10 @@ def _duration_value(event):
 
 
 def _event_sort_key(event):
+    """Return ``(epoch, latency)`` so events sort by epoch, then latency.
+
+    A missing or non-numeric field sorts as 0.
+    """
     epoch = _real_number(event.get('epoch', 0))
     latency = _real_number(event.get('latency', 0))
     return (0 if epoch is None else epoch, 0 if latency is None else latency)

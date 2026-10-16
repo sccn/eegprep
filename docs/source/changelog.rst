@@ -19,9 +19,12 @@ Unreleased
   It previously used the same Lloyd starts as ``kmeans``, so those
   memberships change too.
 - ``pop_select`` finishes by checking event consistency. A leading boundary
-  shorter than one sample is removed, duplicate boundaries at the same latency
-  are merged, events with an out-of-range epoch number are removed, and the
-  remaining events are sorted.
+  shorter than one sample is removed, events with an out-of-range epoch
+  number are removed, and the remaining events are sorted by epoch, then
+  latency. Consecutive entries of the boundary list that share a latency
+  (event order, before that sort) chain their durations into the last entry
+  of the run. A later boundary at the same latency stays separate when a
+  different latency stands between the two entries.
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
   pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
   invert a numerical null direction and amplify the signal by about 1e13.

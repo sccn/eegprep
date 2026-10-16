@@ -51,8 +51,13 @@ GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
 EEGLAB-facing one-based values. ``pop_select`` then checks event consistency:
 a leading boundary whose duration is less than one sample is removed, a leading
 boundary latency in (0, 1) is set to 0.5, events with an epoch number outside
-the dataset are removed, duplicate boundaries at the same latency are merged,
-and the remaining events are sorted by epoch and latency.
+the dataset are removed, and the remaining events are sorted by epoch, then
+latency. Consecutive entries of the boundary list that share a latency, taken
+in event order before that sort, chain their durations into the last entry of
+the run. A later boundary at the same latency stays separate when a different
+latency stands between the two entries. Boundary latencies 20, 20, 30, and 20
+with durations 4, 1, 8, and 2 sort to latency 20 duration 5, latency 20
+duration 2, and latency 30 duration 8.
 
 Filter
 ======
