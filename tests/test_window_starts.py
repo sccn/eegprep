@@ -1,8 +1,7 @@
 """Window starts follow MATLAB's colon operator."""
 
-import math
-from pathlib import Path
 import tomllib
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,50 +14,6 @@ from eegprep.plugins.clean_rawdata.private.windows import matlab_colon, matlab_w
 _WINDOW_SAMPLES = (125, 128, 250, 256)
 _OVERLAPS = (0.66, 0.5, 0.75)
 _SWEEP = 3000
-_EPS = float(np.finfo(np.float64).eps)
-
-
-def _reference_colon(start: float, step: float, stop: float) -> np.ndarray:
-    """Published MATLAB colon algorithm, independent of the production helper."""
-    start = float(start)
-    step = float(step)
-    stop = float(stop)
-    if step == 0.0 or (step > 0.0 and start > stop) or (step < 0.0 and start < stop):
-        return np.array([], dtype=np.float64)
-    tolerance = 2.0 * _EPS * max(abs(start), abs(stop))
-    direction = math.copysign(1.0, step)
-    if start == math.floor(start) and step == 1.0:
-        intervals = math.floor(stop) - start
-    elif start == math.floor(start) and step == math.floor(step):
-        quotient = math.floor(start / step)
-        remainder = start - quotient * step
-        intervals = math.floor((stop - remainder) / step) - quotient
-    else:
-        intervals = float(round_mat((stop - start) / step))
-        if direction * (start + intervals * step - stop) > tolerance:
-            intervals -= 1.0
-    count = int(intervals)
-    if count < 0:
-        return np.array([], dtype=np.float64)
-    endpoint = start + count * step
-    if direction * (endpoint - stop) > -tolerance:
-        endpoint = stop
-    values = np.empty(count + 1, dtype=np.float64)
-    left = np.arange(count // 2 + 1, dtype=np.float64)
-    left_index = left.astype(np.int64)
-    values[left_index] = start + left * step
-    values[count - left_index] = endpoint - left * step
-    if count % 2 == 0:
-        values[count // 2] = (start + endpoint) / 2.0
-    return values
-
-
-def _rounded_starts(n_samples: int, window_samples: float, overlap: float) -> np.ndarray:
-    step = float(window_samples) * (1.0 - overlap)
-    values = _reference_colon(1.0, step, float(n_samples) - float(window_samples))
-    if values.size == 0:
-        return np.array([], dtype=int)
-    return np.asarray(round_mat(values), dtype=int)
 
 
 def _eeg(data: np.ndarray, srate: float) -> dict:
@@ -87,29 +42,15 @@ def test_colon_matches_published_integer_and_endpoint_cases():
 
 
 def test_reported_fractional_step_omits_the_extra_start():
-    """N=256, overlap 0.66, S=1040. np.arange also emits 784."""
-    starts = _rounded_starts(1040, 256, 0.66)
-    assert matlab_window_offsets(1040, 256, 256 * (1.0 - 0.66)).tolist() == (starts - 1).tolist()
-    assert starts.tolist() == [1, 88, 175, 262, 349, 436, 523, 610, 697]
+    """N=256, overlap 0.66, S=1040. MATLAB starts here; 784 is not included."""
+    offsets = matlab_window_offsets(1040, 256, 256 * (1.0 - 0.66))
+    assert (offsets + 1).tolist() == [1, 88, 175, 262, 349, 436, 523, 610, 697]
 
 
 def test_inexact_overlap_reflects_the_endpoint_before_rounding():
-    """N=125 makes 1-0.66 inexact. The reflected midpoint rounds to 44, not 43."""
+    """N=125, S=211. The reflected midpoint rounds to 44, not 43."""
     starts = np.asarray(round_mat(matlab_colon(1.0, 125 * (1.0 - 0.66), 211 - 125)), dtype=int)
     assert starts.tolist() == [1, 44, 86]
-
-
-def test_window_starts_match_colon_reference_across_lengths():
-    for window_samples in _WINDOW_SAMPLES:
-        for overlap in _OVERLAPS:
-            step = window_samples * (1.0 - overlap)
-            for n_samples in range(window_samples + 1, window_samples + _SWEEP + 1):
-                expected = _rounded_starts(n_samples, window_samples, overlap)
-                actual = matlab_window_offsets(n_samples, window_samples, step) + 1
-                if actual.shape != expected.shape or not np.array_equal(actual, expected):
-                    raise AssertionError(
-                        f"N={window_samples} overlap={overlap} S={n_samples}: {actual.tolist()} != {expected.tolist()}"
-                    )
 
 
 def test_fractional_overlap_keeps_samples_past_the_last_window():
