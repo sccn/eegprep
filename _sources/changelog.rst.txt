@@ -28,18 +28,48 @@ Unreleased
   past (clamped widths, removed NaN trials, an ``'erp'`` above 1 reduced to one
   ERP by ``'erpalpha'``, ignored options) are logged; see :ref:`erpimage_api`
   for every difference.
-- ``pop_erpimage`` images change shape because ``smooth`` and ``decimate`` now
-  follow EEGLAB: ``decimate`` is the moving window's advance in trials (values
-  above the square root of the trial count give that many rows), and the
-  moving window no longer pads incomplete edge windows. On
-  ``sample_data/eeglab_data_epochs_ica.set`` channel 14 (80 epochs),
-  ``smooth=10, decimate=2`` gives 36 rows (previously 40), ``smooth=10,
-  decimate=20`` gives 18 (previously 4) and ``smooth=3, decimate=1`` gives 78
-  (previously 80). Sorting is stable, epochs whose sorting value is missing
-  are left out, component images leave the ERP axis label empty as EEGLAB
-  does (previously "uV"), and smoothing fewer than 4 epochs raises
-  ``ValueError``. Options the dialog does not expose now point to
-  ``erpimage``, which supports them.
+- ``pop_erpimage`` follows EEGLAB's ``pop_erpimage``:
+  it takes ``(EEG, typeplot, channel, projchan, titleplot, smooth, decimate,
+  sortingtype, sortingwin, sortingeventfield, ...)`` followed by any ``erpimage`` option,
+  and returns the ``erpimage`` result instead of a ``{"figure", "image"}`` dictionary
+  (``result.outdata`` is ``(frames, trials)``, the transpose of the old ``"image"``).
+  ``index=`` becomes ``channel`` (numbers, ranges or labels; several channels are averaged),
+  ``sort_values`` and the ``field``, ``type`` and ``eventrange`` aliases are gone,
+  and ``limits`` sets the axes instead of cropping the data.
+  The defaults are EEGLAB's (``smooth=5``, ``decimate=0``),
+  and the ERP trace, colorbar and scalp map are drawn by default,
+  where EEGLAB's command line leaves them off.
+  The scalp map is left out, with a warning, when several channels are averaged.
+  Trials are sorted with ``eeg_getepochevent``
+  (first latency, last value of other fields, text sorted alphabetically, stable order);
+  events without the field, or no epoch with a match, raise clear errors,
+  and epochs left out are listed in a warning.
+  A string ``sortingtype`` is one event type, even with spaces,
+  and numeric event types match by value.
+  ``nosort`` and ``noplot`` are passed to ``erpimage``,
+  and phase sorting, coherence, alignment and renormalization formulas are available
+  from both the command line and the dialog.
+  An option name given as ``projchan`` or ``titleplot`` now raises instead of being misread.
+  Smoothing and decimation follow EEGLAB's moving window, so images change shape:
+  on ``sample_data/eeglab_data_epochs_ica.set`` channel 14 (80 epochs),
+  ``smooth=10, decimate=2`` gives 36 rows (previously 40),
+  ``smooth=10, decimate=20`` gives 18 (previously 4)
+  and ``smooth=3, decimate=1`` gives 78 (previously 80).
+  Smoothing fewer than 4 epochs raises ``ValueError``,
+  and component images leave the ERP axis label empty, as EEGLAB does (previously "uV").
+  Default titles are built as in EEGLAB:
+  joined channel labels, ``Comp. N`` or ``Comp. N -> Chan. X``.
+- The ``pop_erpimage`` dialog now follows EEGLAB's layout and behavior:
+  the component variant has the ``Plot scalp map`` checkbox and draws the component map,
+  the event-field and event-type buttons open list dialogs,
+  the phase and coherence frequencies mirror each other,
+  and every field (limits, phase sorting, coherence, spectrum, marks, More options) reaches ``erpimage``.
+  As in EEGLAB, the fields you fill replace the same options in More options.
+  The menu reopens the dialog with the last matching command, as EEGLAB's menu does,
+  and ``lastcom=``, or ``gui=True`` with arguments, fills it from the console.
+  The event-type list is sorted like EEGLAB's ``unique()``.
+  Its history command replays in ``eegprep-console``.
+- ``a:b`` ranges in EEGLAB-style number fields count up only, as in MATLAB, so ``5:3`` is empty.
 - ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
   including the sortvar trace at the right edge and rounded ERP axis ticks,
   and raises ``ValueError`` when the activity is all NaN.

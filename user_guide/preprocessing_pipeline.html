@@ -786,21 +786,20 @@ phase angle in degrees.</p></li>
 <p>Two-condition comparisons (contrasting two datasets in a single figure) are not
 yet part of the standalone wrapper.</p>
 <p>Legacy <code class="docutils literal notranslate"><span class="pre">pop_timef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_crossf</span></code> calls route through the standalone
-<code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> implementations. ERP-image workflows use
-<code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> for channel or component images:</p>
+<code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> implementations.
+ERP-image workflows use <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> for channel or component images of epoched data
+(see <a class="reference internal" href="#epoch-and-baseline">Epoch and Baseline</a> below), with EEGLAB’s arguments:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_erpimage</span>
 
-<span class="n">image</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_erpimage</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">typeplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1"># Channel Cz of epoched data, sorted by reaction-time latency, smoothed over 10 trials.</span>
+<span class="n">result</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_erpimage</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Cz&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;rt&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;latency&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Channel ERP images use a symmetric color axis, a solid line marking time zero on
-both the image and the ERP trace, and a small scalp map at the upper left with
-the plotted channel marked, matching EEGLAB’s ERP-image layout.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> draws the ERP trace, a colorbar and a scalp map by default,
+and accepts every <a class="reference internal" href="../api/generated/eegprep.erpimage.html#eegprep.erpimage" title="eegprep.erpimage"><code class="xref py py-func docutils literal notranslate"><span class="pre">erpimage()</span></code></a> option, such as phase sorting or inter-trial coherence.
+See <a class="reference internal" href="gui_tutorials.html#gui-tutorials"><span class="std std-ref">GUI Tutorials</span></a> for the dialog.</p>
 <p>GUI paths live under the <code class="docutils literal notranslate"><span class="pre">Plot</span></code> menu when a dataset is loaded. EEGPrep
-returns replayable Python history commands for these wrappers. The
-<code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> dialog does not expose event alignment, phase sorting,
-coherence or renormalization formulas; those requests raise an error that
-points to <a class="reference internal" href="../api/generated/eegprep.erpimage.html#eegprep.erpimage" title="eegprep.erpimage"><code class="xref py py-func docutils literal notranslate"><span class="pre">erpimage()</span></code></a>, which supports them.</p>
+returns replayable Python history commands for these wrappers.</p>
 </section>
 </section>
 <section id="epoch-and-baseline">

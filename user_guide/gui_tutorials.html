@@ -650,6 +650,42 @@ the shared session.</p>
 <p>Use the empty component list in <code class="docutils literal notranslate"><span class="pre">pop_subcomp(EEG,</span> <span class="pre">[])</span></code> to remove components
 currently marked in <code class="docutils literal notranslate"><span class="pre">EEG.reject.gcompreject</span></code>.</p>
 </section>
+<section id="sort-trials-in-an-erp-image">
+<h2>Sort Trials in an ERP Image<a class="headerlink" href="#sort-trials-in-an-erp-image" title="Link to this heading">#</a></h2>
+<p>An event-related potential (ERP) image stacks the single trials of one channel or component as colored rows,
+sorted by an event value,
+so latency or phase effects that the average hides become visible.
+Load the ICA sample, or reload <code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data_epochs_ica.set</span></code> if you removed components above:</p>
+<div class="eegprep-path">
+  <p>Choose <strong>Plot > Channel ERP image</strong>.</p>
+  <p>Enter <code>Cz</code> (or <code>14</code>) as the channel
+  and keep smoothing at 10.</p>
+  <p>Press <strong>Epoch-sorting field</strong> and pick <code>latency</code>;
+  a reminder asks for an event type while that box is empty.
+  Then press <strong>Event type(s)</strong>, pick <code>rt</code>, and press OK.</p>
+  <p>In the console, <code>LASTCOM</code> holds the Python call, for example
+  <code>pop_erpimage(EEG, 1, 'Cz', smooth=10, decimate=1, sortingtype=['rt'], sortingeventfield='latency')</code>.</p>
+  <p>Edit and run it there, for example with <code>erpstd='on'</code> added,
+  to try <code>erpimage</code> options that have no dialog field
+  (they also fit in More options).
+  EEGLAB-style <code>'key', value</code> pairs work only after all ten positional arguments,
+  so add keywords to this call.</p>
+  <p>Choose the menu again: the dialog reopens with these values.</p>
+</div><p>Equivalent console call:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_erpimage</span>
+
+<span class="n">result</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_erpimage</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Cz&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;rt&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;latency&quot;</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">result</span><span class="o">.</span><span class="n">outdata</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># (frames, smoothed trials)</span>
+<span class="n">result</span><span class="o">.</span><span class="n">sortidx</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>  <span class="c1"># 0-based input trials, in plotted order</span>
+</pre></div>
+</div>
+<p>Both the menu and the console record the same command in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>;
+an ERP image does not change <code class="docutils literal notranslate"><span class="pre">EEG</span></code> or <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>.
+Epochs without a matching event are left out of the image, and a console warning lists them.
+When no epoch has a matching event, <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> raises an error instead.
+<code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Component</span> <span class="pre">ERP</span> <span class="pre">image</span></code> works the same way for components,
+with an optional channel to project them onto.</p>
+</section>
 <section id="use-eegbrowser-for-rejection">
 <h2>Use EEGBrowser for Rejection<a class="headerlink" href="#use-eegbrowser-for-rejection" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">data</span> <span class="pre">(scroll)</span></code> opens EEGBrowser for inspection. Rejection
@@ -768,6 +804,7 @@ to diagnose extension startup problems with only core EEGPrep menus.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filter-and-resample">Filter and Resample</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#clean-continuous-data">Clean Continuous Data</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-ica-and-review-iclabel">Run ICA and Review ICLabel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#sort-trials-in-an-erp-image">Sort Trials in an ERP Image</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-eegbrowser-for-rejection">Use EEGBrowser for Rejection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-study">Create a STUDY</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dipfit-source-workflow">DIPFIT Source Workflow</a></li>

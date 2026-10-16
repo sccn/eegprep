@@ -70,8 +70,8 @@ print(f"ERP map series: {len(figs_erp2d)} 2-D figure(s), {len(figs_erp3d)} 3-D f
 raw_image = pop_erpimage(EEG, 1, 14, smooth=1, decimate=1, plot="off")
 smooth_image = pop_erpimage(EEG, 1, 14, smooth=10, decimate=2, plot="off")
 sorted_image = pop_erpimage(EEG, 1, 14, sortingeventfield="latency", sortingtype=["rt"], smooth=10, plot="off")
-print(f"raw image {raw_image['image'].shape} smoothed {smooth_image['image'].shape}")
-print(f"latency-sorted image {sorted_image['image'].shape}")
+print(f"raw image {raw_image.outdata.shape} smoothed {smooth_image.outdata.shape}")
+print(f"latency-sorted image {sorted_image.outdata.shape}")
 
 # %%
 # c. Spectra -- Plot > Channel spectra and maps, Plot > Channel properties
@@ -115,5 +115,5 @@ pvaf, _, _ = eeg_pvaf(EEG, [1, 2, 3, 4, 5])
 print(f"component spectra {comp_spectra['spectra'].shape}")
 print(f"pvaf of components 1-5: {float(np.atleast_1d(pvaf)[0]):.2f}%")
 print(f"envtopo history: {com_envtopo}")
-print(f"component ERP image {comp_image['image'].shape} component ERSP {comp_tf.ersp.shape}")
+print(f"component ERP image {comp_image.outdata.shape} component ERSP {comp_tf.ersp.shape}")
 print(f"component maps: {len(figs_comp2d)} 2-D figure(s), {len(figs_comp3d)} 3-D figure(s)")

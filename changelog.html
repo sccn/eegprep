@@ -494,18 +494,48 @@ Invalid inputs raise <code class="docutils literal notranslate"><span class="pre
 past (clamped widths, removed NaN trials, an <code class="docutils literal notranslate"><span class="pre">'erp'</span></code> above 1 reduced to one
 ERP by <code class="docutils literal notranslate"><span class="pre">'erpalpha'</span></code>, ignored options) are logged; see <a class="reference internal" href="api/plotting_and_topography.html#erpimage-api"><span class="std std-ref">ERP images</span></a>
 for every difference.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> images change shape because <code class="docutils literal notranslate"><span class="pre">smooth</span></code> and <code class="docutils literal notranslate"><span class="pre">decimate</span></code> now
-follow EEGLAB: <code class="docutils literal notranslate"><span class="pre">decimate</span></code> is the moving window’s advance in trials (values
-above the square root of the trial count give that many rows), and the
-moving window no longer pads incomplete edge windows. On
-<code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data_epochs_ica.set</span></code> channel 14 (80 epochs),
-<code class="docutils literal notranslate"><span class="pre">smooth=10,</span> <span class="pre">decimate=2</span></code> gives 36 rows (previously 40), <code class="docutils literal notranslate"><span class="pre">smooth=10,</span>
-<span class="pre">decimate=20</span></code> gives 18 (previously 4) and <code class="docutils literal notranslate"><span class="pre">smooth=3,</span> <span class="pre">decimate=1</span></code> gives 78
-(previously 80). Sorting is stable, epochs whose sorting value is missing
-are left out, component images leave the ERP axis label empty as EEGLAB
-does (previously “uV”), and smoothing fewer than 4 epochs raises
-<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. Options the dialog does not expose now point to
-<code class="docutils literal notranslate"><span class="pre">erpimage</span></code>, which supports them.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> follows EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code>:
+it takes <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">typeplot,</span> <span class="pre">channel,</span> <span class="pre">projchan,</span> <span class="pre">titleplot,</span> <span class="pre">smooth,</span> <span class="pre">decimate,</span>
+<span class="pre">sortingtype,</span> <span class="pre">sortingwin,</span> <span class="pre">sortingeventfield,</span> <span class="pre">...)</span></code> followed by any <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> option,
+and returns the <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> result instead of a <code class="docutils literal notranslate"><span class="pre">{&quot;figure&quot;,</span> <span class="pre">&quot;image&quot;}</span></code> dictionary
+(<code class="docutils literal notranslate"><span class="pre">result.outdata</span></code> is <code class="docutils literal notranslate"><span class="pre">(frames,</span> <span class="pre">trials)</span></code>, the transpose of the old <code class="docutils literal notranslate"><span class="pre">&quot;image&quot;</span></code>).
+<code class="docutils literal notranslate"><span class="pre">index=</span></code> becomes <code class="docutils literal notranslate"><span class="pre">channel</span></code> (numbers, ranges or labels; several channels are averaged),
+<code class="docutils literal notranslate"><span class="pre">sort_values</span></code> and the <code class="docutils literal notranslate"><span class="pre">field</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code> and <code class="docutils literal notranslate"><span class="pre">eventrange</span></code> aliases are gone,
+and <code class="docutils literal notranslate"><span class="pre">limits</span></code> sets the axes instead of cropping the data.
+The defaults are EEGLAB’s (<code class="docutils literal notranslate"><span class="pre">smooth=5</span></code>, <code class="docutils literal notranslate"><span class="pre">decimate=0</span></code>),
+and the ERP trace, colorbar and scalp map are drawn by default,
+where EEGLAB’s command line leaves them off.
+The scalp map is left out, with a warning, when several channels are averaged.
+Trials are sorted with <code class="docutils literal notranslate"><span class="pre">eeg_getepochevent</span></code>
+(first latency, last value of other fields, text sorted alphabetically, stable order);
+events without the field, or no epoch with a match, raise clear errors,
+and epochs left out are listed in a warning.
+A string <code class="docutils literal notranslate"><span class="pre">sortingtype</span></code> is one event type, even with spaces,
+and numeric event types match by value.
+<code class="docutils literal notranslate"><span class="pre">nosort</span></code> and <code class="docutils literal notranslate"><span class="pre">noplot</span></code> are passed to <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>,
+and phase sorting, coherence, alignment and renormalization formulas are available
+from both the command line and the dialog.
+An option name given as <code class="docutils literal notranslate"><span class="pre">projchan</span></code> or <code class="docutils literal notranslate"><span class="pre">titleplot</span></code> now raises instead of being misread.
+Smoothing and decimation follow EEGLAB’s moving window, so images change shape:
+on <code class="docutils literal notranslate"><span class="pre">sample_data/eeglab_data_epochs_ica.set</span></code> channel 14 (80 epochs),
+<code class="docutils literal notranslate"><span class="pre">smooth=10,</span> <span class="pre">decimate=2</span></code> gives 36 rows (previously 40),
+<code class="docutils literal notranslate"><span class="pre">smooth=10,</span> <span class="pre">decimate=20</span></code> gives 18 (previously 4)
+and <code class="docutils literal notranslate"><span class="pre">smooth=3,</span> <span class="pre">decimate=1</span></code> gives 78 (previously 80).
+Smoothing fewer than 4 epochs raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>,
+and component images leave the ERP axis label empty, as EEGLAB does (previously “uV”).
+Default titles are built as in EEGLAB:
+joined channel labels, <code class="docutils literal notranslate"><span class="pre">Comp.</span> <span class="pre">N</span></code> or <code class="docutils literal notranslate"><span class="pre">Comp.</span> <span class="pre">N</span> <span class="pre">-&gt;</span> <span class="pre">Chan.</span> <span class="pre">X</span></code>.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> dialog now follows EEGLAB’s layout and behavior:
+the component variant has the <code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">scalp</span> <span class="pre">map</span></code> checkbox and draws the component map,
+the event-field and event-type buttons open list dialogs,
+the phase and coherence frequencies mirror each other,
+and every field (limits, phase sorting, coherence, spectrum, marks, More options) reaches <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>.
+As in EEGLAB, the fields you fill replace the same options in More options.
+The menu reopens the dialog with the last matching command, as EEGLAB’s menu does,
+and <code class="docutils literal notranslate"><span class="pre">lastcom=</span></code>, or <code class="docutils literal notranslate"><span class="pre">gui=True</span></code> with arguments, fills it from the console.
+The event-type list is sorted like EEGLAB’s <code class="docutils literal notranslate"><span class="pre">unique()</span></code>.
+Its history command replays in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">a:b</span></code> ranges in EEGLAB-style number fields count up only, as in MATLAB, so <code class="docutils literal notranslate"><span class="pre">5:3</span></code> is empty.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> draws its ERP image with EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_prop</span></code> arguments,
 including the sortvar trace at the right edge and rounded ERP axis ticks,
 and raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when the activity is all NaN.</p></li>

@@ -880,8 +880,8 @@ durations are stored as sample counts.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_envtopo.html#eegprep.pop_envtopo" title="eegprep.pop_envtopo"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_envtopo</span></code></a>([EEG, timerange, gui, ...])</p></td>
 <td><p>Plot largest component ERP envelopes and component maps.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_erpimage.html#eegprep.pop_erpimage" title="eegprep.pop_erpimage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_erpimage</span></code></a>([EEG, typeplot, index, ...])</p></td>
-<td><p>Plot an ERP image for one channel or component.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_erpimage.html#eegprep.pop_erpimage" title="eegprep.pop_erpimage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_erpimage</span></code></a>([EEG, typeplot, ...])</p></td>
+<td><p>EEGLAB-style <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code>: an event-related potential (ERP) image of a channel or component.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_headplot.html#eegprep.pop_headplot" title="eegprep.pop_headplot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_headplot</span></code></a>([EEG, typeplot, items, ...])</p></td>
 <td><p>Plot ERP or component maps on a spline-interpolated 3-D head mesh.</p></td>
@@ -913,10 +913,15 @@ durations are stored as sample counts.</p>
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> draws with the EEGLAB-faithful <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> described under
-<a class="reference internal" href="plotting_and_topography.html#erpimage-api"><span class="std std-ref">ERP images</span></a>, which also accepts EEGLAB’s compact
-<code class="docutils literal notranslate"><span class="pre">[start_ms,</span> <span class="pre">frames,</span> <span class="pre">sampling_rate]</span></code> time specification.
-<code class="docutils literal notranslate"><span class="pre">newtimef</span></code> accepts EEGLAB’s default <code class="docutils literal notranslate"><span class="pre">outputformat='plot'</span></code> option; other
+<p><code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> follows EEGLAB’s <code class="docutils literal notranslate"><span class="pre">pop_erpimage</span></code> arguments
+(<code class="docutils literal notranslate"><span class="pre">typeplot,</span> <span class="pre">channel,</span> <span class="pre">projchan,</span> <span class="pre">titleplot,</span> <span class="pre">smooth,</span> <span class="pre">decimate,</span> <span class="pre">sortingtype,</span> <span class="pre">sortingwin,</span> <span class="pre">sortingeventfield</span></code>
+and then any <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> option),
+sorts the trials by event values with <code class="docutils literal notranslate"><span class="pre">eeg_getepochevent</span></code>,
+and returns the <code class="docutils literal notranslate"><span class="pre">erpimage</span></code> result described under <a class="reference internal" href="plotting_and_topography.html#erpimage-api"><span class="std std-ref">ERP images</span></a>.
+Unlike <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>, it draws the ERP trace, a colorbar and a scalp map by default.
+Its <code class="docutils literal notranslate"><span class="pre">lastcom=</span></code> keyword reopens the dialog with an earlier history command,
+as the <code class="docutils literal notranslate"><span class="pre">Plot</span></code> menu does.</p>
+<p><code class="docutils literal notranslate"><span class="pre">newtimef</span></code> accepts EEGLAB’s default <code class="docutils literal notranslate"><span class="pre">outputformat='plot'</span></code> option; other
 output layouts are not yet implemented.</p>
 </section>
 <section id="study">
