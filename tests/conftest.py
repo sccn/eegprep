@@ -94,8 +94,6 @@ class _PythonBackendReports:
     def pytest_runtest_makereport(self, item, call):
         self._exceptions[item.nodeid] = None if call.excinfo is None else call.excinfo.value
         report = yield
-        # Subtest reports are built while the call is still running. This is the
-        # parent call report, after those subtests have been recorded.
         if (
             call.when == "call"
             and item.nodeid not in self._in_call
@@ -104,8 +102,6 @@ class _PythonBackendReports:
             and not self._unexpected.get(item.nodeid)
             and self._xfailed.get(item.nodeid)
         ):
-            report.outcome = "passed"
-            report.longrepr = None
             self._passed_parents.add(item.nodeid)
         return report
 
@@ -145,6 +141,14 @@ class _PythonBackendReports:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_report_teststatus(self, report):
+        """Return passed before ``_pytest/subtests.py`` rewrites the parent.
+
+        ``tryfirst`` runs this hook before that module's ``pytest_report_teststatus``.
+        The hook spec is ``firstresult``, so returning a status skips the later
+        hook. That hook would mark this passed parent failed, because its count
+        still includes subtests recorded here as expected failures. A subtest
+        report shares the parent node id, so only the parent headline returns here.
+        """
         if report.when != "call" or report.nodeid not in self._passed_parents:
             return None
         if _subtest_label(report) is not None:
