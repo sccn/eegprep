@@ -38,10 +38,10 @@ EEGPrep's BIDS loader supports EEGLAB ``.set``/``.fdt``, BrainVision
 events, and channel information into the returned EEG dictionary.
 
 BrainVision headers, including multiplexed and vectorized binary data, are
-read with ``pop_loadbv``. The header reference stays on each channel. When
-the BIDS sidecar contains ``EEGReference``, that value becomes the dataset
-reference, because a BrainVision header does not store a separate dataset-level
-reference. ``report["ImporterUsed"]`` is ``"pop_loadbv"`` for these files.
+read with ``pop_loadbv``. The header reference stays on each channel, and the
+dataset reference stays ``common``. A sidecar ``EEGReference`` value is kept
+in ``EEG["etc"]["BIDS"]``. ``report["ImporterUsed"]`` is ``"pop_loadbv"`` for
+these files.
 
 Create a Small Tutorial Export
 ==============================

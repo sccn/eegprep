@@ -164,7 +164,8 @@ def test_pop_load_frombids_reads_brainvision_with_pop_loadbv(tmp_path: Path, ori
     assert [channel["labels"] for channel in eeg["chanlocs"]] == ["Cz", "Pz"]
     assert [channel["ref"] for channel in eeg["chanlocs"]] == ["A1", "A2"]
     assert [(event["type"], int(event["latency"])) for event in eeg["event"]] == [("S  1", 2)]
-    assert eeg["ref"] == "linked mastoids"
+    assert eeg["ref"] == "common"
+    assert eeg["etc"]["BIDS"]["EEGReference"] == "linked mastoids"
     assert report["ImporterUsed"] == "pop_loadbv"
 
 

@@ -74,10 +74,6 @@ def _load_brainvision_file(
     eeg["data"] = np.asarray(eeg["data"], dtype=dtype)
     srate = float(np.asarray(eeg["srate"]).reshape(-1)[0])
     times_sec = np.asarray(eeg["times"], dtype=float) / 1000.0
-    # BrainVision stores the reference on each channel. The dataset reference
-    # from pop_loadbv is EEGLAB's default, so a BIDS EEGReference can still apply.
-    if eeg.get("ref") == "common":
-        eeg["ref"] = "unknown"
     eeg["chaninfo"].setdefault("nosedir", "+X")
     return eeg, srate, times_sec, {"ImporterUsed": "pop_loadbv"}
 

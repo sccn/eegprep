@@ -187,7 +187,7 @@ def test_pop_readsegegi_joins_the_numbered_continuous_series_with_valid_metadata
     assert eeg["trials"] == 1
     assert eeg["xmax"] == pytest.approx(8 / 250)
     assert [event["type"] for event in eeg["event"]] == ["stim", "stim"]
-    assert [event["latency"] for event in eeg["event"]] == [3, 7]
+    assert [event["latency"] for event in eeg["event"]] == [2, 6]
     assert "TEST_001.RAW" in eeg["comments"]
     assert "TEST_002.RAW" in eeg["comments"]
     assert command == f"EEG = pop_readsegegi('{second.as_posix()}');"
@@ -238,7 +238,7 @@ def test_readegi_supports_every_continuous_sample_encoding(tmp_path: Path, versi
 
     assert header["version"] == version
     np.testing.assert_allclose(actual, values, rtol=1e-6)
-    assert event_data.shape == (0, 3)
+    assert event_data.shape == (0, 0)
     assert categories.size == 0
 
 

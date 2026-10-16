@@ -105,6 +105,10 @@ def test_recording_comparison_accepts_matlab_struct_transport() -> None:
     with pytest.raises(AssertionError, match="max abs diff 0.5"):
         assert_same_eeg(python, matlab, label="synthetic")
 
+    assert_same_samples(np.array([1.0 + 1e-8]), np.array([1.0], dtype=np.float32), label="float32")
+    with pytest.raises(AssertionError, match="max abs diff"):
+        assert_same_samples(np.array([2.0]), np.array([1.0], dtype=np.float32), label="float32")
+
 
 def test_bdf_header_comparison_accepts_a_character_matrix() -> None:
     shared = {

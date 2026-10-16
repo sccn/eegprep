@@ -46,8 +46,9 @@ def pop_load_frombids(
     """Load an EEG data file of a supported format from a BIDS dataset.
 
     Supported formats are EDF, BrainVision, EEGLAB SET, and BDF. BrainVision
-    headers, including vectorized data, are read with ``pop_loadbv``. A BIDS
-    ``EEGReference`` value becomes the dataset reference.
+    headers, including vectorized data, are read with ``pop_loadbv``. The
+    dataset reference stays ``common``; a BIDS ``EEGReference`` value is stored
+    with the rest of the sidecar in ``EEG["etc"]["BIDS"]``.
 
     Parameters
     ----------

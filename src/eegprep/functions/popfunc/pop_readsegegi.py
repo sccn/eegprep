@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.popfunc.pop_readegi import _egi_to_eeg
 from eegprep.functions.sigprocfunc.readegi import readegi
 
@@ -81,15 +82,40 @@ def pop_readsegegi(
     eeg = _egi_to_eeg(
         header,
         trial_data,
-        event_data,
+        np.empty((0, 0), dtype=np.float64),
         np.array([], dtype=np.int64),
         filename=first,
         fileloc=fileloc,
         comments=f"Original files: {first} to {paths[-1]}",
     )
+    eeg = _import_event_channels(eeg, event_data, header["eventcode"])
     command = f"EEG = pop_readsegegi({format_history_value(selected)});"
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
+
+
+def _import_event_channels(eeg: dict[str, Any], event_data: np.ndarray, event_codes: list[str]) -> dict[str, Any]:
+    if event_data.shape[0] == 0:
+        return eeg
+    for index in range(event_data.shape[0] - 1, -1, -1):
+        data = np.asarray(eeg["data"])
+        eeg["data"] = np.vstack((data, event_data[index]))
+        eeg["nbchan"] = int(eeg["data"].shape[0])
+        eeg = pop_chanevent(
+            eeg,
+            int(eeg["nbchan"]),
+            "edge",
+            "leading",
+            "delevent",
+            "off",
+            "typename",
+            event_codes[index],
+            "nbtype",
+            1,
+            "delchan",
+            "on",
+        )
+    return eeg
 
 
 def _check_compatible(reference: dict[str, Any], candidate: dict[str, Any], path: Path) -> None:

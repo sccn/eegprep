@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep import openbdf, readbdf
+from eegprep.functions.popfunc.pop_biosig import pop_biosig
 from tests.eeglab_tests import eeglab_test
 
 
@@ -100,6 +101,34 @@ def _write_bdf(
                 raise ValueError("record signal length does not match samples_per_record")
             data.extend(_encode_signed_24(array))
     path.write_bytes(fixed + signal_header + data)
+
+
+def test_pop_biosig_drops_bdf_status_and_reads_trigger_edges(tmp_path: Path) -> None:
+    path = tmp_path / "status.bdf"
+    labels = ["A1", "A2", "Status"]
+    eeg_a = np.arange(8, dtype=int)
+    eeg_b = np.arange(8, dtype=int) + 20
+    status = np.array([0, 0, 5, 5, 0, 0, 7, 0], dtype=int)
+    _write_bdf(
+        path,
+        labels=labels,
+        samples_per_record=[8, 8, 8],
+        records=[[eeg_a, eeg_b, status]],
+        physical_minimum=[-262144, -262144, -8388608],
+        physical_maximum=[262144, 262144, 8388607],
+        digital_minimum=[-8388608, -8388608, -8388608],
+        digital_maximum=[8388607, 8388607, 8388607],
+    )
+
+    eeg = pop_biosig(path)
+    opened = openbdf(path)
+    calibrated, _raw = readbdf(opened, [1])
+
+    assert [loc["labels"] for loc in eeg["chanlocs"]] == ["A1", "A2"]
+    assert eeg["nbchan"] == 2
+    assert eeg["data"].shape == (2, 8)
+    np.testing.assert_allclose(eeg["data"], calibrated["Record"][:2])
+    assert [(event["type"], event["latency"]) for event in eeg["event"]] == [(5, 3), (7, 7)]
 
 
 def test_openbdf_general_header_matches_current_suite(tmp_path: Path) -> None:

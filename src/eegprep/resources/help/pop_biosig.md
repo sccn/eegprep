@@ -13,7 +13,8 @@ EEG = pop_biosig("recording.edf", blockrange=[30, 60])
 
 `blockrange=[start, stop]` loads a half-open time interval in seconds: the
 sample at `start` is included and the sample at `stop` is not. The stop time is
-clamped to the recording duration.
+clamped to the recording duration. BioSemi BDF import removes the `Status`
+channel and stores a trigger event at each rising edge of its lower 16 bits.
 
 Use `pop_fileio` for other formats such as BrainVision, EGI MFF, CNT, or
 EEGLAB `.set` files.

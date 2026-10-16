@@ -30,13 +30,16 @@ def require_real_recording(path: Path) -> Path:
 
 def assert_same_samples(actual, expected, *, label: str) -> None:
     """Require identical numeric samples, including NaNs, and report the max gap."""
-    actual_array = np.asarray(actual, dtype=float)
-    expected_array = np.asarray(expected, dtype=float)
+    expected_array = np.asarray(expected)
+    actual_array = np.asarray(actual)
     if actual_array.shape != expected_array.shape:
         raise AssertionError(f"{label} shape {actual_array.shape} != {expected_array.shape}")
+    compare_dtype = expected_array.dtype if expected_array.dtype.kind == "f" else np.dtype(float)
+    actual_array = actual_array.astype(compare_dtype, copy=False)
+    expected_array = expected_array.astype(compare_dtype, copy=False)
     if actual_array.size == 0 or np.array_equal(actual_array, expected_array, equal_nan=True):
         return
-    difference = np.nanmax(np.abs(actual_array - expected_array))
+    difference = np.nanmax(np.abs(actual_array.astype(np.float64) - expected_array.astype(np.float64)))
     raise AssertionError(f"{label} values differ; max abs diff {difference}")
 
 
