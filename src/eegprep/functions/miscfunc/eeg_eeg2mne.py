@@ -7,10 +7,11 @@ import mne
 import numpy as np
 
 from ..popfunc.pop_saveset import pop_saveset
-from .eeg_mne2eeg import _apply_eeg_events_to_mne, _eeg_subject, _set_mne_subject
+from ._eeg_mne import _apply_eeg_events_to_mne, _eeg_subject, _set_mne_subject
 
 
 def _with_readable_chaninfo(EEG):
+    """Fill an empty chaninfo field with a non-empty struct."""
     chaninfo = EEG.get('chaninfo')
     if isinstance(chaninfo, dict) and chaninfo:
         return EEG
@@ -25,8 +26,16 @@ def eeg_eeg2mne(EEG):
     """Convert an EEG dataset to an MNE Raw or Epochs object.
 
     Continuous data becomes Raw. Epoched data becomes Epochs. ``EEG['subject']``
-    is stored as ``info['subject_info']['his_id']``. Events inside each epoch
-    window are kept along with the time-locking event.
+    is stored as ``info['subject_info']['his_id']``. Events whose onset falls in
+    ``[xmin, xmax + 1/srate)`` are kept with the time-locking event. Nonzero
+    ``event['duration']`` values, in samples, become annotation durations in
+    seconds.
+
+    The urevent table and ``event['urevent']`` do not survive. Boolean,
+    non-finite, and non-scalar event fields do not survive. Annotation fields
+    ``onset``, ``description``, ``ch_names``, and ``hed_string`` cannot be
+    stored as extra event fields. A duration of zero is omitted on the way
+    back to EEG.
 
     Parameters
     ----------

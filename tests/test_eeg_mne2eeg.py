@@ -10,6 +10,7 @@ import numpy as np
 import tempfile
 import os
 import shutil
+from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -21,9 +22,14 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
+from eegprep.functions.miscfunc._eeg_mne import _subject_text
 from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+EPOCHED_DATASET = REPO_ROOT / 'sample_data' / 'eeglab_data_epochs_ica.set'
+CONTINUOUS_DATASET = REPO_ROOT / 'sample_data' / 'eeglab_data.set'
 
 # Import fixtures - use absolute import to work with unittest discovery
 try:
@@ -182,18 +188,17 @@ class TestEEGMNE2EEG(unittest.TestCase):
         self.assertEqual(len(result['event']), 3)
 
         for event in result['event']:
-            self.assertIsInstance(event['type'], str)
-            self.assertEqual(event['type'], '999')
+            self.assertIsInstance(event['type'], int)
+            self.assertEqual(event['type'], 999)
 
 
 def _event_rows(events):
     return [
         (
-            str(event['type']),
+            event['type'],
             event['latency'],
             int(event['epoch']),
-            event.get('position'),
-            event.get('urevent'),
+            int(event['position']),
         )
         for event in events
     ]
@@ -208,7 +213,6 @@ def _epoch_rows(epochs):
                 [str(value) for value in epoch['eventtype']],
                 [float(value) for value in epoch['eventlatency']],
                 [int(value) for value in epoch['eventposition']],
-                [int(value) for value in epoch['eventurevent']],
             )
         )
     return rows
@@ -235,7 +239,7 @@ class TestMNERoundTrip(unittest.TestCase):
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_sample_epochs_round_trip_events_and_subject(self):
-        original = pop_loadset('sample_data/eeglab_data_epochs_ica.set')
+        original = pop_loadset(str(EPOCHED_DATASET))
         original['subject'] = 'sub-01'
         expected_events = _event_rows(original['event'])
         expected_epochs = _epoch_rows(original['epoch'])
@@ -245,13 +249,19 @@ class TestMNERoundTrip(unittest.TestCase):
         self.assertEqual(restored['subject'], 'sub-01')
         self.assertEqual(_event_rows(restored['event']), expected_events)
         self.assertEqual(_epoch_rows(restored['epoch']), expected_epochs)
+        for original_event, restored_event in zip(original['event'], restored['event']):
+            self.assertNotIn('urevent', restored_event)
+            self.assertEqual(set(restored_event), set(original_event) - {'urevent'})
+        for original_epoch, restored_epoch in zip(original['epoch'], restored['epoch']):
+            self.assertNotIn('eventurevent', restored_epoch)
+            self.assertEqual(set(restored_epoch), set(original_epoch) - {'eventurevent'})
 
         as_mne_again = eeg_eeg2mne(restored)
         self.assertEqual(_mne_rows(as_mne_again), _mne_rows(as_mne))
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_sample_continuous_round_trip_subject(self):
-        original = pop_loadset('sample_data/eeglab_data.set')
+        original = pop_loadset(str(CONTINUOUS_DATASET))
         original['subject'] = 'sub-02'
         as_mne = eeg_eeg2mne(original)
         self.assertEqual(as_mne.info['subject_info']['his_id'], 'sub-02')
@@ -259,6 +269,86 @@ class TestMNERoundTrip(unittest.TestCase):
         self.assertEqual(restored['subject'], 'sub-02')
         as_mne_again = eeg_eeg2mne(restored)
         self.assertEqual(as_mne_again.info['subject_info']['his_id'], 'sub-02')
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_half_open_window_assigns_boundary_event_once(self):
+        sfreq = 100.0
+        n_times = 71
+        tmin = -0.2
+        info = mne.create_info(['EEG000'], sfreq, ch_types='eeg')
+        data = np.zeros((2, 1, n_times))
+        events = np.array([[0, 0, 1], [n_times, 0, 1]])
+        epochs = mne.EpochsArray(data, info, events, tmin=tmin, event_id={'target': 1}, verbose=False)
+        epochs.set_annotations(
+            mne.Annotations(
+                onset=[0.505, 0.51],
+                duration=[0.0, 0.0],
+                description=['edge', 'next'],
+            )
+        )
+
+        result = eeg_mne2eeg(epochs)
+
+        got = [(event['type'], int(event['epoch'])) for event in result['event']]
+        self.assertEqual(got.count(('edge', 1)), 1)
+        self.assertEqual(got.count(('next', 2)), 1)
+        self.assertNotIn(('edge', 2), got)
+        self.assertNotIn(('next', 1), got)
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_numeric_types_and_duration_round_trip(self):
+        eeg = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        eeg['event'] = [
+            {'type': 1, 'latency': 1, 'epoch': 1, 'duration': 16, 'urevent': 3},
+            {'type': 2, 'latency': 51, 'epoch': 2, 'duration': 0, 'urevent': 4},
+        ]
+        eeg['urevent'] = []
+        eeg['subject'] = 'sub-01'
+
+        restored = eeg_mne2eeg(eeg_eeg2mne(eeg))
+
+        self.assertEqual([event['type'] for event in restored['event']], [1, 2])
+        self.assertTrue(all(type(event['type']) is int for event in restored['event']))
+        self.assertEqual(restored['event'][0]['duration'], 16)
+        self.assertNotIn('duration', restored['event'][1])
+        self.assertTrue(all('urevent' not in event for event in restored['event']))
+
+        mixed = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        mixed['event'] = [
+            {'type': 1, 'latency': 1, 'epoch': 1},
+            {'type': 'square', 'latency': 51, 'epoch': 2},
+        ]
+        mixed['urevent'] = []
+        mixed_restored = eeg_mne2eeg(eeg_eeg2mne(mixed))
+        self.assertEqual([event['type'] for event in mixed_restored['event']], ['1', 'square'])
+        self.assertTrue(all(type(event['type']) is str for event in mixed_restored['event']))
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_event_id_keys_are_plain_str(self):
+        eeg = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        eeg['event'][0]['type'] = np.str_('square')
+        eeg['event'][1]['type'] = np.str_('rt')
+        converted = eeg_eeg2mne(eeg)
+        self.assertTrue(all(type(name) is str for name in converted.event_id))
+
+        info = mne.create_info(['EEG000'], 100.0, ch_types='eeg')
+        data = np.zeros((1, 1, 10))
+        epochs = mne.EpochsArray(
+            data,
+            info,
+            np.array([[0, 0, 1]]),
+            tmin=0.0,
+            event_id={np.str_('stimulus'): 1},
+            verbose=False,
+        )
+        restored = eeg_mne2eeg(epochs)
+        self.assertTrue(all(type(event['type']) is str for event in restored['event']))
+        self.assertEqual(restored['event'][0]['type'], 'stimulus')
+
+    def test_subject_text_rejects_multiple_values(self):
+        self.assertEqual(_subject_text(np.array([])), '')
+        with self.assertRaises(ValueError):
+            _subject_text(np.array(['a', 'b']))
 
 
 class TestMNEEventsToEEGLABEvents(unittest.TestCase):

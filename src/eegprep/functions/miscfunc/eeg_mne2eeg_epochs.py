@@ -7,7 +7,7 @@ import numpy as np
 
 from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
 
-from .eeg_mne2eeg import _mne_epochs_to_eeg_events, _mne_subject, _rebuild_epoch_structure
+from ._eeg_mne import _mne_epochs_to_eeg_events, _mne_subject, _rebuild_epoch_structure
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +16,16 @@ def eeg_mne2eeg_epochs(epochs, ica):
     """Convert MNE epochs with ICA to an EEG dataset.
 
     The time-locking event of each epoch is placed at time 0. Other events
-    whose onset falls inside the epoch window are included, and events outside
-    that window are omitted. ``eeg_checkset`` builds ``EEG['epoch']``.
-    ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``.
+    whose onset falls in ``[tmin, tmax + 1/srate)`` are included.
+    ``eeg_checkset`` builds ``EEG['epoch']``. Nonzero annotation durations are
+    stored on ``event['duration']`` in samples. Event types stay numbers when
+    every type is numeric. ``info['subject_info']['his_id']`` is copied to
+    ``EEG['subject']``.
+
+    The urevent table and ``event['urevent']`` do not survive. Boolean,
+    non-finite, and non-scalar event fields do not survive. Annotation fields
+    ``onset``, ``description``, ``ch_names``, and ``hed_string`` cannot be
+    stored as extra event fields. A duration of zero is omitted.
 
     Parameters
     ----------
