@@ -9,6 +9,7 @@ import scipy.linalg
 from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
+from .private.windows import matlab_window_offsets
 from .private.yulewalk import yulewalk
 
 logger = logging.getLogger(__name__)
@@ -266,7 +267,7 @@ def asr_calibrate(
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
-    window_starts = round_mat(np.arange(0, S - N, step)).astype(int)
+    window_starts = matlab_window_offsets(S, N, step)
 
     if len(window_starts) <= 1:
         raise ValueError(

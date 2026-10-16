@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_windows``, ``asr_calibrate``, and ``asr_calibrate_r`` place RMS
+  windows with MATLAB's colon operator. A fractional overlap such as 0.66 no
+  longer adds one extra window at the end of some recordings.
+  ``clean_windows`` keeps ``window_len * srate`` unrounded, as
+  ``clean_windows.m`` does: ``0:N-1`` indexes ``floor(N)`` samples and the
+  RMS divisor is that unrounded product. ``asr_calibrate`` still rounds the
+  window length, as ``asr_calibrate.m`` does.
 - ``pop_clust``, ``kmeans_st``, and ``kmeanscluster`` no longer sort clusters
   by coordinates, and ``kmeans_st`` now follows EEGLAB's UPGMA Hartigan-Wong
   algorithm. ``Cls`` numbers and memberships can change on existing studies
