@@ -223,6 +223,27 @@ def _event_sort_key(event):
     return (0 if epoch is None else epoch, 0 if latency is None else latency)
 
 
+def _is_empty_value(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    try:
+        return len(value) == 0
+    except TypeError:
+        return False
+
+
+def _coerce_etc(EEG) -> None:
+    value = EEG.get("etc")
+    if isinstance(value, dict):
+        return
+    if "etc" not in EEG or _is_empty_value(value):
+        EEG["etc"] = {}
+        return
+    raise ValueError(f"EEG etc must be a dictionary, not {type(value).__name__}")
+
+
 def _ica_needs_refresh(EEG) -> bool:
     data = EEG.get("data")
     weights = EEG.get("icaweights")
@@ -299,9 +320,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
         EEG['data'] = np.fromfile(file_name, dtype='float32').reshape(EEG['pnts'] * EEG['trials'], EEG['nbchan'])
         EEG['data'] = EEG['data'].T.reshape(EEG['nbchan'], EEG['trials'], EEG['pnts']).transpose(0, 2, 1)
 
-    # eeg_checkset.m:1266 and :1297-1298 always leave etc as a struct.
-    if not isinstance(EEG.get("etc"), dict):
-        EEG["etc"] = {}
+    # eeg_checkset.m:1266, 1297-1298
+    _coerce_etc(EEG)
 
     # eeg_checkset.m:1000-1016 scales only when icaact is empty or mis-sized.
     refresh_ica = _ica_needs_refresh(EEG)
