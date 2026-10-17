@@ -375,6 +375,65 @@ def test_console_eegh_positive_index_replays_command_through_workspace():
     assert replayed == "EEG = pop_reref(EEG, []);"
     assert session.EEG["setname"] == "reref"
     assert session.LASTCOM == "EEG = pop_reref(EEG, []);"
+    assert session.ALLCOM == ["EEG = pop_reref(EEG, []);"]
+    workspace.close()
+
+
+def test_execute_history_command_rejects_text_outside_session_history():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+
+    with pytest.raises(ValueError, match="session history"):
+        workspace.execute_history_command("ran = True")
+
+    assert session.ALLCOM == []
+    assert "ran" not in workspace.namespace
+
+    session.add_history("ran = True")
+    workspace.execute_history_command("ran = True")
+    assert workspace.namespace["ran"] is True
+    assert session.ALLCOM == ["ran = True"]
+    workspace.close()
+
+
+def test_eegh_replay_records_the_stack_command_once():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={"pop_nop": _fake_pop_without_command})
+    session.add_history("EEG = pop_nop(EEG);")
+    session.add_history("marker;")
+
+    replayed = workspace.namespace["eegh"](2)
+
+    assert replayed == "EEG = pop_nop(EEG);"
+    assert session.EEG["setname"] == "no-history-command"
+    assert session.ALLCOM == ["EEG = pop_nop(EEG);", "marker;", "EEG = pop_nop(EEG);"]
+
+    workspace.namespace["eegh"](1)
+    assert session.ALLCOM == ["EEG = pop_nop(EEG);", "marker;", "EEG = pop_nop(EEG);"]
+    workspace.close()
+
+
+def test_eegh_replay_of_assignment_records_the_stack_text_once():
+    session = EEGPrepSession()
+    session.store_current(_demo_eeg(), new=True)
+    workspace = EEGPrepConsoleWorkspace(session, exports={})
+    session.add_history("EEG = EEG;")
+    session.add_history("marker;")
+
+    assert workspace.namespace["eegh"](2) == "EEG = EEG;"
+    assert session.ALLCOM == ["EEG = EEG;", "marker;", "EEG = EEG;"]
+    workspace.close()
+
+
+def test_eegh_replay_of_display_command_is_appended_once():
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session)
+    session.add_history("disp(1);")
+    session.add_history("disp(2);")
+
+    assert workspace.namespace["eegh"](2) == "disp(1);"
+    assert session.ALLCOM == ["disp(1);", "disp(2);", "disp(1);"]
     workspace.close()
 
 

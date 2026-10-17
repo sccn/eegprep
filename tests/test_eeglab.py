@@ -34,18 +34,36 @@ def test_reference_iseeglabdeployed(eeglab_backend):
 
 
 def test_is_sccn_uses_the_unix_hostname(monkeypatch):
-    def hostname(text: str):
-        def run(*_args, **_kwargs):
-            completed = subprocess.CompletedProcess(["hostname"], 0, stdout=text, stderr="")
-            return completed
+    calls = []
+
+    def hostname(text: str, *, returncode: int = 0, error: BaseException | None = None):
+        def run(*_args, **kwargs):
+            calls.append(kwargs)
+            if error is not None:
+                raise error
+            return subprocess.CompletedProcess(["hostname"], returncode, stdout=text, stderr="")
 
         return run
 
     monkeypatch.setattr(os, "name", "posix")
     monkeypatch.setattr(subprocess, "run", hostname("lab.ucsd.edu\n"))
     assert is_sccn() == 1
+    assert calls[-1]["timeout"] > 0
+
+    monkeypatch.setattr(subprocess, "run", hostname("lab.ucsd.edu"))
+    assert is_sccn() == 1
 
     monkeypatch.setattr(subprocess, "run", hostname("localhost\n"))
+    assert is_sccn() == 0
+
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        hostname("lab.ucsd.edu\n", error=subprocess.TimeoutExpired(["hostname"], 5)),
+    )
+    assert is_sccn() == 0
+
+    monkeypatch.setattr(subprocess, "run", hostname("lab.ucsd.edu\n", returncode=1))
     assert is_sccn() == 0
 
     monkeypatch.setattr(os, "name", "nt")

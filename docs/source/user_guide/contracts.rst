@@ -72,7 +72,7 @@ replayable Python input before progress messages or warnings from the same
 action. ``eegh`` presents history newest-first like EEGLAB, while
 ``EEGPrepSession.ALLCOM`` stays chronological internally.
 ``eegh(n)`` for a positive ``n`` runs that history entry in the console and
-records the same command again. ``disp`` is available there for history
+records the same command once. ``disp`` is available there for history
 commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the ``% multiple datasets command:`` marker used by

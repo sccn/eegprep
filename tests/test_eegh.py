@@ -177,6 +177,31 @@ def test_eeg_hist_appends_a_command_on_its_own_line():
     assert eeg["history"] == "\na command\nEEG = pop_resample(EEG, 64);"
 
 
+def test_eeg_hist_joins_character_rows_before_appending():
+    matrix = np.array([list("alpha"), list("beta ")])
+    eeg = {"history": matrix}
+    eeg_hist(eeg, "EEG = pop_reref(EEG, []);")
+    assert eeg["history"] == "alpha\nbeta \nEEG = pop_reref(EEG, []);"
+    assert "array(" not in eeg["history"]
+
+    eeg = {"history": ["EEG = pop_loadset('a.set');", "EEG = pop_resample(EEG, 64);"]}
+    eeg_hist(eeg, "EEG = pop_reref(EEG, []);")
+    assert eeg["history"] == ("EEG = pop_loadset('a.set');\nEEG = pop_resample(EEG, 64);\nEEG = pop_reref(EEG, []);")
+
+    eeg = {"history": np.array(["first line", "second line"])}
+    eeg_hist(eeg, "third line")
+    assert eeg["history"] == "first line\nsecond line\nthird line"
+
+    unchanged = ["keep"]
+    eeg = {"history": unchanged}
+    eeg_hist(eeg, "EEG = pop_loadset('a.set');")
+    assert eeg["history"] is unchanged
+
+    eeg = {"history": np.empty((0, 0))}
+    eeg_hist(eeg, "a command")
+    assert eeg["history"] == "\na command"
+
+
 def test_eegh_records_only_non_empty_commands():
     history = []
 
