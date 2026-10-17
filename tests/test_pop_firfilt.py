@@ -6,8 +6,10 @@ import unittest
 
 import numpy as np
 import pytest
+from scipy.signal import filtfilt
 
 from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -36,6 +38,47 @@ def test_single_precision_fir_cast_follows_firfilt_not_eegfilt():
     legacy = apply_eegfilt_legacy(eeg, coefficients, causal=True)
     assert fir["data"].dtype == np.float32
     assert legacy["data"].dtype == np.float64
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_legacy_filter_class_follows_boundary_assignment(tmp_path, mapped: bool):
+    coefficients = np.array([0.25, 0.5, 0.25])
+    cases = (
+        ([], np.dtype(np.float64)),
+        ([{"type": "boundary", "latency": 300.5}], np.dtype(np.float32)),
+    )
+    for events, expected in cases:
+        eeg = _continuous_eeg()
+        eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+        eeg["event"] = events
+        if mapped:
+            name = "boundary" if events else "plain"
+            eeg["data"] = MemmapData.from_array(eeg["data"], filename=tmp_path / f"{name}.fdt")
+        result = apply_eegfilt_legacy(eeg, coefficients, filtorder=2)["data"]
+        assert result.dtype == expected
+        assert isinstance(result, MemmapData) is mapped
+
+
+def test_legacy_filter_matches_double_math_for_single_input():
+    """EEGLAB ``eegfilt`` filters single input in single precision.
+
+    That result differs from the double-precision filter by about 7.6e-5.
+    """
+    data = np.random.default_rng(4).standard_normal((2, 80)).astype(np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    result = apply_eegfilt_legacy(
+        {
+            "data": data,
+            "nbchan": 2,
+            "pnts": data.shape[1],
+            "trials": 1,
+            "event": [],
+        },
+        coefficients,
+        filtorder=2,
+    )["data"]
+    expected = filtfilt(coefficients, [1.0], data.astype(np.float64), axis=1, padlen=3 * (coefficients.size - 1))
+    np.testing.assert_array_equal(result, expected)
 
 
 def test_pop_eegfiltnew_minphase_matches_real_cepstrum():

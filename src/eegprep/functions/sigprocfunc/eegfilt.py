@@ -24,7 +24,9 @@ def eegfilt(
 
     Data are shaped ``(channels, frames * epochs)``. Each epoch is filtered
     independently when ``epochframes`` is supplied, preventing information
-    from leaking across trial boundaries.
+    from leaking across trial boundaries. The filter runs in float64. EEGLAB
+    ``eegfilt`` filters a single-precision input in single precision, about
+    7.6e-5 from this result.
 
     Returns:
         ``(filtered_data, filter_coefficients)``.
