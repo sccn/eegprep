@@ -1,0 +1,6 @@
+﻿helpforexe
+==========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: helpforexe

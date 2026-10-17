@@ -64,7 +64,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="getkeyval" href="eegprep.getkeyval.html" />
-    <link rel="prev" title="eeg_readoptions" href="eegprep.eeg_readoptions.html" />
+    <link rel="prev" title="eeg_hist" href="eegprep.eeg_hist.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.4.0" />
@@ -426,8 +426,14 @@
 <li class="toctree-l2"><a class="reference internal" href="eegprep.EEGPrepSession.html">EEGPrepSession</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.EEG_OPTIONS.html">EEG_OPTIONS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_readoptions.html">eeg_readoptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.disp.html">disp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_helphelp.html">eeg_helphelp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.eeg_hist.html">eeg_hist</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">gethelpvar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.getkeyval.html">getkeyval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.helpforexe.html">helpforexe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.is_sccn.html">is_sccn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="eegprep.iseeglabdeployed.html">iseeglabdeployed</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.vararg2str.html">vararg2str</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.EEGobj.html">EEGobj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="eegprep.checkset.html">checkset</a></li>
@@ -536,17 +542,22 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.gethelpvar">
 <span class="sig-name descname"><span class="pre">gethelpvar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.gethelpvar" title="Link to this definition">#</a></dt>
-<dd><p>Return variable descriptions and all variable names from an M-file.</p>
+<dd><p>Return variable descriptions and names from an M-file help header.</p>
+<p>Descriptions and names are 1-by-N rows, the same shape as EEGLAB’s cell
+outputs. With no <code class="docutils literal notranslate"><span class="pre">variables</span></code> argument, every documented description is
+returned. Otherwise descriptions follow the requested order, and names
+still list every documented variable. An unknown name has an empty
+description.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a>) – MATLAB source file whose leading help comments are parsed.</p></li>
 <li><p><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence" title="(in Python v3.15)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional name or ordered names whose descriptions should be
-returned. Unknown names produce an empty description.</p></li>
+returned.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>], <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>]]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)">tuple</a>[<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>, <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>ndarray</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -564,12 +575,12 @@ returned. Unknown names produce an empty description.</p></li>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="eegprep.eeg_readoptions.html"
+       href="eegprep.eeg_hist.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">eeg_readoptions</p>
+        <p class="prev-next-title">eeg_hist</p>
       </div>
     </a>
     <a class="right-next"

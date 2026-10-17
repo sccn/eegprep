@@ -1,0 +1,6 @@
+﻿disp
+====
+
+.. currentmodule:: eegprep
+
+.. autofunction:: disp

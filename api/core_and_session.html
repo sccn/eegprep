@@ -422,8 +422,14 @@
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGPrepSession.html">EEGPrepSession</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEG_OPTIONS.html">EEG_OPTIONS</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_readoptions.html">eeg_readoptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.disp.html">disp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_helphelp.html">eeg_helphelp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.eeg_hist.html">eeg_hist</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.gethelpvar.html">gethelpvar</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.getkeyval.html">getkeyval</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.helpforexe.html">helpforexe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.is_sccn.html">is_sccn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generated/eegprep.iseeglabdeployed.html">iseeglabdeployed</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.vararg2str.html">vararg2str</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.EEGobj.html">EEGobj</a></li>
 <li class="toctree-l2"><a class="reference internal" href="generated/eegprep.checkset.html">checkset</a></li>
@@ -538,11 +544,29 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_readoptions.html#eegprep.eeg_readoptions" title="eegprep.eeg_readoptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_readoptions</span></code></a>(filename[, ...])</p></td>
 <td><p>Parse an EEGLAB option script into header text and option records.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.gethelpvar.html#eegprep.gethelpvar" title="eegprep.gethelpvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gethelpvar</span></code></a>(filename[, variables])</p></td>
-<td><p>Return variable descriptions and all variable names from an M-file.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.disp.html#eegprep.disp" title="eegprep.disp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.disp</span></code></a>(value)</p></td>
+<td><p>Print <code class="docutils literal notranslate"><span class="pre">value</span></code> without a variable name.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.getkeyval.html#eegprep.getkeyval" title="eegprep.getkeyval"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getkeyval</span></code></a>(command, variable[, mode, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eeg_helphelp.html#eegprep.eeg_helphelp" title="eegprep.eeg_helphelp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_helphelp</span></code></a>()</p></td>
+<td><p>How EEGPrep help is organized.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.eeg_hist.html#eegprep.eeg_hist" title="eegprep.eeg_hist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eeg_hist</span></code></a>(eeg, command)</p></td>
+<td><p>Append <code class="docutils literal notranslate"><span class="pre">command</span></code> to <code class="docutils literal notranslate"><span class="pre">eeg[&quot;history&quot;]</span></code> and return the same dataset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.gethelpvar.html#eegprep.gethelpvar" title="eegprep.gethelpvar"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.gethelpvar</span></code></a>(filename[, variables])</p></td>
+<td><p>Return variable descriptions and names from an M-file help header.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.getkeyval.html#eegprep.getkeyval" title="eegprep.getkeyval"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getkeyval</span></code></a>(command, variable[, mode, ...])</p></td>
 <td><p>Return an argument from an EEGLAB command-history expression.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.helpforexe.html#eegprep.helpforexe" title="eegprep.helpforexe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.helpforexe</span></code></a>(functions, folder)</p></td>
+<td><p>Write one help script per function into <code class="docutils literal notranslate"><span class="pre">folder</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.is_sccn.html#eegprep.is_sccn" title="eegprep.is_sccn"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.is_sccn</span></code></a>()</p></td>
+<td><p>Return 1 when this Unix host name contains <code class="docutils literal notranslate"><span class="pre">ucsd.edu</span></code>, else 0.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.iseeglabdeployed.html#eegprep.iseeglabdeployed" title="eegprep.iseeglabdeployed"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.iseeglabdeployed</span></code></a>()</p></td>
+<td><p>Return 1 when EEGPrep is running as a frozen packaged application.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.vararg2str.html#eegprep.vararg2str" title="eegprep.vararg2str"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.vararg2str</span></code></a>(arguments[, inputnames, ...])</p></td>
 <td><p>Return a comma-separated EEGLAB expression for function arguments.</p></td>

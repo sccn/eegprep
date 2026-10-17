@@ -1,0 +1,6 @@
+﻿eeg\_helphelp
+=============
+
+.. currentmodule:: eegprep
+
+.. autofunction:: eeg_helphelp

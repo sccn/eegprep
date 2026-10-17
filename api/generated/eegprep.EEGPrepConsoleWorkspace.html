@@ -616,7 +616,12 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="eegprep.EEGPrepConsoleWorkspace.execute_history_command">
 <span class="sig-name descname"><span class="pre">execute_history_command</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.EEGPrepConsoleWorkspace.execute_history_command" title="Link to this definition">#</a></dt>
-<dd><p>Execute an EEGLAB history command through the console namespace.</p>
+<dd><p>Execute one command from this session’s own history.</p>
+<p>This is the console equivalent of <code class="docutils literal notranslate"><span class="pre">evalin('base',</span> <span class="pre">ALLCOM{n})</span></code>.
+<code class="docutils literal notranslate"><span class="pre">command</span></code> must already be an entry in the session history; other
+strings are refused. The call runs that entry and synchronizes
+workspace state without appending <code class="docutils literal notranslate"><span class="pre">command</span></code>. <code class="docutils literal notranslate"><span class="pre">eegh(n)</span></code> records
+the stack entry once after this returns.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>command</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p>

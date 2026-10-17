@@ -575,6 +575,9 @@ EEGLAB’s callback behavior.</p>
 replayable Python input before progress messages or warnings from the same
 action. <code class="docutils literal notranslate"><span class="pre">eegh</span></code> presents history newest-first like EEGLAB, while
 <code class="docutils literal notranslate"><span class="pre">EEGPrepSession.ALLCOM</span></code> stays chronological internally.
+<code class="docutils literal notranslate"><span class="pre">eegh(n)</span></code> for a positive <code class="docutils literal notranslate"><span class="pre">n</span></code> runs that history entry in the console and
+records the same command once. <code class="docutils literal notranslate"><span class="pre">disp</span></code> is available there for history
+commands that only display a value.
 When one command is applied to a multi-dataset selection, each selected EEG
 history records it with the <code class="docutils literal notranslate"><span class="pre">%</span> <span class="pre">multiple</span> <span class="pre">datasets</span> <span class="pre">command:</span></code> marker used by
 EEGLAB, while the session records the command once in <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code>.</p>
@@ -590,7 +593,9 @@ until you save them.</p>
 <code class="docutils literal notranslate"><span class="pre">src/eegprep/eeglab</span></code>; that tree is a development parity reference only. GUI
 Help buttons and Help-menu topics resolve to packaged Markdown files under
 <code class="docutils literal notranslate"><span class="pre">src/eegprep/resources/help</span></code> rather than falling back to the vendored EEGLAB
-tree or Python docstrings.</p>
+tree or Python docstrings. <code class="docutils literal notranslate"><span class="pre">eeg_helphelp</span></code> and <code class="docutils literal notranslate"><span class="pre">helpforexe</span></code> are the
+exception used by command history and compiled-style help scripts: they read
+the function docstring, which takes the place of an EEGLAB <code class="docutils literal notranslate"><span class="pre">.m</span></code> help block.</p>
 <p>Menu placeholders are machine-readable: each placeholder action carries either a
 target epic phase or an explicit exclusion reason for workflows that cannot be
 packaged in EEGPrep.</p>

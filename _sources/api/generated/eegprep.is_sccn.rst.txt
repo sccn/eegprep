@@ -1,0 +1,6 @@
+﻿is\_sccn
+========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: is_sccn
