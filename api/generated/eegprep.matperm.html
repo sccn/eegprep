@@ -538,6 +538,10 @@
 <dt class="sig sig-object py" id="eegprep.matperm">
 <span class="sig-name descname"><span class="pre">matperm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">second</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">second_indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correlations</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.matperm" title="Link to this definition">#</a></dt>
 <dd><p>Reorder and sign-correct rows of <code class="docutils literal notranslate"><span class="pre">first</span></code> into <code class="docutils literal notranslate"><span class="pre">second</span></code> row order.</p>
+<p><code class="docutils literal notranslate"><span class="pre">first_indices</span></code> and <code class="docutils literal notranslate"><span class="pre">second_indices</span></code> are 1-based row numbers, and the
+returned permutation uses the same convention. A partial match returns one
+row per pair. EEGLAB pads the shorter matrix with zero rows and requires
+one index for every row of <code class="docutils literal notranslate"><span class="pre">second</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

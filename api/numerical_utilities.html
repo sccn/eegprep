@@ -536,11 +536,12 @@ component workflows. They are standalone NumPy/SciPy functions and do not need
 MATLAB or an EEGLAB checkout.</p>
 <section id="indexing-and-compatibility">
 <h2>Indexing and compatibility<a class="headerlink" href="#indexing-and-compatibility" title="Link to this heading">#</a></h2>
-<p>Array indices are zero-based. This applies to peak frames returned by
-<code class="docutils literal notranslate"><span class="pre">abspeak</span></code>, assignments returned by <code class="docutils literal notranslate"><span class="pre">hungarian</span></code> and <code class="docutils literal notranslate"><span class="pre">matcorr</span></code>, permutation
-vectors, <code class="docutils literal notranslate"><span class="pre">matsel</span></code> selections, and <code class="docutils literal notranslate"><span class="pre">shuffle</span></code> axes. Kernel peak coordinates
-remain one-based because they describe the sampled coordinate system in the
-EEGLAB formulas rather than Python array indices.</p>
+<p><code class="docutils literal notranslate"><span class="pre">abspeak</span></code> peak frames, <code class="docutils literal notranslate"><span class="pre">hungarian</span></code> row assignments, and <code class="docutils literal notranslate"><span class="pre">matcorr</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mapcorr</span></code>, and <code class="docutils literal notranslate"><span class="pre">matperm</span></code> row numbers are 1-based. <code class="docutils literal notranslate"><span class="pre">shuffle</span></code> takes a
+1-based dimension and returns 1-based permutation indices. Subtract 1 before
+using those values as NumPy indices. <code class="docutils literal notranslate"><span class="pre">matsel</span></code> selections stay 0-based.
+Kernel peak coordinates remain 1-based because they describe the sampled
+coordinate system in the EEGLAB formulas rather than Python array indices.</p>
 <p><code class="docutils literal notranslate"><span class="pre">covary</span></code> deliberately retains EEGLAB’s grand-mean centering before computing
 column second moments; use NumPy’s variance functions when ordinary per-column
 centering is intended. <code class="docutils literal notranslate"><span class="pre">means</span></code> uses the number of finite observations when
@@ -566,7 +567,7 @@ MATLAB’s legacy biharmonic <code class="docutils literal notranslate"><span cl
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.abspeak.html#eegprep.abspeak" title="eegprep.abspeak"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.abspeak</span></code></a>(data[, frames_per_epoch])</p></td>
-<td><p>Return absolute peaks, zero-based frames, and signs for each epoch.</p></td>
+<td><p>Return absolute peaks, 1-based frames, and signs for each epoch.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.averef.html#eegprep.averef" title="eegprep.averef"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.averef</span></code></a>(data[, weights, sphere, ...])</p></td>
 <td><p>Average-reference channel-major data and optionally transform ICA weights.</p></td>
@@ -627,7 +628,7 @@ MATLAB’s legacy biharmonic <code class="docutils literal notranslate"><span cl
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.hungarian.html#eegprep.hungarian" title="eegprep.hungarian"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.hungarian</span></code></a>(cost_matrix)</p></td>
-<td><p>Return a zero-based column-to-row assignment and its total cost.</p></td>
+<td><p>Return a 1-based column-to-row assignment and its total cost.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.mapcorr.html#eegprep.mapcorr" title="eegprep.mapcorr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.mapcorr</span></code></a>(first, second, ...[, ...])</p></td>
 <td><p>Match rows after aligning map columns by common channel labels.</p></td>
@@ -676,8 +677,8 @@ MATLAB’s legacy biharmonic <code class="docutils literal notranslate"><span cl
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.scanfold.html#eegprep.scanfold" title="eegprep.scanfold"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.scanfold</span></code></a>(folder[, ignore, max_depth])</p></td>
 <td><p>Return MATLAB filenames below <code class="docutils literal notranslate"><span class="pre">folder</span></code> and EEGLAB's <code class="docutils literal notranslate"><span class="pre">-a</span></code> text.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.shuffle.html#eegprep.shuffle" title="eegprep.shuffle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.shuffle</span></code></a>(data[, axis, rng])</p></td>
-<td><p>Shuffle one zero-based axis and return permutation and inverse indices.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.shuffle.html#eegprep.shuffle" title="eegprep.shuffle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.shuffle</span></code></a>(data[, dim, rng])</p></td>
+<td><p>Shuffle one 1-based dimension and return 1-based permutation indices.</p></td>
 </tr>
 </tbody>
 </table>

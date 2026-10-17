@@ -552,9 +552,10 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.getchanlist">
 <span class="sig-name descname"><span class="pre">getchanlist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chanlocs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.getchanlist" title="Link to this definition">#</a></dt>
-<dd><p>Return 0-based channel indices matching one or more types.</p>
-<p>Matching is case-insensitive. With no type, every channel is returned.
-Missing requested types do not prevent other requested types from matching.</p>
+<dd><p>Return 1-based channel indices matching one or more types.</p>
+<p>Matching is case-insensitive and the result is sorted. With no type, or
+when locations have no type field, every channel is returned. A requested
+type with no match is omitted. EEGLAB also prints a warning for that type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

@@ -543,9 +543,9 @@
 <dt class="sig sig-object py" id="eegprep.eeg_amplitudearea">
 <span class="sig-name descname"><span class="pre">eeg_amplitudearea</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resrate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wstart</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wend</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_amplitudearea" title="Link to this definition">#</a></dt>
 <dd><p>Return signed mean ERP amplitude within a millisecond window.</p>
-<p>Channel identifiers are 0-based so the result of <a class="reference internal" href="eegprep.eeg_chaninds.html#eegprep.eeg_chaninds" title="eegprep.eeg_chaninds"><code class="xref py py-func docutils literal notranslate"><span class="pre">eeg_chaninds()</span></code></a> can
-be passed directly. <code class="docutils literal notranslate"><span class="pre">resrate</span></code> retains the original helper’s
-samples-per-millisecond interpretation.</p>
+<p>Channel numbers are 1-based. <code class="docutils literal notranslate"><span class="pre">resrate</span></code> is samples per millisecond: the
+window is resampled in steps of <code class="docutils literal notranslate"><span class="pre">1/resrate</span></code> along <code class="docutils literal notranslate"><span class="pre">EEG.times</span></code>.
+EEGLAB’s help text describes <code class="docutils literal notranslate"><span class="pre">resrate</span></code> as hertz.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

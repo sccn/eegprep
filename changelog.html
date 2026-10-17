@@ -476,6 +476,16 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Breaking change: <code class="docutils literal notranslate"><span class="pre">abspeak</span></code>, <code class="docutils literal notranslate"><span class="pre">matcorr</span></code>, <code class="docutils literal notranslate"><span class="pre">mapcorr</span></code>, <code class="docutils literal notranslate"><span class="pre">matperm</span></code>,
+<code class="docutils literal notranslate"><span class="pre">hungarian</span></code>, <code class="docutils literal notranslate"><span class="pre">getchanlist</span></code>, <code class="docutils literal notranslate"><span class="pre">shuffle</span></code>, and <code class="docutils literal notranslate"><span class="pre">eeg_amplitudearea</span></code> use
+1-based indices. <code class="docutils literal notranslate"><span class="pre">abspeak</span></code> frames, <code class="docutils literal notranslate"><span class="pre">hungarian</span></code> row assignments
+(<code class="docutils literal notranslate"><span class="pre">assignment[j]</span></code> is the row of column <code class="docutils literal notranslate"><span class="pre">j</span> <span class="pre">+</span> <span class="pre">1</span></code>), <code class="docutils literal notranslate"><span class="pre">matcorr</span></code>, <code class="docutils literal notranslate"><span class="pre">mapcorr</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">matperm</span></code> row numbers, <code class="docutils literal notranslate"><span class="pre">getchanlist</span></code> channel numbers, and
+<code class="docutils literal notranslate"><span class="pre">eeg_amplitudearea</span></code> channel numbers start at 1. <code class="docutils literal notranslate"><span class="pre">shuffle</span></code>’s dimension
+argument is now <code class="docutils literal notranslate"><span class="pre">dim</span></code> and is 1-based
+(it was <code class="docutils literal notranslate"><span class="pre">axis</span></code>, 0-based); its forward and inverse indices also start at 1.
+Subtract 1 before using any of these values as a NumPy index. An <code class="docutils literal notranslate"><span class="pre">abspeak</span></code>
+channel or epoch that is all NaN still returns frame <code class="docutils literal notranslate"><span class="pre">-1</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_hist</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sccn</span></code>, <code class="docutils literal notranslate"><span class="pre">iseeglabdeployed</span></code>, <code class="docutils literal notranslate"><span class="pre">eeg_helphelp</span></code>,
 <code class="docutils literal notranslate"><span class="pre">helpforexe</span></code>, and <code class="docutils literal notranslate"><span class="pre">disp</span></code> are available from <code class="docutils literal notranslate"><span class="pre">eegprep</span></code>. <code class="docutils literal notranslate"><span class="pre">eeg_hist</span></code>
 appends a command on its own line and skips commands that contain

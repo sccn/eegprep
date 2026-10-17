@@ -540,7 +540,8 @@
 <dd><p>Match rows of two matrices by absolute cosine correlation.</p>
 <p>Methods are <code class="docutils literal notranslate"><span class="pre">0</span></code> (globally optimal Hungarian assignment), <code class="docutils literal notranslate"><span class="pre">1</span></code> (Vogel
 approximation), and <code class="docutils literal notranslate"><span class="pre">2</span></code> (successive maximum correlation). Returned row
-indices are zero-based. Rectangular inputs return <code class="docutils literal notranslate"><span class="pre">min(rows)</span></code> unique pairs.</p>
+indices are 1-based. Rectangular inputs return <code class="docutils literal notranslate"><span class="pre">min(rows)</span></code> unique pairs.
+EEGLAB forces method 2 unless both matrices are square.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

@@ -537,7 +537,8 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.hungarian">
 <span class="sig-name descname"><span class="pre">hungarian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cost_matrix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.hungarian" title="Link to this definition">#</a></dt>
-<dd><p>Return a zero-based column-to-row assignment and its total cost.</p>
+<dd><p>Return a 1-based column-to-row assignment and its total cost.</p>
+<p><code class="docutils literal notranslate"><span class="pre">assignment[j]</span></code> is the 1-based row assigned to column <code class="docutils literal notranslate"><span class="pre">j</span> <span class="pre">+</span> <span class="pre">1</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>cost_matrix</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p>

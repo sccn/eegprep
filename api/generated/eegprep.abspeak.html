@@ -537,10 +537,12 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.abspeak">
 <span class="sig-name descname"><span class="pre">abspeak</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frames_per_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.abspeak" title="Link to this definition">#</a></dt>
-<dd><p>Return absolute peaks, zero-based frames, and signs for each epoch.</p>
-<p>NaNs are ignored when finite or infinite observations exist. An all-NaN
-channel/epoch returns <code class="docutils literal notranslate"><span class="pre">NaN</span></code> amplitude, frame <code class="docutils literal notranslate"><span class="pre">-1</span></code>, and sign <code class="docutils literal notranslate"><span class="pre">NaN</span></code>.
-Tied peaks use the last frame, matching EEGLAB’s stable-sort behavior.</p>
+<dd><p>Return absolute peaks, 1-based frames, and signs for each epoch.</p>
+<p>Frames start at 1. NaNs are ignored when finite or infinite observations
+exist. An all-NaN channel or epoch returns <code class="docutils literal notranslate"><span class="pre">NaN</span></code> amplitude, frame <code class="docutils literal notranslate"><span class="pre">-1</span></code>,
+and sign <code class="docutils literal notranslate"><span class="pre">NaN</span></code>; EEGLAB’s sort still reports a frame in that case. Tied
+peaks use the last frame. <code class="docutils literal notranslate"><span class="pre">frames_per_epoch</span></code> must divide the data length.
+EEGLAB prints a message and returns no outputs when it does not.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

@@ -553,8 +553,9 @@
 <dt class="sig sig-object py" id="eegprep.eeg_chaninds">
 <span class="sig-name descname"><span class="pre">eeg_chaninds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errorifnotfound</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_chaninds" title="Link to this definition">#</a></dt>
 <dd><p>Return 0-based indices for channel labels.</p>
-<p>This is EEGPrep’s compatibility alias for <a class="reference internal" href="eegprep.eeg_decodechan.html#eegprep.eeg_decodechan" title="eegprep.eeg_decodechan"><code class="xref py py-func docutils literal notranslate"><span class="pre">eeg_decodechan()</span></code></a>; Python
-indices remain 0-based throughout the channel-selection API.</p>
+<p>This is EEGPrep’s compatibility alias for <a class="reference internal" href="eegprep.eeg_decodechan.html#eegprep.eeg_decodechan" title="eegprep.eeg_decodechan"><code class="xref py py-func docutils literal notranslate"><span class="pre">eeg_decodechan()</span></code></a>. These
+label lookups stay 0-based. <code class="docutils literal notranslate"><span class="pre">getchanlist</span></code> and <code class="docutils literal notranslate"><span class="pre">eeg_amplitudearea</span></code> use
+1-based channel numbers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

@@ -546,7 +546,8 @@
                   
   <section id="data-loading-and-saving">
 <span id="api-data-loading-and-saving"></span><h1>Data Loading and Saving<a class="headerlink" href="#data-loading-and-saving" title="Link to this heading">#</a></h1>
-<p>Readers and writers for EEG datasets, channel locations, and MNE interchange.</p>
+<p>Readers and writers for EEG datasets, channel locations, and MNE interchange.
+<code class="docutils literal notranslate"><span class="pre">getchanlist</span></code> returns 1-based channel numbers.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.biosig2eeglabevent.html#eegprep.biosig2eeglabevent" title="eegprep.biosig2eeglabevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.biosig2eeglabevent</span></code></a>(EVENT[, ...])</p></td>
@@ -619,7 +620,7 @@
 <td><p>Construct an EEGLAB-compatible memory-mapped EEG data handle.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.getchanlist.html#eegprep.getchanlist" title="eegprep.getchanlist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.getchanlist</span></code></a>(chanlocs[, channel_type])</p></td>
-<td><p>Return 0-based channel indices matching one or more types.</p></td>
+<td><p>Return 1-based channel indices matching one or more types.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.mne2eeg.html#eegprep.mne2eeg" title="eegprep.mne2eeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.mne2eeg</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Wrap eeg_mne2eeg.</p></td>

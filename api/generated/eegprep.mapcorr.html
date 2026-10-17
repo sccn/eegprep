@@ -538,6 +538,9 @@
 <dt class="sig sig-object py" id="eegprep.mapcorr">
 <span class="sig-name descname"><span class="pre">mapcorr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">second</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_channels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">second_channels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_mean</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.mapcorr" title="Link to this definition">#</a></dt>
 <dd><p>Match rows after aligning map columns by common channel labels.</p>
+<p>Returned row indices are 1-based. Subtract 1 before using them as NumPy
+indices. EEGLAB forces method 2 for some non-square maps; the requested
+method is kept here.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

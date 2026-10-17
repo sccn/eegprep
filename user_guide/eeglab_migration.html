@@ -648,6 +648,9 @@ EEGPrep, use <code class="docutils literal notranslate"><span class="pre">LASTCO
 <ul class="simple">
 <li><p>Python arrays are zero-based: <code class="docutils literal notranslate"><span class="pre">EEG[&quot;data&quot;][0,</span> <span class="pre">:]</span></code> is the first channel.</p></li>
 <li><p>GUI channel/component/dataset selectors are one-based.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">abspeak</span></code>, <code class="docutils literal notranslate"><span class="pre">matcorr</span></code>, <code class="docutils literal notranslate"><span class="pre">mapcorr</span></code>, <code class="docutils literal notranslate"><span class="pre">matperm</span></code>, <code class="docutils literal notranslate"><span class="pre">hungarian</span></code>,
+<code class="docutils literal notranslate"><span class="pre">getchanlist</span></code>, <code class="docutils literal notranslate"><span class="pre">shuffle</span></code>, and <code class="docutils literal notranslate"><span class="pre">eeg_amplitudearea</span></code> use 1-based indices,
+including <code class="docutils literal notranslate"><span class="pre">shuffle</span></code>’s dimension. Subtract 1 before indexing a NumPy array.</p></li>
 <li><p>Event <code class="docutils literal notranslate"><span class="pre">latency</span></code> fields are sample positions in the EEGLAB-facing event
 model.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">icachansind</span></code> is normalized after loading so internal indexing is
