@@ -11,7 +11,7 @@ from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.firfilt._filtering import apply_fir_filter, design_eegfiltnew
+from eegprep.plugins.firfilt._filtering import apply_eegfilt_legacy, apply_fir_filter, design_eegfiltnew
 from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
@@ -26,6 +26,16 @@ try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 except (ImportError, ValueError):
     from fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+
+
+def test_single_precision_fir_cast_follows_firfilt_not_eegfilt():
+    eeg = _continuous_eeg()
+    eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    fir = apply_fir_filter(eeg, coefficients, causal=True)
+    legacy = apply_eegfilt_legacy(eeg, coefficients, causal=True)
+    assert fir["data"].dtype == np.float32
+    assert legacy["data"].dtype == np.float64
 
 
 def test_pop_eegfiltnew_minphase_matches_real_cepstrum():

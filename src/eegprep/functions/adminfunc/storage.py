@@ -38,16 +38,14 @@ class _BackingFile:
 class MemmapData:
     """NumPy-compatible handle for channel-major EEG data stored on disk.
 
-    Indexing always uses the logical EEG shape and normal zero-based NumPy
-    indices. Assigning past the end grows that axis with zeros. Assigning an
-    empty array deletes the indexed entries; a key shorter than the array rank
-    folds the trailing dimensions together first, as MATLAB does for fewer
-    subscripts. ``transposed=True`` maps EEGLAB ``.dat``-style storage whose
+    Indexing uses the logical EEG shape and ordinary zero-based NumPy rules.
+    Out-of-range indices raise, and assigning an empty array does not delete.
+    ``matlab_assign`` and ``delete`` implement EEGLAB ``@mmo`` subscript
+    behaviour: growth, empty-assignment deletion, and ``find`` on logical
+    masks. ``transposed=True`` maps EEGLAB ``.dat``-style storage whose
     physical axes are ``(samples, trials, channels)`` without exposing that
     layout to callers. Explicit and deep copies share the backing file until a
     copy is mutated, at which point that handle gets a private temporary file.
-    With ``debug=True``, a write prints ``using same copy`` when it updates the
-    current file and ``new copy created`` when copy-on-write replaces it.
     """
 
     __array_priority__ = 1000
@@ -259,11 +257,12 @@ class MemmapData:
 
         ``axis=None`` follows column-major linear deletion. Matrix results
         become row vectors, while column-vector inputs remain columns. Deletion
-        along ``axis`` addresses that axis of the full array. Assigning an empty
-        array uses the key length to fold trailing dimensions before deleting.
+        along ``axis`` addresses that axis of the full array and does not fold
+        trailing dimensions. A boolean mask is converted with ``find`` first:
+        only ``True`` positions are removed, and an all-false mask is a no-op.
         """
         if axis is None:
-            self[(np.asarray(indices).reshape(-1),)] = np.empty(0)
+            self._delete_at((indices,))
             return
         normalized_axis = int(axis)
         if normalized_axis < -self.ndim or normalized_axis >= self.ndim:
@@ -272,7 +271,7 @@ class MemmapData:
             normalized_axis += self.ndim
         key = [slice(None)] * self.ndim
         key[normalized_axis] = indices
-        self[tuple(key)] = np.empty(0)
+        self._delete_at(tuple(key))
 
     def change_file(self, filename: str | Path, *, writable: bool = False) -> None:
         """Move a private mapping, or copy a shared mapping, to ``filename``."""
@@ -321,6 +320,25 @@ class MemmapData:
         return self._memmap()[key]
 
     def __setitem__(self, key: Any, value: Any) -> None:
+        self._detach_for_write()
+        self._memmap()[key] = value
+
+    def matlab_assign(self, key: Any, value: Any) -> None:
+        """Assign using EEGLAB ``@mmo`` subscript rules.
+
+        Numeric indices past the end grow that axis and fill the new samples
+        with zeros. An empty value deletes the indexed entries. A key shorter
+        than the array rank folds trailing dimensions together before that
+        deletion, so two subscripts on a channels-by-samples-by-trials array
+        address channels by samples-times-trials. A boolean mask is converted
+        with ``find``: only ``True`` positions are removed, and an all-false
+        mask leaves the mapping unchanged.
+
+        With ``debug=True``, a write prints ``using same copy`` when it updates
+        the current file, ``new copy created`` when copy-on-write replaces it,
+        and ``new copy created, old deleted`` when growth or deletion replaces
+        the file. Ordinary ``[]`` indexing does not grow, delete, or print.
+        """
         if _is_empty_assignment(value):
             self._delete_at(key)
             return
@@ -427,9 +445,10 @@ class MemmapData:
         return True
 
     def _delete_at(self, key: Any) -> None:
-        if _empty_deletion_key(key, self.ndim):
+        indexers = _resolved_deletion_indexers(key, self.ndim)
+        if _subscript_is_empty(indexers):
             return
-        result = _deleted_array(np.asarray(self._memmap()), key)
+        result = _deleted_array(np.asarray(self._memmap()), indexers)
         if result.size == 0:
             raise ValueError("MemmapData cannot represent an empty mapping")
         replacement = MemmapData.from_array(
@@ -567,13 +586,42 @@ def _indexer_extent(indexer: Any, length: int) -> int:
     return max(length, int(array.max()) + 1)
 
 
-def _empty_deletion_key(key: Any, ndim: int) -> bool:
+def _is_logical_mask(indexer: Any) -> bool:
+    if isinstance(indexer, (bool, np.bool_)):
+        return True
+    if isinstance(indexer, np.ndarray):
+        return indexer.dtype == bool
+    return (
+        isinstance(indexer, (list, tuple))
+        and len(indexer) > 0
+        and all(isinstance(item, (bool, np.bool_)) for item in indexer)
+    )
+
+
+def _matlab_find(indexer: Any) -> np.ndarray:
+    """Return 0-based positions of ``True`` entries, in column-major order."""
+    array = np.asarray(indexer, dtype=bool)
+    return np.flatnonzero(np.reshape(array, -1, order="F"))
+
+
+def _resolved_deletion_indexers(key: Any, ndim: int) -> list[Any]:
+    # EEGLAB subsasgn converts logical subscripts with find before deletion.
+    resolved = []
+    for indexer in _deletion_indexers(key, ndim):
+        if _is_logical_mask(indexer):
+            resolved.append(_matlab_find(indexer))
+        else:
+            resolved.append(indexer)
+    return resolved
+
+
+def _subscript_is_empty(indexers: list[Any]) -> bool:
     """Return whether any subscript is an empty index list.
 
     MATLAB ``subsasgn`` returns the original object when a subscript is empty.
-    A colon or numeric range is not empty; ``[]`` is.
+    A colon or numeric range is not empty. ``[]`` and an all-false mask are.
     """
-    for indexer in _deletion_indexers(key, ndim):
+    for indexer in indexers:
         if _is_colon(indexer) or isinstance(indexer, (slice, int, np.integer)):
             continue
         if np.asarray(indexer).size == 0:
@@ -593,6 +641,8 @@ def _deletion_indexers(key: Any, ndim: int) -> list[Any]:
 def _deletion_positions(indexer: Any, length: int) -> np.ndarray:
     if isinstance(indexer, slice):
         return np.arange(length)[indexer]
+    if _is_logical_mask(indexer):
+        return _matlab_find(indexer)
     if isinstance(indexer, (int, np.integer)):
         index = int(indexer)
         if index < 0:
@@ -602,9 +652,8 @@ def _deletion_positions(indexer: Any, length: int) -> np.ndarray:
     return np.where(positions < 0, positions + length, positions)
 
 
-def _deleted_array(array: np.ndarray, key: Any) -> np.ndarray:
+def _deleted_array(array: np.ndarray, indexers: list[Any]) -> np.ndarray:
     """Delete MATLAB-style indices, folding trailing axes when the key is short."""
-    indexers = _deletion_indexers(key, array.ndim)
     non_colon = [axis for axis, indexer in enumerate(indexers) if not _is_colon(indexer)]
     if len(non_colon) > 1:
         raise ValueError("A null assignment can have only one non-colon index")
