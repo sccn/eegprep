@@ -391,7 +391,7 @@ def test_python_regression_runicalowmem_recovers_deterministic_independent_sourc
 def test_runicalowmem_name_value_pairs_match_keywords():
     data = np.random.default_rng(0).standard_normal((3, 80))
     keyword = runicalowmem(data, extended=1, seed=3, maxsteps=1, verbose="off")
-    positional = runicalowmem(data, "extended", 1.0, "seed", 3, "maxsteps", 1.0, "verbose", "off")
+    positional = runicalowmem(data, "extended", 1, "seed", 3, "maxsteps", 1, "verbose", "off")
 
     np.testing.assert_array_equal(positional[0], keyword[0])
     np.testing.assert_array_equal(positional[1], keyword[1])
