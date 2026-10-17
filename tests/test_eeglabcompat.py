@@ -11,7 +11,11 @@ from pathlib import Path
 import numpy as np
 import scipy.io
 
-from eegprep.functions.adminfunc.eeglabcompat import _prepare_matlab_arg, _restore_double_eeg_data
+from eegprep.functions.adminfunc.eeglabcompat import (
+    _prepare_matlab_arg,
+    _restore_double_eeg_data,
+    _stash_double_eeg_data,
+)
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
 
@@ -63,6 +67,47 @@ def test_picard_plugin_paths_follow_the_installed_folder_name(tmp_path):
     paths = eeglabcompat._picard_plugin_paths(str(tmp_path))
 
     assert paths == [str(plugin), str(sources)]
+
+
+class _RecordingEngine:
+    """Run the stash ``eval`` the way MATLAB would save the in-memory fields."""
+
+    def __init__(self, data, icaact):
+        self.data = np.asarray(data)
+        self.icaact = np.array(icaact, copy=True)
+
+    def eval(self, code, nargout=0):
+        assignment = code.split("eegprep_roundtrip_icaact =", 1)[1].split(";", 1)[0]
+        assert "double(" not in assignment
+        path = code.split("save('", 1)[1].split("'", 1)[0]
+        scipy.io.savemat(
+            path,
+            {
+                "eegprep_roundtrip_data": np.asarray(self.data, dtype=np.float64),
+                "eegprep_roundtrip_icaact": self.icaact,
+            },
+        )
+
+
+def test_matlab_bridge_round_trip_preserves_icaact(tmp_path):
+    data = np.arange(12, dtype=np.float64).reshape(2, 6)
+    single = np.array([[1.25, -2.5], [0.5, 4.0], [0.0, 1.0]], dtype=np.float32)
+    epoched = np.arange(24, dtype=np.float64).reshape(2, 4, 3)
+    cases = (single, epoched, np.empty((0, 0), dtype=np.float64))
+    for index, icaact in enumerate(cases):
+        path = tmp_path / f"roundtrip-{index}.mat"
+        _stash_double_eeg_data(_RecordingEngine(data, icaact), "OUT", str(path))
+        loaded = {
+            "data": np.zeros(data.shape, dtype=np.float32),
+            "icaact": np.ones((3, 6), dtype=np.float64),
+        }
+
+        _restore_double_eeg_data(loaded, str(path))
+
+        assert loaded["data"].dtype == np.float64
+        assert loaded["icaact"].dtype == icaact.dtype
+        assert loaded["icaact"].shape == icaact.shape
+        np.testing.assert_array_equal(loaded["icaact"], icaact)
 
 
 def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
