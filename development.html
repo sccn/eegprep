@@ -708,7 +708,38 @@ maximum p-value residuals are approximately <code class="docutils literal notran
 <code class="docutils literal notranslate"><span class="pre">7.81e-18</span></code> and <code class="docutils literal notranslate"><span class="pre">1.73e-17</span></code>; the direct fixture run passed 74 of 78 cases,
 matching the hybrid failures. These are retained reference fixture/platform
 discrepancies, not established EEGPrep defects. The original tolerances and
-failing assertions remain unchanged.</p>
+failing assertions remain unchanged. The Python backend now runs the same
+fixtures. Cases 31-78 match, including the seeded resampling arrays. Every
+fixture input is double. Cases 1, 2, and 7-14 are t-tests. On the Python
+backend their statistic tolerance is <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">*</span> <span class="pre">eps</span></code>, where <code class="docutils literal notranslate"><span class="pre">eps</span></code> is float64
+machine epsilon and <code class="docutils literal notranslate"><span class="pre">n</span></code> is the accumulation length: the case count of the
+paired difference, or the sum of both case counts for an unpaired test,
+because both samples enter the means and the pooled variance. On these
+fixtures that tolerance is about <code class="docutils literal notranslate"><span class="pre">2.2e-15</span></code> to <code class="docutils literal notranslate"><span class="pre">4.4e-15</span></code>. The two-tailed
+p-value is <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">sf(|t|,</span> <span class="pre">df)</span></code>. Its relative condition number in <code class="docutils literal notranslate"><span class="pre">t</span></code> is
+<code class="docutils literal notranslate"><span class="pre">|t|</span> <span class="pre">*</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">pdf(|t|,</span> <span class="pre">df)</span> <span class="pre">/</span> <span class="pre">|p|</span></code>. The p-value tolerance is the statistic
+tolerance times the maximum of that factor on the stored reference, one
+bound for the whole array, about <code class="docutils literal notranslate"><span class="pre">1e-13</span></code> here. A per-element bound is
+tighter than the last-bit <code class="docutils literal notranslate"><span class="pre">tcdf</span></code> difference on some elements whose <code class="docutils literal notranslate"><span class="pre">t</span></code>
+already matches. The statistic matches bit for bit in 9 of these 10 cases,
+so the p-value bound covers <code class="docutils literal notranslate"><span class="pre">tcdf</span></code> implementation differences. Zero and
+subnormal reference probabilities stay exact: they are left out of the
+maximum, and a non-finite bound fails the comparison. Degrees of freedom
+and the empty parametric surrogate stay exact. The stored fixture
+tolerances remain zero, and the MATLAB backend still uses them. The worst
+residuals inside this bound are a statistic relative error of <code class="docutils literal notranslate"><span class="pre">8.8e-16</span></code>
+and a p-value relative error of <code class="docutils literal notranslate"><span class="pre">1.9e-14</span></code>.</p>
+<p>The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
+single in EEGLAB because those routines accumulate in single
+(<code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> lines 67-68, <code class="docutils literal notranslate"><span class="pre">anova1_cell.m</span></code> lines 98, 107, and 116,
+<code class="docutils literal notranslate"><span class="pre">anova2_cell.m</span></code> lines 98-99, and <code class="docutils literal notranslate"><span class="pre">anova2rm_cell.m</span></code> lines 83-131) and then
+evaluate <code class="docutils literal notranslate"><span class="pre">1-fcdf</span></code> in single. Cancellation in <code class="docutils literal notranslate"><span class="pre">ssA</span></code> and <code class="docutils literal notranslate"><span class="pre">ssAS</span></code>
+(<code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> lines 97-104) lets the F error reach an absolute
+<code class="docutils literal notranslate"><span class="pre">6.1e-2</span></code> and a relative <code class="docutils literal notranslate"><span class="pre">5.9e-3</span></code>, and the single-precision p-value
+saturates to 0 below about <code class="docutils literal notranslate"><span class="pre">6e-8</span></code>. EEGPrep computes these statistics in
+double. That single-precision gap stays an expected failure pending a
+decision on whether to match the accumulation. The stored tolerances are
+unchanged.</p>
 <p>Some graphical wrappers also discard failure statuses. The two <code class="docutils literal notranslate"><span class="pre">gradplot</span></code>
 center cases and two <code class="docutils literal notranslate"><span class="pre">headmovie</span></code> cases returned <code class="docutils literal notranslate"><span class="pre">tc_notpassed</span></code> in retained
 native-backed runs, despite their wrapper-level pytest passes. The headmovie

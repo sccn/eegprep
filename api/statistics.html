@@ -534,7 +534,7 @@ mode still computes all <code class="docutils literal notranslate"><span class="
 at a time.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.statcond.html#eegprep.statcond" title="eegprep.statcond"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.statcond</span></code></a>(data, *[, paired, method, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.statcond.html#eegprep.statcond" title="eegprep.statcond"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.statcond</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Compare condition arrays using EEGLAB-style t-tests or ANOVAs.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.statcondfieldtrip.html#eegprep.statcondfieldtrip" title="eegprep.statcondfieldtrip"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.statcondfieldtrip</span></code></a>(data, *[, paired, ...])</p></td>
@@ -571,7 +571,25 @@ of freedom, p-values, and nonparametric outputs.</p>
 Although <code class="docutils literal notranslate"><span class="pre">statcond</span></code> documents rows, columns, and interaction, its unpaired
 branch forwards <code class="docutils literal notranslate"><span class="pre">anova2_cell</span></code> outputs in columns, rows, and interaction order.
 When translating positional unpaired MATLAB results, EEGPrep’s <code class="docutils literal notranslate"><span class="pre">rows</span></code> value
-therefore corresponds to the second MATLAB cell and <code class="docutils literal notranslate"><span class="pre">columns</span></code> to the first.</p>
+therefore corresponds to the second MATLAB cell and <code class="docutils literal notranslate"><span class="pre">columns</span></code> to the first.
+The MATLAB-shaped copies on <code class="docutils literal notranslate"><span class="pre">matlab_stat</span></code>, <code class="docutils literal notranslate"><span class="pre">matlab_df</span></code>, <code class="docutils literal notranslate"><span class="pre">matlab_pvalue</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">matlab_surrogate</span></code> keep that unpaired cell order. Paired two-way cells
+stay in row, column, interaction order.</p>
+<p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> accepts the same options as keywords or as positional name/value
+pairs. <code class="docutils literal notranslate"><span class="pre">mode</span></code> selects the method when it is non-empty. <code class="docutils literal notranslate"><span class="pre">verbose</span></code> defaults
+to off. Unpaired <code class="docutils literal notranslate"><span class="pre">variance</span></code> defaults to Welch’s inhomogenous formula,
+matching EEGLAB <code class="docutils literal notranslate"><span class="pre">statcond</span></code> <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code>. <code class="docutils literal notranslate"><span class="pre">ttest2_cell</span></code> itself still
+defaults to equal variance. <code class="docutils literal notranslate"><span class="pre">cluster=&quot;on&quot;</span></code> replaces one-way permutation
+p-values with cluster-extent results. The cluster-forming threshold uses the
+t or F degrees of freedom of the test. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">statcond.m</span></code> lines 470 and
+490 pass the feature count to <code class="docutils literal notranslate"><span class="pre">tcdf</span></code>:
+<code class="docutils literal notranslate"><span class="pre">tcdf(-abs(surrogval),</span> <span class="pre">size(surrogval,1))</span></code> and
+<code class="docutils literal notranslate"><span class="pre">tcdf(-abs(ori_vals),</span> <span class="pre">length(ori_vals))</span></code>.
+<code class="docutils literal notranslate"><span class="pre">returnresamplingarray</span></code> is the name/value form of
+<code class="docutils literal notranslate"><span class="pre">return_resampling_array</span></code>. Those cells are drawn from a MATLAB
+<code class="docutils literal notranslate"><span class="pre">rng('default')</span></code> Twister. The Python <code class="docutils literal notranslate"><span class="pre">samples</span></code> stream is the <code class="docutils literal notranslate"><span class="pre">rng</span></code>
+argument. <code class="docutils literal notranslate"><span class="pre">structoutput=&quot;on&quot;</span></code> puts the EEGLAB struct in the single MATLAB
+output; the Python return value remains a <code class="docutils literal notranslate"><span class="pre">StatcondResult</span></code>.</p>
 </section>
 <section id="fieldtrip-style-inference">
 <h3>FieldTrip-style inference<a class="headerlink" href="#fieldtrip-style-inference" title="Link to this heading">#</a></h3>
