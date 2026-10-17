@@ -128,28 +128,32 @@ def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
 
 def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
     """Round-trip ICA through MatlabWrapper and match MATLAB's activation class."""
+    # eeg_checkset.m casts the decomposition to double, then multiplies by data.
+    data_class = np.dtype(np.float32)
     sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_with_ica_tmp.set"
     eeg = pop_loadset(sample)
-    eeg["icaact"] = np.full(np.asarray(eeg["icaact"]).shape, 9.0, dtype=np.float32)
+    eeg["data"] = np.asarray(eeg["data"], dtype=data_class)
+    eeg["icaact"] = np.full((np.asarray(eeg["icaweights"]).shape[0], int(eeg["pnts"])), 9.0, dtype=data_class)
 
     restored = MatlabWrapper(eeglab_matlab_engine).eeg_checkset(eeg)
 
     activations = np.asarray(restored["icaact"])
+    assert activations.dtype == data_class
     assert activations.size == np.asarray(eeg["icaweights"]).shape[0] * int(eeg["pnts"]) * int(eeg["trials"])
-    dtype = activations.dtype
-    assert np.issubdtype(dtype, np.floating)
     channels = np.asarray(restored["icachansind"], dtype=int)
-    selected = np.asarray(restored["data"], dtype=dtype)[channels]
+    selected = np.asarray(restored["data"], dtype=data_class)[channels]
     flat = np.reshape(selected, (selected.shape[0], -1), order="F")
-    weights = np.asarray(restored["icaweights"], dtype=dtype)
-    sphere = np.asarray(restored["icasphere"], dtype=dtype)
-    expected = matlab_mtimes(matlab_mtimes(weights, sphere), flat)
-    unit = float(np.finfo(dtype).eps)
-    terms = int(weights.shape[1])
+    unmixing = matlab_mtimes(np.asarray(restored["icaweights"]), np.asarray(restored["icasphere"]))
+    assert unmixing.dtype == np.dtype(np.float64)
+    expected = matlab_mtimes(unmixing, flat)
+    terms = int(flat.shape[0])
+    unit = float(np.finfo(data_class).eps)
     gamma = terms * unit / (1.0 - terms * unit)
-    scale = float(np.max(np.abs(expected)))
-    atol = 2.0 * (2.0 * gamma + gamma * gamma) * max(scale, 1.0)
-    np.testing.assert_allclose(activations.reshape(-1, order="F"), expected.reshape(-1, order="F"), rtol=0.0, atol=atol)
+    scale = np.abs(np.asarray(unmixing, dtype=np.float64)) @ np.abs(np.asarray(flat, dtype=np.float64))
+    bound = gamma * scale
+    actual = np.reshape(np.asarray(activations, dtype=np.float64), expected.shape, order="F")
+    residual = np.abs(actual - np.asarray(expected, dtype=np.float64))
+    assert np.all(residual <= bound)
 
 
 class TestMatlabWrapper(DebuggableTestCase):

@@ -20,11 +20,10 @@ Unreleased
   column-major product in the data array's dtype. ``pop_saveset`` writes
   ``icaact`` as ``[]`` and leaves the in-memory activations in place.
   ``pop_loadset`` recomputes them from the decomposition and the data.
-  ``pop_subcomp`` projects those stored activations. Event and channel indices
-  load as integers, and
-  integral ``run`` and ``session`` labels stay integers. MATLAB ``load``
-  keeps those dimensions, and ``eeg_checkset`` requires
-  ``size(EEG.data, 1) == EEG.nbchan``.
+  ``pop_subcomp`` projects those stored activations. Event and channel
+  indices load as integers, and integral ``run`` and ``session`` labels
+  stay integers. MATLAB ``load`` keeps those dimensions, and
+  ``eeg_checkset`` requires ``size(EEG.data, 1) == EEG.nbchan``.
 - Breaking change: ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``,
   ``hungarian``, ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use
   1-based indices. ``abspeak`` frames, ``hungarian`` row assignments
