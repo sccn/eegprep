@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``SECURITY.md`` says how to report a vulnerability privately (email
+  suranganath@ucsd.edu), which versions get fixes, and what happens after a
+  report. ``.oss-scanner/`` holds the Dockerfile and threat model for
+  Anthropic's OSS Scanner, which builds EEGPrep with every dependency and
+  audits it offline.
 - Breaking change: ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``,
   ``hungarian``, ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use
   1-based indices. ``abspeak`` frames, ``hungarian`` row assignments
