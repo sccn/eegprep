@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import scipy.io
 
+from eegprep.functions.adminfunc.eeg_checkset import _refresh_icaact
 from eegprep.functions.adminfunc.pymat import py2mat
 from ..popfunc.pop_loadset import pop_loadset
 from ..popfunc.pop_saveset import pop_saveset
@@ -67,6 +68,10 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
     if stashed.size != current.size:
         return
     eeg["data"] = np.reshape(stashed, current.shape, order="F")
+    # The .set file holds single data, so the activations loaded with it are
+    # the single product. The restored samples are double; recompute in that class.
+    if np.asarray(eeg.get("icaact", [])).size:
+        _refresh_icaact(eeg)
 
 
 def _prepare_matlab_arg(arg: Any) -> Any:

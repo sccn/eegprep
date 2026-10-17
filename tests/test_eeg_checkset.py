@@ -96,9 +96,11 @@ class TestEegChecksetDataSqueezing(DebuggableTestCase):
 
         result = eeg_checkset(eeg)
 
-        flat = np.asarray(result['data']).reshape(result['data'].shape[0], -1)
-        unmixing = np.asarray(result['icaweights']) @ np.asarray(result['icasphere'])
-        expected = np.dot(unmixing.astype(flat.dtype, copy=False), flat).astype(np.float32)
+        flat = np.asfortranarray(np.asarray(result['data']).reshape(result['data'].shape[0], -1, order='F'))
+        unmixing = np.asfortranarray(np.asarray(result['icaweights'])) @ np.asfortranarray(
+            np.asarray(result['icasphere'])
+        )
+        expected = np.asfortranarray(unmixing, dtype=np.float32) @ flat
         self.assertEqual(result['icaact'].dtype, np.float32)
         np.testing.assert_array_equal(result['icaact'], expected)
 

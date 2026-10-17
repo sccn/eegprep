@@ -10,6 +10,7 @@ import warnings
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import matlab_mtimes
 from eegprep.functions.miscfunc.value_parsing import is_empty_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
@@ -195,13 +196,14 @@ def _component_data(
         cached = _external_component_activity(EEG, weights.shape[0], pnts, trials)
     if cached.size:
         cached3d = _as_3d(cached, pnts, trials)
-        return np.asarray(cached3d[component_indices], dtype=float).copy()
+        return np.array(cached3d[component_indices], copy=True)
     if data is None:
         data = _as_3d(_dataset_data(EEG), pnts, trials)
     weights, sphere, _inverse, ica_channels = _ica_matrices(EEG, require_inverse=False)
-    flattened = data[ica_channels].reshape(len(ica_channels), -1, order="F")
-    activations = (weights[component_indices] @ sphere) @ flattened
-    return activations.reshape(len(component_indices), pnts, trials, order="F")
+    flattened = np.asarray(data[ica_channels]).reshape(len(ica_channels), -1, order="F")
+    # eeg_getdatact.m recomputes (icaweights(comps,:)*icasphere)*data in the data class.
+    activations = matlab_mtimes(matlab_mtimes(weights[component_indices], sphere), flattened)
+    return np.reshape(activations, (len(component_indices), pnts, trials), order="F")
 
 
 def _external_component_activity(EEG: dict[str, Any], component_count: int, pnts: int, trials: int) -> np.ndarray:

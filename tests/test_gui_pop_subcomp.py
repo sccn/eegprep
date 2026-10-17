@@ -72,6 +72,25 @@ class PopSubcompGuiTests(unittest.TestCase):
         np.testing.assert_array_equal(out["icaweights"], np.eye(3)[1:2])
         self.assertEqual(_console_python_command(com), "EEG = pop_subcomp(EEG, components=[2], plotag=0, keepcomp=1)")
 
+    def test_component_removal_projects_cached_single_activations(self):
+        eeg = _eeg()
+        eeg["data"] = np.arange(24, dtype=np.float64).reshape(3, 8)
+        eeg["icaact"] = np.array(
+            [
+                [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+                [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.25],
+            ],
+            dtype=np.float32,
+        )
+        eeg["icawinv"] = np.eye(3, dtype=np.float64)
+
+        out = pop_subcomp(eeg, [2])
+
+        kept = eeg["icaact"][[0, 2]]
+        expected = np.asfortranarray(np.eye(3, dtype=np.float32)[:, [0, 2]]) @ np.asfortranarray(kept)
+        np.testing.assert_array_equal(out["data"], expected.astype(np.float64))
+
     def test_component_removal_preserves_eeglab_icawinv_columns(self):
         eeg = _eeg()
         eeg["icawinv"] = np.arange(9, dtype=float).reshape(3, 3)

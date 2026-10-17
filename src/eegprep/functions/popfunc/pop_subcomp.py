@@ -9,9 +9,10 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_getdatact import eeg_getdatact
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
-from eegprep.functions.miscfunc.misc import finite_matmul, finite_pinv
+from eegprep.functions.miscfunc.misc import finite_pinv, matlab_mtimes
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on as _is_on
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 
@@ -112,22 +113,26 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
     data_shape = data.shape
     data_2d = data.reshape(data_shape[0], -1, order="F")
 
-    weights = np.asarray(output["icaweights"], dtype=float)
-    sphere = np.asarray(output["icasphere"], dtype=float)
-    unmixing = finite_matmul(weights, sphere)
-    activations = finite_matmul(unmixing, data_2d[icachansind])
+    weights = np.asarray(output["icaweights"])
+    sphere = np.asarray(output["icasphere"])
     icawinv = output.get("icawinv")
     mixing = np.asarray(icawinv, dtype=float) if icawinv is not None else np.array([])
     if mixing.size == 0:
-        mixing = finite_pinv(unmixing)
-    projected = finite_matmul(mixing[:, keep_mask], activations[keep_mask])
+        mixing = finite_pinv(matlab_mtimes(weights, sphere))
+    # pop_subcomp.m: icawinv(:,keep) * eeg_getdatact(..., 'component', keep, 'reshape', '2d')
+    keep_components = (np.flatnonzero(keep_mask) + 1).tolist()
+    if keep_components:
+        activations = eeg_getdatact(output, component=keep_components, reshape="2d")
+        projected = matlab_mtimes(np.asarray(mixing[:, keep_mask], dtype=float), activations)
+    else:
+        projected = np.zeros((icachansind.size, data_2d.shape[1]), dtype=data_2d.dtype)
 
     cleaned = data_2d.copy()
     cleaned[icachansind] = projected
     output["data"] = cleaned.reshape(data_shape, order="F")
     output["setname"] = f"{output.get('setname', '')} pruned with ICA".strip()
     output["icaact"] = np.array([])
-    output["icaweights"] = weights[keep_mask, :]
+    output["icaweights"] = np.asarray(weights, dtype=float)[keep_mask, :]
     output["icawinv"] = mixing[:, keep_mask]
     output["specicaact"] = np.array([])
     output["specdata"] = np.array([])
