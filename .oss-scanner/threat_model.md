@@ -18,7 +18,7 @@ EEGPrep-side flaws reachable through public optional-engine APIs such as `pop_re
 
 ## Highest-value investigation targets
 
-Line numbers were checked against develop at `7ac29e10ccda2030ed639f3cc4b3f22aa22a7a1e` and may drift; search for the named function if a line has moved.
+Line numbers were checked against develop at `d38b9665d89504921f4c65e43278638c747010dc` and may drift; search for the named function if a line has moved.
 These are source-supported targets, not reproduced vulnerabilities. Paths below are relative to `src/eegprep/` except repo-root `pyproject.toml` and paths starting with `packages/`, `scripts/`, `tests/` or `.oss-scanner/`.
 
 ### Small inputs driving large allocations
@@ -91,7 +91,7 @@ pytest tests
 (cd packages/eegprep-lean && /opt/lean-venv/bin/python -m pytest tests -m "not network")
 ```
 
-Baseline from the same environment with no external network (2026-10-16): root `pytest tests` gave **1919 passed, 140 skipped, 815 deselected, 0 failed** in about two minutes; lean gave **105 passed, 2 skipped, 7 deselected**. The Dockerfile smoke tests turn failures into warnings (`:56–59`), so record the counts you actually get.
+Baseline from the same environment with no external network (2026-10-16): root `pytest tests` gave **1919 passed, 140 skipped, 815 deselected, 0 failed** in about two minutes; lean gave **105 passed, 2 skipped, 7 deselected**. The Dockerfile smoke tests fail the build on failure (`:56–57`). Record the counts you actually get.
 Fixture patterns: MAT in `tests/test_pop_loadset.py:18,21`, BrainVision in `tests/test_pop_loadbv.py:24`, BIDS/EDF/BDF in `tests/test_bids_load_frombids_helpers.py:21,144,306`. HDF5 tests include non-MATLAB coverage (`tests/test_pop_loadset_h5.py:65`).
 
 This bounded example creates a two-channel synthetic SET and fresh output directory. Flags/config keys were checked against `cli/main.py:157,189,196` and `cli/commands/pipeline.py:159,310,378`:

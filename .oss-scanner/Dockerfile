@@ -53,8 +53,6 @@ RUN mkdir -p "$MPLCONFIGDIR" "$MNE_DATA" \
     && python -c 'import matplotlib; matplotlib.use("Agg"); from matplotlib import pyplot as plt; fig = plt.figure(); fig.canvas.draw(); plt.close(fig)' \
     && python -c 'import json, tempfile; from pathlib import Path; from bids import BIDSLayout; from bids.layout import Config; Config.load("bids"); Config.load("derivatives"); t = tempfile.TemporaryDirectory(); p = Path(t.name); (p / "dataset_description.json").write_text(json.dumps({"Name": "offline-warmup", "BIDSVersion": "1.8.0"})); BIDSLayout(p, validate=False); t.cleanup()'
 
-RUN pytest -q tests/test_pop_loadset.py tests/test_pop_loadset_h5.py tests/test_pop_loadbv.py tests/test_extension_catalog.py \
-    || echo 'WARNING: EEGPrep smoke tests reported failures'
-RUN cd packages/eegprep-lean && (/opt/lean-venv/bin/python -m pytest -q -p no:cacheprovider tests -m "not network" \
-    || echo 'WARNING: eegprep-lean tests reported failures')
+RUN pytest -q tests/test_pop_loadset.py tests/test_pop_loadset_h5.py tests/test_pop_loadbv.py tests/test_extension_catalog.py
+RUN cd packages/eegprep-lean && /opt/lean-venv/bin/python -m pytest -q -p no:cacheprovider tests -m "not network"
 CMD ["/bin/bash"]
