@@ -76,9 +76,9 @@ Paths again use the `src/eegprep/` base. Braces group module filenames; follow w
 ## Exercising the offline container
 
 [OSS Scanner](https://github.com/anthropics/oss-scanner#how-to-sign-up) builds online and audits offline; [guidance](https://red.anthropic.com/oss-scanner/) and [template](https://github.com/anthropics/oss-scanner/blob/main/templates/threat_model.md) inform this scope.
-`.oss-scanner/Dockerfile:23,40` installs the checkout at `/src`, Python 3.12 and all root extras/dev dependencies in `/opt/venv` on PATH.
-The build **requires** the pinned EEGLAB checkout and initializes it when absent (`:27–37`); it remains out of audit scope.
-A separate `/opt/lean-venv` installs `packages/eegprep-lean[zarr,plot]`, `zarr==3.4.0` and pytest (`:44–45`).
+`.oss-scanner/Dockerfile:24,41` installs the checkout at `/src`, Python 3.12 and all root extras/dev dependencies in `/opt/venv` on PATH.
+The build **requires** the pinned EEGLAB checkout and initializes it when absent (`:28–38`); it remains out of audit scope.
+A separate `/opt/lean-venv` installs `packages/eegprep-lean[zarr,plot]`, `zarr==3.4.0` and pytest (`:45–46`).
 The image sets `EEGPREP_SKIP_MATLAB=1`, `QT_QPA_PLATFORM=offscreen`, `UV_OFFLINE=1`, fetches FlankerTest and warms matplotlib/PyBIDS caches. Network isolation is supplied by the runner, not `UV_OFFLINE`.
 Use synthetic fixtures/injected transports; avoid live NEMAR/OpenNeuro requests. Lean transport tests use `127.0.0.1` (`packages/eegprep-lean/tests/test_transport.py:93`), available with [Docker `--network none`](https://docs.docker.com/engine/network/drivers/none/).
 
@@ -91,7 +91,7 @@ pytest tests
 (cd packages/eegprep-lean && /opt/lean-venv/bin/python -m pytest tests -m "not network")
 ```
 
-Baseline from the same environment with no external network (2026-10-16): root `pytest tests` gave **1919 passed, 140 skipped, 815 deselected, 0 failed** in about two minutes; lean gave **105 passed, 2 skipped, 7 deselected**. The Dockerfile smoke tests fail the build on failure (`:56–57`). Record the counts you actually get.
+Baseline measured on both amd64 and arm64 with `--network none` on 2026-10-16: root `pytest tests` gave **1923 passed, 138 skipped, 815 deselected, 0 failed**; lean gave **105 passed, 2 skipped, 7 deselected**. The Dockerfile smoke tests fail the build on failure (`:58–59`). Record the counts you actually get.
 Fixture patterns: MAT in `tests/test_pop_loadset.py:18,21`, BrainVision in `tests/test_pop_loadbv.py:24`, BIDS/EDF/BDF in `tests/test_bids_load_frombids_helpers.py:21,144,306`. HDF5 tests include non-MATLAB coverage (`tests/test_pop_loadset_h5.py:65`).
 
 This bounded example creates a two-channel synthetic SET and fresh output directory. Flags/config keys were checked against `cli/main.py:157,189,196` and `cli/commands/pipeline.py:159,310,378`:
