@@ -309,7 +309,10 @@ class ConsoleEegh:
                 return ""
             history_command = session.history_command_at(value)
             if history_command:
+                # eegh.m:116-117 evals the stack entry, then records that same
+                # command once. The replay itself does not append it.
                 self.bridge.execute_history_command(history_command)
+                session.add_history(history_command)
             return history_command
         session = self.bridge.session
         normalized = str(command).strip()
@@ -350,6 +353,7 @@ class EEGPrepConsoleWorkspace:
         self._syncing = False
         self._pop_updated_session = False
         self._pop_needs_source_history = False
+        self._replaying_history = False
         self._gui_action_depth = 0
         self._terminal_buffer: _TerminalOutputBuffer | None = None
         self._terminal_buffer_token: contextvars.Token | None = None
@@ -391,13 +395,13 @@ class EEGPrepConsoleWorkspace:
             if self._pop_needs_source_history:
                 self._pop_needs_source_history = False
                 command = source.strip()
-                if command:
+                if command and not self._replaying_history:
                     self.session.add_history(command)
             self.pull_from_session()
             return
 
         targets = _workspace_assignment_targets(source)
-        history_command = self._history_command_for_source(source, targets)
+        history_command = "" if self._replaying_history else self._history_command_for_source(source, targets)
         eeg_changed = self._namespace_eeg_changed(targets)
         eeg = self.namespace.get("EEG") if eeg_changed else None
         pending_history = history_command
@@ -428,7 +432,7 @@ class EEGPrepConsoleWorkspace:
             self._store_eeg(eeg, history_command)
             pending_history = ""
             changed = True
-        elif "LASTCOM" in targets:
+        elif "LASTCOM" in targets and not self._replaying_history:
             command = str(self.namespace.get("LASTCOM") or "").strip()
             if command and command != self.session.LASTCOM:
                 self.session.add_history(command)
@@ -453,7 +457,7 @@ class EEGPrepConsoleWorkspace:
             pending_history = ""
             changed = True
 
-        if changed and pending_history and pending_history != self.session.LASTCOM:
+        if not self._replaying_history and changed and pending_history and pending_history != self.session.LASTCOM:
             self.session.add_history(pending_history)
         self.pull_from_session()
         if changed:
@@ -586,10 +590,23 @@ class EEGPrepConsoleWorkspace:
             self._syncing = False
 
     def execute_history_command(self, command: str) -> None:
-        """Execute an EEGLAB history command through the console namespace."""
+        """Execute one command from this session's own history.
+
+        This is the console equivalent of ``evalin('base', ALLCOM{n})``.
+        ``command`` must already be an entry in the session history; other
+        strings are refused. The call runs that entry and synchronizes
+        workspace state without appending ``command``. ``eegh(n)`` records
+        the stack entry once after this returns.
+        """
+        if command not in self.session.ALLCOM:
+            raise ValueError("only a command from the session history can be executed")
         source = _console_python_command(command)
-        exec(source, self.namespace)
-        self.after_execute(source)
+        self._replaying_history = True
+        try:
+            exec(source, self.namespace)
+            self.after_execute(source)
+        finally:
+            self._replaying_history = False
 
     def _refresh(self) -> None:
         if self.refresh is not None:

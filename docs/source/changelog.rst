@@ -10,6 +10,20 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_hist``, ``is_sccn``, ``iseeglabdeployed``, ``eeg_helphelp``,
+  ``helpforexe``, and ``disp`` are available from ``eegprep``. ``eeg_hist``
+  appends a command on its own line and skips commands that contain
+  ``pop_loadset``. History stored as a character matrix or a list of rows
+  is joined into lines first. ``is_sccn`` returns 1 when the stripped Unix
+  ``hostname`` output contains ``ucsd.edu``, and 0 when that command times
+  out or fails. ``iseeglabdeployed``
+  returns 1 when Python is running a frozen executable (``sys.frozen``),
+  which is the packaged-application counterpart of MATLAB ``isdeployed``.
+  ``eeg_helphelp`` prints its docstring, and ``helpforexe`` writes one
+  ``disp`` script per function from that function's docstring.
+  ``eegh(n)`` in ``eegprep-console`` runs a command from the session
+  history and records that command once. ``gethelpvar`` now returns
+  description and name rows with shape ``(1, N)`` instead of Python lists.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

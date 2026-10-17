@@ -97,7 +97,9 @@ def test_reference_eegplotgold(eeglab_backend, eeglab_suite_root, eeglab_working
                 eeglab_backend("eegplotgold", "data", *arguments, nargout=0)
             else:
                 workspace.namespace["arguments"] = arguments
-                workspace.execute_history_command("eegprep.eegplotgold('data', *arguments)")
+                source = "eegprep.eegplotgold('data', *arguments)"
+                exec(source, workspace.namespace)
+                workspace.after_execute(source)
         close_reference_gui(eeglab_backend, request)
 
 
