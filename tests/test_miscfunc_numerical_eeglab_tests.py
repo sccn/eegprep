@@ -546,9 +546,21 @@ def test_python_regression_mapcorr_aligns_values_by_channel_label_before_matchin
         first, second, first_channels, second_channels, method=0
     )
     np.testing.assert_allclose(correlations, [1, 1])
-    np.testing.assert_array_equal(first[first_indices], first[[0, 1]])
-    np.testing.assert_array_equal(second_indices, [0, 1])
+    np.testing.assert_array_equal(first_indices, [1, 2])
+    np.testing.assert_array_equal(second_indices, [1, 2])
+    np.testing.assert_array_equal(first[first_indices - 1], first[[0, 1]])
     np.testing.assert_allclose(np.diag(all_correlations), 1)
+    edge_channels = [{"labels": "A"}, {"labels": "B"}]
+    edge_first = np.asarray([[1.0, 0.0], [0.0, 1.0], [2.0, 2.0]])
+    edge_second = np.asarray([[2.0, 2.0], [0.0, 1.0], [1.0, 0.0]])
+    _edge_correlations, edge_first_indices, edge_second_indices, _edge_matrix = mapcorr(
+        edge_first, edge_second, edge_channels, edge_channels, method=2
+    )
+    assert edge_first_indices.min() == 1 and edge_first_indices.max() == 3
+    assert edge_second_indices.min() == 1 and edge_second_indices.max() == 3
+    np.testing.assert_array_equal(edge_first[edge_first_indices - 1], edge_second[edge_second_indices - 1])
+    np.testing.assert_array_equal(edge_second_indices[edge_first_indices == 3], [1])
+    np.testing.assert_array_equal(edge_second_indices[edge_first_indices == 1], [3])
     zero_weight = mapcorr(first, second, first_channels, second_channels, method=0, weighting=0)
     np.testing.assert_allclose(zero_weight[3], all_correlations)
     with pytest.raises(ValueError, match="unique"):

@@ -11,10 +11,10 @@ MATLAB or an EEGLAB checkout.
 Indexing and compatibility
 ==========================
 
-``abspeak`` peak frames, ``hungarian`` row assignments, and ``matcorr`` and
-``matperm`` row numbers are 1-based. ``shuffle`` takes a 1-based dimension and
-returns 1-based permutation indices. Subtract 1 before using those values as
-NumPy indices. ``mapcorr`` indices and ``matsel`` selections stay 0-based.
+``abspeak`` peak frames, ``hungarian`` row assignments, and ``matcorr``,
+``mapcorr``, and ``matperm`` row numbers are 1-based. ``shuffle`` takes a
+1-based dimension and returns 1-based permutation indices. Subtract 1 before
+using those values as NumPy indices. ``matsel`` selections stay 0-based.
 Kernel peak coordinates remain 1-based because they describe the sampled
 coordinate system in the EEGLAB formulas rather than Python array indices.
 

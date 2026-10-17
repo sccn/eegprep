@@ -204,7 +204,9 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_loadtxt_force": _gap(SHAPE, AssertionError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_covary": _gap(SHAPE, AssertionError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_datlim": _gap(SHAPE, AssertionError),
-    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_hungarian": _gap(SHAPE, AssertionError),
+    "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_hungarian": ExpectedFailure(
+        "boundary converter (#430 PR-A)", AssertionError
+    ),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_nan_std": _gap(SHAPE, AssertionError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_pcsquash": _gap(SHAPE, AssertionError),
     "tests/test_miscfunc_numerical_eeglab_tests.py::test_reference_perminv": _gap(SHAPE, ValueError),
