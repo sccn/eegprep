@@ -85,8 +85,14 @@ Unreleased
   the default has been ``'off'`` since 2015. ``newtimef`` accepts every
   name in the ``newtimef.m`` ``finputcheck`` list (lines 513-587). Mode
   ``ignore`` (line 587) forwards ``ffttaper``, ``wavelet``, and
-  ``timestretch`` to ``timefreq`` (line 1188); any other unknown name is an
-  undefined ``timefreq`` argument. A scalar ``freqs`` keeps its first value
+  ``timestretch`` to ``timefreq`` (line 1188). A forwarded ``wavelet``
+  replaces ``cycles`` because lines 1186-1188 pass ``g.cycles`` first and the
+  last value wins. Any other unknown name is an undefined ``timefreq``
+  argument, reported with the caller's spelling. ``freqrange``, ``erspboot``,
+  and ``itcboot`` are undefined arguments. ``overlap`` and ``rng`` are
+  EEGPrep-only names that EEGLAB rejects: STUDY precompute forwards
+  ``overlap`` (a value raises ``NotImplementedError``) and ``rng`` seeds the
+  bootstrap. A scalar ``freqs`` keeps its first value
   when ``maxfreq`` replaces ``freqs(2)``. ``ntimesout`` sets the time
   count when ``timesout`` is not a vector (lines 1176-1182). ``itctype``
   replaces ``type`` unless it is ``phasecoher`` (line 591). The default

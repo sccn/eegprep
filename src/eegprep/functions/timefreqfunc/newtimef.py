@@ -127,10 +127,7 @@ _NEWTIMEF_DEFAULTS = {
     "colormap": "jet(256)",
 }
 _PYTHON_NEWTIMEF_OPTIONS = {
-    "freqrange": None,
     "overlap": None,
-    "erspboot": None,
-    "itcboot": None,
     "rng": None,
     "causal": "off",
     "subitc": "off",
@@ -146,7 +143,7 @@ def _newtimef_options(parsed: dict[str, Any]) -> SimpleNamespace:
     return SimpleNamespace(**selected)
 
 
-def _timefreq_forwarded(parsed: dict[str, Any]) -> dict[str, Any]:
+def _timefreq_forwarded(parsed: dict[str, Any], spellings: dict[str, str]) -> dict[str, Any]:
     """Return names newtimef.m leaves in timefreqopts for timefreq.m:171-189."""
     known = set(_NEWTIMEF_DEFAULTS) | set(_PYTHON_NEWTIMEF_OPTIONS)
     forwarded: dict[str, Any] = {}
@@ -154,9 +151,20 @@ def _timefreq_forwarded(parsed: dict[str, Any]) -> dict[str, Any]:
         if name in known:
             continue
         if name not in _TIMEFREQ_FORWARDED:
-            raise ValueError(f"error: undefined argument '{name}'")
+            raise ValueError(f"error: undefined argument '{spellings.get(name, name)}'")
         forwarded[name] = value
     return forwarded
+
+
+def _lowercase_options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    raw = parse_key_value_args(args, kwargs, lowercase_keys=False, lowercase_kwargs=False)
+    options: dict[str, Any] = {}
+    spellings: dict[str, str] = {}
+    for key, value in raw.items():
+        canonical = str(key).lower()
+        options[canonical] = value
+        spellings[canonical] = str(key)
+    return options, spellings
 
 
 def _effective_timesout(timesout: Any, ntimesout: Any) -> Any:
@@ -174,15 +182,13 @@ def _effective_timesout(timesout: Any, ntimesout: Any) -> Any:
     return timesout
 
 
-def _resolve_freqs(freqs: Any, freqrange: Any, maxfreq: Any, srate: float) -> Any:
+def _resolve_freqs(freqs: Any, maxfreq: Any, srate: float) -> Any:
     """Apply newtimef.m lines 704-709 to the frequency range.
 
     The default assignment at line 542 is ``[0, 50]``. ``maxfreq`` above the
     Nyquist rate is reduced to that rate, and any ``maxfreq`` other than 50
     then replaces ``freqs(2)``. The Nyquist cap is not part of the default.
     """
-    if freqs is None and freqrange is not None:
-        freqs = freqrange
     if freqs is None:
         freqs = [0.0, _DEFAULT_MAXFREQ]
     limit = float(maxfreq)
@@ -217,7 +223,13 @@ def newtimef(
     mode ``ignore`` (line 587) returns every other name as ``timefreqopts``,
     and line 1188 passes that list to ``timefreq``. Names ``timefreq`` accepts
     (``ffttaper``, ``wavelet``, ``timestretch``; ``timefreq.m`` lines 171-189)
-    are forwarded. Any other name is an undefined ``timefreq`` argument.
+    are forwarded. Lines 1186-1188 pass ``'wavelet', g.cycles`` before those
+    leftovers, and the last value wins, so a forwarded ``wavelet`` replaces
+    ``cycles``. Any other name is an undefined ``timefreq`` argument, reported
+    with the caller's spelling. ``overlap`` and ``rng`` are EEGPrep-only names
+    that EEGLAB rejects: STUDY precompute forwards ``overlap`` (a value raises
+    ``NotImplementedError``; ``None`` is ignored) and ``rng`` seeds the
+    bootstrap.
     Defaults follow that list: ``baseline`` 0, ``scale`` ``"log"``,
     ``basenorm`` and ``trialbase`` ``"off"``, ``naccu`` 200, ``boottype``
     ``"shuffle"``, ``timesout`` 200, ``padratio`` 2, ``verbose`` ``"on"``,
@@ -237,14 +249,14 @@ def newtimef(
     forces ``plotersp`` off (line 589). A figure is drawn when ``plotersp``
     or ``plotitc`` is on (line 1426); pass ``plot`` to override that.
     """
-    options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    options, spellings = _lowercase_options(args, kwargs)
     if "cycles" in options and not _is_empty_value(options["cycles"]):
         cycles = options.pop("cycles")
     else:
         options.pop("cycles", None)
     plot_supplied = "plot" in options
     plot_request = options.pop("plot", None)
-    forwarded = _timefreq_forwarded(options)
+    forwarded = _timefreq_forwarded(options, spellings)
     opt = _newtimef_options(options)
     if not _is_on(opt.plotamp):
         opt.plotersp = "off"
@@ -257,7 +269,7 @@ def newtimef(
         raise NotImplementedError("newtimef only implements outputformat='plot'")
     if not _is_on(opt.plotphase):
         opt.plotphasesign = opt.plotphase
-    opt.freqs = _resolve_freqs(opt.freqs, opt.freqrange, opt.maxfreq, srate)
+    opt.freqs = _resolve_freqs(opt.freqs, opt.maxfreq, srate)
     if str(opt.itctype).lower() != "phasecoher":
         opt.type = opt.itctype
     opt.timesout = _effective_timesout(opt.timesout, opt.ntimesout)
@@ -327,10 +339,8 @@ def newtimef(
     itc = newtimefitc(tfdata, opt.type)
 
     alpha_value = _alpha_value(opt.alpha)
-    supplied_erspboot = _first_not_none(opt.erspboot, opt.pboot)
-    supplied_itcboot = _first_not_none(opt.itcboot, opt.rboot)
-    ersp_boot = _boot_array(supplied_erspboot)
-    itc_boot = _boot_array(supplied_itcboot)
+    ersp_boot = _boot_array(opt.pboot)
+    itc_boot = _boot_array(opt.rboot)
     ersp_pvalues = None
     itc_pvalues = None
     ersp_significant = None
@@ -501,13 +511,15 @@ def _compute_decomposition(
     forwarded: dict[str, Any] | None = None,
 ):
     extra = dict(forwarded or {})
+    if "wavelet" in extra:
+        cycles = extra.pop("wavelet")
     explicit_times, ntimesout = _split_timesout(timesout)
     return timefreq(
         data,
         srate,
         frames=int(frames),
         cycles=cycles,
-        wavelet=extra.pop("wavelet", 0),
+        wavelet=0,
         winsize=None if winsize is None else int(_first_numeric(winsize, 0)),
         tlimits=tlimits,
         freqs=freqs,
@@ -618,10 +630,6 @@ def _alpha_value(alpha: Any) -> float | None:
     if values[0] <= 0 or values[0] > 0.5:
         raise ValueError("alpha must be in the interval (0, 0.5]")
     return float(values[0])
-
-
-def _first_not_none(first: Any, second: Any) -> Any:
-    return first if first is not None else second
 
 
 def _boot_array(value: Any) -> np.ndarray | None:

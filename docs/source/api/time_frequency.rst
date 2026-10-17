@@ -9,7 +9,11 @@ Time-frequency decomposition, coherence, phase-amplitude coupling, and time warp
 or positional name/value pairs, including ``chaninfo``, ``ntimesout``,
 ``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Other names that
 ``timefreq`` accepts (``ffttaper``, ``wavelet``, ``timestretch``) are
-forwarded to it. Any further name is an undefined ``timefreq`` argument.
+forwarded to it. A forwarded ``wavelet`` replaces ``cycles``. Any further
+name is an undefined ``timefreq`` argument, reported with the caller's
+spelling. ``overlap`` and ``rng`` are EEGPrep-only names that EEGLAB rejects.
+STUDY precompute forwards ``overlap``; a value raises ``NotImplementedError``.
+``rng`` seeds the bootstrap.
 Defaults follow the ``newtimef`` list, including ``baseline`` 0,
 ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2. ``ntimesout`` is
 the output time count when ``timesout`` is not a vector. ``itctype`` replaces

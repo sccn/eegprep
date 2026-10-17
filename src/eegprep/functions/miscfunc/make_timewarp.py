@@ -64,10 +64,10 @@ def make_timewarp(
     or positional name/value pairs. A MATLAB cell row is accepted as the event
     sequence or the condition list.
     """
-    supplied = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    supplied = parse_key_value_args(args, kwargs, lowercase_keys=False, lowercase_kwargs=False)
     parsed: dict[str, Any] = {}
     for key, value in supplied.items():
-        canonical = _TIMEWARP_OPTIONS.get(key)
+        canonical = _TIMEWARP_OPTIONS.get(str(key).lower())
         if canonical is None:
             raise ValueError(f"error: undefined argument '{key}'")
         parsed[canonical] = value

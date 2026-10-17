@@ -356,15 +356,14 @@ def test_newtimef_scalar_freqs_keeps_its_first_value_when_maxfreq_changes():
     assert result.freqs[-1] == pytest.approx(30.0)
 
 
-def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
-    # freqrange aliases freqs; freqscale='log' spaces the output frequencies geometrically;
-    # an unknown scale fails fast.
+def test_newtimef_freqscale_and_scale_validation():
+    # freqscale='log' spaces the output frequencies geometrically; an unknown scale fails fast.
+    # freqrange is not a newtimef name.
     srate = 128
     trials = _oscillation_trials(srate, 256, [0.0, 0.3, 0.6])
 
-    aliased = newtimef(trials, 256, [0, 2000], srate, [3, 0.5], freqrange=[6, 30], nfreqs=6, plot="off")
-    assert aliased.freqs.min() == pytest.approx(6.0)
-    assert aliased.freqs.max() == pytest.approx(30.0)
+    with pytest.raises(ValueError, match="undefined argument 'freqrange'"):
+        newtimef(trials, 256, [0, 2000], srate, [3, 0.5], freqrange=[6, 30], nfreqs=6, plot="off")
 
     log_freqs = newtimef(
         trials, 256, [0, 2000], srate, [3, 0.5], freqs=[6, 30], nfreqs=6, freqscale="log", plot="off"
@@ -425,7 +424,7 @@ def test_newtimef_baseline_forms_control_powbase_units():
 
 
 def test_newtimef_supplied_1d_bootstrap_thresholds_flag_extremes():
-    # A 1-D erspboot supplies a symmetric per-frequency band and a 1-D itcboot an upper magnitude
+    # A 1-D pboot supplies a symmetric per-frequency band and a 1-D rboot an upper magnitude
     # threshold; supplied limits bypass the bootstrap and mask by comparison. (The dB / symmetric-band
     # reading of a 1-D vector is an EEGPrep convention; EEGLAB documents pboot as an (nfreqs, 2) array.)
     srate = 128
@@ -437,7 +436,7 @@ def test_newtimef_supplied_1d_bootstrap_thresholds_flag_extremes():
     ersp_thresh = np.percentile(np.abs(base.ersp), 60, axis=1)
     itc_thresh = np.percentile(np.abs(base.itc), 40, axis=1)
     result = newtimef(
-        trials, 256, [0, 2000], srate, [3, 0.5], alpha=0.05, erspboot=ersp_thresh, itcboot=itc_thresh, **common
+        trials, 256, [0, 2000], srate, [3, 0.5], alpha=0.05, pboot=ersp_thresh, rboot=itc_thresh, **common
     )
     np.testing.assert_array_equal(result.ersp_significant, np.abs(result.ersp) >= ersp_thresh[:, None])
     np.testing.assert_array_equal(result.itc_significant, np.abs(result.itc) >= itc_thresh[:, None])
@@ -744,8 +743,91 @@ def test_newtimef_forwards_timefreq_options_and_rejects_undefined_names():
     np.testing.assert_allclose(history.ersp, counted.ersp, rtol=0, atol=0)
     assert history.ersp.shape == hanning.ersp.shape
     assert not np.allclose(history.ersp, hanning.ersp)
-    with pytest.raises(ValueError, match="undefined argument 'not_a_real_option'"):
-        newtimef(data, 64, [0, 630], 100, 0, "not_a_real_option", 1, **common)
+    with pytest.raises(ValueError, match="undefined argument 'notAnOption'"):
+        newtimef(data, 64, [0, 630], 100, 0, "notAnOption", 1, **common)
+    for name in ("freqrange", "erspboot", "itcboot"):
+        with pytest.raises(ValueError, match=f"undefined argument '{name}'"):
+            newtimef(data, 64, [0, 630], 100, 0, name, 1, **common)
+
+
+def test_newtimef_forwarded_wavelet_replaces_cycles():
+    data = np.random.RandomState(1).rand(64, 4)
+    common = dict(plot="off", verbose="off", ntimesout=8)
+    fft = newtimef(data, 64, [0, 630], 100, 0, **common)
+    overridden = newtimef(data, 64, [0, 630], 100, [3, 0.5], "wavelet", 0, **common)
+
+    np.testing.assert_array_equal(overridden.ersp, fft.ersp)
+    np.testing.assert_array_equal(overridden.itc, fft.itc)
+
+
+def test_newtimef_overlap_is_recognized_and_rng_seeds_bootstrap():
+    data = np.random.RandomState(4).rand(64, 4)
+    common = dict(plot="off", verbose="off", ntimesout=8, alpha=0.05, baseline=0)
+    newtimef(data, 64, [0, 630], 100, 0, overlap=None, **common)
+    with pytest.raises(NotImplementedError, match="overlap"):
+        newtimef(data, 64, [0, 630], 100, 0, overlap=4, **common)
+    first = newtimef(data, 64, [0, 630], 100, 0, rng=0, **common)
+    second = newtimef(data, 64, [0, 630], 100, 0, rng=0, **common)
+    np.testing.assert_array_equal(first.erspboot, second.erspboot)
+
+
+@pytest.mark.parity
+def test_reference_newtimef_wavelet_zero_matches_fft(eeglab_backend):
+    data = np.random.RandomState(1).rand(64, 4)
+    limits = np.array([[0.0, 630.0]])
+    shared = (
+        "plotersp",
+        "off",
+        "plotitc",
+        "off",
+        "verbose",
+        "off",
+        "ntimesout",
+        8,
+        "baseline",
+        np.nan,
+        "scale",
+        "abs",
+    )
+    fft = np.squeeze(
+        np.asarray(eeglab_backend("newtimef", data, 64.0, limits, 100.0, 0.0, *shared, nargout=1), dtype=float)
+    )
+    overridden = np.squeeze(
+        np.asarray(
+            eeglab_backend(
+                "newtimef",
+                data,
+                64.0,
+                limits,
+                100.0,
+                np.array([[3.0, 0.5]]),
+                "wavelet",
+                0.0,
+                *shared,
+                nargout=1,
+            ),
+            dtype=float,
+        )
+    )
+    direct = newtimef(
+        data,
+        64,
+        [0, 630],
+        100,
+        [3, 0.5],
+        "wavelet",
+        0,
+        plotersp="off",
+        plotitc="off",
+        verbose="off",
+        ntimesout=8,
+        baseline=np.nan,
+        scale="abs",
+    )
+
+    np.testing.assert_allclose(overridden, fft, rtol=0, atol=0)
+    spacing = np.spacing(np.max(np.abs(fft))) * fft.size
+    np.testing.assert_allclose(np.squeeze(direct.ersp), fft, rtol=0, atol=spacing)
 
 
 def test_newtimef_itctype_overrides_type_unless_phasecoher():
