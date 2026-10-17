@@ -532,7 +532,10 @@
 <dd><p>Filter an array using the legacy EEGLAB <code class="docutils literal notranslate"><span class="pre">eegfilt</span></code> design.</p>
 <p>Data are shaped <code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">frames</span> <span class="pre">*</span> <span class="pre">epochs)</span></code>. Each epoch is filtered
 independently when <code class="docutils literal notranslate"><span class="pre">epochframes</span></code> is supplied, preventing information
-from leaking across trial boundaries.</p>
+from leaking across trial boundaries. The filter runs in float64. EEGLAB
+eegfilt.m:209-210 runs filter/filtfilt on single-precision input in single
+precision (falling back to double only on error, :213-215), so its result
+differs from this one by single-precision rounding.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">(filtered_data,</span> <span class="pre">filter_coefficients)</span></code>.</p>

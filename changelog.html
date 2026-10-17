@@ -524,6 +524,21 @@ that threshold with <code class="docutils literal notranslate"><span class="pre"
 feature count as the degrees of freedom.
 Resampling cells follow MATLAB <code class="docutils literal notranslate"><span class="pre">rng('default')</span></code>; pass <code class="docutils literal notranslate"><span class="pre">rng</span></code> to control
 the Python surrogate stream.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MemmapData.matlab_assign</span></code> grows when an index extends past the end of an
+axis and fills the new samples with zeros. An empty value deletes those
+entries, folding trailing dimensions when the key is shorter than the rank.
+Boolean masks use <code class="docutils literal notranslate"><span class="pre">find</span></code>: only <code class="docutils literal notranslate"><span class="pre">True</span></code> positions are removed, and an
+all-false mask leaves the data unchanged. Ordinary indexing stays NumPy’s.
+Shared copies stay unchanged until they are written, and <code class="docutils literal notranslate"><span class="pre">debug=True</span></code>
+prints whether a <code class="docutils literal notranslate"><span class="pre">matlab_assign</span></code> reused the file. <code class="docutils literal notranslate"><span class="pre">pop_firws</span></code> keeps
+single-precision EEG in float32: the filter runs in float64 and the result
+is cast back, so a memory-mapped dataset and the same dataset in memory
+match. Legacy <code class="docutils literal notranslate"><span class="pre">pop_eegfilt</span></code> returns float64, except continuous data with
+a boundary event keeps the input dtype for both in-memory and memory-mapped
+data. The filter runs in float64. EEGLAB eegfilt.m:209-210 runs filter/filtfilt
+on single-precision input in single precision (falling back to double only on
+error, :213-215), so its result differs from this one by single-precision
+rounding.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">erpimage</span></code> is now a faithful port of EEGLAB’s <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>: it takes
 EEGLAB’s arguments and options (as tokens or keywords) and returns its fifteen
 outputs plus the figure. Sorting, smoothing and decimation, phase and

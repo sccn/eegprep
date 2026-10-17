@@ -59,11 +59,23 @@ value writes to the ``.fdt`` sidecar; use normal EEGPrep save/history workflows
 when the dataset metadata should be marked clean.
 
 ``MemmapData`` uses zero-based NumPy indices against the logical
-``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
-``copy.deepcopy`` share the sidecar until one copy is written, then use a
-private copy-on-write sidecar so processing a copied EEG does not mutate its
-source. ``resize`` retains the overlapping region and fills new samples with
-zeros by default; ``delete`` removes indices along a selected logical axis.
+``(channels, samples[, trials])`` shape. Ordinary item assignment follows
+NumPy: an index past the end raises, and assigning an empty array does not
+delete. ``matlab_assign`` is the EEGLAB subscript operation. An index past
+the end grows that axis and fills the new samples with zeros. An empty value
+deletes the indexed samples. A key with fewer entries than the array rank
+folds the trailing dimensions together before the deletion, so a
+channels-by-samples-by-trials array indexed with two subscripts is treated
+as channels by samples-times-trials. A boolean mask is converted with
+``find``: only ``True`` positions are removed, and an all-false mask leaves
+the data unchanged. ``delete(indices, axis=...)`` addresses one axis of the
+full array and does not fold; it uses the same ``find`` rule for masks.
+Copies made with ``copy.copy`` or ``copy.deepcopy`` share the sidecar until
+one copy is written, then use a private copy-on-write sidecar so processing
+a copied EEG does not mutate its source. ``resize`` retains the overlapping
+region and fills new samples with zeros by default. A read-only handle is
+copied on the first write. ``debug=True`` makes ``matlab_assign`` print
+whether that write reused the file.
 
 EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
 rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,

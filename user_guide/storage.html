@@ -565,11 +565,23 @@ sidecar is read only when <code class="docutils literal notranslate"><span class
 value writes to the <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar; use normal EEGPrep save/history workflows
 when the dataset metadata should be marked clean.</p>
 <p><code class="docutils literal notranslate"><span class="pre">MemmapData</span></code> uses zero-based NumPy indices against the logical
-<code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">samples[,</span> <span class="pre">trials])</span></code> shape. Copies made with <code class="docutils literal notranslate"><span class="pre">copy.copy</span></code> or
-<code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> share the sidecar until one copy is written, then use a
-private copy-on-write sidecar so processing a copied EEG does not mutate its
-source. <code class="docutils literal notranslate"><span class="pre">resize</span></code> retains the overlapping region and fills new samples with
-zeros by default; <code class="docutils literal notranslate"><span class="pre">delete</span></code> removes indices along a selected logical axis.</p>
+<code class="docutils literal notranslate"><span class="pre">(channels,</span> <span class="pre">samples[,</span> <span class="pre">trials])</span></code> shape. Ordinary item assignment follows
+NumPy: an index past the end raises, and assigning an empty array does not
+delete. <code class="docutils literal notranslate"><span class="pre">matlab_assign</span></code> is the EEGLAB subscript operation. An index past
+the end grows that axis and fills the new samples with zeros. An empty value
+deletes the indexed samples. A key with fewer entries than the array rank
+folds the trailing dimensions together before the deletion, so a
+channels-by-samples-by-trials array indexed with two subscripts is treated
+as channels by samples-times-trials. A boolean mask is converted with
+<code class="docutils literal notranslate"><span class="pre">find</span></code>: only <code class="docutils literal notranslate"><span class="pre">True</span></code> positions are removed, and an all-false mask leaves
+the data unchanged. <code class="docutils literal notranslate"><span class="pre">delete(indices,</span> <span class="pre">axis=...)</span></code> addresses one axis of the
+full array and does not fold; it uses the same <code class="docutils literal notranslate"><span class="pre">find</span></code> rule for masks.
+Copies made with <code class="docutils literal notranslate"><span class="pre">copy.copy</span></code> or <code class="docutils literal notranslate"><span class="pre">copy.deepcopy</span></code> share the sidecar until
+one copy is written, then use a private copy-on-write sidecar so processing
+a copied EEG does not mutate its source. <code class="docutils literal notranslate"><span class="pre">resize</span></code> retains the overlapping
+region and fills new samples with zeros by default. A read-only handle is
+copied on the first write. <code class="docutils literal notranslate"><span class="pre">debug=True</span></code> makes <code class="docutils literal notranslate"><span class="pre">matlab_assign</span></code> print
+whether that write reused the file.</p>
 <p>EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
 rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,
 selection, and resampling. Each result gets its own writable temporary mapping,

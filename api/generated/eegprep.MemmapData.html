@@ -554,8 +554,11 @@
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">MemmapData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">dtype('float32')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r+'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'F'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transposed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temporary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">debug</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_backing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.MemmapData" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>NumPy-compatible handle for channel-major EEG data stored on disk.</p>
-<p>Indexing always uses the logical EEG shape and normal zero-based NumPy
-indices. <code class="docutils literal notranslate"><span class="pre">transposed=True</span></code> maps EEGLAB <code class="docutils literal notranslate"><span class="pre">.dat</span></code>-style storage whose
+<p>Indexing uses the logical EEG shape and ordinary zero-based NumPy rules.
+Out-of-range indices raise, and assigning an empty array does not delete.
+<code class="docutils literal notranslate"><span class="pre">matlab_assign</span></code> and <code class="docutils literal notranslate"><span class="pre">delete</span></code> implement EEGLAB <code class="docutils literal notranslate"><span class="pre">&#64;mmo</span></code> subscript
+behaviour: growth, empty-assignment deletion, and <code class="docutils literal notranslate"><span class="pre">find</span></code> on logical
+masks. <code class="docutils literal notranslate"><span class="pre">transposed=True</span></code> maps EEGLAB <code class="docutils literal notranslate"><span class="pre">.dat</span></code>-style storage whose
 physical axes are <code class="docutils literal notranslate"><span class="pre">(samples,</span> <span class="pre">trials,</span> <span class="pre">channels)</span></code> without exposing that
 layout to callers. Explicit and deep copies share the backing file until a
 copy is mutated, at which point that handle gets a private temporary file.</p>
@@ -747,8 +750,11 @@ never resized underneath another handle.</p>
 <dt class="sig sig-object py" id="eegprep.MemmapData.delete">
 <span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indices</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.MemmapData.delete" title="Link to this definition">#</a></dt>
 <dd><p>Delete logical indices and replace the sidecar with the smaller data.</p>
-<p><code class="docutils literal notranslate"><span class="pre">axis=None</span></code> follows MATLAB’s column-major linear deletion. Matrix
-results become row vectors, while column-vector inputs remain columns.</p>
+<p><code class="docutils literal notranslate"><span class="pre">axis=None</span></code> follows column-major linear deletion. Matrix results
+become row vectors, while column-vector inputs remain columns. Deletion
+along <code class="docutils literal notranslate"><span class="pre">axis</span></code> addresses that axis of the full array and does not fold
+trailing dimensions. A boolean mask is converted with <code class="docutils literal notranslate"><span class="pre">find</span></code> first:
+only <code class="docutils literal notranslate"><span class="pre">True</span></code> positions are removed, and an all-false mask is a no-op.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -847,6 +853,34 @@ results become row vectors, while column-vector inputs remain columns.</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="eegprep.MemmapData.matlab_assign">
+<span class="sig-name descname"><span class="pre">matlab_assign</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.MemmapData.matlab_assign" title="Link to this definition">#</a></dt>
+<dd><p>Assign using EEGLAB <code class="docutils literal notranslate"><span class="pre">&#64;mmo</span></code> subscript rules.</p>
+<p>Numeric indices past the end grow that axis and fill the new samples
+with zeros. An empty value deletes the indexed entries. A key shorter
+than the array rank folds trailing dimensions together before that
+deletion, so two subscripts on a channels-by-samples-by-trials array
+address channels by samples-times-trials. A boolean mask is converted
+with <code class="docutils literal notranslate"><span class="pre">find</span></code>: only <code class="docutils literal notranslate"><span class="pre">True</span></code> positions are removed, and an all-false
+mask leaves the mapping unchanged.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">debug=True</span></code>, a write prints <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">same</span> <span class="pre">copy</span></code> when it updates
+the current file, <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">copy</span> <span class="pre">created</span></code> when copy-on-write replaces it,
+and <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">copy</span> <span class="pre">created,</span> <span class="pre">old</span> <span class="pre">deleted</span></code> when growth or deletion replaces
+the file. Ordinary <code class="docutils literal notranslate"><span class="pre">[]</span></code> indexing does not grow, delete, or print.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
+<li><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -922,6 +956,7 @@ results become row vectors, while column-vector inputs remain columns.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.MemmapData.astype"><code class="docutils literal notranslate"><span class="pre">MemmapData.astype()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.MemmapData.sum"><code class="docutils literal notranslate"><span class="pre">MemmapData.sum()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.MemmapData.mean"><code class="docutils literal notranslate"><span class="pre">MemmapData.mean()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#eegprep.MemmapData.matlab_assign"><code class="docutils literal notranslate"><span class="pre">MemmapData.matlab_assign()</span></code></a></li>
 </ul>
 </li>
 </ul>
