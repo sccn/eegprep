@@ -48,12 +48,21 @@ class TestEegRpsdParity(unittest.TestCase):
         # Python result
         py_result = eeg_rpsd(self.EEG.copy())
 
-        # MATLAB result - use file roundtrip
+        # pop_saveset stores icaact as [] (pop_saveset.m:225-226); MATLAB's pop_loadset
+        # then recomputes it in single via eeg_checkset.m:1030. BLAS kernels sum the
+        # sgemm in different orders (<= gamma_33*|W*S||x|), which alone moves psdmed
+        # by ~2e-5 rel. Feed MATLAB the same activations so this tests eeg_rpsd only;
+        # test_eeglabcompat.py::test_matlab_bridge_restores_icaact_from_the_data bounds
+        # the recompute.
         temp_file = tempfile.mktemp(suffix='.set')
         pop_saveset(self.EEG, temp_file)
+        icaact_file = temp_file + '.icaact.mat'
+        scipy.io.savemat(icaact_file, {'icaact': np.asarray(self.EEG['icaact'])})
 
         matlab_code = f"""
         EEG = pop_loadset('{temp_file}');
+        loaded = load('{icaact_file}');
+        EEG.icaact = loaded.icaact;
         psdmed = eeg_rpsd(EEG);
         save('{temp_file}.mat', 'psdmed');
         """
@@ -66,12 +75,13 @@ class TestEegRpsdParity(unittest.TestCase):
         # Clean up
         os.remove(temp_file)
         os.remove(temp_file + '.mat')
+        os.remove(icaact_file)
         if os.path.exists(temp_file.replace('.set', '.fdt')):
             os.remove(temp_file.replace('.set', '.fdt'))
 
         # Compare results
         # Max absolute diff: 0.00017, Mismatched: 1/2048 (0.05%)
-        # Max relative diff: 1.14e-05
+        # Max relative diff: 1.52e-5
         np.testing.assert_allclose(
             py_result,
             ml_result,

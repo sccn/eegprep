@@ -10,6 +10,7 @@ import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
+from eegprep.functions.popfunc._matlab_fields import dataset_from_mat
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
 
@@ -49,44 +50,21 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     info_only = isinstance(loadmode, str) and loadmode == "info"
     channel_selection = [] if isinstance(loadmode, str) else loadmode
 
-    def new_check(obj):
-        if isinstance(obj, dict):
-            return {key: new_check(obj[key]) for key in obj}
-        elif isinstance(obj, list):
-            if len(obj) == 0:
-                return default_empty
-            else:
-                return [new_check(item) for item in obj]
-        elif isinstance(obj, np.ndarray):
-            if obj.size == 0:
-                return default_empty
-            elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
-                return obj
-            else:
-                return np.array([new_check(item) for item in obj], dtype=object)
-        elif np.isscalar(obj) or isinstance(obj, str):
-            return obj
-        elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
-            dict_obj = {}
-            for field_name in obj._fieldnames:
-                if field_name in ['tracking']:
-                    # used for fields that this code can't yet parse
-                    field_value = '<unsupported>'
-                else:
-                    field_value = getattr(obj, field_name)
-                dict_obj[field_name] = new_check(field_value)
-            return dict_obj
-
-    # Load MATLAB file. MAT v7.3 files are HDF5; older v5/v7 files are not.
+    # MAT v7.3 files are HDF5; older v5/v7 files are not.
     # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
     loaded_with_h5 = _is_hdf5_file(file_path)
     if loaded_with_h5:
         EEG = pop_loadset_h5(file_path)
     else:
-        EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
-        EEG = new_check(EEG)
-        if 'EEG' in EEG:
-            EEG = EEG['EEG']
+        # pop_loadset.m loads with MATLAB load, which keeps singleton dimensions.
+        loaded = scipy.io.loadmat(
+            file_path,
+            struct_as_record=False,
+            squeeze_me=False,
+            appendmat=False,
+            mat_dtype=True,
+        )
+        EEG = dataset_from_mat(loaded)
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -109,10 +87,9 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     elif not loaded_with_h5:
         _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
-    # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
-    # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
-    # bare dict for a 1x1 struct array, so wrap it in a list first.
-    for key in ('chanlocs', 'event'):
+    # 1-based urchan/urevent become 0-based before eeg_checkset copies
+    # event.urevent into epoch.eventurevent.
+    for key in ('chanlocs', 'event', 'urevent', 'urchanlocs', 'epoch'):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 

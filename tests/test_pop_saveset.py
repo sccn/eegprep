@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import unittest
@@ -6,6 +7,7 @@ import numpy as np
 import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
@@ -42,6 +44,49 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_empty_icaact_and_load_recomputes(self):
+        data = np.arange(20, dtype=np.float64).reshape(4, 5)
+        weights = np.array([[0.25, -0.5, 0.125, 0.125], [0.1, 0.2, -0.3, 0.4]])
+        sphere = np.eye(4)
+        eeg = eeg_emptyset()
+        eeg.update(
+            {
+                "setname": "ica-cache",
+                "data": data,
+                "nbchan": 4,
+                "pnts": 5,
+                "trials": 1,
+                "srate": 100.0,
+                "xmin": 0.0,
+                "xmax": 0.04,
+                "times": np.arange(5, dtype=float) * 10.0,
+                "chanlocs": [{"labels": f"E{index}"} for index in range(1, 5)],
+                "icaweights": weights,
+                "icasphere": sphere,
+                "icawinv": np.linalg.pinv(weights @ sphere),
+                "icachansind": np.arange(4),
+                "saved": "no",
+            }
+        )
+        stale = np.full((2, 5), 7.0)
+        eeg["icaact"] = stale
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for savemode in ("onefile", "twofiles"):
+                out = os.path.join(tmp, f"{savemode}.set")
+                pop_saveset(eeg, out, savemode=savemode)
+                np.testing.assert_array_equal(eeg["icaact"], stale)
+                saved = scipy.io.loadmat(out, squeeze_me=False)
+                self.assertEqual(saved["icaact"].shape, (0, 0))
+                loaded = pop_loadset(out)
+                reference = copy.deepcopy(eeg)
+                reference["icaact"] = np.array([])
+                if savemode == "twofiles":
+                    reference["data"] = np.asarray(reference["data"], dtype=np.float32)
+                expected = eeg_checkset(reference)["icaact"]
+                np.testing.assert_array_equal(loaded["icaact"], expected)
+                self.assertFalse(np.allclose(loaded["icaact"], stale))
 
     def test_saveset_writes_one_based_urevent_after_edit(self):
         EEG = pop_loadset(os.path.join(local_url, 'eeglab_data.set'))
