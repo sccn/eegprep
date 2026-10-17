@@ -48,12 +48,21 @@ class TestEegRpsdParity(unittest.TestCase):
         # Python result
         py_result = eeg_rpsd(self.EEG.copy())
 
-        # MATLAB result - use file roundtrip
+        # MATLAB result - use file roundtrip. pop_saveset.m:225-226 stores
+        # icaact as [], and eeg_rpsd.m reads EEG.icaact without recomputing it.
+        # Restore the in-memory array (eeg_checkset.m:1032 keeps the trials axis).
         temp_file = tempfile.mktemp(suffix='.set')
         pop_saveset(self.EEG, temp_file)
+        activations = np.asarray(self.EEG['icaact'])
+        if activations.ndim == 2:
+            activations = activations[:, :, np.newaxis]
+        icaact_file = temp_file + '.icaact.mat'
+        scipy.io.savemat(icaact_file, {'icaact': activations})
 
         matlab_code = f"""
         EEG = pop_loadset('{temp_file}');
+        loaded = load('{icaact_file}');
+        EEG.icaact = loaded.icaact;
         psdmed = eeg_rpsd(EEG);
         save('{temp_file}.mat', 'psdmed');
         """
@@ -66,6 +75,7 @@ class TestEegRpsdParity(unittest.TestCase):
         # Clean up
         os.remove(temp_file)
         os.remove(temp_file + '.mat')
+        os.remove(icaact_file)
         if os.path.exists(temp_file.replace('.set', '.fdt')):
             os.remove(temp_file.replace('.set', '.fdt'))
 
