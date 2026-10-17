@@ -88,13 +88,14 @@ Unreleased
   ``timestretch`` to ``timefreq`` (line 1188). A forwarded ``wavelet``
   replaces ``cycles`` inside ``timefreq`` because lines 1186-1188 pass
   ``g.cycles`` first and the last value wins. EEGLAB does not update
-  ``newtimef``'s own ``g.cycles``, so the FFT scale at line 1207
-  (``2/0.375/winsize`` when ``g.cycles(1)==0``, squared for power) follows
-  the original ``cycles``. A ``wavelet`` of 0 therefore runs an unscaled
-  FFT, and ``cycles`` 0 with a wavelet applies that FFT scale to the
-  wavelet. EEGPrep scales the decomposition that ran. Any other unknown
-  name, including ``overlap``, is an undefined ``timefreq`` argument,
-  reported with the caller's spelling. ``freqrange``, ``erspboot``, and
+  ``newtimef``'s own ``g.cycles``, so the FFT scale at lines 1207-1209
+  (``2/0.375/winsize`` when ``g.cycles(1)==0``, squared for power; the
+  default ``winsize`` is line 453) follows the original ``cycles``. A
+  ``wavelet`` of 0 therefore runs an unscaled FFT, and ``cycles`` 0 with a
+  wavelet applies that FFT scale to the wavelet. EEGPrep scales the
+  decomposition that ran. Any other name, including ``overlap``, is an
+  undefined ``timefreq`` argument, reported with the caller's spelling.
+  ``freqrange``, ``erspboot``, and
   ``itcboot`` are undefined arguments. ``rng`` is an EEGPrep-only name
   that seeds the bootstrap. A scalar ``freqs`` keeps its first value
   when ``maxfreq`` replaces ``freqs(2)``. ``ntimesout`` sets the time

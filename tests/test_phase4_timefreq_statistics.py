@@ -770,11 +770,6 @@ def test_newtimef_rejects_overlap_and_rng_seeds_bootstrap():
     np.testing.assert_array_equal(first.erspboot, second.erspboot)
 
 
-def _reference_ersp_tolerance(reference: np.ndarray) -> float:
-    values = np.asarray(reference, dtype=float)
-    return float(np.spacing(np.max(np.abs(values))) * values.size)
-
-
 @pytest.mark.parity
 def test_reference_newtimef_wavelet_override_scaling(eeglab_backend, request):
     data = np.random.RandomState(1).rand(64, 4)
@@ -794,10 +789,13 @@ def test_reference_newtimef_wavelet_override_scaling(eeglab_backend, request):
         "scale",
         "abs",
     )
-    # newtimef.m:453 is the winsize line 1207 divides by; abs ERSP squares 2/0.375/winsize.
+    # newtimef.m:453 default winsize; lines 1207-1209 scale by 2/0.375/winsize and square for power.
     winsize = max(int(2 ** (np.ceil(np.log2(frames)) - 3)), 4)
     applied = (2.0 / 0.375 / winsize) ** 2
     skipped = (0.375 * winsize / 2.0) ** 2
+    # Scaled side ≤9u (2/0.375, the multiply, both doubled by squaring, re²+im², 4-trial mean),
+    # unscaled side ≤5u, Python factor and multiply ~4u. 20u = 10*eps.
+    scale_rtol = 10 * np.finfo(float).eps
 
     def reference(*cycles_and_options):
         return np.squeeze(
@@ -839,8 +837,11 @@ def test_reference_newtimef_wavelet_override_scaling(eeglab_backend, request):
     matlab_wavelet_override = reference(0.0, "wavelet", np.array([[3.0, 0.5]]))
     eegprep_wavelet_override = np.squeeze(direct(0, "wavelet", [3, 0.5]).ersp)
 
-    np.testing.assert_allclose(eegprep_fft_override, fft, rtol=0, atol=_reference_ersp_tolerance(fft))
-    np.testing.assert_allclose(eegprep_wavelet_override, wavelet, rtol=0, atol=_reference_ersp_tolerance(wavelet))
+    # Measured: NumPy and MATLAB FFTs differ by at most 3 ulp(max|ref|) here.
+    fft_atol = 3 * float(np.spacing(np.max(np.abs(fft))))
+    wavelet_atol = 3 * float(np.spacing(np.max(np.abs(wavelet))))
+    np.testing.assert_allclose(eegprep_fft_override, fft, rtol=0, atol=fft_atol)
+    np.testing.assert_allclose(eegprep_wavelet_override, wavelet, rtol=0, atol=wavelet_atol)
     if request.config.getoption("--eeglab-backend") != "matlab":
         np.testing.assert_array_equal(matlab_fft_override, fft)
         np.testing.assert_array_equal(matlab_wavelet_override, wavelet)
@@ -848,24 +849,20 @@ def test_reference_newtimef_wavelet_override_scaling(eeglab_backend, request):
 
     unscaled_fft = fft * skipped
     scaled_wavelet = wavelet * applied
-    np.testing.assert_allclose(matlab_fft_override, unscaled_fft, rtol=0, atol=_reference_ersp_tolerance(unscaled_fft))
+    np.testing.assert_allclose(matlab_fft_override, unscaled_fft, rtol=scale_rtol, atol=0)
+    np.testing.assert_allclose(matlab_wavelet_override, scaled_wavelet, rtol=scale_rtol, atol=0)
+    # Across engines, that 20u relative bound plus the measured 3 ulp gap times the factor.
     np.testing.assert_allclose(
         matlab_fft_override,
         eegprep_fft_override * skipped,
-        rtol=0,
-        atol=_reference_ersp_tolerance(eegprep_fft_override * skipped),
-    )
-    np.testing.assert_allclose(
-        matlab_wavelet_override,
-        scaled_wavelet,
-        rtol=0,
-        atol=_reference_ersp_tolerance(scaled_wavelet),
+        rtol=scale_rtol,
+        atol=fft_atol * skipped,
     )
     np.testing.assert_allclose(
         matlab_wavelet_override,
         eegprep_wavelet_override * applied,
-        rtol=0,
-        atol=_reference_ersp_tolerance(eegprep_wavelet_override * applied),
+        rtol=scale_rtol,
+        atol=wavelet_atol * applied,
     )
 
 

@@ -11,11 +11,11 @@ or positional name/value pairs, including ``chaninfo``, ``ntimesout``,
 ``timefreq`` accepts (``ffttaper``, ``wavelet``, ``timestretch``) are
 forwarded to it. A forwarded ``wavelet`` replaces ``cycles`` inside
 ``timefreq`` (``newtimef.m`` lines 1186-1188). EEGLAB still applies the
-line 1207 FFT scale, ``2/0.375/winsize``, from the original ``cycles``;
-EEGPrep applies it only to the decomposition that ran. Any further name,
-including ``overlap``, is an undefined ``timefreq`` argument, reported
-with the caller's spelling. ``rng`` is an EEGPrep-only name that seeds
-the bootstrap.
+lines 1207-1209 FFT scale, ``2/0.375/winsize`` (default ``winsize`` at
+line 453), from the original ``cycles``; EEGPrep applies it only to the
+decomposition that ran. Any other name, including ``overlap``, is an
+undefined ``timefreq`` argument, reported with the caller's spelling.
+``rng`` is an EEGPrep-only name that seeds the bootstrap.
 Defaults follow the ``newtimef`` list, including ``baseline`` 0,
 ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2. ``ntimesout`` is
 the output time count when ``timesout`` is not a vector. ``itctype`` replaces
