@@ -12,10 +12,13 @@ import numpy as np
 import scipy.io
 
 from eegprep.functions.adminfunc.eeglabcompat import (
+    MatlabWrapper,
     _prepare_matlab_arg,
     _restore_double_eeg_data,
     _stash_double_eeg_data,
 )
+from eegprep.functions.miscfunc.misc import matlab_mtimes
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
 
@@ -121,6 +124,32 @@ def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
     restored = np.reshape(original, (4, 6), order="F")
     np.testing.assert_array_equal(loaded["data"], restored)
     assert loaded["data"].dtype == np.float64
+
+
+def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
+    """Round-trip ICA through MatlabWrapper and match MATLAB's activation class."""
+    sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_with_ica_tmp.set"
+    eeg = pop_loadset(sample)
+    eeg["icaact"] = np.full(np.asarray(eeg["icaact"]).shape, 9.0, dtype=np.float32)
+
+    restored = MatlabWrapper(eeglab_matlab_engine).eeg_checkset(eeg)
+
+    activations = np.asarray(restored["icaact"])
+    assert activations.size == np.asarray(eeg["icaweights"]).shape[0] * int(eeg["pnts"]) * int(eeg["trials"])
+    dtype = activations.dtype
+    assert np.issubdtype(dtype, np.floating)
+    channels = np.asarray(restored["icachansind"], dtype=int)
+    selected = np.asarray(restored["data"], dtype=dtype)[channels]
+    flat = np.reshape(selected, (selected.shape[0], -1), order="F")
+    weights = np.asarray(restored["icaweights"], dtype=dtype)
+    sphere = np.asarray(restored["icasphere"], dtype=dtype)
+    expected = matlab_mtimes(matlab_mtimes(weights, sphere), flat)
+    unit = float(np.finfo(dtype).eps)
+    terms = int(weights.shape[1])
+    gamma = terms * unit / (1.0 - terms * unit)
+    scale = float(np.max(np.abs(expected)))
+    atol = 2.0 * (2.0 * gamma + gamma * gamma) * max(scale, 1.0)
+    np.testing.assert_allclose(activations.reshape(-1, order="F"), expected.reshape(-1, order="F"), rtol=0.0, atol=atol)
 
 
 class TestMatlabWrapper(DebuggableTestCase):

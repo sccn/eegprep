@@ -17,8 +17,11 @@ Unreleased
   Multi-dimensional cells and struct arrays keep their MATLAB shape, and
   empty arrays keep the dimensions stored in the file, so ``[]`` stays
   0-by-0. Continuous ``icaact`` is ``ncomp`` by ``pnts`` and is the
-  column-major product in the data array's dtype. ``pop_subcomp`` projects
-  those stored activations. Event and channel indices load as integers, and
+  column-major product in the data array's dtype. ``pop_saveset`` writes
+  ``icaact`` as ``[]`` and leaves the in-memory activations in place.
+  ``pop_loadset`` recomputes them from the decomposition and the data.
+  ``pop_subcomp`` projects those stored activations. Event and channel indices
+  load as integers, and
   integral ``run`` and ``session`` labels stay integers. MATLAB ``load``
   keeps those dimensions, and ``eeg_checkset`` requires
   ``size(EEG.data, 1) == EEG.nbchan``.

@@ -384,6 +384,9 @@ def _serialize_chaninfo(chaninfo):
 def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
 
+    The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
+    its activations; ``pop_loadset`` recomputes them.
+
     Parameters
     ----------
     EEG : dict
@@ -420,7 +423,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'times': EEG['times'],
         'data': mat_data,
         'datfile': datfile_name if save_two_files else '',
-        'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
+        'icaact': default_empty,
         'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
         'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),
