@@ -150,6 +150,40 @@ def test_reference_eegfilt_original_recording_and_defaults(eeglab_backend, eegla
     eeglab_backend("pop_eegfilt", eeg, 1.0, 0.0, np.empty((0, 0)), np.array([[0.0]]))
 
 
+def test_reference_pop_eegfilt_output_class(eeglab_backend, request):
+    """Single-precision pop_eegfilt keeps its class only when a boundary is written back."""
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.skip("compares pop_eegfilt output class with EEGLAB")
+    cases = (
+        ("no_boundary", _class_eeg(1, 200), [{"type": "square", "latency": 10.0}], np.float64),
+        ("boundary", _class_eeg(1, 200), [{"type": "boundary", "latency": 100.5}], np.float32),
+        ("no_events", _class_eeg(1, 200), np.empty((0, 0)), np.float64),
+        ("epoched", _class_eeg(2, 80), np.empty((0, 0)), np.float64),
+    )
+    for name, source, events, expected in cases:
+        python_eeg = {**source, "data": source["data"].copy(), "event": events}
+        matlab_eeg = {**source, "data": source["data"].copy(), "event": _matlab_events(events)}
+        python = pop_eegfilt(python_eeg, 0, 40, 10, 0, 0, 0, "firls", 0)
+        matlab = eeglab_backend("pop_eegfilt", matlab_eeg, 0.0, 40.0, 10.0, 0.0, 0.0, 0.0, "firls", 0.0)
+        assert python["data"].dtype == expected, name
+        assert matlab["data"].dtype == expected, name
+
+
+def _class_eeg(trials: int, pnts: int) -> dict:
+    shape = (1, pnts, trials) if trials > 1 else (1, pnts)
+    data = np.random.default_rng(4).standard_normal(shape).astype(np.float32)
+    return {"data": data, "nbchan": 1, "pnts": pnts, "trials": trials, "srate": 200.0, "xmin": 0.0}
+
+
+def _matlab_events(events):
+    if isinstance(events, np.ndarray):
+        return events
+    return np.array(
+        [[(event["type"], float(event["latency"])) for event in events]],
+        dtype=[("type", object), ("latency", object)],
+    )
+
+
 @eeglab_test("unittesting_popfunc/pop_eventstat/popfunc_pop_eventstat_wrapperTest.m", "test_test_pop_eventstat")
 @pytest.mark.gui
 def test_reference_eventstat_all_twenty_original_calls(eeglab_backend, eeglab_suite_root, request):

@@ -9,7 +9,8 @@ import numpy as np
 from scipy.signal import filtfilt, firls, firwin, lfilter, remez
 from scipy.signal import windows as signal_windows
 
-from eegprep.functions.adminfunc.storage import mapped_output_like
+from eegprep.functions.adminfunc.storage import MemmapData, mapped_output_like
+from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.plugins.firfilt.findboundaries import findboundaries
 from eegprep.plugins.firfilt.fir_filterdcpadded import fir_filterdcpadded
@@ -227,6 +228,8 @@ def apply_fir_filter(
     channel_indices, _history = resolve_channel_indices(output, channels, chantype)
 
     flattened = data.transpose(0, 2, 1).reshape(nbchan, pnts * trials) if data.ndim == 3 else data.copy()
+    # EEGLAB firfilt.m:85-101 filters in double and assigns back into EEG.data.
+    was_single = flattened.dtype == np.float32
     filtered = flattened.astype(np.float64, copy=True)
     bounds = _epoched_bounds(pnts, trials) if trials > 1 else _continuous_bounds(output, pnts)
     for start, stop in zip(bounds[:-1], bounds[1:]):
@@ -234,6 +237,8 @@ def apply_fir_filter(
             continue
         window = np.ix_(channel_indices, np.arange(start, stop))
         filtered[window] = _filter_segment(b, filtered[window], causal=causal, usefftfilt=usefftfilt)
+    if was_single:
+        filtered = filtered.astype(np.float32)
 
     filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
     output["data"] = mapped_output_like(source_data, filtered_data)
@@ -249,7 +254,15 @@ def apply_eegfilt_legacy(
     causal: bool = False,
     filtorder: int | None = None,
 ) -> dict[str, Any]:
-    """Apply legacy ``eegfilt`` coefficients with EEGLAB epoch/boundary semantics."""
+    """Apply legacy ``eegfilt`` coefficients with EEGLAB epoch and boundary semantics.
+
+    The filter runs in float64. EEGLAB eegfilt.m:209-210 runs filter/filtfilt on
+    single-precision input in single precision (falling back to double only on
+    error, :213-215), so its result differs from this one by single-precision
+    rounding. Continuous data with a boundary event keeps the input dtype,
+    because ``pop_eegfilt`` writes each segment back into ``EEG.data``. Every
+    other result is float64, for both in-memory and memory-mapped data.
+    """
     b = np.asarray(coefficients, dtype=float).ravel()
     if b.size < 2:
         raise ValueError("Filter coefficients are required")
@@ -262,6 +275,7 @@ def apply_eegfilt_legacy(
     pnts = int(output.get("pnts", data.shape[1]))
     trials = int(output.get("trials", data.shape[2] if data.ndim == 3 else 1))
     flattened = data.transpose(0, 2, 1).reshape(nbchan, pnts * trials) if data.ndim == 3 else data.copy()
+    input_dtype = flattened.dtype
     filtered = flattened.astype(np.float64, copy=True)
     bounds = _epoched_bounds(pnts, trials) if trials > 1 else _continuous_bounds(output, pnts)
     order = int(filtorder if filtorder is not None else b.size - 1)
@@ -272,11 +286,24 @@ def apply_eegfilt_legacy(
         if segment.shape[1] <= order * 3 and not causal:
             raise ValueError("epochframes must be at least 3 times the filtorder.")
         filtered[:, start:stop] = _legacy_filter_segment(b, segment, causal=causal)
+    if trials == 1 and boundary_event_indices(output.get("event")):
+        filtered = filtered.astype(input_dtype, copy=False)
     filtered_data = filtered.reshape(nbchan, trials, pnts).transpose(0, 2, 1) if data.ndim == 3 else filtered
-    output["data"] = mapped_output_like(source_data, filtered_data)
+    output["data"] = _legacy_stored_data(source_data, filtered_data)
     output["icaact"] = np.array([])
     output["saved"] = "no"
     return output
+
+
+def _legacy_stored_data(source: Any, data: np.ndarray) -> Any:
+    if not isinstance(source, MemmapData):
+        return data
+    return MemmapData.from_array(
+        data,
+        dtype=data.dtype,
+        order=source.order,
+        transposed=source.transposed,
+    )
 
 
 def resolve_channel_indices(

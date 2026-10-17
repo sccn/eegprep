@@ -10,6 +10,7 @@ its entire source assertion oracle consists of the approved count exclusions.
 
 from __future__ import annotations
 
+import gc
 from copy import copy, deepcopy
 from pathlib import Path
 
@@ -87,6 +88,23 @@ _MMO_DELETIONS = [
 ]
 
 
+def _matlab_subscript_key(subscripts):
+    """Translate a MATLAB subscript list to a 0-based key, keeping its rank."""
+    return tuple(_matlab_subscript_indexer(part.strip()) for part in subscripts.split(","))
+
+
+def _matlab_subscript_indexer(part):
+    if part == ":":
+        return slice(None)
+    if part.startswith("[") and part.endswith("]"):
+        return np.asarray([int(piece) - 1 for piece in part[1:-1].split()], dtype=int)
+    if ":" in part:
+        start, stop = part.split(":")
+        # MATLAB 4:5 includes both ends; the Python slice stop is exclusive.
+        return slice(int(start) - 1, int(stop))
+    return int(part) - 1
+
+
 def _check_original_mmo_deletion(request, backend, directory, case, transposed):
     kind, subscripts, view_shape, axis, indices = case
     values = _original_mmo_values(kind, transposed)
@@ -95,12 +113,9 @@ def _check_original_mmo_deletion(request, backend, directory, case, transposed):
         actual = backend("eegprep_test_mmo_assignment", values, subscripts, np.empty((0, 0)), transposed)
     else:
         mapped = _python_mmo(values, directory, transposed)
-        if "," not in subscripts:
-            mapped.delete(indices)
-        else:
-            # Exercise the public deletion operation with the original axis
-            # and indices; the assertion retains MATLAB's implicit collapse.
-            mapped.delete(indices, axis=axis)
+        # The key rank is the MATLAB subscript count. Fewer subscripts than
+        # dimensions fold the trailing axes before the empty assignment.
+        mapped.matlab_assign(_matlab_subscript_key(subscripts), np.empty((0, 0)))
         actual = np.asarray(mapped)
     np.testing.assert_array_equal(_matlab_array_shape(actual), _matlab_array_shape(expected))
 
@@ -150,7 +165,7 @@ def _check_original_mmo_assignment(request, backend, directory, case, transposed
     else:
         mapped = _python_mmo(values, directory, transposed)
         # Do not resize first: implicit indexed growth is the source contract.
-        mapped[key] = 1.0
+        mapped.matlab_assign(key, 1.0)
         actual = np.asarray(mapped)
     np.testing.assert_array_equal(actual, expected)
 
@@ -209,19 +224,19 @@ def _python_mmo_nested_write(arg):
     # is omitted; the source's nested copy and indexed write still execute.
     def inner(nested_arg):
         test = copy(nested_arg)
-        test[0, 3] = 5.0
+        test.matlab_assign((0, 3), 5.0)
 
     inner(copy(arg))
 
 
 def _python_mmo_argument_write(arg):
     arg = copy(arg)
-    arg[0, 2] = 2.0
+    arg.matlab_assign((0, 2), 2.0)
 
 
 def _python_mmo_construct_and_write(values, directory, index):
     mapped = _python_mmo(values, directory, False)
-    mapped[index] = 5.0
+    mapped.matlab_assign(index, 5.0)
     return mapped
 
 
@@ -237,13 +252,13 @@ def test_upstream_mmo_original_copy_on_write_diagnostics(request, mmo_backend, e
         testcheck = mmo(check_file, (1, 10), True, False, True)
         a = {"test3": copy(test)}
         capsys.readouterr()
-        a["test3"][0, 4] = 5.0
+        a["test3"].matlab_assign((0, 4), 5.0)
         messages = [capsys.readouterr().out]
         del test
-        a["test3"][0, 5] = 5.0
+        a["test3"].matlab_assign((0, 5), 5.0)
         messages.append(capsys.readouterr().out)
         test2 = copy(a["test3"])
-        a["test3"][0, 6] = 5.0
+        a["test3"].matlab_assign((0, 6), 5.0)
         messages.append(capsys.readouterr().out)
         del a, test2
         test = mmo(eeglab_working_directory / "testfile.fdt", (1, 10), True, False, True)
@@ -251,7 +266,7 @@ def test_upstream_mmo_original_copy_on_write_diagnostics(request, mmo_backend, e
         messages.append(capsys.readouterr().out)
         _python_mmo_argument_write(test)
         messages.append(capsys.readouterr().out)
-        test[0, 1] = 3.2
+        test.matlab_assign((0, 1), 3.2)
         messages.append(capsys.readouterr().out)
         a = _python_mmo_construct_and_write(values, eeglab_working_directory, (0, 3))
         messages.append(capsys.readouterr().out)
@@ -281,7 +296,7 @@ def test_upstream_mmo_original_helper_write(request, mmo_backend, eeglab_working
         mmo_backend("checkmmo_sub5", nargout=0)
     else:
         mapped = _python_mmo(np.arange(1.0, 11.0)[None, :], eeglab_working_directory, False)
-        mapped[0, 3] = 5.0
+        mapped.matlab_assign((0, 3), 5.0)
 
 
 @eeglab_test(UPSTREAM, "test_checkmmo_sub6")
@@ -450,3 +465,76 @@ def test_transposeindices_exposes_logical_2d_and_3d_indices(tmp_path: Path):
     mapped3[2, 4, 1] = -21
     physical3_reloaded = np.fromfile(path3, dtype=np.float32).reshape(physical3.shape, order="F")
     assert physical3_reloaded[4, 1, 2] == -21
+
+
+def test_growth_does_not_mutate_a_shared_copy(tmp_path: Path):
+    values = _data((2, 4))
+    original = _mapping(tmp_path, "grow-shared", values)
+    shared = copy(original)
+    shared.matlab_assign((0, 6), -6)
+    assert original.shape == values.shape
+    np.testing.assert_array_equal(np.asarray(original), values)
+    assert shared.shape == (2, 7)
+    assert shared[0, 6] == -6
+    assert shared[1, 6] == 0
+    assert shared[0, 3] == values[0, 3]
+
+
+def test_empty_assignment_removes_a_repeated_index_once(tmp_path: Path):
+    values = _data((1, 6))
+    mapped = _mapping(tmp_path, "duplicate-delete", values)
+    # MATLAB subsasgn shrinks by numel(index), counting repeated entries.
+    # Removing the selected samples once keeps the four survivors.
+    mapped.matlab_assign(([1, 1, 3],), np.empty((0, 0)))
+    np.testing.assert_array_equal(np.asarray(mapped), values[:, [0, 2, 4, 5]])
+
+
+def test_temporary_mapping_survives_until_views_are_released(tmp_path: Path):
+    mapped = MemmapData.empty((2, 3), filename=tmp_path / "held-view.fdt", temporary=True)
+    mapped[0, 0] = 4
+    view = mapped[0, :]
+    path = mapped.path
+    del mapped
+    gc.collect()
+    assert float(view[0]) == 4
+    del view
+    gc.collect()
+    assert not path.exists()
+
+
+def test_logical_deletion_uses_find_and_all_false_is_a_no_op(tmp_path: Path):
+    values = _data((3, 2))
+    mask = np.array([False, True, False])
+    mapped = _mapping(tmp_path, "logical-assign", values)
+    mapped.matlab_assign((mask, slice(None)), np.empty(0))
+    np.testing.assert_array_equal(np.asarray(mapped), values[[0, 2], :])
+
+    unchanged = _mapping(tmp_path, "logical-false", values)
+    unchanged_path = unchanged.path
+    unchanged.matlab_assign((np.zeros(3, dtype=bool), slice(None)), np.empty(0))
+    assert unchanged.path == unchanged_path
+    assert unchanged.shape == values.shape
+    np.testing.assert_array_equal(np.asarray(unchanged), values)
+
+    deleted = _mapping(tmp_path, "logical-delete", values)
+    deleted.delete(mask, axis=0)
+    np.testing.assert_array_equal(np.asarray(deleted), values[[0, 2], :])
+
+    kept = _mapping(tmp_path, "logical-delete-false", values)
+    kept_path = kept.path
+    kept.delete(np.zeros(values.shape[0], dtype=bool), axis=0)
+    assert kept.path == kept_path
+    np.testing.assert_array_equal(np.asarray(kept), values)
+
+
+def test_numpy_indexing_does_not_grow_or_delete(tmp_path: Path):
+    values = _data((2, 4))
+    mapped = _mapping(tmp_path, "numpy-index", values)
+    with pytest.raises(IndexError):
+        mapped[0, 8] = -6
+    assert mapped.shape == values.shape
+    np.testing.assert_array_equal(np.asarray(mapped), values)
+    with pytest.raises(ValueError):
+        mapped[0, :] = np.empty(0)
+    np.testing.assert_array_equal(np.asarray(mapped), values)
+    assert np.asarray(mapped[0]).shape == (4,)
