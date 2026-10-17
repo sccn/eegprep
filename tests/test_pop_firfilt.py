@@ -60,9 +60,8 @@ def test_legacy_filter_class_follows_boundary_assignment(tmp_path, mapped: bool)
 
 
 def test_legacy_filter_matches_double_math_for_single_input():
-    """EEGLAB ``eegfilt`` filters single input in single precision.
-
-    That result differs from the double-precision filter by about 7.6e-5.
+    """EEGLAB eegfilt.m:210 runs filtfilt on single-precision input in single
+    precision, so its result differs from this one by single-precision rounding.
     """
     data = np.random.default_rng(4).standard_normal((2, 80)).astype(np.float32)
     coefficients = np.array([0.25, 0.5, 0.25])

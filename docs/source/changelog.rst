@@ -69,8 +69,9 @@ Unreleased
   is cast back, so a memory-mapped dataset and the same dataset in memory
   match. Legacy ``pop_eegfilt`` returns float64, except continuous data with
   a boundary event keeps the input dtype for both in-memory and memory-mapped
-  data. The filter runs in float64; EEGLAB ``eegfilt`` filters single input
-  in single precision, about 7.6e-5 from this result.
+  data. The filter runs in float64. EEGLAB eegfilt.m:210 runs filtfilt on
+  single-precision input in single precision, so its result differs from this
+  one by single-precision rounding.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

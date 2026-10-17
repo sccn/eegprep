@@ -256,9 +256,10 @@ def apply_eegfilt_legacy(
 ) -> dict[str, Any]:
     """Apply legacy ``eegfilt`` coefficients with EEGLAB epoch and boundary semantics.
 
-    The filter runs in float64. EEGLAB ``eegfilt`` filters a single-precision
-    input in single precision, about 7.6e-5 from this result. Continuous data
-    with a boundary event keeps the input dtype, because ``pop_eegfilt`` writes
+    The filter runs in float64. EEGLAB eegfilt.m:210 runs filtfilt on
+    single-precision input in single precision, so its result differs from this
+    one by single-precision rounding. Continuous data with a boundary event
+    keeps the input dtype, because ``pop_eegfilt`` writes
     each segment back into ``EEG.data``. Every other result is float64, for
     both in-memory and memory-mapped data.
     """
