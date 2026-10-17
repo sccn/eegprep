@@ -127,7 +127,6 @@ _NEWTIMEF_DEFAULTS = {
     "colormap": "jet(256)",
 }
 _PYTHON_NEWTIMEF_OPTIONS = {
-    "overlap": None,
     "rng": None,
     "causal": "off",
     "subitc": "off",
@@ -225,11 +224,15 @@ def newtimef(
     (``ffttaper``, ``wavelet``, ``timestretch``; ``timefreq.m`` lines 171-189)
     are forwarded. Lines 1186-1188 pass ``'wavelet', g.cycles`` before those
     leftovers, and the last value wins, so a forwarded ``wavelet`` replaces
-    ``cycles``. Any other name is an undefined ``timefreq`` argument, reported
-    with the caller's spelling. ``overlap`` and ``rng`` are EEGPrep-only names
-    that EEGLAB rejects: STUDY precompute forwards ``overlap`` (a value raises
-    ``NotImplementedError``; ``None`` is ignored) and ``rng`` seeds the
-    bootstrap.
+    ``cycles`` inside ``timefreq``. EEGLAB leaves ``newtimef``'s own
+    ``g.cycles`` unchanged, so the FFT scale at line 1207
+    (``2/0.375/winsize`` when ``g.cycles(1)==0``, squared for power) follows
+    the original ``cycles`` rather than the decomposition that ran. A
+    ``wavelet`` of 0 therefore runs an unscaled FFT, and ``cycles`` 0 with a
+    wavelet applies that FFT scale to the wavelet. EEGPrep scales the
+    decomposition that ran. Any other name, including ``overlap``, is an
+    undefined ``timefreq`` argument, reported with the caller's spelling.
+    ``rng`` is an EEGPrep-only name that seeds the bootstrap.
     Defaults follow that list: ``baseline`` 0, ``scale`` ``"log"``,
     ``basenorm`` and ``trialbase`` ``"off"``, ``naccu`` 200, ``boottype``
     ``"shuffle"``, ``timesout`` 200, ``padratio`` 2, ``verbose`` ``"on"``,
@@ -261,8 +264,6 @@ def newtimef(
     if not _is_on(opt.plotamp):
         opt.plotersp = "off"
     plot = plot_request if plot_supplied else ("on" if _is_on(opt.plotersp) or _is_on(opt.plotitc) else "off")
-    if opt.overlap is not None:
-        raise NotImplementedError("newtimef does not implement the 'overlap' option")
     if str(opt.boottype).lower() != "shuffle":
         raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
     if str(opt.outputformat).lower() != "plot":

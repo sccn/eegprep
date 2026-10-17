@@ -760,20 +760,25 @@ def test_newtimef_forwarded_wavelet_replaces_cycles():
     np.testing.assert_array_equal(overridden.itc, fft.itc)
 
 
-def test_newtimef_overlap_is_recognized_and_rng_seeds_bootstrap():
+def test_newtimef_rejects_overlap_and_rng_seeds_bootstrap():
     data = np.random.RandomState(4).rand(64, 4)
     common = dict(plot="off", verbose="off", ntimesout=8, alpha=0.05, baseline=0)
-    newtimef(data, 64, [0, 630], 100, 0, overlap=None, **common)
-    with pytest.raises(NotImplementedError, match="overlap"):
-        newtimef(data, 64, [0, 630], 100, 0, overlap=4, **common)
+    with pytest.raises(ValueError, match="undefined argument 'overlap'"):
+        newtimef(data, 64, [0, 630], 100, 0, "overlap", 0, **common)
     first = newtimef(data, 64, [0, 630], 100, 0, rng=0, **common)
     second = newtimef(data, 64, [0, 630], 100, 0, rng=0, **common)
     np.testing.assert_array_equal(first.erspboot, second.erspboot)
 
 
+def _reference_ersp_tolerance(reference: np.ndarray) -> float:
+    values = np.asarray(reference, dtype=float)
+    return float(np.spacing(np.max(np.abs(values))) * values.size)
+
+
 @pytest.mark.parity
-def test_reference_newtimef_wavelet_zero_matches_fft(eeglab_backend):
+def test_reference_newtimef_wavelet_override_scaling(eeglab_backend, request):
     data = np.random.RandomState(1).rand(64, 4)
+    frames = 64
     limits = np.array([[0.0, 630.0]])
     shared = (
         "plotersp",
@@ -789,45 +794,79 @@ def test_reference_newtimef_wavelet_zero_matches_fft(eeglab_backend):
         "scale",
         "abs",
     )
-    fft = np.squeeze(
-        np.asarray(eeglab_backend("newtimef", data, 64.0, limits, 100.0, 0.0, *shared, nargout=1), dtype=float)
-    )
-    overridden = np.squeeze(
-        np.asarray(
-            eeglab_backend(
-                "newtimef",
-                data,
-                64.0,
-                limits,
-                100.0,
-                np.array([[3.0, 0.5]]),
-                "wavelet",
-                0.0,
-                *shared,
-                nargout=1,
-            ),
-            dtype=float,
-        )
-    )
-    direct = newtimef(
-        data,
-        64,
-        [0, 630],
-        100,
-        [3, 0.5],
-        "wavelet",
-        0,
-        plotersp="off",
-        plotitc="off",
-        verbose="off",
-        ntimesout=8,
-        baseline=np.nan,
-        scale="abs",
-    )
+    # newtimef.m:453 is the winsize line 1207 divides by; abs ERSP squares 2/0.375/winsize.
+    winsize = max(int(2 ** (np.ceil(np.log2(frames)) - 3)), 4)
+    applied = (2.0 / 0.375 / winsize) ** 2
+    skipped = (0.375 * winsize / 2.0) ** 2
 
-    np.testing.assert_allclose(overridden, fft, rtol=0, atol=0)
-    spacing = np.spacing(np.max(np.abs(fft))) * fft.size
-    np.testing.assert_allclose(np.squeeze(direct.ersp), fft, rtol=0, atol=spacing)
+    def reference(*cycles_and_options):
+        return np.squeeze(
+            np.asarray(
+                eeglab_backend(
+                    "newtimef",
+                    data,
+                    float(frames),
+                    limits,
+                    100.0,
+                    *cycles_and_options,
+                    *shared,
+                    nargout=1,
+                ),
+                dtype=float,
+            )
+        )
+
+    def direct(cycles, *options):
+        return newtimef(
+            data,
+            frames,
+            [0, 630],
+            100,
+            cycles,
+            *options,
+            plotersp="off",
+            plotitc="off",
+            verbose="off",
+            ntimesout=8,
+            baseline=np.nan,
+            scale="abs",
+        )
+
+    fft = reference(0.0)
+    matlab_fft_override = reference(np.array([[3.0, 0.5]]), "wavelet", 0.0)
+    eegprep_fft_override = np.squeeze(direct([3, 0.5], "wavelet", 0).ersp)
+    wavelet = reference(np.array([[3.0, 0.5]]))
+    matlab_wavelet_override = reference(0.0, "wavelet", np.array([[3.0, 0.5]]))
+    eegprep_wavelet_override = np.squeeze(direct(0, "wavelet", [3, 0.5]).ersp)
+
+    np.testing.assert_allclose(eegprep_fft_override, fft, rtol=0, atol=_reference_ersp_tolerance(fft))
+    np.testing.assert_allclose(eegprep_wavelet_override, wavelet, rtol=0, atol=_reference_ersp_tolerance(wavelet))
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        np.testing.assert_array_equal(matlab_fft_override, fft)
+        np.testing.assert_array_equal(matlab_wavelet_override, wavelet)
+        return
+
+    unscaled_fft = fft * skipped
+    scaled_wavelet = wavelet * applied
+    np.testing.assert_allclose(matlab_fft_override, unscaled_fft, rtol=0, atol=_reference_ersp_tolerance(unscaled_fft))
+    np.testing.assert_allclose(
+        matlab_fft_override,
+        eegprep_fft_override * skipped,
+        rtol=0,
+        atol=_reference_ersp_tolerance(eegprep_fft_override * skipped),
+    )
+    np.testing.assert_allclose(
+        matlab_wavelet_override,
+        scaled_wavelet,
+        rtol=0,
+        atol=_reference_ersp_tolerance(scaled_wavelet),
+    )
+    np.testing.assert_allclose(
+        matlab_wavelet_override,
+        eegprep_wavelet_override * applied,
+        rtol=0,
+        atol=_reference_ersp_tolerance(eegprep_wavelet_override * applied),
+    )
 
 
 def test_newtimef_itctype_overrides_type_unless_phasecoher():

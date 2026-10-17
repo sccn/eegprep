@@ -726,7 +726,6 @@ def _newtimef(data: np.ndarray, eeg: dict[str, Any], params: dict[str, Any]):
         freqscale=params.get("freqscale"),
         timesout=params.get("timesout", 80),
         padratio=params.get("padratio"),
-        overlap=params.get("overlap"),
         baseline=params.get("baseline", 0),
         plot="off",
     )
