@@ -135,6 +135,35 @@ class TestRunicaFunctionality(unittest.TestCase):
         # The float64 input array passed by the caller must be untouched.
         self.assertTrue(np.array_equal(data, original))
 
+    def test_runica_name_value_pairs_match_keywords(self):
+        sources = np.vstack(
+            (
+                np.sin(np.linspace(0, 50, 200)),
+                np.sin(np.linspace(0, 37, 200) + 5),
+            )
+        )
+        data = np.vstack((sources[0] - 2 * sources[1], 1.73 * sources[0] + 3.41 * sources[1]))
+        keyword = runica(data, extended=1, maxsteps=1, verbose="off", rndreset="off")
+        positional = runica(data, "extended", 1, "maxsteps", 1, "verbose", "off", "rndreset", "off")
+
+        np.testing.assert_array_equal(positional[0], keyword[0])
+        np.testing.assert_array_equal(positional[1], keyword[1])
+
+    def test_omitted_rndreset_matches_off_and_repeats(self):
+        sources = np.vstack(
+            (
+                np.sin(np.linspace(0, 50, 200)),
+                np.sin(np.linspace(0, 37, 200) + 5),
+            )
+        )
+        data = np.vstack((sources[0] - 2 * sources[1], 1.73 * sources[0] + 3.41 * sources[1]))
+        first = runica(data, maxsteps=1, verbose="off")
+        second = runica(data, maxsteps=1, verbose="off")
+        explicit = runica(data, maxsteps=1, verbose="off", rndreset="off")
+
+        np.testing.assert_array_equal(first[0], second[0])
+        np.testing.assert_array_equal(first[0], explicit[0])
+
     def test_posact_orients_largest_absolute_activation_positive(self):
         sources = np.vstack(
             [

@@ -6,30 +6,42 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
+
 
 def dftfilt3(
     freqs: Any,
     cycles: Any,
     srate: float,
-    *,
-    cycleinc: str = "linear",
-    winsize: int | None = None,
-    timesupport: float = 7.0,
+    *args: Any,
+    **kwargs: Any,
 ) -> tuple[list[np.ndarray] | np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return EEGLAB ``dftfilt3``-style complex wavelet filters.
+
+    ``cycleinc``, ``winsize``, and ``timesupport`` may be keywords or positional
+    name/value pairs. ``cycleinc`` is ``"linear"`` or ``"log"`` (default
+    ``"linear"``). ``winsize`` is an optional fixed filter length; when omitted,
+    Morlet filters use a seven-standard-deviation support and variable lengths.
+    ``timesupport`` is the number of temporal standard deviations included
+    (default 7).
 
     Args:
         freqs: Frequencies of interest in Hz.
         cycles: Scalar, two-value, or per-frequency cycle specification.
         srate: Sampling rate in Hz.
-        cycleinc: ``"linear"`` or ``"log"`` interpolation for two cycle values.
-        winsize: Optional fixed filter length. When omitted, Morlet filters use
-            EEGLAB's seven-standard-deviation support and variable lengths.
-        timesupport: Number of temporal standard deviations included.
 
     Returns:
         ``(wavelets, cycles, freqresol, timeresol)``.
     """
+    options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    cycleinc = options.pop("cycleinc", "linear")
+    winsize = options.pop("winsize", None)
+    timesupport = float(options.pop("timesupport", 7.0))
+    if options:
+        unknown = ", ".join(repr(key) for key in sorted(options))
+        raise ValueError(
+            f"dftfilt3() got an unexpected option {unknown}; legal options are cycleinc, winsize, and timesupport"
+        )
     freq_values = np.asarray(freqs, dtype=float).ravel()
     if freq_values.size == 0:
         raise ValueError("freqs must contain at least one value")

@@ -9,6 +9,7 @@ Usage:
 EEG = pop_biosig("recording.edf")
 EEG, com = pop_biosig("recording.bdf", return_com=True)
 EEG = pop_biosig("recording.edf", blockrange=[30, 60])
+EEG = pop_biosig("recording.edf", "blockrange", [30, 60])
 ```
 
 `blockrange=[start, stop]` loads a half-open time interval in seconds: the

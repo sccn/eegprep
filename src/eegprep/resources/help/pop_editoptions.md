@@ -13,6 +13,7 @@ Programmatic calls accept named options:
 
 ```python
 com = pop_editoptions(option_allmenus=1)
+com = pop_editoptions("option_storedisk", 1)
 com = pop_editoptions(option_native_dialogs=0)
 ```
 

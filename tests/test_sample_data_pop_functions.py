@@ -136,8 +136,16 @@ def test_pop_fileio_current_suite_channel_sample_and_trial_ranges():
     all_selected = pop_fileio(path, channels="1:32", samples=[1, 384])
     selected, command = pop_fileio(path, channels="1:16", trials=[2, 50], return_com=True)
 
+    positional = pop_fileio(
+        path,
+        "channels",
+        np.arange(1, 17, dtype=float)[None, :],
+        "trials",
+        np.array([[2.0, 50.0]]),
+    )
     np.testing.assert_array_equal(all_selected["data"], full["data"])
     np.testing.assert_array_equal(selected["data"], full["data"][:16, :, 1:50])
+    np.testing.assert_array_equal(positional["data"], selected["data"])
     assert selected["data"].shape == (16, 384, 49)
     assert selected["nbchan"] == 16
     assert selected["trials"] == 49

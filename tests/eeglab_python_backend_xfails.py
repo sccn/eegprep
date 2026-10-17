@@ -36,7 +36,6 @@ INDEX = "an EEGLAB index or dimension is 1-based"
 NAMEVALUE = "MATLAB name/value arguments are not accepted"
 OUTPUTS = "the function does not return the MATLAB output count"
 TRUTH = "a MATLAB array is used as a logical condition"
-POSITIONAL = "the function does not accept MATLAB positional arguments beyond its Python signature"
 STUDY = "the sample STUDY fixture is not valid UTF-8"
 VALUES = "numeric or text values do not match the MATLAB result"
 EVENT_EDIT = "an event-field edit is passed as a MATLAB cell rather than an index, field, and value"
@@ -336,20 +335,6 @@ PYTHON_BACKEND_XFAILS = {
         TRUTH, ValueError
     ),
     "tests/test_vararg2str.py::test_reference_vararg2str_all_eight_original_calls": _gap(TRUTH, ValueError),
-    "tests/test_binary_eeglab_tests.py::test_upstream_pop_biosig_original_bdf_blockrange": _gap(POSITIONAL, TypeError),
-    "tests/test_eegobj.py::test_reference_eegobj_collection_operations": _gap(POSITIONAL, TypeError),
-    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_make_timewarp": _gap(POSITIONAL, TypeError),
-    "tests/test_miscfunc_decomposition_eeglab_tests.py::test_reference_runicalowmem": _gap(POSITIONAL, TypeError),
-    "tests/test_phase4_timefreq_statistics.py::test_reference_newtimef_original_baseline_formulas": _gap(
-        POSITIONAL, TypeError
-    ),
-    "tests/test_runica.py::test_reference_runica_extended": _gap(POSITIONAL, TypeError),
-    "tests/test_runica.py::test_reference_runica_extended_noise": _gap(POSITIONAL, TypeError),
-    "tests/test_runica.py::test_reference_runica_general_smoke": _gap(POSITIONAL, TypeError),
-    "tests/test_runica.py::test_reference_runica_pca": _gap(POSITIONAL, TypeError),
-    "tests/test_sample_data_pop_functions.py::test_upstream_pop_fileio_original_sample_options": _gap(
-        POSITIONAL, TypeError
-    ),
     "tests/test_study_params_eeglab_tests.py::test_reference_pop_dipparams[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
@@ -388,6 +373,10 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _boundary(SyntaxError),
     "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
         EVENT_EDIT, ValueError
+    ),
+    "tests/test_runica.py::test_reference_runica_pca": ExpectedFailure(
+        "boundary converter (#430 PR-A)",
+        TypeError,
     ),
 }
 

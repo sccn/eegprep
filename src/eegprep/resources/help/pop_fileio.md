@@ -14,6 +14,7 @@ EEG = pop_fileio("recording.vhdr")
 EEG, com = pop_fileio("recording.edf", return_com=True)
 EEG = pop_fileio("recording.bdf", blockrange=[10, 20])
 EEG = pop_fileio("epochs.set", channels="1:16", trials=[2, 50])
+EEG = pop_fileio("epochs.set", "channels", "1:16", "trials", [2, 50])
 ```
 
 For MNE-backed continuous formats, `blockrange=[start, stop]` imports a
