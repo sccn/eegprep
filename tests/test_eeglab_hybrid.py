@@ -12,6 +12,7 @@ import pytest
 from scipy.io import savemat
 from scipy.sparse import coo_matrix, issparse
 
+from eegprep.functions.statistics import StatcondResult, statcond
 from tests.eeglab_tests import assert_matlab_equal
 from tests.eeglab_tests.backend import (
     _load_matlab_variable,
@@ -118,6 +119,36 @@ def test_python_backend_unpacks_only_declared_matlab_outputs():
         _python_outputs("values", np.array([1, 2]), 2)
     with pytest.raises(AssertionError, match="2 outputs"):
         _python_outputs("values", _IterOnly(), 2)
+
+
+def test_python_backend_statcond_name_value_shapes():
+    first = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]])
+    second = first + 1.5
+    cells = np.empty((1, 2), dtype=object)
+    cells[0, 0] = first
+    cells[0, 1] = second
+    arguments = (cells, "mode", "param", "verbose", "off", "paired", "on")
+
+    single = call_python("statcond", *arguments)
+    statistic, df, pvalue, surrogate = call_python("statcond", *arguments, nargout=4)
+    direct = statcond([first, second], mode="param", verbose="off", paired="on", structoutput="on")
+    payload = call_python("statcond", cells, "structoutput", "on", *arguments[1:])
+    structured, structured_df, structured_p, structured_surrogate = call_python(
+        "statcond", cells, "structoutput", "on", *arguments[1:], nargout=4
+    )
+
+    assert isinstance(single, StatcondResult)
+    assert statistic.shape == (1, 1) and statistic.dtype == np.float64
+    assert df.shape == (1, 1) and df.dtype == np.float64
+    assert pvalue.shape == (1, 1) and pvalue.dtype == np.float64
+    assert surrogate.shape == (0, 0) and surrogate.dtype == np.float64
+    assert isinstance(direct, StatcondResult)
+    assert isinstance(payload, dict)
+    assert payload["method"] == "param" and payload["t"].shape == (1, 1) and "f" not in payload
+    assert isinstance(structured, dict)
+    assert structured_df.shape == (1, 1)
+    assert structured_p.shape == (1, 1)
+    assert structured_surrogate.shape == (0, 0)
 
 
 def _isolated_suite(pytester, source):

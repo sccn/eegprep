@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import warnings
 
 import numpy as np
 import pytest
@@ -10,6 +11,7 @@ from scipy.io import loadmat
 from scipy import stats as scipy_stats
 
 from eegprep.functions.statistics import StatcondResult, SurrogateDistribution, TwoWayEffects, statcond
+from eegprep.functions.statistics._matlab_rand import reset_matlab_rng
 from tests.eeglab_tests import eeglab_test
 
 
@@ -29,7 +31,7 @@ def seeded_statcond(eeglab_backend, request):
     if request.config.getoption("--eeglab-backend") == "matlab":
         request.getfixturevalue("eeglab_matlab_engine").rng("default", nargout=0)
     else:
-        np.random.seed(0)
+        reset_matlab_rng()
     return eeglab_backend
 
 
@@ -43,9 +45,114 @@ def _assert_matlab_value(actual, expected, *, atol, rtol):
         np.testing.assert_allclose(actual, expected, atol=atol, rtol=rtol)
 
 
+# Cases 1, 2, and 7-14 are double t-tests with stored zero tolerances.
+# The Python backend derives a tolerance from float64 eps and the t-test;
+# the MATLAB backend still uses the stored zero tolerance.
+_PYTHON_TTEST_REGRESSION_CASES = frozenset({1, 2, *range(7, 15)})
+
+
+def _ttest_accumulation_length(arguments: list) -> int:
+    """Return the number of cases reduced into the t statistic.
+
+    A paired test accumulates one difference per case, so ``n`` is that case
+    count. An unpaired test accumulates both samples, because each case enters
+    a mean and the pooled variance, so ``n`` is the sum of the two case counts.
+    """
+
+    conditions = [np.asarray(cell) for cell in np.asarray(arguments[0]).ravel()]
+    paired = next(arguments[index + 1] for index in range(1, len(arguments) - 1, 2) if arguments[index] == "paired")
+    case_counts = [condition.shape[-1] for condition in conditions]
+    if paired == "on":
+        return case_counts[0]
+    return sum(case_counts)
+
+
+def _relative_p_mask(pvalue: np.ndarray) -> np.ndarray:
+    """Return where a relative p tolerance is defined.
+
+    Zero and subnormal reference probabilities are excluded. Dividing by zero
+    makes the condition number infinite, and one such element would loosen the
+    whole array.
+    """
+
+    magnitude = np.abs(np.asarray(pvalue, dtype=np.float64))
+    return np.isfinite(magnitude) & (magnitude >= np.finfo(np.float64).tiny)
+
+
+def _two_tailed_t_condition(stat: np.ndarray, df: np.ndarray, pvalue: np.ndarray) -> float:
+    """Return ``max |t| * 2 * pdf(|t|, df) / |p|`` where ``p`` is normal.
+
+    The two-tailed p-value is ``2 * sf(|t|, df)``, so this factor is
+    ``|d log p / d log t|``. The maximum is one bound for the whole array: a
+    per-element bound is tighter than the last-bit ``tcdf`` difference on
+    elements whose ``t`` already matches. On the ten double fixtures, ``t``
+    matches bit for bit in nine, so the bound covers that ``tcdf`` difference.
+    Probabilities that are zero or subnormal do not enter the maximum.
+    """
+
+    t_abs = np.abs(np.asarray(stat, dtype=np.float64))
+    degrees = np.asarray(df, dtype=np.float64)
+    probability = np.abs(np.asarray(pvalue, dtype=np.float64))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        numerator = np.asarray(t_abs * (2.0 * scipy_stats.t.pdf(t_abs, degrees)), dtype=np.float64)
+    numerator, probability = np.broadcast_arrays(numerator, probability)
+    usable = _relative_p_mask(probability)
+    quotient = np.zeros(numerator.shape, dtype=np.float64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        np.divide(numerator, probability, out=quotient, where=usable)
+    if not np.any(usable):
+        return 0.0
+    bound = float(np.max(quotient[usable]))
+    if not np.isfinite(bound):
+        raise AssertionError("two-tailed t p-value tolerance is not finite")
+    return bound
+
+
+def _assert_derived_p(actual, reference_stat, reference_df, reference_p, *, stat_rtol: float) -> None:
+    """Compare p at ``stat_rtol`` times the two-tailed condition number.
+
+    Reference probabilities that are zero or subnormal must match exactly.
+    A non-finite bound is an assertion failure rather than an infinite
+    tolerance.
+    """
+
+    actual = np.asarray(actual)
+    reference_p = np.asarray(reference_p)
+    assert actual.shape == reference_p.shape
+    bound = stat_rtol * _two_tailed_t_condition(reference_stat, reference_df, reference_p)
+    if not np.isfinite(bound):
+        raise AssertionError("two-tailed t p-value tolerance is not finite")
+    usable = _relative_p_mask(reference_p)
+    if np.any(~usable):
+        np.testing.assert_array_equal(actual[~usable], reference_p[~usable])
+    if np.any(usable):
+        np.testing.assert_allclose(actual[usable], reference_p[usable], rtol=bound, atol=0.0)
+
+
+def _assert_python_ttest_regression(actual, reference, arguments) -> None:
+    """Compare a double t-test at ``n * eps`` and the p-value condition bound.
+
+    ``eps`` is float64 machine epsilon. The statistic uses ``n * eps``. The
+    p-value uses that tolerance times :func:`_two_tailed_t_condition`. Degrees
+    of freedom and the empty parametric surrogate stay exact, with absolute and
+    relative tolerance zero.
+    """
+
+    assert actual.shape == reference.shape
+    assert actual.dtype == object and reference.dtype == object
+    stat_rtol = _ttest_accumulation_length(arguments) * float(np.finfo(np.float64).eps)
+    _assert_matlab_value(actual[0, 0], reference[0, 0], atol=0.0, rtol=stat_rtol)
+    _assert_matlab_value(actual[0, 1], reference[0, 1], atol=0.0, rtol=0.0)
+    assert actual[0, 2].shape == reference[0, 2].shape
+    assert actual[0, 2].dtype == reference[0, 2].dtype
+    _assert_derived_p(actual[0, 2], reference[0, 0], reference[0, 1], reference[0, 2], stat_rtol=stat_rtol)
+    if reference.shape[1] == 4:
+        _assert_matlab_value(actual[0, 3], reference[0, 3], atol=0.0, rtol=0.0)
+
+
 def _statcond_regression_test(number):
     @eeglab_test(STATCOND_REGRESSION, f"test_{number}")
-    def test(seeded_statcond, statcond_regression_data):
+    def test(seeded_statcond, statcond_regression_data, request):
         fixture = statcond_regression_data
         arguments = list(fixture["inputs"][0, number - 1][0])
         # This spelling correction is performed by t_statcond.TestClassSetup.
@@ -63,9 +170,13 @@ def _statcond_regression_test(number):
                 outputs[0, index] = output
             actual = outputs
         reference = fixture[f"test_{number}"]
+        expected = reference["value"][0, 0]
+        if number in _PYTHON_TTEST_REGRESSION_CASES and request.config.getoption("--eeglab-backend") == "python":
+            _assert_python_ttest_regression(actual, expected, arguments)
+            return
         _assert_matlab_value(
             actual,
-            reference["value"][0, 0],
+            expected,
             atol=reference["absTol"][0, 0].item(),
             rtol=reference["relTol"][0, 0].item(),
         )
@@ -76,6 +187,73 @@ def _statcond_regression_test(number):
 # Keep one collected test and exact provenance per native regression method.
 for _case_number in range(1, 79):
     globals()[f"test_reference_statcond_regression_{_case_number:02d}"] = _statcond_regression_test(_case_number)
+
+
+def _ordinary_two_tailed_p() -> tuple[np.ndarray, np.ndarray, float]:
+    stat = np.array([1.5, 1.5], dtype=np.float64)
+    df = np.array([10.0, 10.0], dtype=np.float64)
+    probability = float(2.0 * scipy_stats.t.sf(1.5, 10.0))
+    return stat, df, probability
+
+
+def test_two_tailed_t_condition_ignores_zero_and_subnormal_p():
+    stat, df, probability = _ordinary_two_tailed_p()
+    reference_p = np.array([probability, 0.0], dtype=np.float64)
+    expected = 1.5 * 2.0 * scipy_stats.t.pdf(1.5, 10.0) / probability
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        assert _two_tailed_t_condition(stat, df, reference_p) == pytest.approx(expected)
+        subnormal = np.array([probability, np.nextafter(0.0, 1.0)], dtype=np.float64)
+        assert _two_tailed_t_condition(stat, df, subnormal) == pytest.approx(expected)
+        assert _two_tailed_t_condition(stat[:1], df[:1], np.array([0.0])) == 0.0
+
+
+def test_derived_p_requires_exact_zero_and_subnormal_values():
+    stat, df, probability = _ordinary_two_tailed_p()
+    stat_rtol = 10 * float(np.finfo(np.float64).eps)
+    reference_p = np.array([probability, 0.0, np.nextafter(0.0, 1.0)], dtype=np.float64)
+    reference_stat = np.array([1.5, 1.5, 1.5], dtype=np.float64)
+    reference_df = np.array([10.0, 10.0, 10.0], dtype=np.float64)
+    _assert_derived_p(reference_p, reference_stat, reference_df, reference_p, stat_rtol=stat_rtol)
+
+    wrong_normal = reference_p.copy()
+    wrong_normal[0] = probability * 2.0
+    with pytest.raises(AssertionError):
+        _assert_derived_p(wrong_normal, reference_stat, reference_df, reference_p, stat_rtol=stat_rtol)
+
+    wrong_zero = reference_p.copy()
+    wrong_zero[1] = np.finfo(np.float64).tiny
+    with pytest.raises(AssertionError):
+        _assert_derived_p(wrong_zero, reference_stat, reference_df, reference_p, stat_rtol=stat_rtol)
+
+    wrong_subnormal = reference_p.copy()
+    wrong_subnormal[2] = wrong_subnormal[2] * 2.0
+    with pytest.raises(AssertionError):
+        _assert_derived_p(wrong_subnormal, reference_stat, reference_df, reference_p, stat_rtol=stat_rtol)
+
+
+def test_two_tailed_t_condition_rejects_nonfinite_bound():
+    with pytest.raises(AssertionError, match="not finite"):
+        _two_tailed_t_condition(np.array([np.inf]), np.array([10.0]), np.array([0.2]))
+
+
+def test_two_tailed_t_condition_keeps_tiny_normal_p_finite():
+    # 2e-300 is normal. It stays in the factor, must not warn, and must not
+    # become a non-finite tolerance or excuse a zero element from matching.
+    stat = np.array([1.0, 1.0], dtype=np.float64)
+    df = np.array([10.0, 10.0], dtype=np.float64)
+    reference_p = np.array([2e-300, 0.0], dtype=np.float64)
+    expected = 1.0 * 2.0 * scipy_stats.t.pdf(1.0, 10.0) / 2e-300
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        factor = _two_tailed_t_condition(stat, df, reference_p)
+    assert factor == pytest.approx(expected)
+    assert np.isfinite(factor)
+    stat_rtol = 21 * float(np.finfo(np.float64).eps)
+    wrong_zero = reference_p.copy()
+    wrong_zero[1] = np.finfo(np.float64).tiny
+    with pytest.raises(AssertionError):
+        _assert_derived_p(wrong_zero, stat, df, reference_p, stat_rtol=stat_rtol)
 
 
 def _reference_conditions() -> tuple[np.ndarray, np.ndarray, np.ndarray]:

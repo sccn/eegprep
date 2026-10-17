@@ -106,6 +106,9 @@ def _declared_matlab_outputs(result):
 def _python_outputs(name, result, nargout):
     if nargout == 0:
         return None
+    primary = getattr(result, "matlab_primary", None)
+    if nargout == 1 and primary is not None:
+        return primary
     outputs = result if isinstance(result, tuple) else None
     if outputs is None and nargout > 1:
         outputs = _declared_matlab_outputs(result)
