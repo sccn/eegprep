@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from numbers import Integral, Real
+from numbers import Integral
 from typing import Any
 
 import numpy as np
@@ -12,21 +12,20 @@ import numpy as np
 def getkeyval(command: str, variable: str | int, mode: str | int | Sequence[int] = "", default: Any = "") -> Any:
     """Return an argument from an EEGLAB command-history expression.
 
-    String ``variable`` values address key/value arguments. Whole numbers use
+    String ``variable`` values address key/value arguments. Integer values use
     EEGLAB-facing 1-based argument positions. ``mode="present"`` returns a
     boolean-like integer, ``mode="full"`` includes the key in the returned
-    command fragment, and whole-number modes select 1-based elements from a
-    numeric vector value.
+    command fragment, and integer modes select 1-based elements from a numeric
+    vector value.
     """
     if not command:
         return default
     arguments = _split_arguments(command)
-    position = _whole_numbers(variable)
-    if position is not None and len(position) == 1:
-        index = position[0] - 1
+    if isinstance(variable, Integral):
+        index = int(variable) - 1
         return arguments[index].strip() if 0 <= index < len(arguments) else default
 
-    key_index = _find_key(arguments, str(variable))
+    key_index = _find_key(arguments, variable)
     if isinstance(mode, str) and mode.lower() == "present":
         return int(key_index is not None)
     if key_index is None:
@@ -41,10 +40,8 @@ def getkeyval(command: str, variable: str | int, mode: str | int | Sequence[int]
     raw_value = arguments[key_index + 1].strip()
     if isinstance(mode, str) and mode.lower() == "full":
         return f"'{variable}', {raw_value}"
-    indices = _whole_numbers(mode)
-    if indices is None and isinstance(mode, Sequence) and not isinstance(mode, (str, bytes)):
-        indices = [int(index) for index in mode]
-    if indices is not None:
+    if isinstance(mode, Integral) or (isinstance(mode, Sequence) and not isinstance(mode, (str, bytes))):
+        indices = [int(mode)] if isinstance(mode, Integral) else [int(index) for index in mode]
         return _select_numeric_value(raw_value, indices, default)
     return _unquote(raw_value)
 
@@ -79,22 +76,6 @@ def _split_arguments(command: str) -> list[str]:
     if body[start:].strip():
         arguments.append(body[start:])
     return arguments
-
-
-def _whole_numbers(value: Any) -> list[int] | None:
-    if isinstance(value, (bool, str, bytes)):
-        return None
-    if isinstance(value, Integral):
-        return [int(value)]
-    if isinstance(value, Real):
-        number = float(value)
-        return [int(number)] if number.is_integer() else None
-    if isinstance(value, np.ndarray) and value.dtype.kind in "iuf":
-        flat = np.asarray(value, dtype=float).ravel()
-        if flat.size == 0 or not np.all(np.isfinite(flat)) or not np.all(flat == np.trunc(flat)):
-            return None
-        return [int(item) for item in flat]
-    return None
 
 
 def _find_key(arguments: list[str], variable: str) -> int | None:

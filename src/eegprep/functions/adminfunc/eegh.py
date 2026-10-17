@@ -68,8 +68,6 @@ def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:
         return
     history_value = eeg.get("history")
     existing = "" if history_value is None or getattr(history_value, "size", 1) == 0 else str(history_value)
-    if existing.splitlines()[-1:] == [command]:
-        return
     eeg["history"] = existing + "\n" + command
 
 

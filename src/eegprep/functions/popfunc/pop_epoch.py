@@ -290,9 +290,7 @@ def _normalise_types(types: Any) -> Any:
     if types is None:
         return []
     if isinstance(types, np.ndarray):
-        if types.size == 0:
-            return []
-        return [_scalar_label(item) for item in types.ravel()]
+        types = types.tolist()
     if isinstance(types, bytes):
         return types.decode("utf-8")
     if isinstance(types, str):
@@ -300,12 +298,6 @@ def _normalise_types(types: Any) -> Any:
     if isinstance(types, Sequence):
         return list(types)
     raise ValueError("pop_epoch(): multiple event types must be entered as a list/cell array or a string")
-
-
-def _scalar_label(item: Any) -> Any:
-    if isinstance(item, np.generic):
-        return item.item()
-    return item
 
 
 def _normalise_lim(lim: Any) -> list[float]:

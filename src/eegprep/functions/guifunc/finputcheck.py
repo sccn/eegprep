@@ -28,8 +28,7 @@ def finputcheck(
     Each field rule is ``(name, type, allowed_values, default)``. Supported
     types match EEGLAB's ``finputcheck``: ``boolean``, ``integer``, ``real``,
     ``float``, ``string``, ``cell``, ``struct``, and ``function_handle``.
-    Object arrays are accepted as cell arrays. Validation failures are
-    returned as strings, as in EEGLAB.
+    Validation failures are returned as strings, as in EEGLAB.
 
     Args:
         arguments: Mapping or flat key/value sequence to validate.
@@ -56,9 +55,6 @@ def finputcheck(
         if len(rule) != 4:
             raise ValueError("finputcheck field rules must have four entries")
         name, expected_types, allowed, default = rule
-        text_name = _text(name)
-        if text_name is not None:
-            name = text_name
         rule_names.add(name)
         if name not in values:
             values[name] = default
@@ -82,14 +78,14 @@ def _argument_dict(arguments: Mapping[str, Any] | Sequence[Any], verbose: str) -
         return dict(arguments)
     if isinstance(arguments, (str, bytes)):
         return "error: bad 'key', 'val' sequence"
-    items = _flat_items(arguments)
+    items = list(arguments)
     if len(items) % 2:
         return "error: bad 'key', 'val' sequence"
     result: dict[str, Any] = {}
     duplicates: list[str] = []
     for index in range(0, len(items), 2):
-        name = _text(items[index])
-        if name is None:
+        name = items[index]
+        if not isinstance(name, str):
             return "error: bad 'key', 'val' sequence"
         if name in result:
             duplicates.append(name)
@@ -107,7 +103,10 @@ def _validate_field(
     allowed: Any,
     prefix: str,
 ) -> str:
-    types = _type_names(expected_types)
+    if isinstance(expected_types, str):
+        types = [expected_types]
+    else:
+        types = list(expected_types)
     allowed_by_type = _allowed_by_type(allowed, len(types))
     errors = [
         _validate_one_type(name, value, expected_type, accepted, prefix)
@@ -121,9 +120,6 @@ def _validate_field(
 def _allowed_by_type(allowed: Any, count: int) -> list[Any]:
     if count == 1:
         return [allowed]
-    cells = _cell_items(allowed)
-    if cells is not None and len(cells) == count:
-        return cells
     if isinstance(allowed, (list, tuple)) and len(allowed) == count:
         return list(allowed)
     return [allowed] * count
@@ -157,7 +153,7 @@ def _validate_one_type(name: str, value: Any, expected_type: str, allowed: Any, 
                 return f"{prefix}error: wrong value for argument '{name}'"
         return ""
     if field_type == "cell":
-        return "" if _is_cell(value) else f"{prefix}error: argument '{name}' must be a cell array"
+        return "" if isinstance(value, (list, tuple)) else f"{prefix}error: argument '{name}' must be a cell array"
     if field_type == "struct":
         return "" if isinstance(value, Mapping) else f"{prefix}error: argument '{name}' must be a structure"
     if field_type == "function_handle":
@@ -165,49 +161,6 @@ def _validate_one_type(name: str, value: Any, expected_type: str, allowed: Any, 
     if field_type == "":
         return ""
     raise ValueError(f"finputcheck error: unrecognized type '{expected_type}'")
-
-
-def _flat_items(arguments: Sequence[Any]) -> list[Any]:
-    if isinstance(arguments, np.ndarray):
-        if arguments.size == 0:
-            return []
-        if arguments.dtype == object:
-            return [arguments.flat[index] for index in range(arguments.size)]
-        return list(arguments.ravel())
-    return list(arguments)
-
-
-def _cell_items(value: Any) -> list[Any] | None:
-    if isinstance(value, np.ndarray) and value.dtype == object:
-        return [value.flat[index] for index in range(value.size)]
-    return None
-
-
-def _is_cell(value: Any) -> bool:
-    if isinstance(value, (list, tuple)):
-        return True
-    return isinstance(value, np.ndarray) and (value.dtype == object or value.size == 0)
-
-
-def _text(value: Any) -> str | None:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, np.generic):
-        item = value.item()
-        if isinstance(item, str):
-            return item
-    return None
-
-
-def _type_names(expected_types: Any) -> list[str]:
-    if isinstance(expected_types, str):
-        return [expected_types]
-    cells = _cell_items(expected_types)
-    if cells is not None:
-        return [str(item) for item in cells]
-    if isinstance(expected_types, np.ndarray):
-        return [str(item) for item in expected_types.ravel()]
-    return [item if isinstance(item, str) else str(item) for item in expected_types]
 
 
 def _is_numeric(value: Any) -> bool:

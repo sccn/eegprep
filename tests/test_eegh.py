@@ -242,13 +242,17 @@ def test_eegh_command_appends_to_eeg_history():
     ]
 
 
-def test_eegh_eeg_history_dedup_compares_last_line_exactly():
+def test_eegh_appends_a_repeated_command_to_eeg_history():
     eeg = {"history": "AEEG = pop_reref(EEG);"}
 
     eegh("EEG = pop_reref(EEG);", eeg)
     eegh("EEG = pop_reref(EEG);", eeg)
 
-    assert eeg["history"].splitlines() == ["AEEG = pop_reref(EEG);", "EEG = pop_reref(EEG);"]
+    assert eeg["history"].splitlines() == [
+        "AEEG = pop_reref(EEG);",
+        "EEG = pop_reref(EEG);",
+        "EEG = pop_reref(EEG);",
+    ]
 
 
 @pytest.mark.parametrize("include_history", [False, True])

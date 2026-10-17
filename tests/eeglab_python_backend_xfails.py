@@ -17,6 +17,10 @@ def _gap(reason: str, raises: type[BaseException] | tuple[type[BaseException], .
     return ExpectedFailure(f"{reason} (#430)", raises)
 
 
+def _boundary(raises: type[BaseException] | tuple[type[BaseException], ...]) -> ExpectedFailure:
+    return ExpectedFailure(BOUNDARY, raises)
+
+
 STATCOND_ZERO = (
     "stored statcond ANOVA fixtures use zero tolerance. "
     "Cases 3-6 and 15-30 are single because EEGLAB accumulates in single "
@@ -41,6 +45,7 @@ RMART = (
     "divisibility test, so the documented regression never runs; EEGPrep keeps "
     "the reachable correction. This is a permanent EEGLAB difference"
 )
+BOUNDARY = "boundary converter (#430 PR-A)"
 
 PYTHON_BACKEND_XFAILS = {
     "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND_ZERO, AssertionError),
@@ -409,7 +414,15 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_study_workflows_eeglab_tests.py::test_reference_std_selectdesign[eeglab_sample_study0]": _gap(
         STUDY, UnicodeDecodeError
     ),
-    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _gap(SHAPE, AssertionError),
+    "tests/test_finputcheck.py::test_reference_finputcheck_original_wrapper_cases": _boundary(AssertionError),
+    "tests/test_getkeyval.py::test_reference_getkeyval_original_string_cases": _boundary(AssertionError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch]": _boundary(ValueError),
+    "tests/test_mmo_eeglab_tests.py::test_upstream_mmo_original_preprocessing[continuous_epoch_after_rejection]": (
+        _boundary(ValueError)
+    ),
+    "tests/test_pop_epoch.py::test_reference_pop_epoch_original_square_event_workflow": _boundary(ValueError),
+    "tests/test_legacy_signal_io_eeglab_tests.py::test_reference_blockave": _boundary(ValueError),
+    "tests/test_getkeyval.py::test_reference_getkeyval_original_evaluated_matrix": _boundary(SyntaxError),
     "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
         EVENT_EDIT, ValueError
     ),
