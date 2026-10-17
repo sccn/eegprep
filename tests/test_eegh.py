@@ -231,10 +231,18 @@ def test_eegh_displays_finds_removes_and_clears_newest_first():
     assert history == []
 
 
+def test_eegh_joins_character_matrix_history_before_appending():
+    eeg = {"history": np.array([list("alpha"), list("beta ")])}
+
+    assert eegh("EEG = pop_reref(EEG, []);", eeg) is eeg
+
+    assert eeg["history"] == "alpha\nbeta \nEEG = pop_reref(EEG, []);"
+
+
 def test_eegh_command_appends_to_eeg_history():
     eeg = {"history": "EEG = pop_loadset('sample.set');"}
 
-    assert eegh("EEG = pop_resample(EEG, 64);", eeg) == "EEG = pop_resample(EEG, 64);"
+    assert eegh("EEG = pop_resample(EEG, 64);", eeg) is eeg
 
     assert eeg["history"].splitlines() == [
         "EEG = pop_loadset('sample.set');",
@@ -242,13 +250,17 @@ def test_eegh_command_appends_to_eeg_history():
     ]
 
 
-def test_eegh_eeg_history_dedup_compares_last_line_exactly():
+def test_eegh_appends_a_repeated_command_to_eeg_history():
     eeg = {"history": "AEEG = pop_reref(EEG);"}
 
     eegh("EEG = pop_reref(EEG);", eeg)
     eegh("EEG = pop_reref(EEG);", eeg)
 
-    assert eeg["history"].splitlines() == ["AEEG = pop_reref(EEG);", "EEG = pop_reref(EEG);"]
+    assert eeg["history"].splitlines() == [
+        "AEEG = pop_reref(EEG);",
+        "EEG = pop_reref(EEG);",
+        "EEG = pop_reref(EEG);",
+    ]
 
 
 @pytest.mark.parametrize("include_history", [False, True])
@@ -258,10 +270,10 @@ def test_eegh_marks_commands_applied_to_multiple_datasets(include_history):
         for eeg in datasets:
             eeg["history"] = ""
 
-    assert eegh("command3", datasets) == "command3"
+    assert eegh("command3", datasets) is datasets
 
     assert [eeg["data"] for eeg in datasets] == [[1], [2]]
     assert [eeg["history"] for eeg in datasets] == [
-        "% multiple datasets command: command3;",
-        "% multiple datasets command: command3;",
+        "\n% multiple datasets command: command3",
+        "\n% multiple datasets command: command3",
     ]

@@ -126,17 +126,19 @@ def eeg_from_data(
     filename: str = "",
     filepath: str = "",
 ) -> dict[str, Any]:
-    """Build a checked EEGLAB-like EEG dict from channel-major data."""
+    """Build a checked EEGLAB-like EEG dict from channel-major data.
+
+    When ``nbchan`` matches the column count, the array is transposed so rows
+    are channels. A row count that differs from ``nbchan`` is kept, including
+    an extra non-EEG channel.
+    """
     array = np.asarray(data)
     if array.ndim == 1:
         array = array[np.newaxis, :]
     if array.ndim not in {2, 3}:
         raise ValueError("EEG data must be 1-D, 2-D, or 3-D")
-    if nbchan and array.shape[0] != int(nbchan):
-        if array.ndim == 2 and array.shape[1] == int(nbchan):
-            array = array.T
-        else:
-            raise ValueError("nbchan does not match imported data")
+    if nbchan and array.ndim == 2 and array.shape[0] != int(nbchan) and array.shape[1] == int(nbchan):
+        array = array.T
     if not nbchan and array.ndim == 2 and array.shape[0] > array.shape[1]:
         raise ValueError(
             "Cannot determine channel-major orientation for a 2-D array with more "

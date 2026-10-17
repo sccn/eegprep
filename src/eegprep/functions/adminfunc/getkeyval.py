@@ -32,7 +32,7 @@ def getkeyval(command: str, variable: str | int, mode: str | int | Sequence[int]
         if isinstance(mode, str) and mode.lower() == "full":
             parent_index = next((index for index, argument in enumerate(arguments) if variable in argument), None)
             if parent_index is not None and parent_index + 1 < len(arguments):
-                return f"'{variable}', {arguments[parent_index + 1].strip()}"
+                return f"'{variable}', {arguments[parent_index + 1]}"
         return default
     if key_index + 1 >= len(arguments):
         return default
