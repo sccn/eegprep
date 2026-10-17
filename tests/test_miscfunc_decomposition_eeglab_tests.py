@@ -312,6 +312,8 @@ def test_make_timewarp_accepts_eeglab_name_value_pairs_and_row_cells():
     )
 
     np.testing.assert_array_equal(paired["epochs"], keyword["epochs"])
+    with pytest.raises(ValueError, match="undefined argument 'notanoption'"):
+        make_timewarp(eeg, sequence, "notAnOption", 1)
     np.testing.assert_array_equal(paired["latencies"], keyword["latencies"])
     assert paired["event_sequence"] == ["square", "rt"]
 

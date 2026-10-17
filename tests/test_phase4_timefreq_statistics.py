@@ -345,6 +345,17 @@ def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
     assert lowered.freqs.max() == pytest.approx(12.0)
 
 
+def test_newtimef_scalar_freqs_keeps_its_first_value_when_maxfreq_changes():
+    # newtimef.m:709 assigns g.freqs(2), so a scalar freqs becomes [freqs(1), maxfreq].
+    data = np.random.RandomState(3).rand(64, 4)
+    result = newtimef(
+        data, 64, [0, 630], 100, [3, 0.5], "freqs", 10, "maxfreq", 30, "nfreqs", 5, plot="off", verbose="off"
+    )
+
+    assert result.freqs[0] == pytest.approx(10.0)
+    assert result.freqs[-1] == pytest.approx(30.0)
+
+
 def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
     # freqrange aliases freqs; freqscale='log' spaces the output frequencies geometrically;
     # an unknown scale fails fast.
@@ -701,7 +712,7 @@ def test_newcrossf_single_trial_switches_to_cross_spectrum():
     assert np.nanmax(multi_trial.coherence) <= 1.0 + 1e-12
 
 
-def test_newtimef_accepts_pop_newtimef_history_names_and_ignores_unknown_names():
+def test_newtimef_forwards_timefreq_options_and_rejects_undefined_names():
     data = np.random.RandomState(1).rand(64, 4)
     common = dict(plot="off", verbose="off")
     history = newtimef(
@@ -720,16 +731,21 @@ def test_newtimef_accepts_pop_newtimef_history_names_and_ignores_unknown_names()
         "linear",
         "plotamp",
         "off",
-        "not_a_real_option",
-        1,
+        "ffttaper",
+        "none",
         **common,
     )
-    counted = newtimef(data, 64, [0, 630], 100, 0, ntimesout=8, **common)
+    counted = newtimef(data, 64, [0, 630], 100, 0, ntimesout=8, ffttaper="none", **common)
+    hanning = newtimef(data, 64, [0, 630], 100, 0, ntimesout=8, **common)
     default = newtimef(data, 64, [0, 630], 100, 0, **common)
 
     assert history.times.size == counted.times.size == 8
     assert history.times.size < default.times.size
     np.testing.assert_allclose(history.ersp, counted.ersp, rtol=0, atol=0)
+    assert history.ersp.shape == hanning.ersp.shape
+    assert not np.allclose(history.ersp, hanning.ersp)
+    with pytest.raises(ValueError, match="undefined argument 'not_a_real_option'"):
+        newtimef(data, 64, [0, 630], 100, 0, "not_a_real_option", 1, **common)
 
 
 def test_newtimef_itctype_overrides_type_unless_phasecoher():
@@ -767,7 +783,11 @@ def test_pop_newtimef_history_passes_chaninfo_and_ntimesout(sample_epoch):
     assert result.times.size < default.times.size
     namespace = {"EEG": sample_epoch, "pop_newtimef": pop_newtimef}
     replayed = eval(command, namespace)
-    assert replayed.times.size == result.times.size
+    np.testing.assert_array_equal(replayed.ersp, result.ersp)
+    np.testing.assert_array_equal(replayed.itc, result.itc)
+    np.testing.assert_array_equal(replayed.powbase, result.powbase)
+    np.testing.assert_array_equal(replayed.times, result.times)
+    np.testing.assert_array_equal(replayed.freqs, result.freqs)
 
 
 def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):

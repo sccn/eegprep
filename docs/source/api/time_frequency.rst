@@ -7,8 +7,10 @@ Time-frequency decomposition, coherence, phase-amplitude coupling, and time warp
 
 ``newtimef`` accepts the ``finputcheck`` names from ``newtimef.m`` as keywords
 or positional name/value pairs, including ``chaninfo``, ``ntimesout``,
-``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Names outside that
-list are ignored. Defaults follow that list, including ``baseline`` 0,
+``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Other names that
+``timefreq`` accepts (``ffttaper``, ``wavelet``, ``timestretch``) are
+forwarded to it. Any further name is an undefined ``timefreq`` argument.
+Defaults follow the ``newtimef`` list, including ``baseline`` 0,
 ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2. ``ntimesout`` is
 the output time count when ``timesout`` is not a vector. ``itctype`` replaces
 ``type`` unless it is ``phasecoher``. The default frequency range is

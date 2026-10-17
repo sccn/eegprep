@@ -52,19 +52,16 @@ class TimeFrequencyResult(NamedTuple):
 
 
 # finputcheck defaults in newtimef.m:513-587. None stands in for MATLAB NaN or [].
-# Names are lowercased; finputcheck itself is case-sensitive.
 _DEFAULT_MAXFREQ = 50.0
 _NEWTIMEF_DEFAULTS = {
     "winsize": None,
     "pad": None,
     "freqs": None,
-    "freqrange": None,
     "nfreqs": None,
     "freqscale": "linear",
     "timesout": None,
     "ntimesout": None,
     "padratio": None,
-    "overlap": None,
     "maxfreq": _DEFAULT_MAXFREQ,
     "baseline": 0,
     "scale": "log",
@@ -75,8 +72,6 @@ _NEWTIMEF_DEFAULTS = {
     "marktimes": None,
     "pboot": None,
     "rboot": None,
-    "erspboot": None,
-    "itcboot": None,
     "naccu": 200,
     "boottype": "shuffle",
     "condboot": "abs",
@@ -84,7 +79,6 @@ _NEWTIMEF_DEFAULTS = {
     "mcorrect": "none",
     "itctype": "phasecoher",
     "type": "phasecoher",
-    "subitc": "off",
     "plottype": "image",
     "plotersp": "on",
     "plotamp": "on",
@@ -100,11 +94,8 @@ _NEWTIMEF_DEFAULTS = {
     "caption": "",
     "title": "",
     "title2": "",
-    "rng": None,
     "detrend": "off",
     "rmerp": "off",
-    "causal": "off",
-    "wletmethod": "dftfilt3",
     "timewarp": None,
     "timewarpms": None,
     "timewarpfr": None,
@@ -135,11 +126,37 @@ _NEWTIMEF_DEFAULTS = {
     "cycleinc": "linear",
     "colormap": "jet(256)",
 }
+_PYTHON_NEWTIMEF_OPTIONS = {
+    "freqrange": None,
+    "overlap": None,
+    "erspboot": None,
+    "itcboot": None,
+    "rng": None,
+    "causal": "off",
+    "subitc": "off",
+    "wletmethod": "dftfilt3",
+}
+# Residual names finputcheck mode ignore forwards to timefreq (newtimef.m:513, 1188).
+_TIMEFREQ_FORWARDED = frozenset({"ffttaper", "wavelet", "timestretch"})
 
 
 def _newtimef_options(parsed: dict[str, Any]) -> SimpleNamespace:
     selected = {name: parsed.get(name, default) for name, default in _NEWTIMEF_DEFAULTS.items()}
+    selected.update({name: parsed.get(name, default) for name, default in _PYTHON_NEWTIMEF_OPTIONS.items()})
     return SimpleNamespace(**selected)
+
+
+def _timefreq_forwarded(parsed: dict[str, Any]) -> dict[str, Any]:
+    """Return names newtimef.m leaves in timefreqopts for timefreq.m:171-189."""
+    known = set(_NEWTIMEF_DEFAULTS) | set(_PYTHON_NEWTIMEF_OPTIONS)
+    forwarded: dict[str, Any] = {}
+    for name, value in parsed.items():
+        if name in known:
+            continue
+        if name not in _TIMEFREQ_FORWARDED:
+            raise ValueError(f"error: undefined argument '{name}'")
+        forwarded[name] = value
+    return forwarded
 
 
 def _effective_timesout(timesout: Any, ntimesout: Any) -> Any:
@@ -175,8 +192,10 @@ def _resolve_freqs(freqs: Any, freqrange: Any, maxfreq: Any, srate: float) -> An
     if limit == _DEFAULT_MAXFREQ:
         return freqs
     values = np.asarray(freqs, dtype=float).reshape(-1).copy()
-    if values.size < 2:
+    if values.size == 0:
         return np.array([0.0, limit], dtype=float)
+    if values.size == 1:
+        return np.array([values[0], limit], dtype=float)
     values[1] = limit
     return values
 
@@ -194,15 +213,19 @@ def newtimef(
 
     Positional name/value pairs and keywords use the ``finputcheck`` names in
     ``newtimef.m`` lines 513-587, including ``chaninfo``, ``ntimesout``,
-    ``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Names outside that
-    list are ignored, matching ``finputcheck`` mode ``ignore`` at line 587.
+    ``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. ``finputcheck``
+    mode ``ignore`` (line 587) returns every other name as ``timefreqopts``,
+    and line 1188 passes that list to ``timefreq``. Names ``timefreq`` accepts
+    (``ffttaper``, ``wavelet``, ``timestretch``; ``timefreq.m`` lines 171-189)
+    are forwarded. Any other name is an undefined ``timefreq`` argument.
     Defaults follow that list: ``baseline`` 0, ``scale`` ``"log"``,
     ``basenorm`` and ``trialbase`` ``"off"``, ``naccu`` 200, ``boottype``
     ``"shuffle"``, ``timesout`` 200, ``padratio`` 2, ``verbose`` ``"on"``,
     and an empty ``title``. ``freqs`` defaults to ``[0, 50]`` (line 542).
     ``maxfreq`` above the Nyquist rate is then reduced to that rate, and any
-    ``maxfreq`` other than 50 replaces the upper frequency (lines 704-709),
-    so a sampling rate below 100 Hz yields ``[0, Nyquist]``. That cap is not
+    ``maxfreq`` other than 50 replaces ``freqs(2)`` (lines 704-709). A scalar
+    ``freqs`` keeps its first value. A sampling rate below 100 Hz yields
+    ``[0, Nyquist]``. That cap is not
     part of the default assignment. ``ntimesout`` is the output time count
     when ``timesout`` is not a vector (lines 1176-1182). ``itctype`` replaces
     ``type`` unless ``itctype`` is ``phasecoher`` (line 591); the
@@ -214,8 +237,6 @@ def newtimef(
     forces ``plotersp`` off (line 589). A figure is drawn when ``plotersp``
     or ``plotitc`` is on (line 1426); pass ``plot`` to override that.
     """
-    if isinstance(frames, (float, np.floating)) and float(frames).is_integer():
-        frames = int(frames)
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     if "cycles" in options and not _is_empty_value(options["cycles"]):
         cycles = options.pop("cycles")
@@ -223,12 +244,11 @@ def newtimef(
         options.pop("cycles", None)
     plot_supplied = "plot" in options
     plot_request = options.pop("plot", None)
+    forwarded = _timefreq_forwarded(options)
     opt = _newtimef_options(options)
     if not _is_on(opt.plotamp):
         opt.plotersp = "off"
     plot = plot_request if plot_supplied else ("on" if _is_on(opt.plotersp) or _is_on(opt.plotitc) else "off")
-    if isinstance(opt.naccu, (float, np.floating)) and float(opt.naccu).is_integer():
-        opt.naccu = int(opt.naccu)
     if opt.overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
     if str(opt.boottype).lower() != "shuffle":
@@ -277,6 +297,7 @@ def newtimef(
         wletmethod=opt.wletmethod,
         timestretch=timestretch,
         verbose=opt.verbose,
+        forwarded=forwarded,
     )
     tfdata = _normalize_fft_tfdata(decomp.tfdata, decomp.cycles, decomp.winsize)
     power = np.abs(tfdata) ** 2
@@ -477,18 +498,22 @@ def _compute_decomposition(
     wletmethod: str = "dftfilt3",
     timestretch: Any = None,
     verbose: str = "off",
+    forwarded: dict[str, Any] | None = None,
 ):
+    extra = dict(forwarded or {})
     explicit_times, ntimesout = _split_timesout(timesout)
     return timefreq(
         data,
         srate,
         frames=int(frames),
         cycles=cycles,
+        wavelet=extra.pop("wavelet", 0),
         winsize=None if winsize is None else int(_first_numeric(winsize, 0)),
         tlimits=tlimits,
         freqs=freqs,
         nfreqs=nfreqs,
         freqscale=str(freqscale or "linear"),
+        ffttaper=str(extra.pop("ffttaper", "hanning")),
         timesout=explicit_times,
         ntimesout=ntimesout,
         padratio=int(_first_numeric(padratio, 2)),
@@ -496,7 +521,7 @@ def _compute_decomposition(
         subitc=subitc,
         detrend=detrend,
         causal=causal,
-        timestretch=timestretch,
+        timestretch=extra.pop("timestretch", timestretch),
         wletmethod=wletmethod,
         verbose=verbose,
     )
