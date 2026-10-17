@@ -34,6 +34,16 @@ Unreleased
   ``eegh(n)`` in ``eegprep-console`` runs a command from the session
   history and records that command once. ``gethelpvar`` now returns
   description and name rows with shape ``(1, N)`` instead of Python lists.
+- ``eegh(command, EEG)`` returns that dataset and records the command with
+  ``eeg_hist``, including a character-matrix or row-list history.
+  ``getkeyval`` keeps the space after the comma in a parent full-mode
+  fragment. Presentation logs pad short rows, epoch and event field tables
+  follow the file columns, and ``eeg_from_data`` keeps an extra channel when
+  ``nbchan`` does not match the row count. ``eegplot2event`` rounds half away
+  from zero and returns an empty array when no marks remain. ``rejtrend``
+  returns no rejections when its window is longer than the trial.
+  ``celltomat`` returns a numeric array for an empty cell, and
+  ``eeg_point2lat`` accepts a column time window.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

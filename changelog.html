@@ -500,6 +500,16 @@ which is the packaged-application counterpart of MATLAB <code class="docutils li
 <code class="docutils literal notranslate"><span class="pre">eegh(n)</span></code> in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> runs a command from the session
 history and records that command once. <code class="docutils literal notranslate"><span class="pre">gethelpvar</span></code> now returns
 description and name rows with shape <code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">N)</span></code> instead of Python lists.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eegh(command,</span> <span class="pre">EEG)</span></code> returns that dataset and records the command with
+<code class="docutils literal notranslate"><span class="pre">eeg_hist</span></code>, including a character-matrix or row-list history.
+<code class="docutils literal notranslate"><span class="pre">getkeyval</span></code> keeps the space after the comma in a parent full-mode
+fragment. Presentation logs pad short rows, epoch and event field tables
+follow the file columns, and <code class="docutils literal notranslate"><span class="pre">eeg_from_data</span></code> keeps an extra channel when
+<code class="docutils literal notranslate"><span class="pre">nbchan</span></code> does not match the row count. <code class="docutils literal notranslate"><span class="pre">eegplot2event</span></code> rounds half away
+from zero and returns an empty array when no marks remain. <code class="docutils literal notranslate"><span class="pre">rejtrend</span></code>
+returns no rejections when its window is longer than the trial.
+<code class="docutils literal notranslate"><span class="pre">celltomat</span></code> returns a numeric array for an empty cell, and
+<code class="docutils literal notranslate"><span class="pre">eeg_point2lat</span></code> accepts a column time window.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> accepts EEGLAB name/value pairs (<code class="docutils literal notranslate"><span class="pre">mode</span></code>, <code class="docutils literal notranslate"><span class="pre">verbose</span></code>,
 <code class="docutils literal notranslate"><span class="pre">returnresamplingarray</span></code>, <code class="docutils literal notranslate"><span class="pre">structoutput</span></code>, <code class="docutils literal notranslate"><span class="pre">cluster</span></code>, and the other
 documented options) as well as keywords. A single MATLAB output is the
