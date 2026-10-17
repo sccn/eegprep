@@ -128,7 +128,7 @@ def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
 
 def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
     """Round-trip ICA through MatlabWrapper and match MATLAB's activation class."""
-    # eeg_checkset.m casts the decomposition to double, then multiplies by data.
+    # eeg_checkset.m:1030 forms W*S in double; MATLAB rounds it to single for the product with single data. gamma uses eps = 2u, which covers both single evaluations.
     data_class = np.dtype(np.float32)
     sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_with_ica_tmp.set"
     eeg = pop_loadset(sample)
