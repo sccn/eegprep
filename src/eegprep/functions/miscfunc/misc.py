@@ -51,6 +51,20 @@ def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     return result
 
 
+def matlab_mtimes(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Column-major ``*`` with MATLAB's rule that a single operand yields single."""
+    left = np.asarray(left)
+    right = np.asarray(right)
+    dtype = _matlab_product_dtype(left.dtype, right.dtype)
+    return finite_matmul(np.asfortranarray(left, dtype=dtype), np.asfortranarray(right, dtype=dtype))
+
+
+def _matlab_product_dtype(left: np.dtype, right: np.dtype) -> np.dtype:
+    if left.kind == "f" and right.kind == "f" and min(left.itemsize, right.itemsize) <= 4:
+        return np.dtype(np.float32)
+    return np.result_type(left, right)
+
+
 def finite_pinv(matrix: np.ndarray, solver: Callable[[np.ndarray], np.ndarray] | None = None) -> np.ndarray:
     """Compute a pseudo-inverse, suppressing only warnings from finite results."""
     matrix = np.asarray(matrix)

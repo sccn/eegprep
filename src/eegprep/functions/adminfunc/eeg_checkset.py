@@ -10,6 +10,7 @@ import os
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
+from eegprep.functions.miscfunc.misc import matlab_mtimes
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,66 @@ def _event_sort_key(event):
     return (0 if epoch is None else epoch, 0 if latency is None else latency)
 
 
+def _refresh_icaact(EEG) -> None:
+    """Recompute stored activations from the current data array."""
+    if (
+        'icaweights' not in EEG
+        or 'icasphere' not in EEG
+        or not hasattr(EEG['icaweights'], 'size')
+        or not hasattr(EEG['icasphere'], 'size')
+        or EEG['icaweights'].size == 0
+        or EEG['icasphere'].size == 0
+    ):
+        return
+    if (
+        'icachansind' in EEG
+        and EEG['icachansind'] is not None
+        and hasattr(EEG['icachansind'], '__len__')
+        and len(EEG['icachansind']) > 0
+    ):
+        icachansind = np.array(EEG['icachansind'], dtype=int)
+        n_channels = EEG['data'].shape[0]
+        if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
+            logger.warning(
+                f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels - 1}). "
+                "Using all channels instead."
+            )
+            ica_data = EEG['data']
+        else:
+            ica_data = EEG['data'][icachansind, :]
+    else:
+        ica_data = EEG['data']
+
+    expected_channels = EEG['icaweights'].shape[1]
+    actual_channels = ica_data.shape[0]
+    if expected_channels != actual_channels:
+        logger.warning(
+            f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
+            f"but ica_data has {actual_channels} channels. Skipping ICA activation computation."
+        )
+        EEG['icaact'] = np.array([])
+        return
+    EEG['icaact'] = _ica_activation_matrix(EEG, ica_data)
+
+
+def _ica_activation_matrix(EEG, ica_data):
+    """Return ``(icaweights*icasphere)*data`` in the data class.
+
+    ``eeg_checkset.m:1030`` multiplies column-major, so a single ``data`` array
+    uses the single-precision GEMM. ``reshape`` at line 1032 drops a trailing
+    singleton when ``trials == 1``.
+    """
+    flat = np.asarray(ica_data).reshape(ica_data.shape[0], -1, order="F")
+    unmixing = matlab_mtimes(np.asarray(EEG["icaweights"]), np.asarray(EEG["icasphere"]))
+    product = matlab_mtimes(unmixing, flat)
+    components = EEG["icaweights"].shape[0]
+    pnts = int(EEG["pnts"])
+    trials = int(EEG["trials"])
+    if trials == 1:
+        return np.reshape(product, (components, pnts), order="F")
+    return np.reshape(product, (components, pnts, trials), order="F")
+
+
 def eeg_checkset(EEG, *checks, load_data=True):
     """Validate and set up EEG dataset structure.
 
@@ -321,62 +382,11 @@ def eeg_checkset(EEG, *checks, load_data=True):
         except exception_type as e:
             logger.error("Error scaling ICA components: " + str(e))
 
-    if (
-        'icaweights' in EEG
-        and 'icasphere' in EEG
-        and hasattr(EEG['icaweights'], 'size')
-        and hasattr(EEG['icasphere'], 'size')
-        and EEG['icaweights'].size > 0
-        and EEG['icasphere'].size > 0
-    ):
-        try:
-            # Use icachansind to select only channels ICA was trained on (matches MATLAB eeg_checkset.m:1030)
-            if (
-                'icachansind' in EEG
-                and EEG['icachansind'] is not None
-                and hasattr(EEG['icachansind'], '__len__')
-                and len(EEG['icachansind']) > 0
-            ):
-                icachansind = np.array(EEG['icachansind'], dtype=int)
-                n_channels = EEG['data'].shape[0]
-                if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
-                    logger.warning(
-                        f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels - 1}). "
-                        "Using all channels instead."
-                    )
-                    ica_data = EEG['data']
-                else:
-                    ica_data = EEG['data'][icachansind, :]
-            else:
-                # If icachansind not set, assume all channels (default behavior)
-                ica_data = EEG['data']
-
-            expected_channels = EEG['icaweights'].shape[1]  # Number of input channels ICA expects
-            actual_channels = ica_data.shape[0]
-
-            if expected_channels != actual_channels:
-                logger.warning(
-                    f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
-                    f"but ica_data has {actual_channels} channels. Skipping ICA activation computation."
-                )
-                EEG['icaact'] = np.array([])
-            else:
-                flat = np.asarray(ica_data).reshape(ica_data.shape[0], -1)
-                unmixing = np.dot(np.asarray(EEG['icaweights']), np.asarray(EEG['icasphere']))
-                # eeg_checkset.m:1030 multiplies (icaweights*icasphere)*data in the class of data.
-                EEG['icaact'] = np.dot(unmixing.astype(flat.dtype, copy=False), flat)
-                EEG['icaact'] = EEG['icaact'].astype(np.float32)
-                # eeg_checkset.m:1032 reshape(..., EEG.pnts, EEG.trials) drops a trailing singleton.
-                components = EEG['icaweights'].shape[0]
-                pnts = int(EEG['pnts'])
-                trials = int(EEG['trials'])
-                if trials == 1:
-                    EEG['icaact'] = EEG['icaact'].reshape(components, pnts)
-                else:
-                    EEG['icaact'] = EEG['icaact'].reshape(components, pnts, trials)
-        except exception_type as e:
-            logger.error("Error computing ICA activations: " + str(e))
-            EEG['icaact'] = np.array([])
+    try:
+        _refresh_icaact(EEG)
+    except exception_type as e:
+        logger.error("Error computing ICA activations: " + str(e))
+        EEG['icaact'] = np.array([])
 
     # Handle optional check modes (matches MATLAB's eeg_checkset(EEG, 'mode') API)
     for check in checks:

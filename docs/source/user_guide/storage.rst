@@ -32,7 +32,9 @@ when the array is stored inside the ``.set`` file as well. ICA weight, sphere,
 and inverse matrices keep a length-1 component or channel axis. A
 multi-dimensional cell or struct array keeps its MATLAB shape, and an empty
 array keeps the dimensions stored in the file. Continuous ``icaact`` reloads
-as ``(ncomp, pnts)``. Event and channel indices load as integers, and
+as ``(ncomp, pnts)`` and is recomputed in the data array's dtype.
+``pop_subcomp`` subtracts components with those stored activations. Event and
+channel indices load as integers, and
 integral ``run`` and ``session`` labels stay integers.
 
 When an existing two-file dataset is saved with ``savemode="resave"``,
