@@ -231,6 +231,14 @@ def test_eegh_displays_finds_removes_and_clears_newest_first():
     assert history == []
 
 
+def test_eegh_joins_character_matrix_history_before_appending():
+    eeg = {"history": np.array([list("alpha"), list("beta ")])}
+
+    assert eegh("EEG = pop_reref(EEG, []);", eeg) is eeg
+
+    assert eeg["history"] == "alpha\nbeta \nEEG = pop_reref(EEG, []);"
+
+
 def test_eegh_command_appends_to_eeg_history():
     eeg = {"history": "EEG = pop_loadset('sample.set');"}
 

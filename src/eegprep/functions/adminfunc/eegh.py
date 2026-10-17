@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from eegprep.functions.adminfunc.eeg_hist import eeg_hist
+
 
 def eegh(
     command: Any = None,
@@ -19,8 +21,9 @@ def eegh(
 
     Returns:
         The normalized command, rendered history text, or matched history item.
-        Passing an EEG dataset returns that dataset. Its history is the previous
-        text, a newline, and the command, with no added semicolon.
+        Passing an EEG dataset returns that dataset. ``eeg_hist`` appends the
+        command on its own line and leaves commands that contain ``pop_loadset``
+        unrecorded.
     """
     if isinstance(command, str) and command.strip().lower() == "find":
         return _find_history(history if _is_command_history(history) else [], None)
@@ -64,11 +67,7 @@ def _is_eeg_collection(history: Any) -> bool:
 
 
 def _append_eeg_history(eeg: dict[str, Any], command: str) -> None:
-    if not command or "pop_loadset" in command:
-        return
-    history_value = eeg.get("history")
-    existing = "" if history_value is None or getattr(history_value, "size", 1) == 0 else str(history_value)
-    eeg["history"] = existing + "\n" + command
+    eeg_hist(eeg, command)
 
 
 def _render_history(history: list[str]) -> str:
