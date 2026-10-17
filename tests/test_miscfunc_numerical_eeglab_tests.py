@@ -571,9 +571,7 @@ def test_python_regression_mapcorr_keeps_requested_method_for_nonsquare_maps():
     channels = [{"labels": name} for name in ("Fz", "Cz", "Pz")]
     first = np.asarray([[2, 2, 2], [2, 2, 1]], dtype=float)
     second = np.asarray([[2, 2, 2], [2, 1, 2]], dtype=float)
-    hungarian_values, hungarian_rows, hungarian_columns, _matrix = mapcorr(
-        first, second, channels, channels, method=0
-    )
+    hungarian_values, hungarian_rows, hungarian_columns, _matrix = mapcorr(first, second, channels, channels, method=0)
     greedy_values, greedy_rows, greedy_columns, _matrix = mapcorr(first, second, channels, channels, method=2)
     np.testing.assert_array_equal(hungarian_rows, [1, 2])
     np.testing.assert_array_equal(hungarian_columns, [2, 1])
