@@ -567,6 +567,21 @@ def test_python_regression_mapcorr_aligns_values_by_channel_label_before_matchin
         mapcorr(first, second, first_channels, [{"labels": "Pz"}] * 4)
 
 
+def test_python_regression_mapcorr_keeps_requested_method_for_nonsquare_maps():
+    channels = [{"labels": name} for name in ("Fz", "Cz", "Pz")]
+    first = np.asarray([[2, 2, 2], [2, 2, 1]], dtype=float)
+    second = np.asarray([[2, 2, 2], [2, 1, 2]], dtype=float)
+    hungarian_values, hungarian_rows, hungarian_columns, _matrix = mapcorr(
+        first, second, channels, channels, method=0
+    )
+    greedy_values, greedy_rows, greedy_columns, _matrix = mapcorr(first, second, channels, channels, method=2)
+    np.testing.assert_array_equal(hungarian_rows, [1, 2])
+    np.testing.assert_array_equal(hungarian_columns, [2, 1])
+    np.testing.assert_array_equal(greedy_rows, [1, 2])
+    np.testing.assert_array_equal(greedy_columns, [1, 2])
+    assert np.abs(hungarian_values).sum() > np.abs(greedy_values).sum()
+
+
 def test_python_regression_matcorr_matches_permuted_rows_across_methods_and_rectangular_inputs():
     first = np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
     second = first[[1, 0, 2]]
