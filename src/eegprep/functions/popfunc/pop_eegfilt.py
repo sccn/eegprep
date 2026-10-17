@@ -30,8 +30,9 @@ def pop_eegfilt(
 
     Continuous data with a boundary event keeps the dtype of ``EEG.data``.
     Every other result is float64. The filter runs in float64. EEGLAB
-    eegfilt.m:210 runs filtfilt on single-precision input in single precision,
-    so its result differs from this one by single-precision rounding.
+    eegfilt.m:209-210 runs filter/filtfilt on single-precision input in single
+    precision (falling back to double only on error, :213-215), so its result
+    differs from this one by single-precision rounding.
     """
     if EEG is None:
         raise ValueError("Pop_eegfilt() error: cannot filter an empty dataset")
