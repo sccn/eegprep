@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.adminfunc.eeglabcompat import _resolve_eeglab_root, get_eeglab
+from eegprep.functions.miscfunc.misc import matlab_mtimes
 from eegprep.functions.popfunc import pop_erpimage as pop_erpimage_module
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
@@ -50,11 +51,21 @@ def _times(EEG: dict) -> np.ndarray:
     return np.linspace(EEG["xmin"] * 1000, EEG["xmax"] * 1000, EEG["pnts"])
 
 
-def _activations(EEG: dict) -> np.ndarray:
-    """ICA activity recomputed from the weights, (components, points, trials)."""
-    data = np.asarray(EEG["data"], dtype=float)
-    unmixing = np.dot(np.asarray(EEG["icaweights"]), np.asarray(EEG["icasphere"]))
-    return np.einsum("kc,cpt->kpt", unmixing, data[np.asarray(EEG["icachansind"])])
+def _activations(EEG: dict, components: list[int] | None = None) -> np.ndarray:
+    """``(icaweights*icasphere)*data`` in the data class, (components, points, trials).
+
+    The full matrix is what ``eeg_checkset.m:1030`` stores and ``eeg_getdatact.m:177``
+    returns. A component list forms ``icaweights(components,:)*icasphere`` first,
+    which is the empty-``icaact`` product at ``eeg_getdatact.m:196``.
+    """
+    data = np.asarray(EEG["data"])
+    channels = np.asarray(EEG["icachansind"])
+    flat = np.reshape(data[channels], (channels.size, -1), order="F")
+    weights = np.asarray(EEG["icaweights"])
+    if components is not None:
+        weights = weights[np.asarray(components) - 1]
+    product = matlab_mtimes(matlab_mtimes(weights, np.asarray(EEG["icasphere"])), flat)
+    return np.reshape(product, (weights.shape[0], int(EEG["pnts"]), int(EEG["trials"])), order="F")
 
 
 # ----------------------------------------------------------------------------- command line
@@ -88,16 +99,17 @@ def test_without_a_sorting_field_trials_keep_their_order_at_the_epoch_end(epochs
 def test_component_activity_and_its_projections(epochs) -> None:
     eeg = deepcopy(epochs)
     eeg["icaact"] = np.array([])
-    activity = _activations(eeg)
+    activity = _activations(eeg, [6])
     maps = np.asarray(eeg["icawinv"])
     plain = pop_erpimage(eeg, 0, 6, noshow=True, smooth=1)
-    np.testing.assert_allclose(plain.outdata, activity[5], rtol=0, atol=1e-9)
+    np.testing.assert_allclose(plain.outdata, activity[0], rtol=0, atol=1e-9)
     projected = pop_erpimage(eeg, 0, 6, 27, noshow=True, smooth=1)
-    np.testing.assert_allclose(projected.outdata, maps[26, 5] * activity[5], rtol=0, atol=1e-9)
+    np.testing.assert_allclose(projected.outdata, maps[26, 5] * activity[0], rtol=0, atol=1e-9)
+    pair = _activations(eeg, [6, 7])
     summed = pop_erpimage(eeg, 0, [6, 7], "POz", noshow=True, smooth=1)
-    np.testing.assert_allclose(summed.outdata, np.tensordot(maps[26, [5, 6]], activity[[5, 6]], 1), atol=1e-9)
+    np.testing.assert_allclose(summed.outdata, np.tensordot(maps[26, [5, 6]], pair, 1), atol=1e-9)
     averaged = pop_erpimage(eeg, 0, 6, [27, 31], noshow=True, smooth=1)
-    np.testing.assert_allclose(averaged.outdata, maps[[26, 30], 5].mean() * activity[5], rtol=0, atol=1e-9)
+    np.testing.assert_allclose(averaged.outdata, maps[[26, 30], 5].mean() * activity[0], rtol=0, atol=1e-9)
 
 
 def test_channel_figure_has_erp_colorbar_scalp_map_and_label_title(epochs) -> None:
