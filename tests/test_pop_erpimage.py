@@ -102,11 +102,12 @@ def test_component_activity_and_its_projections(epochs) -> None:
     activity = _activations(eeg, [6])
     maps = np.asarray(eeg["icawinv"])
     plain = pop_erpimage(eeg, 0, 6, noshow=True, smooth=1)
-    np.testing.assert_allclose(plain.outdata, activity[0], rtol=0, atol=1e-9)
+    np.testing.assert_array_equal(plain.outdata, activity[0])
     projected = pop_erpimage(eeg, 0, 6, 27, noshow=True, smooth=1)
-    np.testing.assert_allclose(projected.outdata, maps[26, 5] * activity[0], rtol=0, atol=1e-9)
+    np.testing.assert_array_equal(projected.outdata, maps[26, 5] * activity[0])
     pair = _activations(eeg, [6, 7])
     summed = pop_erpimage(eeg, 0, [6, 7], "POz", noshow=True, smooth=1)
+    # atol covers the double-precision map sum/mean order (measured 7.1e-15).
     np.testing.assert_allclose(summed.outdata, np.tensordot(maps[26, [5, 6]], pair, 1), atol=1e-9)
     averaged = pop_erpimage(eeg, 0, 6, [27, 31], noshow=True, smooth=1)
     np.testing.assert_allclose(averaged.outdata, maps[[26, 30], 5].mean() * activity[0], rtol=0, atol=1e-9)
@@ -355,7 +356,7 @@ def test_last_channel_and_component_are_accepted_and_the_next_one_is_rejected(ep
         pop_erpimage(eeg, 1, 4, noshow=True)
     count = np.asarray(epochs["icaweights"]).shape[0]
     last = pop_erpimage(epochs, 0, count, smooth=0, noshow=True)
-    np.testing.assert_allclose(last.outdata, _activations(epochs)[count - 1], rtol=1e-6, atol=1e-6)
+    np.testing.assert_array_equal(last.outdata, _activations(epochs)[count - 1])
     with pytest.raises(ValueError, match=rf"component {count + 1} is outside 1\.\.{count}"):
         pop_erpimage(epochs, 0, count + 1, noshow=True)
 
