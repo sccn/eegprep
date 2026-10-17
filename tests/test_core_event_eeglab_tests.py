@@ -22,6 +22,7 @@ from eegprep import (
     eeg_mergechan,
     eeg_mergelocs,
     eeg_timeinterp,
+    getchanlist,
 )
 from eegprep.functions.popfunc.eeg_getepochevent import event_type_text
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -531,13 +532,13 @@ def test_eeg_amplitudearea_current_suite_epoched_cases():
     data[0] = [[1, 1, 2, 2], [1, 1, 2, 2], [1, 1, 2, 2]]
     data[1] = [[2, 2, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1]]
     eeg = {"data": data, "times": np.array([0, 1000, 2000]), "xmin": 0, "xmax": 2}
-    channels, amplitude = eeg_amplitudearea(eeg, [0, 1], 1, 0, 3)
-    np.testing.assert_array_equal(channels, [0, 1])
+    channels, amplitude = eeg_amplitudearea(eeg, [1, 2], 1, 0, 3)
+    np.testing.assert_array_equal(channels, [1, 2])
     np.testing.assert_allclose(amplitude, [1.5, 1.9985], atol=1e-12)
 
     data[0] = [[1, 4, 13, 16], [2, 5, 14, 17], [3, 6, 15, 18]]
     data[1] = [[7, 10, 19, 22], [8, 11, 20, 23], [9, 12, 21, 24]]
-    _, second_amplitude = eeg_amplitudearea(eeg, [0, 1], 1, 0, 3)
+    _, second_amplitude = eeg_amplitudearea(eeg, [1, 2], 1, 0, 3)
     assert np.all(np.isfinite(second_amplitude))
     assert second_amplitude[1] > second_amplitude[0]
 
@@ -547,8 +548,12 @@ def test_eeg_amplitudearea_current_suite_epoched_cases():
         "xmin": 0,
         "xmax": 0.002,
     }
-    _, truncated_interval = eeg_amplitudearea(linear, [0], 1, 0, 1.5)
+    _, truncated_interval = eeg_amplitudearea(linear, [1], 1, 0, 1.5)
     np.testing.assert_allclose(truncated_interval, [0.75], atol=1e-12)
+    with pytest.raises(ValueError, match="1-based"):
+        eeg_amplitudearea(eeg, [0, 2], 1, 0, 3)
+    with pytest.raises(ValueError, match="1-based"):
+        eeg_amplitudearea(eeg, [1, 3], 1, 0, 3)
 
 
 def test_eeg_chaninds_current_suite_label_forms():
@@ -824,6 +829,19 @@ def test_reference_urlatency_missing_duration(eeglab_backend):
         [[("boundary", 1.5), ("boundary", 5.5), ("boundary", 9.5)]], dtype=[("type", object), ("latency", object)]
     )
     assert_matlab_near(eeglab_backend("eeg_urlatency", events, 9.0), [[np.nan]])
+
+
+def test_getchanlist_returns_one_based_first_and_last_channels():
+    locations = [
+        {"labels": "Fp1", "type": "EEG"},
+        {"labels": "EOG", "type": "EOG"},
+        {"labels": "Cz", "type": "eeg"},
+    ]
+    assert getchanlist(locations) == [1, 2, 3]
+    assert getchanlist(locations, "eog") == [2]
+    assert getchanlist(locations, ["EEG"]) == [1, 3]
+    assert getchanlist(locations, "missing") == []
+    assert getchanlist([]) == []
 
 
 @eeglab_test("unittesting_popfunc/getchanlist/popfunc_getchanlist_wrapperTest.m", "test_pass_cell")

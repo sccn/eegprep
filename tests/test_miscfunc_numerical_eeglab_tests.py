@@ -99,7 +99,7 @@ def test_reference_matperm(eeglab_backend):
         "matperm", first, second, indices, np.array([[1.0], [2.0], [3.0]]), np.ones((3, 1)), nargout=2
     )
     _assert_near(reordered, second)
-    _assert_near(permutation, indices)
+    _assert_near(np.ravel(permutation), np.ravel(indices))
 
 
 @eeglab_test(_source("means"), "test_test_means")
@@ -376,31 +376,31 @@ def test_python_regression_abspeak_returns_last_tied_peak_and_its_sign():
         (
             [[-2, -2, -2, -2], [5, 5, 5, 5]],
             [2, 5],
-            [3, 3],
+            [4, 4],
             [-1, 1],
         ),
         (
             [[-2, -1, -3, -5, -4], [-8, -2, -6, -7, -1]],
             [5, 8],
-            [3, 0],
+            [4, 1],
             [-1, -1],
         ),
         (
             [[2, 1, 3, 5, 4], [8, 2, 6, 7, 1]],
             [5, 8],
-            [3, 0],
+            [4, 1],
             [1, 1],
         ),
         (
             [[5, -1, 7, -3, 9], [-2, 4, -7, 3, -5]],
             [9, 7],
-            [4, 2],
+            [5, 3],
             [1, -1],
         ),
         (
             [[-2, -2.0000000000001, -1.9999999999999, -2], [5.0000000000002, -5.0000000000001, 5, 5]],
             [2.0000000000001, 5.0000000000002],
-            [1, 0],
+            [2, 1],
             [-1, 1],
         ),
     ]
@@ -410,24 +410,26 @@ def test_python_regression_abspeak_returns_last_tied_peak_and_its_sign():
         np.testing.assert_array_equal(frames[:, 0], expected_frames)
         np.testing.assert_array_equal(signs[:, 0], expected_signs)
 
+    amplitudes, frames, signs = abspeak([[9, 1, 2], [3, 4, -8]])
+    np.testing.assert_array_equal(frames[:, 0], [1, 3])
     amplitudes, frames, signs = abspeak([[1, np.inf, 3], [-np.inf, 2, np.inf]])
     np.testing.assert_array_equal(amplitudes[:, 0], [np.inf, np.inf])
-    np.testing.assert_array_equal(frames[:, 0], [1, 2])
+    np.testing.assert_array_equal(frames[:, 0], [2, 3])
     np.testing.assert_array_equal(signs[:, 0], [1, 1])
     amplitudes, frames, signs = abspeak([[1, -4, -7, 2]], 2)
     np.testing.assert_array_equal(amplitudes, [[4, 7]])
-    np.testing.assert_array_equal(frames, [[1, 0]])
+    np.testing.assert_array_equal(frames, [[2, 1]])
     np.testing.assert_array_equal(signs, [[-1, -1]])
     amplitudes, frames, signs = abspeak([[1 + 1j, 3 + 4j]])
     np.testing.assert_allclose(amplitudes, [[5]])
-    np.testing.assert_array_equal(frames, [[1]])
+    np.testing.assert_array_equal(frames, [[2]])
     np.testing.assert_allclose(signs, [[0.6 + 0.8j]])
 
 
 def test_python_regression_abspeak_ignores_nan_without_masking_infinite_peaks():
     amplitudes, frames, signs = abspeak([[np.nan, -np.inf, np.nan], [np.nan, np.nan, np.nan]])
     assert amplitudes[0, 0] == np.inf
-    assert frames[0, 0] == 1
+    assert frames[0, 0] == 2
     assert signs[0, 0] == -1
     assert np.isnan(amplitudes[1, 0])
     assert frames[1, 0] == -1
@@ -517,15 +519,20 @@ def test_python_regression_hungarian_finds_known_global_minima_with_unique_assig
     for matrix, expected_cost in cases:
         costs = np.asarray(matrix)
         assignment, total = hungarian(costs)
-        np.testing.assert_array_equal(np.sort(assignment), np.arange(4))
+        np.testing.assert_array_equal(np.sort(assignment), np.arange(1, 5))
+        assert assignment.min() == 1
+        assert assignment.max() == 4
         assert total == pytest.approx(expected_cost)
         brute_force = min(
             sum(costs[row, column] for column, row in enumerate(order)) for order in itertools.permutations(range(4))
         )
         assert total == pytest.approx(brute_force)
     assignment, total = hungarian([[1, np.inf], [np.inf, 2]])
-    np.testing.assert_array_equal(assignment, [0, 1])
+    np.testing.assert_array_equal(assignment, [1, 2])
     assert total == 3
+    swapped, swapped_cost = hungarian([[5, 0], [0, 5]])
+    np.testing.assert_array_equal(swapped, [2, 1])
+    assert swapped_cost == 0
     with pytest.raises(ValueError, match="no finite complete assignment"):
         hungarian([[1, np.inf], [2, np.inf]])
 
@@ -539,13 +546,38 @@ def test_python_regression_mapcorr_aligns_values_by_channel_label_before_matchin
         first, second, first_channels, second_channels, method=0
     )
     np.testing.assert_allclose(correlations, [1, 1])
-    np.testing.assert_array_equal(first[first_indices], first[[0, 1]])
-    np.testing.assert_array_equal(second_indices, [0, 1])
+    np.testing.assert_array_equal(first_indices, [1, 2])
+    np.testing.assert_array_equal(second_indices, [1, 2])
+    np.testing.assert_array_equal(first[first_indices - 1], first[[0, 1]])
     np.testing.assert_allclose(np.diag(all_correlations), 1)
+    edge_channels = [{"labels": "A"}, {"labels": "B"}]
+    edge_first = np.asarray([[1.0, 0.0], [0.0, 1.0], [2.0, 2.0]])
+    edge_second = np.asarray([[2.0, 2.0], [0.0, 1.0], [1.0, 0.0]])
+    _edge_correlations, edge_first_indices, edge_second_indices, _edge_matrix = mapcorr(
+        edge_first, edge_second, edge_channels, edge_channels, method=2
+    )
+    assert edge_first_indices.min() == 1 and edge_first_indices.max() == 3
+    assert edge_second_indices.min() == 1 and edge_second_indices.max() == 3
+    np.testing.assert_array_equal(edge_first[edge_first_indices - 1], edge_second[edge_second_indices - 1])
+    np.testing.assert_array_equal(edge_second_indices[edge_first_indices == 3], [1])
+    np.testing.assert_array_equal(edge_second_indices[edge_first_indices == 1], [3])
     zero_weight = mapcorr(first, second, first_channels, second_channels, method=0, weighting=0)
     np.testing.assert_allclose(zero_weight[3], all_correlations)
     with pytest.raises(ValueError, match="unique"):
         mapcorr(first, second, first_channels, [{"labels": "Pz"}] * 4)
+
+
+def test_python_regression_mapcorr_keeps_requested_method_for_nonsquare_maps():
+    channels = [{"labels": name} for name in ("Fz", "Cz", "Pz")]
+    first = np.asarray([[2, 2, 2], [2, 2, 1]], dtype=float)
+    second = np.asarray([[2, 2, 2], [2, 1, 2]], dtype=float)
+    hungarian_values, hungarian_rows, hungarian_columns, _matrix = mapcorr(first, second, channels, channels, method=0)
+    greedy_values, greedy_rows, greedy_columns, _matrix = mapcorr(first, second, channels, channels, method=2)
+    np.testing.assert_array_equal(hungarian_rows, [1, 2])
+    np.testing.assert_array_equal(hungarian_columns, [2, 1])
+    np.testing.assert_array_equal(greedy_rows, [1, 2])
+    np.testing.assert_array_equal(greedy_columns, [1, 2])
+    assert np.abs(hungarian_values).sum() > np.abs(greedy_values).sum()
 
 
 def test_python_regression_matcorr_matches_permuted_rows_across_methods_and_rectangular_inputs():
@@ -553,9 +585,11 @@ def test_python_regression_matcorr_matches_permuted_rows_across_methods_and_rect
     second = first[[1, 0, 2]]
     for method in (0, 1, 2):
         correlations, first_indices, second_indices, matrix = matcorr(first, second, method=method)
-        np.testing.assert_allclose(first[first_indices], second[second_indices])
+        np.testing.assert_array_equal(np.sort(first_indices), [1, 2, 3])
+        np.testing.assert_array_equal(np.sort(second_indices), [1, 2, 3])
+        np.testing.assert_allclose(first[first_indices - 1], second[second_indices - 1])
         np.testing.assert_allclose(correlations, 1)
-        np.testing.assert_allclose(matrix[first_indices, second_indices], 1)
+        np.testing.assert_allclose(matrix[first_indices - 1, second_indices - 1], 1)
     centered = matcorr(first, second, remove_mean=True)
     np.testing.assert_allclose(centered[0], 1)
     rectangular = np.vstack([first, [1, 5, 9]])
@@ -566,16 +600,32 @@ def test_python_regression_matcorr_matches_permuted_rows_across_methods_and_rect
     weights = np.asarray([[1, 0.4, 0.6], [0.5, 0.8, 1], [0.2, 1, 0.9]])
     weighted = matcorr(first, second, weighting=weights)
     np.testing.assert_allclose(weighted[3], matcorr(first, second)[3] * weights)
+    identity = np.eye(4)
+    reordered = identity[[3, 0, 1, 2]]
+    _correlations, first_indices, second_indices, _matrix = matcorr(identity, reordered, method=2)
+    assert first_indices.min() == 1 and first_indices.max() == 4
+    assert second_indices.min() == 1 and second_indices.max() == 4
+    np.testing.assert_array_equal(identity[first_indices - 1], reordered[second_indices - 1])
+    np.testing.assert_array_equal(second_indices[first_indices == 4], [1])
+    np.testing.assert_array_equal(second_indices[first_indices == 1], [2])
 
 
 def test_python_regression_matperm_reorders_rows_and_corrects_component_polarity():
     first = np.asarray([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     second = np.asarray([[4, 5, 6], [-1, -2, -3], [7, 8, 9]])
-    output, permutation = matperm(first, second, [1, 0, 2], [0, 1, 2], [1, -1, 1])
+    output, permutation = matperm(first, second, [2, 1, 3], [1, 2, 3], [1, -1, 1])
     np.testing.assert_array_equal(output, second)
-    np.testing.assert_array_equal(permutation, [1, 0, 2])
+    np.testing.assert_array_equal(permutation, [2, 1, 3])
+    edge = np.asarray([[10, 11], [20, 21], [30, 31]])
+    output, permutation = matperm(edge, edge[[2, 1, 0]], [3, 2, 1], [1, 2, 3], [-1, 1, 1])
+    np.testing.assert_array_equal(output, [[-30, -31], [20, 21], [10, 11]])
+    np.testing.assert_array_equal(permutation, [3, 2, 1])
+    with pytest.raises(IndexError):
+        matperm(edge, edge, [0, 2, 3], [1, 2, 3], [1, 1, 1])
+    with pytest.raises(IndexError):
+        matperm(edge, edge, [1, 2, 4], [1, 2, 3], [1, 1, 1])
     with pytest.raises(ValueError, match="integers"):
-        matperm(first, second, [0.9], [0], [1])
+        matperm(first, second, [0.9], [1], [1])
 
 
 def test_python_regression_means_computes_groupwise_statistics_along_observations():
