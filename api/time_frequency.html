@@ -514,6 +514,31 @@
   <section id="time-frequency">
 <span id="api-time-frequency"></span><h1>Time-Frequency<a class="headerlink" href="#time-frequency" title="Link to this heading">#</a></h1>
 <p>Time-frequency decomposition, coherence, phase-amplitude coupling, and time warping.</p>
+<p><code class="docutils literal notranslate"><span class="pre">newtimef</span></code> accepts the <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> names from <code class="docutils literal notranslate"><span class="pre">newtimef.m</span></code> as keywords
+or positional name/value pairs, including <code class="docutils literal notranslate"><span class="pre">chaninfo</span></code>, <code class="docutils literal notranslate"><span class="pre">ntimesout</span></code>,
+<code class="docutils literal notranslate"><span class="pre">plotamp</span></code>, <code class="docutils literal notranslate"><span class="pre">maxfreq</span></code>, <code class="docutils literal notranslate"><span class="pre">cycleinc</span></code>, and <code class="docutils literal notranslate"><span class="pre">newfig</span></code>. Other names that
+<code class="docutils literal notranslate"><span class="pre">timefreq</span></code> accepts (<code class="docutils literal notranslate"><span class="pre">ffttaper</span></code>, <code class="docutils literal notranslate"><span class="pre">wavelet</span></code>, <code class="docutils literal notranslate"><span class="pre">timestretch</span></code>) are
+forwarded to it. A forwarded <code class="docutils literal notranslate"><span class="pre">wavelet</span></code> replaces <code class="docutils literal notranslate"><span class="pre">cycles</span></code> inside
+<code class="docutils literal notranslate"><span class="pre">timefreq</span></code> (<code class="docutils literal notranslate"><span class="pre">newtimef.m</span></code> lines 1186-1188). EEGLAB still applies the
+lines 1207-1209 FFT scale, <code class="docutils literal notranslate"><span class="pre">2/0.375/winsize</span></code> (default <code class="docutils literal notranslate"><span class="pre">winsize</span></code> at
+line 453), from the original <code class="docutils literal notranslate"><span class="pre">cycles</span></code>; EEGPrep applies it only to the
+decomposition that ran. Any other name, including <code class="docutils literal notranslate"><span class="pre">overlap</span></code>, is an
+undefined <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> argument, reported with the caller’s spelling.
+<code class="docutils literal notranslate"><span class="pre">rng</span></code> is an EEGPrep-only name that seeds the bootstrap.
+Defaults follow the <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> list, including <code class="docutils literal notranslate"><span class="pre">baseline</span></code> 0,
+<code class="docutils literal notranslate"><span class="pre">scale</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;log&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">timesout</span></code> 200, and <code class="docutils literal notranslate"><span class="pre">padratio</span></code> 2. <code class="docutils literal notranslate"><span class="pre">ntimesout</span></code> is
+the output time count when <code class="docutils literal notranslate"><span class="pre">timesout</span></code> is not a vector. <code class="docutils literal notranslate"><span class="pre">itctype</span></code> replaces
+<code class="docutils literal notranslate"><span class="pre">type</span></code> unless it is <code class="docutils literal notranslate"><span class="pre">phasecoher</span></code>. The default frequency range is
+<code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">50]</span></code>; <code class="docutils literal notranslate"><span class="pre">maxfreq</span></code> above the Nyquist rate is capped and then written
+into that range, so a sampling rate below 100 Hz yields <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">Nyquist]</span></code>.
+A figure is drawn when <code class="docutils literal notranslate"><span class="pre">plotersp</span></code> or <code class="docutils literal notranslate"><span class="pre">plotitc</span></code> is on. <code class="docutils literal notranslate"><span class="pre">plotamp</span></code> off
+turns <code class="docutils literal notranslate"><span class="pre">plotersp</span></code> off.</p>
+<p><code class="docutils literal notranslate"><span class="pre">make_timewarp</span></code> accepts <code class="docutils literal notranslate"><span class="pre">baselineLatency</span></code>, <code class="docutils literal notranslate"><span class="pre">eventConditions</span></code>,
+<code class="docutils literal notranslate"><span class="pre">maxSTDForAbsolute</span></code>, and <code class="docutils literal notranslate"><span class="pre">maxSTDForRelative</span></code> as keywords or positional
+name/value pairs. The Python names <code class="docutils literal notranslate"><span class="pre">baseline_latency</span></code>, <code class="docutils literal notranslate"><span class="pre">event_conditions</span></code>,
+<code class="docutils literal notranslate"><span class="pre">max_std_for_absolute</span></code>, and <code class="docutils literal notranslate"><span class="pre">max_std_for_relative</span></code> do the same thing.
+Returned epoch indices are zero-based. Defaults are a baseline of 0 and no
+standard-deviation rejection.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.angtimewarp.html#eegprep.angtimewarp" title="eegprep.angtimewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.angtimewarp</span></code></a>(ev_latency, new_latency, ...)</p></td>
@@ -543,7 +568,7 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.newtimeftrialbaseln.html#eegprep.newtimeftrialbaseln" title="eegprep.newtimeftrialbaseln"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.newtimeftrialbaseln</span></code></a>(power, timesout, *)</p></td>
 <td><p>Apply trial-level divisive or standardized baseline correction.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.make_timewarp.html#eegprep.make_timewarp" title="eegprep.make_timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.make_timewarp</span></code></a>(eeg, event_sequence, *)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.make_timewarp.html#eegprep.make_timewarp" title="eegprep.make_timewarp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.make_timewarp</span></code></a>(eeg, event_sequence, *args)</p></td>
 <td><p>Select epochs containing an ordered event sequence.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pac.html#eegprep.pac" title="eegprep.pac"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pac</span></code></a>(X, Y, srate, **kwargs)</p></td>

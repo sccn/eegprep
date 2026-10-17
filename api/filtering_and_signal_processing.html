@@ -520,6 +520,10 @@
   <section id="filtering-and-signal-processing">
 <span id="api-filtering-and-signal-processing"></span><h1>Filtering and Signal Processing<a class="headerlink" href="#filtering-and-signal-processing" title="Link to this heading">#</a></h1>
 <p>FIR filter design, filtering helpers, and window functions.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code> accepts <code class="docutils literal notranslate"><span class="pre">cycleinc</span></code>, <code class="docutils literal notranslate"><span class="pre">winsize</span></code>, and <code class="docutils literal notranslate"><span class="pre">timesupport</span></code> as keywords
+or positional name/value pairs. Defaults are linear cycle spacing, a
+variable-length Morlet wavelet, and a time support of seven standard
+deviations. <code class="docutils literal notranslate"><span class="pre">type</span></code> is not an option.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.blockave.html#eegprep.blockave" title="eegprep.blockave"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.blockave</span></code></a>(data, frames[, epochs, weights])</p></td>
@@ -531,7 +535,7 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.dftfilt2.html#eegprep.dftfilt2" title="eegprep.dftfilt2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.dftfilt2</span></code></a>(freqs, cycles, srate[, ...])</p></td>
 <td><p>Return EEGLAB <code class="docutils literal notranslate"><span class="pre">dftfilt2</span></code> wavelet filters.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.dftfilt3.html#eegprep.dftfilt3" title="eegprep.dftfilt3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.dftfilt3</span></code></a>(freqs, cycles, srate, *[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.dftfilt3.html#eegprep.dftfilt3" title="eegprep.dftfilt3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.dftfilt3</span></code></a>(freqs, cycles, srate, ...)</p></td>
 <td><p>Return EEGLAB <code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code>-style complex wavelet filters.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.eegfilt.html#eegprep.eegfilt" title="eegprep.eegfilt"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.eegfilt</span></code></a>(data, srate, locutoff, hicutoff)</p></td>

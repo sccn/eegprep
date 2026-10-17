@@ -539,6 +539,37 @@ data. The filter runs in float64. EEGLAB eegfilt.m:209-210 runs filter/filtfilt
 on single-precision input in single precision (falling back to double only on
 error, :213-215), so its result differs from this one by single-precision
 rounding.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">runica</span></code>, <code class="docutils literal notranslate"><span class="pre">runicalowmem</span></code>, <code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code>, <code class="docutils literal notranslate"><span class="pre">make_timewarp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">newtimef</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_editoptions</span></code> accept
+EEGLAB positional name/value pairs as well as keywords. <code class="docutils literal notranslate"><span class="pre">make_timewarp</span></code> also
+accepts <code class="docutils literal notranslate"><span class="pre">baselineLatency</span></code>, <code class="docutils literal notranslate"><span class="pre">eventConditions</span></code>, <code class="docutils literal notranslate"><span class="pre">maxSTDForAbsolute</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">maxSTDForRelative</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_editoptions(&quot;option_storedisk&quot;,</span> <span class="pre">1)</span></code>
+updates that option. <code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code> still rejects <code class="docutils literal notranslate"><span class="pre">type</span></code>; EEGLAB’s error
+text lists it, but <code class="docutils literal notranslate"><span class="pre">dftfilt3.m</span></code> does not accept it. An omitted <code class="docutils literal notranslate"><span class="pre">runica</span></code>
+<code class="docutils literal notranslate"><span class="pre">rndreset</span></code> stays off (<code class="docutils literal notranslate"><span class="pre">RandomState(5489)</span></code>). <code class="docutils literal notranslate"><span class="pre">runica.m</span></code> line 205 still
+sets <code class="docutils literal notranslate"><span class="pre">DEFAULT_RESETRANDOMSEED</span> <span class="pre">=</span> <span class="pre">true</span></code>, but the help at lines 48-50 says
+the default has been <code class="docutils literal notranslate"><span class="pre">'off'</span></code> since 2015. <code class="docutils literal notranslate"><span class="pre">newtimef</span></code> accepts every
+name in the <code class="docutils literal notranslate"><span class="pre">newtimef.m</span></code> <code class="docutils literal notranslate"><span class="pre">finputcheck</span></code> list (lines 513-587). Mode
+<code class="docutils literal notranslate"><span class="pre">ignore</span></code> (line 587) forwards <code class="docutils literal notranslate"><span class="pre">ffttaper</span></code>, <code class="docutils literal notranslate"><span class="pre">wavelet</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">timestretch</span></code> to <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> (line 1188). A forwarded <code class="docutils literal notranslate"><span class="pre">wavelet</span></code>
+replaces <code class="docutils literal notranslate"><span class="pre">cycles</span></code> inside <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> because lines 1186-1188 pass
+<code class="docutils literal notranslate"><span class="pre">g.cycles</span></code> first and the last value wins. EEGLAB does not update
+<code class="docutils literal notranslate"><span class="pre">newtimef</span></code>’s own <code class="docutils literal notranslate"><span class="pre">g.cycles</span></code>, so the FFT scale at lines 1207-1209
+(<code class="docutils literal notranslate"><span class="pre">2/0.375/winsize</span></code> when <code class="docutils literal notranslate"><span class="pre">g.cycles(1)==0</span></code>, squared for power; the
+default <code class="docutils literal notranslate"><span class="pre">winsize</span></code> is line 453) follows the original <code class="docutils literal notranslate"><span class="pre">cycles</span></code>. A
+<code class="docutils literal notranslate"><span class="pre">wavelet</span></code> of 0 therefore runs an unscaled FFT, and <code class="docutils literal notranslate"><span class="pre">cycles</span></code> 0 with a
+wavelet applies that FFT scale to the wavelet. EEGPrep scales the
+decomposition that ran. Any other name, including <code class="docutils literal notranslate"><span class="pre">overlap</span></code>, is an
+undefined <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> argument, reported with the caller’s spelling.
+<code class="docutils literal notranslate"><span class="pre">freqrange</span></code>, <code class="docutils literal notranslate"><span class="pre">erspboot</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">itcboot</span></code> are undefined arguments. <code class="docutils literal notranslate"><span class="pre">rng</span></code> is an EEGPrep-only name
+that seeds the bootstrap. A scalar <code class="docutils literal notranslate"><span class="pre">freqs</span></code> keeps its first value
+when <code class="docutils literal notranslate"><span class="pre">maxfreq</span></code> replaces <code class="docutils literal notranslate"><span class="pre">freqs(2)</span></code>. <code class="docutils literal notranslate"><span class="pre">ntimesout</span></code> sets the time
+count when <code class="docutils literal notranslate"><span class="pre">timesout</span></code> is not a vector (lines 1176-1182). <code class="docutils literal notranslate"><span class="pre">itctype</span></code>
+replaces <code class="docutils literal notranslate"><span class="pre">type</span></code> unless it is <code class="docutils literal notranslate"><span class="pre">phasecoher</span></code> (line 591). The default
+frequency range is <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">50]</span></code>; <code class="docutils literal notranslate"><span class="pre">maxfreq</span></code> above Nyquist is capped and
+written into <code class="docutils literal notranslate"><span class="pre">freqs</span></code> (lines 704-709). Integer-valued MATLAB doubles such
+as <code class="docutils literal notranslate"><span class="pre">runica(...,</span> <span class="pre">'pca',</span> <span class="pre">2)</span></code> are left for the shared boundary converter.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">erpimage</span></code> is now a faithful port of EEGLAB’s <code class="docutils literal notranslate"><span class="pre">erpimage</span></code>: it takes
 EEGLAB’s arguments and options (as tokens or keywords) and returns its fifteen
 outputs plus the figure. Sorting, smoothing and decimation, phase and

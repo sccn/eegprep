@@ -528,18 +528,22 @@
 <h1>dftfilt3<a class="headerlink" href="#dftfilt3" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.dftfilt3">
-<span class="sig-name descname"><span class="pre">dftfilt3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freqs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cycles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srate</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">cycleinc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'linear'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">winsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timesupport</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">7.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.dftfilt3" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">dftfilt3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freqs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cycles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srate</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.dftfilt3" title="Link to this definition">#</a></dt>
 <dd><p>Return EEGLAB <code class="docutils literal notranslate"><span class="pre">dftfilt3</span></code>-style complex wavelet filters.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cycleinc</span></code>, <code class="docutils literal notranslate"><span class="pre">winsize</span></code>, and <code class="docutils literal notranslate"><span class="pre">timesupport</span></code> may be keywords or positional
+name/value pairs. <code class="docutils literal notranslate"><span class="pre">cycleinc</span></code> is <code class="docutils literal notranslate"><span class="pre">&quot;linear&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;log&quot;</span></code> (default
+<code class="docutils literal notranslate"><span class="pre">&quot;linear&quot;</span></code>). <code class="docutils literal notranslate"><span class="pre">winsize</span></code> is an optional fixed filter length; when omitted,
+Morlet filters use a seven-standard-deviation support and variable lengths.
+<code class="docutils literal notranslate"><span class="pre">timesupport</span></code> is the number of temporal standard deviations included
+(default 7).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>freqs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – Frequencies of interest in Hz.</p></li>
 <li><p><strong>cycles</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – Scalar, two-value, or per-frequency cycle specification.</p></li>
 <li><p><strong>srate</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Sampling rate in Hz.</p></li>
-<li><p><strong>cycleinc</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – <code class="docutils literal notranslate"><span class="pre">&quot;linear&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;log&quot;</span></code> interpolation for two cycle values.</p></li>
-<li><p><strong>winsize</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Optional fixed filter length. When omitted, Morlet filters use
-EEGLAB’s seven-standard-deviation support and variable lengths.</p></li>
-<li><p><strong>timesupport</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Number of temporal standard deviations included.</p></li>
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
+<li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>

@@ -73,6 +73,37 @@ Unreleased
   on single-precision input in single precision (falling back to double only on
   error, :213-215), so its result differs from this one by single-precision
   rounding.
+- ``runica``, ``runicalowmem``, ``dftfilt3``, ``make_timewarp``,
+  ``newtimef``, ``pop_biosig``, ``pop_fileio``, and ``pop_editoptions`` accept
+  EEGLAB positional name/value pairs as well as keywords. ``make_timewarp`` also
+  accepts ``baselineLatency``, ``eventConditions``, ``maxSTDForAbsolute``,
+  and ``maxSTDForRelative``. ``pop_editoptions("option_storedisk", 1)``
+  updates that option. ``dftfilt3`` still rejects ``type``; EEGLAB's error
+  text lists it, but ``dftfilt3.m`` does not accept it. An omitted ``runica``
+  ``rndreset`` stays off (``RandomState(5489)``). ``runica.m`` line 205 still
+  sets ``DEFAULT_RESETRANDOMSEED = true``, but the help at lines 48-50 says
+  the default has been ``'off'`` since 2015. ``newtimef`` accepts every
+  name in the ``newtimef.m`` ``finputcheck`` list (lines 513-587). Mode
+  ``ignore`` (line 587) forwards ``ffttaper``, ``wavelet``, and
+  ``timestretch`` to ``timefreq`` (line 1188). A forwarded ``wavelet``
+  replaces ``cycles`` inside ``timefreq`` because lines 1186-1188 pass
+  ``g.cycles`` first and the last value wins. EEGLAB does not update
+  ``newtimef``'s own ``g.cycles``, so the FFT scale at lines 1207-1209
+  (``2/0.375/winsize`` when ``g.cycles(1)==0``, squared for power; the
+  default ``winsize`` is line 453) follows the original ``cycles``. A
+  ``wavelet`` of 0 therefore runs an unscaled FFT, and ``cycles`` 0 with a
+  wavelet applies that FFT scale to the wavelet. EEGPrep scales the
+  decomposition that ran. Any other name, including ``overlap``, is an
+  undefined ``timefreq`` argument, reported with the caller's spelling.
+  ``freqrange``, ``erspboot``, and
+  ``itcboot`` are undefined arguments. ``rng`` is an EEGPrep-only name
+  that seeds the bootstrap. A scalar ``freqs`` keeps its first value
+  when ``maxfreq`` replaces ``freqs(2)``. ``ntimesout`` sets the time
+  count when ``timesout`` is not a vector (lines 1176-1182). ``itctype``
+  replaces ``type`` unless it is ``phasecoher`` (line 591). The default
+  frequency range is ``[0, 50]``; ``maxfreq`` above Nyquist is capped and
+  written into ``freqs`` (lines 704-709). Integer-valued MATLAB doubles such
+  as ``runica(..., 'pca', 2)`` are left for the shared boundary converter.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

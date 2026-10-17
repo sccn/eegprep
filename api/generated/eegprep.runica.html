@@ -542,8 +542,10 @@
 <h1>runica<a class="headerlink" href="#runica" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.runica">
-<span class="sig-name descname"><span class="pre">runica</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.runica" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">runica</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.runica" title="Link to this definition">#</a></dt>
 <dd><p>Perform Independent Component Analysis (ICA) decomposition using infomax.</p>
+<p>Positional EEGLAB name/value pairs, such as <code class="docutils literal notranslate"><span class="pre">runica(data,</span> <span class="pre">'extended',</span> <span class="pre">1)</span></code>,
+are accepted and merged with keywords. Pair names are case-insensitive.</p>
 <p>This function implements the logistic infomax ICA algorithm of Bell &amp; Sejnowski
 (1995) with the natural gradient feature, or optionally the extended-ICA
 algorithm with optional PCA dimension reduction. Annealing based on weight
@@ -593,8 +595,7 @@ ceil(min(5*log(frames), 0.3*frames)).</p>
 </dd>
 <dt>interrupt<span class="classifier">str, default=’off’</span></dt><dd><p>Draw interrupt figure. Options: ‘on’, ‘off’.</p>
 </dd>
-<dt>rndreset<span class="classifier">str or bool, default=’off’ or False</span></dt><dd><p>Reset the random seed based on time of day. Default ‘off’ means
-ICA will always return the SAME decomposition (deterministic).</p>
+<dt>rndreset<span class="classifier">str or bool, default=’off’ or False</span></dt><dd><p>Reset the random seed from the clock. Omitted calls stay off.</p>
 </dd>
 <dt>seed<span class="classifier">int, optional</span></dt><dd><p>Random seed for RNG initialization. If provided, overrides rndreset
 behavior and uses this specific seed for reproducible but varied runs.
@@ -628,8 +629,15 @@ If sphering=’off’ or ‘none’, returns identity.</p>
 <h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">#</a></h2>
 <p>This is a direct translation of EEGLAB’s MATLAB runica.m function.
 Uses float64 precision throughout for numerical consistency.</p>
-<p>The RNG uses np.random.RandomState with seed 5489 (MATLAB default)
-when rndreset=’off’, or a time-based seed when rndreset=’on’.</p>
+<p><code class="docutils literal notranslate"><span class="pre">runica.m</span></code> line 205 sets <code class="docutils literal notranslate"><span class="pre">DEFAULT_RESETRANDOMSEED</span> <span class="pre">=</span> <span class="pre">true</span></code>, so an omitted
+<code class="docutils literal notranslate"><span class="pre">rndreset</span></code> takes the clock reseed at lines 816-817
+(<code class="docutils literal notranslate"><span class="pre">rand('state',</span> <span class="pre">sum(100*clock))</span></code>). The help at lines 48-50 says the
+default has been <code class="docutils literal notranslate"><span class="pre">'off'</span></code> since 2015, so repeated calls return the same
+decomposition, and the off branch at line 819 is <code class="docutils literal notranslate"><span class="pre">rand('state',</span> <span class="pre">0)</span></code>.
+EEGPrep follows that help text. An omitted <code class="docutils literal notranslate"><span class="pre">rndreset</span></code> is off and uses
+<code class="docutils literal notranslate"><span class="pre">RandomState(5489)</span></code>, the MT19937 stream <code class="docutils literal notranslate"><span class="pre">pythoncompat</span></code> selects at line
+814 (<code class="docutils literal notranslate"><span class="pre">rng(5489,</span> <span class="pre">'twister')</span></code>), rather than the legacy <code class="docutils literal notranslate"><span class="pre">rand('state',</span> <span class="pre">0)</span></code>
+stream. <code class="docutils literal notranslate"><span class="pre">rndreset='on'</span></code> seeds from the clock.</p>
 </section>
 <section id="matlab-parity-validation-report">
 <h2>MATLAB Parity Validation Report<a class="headerlink" href="#matlab-parity-validation-report" title="Link to this heading">#</a></h2>

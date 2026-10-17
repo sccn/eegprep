@@ -537,8 +537,16 @@
 <p>Low-level decomposition helpers accept channel/component-major matrices. The
 <code class="docutils literal notranslate"><span class="pre">runica_ml2</span></code>, <code class="docutils literal notranslate"><span class="pre">runica_mlb</span></code>, and <code class="docutils literal notranslate"><span class="pre">runicalowmem</span></code> compatibility names all
 delegate to the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> implementation, preventing numerical
-drift between historical copies of the infomax engine. <code class="docutils literal notranslate"><span class="pre">varsort</span></code> and <code class="docutils literal notranslate"><span class="pre">zica</span></code>
-return zero-based component and sample indices.</p>
+drift between historical copies of the infomax engine. <code class="docutils literal notranslate"><span class="pre">runica</span></code> and
+<code class="docutils literal notranslate"><span class="pre">runicalowmem</span></code> accept EEGLAB positional name/value pairs, such as
+<code class="docutils literal notranslate"><span class="pre">runica(data,</span> <span class="pre">&quot;extended&quot;,</span> <span class="pre">1)</span></code>, in addition to keywords. <code class="docutils literal notranslate"><span class="pre">runica.m</span></code> line 205
+sets <code class="docutils literal notranslate"><span class="pre">DEFAULT_RESETRANDOMSEED</span> <span class="pre">=</span> <span class="pre">true</span></code> (clock reseed at lines 816-817), while
+the help at lines 48-50 says the default has been <code class="docutils literal notranslate"><span class="pre">'off'</span></code> since 2015.
+EEGPrep follows the help text: an omitted <code class="docutils literal notranslate"><span class="pre">rndreset</span></code> is off and uses
+<code class="docutils literal notranslate"><span class="pre">RandomState(5489)</span></code>, the same MT19937 stream as <code class="docutils literal notranslate"><span class="pre">rng(5489,</span> <span class="pre">'twister')</span></code>
+(<code class="docutils literal notranslate"><span class="pre">pythoncompat</span></code>, line 814), rather than the legacy <code class="docutils literal notranslate"><span class="pre">rand('state',</span> <span class="pre">0)</span></code>
+stream at line 819. <code class="docutils literal notranslate"><span class="pre">varsort</span></code> and <code class="docutils literal notranslate"><span class="pre">zica</span></code> return
+zero-based component and sample indices.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.ICL_feature_extractor.html#eegprep.ICL_feature_extractor" title="eegprep.ICL_feature_extractor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.ICL_feature_extractor</span></code></a>(EEG[, ...])</p></td>
@@ -622,7 +630,7 @@ return zero-based component and sample indices.</p>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runamica.html#eegprep.runamica" title="eegprep.runamica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runamica</span></code></a>(data[, num_models, ...])</p></td>
 <td><p>Run AMICA binary on a data matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica.html#eegprep.runica" title="eegprep.runica"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Perform Independent Component Analysis (ICA) decomposition using infomax.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runica_ml2.html#eegprep.runica_ml2" title="eegprep.runica_ml2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_ml2</span></code></a>(data, **kwargs)</p></td>
@@ -631,7 +639,7 @@ return zero-based component and sample indices.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runica_mlb.html#eegprep.runica_mlb" title="eegprep.runica_mlb"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runica_mlb</span></code></a>(data, **kwargs)</p></td>
 <td><p>Run the MLB infomax defaults through the maintained <code class="docutils literal notranslate"><span class="pre">runica</span></code> engine.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.runicalowmem.html#eegprep.runicalowmem" title="eegprep.runicalowmem"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runicalowmem</span></code></a>(data, *args, **kwargs)</p></td>
 <td><p>Run infomax ICA through EEGPrep's single maintained ICA engine.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.runpca.html#eegprep.runpca" title="eegprep.runpca"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.runpca</span></code></a>(data[, n_components, normalize])</p></td>

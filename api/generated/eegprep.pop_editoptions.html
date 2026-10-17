@@ -634,12 +634,17 @@
 <h1>pop_editoptions<a class="headerlink" href="#pop-editoptions" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_editoptions">
-<span class="sig-name descname"><span class="pre">pop_editoptions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">updates</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_editoptions" title="Link to this definition">#</a></dt>
-<dd><p>Update EEGPrep’s EEGLAB-compatible options dictionary.</p>
+<span class="sig-name descname"><span class="pre">pop_editoptions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">updates</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_editoptions" title="Link to this definition">#</a></dt>
+<dd><p>Update EEGPrep’s EEGLAB-compatible options.</p>
+<p>A mapping in the first positional argument selects the dictionary to
+update. Remaining positional arguments are name/value pairs such as
+<code class="docutils literal notranslate"><span class="pre">pop_editoptions(&quot;option_storedisk&quot;,</span> <span class="pre">1)</span></code>. Keywords update the same
+names. Unknown names raise <code class="docutils literal notranslate"><span class="pre">KeyError</span></code>. A bool stored into an <code class="docutils literal notranslate"><span class="pre">int</span></code>
+option is stored as <code class="docutils literal notranslate"><span class="pre">0</span></code> or <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>options</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 <li><p><strong>updates</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>

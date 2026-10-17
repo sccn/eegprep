@@ -632,8 +632,9 @@
 <p>User-facing <code class="docutils literal notranslate"><span class="pre">pop_*</span></code> wrappers. Each accepts <code class="docutils literal notranslate"><span class="pre">return_com=True</span></code> and returns a replayable history command.</p>
 <section id="loading-and-saving">
 <h2>Loading and Saving<a class="headerlink" href="#loading-and-saving" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> accept <code class="docutils literal notranslate"><span class="pre">blockrange=[start,</span> <span class="pre">stop]</span></code> for
-half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
+<p><code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code> accept their options as keywords or as
+positional name/value pairs. <code class="docutils literal notranslate"><span class="pre">blockrange=[start,</span> <span class="pre">stop]</span></code> requests a
+half-open, seconds-based read of continuous EDF, BDF, and other MNE-backed
 formats. A window or a whole recording with fewer samples than channels stays
 channel-major. BioSemi BDF import decodes <code class="docutils literal notranslate"><span class="pre">Status</span></code> with <code class="docutils literal notranslate"><span class="pre">bdfeventmode</span></code> (default
 4, rising edges of the lower 16 bits), stores those triggers when
@@ -663,7 +664,7 @@ default. An embedded <code class="docutils literal notranslate"><span class="pre
 and <code class="docutils literal notranslate"><span class="pre">latpoint0</span></code> is expressed in milliseconds.</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_biosig.html#eegprep.pop_biosig" title="eegprep.pop_biosig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_biosig</span></code></a>(filename, *[, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_biosig.html#eegprep.pop_biosig" title="eegprep.pop_biosig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_biosig</span></code></a>(filename, *args[, return_com])</p></td>
 <td><p>Import BIOSIG-style EDF/BDF/GDF files, optionally over a time range.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_chanedit.html#eegprep.pop_chanedit" title="eegprep.pop_chanedit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_chanedit</span></code></a>(chans, *args[, gui, ...])</p></td>
@@ -1020,13 +1021,13 @@ output layouts are not yet implemented.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_editeventvals.html#eegprep.pop_editeventvals" title="eegprep.pop_editeventvals"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editeventvals</span></code></a>(EEG, *args[, gui, ...])</p></td>
 <td><p>Edit individual <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code> values.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editoptions.html#eegprep.pop_editoptions" title="eegprep.pop_editoptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editoptions</span></code></a>([options])</p></td>
-<td><p>Update EEGPrep's EEGLAB-compatible options dictionary.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editoptions.html#eegprep.pop_editoptions" title="eegprep.pop_editoptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editoptions</span></code></a>(*args, **updates)</p></td>
+<td><p>Update EEGPrep's EEGLAB-compatible options.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_eventstat.html#eegprep.pop_eventstat" title="eegprep.pop_eventstat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_eventstat</span></code></a>([EEG, eventfield, ...])</p></td>
 <td><p>Compute and plot statistics for numeric EEG event fields.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio.html#eegprep.pop_fileio" title="eegprep.pop_fileio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio</span></code></a>(filename, *[, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio.html#eegprep.pop_fileio" title="eegprep.pop_fileio"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio</span></code></a>(filename, *args[, return_com])</p></td>
 <td><p>Import an EEG file, optionally selecting 1-based channels, samples, or trials.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_fileio_brainvision_mat.html#eegprep.pop_fileio_brainvision_mat" title="eegprep.pop_fileio_brainvision_mat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_fileio_brainvision_mat</span></code></a>(filename, *)</p></td>
