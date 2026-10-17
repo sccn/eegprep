@@ -82,7 +82,14 @@ Unreleased
   text lists it, but ``dftfilt3.m`` does not accept it. An omitted ``runica``
   ``rndreset`` stays off (``RandomState(5489)``). ``runica.m`` line 205 still
   sets ``DEFAULT_RESETRANDOMSEED = true``, but the help at lines 48-50 says
-  the default has been ``'off'`` since 2015.
+  the default has been ``'off'`` since 2015. ``newtimef`` accepts every
+  name in the ``newtimef.m`` ``finputcheck`` list (lines 513-587) and ignores
+  unknown names (mode ``ignore`` at line 587). ``ntimesout`` sets the time
+  count when ``timesout`` is not a vector (lines 1176-1182). ``itctype``
+  replaces ``type`` unless it is ``phasecoher`` (line 591). The default
+  frequency range is ``[0, 50]``; ``maxfreq`` above Nyquist is capped and
+  written into ``freqs`` (lines 704-709). Integer-valued MATLAB doubles such
+  as ``runica(..., 'pca', 2)`` are left for the shared boundary converter.
 - ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
   EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
   outputs plus the figure. Sorting, smoothing and decimation, phase and

@@ -69,7 +69,7 @@ def make_timewarp(
     for key, value in supplied.items():
         canonical = _TIMEWARP_OPTIONS.get(key)
         if canonical is None:
-            raise TypeError(f"make_timewarp() got an unexpected keyword argument {key!r}")
+            raise ValueError(f"make_timewarp() got an unexpected keyword argument {key!r}")
         parsed[canonical] = value
     if "baseline_latency" in parsed:
         baseline_latency = parsed["baseline_latency"]

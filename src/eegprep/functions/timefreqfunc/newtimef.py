@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, NamedTuple
 
 import matplotlib.pyplot as plt
@@ -51,34 +52,42 @@ class TimeFrequencyResult(NamedTuple):
 
 
 # finputcheck defaults in newtimef.m:513-587. None stands in for MATLAB NaN or [].
+# Names are lowercased; finputcheck itself is case-sensitive.
+_DEFAULT_MAXFREQ = 50.0
 _NEWTIMEF_DEFAULTS = {
     "winsize": None,
+    "pad": None,
     "freqs": None,
     "freqrange": None,
     "nfreqs": None,
-    "freqscale": None,
+    "freqscale": "linear",
     "timesout": None,
+    "ntimesout": None,
     "padratio": None,
     "overlap": None,
+    "maxfreq": _DEFAULT_MAXFREQ,
     "baseline": 0,
     "scale": "log",
     "basenorm": "off",
     "trialbase": "off",
     "powbase": None,
     "alpha": None,
+    "marktimes": None,
     "pboot": None,
     "rboot": None,
     "erspboot": None,
     "itcboot": None,
     "naccu": 200,
     "boottype": "shuffle",
+    "condboot": "abs",
     "baseboot": 1,
     "mcorrect": "none",
     "itctype": "phasecoher",
-    "type": None,
+    "type": "phasecoher",
     "subitc": "off",
     "plottype": "image",
     "plotersp": "on",
+    "plotamp": "on",
     "plotitc": "on",
     "plotphase": "on",
     "plotphasesign": "on",
@@ -88,19 +97,88 @@ _NEWTIMEF_DEFAULTS = {
     "itcmax": None,
     "topovec": None,
     "elocs": None,
-    "caption": None,
+    "caption": "",
     "title": "",
+    "title2": "",
     "rng": None,
     "detrend": "off",
+    "rmerp": "off",
     "causal": "off",
     "wletmethod": "dftfilt3",
     "timewarp": None,
     "timewarpms": None,
+    "timewarpfr": None,
     "timewarpidx": None,
+    "timestretchmarks": None,
+    "timestretchrefs": None,
+    "timestretchplot": None,
     "vert": None,
     "verbose": "on",
     "outputformat": "plot",
+    "newfig": "on",
+    "commonbase": "on",
+    "linewidth": 2,
+    "mtaper": None,
+    "phsamp": "off",
+    "precomputed": None,
+    "lowmem": "off",
+    "plotmean": "on",
+    "plotmode": "",
+    "highlightmode": "background",
+    "chaninfo": None,
+    "erspmarglim": None,
+    "itcavglim": None,
+    "erplim": None,
+    "speclim": None,
+    "hzdir": "up",
+    "ydir": "up",
+    "cycleinc": "linear",
+    "colormap": "jet(256)",
 }
+
+
+def _newtimef_options(parsed: dict[str, Any]) -> SimpleNamespace:
+    selected = {name: parsed.get(name, default) for name, default in _NEWTIMEF_DEFAULTS.items()}
+    return SimpleNamespace(**selected)
+
+
+def _effective_timesout(timesout: Any, ntimesout: Any) -> Any:
+    """Return the time grid newtimef.m lines 1176-1182 pass to timefreq.
+
+    A ``timesout`` vector wins. Otherwise a non-empty ``ntimesout`` is the
+    output count, and a scalar ``timesout`` is that count.
+    """
+    times_values = _numeric_vector(timesout)
+    if times_values.size > 1:
+        return timesout
+    count = _numeric_vector(ntimesout)
+    if count.size:
+        return count.reshape(-1)[0]
+    return timesout
+
+
+def _resolve_freqs(freqs: Any, freqrange: Any, maxfreq: Any, srate: float) -> Any:
+    """Apply newtimef.m lines 704-709 to the frequency range.
+
+    The default assignment at line 542 is ``[0, 50]``. ``maxfreq`` above the
+    Nyquist rate is reduced to that rate, and any ``maxfreq`` other than 50
+    then replaces ``freqs(2)``. The Nyquist cap is not part of the default.
+    """
+    if freqs is None and freqrange is not None:
+        freqs = freqrange
+    if freqs is None:
+        freqs = [0.0, _DEFAULT_MAXFREQ]
+    limit = float(maxfreq)
+    nyquist = float(srate) / 2.0
+    if limit > nyquist:
+        limit = nyquist
+    if limit == _DEFAULT_MAXFREQ:
+        return freqs
+    values = np.asarray(freqs, dtype=float).reshape(-1).copy()
+    if values.size < 2:
+        return np.array([0.0, limit], dtype=float)
+    values[1] = limit
+    return values
 
 
 def newtimef(
@@ -115,18 +193,26 @@ def newtimef(
     """Compute an EEGLAB-like ERSP/ITC time-frequency decomposition.
 
     Positional name/value pairs and keywords use the ``finputcheck`` names in
-    ``newtimef.m`` lines 513-587. Defaults follow that list: ``baseline`` 0,
-    ``scale`` ``"log"``, ``basenorm`` and ``trialbase`` ``"off"``, ``naccu``
-    200, ``boottype`` ``"shuffle"``, ``timesout`` 200, ``padratio`` 2,
-    ``verbose`` ``"on"``, and an empty ``title``. ``freqs`` defaults to
-    ``[0, min(50, Nyquist)]`` (``DEFAULT_MAXFREQ`` at line 435). ``alpha``,
-    ``powbase``, ``pboot``, and ``rboot`` default to empty, the Python stand-in
-    for the NaN defaults at lines 438, 526, 527, and 528. ``elocs`` stays unset
-    instead of the ``chan.locs`` path at line 437. An omitted ``cycles`` pair
-    keeps the fifth argument (``DEFAULT_VARWIN`` 0 at line 428). A figure is
-    drawn when ``plotersp`` or ``plotitc`` is on (line 1426); pass ``plot`` to
-    override that. Unrecognized names raise ``ValueError``. EEGLAB's
-    ``finputcheck`` call uses mode ``ignore`` at line 587.
+    ``newtimef.m`` lines 513-587, including ``chaninfo``, ``ntimesout``,
+    ``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Names outside that
+    list are ignored, matching ``finputcheck`` mode ``ignore`` at line 587.
+    Defaults follow that list: ``baseline`` 0, ``scale`` ``"log"``,
+    ``basenorm`` and ``trialbase`` ``"off"``, ``naccu`` 200, ``boottype``
+    ``"shuffle"``, ``timesout`` 200, ``padratio`` 2, ``verbose`` ``"on"``,
+    and an empty ``title``. ``freqs`` defaults to ``[0, 50]`` (line 542).
+    ``maxfreq`` above the Nyquist rate is then reduced to that rate, and any
+    ``maxfreq`` other than 50 replaces the upper frequency (lines 704-709),
+    so a sampling rate below 100 Hz yields ``[0, Nyquist]``. That cap is not
+    part of the default assignment. ``ntimesout`` is the output time count
+    when ``timesout`` is not a vector (lines 1176-1182). ``itctype`` replaces
+    ``type`` unless ``itctype`` is ``phasecoher`` (line 591); the
+    decomposition uses that ``type``. ``alpha``, ``powbase``, ``pboot``, and
+    ``rboot`` default to empty, the Python stand-in for the NaN defaults at
+    lines 438, 526, 527, and 528. ``elocs`` stays unset instead of the
+    ``chan.locs`` path at line 437. An omitted ``cycles`` pair keeps the
+    fifth argument (``DEFAULT_VARWIN`` 0 at line 428). ``plotamp`` ``off``
+    forces ``plotersp`` off (line 589). A figure is drawn when ``plotersp``
+    or ``plotitc`` is on (line 1426); pass ``plot`` to override that.
     """
     if isinstance(frames, (float, np.floating)) and float(frames).is_integer():
         frames = int(frames)
@@ -135,88 +221,39 @@ def newtimef(
         cycles = options.pop("cycles")
     else:
         options.pop("cycles", None)
-    unknown = sorted(set(options) - set(_NEWTIMEF_DEFAULTS) - {"plot"})
-    if unknown:
-        names = ", ".join(repr(name) for name in unknown)
-        raise ValueError(f"newtimef() got an unexpected option {names}")
     plot_supplied = "plot" in options
-    selected = {name: options.get(name, default) for name, default in _NEWTIMEF_DEFAULTS.items()}
-    winsize = selected["winsize"]
-    freqs = selected["freqs"]
-    freqrange = selected["freqrange"]
-    nfreqs = selected["nfreqs"]
-    freqscale = selected["freqscale"]
-    timesout = selected["timesout"]
-    padratio = selected["padratio"]
-    overlap = selected["overlap"]
-    baseline = selected["baseline"]
-    scale = selected["scale"]
-    basenorm = selected["basenorm"]
-    trialbase = selected["trialbase"]
-    powbase = selected["powbase"]
-    alpha = selected["alpha"]
-    pboot = selected["pboot"]
-    rboot = selected["rboot"]
-    erspboot = selected["erspboot"]
-    itcboot = selected["itcboot"]
-    naccu = selected["naccu"]
-    boottype = selected["boottype"]
-    baseboot = selected["baseboot"]
-    mcorrect = selected["mcorrect"]
-    itctype = selected["itctype"]
-    type = selected["type"]
-    subitc = selected["subitc"]
-    plottype = selected["plottype"]
-    plotersp = selected["plotersp"]
-    plotitc = selected["plotitc"]
-    plotphase = selected["plotphase"]
-    plotphasesign = selected["plotphasesign"]
-    plotphaseonly = selected["plotphaseonly"]
-    pcontour = selected["pcontour"]
-    erspmax = selected["erspmax"]
-    itcmax = selected["itcmax"]
-    topovec = selected["topovec"]
-    elocs = selected["elocs"]
-    caption = selected["caption"]
-    title = selected["title"]
-    rng = selected["rng"]
-    detrend = selected["detrend"]
-    causal = selected["causal"]
-    wletmethod = selected["wletmethod"]
-    timewarp = selected["timewarp"]
-    timewarpms = selected["timewarpms"]
-    timewarpidx = selected["timewarpidx"]
-    vert = selected["vert"]
-    verbose = selected["verbose"]
-    outputformat = selected["outputformat"]
-    plot = options["plot"] if plot_supplied else ("on" if _is_on(plotersp) or _is_on(plotitc) else "off")
-    if isinstance(naccu, (float, np.floating)) and float(naccu).is_integer():
-        naccu = int(naccu)
-    if overlap is not None:
+    plot_request = options.pop("plot", None)
+    opt = _newtimef_options(options)
+    if not _is_on(opt.plotamp):
+        opt.plotersp = "off"
+    plot = plot_request if plot_supplied else ("on" if _is_on(opt.plotersp) or _is_on(opt.plotitc) else "off")
+    if isinstance(opt.naccu, (float, np.floating)) and float(opt.naccu).is_integer():
+        opt.naccu = int(opt.naccu)
+    if opt.overlap is not None:
         raise NotImplementedError("newtimef does not implement the 'overlap' option")
-    if str(boottype).lower() != "shuffle":
+    if str(opt.boottype).lower() != "shuffle":
         raise NotImplementedError("newtimef only implements the 'shuffle' boottype")
-    if str(outputformat).lower() != "plot":
+    if str(opt.outputformat).lower() != "plot":
         raise NotImplementedError("newtimef only implements outputformat='plot'")
-    if not _is_on(plotphase):
-        plotphasesign = plotphase  # EEGLAB: plotphase='off' turns off the ITC phase-sign (newtimef.m line 603)
-    if freqs is None and freqrange is not None:
-        freqs = freqrange
-    if freqs is None:
-        freqs = [0.0, min(50.0, float(srate) / 2.0)]  # EEGLAB DEFAULT_MAXFREQ, capped at Nyquist
-    if type is not None:
-        itctype = type
-    scale_mode = str(scale).lower()
-    normalize_baseline = str(basenorm).lower()
+    if not _is_on(opt.plotphase):
+        opt.plotphasesign = opt.plotphase
+    opt.freqs = _resolve_freqs(opt.freqs, opt.freqrange, opt.maxfreq, srate)
+    if str(opt.itctype).lower() != "phasecoher":
+        opt.type = opt.itctype
+    opt.timesout = _effective_timesout(opt.timesout, opt.ntimesout)
+    scale_mode = str(opt.scale).lower()
+    normalize_baseline = str(opt.basenorm).lower()
     if normalize_baseline == "on":
         scale_mode = "abs"
     if scale_mode not in {"log", "abs"}:
         raise ValueError("scale must be 'log' or 'abs'")
 
-    timestretch, timewarp_markers = _timewarp_options(timewarp, timewarpms, timewarpidx, frames, tlimits, srate)
+    timestretch, timewarp_markers = _timewarp_options(
+        opt.timewarp, opt.timewarpms, opt.timewarpidx, frames, tlimits, srate
+    )
     vertical_markers = timewarp_markers
     if vertical_markers is None:
-        vert_values = _numeric_vector(vert)
+        vert_values = _numeric_vector(opt.vert)
         vertical_markers = vert_values if vert_values.size else None
         if vertical_markers is not None:
             _validate_vertical_markers(vertical_markers, tlimits)
@@ -227,30 +264,30 @@ def newtimef(
         tlimits,
         srate,
         cycles,
-        winsize=winsize,
-        freqs=freqs,
-        nfreqs=nfreqs,
-        freqscale=freqscale,
-        timesout=timesout,
-        padratio=padratio,
-        itctype=itctype,
-        subitc=subitc,
-        detrend=detrend,
-        causal=causal,
-        wletmethod=wletmethod,
+        winsize=opt.winsize,
+        freqs=opt.freqs,
+        nfreqs=opt.nfreqs,
+        freqscale=opt.freqscale,
+        timesout=opt.timesout,
+        padratio=opt.padratio,
+        itctype=opt.type,
+        subitc=opt.subitc,
+        detrend=opt.detrend,
+        causal=opt.causal,
+        wletmethod=opt.wletmethod,
         timestretch=timestretch,
-        verbose=verbose,
+        verbose=opt.verbose,
     )
     tfdata = _normalize_fft_tfdata(decomp.tfdata, decomp.cycles, decomp.winsize)
     power = np.abs(tfdata) ** 2
     corrected_power = newtimeftrialbaseln(
         power,
         decomp.times,
-        baseline=baseline,
+        baseline=opt.baseline,
         basenorm=normalize_baseline,
-        trialbase=trialbase,
+        trialbase=opt.trialbase,
     )
-    powbase_values = powbase
+    powbase_values = opt.powbase
     if powbase_values is not None and scale_mode == "log":
         powbase_array = np.asarray(powbase_values, dtype=float)
         if powbase_array.size and not np.isnan(powbase_array.reshape(-1)[0]):
@@ -258,19 +295,19 @@ def newtimef(
     corrected_power, baseln, powbase_array = newtimefbaseln(
         corrected_power,
         decomp.times,
-        baseline=baseline,
+        baseline=opt.baseline,
         powbase=powbase_values,
         basenorm=normalize_baseline,
-        trialbase=trialbase,
+        trialbase=opt.trialbase,
         singletrials="on",
     )
     ersp_power = np.nanmean(corrected_power, axis=2)
     ersp = _power_to_output(ersp_power, scale_mode)
-    itc = newtimefitc(tfdata, itctype)
+    itc = newtimefitc(tfdata, opt.type)
 
-    alpha_value = _alpha_value(alpha)
-    supplied_erspboot = _first_not_none(erspboot, pboot)
-    supplied_itcboot = _first_not_none(itcboot, rboot)
+    alpha_value = _alpha_value(opt.alpha)
+    supplied_erspboot = _first_not_none(opt.erspboot, opt.pboot)
+    supplied_itcboot = _first_not_none(opt.itcboot, opt.rboot)
     ersp_boot = _boot_array(supplied_erspboot)
     itc_boot = _boot_array(supplied_itcboot)
     ersp_pvalues = None
@@ -278,37 +315,37 @@ def newtimef(
     ersp_significant = None
     itc_significant = None
     if alpha_value is not None:
-        boot_indices = _bootstrap_indices(decomp.times, baseline, baseboot, baseln)
+        boot_indices = _bootstrap_indices(decomp.times, opt.baseline, opt.baseboot, baseln)
         if ersp_boot is None:
             ersp_boot, ersp_null = _bootstrap_power(
                 corrected_power,
                 scale_mode,
                 alpha=alpha_value,
-                naccu=naccu,
+                naccu=opt.naccu,
                 base_indices=boot_indices,
-                rng=rng,
+                rng=opt.rng,
             )
             ersp_pvalues = _baseline_pvalues(ersp, ersp_null)
-            ersp_significant = _significance_mask(ersp_pvalues, alpha_value, mcorrect)
+            ersp_significant = _significance_mask(ersp_pvalues, alpha_value, opt.mcorrect)
         else:
             ersp_significant = _threshold_mask(ersp, ersp_boot)
         if itc_boot is None:
             itc_boot, itc_null = _bootstrap_itc(
                 tfdata,
-                itctype,
+                opt.type,
                 alpha=alpha_value,
-                naccu=naccu,
+                naccu=opt.naccu,
                 base_indices=boot_indices,
-                rng=rng,
+                rng=opt.rng,
             )
             itc_pvalues = _baseline_pvalues(np.abs(itc), itc_null)
-            itc_significant = _significance_mask(itc_pvalues, alpha_value, mcorrect)
+            itc_significant = _significance_mask(itc_pvalues, alpha_value, opt.mcorrect)
         else:
             itc_significant = np.abs(itc) >= _threshold_vector(itc_boot, itc.shape)
 
     figure = None
     if _is_on(plot):
-        unit = newtimefpowerunit({"scale": scale_mode, "baseline": baseline, "basenorm": normalize_baseline})
+        unit = newtimefpowerunit({"scale": scale_mode, "baseline": opt.baseline, "basenorm": normalize_baseline})
         ersp_baseval = 1.0 if scale_mode == "abs" and normalize_baseline == "off" else 0.0
         limits = _numeric_vector(tlimits)
         epoch_data = as_channel_epoch_data(data, frames=int(frames))[0]
@@ -326,36 +363,36 @@ def newtimef(
             itc,
             decomp.times,
             decomp.freqs,
-            title=str(title),
-            plotersp=_is_on(plotersp),
-            plotitc=_is_on(plotitc),
-            plottype=str(plottype).lower(),
+            title=str(opt.title),
+            plotersp=_is_on(opt.plotersp),
+            plotitc=_is_on(opt.plotitc),
+            plottype=str(opt.plottype).lower(),
             ersp_significant=ersp_significant,
             itc_significant=itc_significant,
             vertical_markers=vertical_markers,
-            erspmax=erspmax,
-            itcmax=itcmax,
+            erspmax=opt.erspmax,
+            itcmax=opt.itcmax,
             unit=unit,
             ersp_baseval=ersp_baseval,
             powbase=baseline_spectrum,
             erp=erp,
             ersp_boot=ersp_boot,
             itc_boot=itc_boot,
-            plotphasesign=_is_on(plotphasesign),
-            plotphaseonly=_is_on(plotphaseonly),
-            pcontour=_is_on(pcontour),
-            topovec=topovec,
-            elocs=elocs,
-            caption=caption,
+            plotphasesign=_is_on(opt.plotphasesign),
+            plotphaseonly=_is_on(opt.plotphaseonly),
+            pcontour=_is_on(opt.pcontour),
+            topovec=opt.topovec,
+            elocs=opt.elocs,
+            caption=opt.caption,
         )
     # Mirror newtimefbaseln's `disabled` check so powbase units always track ersp: a multi-window
     # (nested-list) baseline flattens cleanly, `[]` stays enabled, and only NaN/None disables.
-    base_vec = np.asarray(baseline, dtype=float).reshape(-1)
+    base_vec = np.asarray(opt.baseline, dtype=float).reshape(-1)
     baseline_on = not (base_vec.size and np.isnan(base_vec[0]))
     powbase_out = np.asarray(powbase_array, dtype=float)
     if (
         scale_mode == "log"
-        and str(trialbase).lower() == "off"
+        and str(opt.trialbase).lower() == "off"
         and baseline_on
         and powbase_out.size
         and np.isfinite(powbase_out.reshape(-1)[0])

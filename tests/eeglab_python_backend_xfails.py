@@ -374,6 +374,10 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_pop_editeventvals_current.py::test_reference_editeventvals_original_recording": _gap(
         EVENT_EDIT, ValueError
     ),
+    "tests/test_runica.py::test_reference_runica_pca": ExpectedFailure(
+        "boundary converter (#430 PR-A)",
+        TypeError,
+    ),
 }
 
 PYTHON_BACKEND_SUBTEST_XFAILS = {

@@ -6,9 +6,16 @@ Time-Frequency
 Time-frequency decomposition, coherence, phase-amplitude coupling, and time warping.
 
 ``newtimef`` accepts the ``finputcheck`` names from ``newtimef.m`` as keywords
-or positional name/value pairs. Defaults follow that list, including
-``baseline`` 0, ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2.
-A figure is drawn when ``plotersp`` or ``plotitc`` is on.
+or positional name/value pairs, including ``chaninfo``, ``ntimesout``,
+``plotamp``, ``maxfreq``, ``cycleinc``, and ``newfig``. Names outside that
+list are ignored. Defaults follow that list, including ``baseline`` 0,
+``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2. ``ntimesout`` is
+the output time count when ``timesout`` is not a vector. ``itctype`` replaces
+``type`` unless it is ``phasecoher``. The default frequency range is
+``[0, 50]``; ``maxfreq`` above the Nyquist rate is capped and then written
+into that range, so a sampling rate below 100 Hz yields ``[0, Nyquist]``.
+A figure is drawn when ``plotersp`` or ``plotitc`` is on. ``plotamp`` off
+turns ``plotersp`` off.
 
 ``make_timewarp`` accepts ``baselineLatency``, ``eventConditions``,
 ``maxSTDForAbsolute``, and ``maxSTDForRelative`` as keywords or positional

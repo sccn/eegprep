@@ -14,8 +14,8 @@ def pop_editoptions(*args: Any, **updates: Any) -> str:
     A mapping in the first positional argument selects the dictionary to
     update. Remaining positional arguments are name/value pairs such as
     ``pop_editoptions("option_storedisk", 1)``. Keywords update the same
-    names. Unknown names raise ``KeyError``. An integer-valued number is
-    stored as ``int`` when the current option is an ``int``.
+    names. Unknown names raise ``KeyError``. A bool stored into an ``int``
+    option is stored as ``0`` or ``1``.
     """
     target = EEG_OPTIONS
     pair_args = args
@@ -34,7 +34,5 @@ def _option_value(current: Any, value: Any) -> Any:
     if isinstance(current, bool) or not isinstance(current, int):
         return value
     if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, float)) and float(value).is_integer():
         return int(value)
     return value

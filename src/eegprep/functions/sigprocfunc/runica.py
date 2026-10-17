@@ -69,16 +69,6 @@ DEFAULT_BIASFLAG = 1
 DEFAULT_RESETRANDOMSEED = False
 
 
-def _integer_count(value):
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, np.integer)):
-        return int(value)
-    if isinstance(value, (float, np.floating)) and float(value).is_integer():
-        return int(value)
-    return value
-
-
 def runica(data, *args, **kwargs):
     """
     Perform Independent Component Analysis (ICA) decomposition using infomax.
@@ -376,12 +366,6 @@ def runica(data, *args, **kwargs):
         if posact_val not in ['on', 'off']:
             raise ValueError('runica(): posact value must be on or off')
         posactflag = posact_val
-
-    maxsteps = _integer_count(maxsteps)
-    ncomps = _integer_count(ncomps)
-    chans = _integer_count(chans)
-    if user_seed is not None:
-        user_seed = _integer_count(user_seed)
 
     # Set annealstep based on extended mode if not provided
     if annealstep == 0:

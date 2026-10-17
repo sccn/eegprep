@@ -78,11 +78,10 @@ def test_pop_editoptions_updates_known_options_and_returns_history_command():
 
 
 def test_pop_editoptions_accepts_matlab_name_value_pairs():
-    command = pop_editoptions("option_computeica", 0, "option_storedisk", 1.0)
+    command = pop_editoptions("option_computeica", 0, "option_storedisk", 1)
 
     assert EEG_OPTIONS["option_computeica"] == 0
     assert EEG_OPTIONS["option_storedisk"] == 1
-    assert isinstance(EEG_OPTIONS["option_storedisk"], int)
     assert command == "LASTCOM = pop_editoptions();"
 
 

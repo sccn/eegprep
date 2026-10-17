@@ -326,7 +326,8 @@ def test_newtimef_upstream_fft_wavelet_and_baseline_formulas_match_exactly():
 
 
 def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
-    # With no explicit freqs, EEGLAB stops at maxfreq=50 (capped at Nyquist), not the full band.
+    # Default freqs are [0, 50]. maxfreq above Nyquist is capped and then written
+    # into freqs(2) (newtimef.m:704-709); the cap is not in the default assignment.
     times = np.arange(256) / 128
     trials = np.stack([np.sin(2 * np.pi * 10 * times + phase) for phase in (0.0, 0.2, 0.5)], axis=1)
 
@@ -334,6 +335,14 @@ def test_newtimef_defaults_frequency_range_to_eeglab_maxfreq():
 
     assert result.freqs.max() <= 50.0 + 1e-9
     assert result.freqs.max() > 30.0  # the band is not truncated too aggressively
+
+    short = np.arange(64) / 40
+    low_rate = np.stack([np.sin(2 * np.pi * 8 * short + phase) for phase in (0.0, 0.4)], axis=1)
+    capped = newtimef(low_rate, 64, [0, 1575], 40, 0, plot="off", verbose="off")
+    assert capped.freqs.max() <= 20.0 + 1e-9
+
+    lowered = newtimef(trials, 256, [0, 2000], 128, [3, 0.5], "maxfreq", 12, plot="off")
+    assert lowered.freqs.max() == pytest.approx(12.0)
 
 
 def test_newtimef_freqrange_alias_freqscale_and_scale_validation():
@@ -690,6 +699,75 @@ def test_newcrossf_single_trial_switches_to_cross_spectrum():
     assert result.allcoher.shape[2] == 1
     assert np.nanmean(result.coherence) > 1.0
     assert np.nanmax(multi_trial.coherence) <= 1.0 + 1e-12
+
+
+def test_newtimef_accepts_pop_newtimef_history_names_and_ignores_unknown_names():
+    data = np.random.RandomState(1).rand(64, 4)
+    common = dict(plot="off", verbose="off")
+    history = newtimef(
+        data,
+        64,
+        [0, 630],
+        100,
+        0,
+        "chaninfo",
+        {"nosedir": "+X"},
+        "ntimesout",
+        8,
+        "newfig",
+        "off",
+        "cycleinc",
+        "linear",
+        "plotamp",
+        "off",
+        "not_a_real_option",
+        1,
+        **common,
+    )
+    counted = newtimef(data, 64, [0, 630], 100, 0, ntimesout=8, **common)
+    default = newtimef(data, 64, [0, 630], 100, 0, **common)
+
+    assert history.times.size == counted.times.size == 8
+    assert history.times.size < default.times.size
+    np.testing.assert_allclose(history.ersp, counted.ersp, rtol=0, atol=0)
+
+
+def test_newtimef_itctype_overrides_type_unless_phasecoher():
+    data = np.random.RandomState(2).rand(64, 6)
+    common = dict(plot="off", verbose="off", timesout=8, freqs=[8, 20], nfreqs=4)
+    coher = newtimef(data, 64, [0, 630], 100, 0, "type", "coher", **common)
+    explicit_default = newtimef(data, 64, [0, 630], 100, 0, "type", "coher", "itctype", "phasecoher", **common)
+    overridden = newtimef(data, 64, [0, 630], 100, 0, "type", "coher", "itctype", "phasecoher2", **common)
+    phase = newtimef(data, 64, [0, 630], 100, 0, "itctype", "phasecoher2", **common)
+
+    np.testing.assert_allclose(explicit_default.itc, coher.itc, rtol=0, atol=0)
+    np.testing.assert_allclose(overridden.itc, phase.itc, rtol=0, atol=0)
+    assert not np.allclose(overridden.itc, coher.itc)
+
+
+def test_pop_newtimef_history_passes_chaninfo_and_ntimesout(sample_epoch):
+    chaninfo = {"nosedir": "+X"}
+    result, command = pop_newtimef(
+        sample_epoch,
+        1,
+        1,
+        [-100, 200],
+        [0],
+        "chaninfo",
+        chaninfo,
+        "ntimesout",
+        10,
+        plot="off",
+        return_com=True,
+    )
+    default = pop_newtimef(sample_epoch, 1, 1, [-100, 200], [0], plot="off")
+
+    assert "chaninfo=" in command
+    assert "ntimesout=10" in command
+    assert result.times.size < default.times.size
+    namespace = {"EEG": sample_epoch, "pop_newtimef": pop_newtimef}
+    replayed = eval(command, namespace)
+    assert replayed.times.size == result.times.size
 
 
 def test_pop_newtimef_channel_and_component_paths_are_replayable(sample_epoch, ica_epoch):
