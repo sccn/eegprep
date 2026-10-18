@@ -199,7 +199,7 @@ def statcond(
     if surrog is not None:
         if stats is None:
             raise ValueError("stats must be supplied when surrog is supplied")
-        observed_stat = stats
+        observed_stat = _align_supplied_statistic(stats, surrog)
         observed_df = None
         surrogate_stat = surrog
         pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, tail)
@@ -393,6 +393,24 @@ def _stack_effects(values: Sequence[Any]) -> Any:
             np.stack([value.interaction for value in values], axis=-1),
         )
     return np.stack(values, axis=-1)
+
+
+def _align_supplied_statistic(stats: Any, surrog: Any) -> Any:
+    if isinstance(stats, TwoWayEffects) or isinstance(surrog, TwoWayEffects):
+        return stats
+    observed = np.asarray(stats)
+    distribution = np.asarray(surrog)
+    if not np.issubdtype(observed.dtype, np.number) or not np.issubdtype(distribution.dtype, np.number):
+        return stats
+    if distribution.ndim < 1:
+        raise ValueError("resampling array must have a surrogate axis")
+    target = distribution.shape[:-1]
+    # stat_surrogate_pvals.m:63 broadcasts an [n 1] column through bsxfun.
+    if observed.size != int(np.prod(target, dtype=int)):
+        raise ValueError("stats element count must match the resampling array without its last axis")
+    if observed.shape == target:
+        return observed
+    return np.reshape(observed, target, order="F")
 
 
 def _surrogate_pvalues(surrogate: Any, observed: Any, tail: str) -> Any:

@@ -1048,14 +1048,14 @@ def _assert_numeric_dtype(value, dtype) -> None:
 @pytest.mark.parametrize("method", ["perm", "bootstrap"])
 @pytest.mark.parametrize("arraycomp", ["on", "off"])
 @pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
-def test_statcond_f_resampling_dtype_follows_arraycomp(method, design, arraycomp):
+def test_statcond_resampling_dtype_follows_arraycomp(method, design, arraycomp):
     grid = _anova_resampling_grid(design)
     paired = "on" if design == "two-way" else "off"
     expected = _expected_resampling_dtype(design, arraycomp)
     result = statcond(grid, method=method, paired=paired, naccu=8, arraycomp=arraycomp, rng=1, verbose="off")
     _assert_numeric_dtype(result.matlab_surrogate, expected)
-    # statcond.m:511 asks stat_surrogate_ci for a numeric array. A two-way
-    # surrogate is a cell, so that call errors. Check the cell class only.
+    # statcond.m:512 calls stat_surrogate_ci. A two-way surrogate is a cell,
+    # so that call errors. Check the cell class only.
     if design == "two-way":
         return
     structured = statcond(
@@ -1076,7 +1076,7 @@ def test_statcond_f_resampling_dtype_follows_arraycomp(method, design, arraycomp
 @pytest.mark.parametrize("method", ["perm", "bootstrap"])
 @pytest.mark.parametrize("arraycomp", ["on", "off"])
 @pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
-def test_reference_statcond_f_resampling_dtype_follows_arraycomp(eeglab_backend, method, design, arraycomp):
+def test_reference_statcond_resampling_dtype_follows_arraycomp(eeglab_backend, method, design, arraycomp):
     grid = _anova_resampling_grid(design)
     paired = "on" if design == "two-way" else "off"
     expected = _expected_resampling_dtype(design, arraycomp)
@@ -1116,7 +1116,7 @@ def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
     # the class when naccu matches the surrogate length. pvals stay double.
     naccu = 4
     data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
-    stats = np.arange(2, dtype=stat_dtype)
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
     surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
     result = statcond(
         data,
@@ -1140,7 +1140,7 @@ def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
 def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, stat_dtype, surrog_dtype):
     naccu = 4
     data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
-    stats = np.arange(2, dtype=stat_dtype)
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
     surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
     statistic, _degrees, probability, surrogate = eeglab_backend(
         "statcond",
@@ -1171,6 +1171,19 @@ def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, sta
     _assert_numeric_dtype(output["surrog"], surrog_dtype)
     _assert_numeric_dtype(output["pval"], np.float64)
     _assert_numeric_dtype(output["ci"], surrog_dtype)
+
+
+def test_statcond_supplied_stats_reject_a_different_element_count():
+    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
+    with pytest.raises(ValueError, match="element count"):
+        statcond(
+            data,
+            method="perm",
+            surrog=np.zeros((2, 4)),
+            stats=np.zeros((3, 1)),
+            naccu=4,
+            verbose="off",
+        )
 
 
 def _assert_class_same(actual, expected):
