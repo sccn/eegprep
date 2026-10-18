@@ -59,7 +59,9 @@ Unreleased
   arrays and their confidence intervals stay float32 for both ``arraycomp``
   modes. A confidence interval follows the surrogate class. Supplied stats
   and resampling arrays keep the class they were given when ``naccu`` matches
-  the supplied length. p-values stay float64.
+  the supplied length. A supplied statistic is accepted when its shape matches
+  the resampling array without the last axis after trailing length-1 dimensions
+  are removed. A transpose or a flattened column is rejected. p-values stay float64.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

@@ -395,6 +395,13 @@ def _stack_effects(values: Sequence[Any]) -> Any:
     return np.stack(values, axis=-1)
 
 
+def _shape_without_trailing_ones(shape: tuple[int, ...]) -> tuple[int, ...]:
+    end = len(shape)
+    while end > 0 and shape[end - 1] == 1:
+        end -= 1
+    return shape[:end]
+
+
 def _align_supplied_statistic(stats: Any, surrog: Any) -> Any:
     if isinstance(stats, TwoWayEffects) or isinstance(surrog, TwoWayEffects):
         return stats
@@ -405,9 +412,12 @@ def _align_supplied_statistic(stats: Any, surrog: Any) -> Any:
     if distribution.ndim < 1:
         raise ValueError("resampling array must have a surrogate axis")
     target = distribution.shape[:-1]
-    # stat_surrogate_pvals.m:63 broadcasts an [n 1] column through bsxfun.
-    if observed.size != int(np.prod(target, dtype=int)):
-        raise ValueError("stats element count must match the resampling array without its last axis")
+    # stat_surrogate_pvals.m:63 sums bsxfun(@ge, distribution, observed) along
+    # the surrogate axis. A trailing length-1 dimension is the singleton that
+    # axis expands, so an [n 1] column or a [d1 d2 1] slab matches. A transpose
+    # or a flattened column does not: reshaping either one would reorder values.
+    if _shape_without_trailing_ones(observed.shape) != _shape_without_trailing_ones(target):
+        raise ValueError("stats shape must match the resampling array without its last axis")
     if observed.shape == target:
         return observed
     return np.reshape(observed, target, order="F")

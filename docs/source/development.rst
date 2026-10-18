@@ -325,7 +325,9 @@ and ``ttest_cell`` keeps that class, so a t-test resampling array and its
 confidence interval stay float32 for both ``arraycomp`` modes. A confidence
 interval follows the surrogate class. Supplied stats and resampling arrays
 keep the class they were given when ``naccu`` matches the supplied length.
-p-values stay float64. Cases 31-78 are ``returnresamplingarray`` condition
+A supplied statistic is accepted when its shape matches the resampling array
+without the last axis after trailing length-1 dimensions are removed. A
+transpose or a flattened column is rejected. p-values stay float64. Cases 31-78 are ``returnresamplingarray`` condition
 grids and stay float32. On these fixtures the largest measured-to-limit ratio is about
 0.030 for F and about 0.16 for p.
 

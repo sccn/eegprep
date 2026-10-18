@@ -1173,17 +1173,38 @@ def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, sta
     _assert_numeric_dtype(output["ci"], surrog_dtype)
 
 
-def test_statcond_supplied_stats_reject_a_different_element_count():
-    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
-    with pytest.raises(ValueError, match="element count"):
-        statcond(
-            data,
-            method="perm",
-            surrog=np.zeros((2, 4)),
-            stats=np.zeros((3, 1)),
-            naccu=4,
-            verbose="off",
-        )
+def _supplied_statcond(stats, surrog):
+    feature_shape = surrog.shape[:-1]
+    data = _matlab_cells([[np.ones(feature_shape + (4,)), np.ones(feature_shape + (4,))]])
+    return statcond(
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=surrog.shape[-1],
+        verbose="off",
+    )
+
+
+def test_statcond_supplied_trailing_singleton_matches_the_aligned_statistic():
+    surrog = np.arange(3 * 4 * 6, dtype=np.float64).reshape(3, 4, 6)
+    aligned = np.arange(12, dtype=np.float64).reshape(3, 4)
+    accepted = _supplied_statcond(aligned.reshape(3, 4, 1), surrog)
+    reference = _supplied_statcond(aligned, surrog)
+    np.testing.assert_array_equal(accepted.stat, aligned)
+    np.testing.assert_array_equal(accepted.pvalue, reference.pvalue)
+
+
+@pytest.mark.parametrize("stats_shape", [(4, 3), (12, 1), (1, 12)])
+def test_statcond_supplied_stats_reject_reordered_shapes(stats_shape):
+    surrog = np.zeros((3, 4, 6))
+    with pytest.raises(ValueError, match="shape"):
+        _supplied_statcond(np.zeros(stats_shape), surrog)
+
+
+def test_statcond_supplied_stats_reject_a_row_against_a_column_axis():
+    with pytest.raises(ValueError, match="shape"):
+        _supplied_statcond(np.zeros((1, 5)), np.zeros((5, 6)))
 
 
 def _assert_class_same(actual, expected):
