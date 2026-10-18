@@ -136,10 +136,11 @@ def _assert_python_ttest_regression(actual, reference, arguments) -> None:
 _PYTHON_ANOVA_REGRESSION_CASES = frozenset({*range(3, 7), *range(15, 31)})
 _FLOAT64_UNIT_ROUNDOFF = np.float64(2.0**-53)
 # Measured betainc evaluation allowance, in multiples of u = 2^{-53}.
-# Not derived from the sum-of-squares operation count. It covers the box
-# MATLAB-vs-mpmath maximum (321u at df2=54) plus the SciPy-vs-mpmath maximum
-# on these degrees of freedom (42.06u). 256 does not cover that sum.
-_C_BETA = np.float64(512)
+# Not derived from the sum-of-squares operation count. One constant covers
+# the full tail. Box MATLAB R2025b vs mpmath reaches 1966.5u, and SciPy on
+# this VM reaches 69.9u down to p = 1e-300. Their sum is 2036u. 1024 does
+# not cover it; 2048 does.
+_C_BETA = np.float64(2048)
 
 
 def _regression_option(arguments: list, name: str):

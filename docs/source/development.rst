@@ -311,9 +311,11 @@ subtract those terms (the interaction residual has eight). The unpaired
 factor is 1 because ``anova1_cell`` delegates to the two-pass ``anova2_cell``,
 so that tolerance is ``4 * N * u``. The p-value limit is also per element.
 Its derived part is the F tolerance times ``|F| * pdf(F; df1, df2)``. Its
-measured part is ``C_beta * u * |p|`` with ``C_beta = 512``, an allowance for
+measured part is ``C_beta * u * |p|`` with ``C_beta = 2048``, an allowance for
 ``betainc`` evaluation error between MATLAB and SciPy rather than an operation
-count. Zero and subnormal reference probabilities stay exact. Degrees of
+count. That one constant covers the full tail down to ``p = 1e-300``: a
+measured MATLAB sweep reaches 1966.5u and SciPy reaches about 70u. Zero and
+subnormal reference probabilities stay exact. Degrees of
 freedom and the empty parametric surrogate stay exact. The MATLAB backend
 still uses the stored zero tolerance. F resampling arrays are float64 when
 ``arraycomp`` is on, because ``statcond.m`` lines 384 and 421 replace the
@@ -321,7 +323,7 @@ single preallocation at line 261 with the double ANOVA output, and float32
 when ``arraycomp`` is off. The confidence interval taken from that array has
 the same class. Cases 31-78 are ``returnresamplingarray`` condition grids and
 stay float32. On these fixtures the largest measured-to-limit ratio is about
-0.030 for F and about 0.41 for p.
+0.030 for F and about 0.16 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
