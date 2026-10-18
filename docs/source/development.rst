@@ -305,16 +305,23 @@ the tail in ``myfpval.m`` lines 11-19. The stored tolerances remain zero. On
 the Python backend each sum of squares over the ``N`` observations of one
 feature uses the same accumulation rule as the t-test, ``N * eps = 2 * N * u``
 with ``u = 2^{-53}``. An F ratio adds the numerator and the denominator.
-Repeated-measures brackets multiply that by ``κ = Σ|term| / |sum|``, because
-``anova1rm_cell.m`` and ``anova2rm_cell.m`` subtract those terms (the
-interaction residual has eight). Two-pass unpaired sums of squares are
-positive, so each ``κ`` is 1 and the tolerance is ``4 * N * u``. The p-value
-tolerance is that statistic tolerance times
-``max |F| * pdf(F; df1, df2) / |p|``, one bound for each effect array. Zero
-and subnormal reference probabilities stay exact. Degrees of freedom and the
-empty parametric surrogate stay exact. The MATLAB backend still uses the
-stored zero tolerance. On these fixtures the largest measured-to-limit ratio
-is about 0.028 for F and about 0.65 for p.
+Repeated-measures brackets multiply each side by ``κ = Σ|term| / |sum|``,
+applied per element, because ``anova1rm_cell.m`` and ``anova2rm_cell.m``
+subtract those terms (the interaction residual has eight). The unpaired
+factor is 1 because ``anova1_cell`` delegates to the two-pass ``anova2_cell``,
+so that tolerance is ``4 * N * u``. The p-value limit is also per element.
+Its derived part is the F tolerance times ``|F| * pdf(F; df1, df2)``. Its
+measured part is ``C_beta * u * |p|`` with ``C_beta = 512``, an allowance for
+``betainc`` evaluation error between MATLAB and SciPy rather than an operation
+count. Zero and subnormal reference probabilities stay exact. Degrees of
+freedom and the empty parametric surrogate stay exact. The MATLAB backend
+still uses the stored zero tolerance. F resampling arrays are float64 when
+``arraycomp`` is on, because ``statcond.m`` lines 384 and 421 replace the
+single preallocation at line 261 with the double ANOVA output, and float32
+when ``arraycomp`` is off. The confidence interval taken from that array has
+the same class. Cases 31-78 are ``returnresamplingarray`` condition grids and
+stay float32. On these fixtures the largest measured-to-limit ratio is about
+0.030 for F and about 0.41 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained

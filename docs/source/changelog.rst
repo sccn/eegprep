@@ -48,9 +48,14 @@ Unreleased
   the double-precision accumulation in EEGLAB ``anova1_cell.m``,
   ``anova1rm_cell.m``, ``anova2_cell.m``, and ``anova2rm_cell.m`` after
   EEGLAB #977. Parametric p-values follow ``myfpval.m`` lines 11-19: the
-  complement of the incomplete beta when ``F < df2/df1``, and the direct
-  lower tail otherwise. Resampling statistic arrays stay float32 because
-  ``statcond.m`` line 261 still preallocates them as single.
+  complement of the incomplete beta when ``F < df2/df1``, and the upper tail
+  in its symmetric form otherwise (``x = df2/(df2+df1*F)``, parameters
+  ``(df2/2, df1/2)``). That branch matches ``myfpval``'s choice. F resampling
+  arrays are float64 when ``arraycomp`` is on, because ``statcond.m`` lines
+  384 and 421 replace the single preallocation at line 261 with the double
+  ANOVA output, and float32 when ``arraycomp`` is off, because lines 398-399
+  and 435-436 assign into that single array. The confidence interval derived
+  from an F resampling array has the same class.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

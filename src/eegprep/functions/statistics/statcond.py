@@ -266,6 +266,7 @@ def statcond(
         structoutput=structoutput,
         n_conditions=n_conditions,
         forceanova=forceanova,
+        arraycomp=arraycomp_flag_value,
     )
 
 
@@ -308,12 +309,11 @@ def _parametric_pvalues(stat: Any, df: Any, statistic_kind: str) -> Any:
 
 
 def _f_tail_probability(f_values: Any, df1: Any, df2: Any) -> np.ndarray:
-    """Return the F upper tail with ``myfpval``'s incomplete-beta branch.
+    """Return the F upper tail using the incomplete-beta choice in ``myfpval``.
 
-    ``myfpval.m`` lines 11-19 evaluate ``betainc(..., 'upper')`` when
-    ``F < df2/df1`` and the direct lower tail otherwise. ``scipy.stats.f.sf``
-    always uses the lower-tail argument, so probabilities near 1 lose the
-    digits that the complement branch keeps.
+    ``myfpval.m`` lines 11-19 use the complement ``betainc(..., 'upper')`` when
+    ``F < df2/df1``. Otherwise they use the upper tail in its symmetric form,
+    ``betainc(df2/(df2+df1*F), df2/2, df1/2)``. The branch matches that choice.
     """
 
     f_values = np.asarray(f_values, dtype=np.float64)
@@ -330,19 +330,19 @@ def _f_tail_probability(f_values: Any, df1: Any, df2: Any) -> np.ndarray:
     observed = f_values[usable]
     numerator_df = df1[usable]
     denominator_df = df2[usable]
-    lower_tail = observed < (denominator_df / numerator_df)
+    complement = observed < (denominator_df / numerator_df)
     tail = np.empty(observed.shape, dtype=np.float64)
-    direct = ~lower_tail
-    if np.any(direct):
-        statistic = observed[direct]
-        d1 = numerator_df[direct]
-        d2 = denominator_df[direct]
-        tail[direct] = special.betainc(d2 / 2.0, d1 / 2.0, d2 / (d2 + d1 * statistic))
-    if np.any(lower_tail):
-        statistic = observed[lower_tail]
-        d1 = numerator_df[lower_tail]
-        d2 = denominator_df[lower_tail]
-        tail[lower_tail] = special.betaincc(d1 / 2.0, d2 / 2.0, (d1 * statistic) / (d2 + d1 * statistic))
+    symmetric = ~complement
+    if np.any(symmetric):
+        statistic = observed[symmetric]
+        d1 = numerator_df[symmetric]
+        d2 = denominator_df[symmetric]
+        tail[symmetric] = special.betainc(d2 / 2.0, d1 / 2.0, d2 / (d2 + d1 * statistic))
+    if np.any(complement):
+        statistic = observed[complement]
+        d1 = numerator_df[complement]
+        d2 = denominator_df[complement]
+        tail[complement] = special.betaincc(d1 / 2.0, d2 / 2.0, (d1 * statistic) / (d2 + d1 * statistic))
     probability[usable] = tail
     return probability
 
@@ -545,13 +545,15 @@ def _matlab_df_value(df: Any, paired: bool) -> np.ndarray:
     return np.asarray([[df]], dtype=np.float64)
 
 
-def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: bool) -> np.ndarray:
+def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: bool, dtype: np.dtype) -> np.ndarray:
     if value is None:
         return np.empty((0, 0), dtype=np.float64)
     if isinstance(value, TwoWayEffects):
-        return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True), paired)
-    # statcond.m:261 preallocates the resampling statistic as single.
-    array = np.asarray(value, dtype=np.float32)
+        return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True, dtype), paired)
+    # statcond.m:261 preallocates single. ANOVA arraycomp on replaces that array
+    # with the double anova*_cell output (statcond.m:384, :421). arraycomp off
+    # assigns into the single array (statcond.m:398-399, :435-436).
+    array = np.asarray(value, dtype=dtype)
     if len(feature_shape) <= 1:
         n_features = 1 if len(feature_shape) == 0 else int(feature_shape[0])
         return np.reshape(array, (n_features, array.shape[-1]), order="F")
@@ -587,16 +589,18 @@ def _package_result(
     structoutput: bool,
     n_conditions: int,
     forceanova: bool,
+    arraycomp: bool,
 ) -> StatcondResult:
     kind = _output_kind(statistic_kind, n_conditions, forceanova)
     stat_dtype = np.float64
     pvalue_dtype = np.float64
-    if statistic_kind is None and not isinstance(observed_stat, TwoWayEffects):
-        stat_dtype = np.asarray(observed_stat).dtype
+    f_statistic = statistic_kind is not None and statistic_kind.startswith("f")
+    surrogate_dtype = np.dtype(np.float64 if f_statistic and arraycomp else np.float32)
+    ci_dtype = surrogate_dtype if f_statistic else np.dtype(np.float64)
     matlab_stat = _matlab_statistic_value(observed_stat, feature_shape, stat_dtype, paired_flag_value)
     matlab_df = _matlab_df_value(observed_df, paired_flag_value)
     matlab_pvalue = _matlab_statistic_value(pvalue, feature_shape, pvalue_dtype, paired_flag_value)
-    matlab_surrogate = _matlab_surrogate_value(surrogate_stat, feature_shape, paired_flag_value)
+    matlab_surrogate = _matlab_surrogate_value(surrogate_stat, feature_shape, paired_flag_value, surrogate_dtype)
     matlab_primary = None
     if structoutput:
         payload: dict[str, Any] = {
@@ -608,7 +612,7 @@ def _package_result(
         }
         payload["t" if kind == "t" else "f"] = matlab_stat
         if ci is not None:
-            payload["ci"] = _matlab_ci(ci, feature_shape, paired_flag_value)
+            payload["ci"] = _matlab_ci(ci, feature_shape, paired_flag_value, ci_dtype)
             payload["mask"] = _matlab_statistic_value(mask, feature_shape, bool, paired_flag_value)
         matlab_stat = payload
         matlab_primary = payload
@@ -629,11 +633,11 @@ def _package_result(
     )
 
 
-def _matlab_ci(ci: Any, feature_shape: tuple[int, ...], paired: bool) -> np.ndarray:
+def _matlab_ci(ci: Any, feature_shape: tuple[int, ...], paired: bool, dtype: np.dtype) -> np.ndarray:
     if isinstance(ci, TwoWayEffects):
-        return _effect_cells(ci, lambda item: _matlab_ci(item, feature_shape, True), paired)
-    array = np.asarray(ci, dtype=float)
-    bounds = [_matlab_array(array[index], feature_shape, np.float64) for index in range(array.shape[0])]
+        return _effect_cells(ci, lambda item: _matlab_ci(item, feature_shape, True, dtype), paired)
+    array = np.asarray(ci)
+    bounds = [_matlab_array(array[index], feature_shape, dtype) for index in range(array.shape[0])]
     return np.stack(bounds, axis=0)
 
 
