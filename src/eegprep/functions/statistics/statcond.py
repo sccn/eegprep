@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 import numpy as np
+from scipy import special
 from scipy import stats as scipy_stats
 
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
@@ -226,7 +227,6 @@ def statcond(
             pvalue_tail = "one" if statistic_kind.startswith("f") else tail
             pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, pvalue_tail)
 
-    cluster_applied = False
     if cluster and method_name != "param" and not isinstance(observed_stat, TwoWayEffects):
         cluster_df = observed_df
         cluster_kind = statistic_kind
@@ -241,7 +241,6 @@ def statcond(
             alpha = 0.05
             logger.warning("Alpha value set to 0.05 automatically")
         pvalue = _cluster_pvalues(observed_stat, surrogate_stat, cluster_df, alpha, cluster_kind)
-        cluster_applied = True
 
     ci = None
     mask = None
@@ -265,7 +264,6 @@ def statcond(
         statistic_kind=statistic_kind,
         feature_shape=feature_shape,
         structoutput=structoutput,
-        cluster_applied=cluster_applied,
         n_conditions=n_conditions,
         forceanova=forceanova,
     )
@@ -302,11 +300,51 @@ def _parametric_pvalues(stat: Any, df: Any, statistic_kind: str) -> Any:
         return 2 * scipy_stats.t.sf(np.abs(stat), df)
     if isinstance(stat, TwoWayEffects):
         return TwoWayEffects(
-            scipy_stats.f.sf(stat.rows, df.rows[0], df.rows[1]),
-            scipy_stats.f.sf(stat.columns, df.columns[0], df.columns[1]),
-            scipy_stats.f.sf(stat.interaction, df.interaction[0], df.interaction[1]),
+            _f_tail_probability(stat.rows, df.rows[0], df.rows[1]),
+            _f_tail_probability(stat.columns, df.columns[0], df.columns[1]),
+            _f_tail_probability(stat.interaction, df.interaction[0], df.interaction[1]),
         )
-    return scipy_stats.f.sf(stat, df[0], df[1])
+    return _f_tail_probability(stat, df[0], df[1])
+
+
+def _f_tail_probability(f_values: Any, df1: Any, df2: Any) -> np.ndarray:
+    """Return the F upper tail with ``myfpval``'s incomplete-beta branch.
+
+    ``myfpval.m`` lines 11-19 evaluate ``betainc(..., 'upper')`` when
+    ``F < df2/df1`` and the direct lower tail otherwise. ``scipy.stats.f.sf``
+    always uses the lower-tail argument, so probabilities near 1 lose the
+    digits that the complement branch keeps.
+    """
+
+    f_values = np.asarray(f_values, dtype=np.float64)
+    df1 = np.asarray(df1, dtype=np.float64)
+    df2 = np.asarray(df2, dtype=np.float64)
+    probability = np.ones(np.broadcast_shapes(f_values.shape, df1.shape, df2.shape), dtype=np.float64)
+    f_values = np.broadcast_to(f_values, probability.shape)
+    df1 = np.broadcast_to(df1, probability.shape)
+    df2 = np.broadcast_to(df2, probability.shape)
+    probability[np.isnan(f_values)] = np.nan
+    usable = f_values > 0
+    if not np.any(usable):
+        return probability
+    observed = f_values[usable]
+    numerator_df = df1[usable]
+    denominator_df = df2[usable]
+    lower_tail = observed < (denominator_df / numerator_df)
+    tail = np.empty(observed.shape, dtype=np.float64)
+    direct = ~lower_tail
+    if np.any(direct):
+        statistic = observed[direct]
+        d1 = numerator_df[direct]
+        d2 = denominator_df[direct]
+        tail[direct] = special.betainc(d2 / 2.0, d1 / 2.0, d2 / (d2 + d1 * statistic))
+    if np.any(lower_tail):
+        statistic = observed[lower_tail]
+        d1 = numerator_df[lower_tail]
+        d2 = denominator_df[lower_tail]
+        tail[lower_tail] = special.betaincc(d1 / 2.0, d2 / 2.0, (d1 * statistic) / (d2 + d1 * statistic))
+    probability[usable] = tail
+    return probability
 
 
 def _compute_surrogate_statistics(
@@ -512,6 +550,7 @@ def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: 
         return np.empty((0, 0), dtype=np.float64)
     if isinstance(value, TwoWayEffects):
         return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True), paired)
+    # statcond.m:261 preallocates the resampling statistic as single.
     array = np.asarray(value, dtype=np.float32)
     if len(feature_shape) <= 1:
         n_features = 1 if len(feature_shape) == 0 else int(feature_shape[0])
@@ -546,13 +585,12 @@ def _package_result(
     statistic_kind: str | None,
     feature_shape: tuple[int, ...],
     structoutput: bool,
-    cluster_applied: bool,
     n_conditions: int,
     forceanova: bool,
 ) -> StatcondResult:
     kind = _output_kind(statistic_kind, n_conditions, forceanova)
-    stat_dtype = np.float64 if kind == "t" else np.float32
-    pvalue_dtype = np.float64 if kind == "t" or cluster_applied else np.float32
+    stat_dtype = np.float64
+    pvalue_dtype = np.float64
     if statistic_kind is None and not isinstance(observed_stat, TwoWayEffects):
         stat_dtype = np.asarray(observed_stat).dtype
     matlab_stat = _matlab_statistic_value(observed_stat, feature_shape, stat_dtype, paired_flag_value)

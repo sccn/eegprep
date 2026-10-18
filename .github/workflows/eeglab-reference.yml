@@ -100,7 +100,10 @@ jobs:
           SUITE_REPOSITORY: ${{ steps.pins.outputs.suite-repository }}
         run: |
           rm -rf eeglab_tests
-          git clone --filter=blob:none --depth 1 "$SUITE_REPOSITORY" eeglab_tests
+          git init eeglab_tests
+          git -C eeglab_tests remote add origin "$SUITE_REPOSITORY"
+          git -C eeglab_tests fetch --depth 1 origin "$SUITE_COMMIT"
+          git -C eeglab_tests checkout --detach FETCH_HEAD
           if [[ "$(git -C eeglab_tests rev-parse HEAD)" != "$SUITE_COMMIT" ]]; then
             echo "::error title=eeglab_tests pin mismatch::HEAD is not $SUITE_COMMIT"
             exit 1

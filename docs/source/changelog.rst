@@ -44,6 +44,13 @@ Unreleased
   returns no rejections when its window is longer than the trial.
   ``celltomat`` returns a numeric array for an empty cell, and
   ``eeg_point2lat`` accepts a column time window.
+- ``statcond`` ANOVA F and p values are float64. The sums of squares follow
+  the double-precision accumulation in EEGLAB ``anova1_cell.m``,
+  ``anova1rm_cell.m``, ``anova2_cell.m``, and ``anova2rm_cell.m`` after
+  EEGLAB #977. Parametric p-values follow ``myfpval.m`` lines 11-19: the
+  complement of the incomplete beta when ``F < df2/df1``, and the direct
+  lower tail otherwise. Resampling statistic arrays stay float32 because
+  ``statcond.m`` line 261 still preallocates them as single.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

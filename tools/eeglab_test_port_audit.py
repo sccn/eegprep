@@ -15,8 +15,8 @@ from typing import Any, Sequence
 
 
 EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab_tests.git"
-EEGLAB_TESTS_COMMIT = "ff605546f3f70868916fb8d49c007472b3257b50"
-EEGLAB_TESTS_EEGLAB_COMMIT = "8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba"
+EEGLAB_TESTS_COMMIT = "d4c7cf7740e33556ca6d3ba2880167556bf7292f"
+EEGLAB_TESTS_EEGLAB_COMMIT = "d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4"
 STALE_EEGLAB_TESTS_REPOSITORY = "https://github.com/sccn/eeglab-testcases.git"
 REFERENCE_ATTRIBUTE = "__eeglab_test_references__"
 PROVENANCE_OPTION = "--eeglab-provenance-output"

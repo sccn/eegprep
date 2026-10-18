@@ -21,15 +21,6 @@ def _boundary(raises: type[BaseException] | tuple[type[BaseException], ...]) -> 
     return ExpectedFailure(BOUNDARY, raises)
 
 
-STATCOND_ZERO = (
-    "stored statcond ANOVA fixtures use zero tolerance. "
-    "Cases 3-6 and 15-30 are single because EEGLAB accumulates in single "
-    "(anova1rm_cell.m:67-68, anova1_cell.m:98/107/116, anova2_cell.m:98-99, "
-    "anova2rm_cell.m:83-131) and then evaluates single 1-fcdf. "
-    "F errors reach absolute 6.1e-2 and relative 5.9e-3 from cancellation in "
-    "ssA/ssAS (anova1rm_cell.m:97-104), and p saturates to 0 below about 6e-8 "
-    "in single. eegprep computes these statistics in double"
-)
 STRUCT = "MATLAB struct and cell inputs arrive as lists, object arrays, or structured arrays"
 SHAPE = "the result shape does not follow the MATLAB row, column, or empty-array contract"
 INDEX = "an EEGLAB index or dimension is 1-based"
@@ -47,26 +38,6 @@ RMART = (
 BOUNDARY = "boundary converter (#430 PR-A)"
 
 PYTHON_BACKEND_XFAILS = {
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_03": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_04": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_05": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_06": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_15": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_16": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_17": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_18": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_19": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_20": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_21": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_22": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_23": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_24": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_25": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_26": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_27": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_28": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_29": _gap(STATCOND_ZERO, AssertionError),
-    "tests/test_statcond_eeglab_tests.py::test_reference_statcond_regression_30": _gap(STATCOND_ZERO, AssertionError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_clear": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_explicit_pairs": _gap(STRUCT, AttributeError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_fiducials": _gap(STRUCT, AttributeError),

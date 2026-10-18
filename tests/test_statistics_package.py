@@ -198,18 +198,18 @@ def test_statcond_unpaired_matlab_cells_follow_anova2_order():
     result = statcond(grid, method="param", paired="off")
 
     assert result.matlab_stat.shape == (1, 3)
-    assert result.matlab_stat[0, 0].dtype == np.float32
+    assert result.matlab_stat[0, 0].dtype == np.float64
     npt.assert_array_equal(
         result.matlab_stat[0, 0],
-        np.asarray(result.stat.columns, dtype=np.float32).reshape(1, 1),
+        np.asarray(result.stat.columns, dtype=np.float64).reshape(1, 1),
     )
     npt.assert_array_equal(
         result.matlab_stat[0, 1],
-        np.asarray(result.stat.rows, dtype=np.float32).reshape(1, 1),
+        np.asarray(result.stat.rows, dtype=np.float64).reshape(1, 1),
     )
     npt.assert_array_equal(
         result.matlab_stat[0, 2],
-        np.asarray(result.stat.interaction, dtype=np.float32).reshape(1, 1),
+        np.asarray(result.stat.interaction, dtype=np.float64).reshape(1, 1),
     )
     assert result.matlab_df[0, 0].shape == (1, 2)
     assert result.matlab_df[0, 0].dtype == np.float64

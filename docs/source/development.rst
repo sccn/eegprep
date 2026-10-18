@@ -86,8 +86,11 @@ Ports of the upstream MATLAB tests use only the current
 `sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
 older ``sccn/eeglab-testcases`` repository is stale and must not be used.
 EEGPrep currently pins ``eeglab_tests`` commit
-``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
-``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
+``d4c7cf7740e33556ca6d3ba2880167556bf7292f`` and the EEGLAB submodule commit
+``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
+That suite commit is the head of ``sccn/eeglab_tests`` pull request 16 and is
+not on ``master`` yet. Move the pin to that pull request's merge commit once
+it merges.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
@@ -128,7 +131,7 @@ commit and run the source-driven audit:
 .. code-block:: bash
 
     git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
-    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests checkout d4c7cf7740e33556ca6d3ba2880167556bf7292f
     git -C /tmp/eeglab_tests submodule update --init eeglab
     uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
 
@@ -294,17 +297,24 @@ tolerances remain zero, and the MATLAB backend still uses them. The worst
 residuals inside this bound are a statistic relative error of ``8.8e-16``
 and a p-value relative error of ``1.9e-14``.
 
-The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
-single in EEGLAB because those routines accumulate in single
-(``anova1rm_cell.m`` lines 67-68, ``anova1_cell.m`` lines 98, 107, and 116,
-``anova2_cell.m`` lines 98-99, and ``anova2rm_cell.m`` lines 83-131) and then
-evaluate ``1-fcdf`` in single. Cancellation in ``ssA`` and ``ssAS``
-(``anova1rm_cell.m`` lines 97-104) lets the F error reach an absolute
-``6.1e-2`` and a relative ``5.9e-3``, and the single-precision p-value
-saturates to 0 below about ``6e-8``. EEGPrep computes these statistics in
-double. That single-precision gap stays an expected failure pending a
-decision on whether to match the accumulation. The stored tolerances are
-unchanged.
+The ANOVA cases (3-6 and 15-30) are parametric F tests. EEGLAB accumulates
+those sums of squares in double (``anova1_cell.m`` returns the column effect
+of ``anova2_cell.m``; ``anova1rm_cell.m`` lines 67-68 and 97-112;
+``anova2_cell.m`` lines 87-106; ``anova2rm_cell.m`` lines 83-194) and evaluates
+the tail in ``myfpval.m`` lines 11-19. The stored tolerances remain zero. On
+the Python backend each sum of squares over the ``N`` observations of one
+feature uses the same accumulation rule as the t-test, ``N * eps = 2 * N * u``
+with ``u = 2^{-53}``. An F ratio adds the numerator and the denominator.
+Repeated-measures brackets multiply that by ``κ = Σ|term| / |sum|``, because
+``anova1rm_cell.m`` and ``anova2rm_cell.m`` subtract those terms (the
+interaction residual has eight). Two-pass unpaired sums of squares are
+positive, so each ``κ`` is 1 and the tolerance is ``4 * N * u``. The p-value
+tolerance is that statistic tolerance times
+``max |F| * pdf(F; df1, df2) / |p|``, one bound for each effect array. Zero
+and subnormal reference probabilities stay exact. Degrees of freedom and the
+empty parametric surrogate stay exact. The MATLAB backend still uses the
+stored zero tolerance. On these fixtures the largest measured-to-limit ratio
+is about 0.028 for F and about 0.65 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
