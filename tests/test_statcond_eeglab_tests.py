@@ -1116,7 +1116,7 @@ def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
     # the class when naccu matches the surrogate length. pvals stay double.
     naccu = 4
     data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
-    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    stats = np.arange(2, dtype=stat_dtype)
     surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
     result = statcond(
         data,
@@ -1140,7 +1140,7 @@ def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
 def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, stat_dtype, surrog_dtype):
     naccu = 4
     data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
-    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    stats = np.arange(2, dtype=stat_dtype)
     surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
     statistic, _degrees, probability, surrogate = eeglab_backend(
         "statcond",
