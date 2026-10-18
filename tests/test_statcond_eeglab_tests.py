@@ -137,8 +137,8 @@ _PYTHON_ANOVA_REGRESSION_CASES = frozenset({*range(3, 7), *range(15, 31)})
 _FLOAT64_UNIT_ROUNDOFF = np.float64(2.0**-53)
 # Measured betainc evaluation allowance, in multiples of u = 2^{-53}.
 # Not derived from the sum-of-squares operation count. One constant covers
-# the full tail. Box MATLAB R2025b vs mpmath reaches 1966.5u, and SciPy on
-# this VM reaches 69.9u down to p = 1e-300. Their sum is 2036u. 1024 does
+# the full tail. Box MATLAB R2025b vs mpmath reaches 1966.5u, and SciPy
+# 1.15.3 reaches 69.9u down to p = 1e-300. Their sum is 2036u. 1024 does
 # not cover it; 2048 does.
 _C_BETA = np.float64(2048)
 
@@ -1017,11 +1017,21 @@ def _anova_resampling_grid(design: str) -> np.ndarray:
     def block(seed: int) -> np.ndarray:
         return np.random.default_rng(seed).normal(size=(2, 6))
 
-    if design == "one-way":
+    if design == "t":
+        rows = [[block(1), block(2)]]
+    elif design == "one-way":
         rows = [[block(1), block(2), block(3)]]
     else:
         rows = [[block(1), block(2)], [block(3), block(4)]]
     return _matlab_cells(rows)
+
+
+def _expected_resampling_dtype(design: str, arraycomp: str):
+    # concatdata.m is single. ttest_cell keeps that class for both arraycomp
+    # modes. ANOVA arraycomp on replaces it with the double anova*_cell output.
+    if design != "t" and arraycomp == "on":
+        return np.float64
+    return np.float32
 
 
 def _assert_numeric_dtype(value, dtype) -> None:
@@ -1037,13 +1047,17 @@ def _assert_numeric_dtype(value, dtype) -> None:
 
 @pytest.mark.parametrize("method", ["perm", "bootstrap"])
 @pytest.mark.parametrize("arraycomp", ["on", "off"])
-@pytest.mark.parametrize("design", ["one-way", "two-way"])
+@pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
 def test_statcond_f_resampling_dtype_follows_arraycomp(method, design, arraycomp):
     grid = _anova_resampling_grid(design)
     paired = "on" if design == "two-way" else "off"
-    expected = np.float64 if arraycomp == "on" else np.float32
+    expected = _expected_resampling_dtype(design, arraycomp)
     result = statcond(grid, method=method, paired=paired, naccu=8, arraycomp=arraycomp, rng=1, verbose="off")
     _assert_numeric_dtype(result.matlab_surrogate, expected)
+    # statcond.m:511 asks stat_surrogate_ci for a numeric array. A two-way
+    # surrogate is a cell, so that call errors. Check the cell class only.
+    if design == "two-way":
+        return
     structured = statcond(
         grid,
         method=method,
@@ -1061,11 +1075,11 @@ def test_statcond_f_resampling_dtype_follows_arraycomp(method, design, arraycomp
 
 @pytest.mark.parametrize("method", ["perm", "bootstrap"])
 @pytest.mark.parametrize("arraycomp", ["on", "off"])
-@pytest.mark.parametrize("design", ["one-way", "two-way"])
+@pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
 def test_reference_statcond_f_resampling_dtype_follows_arraycomp(eeglab_backend, method, design, arraycomp):
     grid = _anova_resampling_grid(design)
     paired = "on" if design == "two-way" else "off"
-    expected = np.float64 if arraycomp == "on" else np.float32
+    expected = _expected_resampling_dtype(design, arraycomp)
     _statistic, _degrees, _probability, surrogate = eeglab_backend(
         "statcond",
         grid,
@@ -1077,6 +1091,8 @@ def test_reference_statcond_f_resampling_dtype_follows_arraycomp(eeglab_backend,
         nargout=4,
     )
     _assert_numeric_dtype(surrogate, expected)
+    if design == "two-way":
+        return
     output = eeglab_backend(
         "statcond",
         grid,
@@ -1091,6 +1107,70 @@ def test_reference_statcond_f_resampling_dtype_follows_arraycomp(eeglab_backend,
     )
     _assert_numeric_dtype(output["surrog"], expected)
     _assert_numeric_dtype(output["ci"], expected)
+
+
+@pytest.mark.parametrize("stat_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("surrog_dtype", [np.float32, np.float64])
+def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
+    # statcond.m:444-445 assigns the supplied arrays. reshape_results keeps
+    # the class when naccu matches the surrogate length. pvals stay double.
+    naccu = 4
+    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
+    result = statcond(
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+    )
+    _assert_numeric_dtype(result.matlab_primary["stat"], stat_dtype)
+    _assert_numeric_dtype(result.matlab_primary["surrog"], surrog_dtype)
+    _assert_numeric_dtype(result.matlab_primary["pval"], np.float64)
+    _assert_numeric_dtype(result.matlab_primary["ci"], surrog_dtype)
+    _assert_numeric_dtype(result.matlab_surrogate, surrog_dtype)
+
+
+@pytest.mark.parametrize("stat_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("surrog_dtype", [np.float32, np.float64])
+def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, stat_dtype, surrog_dtype):
+    naccu = 4
+    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
+    statistic, _degrees, probability, surrogate = eeglab_backend(
+        "statcond",
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        nargout=4,
+    )
+    _assert_numeric_dtype(statistic, stat_dtype)
+    _assert_numeric_dtype(surrogate, surrog_dtype)
+    _assert_numeric_dtype(probability, np.float64)
+    output = eeglab_backend(
+        "statcond",
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+        nargout=1,
+    )
+    _assert_numeric_dtype(output["stat"], stat_dtype)
+    _assert_numeric_dtype(output["surrog"], surrog_dtype)
+    _assert_numeric_dtype(output["pval"], np.float64)
+    _assert_numeric_dtype(output["ci"], surrog_dtype)
 
 
 def _assert_class_same(actual, expected):

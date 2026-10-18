@@ -550,9 +550,6 @@ def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: 
         return np.empty((0, 0), dtype=np.float64)
     if isinstance(value, TwoWayEffects):
         return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True, dtype), paired)
-    # statcond.m:261 preallocates single. ANOVA arraycomp on replaces that array
-    # with the double anova*_cell output (statcond.m:384, :421). arraycomp off
-    # assigns into the single array (statcond.m:398-399, :435-436).
     array = np.asarray(value, dtype=dtype)
     if len(feature_shape) <= 1:
         n_features = 1 if len(feature_shape) == 0 else int(feature_shape[0])
@@ -594,9 +591,20 @@ def _package_result(
     kind = _output_kind(statistic_kind, n_conditions, forceanova)
     stat_dtype = np.float64
     pvalue_dtype = np.float64
+    # statcond.m:261 preallocates single. concatdata.m stores the draws as
+    # single, and ttest_cell keeps that class (statcond.m:352, :366-367).
+    # ANOVA arraycomp on replaces the array with double anova*_cell output
+    # (statcond.m:384, :421); arraycomp off assigns into the single array
+    # (statcond.m:398-399, :435-436). A supplied array keeps its own class
+    # (statcond.m:444-445). stat_surrogate_ci preserves that class (:512).
     f_statistic = statistic_kind is not None and statistic_kind.startswith("f")
     surrogate_dtype = np.dtype(np.float64 if f_statistic and arraycomp else np.float32)
-    ci_dtype = surrogate_dtype if f_statistic else np.dtype(np.float64)
+    if statistic_kind is None:
+        if not isinstance(observed_stat, TwoWayEffects):
+            stat_dtype = np.asarray(observed_stat).dtype
+        if not isinstance(surrogate_stat, TwoWayEffects):
+            surrogate_dtype = np.dtype(np.asarray(surrogate_stat).dtype)
+    ci_dtype = surrogate_dtype
     matlab_stat = _matlab_statistic_value(observed_stat, feature_shape, stat_dtype, paired_flag_value)
     matlab_df = _matlab_df_value(observed_df, paired_flag_value)
     matlab_pvalue = _matlab_statistic_value(pvalue, feature_shape, pvalue_dtype, paired_flag_value)

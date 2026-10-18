@@ -54,8 +54,12 @@ Unreleased
   arrays are float64 when ``arraycomp`` is on, because ``statcond.m`` lines
   384 and 421 replace the single preallocation at line 261 with the double
   ANOVA output, and float32 when ``arraycomp`` is off, because lines 398-399
-  and 435-436 assign into that single array. The confidence interval derived
-  from an F resampling array has the same class.
+  and 435-436 assign into that single array. ``concatdata.m`` stores the
+  draws as single and ``ttest_cell`` keeps that class, so t-test resampling
+  arrays and their confidence intervals stay float32 for both ``arraycomp``
+  modes. A confidence interval follows the surrogate class. Supplied stats
+  and resampling arrays keep the class they were given when ``naccu`` matches
+  the supplied length. p-values stay float64.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the

@@ -320,9 +320,13 @@ freedom and the empty parametric surrogate stay exact. The MATLAB backend
 still uses the stored zero tolerance. F resampling arrays are float64 when
 ``arraycomp`` is on, because ``statcond.m`` lines 384 and 421 replace the
 single preallocation at line 261 with the double ANOVA output, and float32
-when ``arraycomp`` is off. The confidence interval taken from that array has
-the same class. Cases 31-78 are ``returnresamplingarray`` condition grids and
-stay float32. On these fixtures the largest measured-to-limit ratio is about
+when ``arraycomp`` is off. ``concatdata.m`` stores surrogate draws as single
+and ``ttest_cell`` keeps that class, so a t-test resampling array and its
+confidence interval stay float32 for both ``arraycomp`` modes. A confidence
+interval follows the surrogate class. Supplied stats and resampling arrays
+keep the class they were given when ``naccu`` matches the supplied length.
+p-values stay float64. Cases 31-78 are ``returnresamplingarray`` condition
+grids and stay float32. On these fixtures the largest measured-to-limit ratio is about
 0.030 for F and about 0.16 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
