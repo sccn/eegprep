@@ -41,15 +41,18 @@ class TestEegRpsdParity(unittest.TestCase):
         self.EEG = pop_loadset(test_file)
 
     def test_parity_default_nfreqs(self):
-        """Test parity with MATLAB using default nfreqs parameter."""
+        """Compare default spectra on the activations pop_loadset recomputes.
+
+        ``pop_loadset`` fills ``icaact`` (``eeg_checkset.m:1030-1032``).
+        ``eeg_rpsd`` reads that array and does not recompute it, so both
+        sides window the loaded activations.
+        """
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
         temp_file = tempfile.mktemp(suffix='.set')
         pop_saveset(self.EEG, temp_file)
 
-        # eeg_rpsd.m reads EEG.icaact and does not recompute it. pop_loadset fills
-        # that field (eeg_checkset.m:1030-1032); both sides window that array.
         matlab_code = f"""
         EEG = pop_loadset('{temp_file}');
         psdmed = eeg_rpsd(EEG);
@@ -75,6 +78,78 @@ class TestEegRpsdParity(unittest.TestCase):
             rtol=2e-5,
             atol=1e-8,
             err_msg="eeg_rpsd results differ beyond tolerance (default nfreqs)",
+        )
+
+    def test_parity_double_activations(self):
+        """Compare spectra for one shared float64 activation array.
+
+        The activations ``pop_loadset`` recomputes are cast with MATLAB
+        ``double`` and passed to both sides.
+
+        Let ``n`` be the radix-2 FFT length ``min(pnts, srate)`` and
+        ``u = eps(float64) / 2``. One bin rounds a window multiply (1 flop),
+        ``log2(n)`` butterflies (8 real flops each: 4 multiplies and 2 adds
+        for the twiddle, then 2 adds), ``|z|^2`` (3 flops),
+        ``sum(window.^2)`` (``2n - 1`` flops), a multiply by the sampling
+        rate, a division, and a multiply by that scale. Powers of two are
+        exact, so the leading factor of 2 and the Nyquist halving add no
+        rounding. An even segment count averages the two central median
+        samples (1 add); an odd count only selects one. With ``k`` those
+        roundings, ``γ_k = k u / (1 - k u)``. Each evaluation can miss the
+        power by ``γ_k``, so the two powers can differ by ``2 γ_k``
+        relatively. ``20*log10`` turns that relative error into an absolute
+        decibel error of ``(20/ln(10)) * 2 γ_k``. ``rtol`` is ``2 γ_k`` and
+        ``atol`` is that decibel figure.
+        """
+        if not self.matlab_available:
+            self.skipTest("MATLAB not available")
+
+        n_points = min(int(self.EEG['pnts']), int(self.EEG['srate']))
+        if n_points <= 0 or n_points & (n_points - 1):
+            self.fail(f"radix-2 error count requires a power-of-two FFT length, got {n_points}")
+        pnts = int(self.EEG['pnts'])
+        cutoff = (pnts // n_points) * n_points
+        n_starts = np.ceil(np.arange(0, cutoff - n_points + 1, n_points / 2)).size
+        n_seg = int(n_starts) * int(self.EEG['trials'])
+        log2_n = n_points.bit_length() - 1
+        median_add = 0 if n_seg % 2 else 1
+        k = 1 + 8 * log2_n + 3 + (2 * n_points - 1) + 3 + median_add
+        unit = float(np.finfo(np.float64).eps) / 2
+        gamma = k * unit / (1.0 - k * unit)
+        rtol = 2 * gamma
+        atol = (20 / np.log(10)) * rtol
+
+        temp_file = tempfile.mktemp(suffix='.set')
+        pop_saveset(self.EEG, temp_file)
+        matlab_code = f"""
+        EEG = pop_loadset('{temp_file}');
+        EEG.icaact = double(EEG.icaact);
+        psdmed = eeg_rpsd(EEG);
+        icaact = EEG.icaact;
+        save('{temp_file}.mat', 'psdmed', 'icaact');
+        """
+        self.eeglab.eval(matlab_code, nargout=0)
+
+        mat_data = scipy.io.loadmat(temp_file + '.mat', mat_dtype=True)
+        activations = np.asarray(mat_data['icaact'])
+        ml_result = mat_data['psdmed']
+        compared = self.EEG.copy()
+        compared['icaact'] = activations
+        py_result = eeg_rpsd(compared)
+
+        os.remove(temp_file)
+        os.remove(temp_file + '.mat')
+        if os.path.exists(temp_file.replace('.set', '.fdt')):
+            os.remove(temp_file.replace('.set', '.fdt'))
+
+        self.assertEqual(activations.dtype, np.dtype(np.float64))
+        self.assertEqual(py_result.dtype, np.dtype(np.float64))
+        np.testing.assert_allclose(
+            py_result,
+            ml_result,
+            rtol=rtol,
+            atol=atol,
+            err_msg="eeg_rpsd double-activation results differ beyond the float64 rounding bound",
         )
 
 
