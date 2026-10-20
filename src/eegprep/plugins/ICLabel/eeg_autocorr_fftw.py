@@ -32,7 +32,6 @@ def eeg_autocorr_fftw(EEG, pct_data=100):
 
     activations = np.asarray(EEG['icaact'])
     for it in range(activations.shape[0]):
-        # MATLAB icaact(it,:,:) still works when trials == 1 drops the last dimension.
         component = activations[it]
         if component.ndim == 1:
             component = component[:, np.newaxis]

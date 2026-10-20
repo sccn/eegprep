@@ -393,7 +393,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
         if isinstance(check, str) and check.lower() == 'eventconsistency':
             EEG = _eventconsistency(EEG)
 
-    # Build epoch structure from events when the dataset is epoched.
+    # Build epoch structure from events (for epoched data)
+    # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
     try:
         if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
             if 'epoch' not in EEG:

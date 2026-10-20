@@ -59,7 +59,6 @@ def eeg_rpsd(EEG, nfreqs=None, pct_data=100):
     psdmed = np.zeros((ncomp, nfreqs))
     activations = np.asarray(EEG['icaact'])
     for it in range(ncomp):
-        # MATLAB icaact(it,:,:) still works when trials == 1 drops the last dimension.
         if activations.ndim == 2:
             selected = activations[it, index]
         else:

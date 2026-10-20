@@ -38,7 +38,6 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     ).astype(int)
     index = index.T
 
-    # MATLAB icaact(:,index,:) still works when trials == 1 drops the last dimension.
     activations = np.asarray(EEG['icaact'])
     if activations.ndim == 2:
         selected = activations[:, index]

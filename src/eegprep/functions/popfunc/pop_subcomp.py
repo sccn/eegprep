@@ -119,7 +119,7 @@ def _remove_components(EEG: dict, components: Any, keepcomp: int | bool) -> tupl
     mixing = np.asarray(icawinv, dtype=float) if icawinv is not None else np.array([])
     if mixing.size == 0:
         mixing = finite_pinv(matlab_mtimes(weights, sphere))
-    # pop_subcomp.m: icawinv(:,keep) * eeg_getdatact(..., 'component', keep, 'reshape', '2d')
+    # pop_subcomp.m:175: icawinv(:,keep) * eeg_getdatact(..., 'component', keep, 'reshape', '2d')
     keep_components = (np.flatnonzero(keep_mask) + 1).tolist()
     if keep_components:
         activations = eeg_getdatact(output, component=keep_components, reshape="2d")

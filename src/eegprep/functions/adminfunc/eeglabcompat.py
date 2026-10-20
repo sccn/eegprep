@@ -42,9 +42,8 @@ def _temp_dir() -> str:
 def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
     """Save double ``data`` and ``icaact`` as MATLAB holds them before ``pop_saveset``.
 
-    ``pop_saveset`` writes numeric data as single and stores ``icaact = []``.
-    ``eeg_checkset`` recomputes activations only when that field is empty or the
-    wrong size, so the in-memory array has to be copied back unchanged.
+    ``pop_saveset.m:225-226`` stores ``icaact`` as ``[]``. ``eeg_checkset.m:1000``
+    recomputes activations only when that field is empty or the wrong size.
     """
     engine.eval(
         (

@@ -201,7 +201,6 @@ def _component_data(
         data = _as_3d(_dataset_data(EEG), pnts, trials)
     weights, sphere, _inverse, ica_channels = _ica_matrices(EEG, require_inverse=False)
     flattened = np.asarray(data[ica_channels]).reshape(len(ica_channels), -1, order="F")
-    # eeg_getdatact.m recomputes (icaweights(comps,:)*icasphere)*data in the data class.
     activations = matlab_mtimes(matlab_mtimes(weights[component_indices], sphere), flattened)
     return np.reshape(activations, (len(component_indices), pnts, trials), order="F")
 
