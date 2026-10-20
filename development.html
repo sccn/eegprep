@@ -547,8 +547,10 @@ this environment.</p>
 <a class="reference external" href="https://github.com/sccn/eeglab_tests">sccn/eeglab_tests</a> repository. The
 older <code class="docutils literal notranslate"><span class="pre">sccn/eeglab-testcases</span></code> repository is stale and must not be used.
 EEGPrep currently pins <code class="docutils literal notranslate"><span class="pre">eeglab_tests</span></code> commit
-<code class="docutils literal notranslate"><span class="pre">ff605546f3f70868916fb8d49c007472b3257b50</span></code> and the EEGLAB submodule commit
-<code class="docutils literal notranslate"><span class="pre">8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9</span></code> and the EEGLAB submodule commit
+<code class="docutils literal notranslate"><span class="pre">d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4</span></code>.
+That suite commit is the squash merge of <code class="docutils literal notranslate"><span class="pre">sccn/eeglab_tests</span></code> pull request
+16 on <code class="docutils literal notranslate"><span class="pre">master</span></code>.</p>
 <p>The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
 implementation-coverage targets, or EEGPrep capability fixes. Reuse unchanged
@@ -580,7 +582,7 @@ numerical tolerance simply to make the port pass.</p>
 <p>Before declaring the port complete, clone the current suite at its pinned
 commit and run the source-driven audit:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eeglab_tests.git<span class="w"> </span>/tmp/eeglab_tests
-git<span class="w"> </span>-C<span class="w"> </span>/tmp/eeglab_tests<span class="w"> </span>checkout<span class="w"> </span>ff605546f3f70868916fb8d49c007472b3257b50
+git<span class="w"> </span>-C<span class="w"> </span>/tmp/eeglab_tests<span class="w"> </span>checkout<span class="w"> </span>fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
 git<span class="w"> </span>-C<span class="w"> </span>/tmp/eeglab_tests<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>eeglab
 uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>tools.eeglab_test_port_audit<span class="w"> </span>/tmp/eeglab_tests
 </pre></div>
@@ -729,17 +731,40 @@ and the empty parametric surrogate stay exact. The stored fixture
 tolerances remain zero, and the MATLAB backend still uses them. The worst
 residuals inside this bound are a statistic relative error of <code class="docutils literal notranslate"><span class="pre">8.8e-16</span></code>
 and a p-value relative error of <code class="docutils literal notranslate"><span class="pre">1.9e-14</span></code>.</p>
-<p>The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
-single in EEGLAB because those routines accumulate in single
-(<code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> lines 67-68, <code class="docutils literal notranslate"><span class="pre">anova1_cell.m</span></code> lines 98, 107, and 116,
-<code class="docutils literal notranslate"><span class="pre">anova2_cell.m</span></code> lines 98-99, and <code class="docutils literal notranslate"><span class="pre">anova2rm_cell.m</span></code> lines 83-131) and then
-evaluate <code class="docutils literal notranslate"><span class="pre">1-fcdf</span></code> in single. Cancellation in <code class="docutils literal notranslate"><span class="pre">ssA</span></code> and <code class="docutils literal notranslate"><span class="pre">ssAS</span></code>
-(<code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> lines 97-104) lets the F error reach an absolute
-<code class="docutils literal notranslate"><span class="pre">6.1e-2</span></code> and a relative <code class="docutils literal notranslate"><span class="pre">5.9e-3</span></code>, and the single-precision p-value
-saturates to 0 below about <code class="docutils literal notranslate"><span class="pre">6e-8</span></code>. EEGPrep computes these statistics in
-double. That single-precision gap stays an expected failure pending a
-decision on whether to match the accumulation. The stored tolerances are
-unchanged.</p>
+<p>The ANOVA cases (3-6 and 15-30) are parametric F tests. EEGLAB accumulates
+those sums of squares in double (<code class="docutils literal notranslate"><span class="pre">anova1_cell.m</span></code> returns the column effect
+of <code class="docutils literal notranslate"><span class="pre">anova2_cell.m</span></code>; <code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> lines 67-68 and 97-112;
+<code class="docutils literal notranslate"><span class="pre">anova2_cell.m</span></code> lines 87-106; <code class="docutils literal notranslate"><span class="pre">anova2rm_cell.m</span></code> lines 83-194) and evaluates
+the tail in <code class="docutils literal notranslate"><span class="pre">myfpval.m</span></code> lines 11-19. The stored tolerances remain zero. On
+the Python backend each sum of squares over the <code class="docutils literal notranslate"><span class="pre">N</span></code> observations of one
+feature uses the same accumulation rule as the t-test, <code class="docutils literal notranslate"><span class="pre">N</span> <span class="pre">*</span> <span class="pre">eps</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">N</span> <span class="pre">*</span> <span class="pre">u</span></code>
+with <code class="docutils literal notranslate"><span class="pre">u</span> <span class="pre">=</span> <span class="pre">2^{-53}</span></code>. An F ratio adds the numerator and the denominator.
+Repeated-measures brackets multiply each side by <code class="docutils literal notranslate"><span class="pre">κ</span> <span class="pre">=</span> <span class="pre">Σ|term|</span> <span class="pre">/</span> <span class="pre">|sum|</span></code>,
+applied per element, because <code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code> and <code class="docutils literal notranslate"><span class="pre">anova2rm_cell.m</span></code>
+subtract those terms (the interaction residual has eight). The unpaired
+factor is 1 because <code class="docutils literal notranslate"><span class="pre">anova1_cell</span></code> delegates to the two-pass <code class="docutils literal notranslate"><span class="pre">anova2_cell</span></code>,
+so that tolerance is <code class="docutils literal notranslate"><span class="pre">4</span> <span class="pre">*</span> <span class="pre">N</span> <span class="pre">*</span> <span class="pre">u</span></code>. The p-value limit is also per element.
+Its derived part is the F tolerance times <code class="docutils literal notranslate"><span class="pre">|F|</span> <span class="pre">*</span> <span class="pre">pdf(F;</span> <span class="pre">df1,</span> <span class="pre">df2)</span></code>. Its
+measured part is <code class="docutils literal notranslate"><span class="pre">C_beta</span> <span class="pre">*</span> <span class="pre">u</span> <span class="pre">*</span> <span class="pre">|p|</span></code> with <code class="docutils literal notranslate"><span class="pre">C_beta</span> <span class="pre">=</span> <span class="pre">2048</span></code>, an allowance for
+<code class="docutils literal notranslate"><span class="pre">betainc</span></code> evaluation error between MATLAB and SciPy rather than an operation
+count. That one constant covers the full tail down to <code class="docutils literal notranslate"><span class="pre">p</span> <span class="pre">=</span> <span class="pre">1e-300</span></code>: a
+measured MATLAB sweep reaches 1966.5u and SciPy reaches about 70u. Zero and
+subnormal reference probabilities stay exact. Degrees of
+freedom and the empty parametric surrogate stay exact. The MATLAB backend
+still uses the stored zero tolerance. F resampling arrays are float64 when
+<code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> is on, because <code class="docutils literal notranslate"><span class="pre">statcond.m</span></code> lines 384 and 421 replace the
+single preallocation at line 261 with the double ANOVA output, and float32
+when <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> is off. <code class="docutils literal notranslate"><span class="pre">concatdata.m</span></code> stores surrogate draws as single
+and <code class="docutils literal notranslate"><span class="pre">ttest_cell</span></code> keeps that class, so a t-test resampling array and its
+confidence interval stay float32 for both <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> modes. A confidence
+interval follows the surrogate class. Supplied stats and resampling arrays
+keep the class they were given when <code class="docutils literal notranslate"><span class="pre">naccu</span></code> matches the supplied length.
+A supplied statistic is accepted when its shape matches the resampling array
+without the last axis after trailing length-1 dimensions are removed. A
+transpose or a flattened column is rejected. p-values stay float64. Cases
+31-78 are <code class="docutils literal notranslate"><span class="pre">returnresamplingarray</span></code> condition grids and stay float32. On
+these fixtures the largest measured-to-limit ratio is about 0.030 for F and
+about 0.16 for p.</p>
 <p>Some graphical wrappers also discard failure statuses. The two <code class="docutils literal notranslate"><span class="pre">gradplot</span></code>
 center cases and two <code class="docutils literal notranslate"><span class="pre">headmovie</span></code> cases returned <code class="docutils literal notranslate"><span class="pre">tc_notpassed</span></code> in retained
 native-backed runs, despite their wrapper-level pytest passes. The headmovie

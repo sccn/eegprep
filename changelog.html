@@ -510,6 +510,24 @@ from zero and returns an empty array when no marks remain. <code class="docutils
 returns no rejections when its window is longer than the trial.
 <code class="docutils literal notranslate"><span class="pre">celltomat</span></code> returns a numeric array for an empty cell, and
 <code class="docutils literal notranslate"><span class="pre">eeg_point2lat</span></code> accepts a column time window.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> ANOVA F and p values are float64. The sums of squares follow
+the double-precision accumulation in EEGLAB <code class="docutils literal notranslate"><span class="pre">anova1_cell.m</span></code>,
+<code class="docutils literal notranslate"><span class="pre">anova1rm_cell.m</span></code>, <code class="docutils literal notranslate"><span class="pre">anova2_cell.m</span></code>, and <code class="docutils literal notranslate"><span class="pre">anova2rm_cell.m</span></code> after
+EEGLAB #977. Parametric p-values follow <code class="docutils literal notranslate"><span class="pre">myfpval.m</span></code> lines 11-19: the
+complement of the incomplete beta when <code class="docutils literal notranslate"><span class="pre">F</span> <span class="pre">&lt;</span> <span class="pre">df2/df1</span></code>, and the upper tail
+in its symmetric form otherwise (<code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">df2/(df2+df1*F)</span></code>, parameters
+<code class="docutils literal notranslate"><span class="pre">(df2/2,</span> <span class="pre">df1/2)</span></code>). That branch matches <code class="docutils literal notranslate"><span class="pre">myfpval</span></code>’s choice. F resampling
+arrays are float64 when <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> is on, because <code class="docutils literal notranslate"><span class="pre">statcond.m</span></code> lines
+384 and 421 replace the single preallocation at line 261 with the double
+ANOVA output, and float32 when <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code> is off, because lines 398-399
+and 435-436 assign into that single array. <code class="docutils literal notranslate"><span class="pre">concatdata.m</span></code> stores the
+draws as single and <code class="docutils literal notranslate"><span class="pre">ttest_cell</span></code> keeps that class, so t-test resampling
+arrays and their confidence intervals stay float32 for both <code class="docutils literal notranslate"><span class="pre">arraycomp</span></code>
+modes. A confidence interval follows the surrogate class. Supplied stats
+and resampling arrays keep the class they were given when <code class="docutils literal notranslate"><span class="pre">naccu</span></code> matches
+the supplied length. A supplied statistic is accepted when its shape matches
+the resampling array without the last axis after trailing length-1 dimensions
+are removed. A transpose or a flattened column is rejected. p-values stay float64.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">statcond</span></code> accepts EEGLAB name/value pairs (<code class="docutils literal notranslate"><span class="pre">mode</span></code>, <code class="docutils literal notranslate"><span class="pre">verbose</span></code>,
 <code class="docutils literal notranslate"><span class="pre">returnresamplingarray</span></code>, <code class="docutils literal notranslate"><span class="pre">structoutput</span></code>, <code class="docutils literal notranslate"><span class="pre">cluster</span></code>, and the other
 documented options) as well as keywords. A single MATLAB output is the

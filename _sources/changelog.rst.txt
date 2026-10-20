@@ -44,6 +44,24 @@ Unreleased
   returns no rejections when its window is longer than the trial.
   ``celltomat`` returns a numeric array for an empty cell, and
   ``eeg_point2lat`` accepts a column time window.
+- ``statcond`` ANOVA F and p values are float64. The sums of squares follow
+  the double-precision accumulation in EEGLAB ``anova1_cell.m``,
+  ``anova1rm_cell.m``, ``anova2_cell.m``, and ``anova2rm_cell.m`` after
+  EEGLAB #977. Parametric p-values follow ``myfpval.m`` lines 11-19: the
+  complement of the incomplete beta when ``F < df2/df1``, and the upper tail
+  in its symmetric form otherwise (``x = df2/(df2+df1*F)``, parameters
+  ``(df2/2, df1/2)``). That branch matches ``myfpval``'s choice. F resampling
+  arrays are float64 when ``arraycomp`` is on, because ``statcond.m`` lines
+  384 and 421 replace the single preallocation at line 261 with the double
+  ANOVA output, and float32 when ``arraycomp`` is off, because lines 398-399
+  and 435-436 assign into that single array. ``concatdata.m`` stores the
+  draws as single and ``ttest_cell`` keeps that class, so t-test resampling
+  arrays and their confidence intervals stay float32 for both ``arraycomp``
+  modes. A confidence interval follows the surrogate class. Supplied stats
+  and resampling arrays keep the class they were given when ``naccu`` matches
+  the supplied length. A supplied statistic is accepted when its shape matches
+  the resampling array without the last axis after trailing length-1 dimensions
+  are removed. A transpose or a flattened column is rejected. p-values stay float64.
 - ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
   ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
   documented options) as well as keywords. A single MATLAB output is the
