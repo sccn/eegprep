@@ -1,6 +1,6 @@
 """Original EEGLAB tutorial contracts and supplemental generated-data examples.
 
-Upstream suite: sccn/eeglab_tests@d4c7cf7740e33556ca6d3ba2880167556bf7292f
+Upstream suite: sccn/eeglab_tests@fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
 EEGLAB tree: sccn/eeglab@d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4
 Tutorial scripts: sccn/eeglab-tutorial-scripts@58bf12dd53e894dd3ee1285946563cd94999db16
 """

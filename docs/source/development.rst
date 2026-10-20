@@ -86,11 +86,10 @@ Ports of the upstream MATLAB tests use only the current
 `sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
 older ``sccn/eeglab-testcases`` repository is stale and must not be used.
 EEGPrep currently pins ``eeglab_tests`` commit
-``d4c7cf7740e33556ca6d3ba2880167556bf7292f`` and the EEGLAB submodule commit
+``fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9`` and the EEGLAB submodule commit
 ``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
-That suite commit is the head of ``sccn/eeglab_tests`` pull request 16 and is
-not on ``master`` yet. Move the pin to that pull request's merge commit once
-it merges.
+That suite commit is the squash merge of ``sccn/eeglab_tests`` pull request
+16 on ``master``.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
@@ -131,7 +130,7 @@ commit and run the source-driven audit:
 .. code-block:: bash
 
     git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
-    git -C /tmp/eeglab_tests checkout d4c7cf7740e33556ca6d3ba2880167556bf7292f
+    git -C /tmp/eeglab_tests checkout fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
     git -C /tmp/eeglab_tests submodule update --init eeglab
     uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
 
