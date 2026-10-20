@@ -45,36 +45,30 @@ class TestEegRpsdParity(unittest.TestCase):
         if not self.matlab_available:
             self.skipTest("MATLAB not available")
 
-        # Python result
-        py_result = eeg_rpsd(self.EEG.copy())
-
         temp_file = tempfile.mktemp(suffix='.set')
         pop_saveset(self.EEG, temp_file)
-        icaact_file = temp_file + '.icaact.mat'
-        scipy.io.savemat(icaact_file, {'icaact': np.asarray(self.EEG['icaact'])})
 
+        # eeg_rpsd.m reads EEG.icaact and does not recompute it. pop_loadset fills
+        # that field (eeg_checkset.m:1030-1032); both sides window that array.
         matlab_code = f"""
         EEG = pop_loadset('{temp_file}');
-        loaded = load('{icaact_file}');
-        EEG.icaact = loaded.icaact;
         psdmed = eeg_rpsd(EEG);
-        save('{temp_file}.mat', 'psdmed');
+        icaact = EEG.icaact;
+        save('{temp_file}.mat', 'psdmed', 'icaact');
         """
         self.eeglab.eval(matlab_code, nargout=0)
 
-        # Load MATLAB result
-        mat_data = scipy.io.loadmat(temp_file + '.mat')
+        mat_data = scipy.io.loadmat(temp_file + '.mat', mat_dtype=True)
         ml_result = mat_data['psdmed']
+        compared = self.EEG.copy()
+        compared['icaact'] = mat_data['icaact']
+        py_result = eeg_rpsd(compared)
 
-        # Clean up
         os.remove(temp_file)
         os.remove(temp_file + '.mat')
-        os.remove(icaact_file)
         if os.path.exists(temp_file.replace('.set', '.fdt')):
             os.remove(temp_file.replace('.set', '.fdt'))
 
-        # Compare results
-        # Max relative diff: 1.52e-5
         np.testing.assert_allclose(
             py_result,
             ml_result,

@@ -510,7 +510,7 @@ def test_current_pop_runica_extended_pca_produces_a_valid_reduced_decomposition(
     assert output["icaweights"].shape == (4, 6)
     assert output["icasphere"].shape == (6, 6)
     assert output["icawinv"].shape == (6, 4)
-    assert output["icaact"].shape == (4, 600, 1)
+    assert output["icaact"].shape == (4, 600)
     with np.errstate(all="ignore"):
         expected_activations = output["icaweights"] @ output["icasphere"] @ output["data"]
     np.testing.assert_allclose(expected_activations, output["icaact"].reshape(4, 600), rtol=1e-8, atol=1e-8)

@@ -12,9 +12,19 @@ def flatten_ica_data(data):
 
 
 def reshape_ica_activations(data, pnts, trials):
-    """Reshape 2-D ICA activations back to EEGLAB's channel x point x trial form."""
+    """Reshape activations to components by points, and by trials when epoched.
+
+    ``eeg_picard.m:9`` and ``eeg_checkset.m:1032`` reshape to
+    ``(components, pnts, trials)``. That drops a trailing singleton when
+    ``trials == 1``. ``eeg_checkset.m:1064`` restores the third axis only
+    when ``trials > 1``.
+    """
     array = np.asarray(data)
-    return array.reshape(array.shape[0], int(pnts), int(trials), order="F")
+    pnts = int(pnts)
+    trials = int(trials)
+    if trials == 1:
+        return array.reshape(array.shape[0], pnts, order="F")
+    return array.reshape(array.shape[0], pnts, trials, order="F")
 
 
 def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
@@ -33,7 +43,7 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
         variance_metric = np.sum(EEG['icawinv'] ** 2, axis=0) * np.sum(icaact_2d**2, axis=1)
         windex = np.argsort(variance_metric)[::-1]
         # Reorder components
-        EEG['icaact'] = EEG['icaact'][windex, :, :]
+        EEG['icaact'] = EEG['icaact'][windex]
         EEG['icaweights'] = EEG['icaweights'][windex, :]
         EEG['icawinv'] = EEG['icawinv'][:, windex]
 
@@ -50,7 +60,7 @@ def finalize_ica_fields(EEG, *, sortcomps='off', posact='off'):
                 # preserves the invariants icawinv == pinv(icaweights @ icasphere)
                 # and icaact == icaweights @ icasphere @ data, leaving icasphere
                 # untouched.
-                EEG['icaact'][r, :, :] = -EEG['icaact'][r, :, :]
+                EEG['icaact'][r, ...] = -EEG['icaact'][r, ...]
                 EEG['icawinv'][:, r] = -EEG['icawinv'][:, r]
                 EEG['icaweights'][r, :] = -EEG['icaweights'][r, :]
 

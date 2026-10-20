@@ -17,7 +17,9 @@ Unreleased
   Multi-dimensional cells and struct arrays keep their MATLAB shape, and
   empty arrays keep the dimensions stored in the file, so ``[]`` stays
   0-by-0. Continuous ``icaact`` is ``ncomp`` by ``pnts`` and is the
-  column-major product in the data array's dtype. ``pop_saveset`` writes
+  column-major product in the data array's dtype. ``eeg_runica``,
+  ``eeg_picard``, and ``eeg_amica`` return that same continuous shape.
+  ``pop_saveset`` writes
   ``icaact`` as ``[]`` and leaves the in-memory activations in place.
   ``pop_loadset`` recomputes them from the decomposition and the data.
   ``pop_subcomp`` projects those stored activations. Event and channel

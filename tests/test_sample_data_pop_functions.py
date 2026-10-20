@@ -415,7 +415,7 @@ def test_pop_runica_one_step_returns_finite_sample_decomposition(sample_eeg_with
     assert sample_eeg_with_ica["icaweights"].shape == (32, 32)
     assert sample_eeg_with_ica["icasphere"].shape == (32, 32)
     assert sample_eeg_with_ica["icawinv"].shape == (32, 32)
-    assert sample_eeg_with_ica["icaact"].shape == (32, 30504, 1)
+    assert sample_eeg_with_ica["icaact"].shape == (32, 30504)
     assert np.isfinite(sample_eeg_with_ica["icaweights"]).all()
     assert np.isfinite(sample_eeg_with_ica["icasphere"]).all()
     assert np.isfinite(sample_eeg_with_ica["icawinv"]).all()
