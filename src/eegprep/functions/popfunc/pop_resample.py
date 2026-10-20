@@ -330,10 +330,9 @@ def _resample_filter_padding(filter_length, p, q, n_in):
     # length is delayed by a half sample. uniformMatrixCore.m:13-16 applies
     # the padded filter with upfirdn.
     half = (filter_length - 1) / 2
-    remainder = half - q * floor(half / q)
-    n_pre_pad = floor(q - remainder)
-    half += n_pre_pad
-    delay = floor(ceil(half) / q)
+    n_pre_pad = floor(q - half % q)
+    padded_half = half + n_pre_pad
+    delay = floor(ceil(padded_half) / q)
     n_post_pad = 0
     padded = filter_length + n_pre_pad
     target = ceil(n_in * p / q)
