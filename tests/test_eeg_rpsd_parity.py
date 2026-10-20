@@ -44,8 +44,8 @@ def rpsd_double_bound_db(activations, srate, pnts, psd_reference):
     scale = 2 / (srate * np.sum(window**2))
     bound = np.empty(np.shape(psd_reference), dtype=np.float64)
     values = np.asarray(activations, dtype=np.float64)
-    if values.ndim == 3:
-        values = np.reshape(values, (values.shape[0], -1), order="F")
+    if values.ndim != 2 or values.shape[1] != int(pnts):
+        raise ValueError(f"activations must have shape (ncomp, pnts), got {values.shape}")
     for component in range(values.shape[0]):
         segments = values[component, index].T * window
         magnitude = np.abs(fft(segments, axis=1)[:, 1 : nyquist + 1])
