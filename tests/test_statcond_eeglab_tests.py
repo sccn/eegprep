@@ -108,27 +108,6 @@ def _two_tailed_t_condition(stat: np.ndarray, df: np.ndarray, pvalue: np.ndarray
     return bound
 
 
-def _assert_derived_p(actual, reference_stat, reference_df, reference_p, *, stat_rtol: float) -> None:
-    """Compare p at ``stat_rtol`` times the two-tailed condition number.
-
-    Reference probabilities that are zero or subnormal must match exactly.
-    A non-finite bound is an assertion failure rather than an infinite
-    tolerance.
-    """
-
-    actual = np.asarray(actual)
-    reference_p = np.asarray(reference_p)
-    assert actual.shape == reference_p.shape
-    bound = stat_rtol * _two_tailed_t_condition(reference_stat, reference_df, reference_p)
-    if not np.isfinite(bound):
-        raise AssertionError("two-tailed t p-value tolerance is not finite")
-    usable = _relative_p_mask(reference_p)
-    if np.any(~usable):
-        np.testing.assert_array_equal(actual[~usable], reference_p[~usable])
-    if np.any(usable):
-        np.testing.assert_allclose(actual[usable], reference_p[usable], rtol=bound, atol=0.0)
-
-
 def _assert_python_ttest_regression(actual, reference, arguments) -> None:
     """Compare a double t-test at ``n * eps`` and the p-value condition bound.
 
@@ -146,6 +125,333 @@ def _assert_python_ttest_regression(actual, reference, arguments) -> None:
     assert actual[0, 2].shape == reference[0, 2].shape
     assert actual[0, 2].dtype == reference[0, 2].dtype
     _assert_derived_p(actual[0, 2], reference[0, 0], reference[0, 1], reference[0, 2], stat_rtol=stat_rtol)
+    if reference.shape[1] == 4:
+        _assert_matlab_value(actual[0, 3], reference[0, 3], atol=0.0, rtol=0.0)
+
+
+# Cases 3-6 and 15-30 are parametric ANOVA fixtures stored at zero tolerance.
+# The Python backend derives a tolerance from float64 roundoff, the sum-of-squares
+# length, and repeated-measures cancellation. The MATLAB backend keeps the
+# stored zero tolerance.
+_PYTHON_ANOVA_REGRESSION_CASES = frozenset({*range(3, 7), *range(15, 31)})
+_FLOAT64_UNIT_ROUNDOFF = np.float64(2.0**-53)
+# Measured betainc evaluation allowance, in multiples of u = 2^{-53}.
+# Not derived from the sum-of-squares operation count. One constant covers
+# the full tail. Box MATLAB R2025b vs mpmath reaches 1966.5u, and SciPy
+# 1.15.3 reaches 69.9u down to p = 1e-300. Their sum is 2036u. 1024 does
+# not cover it; 2048 does.
+_C_BETA = np.float64(2048)
+
+
+def _regression_option(arguments: list, name: str):
+    return next(arguments[index + 1] for index in range(1, len(arguments) - 1, 2) if arguments[index] == name)
+
+
+def _regression_grid(arguments: list) -> tuple[tuple[np.ndarray, ...], ...]:
+    raw = np.asarray(arguments[0])
+    return tuple(
+        tuple(np.asarray(raw[row, column], dtype=np.float64) for column in range(raw.shape[1]))
+        for row in range(raw.shape[0])
+    )
+
+
+def _observation_count(grid: tuple[tuple[np.ndarray, ...], ...]) -> int:
+    """Return how many observations enter one feature's sum of squares."""
+
+    if len(grid) == 1:
+        return sum(array.shape[-1] for array in grid[0])
+    return len(grid) * len(grid[0]) * grid[0][0].shape[-1]
+
+
+def _cancellation_factor(parts: Sequence[np.ndarray], total: np.ndarray) -> np.ndarray:
+    """Return ``max(1, Σ|term| / |sum|)`` for a bracket of sums of squares.
+
+    A sum of positive terms has factor 1. A repeated-measures difference such as
+    ``expA - expT`` has a larger factor when those terms nearly cancel.
+    """
+
+    magnitude = np.zeros(np.shape(total), dtype=np.float64)
+    for part in parts:
+        magnitude = magnitude + np.abs(np.asarray(part, dtype=np.float64))
+    result = np.abs(np.asarray(total, dtype=np.float64))
+    factor = np.ones(result.shape, dtype=np.float64)
+    np.divide(magnitude, result, out=factor, where=result > 0)
+    return np.maximum(factor, 1.0)
+
+
+def _repeated_measures_factor(
+    numerator_parts: Sequence[np.ndarray],
+    numerator: np.ndarray,
+    denominator_parts: Sequence[np.ndarray],
+    denominator: np.ndarray,
+) -> np.ndarray:
+    return _cancellation_factor(numerator_parts, numerator) + _cancellation_factor(denominator_parts, denominator)
+
+
+def _one_way_repeated_tolerances(grid: tuple[tuple[np.ndarray, ...], ...]) -> list:
+    stacked = np.stack([np.asarray(array, dtype=np.float64) for array in grid[0]], axis=-2)
+    n_conditions = stacked.shape[-2]
+    n_cases = stacked.shape[-1]
+    n_observations = n_conditions * n_cases
+    condition_sums = np.sum(stacked, axis=-1)
+    subject_sums = np.sum(stacked, axis=-2)
+    total = np.sum(condition_sums, axis=-1)
+    expected_condition = np.sum(condition_sums**2, axis=-1) / n_cases
+    expected_subject = np.sum(subject_sums**2, axis=-1) / n_conditions
+    expected_within = np.sum(stacked**2, axis=(-2, -1))
+    expected_total = total**2 / n_observations
+    numerator = expected_condition - expected_total
+    denominator = expected_within - expected_condition - expected_subject + expected_total
+    factor = _repeated_measures_factor(
+        (expected_condition, expected_total),
+        numerator,
+        (expected_within, expected_condition, expected_subject, expected_total),
+        denominator,
+    )
+    return [2.0 * n_observations * _FLOAT64_UNIT_ROUNDOFF * factor]
+
+
+def _two_way_repeated_tolerances(grid: tuple[tuple[np.ndarray, ...], ...]) -> list:
+    values = np.stack(
+        [np.stack([np.asarray(array, dtype=np.float64) for array in row], axis=-2) for row in grid],
+        axis=-3,
+    )
+    n_rows, n_columns, n_subjects = values.shape[-3:]
+    n_observations = n_rows * n_columns * n_subjects
+    cell_sums = np.sum(values, axis=-1)
+    row_subject = np.sum(values, axis=-2)
+    column_subject = np.sum(values, axis=-3)
+    row_sums = np.sum(cell_sums, axis=-1)
+    column_sums = np.sum(cell_sums, axis=-2)
+    subject_sums = np.sum(row_subject, axis=-2)
+    total = np.sum(row_sums, axis=-1)
+    expected_rows = np.sum(row_sums**2, axis=-1) / (n_columns * n_subjects)
+    expected_columns = np.sum(column_sums**2, axis=-1) / (n_rows * n_subjects)
+    expected_cells = np.sum(cell_sums**2, axis=(-2, -1)) / n_subjects
+    expected_subjects = np.sum(subject_sums**2, axis=-1) / (n_rows * n_columns)
+    expected_row_subject = np.sum(row_subject**2, axis=(-2, -1)) / n_columns
+    expected_column_subject = np.sum(column_subject**2, axis=(-2, -1)) / n_rows
+    expected_values = np.sum(values**2, axis=(-3, -2, -1))
+    expected_total = total**2 / n_observations
+    row_ss = expected_rows - expected_total
+    column_ss = expected_columns - expected_total
+    interaction_ss = expected_cells - expected_rows - expected_columns + expected_total
+    row_error = expected_row_subject - expected_rows - expected_subjects + expected_total
+    column_error = expected_column_subject - expected_columns - expected_subjects + expected_total
+    interaction_error = (
+        expected_values
+        - expected_cells
+        - expected_row_subject
+        - expected_column_subject
+        + expected_rows
+        + expected_columns
+        + expected_subjects
+        - expected_total
+    )
+    scale = 2.0 * n_observations * _FLOAT64_UNIT_ROUNDOFF
+    return [
+        scale
+        * _repeated_measures_factor(
+            (expected_rows, expected_total),
+            row_ss,
+            (expected_row_subject, expected_rows, expected_subjects, expected_total),
+            row_error,
+        ),
+        scale
+        * _repeated_measures_factor(
+            (expected_columns, expected_total),
+            column_ss,
+            (expected_column_subject, expected_columns, expected_subjects, expected_total),
+            column_error,
+        ),
+        scale
+        * _repeated_measures_factor(
+            (expected_cells, expected_rows, expected_columns, expected_total),
+            interaction_ss,
+            (
+                expected_values,
+                expected_cells,
+                expected_row_subject,
+                expected_column_subject,
+                expected_rows,
+                expected_columns,
+                expected_subjects,
+                expected_total,
+            ),
+            interaction_error,
+        ),
+    ]
+
+
+def _anova_f_tolerances(arguments: list) -> list:
+    """Return one relative F tolerance per MATLAB effect.
+
+    Each sum of squares over ``N`` observations uses the t-test accumulation
+    rule ``N * eps = 2 * N * u``, with ``u = 2^{-53}``. An F ratio adds the
+    numerator and denominator. Repeated-measures brackets multiply that by
+    ``Σ|term| / |sum|`` per element, because ``anova1rm_cell.m`` and
+    ``anova2rm_cell.m`` subtract those terms. The unpaired factor is 1 because
+    EEGLAB's ``anova1_cell`` delegates to the two-pass ``anova2_cell``, and the
+    tolerance is ``4 * N * u``. Paired two-way effects are row, column,
+    interaction. Unpaired two-way effects follow ``anova2_cell`` and are
+    column, row, interaction.
+    """
+
+    grid = _regression_grid(arguments)
+    paired = _regression_option(arguments, "paired") == "on"
+    if len(grid) == 1:
+        if paired:
+            return _one_way_repeated_tolerances(grid)
+        return [4.0 * _observation_count(grid) * _FLOAT64_UNIT_ROUNDOFF]
+    if paired:
+        return _two_way_repeated_tolerances(grid)
+    tolerance = 4.0 * _observation_count(grid) * _FLOAT64_UNIT_ROUNDOFF
+    return [tolerance, tolerance, tolerance]
+
+
+def _f_tail_condition(stat: np.ndarray, df: np.ndarray, pvalue: np.ndarray) -> np.ndarray:
+    """Return ``|F| * pdf(F; df1, df2) / |p|`` per element where ``p`` is normal.
+
+    The parametric tail is the F survival function, so this factor is
+    ``|d log p / d log F|``. Zero and subnormal probabilities stay 0 here and
+    are compared exactly by the caller.
+    """
+
+    f_values = np.abs(np.asarray(stat, dtype=np.float64))
+    degrees = np.asarray(df, dtype=np.float64).reshape(-1)
+    probability = np.abs(np.asarray(pvalue, dtype=np.float64))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        numerator = f_values * scipy_stats.f.pdf(f_values, float(degrees[0]), float(degrees[1]))
+    numerator, probability = np.broadcast_arrays(np.asarray(numerator, dtype=np.float64), probability)
+    usable = _relative_p_mask(probability)
+    quotient = np.zeros(numerator.shape, dtype=np.float64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        np.divide(numerator, probability, out=quotient, where=usable)
+    if np.any(usable) and not np.all(np.isfinite(quotient[usable])):
+        raise AssertionError("F p-value tolerance is not finite")
+    return quotient
+
+
+def _align_tolerance(tolerance, shape: tuple[int, ...]) -> np.ndarray:
+    values = np.asarray(tolerance, dtype=np.float64)
+    if values.shape == shape:
+        return values
+    if values.ndim == 0 or values.size == 1:
+        return np.broadcast_to(values, shape)
+    if values.size == int(np.prod(shape)):
+        return np.reshape(values, shape, order="F")
+    raise AssertionError(f"tolerance shape {values.shape} does not match {shape}")
+
+
+def _assert_within_limit(actual, expected, limit) -> None:
+    actual = np.asarray(actual)
+    expected = np.asarray(expected)
+    assert actual.shape == expected.shape
+    assert actual.dtype == expected.dtype
+    delta = np.abs(np.asarray(actual, dtype=np.float64) - np.asarray(expected, dtype=np.float64))
+    bound = _align_tolerance(limit, expected.shape)
+    if not np.all(np.isfinite(bound)):
+        raise AssertionError("tolerance is not finite")
+    if np.any(delta > bound):
+        ratio = np.divide(delta, bound, out=np.full(delta.shape, np.inf), where=bound > 0)
+        raise AssertionError(f"max measured/limit ratio {float(np.max(ratio))}")
+
+
+def _assert_relative_p(actual, reference_p, bound: float) -> None:
+    actual = np.asarray(actual)
+    reference_p = np.asarray(reference_p)
+    assert actual.shape == reference_p.shape
+    if not np.isfinite(bound):
+        raise AssertionError("p-value tolerance is not finite")
+    usable = _relative_p_mask(reference_p)
+    if np.any(~usable):
+        np.testing.assert_array_equal(actual[~usable], reference_p[~usable])
+    if np.any(usable):
+        np.testing.assert_allclose(actual[usable], reference_p[usable], rtol=bound, atol=0.0)
+
+
+def _assert_derived_p(actual, reference_stat, reference_df, reference_p, *, stat_rtol: float) -> None:
+    """Compare p at ``stat_rtol`` times the two-tailed condition number.
+
+    Reference probabilities that are zero or subnormal must match exactly.
+    A non-finite bound is an assertion failure rather than an infinite
+    tolerance.
+    """
+
+    bound = stat_rtol * _two_tailed_t_condition(reference_stat, reference_df, reference_p)
+    _assert_relative_p(actual, reference_p, bound)
+
+
+def _assert_anova_p(actual, reference_stat, reference_df, reference_p, f_tol) -> None:
+    """Compare p at the derived F propagation plus the measured betainc term.
+
+    For each normal reference probability the absolute limit is
+    ``F_tol * |F| * pdf(F; df1, df2) + _C_BETA * u * |p|``. The first term is
+    the per-element propagation of the F tolerance through
+    ``|d log p / d log F|``. ``_C_BETA`` is a measured allowance for ``betainc``
+    evaluation error between MATLAB and SciPy. Zero and subnormal reference
+    probabilities must match exactly.
+    """
+
+    actual = np.asarray(actual)
+    reference_p = np.asarray(reference_p)
+    assert actual.shape == reference_p.shape
+    assert actual.dtype == reference_p.dtype
+    usable = _relative_p_mask(reference_p)
+    if np.any(~usable):
+        np.testing.assert_array_equal(actual[~usable], reference_p[~usable])
+    if not np.any(usable):
+        return
+    condition = _f_tail_condition(reference_stat, reference_df, reference_p)
+    probability = np.abs(np.asarray(reference_p, dtype=np.float64))
+    derived = _align_tolerance(f_tol, probability.shape) * _align_tolerance(condition, probability.shape) * probability
+    measured = _C_BETA * _FLOAT64_UNIT_ROUNDOFF * probability
+    limit = np.array(derived + measured, copy=True)
+    limit[~usable] = 0.0
+    if np.any(usable & ~np.isfinite(limit)):
+        raise AssertionError("F p-value tolerance is not finite")
+    delta = np.abs(np.asarray(actual, dtype=np.float64) - np.asarray(reference_p, dtype=np.float64))
+    if np.any(usable & (delta > limit)):
+        ratio = np.divide(delta, limit, out=np.zeros(delta.shape, dtype=np.float64), where=usable & (limit > 0))
+        raise AssertionError(f"max measured/limit ratio {float(np.max(ratio))}")
+
+
+def _effect_leaves(value) -> list:
+    array = np.asarray(value)
+    if array.dtype == object:
+        return [array[index] for index in np.ndindex(array.shape)]
+    return [array]
+
+
+def _assert_python_anova_regression(actual, reference, arguments) -> None:
+    """Compare parametric ANOVA output at the derived F and p tolerances.
+
+    Degrees of freedom and the empty parametric surrogate stay exact.
+    """
+
+    assert actual.shape == reference.shape
+    assert actual.dtype == object and reference.dtype == object
+    tolerances = _anova_f_tolerances(arguments)
+    statistics = _effect_leaves(actual[0, 0])
+    reference_statistics = _effect_leaves(reference[0, 0])
+    assert len(statistics) == len(tolerances) == len(reference_statistics)
+    for got, expected, rtol in zip(statistics, reference_statistics, tolerances, strict=True):
+        magnitude = np.abs(np.asarray(expected, dtype=np.float64))
+        _assert_within_limit(got, expected, _align_tolerance(rtol, magnitude.shape) * magnitude)
+    _assert_matlab_value(actual[0, 1], reference[0, 1], atol=0.0, rtol=0.0)
+    probabilities = _effect_leaves(actual[0, 2])
+    reference_probabilities = _effect_leaves(reference[0, 2])
+    reference_degrees = _effect_leaves(reference[0, 1])
+    assert len(probabilities) == len(tolerances)
+    for got, expected_f, expected_df, expected_p, rtol in zip(
+        probabilities,
+        reference_statistics,
+        reference_degrees,
+        reference_probabilities,
+        tolerances,
+        strict=True,
+    ):
+        _assert_anova_p(got, expected_f, expected_df, expected_p, rtol)
     if reference.shape[1] == 4:
         _assert_matlab_value(actual[0, 3], reference[0, 3], atol=0.0, rtol=0.0)
 
@@ -171,9 +477,13 @@ def _statcond_regression_test(number):
             actual = outputs
         reference = fixture[f"test_{number}"]
         expected = reference["value"][0, 0]
-        if number in _PYTHON_TTEST_REGRESSION_CASES and request.config.getoption("--eeglab-backend") == "python":
-            _assert_python_ttest_regression(actual, expected, arguments)
-            return
+        if request.config.getoption("--eeglab-backend") == "python":
+            if number in _PYTHON_TTEST_REGRESSION_CASES:
+                _assert_python_ttest_regression(actual, expected, arguments)
+                return
+            if number in _PYTHON_ANOVA_REGRESSION_CASES:
+                _assert_python_anova_regression(actual, expected, arguments)
+                return
         _assert_matlab_value(
             actual,
             expected,
@@ -701,6 +1011,200 @@ def _matlab_cells(rows):
         for column_index, value in enumerate(row):
             cells[row_index, column_index] = value
     return cells
+
+
+def _anova_resampling_grid(design: str) -> np.ndarray:
+    def block(seed: int) -> np.ndarray:
+        return np.random.default_rng(seed).normal(size=(2, 6))
+
+    if design == "t":
+        rows = [[block(1), block(2)]]
+    elif design == "one-way":
+        rows = [[block(1), block(2), block(3)]]
+    else:
+        rows = [[block(1), block(2)], [block(3), block(4)]]
+    return _matlab_cells(rows)
+
+
+def _expected_resampling_dtype(design: str, arraycomp: str):
+    # concatdata.m is single. ttest_cell keeps that class for both arraycomp
+    # modes. ANOVA arraycomp on replaces it with the double anova*_cell output.
+    if design != "t" and arraycomp == "on":
+        return np.float64
+    return np.float32
+
+
+def _assert_numeric_dtype(value, dtype) -> None:
+    array = np.asarray(value)
+    if array.dtype == object:
+        assert array.size > 0
+        for item in array.ravel():
+            _assert_numeric_dtype(item, dtype)
+        return
+    assert array.size > 0
+    assert array.dtype == dtype
+
+
+@pytest.mark.parametrize("method", ["perm", "bootstrap"])
+@pytest.mark.parametrize("arraycomp", ["on", "off"])
+@pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
+def test_statcond_resampling_dtype_follows_arraycomp(method, design, arraycomp):
+    grid = _anova_resampling_grid(design)
+    paired = "on" if design == "two-way" else "off"
+    expected = _expected_resampling_dtype(design, arraycomp)
+    result = statcond(grid, method=method, paired=paired, naccu=8, arraycomp=arraycomp, rng=1, verbose="off")
+    _assert_numeric_dtype(result.matlab_surrogate, expected)
+    # statcond.m:512 calls stat_surrogate_ci. A two-way surrogate is a cell,
+    # so that call errors. Check the cell class only.
+    if design == "two-way":
+        return
+    structured = statcond(
+        grid,
+        method=method,
+        paired=paired,
+        naccu=8,
+        arraycomp=arraycomp,
+        rng=1,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+    )
+    _assert_numeric_dtype(structured.matlab_primary["surrog"], expected)
+    _assert_numeric_dtype(structured.matlab_primary["ci"], expected)
+
+
+@pytest.mark.parametrize("method", ["perm", "bootstrap"])
+@pytest.mark.parametrize("arraycomp", ["on", "off"])
+@pytest.mark.parametrize("design", ["t", "one-way", "two-way"])
+def test_reference_statcond_resampling_dtype_follows_arraycomp(eeglab_backend, method, design, arraycomp):
+    grid = _anova_resampling_grid(design)
+    paired = "on" if design == "two-way" else "off"
+    expected = _expected_resampling_dtype(design, arraycomp)
+    _statistic, _degrees, _probability, surrogate = eeglab_backend(
+        "statcond",
+        grid,
+        method=method,
+        paired=paired,
+        naccu=8,
+        arraycomp=arraycomp,
+        verbose="off",
+        nargout=4,
+    )
+    _assert_numeric_dtype(surrogate, expected)
+    if design == "two-way":
+        return
+    output = eeglab_backend(
+        "statcond",
+        grid,
+        method=method,
+        paired=paired,
+        naccu=8,
+        arraycomp=arraycomp,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+        nargout=1,
+    )
+    _assert_numeric_dtype(output["surrog"], expected)
+    _assert_numeric_dtype(output["ci"], expected)
+
+
+@pytest.mark.parametrize("stat_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("surrog_dtype", [np.float32, np.float64])
+def test_statcond_supplied_arrays_keep_their_class(stat_dtype, surrog_dtype):
+    # statcond.m:444-445 assigns the supplied arrays. reshape_results keeps
+    # the class when naccu matches the surrogate length. pvals stay double.
+    naccu = 4
+    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
+    result = statcond(
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+    )
+    _assert_numeric_dtype(result.matlab_primary["stat"], stat_dtype)
+    _assert_numeric_dtype(result.matlab_primary["surrog"], surrog_dtype)
+    _assert_numeric_dtype(result.matlab_primary["pval"], np.float64)
+    _assert_numeric_dtype(result.matlab_primary["ci"], surrog_dtype)
+    _assert_numeric_dtype(result.matlab_surrogate, surrog_dtype)
+
+
+@pytest.mark.parametrize("stat_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("surrog_dtype", [np.float32, np.float64])
+def test_reference_statcond_supplied_arrays_keep_their_class(eeglab_backend, stat_dtype, surrog_dtype):
+    naccu = 4
+    data = _matlab_cells([[np.ones((2, 6)), np.ones((2, 6))]])
+    stats = np.arange(2, dtype=stat_dtype).reshape(2, 1)
+    surrog = np.arange(2 * naccu, dtype=surrog_dtype).reshape(2, naccu)
+    statistic, _degrees, probability, surrogate = eeglab_backend(
+        "statcond",
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        nargout=4,
+    )
+    _assert_numeric_dtype(statistic, stat_dtype)
+    _assert_numeric_dtype(surrogate, surrog_dtype)
+    _assert_numeric_dtype(probability, np.float64)
+    output = eeglab_backend(
+        "statcond",
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=naccu,
+        verbose="off",
+        structoutput="on",
+        alpha=0.05,
+        nargout=1,
+    )
+    _assert_numeric_dtype(output["stat"], stat_dtype)
+    _assert_numeric_dtype(output["surrog"], surrog_dtype)
+    _assert_numeric_dtype(output["pval"], np.float64)
+    _assert_numeric_dtype(output["ci"], surrog_dtype)
+
+
+def _supplied_statcond(stats, surrog):
+    feature_shape = surrog.shape[:-1]
+    data = _matlab_cells([[np.ones(feature_shape + (4,)), np.ones(feature_shape + (4,))]])
+    return statcond(
+        data,
+        method="perm",
+        surrog=surrog,
+        stats=stats,
+        naccu=surrog.shape[-1],
+        verbose="off",
+    )
+
+
+def test_statcond_supplied_trailing_singleton_matches_the_aligned_statistic():
+    surrog = np.arange(3 * 4 * 6, dtype=np.float64).reshape(3, 4, 6)
+    aligned = np.arange(12, dtype=np.float64).reshape(3, 4)
+    accepted = _supplied_statcond(aligned.reshape(3, 4, 1), surrog)
+    reference = _supplied_statcond(aligned, surrog)
+    np.testing.assert_array_equal(accepted.stat, aligned)
+    np.testing.assert_array_equal(accepted.pvalue, reference.pvalue)
+
+
+@pytest.mark.parametrize("stats_shape", [(4, 3), (12, 1), (1, 12)])
+def test_statcond_supplied_stats_reject_reordered_shapes(stats_shape):
+    surrog = np.zeros((3, 4, 6))
+    with pytest.raises(ValueError, match="shape"):
+        _supplied_statcond(np.zeros(stats_shape), surrog)
+
+
+def test_statcond_supplied_stats_reject_a_row_against_a_column_axis():
+    with pytest.raises(ValueError, match="shape"):
+        _supplied_statcond(np.zeros((1, 5)), np.zeros((5, 6)))
 
 
 def _assert_class_same(actual, expected):

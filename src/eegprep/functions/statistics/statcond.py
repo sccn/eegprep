@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 import numpy as np
+from scipy import special
 from scipy import stats as scipy_stats
 
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
@@ -198,7 +199,7 @@ def statcond(
     if surrog is not None:
         if stats is None:
             raise ValueError("stats must be supplied when surrog is supplied")
-        observed_stat = stats
+        observed_stat = _align_supplied_statistic(stats, surrog)
         observed_df = None
         surrogate_stat = surrog
         pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, tail)
@@ -226,7 +227,6 @@ def statcond(
             pvalue_tail = "one" if statistic_kind.startswith("f") else tail
             pvalue = _surrogate_pvalues(surrogate_stat, observed_stat, pvalue_tail)
 
-    cluster_applied = False
     if cluster and method_name != "param" and not isinstance(observed_stat, TwoWayEffects):
         cluster_df = observed_df
         cluster_kind = statistic_kind
@@ -241,7 +241,6 @@ def statcond(
             alpha = 0.05
             logger.warning("Alpha value set to 0.05 automatically")
         pvalue = _cluster_pvalues(observed_stat, surrogate_stat, cluster_df, alpha, cluster_kind)
-        cluster_applied = True
 
     ci = None
     mask = None
@@ -265,9 +264,9 @@ def statcond(
         statistic_kind=statistic_kind,
         feature_shape=feature_shape,
         structoutput=structoutput,
-        cluster_applied=cluster_applied,
         n_conditions=n_conditions,
         forceanova=forceanova,
+        arraycomp=arraycomp_flag_value,
     )
 
 
@@ -302,11 +301,50 @@ def _parametric_pvalues(stat: Any, df: Any, statistic_kind: str) -> Any:
         return 2 * scipy_stats.t.sf(np.abs(stat), df)
     if isinstance(stat, TwoWayEffects):
         return TwoWayEffects(
-            scipy_stats.f.sf(stat.rows, df.rows[0], df.rows[1]),
-            scipy_stats.f.sf(stat.columns, df.columns[0], df.columns[1]),
-            scipy_stats.f.sf(stat.interaction, df.interaction[0], df.interaction[1]),
+            _f_tail_probability(stat.rows, df.rows[0], df.rows[1]),
+            _f_tail_probability(stat.columns, df.columns[0], df.columns[1]),
+            _f_tail_probability(stat.interaction, df.interaction[0], df.interaction[1]),
         )
-    return scipy_stats.f.sf(stat, df[0], df[1])
+    return _f_tail_probability(stat, df[0], df[1])
+
+
+def _f_tail_probability(f_values: Any, df1: Any, df2: Any) -> np.ndarray:
+    """Return the F upper tail using the incomplete-beta choice in ``myfpval``.
+
+    ``myfpval.m`` lines 11-19 use the complement ``betainc(..., 'upper')`` when
+    ``F < df2/df1``. Otherwise they use the upper tail in its symmetric form,
+    ``betainc(df2/(df2+df1*F), df2/2, df1/2)``. The branch matches that choice.
+    """
+
+    f_values = np.asarray(f_values, dtype=np.float64)
+    df1 = np.asarray(df1, dtype=np.float64)
+    df2 = np.asarray(df2, dtype=np.float64)
+    probability = np.ones(np.broadcast_shapes(f_values.shape, df1.shape, df2.shape), dtype=np.float64)
+    f_values = np.broadcast_to(f_values, probability.shape)
+    df1 = np.broadcast_to(df1, probability.shape)
+    df2 = np.broadcast_to(df2, probability.shape)
+    probability[np.isnan(f_values)] = np.nan
+    usable = f_values > 0
+    if not np.any(usable):
+        return probability
+    observed = f_values[usable]
+    numerator_df = df1[usable]
+    denominator_df = df2[usable]
+    complement = observed < (denominator_df / numerator_df)
+    tail = np.empty(observed.shape, dtype=np.float64)
+    symmetric = ~complement
+    if np.any(symmetric):
+        statistic = observed[symmetric]
+        d1 = numerator_df[symmetric]
+        d2 = denominator_df[symmetric]
+        tail[symmetric] = special.betainc(d2 / 2.0, d1 / 2.0, d2 / (d2 + d1 * statistic))
+    if np.any(complement):
+        statistic = observed[complement]
+        d1 = numerator_df[complement]
+        d2 = denominator_df[complement]
+        tail[complement] = special.betaincc(d1 / 2.0, d2 / 2.0, (d1 * statistic) / (d2 + d1 * statistic))
+    probability[usable] = tail
+    return probability
 
 
 def _compute_surrogate_statistics(
@@ -355,6 +393,34 @@ def _stack_effects(values: Sequence[Any]) -> Any:
             np.stack([value.interaction for value in values], axis=-1),
         )
     return np.stack(values, axis=-1)
+
+
+def _shape_without_trailing_ones(shape: tuple[int, ...]) -> tuple[int, ...]:
+    end = len(shape)
+    while end > 0 and shape[end - 1] == 1:
+        end -= 1
+    return shape[:end]
+
+
+def _align_supplied_statistic(stats: Any, surrog: Any) -> Any:
+    if isinstance(stats, TwoWayEffects) or isinstance(surrog, TwoWayEffects):
+        return stats
+    observed = np.asarray(stats)
+    distribution = np.asarray(surrog)
+    if not np.issubdtype(observed.dtype, np.number) or not np.issubdtype(distribution.dtype, np.number):
+        return stats
+    if distribution.ndim < 1:
+        raise ValueError("resampling array must have a surrogate axis")
+    target = distribution.shape[:-1]
+    # stat_surrogate_pvals.m:63 sums bsxfun(@ge, distribution, observed) along
+    # the surrogate axis. A trailing length-1 dimension is the singleton that
+    # axis expands, so an [n 1] column or a [d1 d2 1] slab matches. A transpose
+    # or a flattened column does not: reshaping either one would reorder values.
+    if _shape_without_trailing_ones(observed.shape) != _shape_without_trailing_ones(target):
+        raise ValueError("stats shape must match the resampling array without its last axis")
+    if observed.shape == target:
+        return observed
+    return np.reshape(observed, target, order="F")
 
 
 def _surrogate_pvalues(surrogate: Any, observed: Any, tail: str) -> Any:
@@ -507,12 +573,12 @@ def _matlab_df_value(df: Any, paired: bool) -> np.ndarray:
     return np.asarray([[df]], dtype=np.float64)
 
 
-def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: bool) -> np.ndarray:
+def _matlab_surrogate_value(value: Any, feature_shape: tuple[int, ...], paired: bool, dtype: np.dtype) -> np.ndarray:
     if value is None:
         return np.empty((0, 0), dtype=np.float64)
     if isinstance(value, TwoWayEffects):
-        return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True), paired)
-    array = np.asarray(value, dtype=np.float32)
+        return _effect_cells(value, lambda item: _matlab_surrogate_value(item, feature_shape, True, dtype), paired)
+    array = np.asarray(value, dtype=dtype)
     if len(feature_shape) <= 1:
         n_features = 1 if len(feature_shape) == 0 else int(feature_shape[0])
         return np.reshape(array, (n_features, array.shape[-1]), order="F")
@@ -546,19 +612,31 @@ def _package_result(
     statistic_kind: str | None,
     feature_shape: tuple[int, ...],
     structoutput: bool,
-    cluster_applied: bool,
     n_conditions: int,
     forceanova: bool,
+    arraycomp: bool,
 ) -> StatcondResult:
     kind = _output_kind(statistic_kind, n_conditions, forceanova)
-    stat_dtype = np.float64 if kind == "t" else np.float32
-    pvalue_dtype = np.float64 if kind == "t" or cluster_applied else np.float32
-    if statistic_kind is None and not isinstance(observed_stat, TwoWayEffects):
-        stat_dtype = np.asarray(observed_stat).dtype
+    stat_dtype = np.float64
+    pvalue_dtype = np.float64
+    # statcond.m:261 preallocates single. concatdata.m stores the draws as
+    # single, and ttest_cell keeps that class (statcond.m:352, :366-367).
+    # ANOVA arraycomp on replaces the array with double anova*_cell output
+    # (statcond.m:384, :421); arraycomp off assigns into the single array
+    # (statcond.m:398-399, :435-436). A supplied array keeps its own class
+    # (statcond.m:444-445). stat_surrogate_ci preserves that class (:512).
+    f_statistic = statistic_kind is not None and statistic_kind.startswith("f")
+    surrogate_dtype = np.dtype(np.float64 if f_statistic and arraycomp else np.float32)
+    if statistic_kind is None:
+        if not isinstance(observed_stat, TwoWayEffects):
+            stat_dtype = np.asarray(observed_stat).dtype
+        if not isinstance(surrogate_stat, TwoWayEffects):
+            surrogate_dtype = np.dtype(np.asarray(surrogate_stat).dtype)
+    ci_dtype = surrogate_dtype
     matlab_stat = _matlab_statistic_value(observed_stat, feature_shape, stat_dtype, paired_flag_value)
     matlab_df = _matlab_df_value(observed_df, paired_flag_value)
     matlab_pvalue = _matlab_statistic_value(pvalue, feature_shape, pvalue_dtype, paired_flag_value)
-    matlab_surrogate = _matlab_surrogate_value(surrogate_stat, feature_shape, paired_flag_value)
+    matlab_surrogate = _matlab_surrogate_value(surrogate_stat, feature_shape, paired_flag_value, surrogate_dtype)
     matlab_primary = None
     if structoutput:
         payload: dict[str, Any] = {
@@ -570,7 +648,7 @@ def _package_result(
         }
         payload["t" if kind == "t" else "f"] = matlab_stat
         if ci is not None:
-            payload["ci"] = _matlab_ci(ci, feature_shape, paired_flag_value)
+            payload["ci"] = _matlab_ci(ci, feature_shape, paired_flag_value, ci_dtype)
             payload["mask"] = _matlab_statistic_value(mask, feature_shape, bool, paired_flag_value)
         matlab_stat = payload
         matlab_primary = payload
@@ -591,11 +669,11 @@ def _package_result(
     )
 
 
-def _matlab_ci(ci: Any, feature_shape: tuple[int, ...], paired: bool) -> np.ndarray:
+def _matlab_ci(ci: Any, feature_shape: tuple[int, ...], paired: bool, dtype: np.dtype) -> np.ndarray:
     if isinstance(ci, TwoWayEffects):
-        return _effect_cells(ci, lambda item: _matlab_ci(item, feature_shape, True), paired)
-    array = np.asarray(ci, dtype=float)
-    bounds = [_matlab_array(array[index], feature_shape, np.float64) for index in range(array.shape[0])]
+        return _effect_cells(ci, lambda item: _matlab_ci(item, feature_shape, True, dtype), paired)
+    array = np.asarray(ci)
+    bounds = [_matlab_array(array[index], feature_shape, dtype) for index in range(array.shape[0])]
     return np.stack(bounds, axis=0)
 
 

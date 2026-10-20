@@ -86,8 +86,10 @@ Ports of the upstream MATLAB tests use only the current
 `sccn/eeglab_tests <https://github.com/sccn/eeglab_tests>`_ repository. The
 older ``sccn/eeglab-testcases`` repository is stale and must not be used.
 EEGPrep currently pins ``eeglab_tests`` commit
-``ff605546f3f70868916fb8d49c007472b3257b50`` and the EEGLAB submodule commit
-``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``.
+``fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9`` and the EEGLAB submodule commit
+``d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4``.
+That suite commit is the squash merge of ``sccn/eeglab_tests`` pull request
+16 on ``master``.
 
 The current deliverable is faithful ports of these existing tests, validated
 against MATLAB. It does not include newly authored MATLAB scientific cases,
@@ -128,7 +130,7 @@ commit and run the source-driven audit:
 .. code-block:: bash
 
     git clone https://github.com/sccn/eeglab_tests.git /tmp/eeglab_tests
-    git -C /tmp/eeglab_tests checkout ff605546f3f70868916fb8d49c007472b3257b50
+    git -C /tmp/eeglab_tests checkout fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
     git -C /tmp/eeglab_tests submodule update --init eeglab
     uv run python -m tools.eeglab_test_port_audit /tmp/eeglab_tests
 
@@ -294,17 +296,40 @@ tolerances remain zero, and the MATLAB backend still uses them. The worst
 residuals inside this bound are a statistic relative error of ``8.8e-16``
 and a p-value relative error of ``1.9e-14``.
 
-The ANOVA cases (3-6 and 15-30) stay strict expected failures. They are
-single in EEGLAB because those routines accumulate in single
-(``anova1rm_cell.m`` lines 67-68, ``anova1_cell.m`` lines 98, 107, and 116,
-``anova2_cell.m`` lines 98-99, and ``anova2rm_cell.m`` lines 83-131) and then
-evaluate ``1-fcdf`` in single. Cancellation in ``ssA`` and ``ssAS``
-(``anova1rm_cell.m`` lines 97-104) lets the F error reach an absolute
-``6.1e-2`` and a relative ``5.9e-3``, and the single-precision p-value
-saturates to 0 below about ``6e-8``. EEGPrep computes these statistics in
-double. That single-precision gap stays an expected failure pending a
-decision on whether to match the accumulation. The stored tolerances are
-unchanged.
+The ANOVA cases (3-6 and 15-30) are parametric F tests. EEGLAB accumulates
+those sums of squares in double (``anova1_cell.m`` returns the column effect
+of ``anova2_cell.m``; ``anova1rm_cell.m`` lines 67-68 and 97-112;
+``anova2_cell.m`` lines 87-106; ``anova2rm_cell.m`` lines 83-194) and evaluates
+the tail in ``myfpval.m`` lines 11-19. The stored tolerances remain zero. On
+the Python backend each sum of squares over the ``N`` observations of one
+feature uses the same accumulation rule as the t-test, ``N * eps = 2 * N * u``
+with ``u = 2^{-53}``. An F ratio adds the numerator and the denominator.
+Repeated-measures brackets multiply each side by ``κ = Σ|term| / |sum|``,
+applied per element, because ``anova1rm_cell.m`` and ``anova2rm_cell.m``
+subtract those terms (the interaction residual has eight). The unpaired
+factor is 1 because ``anova1_cell`` delegates to the two-pass ``anova2_cell``,
+so that tolerance is ``4 * N * u``. The p-value limit is also per element.
+Its derived part is the F tolerance times ``|F| * pdf(F; df1, df2)``. Its
+measured part is ``C_beta * u * |p|`` with ``C_beta = 2048``, an allowance for
+``betainc`` evaluation error between MATLAB and SciPy rather than an operation
+count. That one constant covers the full tail down to ``p = 1e-300``: a
+measured MATLAB sweep reaches 1966.5u and SciPy reaches about 70u. Zero and
+subnormal reference probabilities stay exact. Degrees of
+freedom and the empty parametric surrogate stay exact. The MATLAB backend
+still uses the stored zero tolerance. F resampling arrays are float64 when
+``arraycomp`` is on, because ``statcond.m`` lines 384 and 421 replace the
+single preallocation at line 261 with the double ANOVA output, and float32
+when ``arraycomp`` is off. ``concatdata.m`` stores surrogate draws as single
+and ``ttest_cell`` keeps that class, so a t-test resampling array and its
+confidence interval stay float32 for both ``arraycomp`` modes. A confidence
+interval follows the surrogate class. Supplied stats and resampling arrays
+keep the class they were given when ``naccu`` matches the supplied length.
+A supplied statistic is accepted when its shape matches the resampling array
+without the last axis after trailing length-1 dimensions are removed. A
+transpose or a flattened column is rejected. p-values stay float64. Cases
+31-78 are ``returnresamplingarray`` condition grids and stay float32. On
+these fixtures the largest measured-to-limit ratio is about 0.030 for F and
+about 0.16 for p.
 
 Some graphical wrappers also discard failure statuses. The two ``gradplot``
 center cases and two ``headmovie`` cases returned ``tc_notpassed`` in retained
