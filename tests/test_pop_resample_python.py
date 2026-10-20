@@ -5,6 +5,7 @@ import numpy as np
 
 from eegprep.functions.popfunc.pop_resample import (
     RATIO_TOLERANCE,
+    _delay_padded_nan_weight,
     _resample_ratio,
     pop_resample,
 )
@@ -96,8 +97,6 @@ class PopResamplePythonTests(unittest.TestCase):
         np.testing.assert_array_equal(output[0, 101:], finite[0, 101:])
 
     def test_interior_nan_includes_the_delay_pad_sample(self):
-        # 128 Hz to 100 Hz, one NaN at index 215. The delay-pad zero at the
-        # start of MATLAB's resample kernel is the extra marked sample.
         length = 598
         nan_index = 215
         clean = {
@@ -119,6 +118,12 @@ class PopResamplePythonTests(unittest.TestCase):
         np.testing.assert_array_equal(output[0, :151], finite[0, :151])
         np.testing.assert_array_equal(output[0, 185:], finite[0, 185:])
         np.testing.assert_array_equal(output[1], finite[1])
+
+    def test_even_length_filter_delay_uses_half_sample(self):
+        missing = np.zeros((1, 8, 1))
+        missing[0, 1, 0] = 1.0
+        weight = _delay_padded_nan_weight(missing, 1, 3, 4)
+        self.assertEqual(np.flatnonzero(weight[0, :, 0] > 0).tolist(), [0])
 
 
 def _epoched_resample_eeg():

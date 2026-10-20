@@ -325,30 +325,35 @@ def _resample_segment(segment, p, q, *, method, fc, df):
     return _resample_poly_segment(segment, p, q, fc=fc, df=df)
 
 
-def _upfirdn_length(filter_length, n_in, up, down):
-    return (((n_in - 1) * up + filter_length) - 1) // down + 1
+def _resample_filter_padding(filter_length, p, q, n_in):
+    # ResampleParser.m:762-780 pads with delay zeros, using (L-1)/2, so an even
+    # length is delayed by a half sample. uniformMatrixCore.m:13-16 applies
+    # the padded filter with upfirdn.
+    half = (filter_length - 1) / 2
+    remainder = half - q * floor(half / q)
+    n_pre_pad = floor(q - remainder)
+    half += n_pre_pad
+    delay = floor(ceil(half) / q)
+    n_post_pad = 0
+    padded = filter_length + n_pre_pad
+    target = ceil(n_in * p / q)
+    while ceil(((n_in - 1) * p + padded + n_post_pad) / q) - delay < target:
+        n_post_pad += 1
+    return n_pre_pad, n_post_pad, delay
 
 
-def _delay_padded_nan_weight(missing, p, q, window):
+def _delay_padded_nan_weight(missing, p, q, filter_length):
     factor = gcd(int(p), int(q))
     up = int(p) // factor
     down = int(q) // factor
     if up == 1 and down == 1:
         return missing.astype(np.float64)
-    window = np.abs(np.asarray(window, dtype=np.float64).reshape(-1))
-    half_len = (window.size - 1) // 2
-    kernel = window * up
-    n_pre_pad = down - half_len % down
-    n_pre_remove = (half_len + n_pre_pad) // down
     n_in = missing.shape[1]
-    n_out = (n_in * up) // down + bool((n_in * up) % down)
-    n_post_pad = 0
-    while _upfirdn_length(kernel.size + n_pre_pad + n_post_pad, n_in, up, down) < n_out + n_pre_remove:
-        n_post_pad += 1
-    kernel = np.concatenate((np.zeros(n_pre_pad), kernel, np.zeros(n_post_pad)))
-    kernel = np.where(kernel == 0.0, 1.0, kernel)
+    n_pre_pad, n_post_pad, delay = _resample_filter_padding(filter_length, up, down, n_in)
+    n_out = ceil(n_in * up / down)
+    kernel = np.ones(filter_length + n_pre_pad + n_post_pad)
     filtered = upfirdn(kernel, missing.astype(np.float64), up, down, axis=1)
-    return filtered[:, n_pre_remove : n_pre_remove + n_out]
+    return filtered[:, delay : delay + n_out]
 
 
 def _resample_poly_segment(segment, p, q, *, fc, df):
@@ -362,14 +367,10 @@ def _resample_poly_segment(segment, p, q, *, fc, df):
     pad_width = [(0, 0), (n_pad, n_pad), *[(0, 0) for _ in range(segment.ndim - 2)]]
     padded = np.pad(segment, pad_width, mode="edge").astype(np.float64)
     if np.isnan(padded).any():
-        # resample.m (1988-2003) prepends nz zeros, and sometimes appends nz1
-        # zeros, so downsampling hits the center tap. 0*NaN is NaN, so those
-        # taps still mark an output. scipy's upfirdn also marks samples that
-        # no tap reaches; those stay finite.
         missing = np.isnan(padded)
         values = np.where(missing, 0.0, padded)
         resampled = resample_poly(values, p, q, axis=1, window=b)
-        weight = _delay_padded_nan_weight(missing, p, q, b)
+        weight = _delay_padded_nan_weight(missing, p, q, b.size)
         resampled = resampled.astype(np.float32)
         resampled[weight > 0] = np.nan
     else:
