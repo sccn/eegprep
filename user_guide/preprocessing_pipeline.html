@@ -681,7 +681,9 @@ appropriate:</p>
 </div>
 <p>GUI path: <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Change</span> <span class="pre">sampling</span> <span class="pre">rate</span></code>. Continuous data with boundary
 events is resampled by segment. Event latencies and the time vector are updated.
-A missing sample stays missing only where a nonzero anti-aliasing tap touches it.</p>
+A missing sample stays missing where the anti-aliasing filter reaches it,
+including the exact-zero delay pads in MATLAB’s resampler. Outputs no tap
+reaches stay finite.</p>
 </section>
 <section id="re-reference-and-interpolate">
 <h2>Re-Reference and Interpolate<a class="headerlink" href="#re-reference-and-interpolate" title="Link to this heading">#</a></h2>
