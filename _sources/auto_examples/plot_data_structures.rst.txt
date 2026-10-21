@@ -138,7 +138,7 @@ interpolation and DIPFIT all read the same metadata.
 
     chanlocs keys: X, Y, Z, labels, radius, ref, sph_phi, sph_radius, sph_theta, theta, type, urchan
     labels: ['FPz', 'EOG1', 'F3', 'Fz', 'F4', 'EOG2']
-    channel 0: labels=FPz theta=0 radius=0.50669
+    channel 0: labels=FPz theta=0.0 radius=0.50669
                X=0.9998 Y=-0.0000 Z=-0.0210
 
 
@@ -337,7 +337,7 @@ separate dataset. ``icaact`` is a cache that can be recomputed from
     icawinv: (32, 32)
     icaact: (32, 384, 80)
     icachansind (0-based): [0 1 2 3 4 5 6 7] ...
-    |icaact - weights @ sphere @ data| / std(icaact): 2.31e-06
+    |icaact - weights @ sphere @ data| / std(icaact): 1.53e-05
     eeg_getica(EEG): (32, 384, 80)
     eeg_getica(EEG, 1): (1, 384, 80)
 
@@ -383,7 +383,7 @@ console show. ``eeg_store`` fills the lowest empty slot or overwrites;
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.052 seconds)
+   **Total running time of the script:** (0 minutes 0.088 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_structures.py:

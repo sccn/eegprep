@@ -636,6 +636,8 @@
 <dt class="sig sig-object py" id="eegprep.pop_saveset">
 <span class="sig-name descname"><span class="pre">pop_saveset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_saveset" title="Link to this definition">#</a></dt>
 <dd><p>Save EEG data to file.</p>
+<p>The file stores <code class="docutils literal notranslate"><span class="pre">icaact</span></code> as <code class="docutils literal notranslate"><span class="pre">[]</span></code>. The dataset returned in memory keeps
+its activations; <code class="docutils literal notranslate"><span class="pre">pop_loadset</span></code> recomputes them.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">

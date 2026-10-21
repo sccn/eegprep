@@ -538,7 +538,16 @@ classes.</p>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar uses EEGLAB’s channel-fast float32 layout. Continuous data
 round-trips as <code class="docutils literal notranslate"><span class="pre">(nbchan,</span> <span class="pre">pnts)</span></code> and epoched data round-trips as
-<code class="docutils literal notranslate"><span class="pre">(nbchan,</span> <span class="pre">pnts,</span> <span class="pre">trials)</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">(nbchan,</span> <span class="pre">pnts,</span> <span class="pre">trials)</span></code>. Length-1 channel, sample, and trial axes are kept
+when the array is stored inside the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file as well. ICA weight, sphere,
+and inverse matrices keep a length-1 component or channel axis. A
+multi-dimensional cell or struct array keeps its MATLAB shape, and an empty
+array keeps the dimensions stored in the file. <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> stores
+<code class="docutils literal notranslate"><span class="pre">icaact</span></code> as <code class="docutils literal notranslate"><span class="pre">[]</span></code> and keeps the in-memory activations. Continuous
+<code class="docutils literal notranslate"><span class="pre">icaact</span></code> reloads as <code class="docutils literal notranslate"><span class="pre">(ncomp,</span> <span class="pre">pnts)</span></code> and is recomputed in the data
+array’s dtype. <code class="docutils literal notranslate"><span class="pre">pop_subcomp</span></code> subtracts components with those stored
+activations. Event and channel indices load as integers, and integral
+<code class="docutils literal notranslate"><span class="pre">run</span></code> and <code class="docutils literal notranslate"><span class="pre">session</span></code> labels stay integers.</p>
 <p>When an existing two-file dataset is saved with <code class="docutils literal notranslate"><span class="pre">savemode=&quot;resave&quot;</span></code>,
 EEGPrep keeps writing the same <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar. A plain save without
 <code class="docutils literal notranslate"><span class="pre">savemode</span></code> follows the current <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> setting; if that
