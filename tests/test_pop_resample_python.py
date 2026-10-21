@@ -5,6 +5,7 @@ import numpy as np
 
 from eegprep.functions.popfunc.pop_resample import (
     RATIO_TOLERANCE,
+    _delay_padded_nan_weight,
     _resample_ratio,
     pop_resample,
 )
@@ -94,6 +95,35 @@ class PopResamplePythonTests(unittest.TestCase):
         self.assertTrue(np.all(~np.isfinite(output[0, :101])))
         self.assertTrue(np.all(np.isfinite(output[0, 101:])))
         np.testing.assert_array_equal(output[0, 101:], finite[0, 101:])
+
+    def test_interior_nan_includes_the_delay_pad_sample(self):
+        length = 598
+        nan_index = 215
+        clean = {
+            "data": np.ones((2, length), dtype=np.float64),
+            "nbchan": 2,
+            "pnts": length,
+            "trials": 1,
+            "srate": 128.0,
+            "xmin": 0.0,
+            "event": [],
+        }
+        missing = {**clean, "data": clean["data"].copy()}
+        missing["data"][0, nan_index] = np.nan
+        finite = pop_resample(clean, 100, gui=False)["data"]
+        output = pop_resample(missing, 100, gui=False)["data"]
+        bad = np.flatnonzero(~np.isfinite(output[0]))
+        self.assertEqual(bad.tolist(), list(range(151, 185)))
+        self.assertTrue(np.all(np.isfinite(output[1])))
+        np.testing.assert_array_equal(output[0, :151], finite[0, :151])
+        np.testing.assert_array_equal(output[0, 185:], finite[0, 185:])
+        np.testing.assert_array_equal(output[1], finite[1])
+
+    def test_even_length_filter_delay_uses_half_sample(self):
+        missing = np.zeros((1, 8, 1))
+        missing[0, 1, 0] = 1.0
+        weight = _delay_padded_nan_weight(missing, 1, 3, 4)
+        self.assertEqual(np.flatnonzero(weight[0, :, 0] > 0).tolist(), [0])
 
 
 def _epoched_resample_eeg():

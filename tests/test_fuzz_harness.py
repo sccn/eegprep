@@ -867,7 +867,8 @@ def test_cli_fake_match_on_sample_data_passes(tmp_path):
     assert metrics["harness_ok"] is True
     assert metrics["seed"] == 20261012
     assert metrics["functions"]["pop_reref"]["divergences"] == 0
-    assert metrics["functions"]["clean_asr"]["examples"] + metrics["functions"]["pop_clean_rawdata"]["examples"] == 1
+    assert metrics["functions"]["clean_asr"]["examples"] == 1
+    assert metrics["functions"]["pop_clean_rawdata"]["examples"] == 1
 
 
 def test_workflow_schedules_the_matlab_batch_job():

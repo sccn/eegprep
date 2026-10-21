@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--issue-cap", type=int, default=3)
     run.add_argument("--oracle", choices=("matlab", "fake"), default="matlab")
     run.add_argument("--fake-mode", choices=("match", "survey-diverge", "sanity-fail"), default="match")
-    run.add_argument("--functions", default="", help="Comma-separated subset of the four targets")
+    run.add_argument("--functions", default="", help="Comma-separated subset of the nightly targets")
     run.add_argument("--file-issues", action="store_true", help="File confirmed divergences with gh")
 
     replay = sub.add_parser("reproduce", help="Replay a saved repro JSON")

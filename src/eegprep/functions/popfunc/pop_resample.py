@@ -7,7 +7,7 @@ from math import ceil, floor, gcd
 
 import numpy as np
 from scipy import signal
-from scipy.signal import resample, resample_poly
+from scipy.signal import resample, resample_poly, upfirdn
 from scipy.signal.windows import kaiser
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
@@ -53,7 +53,8 @@ def pop_resample(
     -------
     EEG : dict
         EEGLAB EEG structure with resampled data. The default resampler leaves a
-        NaN only on samples whose nonzero anti-aliasing taps touch a missing sample.
+        NaN where MATLAB's padded anti-aliasing filter reaches a missing sample,
+        including the exact-zero taps that compensate for the filter delay.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -324,6 +325,36 @@ def _resample_segment(segment, p, q, *, method, fc, df):
     return _resample_poly_segment(segment, p, q, fc=fc, df=df)
 
 
+def _resample_filter_padding(filter_length, p, q, n_in):
+    # ResampleParser.m:762-780 pads with delay zeros, using (L-1)/2, so an even
+    # length is delayed by a half sample. uniformMatrixCore.m:13-16 applies
+    # the padded filter with upfirdn.
+    half = (filter_length - 1) / 2
+    n_pre_pad = floor(q - half % q)
+    padded_half = half + n_pre_pad
+    delay = floor(ceil(padded_half) / q)
+    n_post_pad = 0
+    padded = filter_length + n_pre_pad
+    target = ceil(n_in * p / q)
+    while ceil(((n_in - 1) * p + padded + n_post_pad) / q) - delay < target:
+        n_post_pad += 1
+    return n_pre_pad, n_post_pad, delay
+
+
+def _delay_padded_nan_weight(missing, p, q, filter_length):
+    factor = gcd(int(p), int(q))
+    up = int(p) // factor
+    down = int(q) // factor
+    if up == 1 and down == 1:
+        return missing.astype(np.float64)
+    n_in = missing.shape[1]
+    n_pre_pad, n_post_pad, delay = _resample_filter_padding(filter_length, up, down, n_in)
+    n_out = ceil(n_in * up / down)
+    kernel = np.ones(filter_length + n_pre_pad + n_post_pad)
+    filtered = upfirdn(kernel, missing.astype(np.float64), up, down, axis=1)
+    return filtered[:, delay : delay + n_out]
+
+
 def _resample_poly_segment(segment, p, q, *, fc, df):
     nyq = 1 / np.maximum(p, q)
     cutoff = fc * nyq
@@ -335,12 +366,10 @@ def _resample_poly_segment(segment, p, q, *, fc, df):
     pad_width = [(0, 0), (n_pad, n_pad), *[(0, 0) for _ in range(segment.ndim - 2)]]
     padded = np.pad(segment, pad_width, mode="edge").astype(np.float64)
     if np.isnan(padded).any():
-        # resample_poly zero-pads its filter so the first sample stays put.
-        # A zero tap times a NaN is NaN, which marks outputs EEGLAB leaves finite.
         missing = np.isnan(padded)
         values = np.where(missing, 0.0, padded)
         resampled = resample_poly(values, p, q, axis=1, window=b)
-        weight = resample_poly(missing.astype(np.float64), p, q, axis=1, window=np.abs(np.asarray(b, dtype=float)))
+        weight = _delay_padded_nan_weight(missing, p, q, b.size)
         resampled = resampled.astype(np.float32)
         resampled[weight > 0] = np.nan
     else:

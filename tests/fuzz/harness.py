@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_SET = REPO_ROOT / "sample_data" / "eeglab_data.set"
 TOLERANCES_PATH = Path(__file__).resolve().parent / "tolerances.toml"
-FUNCTION_NAMES = ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr")
+FUNCTION_NAMES = ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr", "pop_clean_rawdata")
 _MIN_LENGTH = 256
 _MAX_LENGTH = 1536
 _SHORT_MAX = 96
@@ -643,8 +643,9 @@ def run_session(
     ordered = sorted(by_signature.values(), key=lambda item: item.max_abs, reverse=True)[:max_shrinks]
     confirmed: list[Outcome] = []
     for original in ordered:
+        strategy_name = original.report if original.report in strategies else original.case.function
         shrunk = shrink_signature(
-            strategies[original.case.function],
+            strategies[strategy_name],
             seed_value,
             examples,
             original.signature,
@@ -747,7 +748,7 @@ def render_summary(result: SessionResult) -> str:
 
 
 def build_strategies(info: SeedInfo) -> dict:
-    """Hypothesis strategies for the four nightly targets. Draws shrink toward smaller crops."""
+    """Hypothesis strategies for the nightly targets. Draws shrink toward smaller crops."""
 
     @st.composite
     def eegfiltnew(draw):
@@ -768,13 +769,19 @@ def build_strategies(info: SeedInfo) -> dict:
     @st.composite
     def asr(draw):
         spec = _draw_spec(draw, info)
-        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw)))
+        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_asr")))
+
+    @st.composite
+    def rawdata(draw):
+        spec = _draw_spec(draw, info)
+        return FuzzCase("clean_asr", spec, freeze_params(_draw_asr(draw, "clean_rawdata")))
 
     return {
         "pop_eegfiltnew": eegfiltnew(),
         "pop_reref": reref(),
         "pop_resample": resample(),
         "clean_asr": asr(),
+        "pop_clean_rawdata": rawdata(),
     }
 
 
@@ -1113,9 +1120,9 @@ def _draw_reref(draw, n_channels: int) -> dict:
     return {"ref": ref, "keepref": keepref, "exclude": exclude}
 
 
-def _draw_asr(draw) -> dict:
+def _draw_asr(draw, entry: str) -> dict:
     return {
-        "entry": draw(st.sampled_from(["clean_asr", "clean_asr", "clean_asr", "clean_rawdata"])),
+        "entry": entry,
         "cutoff": draw(st.sampled_from([5.0, 5.0, 3.0, 10.0, 20.0])),
         "ref_maxbadchannels": draw(st.sampled_from(["off", "off", "off", 0.075, 0.2])),
         "window_len": draw(st.sampled_from([None, None, 0.5, 1.0])),
