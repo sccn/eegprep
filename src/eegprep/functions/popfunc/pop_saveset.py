@@ -364,7 +364,11 @@ def _serialize_chaninfo(chaninfo):
     out = {}
     for k, v in chaninfo.items():
         if k in ('removedchans', 'nodatchans'):
-            if isinstance(v, (list, np.ndarray)) and len(v) > 0:
+            if isinstance(v, np.ndarray):
+                nonempty = v.size > 0
+            else:
+                nonempty = isinstance(v, list) and len(v) > 0
+            if nonempty:
                 first = v[0] if isinstance(v, list) else v.flat[0]
                 if isinstance(first, dict):
                     out[k] = _chanlocs_to_struct_array(v)
@@ -379,6 +383,9 @@ def _serialize_chaninfo(chaninfo):
 
 def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
+
+    The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
+    its activations; ``pop_loadset`` recomputes them.
 
     Parameters
     ----------
@@ -416,7 +423,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'times': EEG['times'],
         'data': mat_data,
         'datfile': datfile_name if save_two_files else '',
-        'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
+        'icaact': default_empty,
         'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
         'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),

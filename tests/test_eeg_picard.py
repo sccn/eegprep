@@ -170,7 +170,10 @@ class TestEegPicard(unittest.TestCase):
                 self.assertEqual(eeg_result['icaweights'].shape[1], n_chans)
                 self.assertEqual(eeg_result['icasphere'].shape, (n_chans, n_chans))
                 self.assertEqual(eeg_result['icaact'].shape[1], n_pnts)
-                self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
+                if int(n_trials) == 1:
+                    self.assertEqual(eeg_result['icaact'].ndim, 2)
+                else:
+                    self.assertEqual(eeg_result['icaact'].shape[2], n_trials)
 
         np.testing.assert_allclose(
             EEG_python['icasphere'],

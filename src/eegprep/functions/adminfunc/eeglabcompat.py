@@ -40,18 +40,19 @@ def _temp_dir() -> str:
 
 
 def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
-    """Save ``varname.data`` as double before EEGLAB writes the dataset.
+    """Save double ``data`` and ``icaact`` as MATLAB holds them before ``pop_saveset``.
 
-    ``pop_saveset`` stores numeric EEG data as single. The in-memory result is
-    still double when the MATLAB function computed in double, and that is the
-    array the comparison should see.
+    ``pop_saveset.m:225-226`` stores ``icaact`` as ``[]``. ``eeg_checkset.m:1000``
+    recomputes activations only when that field is empty or the wrong size.
     """
     engine.eval(
         (
             f"if isstruct({varname}) && isfield({varname}, 'data') && isnumeric({varname}.data), "
             f"eegprep_roundtrip_data = double({varname}.data); "
-            f"save('{path}', 'eegprep_roundtrip_data', '-v7'); "
-            "clear eegprep_roundtrip_data; "
+            f"if isfield({varname}, 'icaact'), eegprep_roundtrip_icaact = {varname}.icaact; "
+            "else, eegprep_roundtrip_icaact = []; end; "
+            f"save('{path}', 'eegprep_roundtrip_data', 'eegprep_roundtrip_icaact', '-v7'); "
+            "clear eegprep_roundtrip_data eegprep_roundtrip_icaact; "
             "end"
         ),
         nargout=0,
@@ -59,14 +60,17 @@ def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
 
 
 def _restore_double_eeg_data(eeg, path: str) -> None:
-    """Replace loaded single data with the double copy saved beside it."""
+    """Replace loaded single data and file activations with the MATLAB copies."""
     if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
         return
-    stashed = np.asarray(scipy.io.loadmat(path)["eegprep_roundtrip_data"])
+    saved = scipy.io.loadmat(path, squeeze_me=False)
+    stashed = np.asarray(saved["eegprep_roundtrip_data"])
     current = np.asarray(eeg["data"])
     if stashed.size != current.size:
         return
     eeg["data"] = np.reshape(stashed, current.shape, order="F")
+    if "eegprep_roundtrip_icaact" in saved:
+        eeg["icaact"] = np.asarray(saved["eegprep_roundtrip_icaact"])
 
 
 def _prepare_matlab_arg(arg: Any) -> Any:
