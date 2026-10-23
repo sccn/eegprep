@@ -188,11 +188,9 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertNotIn(0.0, latencies)
         self.assertNotIn(float(result['pnts']), latencies)
 
-    def test_eeg_eegrej_keeps_nonboundary_events_at_edges(self):
-        """Genuine (non-boundary) events at the first/last sample must not be dropped."""
+    def test_eeg_eegrej_drops_events_before_half_a_sample(self):
+        """eventconsistency removes latency < 0.5 and keeps a stim on the last sample."""
         EEG = self.base_eeg.copy()
-        # stim at the first sample (latency 0) and a stim that lands on the
-        # final sample after rejection (latency 20 -> 17 once 3 samples removed)
         EEG['event'] = [
             {"type": "stim", "latency": 0.0},
             {"type": "stim", "latency": 20.0},
@@ -204,8 +202,7 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['pnts'], 17)
         stim_events = [e for e in result['event'] if e.get('type') == 'stim']
         stim_latencies = sorted(e['latency'] for e in stim_events)
-        # both stim events survive: one at the first sample, one at the last sample
-        self.assertEqual(stim_latencies, [0.0, 17.0])
+        self.assertEqual(stim_latencies, [17.0])
 
     def test_eeg_eegrej_floating_point_regions(self):
         """Test eeg_eegrej with floating point regions (should be rounded)."""

@@ -228,6 +228,43 @@ class TestEventconsistencyOperations:
         )
         assert all('duration' not in event for event in untouched['event'])
 
+    def test_epoched_events_sort_by_epoch_and_fill_duration(self):
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'stim', 'latency': 10.0, 'epoch': 2, 'duration': 1.0},
+                    {'type': 'stim', 'latency': 4.0, 'epoch': 1},
+                ],
+                'pnts': 20,
+                'trials': 2,
+            }
+        )
+        events = list(filled['event'])
+        assert [(event['epoch'], event['latency'], event['duration']) for event in events] == [
+            (1, 4.0, 0),
+            (2, 10.0, 1.0),
+        ]
+
+    def test_empty_event_list_stays_empty(self):
+        eeg = {'event': [], 'pnts': 10, 'trials': 1}
+        _eventconsistency(eeg)
+        assert list(np.asarray(eeg['event'], dtype=object).ravel()) == []
+
+    def test_nan_duration_is_not_empty(self):
+        # MATLAB isempty(NaN) is false: NaN is a 1-by-1 double, not [].
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 5.0, 'duration': 3.0},
+                    {'type': 'stim', 'latency': 8.0, 'duration': np.nan},
+                ],
+                'pnts': 20,
+                'trials': 1,
+            }
+        )
+        stim = next(event for event in filled['event'] if event['type'] == 'stim')
+        assert np.isnan(stim['duration'])
+
     def test_rejection_gives_every_event_a_duration(self):
         eeg = pop_loadset('sample_data/eeglab_data.set')
 

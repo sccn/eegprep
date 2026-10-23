@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
-from eegprep.functions.adminfunc.eeg_checkset import _fill_missing_durations
+from eegprep.functions.adminfunc.eeg_checkset import _eventconsistency
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
@@ -335,8 +335,8 @@ def eeg_eegrej(EEG, regions):
                     if f not in ev:
                         ev[f] = np.array([])
 
-    # eeg_eegrej.m:144. eventconsistency fills empty durations once a boundary has one.
-    _fill_missing_durations(EEG["event"])
+    # eeg_eegrej.m:144 calls eeg_checkset(EEG, 'eventconsistency').
+    _eventconsistency(EEG)
     return EEG
 
 
