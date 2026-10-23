@@ -549,7 +549,10 @@ fraction of <em>bad</em> channels, where a channel is bad in a window if its RMS
 power is above or below some <em>z</em>-threshold relative to a robust estimate
 of clean EEG power in that channel. When the generalized-Gaussian fit does
 not return a positive scale, that estimate is the median and MAD of the
-window RMS values, and windows outside the thresholds are still removed.</p>
+window RMS values, and windows outside the thresholds are still removed.
+The fit’s width grid is <code class="docutils literal notranslate"><span class="pre">round(n</span> <span class="pre">*</span> <span class="pre">(max_width:-step:min_width))</span></code>. A
+rounded width of 1 or less raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, which is the MATLAB
+indexing error in that loop. Eleven to twenty-two windows still fit.</p>
 <section id="args">
 <h2>Args<a class="headerlink" href="#args" title="Link to this heading">#</a></h2>
 <dl class="simple">

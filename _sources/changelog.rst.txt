@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_checkset`` rounds ``srate * (xmax - xmin) + 1`` half away from
+  zero before deciding whether ``xmax`` is on the sample grid. A count of
+  100.5 frames snaps ``xmax``; Python's half-to-even round would leave it.
+- ``clean_windows`` keeps the proportional ``xmax`` from ``eeg_eegrej`` and
+  snaps it to ``xmin + (pnts - 1) / srate`` only when that value is off the
+  sample grid, including ``xmax = xmin - 1/srate`` when every sample is
+  removed. A previous ``clean_sample_mask`` whose count of ones differs from
+  the new mask is left unchanged. The power fit raises ``ValueError`` only
+  when a rounded search width is 1 or less; 11 to 22 windows still fit.
+  ``clean_asr`` then calibrates on the whole recording.
 - ``pop_saveset`` writes an event ``urevent`` one-based only when that
   event has the field. A later event without ``urevent`` no longer raises
   ``KeyError``, and a later ``urevent`` is still shifted when the first

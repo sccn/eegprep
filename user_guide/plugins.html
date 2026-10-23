@@ -616,6 +616,11 @@ location-free correlation method instead. The RANSAC subset size is
 <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. The line-noise filter is a short FIR, so a NaN stays in a
 neighborhood of that channel instead of removing the channel from every
 correlation.</p>
+<p><code class="docutils literal notranslate"><span class="pre">clean_windows</span></code> keeps the removal duration from <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> and sets
+<code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">xmin</span> <span class="pre">+</span> <span class="pre">(pnts</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">/</span> <span class="pre">srate</span></code> only when that duration is off the
+sample grid. A recording whose fit widths round to 1 or less raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>, and <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> calibrates on the whole recording instead.
+Eleven to twenty-two windows still fit.</p>
 </section>
 <section id="firfilt">
 <h2>FIRFilt<a class="headerlink" href="#firfilt" title="Link to this heading">#</a></h2>
