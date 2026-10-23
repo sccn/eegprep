@@ -70,7 +70,9 @@ Marks And Rejection
 
 Dragging across the browser marks a time range. On continuous data, accepted
 marks can be stored in ``EEG.reject.rejmanualwinrej`` for later review or
-converted through ``eeg_eegrej`` to remove samples. On epoched data, accepted
+converted through ``eeg_eegrej`` to remove samples. Overlapping or reversed
+intervals are merged before event latencies move, and a one-sample gap stays
+two intervals. Removing every sample sets ``xmax`` to ``-1/srate``. On epoched data, accepted
 marks update ``EEG.reject.rejmanual`` and ``EEG.reject.rejmanualE`` or remove
 marked epochs through ``pop_rejepoch``.
 

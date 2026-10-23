@@ -581,7 +581,9 @@ also open browser-backed review windows before updating marks or removing data.<
 <h2>Marks And Rejection<a class="headerlink" href="#marks-and-rejection" title="Link to this heading">#</a></h2>
 <p>Dragging across the browser marks a time range. On continuous data, accepted
 marks can be stored in <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanualwinrej</span></code> for later review or
-converted through <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> to remove samples. On epoched data, accepted
+converted through <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> to remove samples. Overlapping or reversed
+intervals are merged before event latencies move, and a one-sample gap stays
+two intervals. Removing every sample sets <code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">-1/srate</span></code>. On epoched data, accepted
 marks update <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanual</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanualE</span></code> or remove
 marked epochs through <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code>.</p>
 <p>Component mode uses ICA activations and writes ICA-prefixed rejection fields
