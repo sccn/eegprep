@@ -1128,12 +1128,16 @@ def _stale_zero_trials_is_known(
         return False
     if python.data is None or oracle.data is None or python.srate is None or oracle.srate is None:
         return False
-    if int(eeg.get("trials") or 0) != 0:
+    stored = eeg.get("trials")
+    if isinstance(stored, bool) or not isinstance(stored, (int, float, np.integer, np.floating)):
+        return False
+    if int(stored) != 0:
         return False
     data_gap, *_rest = compare_data(python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance)
     if data_gap:
         return False
-    return len(python.events) > len(oracle.events)
+    kept = tuple(event for event in python.events if event[1] <= 1)
+    return kept == oracle.events and len(python.events) > len(oracle.events)
 
 
 def _asr_short_calibration_is_oracle_defect(
@@ -1353,9 +1357,10 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 outcome.detail,
                 digest,
             )
-        # The matrix product fills every channel with NaN. Later steps are
-        # compared on the subtraction result, which still has a real signal.
-        if known_reref and _eeg_dict(_python_eeg) is not None:
+        # Continue from the Python EEG when MATLAB's output is the known
+        # defect: a NaN spread by the reference matrix, or events dropped
+        # because trials was still 0. Later steps then see a real signal.
+        if (known_reref or known_trials) and _eeg_dict(_python_eeg) is not None:
             nxt = _python_eeg
         else:
             nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg

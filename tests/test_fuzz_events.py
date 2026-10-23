@@ -362,6 +362,73 @@ def test_zero_trials_event_drop_is_not_filed():
     assert shifted.diverged is True
     assert shifted.error_class == "numeric"
 
+    class _Retyped(_Dropped):
+        def run(self, step, dataset):
+            out = dispatch_python(step, dataset)
+            out["event"] = [
+                {**event, "type": "other"} if str(event.get("type")).lower() == "boundary" else event
+                for event in out["event"]
+                if str(event.get("type")).lower() == "boundary" or float(event.get("latency") or 0) <= 1
+            ]
+            return side_from_call(out)
+
+    retyped = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Retyped(), load_tolerances())
+    assert retyped.diverged is True
+
+    missing = dict(eeg)
+    del missing["trials"]
+    omitted = evaluate_case(case, lambda _case: missing, PythonBackend(), _Dropped(), load_tolerances())
+    assert omitted.diverged is True
+
+
+def test_pipeline_stale_trials_continues_from_python():
+    eeg = {
+        "data": np.arange(20, dtype=float).reshape(1, 20),
+        "nbchan": 1,
+        "pnts": 20,
+        "trials": 0,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 0.19,
+        "event": [{"type": "stim", "latency": 5.0}],
+        "chanlocs": [{"labels": "Cz"}],
+    }
+    seen = []
+    case = FuzzCase(
+        "pipeline",
+        EEGSpec((0,), 0, 20, 1, -1, 0, 0),
+        freeze_params({"profile": "stale-trials"}),
+        pipeline=(
+            ("eeg_eegrej", freeze_params({"regions": [[1, 2]], "eegplot": False})),
+            ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
+        ),
+    )
+
+    class _Oracle:
+        def run_raw(self, step, dataset):
+            if step.function != "eeg_eegrej":
+                seen.append([float(event["latency"]) for event in dataset["event"]])
+                return dispatch_python(step, dataset)
+            out = dispatch_python(step, dataset)
+            out["event"] = [event for event in out["event"] if float(event.get("latency") or 0) <= 1]
+            return out
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Oracle(), load_tolerances())
+    assert outcome.diverged is False
+    assert seen == [[0.5, 3.0]]
+
+
+def test_eegrej_edge_draw_can_store_trials_zero():
+    found = False
+    for case in draw_cases("eeg_eegrej", seed_value=20261023, examples=40):
+        if case.params and dict(case.params).get("stale_trials") is not True:
+            continue
+        eeg = materialize_eeg(case)
+        assert eeg["trials"] == 0
+        found = True
+        break
+    assert found
+
 
 def test_pipeline_continues_after_the_known_rmbase_divergence():
     spec = EEGSpec(

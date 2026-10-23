@@ -920,8 +920,11 @@ when EEGLAB's reference matrix spreads a NaN through ``0*NaN`` and
 EEGPrep's subtraction keeps that NaN on its channel. The next pipeline
 step then starts from that subtraction, so later steps are not compared
 on the NaN-filled matrix product. ``eeg_eegrej`` with a stored ``trials``
-of 0 is a match when the data agree and EEGPrep kept events that EEGLAB
-removed at ``eeg_checkset.m`` lines 440-449. Both sides
+of 0 is a match when the data agree and MATLAB's events are exactly the
+Python events whose latency is at most 1. A missing ``trials`` value does
+not count. The next pipeline step then starts from the Python EEG. An
+edge draw sets that stored 0 on about half of the non-user ``eeg_eegrej``
+cases. Both sides
 raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
 a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
 ``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
