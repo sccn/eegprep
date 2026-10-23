@@ -63,12 +63,10 @@ def _openneuro_root() -> Path | None:
         nested = root / "ds003194"
         if (nested / "dataset_description.json").is_file():
             return nested
-        if os.environ.get("EEGPREP_OPENNEURO_ROOT"):
-            raise FileNotFoundError(
-                f"ds003194 is not under {root}. The parity tests use EEGPREP_OPENNEURO_ROOT "
-                "or tests/openneuro/ds003194, and fetch s3://openneuro.org/ds003194/."
-            )
-        return None
+        raise FileNotFoundError(
+            f"ds003194 is not under {root}. The parity tests use EEGPREP_OPENNEURO_ROOT "
+            "or tests/openneuro/ds003194, and fetch s3://openneuro.org/ds003194/."
+        )
     candidate = REPO_ROOT / "tests" / "openneuro" / "ds003194"
     if (candidate / "dataset_description.json").is_file():
         return candidate
@@ -401,11 +399,16 @@ def clean_channels_margins(eeg, params) -> str:
     return f"python clean_channels kept {int(cleaned['nbchan'])} of {int(eeg['nbchan'])} channels"
 
 
+def _continuous_recordings() -> tuple[_Recording, ...]:
+    """Tutorial and external continuous recordings that actually loaded."""
+    return tuple(rec for rec in _corpus().values() if rec.trials == 1)
+
+
 def extra_strategies(info, spec_cls, case_cls, freeze):
     """Hypothesis strategies for the seven new targets and the pipeline."""
     del info, freeze
     corpus = _corpus()
-    continuous = (corpus["eeglab_data"], corpus["eeglab_data_with_ica_tmp"])
+    continuous = _continuous_recordings()
     epoched = corpus["eeglab_data_epochs_ica"]
 
     @st.composite
@@ -555,19 +558,20 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
     @st.composite
     def pipeline(draw):
         user = _user_draw(draw)
-        rec = continuous[0]
+        rec = _pick_continuous(draw, continuous, user)
+        cap = max(1, int(round(30.0 * rec.srate)))
         spec = _draw_continuous(
             draw,
             spec_cls,
             rec,
             user=user,
             events="keep",
-            min_length=1024,
-            max_length=1536,
+            seconds=30.0,
+            max_length=cap,
         )
         if not user:
             spec = _with_boundaries(draw, spec, nested=draw(st.booleans()))
-        steps = _tutorial_chain(draw) if user else _edge_chain(draw, rec)
+        steps = _tutorial_chain(draw, rec) if user else _edge_chain(draw, rec)
         return case_cls("pipeline", spec, freeze_params({"profile": steps[0]}), pipeline=tuple(steps[1]))
 
     return {
@@ -822,20 +826,30 @@ def _edge_rmbase(draw, spec_cls, continuous, epoched):
     }
 
 
-def _tutorial_chain(draw):
+def _chain_types(rec: _Recording, preferred: list[str]) -> list[str]:
+    """Use the tutorial codes when the recording has them, otherwise a real code."""
+    present = [kind for kind in rec.event_types if kind not in {"boundary", "None"}]
+    if preferred and all(kind in present for kind in preferred):
+        return preferred
+    if present:
+        return present[: max(1, len(preferred))]
+    return preferred
+
+
+def _tutorial_chain(draw, rec: _Recording):
     profile = draw(st.sampled_from(("tutorial-epoch", "bids-clean", "gui-clean", "ds003061-params")))
     if profile == "tutorial-epoch":
         steps = (
             ("pop_eegfiltnew", _filter_params(1.0)),
             ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
-            ("pop_epoch", freeze_params({"types": ["square"], "lim": [-1.0, 2.0]})),
+            ("pop_epoch", freeze_params({"types": _chain_types(rec, ["square"]), "lim": [-1.0, 2.0]})),
             ("pop_rmbase", freeze_params({"timerange": [-200.0, 0.0], "pointrange": [], "chanlist": []})),
         )
     elif profile == "bids-clean":
         steps = (
             ("pop_clean_rawdata", _clean_params(burst=5.0, rejection="off", highpass=(0.25, 0.75))),
             ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
-            ("pop_epoch", freeze_params({"types": ["square"], "lim": [-1.0, 2.0]})),
+            ("pop_epoch", freeze_params({"types": _chain_types(rec, ["square"]), "lim": [-1.0, 2.0]})),
             ("pop_select", freeze_params({"trial": [1, 2, 3], "sorttrial": "on"})),
         )
     elif profile == "gui-clean":
@@ -847,7 +861,7 @@ def _tutorial_chain(draw):
         steps = (
             ("pop_clean_rawdata", _clean_params(burst=20.0, rejection="on", highpass=(0.25, 0.75))),
             ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
-            ("pop_epoch", freeze_params({"types": ["square", "rt"], "lim": [-0.5, 1.0]})),
+            ("pop_epoch", freeze_params({"types": _chain_types(rec, ["square", "rt"]), "lim": [-0.5, 1.0]})),
             ("pop_rmbase", freeze_params({"timerange": [-500.0, 0.0], "pointrange": [], "chanlist": []})),
         )
     return profile, steps
