@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
-from eegprep.functions.adminfunc.eeg_checkset import _eventconsistency
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
@@ -364,9 +364,14 @@ def eeg_eegrej(EEG, regions):
                     if f not in ev:
                         ev[f] = np.array([])
 
-    # eeg_eegrej.m:144 calls eeg_checkset(EEG, 'eventconsistency'), then lines
-    # 145-147 drop the event that is now past the last kept sample.
-    _eventconsistency(EEG)
+    # eeg_checkset.m:823-827. A 2-D array has a third dimension of 1, so a
+    # stored trials value of 0 must not make every latency past sample 1
+    # look out of range. eeg_eegrej.m:144 then runs the full check, which
+    # also snaps xmax when round(srate*(xmax-xmin)+1) is not pnts.
+    # Lines 145-147 drop the event that is now past the last kept sample.
+    data = EEG["data"]
+    EEG["trials"] = int(data.shape[2]) if np.ndim(data) == 3 else 1
+    eeg_checkset(EEG, "eventconsistency")
     EEG["event"] = _events_as_dicts(EEG.get("event"))
     if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
         EEG["event"].pop()

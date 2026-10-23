@@ -57,24 +57,52 @@ def test_reference_chaninds_uses_original_epoched_recording(eeglab_backend, eegl
 
 
 @eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
-def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend, eeglab_suite_root):
+def _event_rows(events):
+    """Event records as dicts, whether the backend returned a list or a struct array."""
+    if events is None or (isinstance(events, np.ndarray) and events.size == 0):
+        return []
+    if isinstance(events, list):
+        return events
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        return [{name: record[name] for name in events.dtype.names} for record in events.reshape(-1)]
+    raise AssertionError(f"unexpected event container {type(events)!r}")
+
+
+def _event_text(value):
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1)[0]
+    return str(value)
+
+
+def _event_float(value):
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1)[0]
+    return float(value)
+
+
+def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend):
     data = np.arange(1, 16, dtype=float).reshape(3, 5)
     eeg = eeglab_backend("eeg_emptyset")
     eeg.update(nbchan=3.0, pnts=4.0, trials=1.0, srate=1.0, xmin=0.0, xmax=3.0, data=data)
     result = eeglab_backend("eeg_eegrej", eeg, np.empty((0, 0)))
     assert_matlab_near(result["data"], data)
-    assert_matlab_near(result["event"], np.empty((0, 0)))
+    assert _event_rows(result["event"]) == []
     # The source deliberately includes both consistent and inconsistent pnts metadata.
     for pnts in (5.0, 4.0):
         eeg["pnts"] = pnts
         result = eeglab_backend("eeg_eegrej", eeg, np.array([[2.0, 3.0]]))
         assert_matlab_near(result["data"], data[:, [0, 3, 4]])
-        assert set(result["event"]) == {"type", "duration", "latency"}
-        assert result["event"]["type"] == "boundary"
-        assert_matlab_near(result["event"]["duration"], [[2.0]])
-        assert_matlab_near(result["event"]["latency"], [[1.5]])
-    eeg = eeglab_backend("pop_loadset", str(eeglab_suite_root / "eeglab/sample_data/eeglab_data.set"))
-    eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
+        rows = _event_rows(result["event"])
+        assert [_event_text(row["type"]) for row in rows] == ["boundary"]
+        assert [_event_float(row["duration"]) for row in rows] == [2.0]
+        assert [_event_float(row["latency"]) for row in rows] == [1.5]
+    sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = eeglab_backend("pop_loadset", str(sample))
+    eeg["trials"] = 0
+    recorded = eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
+    assert len(_event_rows(recorded["event"])) > 1
 
 
 @eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_testcase_eegrej")
@@ -85,19 +113,19 @@ def test_reference_eegrej_boundary_events_follow_original_regression(eeglab_back
     cases = (
         ([999.0, 1000.0, 2000.0, 2001.0], [1000.0, 2000.0], ["mrk1", "boundary", "mrk4"], [999.0, 999.5, 1000.0]),
         ([1.0, 1000.0, 1001.0], [1.0, 1000.0], ["boundary", "mrk3"], [0.5, 1.0]),
-        ([8999.0, 9000.0, 10000.0], [9000.0, 10000.0], ["mrk1", "boundary"], None),
+        ([8999.0, 9000.0, 10000.0], [9000.0, 10000.0], ["mrk1", "boundary"], [8999.0, 8999.5]),
     )
     for latencies, interval, expected_types, expected_latencies in cases:
         eeg["event"] = np.array(
             [[(f"mrk{index}", latency) for index, latency in enumerate(latencies, start=1)]],
             dtype=[("type", object), ("latency", object)],
         )
+        eeg["trials"] = 0
         result = eeglab_backend("eeg_eegrej", eeg, np.array([interval]))
-        events = result["event"]
-        assert events.shape == (1, len(expected_types))
-        assert events["type"][0].tolist() == expected_types
+        rows = _event_rows(result["event"])
+        assert [_event_text(row["type"]) for row in rows] == expected_types
         if expected_latencies is not None:
-            np.testing.assert_array_equal([latency.item() for latency in events["latency"][0]], expected_latencies)
+            np.testing.assert_array_equal([_event_float(row["latency"]) for row in rows], expected_latencies)
 
 
 @eeglab_test("unittesting_popfunc/eeg_timeinterp/popfunc_eeg_timeinterp_wrapperTest.m", "test_test_eeg_timeinterp")

@@ -11,6 +11,21 @@ from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near, eeglab_t
 UPSTREAM = "unittesting_sigprocfunc/eegrej/sigprocfunc_eegrej_wrapperTest.m"
 
 
+def _scalar(value):
+    array = np.asarray(value, dtype=float).reshape(-1)
+    return float(array[0])
+
+
+def _boundary_rows(events):
+    if isinstance(events, list):
+        rows = events
+    elif isinstance(events, np.ndarray) and events.dtype.names:
+        rows = [{name: record[name] for name in events.dtype.names} for record in events.reshape(-1)]
+    else:
+        raise AssertionError(f"unexpected event container {type(events)!r}")
+    return rows
+
+
 @eeglab_test(UPSTREAM, "test_pass_general")
 @eeglab_test(UPSTREAM, "test_pass_events")
 def test_reference_eegrej_explicit_and_omitted_events(eeglab_backend):
@@ -62,11 +77,12 @@ def test_reference_eegrej_original_boundary_reconstruction(eeglab_backend):
         np.array([[100.0, 150.0], [200.0, 250.0], [300.0, 350.0], [400.0, 500.0], [1000.0, 1200.0]]),
     ):
         result = eeglab_backend("eeg_eegrej", eeg, np.ceil(original))
-        locations = np.concatenate(result["event"]["latency"][0].tolist(), axis=1)
-        durations = np.concatenate(result["event"]["duration"][0].tolist(), axis=1)
-        cumulative = np.cumsum(durations, axis=1)
-        locations = locations + np.concatenate((np.zeros((1, 1)), cumulative[:, :-1]), axis=1)
-        reconstructed = np.ceil(np.concatenate((locations, locations + durations - 1.0), axis=0).T)
+        rows = _boundary_rows(result["event"])
+        locations = np.asarray([_scalar(row["latency"]) for row in rows], dtype=float)
+        durations = np.asarray([_scalar(row["duration"]) for row in rows], dtype=float)
+        cumulative = np.cumsum(durations)
+        locations = locations + np.concatenate((np.zeros(1), cumulative[:-1]))
+        reconstructed = np.ceil(np.column_stack((locations, locations + durations - 1.0)))
         assert_matlab_equal(reconstructed, original)
 
 

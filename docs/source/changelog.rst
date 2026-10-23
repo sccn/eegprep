@@ -34,9 +34,11 @@ Unreleased
 - ``eeg_eegrej`` merges overlapping, reversed, and fractional removal
   intervals before shifting events, and leaves a one-sample gap as two
   intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
-- ``eeg_eegrej`` runs the shared event-consistency check after a cut, then
-  drops a trailing event whose latency is more than half a sample past the
-  data. Events come back as a list of dicts. A structured array is converted;
+- ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
+  event-consistency check. That keeps events when ``trials`` was 0, and
+  snaps ``xmax`` onto the sample grid when it no longer matches ``pnts``.
+  It then drops a trailing event whose latency is more than half a sample
+  past the data. Events come back as a list of dicts. A structured array is converted;
   any other event value raises. Events before half a sample are removed, events
   are sorted, and an empty duration becomes 0 once any event has one. A NaN
   duration is kept.

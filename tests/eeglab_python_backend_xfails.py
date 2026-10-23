@@ -49,9 +49,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording": _gap(
         STRUCT, ValueError
     ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_boundary_events_follow_original_regression": _gap(
-        STRUCT, AttributeError
-    ),
     "tests/test_core_event_eeglab_tests.py::test_reference_eventtypes_preserves_inverted_source_condition": _gap(
         STRUCT, ValueError
     ),
@@ -146,15 +143,11 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_selectevent_original_overlapping_epoch_workflow": _gap(
         STRUCT, AttributeError
     ),
-    "tests/test_sigproc_eegrej.py::test_reference_eegrej_original_boundary_reconstruction": _gap(STRUCT, TypeError),
     "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell": _gap(STRUCT, AttributeError),
     "tests/test_bdf_records_eeglab_tests.py::test_upstream_readbdf_original_record_selection": _gap(
         SHAPE, AssertionError
     ),
     "tests/test_cart2topo.py::test_reference_cart2topo_original_coordinate_matrices": _gap(SHAPE, AssertionError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_preserves_metadata_and_recorded_data_cases": _gap(
-        SHAPE, AssertionError
-    ),
     "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_case_insensitive_type": _gap(
         SHAPE, AssertionError
     ),

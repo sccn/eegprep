@@ -163,10 +163,12 @@ class TestEEGEegrejExtended(unittest.TestCase):
         result = eeg_eegrej(EEG, regions)
 
         new_pnts = result['pnts']
-        expected_duration = original_duration * (new_pnts / original_pnts)
-        expected_xmax = EEG['xmin'] + expected_duration
-
-        self.assertAlmostEqual(result['xmax'], expected_xmax, places=10)
+        proportional = EEG['xmin'] + original_duration * (new_pnts / original_pnts)
+        # eeg_checkset.m:849 snaps when round(srate*(xmax-xmin)+1) is not pnts.
+        # 15 kept samples of a 2 s, 100 Hz recording are not on that grid.
+        self.assertEqual(new_pnts, 15)
+        self.assertAlmostEqual(proportional, 1.5, places=10)
+        self.assertAlmostEqual(result['xmax'], 0.14, places=10)
 
     def test_eeg_eegrej_event_cleanup(self):
         """Test eeg_eegrej event cleanup logic."""
@@ -281,6 +283,15 @@ class TestEEGEegrejExtended(unittest.TestCase):
         result = eeg_eegrej(EEG, np.array([[1.0, 3.0]]))
         stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
         self.assertEqual(stims, [2.0])
+
+    def test_zero_trials_does_not_drop_events_past_sample_one(self):
+        EEG = self.base_eeg.copy()
+        EEG["trials"] = 0
+        EEG["event"] = [{"type": "stim", "latency": 5.0}]
+        result = eeg_eegrej(EEG, np.array([[1, 2]]))
+        self.assertEqual(result["trials"], 1)
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [3.0])
 
 
 if __name__ == "__main__":
