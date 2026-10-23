@@ -54,19 +54,20 @@ def test_inexact_overlap_reflects_the_endpoint_before_rounding():
 
 
 def test_fractional_overlap_keeps_samples_past_the_last_window():
-    samples = 1040
+    """23 windows is the shortest default fit. The tail after the last window stays."""
+    samples = 2172
     data = np.zeros((8, samples))
-    data[:, 952:] = 1000.0
+    data[:, 2171:] = 1000.0
     _cleaned, mask = clean_windows(_eeg(data, 256.0), window_overlap=0.66)
     assert mask.shape == (samples,)
     assert mask.all()
 
 
 def test_unrounded_window_length_stops_at_floor_n():
-    """window_len*srate = 10.6. 0:N-1 has 10 samples, so index 75 stays outside every window."""
-    samples = 80
+    """window_len*srate = 10.6. 0:N-1 has 10 samples, so index 118 stays outside every window."""
+    samples = 120
     data = np.zeros((4, samples))
-    data[:, 75:] = 1000.0
+    data[:, 118:] = 1000.0
     _cleaned, mask = clean_windows(_eeg(data, 10.6), window_len=1.0, window_overlap=0.66)
     assert mask.all()
 

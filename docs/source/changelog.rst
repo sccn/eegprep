@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_windows`` puts ``xmax`` and ``times`` on the sample grid after a
+  cut, including ``xmax = xmin - 1/srate`` when every sample is removed. A
+  previous ``clean_sample_mask`` whose count of ones differs from the new
+  mask is left unchanged. Fewer windows than the distribution fit can index
+  raises ``ValueError``; ``clean_asr`` then calibrates on the whole recording.
 - ``pop_saveset`` writes an event ``urevent`` one-based only when that
   event has the field. A later event without ``urevent`` no longer raises
   ``KeyError``, and a later ``urevent`` is still shifted when the first

@@ -65,9 +65,12 @@ def clean_windows(
     Specifically, only windows are retained which have less than a certain
     fraction of *bad* channels, where a channel is bad in a window if its RMS
     power is above or below some *z*-threshold relative to a robust estimate
-    of clean EEG power in that channel. When the generalized-Gaussian fit does
+    of clean EEG power in that channel.     When the generalized-Gaussian fit does
     not return a positive scale, that estimate is the median and MAD of the
     window RMS values, and windows outside the thresholds are still removed.
+    Fewer windows than ``fit_eeg_distribution`` can index
+    (``round(n * min(truncate_quant)) < 1``) raises ``ValueError``, which is
+    the MATLAB indexing error on that grid.
 
     Args
     ----
@@ -144,6 +147,11 @@ def clean_windows(
     if len(offsets) == 0:
         raise ValueError('Not enough data for even a single window.')
     W = len(offsets)
+    lower_quantile = float(np.min(np.asarray(truncate_quant, dtype=float)))
+    if int(round_mat(W * lower_quantile)) < 1:
+        raise ValueError(
+            f"Too few windows ({W}) to fit the EEG distribution: round(n * lower quantile) must be at least 1."
+        )
 
     logger.info('Determining time window rejection thresholds...')
 
@@ -194,6 +202,13 @@ def clean_windows(
     rejected_intervals = mask_to_intervals(sample_mask, value=False)
     if rejected_intervals.size:
         EEG = eeg_eegrej(EEG, rejected_intervals)
+    # pop_select's eeg_checkset puts xmax on the sample grid. eeg_eegrej's
+    # proportional duration does not, including the empty result xmin - 1/srate.
+    pnts = int(EEG['pnts'])
+    xmin = float(EEG['xmin'])
+    srate = float(EEG['srate'])
+    EEG['xmax'] = xmin + (pnts - 1) / srate
+    EEG['times'] = np.linspace(xmin * 1000.0, EEG['xmax'] * 1000.0, pnts)
     EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
     if 'etc' not in EEG:
@@ -207,8 +222,8 @@ def clean_windows(
             prev_mask[one_inds] = sample_mask
             etc['clean_sample_mask'] = prev_mask
         else:
-            logger.warning('EEG.etc.clean_sample is present but incompatible; it is being overwritten.')
-            etc['clean_sample_mask'] = sample_mask
+            # clean_windows.m warns and leaves the previous mask in place.
+            logger.warning('EEG.etc.clean_sample is present. It is overwritten.')
     else:
         etc['clean_sample_mask'] = sample_mask
 

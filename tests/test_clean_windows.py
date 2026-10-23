@@ -1,5 +1,8 @@
+import logging
 import unittest
+
 import numpy as np
+import pytest
 
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 
@@ -107,10 +110,11 @@ def _eeg(data: np.ndarray, srate: float = 128.0) -> dict:
 
 
 def test_unidentified_window_fit_keeps_median_mad_scale():
-    """Two windows do not identify a positive fit scale.
+    """A zero fit scale uses the median and MAD, so a modest outlier stays.
 
-    The louder window's robust z-score stays below 2, so it is kept. Treating
-    a zero fit scale as infinite would reject it.
+    Twenty-three non-overlapping windows is the smallest default grid
+    fit_eeg_distribution can index. Treating that zero scale as infinite
+    would reject the louder window.
     """
     from eegprep.plugins.clean_rawdata.private.stats import fit_eeg_distribution
 
@@ -118,26 +122,72 @@ def test_unidentified_window_fit_keeps_median_mad_scale():
     assert not np.isfinite(mu)
     assert not np.isfinite(sig)
 
-    samples = 180
+    samples = 2301
     data = np.ones((4, samples), dtype=np.float64)
-    data[:, 44:172] += 50.0
-    _cleaned, mask = clean_windows(_eeg(data), 0.075, (-3.5, 2.0), 1.0)
+    data[:, 2201:2301] = 1.3
+    _cleaned, mask = clean_windows(
+        _eeg(data, 100.0),
+        0.075,
+        (-3.5, 2.0),
+        1.0,
+        window_overlap=0.0,
+    )
     assert mask.shape == (samples,)
     assert mask.all()
 
 
-def test_short_calibration_still_drops_a_high_power_window():
+def test_too_few_windows_raises():
+    """fit_eeg_distribution.m indexes round(n * lower quantile), which is 0."""
     from pathlib import Path
 
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
 
+    data = np.ones((4, 180), dtype=np.float64)
+    with pytest.raises(ValueError, match="Too few windows"):
+        clean_windows(_eeg(data), 0.075, (-3.5, 2.0), 1.0)
+
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
-    data = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
-    _cleaned, mask = clean_windows(_eeg(data), 0.075, (-3.5, 5.5), 1.0)
-    assert int(mask.sum()) == 128
-    assert mask[:87].all()
-    assert not mask[87:215].any()
-    assert mask[215:].all()
+    short = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
+    with pytest.raises(ValueError, match="Too few windows"):
+        clean_windows(_eeg(short), 0.075, (-3.5, 5.5), 1.0)
+
+
+def test_cleaned_xmax_stays_on_the_sample_grid():
+    eeg = _eeg(np.random.default_rng(0).normal(size=(4, 2500)), 128.0)
+    eeg["data"][:, 400:900] += 80.0
+    cleaned, mask = clean_windows(eeg)
+    assert int(mask.sum()) < eeg["pnts"]
+    expected = float(cleaned["xmin"]) + (int(cleaned["pnts"]) - 1) / float(cleaned["srate"])
+    assert cleaned["xmax"] == pytest.approx(expected)
+    assert np.asarray(cleaned["times"]).shape == (int(cleaned["pnts"]),)
+    assert cleaned["times"][-1] == pytest.approx(expected * 1000.0)
+
+
+def test_prior_mask_of_a_different_length_is_not_replaced(caplog):
+    eeg = _eeg(np.ones((4, 2945), dtype=np.float64), 128.0)
+    eeg["data"][:, 128:256] += 40.0
+    original = np.array([True, False, True])
+    eeg["etc"] = {"clean_sample_mask": original.copy()}
+    # 2945 samples at 128 Hz and overlap 0 is 23 windows, so the fit runs.
+    with caplog.at_level(logging.WARNING):
+        cleaned, _mask = clean_windows(eeg, window_len=1.0, window_overlap=0.0)
+    np.testing.assert_array_equal(cleaned["etc"]["clean_sample_mask"], original)
+    assert "clean_sample is present" in caplog.text
+
+
+def test_prior_mask_is_written_into_the_kept_indices(caplog):
+    samples = 2945
+    eeg = _eeg(np.ones((4, samples), dtype=np.float64), 128.0)
+    eeg["data"][:, 128:256] += 40.0
+    previous = np.concatenate([np.array([False]), np.ones(samples, dtype=bool)])
+    eeg["etc"] = {"clean_sample_mask": previous.copy()}
+    with caplog.at_level(logging.WARNING):
+        cleaned, sample_mask = clean_windows(eeg, window_len=1.0, window_overlap=0.0)
+    updated = np.asarray(cleaned["etc"]["clean_sample_mask"])
+    assert updated.shape == (samples + 1,)
+    assert not updated[0]
+    np.testing.assert_array_equal(updated[1:], sample_mask)
+    assert "overwritten" not in caplog.text
 
 
 if __name__ == '__main__':
