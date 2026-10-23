@@ -13,8 +13,6 @@ from tests.fuzz.harness import (
     FakeOracle,
     MatlabBackend,
     PythonBackend,
-    default_sanity,
-    default_strategies,
     nightly_seed,
     run_repro,
     run_session,
@@ -72,12 +70,9 @@ def _run(args, python, oracle) -> int:
         return 0 if outcome.both_ok and not outcome.diverged else 1
 
     seed_value = nightly_seed() if args.seed is None else args.seed
-    strategies = default_strategies()
-    sanity = default_sanity()
+    functions = None
     if args.functions:
-        selected = tuple(part.strip() for part in args.functions.split(",") if part.strip())
-        strategies = {name: strategies[name] for name in selected}
-        sanity = [case for case in sanity if case.function in selected]
+        functions = tuple(part.strip() for part in args.functions.split(",") if part.strip())
     tracker = None
     if args.file_issues:
         tracker = tracker_from_env(default_run_url())
@@ -93,8 +88,7 @@ def _run(args, python, oracle) -> int:
         issue_cap=args.issue_cap,
         python_backend=python,
         oracle_backend=oracle,
-        strategies=strategies,
-        sanity=sanity,
+        functions=functions,
         tracker=tracker,
         run_url=default_run_url(),
     )

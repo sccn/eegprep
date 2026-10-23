@@ -33,8 +33,28 @@ from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
+from tests.fuzz.catalog import (
+    FUNCTION_NAMES,
+    FUNCTION_ROWS,
+    PIPELINE_COMPARATORS,
+    PIPELINE_META_REL,
+    TOLERANCE_KEYS,
+    comparators_for,
+    freeze_params,
+    is_legacy_spec,
+    thaw_params,
+    tolerance_key_for,
+)
 from tests.fuzz.issues import publish_findings
 from tests.matlab_batch_engine import install
+
+_ORIGINAL_FUNCTIONS = (
+    "pop_eegfiltnew",
+    "pop_reref",
+    "pop_resample",
+    "clean_asr",
+    "pop_clean_rawdata",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +228,12 @@ def tolerance_for(name: str, tolerances: dict[str, Tolerance]) -> Tolerance:
     return tolerances[tolerance_key_for(name)]
 
 
+def _event_targets():
+    from tests.fuzz import targets as event_targets
+
+    return event_targets
+
+
 def load_seed() -> tuple[SeedInfo, dict]:
     """Load ``sample_data/eeglab_data.set`` once and reuse it for every case."""
     if not hasattr(load_seed, "_cache"):
@@ -226,7 +252,7 @@ def materialize_eeg(case: FuzzCase) -> dict:
     """
     if is_legacy_spec(case.spec):
         return _materialize_legacy(case)
-    return materialize_rich(case)
+    return _event_targets().materialize_rich(case)
 
 
 def _materialize_legacy(case: FuzzCase) -> dict:
@@ -661,7 +687,7 @@ def default_strategies() -> dict:
     return default_strategies._cache  # type: ignore[attr-defined]
 
 
-def default_sanity() -> list[FuzzCase]:
+def _original_sanity() -> list[FuzzCase]:
     info, _eeg = load_seed()
     spec = EEGSpec(
         channels=tuple(range(info.n_channels)),
@@ -677,18 +703,24 @@ def default_sanity() -> list[FuzzCase]:
         FuzzCase("pop_reref", spec, _reref_sanity(), sanity=True),
         FuzzCase("pop_resample", spec, freeze_params({"freq": 96}), sanity=True),
         FuzzCase("clean_asr", spec, _asr_sanity(), sanity=True),
-        *extra_sanity(EEGSpec, FuzzCase),
     ]
+
+
+def default_sanity() -> list[FuzzCase]:
+    return [*_original_sanity(), *_event_targets().extra_sanity(EEGSpec, FuzzCase)]
 
 
 def draw_cases(function: str, *, seed_value: int, examples: int) -> list[FuzzCase]:
     """Draw the nightly case list for one function. The same seed redraws it."""
+    strategies = default_strategies()
+    if function not in strategies:
+        strategies = _with_event_strategies(strategies)
     found: list[FuzzCase] = []
 
     def body(case: FuzzCase) -> None:
         found.append(case)
 
-    run_given(default_strategies()[function], seed_value, examples, (Phase.generate,), body)
+    run_given(strategies[function], seed_value, examples, (Phase.generate,), body)
     return found
 
 
@@ -709,6 +741,7 @@ def run_session(
     tracker=None,
     run_url: str = "",
     summary_path: Path | None = None,
+    functions: tuple[str, ...] | None = None,
 ) -> SessionResult:
     """Run sanity, then a seeded survey, then shrink confirmed divergences."""
     output_dir = Path(output_dir)
@@ -718,8 +751,9 @@ def run_session(
 
     python_backend = python_backend or PythonBackend()
     oracle_backend = oracle_backend or MatlabBackend()
-    strategies = strategies or default_strategies()
-    sanity = default_sanity() if sanity is None else sanity
+    injected = strategies is not None
+    caller_sanity = sanity
+    strategies = dict(strategies or default_strategies())
     materialize = materialize or materialize_eeg
     tolerances = tolerances or load_tolerances()
     cache: dict[FuzzCase, Outcome] = {}
@@ -744,72 +778,106 @@ def run_session(
         )
         return outcome
 
-    functions = {name: {"examples": 0, "divergences": 0} for name in FUNCTION_ROWS}
-    sanity_rows = []
-    harness_ok = True
-    for case in sanity:
-        outcome = evaluate(case)
-        if not outcome.both_ok or outcome.diverged:
-            harness_ok = False
-            sanity_rows.append(
-                {"function": outcome.report, "error_class": outcome.error_class, "detail": outcome.detail}
-            )
-    if not harness_ok:
-        for row in sanity_rows:
+    counts = {name: {"examples": 0, "divergences": 0} for name in FUNCTION_ROWS}
+
+    def sanity_failure(cases: list[FuzzCase]) -> SessionResult | None:
+        rows = []
+        for case in cases:
+            outcome = evaluate(case)
+            if not outcome.both_ok or outcome.diverged:
+                rows.append({"function": outcome.report, "error_class": outcome.error_class, "detail": outcome.detail})
+        if not rows:
+            return None
+        for row in rows:
             logger.error("fuzz sanity %s %s: %s", row["function"], row["error_class"], row["detail"])
         logger.error("fuzz sanity failed; not surveying and not filing issues")
-        result = SessionResult(seed_value, False, functions, [], output_dir, sanity_rows, [], [], [])
+        result = SessionResult(seed_value, False, counts, [], output_dir, rows, [], [], [])
         _write_reports(result, summary_path, tracker, run_url, "sanity", issue_cap)
         return result
 
-    survey: list[Outcome] = []
-    for name in FUNCTION_NAMES:
-        if name not in strategies:
-            continue
-        found: list[Outcome] = []
+    def survey_names(names: list[str]) -> tuple[list[Outcome], list[Outcome]]:
+        survey: list[Outcome] = []
+        for name in names:
+            if name not in strategies:
+                continue
+            found: list[Outcome] = []
 
-        def body(case: FuzzCase, found=found) -> None:
-            outcome = evaluate(case)
-            if outcome is not None:
-                found.append(outcome)
+            def body(case: FuzzCase, found=found) -> None:
+                outcome = evaluate(case)
+                if outcome is not None:
+                    found.append(outcome)
 
-        run_given(strategies[name], seed_value, examples, (Phase.generate,), body)
-        survey.extend(found)
+            run_given(strategies[name], seed_value, examples, (Phase.generate,), body)
+            survey.extend(found)
+        by_signature: dict[str, Outcome] = {}
+        for outcome in survey:
+            if outcome.diverged and outcome.signature not in by_signature:
+                by_signature[outcome.signature] = outcome
+        ordered = sorted(by_signature.values(), key=lambda item: item.max_abs, reverse=True)[:max_shrinks]
+        confirmed: list[Outcome] = []
+        for original in ordered:
+            strategy_name = original.report if original.report in strategies else original.case.function
+            shrunk = shrink_signature(
+                strategies[strategy_name],
+                seed_value,
+                examples,
+                original.signature,
+                evaluate,
+                shrink_budget,
+            )
+            candidate = shrunk or original
+            fresh = evaluate(candidate.case, fresh=True)
+            if fresh.diverged and fresh.report == original.report and fresh.error_class == original.error_class:
+                fresh.confirmed = True
+                confirmed.append(fresh)
+                logger.info("shrunk %s -> %s", original.signature, fresh.signature)
+            else:
+                logger.info("unconfirmed %s", original.signature)
+        return survey, confirmed
+
+    selected = list(functions) if functions else list(FUNCTION_NAMES)
+    if injected:
+        selected = [name for name in FUNCTION_NAMES if name in strategies]
+        failed = sanity_failure(default_sanity() if caller_sanity is None else caller_sanity)
+        if failed is not None:
+            return failed
+        survey, confirmed = survey_names(selected)
+    else:
+        original_names = [name for name in selected if name in _ORIGINAL_FUNCTIONS]
+        extra_names = [name for name in selected if name not in _ORIGINAL_FUNCTIONS]
+        if caller_sanity is None:
+            original_cases = [case for case in _original_sanity() if case.function in original_names]
+        else:
+            original_cases = [case for case in caller_sanity if case.function in original_names]
+        failed = sanity_failure(original_cases)
+        if failed is not None:
+            return failed
+        survey, confirmed = survey_names(original_names)
+        if extra_names:
+            strategies = _with_event_strategies(strategies)
+            if caller_sanity is None:
+                extra_cases = [
+                    case for case in _event_targets().extra_sanity(EEGSpec, FuzzCase) if case.function in extra_names
+                ]
+            else:
+                extra_cases = [case for case in caller_sanity if case.function in extra_names]
+            failed = sanity_failure(extra_cases)
+            if failed is not None:
+                return failed
+            extra_survey, extra_confirmed = survey_names(extra_names)
+            survey.extend(extra_survey)
+            confirmed.extend(extra_confirmed)
 
     for outcome in survey:
-        row = functions[outcome.report]
+        row = counts[outcome.report]
         row["examples"] += 1
         if outcome.diverged:
             row["divergences"] += 1
+    for outcome in confirmed:
+        eeg = materialize(outcome.case)
+        write_repro(output_dir / "repros", outcome, seed_value, eeg)
 
-    by_signature: dict[str, Outcome] = {}
-    for outcome in survey:
-        if outcome.diverged and outcome.signature not in by_signature:
-            by_signature[outcome.signature] = outcome
-    ordered = sorted(by_signature.values(), key=lambda item: item.max_abs, reverse=True)[:max_shrinks]
-    confirmed: list[Outcome] = []
-    for original in ordered:
-        strategy_name = original.report if original.report in strategies else original.case.function
-        shrunk = shrink_signature(
-            strategies[strategy_name],
-            seed_value,
-            examples,
-            original.signature,
-            evaluate,
-            shrink_budget,
-        )
-        candidate = shrunk or original
-        fresh = evaluate(candidate.case, fresh=True)
-        if fresh.diverged and fresh.report == original.report and fresh.error_class == original.error_class:
-            fresh.confirmed = True
-            eeg = materialize(fresh.case)
-            write_repro(output_dir / "repros", fresh, seed_value, eeg)
-            confirmed.append(fresh)
-            logger.info("shrunk %s -> %s", original.signature, fresh.signature)
-        else:
-            logger.info("unconfirmed %s", original.signature)
-
-    result = SessionResult(seed_value, True, functions, confirmed, output_dir, [], [], [], [])
+    result = SessionResult(seed_value, True, counts, confirmed, output_dir, [], [], [], [])
     _write_reports(result, summary_path, tracker, run_url, "tracker" if tracker else "skipped", issue_cap)
     return result
 
@@ -940,8 +1008,14 @@ def build_strategies(info: SeedInfo) -> dict:
         "clean_asr": asr(),
         "pop_clean_rawdata": rawdata(),
     }
-    strategies.update(extra_strategies(info, EEGSpec, FuzzCase, freeze_params))
     return strategies
+
+
+def _with_event_strategies(strategies: dict) -> dict:
+    info, _eeg = load_seed()
+    merged = dict(strategies)
+    merged.update(_event_targets().extra_strategies(info, EEGSpec, FuzzCase, freeze_params))
+    return merged
 
 
 def run_given(strategy, seed_value: int, examples: int, phases, body: Callable) -> None:
@@ -1095,10 +1169,10 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
     else:
         eeg = materialize(case)
     digest = data_sha256(np.asarray(eeg["data"]))
+    if case.function == "pipeline":
+        return _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest)
     python = python_backend.run(case, copy.deepcopy(eeg))
     oracle = oracle_backend.run(case, copy.deepcopy(eeg))
-    if case.function == "pipeline":
-        return judge(python, oracle, Tolerance(0.0, 0.0), case, digest, tolerances)
     tolerance = tolerance_for(report_name(case), tolerances)
     if _explicit_reref_nan_is_oracle_defect(case, eeg, python, oracle, tolerance):
         # reref.m multiplies by a reference matrix that contains explicit zeros.
@@ -1119,7 +1193,8 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # Below the rate where the default breakpoints stay monotonic,
         # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
-    if rmbase_boundary_offset(case, eeg):
+    outcome = judge(python, oracle, tolerance, case, digest, tolerances)
+    if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
         return _outcome(
@@ -1132,10 +1207,104 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known divergence: continuous pop_rmbase with a boundary and pointrange starting after sample 1",
             digest,
         )
-    outcome = judge(python, oracle, tolerance, case, digest, tolerances)
     if outcome.error_class == "mask" and case.function == "clean_channels":
-        outcome.detail = f"{outcome.detail}; {clean_channels_margins(eeg, case.params)}"
+        outcome.detail = f"{outcome.detail}; {_event_targets().clean_channels_margins(eeg, case.params)}"
     return outcome
+
+
+def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome:
+    """Compare each step on one shared input, then continue from the oracle EEG."""
+    current = eeg
+    last_abs = 0.0
+    last_rel = 0.0
+    for name, frozen in case.pipeline:
+        step = FuzzCase(name, case.spec, frozen, sanity=case.sanity)
+        python_side, _python_eeg = _invoke(dispatch_python, step, copy.deepcopy(current))
+        oracle_side, oracle_eeg = _oracle_invoke(oracle_backend, step, copy.deepcopy(current))
+        outcome = _judge_pair(
+            python_side,
+            oracle_side,
+            _pipeline_tolerance(name, tolerances),
+            step,
+            digest,
+            PIPELINE_COMPARATORS,
+        )
+        if outcome.error_class == "both-error":
+            return _outcome(case, False, False, f"{name}:both-error", 0.0, 0.0, outcome.detail, digest)
+        if outcome.error_class == "oracle-infrastructure":
+            return _outcome(case, False, False, f"{name}:oracle-infrastructure", 0.0, 0.0, outcome.detail, digest)
+        if outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current):
+            return _outcome(
+                case,
+                False,
+                True,
+                "match",
+                outcome.max_abs,
+                outcome.max_rel,
+                f"{name}: known divergence: continuous pop_rmbase with a boundary and pointrange starting after sample 1",
+                digest,
+            )
+        if outcome.diverged or outcome.error_class != "match":
+            return _outcome(
+                case,
+                outcome.diverged,
+                outcome.both_ok,
+                f"{name}:{outcome.error_class}",
+                outcome.max_abs,
+                outcome.max_rel,
+                outcome.detail,
+                digest,
+            )
+        nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
+        synced = _eeg_dict(nxt)
+        if synced is None:
+            return _outcome(case, True, False, f"{name}:resync", 0.0, 0.0, "step output has no EEG dict", digest)
+        current = synced
+        last_abs = outcome.max_abs
+        last_rel = outcome.max_rel
+    return _outcome(case, False, True, "match", last_abs, last_rel, "match", digest)
+
+
+def _invoke(call, step: FuzzCase, eeg: dict):
+    try:
+        raw = call(step, eeg)
+    except Exception as exc:
+        return side_from_error(exc), None
+    if isinstance(raw, SideResult):
+        return raw, None
+    return side_from_call(raw), raw
+
+
+def _oracle_invoke(backend, step: FuzzCase, eeg: dict):
+    if isinstance(backend, FakeOracle):
+        if backend.mode == "sanity-fail":
+            return side_from_error(RuntimeError("fuzz sanity bridge failed")), None
+        side, produced = _invoke(dispatch_python, step, eeg)
+        if backend.mode == "survey-diverge" and not step.sanity and side.ok and _eeg_dict(produced) is not None:
+            produced = _perturb_eeg(produced)
+            side = side_from_call(produced)
+        return side, produced
+    if isinstance(backend, MatlabBackend):
+        return _invoke(lambda step_case, data: dispatch_matlab(backend.engine(), step_case, data), step, eeg)
+    if hasattr(backend, "run_raw"):
+        return _invoke(backend.run_raw, step, eeg)
+    return _invoke(backend.run, step, eeg)
+
+
+def _eeg_dict(raw):
+    if isinstance(raw, tuple) and raw and isinstance(raw[0], dict) and "data" in raw[0]:
+        return raw[0]
+    if isinstance(raw, dict) and "data" in raw:
+        return raw
+    return None
+
+
+def _perturb_eeg(raw):
+    eeg = _eeg_dict(raw)
+    eeg["data"] = np.array(np.asarray(eeg["data"]) + 1.0, copy=True)
+    if isinstance(raw, tuple):
+        return (eeg, *raw[1:])
+    return eeg
 
 
 def dispatch_python(case: FuzzCase, eeg: dict):
@@ -1157,7 +1326,7 @@ def dispatch_python(case: FuzzCase, eeg: dict):
         return clean_asr(eeg, **_asr_kwargs(params))
     if case.function == "pipeline":
         return run_pipeline(case, eeg, dispatch_python)
-    target = TARGET_PYTHON.get(case.function)
+    target = _event_targets().PYTHON.get(case.function)
     if target is not None:
         return target(case, eeg)
     raise ValueError(f"unknown fuzz function {case.function}")
@@ -1190,7 +1359,7 @@ def dispatch_matlab(engine, case: FuzzCase, eeg: dict):
         return engine.clean_asr(eeg, *_matlab_asr_args(params))
     if case.function == "pipeline":
         return run_pipeline(case, eeg, lambda step, data: dispatch_matlab(engine, step, data))
-    target = TARGET_MATLAB.get(case.function)
+    target = _event_targets().MATLAB.get(case.function)
     if target is not None:
         return target(engine, case, eeg)
     raise ValueError(f"unknown fuzz function {case.function}")
@@ -1202,10 +1371,6 @@ def run_pipeline(case: FuzzCase, eeg: dict, call) -> SideResult:
     steps: list[tuple[str, SideResult]] = []
     for name, frozen in case.pipeline:
         step_case = FuzzCase(name, case.spec, frozen, sanity=case.sanity)
-        if name == "pop_rmbase" and rmbase_boundary_offset(step_case, current):
-            side = replace(side_from_call(current), halt="known-divergence")
-            steps.append((name, side))
-            return replace(side, steps=tuple(steps))
         try:
             raw = call(step_case, current)
         except Exception as exc:
@@ -1571,11 +1736,12 @@ def _asr_sanity() -> tuple:
 
 def _filter_kwargs(params: dict) -> dict:
     kwargs = {
-        "filtorder": int(params["filtorder"]),
         "revfilt": bool(params["revfilt"]),
         "minphase": bool(params["minphase"]),
         "usefftfilt": bool(params["usefftfilt"]),
     }
+    if params.get("filtorder") is not None:
+        kwargs["filtorder"] = int(params["filtorder"])
     if params["locutoff"] is not None:
         kwargs["locutoff"] = params["locutoff"]
     if params["hicutoff"] is not None:
@@ -1674,42 +1840,3 @@ def _write_reports(
         "unfiled": result.unfiled,
     }
     (result.output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n")
-
-
-def _freeze_local_constants() -> None:
-    # Hypothesis mixes integer literals from every local module into bounded
-    # integer draws. Freeze the set before the event-target modules import so
-    # the original five strategies keep today's seeds.
-    from hypothesis.internal.conjecture import providers
-
-    frozen = providers._get_local_constants()
-
-    def _frozen_local_constants():
-        return frozen
-
-    providers._get_local_constants = _frozen_local_constants
-
-
-_freeze_local_constants()
-
-from tests.fuzz.catalog import (  # noqa: E402
-    FUNCTION_NAMES,
-    FUNCTION_ROWS,
-    PIPELINE_COMPARATORS,
-    PIPELINE_META_REL,
-    TOLERANCE_KEYS,
-    comparators_for,
-    freeze_params,
-    thaw_params,
-    tolerance_key_for,
-)
-from tests.fuzz.targets import MATLAB as TARGET_MATLAB  # noqa: E402
-from tests.fuzz.targets import PYTHON as TARGET_PYTHON  # noqa: E402
-from tests.fuzz.targets import (  # noqa: E402
-    clean_channels_margins,
-    extra_sanity,
-    extra_strategies,
-    is_legacy_spec,
-    materialize_rich,
-    rmbase_boundary_offset,
-)

@@ -90,3 +90,19 @@ def _thaw(value):
     if isinstance(value, tuple):
         return [_thaw(item) for item in value]
     return value
+
+
+def is_legacy_spec(spec) -> bool:
+    """True when ``spec`` must reproduce the original continuous crop."""
+    return (
+        spec.source == "eeglab_data"
+        and spec.events == "none"
+        and not spec.boundaries
+        and spec.trials == 1
+        and spec.epoch_pnts == 0
+        and spec.xmin == 0.0
+        and spec.srate_hz == 0.0
+        and not spec.drop_xyz
+        and spec.artifact == ""
+        and spec.prior_mask == ""
+    )

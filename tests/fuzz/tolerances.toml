@@ -25,7 +25,9 @@ rel = 1.0e-6
 # They are not accepted tolerances. Do not loosen them to hide a mismatch.
 # u = 2^-53. meta_rel is 4*u, and 2*u for pop_epoch.
 # Data that is a copy or a selection is compared exactly.
-# pop_rmbase abs covers a mean of a crop of eeglab_data.set.
+# pop_rmbase abs covers a mean of n=30720 samples from eeglab_data_with_ica_tmp.set.
+# M is that file's max abs amplitude plus the 50 uV hf artifact.
+# (2*n+4)*u*M = 3.9548e-9, so the proposal is 4.0e-9.
 # pop_epoch event_latency_abs covers latency rebuilt from a non-dyadic limit.
 
 [eeg_eegrej]
@@ -47,7 +49,7 @@ event_latency_abs = 1.4e-11
 meta_rel = 2.220446049250313e-16
 
 [pop_rmbase]
-abs = 3.7e-9
+abs = 4.0e-9
 rel = 0.0
 event_latency_abs = 0.0
 meta_rel = 4.440892098500626e-16

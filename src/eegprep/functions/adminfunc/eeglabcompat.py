@@ -73,6 +73,18 @@ def _restore_double_eeg_data(eeg, path: str) -> None:
         eeg["icaact"] = np.asarray(saved["eegprep_roundtrip_icaact"])
 
 
+def _matlab_args_cell(values) -> np.ndarray:
+    """Return ``values`` as a 1-by-n object array for ``savemat``.
+
+    Building the array in one call stacks equal-shaped empty numerics into a
+    2-D matrix. MATLAB then calls the target with no extra arguments.
+    """
+    row = np.empty(len(values), dtype=object)
+    for index, value in enumerate(values):
+        row[index] = value
+    return row.reshape(1, -1)
+
+
 def _prepare_matlab_arg(arg: Any) -> Any:
     """Return one Python value in the shape expected by MATLAB ``savemat``."""
     if isinstance(arg, (list, tuple)) and len(arg) == 0:
@@ -238,9 +250,7 @@ class MatlabWrapper:
 
                 if len(new_args) > 0:
                     if len(new_args) > 1:
-                        scipy.io.savemat(
-                            temp_filename2, {'args': np.array(new_args, dtype=object)}
-                        )  # object required for passing as cell array
+                        scipy.io.savemat(temp_filename2, {'args': _matlab_args_cell(new_args)})
                     else:
                         scipy.io.savemat(
                             temp_filename2, {'args': new_args[0]}

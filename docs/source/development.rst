@@ -903,20 +903,20 @@ baseline) and compares after every step. The first mismatch names that step.
 About 70% of the new draws use parameter values from EEGLAB defaults, the
 EEGPrep dialogs, ``bids_preproc``, and the tutorial / ds003061 stage
 settings. The rest walk edge cases. Crops come from the committed tutorial
-recordings. A known-divergence predicate skips one EEGLAB result instead of
-filing it: continuous ``pop_rmbase`` with a boundary and a baseline that
-starts after sample 1. That difference is listed under "Known Differences
-from EEGLAB".
+recordings and, when those trees are present, from the ds003061 and ds003194
+files the parity tests already load (``EEGPREP_EEGLAB_SUITE_ROOT`` and
+``EEGPREP_OPENNEURO_ROOT``). Each pipeline step is compared on the same input;
+the next step starts from the oracle EEG. A known-divergence predicate runs
+after that comparison and skips one EEGLAB result instead of filing it:
+continuous ``pop_rmbase`` with a boundary and a baseline that starts after
+sample 1, and only when the two outputs actually differ. That difference is
+listed under "Known Differences from EEGLAB".
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
 requests. Sections for the event-aware targets are proposals until that
-review. MATLAB replay of those targets uses the jamming bench (MATLAB R2025b
-Update 1, ``~/eegprep-bench``, five parallel sessions via ``bench.sh``). CI
-stays on R2024b.
-
-Run it locally against a MATLAB session that is already serving
-``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
+review. CI stays on MATLAB R2024b. Replay against a MATLAB session that is
+already serving ``tests/matlab/eegprep_batch_engine_serve.m``:
 
 .. code-block:: bash
 

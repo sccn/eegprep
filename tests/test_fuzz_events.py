@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -17,14 +19,13 @@ from tests.fuzz.harness import (
     SideResult,
     case_from_payload,
     data_sha256,
+    dispatch_python,
     draw_cases,
     evaluate_case,
     freeze_params,
     judge,
     load_tolerances,
     materialize_eeg,
-    spec_to_json,
-    thaw_params,
     write_repro,
 )
 from tests.fuzz.targets import extra_sanity, rmbase_boundary_offset
@@ -50,15 +51,6 @@ def _event(latency: float, kind: str = "square") -> tuple:
     return (kind, latency, None, None, None)
 
 
-def _dump(case: FuzzCase) -> dict:
-    return {
-        "function": case.function,
-        "params": thaw_params(case.params),
-        "sanity": case.sanity,
-        "spec": spec_to_json(case.spec),
-    }
-
-
 class _ShiftedOracle:
     def run(self, case, eeg):
         side = PythonBackend().run(case, eeg)
@@ -68,10 +60,31 @@ class _ShiftedOracle:
 
 
 def test_original_draws_match_the_golden_snapshot():
-    golden = json.loads(_GOLDEN.read_text())
-    for name in ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr", "pop_clean_rawdata"):
-        drawn = [_dump(case) for case in draw_cases(name, seed_value=20261012, examples=4)]
-        assert drawn == golden[name]
+    script = """
+import json
+from pathlib import Path
+from tests.fuzz.harness import draw_cases, spec_to_json, thaw_params
+golden = json.loads(Path("tests/fuzz/golden_draws_20261012.json").read_text())
+names = ("pop_eegfiltnew", "pop_reref", "pop_resample", "clean_asr", "pop_clean_rawdata")
+for name in names:
+    drawn = []
+    for case in draw_cases(name, seed_value=20261012, examples=4):
+        drawn.append({
+            "function": case.function,
+            "params": thaw_params(case.params),
+            "sanity": case.sanity,
+            "spec": spec_to_json(case.spec),
+        })
+    assert drawn == golden[name], name
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 def test_old_repro_spec_materializes_like_a_legacy_crop():
@@ -197,6 +210,53 @@ def test_rmbase_boundary_offset_is_not_filed():
     skipped = evaluate_case(offset, materialize_eeg, PythonBackend(), _ShiftedOracle(), tolerances)
     assert skipped.diverged is False
     assert "known divergence" in skipped.detail
+    matched = evaluate_case(offset, materialize_eeg, PythonBackend(), PythonBackend(), tolerances)
+    assert matched.diverged is False
+    assert matched.error_class == "match"
+    assert "known divergence" not in matched.detail
     filed = evaluate_case(prefix, materialize_eeg, PythonBackend(), _ShiftedOracle(), tolerances)
     assert filed.diverged is True
     assert filed.error_class == "numeric"
+
+
+def test_pipeline_resyncs_to_the_oracle_output():
+    case = next(item for item in extra_sanity(EEGSpec, FuzzCase) if item.function == "pipeline")
+
+    class _Drift:
+        def run_raw(self, step, eeg):
+            raw = dispatch_python(step, eeg)
+            if step.function != "pop_eegfiltnew":
+                return raw
+            out = raw.copy()
+            data = np.array(np.asarray(out["data"]), dtype=np.float64, copy=True)
+            data[0] += 1e-8
+            out["data"] = data
+            return out
+
+    outcome = evaluate_case(case, materialize_eeg, PythonBackend(), _Drift(), load_tolerances())
+    assert outcome.error_class == "match", outcome.detail
+
+
+def test_jitter_is_not_a_constant_and_channel_drops_clear_ica():
+    from tests.fuzz.targets import _write_artifact
+
+    samples = np.linspace(-200.0, 200.0, 16)
+    _write_artifact(samples, "jitter20", 0, 16, 256.0)
+    assert len(set(np.round(samples, 12))) > 1
+    kept = materialize_eeg(
+        FuzzCase(
+            "clean_channels",
+            EEGSpec(tuple(range(32)), 0, 256, 1, -1, 0, 0, source="eeglab_data_with_ica_tmp", events="keep"),
+            freeze_params({}),
+        )
+    )
+    dropped = materialize_eeg(
+        FuzzCase(
+            "clean_channels",
+            EEGSpec(tuple(range(16)), 0, 256, 1, -1, 0, 0, source="eeglab_data_with_ica_tmp", events="keep"),
+            freeze_params({}),
+        )
+    )
+    assert np.asarray(kept["icaweights"]).size > 0
+    assert np.asarray(dropped["icaweights"]).size == 0
+    assert np.asarray(dropped["icachansind"]).size == 0
