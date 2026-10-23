@@ -97,7 +97,9 @@ def test_parity_short_fir_nans_match_matlab():
     signal = np.random.default_rng(1).normal(size=2000)
     signal[1000:1003] = np.nan
     filtered = filtfilt_fast(coefficients, 1, signal)
-    matlab = np.asarray(eeglab.filtfilt_fast(coefficients, 1, signal), dtype=float).reshape(signal.shape)
+    # filtfilt_fast.m filters along columns. clean_channels.m:92 passes
+    # signal.data(c,:)', so a 1-D row would be read as one sample per column.
+    matlab = np.asarray(eeglab.filtfilt_fast(coefficients, 1, signal[:, None]), dtype=float).ravel()
     expected = _short_fir_nan_mask(signal.size, 1000, 1003, coefficients.size)
     np.testing.assert_array_equal(np.isnan(matlab), expected)
     np.testing.assert_allclose(filtered, matlab, atol=1e-8, rtol=1e-8, equal_nan=True)
