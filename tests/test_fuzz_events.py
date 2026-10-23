@@ -31,6 +31,7 @@ from tests.fuzz.harness import (
     judge,
     load_tolerances,
     materialize_eeg,
+    side_from_call,
     write_repro,
 )
 from tests.fuzz.targets import extra_sanity, rmbase_boundary_offset
@@ -268,15 +269,29 @@ def test_pipeline_crop_covers_thirty_seconds():
 
 def test_pipeline_explicit_reref_nan_spread_is_a_match():
     spec = EEGSpec((0, 1, 2, 3), 0, 8, 1, 1, 2, 2)
+    explicit = freeze_params({"ref": (0,), "keepref": "on", "exclude": []})
     case = FuzzCase(
         "pipeline",
         spec,
         freeze_params({"profile": "reref-nan"}),
-        pipeline=(("pop_reref", freeze_params({"ref": (0,), "keepref": "on", "exclude": []})),),
+        pipeline=(("pop_reref", explicit),),
     )
+    chain = FuzzCase(
+        "pipeline",
+        spec,
+        freeze_params({"profile": "reref-nan"}),
+        pipeline=(
+            ("pop_reref", explicit),
+            ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
+        ),
+    )
+    later_nans = []
 
     class _Matrix:
         def run_raw(self, step, eeg):
+            if not dict(step.params).get("ref"):
+                later_nans.append(int(np.isnan(np.asarray(eeg["data"])).sum()))
+                return dispatch_python(step, eeg)
             data = np.asarray(eeg["data"], dtype=np.float64)
             refmatrix = np.eye(data.shape[0])
             refmatrix[:, 0] -= 1.0
@@ -286,9 +301,10 @@ def test_pipeline_explicit_reref_nan_spread_is_a_match():
             out["data"] = spread
             return out
 
-    outcome = evaluate_case(case, materialize_eeg, PythonBackend(), _Matrix(), load_tolerances())
+    outcome = evaluate_case(chain, materialize_eeg, PythonBackend(), _Matrix(), load_tolerances())
     assert outcome.diverged is False
     assert outcome.error_class == "match"
+    assert later_nans == [2]
 
     class _Shifted:
         def run_raw(self, step, eeg):
@@ -301,6 +317,50 @@ def test_pipeline_explicit_reref_nan_spread_is_a_match():
     shifted = evaluate_case(case, materialize_eeg, PythonBackend(), _Shifted(), load_tolerances())
     assert shifted.diverged is True
     assert shifted.error_class == "pop_reref:numeric"
+
+
+def test_zero_trials_event_drop_is_not_filed():
+    eeg = {
+        "data": np.arange(20, dtype=float).reshape(1, 20),
+        "nbchan": 1,
+        "pnts": 20,
+        "trials": 0,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 0.19,
+        "event": [{"type": "stim", "latency": 5.0}],
+        "chanlocs": [{"labels": "Cz"}],
+    }
+    case = FuzzCase(
+        "eeg_eegrej",
+        EEGSpec((0,), 0, 20, 1, -1, 0, 0),
+        freeze_params({"regions": [[1, 2]], "eegplot": False}),
+    )
+
+    class _Dropped:
+        def run(self, step, dataset):
+            out = dispatch_python(step, dataset)
+            out["event"] = [
+                event
+                for event in out["event"]
+                if str(event.get("type")).lower() == "boundary" or float(event.get("latency") or 0) <= 1
+            ]
+            return side_from_call(out)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Dropped(), load_tolerances())
+    assert outcome.diverged is False
+    assert "trials was 0" in outcome.detail
+
+    class _Shifted:
+        def run(self, step, dataset):
+            out = dispatch_python(step, dataset)
+            out["data"] = np.array(np.asarray(out["data"]), copy=True)
+            out["data"][0, 0] += 1.0
+            return side_from_call(out)
+
+    shifted = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Shifted(), load_tolerances())
+    assert shifted.diverged is True
+    assert shifted.error_class == "numeric"
 
 
 def test_pipeline_continues_after_the_known_rmbase_divergence():
