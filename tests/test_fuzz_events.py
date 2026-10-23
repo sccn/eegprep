@@ -266,6 +266,43 @@ def test_pipeline_crop_covers_thirty_seconds():
     assert case.spec.length == min(rec.pnts, int(round(30.0 * rec.srate)))
 
 
+def test_pipeline_explicit_reref_nan_spread_is_a_match():
+    spec = EEGSpec((0, 1, 2, 3), 0, 8, 1, 1, 2, 2)
+    case = FuzzCase(
+        "pipeline",
+        spec,
+        freeze_params({"profile": "reref-nan"}),
+        pipeline=(("pop_reref", freeze_params({"ref": (0,), "keepref": "on", "exclude": []})),),
+    )
+
+    class _Matrix:
+        def run_raw(self, step, eeg):
+            data = np.asarray(eeg["data"], dtype=np.float64)
+            refmatrix = np.eye(data.shape[0])
+            refmatrix[:, 0] -= 1.0
+            with np.errstate(invalid="ignore"):
+                spread = refmatrix @ data
+            out = eeg.copy()
+            out["data"] = spread
+            return out
+
+    outcome = evaluate_case(case, materialize_eeg, PythonBackend(), _Matrix(), load_tolerances())
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+    class _Shifted:
+        def run_raw(self, step, eeg):
+            out = dispatch_python(step, eeg)
+            out = out.copy()
+            out["data"] = np.array(np.asarray(out["data"]), dtype=np.float64, copy=True)
+            out["data"][2, 0] += 1.0
+            return out
+
+    shifted = evaluate_case(case, materialize_eeg, PythonBackend(), _Shifted(), load_tolerances())
+    assert shifted.diverged is True
+    assert shifted.error_class == "pop_reref:numeric"
+
+
 def test_pipeline_continues_after_the_known_rmbase_divergence():
     spec = EEGSpec(
         tuple(range(32)),

@@ -1106,8 +1106,8 @@ def _explicit_reref_nan_is_oracle_defect(
     data = np.asarray(eeg["data"], dtype=np.float64)
     if data.ndim != 2:
         return False
-    exclude = [int(index) for index in params["exclude"]]
-    keepref = str(params["keepref"])
+    exclude = [int(index) for index in params.get("exclude") or ()]
+    keepref = str(params.get("keepref") or "off")
     subtraction = _explicit_reref(data, ref, exclude, keepref, matrix=False)
     matrix = _explicit_reref(data, ref, exclude, keepref, matrix=True)
     python_gap, *_rest = compare_data(python.data, subtraction, float(python.srate), float(python.srate), tolerance)
@@ -1280,10 +1280,11 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 f"{name}: both sides reject a recording whose clean_windows fit width rounds to 1 or less",
                 digest,
             )
+        tolerance = _pipeline_tolerance(name, tolerances)
         outcome = _judge_pair(
             python_side,
             oracle_side,
-            _pipeline_tolerance(name, tolerances),
+            tolerance,
             step,
             digest,
             PIPELINE_COMPARATORS,
@@ -1292,10 +1293,13 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             return _outcome(case, False, False, f"{name}:both-error", 0.0, 0.0, outcome.detail, digest)
         if outcome.error_class == "oracle-infrastructure":
             return _outcome(case, False, False, f"{name}:oracle-infrastructure", 0.0, 0.0, outcome.detail, digest)
+        known_reref = outcome.diverged and _explicit_reref_nan_is_oracle_defect(
+            step, current, python_side, oracle_side, tolerance
+        )
         known_rmbase = (
             outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
         )
-        if not known_rmbase and (outcome.diverged or outcome.error_class != "match"):
+        if not known_reref and not known_rmbase and (outcome.diverged or outcome.error_class != "match"):
             return _outcome(
                 case,
                 outcome.diverged,
@@ -1313,7 +1317,9 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         current = synced
         last_abs = outcome.max_abs
         last_rel = outcome.max_rel
-        if known_rmbase:
+        if known_reref:
+            last_detail = f"{name}: known difference: a NaN stays on its channel under explicit re-reference"
+        elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "
                 "and pointrange starting after sample 1"

@@ -915,9 +915,9 @@ comparison and does not file the step: continuous ``pop_rmbase`` with a
 boundary and a baseline that starts after sample 1, and only when the two
 outputs actually differ. The chain then continues from the oracle EEG. That
 difference is listed under "Known Differences from EEGLAB". Explicit
-``pop_reref`` is the same kind of match when EEGLAB's reference matrix
-spreads a NaN through ``0*NaN`` and EEGPrep's subtraction keeps that NaN
-on its channel. Both sides
+``pop_reref`` is the same kind of match, including inside the pipeline,
+when EEGLAB's reference matrix spreads a NaN through ``0*NaN`` and
+EEGPrep's subtraction keeps that NaN on its channel. Both sides
 raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
 a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
 ``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
