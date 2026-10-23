@@ -476,6 +476,11 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> always draws <code class="docutils literal notranslate"><span class="pre">round(subset_size</span> <span class="pre">*</span> <span class="pre">nbchan)</span></code> channels,
+including when <code class="docutils literal notranslate"><span class="pre">subset_size</span></code> is at least 1. A count larger than the
+channel total raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. The noise filter uses
+time-domain filtering for a short FIR, so a few NaNs no longer blank the
+whole channel and drop it from the correlation.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> merges overlapping, reversed, and fractional removal
 intervals before shifting events, and leaves a one-sample gap as two
 intervals. Removing every sample sets <code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">-1/srate</span></code>.</p></li>

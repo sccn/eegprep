@@ -568,9 +568,10 @@ during which a channel is allowed to have artifacts. Reasonable range:
 <li><p><strong>num_samples</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Number of samples generated for a RANSAC reconstruction. This is the
 number of samples to generate in the random sampling consensus process. The larger
 this value, the more robust but also slower the processing will be.</p></li>
-<li><p><strong>subset_size</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Subset size. This is the size of the channel subsets to use
-for robust reconstruction,  as a number or fraction of the total number
-of channels.</p></li>
+<li><p><strong>subset_size</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Subset size as a fraction of the channel count.
+<code class="docutils literal notranslate"><span class="pre">round(subset_size</span> <span class="pre">*</span> <span class="pre">nbchan)</span></code> channels are drawn, including when
+<code class="docutils literal notranslate"><span class="pre">subset_size</span></code> is greater than or equal to 1. A count larger than
+the number of channels raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

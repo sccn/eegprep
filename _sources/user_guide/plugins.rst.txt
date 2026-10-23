@@ -96,7 +96,11 @@ Use ``clean_artifacts`` when you need lower-level tuple outputs:
 Channel correlation cleaning uses the spatial reconstruction method when the
 dataset has usable ``X``, ``Y``, and ``Z`` channel coordinates. If channel
 locations are empty, ``pop_clean_rawdata`` automatically uses the bundled
-location-free correlation method instead.
+location-free correlation method instead. The RANSAC subset size is
+``round(subset_size * nbchan)`` channels, and a larger count raises
+``ValueError``. The line-noise filter is a short FIR, so a NaN stays in a
+neighborhood of that channel instead of removing the channel from every
+correlation.
 
 FIRFilt
 =======

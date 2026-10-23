@@ -611,7 +611,11 @@ records when available.</p>
 <p>Channel correlation cleaning uses the spatial reconstruction method when the
 dataset has usable <code class="docutils literal notranslate"><span class="pre">X</span></code>, <code class="docutils literal notranslate"><span class="pre">Y</span></code>, and <code class="docutils literal notranslate"><span class="pre">Z</span></code> channel coordinates. If channel
 locations are empty, <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> automatically uses the bundled
-location-free correlation method instead.</p>
+location-free correlation method instead. The RANSAC subset size is
+<code class="docutils literal notranslate"><span class="pre">round(subset_size</span> <span class="pre">*</span> <span class="pre">nbchan)</span></code> channels, and a larger count raises
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. The line-noise filter is a short FIR, so a NaN stays in a
+neighborhood of that channel instead of removing the channel from every
+correlation.</p>
 </section>
 <section id="firfilt">
 <h2>FIRFilt<a class="headerlink" href="#firfilt" title="Link to this heading">#</a></h2>
