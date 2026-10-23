@@ -112,7 +112,6 @@ def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_back
         assert [_event_float(row["latency"]) for row in rows] == [1.5]
     sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
     eeg = eeglab_backend("pop_loadset", str(sample))
-    eeg["trials"] = 0
     recorded = eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
     # [1, 140] and [223, 572] are 1-based inclusive. Each boundary is beg-1,
     # minus samples removed earlier, plus 0.5. Durations are the inclusive spans.
@@ -138,7 +137,6 @@ def test_reference_eegrej_boundary_events_follow_original_regression(eeglab_back
             [[(f"mrk{index}", latency) for index, latency in enumerate(latencies, start=1)]],
             dtype=[("type", object), ("latency", object)],
         )
-        eeg["trials"] = 0
         result = eeglab_backend("eeg_eegrej", eeg, np.array([interval]))
         rows = _event_rows(result["event"])
         assert [_event_text(row["type"]) for row in rows] == expected_types

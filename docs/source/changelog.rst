@@ -35,7 +35,8 @@ Unreleased
   intervals before shifting events, and leaves a one-sample gap as two
   intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
-  event-consistency check. That keeps events when ``trials`` was 0, and
+  event-consistency check. That keeps events when ``trials`` was 0.
+  EEGLAB checks the bounds first and drops them. The same check
   snaps ``xmax`` onto the sample grid when it no longer matches ``pnts``.
   It then drops a trailing event whose latency is more than half a sample
   past the data. Events come back as a list of dicts. A structured array is converted;

@@ -364,10 +364,10 @@ def eeg_eegrej(EEG, regions):
                     if f not in ev:
                         ev[f] = np.array([])
 
-    # eeg_checkset.m:823-827. A 2-D array has a third dimension of 1, so a
-    # stored trials value of 0 must not make every latency past sample 1
-    # look out of range. eeg_eegrej.m:144 then runs the full check, which
-    # also snaps xmax when round(srate*(xmax-xmin)+1) is not pnts.
+    # eeg_checkset.m:440-449 removes events with latency > pnts*trials+1
+    # before lines 821-826 replace a stale trials value. A stored 0 would
+    # drop every event past sample 1. Set trials from the data shape first.
+    # eeg_eegrej.m:144 then runs that check, which also snaps xmax.
     # Lines 145-147 drop the event that is now past the last kept sample.
     data = EEG["data"]
     EEG["trials"] = int(data.shape[2]) if np.ndim(data) == 3 else 1

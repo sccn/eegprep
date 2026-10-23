@@ -284,7 +284,13 @@ class TestEEGEegrejExtended(unittest.TestCase):
         stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
         self.assertEqual(stims, [2.0])
 
-    def test_zero_trials_does_not_drop_events_past_sample_one(self):
+    def test_zero_trials_keeps_events_past_sample_one_unlike_eeglab(self):
+        """Intentionally different from EEGLAB.
+
+        eeg_checkset.m:440-449 removes events past sample 1 while trials is
+        still 0. Lines 821-826 then set trials from the data shape. EEGPrep
+        sets trials first, so the event at sample 5 stays.
+        """
         EEG = self.base_eeg.copy()
         EEG["trials"] = 0
         EEG["event"] = [{"type": "stim", "latency": 5.0}]
