@@ -629,7 +629,8 @@ read and reused later.</p></li>
 MATLAB <code class="docutils literal notranslate"><span class="pre">.set</span></code> file, then converted back to one-based values when saving.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">chanlocs[i][&quot;urchan&quot;]</span></code>, <code class="docutils literal notranslate"><span class="pre">event[i][&quot;urevent&quot;]</span></code>, <code class="docutils literal notranslate"><span class="pre">epoch[k][&quot;event&quot;]</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">epoch[k][&quot;eventurevent&quot;]</span></code> follow the same rule: zero-based in memory,
-one-based on disk.</p></li>
+one-based on disk. An event whose <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is missing, <code class="docutils literal notranslate"><span class="pre">None</span></code>, or
+empty is saved without one.</p></li>
 <li><p>Single-trial datasets have no <code class="docutils literal notranslate"><span class="pre">epoch</span></code> structure: <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> empties
 it and removes <code class="docutils literal notranslate"><span class="pre">event[i][&quot;epoch&quot;]</span></code>, as EEGLAB does.</p></li>
 <li><p>Deleting a dataset empties its <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code> slot (an empty <code class="docutils literal notranslate"><span class="pre">{}</span></code> entry) instead

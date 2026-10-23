@@ -476,6 +476,12 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> writes an event <code class="docutils literal notranslate"><span class="pre">urevent</span></code> one-based only when that
+event has the field. A later event without <code class="docutils literal notranslate"><span class="pre">urevent</span></code> no longer raises
+<code class="docutils literal notranslate"><span class="pre">KeyError</span></code>, and a later <code class="docutils literal notranslate"><span class="pre">urevent</span></code> is still shifted when the first
+event has no such field. <code class="docutils literal notranslate"><span class="pre">None</span></code> and <code class="docutils literal notranslate"><span class="pre">[]</span></code> are written empty instead
+of raising <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>. Structured event records are shifted the same
+way, and the in-memory events stay unchanged.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">clean_channels</span></code> always draws <code class="docutils literal notranslate"><span class="pre">round(subset_size</span> <span class="pre">*</span> <span class="pre">nbchan)</span></code> channels,
 including when <code class="docutils literal notranslate"><span class="pre">subset_size</span></code> is at least 1. A count larger than the
 channel total raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>. The noise filter uses
