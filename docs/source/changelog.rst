@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_eegfiltnew`` recomputes the transition width after the default filter
+  order is rounded up to an even length, matching EEGLAB. A 1 Hz high-pass
+  at 128 Hz uses order 424 and a transition of about 0.996 Hz.
 - ``pop_loadset`` reads v7 ``.set`` files without dropping singleton
   dimensions. ``data`` stays ``nbchan`` by ``pnts`` by ``trials``, and
   ``icaweights``, ``icasphere``, ``icawinv``, and ``icaact`` keep a

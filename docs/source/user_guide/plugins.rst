@@ -101,7 +101,9 @@ location-free correlation method instead.
 FIRFilt
 =======
 
-``pop_eegfiltnew`` is the usual filtering entry point:
+``pop_eegfiltnew`` is the usual filtering entry point. When the filter order
+is left at its default, the transition width is recomputed from that even
+order (``3.3 / order * srate``) so the reported cutoff matches the coefficients:
 
 .. code-block:: python
 

@@ -289,6 +289,19 @@ def test_pop_order_helpers_gui_results():
     assert dev == pytest.approx(0.001)
 
 
+@pytest.mark.parametrize("srate", [128.0, 250.0])
+def test_design_eegfiltnew_default_order_recomputes_transition_width(srate):
+    """pop_eegfiltnew.m:238 recomputes df after the default order is ceiled even."""
+    coefficients, meta = design_eegfiltnew(srate, locutoff=1.0)
+    order = int(meta["filtorder"])
+    expected_df = 3.3 / order * srate
+    assert meta["df"] == pytest.approx(expected_df)
+    explicit, explicit_meta = design_eegfiltnew(srate, locutoff=1.0, filtorder=order)
+    np.testing.assert_array_equal(coefficients, explicit)
+    assert explicit_meta["df"] == pytest.approx(expected_df)
+    assert explicit_meta["cutoff"] == pytest.approx(meta["cutoff"])
+
+
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
     path = tmp_path / "demo.fir"
 
@@ -321,6 +334,16 @@ class TestPopFirfiltParity(unittest.TestCase):
         except Exception as exc:
             self.skipTest(f"MATLAB not available: {exc}")
         self.eeg = pop_loadset(SAMPLE_DATASET_PATH)
+
+    def test_parity_pop_eegfiltnew_default_order_highpass(self):
+        for srate in (128.0, 250.0):
+            eeg = create_test_eeg(n_channels=1, n_samples=int(srate * 4), srate=srate, n_trials=1)
+            rng = np.random.default_rng(0)
+            eeg["data"] = rng.standard_normal((1, eeg["pnts"]))
+            py_eeg = pop_eegfiltnew(copy.deepcopy(eeg), locutoff=1, plotfreqz=False)
+            ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(eeg), "locutoff", 1, "plotfreqz", 0)
+            self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+            np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-8, rtol=1e-8)
 
     def test_parity_pop_eegfiltnew_lowpass_sample_data(self):
         py_eeg = pop_eegfiltnew(copy.deepcopy(self.eeg), hicutoff=40, filtorder=100)
