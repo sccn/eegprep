@@ -252,6 +252,36 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertAlmostEqual(result["xmax"], -1.0 / EEG["srate"])
         self.assertEqual(np.asarray(result["times"]).size, 0)
 
+    def test_structured_events_are_kept_as_a_list(self):
+        """A MATLAB struct array is converted; it is not replaced with an empty list."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = np.array(
+            [[("mrk1", 5.0), ("mrk2", 12.0)]],
+            dtype=[("type", object), ("latency", object)],
+        )
+        result = eeg_eegrej(EEG, np.array([[10.0, 12.0]]))
+        self.assertIsInstance(result["event"], list)
+        self.assertEqual([event["latency"] for event in result["event"] if event.get("type") == "mrk1"], [5.0])
+        self.assertFalse(any(event.get("type") == "mrk2" for event in result["event"]))
+
+    def test_non_event_array_raises(self):
+        EEG = self.base_eeg.copy()
+        EEG["event"] = np.array([1.0, 2.0, 3.0])
+        with self.assertRaises(TypeError):
+            eeg_eegrej(EEG, np.array([[10.0, 12.0]]))
+
+    def test_last_event_pop_follows_eventconsistency(self):
+        """eeg_eegrej.m:144-147 drops the new last event after out-of-range events are gone."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = [
+            {"type": "stim", "latency": 5.0},
+            {"type": "stim", "latency": 20.6},
+            {"type": "stim", "latency": 21.2},
+        ]
+        result = eeg_eegrej(EEG, np.array([[1.0, 3.0]]))
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [2.0])
+
 
 if __name__ == "__main__":
     unittest.main()

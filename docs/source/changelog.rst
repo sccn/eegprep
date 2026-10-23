@@ -34,9 +34,12 @@ Unreleased
 - ``eeg_eegrej`` merges overlapping, reversed, and fractional removal
   intervals before shifting events, and leaves a one-sample gap as two
   intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
-- ``eeg_eegrej`` runs the shared event-consistency check after a cut. Events
-  before half a sample are removed, events are sorted, and an empty duration
-  becomes 0 once any event has one. A NaN duration is kept.
+- ``eeg_eegrej`` runs the shared event-consistency check after a cut, then
+  drops a trailing event whose latency is more than half a sample past the
+  data. Events come back as a list of dicts. A structured array is converted;
+  any other event value raises. Events before half a sample are removed, events
+  are sorted, and an empty duration becomes 0 once any event has one. A NaN
+  duration is kept.
 - ``pop_eegfiltnew`` recomputes the transition width after the default filter
   order is rounded up to an even length, matching EEGLAB. A 1 Hz high-pass
   at 128 Hz uses order 424 and a transition of about 0.996 Hz.

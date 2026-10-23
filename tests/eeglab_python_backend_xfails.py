@@ -285,7 +285,6 @@ PYTHON_BACKEND_XFAILS = {
     ),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering": _gap(TRUTH, ValueError),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_rejection": _gap(TRUTH, ValueError),
     "tests/test_eegh.py::test_reference_eegh_empty_command": _gap(TRUTH, ValueError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_shortread_original_two_million_samples": _gap(
         TRUTH, ValueError
