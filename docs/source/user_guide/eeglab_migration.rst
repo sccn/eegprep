@@ -185,6 +185,16 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time.
+   * - Baseline across a boundary
+     - On continuous data with a boundary event, ``pop_rmbase`` subtracts
+       each segment's mean of the requested samples. When ``pointrange``
+       starts after sample 1, EEGLAB shifts the segment indices by that
+       offset and removes the mean of the shifted span (``pop_rmbase.m``
+       lines 183-196). EEGPrep writes only the listed baseline samples
+       inside each original segment (``pop_rmbase.py`` lines 226-231).
+       ``test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary``
+       locks the EEGPrep result. A baseline that starts at sample 1 is
+       unchanged.
    * - BDF ``bdfeventmode``
      - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
        ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,

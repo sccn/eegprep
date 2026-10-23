@@ -881,15 +881,39 @@ Nightly differential fuzzing
 
 ``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
 generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
-oracle. The job runs at 10:23 UTC and can be started manually with
-``workflow_dispatch``. A known-good sanity case runs first. If that case
-fails, the job fails and does not open an issue. Later mismatches are shrunk
-with Hypothesis, saved under the ``fuzz-repros`` artifact, and filed (at most
-three new issues a night) with the labels ``fuzz`` and ``fuzz-unconfirmed``.
+oracle. The job runs at 10:23 UTC on MATLAB R2024b and can be started
+manually with ``workflow_dispatch``. A known-good sanity case runs first. If
+that case fails, the job fails and does not open an issue. Later mismatches
+are shrunk with Hypothesis, saved under the ``fuzz-repros`` artifact, and
+filed (at most three new issues a night) with the labels ``fuzz`` and
+``fuzz-unconfirmed``.
+
+The nightly targets are ``pop_eegfiltnew``, ``pop_reref``, ``pop_resample``,
+``clean_asr``, ``pop_clean_rawdata``, ``eeg_eegrej``, ``pop_select``,
+``pop_epoch``, ``pop_rmbase``, ``clean_windows``, ``clean_channels``,
+``clean_flatlines``, and a ``pipeline`` chain. The original five targets
+compare data only. The event-aware targets also compare events in returned
+order (type, latency, duration, epoch, urevent), channel labels, ``nbchan``,
+``pnts``, ``trials``, ``xmin``, ``xmax``, ``clean_channel_mask``,
+``clean_sample_mask``, and extra outputs such as ``pop_epoch`` indices. A
+missing event duration is not treated as zero. The pipeline runs a realistic
+sequence (filter or ``clean_rawdata``, re-reference, epoch or select,
+baseline) and compares after every step. The first mismatch names that step.
+
+About 70% of the new draws use parameter values from EEGLAB defaults, the
+EEGPrep dialogs, ``bids_preproc``, and the tutorial / ds003061 stage
+settings. The rest walk edge cases. Crops come from the committed tutorial
+recordings. A known-divergence predicate skips one EEGLAB result instead of
+filing it: continuous ``pop_rmbase`` with a boundary and a baseline that
+starts after sample 1. That difference is listed under "Known Differences
+from EEGLAB".
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
-requests.
+requests. Sections for the event-aware targets are proposals until that
+review. MATLAB replay of those targets uses the jamming bench (MATLAB R2025b
+Update 1, ``~/eegprep-bench``, five parallel sessions via ``bench.sh``). CI
+stays on R2024b.
 
 Run it locally against a MATLAB session that is already serving
 ``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
