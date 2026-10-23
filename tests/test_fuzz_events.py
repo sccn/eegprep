@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from tests.fuzz.harness import (
     EEGSpec,
     FakeOracle,
@@ -20,6 +23,7 @@ from tests.fuzz.harness import (
     SideResult,
     case_from_payload,
     data_sha256,
+    dispatch_matlab,
     dispatch_python,
     draw_cases,
     evaluate_case,
@@ -152,6 +156,10 @@ def test_event_mask_and_meta_mismatches_use_their_error_class():
     assert judge(renamed, matched, latency, epoch, "digest").error_class == "event-field"
     present = _side(events=(("square", 10.0, 0.0, None, None),))
     assert judge(present, matched, latency, epoch, "digest").error_class == "event-field"
+    missing = float("nan")
+    nan_duration = _side(events=(("square", 10.0, missing, None, None),))
+    assert judge(nan_duration, nan_duration, latency, epoch, "digest").error_class == "match"
+    assert judge(nan_duration, matched, latency, epoch, "digest").error_class == "event-field"
 
     windows = _case("clean_windows")
     mask = np.array([True, False, True, True])
@@ -335,3 +343,111 @@ def test_jitter_is_not_a_constant_and_channel_drops_clear_ica():
     assert np.asarray(kept["icaweights"]).size > 0
     assert np.asarray(dropped["icaweights"]).size == 0
     assert np.asarray(dropped["icachansind"]).size == 0
+
+
+def _windows_case(length: int) -> FuzzCase:
+    return FuzzCase(
+        "clean_windows",
+        EEGSpec((0,), 0, length, 1, -1, 0, 0, srate_hz=128.0),
+        freeze_params(
+            {
+                "max_bad_channels": 0.2,
+                "zthresholds": [-3.5, 5.0],
+                "window_len": 1.0,
+                "window_overlap": 0.66,
+            }
+        ),
+    )
+
+
+def _recording(length: int) -> dict:
+    return {
+        "data": np.zeros((1, length)),
+        "nbchan": 1,
+        "pnts": length,
+        "trials": 1,
+        "srate": 128.0,
+        "xmin": 0.0,
+        "xmax": (length - 1) / 128.0,
+        "event": [],
+        "chanlocs": [{"labels": "Cz"}],
+    }
+
+
+class _RaisingBackend:
+    def __init__(self, exc: Exception):
+        self.exc = exc
+
+    def run(self, case, eeg):
+        return SideResult(False, None, None, type(self.exc).__name__, str(self.exc))
+
+
+def test_short_clean_windows_errors_are_a_match():
+    tolerances = load_tolerances()
+    short = evaluate_case(
+        _windows_case(160),
+        lambda case: _recording(case.spec.length),
+        _RaisingBackend(ValueError("Too few windows")),
+        _RaisingBackend(RuntimeError("Index in position 1 is invalid")),
+        tolerances,
+    )
+    assert short.error_class == "match"
+    assert short.both_ok
+    assert not short.diverged
+
+    long = evaluate_case(
+        _windows_case(2048),
+        lambda case: _recording(case.spec.length),
+        _RaisingBackend(ValueError("Too few windows")),
+        _RaisingBackend(RuntimeError("Index in position 1 is invalid")),
+        tolerances,
+    )
+    assert long.diverged
+    assert long.error_class.startswith("exception-mismatch")
+
+
+def test_pipeline_short_clean_windows_errors_are_a_match(monkeypatch):
+    def boom(step, eeg):
+        raise ValueError("Too few windows")
+
+    monkeypatch.setattr("tests.fuzz.harness.dispatch_python", boom)
+    windows = _windows_case(160).params
+    case = FuzzCase(
+        "pipeline",
+        EEGSpec((0,), 0, 160, 1, -1, 0, 0, srate_hz=128.0),
+        freeze_params({"profile": "short-windows"}),
+        pipeline=(("clean_windows", windows),),
+    )
+    outcome = evaluate_case(
+        case,
+        lambda _case: _recording(160),
+        PythonBackend(),
+        FakeOracle("match", PythonBackend()),
+        load_tolerances(),
+    )
+    assert outcome.error_class == "match", outcome.detail
+    assert not outcome.diverged
+
+
+def test_matlab_dispatch_replaces_none_chaninfo_before_save():
+    captured = {}
+
+    class Engine:
+        def pop_resample(self, eeg, freq):
+            captured["eeg"] = eeg
+            return eeg
+
+    eeg = _recording(8)
+    eeg["times"] = np.arange(8) / 128.0
+    eeg["icachansind"] = np.array([])
+    eeg["chaninfo"] = {"plotrad": None, "shrink": None, "nosedir": "+X"}
+    case = FuzzCase("pop_resample", EEGSpec((0,), 0, 8, 1, -1, 0, 0), freeze_params({"freq": 64.0}))
+    dispatch_matlab(Engine(), case, eeg)
+
+    assert eeg["chaninfo"]["plotrad"] is None
+    saved = captured["eeg"]["chaninfo"]
+    assert saved["plotrad"].size == 0
+    assert saved["shrink"].size == 0
+    assert saved["nosedir"] == "+X"
+    with tempfile.TemporaryDirectory() as tmp:
+        pop_saveset(captured["eeg"], os.path.join(tmp, "chaninfo.set"))

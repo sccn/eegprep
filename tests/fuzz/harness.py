@@ -356,6 +356,37 @@ def _calibration_window_count(n_samples: int, srate: float) -> int:
     return int(_matlab_colon(1.0, step, stop).size)
 
 
+def _clean_windows_count(n_samples: int, srate: float, window_len: float, window_overlap: float) -> int:
+    """Windows in clean_windows.m's ``1:step:(S-N)`` colon."""
+    width = float(window_len) * float(srate)
+    if _matlab_colon(0.0, 1.0, width - 1.0).size == 0:
+        return 0
+    step = width * (1.0 - float(window_overlap))
+    if step <= 0.0:
+        step = 1.0
+    stop = float(n_samples) - width
+    if stop < 1.0:
+        return 0
+    return int(_matlab_colon(1.0, step, stop).size)
+
+
+def _clean_windows_short_fit(case: FuzzCase, eeg: dict) -> bool:
+    """True when fit_eeg_distribution.m:112 would index a rounded width of 1 or less."""
+    if case.function != "clean_windows":
+        return False
+    data = np.asarray(eeg["data"])
+    if data.ndim != 2:
+        return False
+    params = thaw_params(case.params)
+    count = _clean_windows_count(
+        int(data.shape[1]),
+        float(eeg["srate"]),
+        float(params["window_len"]),
+        float(params["window_overlap"]),
+    )
+    return _fit_eeg_distribution_throws(count)
+
+
 def _fit_eeg_distribution_throws(n_windows: int) -> bool:
     """True when EEGLAB's fit errors on this many per-channel RMS windows."""
     if n_windows <= 0:
@@ -1196,6 +1227,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # Below the rate where the default breakpoints stay monotonic,
         # clean_artifacts.m catches the filter error and returns the recording.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if not python.ok and not oracle.ok and _clean_windows_short_fit(case, eeg):
+        # fit_eeg_distribution.m:112 indexes a rounded width of 1 or less.
+        # clean_windows has no all-data fallback, so both sides raise.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "both sides reject a recording whose clean_windows fit width rounds to 1 or less",
+            digest,
+        )
     outcome = judge(python, oracle, tolerance, case, digest, tolerances)
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
@@ -1225,6 +1269,17 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         step = FuzzCase(name, case.spec, frozen, sanity=case.sanity)
         python_side, _python_eeg = _invoke(dispatch_python, step, copy.deepcopy(current))
         oracle_side, oracle_eeg = _oracle_invoke(oracle_backend, step, copy.deepcopy(current))
+        if not python_side.ok and not oracle_side.ok and _clean_windows_short_fit(step, current):
+            return _outcome(
+                case,
+                False,
+                True,
+                "match",
+                last_abs,
+                last_rel,
+                f"{name}: both sides reject a recording whose clean_windows fit width rounds to 1 or less",
+                digest,
+            )
         outcome = _judge_pair(
             python_side,
             oracle_side,
@@ -1333,7 +1388,22 @@ def dispatch_python(case: FuzzCase, eeg: dict):
     raise ValueError(f"unknown fuzz function {case.function}")
 
 
+def _chaninfo_nones_to_empty(eeg: dict) -> dict:
+    """Replace None chaninfo values with [] on a copy.
+
+    ds003194 EDF imports leave plotrad and shrink as None. savemat cannot
+    write None, so the MATLAB call never started.
+    """
+    info = eeg.get("chaninfo")
+    if not isinstance(info, dict) or not any(value is None for value in info.values()):
+        return eeg
+    copied = dict(eeg)
+    copied["chaninfo"] = {key: np.array([]) if value is None else value for key, value in info.items()}
+    return copied
+
+
 def dispatch_matlab(engine, case: FuzzCase, eeg: dict):
+    eeg = _chaninfo_nones_to_empty(eeg)
     params = thaw_params(case.params)
     if case.function == "pop_eegfiltnew":
         args = []
@@ -1473,7 +1543,7 @@ def _compare_events(python: SideResult, oracle: SideResult, tolerance: Tolerance
     if len(python.events) != len(oracle.events):
         return True, "event-count", f"event count {len(python.events)} != {len(oracle.events)}"
     for index, (left, right) in enumerate(zip(python.events, oracle.events, strict=True)):
-        if left[0] != right[0] or left[2] != right[2] or left[3] != right[3] or left[4] != right[4]:
+        if any(not _same_event_field(left[field], right[field]) for field in (0, 2, 3, 4)):
             return True, "event-field", f"event {index} field {left} != {right}"
         if abs(float(left[1]) - float(right[1])) > tolerance.event_latency_abs:
             return True, "event-latency", f"event {index} latency {left[1]} != {right[1]}"
@@ -1516,6 +1586,18 @@ def _compare_extra(python: SideResult, oracle: SideResult):
         if left.shape != right.shape or not np.array_equal(left, right):
             return True, "extra", f"extra[{index}] differs"
     return False, "match", "match"
+
+
+def _same_event_field(left, right) -> bool:
+    """True when two event fields match, including NaN with NaN."""
+    if left == right:
+        return True
+    return (
+        isinstance(left, (float, np.floating))
+        and isinstance(right, (float, np.floating))
+        and math.isnan(float(left))
+        and math.isnan(float(right))
+    )
 
 
 def _event_view(eeg: dict) -> tuple:

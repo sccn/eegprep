@@ -896,7 +896,8 @@ compare data only. The event-aware targets also compare events in returned
 order (type, latency, duration, epoch, urevent), channel labels, ``nbchan``,
 ``pnts``, ``trials``, ``xmin``, ``xmax``, ``clean_channel_mask``,
 ``clean_sample_mask``, and extra outputs such as ``pop_epoch`` indices. A
-missing event duration is not treated as zero. The pipeline runs a realistic
+missing event duration is not treated as zero. A NaN event field matches a
+NaN on the other side. The pipeline runs a realistic
 sequence (filter or ``clean_rawdata``, re-reference, epoch or select,
 baseline) and compares after every step. The first mismatch names that step.
 
@@ -913,7 +914,10 @@ starts from the oracle EEG. A known-divergence predicate runs after that
 comparison and does not file the step: continuous ``pop_rmbase`` with a
 boundary and a baseline that starts after sample 1, and only when the two
 outputs actually differ. The chain then continues from the oracle EEG. That
-difference is listed under "Known Differences from EEGLAB".
+difference is listed under "Known Differences from EEGLAB". Both sides
+raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
+a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
+``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
