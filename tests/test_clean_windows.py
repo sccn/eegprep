@@ -137,7 +137,11 @@ def test_unidentified_window_fit_keeps_median_mad_scale():
 
 
 def test_too_few_windows_raises():
-    """fit_eeg_distribution.m indexes round(n * lower quantile), which is 0."""
+    """The width loop errors when its smallest rounded width is 1 or less.
+
+    Ten windows at these defaults round to 1. Eleven windows round to 2, and
+    MATLAB fits them.
+    """
     from pathlib import Path
 
     from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -146,21 +150,46 @@ def test_too_few_windows_raises():
     with pytest.raises(ValueError, match="Too few windows"):
         clean_windows(_eeg(data), 0.075, (-3.5, 2.0), 1.0)
 
+    with pytest.raises(ValueError, match="Too few windows"):
+        clean_windows(_eeg(np.ones((4, 521), dtype=np.float64)), 0.075, (-3.5, 2.0), 1.0)
+
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
     short = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
     with pytest.raises(ValueError, match="Too few windows"):
         clean_windows(_eeg(short), 0.075, (-3.5, 5.5), 1.0)
 
 
-def test_cleaned_xmax_stays_on_the_sample_grid():
+def test_eleven_windows_still_fit():
+    cleaned, mask = clean_windows(_eeg(np.ones((4, 565), dtype=np.float64)), 0.075, (-3.5, 2.0), 1.0)
+    assert mask.shape == (565,)
+    assert cleaned["pnts"] == 565
+
+
+def test_cleaned_xmax_follows_the_checkset_round():
+    """eeg_checkset.m:849 keeps a proportional xmax when it already counts pnts."""
+    from eegprep.functions.miscfunc.misc import round_mat
+
     eeg = _eeg(np.random.default_rng(0).normal(size=(4, 2500)), 128.0)
     eeg["data"][:, 400:900] += 80.0
+    old_pnts = int(eeg["pnts"])
+    old_span = float(eeg["xmax"]) - float(eeg["xmin"])
     cleaned, mask = clean_windows(eeg)
-    assert int(mask.sum()) < eeg["pnts"]
-    expected = float(cleaned["xmin"]) + (int(cleaned["pnts"]) - 1) / float(cleaned["srate"])
-    assert cleaned["xmax"] == pytest.approx(expected)
-    assert np.asarray(cleaned["times"]).shape == (int(cleaned["pnts"]),)
-    assert cleaned["times"][-1] == pytest.approx(expected * 1000.0)
+    new_pnts = int(cleaned["pnts"])
+    srate = float(cleaned["srate"])
+    proportional = float(eeg["xmin"]) + old_span * (new_pnts / old_pnts)
+    assert int(mask.sum()) < old_pnts
+    assert int(round_mat(srate * proportional + 1)) == new_pnts
+    assert cleaned["xmax"] == pytest.approx(proportional)
+    assert cleaned["xmax"] != pytest.approx(float(eeg["xmin"]) + (new_pnts - 1) / srate)
+    assert np.asarray(cleaned["times"])[-1] == pytest.approx(proportional * 1000.0)
+
+    heavy = _eeg(np.random.default_rng(0).normal(size=(4, 2500)), 128.0)
+    heavy["data"][:, 200:1900] += 80.0
+    snapped, _mask = clean_windows(heavy)
+    snapped_pnts = int(snapped["pnts"])
+    snapped_prop = old_span * (snapped_pnts / old_pnts)
+    assert int(round_mat(srate * snapped_prop + 1)) != snapped_pnts
+    assert snapped["xmax"] == pytest.approx((snapped_pnts - 1) / srate)
 
 
 def test_prior_mask_of_a_different_length_is_not_replaced(caplog):

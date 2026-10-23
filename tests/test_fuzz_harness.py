@@ -276,15 +276,14 @@ def _asr_all_data(dataset):
 
 
 def test_clean_asr_short_fit_crash_is_not_a_divergence():
-    """EEGLAB's 3-window calibration throws and clean_asr keeps every sample."""
+    """Three windows round to width 0, so calibration uses every sample."""
     case = _asr_case(length=256, start=8)
     eeg = materialize_eeg(case)
     windowed = np.asarray(dispatch_python(case, eeg)["data"])
     fallback = np.asarray(_asr_all_data(eeg))
-    diverged, error_class, max_abs, *_rest = compare_data(windowed, fallback, 128.0, 128.0, Tolerance(0.0, 1e-6))
-    assert diverged is True
-    assert error_class == "numeric"
-    assert max_abs > 50
+    diverged, error_class, *_rest = compare_data(windowed, fallback, 128.0, 128.0, Tolerance(0.0, 1e-6))
+    assert diverged is False
+    assert error_class == "match"
 
     outcome = evaluate_case(
         case,
@@ -377,6 +376,7 @@ def test_low_rate_clean_rawdata_error_still_diverges():
 
 
 def test_clean_asr_long_recording_all_data_oracle_still_diverges():
+    """1024 samples are 21 windows. The width grid fits, so all-data is not the calibration."""
     case = _asr_case(length=1024, start=0)
     eeg = materialize_eeg(case)
     outcome = evaluate_case(

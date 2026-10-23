@@ -946,9 +946,9 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
         # keeps that NaN on its own channel. EEGPrep follows the subtraction.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _asr_short_calibration_is_oracle_defect(case, eeg, python, oracle, tolerance):
-        # clean_windows.m fits one RMS value per window. With only a few windows,
-        # fit_eeg_distribution.m:126 throws, and clean_asr.m calibrates on every
-        # sample. EEGPrep's fit succeeds, so it still drops the bad window.
+        # fit_eeg_distribution.m:112 indexes a rounded width of 1 or less.
+        # clean_asr.m catches that and calibrates on every sample. EEGPrep raises
+        # on the same grid and uses the same all-data calibration.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _asr_zero_width_index_is_known(case, eeg, python, oracle):
         # asr_calibrate.m's own RMS fit, with reference selection off, indexes
