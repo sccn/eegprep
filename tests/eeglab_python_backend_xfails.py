@@ -85,8 +85,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_gethelpvar.py::test_reference_gethelpvar_no_var": _gap(STRUCT, TypeError),
     "tests/test_gethelpvar.py::test_reference_gethelpvar_some": _gap(STRUCT, TypeError),
     "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_readneurodat_original_file": _gap(STRUCT, TypeError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, TypeError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, TypeError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, AssertionError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, AssertionError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells": _gap(
         STRUCT, AttributeError
     ),
@@ -273,9 +273,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_rejection_workflows.py::test_reference_pop_rejchan": _gap(OUTPUTS, AssertionError),
     "tests/test_rejection_workflows.py::test_reference_pop_rejtrend": _gap(OUTPUTS, AssertionError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_original_39_calls": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_channels_with_locations": _gap(
-        TRUTH, ValueError
-    ),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering": _gap(TRUTH, ValueError),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection": _gap(TRUTH, ValueError),
     "tests/test_eegh.py::test_reference_eegh_empty_command": _gap(TRUTH, ValueError),

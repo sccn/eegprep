@@ -56,11 +56,15 @@ def test_reference_chaninds_uses_original_epoched_recording(eeglab_backend, eegl
         eeglab_backend("eeg_chaninds", eeg, np.array([selection], dtype=object))
 
 
-@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
 def _event_rows(events):
-    """Event records as dicts, whether the backend returned a list or a struct array."""
+    """Event records as dicts, whether the backend returned a list or a struct array.
+
+    A MATLAB 1-by-1 struct arrives as one dict, not a length-1 list or array.
+    """
     if events is None or (isinstance(events, np.ndarray) and events.size == 0):
         return []
+    if isinstance(events, dict):
+        return [events]
     if isinstance(events, list):
         return events
     if isinstance(events, np.ndarray) and events.dtype.names:
@@ -82,6 +86,14 @@ def _event_float(value):
     return float(value)
 
 
+def test_event_rows_accepts_a_matlab_singleton_struct():
+    rows = _event_rows({"type": "boundary", "latency": np.array([[1.5]]), "duration": np.array([[2.0]])})
+    assert [_event_text(row["type"]) for row in rows] == ["boundary"]
+    assert [_event_float(row["latency"]) for row in rows] == [1.5]
+    assert [_event_float(row["duration"]) for row in rows] == [2.0]
+
+
+@eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_test_eeg_eegrej")
 def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_backend):
     data = np.arange(1, 16, dtype=float).reshape(3, 5)
     eeg = eeglab_backend("eeg_emptyset")
@@ -102,7 +114,13 @@ def test_reference_eegrej_preserves_metadata_and_recorded_data_cases(eeglab_back
     eeg = eeglab_backend("pop_loadset", str(sample))
     eeg["trials"] = 0
     recorded = eeglab_backend("eeg_eegrej", eeg, np.array([[223.0, 572.0], [1.0, 140.0]]))
-    assert len(_event_rows(recorded["event"])) > 1
+    # [1, 140] and [223, 572] are 1-based inclusive. Each boundary is beg-1,
+    # minus samples removed earlier, plus 0.5. Durations are the inclusive spans.
+    rows = _event_rows(recorded["event"])
+    boundaries = [row for row in rows if _event_text(row["type"]).lower() == "boundary"]
+    assert [_event_text(row["type"]) for row in boundaries] == ["boundary", "boundary"]
+    assert [_event_float(row["latency"]) for row in boundaries] == [0.5, 82.5]
+    assert [_event_float(row["duration"]) for row in boundaries] == [140.0, 350.0]
 
 
 @eeglab_test("unittesting_popfunc/eeg_eegrej/popfunc_eeg_eegrej_wrapperTest.m", "test_testcase_eegrej")
