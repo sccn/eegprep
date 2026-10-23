@@ -13,6 +13,7 @@ import scipy.io
 
 from eegprep.functions.adminfunc.eeglabcompat import (
     MatlabWrapper,
+    _matlab_args_cell,
     _prepare_matlab_arg,
     _restore_double_eeg_data,
     _stash_double_eeg_data,
@@ -175,6 +176,16 @@ class TestMatlabWrapper(DebuggableTestCase):
         np.testing.assert_array_equal(highpass, np.asarray([0.25, 0.75]))
         np.testing.assert_array_equal(tolerances, np.asarray([-np.inf, 7.0]))
         self.assertEqual(highpass.dtype, np.dtype("float64"))
+
+    def test_empty_args_stay_a_one_row_cell(self):
+        cell = _matlab_args_cell([np.array([]), np.array([]), np.array([])])
+        stacked = np.array([np.array([]), np.array([]), np.array([])], dtype=object)
+
+        self.assertEqual(stacked.shape, (3, 0))
+        self.assertEqual(cell.shape, (1, 3))
+        self.assertEqual(cell.dtype, np.dtype("O"))
+        for item in cell.ravel():
+            self.assertEqual(np.asarray(item).size, 0)
 
 
 if __name__ == '__main__':

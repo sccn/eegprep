@@ -5,22 +5,23 @@ dialogs, ``bids_preproc``, and the tutorial / ds003061 stage settings. The
 other 30% walk the edge cases in the tier-1 plan (fractional rates, region
 edges, empty selections, nested boundaries).
 
-The nightly corpus is the committed tutorial recordings. ds003061 and
-ds003194 are not in this checkout, so their published parameter vectors are
-applied to those tutorial files.
+Recordings are the committed tutorial sets plus, when present, the same
+ds003061 and ds003194 files the parity tests load. A missing suite or
+OpenNeuro root leaves those recordings out. A root that is set and does not
+contain the file raises ``FileNotFoundError``.
 """
 
 from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+import os
 from pathlib import Path
 
 import numpy as np
 from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
-from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -30,13 +31,122 @@ from eegprep.plugins.clean_rawdata.clean_channels import clean_channels
 from eegprep.plugins.clean_rawdata.clean_flatlines import clean_flatlines
 from eegprep.plugins.clean_rawdata.clean_windows import clean_windows
 from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
-from eegprep.plugins.clean_rawdata.private.ransac import calc_projector
-from eegprep.plugins.clean_rawdata.private.sigproc import filtfilt_fast
-from eegprep.plugins.clean_rawdata.private.stats import mad
-from eegprep.plugins.firfilt.design import design_fir
 from tests.fuzz.catalog import freeze_params, thaw_params
 
+_ICA_FIELDS = ("icaweights", "icasphere", "icawinv", "icaact", "icachansind")
+_DS003194_EDF = "sub-NEPO01/ses-Nepopre/eeg/sub-NEPO01_ses-Nepopre_task-taskprenepo_eeg.edf"
+_PREFIX_SECONDS = 30.0
+_PREFIX_CAP = 32768
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _suite_root() -> Path | None:
+    env = os.environ.get("EEGPREP_EEGLAB_SUITE_ROOT")
+    if env:
+        return Path(env)
+    eeglab = os.environ.get("EEGPREP_EEGLAB_ROOT")
+    if not eeglab:
+        return None
+    parent = Path(eeglab).resolve().parent
+    if (parent / "ds003061").is_dir():
+        return parent
+    return None
+
+
+def _openneuro_root() -> Path | None:
+    override = os.environ.get("EEGPREP_OPENNEURO_ROOT")
+    if override:
+        root = Path(override)
+        if (root / "dataset_description.json").is_file():
+            return root
+        nested = root / "ds003194"
+        if (nested / "dataset_description.json").is_file():
+            return nested
+        if os.environ.get("EEGPREP_OPENNEURO_ROOT"):
+            raise FileNotFoundError(
+                f"ds003194 is not under {root}. The parity tests use EEGPREP_OPENNEURO_ROOT "
+                "or tests/openneuro/ds003194, and fetch s3://openneuro.org/ds003194/."
+            )
+        return None
+    candidate = REPO_ROOT / "tests" / "openneuro" / "ds003194"
+    if (candidate / "dataset_description.json").is_file():
+        return candidate
+    return None
+
+
+def _external_sources() -> list[tuple[str, Path, bool]]:
+    """ds003061 and ds003194 paths used by the parity tests, when the files exist."""
+    found = []
+    suite = _suite_root()
+    if suite is not None:
+        configured = bool(os.environ.get("EEGPREP_EEGLAB_SUITE_ROOT"))
+        for subject in ("sub-001", "sub-012"):
+            directory = suite / "ds003061" / subject / "eeg"
+            matches = sorted(directory.glob("*_run-1_eeg.set"))
+            if len(matches) != 1:
+                if configured or directory.is_dir():
+                    raise FileNotFoundError(
+                        f"expected one run-1 .set under {directory}, found {[str(path) for path in matches]}"
+                    )
+                continue
+            found.append((f"ds003061_{subject}", matches[0], True))
+    root = _openneuro_root()
+    if root is not None:
+        edf = root / _DS003194_EDF
+        if not edf.is_file():
+            raise FileNotFoundError(f"ds003194 recording is not at {edf}")
+        found.append(("ds003194_NEPO01", edf, True))
+    return found
+
+
+def _load_recording(path: Path, prefix: bool) -> dict:
+    if path.suffix.lower() == ".edf":
+        from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
+
+        eeg = pop_load_frombids(
+            str(path),
+            eventtype="value",
+            bidsevent=True,
+            bidschanloc=True,
+            verbose=False,
+        )
+    else:
+        eeg = pop_loadset(str(path))
+    if prefix:
+        return _prefix_recording(eeg)
+    return eeg
+
+
+def _prefix_recording(eeg: dict) -> dict:
+    trials = int(eeg.get("trials") or 1)
+    if trials > 1:
+        return eeg
+    srate = float(eeg["srate"])
+    keep = min(int(eeg["pnts"]), _PREFIX_CAP, max(1, int(round(_PREFIX_SECONDS * srate))))
+    if keep >= int(eeg["pnts"]):
+        return eeg
+    eeg["data"] = np.array(np.asarray(eeg["data"])[:, :keep], dtype=np.float64, copy=True)
+    eeg["pnts"] = keep
+    xmin = float(eeg.get("xmin") or 0.0)
+    eeg["xmax"] = xmin + (keep - 1) / srate
+    eeg["times"] = np.linspace(xmin * 1000.0, eeg["xmax"] * 1000.0, keep)
+    kept = []
+    for event in _event_dicts(eeg):
+        latency = event.get("latency")
+        if latency is None or float(latency) <= keep + 0.5:
+            kept.append(dict(event))
+    eeg["event"] = kept
+    return eeg
+
+
+def _clear_ica(eeg, spec, rec) -> None:
+    if tuple(spec.channels) == tuple(range(rec.nbchan)):
+        return
+    for key in _ICA_FIELDS:
+        if key in eeg:
+            eeg[key] = np.array([], dtype=int if key == "icachansind" else float)
+
 
 _USER = (True, True, True, True, True, True, True, False, False, False)
 _USER_LENGTHS = (512, 768, 1024, 1024, 1536, 2048)
@@ -66,12 +176,14 @@ class _Recording:
 def _corpus() -> dict[str, _Recording]:
     if not hasattr(_corpus, "_cache"):
         loaded = {}
-        for name, relative in (
-            ("eeglab_data", "sample_data/eeglab_data.set"),
-            ("eeglab_data_with_ica_tmp", "sample_data/eeglab_data_with_ica_tmp.set"),
-            ("eeglab_data_epochs_ica", "sample_data/eeglab_data_epochs_ica.set"),
-        ):
-            eeg = pop_loadset(str(REPO_ROOT / relative))
+        sources = [
+            ("eeglab_data", REPO_ROOT / "sample_data/eeglab_data.set", False),
+            ("eeglab_data_with_ica_tmp", REPO_ROOT / "sample_data/eeglab_data_with_ica_tmp.set", False),
+            ("eeglab_data_epochs_ica", REPO_ROOT / "sample_data/eeglab_data_epochs_ica.set", False),
+            *_external_sources(),
+        ]
+        for name, path, prefix in sources:
+            eeg = _load_recording(path, prefix)
             events = _event_dicts(eeg)
             latencies = tuple(float(event["latency"]) for event in events if "latency" in event)
             types = tuple(dict.fromkeys(str(event.get("type")) for event in events))
@@ -97,22 +209,6 @@ def recording(name: str) -> _Recording:
     return _corpus()[name]
 
 
-def is_legacy_spec(spec) -> bool:
-    """True when ``spec`` must reproduce the original continuous crop."""
-    return (
-        spec.source == "eeglab_data"
-        and spec.events == "none"
-        and not spec.boundaries
-        and spec.trials == 1
-        and spec.epoch_pnts == 0
-        and spec.xmin == 0.0
-        and spec.srate_hz == 0.0
-        and not spec.drop_xyz
-        and spec.artifact == ""
-        and spec.prior_mask == ""
-    )
-
-
 def materialize_rich(case) -> dict:
     """Build an event-aware crop. The legacy crop stays in the harness."""
     spec = case.spec
@@ -122,17 +218,18 @@ def materialize_rich(case) -> dict:
         cropped, kept_events = _crop_trials(rec, eeg, spec)
     else:
         cropped, kept_events = _crop_continuous(rec, eeg, spec)
-    _apply_artifact(cropped, spec)
+    rate = float(spec.srate_hz) if spec.srate_hz else float(rec.srate) / float(spec.decimate)
+    _apply_artifact(cropped, spec, rate)
     _apply_nan(cropped, spec)
     eeg["data"] = cropped
     eeg["event"] = kept_events
     if spec.boundaries:
         kept_events.extend(_boundary_events(spec.boundaries, len(kept_events)))
-    if rec.trials == 1 and spec.epoch_pnts > 0 and spec.trials > 1:
-        _reshape_epochs(eeg, spec)
+        kept_events.sort(key=lambda event: float(event.get("latency") or 0.0))
     _apply_rate_and_times(eeg, spec, rec)
     _drop_xyz(eeg, spec.drop_xyz)
     _apply_prior_mask(eeg, spec.prior_mask)
+    _clear_ica(eeg, spec, rec)
     eeg["saved"] = "no"
     return eeg_checkset(eeg)
 
@@ -292,17 +389,16 @@ def rmbase_boundary_offset(case, eeg) -> bool:
 
 
 def clean_channels_margins(eeg, params) -> str:
-    """Python-side distance to the correlation and noise thresholds.
+    """Report the channel count ``clean_channels`` itself keeps.
 
     Diagnostic only. It does not forgive a mask mismatch.
     """
+    thawed = thaw_params(params) if isinstance(params, tuple) else params
     try:
-        corr_margin, noise_margin = _channel_margins(eeg, thaw_params(params) if isinstance(params, tuple) else params)
+        cleaned = clean_channels(copy.deepcopy(eeg), **_channels_kwargs(thawed))
     except Exception as exc:
-        return f"python threshold margin unavailable: {exc.__class__.__name__}: {exc}"
-    noise = "n/a" if noise_margin is None else f"{noise_margin:.3g}"
-    corr = "n/a" if corr_margin is None else f"{corr_margin:.3g}"
-    return f"python min |corr-threshold|={corr}; min |znoise-threshold|={noise}"
+        return f"python clean_channels diagnostic failed: {exc.__class__.__name__}: {exc}"
+    return f"python clean_channels kept {int(cleaned['nbchan'])} of {int(eeg['nbchan'])} channels"
 
 
 def extra_strategies(info, spec_cls, case_cls, freeze):
@@ -340,7 +436,7 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
     @st.composite
     def epoch(draw):
         user = _user_draw(draw)
-        rec = continuous[0] if user else _pick_continuous(draw, continuous, False)
+        rec = _pick_continuous(draw, continuous, user)
         spec = _draw_continuous(
             draw,
             spec_cls,
@@ -374,7 +470,10 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
     def windows(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
-        spec = _draw_continuous(draw, spec_cls, rec, user=user, events="keep", rates=_EDGE_RATES, max_length=2048)
+        seconds = 8.0 if user else draw(st.sampled_from((4.0, 8.0, 16.0)))
+        spec = _draw_continuous(
+            draw, spec_cls, rec, user=user, events="keep", rates=_EDGE_RATES, seconds=seconds, max_length=16384
+        )
         if user:
             params = {
                 "max_bad_channels": draw(st.sampled_from((0.2, 0.25))),
@@ -397,6 +496,7 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
     def channels(draw):
         user = _user_draw(draw)
         rec = _pick_continuous(draw, continuous, user)
+        seconds = 20.0 if user else draw(st.sampled_from((15.0, 20.0, 30.0)))
         spec = _draw_continuous(
             draw,
             spec_cls,
@@ -404,8 +504,8 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
             user=user,
             events="keep",
             rates=_EDGE_RATES,
-            min_length=768,
-            max_length=1536,
+            seconds=seconds,
+            max_length=32768,
         )
         if user and draw(st.booleans()):
             spec = _with_artifact(spec, "copy", 1, 0, spec.length)
@@ -541,19 +641,25 @@ def _user_draw(draw) -> bool:
 
 
 def _pick_continuous(draw, recordings, user: bool) -> _Recording:
-    if user:
-        return draw(st.sampled_from((recordings[0], recordings[0], recordings[0], recordings[1])))
+    del user
     return draw(st.sampled_from(recordings))
 
 
-def _draw_continuous(draw, spec_cls, rec, *, user, events, rates=(0.0,), min_length=256, max_length=None):
-    choices = _USER_LENGTHS if user else _EDGE_LENGTHS
-    if max_length is not None:
-        choices = tuple(length for length in choices if length <= max_length)
-    choices = tuple(length for length in choices if min_length <= length <= rec.pnts) or (
-        min(rec.pnts, max(min_length, 256)),
-    )
-    length = min(rec.pnts, draw(st.sampled_from(choices)))
+def _duration_samples(rec, seconds: float, cap: int) -> int:
+    return min(rec.pnts, cap, max(256, int(round(seconds * rec.srate))))
+
+
+def _draw_continuous(draw, spec_cls, rec, *, user, events, rates=(0.0,), min_length=256, max_length=None, seconds=None):
+    if seconds is not None:
+        length = _duration_samples(rec, seconds, 32768 if max_length is None else max_length)
+    else:
+        choices = _USER_LENGTHS if user else _EDGE_LENGTHS
+        if max_length is not None:
+            choices = tuple(length for length in choices if length <= max_length)
+        choices = tuple(length for length in choices if min_length <= length <= rec.pnts) or (
+            min(rec.pnts, max(min_length, 256)),
+        )
+        length = min(rec.pnts, draw(st.sampled_from(choices)))
     decimate = 1 if user else draw(st.sampled_from((1, 1, 2, 4)))
     while length * decimate > rec.pnts and decimate > 1:
         decimate //= 2
@@ -736,7 +842,6 @@ def _tutorial_chain(draw):
         steps = (
             ("pop_clean_rawdata", _clean_params(burst=20.0, rejection="on", highpass="off", window_tol=("-inf", 7.0))),
             ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
-            ("pop_select", freeze_params({"time": [[0.0, 1.0]]})),
         )
     else:
         steps = (
@@ -765,7 +870,6 @@ def _filter_params(low: float) -> tuple:
         {
             "locutoff": low,
             "hicutoff": None,
-            "filtorder": 256,
             "revfilt": False,
             "minphase": False,
             "usefftfilt": False,
@@ -933,7 +1037,7 @@ def _crop_trials(rec, eeg, spec):
     return cropped, kept
 
 
-def _apply_artifact(data, spec):
+def _apply_artifact(data, spec, srate: float):
     if not spec.artifact:
         return
     if spec.artifact == "allflat":
@@ -957,28 +1061,28 @@ def _apply_artifact(data, spec):
         return
     if data.ndim == 3:
         flat = data[channel].reshape(-1)
-        _write_artifact(flat, spec.artifact, start, stop if stop > start else min(flat.size, start + 1))
+        _write_artifact(flat, spec.artifact, start, stop if stop > start else min(flat.size, start + 1), srate)
         return
-    _write_artifact(data[channel], spec.artifact, start, stop)
+    _write_artifact(data[channel], spec.artifact, start, stop, srate)
 
 
-def _write_artifact(samples, kind: str, start: int, stop: int):
+def _write_artifact(samples, kind: str, start: int, stop: int, srate: float):
     stop = min(samples.size, max(start + 1, stop))
-    eps = np.finfo(np.float64).eps
     segment = samples[start:stop]
     if kind == "hf":
-        time = np.arange(segment.size, dtype=np.float64) / 128.0
+        time = np.arange(segment.size, dtype=np.float64) / float(srate)
         segment += 50.0 * np.sin(2.0 * np.pi * 40.0 * time)
         return
-    base = float(samples[start])
-    if kind == "jitter10":
-        segment[:] = base + 10.0 * eps
-    elif kind == "jitter20":
-        segment[:] = base + 20.0 * eps
-    elif kind == "jitter40":
-        segment[:] = base + 40.0 * eps
-    else:
-        segment[:] = base
+    if kind.startswith("jitter"):
+        scale = float(kind.removeprefix("jitter"))
+        base = float(samples[start])
+        ulp = float(np.spacing(abs(base)))
+        if ulp == 0.0:
+            ulp = float(np.finfo(np.float64).eps)
+        signs = np.random.RandomState(0).choice(np.array([-1.0, 1.0]), size=segment.size)
+        segment[:] = base + signs * scale * ulp
+        return
+    segment[:] = float(samples[start])
 
 
 def _apply_nan(data, spec):
@@ -1002,26 +1106,10 @@ def _boundary_events(bounds, count: int) -> list[dict]:
     return events
 
 
-def _reshape_epochs(eeg, spec):
-    pnts = int(spec.epoch_pnts)
-    trials = int(spec.trials)
-    usable = pnts * trials
-    data = np.asarray(eeg["data"])[:, :usable]
-    eeg["data"] = np.array(data.reshape(data.shape[0], pnts, trials), copy=True)
-    eeg["pnts"] = pnts
-    eeg["trials"] = trials
-    eeg["xmin"] = float(spec.xmin)
-    for event in eeg["event"]:
-        latency = float(event.get("latency", 1.0))
-        event["epoch"] = int((latency - 1.0) // pnts) + 1
-
-
 def _apply_rate_and_times(eeg, spec, rec):
     srate = float(spec.srate_hz) if spec.srate_hz else float(rec.srate) / float(spec.decimate)
     pnts = int(eeg["pnts"])
     xmin = float(eeg.get("xmin") or 0.0)
-    if spec.epoch_pnts > 0 and spec.trials > 1 and rec.trials == 1:
-        xmin = float(spec.xmin)
     eeg["srate"] = srate
     eeg["xmin"] = xmin
     eeg["xmax"] = xmin + (pnts - 1) / srate if pnts else xmin
@@ -1194,70 +1282,3 @@ def _matlab_value(value):
     if isinstance(value, (int, float)):
         return float(value)
     return value
-
-
-def _channel_margins(eeg, params) -> tuple[float | None, float | None]:
-    options = _channels_kwargs(params)
-    data = np.asarray(eeg["data"], dtype=np.float64)
-    channels, samples = data.shape
-    srate = float(eeg["srate"])
-    subset = int(round_mat(channels * options["subset_size"]))
-    window = int(options["window_len"] * round_mat(srate))
-    if window <= 0 or samples <= window or subset <= 0:
-        return None, None
-    offsets = np.arange(0, samples - window, window, dtype=int)
-    if offsets.size == 0:
-        return None, None
-    noise_margin = None
-    if srate > 100:
-        kernel = design_fir(100, 2 * np.array([0, 45, 50, srate / 2]) / srate, [1, 1, 0, 0])
-        filtered = np.zeros((samples, channels))
-        for index in range(channels):
-            filtered[:, index] = filtfilt_fast(kernel, 1, data[index, :])
-        noisiness = mad(data.T - filtered) / mad(filtered)
-        scale = mad(noisiness) * 1.4826
-        znoise = (noisiness - np.median(noisiness)) / scale
-        noise_margin = float(np.min(np.abs(znoise - options["noise_threshold"])))
-        signal = filtered
-    else:
-        signal = data.T
-    xyz = []
-    for channel in _chanloc_items(eeg):
-        row = []
-        for key in ("X", "Y", "Z"):
-            value = channel.get(key, np.nan)
-            if isinstance(value, np.ndarray) and value.size == 0:
-                value = np.nan
-            row.append(np.nan if value is None else float(value) if np.size(value) == 1 else np.nan)
-        xyz.append(row)
-    xyz = np.asarray(xyz, dtype=float).T
-    usable = np.where(~np.any(np.isnan(xyz), axis=0))[0]
-    if usable.size <= subset:
-        return None, noise_margin
-    locs = xyz[:, usable].T
-    stream = np.random.RandomState(5489)
-    projector = np.asarray(calc_projector(locs, options["num_samples"], subset, stream=stream))
-    signal = np.asarray(signal[:, usable])
-    wnd = np.arange(window)
-    distances = []
-    for offset in offsets:
-        block = signal[offset + wnd, :]
-        drawn = np.sort(np.reshape(block @ projector, (options["num_samples"], -1)), axis=0)
-        reconstructed = np.reshape(drawn[int(round_mat(options["num_samples"] / 2)) - 1, :], (-1, window)).T
-        numerator = np.sum(block * reconstructed, axis=0)
-        denominator = np.sqrt(np.sum(block**2, axis=0)) * np.sqrt(np.sum(reconstructed**2, axis=0))
-        corrs = numerator / denominator
-        distances.append(np.min(np.abs(corrs - options["corr_threshold"])))
-    return float(np.min(distances)), noise_margin
-
-
-def _chanloc_items(eeg) -> list[dict]:
-    raw = eeg.get("chanlocs")
-    if isinstance(raw, np.ndarray):
-        raw = list(raw.ravel())
-    items = []
-    for channel in raw or []:
-        item = channel.item() if isinstance(channel, np.ndarray) else channel
-        if isinstance(item, dict):
-            items.append(item)
-    return items

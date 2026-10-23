@@ -10,6 +10,8 @@ import re
 import subprocess
 import tempfile
 
+from tests.fuzz.catalog import FUNCTION_ROWS
+
 logger = logging.getLogger(__name__)
 
 DASHBOARD_TITLE = "Fuzz dashboard"
@@ -44,20 +46,8 @@ def signature_of(issue: OpenIssue) -> str | None:
     return match.group(1).strip() if match else None
 
 
-def _function_rows() -> tuple[str, ...]:
-    from tests.fuzz.catalog import FUNCTION_ROWS
-
-    return FUNCTION_ROWS
-
-
-def __getattr__(name: str):
-    if name == "FUNCTION_ROWS":
-        return _function_rows()
-    raise AttributeError(name)
-
-
 def trend_line(seed: int, functions: dict[str, dict[str, int]]) -> str:
-    parts = [f"{name}={functions[name]['divergences']}" for name in _function_rows()]
+    parts = [f"{name}={functions[name]['divergences']}" for name in FUNCTION_ROWS]
     return f"- {seed}: " + " ".join(parts)
 
 
@@ -95,7 +85,7 @@ def dashboard_body(
         "| Function | Examples | Divergences |",
         "| --- | --- | --- |",
     ]
-    for name in _function_rows():
+    for name in FUNCTION_ROWS:
         row = functions[name]
         lines.append(f"| {name} | {row['examples']} | {row['divergences']} |")
     if unfiled:
