@@ -905,12 +905,15 @@ EEGPrep dialogs, ``bids_preproc``, and the tutorial / ds003061 stage
 settings. The rest walk edge cases. Crops come from the committed tutorial
 recordings and, when those trees are present, from the ds003061 and ds003194
 files the parity tests already load (``EEGPREP_EEGLAB_SUITE_ROOT`` and
-``EEGPREP_OPENNEURO_ROOT``). Each pipeline step is compared on the same input;
-the next step starts from the oracle EEG. A known-divergence predicate runs
-after that comparison and skips one EEGLAB result instead of filing it:
-continuous ``pop_rmbase`` with a boundary and a baseline that starts after
-sample 1, and only when the two outputs actually differ. That difference is
-listed under "Known Differences from EEGLAB".
+``EEGPREP_OPENNEURO_ROOT``). The event-aware strategies draw those external
+recordings along with the tutorial sets. A pipeline crop is 30 seconds, or
+the whole prefix when the recording is shorter, so ``clean_rawdata`` sees a
+real window. Each pipeline step is compared on the same input; the next step
+starts from the oracle EEG. A known-divergence predicate runs after that
+comparison and does not file the step: continuous ``pop_rmbase`` with a
+boundary and a baseline that starts after sample 1, and only when the two
+outputs actually differ. The chain then continues from the oracle EEG. That
+difference is listed under "Known Differences from EEGLAB".
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull

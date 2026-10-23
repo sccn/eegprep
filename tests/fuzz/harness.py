@@ -974,6 +974,9 @@ def render_summary(result: SessionResult) -> str:
 
 def build_strategies(info: SeedInfo) -> dict:
     """Hypothesis strategies for the nightly targets. Draws shrink toward smaller crops."""
+    # Hypothesis unions literals from local modules already imported at draw time.
+    # Loading the event targets first makes that set independent of import order.
+    import tests.fuzz.targets  # noqa: F401
 
     @st.composite
     def eegfiltnew(draw):
@@ -1217,6 +1220,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
     current = eeg
     last_abs = 0.0
     last_rel = 0.0
+    last_detail = "match"
     for name, frozen in case.pipeline:
         step = FuzzCase(name, case.spec, frozen, sanity=case.sanity)
         python_side, _python_eeg = _invoke(dispatch_python, step, copy.deepcopy(current))
@@ -1233,18 +1237,10 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             return _outcome(case, False, False, f"{name}:both-error", 0.0, 0.0, outcome.detail, digest)
         if outcome.error_class == "oracle-infrastructure":
             return _outcome(case, False, False, f"{name}:oracle-infrastructure", 0.0, 0.0, outcome.detail, digest)
-        if outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current):
-            return _outcome(
-                case,
-                False,
-                True,
-                "match",
-                outcome.max_abs,
-                outcome.max_rel,
-                f"{name}: known divergence: continuous pop_rmbase with a boundary and pointrange starting after sample 1",
-                digest,
-            )
-        if outcome.diverged or outcome.error_class != "match":
+        known_rmbase = (
+            outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
+        )
+        if not known_rmbase and (outcome.diverged or outcome.error_class != "match"):
             return _outcome(
                 case,
                 outcome.diverged,
@@ -1262,7 +1258,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         current = synced
         last_abs = outcome.max_abs
         last_rel = outcome.max_rel
-    return _outcome(case, False, True, "match", last_abs, last_rel, "match", digest)
+        if known_rmbase:
+            last_detail = (
+                f"{name}: known divergence: continuous pop_rmbase with a boundary "
+                "and pointrange starting after sample 1"
+            )
+    return _outcome(case, False, True, "match", last_abs, last_rel, last_detail, digest)
 
 
 def _invoke(call, step: FuzzCase, eeg: dict):

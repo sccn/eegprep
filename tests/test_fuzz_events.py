@@ -9,6 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from tests.fuzz.harness import (
     EEGSpec,
@@ -59,8 +60,7 @@ class _ShiftedOracle:
         return replace(side, data=side.data + 1.0)
 
 
-def test_original_draws_match_the_golden_snapshot():
-    script = """
+_DRAW_SCRIPT = """
 import json
 from pathlib import Path
 from tests.fuzz.harness import draw_cases, spec_to_json, thaw_params
@@ -77,8 +77,22 @@ for name in names:
         })
     assert drawn == golden[name], name
 """
+
+
+def test_original_draws_match_the_golden_snapshot():
     completed = subprocess.run(
-        [sys.executable, "-c", script],
+        [sys.executable, "-c", _DRAW_SCRIPT],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def test_original_draws_do_not_depend_on_import_order():
+    completed = subprocess.run(
+        [sys.executable, "-c", "import tests.fuzz.targets\n" + _DRAW_SCRIPT],
         cwd=Path(__file__).resolve().parents[1],
         capture_output=True,
         text=True,
@@ -217,6 +231,67 @@ def test_rmbase_boundary_offset_is_not_filed():
     filed = evaluate_case(prefix, materialize_eeg, PythonBackend(), _ShiftedOracle(), tolerances)
     assert filed.diverged is True
     assert filed.error_class == "numeric"
+
+
+def test_openneuro_override_without_the_dataset_raises(tmp_path, monkeypatch):
+    monkeypatch.setenv("EEGPREP_OPENNEURO_ROOT", str(tmp_path))
+    from tests.fuzz.targets import _openneuro_root
+
+    with pytest.raises(FileNotFoundError):
+        _openneuro_root()
+
+
+def test_continuous_draws_include_every_loaded_recording():
+    from tests.fuzz.targets import _continuous_recordings, _corpus
+
+    loaded = {rec.name for rec in _corpus().values() if rec.trials == 1}
+    assert {rec.name for rec in _continuous_recordings()} == loaded
+    assert "eeglab_data" in loaded
+    assert "eeglab_data_epochs_ica" not in loaded
+
+
+def test_pipeline_crop_covers_thirty_seconds():
+    from tests.fuzz.targets import recording
+
+    case = next(iter(draw_cases("pipeline", seed_value=20261017, examples=1)))
+    rec = recording(case.spec.source)
+    assert case.spec.length == min(rec.pnts, int(round(30.0 * rec.srate)))
+
+
+def test_pipeline_continues_after_the_known_rmbase_divergence():
+    spec = EEGSpec(
+        tuple(range(32)),
+        0,
+        256,
+        1,
+        -1,
+        0,
+        0,
+        events="keep+boundary",
+        boundaries=((40.0, 4.0),),
+    )
+    case = FuzzCase(
+        "pipeline",
+        spec,
+        freeze_params({"profile": "edge"}),
+        pipeline=(
+            ("pop_rmbase", freeze_params({"timerange": [], "pointrange": [5, 6, 7, 8, 40], "chanlist": []})),
+            ("pop_reref", freeze_params({"ref": [], "keepref": "off", "exclude": []})),
+        ),
+    )
+
+    class _LaterDrift:
+        def run_raw(self, step, eeg):
+            out = dispatch_python(step, eeg)
+            data = np.array(np.asarray(out["data"]), dtype=np.float64, copy=True)
+            data += 10.0 if step.function == "pop_reref" else 1.0
+            copied = out.copy()
+            copied["data"] = data
+            return copied
+
+    outcome = evaluate_case(case, materialize_eeg, PythonBackend(), _LaterDrift(), load_tolerances())
+    assert outcome.diverged is True
+    assert outcome.error_class == "pop_reref:numeric"
 
 
 def test_pipeline_resyncs_to_the_oracle_output():

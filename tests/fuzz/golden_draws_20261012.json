@@ -1,250 +1,4 @@
 {
-  "clean_asr": [
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_asr",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          0
-        ],
-        "decimate": 1,
-        "length": 256,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 0
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_asr",
-        "ref_maxbadchannels": 0.2,
-        "window_len": 0.5
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15,
-          16,
-          17,
-          18,
-          19,
-          20,
-          21,
-          22,
-          23,
-          24,
-          25
-        ],
-        "decimate": 1,
-        "length": 1000,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 284
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 20.0,
-        "entry": "clean_asr",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15,
-          16,
-          17,
-          18,
-          19,
-          20,
-          21,
-          22,
-          23,
-          24
-        ],
-        "decimate": 1,
-        "length": 1190,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 176
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_asr",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          4,
-          5,
-          6
-        ],
-        "decimate": 4,
-        "length": 580,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 608
-      }
-    }
-  ],
-  "pop_clean_rawdata": [
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_rawdata",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          0
-        ],
-        "decimate": 1,
-        "length": 256,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 0
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_rawdata",
-        "ref_maxbadchannels": 0.2,
-        "window_len": 0.5
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15,
-          16,
-          17,
-          18,
-          19,
-          20,
-          21,
-          22,
-          23,
-          24,
-          25
-        ],
-        "decimate": 1,
-        "length": 1000,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 284
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 20.0,
-        "entry": "clean_rawdata",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          6,
-          7,
-          8,
-          9,
-          10,
-          11,
-          12,
-          13,
-          14,
-          15,
-          16,
-          17,
-          18,
-          19,
-          20,
-          21,
-          22,
-          23,
-          24
-        ],
-        "decimate": 1,
-        "length": 1190,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 176
-      }
-    },
-    {
-      "function": "clean_asr",
-      "params": {
-        "cutoff": 5.0,
-        "entry": "clean_rawdata",
-        "ref_maxbadchannels": "off",
-        "window_len": null
-      },
-      "sanity": false,
-      "spec": {
-        "channels": [
-          4,
-          5,
-          6
-        ],
-        "decimate": 4,
-        "length": 580,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 608
-      }
-    }
-  ],
   "pop_eegfiltnew": [
     {
       "function": "pop_eegfiltnew",
@@ -261,12 +15,12 @@
         "channels": [
           0
         ],
-        "decimate": 1,
+        "start": 0,
         "length": 256,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 0
+        "nan_length": 0
       }
     },
     {
@@ -301,12 +55,12 @@
           24,
           25
         ],
+        "start": 284,
+        "length": 654,
         "decimate": 1,
-        "length": 1000,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 284
+        "nan_length": 0
       }
     },
     {
@@ -325,12 +79,12 @@
           29,
           30
         ],
-        "decimate": 1,
+        "start": 91,
         "length": 256,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 91
+        "nan_length": 0
       }
     },
     {
@@ -355,12 +109,12 @@
           8,
           9
         ],
-        "decimate": 1,
+        "start": 30180,
         "length": 324,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 30180
+        "nan_length": 0
       }
     }
   ],
@@ -377,12 +131,12 @@
         "channels": [
           0
         ],
-        "decimate": 1,
+        "start": 0,
         "length": 256,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 0
+        "nan_length": 0
       }
     },
     {
@@ -416,32 +170,26 @@
           24,
           25
         ],
+        "start": 284,
+        "length": 654,
         "decimate": 1,
-        "length": 1000,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 284
+        "nan_length": 0
       }
     },
     {
       "function": "pop_reref",
       "params": {
         "exclude": [
-          9
+          0
         ],
         "keepref": "off",
-        "ref": [
-          4,
-          8
-        ]
+        "ref": []
       },
       "sanity": false,
       "spec": {
         "channels": [
-          6,
-          7,
-          8,
           9,
           10,
           11,
@@ -452,19 +200,14 @@
           16,
           17,
           18,
-          19,
-          20,
-          21,
-          22,
-          23,
-          24
+          19
         ],
-        "decimate": 1,
+        "start": 3600,
         "length": 1190,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 176
+        "nan_length": 0
       }
     },
     {
@@ -477,21 +220,16 @@
       "sanity": false,
       "spec": {
         "channels": [
-          11,
-          12,
-          13,
-          14,
           15,
           16,
-          17,
-          18
+          17
         ],
+        "start": 1050,
+        "length": 55,
         "decimate": 2,
-        "length": 63,
-        "nan_channel": -1,
-        "nan_length": 0,
-        "nan_start": 0,
-        "start": 448
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
       }
     }
   ],
@@ -506,12 +244,12 @@
         "channels": [
           0
         ],
-        "decimate": 1,
+        "start": 0,
         "length": 256,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 0
+        "nan_length": 0
       }
     },
     {
@@ -541,12 +279,12 @@
           24,
           25
         ],
+        "start": 284,
+        "length": 654,
         "decimate": 1,
-        "length": 1000,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 284
+        "nan_length": 0
       }
     },
     {
@@ -568,12 +306,12 @@
           14,
           15
         ],
-        "decimate": 1,
+        "start": 11364,
         "length": 78,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 11364
+        "nan_length": 0
       }
     },
     {
@@ -613,12 +351,242 @@
           29,
           30
         ],
-        "decimate": 1,
+        "start": 3770,
         "length": 861,
+        "decimate": 1,
         "nan_channel": -1,
-        "nan_length": 0,
         "nan_start": 0,
-        "start": 3770
+        "nan_length": 0
+      }
+    }
+  ],
+  "clean_asr": [
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": 0.2,
+        "window_len": 0.5
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": 0.2,
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "start": 3600,
+        "length": 1190,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_asr",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          15,
+          16,
+          17
+        ],
+        "start": 1050,
+        "length": 55,
+        "decimate": 2,
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
+      }
+    }
+  ],
+  "pop_clean_rawdata": [
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          0
+        ],
+        "start": 0,
+        "length": 256,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": 0.2,
+        "window_len": 0.5
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "start": 284,
+        "length": 654,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": 0.2,
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "start": 3600,
+        "length": 1190,
+        "decimate": 1,
+        "nan_channel": -1,
+        "nan_start": 0,
+        "nan_length": 0
+      }
+    },
+    {
+      "function": "clean_asr",
+      "params": {
+        "cutoff": 5.0,
+        "entry": "clean_rawdata",
+        "ref_maxbadchannels": "off",
+        "window_len": null
+      },
+      "sanity": false,
+      "spec": {
+        "channels": [
+          15,
+          16,
+          17
+        ],
+        "start": 1050,
+        "length": 55,
+        "decimate": 2,
+        "nan_channel": 0,
+        "nan_start": 8,
+        "nan_length": 2
       }
     }
   ]
