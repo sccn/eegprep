@@ -11,7 +11,8 @@ Unreleased
 ==========
 
 - ``clean_channels`` always draws ``round(subset_size * nbchan)`` channels,
-  including when ``subset_size`` is at least 1. The noise filter uses
+  including when ``subset_size`` is at least 1. A count larger than the
+  channel total raises ``ValueError``. The noise filter uses
   time-domain filtering for a short FIR, so a few NaNs no longer blank the
   whole channel and drop it from the correlation.
 - ``eeg_eegrej`` merges overlapping, reversed, and fractional removal

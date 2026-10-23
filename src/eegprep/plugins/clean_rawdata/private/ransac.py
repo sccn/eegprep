@@ -37,6 +37,8 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
 
     if m <= 0:
         return np.array([], dtype=int)
+    if m > n:
+        raise ValueError(f"cannot draw {m} samples from {n}")
 
     # Pre-generate random numbers to avoid scalar RNG overhead in the loop.
     rands = stream.rand(m)

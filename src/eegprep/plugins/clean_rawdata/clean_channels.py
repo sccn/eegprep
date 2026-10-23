@@ -53,7 +53,8 @@ def clean_channels(
         this value, the more robust but also slower the processing will be.
       subset_size: Subset size as a fraction of the channel count.
         ``round(subset_size * nbchan)`` channels are drawn, including when
-        ``subset_size`` is greater than or equal to 1.
+        ``subset_size`` is greater than or equal to 1. A count larger than
+        the number of channels raises ``ValueError``.
 
     Returns
     -------
@@ -67,6 +68,10 @@ def clean_channels(
         raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
 
     subset_size = int(round_mat(C * float(subset_size)))
+    # randsample in clean_channels.m indexes the channel pool. A request
+    # longer than that pool has no in-range index.
+    if subset_size > C:
+        raise ValueError(f"subset_size rounds to {subset_size} channels, which is more than the {C} channels available")
     if max_broken_time < 1:
         max_broken_time = S * max_broken_time
     else:
