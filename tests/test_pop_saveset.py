@@ -281,6 +281,67 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(np.asarray(reloaded[1]['theta']).size, 0)
         self.assertEqual(np.asarray(reloaded[1]['radius']).size, 0)
 
+    def _continuous(self, events):
+        return {
+            'setname': 'mixed-urevent',
+            'nbchan': 1,
+            'trials': 1,
+            'pnts': 8,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.07,
+            'times': np.arange(8) / 100.0,
+            'data': np.zeros((1, 8)),
+            'chanlocs': [{'labels': 'Cz'}],
+            'event': events,
+            'icachansind': np.array([]),
+        }
+
+    def test_saveset_tolerates_events_without_urevent(self):
+        # The first record must not decide the field for every later event.
+        events = [
+            {'type': 'boundary', 'latency': 1.5, 'duration': 2.0, 'urevent': 0},
+            {'type': 'stim', 'latency': 4.0},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'mixed.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(int(np.asarray(saved[0].urevent).reshape(-1)[0]), 1)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(EEG['event'][0]['urevent'], 0)
+        self.assertNotIn('urevent', EEG['event'][1])
+
+        # A leading event without the field still leaves a later index 1-based on disk.
+        events = [
+            {'type': 'stim', 'latency': 2.0},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': 2},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'leading-missing.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[1].urevent).reshape(-1)[0]), 3)
+        self.assertNotIn('urevent', EEG['event'][0])
+        self.assertEqual(EEG['event'][1]['urevent'], 2)
+
+    def test_saveset_increments_structured_event_urevent(self):
+        events = np.array(
+            [('boundary', 1.5, 0.0), ('stim', 4.0, 2.0)],
+            dtype=[('type', 'U16'), ('latency', np.float64), ('urevent', np.float64)],
+        )
+        before = events['urevent'].copy()
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'structured.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual([int(ev.urevent) for ev in saved], [1, 3])
+        np.testing.assert_array_equal(EEG['event']['urevent'], before)
+
 
 if __name__ == '__main__':
     unittest.main()

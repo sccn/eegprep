@@ -385,7 +385,8 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
 
     The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
-    its activations; ``pop_loadset`` recomputes them.
+    its activations; ``pop_loadset`` recomputes them. An event ``urevent`` is
+    stored one-based only when that event has the field.
 
     Parameters
     ----------
@@ -462,10 +463,21 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for i in range(len(eeglab_dict['chanlocs'])):
             eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
 
-    # check if EEG['event'][i]['urevent'] is 0-based
-    if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
-        for i in range(len(eeglab_dict['event'])):
-            eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+    # urevent is 0-based in memory. MATLAB event structs share one field set
+    # (eeg_checkset.m assigns event(index).urevent). A Python event list does
+    # not, and ``'urevent' in record`` on a structured record checks values.
+    events = eeglab_dict['event']
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        if events.size and 'urevent' in events.dtype.names:
+            events = np.array(events, copy=True)
+            eeglab_dict['event'] = events
+            flat = events.ravel()
+            for index in range(flat.size):
+                flat[index]['urevent'] = flat[index]['urevent'] + 1
+    else:
+        for event in events:
+            if isinstance(event, dict) and 'urevent' in event:
+                event['urevent'] = event['urevent'] + 1
 
     # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
     for ep in eeglab_dict['epoch']:
