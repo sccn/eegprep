@@ -96,6 +96,13 @@ def _matlab_empty_or_copy(EEG, key):
     return value
 
 
+def _urevent_for_disk(value):
+    """Shift a 0-based urevent, leaving None and empty values empty."""
+    if value is None or (isinstance(value, (list, tuple, np.ndarray)) and np.size(value) == 0):
+        return default_empty
+    return value + 1
+
+
 def _one_based(value):
     """Shift 0-based index value(s) to MATLAB 1-based; accepts a scalar, list, or array."""
     if isinstance(value, (list, np.ndarray)):
@@ -385,7 +392,9 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
 
     The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
-    its activations; ``pop_loadset`` recomputes them.
+    its activations; ``pop_loadset`` recomputes them. An event ``urevent`` is
+    stored one-based only when that event has one. ``None`` and ``[]`` are
+    written empty, the same as a missing field.
 
     Parameters
     ----------
@@ -462,10 +471,21 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for i in range(len(eeglab_dict['chanlocs'])):
             eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
 
-    # check if EEG['event'][i]['urevent'] is 0-based
-    if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
-        for i in range(len(eeglab_dict['event'])):
-            eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+    # urevent is 0-based in memory. MATLAB event structs share one field set
+    # (eeg_checkset.m assigns event(index).urevent). A Python event list does
+    # not, and ``'urevent' in record`` on a structured record checks values.
+    events = eeglab_dict['event']
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        if events.size and 'urevent' in events.dtype.names:
+            events = np.array(events, copy=True)
+            eeglab_dict['event'] = events
+            flat = events.ravel()
+            for index in range(flat.size):
+                flat[index]['urevent'] = _urevent_for_disk(flat[index]['urevent'])
+    else:
+        for event in events:
+            if isinstance(event, dict) and 'urevent' in event:
+                event['urevent'] = _urevent_for_disk(event['urevent'])
 
     # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
     for ep in eeglab_dict['epoch']:

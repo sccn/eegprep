@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_saveset`` writes an event ``urevent`` one-based only when that
+  event has the field. A later event without ``urevent`` no longer raises
+  ``KeyError``, and a later ``urevent`` is still shifted when the first
+  event has no such field. ``None`` and ``[]`` are written empty instead
+  of raising ``TypeError``. Structured event records are shifted the same
+  way, and the in-memory events stay unchanged.
 - ``clean_channels`` always draws ``round(subset_size * nbchan)`` channels,
   including when ``subset_size`` is at least 1. A count larger than the
   channel total raises ``ValueError``. The noise filter uses
