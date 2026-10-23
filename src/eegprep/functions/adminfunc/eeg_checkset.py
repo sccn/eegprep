@@ -116,12 +116,7 @@ def _eventconsistency(EEG):
             logger.info(f"eeg_checkset: {len(events) - len(keep)} events with invalid epoch removed")
         events = keep
 
-    # 5. Set empty/None duration to 0 (MATLAB lines 481-489)
-    for event in events:
-        if 'duration' in event and (event['duration'] is None or event['duration'] == ''):
-            event['duration'] = 0
-
-    # 6. Chain durations of consecutive equal-latency boundary-list entries (MATLAB lines 521-546)
+    # 5. Chain durations of consecutive equal-latency boundary-list entries (MATLAB lines 521-546)
     boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
     if boundary_idx:
         boundary_lats = [events[index].get('latency', float('nan')) for index in boundary_idx]
@@ -147,6 +142,8 @@ def _eventconsistency(EEG):
             logger.info("eeg_checkset: duplicate boundary events removed")
             for index in sorted(to_remove, reverse=True):
                 events.pop(index)
+
+    _fill_missing_durations(events)
 
     # 7. Sort events by epoch, then latency
     events.sort(key=_event_sort_key)
@@ -204,6 +201,28 @@ def _latency_in_bounds(event, upper_bound):
         return False
     latency = event['latency']
     return latency >= 0.5 and latency <= upper_bound
+
+
+def _fill_missing_durations(events) -> None:
+    """Give every event a numeric duration when any event already has one.
+
+    MATLAB ``eeg_checkset.m`` lines 564-577 at d0963be9. A struct array exposes
+    ``duration`` on every event once one event has the field, and ``isempty``
+    values are replaced with 0. Events stay untouched when none has the field.
+    """
+    if not any('duration' in event for event in events):
+        return
+    for event in events:
+        if 'duration' not in event or _duration_empty(event.get('duration')):
+            event['duration'] = 0
+
+
+def _duration_empty(value) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    if isinstance(value, (list, tuple)):
+        return len(value) == 0
+    return value is None or value == ''
 
 
 def _duration_value(event):
