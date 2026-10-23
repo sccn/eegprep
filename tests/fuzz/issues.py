@@ -15,13 +15,6 @@ logger = logging.getLogger(__name__)
 DASHBOARD_TITLE = "Fuzz dashboard"
 DASHBOARD_MARKER = "<!-- fuzz-dashboard -->"
 SIGNATURE_MARKER = "<!-- fuzz-signature: {signature} -->"
-FUNCTION_ROWS = (
-    "pop_eegfiltnew",
-    "pop_reref",
-    "pop_resample",
-    "clean_asr",
-    "pop_clean_rawdata",
-)
 _SIGNATURE_RE = re.compile(r"<!-- fuzz-signature: (.+?) -->")
 _TREND_RE = re.compile(r"^- (\d{8}): .+$")
 
@@ -51,8 +44,20 @@ def signature_of(issue: OpenIssue) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def _function_rows() -> tuple[str, ...]:
+    from tests.fuzz.catalog import FUNCTION_ROWS
+
+    return FUNCTION_ROWS
+
+
+def __getattr__(name: str):
+    if name == "FUNCTION_ROWS":
+        return _function_rows()
+    raise AttributeError(name)
+
+
 def trend_line(seed: int, functions: dict[str, dict[str, int]]) -> str:
-    parts = [f"{name}={functions[name]['divergences']}" for name in FUNCTION_ROWS]
+    parts = [f"{name}={functions[name]['divergences']}" for name in _function_rows()]
     return f"- {seed}: " + " ".join(parts)
 
 
@@ -90,7 +95,7 @@ def dashboard_body(
         "| Function | Examples | Divergences |",
         "| --- | --- | --- |",
     ]
-    for name in FUNCTION_ROWS:
+    for name in _function_rows():
         row = functions[name]
         lines.append(f"| {name} | {row['examples']} | {row['divergences']} |")
     if unfiled:
