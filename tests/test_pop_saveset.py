@@ -342,6 +342,24 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual([int(ev.urevent) for ev in saved], [1, 3])
         np.testing.assert_array_equal(EEG['event']['urevent'], before)
 
+    def test_saveset_treats_none_and_empty_urevent_as_absent(self):
+        events = [
+            {'type': 'stim', 'latency': 2.0, 'urevent': None},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': []},
+            {'type': 'stim', 'latency': 7.0, 'urevent': 4},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'empty-urevent.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[2].urevent).reshape(-1)[0]), 5)
+        self.assertIsNone(EEG['event'][0]['urevent'])
+        self.assertEqual(EEG['event'][1]['urevent'], [])
+        self.assertEqual(EEG['event'][2]['urevent'], 4)
+
 
 if __name__ == '__main__':
     unittest.main()
