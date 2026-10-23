@@ -229,6 +229,8 @@ def materialize_rich(case) -> dict:
     _apply_prior_mask(eeg, spec.prior_mask)
     _clear_ica(eeg, spec, rec)
     eeg["saved"] = "no"
+    if thaw_params(case.params).get("stale_trials") is True:
+        eeg["trials"] = 0
     return eeg_checkset(eeg)
 
 
@@ -417,6 +419,8 @@ def extra_strategies(info, spec_cls, case_cls, freeze):
         rec = _pick_continuous(draw, continuous, user)
         spec = _draw_continuous(draw, spec_cls, rec, user=user, events="keep+boundary")
         params = {"regions": _draw_regions(draw, spec, rec, user), "eegplot": (not user) and draw(st.booleans())}
+        if not user and draw(st.booleans()):
+            params["stale_trials"] = True
         return case_cls("eeg_eegrej", spec, freeze_params(params))
 
     @st.composite
