@@ -39,6 +39,20 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         self.assertEqual(result['xmax'], 3.996)
         self.assertIsInstance(result['xmax'], float)
 
+    def test_xmax_half_frame_uses_matlab_rounding(self):
+        """100.5 frames snaps. Python round(100.5) is 100 and would keep 0.995 s."""
+        eeg = {
+            'data': np.zeros((1, 100)),
+            'nbchan': 1,
+            'pnts': 100,
+            'trials': 1,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.995,
+        }
+        result = eeg_checkset(eeg)
+        self.assertAlmostEqual(result['xmax'], 0.99)
+
 
 class TestEegChecksetDataSqueezing(DebuggableTestCase):
     """Test 3D data squeezing behavior."""

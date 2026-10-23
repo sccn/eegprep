@@ -10,7 +10,7 @@ import os
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
-from eegprep.functions.miscfunc.misc import matlab_mtimes
+from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -493,7 +493,8 @@ def eeg_checkset(EEG, *checks, load_data=True):
     if all(key in EEG for key in ('srate', 'xmin', 'xmax', 'pnts')):
         if EEG['srate'] == 0:
             EEG['srate'] = 1.0
-        expected_pnts = round(EEG['srate'] * (EEG['xmax'] - EEG['xmin']) + 1)
+        # eeg_checkset.m:849. Half away from zero, so an even n+0.5 rounds up.
+        expected_pnts = int(round_mat(EEG['srate'] * (EEG['xmax'] - EEG['xmin']) + 1))
         if expected_pnts != EEG['pnts']:
             EEG['xmax'] = (EEG['pnts'] - 1) / EEG['srate'] + EEG['xmin']
             logger.info('eeg_checkset: xmax adjusted to match pnts, xmin, and srate')
