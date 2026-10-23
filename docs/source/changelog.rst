@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``clean_channels`` always draws ``round(subset_size * nbchan)`` channels,
+  including when ``subset_size`` is at least 1. The noise filter uses
+  time-domain filtering for a short FIR, so a few NaNs no longer blank the
+  whole channel and drop it from the correlation.
 - ``eeg_eegrej`` merges overlapping, reversed, and fractional removal
   intervals before shifting events, and leaves a one-sample gap as two
   intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
