@@ -64,6 +64,8 @@ def design_eegfiltnew(
         else:
             df = min(max(float(edge_array[0]) * 0.25, 2.0), max_df)
         filtorder = int(np.ceil((3.3 / (df / float(srate))) / 2.0) * 2)
+        # pop_eegfiltnew.m recomputes df after ceiling the default order to even.
+        df = 3.3 / filtorder * float(srate)
     else:
         filtorder = _validate_even_order(filtorder)
         df = 3.3 / filtorder * float(srate)
