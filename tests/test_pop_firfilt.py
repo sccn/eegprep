@@ -336,14 +336,29 @@ class TestPopFirfiltParity(unittest.TestCase):
         self.eeg = pop_loadset(SAMPLE_DATASET_PATH)
 
     def test_parity_pop_eegfiltnew_default_order_highpass(self):
-        for srate in (128.0, 250.0):
-            eeg = create_test_eeg(n_channels=1, n_samples=int(srate * 4), srate=srate, n_trials=1)
-            rng = np.random.default_rng(0)
-            eeg["data"] = rng.standard_normal((1, eeg["pnts"]))
-            py_eeg = pop_eegfiltnew(copy.deepcopy(eeg), locutoff=1, plotfreqz=False)
-            ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(eeg), "locutoff", 1, "plotfreqz", 0)
-            self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
-            np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-8, rtol=1e-8)
+        # eeg_checkset.m casts double data to single when option_single is on.
+        # Compare the default-order high-pass in double on both sides.
+        self.eeglab.engine.eval(
+            "if ~exist('option_single','var'), eeg_options; end; eegprep_option_single = option_single;",
+            nargout=0,
+        )
+        self.eeglab.engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        try:
+            for srate in (128.0, 250.0):
+                eeg = create_test_eeg(n_channels=1, n_samples=int(srate * 4), srate=srate, n_trials=1)
+                rng = np.random.default_rng(0)
+                eeg["data"] = rng.standard_normal((1, eeg["pnts"])).astype(np.float64)
+                py_eeg = pop_eegfiltnew(copy.deepcopy(eeg), locutoff=1, plotfreqz=False)
+                ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(eeg), "locutoff", 1, "plotfreqz", 0)
+                self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+                np.testing.assert_allclose(
+                    np.asarray(py_eeg["data"], dtype=np.float64),
+                    np.asarray(ml_eeg["data"], dtype=np.float64),
+                    atol=1e-8,
+                    rtol=1e-8,
+                )
+        finally:
+            self.eeglab.engine.eval("pop_editoptions('option_single', eegprep_option_single);", nargout=0)
 
     def test_parity_pop_eegfiltnew_lowpass_sample_data(self):
         py_eeg = pop_eegfiltnew(copy.deepcopy(self.eeg), hicutoff=40, filtorder=100)
