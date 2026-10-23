@@ -208,7 +208,8 @@ def clean_windows(
         EEG = eeg_eegrej(EEG, rejected_intervals)
     # eeg_eegrej keeps a proportional xmax. eeg_checkset.m:849-854 snaps it
     # only when round(srate*(xmax-xmin)+1) is not pnts, including the empty
-    # result xmin - 1/srate.
+    # result xmin - 1/srate. round_mat is MATLAB's half-away-from-zero rule.
+    # Python round leaves an even .5 in place.
     pnts = int(EEG['pnts'])
     xmin = float(EEG['xmin'])
     srate = float(EEG['srate'])

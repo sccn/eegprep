@@ -165,6 +165,37 @@ def test_eleven_windows_still_fit():
     assert cleaned["pnts"] == 565
 
 
+def test_xmax_snap_uses_matlab_half_rounding():
+    """100.5 frames snaps. Python round(100.5) is 100 and would keep 0.995 s.
+
+    One loud step at the start removes the first 1 s window and leaves 100
+    samples. MATLAB round(100.5) is 101, so xmax becomes 0.99 s.
+    """
+    from eegprep.functions.miscfunc.misc import round_mat
+    from eegprep.plugins.clean_rawdata.private.windows import matlab_window_offsets
+
+    srate = 100.0
+    samples = 200
+    window_len = 1.0
+    overlap = 0.92
+    step = window_len * srate * (1.0 - overlap)
+    offsets = matlab_window_offsets(samples, window_len * srate, step)
+    data = np.ones((2, samples), dtype=np.float64)
+    data[:, : int(offsets[1])] += 50.0
+    cleaned, mask = clean_windows(
+        _eeg(data, srate),
+        window_len=window_len,
+        window_overlap=overlap,
+        max_bad_channels=1,
+    )
+    proportional = 0.995
+    assert int(mask.sum()) == 100
+    assert cleaned["pnts"] == 100
+    assert round(srate * proportional + 1) == 100
+    assert int(round_mat(srate * proportional + 1)) == 101
+    assert cleaned["xmax"] == pytest.approx((100 - 1) / srate)
+
+
 def test_cleaned_xmax_follows_the_checkset_round():
     """eeg_checkset.m:849 keeps a proportional xmax when it already counts pnts."""
     from eegprep.functions.miscfunc.misc import round_mat
