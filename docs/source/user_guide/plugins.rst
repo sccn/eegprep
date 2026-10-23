@@ -102,6 +102,12 @@ location-free correlation method instead. The RANSAC subset size is
 neighborhood of that channel instead of removing the channel from every
 correlation.
 
+``clean_windows`` keeps the removal duration from ``eeg_eegrej`` and sets
+``xmax`` to ``xmin + (pnts - 1) / srate`` only when that duration is off the
+sample grid. A recording whose fit widths round to 1 or less raises
+``ValueError``, and ``clean_asr`` calibrates on the whole recording instead.
+Eleven to twenty-two windows still fit.
+
 FIRFilt
 =======
 

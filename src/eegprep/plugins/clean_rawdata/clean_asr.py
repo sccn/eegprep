@@ -134,9 +134,10 @@ def clean_asr(
                 ref_section_data = data
         except ValueError as e:
             # clean_windows raises ValueError for expected calibration-data problems
-            # (empty data, window too small, not enough data for one window). Only
-            # those warrant the all-data fallback; unexpected exceptions propagate so
-            # genuine bugs are not masked as silently weaker ASR calibration.
+            # (empty data, window too small, not enough data for one window, or too
+            # few windows for the distribution fit). Only those warrant the all-data
+            # fallback; unexpected exceptions propagate so genuine bugs are not
+            # masked as silently weaker ASR calibration.
             logger.warning(
                 f"Could not automatically identify clean calibration data ({e}). "
                 "Falling back to using the entire data for calibration."

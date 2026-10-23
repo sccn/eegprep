@@ -48,7 +48,8 @@ class TestCleanASRParameters(unittest.TestCase):
         self.assertTrue(np.isfinite(cleaned['data']).all())
 
 
-def test_short_recording_calibration_is_not_the_whole_recording():
+def test_short_recording_calibration_falls_back_to_the_whole_recording():
+    """Three windows cannot be indexed, so ASR calibrates on the whole recording."""
     source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
     data = np.asarray(source["data"][:11, 8:264], dtype=np.float64)
     pnts = int(data.shape[1])
@@ -65,7 +66,7 @@ def test_short_recording_calibration_is_not_the_whole_recording():
     windowed = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels=0.075, ref_tolerances=(-3.5, 5.5), ref_wndlen=1.0)
     whole = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
     assert windowed["data"].shape == data.shape
-    assert np.max(np.abs(windowed["data"] - whole["data"])) > 50.0
+    np.testing.assert_allclose(windowed["data"], whole["data"])
 
 
 def test_very_short_recording_still_calibrates_with_reference_off():
