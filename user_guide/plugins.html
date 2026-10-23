@@ -615,7 +615,9 @@ location-free correlation method instead.</p>
 </section>
 <section id="firfilt">
 <h2>FIRFilt<a class="headerlink" href="#firfilt" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code> is the usual filtering entry point:</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_eegfiltnew</span></code> is the usual filtering entry point. When the filter order
+is left at its default, the transition width is recomputed from that even
+order (<code class="docutils literal notranslate"><span class="pre">3.3</span> <span class="pre">/</span> <span class="pre">order</span> <span class="pre">*</span> <span class="pre">srate</span></code>) so the reported cutoff matches the coefficients:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_eegfiltnew</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="n">locutoff</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">hicutoff</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">plotfreqz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>

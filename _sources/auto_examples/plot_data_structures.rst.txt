@@ -337,7 +337,7 @@ separate dataset. ``icaact`` is a cache that can be recomputed from
     icawinv: (32, 32)
     icaact: (32, 384, 80)
     icachansind (0-based): [0 1 2 3 4 5 6 7] ...
-    |icaact - weights @ sphere @ data| / std(icaact): 1.53e-05
+    |icaact - weights @ sphere @ data| / std(icaact): 9.84e-06
     eeg_getica(EEG): (32, 384, 80)
     eeg_getica(EEG, 1): (1, 384, 80)
 
@@ -383,7 +383,7 @@ console show. ``eeg_store`` fills the lowest empty slot or overwrites;
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.088 seconds)
+   **Total running time of the script:** (0 minutes 0.076 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_data_structures.py:
