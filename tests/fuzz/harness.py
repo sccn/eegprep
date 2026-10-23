@@ -1115,6 +1115,27 @@ def _explicit_reref_nan_is_oracle_defect(
     return not python_gap and not oracle_gap
 
 
+def _stale_zero_trials_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when EEGLAB dropped events because ``trials`` was still 0.
+
+    ``eeg_checkset.m`` lines 440-449 compare latency with ``pnts*trials+1``
+    before lines 821-826 set ``trials`` from the data shape. EEGPrep sets
+    ``trials`` first, so those events stay. A data mismatch is still filed.
+    """
+    if case.function != "eeg_eegrej" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None or python.srate is None or oracle.srate is None:
+        return False
+    if int(eeg.get("trials") or 0) != 0:
+        return False
+    data_gap, *_rest = compare_data(python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance)
+    if data_gap:
+        return False
+    return len(python.events) > len(oracle.events)
+
+
 def _asr_short_calibration_is_oracle_defect(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
@@ -1241,6 +1262,20 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             digest,
         )
     outcome = judge(python, oracle, tolerance, case, digest, tolerances)
+    if outcome.diverged and _stale_zero_trials_is_known(case, eeg, python, oracle, tolerance):
+        # eeg_checkset.m:440-449 uses the stored trials value. A stored 0
+        # drops events past sample 1, and lines 821-826 correct trials after
+        # that. EEGPrep sets trials from the data shape first.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: eeg_eegrej keeps events when trials was 0",
+            digest,
+        )
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
@@ -1296,10 +1331,18 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_reref = outcome.diverged and _explicit_reref_nan_is_oracle_defect(
             step, current, python_side, oracle_side, tolerance
         )
+        known_trials = outcome.diverged and _stale_zero_trials_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         known_rmbase = (
             outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
         )
-        if not known_reref and not known_rmbase and (outcome.diverged or outcome.error_class != "match"):
+        if (
+            not known_reref
+            and not known_trials
+            and not known_rmbase
+            and (outcome.diverged or outcome.error_class != "match")
+        ):
             return _outcome(
                 case,
                 outcome.diverged,
@@ -1310,7 +1353,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 outcome.detail,
                 digest,
             )
-        nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
+        # The matrix product fills every channel with NaN. Later steps are
+        # compared on the subtraction result, which still has a real signal.
+        if known_reref and _eeg_dict(_python_eeg) is not None:
+            nxt = _python_eeg
+        else:
+            nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
         synced = _eeg_dict(nxt)
         if synced is None:
             return _outcome(case, True, False, f"{name}:resync", 0.0, 0.0, "step output has no EEG dict", digest)
@@ -1319,6 +1367,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         last_rel = outcome.max_rel
         if known_reref:
             last_detail = f"{name}: known difference: a NaN stays on its channel under explicit re-reference"
+        elif known_trials:
+            last_detail = f"{name}: known difference: eeg_eegrej keeps events when trials was 0"
         elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "
