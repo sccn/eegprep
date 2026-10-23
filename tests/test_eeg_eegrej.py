@@ -220,6 +220,41 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['pnts'], 11)
         self.assertEqual(result['data'].shape[1], 11)
 
+    def test_eeg_eegrej_adjacent_regions_stay_separate(self):
+        """combineregions closes on cumsum 0, so a one-sample gap is not a merge."""
+        EEG = self.base_eeg.copy()
+        regions = np.array([[1, 5], [6, 10]])
+        with self.assertNoLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING"):
+            result = eeg_eegrej(EEG, regions)
+        self.assertEqual(result["pnts"], 10)
+
+    def test_eeg_eegrej_merges_reversed_fractional_regions_before_shifting(self):
+        """Overlapping reversed bounds are one span before event latencies move."""
+        EEG = self.base_eeg.copy()
+        EEG["data"] = np.zeros((1, 400), dtype=float)
+        EEG["pnts"] = 400
+        EEG["nbchan"] = 1
+        EEG["event"] = [{"type": "stim", "latency": 340.0}]
+        regions = np.array(
+            [
+                [145.9771655965767, 123.72682490095676],
+                [320.3381323213592, 26.319768749552097],
+                [272.79633006697026, 151.05315648702828],
+            ]
+        )
+        with self.assertLogs("eegprep.functions.popfunc.eeg_eegrej", level="WARNING"):
+            result = eeg_eegrej(EEG, regions)
+        stims = [event["latency"] for event in result["event"] if event.get("type") == "stim"]
+        self.assertEqual(stims, [45.0])
+        self.assertEqual(result["pnts"], 105)
+
+    def test_eeg_eegrej_empty_result_xmax_is_minus_one_sample(self):
+        EEG = self.base_eeg.copy()
+        result = eeg_eegrej(EEG, np.array([[1, 20]]))
+        self.assertEqual(result["pnts"], 0)
+        self.assertAlmostEqual(result["xmax"], -1.0 / EEG["srate"])
+        self.assertEqual(np.asarray(result["times"]).size, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

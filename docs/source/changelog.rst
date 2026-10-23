@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_eegrej`` merges overlapping, reversed, and fractional removal
+  intervals before shifting events, and leaves a one-sample gap as two
+  intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
 - ``pop_eegfiltnew`` recomputes the transition width after the default filter
   order is rounded up to an even length, matching EEGLAB. A 1 Hz high-pass
   at 128 Hz uses order 424 and a transition of about 0.996 Hz.

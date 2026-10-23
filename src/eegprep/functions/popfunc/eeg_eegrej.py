@@ -58,8 +58,8 @@ def _eegrej(
     if r.ndim != 2 or r.shape[1] != 2:
         raise ValueError("regions must be of shape (n_regions, 2)")
 
-    # Round, clamp to [1, n], sort each row then sort rows (EEGLAB parity)
-    r = np.rint(r).astype(int)
+    # Round half away from zero, clamp to [1, n], sort each row then sort rows.
+    r = np.asarray(round_mat(r), dtype=int)
     r[:, 0] = np.clip(r[:, 0], 1, n)
     r[:, 1] = np.clip(r[:, 1], 1, n)
     r.sort(axis=1)
@@ -275,15 +275,14 @@ def eeg_eegrej(EEG, regions):
     if regions is None or len(regions) == 0:
         return EEG
 
-    # Round first like MATLAB, then convert to int
+    # Sort, then merge fractional bounds the way combineregions does. Rounding
+    # happens in _eegrej, after overlaps have been collapsed.
     regions = np.asarray(regions, dtype=float)
-    regions = round_mat(regions).astype(np.int64)
 
-    # sort rows like MATLAB
     if regions.shape[1] > 2:
-        regions = regions[np.argsort(regions[:, 2])]
+        regions = regions[np.argsort(regions[:, 2], kind="mergesort")]
     else:
-        regions = regions[np.argsort(regions[:, 0])]
+        regions = regions[np.argsort(regions[:, 0], kind="mergesort")]
 
     if regions.shape[1] > 2:
         regions = regions[:, 2:4]
@@ -300,6 +299,9 @@ def eeg_eegrej(EEG, regions):
     EEG["data"] = mapped_output_like(source_data, data_out)
     EEG["pnts"] = int(data_out.shape[1])
     EEG["xmax"] = float(EEG["xmin"] + xmax_rel)
+    if EEG["pnts"] == 0:
+        # eeg_checkset: xmax = (pnts-1)/srate + xmin, which is xmin - 1/srate.
+        EEG["xmax"] = float(EEG["xmin"]) - 1.0 / float(EEG["srate"])
     EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
 
     # Use backend-generated events list (boundary insertion already done by _eegrej)
@@ -336,17 +338,30 @@ def eeg_eegrej(EEG, regions):
 
 
 def _combine_regions(regs):
-    if len(regs) == 0:
-        return regs
-    regs = np.array(sorted(regs.tolist(), key=lambda r: (r[0], r[1])), dtype=np.int64)
-    merged = [regs[0].tolist()]
-    for beg, end in regs[1:]:
-        mbeg, mend = merged[-1]
-        if beg <= mend + 1:
-            merged[-1][1] = max(mend, end)
-        else:
-            merged.append([beg, end])
-    newregs = np.asarray(merged, dtype=np.int64)
+    """Merge regions with EEGLAB combineregions (cumsum of starts and ends).
+
+    A shared endpoint merges because the stable sort keeps the +1 start before
+    the -1 end. A one-sample gap stays two regions.
+    """
+    regs = np.asarray(regs, dtype=float)
+    if regs.size == 0:
+        return regs.reshape(0, 2)
+    regs = np.sort(regs, axis=1)
+    regs = regs[np.argsort(regs[:, 0], kind="mergesort")]
+    values = np.concatenate([regs[:, 0], regs[:, 1]])
+    signs = np.concatenate([np.ones(regs.shape[0]), -np.ones(regs.shape[0])])
+    order = np.argsort(values, kind="mergesort")
+    values = values[order]
+    boundary = np.cumsum(signs[order])
+    merged = []
+    index = 0
+    n_bounds = values.size
+    while index != n_bounds:
+        start = values[index]
+        offset = int(np.argmin(np.abs(boundary[index:])))
+        merged.append([start, values[index + offset]])
+        index = index + offset + 1
+    newregs = np.asarray(merged, dtype=float)
     if newregs.shape[0] != regs.shape[0]:
         logger.warning("Overlapping regions detected and fixed in eeg_eegrej")
     return newregs
