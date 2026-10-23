@@ -184,7 +184,8 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
-       at that time.
+       at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
+       EEGPrep result.
    * - Baseline across a boundary
      - On continuous data with a boundary event, ``pop_rmbase`` subtracts
        each segment's mean of the requested samples. When ``pointrange``
