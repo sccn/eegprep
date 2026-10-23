@@ -3,7 +3,13 @@
 from typing import Union
 
 import numpy as np
-from scipy.signal import fftconvolve
+from scipy.signal import fftconvolve, lfilter
+
+# filter_fast.m uses time-domain filter() unless the numerator and the signal
+# are both long enough that the FFT path is faster.
+_FFT_MIN_NUMERATOR = 256
+_FFT_MIN_SIGNAL = 1024
+_FFT_MIN_PRODUCT = 4_000_000
 
 __all__ = ['filtfilt_fast', 'moving_average']
 
@@ -13,10 +19,11 @@ def filtfilt_fast(
     a: Union[float, np.ndarray],
     x: np.ndarray,
 ) -> np.ndarray:
-    """Apply a zero-phase forward-backward filter to a signal using FFTs.
+    """Apply a zero-phase forward-backward filter.
 
-    This is a drop-in replacement for scipy.signal.filtfilt() that is considerably faster
-    for long signals.
+    Short filters use time-domain filtering, as ``filter_fast.m`` does when
+    ``length(B) < 256``. Longer filters use FFT convolution. A few NaNs then
+    stay local instead of blanking the channel.
 
     Parameters
     ----------
@@ -33,7 +40,17 @@ def filtfilt_fast(
         The filtered signal.
     """
     assert a == 1, "a must be 1; use filtfilt() for IIR filters"
-    n = len(b)
+    b = np.asarray(b, dtype=float).ravel()
+    x = np.atleast_1d(np.asarray(x, dtype=float))
+    n = b.size
+    if x.size == 0:
+        return x.copy()
+    # filtfilt_fast.m pads before filter_fast, and filter_fast sees that length.
+    padded = _odd_reflection_pad(x, n)
+    if _filter_fast_uses_time_domain(n, padded.shape[0]):
+        filtered = lfilter(b, [1.0], padded, axis=0)
+        filtered = lfilter(b, [1.0], filtered[::-1], axis=0)[::-1]
+        return filtered[n : n + x.shape[0]]
     # pad the signal at both ends
     x_padded = np.pad(x, (n, n), mode='reflect', reflect_type='odd')
     y_forward = fftconvolve(x_padded, b, mode='full')[::-1]
@@ -42,6 +59,25 @@ def filtfilt_fast(
     excess = len(y_filtered) - len(x)
     y_depadded = y_filtered[excess // 2 : -excess // 2]
     return y_depadded
+
+
+def _filter_fast_uses_time_domain(numerator_length: int, signal_length: int) -> bool:
+    return (
+        numerator_length < _FFT_MIN_NUMERATOR
+        or signal_length < _FFT_MIN_SIGNAL
+        or signal_length <= numerator_length
+        or numerator_length * signal_length < _FFT_MIN_PRODUCT
+    )
+
+
+def _odd_reflection_pad(x: np.ndarray, width: int) -> np.ndarray:
+    """Odd reflection of ``width`` samples, matching filtfilt_fast.m."""
+    length = x.shape[0]
+    left_index = np.mod(np.arange(width + 1, 1, -1) - 1, length)
+    right_index = np.mod(np.arange(length - 1, length - width - 1, -1) - 1, length)
+    left = 2.0 * x[0] - x[left_index]
+    right = 2.0 * x[-1] - x[right_index]
+    return np.concatenate([left, x, right])
 
 
 def moving_average(X, *, N=3, axis=-1, Z=None, inplace=False, transform=None, init=None):

@@ -105,7 +105,8 @@ def clean_artifacts(
     NumSamples : int
         Number of RANSAC samples for channel cleaning. Default 50.
     SubsetSize : float
-        Size of channel subsets for RANSAC, as fraction (0-1) or count. Default 0.25.
+        RANSAC subset size as a fraction of the channel count. Values of 1 or
+        more are still multiplied by the channel count. Default 0.25.
     NoLocsChannelCriterion : float
         Correlation threshold for fallback channel cleaning when no channel locations.
         Default 0.45.
