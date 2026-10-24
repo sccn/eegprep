@@ -476,6 +476,15 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape, then runs the full
+event-consistency check. That keeps events when <code class="docutils literal notranslate"><span class="pre">trials</span></code> was 0.
+EEGLAB checks the bounds first and drops them. The full check also
+snaps <code class="docutils literal notranslate"><span class="pre">xmax</span></code> onto the sample grid when it no longer matches <code class="docutils literal notranslate"><span class="pre">pnts</span></code>.
+It then drops a trailing event whose latency is more than half a sample
+past the data. Events come back as a list of dicts. A structured array is converted;
+any other event value raises. Events before half a sample are removed, events
+are sorted, and an empty duration becomes 0 once any event has one. A NaN
+duration is kept.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> rounds <code class="docutils literal notranslate"><span class="pre">srate</span> <span class="pre">*</span> <span class="pre">(xmax</span> <span class="pre">-</span> <span class="pre">xmin)</span> <span class="pre">+</span> <span class="pre">1</span></code> half away from
 zero before deciding whether <code class="docutils literal notranslate"><span class="pre">xmax</span></code> is on the sample grid. A count of
 100.5 frames snaps <code class="docutils literal notranslate"><span class="pre">xmax</span></code>; Python’s half-to-even round would leave it.</p></li>

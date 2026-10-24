@@ -813,7 +813,15 @@ latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
 and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
 out Z, Y, X here and X, Z, Y in EEGLAB.</p></td>
 </tr>
-<tr class="row-even"><td><p>Numeric boundary types</p></td>
+<tr class="row-even"><td><p>Continuous rejection with <code class="docutils literal notranslate"><span class="pre">trials</span></code> 0</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape before checking
+events, so a stored 0 does not delete events past sample 1.
+<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 440-449 remove latencies above
+<code class="docutils literal notranslate"><span class="pre">pnts*trials+1</span></code> while <code class="docutils literal notranslate"><span class="pre">trials</span></code> is still that stored value.
+Lines 821-826 then set <code class="docutils literal notranslate"><span class="pre">trials</span></code> from <code class="docutils literal notranslate"><span class="pre">size(data,3)</span></code>, which is 1
+for a continuous recording. EEGLAB has already dropped the events.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Numeric boundary types</p></td>
 <td><p>Consecutive equal-latency boundaries are merged whether <code class="docutils literal notranslate"><span class="pre">type</span></code> is
 the string <code class="docutils literal notranslate"><span class="pre">boundary</span></code> or the number <code class="docutils literal notranslate"><span class="pre">-99</span></code> with
 <code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code> on. EEGLAB skips that merge when the first

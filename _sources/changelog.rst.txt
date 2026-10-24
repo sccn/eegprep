@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
+  event-consistency check. That keeps events when ``trials`` was 0.
+  EEGLAB checks the bounds first and drops them. The full check also
+  snaps ``xmax`` onto the sample grid when it no longer matches ``pnts``.
+  It then drops a trailing event whose latency is more than half a sample
+  past the data. Events come back as a list of dicts. A structured array is converted;
+  any other event value raises. Events before half a sample are removed, events
+  are sorted, and an empty duration becomes 0 once any event has one. A NaN
+  duration is kept.
 - ``eeg_checkset`` rounds ``srate * (xmax - xmin) + 1`` half away from
   zero before deciding whether ``xmax`` is on the sample grid. A count of
   100.5 frames snaps ``xmax``; Python's half-to-even round would leave it.
