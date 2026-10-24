@@ -20,3 +20,53 @@ rel = 1.0e-5
 [clean_asr]
 abs = 0.0
 rel = 1.0e-6
+
+# Proposed sections below await Suraj/Arno approval.
+# They are not accepted tolerances. Do not loosen them to hide a mismatch.
+# u = 2^-53. meta_rel is 4*u, and 2*u for pop_epoch.
+# Data that is a copy or a selection is compared exactly.
+# pop_rmbase has no approved absolute allowance. A per-case bound is described
+# in the pull request and is not applied here.
+# pop_epoch event_latency_abs covers latency rebuilt from a non-dyadic limit.
+
+[eeg_eegrej]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16
+
+[pop_select]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16
+
+[pop_epoch]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 1.4e-11
+meta_rel = 2.220446049250313e-16
+
+[pop_rmbase]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16
+
+[clean_windows]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16
+
+[clean_channels]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16
+
+[clean_flatlines]
+abs = 0.0
+rel = 0.0
+event_latency_abs = 0.0
+meta_rel = 4.440892098500626e-16

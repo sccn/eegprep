@@ -10,18 +10,13 @@ import re
 import subprocess
 import tempfile
 
+from tests.fuzz.catalog import FUNCTION_ROWS
+
 logger = logging.getLogger(__name__)
 
 DASHBOARD_TITLE = "Fuzz dashboard"
 DASHBOARD_MARKER = "<!-- fuzz-dashboard -->"
 SIGNATURE_MARKER = "<!-- fuzz-signature: {signature} -->"
-FUNCTION_ROWS = (
-    "pop_eegfiltnew",
-    "pop_reref",
-    "pop_resample",
-    "clean_asr",
-    "pop_clean_rawdata",
-)
 _SIGNATURE_RE = re.compile(r"<!-- fuzz-signature: (.+?) -->")
 _TREND_RE = re.compile(r"^- (\d{8}): .+$")
 

@@ -881,18 +881,59 @@ Nightly differential fuzzing
 
 ``.github/workflows/fuzz-nightly.yml`` compares EEGPrep with EEGLAB on
 generated EEG inputs. EEGLAB, reached through the matlab-batch shim, is the
-oracle. The job runs at 10:23 UTC and can be started manually with
-``workflow_dispatch``. A known-good sanity case runs first. If that case
-fails, the job fails and does not open an issue. Later mismatches are shrunk
-with Hypothesis, saved under the ``fuzz-repros`` artifact, and filed (at most
-three new issues a night) with the labels ``fuzz`` and ``fuzz-unconfirmed``.
+oracle. The job runs at 10:23 UTC on MATLAB R2024b and can be started
+manually with ``workflow_dispatch``. A known-good sanity case runs first. If
+that case fails, the job fails and does not open an issue. Later mismatches
+are shrunk with Hypothesis, saved under the ``fuzz-repros`` artifact, and
+filed (at most three new issues a night) with the labels ``fuzz`` and
+``fuzz-unconfirmed``.
+
+The nightly targets are ``pop_eegfiltnew``, ``pop_reref``, ``pop_resample``,
+``clean_asr``, ``pop_clean_rawdata``, ``eeg_eegrej``, ``pop_select``,
+``pop_epoch``, ``pop_rmbase``, ``clean_windows``, ``clean_channels``,
+``clean_flatlines``, and a ``pipeline`` chain. The original five targets
+compare data only. The event-aware targets also compare events in returned
+order (type, latency, duration, epoch, urevent), channel labels, ``nbchan``,
+``pnts``, ``trials``, ``xmin``, ``xmax``, ``clean_channel_mask``,
+``clean_sample_mask``, and extra outputs such as ``pop_epoch`` indices. A
+missing event duration is not treated as zero. A NaN event field matches a
+NaN on the other side. The pipeline runs a realistic
+sequence (filter or ``clean_rawdata``, re-reference, epoch or select,
+baseline) and compares after every step. The first mismatch names that step.
+
+About 70% of the new draws use parameter values from EEGLAB defaults, the
+EEGPrep dialogs, ``bids_preproc``, and the tutorial / ds003061 stage
+settings. The rest walk edge cases. Crops come from the committed tutorial
+recordings and, when those trees are present, from the ds003061 and ds003194
+files the parity tests already load (``EEGPREP_EEGLAB_SUITE_ROOT`` and
+``EEGPREP_OPENNEURO_ROOT``). The event-aware strategies draw those external
+recordings along with the tutorial sets. A pipeline crop is 30 seconds, or
+the whole prefix when the recording is shorter, so ``clean_rawdata`` sees a
+real window. Each pipeline step is compared on the same input; the next step
+starts from the oracle EEG. A known-divergence predicate runs after that
+comparison and does not file the step: continuous ``pop_rmbase`` with a
+boundary and a baseline that starts after sample 1, and only when the two
+outputs actually differ. The chain then continues from the oracle EEG. That
+difference is listed under "Known Differences from EEGLAB". Explicit
+``pop_reref`` is the same kind of match, including inside the pipeline,
+when EEGLAB's reference matrix spreads a NaN through ``0*NaN`` and
+EEGPrep's subtraction keeps that NaN on its channel. The next pipeline
+step then starts from that subtraction, so later steps are not compared
+on the NaN-filled matrix product. ``eeg_eegrej`` with a stored ``trials``
+of 0 is a match when the data agree and MATLAB's events are exactly the
+Python events whose latency is at most 1. A missing ``trials`` value does
+not count. The next pipeline step then starts from the Python EEG. An
+edge draw sets that stored 0 on about half of the non-user ``eeg_eegrej``
+cases. Both sides
+raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
+a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
+``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
 
 Per-function absolute and relative tolerances live in
 ``tests/fuzz/tolerances.toml``. They are changed only by reviewed human pull
-requests.
-
-Run it locally against a MATLAB session that is already serving
-``tests/matlab/eegprep_batch_engine_serve.m`` the same way the workflow does:
+requests. Sections for the event-aware targets are proposals until that
+review. CI stays on MATLAB R2024b. Replay against a MATLAB session that is
+already serving ``tests/matlab/eegprep_batch_engine_serve.m``:
 
 .. code-block:: bash
 
