@@ -112,6 +112,13 @@ def assert_matlab_equal(first, second):
         else:
             assert np.array_equal(first, second, equal_nan=False)
         return
+    if isinstance(first, (list, tuple)) or isinstance(second, (list, tuple)):
+        # A list of empty arrays cannot use ==: NumPy returns an empty bool array.
+        assert isinstance(first, (list, tuple)) and isinstance(second, (list, tuple))
+        assert len(first) == len(second)
+        for item, other in zip(first, second, strict=True):
+            assert_matlab_equal(item, other)
+        return
     assert first == second
 
 

@@ -256,6 +256,13 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        latency 75), B (1, 15), C (1, 5), D (3, 145) come out C, B, A, D here
        and B, A, C, D in EEGLAB. Events X (2, 85), Y (2, 72), Z (1, 8) come
        out Z, Y, X here and X, Z, Y in EEGLAB.
+   * - Continuous rejection with ``trials`` 0
+     - ``eeg_eegrej`` sets ``trials`` from the data shape before checking
+       events, so a stored 0 does not delete events past sample 1.
+       ``eeg_checkset.m`` lines 440-449 remove latencies above
+       ``pnts*trials+1`` while ``trials`` is still that stored value.
+       Lines 821-826 then set ``trials`` from ``size(data,3)``, which is 1
+       for a continuous recording. EEGLAB has already dropped the events.
    * - Numeric boundary types
      - Consecutive equal-latency boundaries are merged whether ``type`` is
        the string ``boundary`` or the number ``-99`` with

@@ -4,6 +4,9 @@ import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, _eventconsistency
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
 
 
 class TestEventconsistencyOperations:
@@ -195,3 +198,83 @@ class TestEventconsistencyOperations:
         result = eeg_checkset(EEG, 'eventconsistency')
         # NaN event should have been removed
         assert len(result['event']) == 1
+
+    def test_duration_is_filled_on_every_event_when_any_event_has_one(self):
+        # EEGLAB eeg_checkset.m:564-577 (d0963be9): isfield is true for the
+        # whole struct array, then isempty durations become 0.
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 50, 'duration': 100},
+                    {'type': 'square', 'latency': 10},
+                    {'type': 'rt', 'latency': 80, 'duration': ''},
+                    {'type': 'stim', 'latency': 90, 'duration': np.array([])},
+                ],
+                'pnts': 200,
+                'trials': 1,
+            }
+        )
+        assert [event['duration'] for event in filled['event']] == [0, 100, 0, 0]
+
+        untouched = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'square', 'latency': 10},
+                    {'type': 'rt', 'latency': 80},
+                ],
+                'pnts': 200,
+                'trials': 1,
+            }
+        )
+        assert all('duration' not in event for event in untouched['event'])
+
+    def test_epoched_events_sort_by_epoch_and_fill_duration(self):
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'stim', 'latency': 10.0, 'epoch': 2, 'duration': 1.0},
+                    {'type': 'stim', 'latency': 4.0, 'epoch': 1},
+                ],
+                'pnts': 20,
+                'trials': 2,
+            }
+        )
+        events = list(filled['event'])
+        assert [(event['epoch'], event['latency'], event['duration']) for event in events] == [
+            (1, 4.0, 0),
+            (2, 10.0, 1.0),
+        ]
+
+    def test_empty_event_list_stays_empty(self):
+        eeg = {'event': [], 'pnts': 10, 'trials': 1}
+        _eventconsistency(eeg)
+        assert list(np.asarray(eeg['event'], dtype=object).ravel()) == []
+
+    def test_nan_duration_is_not_empty(self):
+        # MATLAB isempty(NaN) is false: NaN is a 1-by-1 double, not [].
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 5.0, 'duration': 3.0},
+                    {'type': 'stim', 'latency': 8.0, 'duration': np.nan},
+                ],
+                'pnts': 20,
+                'trials': 1,
+            }
+        )
+        stim = next(event for event in filled['event'] if event['type'] == 'stim')
+        assert np.isnan(stim['duration'])
+
+    def test_rejection_gives_every_event_a_duration(self):
+        eeg = pop_loadset('sample_data/eeglab_data.set')
+
+        def durations_of(dataset):
+            events = list(np.asarray(dataset['event'], dtype=object).ravel())
+            return [event['duration'] for event in events]
+
+        rejected = durations_of(eeg_eegrej(eeg, np.array([[101, 200]])))
+        assert rejected[0] == 100
+        assert set(rejected[1:]) == {0}
+        selected = durations_of(pop_select(eeg, rmtime=[1, 2]))
+        assert selected[0] == 129
+        assert set(selected[1:]) == {0}

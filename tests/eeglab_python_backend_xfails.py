@@ -49,9 +49,6 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_core_event_eeglab_tests.py::test_reference_chaninds_uses_original_epoched_recording": _gap(
         STRUCT, ValueError
     ),
-    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_boundary_events_follow_original_regression": _gap(
-        STRUCT, AttributeError
-    ),
     "tests/test_core_event_eeglab_tests.py::test_reference_eventtypes_preserves_inverted_source_condition": _gap(
         STRUCT, ValueError
     ),
@@ -88,8 +85,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_gethelpvar.py::test_reference_gethelpvar_no_var": _gap(STRUCT, TypeError),
     "tests/test_gethelpvar.py::test_reference_gethelpvar_some": _gap(STRUCT, TypeError),
     "tests/test_legacy_signal_io_eeglab_tests.py::test_upstream_readneurodat_original_file": _gap(STRUCT, TypeError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, TypeError),
-    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, TypeError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_all_fields": _gap(STRUCT, AssertionError),
+    "tests/test_misc_data_event_eeglab_tests.py::test_reference_biosig_partial_fields": _gap(STRUCT, AssertionError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_unique_cell_string_original_mixed_cells": _gap(
         STRUCT, AttributeError
     ),
@@ -146,15 +143,11 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_popfunc_dataset_eeglab_tests.py::test_reference_selectevent_original_overlapping_epoch_workflow": _gap(
         STRUCT, AttributeError
     ),
-    "tests/test_sigproc_eegrej.py::test_reference_eegrej_original_boundary_reconstruction": _gap(STRUCT, TypeError),
     "tests/test_sigprocfunc_numerical_eeglab_tests.py::test_reference_mattocell": _gap(STRUCT, AttributeError),
     "tests/test_bdf_records_eeglab_tests.py::test_upstream_readbdf_original_record_selection": _gap(
         SHAPE, AssertionError
     ),
     "tests/test_cart2topo.py::test_reference_cart2topo_original_coordinate_matrices": _gap(SHAPE, AssertionError),
-    "tests/test_core_event_eeglab_tests.py::test_reference_eegrej_preserves_metadata_and_recorded_data_cases": _gap(
-        SHAPE, AssertionError
-    ),
     "tests/test_core_event_eeglab_tests.py::test_reference_getchanlist_case_insensitive_type": _gap(
         SHAPE, AssertionError
     ),
@@ -280,12 +273,8 @@ PYTHON_BACKEND_XFAILS = {
     "tests/test_rejection_workflows.py::test_reference_pop_rejchan": _gap(OUTPUTS, AssertionError),
     "tests/test_rejection_workflows.py::test_reference_pop_rejtrend": _gap(OUTPUTS, AssertionError),
     "tests/test_binary_eeglab_tests.py::test_upstream_chancoresp_original_39_calls": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_channels_with_locations": _gap(
-        TRUTH, ValueError
-    ),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_filtering": _gap(TRUTH, ValueError),
     "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_final_rejection": _gap(TRUTH, ValueError),
-    "tests/test_clean_rawdata_eeglab_tests.py::test_reference_clean_rawdata_rejection": _gap(TRUTH, ValueError),
     "tests/test_eegh.py::test_reference_eegh_empty_command": _gap(TRUTH, ValueError),
     "tests/test_misc_data_event_eeglab_tests.py::test_reference_shortread_original_two_million_samples": _gap(
         TRUTH, ValueError

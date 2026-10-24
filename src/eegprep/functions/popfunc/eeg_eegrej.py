@@ -4,6 +4,7 @@ import logging
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 from copy import deepcopy
+from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
@@ -11,6 +12,38 @@ from ..miscfunc.misc import round_mat
 
 
 logger = logging.getLogger(__name__)
+
+
+def _events_as_dicts(events):
+    """Return event records as dicts.
+
+    A structured array is one record per element, in C order. An empty array is
+    an empty list. Any other value raises instead of being discarded.
+    """
+    if events is None:
+        return []
+    if isinstance(events, dict):
+        return [dict(events)]
+    if isinstance(events, np.ndarray):
+        if events.size == 0:
+            return []
+        if events.dtype.names:
+            return [{name: record[name] for name in events.dtype.names} for record in events.reshape(-1)]
+        records = list(events.reshape(-1))
+    elif isinstance(events, (list, tuple)):
+        records = list(events)
+    else:
+        raise TypeError("EEG.event must be a list of event dicts or a structured array")
+    converted = []
+    for record in records:
+        if isinstance(record, dict):
+            converted.append(dict(record))
+            continue
+        if isinstance(record, np.void) and record.dtype.names:
+            converted.append({name: record[name] for name in record.dtype.names})
+            continue
+        raise TypeError("EEG.event must be a list of event dicts or a structured array")
+    return converted
 
 
 def _eegrej(
@@ -290,7 +323,7 @@ def eeg_eegrej(EEG, regions):
     regions = _combine_regions(regions)
 
     # Use original events; backend will handle pruning, shifting, and boundary insertion
-    events = list(EEG.get("event", []))
+    events = _events_as_dicts(EEG.get("event", []))
 
     xdur = float(EEG["xmax"] - EEG["xmin"])
     data_out, xmax_rel, event2, boundevents = _eegrej(EEG["data"], regions, xdur, events)
@@ -305,11 +338,8 @@ def eeg_eegrej(EEG, regions):
     EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'], dtype=float)
 
     # Use backend-generated events list (boundary insertion already done by _eegrej)
-    EEG["event"] = list(event2) if isinstance(event2, list) else []
+    EEG["event"] = _events_as_dicts(event2)
     EEG["event"].sort(key=lambda e: e.get("latency", float("inf")))
-
-    if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
-        EEG["event"].pop()
 
     # light duplicate cleanup mirroring MATLAB edge cases: only drop boundary
     # events sitting at the very first/last sample, never genuine stimulus events
@@ -334,6 +364,17 @@ def eeg_eegrej(EEG, regions):
                     if f not in ev:
                         ev[f] = np.array([])
 
+    # eeg_checkset.m:440-449 removes events with latency > pnts*trials+1
+    # before lines 821-826 replace a stale trials value. A stored 0 would
+    # drop every event past sample 1. Set trials from the data shape first.
+    # eeg_eegrej.m:144 then runs that check, which also snaps xmax.
+    # Lines 145-147 drop the event that is now past the last kept sample.
+    data = EEG["data"]
+    EEG["trials"] = int(data.shape[2]) if np.ndim(data) == 3 else 1
+    eeg_checkset(EEG, "eventconsistency")
+    EEG["event"] = _events_as_dicts(EEG.get("event"))
+    if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
+        EEG["event"].pop()
     return EEG
 
 
