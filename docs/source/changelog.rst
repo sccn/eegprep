@@ -7,6 +7,14 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
+Unreleased
+==========
+
+- ``asr_process`` and ``asr_process_r`` refresh the reconstruction on the
+  last sample of a chunk when the length modulo the step is 1. A
+  29-channel, 257-sample recording at 128 Hz is processed as 289 samples
+  with a step of 32, and that last sample was previously left raw.
+
 Version 0.5.0
 =============
 
