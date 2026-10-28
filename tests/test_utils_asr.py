@@ -1,9 +1,15 @@
+import copy
+import hashlib
 import unittest
+from pathlib import Path
+
 import numpy as np
 
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
 
 
 class TestAsrCalibrate(unittest.TestCase):
@@ -290,6 +296,101 @@ class TestAsrProcess(unittest.TestCase):
 
         self.assertEqual(cleaned_data.shape, degenerate.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
+
+    def test_final_sample_is_reconstructed_when_length_mod_step_is_one(self):
+        """Every chunk sample is updated, including when ``n % step == 1``.
+
+        Thresholds are zero and ``max_dims`` admits every component, so the
+        reconstruction is the zero matrix. A one-sample raised cosine has
+        weight 1, and the shaping filter is identity, so each sample is exactly
+        0. Length 289 with step 32 is the issue 523 processing chunk.
+        """
+        for length, step in ((288, 32), (289, 32), (290, 32)):
+            with self.subTest(length=length, step=step):
+                data = np.ones((2, length))
+                data[1, :] = -3.0
+                cleaned, _state = asr_process(
+                    data,
+                    128.0,
+                    _zero_reconstruction_state(2),
+                    window_len=0.5,
+                    lookahead=0.0,
+                    step_size=step,
+                    max_dims=1.0,
+                    max_mem=64,
+                )
+                np.testing.assert_allclose(cleaned, 0.0, rtol=0.0, atol=0.0)
+
+
+class TestIssue523FinalSample(unittest.TestCase):
+    """The nightly crop whose processing length mod the ASR step is 1."""
+
+    def test_pop_clean_rawdata_corrects_the_final_sample(self):
+        """Channel 8's last sample moves by the reported oracle gap.
+
+        The crop is 29 channels by 257 samples at 128 Hz, starting at sample
+        497 of ``eeglab_data.set``. Burst repair uses cutoff 5 and calibrates
+        on the whole crop. The processor sees 289 samples with a step of 32.
+        Flat index 2312 is channel 8, sample 256. Before the terminal update
+        that sample stayed equal to the input, and the oracle differed there
+        by 13.609652976396248. The fuzzer's ``clean_asr`` rule is
+        ``abs == 0`` and ``rel == 1e-6``.
+        """
+        raw = _issue_523_crop()
+        digest = hashlib.sha256(np.ascontiguousarray(raw["data"], dtype=np.float64).tobytes()).hexdigest()
+        self.assertEqual(digest, "a626caa305d69ec2a3a7362aa93b817eb91055e100c9755540a19e96e88ecc41")
+        cleaned = pop_clean_rawdata(
+            raw,
+            gui=False,
+            FlatlineCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            WindowCriterion="off",
+            BurstCriterion=5.0,
+            BurstCriterionRefMaxBadChns="off",
+            BurstRejection="off",
+        )
+        diff = np.abs(np.asarray(cleaned["data"], dtype=np.float64) - raw["data"])
+        self.assertEqual(int(np.argmax(diff)), 2312)
+        np.testing.assert_allclose(diff.ravel()[2312], 13.609652976396248, rtol=1e-6, atol=0.0)
+
+
+def _zero_reconstruction_state(n_channels: int) -> dict:
+    return {
+        "M": np.eye(n_channels),
+        "T": np.zeros((n_channels, n_channels)),
+        "B": np.array([1.0]),
+        "A": np.array([1.0]),
+        "sos": None,
+        "iir_state": np.zeros((n_channels, 0)),
+        "compatibility": "max",
+        "carry": None,
+        "cov": None,
+        "last_R": None,
+        "last_trivial": True,
+    }
+
+
+def _issue_523_crop() -> dict:
+    path = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set"
+    eeg = pop_loadset(str(path))
+    sample_index = np.arange(497, 497 + 257)
+    data = np.array(np.asarray(eeg["data"])[np.ix_(list(range(29)), sample_index)], dtype=np.float64, copy=True)
+    cropped = copy.deepcopy(eeg)
+    cropped["data"] = data
+    cropped["chanlocs"] = np.array([copy.deepcopy(eeg["chanlocs"][index]) for index in range(29)], dtype=object)
+    cropped["nbchan"] = 29
+    cropped["pnts"] = 257
+    cropped["trials"] = 1
+    cropped["srate"] = float(eeg["srate"])
+    cropped["xmin"] = 0.0
+    cropped["xmax"] = 256 / cropped["srate"]
+    cropped["times"] = np.linspace(0.0, cropped["xmax"] * 1000.0, 257)
+    cropped["event"] = np.array([], dtype=object)
+    cropped["urevent"] = np.array([], dtype=object)
+    cropped["epoch"] = np.array([])
+    return cropped
 
 
 class TestCleanAsrNoMutation(unittest.TestCase):

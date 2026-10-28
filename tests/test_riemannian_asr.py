@@ -164,3 +164,39 @@ def test_carried_covariance_changes_the_next_chunk():
     assert updated['cov'].shape == (channels, channels)
     assert np.allclose(updated['cov'], updated['cov'].T)
     assert not np.allclose(cleaned_near, cleaned_far)
+
+
+def test_process_r_updates_final_sample_when_length_mod_step_is_one():
+    """The chunk uses one reconstruction, so the last sample matches the one before it.
+
+    ``asr_process_r.m:167`` clamps an update onto sample ``n`` when
+    ``n % step == 1``. Length 33 and step 8 is that case. The two samples are
+    the same matrix-vector product; the gap bound is 8 ulps of the input.
+    Leaving the last sample raw misses by O(1).
+    """
+    channels, samples, step = 2, 33, 8
+    data = np.ones((channels, samples))
+    data[1, :] = -3.0
+    state = {
+        "M": np.eye(channels),
+        "T": np.zeros((channels, channels)),
+        "B": np.array([1.0]),
+        "A": np.array([1.0]),
+        "carry": None,
+        "cov": None,
+        "last_R": None,
+        "last_trivial": True,
+    }
+    cleaned, _state = asr_process_r(
+        data,
+        200.0,
+        state,
+        window_len=0.5,
+        lookahead=0.0,
+        step_size=step,
+        max_dims=1.0,
+        max_mem=64,
+    )
+    limit = 8 * np.finfo(np.float64).eps * float(np.max(np.abs(data)))
+    np.testing.assert_allclose(cleaned[:, -1], cleaned[:, -2], rtol=0.0, atol=limit)
+    assert float(np.max(np.abs(cleaned[:, -1] - data[:, -1]))) > 1.0

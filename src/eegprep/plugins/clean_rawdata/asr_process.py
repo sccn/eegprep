@@ -8,6 +8,7 @@ import scipy.signal
 from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.riemann import asr_subspace_reconstruction
 from .private.sigproc import moving_average
+from .private.windows import asr_update_at
 
 logger = logging.getLogger(__name__)
 
@@ -155,15 +156,13 @@ def asr_process(
         # Running mean over a window of N samples (along the last / time axis)
         Xcov_filtered, cov = moving_average(Xcov_sample, N=N, axis=1, Z=cov, init=0)
 
-        update_at = np.arange(step_size, Xfilt.shape[1] + step_size - 1, step_size, dtype=int)
-        update_at = np.minimum(update_at, Xfilt.shape[1])
-
+        update_at = asr_update_at(Xfilt.shape[1], step_size)
         # If there is no previous R, initialize at first sample
         if last_R is None:
             update_at = np.insert(update_at, 0, 1)
             last_R = np.eye(C)
 
-        update_at -= 1  # prepare for 0-based indexing
+        update_at = update_at - 1
 
         # averaged by the moving window) and reshape to C × C × #updates.
         Xcov_matrices = np.reshape(Xcov_filtered[:, update_at], (C, C, len(update_at)))

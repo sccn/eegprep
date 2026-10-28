@@ -8,6 +8,7 @@ import scipy.signal
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.riemann import asr_subspace_reconstruction, rasr_nonlinear_eigenspace, spd_geodesic_midpoint
+from .private.windows import asr_update_at
 
 logger = logging.getLogger(__name__)
 
@@ -128,12 +129,11 @@ def asr_process_r(
             sample_covariance if covariance is None else spd_geodesic_midpoint(sample_covariance, covariance)
         )
 
-        update_at = np.arange(step_size, filtered.shape[1] + step_size - 1, step_size, dtype=int)
-        update_at = np.minimum(update_at, filtered.shape[1])
+        update_at = asr_update_at(filtered.shape[1], step_size)
         if last_R is None:
             update_at = np.insert(update_at, 0, 1)
             last_R = np.eye(channels)
-        update_at -= 1
+        update_at = update_at - 1
 
         vectors, values = rasr_nonlinear_eigenspace(chunk_covariance, channels)
         eigenvalues = np.real(np.diag(values))
