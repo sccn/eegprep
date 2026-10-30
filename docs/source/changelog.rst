@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
+  one 0.5 s RMS window, or yields fewer than two of those windows. The
+  44-sample, 128 Hz crop in issue 524 stays identical, including its two
+  NaNs, when the other cleaning stages are off. ``clean_asr`` still raises
+  ``ASRCalibrationError``. EEGLAB prints that calibration error and returns
+  before window removal; a requested window stage still runs here.
 - ``asr_process`` and ``asr_process_r`` refresh the reconstruction on the
   last sample of a chunk when the length modulo the step is 1. A
   29-channel, 257-sample recording at 128 Hz is processed as 289 samples

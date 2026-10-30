@@ -152,6 +152,15 @@ monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
 that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
 leave that recording unchanged.
 
+A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
+two such windows, cannot set thresholds either. ``clean_asr`` raises
+``ASRCalibrationError`` and names the sample or window counts. ``clean_artifacts``
+and ``pop_clean_rawdata`` warn, leave the burst stage unchanged, and still run
+window removal when it was requested. On a 44-sample recording at 128 Hz the
+burst stage needs 64 samples, so with the other stages off the samples stay
+identical, including NaNs. EEGLAB prints the calibration error and returns
+before window removal.
+
 Riemannian ASR Notes
 ====================
 
