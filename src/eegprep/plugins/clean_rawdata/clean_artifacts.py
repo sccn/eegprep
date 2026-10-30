@@ -74,10 +74,12 @@ def clean_artifacts(
     BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
-        'off' skips ASR. Default 5.0. When the sampling rate makes the default
-        spectral shaping filter impossible to design, ASR is skipped, a warning
-        explains the rate and the breakpoint problem, and the recording at this
-        stage is left unchanged.
+        'off' skips ASR. Default 5.0. ASR is skipped, with a warning, when the
+        default spectral shaping filter cannot be designed, when the calibration
+        is shorter than one 0.5 s RMS window, or when fewer than two of those
+        windows can be formed. The recording at this stage is left unchanged.
+        A requested window-removal stage still runs. EEGLAB prints the
+        calibration error and returns before that stage.
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.

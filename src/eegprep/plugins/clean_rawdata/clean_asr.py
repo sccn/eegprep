@@ -45,11 +45,13 @@ def clean_asr(
     EEGLAB's fit throws in that situation and calibrates on every sample.
     A recording that is too short for EEGLAB's calibration-time RMS fit, which
     indexes a zero window width, is still calibrated here. Fewer than two
-    calibration RMS windows raises ``ValueError`` naming the window count, the
-    sample count, and the window length. EEGLAB raises an error that asks for
-    different ``BurstCriterionRefTolerances`` in that case, and when the
-    calibration is shorter than one window. A sampling rate whose default
-    spectral breakpoints are not monotonic raises ``ASRCalibrationError``.
+    calibration RMS windows, and a calibration shorter than one window, raise
+    ``ASRCalibrationError``. The first names the window count, the sample
+    count, and the window length. The second names the required and actual
+    sample counts. EEGLAB raises an error that asks for different
+    ``BurstCriterionRefTolerances`` in both cases. A sampling rate whose
+    default spectral breakpoints are not monotonic raises
+    ``ASRCalibrationError`` as well.
 
     Args:
         EEG (Dict[str, Any]): EEG data structure. Expected fields:
@@ -86,7 +88,8 @@ def clean_asr(
     Raises
     ------
     ImportError : If automatic calibration data selection is needed (`ref_maxbadchannels` is float) but `clean_windows` cannot be imported.
-    ValueError : If input arguments are invalid or calibration fails critically.
+    ASRCalibrationError : The spectral shaping filter cannot be designed, or the calibration cannot form two RMS windows.
+    ValueError : If input arguments are invalid.
     """
     if 'data' not in EEG or 'srate' not in EEG or 'nbchan' not in EEG:
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
