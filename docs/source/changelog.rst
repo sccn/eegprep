@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
+  one 0.5 s RMS window, or yields fewer than two of those windows. The
+  44-sample, 128 Hz crop in issue 524 stays identical, including its two
+  NaNs, when the other cleaning stages are off. ``clean_asr`` still raises
+  ``ASRCalibrationError``. EEGLAB prints that calibration error and returns
+  before window removal; a requested window stage still runs here.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
   event-consistency check. That keeps events when ``trials`` was 0.
   EEGLAB checks the bounds first and drops them. The full check also

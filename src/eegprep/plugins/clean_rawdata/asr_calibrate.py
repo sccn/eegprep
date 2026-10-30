@@ -128,7 +128,9 @@ def asr_calibrate(
     Raises
     ------
     ASRCalibrationError
-        The default spectral breakpoints are not monotonic at ``srate``.
+        The default spectral breakpoints are not monotonic at ``srate``, the
+        calibration is shorter than one RMS window, or fewer than two RMS
+        windows can be formed.
     """
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
@@ -250,7 +252,7 @@ def asr_calibrate(
     # Window length for calculating thresholds
     N = int(round_mat(window_len * srate))
     if S < N:
-        raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
+        raise ASRCalibrationError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
 
     logger.info('Determining per-component thresholds...')
 
@@ -270,7 +272,7 @@ def asr_calibrate(
     window_starts = matlab_window_offsets(S, N, step)
 
     if len(window_starts) <= 1:
-        raise ValueError(
+        raise ASRCalibrationError(
             f"Fewer than 2 calibration windows: got {len(window_starts)} from {S} samples with window length {N}."
         )
 
