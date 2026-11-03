@@ -6,9 +6,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import mne
 import numpy as np
 import scipy.io
+
+from eegprep.extras import import_optional_dependency
 
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
@@ -86,6 +87,7 @@ def _mat_is_eeglab_dataset(path: Path) -> bool:
 
 
 def _reader_for_suffix(suffix: str):
+    mne = import_optional_dependency("mne", feature="pop_fileio")
     if suffix == ".edf":
         return mne.io.read_raw_edf
     if suffix == ".bdf":
@@ -103,7 +105,7 @@ def _reader_for_suffix(suffix: str):
     raise ValueError(f"Unsupported File-IO import format: {suffix or '<none>'}")
 
 
-def _crop_raw_to_blockrange(raw: mne.io.BaseRaw, blockrange: Any) -> None:
+def _crop_raw_to_blockrange(raw: Any, blockrange: Any) -> None:
     start, stop = _blockrange_values(blockrange)
     recording_stop = raw.n_times / float(raw.info["sfreq"])
     if start >= recording_stop:

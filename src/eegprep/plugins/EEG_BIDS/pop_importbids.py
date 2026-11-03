@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from eegprep.extras import import_optional_dependency
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
@@ -22,6 +23,7 @@ def pop_importbids(
     as UTF-8, then as Latin-1 when the bytes are not UTF-8. JSON sidecars
     stay UTF-8, and a leading UTF-8 BOM is removed.
     """
+    import_optional_dependency("bids", feature="pop_importbids")
     source = Path(path)
     files = bids_list_eeg_files(str(source)) if source.is_dir() else [str(source)]
     if not files:

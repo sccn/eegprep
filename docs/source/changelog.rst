@@ -14,17 +14,16 @@ Unreleased
   those names with a one-line summary taken from the docstring. Describing a
   name does not import its module. ``help`` is not in ``__all__``, so
   ``from eegprep import *`` does not replace the builtin.
-- ``oct2py``, ``psutil``, and ``pyedflib`` are optional extras ``eeglab``,
-  ``sys``, and ``edf``. ``pip install "eegprep[full]"`` installs those three
-  and restores the previous base install. A missing library raises
-  ``ImportError`` naming the library, the feature, and
-  ``pip install "eegprep[<extra>]"``, and it mentions ``eegprep[full]``.
-  NumPy, SciPy, MNE, Matplotlib, PyBIDS, Picard, and h5py stay in the base
-  install. GDF export and a CPU job reservation do not need the new extras.
-  The minimal preprocessing image installs the ``sys`` extra so
-  ``--jobs 4GB`` can read free RAM.
-- ``pop_writeeeg`` no longer creates the output directory when the EDF
-  dependency is missing.
+- A plain ``pip install eegprep`` includes NumPy, SciPy, Matplotlib,
+  psutil, pyedflib, and h5py. Loading, cleaning, plotting, RAM reservations,
+  and EDF, BDF, and GDF export need no extra. Octave (``oct2py``), MNE,
+  PyBIDS, and Picard are the ``eeglab``, ``mne``, ``pybids``, and ``picard``
+  extras. ``pip install "eegprep[full]"`` installs those four and restores
+  the previous complete install. A missing library raises ``ImportError``
+  naming the library, the feature, and ``pip install "eegprep[<extra>]"``,
+  and it mentions ``eegprep[full]``. The minimal preprocessing image
+  installs the ``pybids`` and ``mne`` extras so it can read a BIDS dataset
+  and EDF or BDF files. ``eegprep-lean`` stays a separate package.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
   event-consistency check. That keeps events when ``trials`` was 0.
   EEGLAB checks the bounds first and drops them. The full check also

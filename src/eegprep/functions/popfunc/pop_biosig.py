@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.extras import import_optional_dependency
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.sigprocfunc.openbdf import openbdf
@@ -41,6 +42,7 @@ def pop_biosig(
         raise ValueError(
             "pop_biosig supports EDF, BDF, and GDF files. Use pop_fileio or pop_loadset for other formats."
         )
+    import_optional_dependency("mne", feature="pop_biosig")
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     history_options = dict(options)
     event_mode = _bdf_event_mode(options.pop("bdfeventmode", 4))

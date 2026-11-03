@@ -18,11 +18,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy local source and install. The sys extra is the RAM probe used by
-# --jobs 4GB; the image does not install the other optional extras.
+# psutil is a base dependency, so --jobs 4GB can read free RAM. The entrypoint
+# reads a BIDS dataset and can import EDF or BDF, which need these two extras.
+# Octave and Picard stay out of this image.
 COPY src/ src/
 COPY pyproject.toml LICENSE README.md ./
-RUN pip install --no-cache-dir --prefix=/install ".[sys]"
+RUN pip install --no-cache-dir --prefix=/install ".[pybids,mne]"
 
 # ----- Stage 2: runtime (no compilers, no dev headers) -------
 FROM python:3.12-slim

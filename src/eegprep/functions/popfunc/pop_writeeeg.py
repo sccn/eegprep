@@ -6,19 +6,15 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pyedflib
 
-from eegprep.extras import import_optional_dependency
 from eegprep.functions.popfunc._file_io import channel_labels, events_to_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.sigprocfunc.writegdf import writegdf
 
 
 def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
-    """Write continuous EEG data to EDF, BDF, or GDF.
-
-    EDF and BDF output requires the ``edf`` extra (``pip install "eegprep[edf]"``).
-    GDF output does not.
-    """
+    """Write continuous EEG data to EDF, BDF, or GDF."""
     path = Path(filename)
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     output_type = str(options.pop("type", path.suffix.lstrip("."))).lower()
@@ -48,7 +44,6 @@ def pop_writeeeg(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs
 
 
 def _write_edf_family(EEG: dict[str, Any], path: Path, output_type: str) -> None:
-    pyedflib = import_optional_dependency("pyedflib", feature="pop_writeeeg")
     highlevel = pyedflib.highlevel
     data = np.ascontiguousarray(EEG["data"])
     if data.ndim != 2:

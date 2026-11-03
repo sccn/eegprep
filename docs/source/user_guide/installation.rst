@@ -32,11 +32,11 @@ For a project managed by uv, add the ``eegprep`` package with:
     uv add eegprep
 
 This installs EEGPrep. It does not install the separate ``eegprep-lean``
-distribution (import name ``eegprep_lean``). NumPy, SciPy, MNE, Matplotlib,
-PyBIDS, Picard, and h5py are part of this base install.
+distribution (import name ``eegprep_lean``). NumPy, SciPy, Matplotlib,
+psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
+plotting, RAM checks, and EDF, BDF, and GDF export work with no brackets.
 
-``oct2py``, ``psutil``, and ``pyedflib`` are extras. Install them together
-with:
+Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
 
 .. code-block:: bash
 
@@ -74,8 +74,8 @@ To install eegprep from source for development:
 and uses ``uv.lock`` for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
 checkout can immediately launch ``uv run eegprep-console --full``. It also
-installs the ``eeglab``, ``sys``, and ``edf`` packages so the test suite can
-exercise Octave, RAM probing, and EDF export.
+installs the ``eeglab``, ``mne``, ``pybids``, and ``picard`` packages so the
+test suite can exercise Octave, MNE conversion, BIDS import, and Picard ICA.
 
 To develop or build documentation from source, include the docs extra:
 
@@ -89,7 +89,7 @@ Optional Dependencies
 eegprep has several optional dependencies that enable additional functionality.
 Calling a function whose extra is not installed raises ``ImportError``. The
 message names the library, the function, and the command to install it, for
-example ``pip install "eegprep[edf]"``, and it mentions ``eegprep[full]``.
+example ``pip install "eegprep[mne]"``, and it mentions ``eegprep[full]``.
 
 ``dir(eegprep)`` lists every public name. ``eegprep.help()`` prints those
 names with a one-line summary, read from the function's docstring without
@@ -103,20 +103,24 @@ it. ``help`` is not exported by ``from eegprep import *``.
 
     uv add "eegprep[full]"
 
-This installs three extras:
+This installs four extras:
 
 - ``eeglab`` (``oct2py``), the Octave runtime for
   ``pop_resample(..., engine="octave")``, ``iclabel(..., engine="octave")``,
   the RANSAC octave subroutine used by ``clean_channels``, and
   ``eeglab_clean_artifacts``.
-- ``sys`` (``psutil``), free-RAM probing for ``clean_asr(..., maxmem=None)``
-  and a memory reservation such as
-  ``bids_preproc(..., ReservePerJob="4GB")``. An explicit memory budget, or
-  a CPU reservation such as ``"1CPU"``, does not need it.
-- ``edf`` (``pyedflib``), EDF and BDF output of ``pop_writeeeg``. GDF output
-  does not need it.
+- ``mne``, conversion to and from MNE objects, and the EDF, BDF, and GDF
+  readers in ``pop_biosig`` and ``pop_fileio``. EEGLAB ``.set``, CNT, and
+  BrainVision files do not need it.
+- ``pybids``, BIDS import and ``bids_preproc``.
+- ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
+  does not need it. This extra also installs scikit-learn.
 
-``eegprep[all]`` includes these three extras plus the GUI, console, docs, and
+Free-RAM probing (``clean_asr(..., maxmem=None)`` and a reservation such as
+``"4GB"``) and EDF, BDF, and GDF export (``pop_writeeeg``) are part of the
+base install.
+
+``eegprep[all]`` includes these four extras plus the GUI, console, docs, and
 PyTorch extras.
 
 Riemannian ASR (``clean_asr(..., useriemannian=True)`` and

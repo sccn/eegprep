@@ -3,9 +3,9 @@
 from pathlib import Path
 import tempfile
 
-import mne
 import numpy as np
-from mne.export import export_epochs, export_raw
+
+from eegprep.extras import import_optional_dependency
 
 from ..popfunc.pop_loadset import pop_loadset
 from ._eeg_mne import (
@@ -83,14 +83,16 @@ def eeg_mne2eeg(raw):
     dict
         EEG data structure.
     """
+    mne = import_optional_dependency("mne", feature="eeg_mne2eeg")
+    mne_export = import_optional_dependency("mne.export", feature="eeg_mne2eeg")
     raw_or_epochs = raw
 
     with tempfile.TemporaryDirectory(prefix="eegprep-mne2eeg-") as temp_dir:
         set_path = Path(temp_dir) / "bridge.set"
         if isinstance(raw_or_epochs, mne.BaseEpochs):
-            export_epochs(str(set_path), raw_or_epochs, fmt='eeglab')
+            mne_export.export_epochs(str(set_path), raw_or_epochs, fmt='eeglab')
         else:
-            export_raw(str(set_path), raw_or_epochs, fmt='eeglab')
+            mne_export.export_raw(str(set_path), raw_or_epochs, fmt='eeglab')
         EEG = pop_loadset(str(set_path))
 
     EEG['subject'] = _mne_subject(raw_or_epochs)

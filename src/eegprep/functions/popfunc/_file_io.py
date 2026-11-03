@@ -9,9 +9,10 @@ from pathlib import Path
 import re
 from typing import Any
 
-import mne
 import numpy as np
 import scipy.io
+
+from eegprep.extras import import_optional_dependency
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._matlab_fields import matlab_index
@@ -249,7 +250,7 @@ def events_to_records(events: Any) -> list[dict[str, Any]]:
     return [dict(event) for event in events]
 
 
-def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = "") -> dict[str, Any]:
+def mne_raw_to_eeg(raw: Any, *, setname: str = "", filename: str = "") -> dict[str, Any]:
     """Convert an MNE Raw object to an EEGPrep EEG dict."""
     try:
         data = raw.get_data(units="uV")
@@ -277,8 +278,9 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
     return eeg
 
 
-def eeg_to_mne_raw(eeg: dict[str, Any]) -> mne.io.RawArray:
+def eeg_to_mne_raw(eeg: dict[str, Any]) -> Any:
     """Convert a continuous EEGPrep EEG dict to MNE RawArray."""
+    mne = import_optional_dependency("mne", feature="eeg_to_mne_raw")
     data = np.asarray(eeg["data"])
     if data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))

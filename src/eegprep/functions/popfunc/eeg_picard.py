@@ -2,8 +2,9 @@
 
 import copy
 
-from picard import picard
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
 from ._ica_utils import (
     finalize_ica_fields,
     flatten_ica_data,
@@ -67,6 +68,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             n_components = params.get('n_components') or data.shape[0]
             params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
+        picard = import_optional_dependency("picard", feature="eeg_picard").picard
         weighting_matrix, unmixing_matrix, _sources = picard(data, **params)
 
         EEG['icasphere'] = np.eye(EEG['nbchan'])

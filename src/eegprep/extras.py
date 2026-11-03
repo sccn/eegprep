@@ -13,20 +13,30 @@ from types import ModuleType
 
 #: Import name to the extra that installs it.
 OPTIONAL_LIBRARIES: dict[str, str] = {
+    "bids": "pybids",
+    "mne": "mne",
     "oct2py": "eeglab",
-    "psutil": "sys",
-    "pyedflib": "edf",
+    "picard": "picard",
 }
 
 #: Public names that need an extra for one path. The note says which path.
 PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
-    "bids_preproc": ("sys", "a memory ReservePerJob"),
-    "clean_asr": ("sys", "maxmem=None"),
+    "bids_list_eeg_files": ("pybids", "reading a BIDS dataset"),
+    "bids_preproc": ("pybids", "reading a BIDS dataset"),
     "clean_channels": ("eeglab", "the RANSAC octave subroutine"),
+    "eeg2mne": ("mne", "converting to an MNE object"),
+    "eeg_eeg2mne": ("mne", "converting to an MNE object"),
+    "eeg_mne2eeg": ("mne", "converting from an MNE object"),
+    "eeg_picard": ("picard", "Picard ICA"),
     "eeglab_clean_artifacts": ("eeglab", "the Octave runtime"),
     "iclabel": ("eeglab", "the Octave runtime"),
+    "mne2eeg": ("mne", "converting from an MNE object"),
+    "picard": ("picard", "Picard ICA"),
+    "pop_biosig": ("mne", "EDF, BDF, and GDF import"),
+    "pop_fileio": ("mne", "readers other than EEGLAB, CNT, and BrainVision"),
+    "pop_importbids": ("pybids", "reading a BIDS dataset"),
+    "pop_load_frombids": ("pybids", "reading a BIDS dataset"),
     "pop_resample": ("eeglab", "engine='octave'"),
-    "pop_writeeeg": ("edf", "EDF and BDF output; GDF does not need it"),
 }
 
 #: What each extra is for. ``full`` restores the packages this release moved out of the base.
@@ -35,9 +45,16 @@ EXTRA_SUMMARY: dict[str, str] = {
         "Octave runtime for pop_resample(engine='octave'), iclabel(engine='octave'), "
         "the clean_channels RANSAC octave subroutine, and eeglab_clean_artifacts. Installs oct2py."
     ),
-    "sys": ("RAM probing for clean_asr(maxmem=None) and bids_preproc with a memory ReservePerJob. Installs psutil."),
-    "edf": "EDF and BDF output from pop_writeeeg. Installs pyedflib. GDF output does not need it.",
-    "full": "The eeglab, sys, and edf extras together. This restores the previous base install.",
+    "mne": (
+        "MNE conversion and the EDF, BDF, and GDF readers in pop_biosig and pop_fileio. "
+        "EEGLAB .set, CNT, and BrainVision do not need it. Installs mne."
+    ),
+    "pybids": "BIDS import and bids_preproc. Installs pybids.",
+    "picard": (
+        "Picard ICA (eeg_picard, and pop_runica with icatype='picard'). "
+        "The default runica path does not need it. Installs python-picard."
+    ),
+    "full": "The eeglab, mne, pybids, and picard extras together. This restores the previous complete install.",
 }
 
 
@@ -50,7 +67,7 @@ def import_optional_dependency(name: str, *, feature: str) -> ModuleType:
     """Import ``name``, or raise ``ImportError`` with the extra that provides it.
 
     Args:
-        name: Import name, such as ``pyedflib`` or ``pyedflib.highlevel``.
+        name: Import name, such as ``mne`` or ``mne.export``.
         feature: Function or feature that needs the library, such as ``pop_writeeeg``.
 
     Returns:

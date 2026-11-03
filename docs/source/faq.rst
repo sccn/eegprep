@@ -28,11 +28,14 @@ Published releases can also be installed with pip:
 
     pip install eegprep
 
-``uv add eegprep`` installs this package. The separate ``eegprep-lean`` reader
-is a different distribution. ``pip install "eegprep[full]"`` restores
-``oct2py``, ``psutil``, and ``pyedflib``, which are the ``eeglab``, ``sys``,
-and ``edf`` extras. ``eegprep.help()`` lists public names and the extra each
-one needs. A missing extra raises ``ImportError`` with the install command.
+``uv add eegprep`` installs this package with NumPy, SciPy, Matplotlib,
+psutil, and pyedflib, so cleaning, plotting, RAM checks, and EDF export need
+no brackets. The separate ``eegprep-lean`` reader is a different distribution.
+``pip install "eegprep[full]"`` adds Octave, MNE, PyBIDS, and Picard, which
+are the ``eeglab``, ``mne``, ``pybids``, and ``picard`` extras, and restores
+the previous complete install. ``eegprep.help()`` lists public names and the
+extra each one needs. A missing extra raises ``ImportError`` with the install
+command.
 
 For development installation from source:
 

@@ -51,22 +51,24 @@ uv add eegprep
 
 That command installs this package, `eegprep`. It does not install
 `eegprep-lean` (import name `eegprep_lean`), which is a separate
-zero-dependency reader. NumPy, SciPy, MNE, Matplotlib, PyBIDS, Picard, and
-h5py are part of this base install.
+zero-dependency reader. NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py
+are part of this base install, so loading, cleaning, plotting, RAM checks,
+and EDF, BDF, and GDF export need no brackets.
 
-Three libraries that used to be installed with the base package are extras.
-`pip install "eegprep[full]"` puts them back:
+Four heavier libraries are extras. `pip install "eegprep[full]"` puts them
+back and restores the previous complete install:
 
 ```bash
-uv add "eegprep[full]"   # oct2py, psutil, and pyedflib
+uv add "eegprep[full]"   # oct2py, mne, pybids, and python-picard
 ```
 
 | Extra | Installs | Used for |
 | --- | --- | --- |
 | `eeglab` | oct2py | Octave runtime |
-| `sys` | psutil | RAM probing in ASR and job reservations |
-| `edf` | pyedflib | EDF and BDF export (`pop_writeeeg`); GDF does not need it |
-| `full` | the three above | the previous base install |
+| `mne` | mne | MNE conversion and EDF, BDF, and GDF import |
+| `pybids` | pybids | BIDS import and `bids_preproc` |
+| `picard` | python-picard | Picard ICA; the default `runica` path does not need it |
+| `full` | the four above | the previous complete install |
 | `gui`, `console`, `torch`, `docs` | Qt, IPython, PyTorch, Sphinx | unchanged |
 | `all` | every extra above | GUI, docs, classifiers, and `full` |
 
@@ -96,8 +98,9 @@ cd eegprep
 uv sync --group dev
 ```
 
-The development group installs the `eeglab`, `sys`, and `edf` packages so the
-test suite can exercise those paths. It does not install `eegprep-lean`.
+The development group installs the `eeglab`, `mne`, `pybids`, and `picard`
+packages so the test suite can exercise those paths. It does not install
+`eegprep-lean`.
 
 The complete install can pull in large optional binaries on some platforms,
 especially for ICLabel/PyTorch support. You can install a lightweight CPU-only

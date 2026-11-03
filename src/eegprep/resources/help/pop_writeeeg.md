@@ -11,8 +11,7 @@ com = pop_writeeeg(EEG, "recording.gdf", "TYPE", "GDF")
 ```
 
 The File > Export menu prompts for an output path and records the command in
-session history. EDF and BDF output needs the `edf` extra
-(`pip install "eegprep[edf]"`). GDF output does not. EDF and BDF are written
+session history. EDF and BDF are written
 with their standard 16-bit and 24-bit
 sample ranges. GDF uses float64 samples, so signal values are not quantized;
 numeric event types and sample timing are stored in the GDF event table. Since

@@ -79,9 +79,11 @@ def test_help_describes_every_public_name_without_importing_the_stack() -> None:
     assert "Load an EEGLAB dataset" in text
     assert "Plot a 2D topographic map" in text
     assert "Write continuous EEG data to EDF, BDF, or GDF" in text
-    for extra in ("eeglab", "sys", "edf", "full"):
+    for extra in ("eeglab", "mne", "pybids", "picard", "full"):
         assert f'pip install "eegprep[{extra}]"' in text
-    assert "EDF and BDF output" in text
+    assert "restores the previous complete install" in text
+    assert 'pip install "eegprep[sys]"' not in text
+    assert 'pip install "eegprep[edf]"' not in text
     described = [line for line in text.splitlines() if line.startswith("  ") and "  " in line[2:]]
     summaries = [line for line in described if line.split("  ", 2)[-1].strip()]
     assert len(summaries) > 400

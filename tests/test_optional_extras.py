@@ -17,8 +17,8 @@ from eegprep.extras import import_optional_dependency
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
-MOVED = ("oct2py", "psutil", "pyedflib")
-STILL_REQUIRED = ("numpy", "scipy", "mne", "matplotlib", "pybids", "python-picard", "h5py")
+MOVED = ("oct2py", "mne", "bids", "picard")
+STILL_REQUIRED = ("numpy", "scipy", "matplotlib", "psutil", "pyedflib", "h5py")
 
 
 def _project() -> dict:
@@ -32,18 +32,21 @@ def _requirement_names(requirements: list[str]) -> set[str]:
     return names
 
 
-def test_base_install_keeps_the_scientific_stack_and_moves_three_libraries() -> None:
+def test_base_install_keeps_plotting_and_edf_and_moves_heavy_libraries() -> None:
     project = _project()
     base = _requirement_names(project["dependencies"])
     extras = project["optional-dependencies"]
 
     assert set(STILL_REQUIRED) <= base
-    assert {"oct2py", "psutil", "pyedflib", "neo"}.isdisjoint(base)
+    assert {"oct2py", "mne", "pybids", "python-picard", "neo"}.isdisjoint(base)
+    assert "sys" not in extras
+    assert "edf" not in extras
     assert _requirement_names(extras["eeglab"]) == {"oct2py"}
-    assert _requirement_names(extras["sys"]) == {"psutil"}
-    assert _requirement_names(extras["edf"]) == {"pyedflib"}
-    assert set(extras["full"]) == {'eegprep[eeglab]', 'eegprep[sys]', 'eegprep[edf]'}
-    assert {"eegprep[eeglab]", "eegprep[sys]", "eegprep[edf]"} <= set(extras["all"])
+    assert _requirement_names(extras["mne"]) == {"mne"}
+    assert _requirement_names(extras["pybids"]) == {"pybids"}
+    assert _requirement_names(extras["picard"]) == {"python-picard"}
+    assert set(extras["full"]) == {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"}
+    assert {"eegprep[eeglab]", "eegprep[mne]", "eegprep[pybids]", "eegprep[picard]"} <= set(extras["all"])
     assert "eegprep[torch]" in extras["all"]
 
 
@@ -120,10 +123,13 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
 
         import eegprep
         from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+        from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
         from eegprep.functions.miscfunc.misc import num_jobs_from_reservation
+        from eegprep.functions.popfunc.eeg_picard import eeg_picard
+        from eegprep.functions.popfunc.pop_biosig import pop_biosig
+        from eegprep.functions.popfunc.pop_fileio import pop_fileio
         from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
-        from eegprep.plugins.clean_rawdata.asr_process import asr_process
-        from eegprep.plugins.clean_rawdata.asr_process_r import asr_process_r
+        from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
 
         failures = {{}}
         for info in pkgutil.walk_packages(eegprep.__path__, "eegprep."):
@@ -160,33 +166,23 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         }}
         gdf = Path({str(output / "out.gdf")!r})
         pop_writeeeg(eeg, gdf)
-        edf_dir = Path({str(output / "edf")!r})
+        edf = Path({str(output / "edf" / "out.edf")!r})
+        pop_writeeeg(eeg, edf)
         calls = {{
-            "pop_writeeeg": call("pop_writeeeg", lambda: pop_writeeeg(eeg, edf_dir / "out.edf")),
-            "asr_process": call("asr_process", lambda: asr_process(np.zeros((2, 8)), 100.0, {{}}, max_mem=None)),
-            "asr_process_r": call("asr_process_r", lambda: asr_process_r(np.zeros((2, 8)), 100.0, {{}}, max_mem=None)),
-            "num_jobs_from_reservation": call("num_jobs_from_reservation", lambda: num_jobs_from_reservation("4GB")),
             "get_eeglab": call("get_eeglab", lambda: get_eeglab("oct")),
+            "eeg_eeg2mne": call("eeg_eeg2mne", lambda: eeg_eeg2mne(eeg)),
+            "eeg_picard": call("eeg_picard", lambda: eeg_picard(eeg)),
+            "pop_biosig": call("pop_biosig", lambda: pop_biosig("recording.edf")),
+            "pop_fileio": call("pop_fileio", lambda: pop_fileio("recording.edf")),
+            "bids_list_eeg_files": call("bids_list_eeg_files", lambda: bids_list_eeg_files(".")),
         }}
-        explicit = {{}}
-        for name, fn in (
-            ("asr_process", lambda: asr_process(np.zeros((2, 8)), 100.0, {{}}, max_mem=64)),
-            ("asr_process_r", lambda: asr_process_r(np.zeros((2, 8)), 100.0, {{}}, max_mem=64)),
-        ):
-            try:
-                fn()
-                explicit[name] = "returned"
-            except ImportError as exc:
-                explicit[name] = str(exc)
-            except Exception as exc:
-                explicit[name] = type(exc).__name__
         print(json.dumps({{
             "import_failures": failures,
             "calls": calls,
-            "explicit_max_mem": explicit,
             "cpu_jobs": num_jobs_from_reservation("1CPU"),
+            "memory_jobs": num_jobs_from_reservation("4GB"),
             "gdf_bytes": gdf.stat().st_size,
-            "edf_dir": edf_dir.exists(),
+            "edf_bytes": edf.stat().st_size,
         }}))
         """,
         tmp_path,
@@ -195,14 +191,16 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
 
     assert result["import_failures"] == {}
     assert result["gdf_bytes"] > 0
-    assert result["edf_dir"] is False
+    assert result["edf_bytes"] > 0
     assert result["cpu_jobs"] >= 1
+    assert result["memory_jobs"] >= 1
     expected = {
-        "pop_writeeeg": ("pyedflib", "eegprep[edf]", "pop_writeeeg"),
-        "asr_process": ("psutil", "eegprep[sys]", "asr_process"),
-        "asr_process_r": ("psutil", "eegprep[sys]", "asr_process_r"),
-        "num_jobs_from_reservation": ("psutil", "eegprep[sys]", "num_jobs_from_reservation"),
         "get_eeglab": ("oct2py", "eegprep[eeglab]", "get_eeglab"),
+        "eeg_eeg2mne": ("mne", "eegprep[mne]", "eeg_eeg2mne"),
+        "eeg_picard": ("picard", "eegprep[picard]", "eeg_picard"),
+        "pop_biosig": ("mne", "eegprep[mne]", "pop_biosig"),
+        "pop_fileio": ("mne", "eegprep[mne]", "pop_fileio"),
+        "bids_list_eeg_files": ("bids", "eegprep[pybids]", "bids_list_eeg_files"),
     }
     for name, (library, extra, feature) in expected.items():
         call = result["calls"][name]
@@ -212,18 +210,16 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         assert feature in call["message"]
         assert f'pip install "{extra}"' in call["message"]
         assert 'pip install "eegprep[full]"' in call["message"]
-    for name, outcome in result["explicit_max_mem"].items():
-        assert "psutil" not in outcome, f"{name} with max_mem set still needed psutil: {outcome}"
 
 
 def test_import_optional_dependency_returns_an_installed_library() -> None:
-    pytest.importorskip("pyedflib")
-    module = import_optional_dependency("pyedflib", feature="pop_writeeeg")
-    assert module.__name__ == "pyedflib"
+    pytest.importorskip("oct2py")
+    module = import_optional_dependency("oct2py", feature="get_eeglab")
+    assert module.__name__ == "oct2py"
 
 
-def test_dockerfile_installs_the_sys_extra_for_ram_reservations() -> None:
+def test_dockerfile_installs_bids_and_mne_for_the_entrypoint() -> None:
     dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
     entry = (REPO_ROOT / "scripts" / "bids_minimal_preproc.py").read_text(encoding="utf-8")
     assert "--jobs" in entry and "4GB" in entry
-    assert ".[sys]" in dockerfile or "eegprep[sys]" in dockerfile
+    assert ".[pybids,mne]" in dockerfile or '".[pybids,mne]"' in dockerfile

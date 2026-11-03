@@ -2,6 +2,9 @@
 
 import logging
 from typing import List, Sequence
+
+from eegprep.extras import import_optional_dependency
+
 from .bids import layout_for_fpath
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ def bids_list_eeg_files(
     List[str]
         A list of file paths to EEG files in the BIDS dataset.
     """
+    import_optional_dependency("bids", feature="bids_list_eeg_files")
     layout = layout_for_fpath(root)
 
     filters = {

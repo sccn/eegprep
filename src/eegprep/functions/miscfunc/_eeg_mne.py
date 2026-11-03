@@ -2,8 +2,9 @@
 
 import re
 
-import mne
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
 
 from ..adminfunc.eeg_checkset import eeg_checkset
 
@@ -344,6 +345,7 @@ def _apply_eeg_events_to_mne(epochs, EEG):
     )
     epochs.event_id = {str(name): int(code) for name, code in id_map.items()}
     if onsets:
+        mne = import_optional_dependency("mne", feature="eeg_eeg2mne")
         epochs.set_annotations(
             mne.Annotations(
                 onset=onsets,

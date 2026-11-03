@@ -3,8 +3,9 @@
 from pathlib import Path
 import tempfile
 
-import mne
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
 
 from ..popfunc.pop_saveset import pop_saveset
 from ._eeg_mne import _apply_eeg_events_to_mne, _eeg_subject, _events_by_epoch, _set_mne_subject
@@ -52,6 +53,7 @@ def eeg_eeg2mne(EEG):
     ValueError
         If an epoch has no events. The message names that epoch, 1-based.
     """
+    mne = import_optional_dependency("mne", feature="eeg_eeg2mne")
     if int(EEG.get('trials', 1) or 1) > 1:
         _events_by_epoch(EEG)
 

@@ -13,6 +13,7 @@ from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
 
+from eegprep.extras import import_optional_dependency
 from ...functions.adminfunc.git import get_git_commit_id
 from ...functions.miscfunc.misc import (
     ExceptionUnlessDebug,
@@ -402,8 +403,9 @@ def bids_preproc(
     -------
     result : Dict[str,Any] | List[Dict[str, Any]] | None
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
-        specified) or a single EEG object (if a single file was specified), otherwise None.
+        specified) or a single EEG object (if a single file was specified),         otherwise None.
     """
+    import_optional_dependency("bids", feature="bids_preproc")
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (
