@@ -92,8 +92,6 @@ def clean_asr(
         raise ValueError("EEG dictionary must contain 'data', 'srate', and 'nbchan'.")
     useriemannian = _normalise_useriemannian(useriemannian)
 
-    # Operate on a copy so the caller's data array (and dict) are never mutated;
-    # asr_calibrate zeroes non-finite samples in place on whatever array it receives.
     data = np.array(EEG['data'], dtype=np.float64, copy=True)
     srate = float(EEG['srate'])
     nbchan = int(EEG['nbchan'])

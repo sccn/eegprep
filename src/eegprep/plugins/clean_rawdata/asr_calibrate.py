@@ -171,6 +171,8 @@ def asr_calibrate(
         freqvals, amps = _spectral_breakpoints(srate)
         B, A = yulewalk(8, freqvals, amps)
 
+    # asr_calibrate.m:169 assigns into X. MATLAB copy-on-write keeps the caller's array.
+    X = X.copy()
     X[~np.isfinite(X)] = 0.0
 
     if compatibility == 'max':

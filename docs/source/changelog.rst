@@ -14,6 +14,13 @@ Unreleased
   last sample of a chunk when the length modulo the step is 1. A
   29-channel, 257-sample recording at 128 Hz is processed as 289 samples
   with a step of 32, and that last sample was previously left raw.
+- ``asr_calibrate`` leaves non-finite samples in the caller's array.
+  ``clean_asr`` reflects that recording, and ``asr_process`` replaces
+  non-finite samples with 0 only after prepending the carry. A NaN in the
+  last half-window was reflected as twice the final sample. On channels
+  24-30 of the sample file, samples 158-413 at 128 Hz, with crop channel 1
+  samples 245-246 set to NaN, that lookahead was 133.655 and the cleaned
+  data differed by 11.593.
 
 Version 0.5.0
 =============
