@@ -14,7 +14,7 @@ The version lives in one place
 
 ``src/eegprep/__init__.py``::
 
-    __version__ = "0.3.0"
+    __version__ = "0.4.1"
 
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
 there is no version string to edit in the eegprep ``pyproject.toml``.
@@ -32,9 +32,12 @@ version. With no flags it builds both and does not upload::
 
     python scripts/release_packages.py
 
-``--publish`` uploads both distributions. ``--check`` compares the versions
-and does not build. A ``v*`` tag in ``GITHUB_REF``, or ``RELEASE_TAG``, must
-name the same version.
+``--publish`` checks that both packages have built artifacts and that
+``UV_PUBLISH_TOKEN`` is set, then uploads eegprep-lean and eegprep in that
+order. It does not upload eegprep unless lean can be uploaded too. Lean has
+no trusted publisher, so a GitHub Actions token is not enough for this
+command. ``--check`` compares the versions and does not build. A ``v*`` tag
+in ``GITHUB_REF``, or ``RELEASE_TAG``, must name the same version.
 
 ``.github/workflows/synced-release.yml`` runs the script without ``--publish``.
 That job builds and verifies. It does not upload. ``release.yml`` still
@@ -58,7 +61,7 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git commit -am "release: 0.3.0"
+   git commit -am "release: 0.4.1"
    git checkout master && git merge --no-ff develop && git push origin master
 
 .. tip::
@@ -72,8 +75,8 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git tag -a v0.3.0 -m "Release version 0.3.0"
-   git push origin v0.3.0
+   git tag -a v0.4.1 -m "Release version 0.4.1"
+   git push origin v0.4.1
 
 **4. Watch it.** Nothing reaches PyPI unless every check passes:
 
@@ -116,8 +119,8 @@ nothing; once a version is on PyPI it can never be replaced.
 
 .. code-block:: bash
 
-   git push origin :refs/tags/v0.3.0     # delete the remote tag
-   git tag -f v0.3.0 && git push origin v0.3.0
+   git push origin :refs/tags/v0.4.1     # delete the remote tag
+   git tag -f v0.4.1 && git push origin v0.4.1
 
 Docker image
 ============

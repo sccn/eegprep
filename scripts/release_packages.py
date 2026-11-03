@@ -2,8 +2,9 @@
 
 The two distributions are released together. The command exits before building
 when ``src/eegprep/__init__.py``, ``eegprep_lean.__version__``, and the lean
-``pyproject.toml`` version are not the same string. ``--publish`` uploads both
-directories. Without it, the command builds and stops.
+``pyproject.toml`` version are not the same string. ``--publish`` uploads the
+built files, lean first, and only after both packages are ready. Without it,
+the command builds and stops.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ EEGPREP_INIT = Path("src/eegprep/__init__.py")
 LEAN_INIT = Path("packages/eegprep-lean/src/eegprep_lean/__init__.py")
 LEAN_PROJECT = Path("packages/eegprep-lean/pyproject.toml")
 PROJECTS = ("eegprep", "eegprep-lean")
+_PUBLISH_ORDER = ("eegprep-lean", "eegprep")
 _VERSION_ASSIGNMENT = re.compile(r"^__version__\s*=\s*['\"]([^'\"]+)['\"]", re.M)
 
 
@@ -122,9 +124,36 @@ def build(root: Path, dist: Path) -> None:
         subprocess.run(["uv", "build", "--out-dir", str(out)], cwd=project_dir, check=True)
 
 
-def publish(dist: Path) -> None:
-    for project in PROJECTS:
-        subprocess.run(["uv", "publish", str(dist / project)], check=True)
+def project_artifacts(dist: Path, version: str, project: str) -> list[Path]:
+    return [path for path, owner in artifact_paths(dist, version).items() if owner == project]
+
+
+def require_joint_credentials() -> None:
+    """Refuse before any upload when one token cannot cover both packages.
+
+    eegprep-lean has no trusted publisher. A GitHub Actions token would upload
+    eegprep and then fail on lean, so the joint command requires
+    ``UV_PUBLISH_TOKEN`` (or ``UV_PUBLISH_PASSWORD``) instead.
+    """
+    if os.environ.get("UV_PUBLISH_TOKEN") or os.environ.get("UV_PUBLISH_PASSWORD"):
+        return
+    raise VersionMismatch(
+        "Refusing to publish. Set UV_PUBLISH_TOKEN so both packages can upload. "
+        "eegprep-lean has no trusted publisher, so a GitHub Actions token alone "
+        "would ship eegprep and leave lean behind."
+    )
+
+
+def publish(dist: Path, version: str) -> None:
+    planned = {project: project_artifacts(dist, version, project) for project in _PUBLISH_ORDER}
+    missing = [str(path) for paths in planned.values() for path in paths if not path.is_file()]
+    if missing:
+        raise VersionMismatch("not ready to upload: " + ", ".join(missing))
+    require_joint_credentials()
+    for project in _PUBLISH_ORDER:
+        subprocess.run(["uv", "publish", "--dry-run", *map(str, planned[project])], check=True)
+    for project in _PUBLISH_ORDER:
+        subprocess.run(["uv", "publish", *map(str, planned[project])], check=True)
 
 
 def main(argv: list[str] | None = None, *, root: Path | None = None) -> int:
@@ -152,7 +181,11 @@ def main(argv: list[str] | None = None, *, root: Path | None = None) -> int:
     if not args.publish:
         print(f"{version}: built both packages; not publishing")
         return 0
-    publish(dist)
+    try:
+        publish(dist, version)
+    except VersionMismatch as exc:
+        print(exc, file=sys.stderr)
+        return 1
     print(f"{version}: published eegprep and eegprep-lean")
     return 0
 

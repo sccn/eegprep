@@ -7,9 +7,10 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
-Unreleased
-==========
+Version 0.4.1
+=============
 
+- This version number is shared with ``eegprep-lean``.
 - ``dir(eegprep)`` lists every public name, and ``eegprep.help()`` prints
   those names with a one-line summary taken from the docstring. Describing a
   name does not import its module. ``help`` is not in ``__all__``, so
@@ -295,25 +296,6 @@ Unreleased
 - ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
   pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
   invert a numerical null direction and amplify the signal by about 1e13.
-
-Version 0.4.1
-=============
-
-- ``dir(eegprep)`` lists every public name, and ``eegprep.help()`` prints
-  those names with a one-line summary taken from the docstring. Describing a
-  name does not import its module. ``help`` is not in ``__all__``, so
-  ``from eegprep import *`` does not replace the builtin.
-- A plain ``pip install eegprep`` includes NumPy, SciPy, Matplotlib,
-  psutil, pyedflib, and h5py. Loading, cleaning, plotting, RAM reservations,
-  and EDF, BDF, and GDF export need no extra. Octave (``oct2py``), MNE,
-  PyBIDS, and Picard are the ``eeglab``, ``mne``, ``pybids``, and ``picard``
-  extras. ``pip install "eegprep[full]"`` installs those four and restores
-  the previous complete install. A missing library raises ``ImportError``
-  naming the library, the feature, and ``pip install "eegprep[<extra>]"``,
-  and it mentions ``eegprep[full]``. The minimal preprocessing image
-  installs the ``pybids`` and ``mne`` extras so it can read a BIDS dataset
-  and EDF or BDF files. ``eegprep-lean`` stays a separate package, and this
-  version number is shared with it.
 
 Version 0.4.0
 =============
