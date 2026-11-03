@@ -35,7 +35,10 @@ class VersionMismatch(Exception):
 def read_assigned_version(path: Path) -> str:
     match = _VERSION_ASSIGNMENT.search(path.read_text(encoding="utf-8"))
     if match is None:
-        raise VersionMismatch(f"{path} has no __version__ assignment")
+        raise VersionMismatch(
+            f"{path} has no __version__ assignment. "
+            'Add __version__ = "x.y.z" in that file, using the same version as the other package.'
+        )
     return match.group(1)
 
 
@@ -53,10 +56,11 @@ def require_one_version(versions: tuple[str, str, str]) -> str:
     eegprep, lean_init, lean_project = versions
     if len({eegprep, lean_init, lean_project}) != 1:
         raise VersionMismatch(
-            "eegprep and eegprep-lean must share one version. "
+            "Version check failed. eegprep and eegprep-lean must share one version. "
             f"eegprep __version__ is {eegprep}, "
             f"eegprep-lean __version__ is {lean_init}, "
-            f"eegprep-lean project version is {lean_project}."
+            f"and the eegprep-lean project version is {lean_project}. "
+            "Set all three to the same version."
         )
     return eegprep
 
@@ -74,7 +78,10 @@ def release_tag() -> str | None:
 
 def require_tag(version: str, tag: str | None) -> None:
     if tag is not None and tag != version:
-        raise VersionMismatch(f"tag v{tag} does not match version {version}")
+        raise VersionMismatch(
+            f"Version check failed. Tag v{tag} does not match package version {version}. "
+            f"Tag v{version}, or set both packages to {tag}."
+        )
 
 
 def distribution_name(project: str) -> str:
@@ -97,7 +104,7 @@ def wheel_version(path: Path) -> str:
         text = archive.read(metadata).decode()
     match = re.search(r"^Version: (.+)$", text, re.M)
     if match is None:
-        raise VersionMismatch(f"{path} has no Version in METADATA")
+        raise VersionMismatch(f"{path} has no Version in METADATA. Rebuild that package with uv build.")
     return match.group(1).strip()
 
 
@@ -105,13 +112,20 @@ def require_artifacts(dist: Path, version: str) -> None:
     expected = artifact_paths(dist, version)
     missing = [str(path) for path in expected if not path.is_file()]
     if missing:
-        raise VersionMismatch("missing artifacts: " + ", ".join(missing))
+        raise VersionMismatch(
+            "missing artifacts: "
+            + ", ".join(missing)
+            + ". Run this command without --publish so it can build both packages into dist/release."
+        )
     for path, project in expected.items():
         if path.suffix != ".whl":
             continue
         found = wheel_version(path)
         if found != version:
-            raise VersionMismatch(f"{project} wheel version is {found}, expected {version}")
+            raise VersionMismatch(
+                f"{project} wheel version is {found}, expected {version}. "
+                f"Rebuild after setting both packages to {version}."
+            )
 
 
 def build(root: Path, dist: Path) -> None:
@@ -138,7 +152,8 @@ def require_joint_credentials() -> None:
     if os.environ.get("UV_PUBLISH_TOKEN") or os.environ.get("UV_PUBLISH_PASSWORD"):
         return
     raise VersionMismatch(
-        "Refusing to publish. Set UV_PUBLISH_TOKEN so both packages can upload. "
+        "Refusing to publish. Nothing was uploaded. "
+        "Set UV_PUBLISH_TOKEN, or UV_PUBLISH_PASSWORD, so both packages can upload. "
         "eegprep-lean has no trusted publisher, so a GitHub Actions token alone "
         "would ship eegprep and leave lean behind."
     )
@@ -148,7 +163,11 @@ def publish(dist: Path, version: str) -> None:
     planned = {project: project_artifacts(dist, version, project) for project in _PUBLISH_ORDER}
     missing = [str(path) for paths in planned.values() for path in paths if not path.is_file()]
     if missing:
-        raise VersionMismatch("not ready to upload: " + ", ".join(missing))
+        raise VersionMismatch(
+            "not ready to upload: "
+            + ", ".join(missing)
+            + ". Build both packages first, and do not pass --publish until each wheel and sdist is present."
+        )
     require_joint_credentials()
     for project in _PUBLISH_ORDER:
         subprocess.run(["uv", "publish", "--dry-run", *map(str, planned[project])], check=True)

@@ -48,15 +48,17 @@ def test_each_source_can_reject_the_release(tmp_path: Path) -> None:
     )
     for case in cases:
         root = _tree(tmp_path / next(iter(case)), **case)
-        with pytest.raises(release_packages.VersionMismatch):
+        with pytest.raises(release_packages.VersionMismatch, match="Set all three to the same version"):
             release_packages.require_one_version(release_packages.read_versions(root))
 
 
 def test_a_tag_must_name_the_same_version() -> None:
     release_packages.require_tag("1.2.3", None)
     release_packages.require_tag("1.2.3", "1.2.3")
-    with pytest.raises(release_packages.VersionMismatch, match="v9.9.9"):
+    with pytest.raises(release_packages.VersionMismatch, match="Tag v1.2.3") as caught:
         release_packages.require_tag("1.2.3", "9.9.9")
+    assert "v9.9.9" in str(caught.value)
+    assert "set both packages to 9.9.9" in str(caught.value)
 
 
 def test_check_succeeds_only_when_the_tree_agrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -121,9 +123,23 @@ def test_publish_stops_before_either_upload_without_a_shared_token(
         "run",
         lambda command, check: calls.append(command),
     )
-    with pytest.raises(release_packages.VersionMismatch, match="eegprep-lean"):
+    with pytest.raises(release_packages.VersionMismatch, match="UV_PUBLISH_TOKEN") as caught:
         release_packages.publish(dist, "0.5.0")
+    assert "Nothing was uploaded" in str(caught.value)
+    assert "eegprep-lean" in str(caught.value)
     assert calls == []
+
+
+def test_publish_names_the_missing_files_and_says_to_build_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("UV_PUBLISH_TOKEN", "test-token")
+    with pytest.raises(release_packages.VersionMismatch, match="Build both packages first") as caught:
+        release_packages.publish(tmp_path / "dist", "0.5.0")
+    message = str(caught.value)
+    assert "eegprep-0.5.0-py3-none-any.whl" in message
+    assert "eegprep_lean-0.5.0-py3-none-any.whl" in message
+    assert "--publish" in message
 
 
 def test_publish_does_not_upload_eegprep_when_lean_is_not_ready(
