@@ -90,6 +90,8 @@ eegprep has several optional dependencies that enable additional functionality.
 Calling a function whose extra is not installed raises ``ImportError``. The
 message names the library, the function, and the command to install it, for
 example ``pip install "eegprep[mne]"``, and it mentions ``eegprep[full]``.
+When another path does not need that library, the message says what to do
+instead, such as leaving ``engine`` unset or using ``runica``.
 
 ``dir(eegprep)`` lists every public name. ``eegprep.help()`` prints those
 names with a one-line summary, read from the function's docstring without

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from eegprep.extras import import_optional_dependency
+from eegprep.extras import OPTIONAL_LIBRARIES, PUBLIC_EXTRAS, import_optional_dependency
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "eegprep"
@@ -222,9 +222,9 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         "get_eeglab": ("oct2py", "eegprep[eeglab]", "get_eeglab"),
         "eeg_eeg2mne": ("mne", "eegprep[mne]", "eeg_eeg2mne"),
         "eeg_picard": ("picard", "eegprep[picard]", "eeg_picard"),
-        "pop_biosig": ("mne", "eegprep[mne]", "pop_fileio"),
+        "pop_biosig": ("mne", "eegprep[mne]", "pop_biosig"),
         "pop_fileio": ("mne", "eegprep[mne]", "pop_fileio"),
-        "bids_list_eeg_files": ("bids", "eegprep[pybids]", "layout_for_fpath"),
+        "bids_list_eeg_files": ("bids", "eegprep[pybids]", "bids_list_eeg_files"),
         "pop_resample": ("oct2py", "eegprep[eeglab]", "pop_resample"),
         "iclabel": ("oct2py", "eegprep[eeglab]", "iclabel"),
         "clean_channels": ("oct2py", "eegprep[eeglab]", "clean_channels"),
@@ -239,6 +239,85 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         assert f'pip install "{extra}"' in call["message"]
         assert 'pip install "eegprep[full]"' in call["message"]
     assert result["calls"]["pop_importbids_file"]["message"] == "no ImportError"
+
+
+_INSTEAD = {
+    "clean_channels": "sphericalSplineInterpolate",
+    "eeg_picard": "icatype is 'picard'",
+    "eeglab_clean_artifacts": "clean_artifacts is the Python cleaner",
+    "iclabel": 'pip install "eegprep[torch]"',
+    "picard": "icatype is 'picard'",
+    "pop_fileio": "do not need MNE",
+    "pop_iclabel": 'pip install "eegprep[torch]"',
+    "pop_resample": "Leave engine unset to resample in Python.",
+    "pop_runica": "Leave icatype unset to use runica",
+    "resample": "Leave engine unset to resample in Python.",
+}
+
+
+def test_each_missing_extra_names_the_function_the_extra_and_the_install_command(monkeypatch) -> None:
+    def blocked(name: str):
+        root = name.split(".", 1)[0]
+        raise ModuleNotFoundError(f"No module named {root!r}", name=root)
+
+    monkeypatch.setattr("eegprep.extras.importlib.import_module", blocked)
+    library_for: dict[str, str] = {}
+    for library, extra in OPTIONAL_LIBRARIES.items():
+        library_for.setdefault(extra, library)
+    for feature, (extra, _detail) in PUBLIC_EXTRAS.items():
+        with pytest.raises(ImportError) as caught:
+            import_optional_dependency(library_for[extra], feature=feature)
+        message = str(caught.value)
+        assert message.startswith(f"{feature} needs "), message
+        assert extra in message
+        assert f'pip install "eegprep[{extra}]"' in message
+        assert 'pip install "eegprep[full]"' in message
+        note = _INSTEAD.get(feature)
+        if note:
+            assert note in message, message
+        assert isinstance(caught.value.__cause__, ImportError)
+
+
+def test_a_broken_dependency_is_not_reported_as_a_missing_extra(monkeypatch) -> None:
+    def broken(name: str):
+        raise ImportError("No module named 'numpy'", name="numpy")
+
+    monkeypatch.setattr("eegprep.extras.importlib.import_module", broken)
+    with pytest.raises(ImportError, match="numpy") as caught:
+        import_optional_dependency("mne", feature="eeg_eeg2mne")
+    assert 'eegprep[mne]' not in str(caught.value)
+
+
+def test_missing_torch_and_matlab_name_the_function_and_the_install(monkeypatch, tmp_path: Path) -> None:
+    from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+    from eegprep.plugins.ICLabel.iclabel import iclabel
+
+    monkeypatch.setitem(sys.modules, "torch", None)
+    with pytest.raises(ImportError) as torch_error:
+        iclabel({}, feature="pop_iclabel")
+    torch_message = str(torch_error.value)
+    assert torch_message.startswith("pop_iclabel needs PyTorch")
+    assert 'pip install "eegprep[torch]"' in torch_message
+    assert 'pip install "eegprep[all]"' in torch_message
+    assert "engine='octave'" in torch_message
+    assert 'pip install "eegprep[eeglab]"' in torch_message
+
+    checkout = tmp_path / "eeglab"
+    checkout.mkdir()
+    (checkout / "eeglab.m").write_text("", encoding="utf-8")
+    monkeypatch.setenv("EEGPREP_EEGLAB_ROOT", str(checkout))
+
+    def missing_matlab(name: str):
+        raise ImportError("No module named 'matlab'", name="matlab")
+
+    monkeypatch.setattr("eegprep.functions.adminfunc.eeglabcompat.importlib.import_module", missing_matlab)
+    with pytest.raises(ImportError) as matlab_error:
+        get_eeglab("mat", feature="pop_resample", _cache={})
+    matlab_message = str(matlab_error.value)
+    assert matlab_message.startswith("pop_resample needs the MATLAB engine")
+    assert "pip install /your/path/to/matlab/extern/engines/python" in matlab_message
+    assert 'pip install "eegprep[eeglab]"' in matlab_message
+    assert "Leave engine unset to resample in Python." in matlab_message
 
 
 def test_import_optional_dependency_returns_an_installed_library() -> None:

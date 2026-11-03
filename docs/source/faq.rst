@@ -33,8 +33,9 @@ psutil, and pyedflib, so cleaning, plotting, and EDF export need no brackets. Th
 ``pip install "eegprep[full]"`` adds Octave, MNE, PyBIDS, and Picard, which
 are the ``eeglab``, ``mne``, ``pybids``, and ``picard`` extras, and restores
 the previous complete install. ``eegprep.help()`` lists public names and the
-extra each one needs. A missing extra raises ``ImportError`` with the install
-command.
+extra each one needs. A missing extra raises ``ImportError`` naming the
+function and the install command, and says what to do instead when another
+path does not need that library.
 
 For development installation from source:
 

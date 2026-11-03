@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import scipy.io
 
-from eegprep.extras import import_optional_dependency
+from eegprep.extras import import_optional_dependency, missing_matlab_message
 from eegprep.functions.adminfunc.pymat import py2mat
 from ..popfunc.pop_loadset import pop_loadset
 from ..popfunc.pop_saveset import pop_saveset
@@ -373,16 +373,8 @@ def get_eeglab(
             try:
                 # Use import_module so ty can run before MATLAB Engine is installed.
                 matlab_engine = importlib.import_module("matlab.engine")
-            except ImportError:
-                raise ImportError("""\
-                    The MATLAB runtime has not been installed into your Python environment.
-                    To do that, make sure you have the pip executable for this python environment
-                    on the path, and then run:
-                    pip install /your/path/to/matlab/extern/engines/python
-
-                    This will insert a wrapper package in the python environment that forwards
-                    calls to the MATLAB runtime.
-                    """)
+            except ImportError as exc:
+                raise ImportError(missing_matlab_message(feature)) from exc
             engine = matlab_engine.start_matlab()
             # engine.cd(path2eeglab)
             # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow

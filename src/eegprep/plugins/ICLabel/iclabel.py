@@ -5,11 +5,13 @@ import os
 
 import numpy as np
 
+from eegprep.extras import missing_torch_message
+
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
 
 
-def iclabel(EEG, algorithm='default', engine=None):
+def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
     """Apply ICLabel to classify independent components.
 
     Parameters
@@ -38,7 +40,7 @@ def iclabel(EEG, algorithm='default', engine=None):
         from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
         runtime = 'MAT' if engine == 'matlab' else 'OCT'
-        eeglab = get_eeglab(runtime=runtime, feature='iclabel')
+        eeglab = get_eeglab(runtime=runtime, feature=feature)
 
         # Run ICLabel using MATLAB/Octave, passing the algorithm parameter
         if algorithm == 'default':
@@ -57,12 +59,7 @@ def iclabel(EEG, algorithm='default', engine=None):
         try:
             import torch
         except ImportError as e:
-            raise ImportError(
-                f"PyTorch is not installed in your environment ({e}). "
-                f"To include torch, install eegprep as eegprep[all] or "
-                f"install the torch package manually (see Getting Started "
-                f"on pytorch.org for specifics for your platform)."
-            ) from e
+            raise ImportError(missing_torch_message(feature)) from e
 
         from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor

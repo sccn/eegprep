@@ -33,6 +33,7 @@ def pop_resample(
     return_com=False,
     fc=None,
     df=None,
+    feature="pop_resample",
 ):
     """Resample EEG data to a new sampling rate.
 
@@ -77,13 +78,13 @@ def pop_resample(
         output = []
         for index, item in enumerate(EEG, start=1):
             logger.info("Processing group dataset %s of %s.", index, len(EEG))
-            output.append(pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df))
+            output.append(pop_resample(item, freq, engine=engine, gui=False, fc=fc, df=df, feature=feature))
         command = _history_command(freq)
         return (output, command) if return_com else output
 
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
-        eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT', feature='pop_resample')
+        eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT', feature=feature)
         EEG_new = eeglab.pop_resample(EEG, freq)
         command = _history_command(freq)
         return (EEG_new, command) if return_com else EEG_new

@@ -1,9 +1,9 @@
 """Import a library that lives behind an extra.
 
 A missing optional library raises ``ImportError`` naming the library, the
-feature that needs it, and the exact install command. An ``ImportError`` whose
-missing module is something else is re-raised, so a broken dependency is not
-reported as a missing extra.
+function that needs it, and the install command. When another path does not
+need the library, the message says what to do instead. An ``ImportError`` for
+a different module is re-raised.
 """
 
 from __future__ import annotations
@@ -67,12 +67,72 @@ def install_command(extra: str) -> str:
     return f'pip install "eegprep[{extra}]"'
 
 
+_LIBRARY_LABEL = {
+    "bids": "PyBIDS",
+    "mne": "MNE",
+    "oct2py": "Octave (oct2py)",
+    "picard": "Picard",
+}
+
+_INSTEAD = {
+    "clean_channels": "The default subroutine, sphericalSplineInterpolate, does not need Octave or MATLAB.",
+    "eeg_picard": "pop_runica() uses runica unless icatype is 'picard'.",
+    "eeglab_clean_artifacts": "clean_artifacts is the Python cleaner and does not need Octave or MATLAB.",
+    "get_eeglab": "Pass runtime='MAT' to use the MATLAB engine instead.",
+    "iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "picard": "pop_runica() uses runica unless icatype is 'picard'.",
+    "pop_fileio": "EEGLAB .set, CNT, and BrainVision .vhdr without a block range do not need MNE.",
+    "pop_iclabel": 'Leave engine unset for the Python network, which needs pip install "eegprep[torch]".',
+    "pop_resample": "Leave engine unset to resample in Python.",
+    "pop_runica": "Leave icatype unset to use runica, which does not need Picard.",
+    "resample": "Leave engine unset to resample in Python.",
+}
+
+
+def _instead(feature: str) -> str:
+    note = _INSTEAD.get(feature)
+    return f" {note}" if note else ""
+
+
+def missing_extra_message(feature: str, library: str) -> str:
+    """Plain-language ``ImportError`` text for a library that lives behind an extra."""
+    extra = OPTIONAL_LIBRARIES[library]
+    return (
+        f"{feature} needs {_LIBRARY_LABEL[library]}, and it is not installed. "
+        f"Install it with {install_command(extra)}. "
+        f"{install_command('full')} installs MNE, PyBIDS, Octave, and Picard."
+        f"{_instead(feature)}"
+    )
+
+
+def missing_torch_message(feature: str) -> str:
+    """Plain-language ``ImportError`` text for the Python ICLabel network."""
+    return (
+        f"{feature} needs PyTorch for the Python ICLabel network, and it is not installed. "
+        f"Install it with {install_command('torch')}. "
+        f"{install_command('all')} includes PyTorch with the other extras. "
+        "engine='matlab' or engine='octave' runs ICLabel through EEGLAB instead. "
+        f"Octave needs {install_command('eeglab')}."
+    )
+
+
+def missing_matlab_message(feature: str) -> str:
+    """Plain-language ``ImportError`` text when the MATLAB engine is absent."""
+    return (
+        f"{feature} needs the MATLAB engine, and it is not installed. "
+        "Install the engine from your MATLAB checkout with "
+        "pip install /your/path/to/matlab/extern/engines/python. "
+        f"The Octave engine is {install_command('eeglab')}."
+        f"{_instead(feature)}"
+    )
+
+
 def import_optional_dependency(name: str, *, feature: str) -> ModuleType:
     """Import ``name``, or raise ``ImportError`` with the extra that provides it.
 
     Args:
         name: Import name, such as ``mne`` or ``mne.export``.
-        feature: Function or feature that needs the library, such as ``pop_writeeeg``.
+        feature: Function that needs the library, such as ``pop_fileio``.
 
     Returns:
         The imported module.
@@ -84,16 +144,12 @@ def import_optional_dependency(name: str, *, feature: str) -> ModuleType:
             module is re-raised unchanged.
     """
     root = name.split(".", 1)[0]
-    extra = OPTIONAL_LIBRARIES[root]
+    if root not in OPTIONAL_LIBRARIES:
+        raise KeyError(root)
     try:
         return importlib.import_module(name)
     except ImportError as exc:
         missing = (exc.name or "").split(".", 1)[0]
         if missing != root:
             raise
-        raise ImportError(
-            f"{feature} requires {root}, which is not installed ({exc}). "
-            f"Install it with {install_command(extra)}. "
-            f"{install_command('full')} installs this extra with the other packages "
-            "that used to be part of the base install."
-        ) from exc
+        raise ImportError(missing_extra_message(feature, root)) from exc

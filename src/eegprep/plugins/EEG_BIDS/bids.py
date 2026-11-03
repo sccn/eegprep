@@ -76,7 +76,7 @@ def root_for_fpath(fn: str) -> str:
 
 def query_for_adjacent_fpath(fn: str, **overrides) -> Dict[str, Any]:
     """Generate a query dictionary (of entities) for a given file path in a BIDS dataset."""
-    layout = layout_for_fpath(fn)
+    layout = layout_for_fpath(fn, feature="query_for_adjacent_fpath")
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)
     return query_entities
@@ -143,9 +143,9 @@ def gen_derived_fpath(
     return out_path
 
 
-def layout_for_fpath(filepath: str) -> bids.BIDSLayout:
+def layout_for_fpath(filepath: str, *, feature: str = "layout_for_fpath") -> bids.BIDSLayout:
     """Get the applicable BIDS layout object for a given file path."""
-    bids = import_optional_dependency("bids", feature="layout_for_fpath")
+    bids = import_optional_dependency("bids", feature=feature)
     bids_root = root_for_fpath(filepath)
     try:
         return layout_cache[bids_root]

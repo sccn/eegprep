@@ -72,8 +72,9 @@ uv add "eegprep[full]"   # oct2py, mne, pybids, and python-picard
 | `gui`, `console`, `torch`, `docs` | Qt, IPython, PyTorch, Sphinx | unchanged |
 | `all` | every extra above | GUI, docs, classifiers, and `full` |
 
-A function whose extra is missing raises `ImportError` with
-`pip install "eegprep[<extra>]"` and mentions `eegprep[full]`.
+A function whose extra is missing raises `ImportError` naming that function,
+`pip install "eegprep[<extra>]"`, and `eegprep[full]`. When another path does
+not need the library, the message says what to do instead.
 `dir(eegprep)` lists every public name, and `eegprep.help()` prints a one-line
 summary of each, including which extra it needs.
 

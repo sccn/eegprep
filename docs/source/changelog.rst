@@ -20,8 +20,9 @@ Unreleased
   PyBIDS, and Picard are the ``eeglab``, ``mne``, ``pybids``, and ``picard``
   extras. ``pip install "eegprep[full]"`` installs those four and restores
   the previous complete install. A missing library raises ``ImportError``
-  naming the library, the feature, and ``pip install "eegprep[<extra>]"``,
-  and it mentions ``eegprep[full]``. The minimal preprocessing image
+  naming the library, the function, and ``pip install "eegprep[<extra>]"``,
+  and it mentions ``eegprep[full]``. When another path does not need that
+  library, the message says what to do instead. The minimal preprocessing image
   installs the ``pybids`` and ``mne`` extras so it can read a BIDS dataset
   and EDF or BDF files. ``eegprep-lean`` stays a separate package.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full

@@ -39,7 +39,7 @@ def pop_iclabel(
         command = _history_command(icversion)
         return (output, command) if return_com else output
     _require_ica(EEG)
-    output = iclabel(EEG, algorithm=icversion, engine=engine)
+    output = iclabel(EEG, algorithm=icversion, engine=engine, feature="pop_iclabel")
     command = _history_command(icversion)
     return (output, command) if return_com else output
 

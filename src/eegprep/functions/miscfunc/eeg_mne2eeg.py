@@ -54,7 +54,7 @@ def _mne_events_to_eeglab_events(raw_or_epochs):
     return _consistent_durations(_restore_numeric_event_types(events))
 
 
-def eeg_mne2eeg(raw):
+def eeg_mne2eeg(raw, *, feature="eeg_mne2eeg"):
     """Convert an MNE Raw or Epochs object to an EEG dataset.
 
     ``info['subject_info']['his_id']`` is copied to ``EEG['subject']``. For
@@ -83,8 +83,8 @@ def eeg_mne2eeg(raw):
     dict
         EEG data structure.
     """
-    mne = import_optional_dependency("mne", feature="eeg_mne2eeg")
-    mne_export = import_optional_dependency("mne.export", feature="eeg_mne2eeg")
+    mne = import_optional_dependency("mne", feature=feature)
+    mne_export = import_optional_dependency("mne.export", feature=feature)
     raw_or_epochs = raw
 
     with tempfile.TemporaryDirectory(prefix="eegprep-mne2eeg-") as temp_dir:

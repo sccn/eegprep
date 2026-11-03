@@ -14,7 +14,7 @@ from ._ica_utils import (
 from ..miscfunc.pinv import pinv
 
 
-def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
+def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', *, feature='eeg_picard', **kwargs):
     """Perform ICA decomposition using Picard algorithm.
 
     This function can use either a Python implementation or an EEGLAB (via MATLAB or Octave) implementation.
@@ -68,7 +68,7 @@ def eeg_picard(EEG, engine=None, posact='off', sortcomps='off', **kwargs):
             n_components = params.get('n_components') or data.shape[0]
             params['w_init'] = np.eye(int(n_components))  # deterministic across full-rank and PCA runs
 
-        picard = import_optional_dependency("picard", feature="eeg_picard").picard
+        picard = import_optional_dependency("picard", feature=feature).picard
         weighting_matrix, unmixing_matrix, _sources = picard(data, **params)
 
         EEG['icasphere'] = np.eye(EEG['nbchan'])
