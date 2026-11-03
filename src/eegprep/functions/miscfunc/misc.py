@@ -7,6 +7,8 @@ from typing import Callable, Optional
 
 import numpy as np
 
+from eegprep.extras import import_optional_dependency
+
 __all__ = [
     'is_debug',
     'ExceptionUnlessDebug',
@@ -217,12 +219,7 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
     else:
         reserve, margin = ReservePerJob, '0%'
     if reserve.endswith('B'):
-        try:
-            import psutil
-        except ImportError:
-            raise ImportError(
-                "psutil is required to determine available system RAM. Please install it with 'uv pip install psutil'."
-            )
+        psutil = import_optional_dependency("psutil", feature="num_jobs_from_reservation")
         avail_amt = psutil.virtual_memory().available
         unit = reserve[-2:].upper()
         multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]

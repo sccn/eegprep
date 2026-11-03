@@ -3,9 +3,9 @@
 import logging
 
 import numpy as np
-import psutil
 import scipy.signal
 
+from eegprep.extras import import_optional_dependency
 from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.riemann import asr_subspace_reconstruction, rasr_nonlinear_eigenspace, spd_geodesic_midpoint
 
@@ -64,6 +64,7 @@ def asr_process_r(
     if lookahead is None:
         lookahead = window_len / 2
     if max_mem is None:
+        psutil = import_optional_dependency("psutil", feature="asr_process_r")
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
     if max_dims < 1:
         max_dims_num = int(round_mat(channels * max_dims))
@@ -95,6 +96,7 @@ def asr_process_r(
             'Memory too low, increasing it (rejection block size now '
             'depends on available memory so it might not be fully reproducible)...'
         )
+        psutil = import_optional_dependency("psutil", feature="asr_process_r")
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
         if max_mem * 1024 * 1024 - channels * channels * lookahead_samples * 8 * 3 < 0:
             raise RuntimeError('Not enough memory')

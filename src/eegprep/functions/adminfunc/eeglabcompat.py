@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import scipy.io
 
+from eegprep.extras import import_optional_dependency
 from eegprep.functions.adminfunc.pymat import py2mat
 from ..popfunc.pop_loadset import pop_loadset
 from ..popfunc.pop_saveset import pop_saveset
@@ -354,9 +355,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 
         # not yet loaded, do so now
         if rt == 'oct':
-            from oct2py import Oct2Py, get_log
-
-            engine = Oct2Py(logger=get_log())
+            oct2py = import_optional_dependency("oct2py", feature="get_eeglab")
+            get_log = oct2py.get_log
+            engine = oct2py.Oct2Py(logger=get_log())
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')

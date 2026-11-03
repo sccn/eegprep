@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import scipy.signal
 
+from eegprep.extras import import_optional_dependency
 from ...functions.miscfunc.misc import finite_matmul, round_mat
 from .private.riemann import asr_subspace_reconstruction
 from .private.sigproc import moving_average
@@ -61,8 +62,7 @@ def asr_process(
         lookahead = window_len / 2
     if max_mem is None:
         # use at most half of available memory
-        import psutil
-
+        psutil = import_optional_dependency("psutil", feature="asr_process")
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
 
     window_len = max(window_len, 1.5 * C / srate)
@@ -106,8 +106,7 @@ def asr_process(
             "Memory too low, increasing it (rejection block size now "
             "depends on available memory so it might not be fully reproducible)..."
         )
-        import psutil
-
+        psutil = import_optional_dependency("psutil", feature="asr_process")
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
         if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
             raise RuntimeError('Not enough memory')

@@ -28,6 +28,12 @@ Published releases can also be installed with pip:
 
     pip install eegprep
 
+``uv add eegprep`` installs this package. The separate ``eegprep-lean`` reader
+is a different distribution. ``pip install "eegprep[full]"`` restores
+``oct2py``, ``psutil``, and ``pyedflib``, which are the ``eeglab``, ``sys``,
+and ``edf`` extras. ``eegprep.help()`` lists public names and the extra each
+one needs. A missing extra raises ``ImportError`` with the install command.
+
 For development installation from source:
 
 .. code-block:: bash

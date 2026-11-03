@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from .functions.adminfunc.logs import setup_logging
+from .package_help import render_help
 
 __version__ = "0.4.0"
 
@@ -584,3 +585,18 @@ def __getattr__(name: str) -> Any:
     # Cache the resolved export so normal attribute lookup skips __getattr__.
     globals()[name] = value
     return value
+
+
+def __dir__() -> list[str]:
+    """List every public name, including those loaded on first use."""
+    return sorted(set(globals()) | set(_LAZY_EXPORTS))
+
+
+def help() -> None:
+    """Print every public name, a one-line summary, and the extra that name needs.
+
+    Summaries are read from source, so this does not import the modules behind
+    the names. ``help`` is not in ``__all__``: ``from eegprep import *`` must
+    not replace the builtin.
+    """
+    print(render_help(_LAZY_EXPORTS, __version__))

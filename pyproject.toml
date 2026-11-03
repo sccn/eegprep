@@ -37,11 +37,8 @@ dependencies = [
   "matplotlib>=3.8.0",
   "mne>=1.10.0",
   "numpy>=2.1.0",
-  "oct2py>=5.5.0",
   "packaging>=23.0",
-  "psutil>=7.0.0",
   "pybids>=0.4",
-  "pyedflib>=0.1.42",
   "pyyaml>=6.0",
   "python-picard>=0.8,<0.9",
   # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
@@ -53,6 +50,24 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Octave runtime used by eegprep.functions.adminfunc.eeglabcompat.get_eeglab.
+eeglab = [
+  "oct2py>=5.5.0",
+]
+# Free-RAM probing for asr_process, asr_process_r, and num_jobs_from_reservation.
+sys = [
+  "psutil>=7.0.0",
+]
+# EDF and BDF output of pop_writeeeg. GDF output does not need it.
+edf = [
+  "pyedflib>=0.1.42",
+]
+# The three extras above. Restores the base install from before they moved.
+full = [
+  "eegprep[eeglab]",
+  "eegprep[sys]",
+  "eegprep[edf]",
+]
 torch = [
   "torch>=2.0"
 ]
@@ -80,6 +95,9 @@ all = [
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
+  "eegprep[eeglab]",
+  "eegprep[sys]",
+  "eegprep[edf]",
 ]
 
 [project.scripts]
@@ -93,6 +111,11 @@ dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
+  # Same packages as the eeglab, sys, and edf extras. Tests import pyedflib
+  # directly and exercise the Octave and RAM paths.
+  "oct2py>=5.5.0",
+  "psutil>=7.0.0",
+  "pyedflib>=0.1.42",
   "pytest>=8.0",
   "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",

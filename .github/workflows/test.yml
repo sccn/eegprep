@@ -145,6 +145,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # --all-extras installs eeglab, sys, and edf (oct2py, psutil, pyedflib).
           uv sync --python ${{ matrix.python-version }} --all-extras --group dev
 
       - name: Set up MATLAB
@@ -287,6 +288,61 @@ jobs:
         run: |
           uv pip list
 
+  # A plain `pip install eegprep` no longer installs oct2py, psutil, or pyedflib.
+  # The jobs above sync --all-extras, which hides a module that still imports one
+  # of them at import time. This job installs the base dependencies only.
+  base-install:
+    name: Base install without optional extras
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install only the base package
+        run: |
+          uv venv --python 3.12 /tmp/eegprep-base
+          uv export --frozen --no-dev --no-emit-project --no-header -o /tmp/eegprep-base-reqs.txt
+          uv pip install --python /tmp/eegprep-base/bin/python -r /tmp/eegprep-base-reqs.txt
+          uv pip install --python /tmp/eegprep-base/bin/python --no-deps -e .
+          uv pip install --python /tmp/eegprep-base/bin/python pytest pytest-timeout
+
+      - name: Check import, dir, help, and the missing-extra errors
+        run: |
+          /tmp/eegprep-base/bin/python - <<'PY'
+          import importlib.util
+          import io
+          import sys
+          import eegprep
+          present = [name for name in ("oct2py", "psutil", "pyedflib") if importlib.util.find_spec(name) is not None]
+          if present:
+              raise SystemExit(f"base install includes {present}")
+          names = dir(eegprep)
+          if "pop_loadset" not in names or "help" not in names or "pop_writeeeg" not in names:
+              raise SystemExit("dir() is missing public names")
+          heavy = [name for name in ("numpy", "scipy", "mne", "matplotlib", "h5py", "oct2py") if name in sys.modules]
+          if heavy:
+              raise SystemExit(f"import eegprep loaded {heavy}")
+          buffer = io.StringIO()
+          sys.stdout = buffer
+          eegprep.help()
+          sys.stdout = sys.__stdout__
+          text = buffer.getvalue()
+          if "pop_loadset" not in text or 'pip install "eegprep[full]"' not in text:
+              raise SystemExit("help() did not describe the public names and extras")
+          print(f"base import ok; help() printed {len(text.splitlines())} lines")
+          PY
+          EEGPREP_SKIP_MATLAB=1 /tmp/eegprep-base/bin/python -m pytest \
+            tests/test_package_help.py tests/test_optional_extras.py tests/test_browser_dependency_floors.py \
+            -q -p no:cacheprovider
+
   # No continue-on-error, so the job fails on any new failure or strict XPASS.
   # Maintainers should mark it required in branch protection. Known Python gaps
   # are individual strict xfails. GUI and slow contracts stay out because modal
@@ -331,6 +387,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # --all-extras installs eeglab, sys, and edf (oct2py, psutil, pyedflib).
           uv sync --python 3.12 --all-extras --group dev
 
       - name: Read pinned EEGLAB test commits

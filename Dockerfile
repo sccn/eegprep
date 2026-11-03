@@ -18,10 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy local source and install (no PyTorch, no optional extras)
+# Copy local source and install. The sys extra is the RAM probe used by
+# --jobs 4GB; the image does not install the other optional extras.
 COPY src/ src/
 COPY pyproject.toml LICENSE README.md ./
-RUN pip install --no-cache-dir --prefix=/install .
+RUN pip install --no-cache-dir --prefix=/install ".[sys]"
 
 # ----- Stage 2: runtime (no compilers, no dev headers) -------
 FROM python:3.12-slim

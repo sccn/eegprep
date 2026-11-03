@@ -524,11 +524,8 @@ dependencies = [
     { name = "matplotlib" },
     { name = "mne" },
     { name = "numpy" },
-    { name = "oct2py" },
     { name = "packaging" },
-    { name = "psutil" },
     { name = "pybids" },
-    { name = "pyedflib" },
     { name = "python-picard" },
     { name = "pyyaml" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin'" },
@@ -541,7 +538,10 @@ all = [
     { name = "ipython" },
     { name = "myst-parser" },
     { name = "numpydoc" },
+    { name = "oct2py" },
+    { name = "psutil" },
     { name = "pydata-sphinx-theme" },
+    { name = "pyedflib" },
     { name = "pyqtgraph" },
     { name = "pyside6" },
     { name = "sphinx" },
@@ -568,9 +568,23 @@ docs = [
     { name = "sphinx-togglebutton" },
     { name = "sphinxcontrib-spelling" },
 ]
+edf = [
+    { name = "pyedflib" },
+]
+eeglab = [
+    { name = "oct2py" },
+]
+full = [
+    { name = "oct2py" },
+    { name = "psutil" },
+    { name = "pyedflib" },
+]
 gui = [
     { name = "pyqtgraph" },
     { name = "pyside6" },
+]
+sys = [
+    { name = "psutil" },
 ]
 torch = [
     { name = "torch" },
@@ -580,6 +594,9 @@ torch = [
 dev = [
     { name = "hypothesis" },
     { name = "ipython" },
+    { name = "oct2py" },
+    { name = "psutil" },
+    { name = "pyedflib" },
     { name = "pyqtgraph" },
     { name = "pyside6" },
     { name = "pytest" },
@@ -598,8 +615,14 @@ requires-dist = [
     { name = "eeglabio", specifier = ">=0.1.2" },
     { name = "eegprep", extras = ["console"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["docs"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["edf"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["edf"], marker = "extra == 'full'" },
+    { name = "eegprep", extras = ["eeglab"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["eeglab"], marker = "extra == 'full'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'all'" },
     { name = "eegprep", extras = ["gui"], marker = "extra == 'console'" },
+    { name = "eegprep", extras = ["sys"], marker = "extra == 'all'" },
+    { name = "eegprep", extras = ["sys"], marker = "extra == 'full'" },
     { name = "eegprep", extras = ["torch"], marker = "extra == 'all'" },
     { name = "h5py", specifier = ">=3.12.1" },
     { name = "ipython", marker = "extra == 'console'", specifier = ">=8.0" },
@@ -608,12 +631,12 @@ requires-dist = [
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=1.0.0" },
     { name = "numpy", specifier = ">=2.1.0" },
     { name = "numpydoc", marker = "extra == 'docs'", specifier = ">=1.6.0" },
-    { name = "oct2py", specifier = ">=5.5.0" },
+    { name = "oct2py", marker = "extra == 'eeglab'", specifier = ">=5.5.0" },
     { name = "packaging", specifier = ">=23.0" },
-    { name = "psutil", specifier = ">=7.0.0" },
+    { name = "psutil", marker = "extra == 'sys'", specifier = ">=7.0.0" },
     { name = "pybids", specifier = ">=0.4" },
     { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.14.0" },
-    { name = "pyedflib", specifier = ">=0.1.42" },
+    { name = "pyedflib", marker = "extra == 'edf'", specifier = ">=0.1.42" },
     { name = "pyqtgraph", marker = "extra == 'gui'", specifier = ">=0.13.7" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.6" },
     { name = "python-picard", specifier = ">=0.8,<0.9" },
@@ -629,12 +652,15 @@ requires-dist = [
     { name = "threadpoolctl", specifier = ">=3.5.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
 ]
-provides-extras = ["torch", "gui", "console", "docs", "all"]
+provides-extras = ["eeglab", "sys", "edf", "full", "torch", "gui", "console", "docs", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "hypothesis", specifier = ">=6.130" },
     { name = "ipython", specifier = ">=8.0" },
+    { name = "oct2py", specifier = ">=5.5.0" },
+    { name = "psutil", specifier = ">=7.0.0" },
+    { name = "pyedflib", specifier = ">=0.1.42" },
     { name = "pyqtgraph", specifier = ">=0.13.7" },
     { name = "pyside6", specifier = ">=6.6" },
     { name = "pytest", specifier = ">=8.0" },

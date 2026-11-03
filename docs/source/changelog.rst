@@ -10,6 +10,19 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``dir(eegprep)`` lists every public name, and ``eegprep.help()`` prints
+  those names with a one-line summary taken from the docstring. Describing a
+  name does not import its module. ``help`` is not in ``__all__``, so
+  ``from eegprep import *`` does not replace the builtin.
+- ``oct2py``, ``psutil``, and ``pyedflib`` are optional extras ``eeglab``,
+  ``sys``, and ``edf``. ``pip install "eegprep[full]"`` installs those three
+  and restores the previous base install. A missing library raises
+  ``ImportError`` naming the library, the feature, and
+  ``pip install "eegprep[<extra>]"``, and it mentions ``eegprep[full]``.
+  NumPy, SciPy, MNE, Matplotlib, PyBIDS, Picard, and h5py stay in the base
+  install. GDF export and a CPU job reservation do not need the new extras.
+  The minimal preprocessing image installs the ``sys`` extra so
+  ``--jobs 4GB`` can read free RAM.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
   event-consistency check. That keeps events when ``trials`` was 0.
   EEGLAB checks the bounds first and drops them. The full check also

@@ -25,13 +25,25 @@ Installation Methods
 Using uv (Recommended)
 ----------------------
 
-For a project managed by uv, add eegprep with:
+For a project managed by uv, add the ``eegprep`` package with:
 
 .. code-block:: bash
 
     uv add eegprep
 
-To include all optional EEGPrep dependencies:
+This installs EEGPrep. It does not install the separate ``eegprep-lean``
+distribution (import name ``eegprep_lean``). NumPy, SciPy, MNE, Matplotlib,
+PyBIDS, Picard, and h5py are part of this base install.
+
+``oct2py``, ``psutil``, and ``pyedflib`` are extras. Install them together
+with:
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+To include every optional extra, including the GUI, console, docs, and
+classifier dependencies:
 
 .. code-block:: bash
 
@@ -61,7 +73,9 @@ To install eegprep from source for development:
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
-checkout can immediately launch ``uv run eegprep-console --full``.
+checkout can immediately launch ``uv run eegprep-console --full``. It also
+installs the ``eeglab``, ``sys``, and ``edf`` packages so the test suite can
+exercise Octave, RAM probing, and EDF export.
 
 To develop or build documentation from source, include the docs extra:
 
@@ -73,6 +87,34 @@ Optional Dependencies
 =====================
 
 eegprep has several optional dependencies that enable additional functionality.
+Calling a function whose extra is not installed raises ``ImportError``. The
+message names the library, the function, and the command to install it, for
+example ``pip install "eegprep[edf]"``, and it mentions ``eegprep[full]``.
+
+``dir(eegprep)`` lists every public name. ``eegprep.help()`` prints those
+names with a one-line summary, read from the function's docstring without
+importing its module, and names the extra when one path of the function needs
+it. ``help`` is not exported by ``from eegprep import *``.
+
+``full`` restores the previous base install
+-------------------------------------------
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+This installs three extras:
+
+- ``eeglab`` (``oct2py``), the Octave runtime used by ``get_eeglab("oct")``.
+- ``sys`` (``psutil``), free-RAM probing for ``asr_process``,
+  ``asr_process_r``, and a RAM reservation such as
+  ``num_jobs_from_reservation("4GB")``. Passing an explicit memory budget, or
+  a CPU reservation such as ``"1CPU"``, does not need it.
+- ``edf`` (``pyedflib``), EDF and BDF output of ``pop_writeeeg``. GDF output
+  does not need it.
+
+``eegprep[all]`` includes these three extras plus the GUI, console, docs, and
+PyTorch extras.
 
 Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
 ``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
@@ -162,8 +204,10 @@ After installation, verify that eegprep is correctly installed by running:
 
     import eegprep
     print(eegprep.__version__)
+    eegprep.help()
 
-You should see the version number printed without any errors.
+You should see the version number, then a list of public names, printed
+without any errors.
 
 To verify all core modules are available:
 
