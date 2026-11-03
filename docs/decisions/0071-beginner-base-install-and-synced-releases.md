@@ -14,7 +14,7 @@ The base requires numpy, scipy, matplotlib, psutil, and pyedflib. It also keeps 
 
 Loading, cleaning (`clean_artifacts`), plotting (`topoplot`), a RAM reservation such as `4GB`, and EDF, BDF, and GDF export (`pop_writeeeg`) work from that install.
 
-On Linux x86_64 with CPython 3.12, that plain install downloaded about 98 MiB and occupied about 348 MiB once installed. The download is 20 wheels, 102,814,670 bytes, including the eegprep wheel. The installed size is the site-packages tree without the pip seed, 364,641,779 bytes.
+On Linux with Python 3.12, that plain install is about 98 MiB to download and about 285 MiB once installed. `pip install "eegprep[full]"` is about 160 MiB to download and about 462 MiB once installed.
 
 Heavy pieces the default preprocessing path and the common plots do not import are named extras:
 
@@ -31,7 +31,7 @@ Heavy pieces the default preprocessing path and the common plots do not import a
 
 A missing extra raises `ImportError`. The message names the library, the feature, `pip install "eegprep[<extra>]"`, and `pip install "eegprep[full]"`. `eegprep.help()` prints the extra next to each public name that needs one, read from source, without importing the module.
 
-Upgrading drops mne, pybids, oct2py, and picard from the plain install. A beginner still gets a working pipeline from `pip install eegprep`. Users who need those libraries install `eegprep[full]`. This record does not choose the version number.
+The release is 0.5.0, shared with eegprep-lean, because a plain install no longer includes mne, pybids, oct2py, and picard. A beginner still gets a working pipeline from `pip install eegprep`. Users who need those libraries install `eegprep[full]`.
 
 ## eegprep-lean
 
@@ -39,7 +39,7 @@ Upgrading drops mne, pybids, oct2py, and picard from the plain install. A beginn
 
 ## Synced releases
 
-eegprep and eegprep-lean are released together, with one shared version number. The release script builds both, publishes both, and fails if their versions differ. A release that moves one package and not the other is a failed release.
+eegprep and eegprep-lean are released together at 0.5.0, with one shared version number. The release script builds both, publishes both, and fails if their versions differ. A release that moves one package and not the other is a failed release.
 
 ## Why
 
@@ -53,4 +53,4 @@ Zero-dependency base, with `eegprep[core]` for numpy and scipy. A plain install 
 
 An alias that makes `eegprep-lean` install `eegprep` once the base is empty. NEMAR and OSA need the separate small wheel. The accepted base is a scientific install, not that 28 KB wheel. Publishing the alias would replace the pin. Rejected. The separate package stays.
 
-Calling the dependency drop invisible, so an upgrade would keep mne, pybids, oct2py, and picard without a new install command. It does not. Upgrading drops those four libraries, and users who need them install `eegprep[full]`. Whether that break is a new major version is undecided. Rejected.
+Calling the dependency drop invisible, so an upgrade would keep mne, pybids, oct2py, and picard without a new install command. Rejected. The release is 0.5.0 because a plain install drops those four libraries, and users who need them install `eegprep[full]`.
