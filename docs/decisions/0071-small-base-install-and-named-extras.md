@@ -1,54 +1,68 @@
-# 0071. The next major version installs a small core and named extras
+# 0071. The next major version installs a zero-dependency base
 
 - Status: Proposed
 - Date: 2026-11-03
 - Supersedes: the "default install stays whole" clause of [ADR 0069](https://github.com/nemarOrg/nemar-cli/blob/main/.context/decisions/0069-the-browser-runtime-is-its-own-package-and-eegprep-stays-whole.md) (accepted 2026-09-20, owner Seyed Yahya Shirazi, in nemar-cli). That clause keeps every current dependency on `pip install eegprep`.
-- Leaves in force: the rest of ADR 0069. `eegprep-lean` remains its own distribution. An extra can only add packages, so it cannot shrink the base install. ADR 0070, the browser recipe, is unchanged.
+- Leaves in force until the alias below: the rest of ADR 0069. `eegprep-lean` remains its own distribution while NEMAR pins it. An extra can only add packages, so it cannot shrink the base install. ADR 0070, the browser recipe, is unchanged.
 - Number: 0071, so this file does not collide with ADR 0070. It lives in this repository because `.context/` is gitignored here.
 
-Suraj chose this shape, the same one pandas and MNE use: a small required install, named extras for the rest, one extra that restores today's install, and an error that names the extra to install. Arno and Seyed still have the questions at the end. Until those are answered, this document is a proposal and `pip install eegprep` does not change.
+Suraj chose this shape. A plain `pip install eegprep` should be as small as `eegprep-lean`: no required dependencies, and a wheel on the order of the vendored lean wheel (28,537 bytes). Preprocessing and the rest of today's stack are named extras. `eegprep[full]` restores today's install. A missing extra raises `ImportError` with the command `pip install "eegprep[<extra>]"`.
+
+This is a major version bump. Arno and Seyed still have the questions at the end, so this document is a proposal and the current install does not change.
 
 Measurements below are from the feasibility report on `develop` at `f22111a5` (pull request #517), walked from `uv.lock` for linux x86_64, Python 3.12. Sizes are compressed wheel bytes, which is what pip downloads.
 
 ## Decision
 
-In the next major version, `pip install eegprep` installs numpy and scipy, plus the tiny pure-Python helpers core code still imports at startup (`pyyaml`, `packaging`, `threadpoolctl`, and `colorama` only if logging still needs it). That install includes the lazy public names, `eegprep.help()`, and the NEMAR reader once its source lives in this tree.
+In the next major version:
 
-Everything else is an extra:
+- `pip install eegprep` has an empty dependency list. The install is the package wheel alone, the same idea as `eegprep-lean` (28 KB, no dependencies). It includes the lazy public names, `eegprep.help()`, and the NEMAR reader once that source lives in this tree.
+- `eegprep[core]` adds numpy and scipy, plus the small pure-Python helpers preprocessing still imports (`pyyaml`, `packaging`, `threadpoolctl`, and `colorama` if logging still needs it).
+- The other features stay named extras. `eegprep[full]` is their union with `core`, which is today's install.
 
 | Extra | Installs | What it is for |
 | --- | --- | --- |
-| `io` | h5py, eeglabio, pyedflib | Reading and writing EEG files, including EDF and BDF |
+| `core` | numpy, scipy, and the small helpers above | Preprocessing |
+| `io` | h5py, eeglabio | Reading and writing EEG files other than EDF/BDF |
+| `edf` | pyedflib | EDF and BDF output |
 | `plot` | matplotlib | Topography and other figures |
 | `bids` | pybids | BIDS import and export |
 | `ica` | python-picard | Picard ICA |
 | `mne` | mne | Conversion to and from MNE |
 | `eeglab` | oct2py | The Octave engine |
 | `sys` | psutil | RAM reservations for ASR and job planning |
-| `iclabel` | ONNX runtime and the model file | ICLabel. `netICL.mat` and the dipfit MRI leave the base wheel with this extra |
+| `iclabel` | ONNX runtime and the model file | ICLabel. The network weights and the dipfit MRI leave the base wheel with this extra |
 | `gui` | unchanged | Qt dialogs |
 | `console` | unchanged | `eegprep-console` |
 | `torch` | unchanged | Torch models |
 | `docs` | unchanged | The documentation build |
-| `full` | the union of the extras above | Today's install, base plus the extras that exist today |
+| `full` | the union of the extras above | Today's install |
 
-`eegprep[full]` is the upgrade path. A script that today runs after `pip install eegprep` runs after `pip install eegprep[full]`.
+A script that today runs after `pip install eegprep` runs after `pip install eegprep[full]`.
 
-Calling a function whose library is missing raises `ImportError`, not a bare `ModuleNotFoundError`. The message names the library, the function or feature, the command `pip install "eegprep[<extra>]"`, and `pip install "eegprep[full]"`. `help()` prints the same extra next to each public name, read from source, without importing the module.
+Calling a function whose library is missing raises `ImportError`. The message names the library, the function or feature, the command `pip install "eegprep[<extra>]"`, and `pip install "eegprep[full]"`. `help()` prints the same extra next to each public name, read from source, without importing the module.
+
+Empty dependency metadata is not, by itself, a 28 KB wheel. The published `eegprep` 0.4.0 wheel is 16,343,718 bytes. `netICL.mat` is 10.82 MB, `standard_mri_mni.npz` is 3.84 MB, and the Python sources together are 4.00 MB. The network and the MRI have to leave the base wheel, and the built base wheel has to come down to the lean wheel's size, before the two installs match. The alias in the next section waits on that built wheel.
 
 ## eegprep-lean
 
-`eegprep-lean` stays a second wheel until OSA moves off the pin. The wheel is built from one shared copy of the reader source, mapped to the import name `eegprep_lean`, with an empty dependency list. NEMAR keeps importing `eegprep_lean`, including `set_default_transport`. Neither distribution depends on the other. This repository does not add `eegprep-lean` to its dependencies, and the lean wheel does not depend on `eegprep`.
+NEMAR and OSA pin `eegprep_lean-0.1.0.dev3-py3-none-any.whl` (28,537 bytes) by sha256. That pin keeps working. Until the eegprep base actually matches lean, this repository keeps building a separate zero-dependency wheel from one shared copy of the reader source, under the import name `eegprep_lean`, including `set_default_transport`. Neither distribution depends on the other during that time.
 
-The lean wheel becomes a thin alias of `eegprep` only after the base wheel is actually small. Publishing that alias earlier would replace the vendored 28,537-byte install with the scientific install. OSA vendors `eegprep_lean-0.1.0.dev3-py3-none-any.whl` and checks its sha256. A rebuilt wheel is a pin someone bumps on purpose.
+`eegprep-lean` becomes an alias that installs `eegprep` only after that base matches: no required dependencies, and a wheel as small as the one OSA vendors. Publishing the alias earlier would replace the 28 KB pin with the scientific install.
 
-## What this proposal does not do yet
+## What can land before the major version
 
-Moving oct2py, psutil, and pyedflib to extras named `eeglab`, `sys`, and `edf` can land before the major version. Until the major version, `eegprep[full]` restores those three packages, and numpy, scipy, mne, matplotlib, pybids, python-picard, and h5py stay required. At the major version, pyedflib joins `io` and `full` grows to the union in the table. This document does not make that split the current install.
+oct2py, psutil, and pyedflib can move to extras named `eeglab`, `sys`, and `edf` without a major bump. Until the major version, `eegprep[full]` in that change restores those three packages, and numpy, scipy, mne, matplotlib, pybids, python-picard, and h5py stay required. The major version is the point at which the base dependency list becomes empty and `full` grows to the union in the table.
 
-## Why the base has to shrink in a major version
+## Why this is a major version
 
-An extra is added on top of the base requirements. `pip install eegprep[full]` on today's base still downloads today's base. ADR 0069 recorded that limit and kept the default install whole so existing users keep mne, matplotlib, pybids, picard, h5py, and oct2py. Shrinking that list changes what `pip install eegprep` means. That is a major-version break, with `eegprep[full]` as the compatible install.
+An extra is added on top of the base requirements. `pip install eegprep[full]` on today's base still downloads today's base. ADR 0069 recorded that limit and kept the default install whole so existing users keep mne, matplotlib, pybids, picard, h5py, and oct2py. An empty base list changes what `pip install eegprep` means. That break belongs in a major version, with `eegprep[full]` as the compatible install.
+
+## Considered alternative
+
+The alternative is a required base of numpy and scipy (plus the small helpers), with everything else optional. That install is still much smaller than today: the lock walk puts those packages at 6 wheels and 54.8 MB, against 83 packages and 136.4 MB for the current base.
+
+It is not the recommendation. scipy's own wheel is 37.3 MB, about 35–40 MB, and numpy adds 16.5 MB. A plain install of that size cannot replace the lean wheel. The alias would hand NEMAR a ~55 MB download in place of 28 KB, so `eegprep-lean` would have to stay a separate distribution permanently. The zero-dependency base is what makes retiring that wheel possible.
 
 ## Measurements the decision uses
 
@@ -63,23 +77,23 @@ The largest wheels in the base closure are scipy 37.3 MB, numpy 16.5 MB, pandas 
 
 ADR 0069 measured a different target in September 2026: under Pyodide 0.29.5 the eegprep base was 61 packages and 62.6 MB, against 12 packages and 4.2 MB to read a window. Both figures are real. Pyodide already carries numpy, scipy, matplotlib, and h5py, so its incremental download is smaller than a desktop pip install of the same names.
 
-`import eegprep` is already lazy. In an empty environment its median import time was 26 ms, and it loaded none of numpy, scipy, mne, matplotlib, h5py, oct2py, torch, or PySide6. `import eegprep_lean` had a median of 84 ms. `dir(eegprep)` listed 19 names while `__all__` had 539, which is the discoverability gap `help()` and `__dir__` close. Issue #428 and pull request #440 added that behavior to `eegprep-lean` only.
+`import eegprep` is already lazy. In an empty environment its median import time was 26 ms, and it loaded none of numpy, scipy, mne, matplotlib, h5py, oct2py, torch, or PySide6. `import eegprep_lean` had a median of 84 ms. `dir(eegprep)` listed 19 names while `__all__` had 539. Issue #428 and pull request #440 added `help()` and `__dir__` to `eegprep-lean` only.
 
-The published `eegprep` 0.4.0 wheel is 16,343,718 bytes. Inside it, `netICL.mat` is 10.82 MB, `standard_mri_mni.npz` is 3.84 MB, `mheadnew.mat` is 0.37 MB, all `.py` files together are 4.00 MB, and all `.mat` files together are 11.21 MB. A base install whose dependency list is numpy and scipy still ships a 16 MB wheel while those data files stay in the package. The `eegprep-lean` wheel OSA vendors is 28,537 bytes, version `0.1.0.dev3`, and it is not on PyPI. `depends.toml` in that runtime expects matplotlib, numpy, and zarr beside it. The prelude is `eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(osa.fetch))`.
+Inside the published wheel, `mheadnew.mat` is 0.37 MB, all `.py` files together are 4.00 MB, and all `.mat` files together are 11.21 MB. The `eegprep-lean` wheel is not on PyPI. `depends.toml` in the OSA runtime expects matplotlib, numpy, and zarr beside it. The prelude is `eegprep_lean.set_default_transport(eegprep_lean.FetchTransport(osa.fetch))`.
 
-Issue #395 is the check to repeat for every extra: eeglabio had no import site in this repository and was still required, because mne imports it when writing an EEGLAB file. A missing extra has to be caught by importing the feature with the library absent, not by grepping for the import name.
+Issue #395 is the check to repeat for every extra: eeglabio had no import site in this repository and was still required, because mne imports it when writing an EEGLAB file. A missing extra has to be caught by importing the feature with the library absent.
 
 Pyodide floors in `tests/test_browser_dependency_floors.py` stay where they are: numpy 2.2.5, scipy 1.14.1, matplotlib 3.8.4, h5py 3.13.0. `requires-python >= 3.12` still admits Pyodide 3.13.2.
 
 ## Open questions
 
-Arno:
+Suraj has asked Arno:
 
-- Does file I/O (`h5py`, `eeglabio`, `pyedflib`) stay in the required install, or move to the `io` extra? Loading a `.set` file is the first thing most scripts do. The table above puts it in `io`. If the required install should open EEGLAB files, `io` joins numpy and scipy and `full` still covers the rest.
-- Do `netICL.mat` (10.82 MB) and the dipfit MRI (`standard_mri_mni.npz`, 3.84 MB) leave the base wheel with the `iclabel` extra? Together with `mheadnew.mat` they are most of the 16.3 MB wheel. Leaving them in the base wheel keeps the package file large after the dependency list shrinks.
+1. Is a minimal plain install acceptable? The proposal is `pip install eegprep` with no required dependencies, at the size of `eegprep-lean`.
+2. Should the ICLabel network (about 11 MB, measured 10.82 MB in `netICL.mat`) and the dipfit MRI (about 4 MB, measured 3.84 MB in `standard_mri_mni.npz`) leave the base wheel?
+3. Is the major version bump acceptable? `eegprep[full]` would be the install that matches today's `pip install eegprep`.
 
 Seyed:
 
-- Confirm the OSA pin before any lean wheel is rebuilt. The vendored file is `eegprep_lean-0.1.0.dev3-py3-none-any.whl`, 28,537 bytes, and `depends.toml` expects matplotlib, numpy, and zarr. The contract text in nemar-cli still describes `0.1.0.dev2`.
-- Is `eegprep-lean` ever published to PyPI? OSA installs from its own lock and does not need PyPI. The lean wheel workflow leaves that choice to the project owner.
-- When this proposal is accepted, update the nemar-cli contract so it matches this document. The alias stays unpublished until the base wheel is small enough that depending on `eegprep` preserves the browser download. With numpy and scipy required, that dependency closure is about 55 MB of wheels, and the wheel file stays about 16 MB until the data files move.
+- The OSA pin stays on `eegprep_lean-0.1.0.dev3-py3-none-any.whl`, 28,537 bytes, checked by sha256, until the eegprep base matches that wheel and the alias is agreed. `depends.toml` expects matplotlib, numpy, and zarr beside it. Any rebuilt lean wheel is a pin he bumps on purpose.
+- When this proposal is accepted, the nemar-cli contract should be updated to match it. The contract text still describes `0.1.0.dev2`. The alias stays unpublished until the built base wheel matches the lean wheel those documents pin.
