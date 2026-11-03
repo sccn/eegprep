@@ -16,6 +16,11 @@ Unreleased
   NaNs, when the other cleaning stages are off. ``clean_asr`` still raises
   ``ASRCalibrationError``. EEGLAB prints that calibration error and returns
   before window removal; a requested window stage still runs here.
+- ``pop_clean_rawdata`` still removes bursts when only two or three 0.5 s
+  RMS windows are available. Eleven fit widths round to zero on the
+  21-channel, 89-sample, 128 Hz crop in issue 526. EEGLAB indexes that
+  width and returns the recording unchanged. The valid widths are still
+  used here.
 - ``asr_process`` and ``asr_process_r`` refresh the reconstruction on the
   last sample of a chunk when the length modulo the step is 1. A
   29-channel, 257-sample recording at 128 Hz is processed as 289 samples

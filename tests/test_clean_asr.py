@@ -19,6 +19,8 @@ from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+from tests.fuzz.harness import compare_data, load_tolerances
 
 # Nightly fuzz crop clean_asr|numeric|1e1, seed 20261031.
 _NAN_TAIL_SHA256 = "f98111327da99e56c5c9bf58d5ca02364023868af91ce44d4354caa79065e4d6"
@@ -95,6 +97,46 @@ def test_very_short_recording_still_calibrates_with_reference_off():
     cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
     assert cleaned["data"].shape == data.shape
     assert np.max(np.abs(cleaned["data"] - data)) > 1.0
+
+
+_ISSUE_526_SHA256 = "5f90669b03649cfc1fbd82a6cdabd4cda1b3dc43d7adb22db5bbaba07fd19569"
+
+
+def test_issue_526_two_rms_windows_are_still_cleaned():
+    """21 channels, 89 samples at 128 Hz. EEGLAB indexes width 0 and returns the input."""
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    data = np.array(np.asarray(source["data"])[np.ix_(range(10, 31), np.arange(49, 49 + 89))], dtype=np.float64)
+    digest = hashlib.sha256(np.ascontiguousarray(data, dtype=np.float64).tobytes()).hexdigest()
+    assert digest == _ISSUE_526_SHA256
+    srate = float(source["srate"])
+    eeg = {
+        "data": data,
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": int(data.shape[1]),
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (data.shape[1] - 1) / srate,
+        "event": [],
+    }
+    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    popped = pop_clean_rawdata(
+        eeg,
+        gui=False,
+        FlatlineCriterion="off",
+        Highpass="off",
+        ChannelCriterion="off",
+        LineNoiseCriterion="off",
+        WindowCriterion="off",
+        BurstCriterion=5.0,
+        BurstCriterionRefMaxBadChns="off",
+        BurstRejection="off",
+    )
+    np.testing.assert_array_equal(popped["data"], cleaned["data"])
+    assert cleaned["data"].shape == (21, 89)
+    gap, error_class, *_rest = compare_data(cleaned["data"], data, srate, srate, load_tolerances()["clean_asr"])
+    assert gap is True
+    assert error_class == "numeric"
 
 
 def test_low_sampling_rate_calibration_names_the_spectral_filter():

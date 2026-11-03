@@ -79,7 +79,9 @@ def clean_artifacts(
         is shorter than one 0.5 s RMS window, or when fewer than two of those
         windows can be formed. The recording at this stage is left unchanged.
         A requested window-removal stage still runs. EEGLAB prints the
-        calibration error and returns before that stage.
+        calibration error and returns before that stage. Two or three RMS
+        windows still calibrate. EEGLAB indexes a rounded width of 0 and
+        returns the recording unchanged; those widths are skipped here.
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.

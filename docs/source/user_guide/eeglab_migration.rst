@@ -167,7 +167,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
    * - ASR on a very short recording
      - With calibration reference selection off, ``clean_asr`` still returns
        cleaned data when only two or three RMS windows are available.
-       EEGLAB's calibration fit indexes a zero window width and errors.
+       EEGLAB's calibration fit indexes a zero window width and errors
+       (``asr_calibrate.m`` lines 392-395, the same index as
+       ``fit_eeg_distribution.m`` lines 112-115). ``pop_clean_rawdata``
+       catches that error and returns the recording unchanged
+       (``clean_artifacts.m`` lines 270-275). EEGPrep skips the
+       non-positive widths and still removes bursts. The 21-channel,
+       89-sample recording at 128 Hz has two windows, and eleven of those
+       widths round to zero.
    * - One ASR calibration window
      - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
        calibration RMS windows are available, and when the calibration is

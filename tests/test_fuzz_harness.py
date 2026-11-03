@@ -307,6 +307,88 @@ def test_clean_asr_short_recording_numeric_error_still_diverges():
     assert outcome.diverged is True
 
 
+_ISSUE_526_SHA256 = "5f90669b03649cfc1fbd82a6cdabd4cda1b3dc43d7adb22db5bbaba07fd19569"
+
+
+def _issue_526_case(*, entry: str = "clean_rawdata", length: int = 89, start: int = 49, channels=tuple(range(10, 31))):
+    return FuzzCase(
+        "clean_asr",
+        EEGSpec(channels, start, length, 1, -1, 0, 0),
+        freeze_params({"entry": entry, "cutoff": 5.0, "ref_maxbadchannels": "off", "window_len": None}),
+    )
+
+
+def test_two_window_clean_rawdata_returning_the_input_is_not_a_divergence():
+    """89 samples at 128 Hz are two RMS windows. EEGLAB returns that input."""
+    case = _issue_526_case()
+    eeg = materialize_eeg(case)
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    assert data_sha256(original) == _ISSUE_526_SHA256
+    cleaned = np.asarray(clean_asr(copy.deepcopy(eeg), cutoff=5.0, ref_maxbadchannels="off")["data"])
+    diverged, error_class, *_rest = compare_data(cleaned, original, 128.0, 128.0, load_tolerances()["clean_asr"])
+    assert diverged is True
+    assert error_class == "numeric"
+
+    def unchanged(_case, dataset):
+        return np.array(dataset["data"], dtype=np.float64, copy=True)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+
+def test_two_window_clean_rawdata_shifted_oracle_still_diverges():
+    case = _issue_526_case()
+    eeg = materialize_eeg(case)
+
+    def shifted(_case, dataset):
+        out = np.array(dataset["data"], dtype=np.float64, copy=True)
+        out[0, 0] += 1.0
+        return out
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(shifted), load_tolerances())
+    assert outcome.diverged is True
+
+
+def test_two_window_clean_rawdata_wrong_python_result_still_diverges():
+    case = _issue_526_case()
+    eeg = materialize_eeg(case)
+
+    class _Zeros:
+        def run(self, _case, dataset):
+            return SideResult(
+                True, np.zeros_like(np.asarray(dataset["data"], dtype=float)), float(dataset["srate"]), None, None
+            )
+
+    def unchanged(_case, dataset):
+        return np.array(dataset["data"], dtype=np.float64, copy=True)
+
+    outcome = evaluate_case(case, lambda _case: eeg, _Zeros(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is True
+
+
+def test_long_clean_rawdata_returning_the_input_still_diverges():
+    case = _issue_526_case(length=1024, start=0, channels=tuple(range(11)))
+    eeg = materialize_eeg(case)
+
+    def unchanged(_case, dataset):
+        return np.array(dataset["data"], dtype=np.float64, copy=True)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is True
+
+
+def test_two_window_direct_clean_asr_returning_the_input_still_diverges():
+    case = _issue_526_case(entry="clean_asr")
+    eeg = materialize_eeg(case)
+
+    def unchanged(_case, dataset):
+        return np.array(dataset["data"], dtype=np.float64, copy=True)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _Backend(unchanged), load_tolerances())
+    assert outcome.diverged is True
+
+
 def test_very_short_reference_off_index_error_is_not_a_divergence():
     case = FuzzCase(
         "clean_asr",
