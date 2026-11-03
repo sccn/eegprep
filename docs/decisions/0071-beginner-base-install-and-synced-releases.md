@@ -14,12 +14,14 @@ The base requires numpy, scipy, matplotlib, psutil, and pyedflib. It also keeps 
 
 Loading, cleaning (`clean_artifacts`), plotting (`topoplot`), a RAM reservation such as `4GB`, and EDF, BDF, and GDF export (`pop_writeeeg`) work from that install.
 
+On Linux x86_64 with CPython 3.12, that plain install downloaded about 98 MiB and occupied about 348 MiB once installed. The download is 20 wheels, 102,814,670 bytes, including the eegprep wheel. The installed size is the site-packages tree without the pip seed, 364,641,779 bytes.
+
 Heavy pieces the default preprocessing path and the common plots do not import are named extras:
 
 | Extra | Installs | Used for |
 | --- | --- | --- |
 | `eeglab` | oct2py | The Octave engine: `pop_resample(engine="octave")`, `iclabel(engine="octave")`, the RANSAC octave subroutine, `eeglab_clean_artifacts` |
-| `mne` | mne | Conversion to and from MNE, and the EDF, BDF, and GDF readers. EEGLAB `.set`, CNT, and BrainVision do not need it |
+| `mne` | mne | Conversion to and from MNE, and the EDF, BDF, GDF, and EGI `.mff` readers. BrainVision `.eeg` files, and `.vhdr` files when a block range is set, also use it. EEGLAB `.set`, CNT, and BrainVision `.vhdr` without a block range do not |
 | `pybids` | pybids | BIDS import and `bids_preproc` |
 | `picard` | python-picard | Picard ICA. The default ICA is `runica`, which does not import it. This extra also installs scikit-learn; eegprep does not import scikit-learn itself |
 
@@ -29,7 +31,7 @@ Heavy pieces the default preprocessing path and the common plots do not import a
 
 A missing extra raises `ImportError`. The message names the library, the feature, `pip install "eegprep[<extra>]"`, and `pip install "eegprep[full]"`. `eegprep.help()` prints the extra next to each public name that needs one, read from source, without importing the module.
 
-There is no major version bump. Moving libraries the default path does not import does not change what a beginner gets from `pip install eegprep`: a working pipeline.
+Upgrading drops mne, pybids, oct2py, and picard from the plain install. A beginner still gets a working pipeline from `pip install eegprep`. Users who need those libraries install `eegprep[full]`. This record does not choose the version number.
 
 ## eegprep-lean
 
@@ -51,4 +53,4 @@ Zero-dependency base, with `eegprep[core]` for numpy and scipy. A plain install 
 
 An alias that makes `eegprep-lean` install `eegprep` once the base is empty. NEMAR and OSA need the separate small wheel. The accepted base is a scientific install, not that 28 KB wheel. Publishing the alias would replace the pin. Rejected. The separate package stays.
 
-A major version bump to carry an empty base. The accepted change does not empty the base, so it does not need a new major version. `eegprep[full]` is how an existing complete install is spelled. Rejected as unnecessary.
+Calling the dependency drop invisible, so an upgrade would keep mne, pybids, oct2py, and picard without a new install command. It does not. Upgrading drops those four libraries, and users who need them install `eegprep[full]`. Whether that break is a new major version is undecided. Rejected.
