@@ -180,7 +180,7 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
             "import_failures": failures,
             "calls": calls,
             "cpu_jobs": num_jobs_from_reservation("1CPU"),
-            "memory_jobs": num_jobs_from_reservation("4GB"),
+            "memory_jobs": num_jobs_from_reservation("1MB"),
             "gdf_bytes": gdf.stat().st_size,
             "edf_bytes": edf.stat().st_size,
         }}))
