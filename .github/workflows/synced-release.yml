@@ -34,4 +34,4 @@ jobs:
         run: uv python install 3.12
 
       - name: Dry run the joint release
-        run: python3 scripts/release_packages.py
+        run: uv run --python 3.12 --no-project python scripts/release_packages.py
