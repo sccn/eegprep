@@ -49,9 +49,7 @@ def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_
         return {"loaded_from": str(filename)}
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        eeglabcompat, "get_eeglab", lambda auto_file_roundtrip=False, **_kwargs: DummyEeglab()
-    )
+    monkeypatch.setattr(eeglabcompat, "get_eeglab", lambda auto_file_roundtrip=False, **_kwargs: DummyEeglab())
     monkeypatch.setattr(eeglabcompat, "pop_saveset", fake_pop_saveset)
     monkeypatch.setattr(eeglabcompat, "pop_loadset", fake_pop_loadset)
 
