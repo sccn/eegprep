@@ -145,13 +145,13 @@ def calc_projector(
             return sphericalSplineInterpolate(src.T, dest.T)[0]
 
     elif subroutine == 'matlab':
-        matlab = get_eeglab('MAT')
+        matlab = get_eeglab('MAT', feature='clean_channels')
 
         def op(src, dest):
             return matlab.sphericalSplineInterpolate(src.T, dest.T)[0]
 
     elif subroutine == 'octave':
-        octave = get_eeglab('OCT')
+        octave = get_eeglab('OCT', feature='clean_channels')
 
         def op(src, dest):
             return octave.sphericalSplineInterpolate(src.T, dest.T)[0]

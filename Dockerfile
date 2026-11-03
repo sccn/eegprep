@@ -18,9 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# psutil is a base dependency, so --jobs 4GB can read free RAM. The entrypoint
-# reads a BIDS dataset and can import EDF or BDF, which need these two extras.
-# Octave and Picard stay out of this image.
 COPY src/ src/
 COPY pyproject.toml LICENSE README.md ./
 RUN pip install --no-cache-dir --prefix=/install ".[pybids,mne]"

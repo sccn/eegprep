@@ -52,8 +52,8 @@ uv add eegprep
 That command installs this package, `eegprep`. It does not install
 `eegprep-lean` (import name `eegprep_lean`), which is a separate
 zero-dependency reader. NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py
-are part of this base install, so loading, cleaning, plotting, RAM checks,
-and EDF, BDF, and GDF export need no brackets.
+are part of this base install, so loading, cleaning, plotting, and EDF, BDF,
+and GDF export need no brackets.
 
 Four heavier libraries are extras. `pip install "eegprep[full]"` puts them
 back and restores the previous complete install:

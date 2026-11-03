@@ -34,7 +34,7 @@ For a project managed by uv, add the ``eegprep`` package with:
 This installs EEGPrep. It does not install the separate ``eegprep-lean``
 distribution (import name ``eegprep_lean``). NumPy, SciPy, Matplotlib,
 psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
-plotting, RAM checks, and EDF, BDF, and GDF export work with no brackets.
+plotting, and EDF, BDF, and GDF export work with no brackets.
 
 Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
 
@@ -109,16 +109,13 @@ This installs four extras:
   ``pop_resample(..., engine="octave")``, ``iclabel(..., engine="octave")``,
   the RANSAC octave subroutine used by ``clean_channels``, and
   ``eeglab_clean_artifacts``.
-- ``mne``, conversion to and from MNE objects, and the EDF, BDF, and GDF
-  readers in ``pop_biosig`` and ``pop_fileio``. EEGLAB ``.set``, CNT, and
-  BrainVision files do not need it.
+- ``mne``, conversion to and from MNE objects, and the EDF, BDF, GDF, and
+  EGI ``.mff`` readers in ``pop_biosig`` and ``pop_fileio``. BrainVision
+  ``.eeg`` files, and ``.vhdr`` files when a block range is set, also use it.
+  EEGLAB ``.set``, CNT, and BrainVision ``.vhdr`` without a block range do not.
 - ``pybids``, BIDS import and ``bids_preproc``.
 - ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
   does not need it. This extra also installs scikit-learn.
-
-Free-RAM probing (``clean_asr(..., maxmem=None)`` and a reservation such as
-``"4GB"``) and EDF, BDF, and GDF export (``pop_writeeeg``) are part of the
-base install.
 
 ``eegprep[all]`` includes these four extras plus the GUI, console, docs, and
 PyTorch extras.

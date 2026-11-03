@@ -23,9 +23,12 @@ def pop_importbids(
     as UTF-8, then as Latin-1 when the bytes are not UTF-8. JSON sidecars
     stay UTF-8, and a leading UTF-8 BOM is removed.
     """
-    import_optional_dependency("bids", feature="pop_importbids")
     source = Path(path)
-    files = bids_list_eeg_files(str(source)) if source.is_dir() else [str(source)]
+    if source.is_dir():
+        import_optional_dependency("bids", feature="pop_importbids")
+        files = bids_list_eeg_files(str(source))
+    else:
+        files = [str(source)]
     if not files:
         raise ValueError(f"No supported EEG files found in BIDS path: {source}")
     eegs = [pop_load_frombids(filename, **kwargs) for filename in files]

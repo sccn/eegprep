@@ -15,8 +15,8 @@ Unreleased
   name does not import its module. ``help`` is not in ``__all__``, so
   ``from eegprep import *`` does not replace the builtin.
 - A plain ``pip install eegprep`` includes NumPy, SciPy, Matplotlib,
-  psutil, pyedflib, and h5py. Loading, cleaning, plotting, RAM reservations,
-  and EDF, BDF, and GDF export need no extra. Octave (``oct2py``), MNE,
+  psutil, pyedflib, and h5py. Loading, cleaning, plotting, and EDF, BDF, and
+  GDF export need no extra. Octave (``oct2py``), MNE,
   PyBIDS, and Picard are the ``eeglab``, ``mne``, ``pybids``, and ``picard``
   extras. ``pip install "eegprep[full]"`` installs those four and restores
   the previous complete install. A missing library raises ``ImportError``

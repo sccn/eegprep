@@ -83,7 +83,7 @@ def pop_resample(
 
     # Check if using MATLAB or Octave implementation
     if engine in ['matlab', 'octave']:
-        eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT')
+        eeglab = get_eeglab(runtime='MAT' if engine == 'matlab' else 'OCT', feature='pop_resample')
         EEG_new = eeglab.pop_resample(EEG, freq)
         command = _history_command(freq)
         return (EEG_new, command) if return_com else EEG_new

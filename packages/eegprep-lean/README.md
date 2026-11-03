@@ -3,7 +3,8 @@
 EEGPrep's browser runtime.
 Reads a NEMAR recording without installing EEGPrep.
 
-`pip install eegprep` is unchanged and installs everything it always did.
+`pip install eegprep` installs NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py.
+Octave, MNE, PyBIDS, and Picard are extras (`pip install "eegprep[full]"`).
 This is a second distribution, built to a download budget instead,
 because a browser session pays for its dependencies before it sees anything.
 The reasoning is [Architecture Decision Record 0069][adr0069],

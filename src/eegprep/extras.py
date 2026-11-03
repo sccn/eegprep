@@ -33,10 +33,13 @@ PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
     "mne2eeg": ("mne", "converting from an MNE object"),
     "picard": ("picard", "Picard ICA"),
     "pop_biosig": ("mne", "EDF, BDF, and GDF import"),
-    "pop_fileio": ("mne", "readers other than EEGLAB, CNT, and BrainVision"),
+    "pop_fileio": ("mne", "EDF, BDF, GDF, EGI .mff, BrainVision .eeg, and .vhdr with a block range"),
+    "pop_iclabel": ("eeglab", "engine='octave'"),
     "pop_importbids": ("pybids", "reading a BIDS dataset"),
     "pop_load_frombids": ("pybids", "reading a BIDS dataset"),
     "pop_resample": ("eeglab", "engine='octave'"),
+    "pop_runica": ("picard", "icatype='picard'"),
+    "resample": ("eeglab", "engine='octave'"),
 }
 
 #: What each extra is for. ``full`` restores the packages this release moved out of the base.
@@ -46,8 +49,9 @@ EXTRA_SUMMARY: dict[str, str] = {
         "the clean_channels RANSAC octave subroutine, and eeglab_clean_artifacts. Installs oct2py."
     ),
     "mne": (
-        "MNE conversion and the EDF, BDF, and GDF readers in pop_biosig and pop_fileio. "
-        "EEGLAB .set, CNT, and BrainVision do not need it. Installs mne."
+        "MNE conversion and the EDF, BDF, GDF, and EGI .mff readers in pop_biosig and pop_fileio. "
+        "BrainVision .eeg files, and .vhdr files when a block range is set, also use it. "
+        "EEGLAB .set, CNT, and BrainVision .vhdr without a block range do not. Installs mne."
     ),
     "pybids": "BIDS import and bids_preproc. Installs pybids.",
     "picard": (

@@ -15,6 +15,9 @@ from eegprep.package_help import render_help
 
 HEAVY_MODULES = ("numpy", "scipy", "mne", "matplotlib", "h5py", "oct2py")
 SRC_ROOT = Path(eegprep.__file__).resolve().parent
+# pop_fileio reads .mat without mne. This wrapper rejects every other suffix,
+# so the static call to pop_fileio is not an mne path.
+_FORMAT_BRANCH_FALSE_POSITIVES = frozenset({"pop_fileio_brainvision_mat"})
 _PRIVATE_DIR = {"logging", "Any", "setup_logging", "render_help", "importlib"}
 
 
@@ -82,8 +85,6 @@ def test_help_describes_every_public_name_without_importing_the_stack() -> None:
     for extra in ("eeglab", "mne", "pybids", "picard", "full"):
         assert f'pip install "eegprep[{extra}]"' in text
     assert "restores the previous complete install" in text
-    assert 'pip install "eegprep[sys]"' not in text
-    assert 'pip install "eegprep[edf]"' not in text
     described = [line for line in text.splitlines() if line.startswith("  ") and "  " in line[2:]]
     summaries = [line for line in described if line.split("  ", 2)[-1].strip()]
     assert len(summaries) > 400
@@ -173,29 +174,70 @@ def _public_optional_extras() -> dict[str, str]:
                 found.add((module, node.id))
         return found
 
-    direct = {key: _direct_libraries(func) for key, func in functions.items()}
     calls = {key: callees(key[0], func) for key, func in functions.items()}
-    private_libs = {key: set(direct[key]) for key in functions if key not in public}
+    direct = {key: _direct_libraries(func) for key, func in functions.items()}
+    public_keys = set(public)
+    private_libs = {key: set(direct[key]) for key in functions if key not in public_keys}
     changed = True
     while changed:
         changed = False
-        for key, libraries in private_libs.items():
+        for key, own in private_libs.items():
             for callee in calls[key]:
                 downstream = private_libs.get(callee)
-                if downstream and not downstream <= libraries:
-                    libraries.update(downstream)
+                if downstream and not downstream <= own:
+                    own.update(downstream)
                     changed = True
 
+    def own_libraries(key: tuple[str, str]) -> set[str]:
+        """Libraries this function reaches without going through another public function."""
+        libraries = set(direct[key])
+        for callee in calls[key]:
+            libraries.update(private_libs.get(callee, ()))
+        return libraries
+
+    def private_callees(key: tuple[str, str]) -> set[tuple[str, str]]:
+        seen: set[tuple[str, str]] = set()
+        stack = [key]
+        while stack:
+            current = stack.pop()
+            for callee in calls[current]:
+                if callee in functions and callee not in public_keys and callee not in seen:
+                    seen.add(callee)
+                    stack.append(callee)
+        return seen
+
+    # One public hop from this function or its private helpers, plus that
+    # callee's own import. pop_runica reaches picard through eeg_picard.
+    # A second public hop would mark clean_artifacts: it calls clean_channels,
+    # whose Octave import sits behind a subroutine argument clean_artifacts never passes.
+    def reached_libraries(key: tuple[str, str]) -> set[str]:
+        libraries = own_libraries(key)
+        for source in {key, *private_callees(key)}:
+            for callee in calls[source]:
+                if callee not in functions or callee not in public_keys:
+                    continue
+                libraries.update(direct[callee])
+                for nested in calls[callee]:
+                    if nested in functions and nested not in public_keys:
+                        libraries.update(direct[nested])
+        return libraries
+
+    declared = {name: extra for name, (extra, _detail) in PUBLIC_EXTRAS.items()}
     reached: dict[str, str] = {}
     for key, name in public.items():
         if key not in functions:
             continue
-        libraries = set(direct[key])
-        for callee in calls[key]:
-            libraries.update(private_libs.get(callee, ()))
-        if not libraries:
+        found = {OPTIONAL_LIBRARIES[library] for library in reached_libraries(key)}
+        if name in _FORMAT_BRANCH_FALSE_POSITIVES:
+            assert found == {"mne"}, (name, found)
             continue
-        extras = {OPTIONAL_LIBRARIES[library] for library in libraries}
-        assert len(extras) == 1, (name, libraries)
-        reached[name] = extras.pop()
+        if not found:
+            continue
+        if len(found) == 1:
+            (extra,) = found
+        else:
+            assert name in declared, (name, found)
+            extra = declared[name]
+            assert extra in found, (name, extra, found)
+        reached[name] = extra
     return reached

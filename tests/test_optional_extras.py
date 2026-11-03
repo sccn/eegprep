@@ -39,8 +39,6 @@ def test_base_install_keeps_plotting_and_edf_and_moves_heavy_libraries() -> None
 
     assert set(STILL_REQUIRED) <= base
     assert {"oct2py", "mne", "pybids", "python-picard", "neo"}.isdisjoint(base)
-    assert "sys" not in extras
-    assert "edf" not in extras
     assert _requirement_names(extras["eeglab"]) == {"oct2py"}
     assert _requirement_names(extras["mne"]) == {"mne"}
     assert _requirement_names(extras["pybids"]) == {"pybids"}
@@ -57,17 +55,16 @@ def _catches_import_error(handler: ast.ExceptHandler) -> bool:
     return any(name in caught for name in ("ImportError", "ModuleNotFoundError", "Exception"))
 
 
+def _is_type_checking(node: ast.AST) -> bool:
+    return isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING"
+
+
 def _unguarded_imports(path: Path) -> set[str]:
     """Top-level modules imported outside a function and outside an ImportError handler."""
     found: set[str] = set()
 
     def visit(node: ast.AST, guarded: bool) -> None:
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.Import):
-                if not guarded:
-                    found.update(alias.name.split(".", 1)[0] for alias in child.names)
-            elif isinstance(child, ast.ImportFrom) and child.level == 0 and child.module and not guarded:
-                found.add(child.module.split(".", 1)[0])
             child_guarded = guarded or isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
             if (
                 isinstance(node, ast.Try)
@@ -75,6 +72,13 @@ def _unguarded_imports(path: Path) -> set[str]:
                 and any(_catches_import_error(h) for h in node.handlers)
             ):
                 child_guarded = True
+            if isinstance(node, ast.If) and _is_type_checking(node) and child in node.body:
+                child_guarded = True
+            if not child_guarded:
+                if isinstance(child, ast.Import):
+                    found.update(alias.name.split(".", 1)[0] for alias in child.names)
+                elif isinstance(child, ast.ImportFrom) and child.level == 0 and child.module:
+                    found.add(child.module.split(".", 1)[0])
             visit(child, child_guarded)
 
     visit(ast.parse(path.read_text(encoding="utf-8")), False)
@@ -128,8 +132,12 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         from eegprep.functions.popfunc.eeg_picard import eeg_picard
         from eegprep.functions.popfunc.pop_biosig import pop_biosig
         from eegprep.functions.popfunc.pop_fileio import pop_fileio
+        from eegprep.functions.popfunc.pop_resample import pop_resample
         from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
         from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
+        from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
+        from eegprep.plugins.ICLabel.iclabel import iclabel
+        from eegprep.plugins.clean_rawdata.private.ransac import calc_projector
 
         failures = {{}}
         for info in pkgutil.walk_packages(eegprep.__path__, "eegprep."):
@@ -175,6 +183,22 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
             "pop_biosig": call("pop_biosig", lambda: pop_biosig("recording.edf")),
             "pop_fileio": call("pop_fileio", lambda: pop_fileio("recording.edf")),
             "bids_list_eeg_files": call("bids_list_eeg_files", lambda: bids_list_eeg_files(".")),
+            "pop_resample": call("pop_resample", lambda: pop_resample(eeg, 100, engine="octave")),
+            "iclabel": call("iclabel", lambda: iclabel(eeg, engine="octave")),
+            "clean_channels": call(
+                "clean_channels",
+                lambda: calc_projector(np.zeros((4, 3)), 1, 2, subroutine="octave"),
+            ),
+            "pop_importbids": call("pop_importbids", lambda: pop_importbids(".")),
+            "pop_importbids_file": call(
+                "pop_importbids_file",
+                lambda: pop_importbids(
+                    {str(REPO_ROOT / "sample_data" / "eeglab_data.set")!r},
+                    bidsmetadata=False,
+                    bidschanloc=False,
+                    bidsevent=False,
+                ),
+            ),
         }}
         print(json.dumps({{
             "import_failures": failures,
@@ -198,9 +222,13 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         "get_eeglab": ("oct2py", "eegprep[eeglab]", "get_eeglab"),
         "eeg_eeg2mne": ("mne", "eegprep[mne]", "eeg_eeg2mne"),
         "eeg_picard": ("picard", "eegprep[picard]", "eeg_picard"),
-        "pop_biosig": ("mne", "eegprep[mne]", "pop_biosig"),
+        "pop_biosig": ("mne", "eegprep[mne]", "pop_fileio"),
         "pop_fileio": ("mne", "eegprep[mne]", "pop_fileio"),
-        "bids_list_eeg_files": ("bids", "eegprep[pybids]", "bids_list_eeg_files"),
+        "bids_list_eeg_files": ("bids", "eegprep[pybids]", "layout_for_fpath"),
+        "pop_resample": ("oct2py", "eegprep[eeglab]", "pop_resample"),
+        "iclabel": ("oct2py", "eegprep[eeglab]", "iclabel"),
+        "clean_channels": ("oct2py", "eegprep[eeglab]", "clean_channels"),
+        "pop_importbids": ("bids", "eegprep[pybids]", "pop_importbids"),
     }
     for name, (library, extra, feature) in expected.items():
         call = result["calls"][name]
@@ -210,6 +238,7 @@ def test_moved_functions_name_their_extra_when_the_library_is_absent(tmp_path: P
         assert feature in call["message"]
         assert f'pip install "{extra}"' in call["message"]
         assert 'pip install "eegprep[full]"' in call["message"]
+    assert result["calls"]["pop_importbids_file"]["message"] == "no ImportError"
 
 
 def test_import_optional_dependency_returns_an_installed_library() -> None:

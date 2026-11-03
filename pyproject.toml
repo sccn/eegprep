@@ -116,8 +116,7 @@ dev = [
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
   # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
-  # exercise those paths without ``--all-extras``. psutil and pyedflib are base
-  # dependencies.
+  # exercise those paths without ``--all-extras``.
   "mne>=1.10.0",
   "oct2py>=5.5.0",
   "pybids>=0.4",

@@ -1,9 +1,14 @@
 """BIDS utilities."""
 
+from __future__ import annotations
+
 import os
-from typing import Sequence, Dict, Any, Optional
+from typing import TYPE_CHECKING, Sequence, Dict, Any, Optional
 
 from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import bids
 
 from .sidecar import read_bids_json
 
@@ -138,7 +143,7 @@ def gen_derived_fpath(
     return out_path
 
 
-def layout_for_fpath(filepath: str) -> Any:
+def layout_for_fpath(filepath: str) -> bids.BIDSLayout:
     """Get the applicable BIDS layout object for a given file path."""
     bids = import_optional_dependency("bids", feature="layout_for_fpath")
     bids_root = root_for_fpath(filepath)
@@ -161,7 +166,7 @@ def _filename_entity_count(path: str) -> int:
 
 
 def metadata_for_bids_file(
-    layout: Any,
+    layout: bids.BIDSLayout,
     filename: str,
     *,
     include_entities: bool = False,
@@ -202,7 +207,7 @@ def metadata_for_bids_file(
 
 
 def layout_get_lenient(
-    layout: Any,
+    layout: bids.BIDSLayout,
     *,
     return_type: str = 'filename',
     tolerate_missing: Sequence[str] = ('task', 'run'),

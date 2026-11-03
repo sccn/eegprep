@@ -13,7 +13,6 @@ eegrej, findboundaries, interp, lat2point, mne2eeg, mne2eeg_epochs, options, pic
 point2lat, epoch, loadset, reref, resample, rmbase, saveset, select.
 """
 
-from eegprep.extras import import_optional_dependency
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.popfunc.eeg_compare import eeg_compare
 from eegprep.functions.popfunc.eeg_decodechan import eeg_decodechan
@@ -53,7 +52,6 @@ def decodechan(*args, **kwargs):
 
 def eeg2mne(*args, **kwargs):
     """Wrap eeg_eeg2mne."""
-    import_optional_dependency("mne", feature="eeg2mne")
     return eeg_eeg2mne(*args, **kwargs)
 
 
@@ -79,7 +77,6 @@ def lat2point(*args, **kwargs):
 
 def mne2eeg(*args, **kwargs):
     """Wrap eeg_mne2eeg."""
-    import_optional_dependency("mne", feature="mne2eeg")
     return eeg_mne2eeg(*args, **kwargs)
 
 
@@ -95,7 +92,6 @@ def options(*args, **kwargs):
 
 def picard(*args, **kwargs):
     """Wrap eeg_picard."""
-    import_optional_dependency("picard", feature="picard")
     return eeg_picard(*args, **kwargs)
 
 

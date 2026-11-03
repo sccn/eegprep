@@ -38,7 +38,7 @@ def iclabel(EEG, algorithm='default', engine=None):
         from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
         runtime = 'MAT' if engine == 'matlab' else 'OCT'
-        eeglab = get_eeglab(runtime=runtime)
+        eeglab = get_eeglab(runtime=runtime, feature='iclabel')
 
         # Run ICLabel using MATLAB/Octave, passing the algorithm parameter
         if algorithm == 'default':
