@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.1
+## 0.5.0
 
 First version number shared with eegprep. The previous package version was 0.1.0.dev3.
 

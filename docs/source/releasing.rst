@@ -14,7 +14,7 @@ The version lives in one place
 
 ``src/eegprep/__init__.py``::
 
-    __version__ = "0.4.1"
+    __version__ = "0.5.0"
 
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
 there is no version string to edit in the eegprep ``pyproject.toml``.
@@ -61,7 +61,7 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git commit -am "release: 0.4.1"
+   git commit -am "release: 0.5.0"
    git checkout master && git merge --no-ff develop && git push origin master
 
 .. tip::
@@ -75,8 +75,8 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git tag -a v0.4.1 -m "Release version 0.4.1"
-   git push origin v0.4.1
+   git tag -a v0.5.0 -m "Release version 0.5.0"
+   git push origin v0.5.0
 
 **4. Watch it.** Nothing reaches PyPI unless every check passes:
 
@@ -119,8 +119,8 @@ nothing; once a version is on PyPI it can never be replaced.
 
 .. code-block:: bash
 
-   git push origin :refs/tags/v0.4.1     # delete the remote tag
-   git tag -f v0.4.1 && git push origin v0.4.1
+   git push origin :refs/tags/v0.5.0     # delete the remote tag
+   git tag -f v0.5.0 && git push origin v0.5.0
 
 Docker image
 ============

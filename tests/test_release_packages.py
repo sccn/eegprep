@@ -75,7 +75,7 @@ def test_publish_does_not_build_when_versions_differ(tmp_path: Path, monkeypatch
     assert not (root / "dist").exists()
 
 
-def _artifacts(dist: Path, version: str = "0.4.1") -> None:
+def _artifacts(dist: Path, version: str = "0.5.0") -> None:
     for path in release_packages.artifact_paths(dist, version):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"artifact")
@@ -96,10 +96,10 @@ def test_publish_uploads_the_artifact_files_lean_first(tmp_path: Path, monkeypat
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(release_packages.subprocess, "run", fake_run)
-    release_packages.publish(dist, "0.4.1")
+    release_packages.publish(dist, "0.5.0")
 
-    lean = ["eegprep_lean-0.4.1-py3-none-any.whl", "eegprep_lean-0.4.1.tar.gz"]
-    full = ["eegprep-0.4.1-py3-none-any.whl", "eegprep-0.4.1.tar.gz"]
+    lean = ["eegprep_lean-0.5.0-py3-none-any.whl", "eegprep_lean-0.5.0.tar.gz"]
+    full = ["eegprep-0.5.0-py3-none-any.whl", "eegprep-0.5.0.tar.gz"]
     assert [_names(command) for command in calls] == [lean, full, lean, full]
     assert [command[2] for command in calls[:2]] == ["--dry-run", "--dry-run"]
     assert all(
@@ -122,7 +122,7 @@ def test_publish_stops_before_either_upload_without_a_shared_token(
         lambda command, check: calls.append(command),
     )
     with pytest.raises(release_packages.VersionMismatch, match="eegprep-lean"):
-        release_packages.publish(dist, "0.4.1")
+        release_packages.publish(dist, "0.5.0")
     assert calls == []
 
 
@@ -142,9 +142,9 @@ def test_publish_does_not_upload_eegprep_when_lean_is_not_ready(
 
     monkeypatch.setattr(release_packages.subprocess, "run", fake_run)
     with pytest.raises(subprocess.CalledProcessError):
-        release_packages.publish(dist, "0.4.1")
+        release_packages.publish(dist, "0.5.0")
     assert calls
-    assert all("eegprep-0.4.1" not in part for command in calls for part in command)
+    assert all("eegprep-0.5.0" not in part for command in calls for part in command)
 
 
 def test_github_tag_ref_is_the_version_without_the_v(monkeypatch: pytest.MonkeyPatch) -> None:
