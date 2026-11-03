@@ -23,6 +23,8 @@ Unreleased
   install. GDF export and a CPU job reservation do not need the new extras.
   The minimal preprocessing image installs the ``sys`` extra so
   ``--jobs 4GB`` can read free RAM.
+- ``pop_writeeeg`` no longer creates the output directory when the EDF
+  dependency is missing.
 - ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
   event-consistency check. That keeps events when ``trials`` was 0.
   EEGLAB checks the bounds first and drops them. The full check also

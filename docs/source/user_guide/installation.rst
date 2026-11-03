@@ -105,10 +105,13 @@ it. ``help`` is not exported by ``from eegprep import *``.
 
 This installs three extras:
 
-- ``eeglab`` (``oct2py``), the Octave runtime used by ``get_eeglab("oct")``.
-- ``sys`` (``psutil``), free-RAM probing for ``asr_process``,
-  ``asr_process_r``, and a RAM reservation such as
-  ``num_jobs_from_reservation("4GB")``. Passing an explicit memory budget, or
+- ``eeglab`` (``oct2py``), the Octave runtime for
+  ``pop_resample(..., engine="octave")``, ``iclabel(..., engine="octave")``,
+  the RANSAC octave subroutine used by ``clean_channels``, and
+  ``eeglab_clean_artifacts``.
+- ``sys`` (``psutil``), free-RAM probing for ``clean_asr(..., maxmem=None)``
+  and a memory reservation such as
+  ``bids_preproc(..., ReservePerJob="4GB")``. An explicit memory budget, or
   a CPU reservation such as ``"1CPU"``, does not need it.
 - ``edf`` (``pyedflib``), EDF and BDF output of ``pop_writeeeg``. GDF output
   does not need it.

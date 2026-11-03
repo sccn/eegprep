@@ -7,7 +7,6 @@ import logging
 from typing import Any
 
 from .functions.adminfunc.logs import setup_logging
-from .package_help import render_help
 
 __version__ = "0.4.0"
 
@@ -589,7 +588,7 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     """List every public name, including those loaded on first use."""
-    return sorted(set(globals()) | set(_LAZY_EXPORTS))
+    return sorted(set(_LAZY_EXPORTS) | {"__version__", "help"})
 
 
 def help() -> None:
@@ -599,4 +598,6 @@ def help() -> None:
     the names. ``help`` is not in ``__all__``: ``from eegprep import *`` must
     not replace the builtin.
     """
+    from .package_help import render_help
+
     print(render_help(_LAZY_EXPORTS, __version__))

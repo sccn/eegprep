@@ -50,11 +50,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Octave runtime used by eegprep.functions.adminfunc.eeglabcompat.get_eeglab.
+# Octave runtime for pop_resample, iclabel, the clean_channels RANSAC path, and eeglab_clean_artifacts.
 eeglab = [
   "oct2py>=5.5.0",
 ]
-# Free-RAM probing for asr_process, asr_process_r, and num_jobs_from_reservation.
+# Free-RAM probing for clean_asr(maxmem=None) and a memory ReservePerJob in bids_preproc.
 sys = [
   "psutil>=7.0.0",
 ]
@@ -62,7 +62,6 @@ sys = [
 edf = [
   "pyedflib>=0.1.42",
 ]
-# The three extras above. Restores the base install from before they moved.
 full = [
   "eegprep[eeglab]",
   "eegprep[sys]",

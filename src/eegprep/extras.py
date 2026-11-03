@@ -20,13 +20,22 @@ OPTIONAL_LIBRARIES: dict[str, str] = {
 
 #: Public names that need an extra for one path. The note says which path.
 PUBLIC_EXTRAS: dict[str, tuple[str, str]] = {
+    "bids_preproc": ("sys", "a memory ReservePerJob"),
+    "clean_asr": ("sys", "maxmem=None"),
+    "clean_channels": ("eeglab", "the RANSAC octave subroutine"),
+    "eeglab_clean_artifacts": ("eeglab", "the Octave runtime"),
+    "iclabel": ("eeglab", "the Octave runtime"),
+    "pop_resample": ("eeglab", "engine='octave'"),
     "pop_writeeeg": ("edf", "EDF and BDF output; GDF does not need it"),
 }
 
 #: What each extra is for. ``full`` restores the packages this release moved out of the base.
 EXTRA_SUMMARY: dict[str, str] = {
-    "eeglab": "Octave runtime for get_eeglab. Installs oct2py.",
-    "sys": "RAM probing for asr_process, asr_process_r, and num_jobs_from_reservation. Installs psutil.",
+    "eeglab": (
+        "Octave runtime for pop_resample(engine='octave'), iclabel(engine='octave'), "
+        "the clean_channels RANSAC octave subroutine, and eeglab_clean_artifacts. Installs oct2py."
+    ),
+    "sys": ("RAM probing for clean_asr(maxmem=None) and bids_preproc with a memory ReservePerJob. Installs psutil."),
     "edf": "EDF and BDF output from pop_writeeeg. Installs pyedflib. GDF output does not need it.",
     "full": "The eeglab, sys, and edf extras together. This restores the previous base install.",
 }

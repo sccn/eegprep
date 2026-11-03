@@ -38,6 +38,16 @@ _GROUPS: tuple[tuple[str, str], ...] = (
 
 def render_help(lazy_exports: dict[str, tuple[str, str]], version: str) -> str:
     """Return the text ``eegprep.help()`` prints."""
+    exports = tuple((name, module, attr) for name, (module, attr) in lazy_exports.items())
+    return _cached_help(version, exports)
+
+
+@functools.cache
+def _cached_help(version: str, exports: tuple[tuple[str, str, str], ...]) -> str:
+    return _render_help({name: (module, attr) for name, module, attr in exports}, version)
+
+
+def _render_help(lazy_exports: dict[str, tuple[str, str]], version: str) -> str:
     titles: list[str] = []
     for _, title in _GROUPS:
         if title not in titles:

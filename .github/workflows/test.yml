@@ -145,7 +145,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # --all-extras installs eeglab, sys, and edf (oct2py, psutil, pyedflib).
           uv sync --python ${{ matrix.python-version }} --all-extras --group dev
 
       - name: Set up MATLAB
@@ -387,7 +386,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # --all-extras installs eeglab, sys, and edf (oct2py, psutil, pyedflib).
           uv sync --python 3.12 --all-extras --group dev
 
       - name: Read pinned EEGLAB test commits
