@@ -17,7 +17,30 @@ The version lives in one place
     __version__ = "0.3.0"
 
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
-there is no version string to edit in ``pyproject.toml``.
+there is no version string to edit in the eegprep ``pyproject.toml``.
+
+``eegprep-lean`` carries the same version in two places, and both must equal
+``__version__``: ``packages/eegprep-lean/src/eegprep_lean/__init__.py`` and
+``version`` in ``packages/eegprep-lean/pyproject.toml``. The joint release
+below exits before it builds if those three strings differ.
+
+Both packages
+=============
+
+``scripts/release_packages.py`` builds eegprep and eegprep-lean with that one
+version. With no flags it builds both and does not upload::
+
+    python scripts/release_packages.py
+
+``--publish`` uploads both distributions. ``--check`` compares the versions
+and does not build. A ``v*`` tag in ``GITHUB_REF``, or ``RELEASE_TAG``, must
+name the same version.
+
+``.github/workflows/synced-release.yml`` runs the script without ``--publish``.
+That job builds and verifies. It does not upload. ``release.yml`` still
+publishes the eegprep project when a ``v*`` tag is pushed. Uploading
+``eegprep-lean`` needs a trusted publisher for that project, which is not
+configured; ``lean-wheel.yml`` builds the lean wheel and does not publish it.
 
 Release from your machine
 =========================

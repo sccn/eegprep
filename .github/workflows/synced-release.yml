@@ -1,0 +1,37 @@
+name: Synced release dry run
+
+# Builds eegprep and eegprep-lean together and stops when their versions differ.
+# Does not publish. scripts/release_packages.py --publish is the upload, and this
+# workflow never passes that flag. eegprep-lean still needs its own PyPI trusted
+# publisher before an upload can succeed; lean-wheel.yml records that setup.
+
+on:
+  pull_request:
+    paths:
+      - "scripts/release_packages.py"
+      - "tests/test_release_packages.py"
+      - ".github/workflows/synced-release.yml"
+      - "src/eegprep/__init__.py"
+      - "packages/eegprep-lean/pyproject.toml"
+      - "packages/eegprep-lean/src/eegprep_lean/__init__.py"
+      - "docs/source/releasing.rst"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    name: Build both packages, publish nothing
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Dry run the joint release
+        run: python3 scripts/release_packages.py
