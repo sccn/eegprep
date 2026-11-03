@@ -896,10 +896,10 @@ def _pop_clean_rawdata_zero_width_is_known(
     params = thaw_params(case.params)
     if params["entry"] != "clean_rawdata" or params["ref_maxbadchannels"] != "off":
         return False
-    n_windows = _asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"]))
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    n_windows = _asr_rms_window_count(int(original.shape[-1]), float(eeg["srate"]))
     if not _fit_width_reaches_zero(n_windows):
         return False
-    original = np.asarray(eeg["data"], dtype=np.float64)
     oracle_gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
     if oracle_gap:
         return False
