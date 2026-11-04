@@ -914,7 +914,11 @@ starts from the oracle EEG. A known-divergence predicate runs after that
 comparison and does not file the step: continuous ``pop_rmbase`` with a
 boundary and a baseline that starts after sample 1, and only when the two
 outputs actually differ. The chain then continues from the oracle EEG. That
-difference is listed under "Known Differences from EEGLAB". Explicit
+difference is listed under "Known Differences from EEGLAB". ``pop_rmbase``
+is also a match when EEGLAB took the ``mean()`` branch (epoched data, no
+events, or a non-text first event) and the oracle matches that mean of the
+baseline. One baseline NaN then fills the channel on the MATLAB side. The
+next step starts from the Python EEG. Explicit
 ``pop_reref`` is the same kind of match, including inside the pipeline,
 when EEGLAB's reference matrix spreads a NaN through ``0*NaN`` and
 EEGPrep's subtraction keeps that NaN on its channel. The next pipeline

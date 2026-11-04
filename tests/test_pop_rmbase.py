@@ -141,23 +141,41 @@ def test_pop_rmbase_continuous_with_boundaries_is_segmentwise():
         np.testing.assert_allclose(np.mean(out["data"][:, start:stop], axis=1), 0, atol=1e-10)
 
 
-def test_pop_rmbase_numeric_event_before_boundary_spreads_a_baseline_nan():
-    """pop_rmbase.m uses mean() when event(1).type is not text, so one baseline NaN fills the channel."""
-    eeg = create_test_eeg(n_channels=2, n_samples=256, srate=128.0, n_trials=1)
+def _nan_baseline_recording(*, n_trials=1, first_type=65, events=True):
+    eeg = create_test_eeg(n_channels=2, n_samples=256, srate=128.0, n_trials=n_trials)
     channel = np.arange(256, dtype=float)
     channel[:4] = np.nan
     other = np.arange(256, dtype=float) + 10.0
-    eeg["data"] = np.vstack([channel, other])
-    eeg["event"] = [
-        {"type": 65, "latency": 10.0},
-        {"type": "boundary", "latency": 100.5, "duration": 1.0},
-    ]
+    if n_trials == 1:
+        eeg["data"] = np.vstack([channel, other])
+    else:
+        data = np.zeros((2, 256, n_trials))
+        for trial in range(n_trials):
+            data[0, :, trial] = channel + trial
+            data[1, :, trial] = other + trial
+        eeg["data"] = data
+    if not events:
+        eeg["event"] = []
+    elif n_trials == 1:
+        eeg["event"] = [
+            {"type": first_type, "latency": 10.0},
+            {"type": "boundary", "latency": 100.5, "duration": 1.0},
+        ]
+    return eeg
 
-    out = pop_rmbase(eeg, pointrange=range(1, 31))
 
-    assert np.isnan(out["data"][0]).all()
-    expected = other - np.mean(other[:30])
-    np.testing.assert_allclose(out["data"][1], expected)
+def test_pop_rmbase_keeps_a_baseline_nan_local():
+    numeric = pop_rmbase(_nan_baseline_recording(first_type=65), pointrange=range(1, 31))
+    text = pop_rmbase(_nan_baseline_recording(first_type="stim"), pointrange=range(1, 31))
+    absent = pop_rmbase(_nan_baseline_recording(events=False), pointrange=range(1, 31))
+    epoched = pop_rmbase(_nan_baseline_recording(n_trials=2), pointrange=range(1, 31))
+
+    np.testing.assert_allclose(numeric["data"], text["data"])
+    for out in (numeric, text, absent):
+        assert np.isnan(out["data"][0, :4]).all()
+        assert np.isfinite(out["data"][0, 4:]).all()
+    assert np.isnan(epoched["data"][0, :4, :]).all()
+    assert np.isfinite(epoched["data"][0, 4:, :]).all()
 
 
 def test_pop_rmbase_continuous_boundary_partial_pointrange_only_changes_selected_samples():

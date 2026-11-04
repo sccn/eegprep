@@ -20,10 +20,13 @@ Unreleased
 - A dataset saved with ``trials=0`` loads the empty epoch stack from a
   0-byte ``.fdt``. The sidecar reader used to treat that trial count as 1
   and expect ``nbchan * pnts`` samples.
-- On continuous data, ``pop_rmbase`` uses ``mean()`` when the first event
-  type is numeric, matching ``pop_rmbase.m``. A NaN inside the baseline
-  then fills that channel. A text first event, including ``boundary``,
-  still removes the baseline inside each segment.
+- ``pop_rmbase`` ignores a NaN in the baseline and, on continuous data,
+  still removes the baseline inside each boundary segment. EEGLAB uses
+  ``nan_mean`` and those segments only when the first event type is text
+  (``pop_rmbase.m`` lines 176-198, ``rmbase.m`` lines 108-110). A numeric
+  first type, no events, or epoched data takes ``mean()`` at
+  ``pop_rmbase.m`` line 202, so one baseline NaN fills the channel and
+  boundaries are ignored.
 - ``eeg_checkset`` turns a mix of numeric and text event types into text.
   ``65.0`` next to ``boundary`` becomes ``'65'``, the same text as
   ``num2str`` (``eeg_checkset.m`` lines 1235-1242). Numeric types stay

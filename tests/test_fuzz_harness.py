@@ -694,6 +694,30 @@ def test_duplicate_trial_order_is_not_filed():
     assert "first copy" in outcome.detail
 
 
+def test_rmbase_mean_nan_spread_is_not_filed():
+    eeg = create_test_eeg(n_channels=1, n_samples=64, srate=128.0, n_trials=1)
+    channel = np.arange(64, dtype=float)
+    channel[:4] = np.nan
+    eeg["data"] = channel[None, :]
+    eeg["event"] = []
+    case = FuzzCase(
+        "pop_rmbase",
+        EEGSpec((0,), 0, 64, 1, -1, 0, 0),
+        freeze_params({"timerange": [], "pointrange": list(range(1, 31)), "chanlist": []}),
+    )
+
+    def oracle(_case, dataset):
+        data = np.array(dataset["data"], dtype=float, copy=True)
+        data -= np.mean(data[:, :30], axis=1)[:, None]
+        copied = copy.deepcopy(dataset)
+        copied["data"] = data
+        return copied
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+    assert outcome.diverged is False
+    assert "mean()" in outcome.detail
+
+
 def test_epoched_notime_is_the_same_failure_as_eeglab():
     case = FuzzCase("pop_select", EEGSpec((0,), 0, 2, 1, -1, 0, 0), freeze_params({}))
     outcome = judge(

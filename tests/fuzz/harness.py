@@ -1194,6 +1194,85 @@ def _duplicate_trial_order_is_known(
     return not first_gap.diverged and not last_gap.diverged
 
 
+def _rmbase_mean_branch_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when EEGLAB used ``mean()`` and that output matches the oracle.
+
+    ``pop_rmbase.m`` lines 176-198 use ``nan_mean`` and boundary segments only
+    when the data are continuous and the first event type is text. Line 202
+    uses ``mean()`` otherwise, so a baseline NaN fills the channel.
+    """
+    if case.function != "pop_rmbase" or not python.ok or not oracle.ok or oracle.data is None or oracle.srate is None:
+        return False
+    if not _eeglab_rmbase_uses_mean(eeg):
+        return False
+    expected = _eeglab_rmbase_mean(eeg, thaw_params(case.params))
+    if expected is None:
+        return False
+    gap, *_rest = compare_data(oracle.data, expected, float(oracle.srate), float(oracle.srate), tolerance)
+    return not gap
+
+
+def _eeglab_rmbase_uses_mean(eeg: dict) -> bool:
+    trials = eeg.get("trials", 1)
+    if isinstance(trials, (int, float, np.integer, np.floating)) and not isinstance(trials, bool) and int(trials) > 1:
+        return True
+    events = _event_dicts(eeg)
+    if not events:
+        return True
+    return not isinstance(events[0].get("type"), (str, bytes))
+
+
+def _event_dicts(eeg: dict) -> list[dict]:
+    raw = eeg.get("event")
+    if raw is None:
+        return []
+    if isinstance(raw, np.ndarray):
+        raw = list(raw.ravel())
+    elif not isinstance(raw, (list, tuple)):
+        return []
+    rows = []
+    for event in raw:
+        item = event.item() if isinstance(event, np.ndarray) and event.shape == () else event
+        if isinstance(item, dict):
+            rows.append(item)
+    return rows
+
+
+def _eeglab_rmbase_mean(eeg: dict, params: dict) -> np.ndarray | None:
+    data = np.array(np.asarray(eeg["data"]), dtype=np.float64, copy=True)
+    if data.ndim not in {2, 3}:
+        return None
+    pnts = data.shape[1]
+    timerange = list(params.get("timerange") or [])
+    pointrange = list(params.get("pointrange") or [])
+    if timerange:
+        times = np.asarray(eeg.get("times"), dtype=float).ravel()
+        if times.size != pnts:
+            return None
+        indices = np.flatnonzero((times >= float(timerange[0])) & (times <= float(timerange[-1])))
+    elif pointrange:
+        points = np.asarray(pointrange, dtype=int)
+        points = points[(points >= 1) & (points <= pnts)]
+        indices = np.unique(points - 1)
+    else:
+        indices = np.arange(pnts)
+    if indices.size == 0:
+        return None
+    chanlist = list(params.get("chanlist") or [])
+    channels = [int(channel) - 1 for channel in chanlist] if chanlist else list(range(data.shape[0]))
+    if any(channel < 0 or channel >= data.shape[0] for channel in channels):
+        return None
+    if data.ndim == 2:
+        means = np.mean(data[np.ix_(channels, indices)], axis=1)
+        data[channels, :] -= means[:, None]
+    else:
+        means = np.mean(data[channels][:, indices, :], axis=1)
+        data[channels, :, :] -= means[:, None, :]
+    return data
+
+
 def _unique_trial_order(trials: list[int], *, keep_last: bool) -> list[int]:
     positions: dict[int, int] = {}
     for index, trial in enumerate(trials):
@@ -1387,6 +1466,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known difference: pop_select keeps the first copy of a repeated trial",
             digest,
         )
+    if outcome.diverged and _rmbase_mean_branch_is_known(case, eeg, python, oracle, tolerance):
+        # pop_rmbase.m:202 uses mean() unless the recording is continuous and
+        # the first event type is text. EEGPrep ignores that NaN.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel",
+            digest,
+        )
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
@@ -1448,6 +1540,9 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_rmbase = (
             outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
         )
+        known_rmbase_mean = outcome.diverged and _rmbase_mean_branch_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         known_trials_order = outcome.diverged and _duplicate_trial_order_is_known(
             step, current, python_side, oracle_side, tolerance
         )
@@ -1455,6 +1550,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             not known_reref
             and not known_trials
             and not known_rmbase
+            and not known_rmbase_mean
             and not known_trials_order
             and (outcome.diverged or outcome.error_class != "match")
         ):
@@ -1469,9 +1565,12 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 digest,
             )
         # Continue from the Python EEG when MATLAB's output is the known
-        # defect: a NaN spread by the reference matrix, or events dropped
-        # because trials was still 0. Later steps then see a real signal.
-        if (known_reref or known_trials or known_trials_order) and _eeg_dict(_python_eeg) is not None:
+        # defect: a NaN spread by the reference matrix, events dropped
+        # because trials was still 0, or mean() filling a channel from one
+        # baseline NaN. Later steps then see a real signal.
+        if (known_reref or known_trials or known_trials_order or known_rmbase_mean) and _eeg_dict(
+            _python_eeg
+        ) is not None:
             nxt = _python_eeg
         else:
             nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
@@ -1487,6 +1586,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             last_detail = f"{name}: known difference: eeg_eegrej keeps events when trials was 0"
         elif known_trials_order:
             last_detail = f"{name}: known difference: pop_select keeps the first copy of a repeated trial"
+        elif known_rmbase_mean:
+            last_detail = f"{name}: known difference: pop_rmbase.m mean() spreads a baseline NaN across the channel"
         elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "
