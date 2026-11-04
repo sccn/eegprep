@@ -192,7 +192,12 @@ def _apply_pop_rmbase_one(
 
     baseline_indices, history_pointrange = _baseline_indices(output, timerange, pointrange, pnts)
     channel_indices, history_chanlist = _resolve_channel_indices(output, chanlist)
-    if data.ndim == 2:
+    if data.ndim == 2 and _has_events(output) and not _first_event_type_is_text(output):
+        # pop_rmbase.m enters the boundary loop only when ischar(EEG.event(1).type).
+        # A numeric first type takes mean(), which keeps a baseline NaN and subtracts it
+        # from every sample. boundary_event_indices likewise ignores a later 'boundary'.
+        data = _subtract_pointrange_mean(data, channel_indices, baseline_indices)
+    elif data.ndim == 2:
         data = _remove_continuous_baseline(output, data, channel_indices, baseline_indices)
     else:
         data[channel_indices, :, :] = rmbase(data[channel_indices, :, :], pnts, baseline_indices + 1)
@@ -267,6 +272,40 @@ def _point_indices_from_values(values: list[float], pnts: int) -> np.ndarray:
     if indices.size == 0:
         raise ValueError("pointrange does not overlap the data")
     return np.unique(indices - 1)
+
+
+def _has_events(EEG: dict[str, Any]) -> bool:
+    events = EEG.get("event", [])
+    if isinstance(events, np.ndarray):
+        return events.size > 0
+    return bool(events)
+
+
+def _first_event_type_is_text(EEG: dict[str, Any]) -> bool:
+    events = EEG.get("event", [])
+    if isinstance(events, np.ndarray):
+        events = events.tolist()
+    if not isinstance(events, list) or not events:
+        return False
+    event = events[0]
+    if isinstance(event, np.ndarray) and event.shape == ():
+        event = event.item()
+    if not isinstance(event, dict):
+        return False
+    return isinstance(event.get("type"), (str, bytes))
+
+
+def _subtract_pointrange_mean(
+    data: np.ndarray,
+    channel_indices: list[int],
+    baseline_indices: np.ndarray,
+) -> np.ndarray:
+    window = np.asarray(data[np.ix_(channel_indices, baseline_indices)], dtype=np.float64)
+    means = np.mean(window, axis=1)
+    block = np.asarray(data[channel_indices, :], dtype=np.float64)
+    block -= means[:, None]
+    data[channel_indices, :] = block.astype(data.dtype, copy=False)
+    return data
 
 
 def _continuous_boundary_starts(EEG: dict[str, Any], pnts: int) -> list[int]:

@@ -217,8 +217,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        lines 183-196). EEGPrep writes only the listed baseline samples
        inside each original segment (``pop_rmbase.py`` lines 226-231).
        ``test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary``
-       locks the EEGPrep result. A baseline that starts at sample 1 is
-       unchanged.
+       locks the EEGPrep result. A baseline that starts at sample 1 follows
+       EEGLAB, including the case where the first event type is numeric:
+       ``pop_rmbase.m`` then skips the boundary loop and ``mean()`` spreads
+       a baseline NaN across that channel.
    * - BDF ``bdfeventmode``
      - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
        ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,
