@@ -280,7 +280,17 @@ def test_riemannian_short_calibration_warns_and_keeps_samples(caplog):
 
 
 def test_riemannian_one_window_still_raises_from_clean_asr():
-    eeg = _short_riemannian_eeg(14)
+    rng = np.random.default_rng(526)
+    data = rng.standard_normal((4, 20))
+    eeg = {
+        "data": data,
+        "srate": 128.0,
+        "nbchan": 4,
+        "pnts": 20,
+        "trials": 1,
+        "xmin": 0.0,
+        "event": [],
+    }
     with pytest.raises(ASRCalibrationError, match="asr_calibrate_r:") as raised:
         clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off", useriemannian=True)
     message = str(raised.value)
