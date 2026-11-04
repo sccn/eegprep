@@ -279,6 +279,20 @@ def test_riemannian_short_calibration_warns_and_keeps_samples(caplog):
     )
 
 
+def _assert_one_riemannian_window(eeg):
+    with pytest.raises(ASRCalibrationError, match="asr_calibrate_r:") as raised:
+        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off", useriemannian=True)
+    message = str(raised.value)
+    assert "Fewer than 2 calibration windows" in message
+    assert "got 1" in message
+    assert "at least 21 samples" in message
+    assert "BurstCriterion='off'" in message
+
+
+def test_riemannian_constant_recording_raises_before_decomposition():
+    _assert_one_riemannian_window(_short_riemannian_eeg(14))
+
+
 def test_riemannian_one_window_still_raises_from_clean_asr():
     rng = np.random.default_rng(526)
     data = rng.standard_normal((4, 20))
@@ -291,13 +305,7 @@ def test_riemannian_one_window_still_raises_from_clean_asr():
         "xmin": 0.0,
         "event": [],
     }
-    with pytest.raises(ASRCalibrationError, match="asr_calibrate_r:") as raised:
-        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off", useriemannian=True)
-    message = str(raised.value)
-    assert "Fewer than 2 calibration windows" in message
-    assert "got 1" in message
-    assert "at least 21 samples" in message
-    assert "BurstCriterion='off'" in message
+    _assert_one_riemannian_window(eeg)
 
 
 def test_short_calibration_still_runs_window_removal():
