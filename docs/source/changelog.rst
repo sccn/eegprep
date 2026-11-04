@@ -27,10 +27,12 @@ Unreleased
   first type, no events, or epoched data takes ``mean()`` at
   ``pop_rmbase.m`` line 202, so one baseline NaN fills the channel and
   boundaries are ignored.
-- ``eeg_checkset`` turns a mix of numeric and text event types into text.
-  ``65.0`` next to ``boundary`` becomes ``'65'``, the same text as
-  ``num2str`` (``eeg_checkset.m`` lines 1235-1242). Numeric types stay
-  numeric when every type is numeric.
+- ``eeg_checkset`` turns a mix of numeric and text event types into text
+  with ``num2str``. The event-consistency check inspects every event
+  (``eeg_checkset.m`` line 395). The full check decides from the first
+  100 (lines 1236-1242). ``65`` becomes ``'65'``, ``pi`` becomes
+  ``'3.1416'``, and ``1e20`` becomes ``'1e+20'``. An all-numeric list
+  stays numeric.
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two

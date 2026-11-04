@@ -5,6 +5,7 @@ This module tests the eeg_checkset function that validates and normalizes
 EEG data structures, ensuring required fields exist and have correct types.
 """
 
+import math
 import unittest
 import sys
 import numpy as np
@@ -68,6 +69,51 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         eeg['event'] = [{'type': 65.0, 'latency': 10.0}, {'type': 2, 'latency': 20.0}]
         result = eeg_checkset(eeg)
         self.assertEqual([event['type'] for event in result['event']], [65.0, 2])
+
+    def test_num2str_precision(self):
+        cases = (
+            (math.pi, '3.1416'),
+            (1234.5678, '1234.5678'),
+            (0.5, '0.5'),
+            (1e20, '1e+20'),
+        )
+        for number, text in cases:
+            with self.subTest(number=number):
+                eeg = create_minimal_eeg()
+                eeg['event'] = [
+                    {'type': number, 'latency': 2.0},
+                    {'type': 'boundary', 'latency': 4.0, 'duration': 1.0},
+                ]
+                result = eeg_checkset(eeg)
+                self.assertEqual(result['event'][0]['type'], text)
+
+    def test_eventconsistency_checks_past_the_first_100_events(self):
+        eeg = create_minimal_eeg()
+        eeg['event'] = [{'type': index + 1, 'latency': float(index + 1)} for index in range(100)]
+        eeg['event'].append({'type': 'boundary', 'latency': 200.0, 'duration': 1.0})
+        full = eeg_checkset(
+            {
+                'data': eeg['data'],
+                'srate': eeg['srate'],
+                'xmin': 0.0,
+                'xmax': eeg['xmax'],
+                'event': [dict(event) for event in eeg['event']],
+            }
+        )
+        self.assertEqual(full['event'][0]['type'], 1)
+        self.assertEqual(full['event'][-1]['type'], 'boundary')
+        consistent = eeg_checkset(
+            {
+                'data': eeg['data'],
+                'srate': eeg['srate'],
+                'xmin': 0.0,
+                'xmax': eeg['xmax'],
+                'event': [dict(event) for event in eeg['event']],
+            },
+            'eventconsistency',
+        )
+        self.assertEqual(consistent['event'][0]['type'], '1')
+        self.assertEqual(consistent['event'][-1]['type'], 'boundary')
 
 
 class TestEegChecksetDataSqueezing(DebuggableTestCase):

@@ -71,7 +71,7 @@ def _eventconsistency(EEG):
     if isinstance(events, np.ndarray):
         events = list(events)
 
-    _stringify_mixed_event_types(events)
+    _stringify_mixed_event_types(events, limit=None)
 
     if len(events) == 0:
         return EEG
@@ -160,15 +160,15 @@ def _eventconsistency(EEG):
     return EEG
 
 
-def _stringify_mixed_event_types(events):
-    """Match ``eeg_checkset.m`` lines 1235-1242.
+def _stringify_mixed_event_types(events, *, limit: int | None):
+    """Turn a mix of text and numeric event types into text.
 
-    The first 100 events decide. A mix of text and numbers becomes text.
-    ``num2str(65)`` is ``'65'``.
+    ``eeg_checkset.m`` line 395 inspects every event. Lines 1236-1242
+    inspect the first 100. Either way, a mix converts every typed event.
     """
     rows = _event_dict_rows(events)
     typed = [event for event in rows if "type" in event]
-    sample = typed[:100]
+    sample = typed if limit is None else typed[:limit]
     if not sample:
         return
     if all(_event_type_is_text(event["type"]) for event in sample):
@@ -218,9 +218,21 @@ def _matlab_num2str(value) -> str:
         return "NaN"
     if math.isinf(number):
         return "Inf" if number > 0 else "-Inf"
-    if number.is_integer():
+    magnitude = abs(number)
+    if number == math.trunc(number) and math.ulp(magnitude) <= 1:
         return str(int(number))
-    return format(number, ".4g")
+    return format(number, f".{_num2str_significant_digits(magnitude)}g")
+
+
+def _num2str_significant_digits(magnitude: float) -> int:
+    """``num2str`` precision: ``min(12, max(1, floor(log10(|x|))+1)) + 4``."""
+    exponent = math.floor(math.log10(magnitude))
+    power = 10.0**exponent
+    if power > magnitude:
+        exponent -= 1
+    elif 10.0 ** (exponent + 1) <= magnitude:
+        exponent += 1
+    return min(12, max(1, exponent + 1)) + 4
 
 
 def _is_checkset_boundary(event):
@@ -477,7 +489,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
         if isinstance(check, str) and check.lower() == 'eventconsistency':
             EEG = _eventconsistency(EEG)
 
-    _stringify_mixed_event_types(EEG.get('event'))
+    _stringify_mixed_event_types(EEG.get('event'), limit=100)
 
     # Build epoch structure from events (for epoched data)
     # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
