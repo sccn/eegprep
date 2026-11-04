@@ -476,6 +476,21 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dir(eegprep)</span></code> lists every public name, and <code class="docutils literal notranslate"><span class="pre">eegprep.help()</span></code> prints
+those names with a one-line summary taken from the docstring. Describing a
+name does not import its module. <code class="docutils literal notranslate"><span class="pre">help</span></code> is not in <code class="docutils literal notranslate"><span class="pre">__all__</span></code>, so
+<code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">eegprep</span> <span class="pre">import</span> <span class="pre">*</span></code> does not replace the builtin.</p></li>
+<li><p>A plain <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">eegprep</span></code> includes NumPy, SciPy, Matplotlib,
+psutil, pyedflib, and h5py. Loading, cleaning, plotting, and EDF, BDF, and
+GDF export need no extra. Octave (<code class="docutils literal notranslate"><span class="pre">oct2py</span></code>), MNE,
+PyBIDS, and Picard are the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code>
+extras. <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[full]&quot;</span></code> installs those four and restores
+the previous complete install. A missing library raises <code class="docutils literal notranslate"><span class="pre">ImportError</span></code>
+naming the library, the function, and <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[&lt;extra&gt;]&quot;</span></code>,
+and it mentions <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>. When another path does not need that
+library, the message says what to do instead. The minimal preprocessing image
+installs the <code class="docutils literal notranslate"><span class="pre">pybids</span></code> and <code class="docutils literal notranslate"><span class="pre">mne</span></code> extras so it can read a BIDS dataset
+and EDF or BDF files. <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> stays a separate package.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape, then runs the full
 event-consistency check. That keeps events when <code class="docutils literal notranslate"><span class="pre">trials</span></code> was 0.
 EEGLAB checks the bounds first and drops them. The full check also

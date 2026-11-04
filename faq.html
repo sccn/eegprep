@@ -489,6 +489,14 @@ We recommend using Python 3.12 or 3.13 for development.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>eegprep
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">add</span> <span class="pre">eegprep</span></code> installs this package with NumPy, SciPy, Matplotlib,
+psutil, and pyedflib, so cleaning, plotting, and EDF export need no brackets. The separate <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> reader is a different distribution.
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[full]&quot;</span></code> adds Octave, MNE, PyBIDS, and Picard, which
+are the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code> extras, and restores
+the previous complete install. <code class="docutils literal notranslate"><span class="pre">eegprep.help()</span></code> lists public names and the
+extra each one needs. A missing extra raises <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> naming the
+function and the install command, and says what to do instead when another
+path does not need that library.</p>
 <p>For development installation from source:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sccn/eegprep.git
 <span class="nb">cd</span><span class="w"> </span>eegprep

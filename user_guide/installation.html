@@ -537,11 +537,20 @@
 <h2>Installation Methods<a class="headerlink" href="#installation-methods" title="Link to this heading">#</a></h2>
 <section id="using-uv-recommended">
 <h3>Using uv (Recommended)<a class="headerlink" href="#using-uv-recommended" title="Link to this heading">#</a></h3>
-<p>For a project managed by uv, add eegprep with:</p>
+<p>For a project managed by uv, add the <code class="docutils literal notranslate"><span class="pre">eegprep</span></code> package with:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>eegprep
 </pre></div>
 </div>
-<p>To include all optional EEGPrep dependencies:</p>
+<p>This installs EEGPrep. It does not install the separate <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code>
+distribution (import name <code class="docutils literal notranslate"><span class="pre">eegprep_lean</span></code>). NumPy, SciPy, Matplotlib,
+psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
+plotting, and EDF, BDF, and GDF export work with no brackets.</p>
+<p>Octave, MNE, PyBIDS, and Picard are extras. Install them together with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[full]&quot;</span>
+</pre></div>
+</div>
+<p>To include every optional extra, including the GUI, console, docs, and
+classifier dependencies:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[all]&quot;</span>
 </pre></div>
 </div>
@@ -565,7 +574,9 @@ uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </
 <p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> creates the project environment, installs EEGPrep in editable mode,
 and uses <code class="docutils literal notranslate"><span class="pre">uv.lock</span></code> for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
-checkout can immediately launch <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">eegprep-console</span> <span class="pre">--full</span></code>.</p>
+checkout can immediately launch <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">eegprep-console</span> <span class="pre">--full</span></code>. It also
+installs the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code> packages so the
+test suite can exercise Octave, MNE conversion, BIDS import, and Picard ICA.</p>
 <p>To develop or build documentation from source, include the docs extra:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>docs
 </pre></div>
@@ -574,10 +585,41 @@ checkout can immediately launch <code class="docutils literal notranslate"><span
 </section>
 <section id="optional-dependencies">
 <h2>Optional Dependencies<a class="headerlink" href="#optional-dependencies" title="Link to this heading">#</a></h2>
-<p>eegprep has several optional dependencies that enable additional functionality.</p>
+<p>eegprep has several optional dependencies that enable additional functionality.
+Calling a function whose extra is not installed raises <code class="docutils literal notranslate"><span class="pre">ImportError</span></code>. The
+message names the library, the function, and the command to install it, for
+example <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[mne]&quot;</span></code>, and it mentions <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>.
+When another path does not need that library, the message says what to do
+instead, such as leaving <code class="docutils literal notranslate"><span class="pre">engine</span></code> unset or using <code class="docutils literal notranslate"><span class="pre">runica</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dir(eegprep)</span></code> lists every public name. <code class="docutils literal notranslate"><span class="pre">eegprep.help()</span></code> prints those
+names with a one-line summary, read from the function’s docstring without
+importing its module, and names the extra when one path of the function needs
+it. <code class="docutils literal notranslate"><span class="pre">help</span></code> is not exported by <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">eegprep</span> <span class="pre">import</span> <span class="pre">*</span></code>.</p>
+<section id="full-restores-the-previous-base-install">
+<h3><code class="docutils literal notranslate"><span class="pre">full</span></code> restores the previous base install<a class="headerlink" href="#full-restores-the-previous-base-install" title="Link to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;eegprep[full]&quot;</span>
+</pre></div>
+</div>
+<p>This installs four extras:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">eeglab</span></code> (<code class="docutils literal notranslate"><span class="pre">oct2py</span></code>), the Octave runtime for
+<code class="docutils literal notranslate"><span class="pre">pop_resample(...,</span> <span class="pre">engine=&quot;octave&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">iclabel(...,</span> <span class="pre">engine=&quot;octave&quot;)</span></code>,
+the RANSAC octave subroutine used by <code class="docutils literal notranslate"><span class="pre">clean_channels</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">eeglab_clean_artifacts</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mne</span></code>, conversion to and from MNE objects, and the EDF, BDF, GDF, and
+EGI <code class="docutils literal notranslate"><span class="pre">.mff</span></code> readers in <code class="docutils literal notranslate"><span class="pre">pop_biosig</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_fileio</span></code>. BrainVision
+<code class="docutils literal notranslate"><span class="pre">.eeg</span></code> files, and <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> files when a block range is set, also use it.
+EEGLAB <code class="docutils literal notranslate"><span class="pre">.set</span></code>, CNT, and BrainVision <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> without a block range do not.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pybids</span></code>, BIDS import and <code class="docutils literal notranslate"><span class="pre">bids_preproc</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">picard</span></code> (<code class="docutils literal notranslate"><span class="pre">python-picard</span></code>), Picard ICA. The default <code class="docutils literal notranslate"><span class="pre">runica</span></code> path
+does not need it. This extra also installs scikit-learn.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">eegprep[all]</span></code> includes these four extras plus the GUI, console, docs, and
+PyTorch extras.</p>
 <p>Riemannian ASR (<code class="docutils literal notranslate"><span class="pre">clean_asr(...,</span> <span class="pre">useriemannian=True)</span></code> and
 <code class="docutils literal notranslate"><span class="pre">Distance=&quot;Riemannian&quot;</span></code>) is included. It uses NumPy and SciPy; there is no
 separate manifold package to install.</p>
+</section>
 <section id="pytorch-for-gpu-acceleration">
 <h3>PyTorch (for GPU acceleration)<a class="headerlink" href="#pytorch-for-gpu-acceleration" title="Link to this heading">#</a></h3>
 <p>To use GPU-accelerated processing with PyTorch:</p>
@@ -639,9 +681,11 @@ uv<span class="w"> </span>run<span class="w"> </span>--no-sync<span class="w"> <
 <p>After installation, verify that eegprep is correctly installed by running:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">eegprep</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">eegprep</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+<span class="n">eegprep</span><span class="o">.</span><span class="n">help</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>You should see the version number printed without any errors.</p>
+<p>You should see the version number, then a list of public names, printed
+without any errors.</p>
 <p>To verify all core modules are available:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">pop_loadset</span><span class="p">,</span>
@@ -801,6 +845,7 @@ any companion <code class="docutils literal notranslate"><span class="pre">.fdt<
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional Dependencies</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-restores-the-previous-base-install"><code class="docutils literal notranslate"><span class="pre">full</span></code> restores the previous base install</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pytorch-for-gpu-acceleration">PyTorch (for GPU acceleration)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#amica">AMICA</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation-building">Documentation Building</a></li>

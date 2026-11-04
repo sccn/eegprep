@@ -551,7 +551,7 @@
 <h1>eeg_mne2eeg<a class="headerlink" href="#eeg-mne2eeg" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_mne2eeg">
-<span class="sig-name descname"><span class="pre">eeg_mne2eeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">eeg_mne2eeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'eeg_mne2eeg'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_mne2eeg" title="Link to this definition">#</a></dt>
 <dd><p>Convert an MNE Raw or Epochs object to an EEG dataset.</p>
 <p><code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code> is copied to <code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code>. For
 epochs, the time-locking event is placed at time 0 and other events whose

@@ -551,7 +551,7 @@
 <h1>eeg_eeg2mne<a class="headerlink" href="#eeg-eeg2mne" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_eeg2mne">
-<span class="sig-name descname"><span class="pre">eeg_eeg2mne</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eeg2mne" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">eeg_eeg2mne</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'eeg_eeg2mne'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eeg2mne" title="Link to this definition">#</a></dt>
 <dd><p>Convert an EEG dataset to an MNE Raw or Epochs object.</p>
 <p>Continuous data becomes Raw. Epoched data becomes Epochs. <code class="docutils literal notranslate"><span class="pre">EEG['subject']</span></code>
 is stored as <code class="docutils literal notranslate"><span class="pre">info['subject_info']['his_id']</span></code>. Events whose onset falls in
