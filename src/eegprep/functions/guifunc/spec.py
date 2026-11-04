@@ -56,6 +56,10 @@ class DialogSpec:
     row_spacing: int = 4
     geomvert: tuple[float, ...] | None = None
     scrollable: bool = False
+    # Size every control by its geometry weight alone, as EEGLAB's supergui does,
+    # instead of by its content; column_spacing is the gap between controls in a row.
+    weighted_columns: bool = False
+    column_spacing: int = 4
 
 
 def controls_by_tag(spec: DialogSpec) -> dict[str, ControlSpec]:

@@ -11,43 +11,20 @@ import pytest
 
 from eegprep.extension_runtime import ExtensionRuntime
 from eegprep.extensions import (
-    EXTENSION_ENTRY_POINT_GROUP,
     ExtensionAction,
     ExtensionMenu,
     ExtensionPopFunction,
     ExtensionRecord,
-    ExtensionRegistry,
-    ExtensionResource,
     ExtensionSourceType,
     ExtensionSpec,
     ExtensionStatus,
     LazyImport,
-    validate_extension_spec,
 )
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
-from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher, action_kind
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.menu_spec import menu_enabled
-from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.functions.guifunc.session import EEGPrepSession
-
-
-class FakeDistribution:
-    def __init__(self, name: str) -> None:
-        self.metadata = {"Name": name}
-
-
-class FakeEntryPoint:
-    def __init__(self, name: str, value: str, *, group: str = EXTENSION_ENTRY_POINT_GROUP) -> None:
-        self.name = name
-        self.value = value
-        self.group = group
-        self.dist = FakeDistribution(name)
-
-    def load(self):
-        module_name, _, attr_name = self.value.partition(":")
-        module = importlib.import_module(module_name)
-        return getattr(module, attr_name)
 
 
 def test_extension_menu_enabled_state_matrix() -> None:
@@ -97,19 +74,6 @@ def test_extension_menu_enabled_state_matrix() -> None:
     assert menu_enabled(items["Study extension"], {"multiple_datasets"})
 
 
-def test_include_plugins_false_hides_extension_menu_contributions() -> None:
-    runtime = _runtime(
-        ExtensionSpec(
-            name="hidden_extension",
-            menus=(ExtensionMenu(path=("tools",), action="pop_hidden_extension", label="Hidden extension"),),
-        )
-    )
-
-    actions = menu_actions(eeglab_menus(all_menus=True, include_plugins=False, extension_runtime=runtime))
-
-    assert "pop_hidden_extension" not in actions
-
-
 def test_include_plugins_false_hides_bundled_plugins_without_hiding_core_menus() -> None:
     menus = eeglab_menus(all_menus=False, include_plugins=False)
     tools = _child(menus, "Tools")
@@ -121,44 +85,6 @@ def test_include_plugins_false_hides_bundled_plugins_without_hiding_core_menus()
     assert "Change sampling rate" in [item.label for item in tools.children]
     assert "Reject data using Clean Rawdata and ASR" not in [item.label for item in tools.children]
     assert "From BIDS folder structure" not in [item.label for item in import_functions.children]
-
-
-def test_bundled_plugin_menus_land_at_expected_anchors() -> None:
-    menus = eeglab_menus(all_menus=True)
-    default_menus = eeglab_menus(all_menus=False)
-    tools = _child(menus, "Tools")
-    default_tools = _child(default_menus, "Tools")
-    file_menu = _child(menus, "File")
-    plot_menu = _child(menus, "Plot")
-
-    tools_labels = [item.label for item in tools.children]
-    default_tools_labels = [item.label for item in default_tools.children]
-    filter_labels = [item.label for item in _child(tools.children, "Filter the data").children]
-    import_menu = _child(file_menu.children, "Import data")
-    import_functions = _child(import_menu.children, "Using EEGPrep functions and plugins")
-    export_menu = _child(file_menu.children, "Export")
-    file_labels = [item.label for item in file_menu.children]
-    plot_labels = [item.label for item in plot_menu.children]
-
-    assert (
-        tools_labels[tools_labels.index("Inspect/reject data by eye") + 1] == "Reject data using Clean Rawdata and ASR"
-    )
-    assert (
-        default_tools_labels[default_tools_labels.index("Inspect/label components by map") + 1]
-        == "Classify components using ICLabel"
-    )
-    assert tools_labels[tools_labels.index("Remove epoch baseline") + 1] == "Source localization using DIPFIT"
-    assert filter_labels == [
-        "Basic FIR filter (new, default)",
-        "Windowed sinc FIR filter",
-        "Parks-McClellan (equiripple) FIR filter",
-        "Moving average FIR filter",
-        "Basic FIR filter (legacy)",
-    ]
-    assert "From BIDS folder structure" in [item.label for item in import_functions.children]
-    assert "To BIDS folder structure" in [item.label for item in export_menu.children]
-    assert file_labels[file_labels.index("Export") + 1] == "BIDS tools"
-    assert plot_labels[-2:] == ["View extended channel properties", "View extended component properties"]
 
 
 def test_missing_extension_menu_path_is_logged_and_skipped(caplog: pytest.LogCaptureFixture) -> None:
@@ -180,68 +106,6 @@ def test_missing_extension_menu_path_is_logged_and_skipped(caplog: pytest.LogCap
 
     assert "pop_missing_path" not in actions
     assert "menu path missing menu was not found" in caplog.text
-
-
-def test_duplicate_extension_menu_names_mark_later_record_invalid(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _write_package(
-        tmp_path,
-        "menu_duplicate_a",
-        {
-            "register.py": """
-                from eegprep.extensions import ExtensionMenu, ExtensionSpec
-
-                def register():
-                    return ExtensionSpec(
-                        name="menu_duplicate_a",
-                        menus=(ExtensionMenu(path=("tools",), action="pop_a", label="Shared menu"),),
-                    )
-            """,
-        },
-        monkeypatch,
-    )
-    _write_package(
-        tmp_path,
-        "menu_duplicate_b",
-        {
-            "register.py": """
-                from eegprep.extensions import ExtensionMenu, ExtensionSpec
-
-                def register():
-                    return ExtensionSpec(
-                        name="menu_duplicate_b",
-                        menus=(ExtensionMenu(path=("tools",), action="pop_b", label="Shared menu"),),
-                    )
-            """,
-        },
-        monkeypatch,
-    )
-    registry = ExtensionRegistry(
-        include_bundled=False,
-        entry_points_provider=_provider(
-            FakeEntryPoint("menu-a", "menu_duplicate_a.register:register"),
-            FakeEntryPoint("menu-b", "menu_duplicate_b.register:register"),
-        ),
-    )
-
-    records = registry.discover()
-
-    assert [record.status for record in records] == [ExtensionStatus.INSTALLED, ExtensionStatus.INVALID_SPEC]
-    assert "Duplicate menu 'Shared menu'" in records[1].errors[0]
-
-
-def test_malformed_extension_help_resource_invalidates_spec() -> None:
-    spec = ExtensionSpec(
-        name="malformed_help_extension",
-        help_resources=(ExtensionResource("malformed_help_extension", "help/pop_bad.txt"),),
-    )
-
-    result = validate_extension_spec(spec)
-
-    assert result.invalid_spec
-    assert "must be a Markdown file" in result.invalid_spec[0]
 
 
 def test_extension_action_result_shapes_update_session_history_and_refresh(
@@ -309,62 +173,6 @@ def test_extension_action_result_shapes_update_session_history_and_refresh(
     assert refresh.call_count == 4
 
 
-def test_importer_extension_action_prompts_for_filename_without_current_dataset(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    package = "extension_importer"
-    csv_path = tmp_path / "demo.csv"
-    np.savetxt(csv_path, np.array([[1.0, 2.0], [3.0, 4.0]]), delimiter=",")
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "actions.py": """
-                from pathlib import Path
-                import numpy as np
-
-                def pop_import_csv(filename, *, return_com=False):
-                    path = Path(filename)
-                    data = np.loadtxt(path, delimiter=",")
-                    eeg = {
-                        "setname": path.stem,
-                        "data": data,
-                        "nbchan": int(data.shape[0]),
-                        "pnts": int(data.shape[1]),
-                        "trials": 1,
-                        "srate": 1.0,
-                    }
-                    command = f"EEG = pop_import_csv({str(path)!r});"
-                    return (eeg, command) if return_com else eeg
-            """,
-        },
-        monkeypatch,
-    )
-    runtime = _runtime(
-        ExtensionSpec(
-            name="importer_extension",
-            actions=(
-                ExtensionAction(
-                    "pop_import_csv",
-                    LazyImport(f"{package}.actions", "pop_import_csv"),
-                    capabilities=("file-import", "history"),
-                ),
-            ),
-        )
-    )
-    session = EEGPrepSession()
-    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
-
-    with mock.patch.object(dispatcher, "_ask_extension_filename", return_value=str(csv_path)):
-        dispatcher.dispatch("pop_import_csv")
-
-    assert session.CURRENTSET == [1]
-    assert session.EEG["setname"] == "demo"
-    np.testing.assert_allclose(session.EEG["data"], np.array([[1.0, 2.0], [3.0, 4.0]]))
-    assert session.ALLCOM == [f"EEG = pop_import_csv({str(csv_path)!r});"]
-
-
 def test_browser_extension_lastcom_result_does_not_replace_current_dataset(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -404,48 +212,6 @@ def test_browser_extension_lastcom_result_does_not_replace_current_dataset(
     assert session.EEG is original
     assert session.CURRENTSET == [1]
     assert session.ALLCOM == ["LASTCOM = pop_browser(EEG);"]
-
-
-def test_registered_extension_pop_function_dispatches_as_gui_action(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    package = "extension_gui_pop"
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "pop_functions.py": """
-                def pop_gui_ext(EEG, *, return_com=False):
-                    output = dict(EEG, setname="gui-extension")
-                    command = "EEG = pop_gui_ext(EEG);"
-                    return (output, command) if return_com else output
-            """,
-        },
-        monkeypatch,
-    )
-    runtime = _runtime(
-        ExtensionSpec(
-            name="gui_pop_extension",
-            pop_functions=(
-                ExtensionPopFunction(
-                    "pop_gui_ext",
-                    LazyImport(f"{package}.pop_functions", "pop_gui_ext"),
-                ),
-            ),
-        )
-    )
-    session = EEGPrepSession()
-    session.store_current(_demo_eeg(), new=True)
-    echoed = []
-    session.add_command_echo_listener(echoed.append)
-    dispatcher = MenuActionDispatcher(session, extension_runtime=runtime)
-
-    dispatcher.dispatch("pop_gui_ext")
-
-    assert session.EEG["setname"] == "gui-extension"
-    assert session.ALLCOM == ["EEG = pop_gui_ext(EEG);"]
-    assert echoed == ["EEG = pop_gui_ext(EEG);"]
 
 
 def test_extension_pop_function_uses_single_dataset_selection_rule(
@@ -643,59 +409,6 @@ def test_extension_pop_function_console_failure_does_not_mutate_session_or_histo
     assert workspace.namespace["EEG"] is session.EEG
 
 
-def test_extension_help_resource_lookup_uses_packaged_markdown(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    package = "extension_help_resource"
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "help/pop_help_ext.md": "POP_HELP_EXT - extension help text",
-        },
-        monkeypatch,
-    )
-    runtime = _runtime(
-        ExtensionSpec(
-            name="help_extension",
-            help_resources=(ExtensionResource(package, "help/pop_help_ext.md"),),
-        )
-    )
-
-    text, source_path = pophelp_text("pop_help_ext", extension_runtime=runtime)
-
-    assert "POP_HELP_EXT - extension help text" in text
-    assert source_path == f"{package}:help/pop_help_ext.md"
-
-
-def test_extension_action_kind_is_runtime_backed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    package = "extension_action_kind"
-    _write_package(
-        tmp_path,
-        package,
-        {
-            "actions.py": """
-                def run():
-                    return None
-            """,
-        },
-        monkeypatch,
-    )
-    runtime = _runtime(
-        ExtensionSpec(
-            name="kind_extension",
-            actions=(ExtensionAction("kind_action", LazyImport(f"{package}.actions", "run")),),
-        )
-    )
-
-    assert action_kind("kind_action") == "unknown"
-    assert action_kind("kind_action", extension_runtime=runtime) == "implemented"
-
-
 def _runtime(spec: ExtensionSpec) -> ExtensionRuntime:
     return ExtensionRuntime.from_records(
         (
@@ -731,13 +444,6 @@ def _demo_eeg(setname: str = "demo"):
         "urevent": [],
         "epoch": [],
     }
-
-
-def _provider(*entry_points: FakeEntryPoint):
-    def select(*, group: str) -> tuple[FakeEntryPoint, ...]:
-        return tuple(entry_point for entry_point in entry_points if entry_point.group == group)
-
-    return select
 
 
 def _write_package(

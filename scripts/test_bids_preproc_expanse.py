@@ -5,24 +5,19 @@ from eegprep import bids_preproc
 import os
 
 if __name__ == '__main__':
-    # get string command line arguments if any
     args = sys.argv[1:]
     if args:
-        # check two
         bids_collection = args[0]
-        # Extract the dataset name (last part) and the root path (everything else)
         path_parts = bids_collection.split('/')
         dataset_name = path_parts[-1]
         root_path = '/'.join(path_parts[:-1]) if len(path_parts) > 1 else '/'
         bids_collection = [dataset_name]
     else:
-        bids_collection = ['ds003061']  #'ds002680'] # 'ds003061']
+        bids_collection = ['ds003061']
         root_path = '../../../openneuro'
 
     print(f"Running bids_preproc() on {root_path}/{bids_collection[0]}...")
 
-    # root_path = '/System/Volumes/Data/data/data/STUDIES/'
-    # root_path = '/System/Volumes/Data/data/matlab/pca_averef/'
     outputdir = './bids_preproc_output'
     retain = [d for d in os.listdir(root_path) if d in bids_collection]
     if len(retain) != len(bids_collection):

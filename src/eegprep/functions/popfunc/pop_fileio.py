@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import mne
 import numpy as np
 import scipy.io
 
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import mne
+
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_importdata import pop_importdata
 from eegprep.functions.popfunc.pop_loadbv import pop_loadbv
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
@@ -25,39 +29,48 @@ _EEGLAB_STRUCT_MARKERS = frozenset({"nbchan", "srate", "pnts", "trials", "chanlo
 
 
 def pop_fileio(
-    filename: str | Path, *, return_com: bool = False, **kwargs: Any
+    filename: str | Path,
+    *args: Any,
+    return_com: bool = False,
+    feature: str = "pop_fileio",
+    **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
-    """Import an EEG file, optionally selecting 1-based channels, samples, or trials."""
+    """Import an EEG file, optionally selecting 1-based channels, samples, or trials.
+
+    ``blockrange``, ``channels``, ``samples``, ``trials``, and reader options
+    may be keywords or positional name/value pairs.
+    """
     path = Path(filename)
     suffix = path.suffix.lower()
-    history_options = dict(kwargs)
-    blockrange = kwargs.pop("blockrange", None)
-    channels = kwargs.pop("channels", None)
-    samples = kwargs.pop("samples", None)
-    trials = kwargs.pop("trials", None)
+    options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
+    history_options = dict(options)
+    blockrange = options.pop("blockrange", None)
+    channels = options.pop("channels", None)
+    samples = options.pop("samples", None)
+    trials = options.pop("trials", None)
     if suffix == ".set":
         eeg = pop_loadset(str(path))
-    elif suffix == ".mat" and kwargs.get("dataformat") != "matlab-array":
+    elif suffix == ".mat" and options.get("dataformat") != "matlab-array":
         if _mat_is_eeglab_dataset(path):
             logger.info("pop_fileio: loading %s as an EEGLAB dataset", path)
             eeg = pop_loadset(str(path))
         else:
             logger.info("pop_fileio: importing %s as a raw MATLAB data array", path)
-            eeg = pop_importdata("data", str(path), "setname", path.stem, "dataformat", "matlab", **kwargs)
+            eeg = pop_importdata("data", str(path), "setname", path.stem, "dataformat", "matlab", **options)
     elif suffix in {".csv", ".txt", ".tsv", ".npy", ".npz"}:
-        eeg = pop_importdata("data", str(path), "setname", path.stem, **kwargs)
+        eeg = pop_importdata("data", str(path), "setname", path.stem, **options)
     elif suffix == ".cnt":
         if blockrange is not None:
             start, stop = _blockrange_values(blockrange)
-            kwargs["t1"] = start
-            kwargs["lddur"] = stop - start
-        eeg = pop_loadcnt(path, **kwargs)
+            options["t1"] = start
+            options["lddur"] = stop - start
+        eeg = pop_loadcnt(path, **options)
     elif suffix == ".vhdr" and blockrange is None:
         eeg = pop_loadbv(path, srange=samples, chans=channels)
         channels = None
         samples = None
     else:
-        reader = _reader_for_suffix(suffix)
+        reader = _reader_for_suffix(suffix, feature)
         raw = reader(str(path), preload=True, verbose=False)
         if blockrange is not None:
             _crop_raw_to_blockrange(raw, blockrange)
@@ -80,7 +93,8 @@ def _mat_is_eeglab_dataset(path: Path) -> bool:
     return "EEG" in names or bool(names & _EEGLAB_STRUCT_MARKERS)
 
 
-def _reader_for_suffix(suffix: str):
+def _reader_for_suffix(suffix: str, feature: str):
+    mne = import_optional_dependency("mne", feature=feature)
     if suffix == ".edf":
         return mne.io.read_raw_edf
     if suffix == ".bdf":

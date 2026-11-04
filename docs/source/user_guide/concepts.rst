@@ -95,7 +95,8 @@ Practical rules:
   MATLAB ``.set`` file, then converted back to one-based values when saving.
 * ``chanlocs[i]["urchan"]``, ``event[i]["urevent"]``, ``epoch[k]["event"]``, and
   ``epoch[k]["eventurevent"]`` follow the same rule: zero-based in memory,
-  one-based on disk.
+  one-based on disk. An event whose ``urevent`` is missing, ``None``, or
+  empty is saved without one.
 * Single-trial datasets have no ``epoch`` structure: ``eeg_checkset`` empties
   it and removes ``event[i]["epoch"]``, as EEGLAB does.
 * Deleting a dataset empties its ``ALLEEG`` slot (an empty ``{}`` entry) instead

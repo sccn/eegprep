@@ -139,7 +139,6 @@ def _pop_select_apply(EEG, **kwargs):
     if g['sort'] is not None:
         g['sorttrial'] = 'on' if g['sort'] else 'off'
 
-    # remove notrial
     trial_set = np.array(g['trial'], dtype=int)
     notrial_set = np.array(g['notrial'], dtype=int) if g['notrial'] else np.array([], dtype=int)
 
@@ -158,17 +157,27 @@ def _pop_select_apply(EEG, **kwargs):
         _, idx = np.unique(trial_seq, return_index=True)
         g['trial'] = trial_seq[np.sort(idx)].tolist()
 
-    if g['trial'] and (min(g['trial']) < 1 or max(g['trial']) > trials):
+    if np.size(g['trial']) and (np.min(g['trial']) < 1 or np.max(g['trial']) > trials):
         raise ValueError('Wrong trial range')
 
     # 2) Channel selection by name or type, with mutual exclusion
     def _decode_list(x):
-        # normalize scalar to list
-        if x is None or x == []:
+        if x is None:
             return []
-        if isinstance(x, (list, tuple, np.ndarray)):
+        if isinstance(x, np.ndarray):
+            return [] if x.size == 0 else list(x.ravel())
+        if isinstance(x, (list, tuple)):
             return list(x)
+        if x == []:
+            return []
         return [x]
+
+    def _is_channel_index(value):
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, np.integer)):
+            return True
+        return isinstance(value, (float, np.floating)) and float(value).is_integer()
 
     def _numeric_channel_indices(values):
         inds = [int(value) for value in values]
@@ -185,12 +194,12 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['channel']):
             ch_list = _decode_list(g['channel'])
-            if all(isinstance(c, (int, np.integer)) for c in ch_list):
+            if ch_list and all(_is_channel_index(c) for c in ch_list):
                 inds = _numeric_channel_indices(ch_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['channel'], 'labels', True)
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['channel']):
+            if len(inds) != len(ch_list):
                 logger.warning("%s channels not found", len(g['channel']) - len(inds))
             if len(inds) == 0:
                 raise ValueError(f"Channels not found: {g['channel']}")
@@ -199,13 +208,13 @@ def _pop_select_apply(EEG, **kwargs):
 
         if _decode_list(g['nochannel']):
             nc_list = _decode_list(g['nochannel'])
-            if all(isinstance(c, (int, np.integer)) for c in nc_list):
+            if nc_list and all(_is_channel_index(c) for c in nc_list):
                 inds = _numeric_channel_indices(nc_list)
             else:
                 inds, _ = eeg_decodechan(EEG, g['nochannel'], 'labels', True)
             chan_selected_flag[np.array(inds, dtype=int)] = False
             # show warning if not all channels are found and error if no channels are found
-            if len(inds) != len(g['nochannel']):
+            if len(inds) != len(nc_list):
                 logger.warning("%s channels not found", len(g['nochannel']) - len(inds))
 
     else:
@@ -223,18 +232,17 @@ def _pop_select_apply(EEG, **kwargs):
     if len(g['channel']) == 0:
         raise ValueError('Empty channel selection')
 
-    # normalize vector forms for point/nopoint to Nx2
     def _normalize_range_matrix(x):
         x = np.asarray(x) if isinstance(x, (list, tuple, np.ndarray)) else np.array([])
         if x.size == 0:
             return x.reshape(0, 2)
         x = x.astype(float)
-        if x.ndim == 1:
-            if x.size <= 2:
-                return np.array(x).reshape(1, 2)
-            # vector form → [first last]
+        if x.ndim == 1 or x.shape[1] > 2:
+            flat = x.reshape(-1, order="F")
+            if flat.size <= 2 and x.ndim == 1:
+                return np.array(flat).reshape(1, 2)
             logger.warning("Vector format for point/time range is deprecated")
-            return np.array([x[0], x[-1]], dtype=float).reshape(1, 2)
+            return np.array([flat[0], flat[-1]], dtype=float).reshape(1, 2)
         if x.shape[1] != 2:
             raise ValueError('Time/point range must contain exactly 2 columns')
         return x
@@ -300,7 +308,6 @@ def _pop_select_apply(EEG, **kwargs):
     if len(g['channel']) != nbchan:
         logger.info("Removing %s channel(s)...", nbchan - len(g['channel']))
 
-    # 5) Recompute event epoch indices and latencies when trials are dropped
     if len(g['trial']) != trials and (EEG.get('event') is not None and len(EEG.get('event', [])) > 0):
         if not any('epoch' in ev for ev in EEG['event']):
             logger.warning("Bad event format with epoch dataset, removing events")
@@ -327,7 +334,6 @@ def _pop_select_apply(EEG, **kwargs):
                 logger.info("Removing %s unreferenced events", diffevent.size)
                 EEG['event'] = [EEG['event'][i] for i in range(len(EEG['event'])) if i in keepevent]
 
-    # 6) Apply time selection
     if time_mat.size or notime_mat.size:
         if epoched:
             # epoched: crop epoch time window uniformly across epochs
@@ -366,7 +372,6 @@ def _pop_select_apply(EEG, **kwargs):
             EEG['pnts'] = data.shape[1]
             pnts = EEG['pnts']
 
-            # shift event latencies within each epoch window
             if _has_content(EEG.get('event')):
                 newevents = []
                 for ev in EEG['event']:
@@ -380,7 +385,6 @@ def _pop_select_apply(EEG, **kwargs):
 
             # erase epoch-level event fields
             if _has_content(EEG.get('epoch')):
-                # remove fields that start with 'event'
                 new_epoch = []
                 for ep in EEG['epoch']:
                     new_ep = {k: v for k, v in ep.items() if not k.startswith('event')}
@@ -390,7 +394,6 @@ def _pop_select_apply(EEG, **kwargs):
         else:
             # continuous: build notime segments to reject if only keep time was provided
             if time_mat.size and not notime_mat.size:
-                # convert keep time windows into notime complements
                 # compose sequence along [xmin, xmax]
                 bounds = []
                 t_sorted = time_mat[np.argsort(time_mat[:, 0])]
@@ -412,13 +415,11 @@ def _pop_select_apply(EEG, **kwargs):
                     if notime_mat[i, 1] != xmax:
                         notime_mat[i, 1] -= 1.0 / srate
 
-            # now reject notime_mat intervals from continuous data
             if notime_mat.size:
                 # map to 1-based sample indices
                 nbtimes = notime_mat.size
                 pts, _ = eeg_lat2point(notime_mat.reshape(-1), np.ones(nbtimes), srate, [xmin, xmax])
                 pts = pts.reshape((-1, 2))
-                # drop empty ranges
                 keep_rows = (pts[:, 1] - pts[:, 0]) != 0
                 pts = pts[keep_rows]
                 if pts.size:
@@ -428,7 +429,6 @@ def _pop_select_apply(EEG, **kwargs):
                     xmin = EEG['xmin']
                     xmax = EEG['xmax']
 
-    # 7) Apply channel and trial subsetting
     # respect memory-mapped constraints lightly: we subset in place
     chan_idx = np.array(g['channel'], dtype=int)
     trial_idx_0 = np.array(g['trial'], dtype=int) - 1  # to 0-based
@@ -474,7 +474,6 @@ def _pop_select_apply(EEG, **kwargs):
         EEG["chaninfo"] = chaninfo
         EEG['chanlocs'] = [chanlocs[i] for i in chan_idx.tolist()]
 
-    # update sizes
     EEG['trials'] = len(trial_idx_0)
     # pnts already updated if time selection on epoched; keep consistent otherwise
     EEG['pnts'] = EEG['data'].shape[1]
@@ -490,7 +489,6 @@ def _pop_select_apply(EEG, **kwargs):
         rmch = np.setdiff1d(np.array(icachansind, dtype=int), chan_idx)
         icachans = list(range(len(icachansind)))
         for rc in rmch[::-1]:
-            # remove component channel indices that were removed
             try:
                 idx = int(np.where(np.array(icachansind) == rc)[0][0])
                 icachans.pop(idx)
@@ -552,23 +550,7 @@ def _pop_select_apply(EEG, **kwargs):
     EEG['reject']['rejmanual'] = []
     EEG['stats']['jp'] = []
 
-    # event consistency check: remove events with out-of-bounds latencies.
-    # MATLAB eeg_checkset('eventconsistency') uses latency < 0.5 as the lower
-    # bound (not < 1), preserving boundary events at the half-sample position.
-    if EEG['event'] is not None and len(EEG['event']) > 0:
-        total_pts = EEG['pnts'] * EEG['trials']
-        cleaned = []
-        for ev in EEG['event']:
-            if 'latency' in ev:
-                lat = float(ev['latency'])
-                if lat >= 0.5 and lat <= total_pts + 1:
-                    cleaned.append(ev)
-            else:
-                cleaned.append(ev)
-        EEG['event'] = cleaned
-
-    # Call eeg_checkset to ensure consistency after modifications
-    EEG = eeg_checkset(EEG)
+    EEG = eeg_checkset(EEG, 'eventconsistency')
     EEG["data"] = mapped_output_like(source_data, EEG["data"])
 
     return EEG

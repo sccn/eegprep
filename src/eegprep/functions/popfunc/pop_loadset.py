@@ -1,5 +1,6 @@
 """EEGLAB dataset loading utilities."""
 
+import logging
 import os
 from pathlib import Path
 
@@ -9,19 +10,13 @@ import scipy.io
 
 from eegprep.functions.adminfunc.storage import memmap_enabled, memmap_fdt, read_fdt
 from eegprep.functions.popfunc._file_io import normalize_icachansind, ur_indices_to_zero_based
+from eegprep.functions.popfunc._matlab_fields import dataset_from_mat
 from eegprep.functions.popfunc._pop_utils import is_on, parse_key_value_args, parse_numeric_sequence
 from eegprep.functions.popfunc.pop_loadset_h5 import pop_loadset_h5
-# Allows access using . notation
-# class EEG:
-#     def __init__(self, **kwargs):
-#         self.__dict__.update(kwargs)
-#     def __getitem__(self, key):
-#         return self.__dict__[key]
-#     def __setitem__(self, key, value):
-#         self.__dict__[key] = value
+
+logger = logging.getLogger(__name__)
 
 default_empty = np.array([])
-# default_empty = None
 
 
 def loadset(file_path):
@@ -31,6 +26,10 @@ def loadset(file_path):
 
 def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     """Load an EEGLAB dataset, its metadata, or selected channels.
+
+    A numeric array stored in the ``.set`` file is the dataset. A ``.fdt``
+    sidecar is read only when ``data`` names that file, or when ``data`` is
+    ``in set file`` and ``datfile`` names it.
 
     Parameters
     ----------
@@ -51,50 +50,21 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     info_only = isinstance(loadmode, str) and loadmode == "info"
     channel_selection = [] if isinstance(loadmode, str) else loadmode
 
-    def new_check(obj):
-        # check if obj is a dictionary and apply recursively the function to each object not changing the struture of the dictionary
-        if isinstance(obj, dict):
-            return {key: new_check(obj[key]) for key in obj}
-        # check if obj is a numpy array and apply recursively the function to each object not changing the struture of the array
-        elif isinstance(obj, list):
-            if len(obj) == 0:
-                return default_empty
-            else:
-                return [new_check(item) for item in obj]
-        elif isinstance(obj, np.ndarray):
-            # check if empty and return none
-            if obj.size == 0:
-                return default_empty
-            # check if it is a numeric array
-            elif obj.dtype.kind in ['i', 'u', 'f', 'c']:
-                return obj
-            else:
-                return np.array([new_check(item) for item in obj], dtype=object)
-        # check if it is a scalar or a string and return it
-        elif np.isscalar(obj) or isinstance(obj, str):
-            return obj
-        # check if obj is a mat_struct object and convert it to a dictionary
-        elif isinstance(obj, scipy.io.matlab.mat_struct) or isinstance(obj, scipy.io.matlab.mio5_params.mat_struct):
-            dict_obj = {}
-            for field_name in obj._fieldnames:
-                if field_name in ['tracking']:
-                    # used for fields that this code can't yet parse
-                    field_value = '<unsupported>'
-                else:
-                    field_value = getattr(obj, field_name)
-                dict_obj[field_name] = new_check(field_value)
-            return dict_obj
-
-    # Load MATLAB file. MAT v7.3 files are HDF5; older v5/v7 files are not.
+    # MAT v7.3 files are HDF5; older v5/v7 files are not.
     # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
     loaded_with_h5 = _is_hdf5_file(file_path)
     if loaded_with_h5:
         EEG = pop_loadset_h5(file_path)
     else:
-        EEG = scipy.io.loadmat(file_path, struct_as_record=False, squeeze_me=True, appendmat=False)
-        EEG = new_check(EEG)
-        if 'EEG' in EEG:
-            EEG = EEG['EEG']
+        # pop_loadset.m loads with MATLAB load, which keeps singleton dimensions.
+        loaded = scipy.io.loadmat(
+            file_path,
+            struct_as_record=False,
+            squeeze_me=False,
+            appendmat=False,
+            mat_dtype=True,
+        )
+        EEG = dataset_from_mat(loaded)
 
     EEG['filepath'] = os.path.dirname(file_path)
     EEG['filename'] = os.path.basename(file_path)
@@ -111,17 +81,15 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     if 'icachansind' in EEG:
         EEG['icachansind'] = normalize_icachansind(EEG['icachansind'], matlab_one_based=not loaded_with_h5)
 
-    if not loaded_with_h5 and not info_only:
-        _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
-
     info_data = None
     if info_only:
-        info_data = _string_value(EEG.get("datfile")) or "in set file"
+        info_data = _info_mode_data(EEG, Path(file_path))
+    elif not loaded_with_h5:
+        _load_sidecar_data(EEG, Path(file_path), use_memmap=use_memmap)
 
-    # Convert 1-based MATLAB urchan/urevent to 0-based before eeg_checkset, which
-    # copies event.urevent into epoch.eventurevent.  scipy's squeeze_me returns a
-    # bare dict for a 1x1 struct array, so wrap it in a list first.
-    for key in ('chanlocs', 'event'):
+    # 1-based urchan/urevent become 0-based before eeg_checkset copies
+    # event.urevent into epoch.eventurevent.
+    for key in ('chanlocs', 'event', 'urevent', 'urchanlocs', 'epoch'):
         if isinstance(EEG.get(key), dict):
             EEG[key] = [EEG[key]]
 
@@ -205,17 +173,57 @@ def _select_loaded_channels(EEG, channel_selection) -> None:
 
 
 def _load_sidecar_data(EEG, file_path: Path, *, use_memmap: bool) -> None:
+    # pop_loadset.m lines 155-160: numeric data is already in the .set file.
     data_value = EEG.get("data")
-    datfile = _string_value(EEG.get("datfile"))
-    if not datfile and isinstance(data_value, str) and data_value not in {"", "in set file"}:
-        datfile = data_value
-    if not datfile:
+    data_name = data_value if isinstance(data_value, str) else ""
+    if data_name == "in set file":
+        logger.warning("Something is wrong with the data file, trying to use the associated .fdt file")
+        data_name = _string_value(EEG.get("datfile"))
+    if not data_name or data_name == "in set file":
         return
-    datfile_path = Path(datfile)
-    if not datfile_path.is_absolute():
-        datfile_path = file_path.parent / datfile_path.name
-    EEG["datfile"] = datfile_path.name
-    EEG["data"] = memmap_fdt(datfile_path, EEG) if use_memmap else read_fdt(datfile_path, EEG)
+    sidecar = _sidecar_path(data_name, file_path)
+    EEG["datfile"] = sidecar.name
+    EEG["data"] = memmap_fdt(sidecar, EEG) if use_memmap else read_fdt(sidecar, EEG)
+
+
+def _info_mode_data(EEG, file_path: Path) -> str | None:
+    # pop_loadset.m lines 139-154. None keeps a numeric array loaded from the .set file.
+    datfile = _string_value(EEG.get("datfile"))
+    if not datfile:
+        return "in set file"
+    if _sidecar_path(datfile, file_path).is_file():
+        return datfile
+    data_value = EEG.get("data")
+    logger.warning(".fdt file not found, checking if .set contains data")
+    if not _is_numeric_data(data_value) and not _is_empty_data(data_value):
+        logger.warning(".fdt file not found, but data found in .set EEGLAB file")
+        return "in set file"
+    if _is_empty_data(data_value) or not _is_numeric_data(data_value):
+        logger.warning(".fdt file not found, this EEGLAB file is missing raw data")
+    return None
+
+
+def _sidecar_path(datfile: str, file_path: Path) -> Path:
+    path = Path(datfile)
+    if path.is_absolute():
+        return path
+    return file_path.parent / path.name
+
+
+def _is_numeric_data(value) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.dtype.kind in "iufc"
+    return isinstance(value, np.number)
+
+
+def _is_empty_data(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    return False
 
 
 def _string_value(value):

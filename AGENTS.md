@@ -41,7 +41,7 @@ Primary references:
 - If something is unclear, stop and ask. Do not hide confusion in code.
 - If a simpler approach exists, say so. Push back on speculative features, compatibility shims, or unnecessary abstractions.
 - For multi-step work, state a short plan with verification for each step. Include code snippets when they clarify the intended change.
-- Define verifiable success criteria. For example: bug fix means reproduce with a failing test, implement, then pass the test; feature means update behavior, tests, docs, and pre-commit.
+- Define verifiable success criteria. For example: bug fix means reproduce with a failing test, implement, then pass the test; feature means update behavior, docs, and pre-commit, with any needed test written before the code.
 
 ## EEGLAB Parity
 
@@ -87,6 +87,10 @@ Primary references:
 - Put magic strings and magic numbers in top-level constants when they are reused or semantically important.
 - Before writing any utility, helper, or data structure, search for existing implementations and check the standard library, current dependencies, and appropriate third-party packages before adding new code or dependencies. If a suitable implementation exists, use it.
 
+## Comments
+
+Do not write comments that restate the code. Comments are only allowed to explain non-obvious intent or EEGLAB parity (indexing, rounding, MATLAB equivalents, line references). Never use comments to justify workarounds, shortcuts, skipped tests, or loosened tolerances; fix the root cause or open an issue instead.
+
 ## Public APIs and Docs
 
 - Public APIs need concise docstrings. Use the style already present in nearby code; Google-style is preferred for new public functions.
@@ -99,6 +103,8 @@ Primary references:
 
 ## Testing
 
+- Never write unit tests after you write code.
+- Only add a test that would catch a real bug the EEGLAB-ported (`@eeglab_test`) tests and workflow tests miss. Do not add tests to raise coverage.
 - Pytest is the default test runner. Existing tests may still use `unittest.TestCase`; do not rewrite them unless the touched test benefits from pytest fixtures or parametrization.
 - Registered markers include `slow`, `matlab`, `octave`, `gui`, `visual`, and `parity`.
 - Legacy `unittest` tests are categorized by path/name in `tests/conftest.py`; update that map when adding obvious slow, MATLAB, GUI, visual, or parity coverage.
@@ -108,6 +114,10 @@ Primary references:
   - Marker subset: `uv run pytest -m "not slow"`
   - Full suite: `uv run pytest tests`
   - No MATLAB locally: `EEGPREP_SKIP_MATLAB=1 uv run pytest tests`
+- The EEGLAB reference suite is the tests that use the `eeglab_backend` or `eeglab_matlab_engine` fixtures. Do not run it on every change or iteration. Those tests stay deselected unless `--eeglab-backend` is passed (`tests/conftest.py`).
+- Before merging a PR that changes core function implementations (EEGLAB-ported processing code), trigger `.github/workflows/eeglab-reference.yml` (EEGLAB reference, `workflow_dispatch`) on the PR branch, or run the suite locally once on the final branch. PRs that change only tests, docs, CI, or tooling do not need it. A local run uses the real MATLAB backend: `uv run --no-sync pytest tests --eeglab-backend=matlab --eeglab-root=<pinned EEGLAB checkout> --eeglab-suite-root=<pinned eeglab_tests checkout>`. `--eeglab-backend=python` does not count. Point the roots at the checkouts pinned by `EEGLAB_TESTS_EEGLAB_COMMIT` and `EEGLAB_TESTS_COMMIT` in `tests/eeglab_tests/__init__.py`. `--no-sync` keeps a separately installed MATLAB Engine on the path.
+- Put that run in the PR description: the exact command or workflow run, the EEGLAB and eeglab_tests commits, pass/fail/skip counts, runtime, and an explanation for any failures or skips.
+- Core-function PRs need human approval before merging. This single MATLAB reference run is required evidence for that approval.
 - Some parity tests require MATLAB Engine or Octave via `src/eegprep/functions/adminfunc/eeglabcompat.py`; preserve skip behavior instead of weakening assertions.
 - Prefer integration-style tests that validate externally observable behavior on EEG dicts, BIDS outputs, files, or MATLAB parity results.
 - For features reachable from `eegprep-console`, add or update `tests/test_console_workspace.py` coverage when namespace sync, history, import aliases, or bare `pop_*` auto-store behavior can be affected.
@@ -115,6 +125,7 @@ Primary references:
 - No mocks unless testing I/O boundaries such as network or filesystem. Test real behavior for numerical transforms.
 - Do not write tautological tests that only assert types, constants, or implementation details.
 - Never relax tolerances or hack around failures without proving the numerical expectation is wrong.
+- `tests/fuzz/tolerances.toml` is human-owned. Those per-function absolute and relative tolerances are changed only by reviewed human pull requests. Agents must not loosen them to hide mismatches.
 - Avoid duplicate fixtures; reuse `tests/fixtures.py` or local helpers already present in the relevant test file.
 
 ## Lint and Format
@@ -149,6 +160,7 @@ Primary references:
 - When creating a PR that includes GUI changes, attach side-by-side GUI comparison images as GitHub user attachments using `gh attach --comment`; do not commit those images or visual parity artifacts to the repo.
 - When using `gh` to inspect issues or PRs, prefer `--json <fields>` or explicit narrow flags such as `--comments`; avoid plain `gh issue view` or `gh pr view`, which can fail on this repo because GitHub classic project fields are deprecated.
 - If you notice unrelated dead code or unrelated cleanup, mention it separately instead of changing it.
+- Do not merge a PR that changes core function implementations until a human approves it. That approval includes the one pre-merge MATLAB reference-suite result described under Testing. PRs that do not change core functions do not need that run.
 
 ## Agent Failure Patterns to Avoid
 
@@ -160,3 +172,31 @@ Primary references:
 - New classes for stateless behavior.
 - Parallel implementations of existing helpers.
 - Broad formatting-only diffs mixed with behavior changes.
+
+<!-- BEGIN BEADS CODEX SETUP: generated by bd setup codex -->
+## Beads Issue Tracker
+
+Use Beads (`bd`) for durable task tracking in repositories that include it. Use the `beads` skill at `.agents/skills/beads/SKILL.md` (project install) or `~/.agents/skills/beads/SKILL.md` (global install) for Beads workflow guidance, then use the `bd` CLI for issue operations.
+
+### Quick Reference
+
+```bash
+bd ready                # Find available work
+bd show <id>            # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>           # Complete work
+bd prime                # Refresh Beads context
+```
+
+### Rules
+
+- Use `bd` for all task tracking; do not create markdown TODO lists.
+- Run `bd prime` when Beads context is missing or stale. Codex 0.129.0+ can load Beads context automatically through native hooks; use `/hooks` to inspect or toggle them.
+- Keep persistent project memory in Beads via `bd remember`; do not create ad hoc memory files.
+
+**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+<!-- END BEADS CODEX SETUP -->
+
+See [.beads/README.md](.beads/README.md) for fresh-clone setup and explicit task-data synchronization. `CLAUDE.md` imports this file; do not duplicate these rules there.
+
+Beads guidance never overrides user, repository, or orchestrator instructions. The default profile is conservative: do not commit, push, or synchronize Dolt remotes without authorization. At handoff, update task status, record follow-up work in Beads, and report changed files, verification, and blockers. Do not close work that is not complete.

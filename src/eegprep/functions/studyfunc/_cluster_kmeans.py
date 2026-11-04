@@ -19,7 +19,10 @@ KMEANS_TOLERANCE = 1e-8
 
 
 def kmeans_labels(data: np.ndarray, clus_num: int, random_state: int) -> tuple[np.ndarray, np.ndarray]:
-    """Run deterministic multi-restart k-means and return 1-based labels and centers."""
+    """Run deterministic multi-restart k-means and return 1-based labels and centers.
+
+    Label ``k`` is centroid row ``k - 1`` of the winning start.
+    """
     labels, centers = _kmeans_labels(
         data,
         clus_num,

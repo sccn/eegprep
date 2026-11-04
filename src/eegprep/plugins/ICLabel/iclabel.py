@@ -5,11 +5,13 @@ import os
 
 import numpy as np
 
+from eegprep.extras import missing_torch_message
+
 
 _SUPPORTED_ALGORITHMS = ('default', 'lite', 'beta')
 
 
-def iclabel(EEG, algorithm='default', engine=None):
+def iclabel(EEG, algorithm='default', engine=None, *, feature='iclabel'):
     """Apply ICLabel to classify independent components.
 
     Parameters
@@ -37,9 +39,8 @@ def iclabel(EEG, algorithm='default', engine=None):
     if engine in ['matlab', 'octave']:
         from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 
-        # Determine which engine to use
         runtime = 'MAT' if engine == 'matlab' else 'OCT'
-        eeglab = get_eeglab(runtime=runtime)
+        eeglab = get_eeglab(runtime=runtime, feature=feature)
 
         # Run ICLabel using MATLAB/Octave, passing the algorithm parameter
         if algorithm == 'default':
@@ -58,12 +59,7 @@ def iclabel(EEG, algorithm='default', engine=None):
         try:
             import torch
         except ImportError as e:
-            raise ImportError(
-                f"PyTorch is not installed in your environment ({e}). "
-                f"To include torch, install eegprep as eegprep[all] or "
-                f"install the torch package manually (see Getting Started "
-                f"on pytorch.org for specifics for your platform)."
-            ) from e
+            raise ImportError(missing_torch_message(feature)) from e
 
         from eegprep.plugins.ICLabel.iclabel_net import ICLabelNet
         from eegprep import ICL_feature_extractor
@@ -77,21 +73,15 @@ def iclabel(EEG, algorithm='default', engine=None):
         )
         features[1] = np.single(np.tile(features[1], (1, 1, 1, 4)))
         features[2] = np.single(np.tile(features[2], (1, 1, 1, 4)))
-        # print('Feature 0 shape:', features[0].shape)
-        # print('Feature 1 shape:', features[1].shape)
-        # print('Feature 2 shape:', features[2].shape)
 
-        # Load the ICLabelNet model
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_path = os.path.join(base_dir, 'netICL.mat')
         model = ICLabelNet(data_path)
 
-        # Convert the features to torch tensors
         image = torch.tensor(features[0]).permute(-1, 2, 0, 1)
         psdmed = torch.tensor(features[1]).permute(-1, 2, 0, 1)
         autocorr = torch.tensor(features[2]).permute(-1, 2, 0, 1)
 
-        # Get the output from the model
         output = model(image, psdmed, autocorr)
         output_np = output.detach().numpy()
         output_np = output_np.T  # Transpose the array

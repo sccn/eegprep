@@ -7,6 +7,296 @@ Changelog
 Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 
+Version 0.5.0
+=============
+
+- This version, 0.5.0, is shared with ``eegprep-lean``.
+- ``dir(eegprep)`` lists every public name, and ``eegprep.help()`` prints
+  those names with a one-line summary taken from the docstring. Describing a
+  name does not import its module. ``help`` is not in ``__all__``, so
+  ``from eegprep import *`` does not replace the builtin.
+- A plain ``pip install eegprep`` no longer includes mne, pybids, oct2py, and
+  picard. It includes NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py, so
+  loading, cleaning, plotting, and EDF, BDF, and GDF export need no extra.
+  Those four libraries are the ``mne``, ``pybids``, ``eeglab``, and ``picard``
+  extras. ``pip install "eegprep[full]"`` restores the previous install.
+  A missing library raises ``ImportError`` naming the library, the function,
+  and ``pip install "eegprep[<extra>]"``, and it mentions ``eegprep[full]``.
+  When another path does not need that library, the message says what to do
+  instead. The minimal preprocessing image
+  installs the ``pybids`` and ``mne`` extras so it can read a BIDS dataset
+  and EDF or BDF files. ``eegprep-lean`` stays a separate package.
+- ``eeg_eegrej`` sets ``trials`` from the data shape, then runs the full
+  event-consistency check. That keeps events when ``trials`` was 0.
+  EEGLAB checks the bounds first and drops them. The full check also
+  snaps ``xmax`` onto the sample grid when it no longer matches ``pnts``.
+  It then drops a trailing event whose latency is more than half a sample
+  past the data. Events come back as a list of dicts. A structured array is converted;
+  any other event value raises. Events before half a sample are removed, events
+  are sorted, and an empty duration becomes 0 once any event has one. A NaN
+  duration is kept.
+- ``eeg_checkset`` rounds ``srate * (xmax - xmin) + 1`` half away from
+  zero before deciding whether ``xmax`` is on the sample grid. A count of
+  100.5 frames snaps ``xmax``; Python's half-to-even round would leave it.
+- ``clean_windows`` keeps the proportional ``xmax`` from ``eeg_eegrej`` and
+  snaps it to ``xmin + (pnts - 1) / srate`` only when that value is off the
+  sample grid, including ``xmax = xmin - 1/srate`` when every sample is
+  removed. A previous ``clean_sample_mask`` whose count of ones differs from
+  the new mask is left unchanged. The power fit raises ``ValueError`` only
+  when a rounded search width is 1 or less; 11 to 22 windows still fit.
+  ``clean_asr`` then calibrates on the whole recording.
+- ``pop_saveset`` writes an event ``urevent`` one-based only when that
+  event has the field. A later event without ``urevent`` no longer raises
+  ``KeyError``, and a later ``urevent`` is still shifted when the first
+  event has no such field. ``None`` and ``[]`` are written empty instead
+  of raising ``TypeError``. Structured event records are shifted the same
+  way, and the in-memory events stay unchanged.
+- ``clean_channels`` always draws ``round(subset_size * nbchan)`` channels,
+  including when ``subset_size`` is at least 1. A count larger than the
+  channel total raises ``ValueError``. The noise filter uses
+  time-domain filtering for a short FIR, so a few NaNs no longer blank the
+  whole channel and drop it from the correlation.
+- ``eeg_eegrej`` merges overlapping, reversed, and fractional removal
+  intervals before shifting events, and leaves a one-sample gap as two
+  intervals. Removing every sample sets ``xmax`` to ``-1/srate``.
+- ``pop_eegfiltnew`` recomputes the transition width after the default filter
+  order is rounded up to an even length, matching EEGLAB. A 1 Hz high-pass
+  at 128 Hz uses order 424 and a transition of about 0.996 Hz.
+- ``pop_loadset`` reads v7 ``.set`` files without dropping singleton
+  dimensions. ``data`` stays ``nbchan`` by ``pnts`` by ``trials``, and
+  ``icaweights``, ``icasphere``, ``icawinv``, and ``icaact`` keep a
+  length-1 component or channel axis, including a 1-by-1 sphere.
+  Multi-dimensional cells and struct arrays keep their MATLAB shape, and
+  empty arrays keep the dimensions stored in the file, so ``[]`` stays
+  0-by-0. Continuous ``icaact`` is ``ncomp`` by ``pnts`` and is the
+  column-major product in the data array's dtype. ``eeg_runica``,
+  ``eeg_picard``, and ``eeg_amica`` return that same continuous shape.
+  ``pop_saveset`` writes
+  ``icaact`` as ``[]`` and leaves the in-memory activations in place.
+  ``pop_loadset`` recomputes them from the decomposition and the data.
+  ``pop_subcomp`` projects those stored activations. Event and channel
+  indices load as integers, and integral ``run`` and ``session`` labels
+  stay integers. MATLAB ``load`` keeps those dimensions, and
+  ``eeg_checkset`` requires ``size(EEG.data, 1) == EEG.nbchan``.
+- Breaking change: ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``,
+  ``hungarian``, ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use
+  1-based indices. ``abspeak`` frames, ``hungarian`` row assignments
+  (``assignment[j]`` is the row of column ``j + 1``), ``matcorr``, ``mapcorr``,
+  and ``matperm`` row numbers, ``getchanlist`` channel numbers, and
+  ``eeg_amplitudearea`` channel numbers start at 1. ``shuffle``'s dimension
+  argument is now ``dim`` and is 1-based
+  (it was ``axis``, 0-based); its forward and inverse indices also start at 1.
+  Subtract 1 before using any of these values as a NumPy index. An ``abspeak``
+  channel or epoch that is all NaN still returns frame ``-1``.
+- ``eeg_hist``, ``is_sccn``, ``iseeglabdeployed``, ``eeg_helphelp``,
+  ``helpforexe``, and ``disp`` are available from ``eegprep``. ``eeg_hist``
+  appends a command on its own line and skips commands that contain
+  ``pop_loadset``. History stored as a character matrix or a list of rows
+  is joined into lines first. ``is_sccn`` returns 1 when the stripped Unix
+  ``hostname`` output contains ``ucsd.edu``, and 0 when that command times
+  out or fails. ``iseeglabdeployed``
+  returns 1 when Python is running a frozen executable (``sys.frozen``),
+  which is the packaged-application counterpart of MATLAB ``isdeployed``.
+  ``eeg_helphelp`` prints its docstring, and ``helpforexe`` writes one
+  ``disp`` script per function from that function's docstring.
+  ``eegh(n)`` in ``eegprep-console`` runs a command from the session
+  history and records that command once. ``gethelpvar`` now returns
+  description and name rows with shape ``(1, N)`` instead of Python lists.
+- ``eegh(command, EEG)`` returns that dataset and records the command with
+  ``eeg_hist``, including a character-matrix or row-list history.
+  ``getkeyval`` keeps the space after the comma in a parent full-mode
+  fragment. Presentation logs pad short rows, epoch and event field tables
+  follow the file columns, and ``eeg_from_data`` keeps an extra channel when
+  ``nbchan`` does not match the row count. ``eegplot2event`` rounds half away
+  from zero and returns an empty array when no marks remain. ``rejtrend``
+  returns no rejections when its window is longer than the trial.
+  ``celltomat`` returns a numeric array for an empty cell, and
+  ``eeg_point2lat`` accepts a column time window.
+- ``statcond`` ANOVA F and p values are float64. The sums of squares follow
+  the double-precision accumulation in EEGLAB ``anova1_cell.m``,
+  ``anova1rm_cell.m``, ``anova2_cell.m``, and ``anova2rm_cell.m`` after
+  EEGLAB #977. Parametric p-values follow ``myfpval.m`` lines 11-19: the
+  complement of the incomplete beta when ``F < df2/df1``, and the upper tail
+  in its symmetric form otherwise (``x = df2/(df2+df1*F)``, parameters
+  ``(df2/2, df1/2)``). That branch matches ``myfpval``'s choice. F resampling
+  arrays are float64 when ``arraycomp`` is on, because ``statcond.m`` lines
+  384 and 421 replace the single preallocation at line 261 with the double
+  ANOVA output, and float32 when ``arraycomp`` is off, because lines 398-399
+  and 435-436 assign into that single array. ``concatdata.m`` stores the
+  draws as single and ``ttest_cell`` keeps that class, so t-test resampling
+  arrays and their confidence intervals stay float32 for both ``arraycomp``
+  modes. A confidence interval follows the surrogate class. Supplied stats
+  and resampling arrays keep the class they were given when ``naccu`` matches
+  the supplied length. A supplied statistic is accepted when its shape matches
+  the resampling array without the last axis after trailing length-1 dimensions
+  are removed. A transpose or a flattened column is rejected. p-values stay float64.
+- ``statcond`` accepts EEGLAB name/value pairs (``mode``, ``verbose``,
+  ``returnresamplingarray``, ``structoutput``, ``cluster``, and the other
+  documented options) as well as keywords. A single MATLAB output is the
+  statistic array, the resampling cell array, or the ``structoutput`` struct.
+  Python callers still receive ``StatcondResult`` or ``SurrogateDistribution``.
+  Unpaired two-way MATLAB cells stay in column, row, interaction order.
+  ``verbose`` still defaults to off. Unpaired two-condition tests now default
+  to Welch's inhomogenous variance, matching ``statcond`` ``finputcheck``, so
+  calls that omit ``variance`` change. ``ttest2_cell`` still defaults to equal
+  variance. Cluster correction uses the test degrees of freedom. EEGLAB forms
+  that threshold with ``tcdf`` at ``statcond.m`` lines 470 and 490, using the
+  feature count as the degrees of freedom.
+  Resampling cells follow MATLAB ``rng('default')``; pass ``rng`` to control
+  the Python surrogate stream.
+- ``MemmapData.matlab_assign`` grows when an index extends past the end of an
+  axis and fills the new samples with zeros. An empty value deletes those
+  entries, folding trailing dimensions when the key is shorter than the rank.
+  Boolean masks use ``find``: only ``True`` positions are removed, and an
+  all-false mask leaves the data unchanged. Ordinary indexing stays NumPy's.
+  Shared copies stay unchanged until they are written, and ``debug=True``
+  prints whether a ``matlab_assign`` reused the file. ``pop_firws`` keeps
+  single-precision EEG in float32: the filter runs in float64 and the result
+  is cast back, so a memory-mapped dataset and the same dataset in memory
+  match. Legacy ``pop_eegfilt`` returns float64, except continuous data with
+  a boundary event keeps the input dtype for both in-memory and memory-mapped
+  data. The filter runs in float64. EEGLAB eegfilt.m:209-210 runs filter/filtfilt
+  on single-precision input in single precision (falling back to double only on
+  error, :213-215), so its result differs from this one by single-precision
+  rounding.
+- ``runica``, ``runicalowmem``, ``dftfilt3``, ``make_timewarp``,
+  ``newtimef``, ``pop_biosig``, ``pop_fileio``, and ``pop_editoptions`` accept
+  EEGLAB positional name/value pairs as well as keywords. ``make_timewarp`` also
+  accepts ``baselineLatency``, ``eventConditions``, ``maxSTDForAbsolute``,
+  and ``maxSTDForRelative``. ``pop_editoptions("option_storedisk", 1)``
+  updates that option. ``dftfilt3`` still rejects ``type``; EEGLAB's error
+  text lists it, but ``dftfilt3.m`` does not accept it. An omitted ``runica``
+  ``rndreset`` stays off (``RandomState(5489)``). ``runica.m`` line 205 still
+  sets ``DEFAULT_RESETRANDOMSEED = true``, but the help at lines 48-50 says
+  the default has been ``'off'`` since 2015. ``newtimef`` accepts every
+  name in the ``newtimef.m`` ``finputcheck`` list (lines 513-587). Mode
+  ``ignore`` (line 587) forwards ``ffttaper``, ``wavelet``, and
+  ``timestretch`` to ``timefreq`` (line 1188). A forwarded ``wavelet``
+  replaces ``cycles`` inside ``timefreq`` because lines 1186-1188 pass
+  ``g.cycles`` first and the last value wins. EEGLAB does not update
+  ``newtimef``'s own ``g.cycles``, so the FFT scale at lines 1207-1209
+  (``2/0.375/winsize`` when ``g.cycles(1)==0``, squared for power; the
+  default ``winsize`` is line 453) follows the original ``cycles``. A
+  ``wavelet`` of 0 therefore runs an unscaled FFT, and ``cycles`` 0 with a
+  wavelet applies that FFT scale to the wavelet. EEGPrep scales the
+  decomposition that ran. Any other name, including ``overlap``, is an
+  undefined ``timefreq`` argument, reported with the caller's spelling.
+  ``freqrange``, ``erspboot``, and
+  ``itcboot`` are undefined arguments. ``rng`` is an EEGPrep-only name
+  that seeds the bootstrap. A scalar ``freqs`` keeps its first value
+  when ``maxfreq`` replaces ``freqs(2)``. ``ntimesout`` sets the time
+  count when ``timesout`` is not a vector (lines 1176-1182). ``itctype``
+  replaces ``type`` unless it is ``phasecoher`` (line 591). The default
+  frequency range is ``[0, 50]``; ``maxfreq`` above Nyquist is capped and
+  written into ``freqs`` (lines 704-709). Integer-valued MATLAB doubles such
+  as ``runica(..., 'pca', 2)`` are left for the shared boundary converter.
+- ``erpimage`` is now a faithful port of EEGLAB's ``erpimage``: it takes
+  EEGLAB's arguments and options (as tokens or keywords) and returns its fifteen
+  outputs plus the figure. Sorting, smoothing and decimation, phase and
+  amplitude sorting, coherence with bootstrap significance, amplitude images,
+  time warping and axis limits match MATLAB R2025b, computed by a NumPy-only
+  engine. ``erpimage(data, times=..., sort_values=..., smooth=...)`` calls
+  become ``erpimage(data, sortvar, times, title, avewidth, decimate, ...)``,
+  and ``plot_erp``, ``chan_locs`` and ``channel_index`` become ``erp`` and
+  ``topo``. Defaults now follow EEGLAB (no ERP trace, no colorbar). The
+  ``erpalpha`` permutation test uses unbiased random signs, so its thresholds
+  differ slightly from EEGLAB's
+  (`sccn/eeglab#976 <https://github.com/sccn/eeglab/issues/976>`_).
+  Invalid inputs raise ``ValueError`` instead of producing a wrong image,
+  ``'allcohers'`` raises, ``NoShow`` cannot be combined with ``target``, and
+  ``rng`` also accepts an integer seed. The notes EEGLAB prints and continues
+  past (clamped widths, removed NaN trials, an ``'erp'`` above 1 reduced to one
+  ERP by ``'erpalpha'``, ignored options) are logged; see :ref:`erpimage_api`
+  for every difference.
+- ``pop_erpimage`` follows EEGLAB's ``pop_erpimage``:
+  it takes ``(EEG, typeplot, channel, projchan, titleplot, smooth, decimate,
+  sortingtype, sortingwin, sortingeventfield, ...)`` followed by any ``erpimage`` option,
+  and returns the ``erpimage`` result instead of a ``{"figure", "image"}`` dictionary
+  (``result.outdata`` is ``(frames, trials)``, the transpose of the old ``"image"``).
+  ``index=`` becomes ``channel`` (numbers, ranges or labels; several channels are averaged),
+  ``sort_values`` and the ``field``, ``type`` and ``eventrange`` aliases are gone,
+  and ``limits`` sets the axes instead of cropping the data.
+  The defaults are EEGLAB's (``smooth=5``, ``decimate=0``),
+  and the ERP trace, colorbar and scalp map are drawn by default,
+  where EEGLAB's command line leaves them off.
+  The scalp map is left out, with a warning, when several channels are averaged.
+  Trials are sorted with ``eeg_getepochevent``
+  (first latency, last value of other fields, text sorted alphabetically, stable order);
+  events without the field, or no epoch with a match, raise clear errors,
+  and epochs left out are listed in a warning.
+  A string ``sortingtype`` is one event type, even with spaces,
+  and numeric event types match by value.
+  ``nosort`` and ``noplot`` are passed to ``erpimage``,
+  and phase sorting, coherence, alignment and renormalization formulas are available
+  from both the command line and the dialog.
+  An option name given as ``projchan`` or ``titleplot`` now raises instead of being misread.
+  Smoothing and decimation follow EEGLAB's moving window, so images change shape:
+  on ``sample_data/eeglab_data_epochs_ica.set`` channel 14 (80 epochs),
+  ``smooth=10, decimate=2`` gives 36 rows (previously 40),
+  ``smooth=10, decimate=20`` gives 18 (previously 4)
+  and ``smooth=3, decimate=1`` gives 78 (previously 80).
+  Smoothing fewer than 4 epochs raises ``ValueError``,
+  and component images leave the ERP axis label empty, as EEGLAB does (previously "uV").
+  Default titles are built as in EEGLAB:
+  joined channel labels, ``Comp. N`` or ``Comp. N -> Chan. X``.
+- The ``pop_erpimage`` dialog now follows EEGLAB's layout and behavior:
+  the component variant has the ``Plot scalp map`` checkbox and draws the component map,
+  the event-field and event-type buttons open list dialogs,
+  the phase and coherence frequencies mirror each other,
+  and every field (limits, phase sorting, coherence, spectrum, marks, More options) reaches ``erpimage``.
+  As in EEGLAB, the fields you fill replace the same options in More options.
+  The menu reopens the dialog with the last matching command, as EEGLAB's menu does,
+  and ``lastcom=``, or ``gui=True`` with arguments, fills it from the console.
+  The event-type list is sorted like EEGLAB's ``unique()``.
+  Its history command replays in ``eegprep-console``.
+- ``a:b`` ranges in EEGLAB-style number fields count up only, as in MATLAB, so ``5:3`` is empty.
+- ``pop_prop`` draws its ERP image with EEGLAB's ``pop_prop`` arguments,
+  including the sortvar trace at the right edge and rounded ERP axis ticks,
+  and raises ``ValueError`` when the activity is all NaN.
+- BIDS EDF and BDF files are imported with ``pop_biosig``. The previous
+  neo/pyEDFlib reader rejected the OpenNeuro recordings ds003194, ds003195,
+  and ds004279.
+- BIDS TSV and JSON sidecars are decoded as UTF-8, and a leading UTF-8 BOM
+  is removed. A TSV that is not valid UTF-8 is decoded as Latin-1, so the
+  ``0xB5`` unit in ds003620 ``channels.tsv`` stays µ. JSON that is not UTF-8
+  is rejected.
+- Importing a recording or time window with fewer samples than channels no
+  longer raises an orientation error. ``pop_biosig``, ``pop_fileio``,
+  ``pop_read_erpss``, and ``pop_snapread`` pass the channel count they already
+  know into the dataset builder. A one-second BioSemi window stays
+  channel-major. EEGLAB leaves that square matrix sample-major.
+- ``clean_windows``, ``asr_calibrate``, and ``asr_calibrate_r`` place RMS
+  windows with MATLAB's colon operator. A fractional overlap such as 0.66 no
+  longer adds one extra window at the end of some recordings.
+  ``clean_windows`` keeps ``window_len * srate`` unrounded, as
+  ``clean_windows.m`` does: ``0:N-1`` indexes ``floor(N)`` samples and the
+  RMS divisor is that unrounded product. ``asr_calibrate`` still rounds the
+  window length, as ``asr_calibrate.m`` does.
+- ``pop_clust``, ``kmeans_st``, and ``kmeanscluster`` no longer sort clusters
+  by coordinates, and ``kmeans_st`` now follows EEGLAB's UPGMA Hartigan-Wong
+  algorithm. ``Cls`` numbers and memberships can change on existing studies
+  for the same ``random_state``. On the sample epochs STUDY, the ``kmeans``
+  path swaps ``Cls 2`` and ``Cls 3`` relative to develop.
+- ``pop_clust(algorithm="kmeanscluster")`` now calls ``kmeanscluster()``.
+  It previously used the same Lloyd starts as ``kmeans``, so those
+  memberships change too.
+- ``pop_select`` finishes by checking event consistency. A leading boundary
+  shorter than one sample is removed, events with an out-of-range epoch
+  number are removed, and the remaining events are sorted by epoch, then
+  latency. Consecutive entries of the boundary list that share a latency
+  (event order, before that sort) chain their durations into the last entry
+  of the run. A later boundary at the same latency stays separate when a
+  different latency stands between the two entries.
+- The top-level ``eegprep`` package exports the public statistics helpers
+  (``statcond``, ``fdr``, ``statcondfieldtrip``, and the condition-test,
+  surrogate, and concatenation helpers) and the public signal helpers
+  ``numdim``, ``eeg_ms2f``, ``spher``, ``eegplot2event``,
+  ``eegplot2trial``, ``envtopo``, ``erpimage``, ``timtopo``, ``plottopo``,
+  ``spectopo``, ``axcopy``, and ``runamica``.
+- ASR, Riemannian ASR, and spherical-spline interpolation now use MATLAB's
+  pseudoinverse cutoff ``max(size)*eps(norm)``. NumPy's default cutoff could
+  invert a numerical null direction and amplify the signal by about 1e13.
+
 Version 0.4.0
 =============
 
@@ -133,8 +423,12 @@ Version 0.4.0
 - Added standalone low-level signal and text helpers ``blockave``, ``eegfilt``,
   ``env``, ``movav``, ``loadeeg``, ``loadtxt``, ``parsetxt``,
   ``readneurodat``, and ``readtxtfile``. Legacy ``eegfilt`` now supports the
-  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB,
-  and truncated Neuroscan files retain complete sweeps without returning an
+  even-tap least-squares filters and shortest valid epochs accepted by EEGLAB.
+  Zero-phase filtering pads each segment with three times the filter order,
+  matching MATLAB ``filtfilt``. Segments long enough for SciPy's previous
+  default pad, including the continuous EEGLAB sample recording, keep the
+  same samples; the shorter pad is what admits those short epochs.
+  Truncated Neuroscan files retain complete sweeps without returning an
   incomplete zero-filled tail.
 - Regular epoch generation, preceding-event timing, event alignment, BioSig
   event conversion, sphering, RMS summaries, int16 matrix reads, legacy

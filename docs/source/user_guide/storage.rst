@@ -27,7 +27,16 @@ Two-File ``.set`` / ``.fdt`` Datasets
 
 The ``.fdt`` sidecar uses EEGLAB's channel-fast float32 layout. Continuous data
 round-trips as ``(nbchan, pnts)`` and epoched data round-trips as
-``(nbchan, pnts, trials)``.
+``(nbchan, pnts, trials)``. Length-1 channel, sample, and trial axes are kept
+when the array is stored inside the ``.set`` file as well. ICA weight, sphere,
+and inverse matrices keep a length-1 component or channel axis. A
+multi-dimensional cell or struct array keeps its MATLAB shape, and an empty
+array keeps the dimensions stored in the file. ``pop_saveset`` stores
+``icaact`` as ``[]`` and keeps the in-memory activations. Continuous
+``icaact`` reloads as ``(ncomp, pnts)`` and is recomputed in the data
+array's dtype. ``pop_subcomp`` subtracts components with those stored
+activations. Event and channel indices load as integers, and integral
+``run`` and ``session`` labels stay integers.
 
 When an existing two-file dataset is saved with ``savemode="resave"``,
 EEGPrep keeps writing the same ``.fdt`` sidecar. A plain save without
@@ -51,16 +60,31 @@ the full sidecar into memory:
    EEG["data"].flush()
 
 Single-file ``.set`` datasets still load as in-memory NumPy arrays because no
-separate data file exists to map. Mutating a ``MemmapData`` value writes to the
-``.fdt`` sidecar; use normal EEGPrep save/history workflows when the dataset
-metadata should be marked clean.
+separate data file exists to map. A numeric array stored in the ``.set`` file
+is the dataset even when ``datfile`` names a missing or stale ``.fdt``. The
+sidecar is read only when ``data`` is a filename, or when ``data`` is
+``in set file`` and ``datfile`` names the sidecar. Mutating a ``MemmapData``
+value writes to the ``.fdt`` sidecar; use normal EEGPrep save/history workflows
+when the dataset metadata should be marked clean.
 
 ``MemmapData`` uses zero-based NumPy indices against the logical
-``(channels, samples[, trials])`` shape. Copies made with ``copy.copy`` or
-``copy.deepcopy`` share the sidecar until one copy is written, then use a
-private copy-on-write sidecar so processing a copied EEG does not mutate its
-source. ``resize`` retains the overlapping region and fills new samples with
-zeros by default; ``delete`` removes indices along a selected logical axis.
+``(channels, samples[, trials])`` shape. Ordinary item assignment follows
+NumPy: an index past the end raises, and assigning an empty array does not
+delete. ``matlab_assign`` is the EEGLAB subscript operation. An index past
+the end grows that axis and fills the new samples with zeros. An empty value
+deletes the indexed samples. A key with fewer entries than the array rank
+folds the trailing dimensions together before the deletion, so a
+channels-by-samples-by-trials array indexed with two subscripts is treated
+as channels by samples-times-trials. A boolean mask is converted with
+``find``: only ``True`` positions are removed, and an all-false mask leaves
+the data unchanged. ``delete(indices, axis=...)`` addresses one axis of the
+full array and does not fold; it uses the same ``find`` rule for masks.
+Copies made with ``copy.copy`` or ``copy.deepcopy`` share the sidecar until
+one copy is written, then use a private copy-on-write sidecar so processing
+a copied EEG does not mutate its source. ``resize`` retains the overlapping
+region and fills new samples with zeros by default. A read-only handle is
+copied on the first write. ``debug=True`` makes ``matlab_assign`` print
+whether that write reused the file.
 
 EEGPrep preprocessing keeps disk-backed input disk-backed through continuous
 rejection, epoch extraction, baseline removal, FIR filtering, rereferencing,
@@ -108,10 +132,11 @@ Selective Loading
 =================
 
 ``pop_loadset(path, loadmode="info")`` loads metadata without loading sample
-data. ``EEG["data"]`` contains the saved sidecar filename or ``"in set file"``
-so callers can tell where the samples live. Passing an integer or sequence as
-``loadmode`` loads those 1-based channels and clears ICA fields that no longer
-describe the selected channel matrix.
+data. ``EEG["data"]`` is the sidecar filename when that file exists, or
+``"in set file"`` when the samples live in the ``.set``. If the sidecar is
+missing and the ``.set`` already contains a numeric array, that array is kept.
+Passing an integer or sequence as ``loadmode`` loads those 1-based channels
+and clears ICA fields that no longer describe the selected channel matrix.
 
 Derived caches such as ``icaact`` are not managed by a separate lazy-storage
 layer, and EEGPrep does not provide multi-process write coordination for shared

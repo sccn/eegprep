@@ -13,6 +13,8 @@ def chanlocs_as_list(chanlocs: Any) -> list[dict[str, Any]]:
     if chanlocs is None:
         return []
     if isinstance(chanlocs, np.ndarray):
+        if chanlocs.size == 0:
+            return []
         chanlocs = chanlocs.tolist()
     if isinstance(chanlocs, dict):
         return [chanlocs]

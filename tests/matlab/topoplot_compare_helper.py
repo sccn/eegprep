@@ -1,4 +1,3 @@
-# get relative path
 import os
 import sys
 
@@ -16,14 +15,12 @@ if len(sys.argv) != 3:
     print('Usage: need 2 arguments python topoplot_compare_helper.py <eeglab_file_path> <comp_num>')
     sys.exit(1)
 
-# Load the data
 eeglab_file_path = sys.argv[1]
 comp_num = int(sys.argv[2])
 
 # '/System/Volumes/Data/data/matlab/eeglab/sample_data/eeglab_data_epochs_ica.set'
 EEG = pop_loadset(eeglab_file_path)
 
-# Print the loaded data
 res = topoplot(EEG['icawinv'].transpose()[comp_num], EEG['chanlocs'], noplot='on')
 
 grid = res[1]

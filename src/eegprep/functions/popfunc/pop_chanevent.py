@@ -12,6 +12,19 @@ from eegprep.functions.popfunc._file_io import events_to_records
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 
 
+def _channel_indices(chan: Any) -> list[int]:
+    if isinstance(chan, bool):
+        raise TypeError("chan indices must be integers")
+    if isinstance(chan, (int, np.integer)):
+        return [int(chan)]
+    if isinstance(chan, (float, np.floating)):
+        if not float(chan).is_integer():
+            raise ValueError("chan indices must be integers")
+        return [int(chan)]
+    values = chan.reshape(-1) if isinstance(chan, np.ndarray) else chan
+    return [int(item) for item in values]
+
+
 def pop_chanevent(
     EEG: dict[str, Any],
     chan: int | list[int] | tuple[int, ...],
@@ -19,7 +32,10 @@ def pop_chanevent(
     return_com: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
-    """Import events from rising, falling, or both edges of data channels."""
+    """Import events from rising, falling, or both edges of data channels.
+
+    ``chan`` uses 1-based channel numbers. A whole number selects one channel.
+    """
     options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     edge = str(options.get("edge", "both")).lower()
     if edge not in {"both", "leading", "trailing"}:
@@ -27,7 +43,7 @@ def pop_chanevent(
     duration = str(options.get("duration", "off")).lower() in {"on", "yes", "true", "1"}
     if duration and edge != "leading":
         raise ValueError("duration extraction requires leading edges")
-    channels = [int(chan)] if isinstance(chan, int) else [int(item) for item in chan]
+    channels = _channel_indices(chan)
     data = np.asarray(EEG["data"])
     if data.ndim != 2:
         raise ValueError("pop_chanevent currently supports continuous 2-D data")

@@ -37,6 +37,8 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
 
     if m <= 0:
         return np.array([], dtype=int)
+    if m > n:
+        raise ValueError(f"cannot draw {m} samples from {n}")
 
     # Pre-generate random numbers to avoid scalar RNG overhead in the loop.
     rands = stream.rand(m)
@@ -52,7 +54,6 @@ def rand_sample(n: int, m: int, stream: np.random.RandomState) -> np.ndarray:
         idx = k + choice
         pool[k], pool[idx] = pool[idx], pool[k]
 
-    # Return first m elements
     return pool[:m].copy()
 
 
@@ -144,13 +145,13 @@ def calc_projector(
             return sphericalSplineInterpolate(src.T, dest.T)[0]
 
     elif subroutine == 'matlab':
-        matlab = get_eeglab('MAT')
+        matlab = get_eeglab('MAT', feature='clean_channels')
 
         def op(src, dest):
             return matlab.sphericalSplineInterpolate(src.T, dest.T)[0]
 
     elif subroutine == 'octave':
-        octave = get_eeglab('OCT')
+        octave = get_eeglab('OCT', feature='clean_channels')
 
         def op(src, dest):
             return octave.sphericalSplineInterpolate(src.T, dest.T)[0]

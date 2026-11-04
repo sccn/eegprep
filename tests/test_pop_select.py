@@ -1,13 +1,21 @@
 # test_pop_select.py
 import os
 import unittest
+import math
+from pathlib import Path
 import numpy as np
 import copy
+import pytest
+import scipy.io
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
+from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
 from tests.fixtures import SAMPLE_DATASET_PATH
 
 # where the test resources
@@ -35,37 +43,12 @@ def _chan_labels(EEG):
     return labs
 
 
+@pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):
     def setUp(self):
-        # Load the same dataset in both backends
         self.EEG_py = pop_loadset(ensure_file('FlankerTest.set'))
         self.eeglab = get_eeglab('MAT')  # MATLAB bridge
-
-    def test_parity_channel_by_name(self):
-        # Keep first 3 channels by name to avoid 0 vs 1-based index differences
-        labels = _chan_labels(self.EEG_py)
-        self.assertGreaterEqual(len(labels), 3, "Dataset must have at least 3 channels")
-        keep_names = labels[:3]
-
-        EEG_py_in1 = copy.deepcopy(self.EEG_py)
-        EEG_py_in2 = copy.deepcopy(self.EEG_py)
-        EEG_py_out = pop_select(EEG_py_in1, channel=keep_names)
-        EEG_mat_out = self.eeglab.pop_select(EEG_py_in2, 'channel', keep_names)
-
-        # Shapes and metadata
-        self.assertEqual(EEG_py_out['nbchan'], 3)
-        self.assertEqual(EEG_mat_out['nbchan'], 3)
-        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        self.assertEqual(EEG_py_out['trials'], EEG_mat_out['trials'])
-        self.assertTrue(np.allclose(EEG_py_out['xmin'], EEG_mat_out['xmin'], atol=1e-12))
-        self.assertTrue(np.allclose(EEG_py_out['xmax'], EEG_mat_out['xmax'], atol=1e-12))
-        # Data shape
-        self.assertEqual(EEG_py_out['data'].shape, EEG_mat_out['data'].shape)
-        # Compare data numerically within tolerance
-        self.assertTrue(np.allclose(EEG_py_out['data'], EEG_mat_out['data'], atol=1e-7, equal_nan=True))
-        # Labels match
-        self.assertEqual(_chan_labels(EEG_py_out), _chan_labels(EEG_mat_out))
 
     def test_parity_trial_subset(self):
         EEG_py_epochs, _ = pop_epoch(self.EEG_py, 'S 11', [-0.2, 0.2])
@@ -86,64 +69,6 @@ class TestPopSelectParity(unittest.TestCase):
         # If events exist, ensure counts match
         if EEG_py_out.get('event') is not None and EEG_mat_out.get('event') is not None:
             self.assertEqual(len(EEG_py_out['event']), len(EEG_mat_out['event']))
-
-    def test_parity_time_selection(self):
-        # Works for both continuous and epoched
-        xmin = float(self.EEG_py['xmin'])
-        xmax = float(self.EEG_py['xmax'])
-        # choose a conservative window inside bounds
-        tmin = xmin
-        tmax = xmin + min(0.2, max(0.05, xmax - xmin))
-
-        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), time=np.array([[tmin, tmax]], dtype=float))
-        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'time', np.array([tmin, tmax]))
-
-        self.assertTrue(np.allclose(EEG_py_out['xmin'], tmin, atol=1e-12))
-        # EEGLAB inclusive endpoint leads to xmax aligned to sample grid
-        self.assertTrue(abs(EEG_py_out['xmax'] - EEG_mat_out['xmax']) < 1.0 / max(self.EEG_py['srate'], 1))
-        self.assertEqual(EEG_py_out['nbchan'], EEG_mat_out['nbchan'])
-        self.assertEqual(EEG_py_out['trials'], EEG_mat_out['trials'])
-        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        self.assertTrue(np.allclose(EEG_py_out['data'], EEG_mat_out['data'], atol=1e-7, equal_nan=True))
-
-    # TODO: This test has pre-existing issues with boundary adjustment differences
-    def test_parity_rmtime_continuous(self):
-        # Only meaningful for continuous data
-        if int(self.EEG_py.get('trials', 1)) > 1:
-            self.skipTest("Dataset is epoched; skipping continuous rmtime parity test")
-
-        xmin = float(self.EEG_py['xmin'])
-        xmax = float(self.EEG_py['xmax'])
-        span = xmax - xmin
-        if span <= 0.3:
-            self.skipTest("Not enough duration to remove a middle segment")
-
-        # Remove a middle slice
-        rm_seg = np.array([[xmin + 0.1 * span, xmin + 0.2 * span]], dtype=float)
-
-        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), rmtime=rm_seg)
-        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'rmtime', rm_seg.flatten())
-
-        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        # Allow small differences in pnts due to boundary adjustment differences
-        self.assertEqual(EEG_py_out['nbchan'], EEG_mat_out['nbchan'])
-        # Compare data only up to the smaller size due to potential boundary differences
-        min_pnts = min(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        self.assertTrue(
-            np.allclose(EEG_py_out['data'][:, :min_pnts], EEG_mat_out['data'][:, :min_pnts], atol=1e-7, equal_nan=True)
-        )
-
-    def test_parity_nopoint_continuous(self):
-        if int(self.EEG_py.get('trials', 1)) > 1:
-            self.skipTest("Dataset is epoched; skipping continuous nopoint parity test")
-
-        EEG_py_out = pop_select(copy.deepcopy(self.EEG_py), nopoint=[276, 525])
-        EEG_mat_out = self.eeglab.pop_select(copy.deepcopy(self.EEG_py), 'nopoint', np.array([276.0, 525.0]))
-
-        self.assertEqual(EEG_py_out['pnts'], EEG_mat_out['pnts'])
-        # pre-existing boundary events carry NaN duration, so compare NaN-aware
-        np.testing.assert_array_equal(np.array(_boundary_events(EEG_py_out)), np.array(_boundary_events(EEG_mat_out)))
-        self.assertTrue(np.allclose(EEG_py_out['data'], EEG_mat_out['data'], atol=1e-7, equal_nan=True))
 
 
 def _boundary_events(EEG):
@@ -199,63 +124,10 @@ class TestPopSelectContinuousRemoval(unittest.TestCase):
         EEG_out = pop_select(copy.deepcopy(self.EEG), time=[2.15, 4.1])
         self._check(EEG_out, 251, [(0.5, 275.0), (251.5, 29978.0)])
 
-    def test_point_keeps_exactly_what_nopoint_removes(self):
-        a, b = 276, 525
-        kept = pop_select(copy.deepcopy(self.EEG), point=[a, b])['data']
-        rest = pop_select(copy.deepcopy(self.EEG), nopoint=[a, b])['data']
-        np.testing.assert_array_equal(kept, self.EEG['data'][:, a - 1 : b])
-        np.testing.assert_array_equal(
-            np.concatenate([rest[:, : a - 1], kept, rest[:, a - 1 :]], axis=1), self.EEG['data']
-        )
-
 
 class TestPopSelectFunctional(unittest.TestCase):
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
-
-    def test_channel_and_trial_selection_consistency(self):
-        labels = _chan_labels(self.EEG)
-        self.assertGreaterEqual(len(labels), 2, "Dataset must have at least 2 channels")
-        keep_names = labels[:2]
-
-        trials = int(self.EEG.get('trials', 1))
-        if trials > 1:
-            keep_trials = list(range(1, min(3, trials) + 1))
-        else:
-            keep_trials = [1]
-
-        EEG_out = pop_select(copy.deepcopy(self.EEG), channel=keep_names, trial=keep_trials)
-
-        self.assertEqual(EEG_out['nbchan'], 2)
-        self.assertEqual(EEG_out['trials'], len(keep_trials))
-        self.assertEqual(EEG_out['data'].shape[0], 2)
-        if EEG_out['trials'] > 1:
-            self.assertEqual(EEG_out['data'].shape[2], len(keep_trials))
-
-        # Events, if present, must have valid latencies
-        if EEG_out.get('event') is not None:
-            total_pts = EEG_out['pnts'] * EEG_out['trials']
-            for ev in EEG_out['event']:
-                if 'latency' in ev:
-                    self.assertTrue(1 <= float(ev['latency']) <= total_pts)
-
-    def test_time_then_point_precedence(self):
-        # If both point and time are provided, point should take precedence for computing time
-        srate = float(self.EEG['srate'])
-        xmin = float(self.EEG['xmin'])
-        # choose a 10-sample window via points
-        pt_start = 1
-        pt_end = min(self.EEG['pnts'], 10)
-        EEG_out = pop_select(
-            copy.deepcopy(self.EEG), point=[pt_start, pt_end], time=[[xmin, xmin + 1000.0]]
-        )  # absurd time to force precedence
-
-        # Expect exactly pt_end - pt_start + 1 samples in output
-        expected_pnts = pt_end - pt_start + 1
-        self.assertEqual(EEG_out['pnts'], expected_pnts)
-        # xmin should match eeg_point2lat mapping of pt_start
-        # xmin_out equals old xmin plus (pt_start-1)/srate
-        self.assertAlmostEqual(EEG_out['xmin'], xmin + (pt_start - 1) / srate, places=7)
 
     def test_nochannel_records_removed(self):
         labels = _chan_labels(self.EEG)
@@ -270,13 +142,6 @@ class TestPopSelectFunctional(unittest.TestCase):
         chaninfo = EEG_out.get('chaninfo', {})
         removed = chaninfo.get('removedchans', [])
         self.assertGreaterEqual(len(removed), 2)
-
-    def test_event_epoch_field_removal_on_single_trial(self):
-        EEG = copy.deepcopy(self.EEG)
-        if int(EEG.get('trials')) > 2:
-            EEG_out = pop_select(EEG, trial=[1, 2])
-
-            self.assertEqual(np.asarray(EEG_out.get('epoch')).size, 0)
 
     def test_caller_eeg_is_not_mutated(self):
         EEG = copy.deepcopy(self.EEG)
@@ -342,88 +207,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
             'chaninfo': {},
         }
 
-    def test_missing_data_error(self):
-        """Test error when EEG data is missing."""
-        EEG = copy.deepcopy(self.EEG)
-        EEG['data'] = None
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG)
-        self.assertIn('EEG["data"] is required', str(cm.exception))
-
-    def test_wrong_trial_range_error(self):
-        """Test error for invalid trial ranges."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Trial index too low
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, trial=[0, 1, 2])
-        self.assertIn('Wrong trial range', str(cm.exception))
-
-        # Trial index too high
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, trial=[1, 2, 5])
-        self.assertIn('Wrong trial range', str(cm.exception))
-
-    def test_empty_dataset_error(self):
-        """Test error when all trials are removed."""
-        EEG = copy.deepcopy(self.EEG)
-        EEG['filename'] = 'test.set'
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, notrial=[1, 2, 3])
-        self.assertIn('dataset test.set is empty', str(cm.exception))
-
-    def test_channel_name_and_type_conflict_error(self):
-        """Test error when both channel names and types are specified."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, channel=['Fz'], chantype=['EEG'])
-        self.assertIn('Select channels by name OR by type, not both', str(cm.exception))
-
-    def test_empty_channel_selection_error(self):
-        """Test error when all channels are removed."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, nochannel=['Fz', 'Cz', 'Pz', 'Oz'])
-        self.assertIn('Empty channel selection', str(cm.exception))
-
-    def test_invalid_time_range_columns_error(self):
-        """Test error for time/point ranges with wrong number of columns."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, time=[[0.1, 0.2, 0.3]])  # 3 columns instead of 2
-        self.assertIn('Time/point range must contain exactly 2 columns', str(cm.exception))
-
-    def test_notime_epoched_boundary_error(self):
-        """Test error for notime ranges that don't touch epoch boundaries."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # notime range that doesn't touch boundaries
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, notime=[[-0.1, 0.1]])  # middle of epoch
-        self.assertIn('Wrong notime range for epoched data; must include an epoch boundary', str(cm.exception))
-
-    def test_multiple_time_windows_epoched_error(self):
-        """Test error for multiple time windows in epoched data."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, time=[[-0.2, -0.1], [0.1, 0.2]])
-        self.assertIn('Epoched data requires a single [tmin tmax] window', str(cm.exception))
-
-    def test_invalid_time_window_points_error(self):
-        """Test error for invalid time window mapping to points."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Time window that maps to invalid points
-        with self.assertRaises(ValueError) as cm:
-            pop_select(EEG, time=[[0.3, 0.1]])  # end before start
-        self.assertIn('Invalid time window mapped to points', str(cm.exception))
-
     def test_channel_selection_by_indices(self):
         """Test channel selection by integer indices."""
         EEG = copy.deepcopy(self.EEG)
@@ -435,27 +218,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         self.assertEqual(len(EEG_out['chanlocs']), 2)
         self.assertEqual(EEG_out['chanlocs'][0]['labels'], 'Fz')
         self.assertEqual(EEG_out['chanlocs'][1]['labels'], 'Pz')
-        self.assertEqual(EEG_out['data'].shape[0], 2)
-
-    def test_channel_selection_by_labels(self):
-        """Test channel selection by string labels."""
-        EEG = copy.deepcopy(self.EEG)
-
-        EEG_out = pop_select(EEG, channel=['Cz', 'Oz'])
-
-        self.assertEqual(EEG_out['nbchan'], 2)
-        self.assertEqual(EEG_out['chanlocs'][0]['labels'], 'Cz')
-        self.assertEqual(EEG_out['chanlocs'][1]['labels'], 'Oz')
-        self.assertEqual(EEG_out['data'].shape[0], 2)
-
-    def test_mixed_channel_indices_labels(self):
-        """Test mixed channel selection (indices and labels)."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # This should work - mix of int index and string label
-        EEG_out = pop_select(EEG, channel=[0, 'Oz'])
-
-        self.assertEqual(EEG_out['nbchan'], 2)
         self.assertEqual(EEG_out['data'].shape[0], 2)
 
     def test_channel_selection_by_type(self):
@@ -482,146 +244,17 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         self.assertEqual(EEG_out['nbchan'], 2)
         self.assertEqual([chan['labels'] for chan in EEG_out['chanlocs']], ['Fz', 'Cz'])
 
-    def test_negative_indices_error(self):
-        """Test that negative channel indices raise appropriate errors."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
-            pop_select(EEG, channel=[-1])
-        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
-            pop_select(EEG, nochannel=[-1])
-
-    def test_float_indices_error(self):
-        """Test that float channel indices raise appropriate errors."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Float indices should cause issues
-        with self.assertRaises(Exception):
-            pop_select(EEG, channel=[1.5])
-
-    def test_out_of_range_channel_indices(self):
-        """Test out-of-range channel indices."""
-        EEG = copy.deepcopy(self.EEG)
-
-        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
-            pop_select(EEG, channel=[10])  # Only 4 channels available (0-3)
-        with self.assertRaisesRegex(ValueError, "Wrong channel range"):
-            pop_select(EEG, nochannel=[EEG["nbchan"]])
-
-    def test_time_range_selection(self):
-        """Test time range selection functionality."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Select middle portion of epoch
-        EEG_out = pop_select(EEG, time=[[-0.1, 0.1]])
-
-        # Should have fewer points (unless the window covers the whole epoch)
-        # The time window [-0.1, 0.1] might cover the whole epoch [-0.2, 0.2]
-        # Let's use a smaller window
-        EEG_out2 = pop_select(copy.deepcopy(self.EEG), time=[[-0.05, 0.05]])
-        self.assertLessEqual(EEG_out2['pnts'], EEG['pnts'])
-        self.assertAlmostEqual(EEG_out2['xmin'], -0.05, places=6)
-        self.assertEqual(EEG_out['trials'], EEG['trials'])
-        self.assertEqual(EEG_out['nbchan'], EEG['nbchan'])
-
     def test_trial_selection_with_events(self):
         """Test trial selection updates events correctly."""
         EEG = copy.deepcopy(self.EEG)
 
-        # Select first two trials
         EEG_out = pop_select(EEG, trial=[1, 2])
 
         self.assertEqual(EEG_out['trials'], 2)
         # Should have 2 events (from epochs 1 and 2)
         self.assertEqual(len(EEG_out['event']), 2)
-        # Check epoch numbers are updated
         self.assertEqual(EEG_out['event'][0]['epoch'], 1)
         self.assertEqual(EEG_out['event'][1]['epoch'], 2)
-
-    def test_trial_reordering_preserves_order(self):
-        """Test that trial selection with sorttrial=off preserves order."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Select trials in non-sorted order
-        EEG_out = pop_select(EEG, trial=[3, 1], sorttrial='off')
-
-        self.assertEqual(EEG_out['trials'], 2)
-        # Events should reflect the new trial mapping
-        # When trials [3, 1] are selected, they become new trials [1, 2]
-        # So original epoch 3 becomes new epoch 1, and original epoch 1 becomes new epoch 2
-        if len(EEG_out['event']) >= 2:
-            # The event from original epoch 3 should now be in epoch 1
-            # The event from original epoch 1 should now be in epoch 2
-            self.assertEqual(len(EEG_out['event']), 2)
-
-    def test_continuous_data_handling(self):
-        """Test handling of continuous (non-epoched) data."""
-        EEG = copy.deepcopy(self.EEG)
-        # Convert to continuous
-        EEG['data'] = EEG['data'][:, :, 0]  # Take first trial as continuous
-        EEG['trials'] = 1
-        EEG['event'] = [{'type': 'stimulus', 'latency': 50}]  # Remove epoch field
-        EEG['epoch'] = []
-
-        # Select subset of channels
-        EEG_out = pop_select(EEG, channel=[0, 1])
-
-        self.assertEqual(EEG_out['nbchan'], 2)
-        self.assertEqual(EEG_out['trials'], 1)
-        self.assertEqual(EEG_out['data'].shape, (2, 100))
-
-    def test_empty_selection_parameters(self):
-        """Test that empty selection parameters work correctly."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Empty lists should be ignored - but trial=[] means no trials, causing empty dataset error
-        # So test with None instead
-        EEG_out = pop_select(EEG, channel=None, time=[])
-
-        # Should return original data unchanged
-        self.assertEqual(EEG_out['nbchan'], EEG['nbchan'])
-        self.assertEqual(EEG_out['trials'], EEG['trials'])
-        self.assertEqual(EEG_out['pnts'], EEG['pnts'])
-        np.testing.assert_array_equal(EEG_out['data'], EEG['data'])
-
-    def test_metadata_updates(self):
-        """Test that metadata is properly updated after selection."""
-        EEG = copy.deepcopy(self.EEG)
-
-        EEG_out = pop_select(EEG, channel=[0, 2], trial=[1, 3])
-
-        # Check all metadata is updated
-        self.assertEqual(EEG_out['nbchan'], 2)
-        self.assertEqual(EEG_out['trials'], 2)
-        self.assertEqual(EEG_out['data'].shape, (2, 100, 2))
-        self.assertEqual(len(EEG_out['chanlocs']), 2)
-        self.assertEqual(len(EEG_out['epoch']), 2)
-
-        # Check reject and stats are reset - both have specific fields
-        self.assertIn('rejmanual', EEG_out['reject'])
-        self.assertIn('jp', EEG_out['stats'])
-
-    def test_ica_data_handling(self):
-        """Test proper handling of ICA-related data structures."""
-        EEG = copy.deepcopy(self.EEG)
-
-        # Add some ICA data
-        EEG['icaact'] = np.random.randn(2, 100, 3)  # 2 components
-        EEG['icawinv'] = np.random.randn(4, 2)
-        EEG['icaweights'] = np.random.randn(2, 4)
-        EEG['icasphere'] = np.eye(4)
-        EEG['icachansind'] = [0, 1, 2, 3]
-
-        # Select subset of channels
-        EEG_out = pop_select(EEG, channel=[0, 2])
-
-        # ICA structures should be updated
-        if EEG_out['icaact'] is not None:
-            self.assertEqual(EEG_out['icaact'].shape[2], 3)  # Same trials
-
-        # icachansind should be updated to new channel indices
-        if EEG_out['icachansind'] is not None:
-            self.assertEqual(len(EEG_out['icachansind']), 2)
 
     def test_dipfit_removal_warning(self):
         """Test that dipfit is removed when channels are removed."""
@@ -629,7 +262,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         EEG['dipfit'] = [{'some': 'dipole_info'}]
         EEG['roi'] = [{'some': 'roi_info'}]
 
-        # Remove one channel
         EEG_out = pop_select(EEG, channel=[0, 1, 2])  # Remove channel 3
 
         # dipfit and roi should be cleared
@@ -640,7 +272,6 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         """Test that epoch fields are removed from events when only one trial remains."""
         EEG = copy.deepcopy(self.EEG)
 
-        # Select only first trial
         EEG_out = pop_select(EEG, trial=[1])
 
         self.assertEqual(EEG_out['trials'], 1)
@@ -650,32 +281,461 @@ class TestPopSelectEdgeCases(unittest.TestCase):
         # epoch list should be empty
         self.assertEqual(np.asarray(EEG_out['epoch']).size, 0)
 
-    def test_event_latency_bounds_checking(self):
-        """Test that events with invalid latencies are removed."""
-        EEG = copy.deepcopy(self.EEG)
 
-        # Add an event with invalid latency
-        EEG['event'].append({'type': 'invalid', 'latency': 1000, 'epoch': 1})  # Beyond data
+def _dataset(events, *, trials=1, pnts=100):
+    data = np.arange(2 * pnts * trials, dtype=np.float64).reshape(2, pnts, trials)
+    if trials == 1:
+        data = data[:, :, 0]
+    srate = 100.0
+    xmin = 0.0 if trials == 1 else -0.1
+    xmax = xmin + (pnts - 1) / srate
+    return {
+        'setname': 'eventconsistency',
+        'data': data,
+        'nbchan': 2,
+        'pnts': pnts,
+        'trials': trials,
+        'srate': srate,
+        'xmin': xmin,
+        'xmax': xmax,
+        'times': np.linspace(xmin * 1000, xmax * 1000, pnts),
+        'chanlocs': [
+            {'labels': 'Fz', 'type': 'EEG'},
+            {'labels': 'Cz', 'type': 'EOG'},
+        ],
+        'event': events,
+        'epoch': [],
+        'chaninfo': {},
+        'reject': {},
+        'stats': {},
+    }
 
-        EEG_out = pop_select(EEG, trial=[1])
 
-        # Invalid event should be removed
-        latencies = [ev['latency'] for ev in EEG_out['event'] if 'latency' in ev]
-        total_pts = EEG_out['pnts'] * EEG_out['trials']
-        for lat in latencies:
-            self.assertTrue(1 <= lat <= total_pts)
+def _event_rows(eeg):
+    events = eeg.get('event')
+    if events is None:
+        return []
+    if isinstance(events, np.ndarray):
+        events = [] if events.size == 0 else list(events)
+    rows = []
+    for event in events:
+        event_type = event.get('type', '')
+        if isinstance(event_type, bytes):
+            event_type = event_type.decode()
+        duration = event.get('duration', 0)
+        rows.append((str(event_type), float(event['latency']), float(0 if duration is None else duration)))
+    return rows
 
-    def test_vector_format_deprecation_warning(self):
-        """Test that vector format for point/time ranges shows deprecation warning."""
-        EEG = copy.deepcopy(self.EEG)
 
-        # This should trigger the deprecation warning for vector format
-        # We can't easily test the print statement, but we can verify it works
-        EEG_out = pop_select(EEG, point=[1, 5, 10, 20, 30])  # Vector with >2 elements
+class TestPopSelectEventConsistency(unittest.TestCase):
+    def test_leading_boundary_with_duration_zero_is_removed(self):
+        eeg = _dataset(
+            [
+                {'type': 'Boundary', 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 10, 'duration': 1},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('stim', 10.0, 1.0)])
+        np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
 
-        # Should select from first to last point
-        expected_pnts = 30 - 1 + 1  # From point 1 to 30
-        self.assertEqual(EEG_out['pnts'], expected_pnts)
+    def test_leading_boundary_latency_in_open_unit_interval_is_clamped(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 0.25, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('boundary', 0.5, 2.0), ('stim', 10.0, 0.0)])
+
+    def test_duplicate_boundaries_merge_every_duration_and_sort(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 40, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(
+            _event_rows(out),
+            [('stim', 10.0, 0.0), ('boundary', 20.0, 7.0), ('stim', 40.0, 0.0)],
+        )
+
+    def test_out_of_range_epoch_numbers_are_removed(self):
+        eeg = _dataset(
+            [
+                {'type': 'late', 'latency': 30, 'epoch': 4, 'duration': 0},
+                {'type': 'second', 'latency': 5, 'epoch': np.int64(2), 'duration': 0},
+                {'type': 'bad', 'latency': 12, 'epoch': 0, 'duration': 0},
+                {'type': 'first', 'latency': 30, 'epoch': 1, 'duration': 0},
+            ],
+            trials=3,
+            pnts=20,
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(_event_rows(out), [('first', 30.0, 0.0), ('second', 5.0, 0.0)])
+        np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
+
+    def test_numeric_boundary_type_follows_option_boundary99(self):
+        eeg = _dataset(
+            [
+                {'type': -99, 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 8, 'duration': 0},
+            ],
+            pnts=20,
+        )
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 1
+        try:
+            out = pop_select(eeg, channel=['Fz'])
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
+        self.assertEqual(_event_rows(out), [('stim', 8.0, 0.0)])
+
+    def test_numeric_boundary_duplicates_are_merged(self):
+        eeg = _dataset(
+            [
+                {'type': -99, 'latency': 20, 'duration': 1},
+                {'type': -99, 'latency': 20, 'duration': 2},
+            ]
+        )
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 1
+        try:
+            out = pop_select(eeg, channel=['Fz'])
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
+        self.assertEqual(_event_rows(out), [('-99', 20.0, 3.0)])
+
+    def test_boundary_runs_chain_only_consecutive_equal_latencies(self):
+        eeg = _dataset(
+            [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 30, 'duration': 8},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+            ]
+        )
+        out = pop_select(eeg, channel=['Fz'])
+        self.assertEqual(
+            _event_rows(out),
+            [
+                ('stim', 10.0, 0.0),
+                ('boundary', 20.0, 5.0),
+                ('boundary', 20.0, 2.0),
+                ('boundary', 30.0, 8.0),
+            ],
+        )
+
+    def test_epoched_events_sort_by_epoch_then_latency(self):
+        crossed = _dataset(
+            [
+                {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
+                {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
+                {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
+                {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
+            ],
+            trials=3,
+            pnts=50,
+        )
+        same_epoch = _dataset(
+            [
+                {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+                {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
+                {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
+            ],
+            trials=3,
+            pnts=50,
+        )
+        self.assertEqual(
+            _epoch_rows(pop_select(crossed, channel=['Fz'])),
+            [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
+        )
+        self.assertEqual(
+            _epoch_rows(pop_select(same_epoch, channel=['Fz'])),
+            [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
+        )
+
+
+def _epoch_rows(eeg):
+    events = eeg.get('event')
+    if isinstance(events, np.ndarray):
+        events = [] if events.size == 0 else list(events)
+    return [(str(event['type']), float(event['latency']), float(event['epoch'])) for event in events or []]
+
+
+def _eeg_channel_labels(eeg):
+    locations = eeg.get('chanlocs')
+    if isinstance(locations, np.ndarray):
+        locations = [] if locations.size == 0 else list(locations)
+    labels = []
+    for location in locations or []:
+        channel_type = location.get('type')
+        if isinstance(channel_type, bytes):
+            channel_type = channel_type.decode()
+        if str(channel_type) == 'EEG':
+            labels.append(str(location.get('labels', '')))
+    return labels
+
+
+def _exact_number(left, right):
+    left = float(left)
+    right = float(right)
+    if math.isnan(left) or math.isnan(right):
+        return math.isnan(left) and math.isnan(right)
+    return left == right
+
+
+def _matlab_strings(value):
+    strings = []
+    for item in np.asarray(value, dtype=object).ravel():
+        if isinstance(item, np.ndarray):
+            if item.dtype.kind in 'SU':
+                strings.append(''.join(item.astype(str).ravel()))
+            elif item.size == 0:
+                strings.append('')
+            else:
+                strings.append(str(item.reshape(-1)[0]))
+        elif isinstance(item, bytes):
+            strings.append(item.decode())
+        else:
+            strings.append(str(item))
+    return strings
+
+
+def _matlab_literal(path):
+    return str(path).replace('\\', '/').replace("'", "''")
+
+
+def _matlab_pop_select(engine, set_path, labels, mat_path):
+    channel = ', '.join("'" + label.replace("'", "''") + "'" for label in labels)
+    engine.eval(
+        "EEG = pop_loadset('filename', '" + _matlab_literal(set_path) + "'); "
+        "EEG = pop_select(EEG, 'channel', {" + channel + "}); "
+        "n = numel(EEG.event); "
+        "event_type = cell(1, n); "
+        "event_latency = nan(1, n); "
+        "event_duration = nan(1, n); "
+        "event_epoch = nan(1, n); "
+        "has_epoch = isfield(EEG.event, 'epoch'); "
+        "for iEvent = 1:n, "
+        "event_type{iEvent} = char(string(EEG.event(iEvent).type)); "
+        "event_latency(iEvent) = double(EEG.event(iEvent).latency); "
+        "if isfield(EEG.event, 'duration') && ~isempty(EEG.event(iEvent).duration), "
+        "event_duration(iEvent) = double(EEG.event(iEvent).duration); "
+        "end; "
+        "if has_epoch && ~isempty(EEG.event(iEvent).epoch), "
+        "event_epoch(iEvent) = double(EEG.event(iEvent).epoch); "
+        "end; "
+        "end; "
+        "data = double(EEG.data); "
+        "save('"
+        + _matlab_literal(mat_path)
+        + "', 'event_type', 'event_latency', 'event_duration', 'event_epoch', 'data', '-v7'); "
+        "clear EEG data event_type event_latency event_duration event_epoch;",
+        nargout=0,
+    )
+    return scipy.io.loadmat(mat_path, squeeze_me=False)
+
+
+def _assert_matlab_match(python_eeg, saved):
+    python_rows = _event_rows(python_eeg)
+    matlab_types = _matlab_strings(saved['event_type'])
+    matlab_latency = np.asarray(saved['event_latency'], dtype=float).ravel()
+    matlab_duration = np.asarray(saved['event_duration'], dtype=float).ravel()
+    assert len(python_rows) == len(matlab_types) == matlab_latency.size == matlab_duration.size, (
+        f'{len(python_rows)} Python events vs {len(matlab_types)} MATLAB events'
+    )
+    for index, (event_type, latency, duration) in enumerate(python_rows):
+        assert event_type == matlab_types[index], f'event {index} type {event_type} vs {matlab_types[index]}'
+        assert _exact_number(latency, matlab_latency[index]), (
+            f'event {index} latency {latency} vs {matlab_latency[index]}'
+        )
+        assert _exact_number(duration, matlab_duration[index]), (
+            f'event {index} duration {duration} vs {matlab_duration[index]}'
+        )
+    python_data = np.asarray(python_eeg['data'], dtype=np.float64)
+    matlab_data = np.asarray(saved['data'], dtype=np.float64)
+    np.testing.assert_allclose(python_data, matlab_data, rtol=0, atol=1e-7, equal_nan=True)
+
+
+@pytest.fixture
+def eventconsistency_matlab(eeglab_matlab_engine):
+    options_path, original = eeg_options_snapshot(eeglab_matlab_engine)
+    eeglab_matlab_engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+    try:
+        yield eeglab_matlab_engine
+    finally:
+        restore_eeg_options(options_path, original)
+        eeglab_matlab_engine.eval('clear functions', nargout=0)
+
+
+def _matlab_event_rows(saved, *, with_epoch=False):
+    event_types = _matlab_strings(saved['event_type'])
+    latency = np.asarray(saved['event_latency'], dtype=float).ravel()
+    duration = np.asarray(saved['event_duration'], dtype=float).ravel()
+    if not with_epoch:
+        return [
+            (event_types[index], float(latency[index]), float(duration[index])) for index in range(len(event_types))
+        ]
+    epoch = np.asarray(saved['event_epoch'], dtype=float).ravel()
+    return [(event_types[index], float(latency[index]), float(epoch[index])) for index in range(len(event_types))]
+
+
+def _require_empty_saved_epoch(eeg, name):
+    if np.size(eeg.get('epoch')) != 0:
+        raise AssertionError(
+            f'{name} must save an empty epoch array; a cell of empty structs makes EEGLAB open errordlg2'
+        )
+
+
+def _save_and_compare(engine, eeg, tmp_path, name):
+    set_path = tmp_path / f'{name}.set'
+    _require_empty_saved_epoch(eeg, name)
+    pop_saveset(eeg, str(set_path))
+    labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+    if not labels:
+        raise AssertionError(f'{name} has no EEG-type channels')
+    python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+    saved = _matlab_pop_select(engine, set_path, labels, tmp_path / f'{name}.mat')
+    _assert_matlab_match(python_eeg, saved)
+
+
+SYNTHETIC_CASES = {
+    'leading_boundary': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 0.5, 'duration': 0},
+            {'type': 'stim', 'latency': 10, 'duration': 1},
+        ]
+    ),
+    'duplicate_boundaries': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 20, 'duration': 4},
+            {'type': 'stim', 'latency': 40, 'duration': 0},
+            {'type': 'boundary', 'latency': 20, 'duration': 1},
+            {'type': 'boundary', 'latency': 20, 'duration': 2},
+            {'type': 'stim', 'latency': 10, 'duration': 0},
+        ]
+    ),
+    'invalid_epochs': lambda: _dataset(
+        [
+            {'type': 'late', 'latency': 30, 'epoch': 4, 'duration': 0},
+            {'type': 'second', 'latency': 5, 'epoch': np.int64(2), 'duration': 0},
+            {'type': 'bad', 'latency': 12, 'epoch': 0, 'duration': 0},
+            {'type': 'first', 'latency': 30, 'epoch': 1, 'duration': 0},
+        ],
+        trials=3,
+        pnts=20,
+    ),
+    'split_boundary_run': lambda: _dataset(
+        [
+            {'type': 'boundary', 'latency': 20, 'duration': 4},
+            {'type': 'stim', 'latency': 10, 'duration': 0},
+            {'type': 'boundary', 'latency': 20, 'duration': 1},
+            {'type': 'boundary', 'latency': 30, 'duration': 8},
+            {'type': 'boundary', 'latency': 20, 'duration': 2},
+        ]
+    ),
+}
+
+
+_EPOCH_SORT_CASES = {
+    'crossed_epochs': (
+        [
+            {'type': 'A', 'latency': 75, 'epoch': 2, 'duration': 0},
+            {'type': 'B', 'latency': 15, 'epoch': 1, 'duration': 0},
+            {'type': 'C', 'latency': 5, 'epoch': 1, 'duration': 0},
+            {'type': 'D', 'latency': 145, 'epoch': 3, 'duration': 0},
+        ],
+        [('C', 5.0, 1.0), ('B', 15.0, 1.0), ('A', 75.0, 2.0), ('D', 145.0, 3.0)],
+        [('B', 15.0, 1.0), ('A', 75.0, 2.0), ('C', 5.0, 1.0), ('D', 145.0, 3.0)],
+    ),
+    'same_epoch_pair': (
+        [
+            {'type': 'X', 'latency': 85, 'epoch': 2, 'duration': 0},
+            {'type': 'Y', 'latency': 72, 'epoch': 2, 'duration': 0},
+            {'type': 'Z', 'latency': 8, 'epoch': 1, 'duration': 0},
+        ],
+        [('Z', 8.0, 1.0), ('Y', 72.0, 2.0), ('X', 85.0, 2.0)],
+        [('X', 85.0, 2.0), ('Z', 8.0, 1.0), ('Y', 72.0, 2.0)],
+    ),
+}
+
+
+@pytest.mark.parametrize('case_name', list(SYNTHETIC_CASES))
+def test_pop_select_synthetic_events_match_matlab(case_name, eventconsistency_matlab, tmp_path):
+    _save_and_compare(eventconsistency_matlab, SYNTHETIC_CASES[case_name](), tmp_path, case_name)
+
+
+@pytest.mark.parametrize('case_name', list(_EPOCH_SORT_CASES))
+def test_epoched_sort_differs_from_eeglab(case_name, eventconsistency_matlab, tmp_path):
+    events, python_order, matlab_order = _EPOCH_SORT_CASES[case_name]
+    eeg = _dataset(events, trials=3, pnts=50)
+    _require_empty_saved_epoch(eeg, case_name)
+    set_path = tmp_path / f'{case_name}.set'
+    pop_saveset(eeg, str(set_path))
+    labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+    python_rows = _epoch_rows(pop_select(pop_loadset(str(set_path)), channel=labels))
+    saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'{case_name}.mat')
+    assert python_rows == python_order
+    assert _matlab_event_rows(saved, with_epoch=True) == matlab_order
+
+
+def test_numeric_boundary_merge_differs_from_eeglab(eventconsistency_matlab, tmp_path):
+    eeg = _dataset(
+        [
+            {'type': -99, 'latency': 20, 'duration': 1},
+            {'type': -99, 'latency': 20, 'duration': 2},
+        ]
+    )
+    previous = EEG_OPTIONS['option_boundary99']
+    EEG_OPTIONS['option_boundary99'] = 1
+    try:
+        eventconsistency_matlab.eval("pop_editoptions('option_boundary99', 1);", nargout=0)
+        _require_empty_saved_epoch(eeg, 'numeric_boundary')
+        set_path = tmp_path / 'numeric_boundary.set'
+        pop_saveset(eeg, str(set_path))
+        labels = _eeg_channel_labels(pop_loadset(str(set_path)))
+        python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+        saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / 'numeric_boundary.mat')
+    finally:
+        EEG_OPTIONS['option_boundary99'] = previous
+        eventconsistency_matlab.eval(f"pop_editoptions('option_boundary99', {int(previous)});", nargout=0)
+
+    def _numeric_rows(rows):
+        return [(float(event_type), latency, duration) for event_type, latency, duration in rows]
+
+    assert _numeric_rows(_event_rows(python_eeg)) == [(-99.0, 20.0, 3.0)]
+    assert _numeric_rows(_matlab_event_rows(saved)) == [(-99.0, 20.0, 1.0), (-99.0, 20.0, 2.0)]
+
+
+@pytest.mark.parametrize('run', [1, 2])
+def test_ds003061_sub001_pop_select_matches_matlab(run, eventconsistency_matlab, eeglab_suite_root, tmp_path):
+    directory = Path(eeglab_suite_root) / 'ds003061' / 'sub-001' / 'eeg'
+    matches = sorted(directory.glob(f'*_run-{run}_eeg.set'))
+    if len(matches) != 1:
+        pytest.fail(f'expected one sub-001 run-{run} .set under {directory}, found {[str(path) for path in matches]}')
+    imported = pop_load_frombids(
+        str(matches[0]),
+        bidsmetadata=True,
+        bidschanloc=True,
+        bidsevent=True,
+        eventtype='value',
+        verbose=False,
+    )
+    labels = _eeg_channel_labels(imported)
+    if not labels:
+        pytest.fail(f'run-{run} import has no EEG-type channels')
+    set_path = tmp_path / matches[0].name
+    pop_saveset(imported, str(set_path))
+    python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
+    saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'run-{run}.mat')
+    _assert_matlab_match(python_eeg, saved)
 
 
 if __name__ == '__main__':

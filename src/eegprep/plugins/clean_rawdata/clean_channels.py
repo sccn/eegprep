@@ -51,9 +51,10 @@ def clean_channels(
       num_samples: Number of samples generated for a RANSAC reconstruction. This is the
         number of samples to generate in the random sampling consensus process. The larger
         this value, the more robust but also slower the processing will be.
-      subset_size: Subset size. This is the size of the channel subsets to use
-        for robust reconstruction,  as a number or fraction of the total number
-        of channels.
+      subset_size: Subset size as a fraction of the channel count.
+        ``round(subset_size * nbchan)`` channels are drawn, including when
+        ``subset_size`` is greater than or equal to 1. A count larger than
+        the number of channels raises ``ValueError``.
 
     Returns
     -------
@@ -66,11 +67,11 @@ def clean_channels(
     if chanlocs is None or len(chanlocs) == 0:
         raise ValueError('To use this function most of your channels should have X,Y,Z location measurements.')
 
-    # handle fractions or absolute values
-    if subset_size >= 1:
-        subset_size = int(subset_size)
-    else:
-        subset_size = int(round_mat(C * subset_size))
+    subset_size = int(round_mat(C * float(subset_size)))
+    # randsample in clean_channels.m indexes the channel pool. A request
+    # longer than that pool has no in-range index.
+    if subset_size > C:
+        raise ValueError(f"subset_size rounds to {subset_size} channels, which is more than the {C} channels available")
     if max_broken_time < 1:
         max_broken_time = S * max_broken_time
     else:
@@ -84,13 +85,11 @@ def clean_channels(
     logger.info('Scanning for bad channels...')
 
     if Fs > 100:
-        # remove signal content above 50Hz
         B = design_fir(100, 2 * np.array([0, 45, 50, Fs / 2]) / Fs, [1, 1, 0, 0])
         X = np.zeros((S, C))
         for c in range(C):
             X[:, c] = filtfilt_fast(B, 1, EEG['data'][c, :])
 
-        # determine z-scored level of EM noise-to-signal ratio for each channel
         noisiness = mad(EEG['data'].T - X) / mad(X)
         znoise = (noisiness - np.median(noisiness)) / (mad(noisiness) * 1.4826)
 
@@ -100,7 +99,6 @@ def clean_channels(
         X = EEG['data'].T
         noise_mask = np.zeros(C, dtype=bool)  # transpose added in MATLAB comment
 
-    # get the matrix of all channel locations [3xN]
     xyz = [[ch.get(coord, np.nan) for ch in EEG['chanlocs']] for coord in ['X', 'Y', 'Z']]
     xyz = [[x if not (isinstance(x, np.ndarray) and x.size == 0) else np.nan for x in xyz_sub] for xyz_sub in xyz]
     xyz = np.asarray([np.asarray([np.nan if x is None else x for x in row], dtype=float) for row in xyz])
@@ -116,7 +114,6 @@ def clean_channels(
     P = np.asarray(calc_projector(locs, num_samples, subset_size, stream=stream))
     corrs = np.zeros((len(usable_channels), W))
 
-    # calculate each channel's correlation to its RANSAC reconstruction for each window
     time_passed_list = np.zeros(W)
     for o in range(W):
         import time
@@ -127,7 +124,6 @@ def clean_channels(
         YY = np.sort(np.reshape(finite_matmul(XX, P).T, (num_samples, -1)), axis=0)
         YY = np.reshape(YY[int(round_mat(num_samples / 2)) - 1, :], (-1, window_len)).T
 
-        # Calculate correlation for each channel
         for c in range(len(usable_channels)):
             numerator = np.sum(XX[:, c] * YY[:, c])
             denominator = np.sqrt(np.sum(XX[:, c] ** 2)) * np.sqrt(np.sum(YY[:, c] ** 2))
@@ -146,7 +142,6 @@ def clean_channels(
     removed_channels[usable_channels] = np.sum(flagged, axis=1) * window_len > max_broken_time
     removed_channels = removed_channels | noise_mask
 
-    # apply removal
     if np.mean(removed_channels) > 0.75:
         raise ValueError(
             'More than 75% of your channels were removed -- this is probably caused by incorrect channel location measurements (e.g., wrong cap design).'

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Literal, overload
 import warnings
 
 import numpy as np
@@ -29,6 +29,30 @@ _VOLTAGE_TO_MICROVOLTS = {
     "μv": 1.0,
     "nv": 0.001,
 }
+
+
+@overload
+def pop_loadbv(
+    path: str | Path,
+    hdrfile: str | Path | None = None,
+    srange: Any = None,
+    chans: Any = None,
+    metadata: bool = False,
+    *,
+    return_com: Literal[False] = False,
+) -> dict[str, Any]: ...
+
+
+@overload
+def pop_loadbv(
+    path: str | Path,
+    hdrfile: str | Path | None = None,
+    srange: Any = None,
+    chans: Any = None,
+    metadata: bool = False,
+    *,
+    return_com: Literal[True],
+) -> tuple[dict[str, Any], str]: ...
 
 
 def pop_loadbv(

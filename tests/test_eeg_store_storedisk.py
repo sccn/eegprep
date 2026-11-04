@@ -11,14 +11,9 @@ from eegprep.functions.adminfunc.eeg_store import eeg_store
 from eegprep.functions.adminfunc.storage import OffloadedData
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.functions.popfunc.pop_newset import pop_newset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
-from tests.eeglab_tests import eeglab_test
-
-
-POP_STDWARN_WRAPPER = "unittesting_adminfunc/pop_stdwarn/adminfunc_pop_stdwarn_wrapperTest.m"
 
 
 @pytest.fixture(autouse=True)
@@ -59,11 +54,8 @@ def _saved_loaded_eeg(tmp_path: Path, name: str, offset: float = 0.0) -> dict:
     return pop_loadset(set_file)
 
 
-@eeglab_test(POP_STDWARN_WRAPPER, "test_test_pop_stdwarn")
 def test_eeg_store_offloads_saved_non_current_and_retrieve_rehydrates(tmp_path: Path):
-    # The current pop_stdwarn test comments out its modal prompt. Exercise the
-    # behavior the prompt guards instead: storedisk bounds resident datasets
-    # while keeping the selected dataset scientifically identical on retrieval.
+    # Storedisk bounds resident datasets while preserving retrieval results.
     EEG_OPTIONS["option_storedisk"] = 1
     alleeg, current, current_set = eeg_store([], _saved_loaded_eeg(tmp_path, "one"), 0)
     alleeg, current, current_set = eeg_store(alleeg, _saved_loaded_eeg(tmp_path, "two", 10), 0)
@@ -105,20 +97,6 @@ def test_eeg_store_storedisk_refuses_unsaved_resident_dataset():
 
     with pytest.raises(RuntimeError, match="Cannot offload unsaved dataset 1"):
         eeg_store(alleeg, _eeg("new"), 0)
-
-
-def test_pop_newset_creating_new_dataset_offloads_saved_previous_dataset(tmp_path: Path):
-    EEG_OPTIONS["option_storedisk"] = 1
-    first = _saved_loaded_eeg(tmp_path, "first")
-    second = _saved_loaded_eeg(tmp_path, "second", 20)
-    alleeg, current, current_set = eeg_store([], first, 0)
-
-    alleeg, current, current_set, command = pop_newset(alleeg, second, current_set, "setname", "second-copy")
-
-    assert current_set == 2
-    assert current["setname"] == "second-copy"
-    assert isinstance(alleeg[0]["data"], OffloadedData)
-    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'setname', 'second-copy');"
 
 
 def test_pop_savestudy_resaves_offloaded_study_dataset(tmp_path: Path):

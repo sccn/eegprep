@@ -96,12 +96,24 @@ Use ``clean_artifacts`` when you need lower-level tuple outputs:
 Channel correlation cleaning uses the spatial reconstruction method when the
 dataset has usable ``X``, ``Y``, and ``Z`` channel coordinates. If channel
 locations are empty, ``pop_clean_rawdata`` automatically uses the bundled
-location-free correlation method instead.
+location-free correlation method instead. The RANSAC subset size is
+``round(subset_size * nbchan)`` channels, and a larger count raises
+``ValueError``. The line-noise filter is a short FIR, so a NaN stays in a
+neighborhood of that channel instead of removing the channel from every
+correlation.
+
+``clean_windows`` keeps the removal duration from ``eeg_eegrej`` and sets
+``xmax`` to ``xmin + (pnts - 1) / srate`` only when that duration is off the
+sample grid. A recording whose fit widths round to 1 or less raises
+``ValueError``, and ``clean_asr`` calibrates on the whole recording instead.
+Eleven to twenty-two windows still fit.
 
 FIRFilt
 =======
 
-``pop_eegfiltnew`` is the usual filtering entry point:
+``pop_eegfiltnew`` is the usual filtering entry point. When the filter order
+is left at its default, the transition width is recomputed from that even
+order (``3.3 / order * srate``) so the reported cutoff matches the coefficients:
 
 .. code-block:: python
 

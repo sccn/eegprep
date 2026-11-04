@@ -11,6 +11,7 @@ from .clean_flatlines import clean_flatlines
 from .clean_drifts import clean_drifts
 from .clean_channels import clean_channels
 from .clean_channels_nolocs import clean_channels_nolocs
+from .asr_calibrate import ASRCalibrationError
 from .clean_asr import clean_asr
 from .clean_windows import clean_windows
 from .private.masks import mask_to_intervals
@@ -22,12 +23,10 @@ logger = logging.getLogger(__name__)
 _DISTANCE_MODES = {
     'euclidian': None,
     'euclidean': None,
-    'riemannian': 'calib',
+    'riemannian': True,
 }
 
-# -----------------------------------------------------------------------------
 #                               Public API
-# -----------------------------------------------------------------------------
 
 
 def clean_artifacts(
@@ -75,7 +74,10 @@ def clean_artifacts(
     BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
-        'off' skips ASR. Default 5.0.
+        'off' skips ASR. Default 5.0. When the sampling rate makes the default
+        spectral shaping filter impossible to design, ASR is skipped, a warning
+        explains the rate and the breakpoint problem, and the recording at this
+        stage is left unchanged.
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.
@@ -103,7 +105,8 @@ def clean_artifacts(
     NumSamples : int
         Number of RANSAC samples for channel cleaning. Default 50.
     SubsetSize : float
-        Size of channel subsets for RANSAC, as fraction (0-1) or count. Default 0.25.
+        RANSAC subset size as a fraction of the channel count. Values of 1 or
+        more are still multiplied by the channel count. Default 0.25.
     NoLocsChannelCriterion : float
         Correlation threshold for fallback channel cleaning when no channel locations.
         Default 0.45.
@@ -113,9 +116,9 @@ def clean_artifacts(
     MaxMem : int
         Maximum memory in MB for ASR processing. Default 64.
     Distance : str
-        Distance metric for ASR calibration ('euclidian' or 'riemannian'). The
-        Riemannian path uses EEGPrep's calibration-time estimate; full
-        Riemannian ASR processing is not ported.
+        ASR geometry, ``'euclidian'`` or ``'riemannian'``. ``'riemannian'`` runs
+        Riemannian calibration and Riemannian processing, the same choice as
+        ``clean_asr(..., useriemannian=True)``.
     Channels : sequence of str or None
         List of channel labels to include before cleaning (pop_select). The
         returned dataset contains only these channels; channels outside this list
@@ -137,9 +140,7 @@ def clean_artifacts(
     removed_channels : ndarray of bool
         Mask indicating which channels were removed during cleaning.
     """
-    # ------------------------------------------------------------------
     #                Basic argument sanity / aliases
-    # ------------------------------------------------------------------
     if availableRAM_GB is not None and not np.isnan(availableRAM_GB):
         MaxMem = int(round_mat(availableRAM_GB * 1000))
 
@@ -156,9 +157,7 @@ def clean_artifacts(
     if 'etc' not in EEG:
         EEG['etc'] = {}
 
-    # ------------------------------------------------------------------
     #             Optional: restrict to / ignore certain channels
-    # ------------------------------------------------------------------
     if Channels is not None and len(Channels):
         # Attempt pop_select based on labels; the manual fallback only covers the
         # documented case where pop_select is unavailable (ImportError). Errors
@@ -186,16 +185,12 @@ def clean_artifacts(
             EEG['chanlocs'] = [EEG['chanlocs'][i] for i in keep_idx]
             EEG['nbchan'] = len(keep_idx)
 
-    # ------------------------------------------------------------------
     #                     1) Flat‑line channel removal
-    # ------------------------------------------------------------------
     if FlatlineCriterion not in (None, 'off'):
         logger.info('Detecting flat line channels...')
         EEG = clean_flatlines(EEG, max_flatline_duration=float(FlatlineCriterion))
 
-    # ------------------------------------------------------------------
     #                        2) High‑pass filtering
-    # ------------------------------------------------------------------
     if Highpass not in (None, 'off'):
         if not isinstance(Highpass, (tuple, list)) or len(Highpass) != 2:
             raise ValueError('Highpass must be a (low, high) tuple or None/"off".')
@@ -206,9 +201,7 @@ def clean_artifacts(
     # into the returned high-pass dataset.
     HP = copy.deepcopy(EEG)
 
-    # ------------------------------------------------------------------
     #            3) Channel cleaning (noisy / disconnected)
-    # ------------------------------------------------------------------
     removed_channels = np.zeros(EEG['nbchan'], dtype=bool)
     if ChannelCriterion not in (None, 'off') or LineNoiseCriterion not in (None, 'off'):
         chancorr_crit = 0.0 if ChannelCriterion in (None, 'off') else float(ChannelCriterion)
@@ -246,9 +239,7 @@ def clean_artifacts(
                 max_broken_time=float(ChannelCriterionMaxBadTime),
             )
 
-    # ------------------------------------------------------------------
     #                     4) Burst repair via ASR
-    # ------------------------------------------------------------------
     BUR = EEG  # default in case ASR is skipped
     if BurstCriterion not in (None, 'off'):
         logger.info('Applying ASR burst repair...')
@@ -256,15 +247,19 @@ def clean_artifacts(
         # result; clean_asr returns a fresh dataset (BUR) and leaves EEG intact.
         original_data = EEG['data'].copy() if BurstRejection else None
         useriemannian = _DISTANCE_MODES[distance]
-        BUR = clean_asr(
-            EEG,
-            cutoff=float(BurstCriterion),
-            ref_maxbadchannels=BurstCriterionRefMaxBadChns,
-            ref_tolerances=BurstCriterionRefTolerances,
-            use_gpu=False,
-            useriemannian=useriemannian,
-            maxmem=int(MaxMem),
-        )
+        try:
+            BUR = clean_asr(
+                EEG,
+                cutoff=float(BurstCriterion),
+                ref_maxbadchannels=BurstCriterionRefMaxBadChns,
+                ref_tolerances=BurstCriterionRefTolerances,
+                use_gpu=False,
+                useriemannian=useriemannian,
+                maxmem=int(MaxMem),
+            )
+        except ASRCalibrationError as exc:
+            logger.warning("ASR calibration failed and the recording was left unchanged. %s", exc)
+            BUR = EEG
 
         if BurstRejection:
             # Determine unchanged samples: compare the pre-repair snapshot with
@@ -274,7 +269,6 @@ def clean_artifacts(
             # Convert retained samples to inclusive zero-based intervals.
             retain_intervals = mask_to_intervals(sample_mask, value=True) - 1
 
-            # Remove very short intervals < 5 samples
             if retain_intervals.size:
                 lengths = retain_intervals[:, 1] - retain_intervals[:, 0]
                 small = lengths < 5
@@ -288,14 +282,11 @@ def clean_artifacts(
             if rejected_intervals.size:
                 EEG = eeg_eegrej(EEG, rejected_intervals)
 
-            # Update mask in EEG.etc
             EEG['etc']['clean_sample_mask'] = sample_mask
         else:
             EEG = BUR
 
-    # ------------------------------------------------------------------
     #                     5) Post‑clean windows stage
-    # ------------------------------------------------------------------
     if WindowCriterion not in (None, 'off') and WindowCriterionTolerances not in (None, 'off'):
         logger.info('Final post‑processing – removing irrecoverable windows...')
         EEG, _ = clean_windows(

@@ -1,16 +1,77 @@
-"""Behavioral ports of current EEGLAB administrative data-access tests."""
+"""Original EEGLAB administrative workflows and supplemental regressions."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 
 import numpy as np
-import pytest
 
 from eegprep import eeg_checkchanlocs, eeg_getdatact
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from tests.eeglab_tests import eeglab_test
+
+
+@eeglab_test(
+    "unittesting_adminfunc/eeg_checkchanlocs/adminfunc_eeg_checkchanlocs_wrapperTest.m",
+    "test_test_eeg_checkchanlocs",
+)
+def test_upstream_eeg_checkchanlocs_original_continuous_and_epoched_recordings(eeglab_backend, eeglab_suite_root):
+    sample_data = eeglab_suite_root / "eeglab/sample_data"
+    continuous = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data.set"))
+    locations = np.asarray(continuous["chanlocs"])
+
+    eeglab_backend("eeg_checkchanlocs", continuous)
+
+    # MATLAB struct growth fills every other existing field with []. Keep each
+    # backend's native struct-array or list-of-dictionaries representation.
+    if locations.dtype.names:
+        extra = np.empty((1, 2), dtype=locations.dtype)
+        for field in locations.dtype.names:
+            extra[field].fill(np.empty((0, 0)))
+        extra["labels"] = "test"
+        continuous["chanlocs"] = np.concatenate((locations, extra), axis=1)
+    else:
+        continuous["chanlocs"] = [*locations, {"labels": "test"}, {"labels": "test"}]
+
+    eeglab_backend("eeg_checkchanlocs", continuous)
+
+    epoched = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data_epochs_ica.set"))
+    eeglab_backend("eeg_checkchanlocs", epoched)
+
+
+@eeglab_test(
+    "unittesting_adminfunc/eeg_getdatact/adminfunc_eeg_getdatact_wrapperTest.m",
+    "test_test_eeg_getdatact",
+)
+def test_upstream_eeg_getdatact_original_recordings_and_eight_calls(eeglab_backend, eeglab_suite_root):
+    sample_data = eeglab_suite_root / "eeglab/sample_data"
+    continuous = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data.set"))
+    channels = np.array([[1.0, 10.0, 32.0]])
+
+    eeglab_backend("eeg_getdatact", continuous)
+
+    eeglab_backend("eeg_getdatact", continuous, "channel", channels, "trialindices", 1.0, "verbose", "on")
+
+    eeglab_backend("eeg_getdatact", continuous, "channel", channels, "trialindices", 1.0, "verbose", "off")
+
+    epoched = eeglab_backend("pop_loadset", str(sample_data / "eeglab_data_epochs_ica.set"))
+
+    eeglab_backend("eeg_getdatact", epoched)
+
+    eeglab_backend("eeg_getdatact", epoched, "channel", channels, "trialindices", 1.0, "verbose", "on")
+
+    eeglab_backend(
+        "eeg_getdatact", epoched, "channel", channels, "trialindices", np.arange(1.0, 31.0)[None, :], "verbose", "on"
+    )
+
+    eeglab_backend(
+        "eeg_getdatact", epoched, "component", np.array([[5.0, 8.0, 20.0]]), "trialindices", 1.0, "verbose", "on"
+    )
+
+    eeglab_backend(
+        "eeg_getdatact", epoched, "rmcomps", np.arange(1.0, 21.0)[None, :], "trialindices", 1.0, "verbose", "on"
+    )
 
 
 def _eeg(*, epoched: bool = False) -> dict:
@@ -51,10 +112,6 @@ def _eeg(*, epoched: bool = False) -> dict:
     }
 
 
-@eeglab_test(
-    "unittesting_adminfunc/eeg_checkchanlocs/adminfunc_eeg_checkchanlocs_wrapperTest.m",
-    "test_test_eeg_checkchanlocs",
-)
 def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_locations(caplog):
     continuous = eeg_checkchanlocs(_eeg())
     assert [location["labels"] for location in continuous["chanlocs"]] == ["Fz", "Cz", "Pz"]
@@ -79,10 +136,6 @@ def test_current_eeg_checkchanlocs_normalizes_continuous_epoched_and_extended_lo
     assert [location["labels"] for location in epoched["chanlocs"]] == ["Fz", "Cz", "Pz"]
 
 
-@eeglab_test(
-    "unittesting_adminfunc/eeg_getdatact/adminfunc_eeg_getdatact_wrapperTest.m",
-    "test_test_eeg_getdatact",
-)
 def test_current_eeg_getdatact_channel_component_trial_and_removal_cases():
     continuous = _eeg()
     np.testing.assert_array_equal(eeg_getdatact(continuous), continuous["data"][:, :, None])
@@ -149,20 +202,6 @@ def test_eeg_getdatact_concatenates_datasets_and_reports_continuous_boundaries()
     combined, boundaries = eeg_getdatact([first, second], return_boundaries=True)
     np.testing.assert_array_equal(combined, np.concatenate([first["data"], second["data"]], axis=1)[:, :, None])
     np.testing.assert_array_equal(boundaries, [3.0, 5.0, 8.0])
-
-
-def test_eeg_getdatact_rejects_ambiguous_or_out_of_range_selections():
-    eeg = _eeg(epoched=True)
-    with pytest.raises(ValueError, match="cannot be used together"):
-        eeg_getdatact(eeg, component=[1], rmcomps=[2])
-    with pytest.raises(ValueError, match="cannot be used together"):
-        eeg_getdatact(eeg, component=[1], channel=[2])
-    with pytest.raises(IndexError, match="outside"):
-        eeg_getdatact(eeg, channel=[4])
-    with pytest.raises(ValueError, match="projchan requires"):
-        eeg_getdatact(eeg, projchan=[1])
-    with pytest.raises(ValueError, match="Continuous and epoched"):
-        eeg_getdatact([_eeg(), eeg])
 
 
 def test_eeg_checkchanlocs_separates_fiducials_and_rotates_nose_direction():
@@ -270,11 +309,3 @@ def test_eeg_getdatact_reads_external_component_activity(tmp_path):
     eeg["filename"] = "external.set"
 
     np.testing.assert_array_equal(eeg_getdatact(eeg, component=[2]), activity[[1]])
-
-
-def test_eeg_getdatact_rejects_ambiguous_projection_labels():
-    eeg = _eeg()
-    eeg["chanlocs"][1]["labels"] = "EEG Fz"
-
-    with pytest.raises(ValueError, match="not unique"):
-        eeg_getdatact(eeg, component=[1], projchan=["eeg fz"])

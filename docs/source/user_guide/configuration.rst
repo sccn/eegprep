@@ -76,6 +76,7 @@ Use the Options menu in the GUI, or call ``pop_editoptions`` from
    from eegprep import EEG_OPTIONS, pop_editoptions
 
    com = pop_editoptions(option_allmenus=1, option_savetwofiles=1)
+   pop_editoptions("option_storedisk", 1)
    print(com)
    print(EEG_OPTIONS["option_allmenus"])
 

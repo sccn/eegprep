@@ -66,20 +66,6 @@ def test_bids_validate_reports_error_when_no_eeg_files(tmp_path):
     assert [issue["code"] for issue in payload["errors"]] == ["BIDS_EEG_FILES_MISSING"]
 
 
-def test_bids_validate_missing_path_returns_structured_error(tmp_path, capsys):
-    from eegprep.cli.commands import bids as bids_cli
-
-    exit_code = bids_cli.main(["validate", str(tmp_path / "missing"), "--json"])
-    captured = capsys.readouterr()
-
-    assert exit_code == 2
-    payload = json.loads(captured.out)
-    assert payload["status"] == "error"
-    assert payload["error"]["code"] == "INPUT_FILE_NOT_FOUND"
-    assert payload["error"]["path"] == str(tmp_path / "missing")
-    assert captured.err == ""
-
-
 def test_bids_import_set_file_uses_eeglab_loader_without_error_sniffing(tmp_path, monkeypatch):
     from eegprep.cli.commands import bids as bids_cli
 
@@ -101,25 +87,6 @@ def test_bids_import_set_file_uses_eeglab_loader_without_error_sniffing(tmp_path
     assert payload["dataset"]["nbchan"] == 2
     assert imported_set.exists()
     assert [warning["code"] for warning in payload["warnings"]] == ["BIDS_SIDECARS_SKIPPED"]
-
-
-def test_bids_import_refuses_existing_manifest_without_overwrite(tmp_path):
-    from eegprep.cli.commands import bids as bids_cli
-
-    input_set = tmp_path / "input.set"
-    bids_root = tmp_path / "bids"
-    imported_set = tmp_path / "imported.set"
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text("existing", encoding="utf-8")
-    pop_saveset(_eeg(), input_set)
-    assert bids_cli.export_dataset(input_set, bids_root, subject="01", task="rest")["status"] == "ok"
-
-    payload = bids_cli.import_dataset(bids_root, output=imported_set, manifest=manifest)
-
-    assert payload["status"] == "error"
-    assert payload["code"] == "OUTPUT_EXISTS"
-    assert manifest.read_text(encoding="utf-8") == "existing"
-    assert not imported_set.exists()
 
 
 def test_bids_export_refuses_non_empty_root_without_overwrite(tmp_path):

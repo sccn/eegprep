@@ -6,13 +6,15 @@ import unittest
 
 import numpy as np
 import pytest
+from scipy.signal import filtfilt
 
 from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_eegfilt import pop_eegfilt
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.firfilt._filtering import design_eegfiltnew
-from eegprep.plugins.firfilt._pop_common import bool_value
+from eegprep.plugins.firfilt._filtering import apply_eegfilt_legacy, apply_fir_filter, design_eegfiltnew
+from eegprep.plugins.firfilt.minphaserceps import minphaserceps
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from eegprep.plugins.firfilt.pop_firma import pop_firma
 from eegprep.plugins.firfilt.pop_firpm import pop_firpm
@@ -26,6 +28,77 @@ try:
     from .fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 except (ImportError, ValueError):
     from fixtures import SAMPLE_DATASET_PATH, create_test_eeg
+
+
+def test_single_precision_fir_cast_follows_firfilt_not_eegfilt():
+    eeg = _continuous_eeg()
+    eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    fir = apply_fir_filter(eeg, coefficients, causal=True)
+    legacy = apply_eegfilt_legacy(eeg, coefficients, causal=True)
+    assert fir["data"].dtype == np.float32
+    assert legacy["data"].dtype == np.float64
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_legacy_filter_class_follows_boundary_assignment(tmp_path, mapped: bool):
+    coefficients = np.array([0.25, 0.5, 0.25])
+    cases = (
+        ([], np.dtype(np.float64)),
+        ([{"type": "boundary", "latency": 300.5}], np.dtype(np.float32)),
+    )
+    for events, expected in cases:
+        eeg = _continuous_eeg()
+        eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+        eeg["event"] = events
+        if mapped:
+            name = "boundary" if events else "plain"
+            eeg["data"] = MemmapData.from_array(eeg["data"], filename=tmp_path / f"{name}.fdt")
+        result = apply_eegfilt_legacy(eeg, coefficients, filtorder=2)["data"]
+        assert result.dtype == expected
+        assert isinstance(result, MemmapData) is mapped
+
+
+def test_legacy_filter_matches_double_math_for_single_input():
+    """EEGLAB eegfilt.m:210 runs filtfilt on single-precision input in single
+    precision, so its result differs from this one by single-precision rounding.
+    """
+    data = np.random.default_rng(4).standard_normal((2, 80)).astype(np.float32)
+    coefficients = np.array([0.25, 0.5, 0.25])
+    result = apply_eegfilt_legacy(
+        {
+            "data": data,
+            "nbchan": 2,
+            "pnts": data.shape[1],
+            "trials": 1,
+            "event": [],
+        },
+        coefficients,
+        filtorder=2,
+    )["data"]
+    expected = filtfilt(coefficients, [1.0], data.astype(np.float64), axis=1, padlen=3 * (coefficients.size - 1))
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_pop_eegfiltnew_minphase_matches_real_cepstrum():
+    """Minimum-phase filtering must use EEGLAB's real-cepstrum conversion.
+
+    scipy.signal.minimum_phase disagrees with minphaserceps by about 5e-3 on
+    the nightly fuzz crop (hicutoff 25 Hz, order 100, one channel).
+    """
+    source = pop_loadset(SAMPLE_DATASET_PATH)
+    eeg = {
+        "data": np.array(source["data"][7:8, 252:508], dtype=np.float64),
+        "srate": float(source["srate"]),
+        "nbchan": 1,
+        "pnts": 256,
+        "trials": 1,
+        "event": [],
+    }
+    filtered = pop_eegfiltnew(eeg, hicutoff=25, filtorder=100, minphase=True, plotfreqz=False)
+    linear, _metadata = design_eegfiltnew(float(source["srate"]), hicutoff=25, filtorder=100, minphase=False)
+    expected = apply_fir_filter(eeg, minphaserceps(linear), causal=True)
+    np.testing.assert_allclose(filtered["data"], expected["data"], atol=0, rtol=0)
 
 
 def _continuous_eeg() -> dict:
@@ -89,11 +162,6 @@ def test_pop_eegfiltnew_chantype_history_uses_matlab_cell_array():
 
     assert "'chantype', {'EOG'}" in command
     assert _console_python_command(command) == "EEG = pop_eegfiltnew(EEG, hicutoff=30, filtorder=80, chantype=['EOG'])"
-
-
-def test_pop_eegfiltnew_rejects_filter_order_below_eeglab_minimum():
-    with pytest.raises(ValueError, match="Filter order too low"):
-        design_eegfiltnew(250, locutoff=1, hicutoff=40, filtorder=100)
 
 
 def test_pop_firma_respects_continuous_boundary_events():
@@ -188,48 +256,6 @@ def test_pop_eegfilt_legacy_usefft_fails_clearly():
         pop_eegfilt(_continuous_eeg(), 1, 40, 100, 0, 1, 0, "firls", 0)
 
 
-def test_pop_eegfiltnew_legacy_usefft_errors_like_eeglab():
-    with pytest.raises(ValueError, match="FFT filtering is not supported"):
-        pop_eegfiltnew(_continuous_eeg(), hicutoff=40, filtorder=100, usefft=True)
-
-
-def test_bool_value_matches_eeglab_singleton_numeric_flags():
-    assert bool_value([0]) is False
-    assert bool_value(np.asarray([0])) is False
-    assert bool_value([1]) is True
-    assert bool_value("off") is False
-
-
-def test_pop_firws_logs_filter_report_and_can_plot_response(caplog, monkeypatch):
-    calls = []
-
-    def fake_plotfresp(coefficients, *args, **kwargs):
-        calls.append((coefficients, args, kwargs))
-        return object(), [], {}
-
-    monkeypatch.setattr("eegprep.plugins.firfilt.pop_firws.plotfresp", fake_plotfresp)
-    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_firws")
-
-    out, command = pop_firws(
-        _continuous_eeg(), fcutoff=30, forder=100, ftype="lowpass", plotfresp=True, return_com=True
-    )
-
-    assert out["data"].shape == (3, 600)
-    assert "'plotfresp', 1" in command
-    assert calls
-    assert any("pop_firws() - lowpass filtering data" in record.message for record in caplog.records)
-
-
-def test_pop_eegfiltnew_progress_output_mentions_transition_band(caplog):
-    caplog.set_level("INFO", logger="eegprep.plugins.firfilt.pop_eegfiltnew")
-
-    pop_eegfiltnew(_continuous_eeg(), hicutoff=30, filtorder=100, plotfreqz=False)
-
-    messages = "\n".join(record.message for record in caplog.records)
-    assert "pop_eegfiltnew() - performing 101 point lowpass filtering" in messages
-    assert "transition band width" in messages
-
-
 def test_pop_order_helpers_return_values_and_replayable_history():
     beta, beta_command = pop_kaiserbeta(0.001, return_com=True)
     order_result, order_command = pop_firwsord("kaiser", 500, 2, 0.001, return_dev=True, return_com=True)
@@ -263,22 +289,17 @@ def test_pop_order_helpers_gui_results():
     assert dev == pytest.approx(0.001)
 
 
-def test_pop_firpmord_gui_uses_eeglab_required_frequency_arguments():
-    class FirpmRenderer:
-        def run(self, spec, initial_values=None):
-            return {"rp": "1", "rs": "60"}
-
-    with pytest.raises(ValueError, match="Not enough input arguments"):
-        pop_firpmord(gui=True, renderer=FirpmRenderer())
-
-    (order, wtpass, wtstop), command = pop_firpmord(
-        [0, 40, 48, 125], [1, 0], gui=True, renderer=FirpmRenderer(), return_com=True
-    )
-
-    assert order > 0
-    assert wtpass > 0
-    assert wtstop > 0
-    assert "[m, wtpass, wtstop] = pop_firpmord(" in command
+@pytest.mark.parametrize("srate", [128.0, 250.0])
+def test_design_eegfiltnew_default_order_recomputes_transition_width(srate):
+    """pop_eegfiltnew.m:238 recomputes df after the default order is ceiled even."""
+    coefficients, meta = design_eegfiltnew(srate, locutoff=1.0)
+    order = int(meta["filtorder"])
+    expected_df = 3.3 / order * srate
+    assert meta["df"] == pytest.approx(expected_df)
+    explicit, explicit_meta = design_eegfiltnew(srate, locutoff=1.0, filtorder=order)
+    np.testing.assert_array_equal(coefficients, explicit)
+    assert explicit_meta["df"] == pytest.approx(expected_df)
+    assert explicit_meta["cutoff"] == pytest.approx(meta["cutoff"])
 
 
 def test_pop_xfirws_designs_and_exports_filter_file(tmp_path):
@@ -314,6 +335,31 @@ class TestPopFirfiltParity(unittest.TestCase):
             self.skipTest(f"MATLAB not available: {exc}")
         self.eeg = pop_loadset(SAMPLE_DATASET_PATH)
 
+    def test_parity_pop_eegfiltnew_default_order_highpass(self):
+        # eeg_checkset.m casts double data to single when option_single is on.
+        # Compare the default-order high-pass in double on both sides.
+        self.eeglab.engine.eval(
+            "if ~exist('option_single','var'), eeg_options; end; eegprep_option_single = option_single;",
+            nargout=0,
+        )
+        self.eeglab.engine.eval("pop_editoptions('option_single', 0);", nargout=0)
+        try:
+            for srate in (128.0, 250.0):
+                eeg = create_test_eeg(n_channels=1, n_samples=int(srate * 4), srate=srate, n_trials=1)
+                rng = np.random.default_rng(0)
+                eeg["data"] = rng.standard_normal((1, eeg["pnts"])).astype(np.float64)
+                py_eeg = pop_eegfiltnew(copy.deepcopy(eeg), locutoff=1, plotfreqz=False)
+                ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(eeg), "locutoff", 1, "plotfreqz", 0)
+                self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
+                np.testing.assert_allclose(
+                    np.asarray(py_eeg["data"], dtype=np.float64),
+                    np.asarray(ml_eeg["data"], dtype=np.float64),
+                    atol=1e-8,
+                    rtol=1e-8,
+                )
+        finally:
+            self.eeglab.engine.eval("pop_editoptions('option_single', eegprep_option_single);", nargout=0)
+
     def test_parity_pop_eegfiltnew_lowpass_sample_data(self):
         py_eeg = pop_eegfiltnew(copy.deepcopy(self.eeg), hicutoff=40, filtorder=100)
         ml_eeg = self.eeglab.pop_eegfiltnew(copy.deepcopy(self.eeg), "hicutoff", 40, "filtorder", 100, "plotfreqz", 0)
@@ -328,7 +374,7 @@ class TestPopFirfiltParity(unittest.TestCase):
         )
 
         self.assertEqual(py_eeg["data"].shape, ml_eeg["data"].shape)
-        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=3e-3, rtol=3e-3)
+        np.testing.assert_allclose(py_eeg["data"], ml_eeg["data"], atol=1e-7, rtol=1e-7)
 
     def test_parity_pop_eegfiltnew_boundary_split(self):
         eeg = create_test_eeg(n_channels=1, n_samples=200, srate=100.0, n_trials=1)

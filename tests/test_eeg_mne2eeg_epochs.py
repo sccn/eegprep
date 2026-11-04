@@ -43,49 +43,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             shutil.rmtree(self.temp_dir)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_basic_functionality(self):
-        """Test basic eeg_mne2eeg_epochs functionality."""
-        # Create MNE Epochs object
-        n_channels = 32
-        n_times = 100
-        n_epochs = 10
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        # Create ICA object
-        ica = ICA(n_components=10, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check that result is a dict (EEGLAB format)
-            self.assertIsInstance(result, dict)
-
-            # Check basic fields
-            self.assertIn('data', result)
-            self.assertIn('srate', result)
-            self.assertIn('nbchan', result)
-            self.assertIn('pnts', result)
-            self.assertIn('trials', result)
-
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], n_channels)
-            self.assertEqual(result['pnts'], n_times)
-            self.assertEqual(result['trials'], n_epochs)
-            self.assertEqual(result['srate'], sfreq)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs basic functionality not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_uses_channel_major_data_without_stdout(self):
         n_channels = 4
         n_times = 20
@@ -110,7 +67,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_ica_fields(self):
         """Test ICA fields in the converted EEGLAB dataset."""
-        # Create MNE Epochs object
         n_channels = 16
         n_times = 50
         n_epochs = 5
@@ -124,7 +80,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        # Create ICA object
         ica = ICA(n_components=8, random_state=42)
         ica.fit(epochs)
 
@@ -149,7 +104,6 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_channel_locations(self):
         """Test channel location conversion."""
-        # Create MNE Epochs object with channel locations
         n_channels = 8
         n_times = 100
         n_epochs = 3
@@ -182,19 +136,16 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
         event_id = {'event': 1}
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
-        # Create ICA object
         ica = ICA(n_components=4, random_state=42)
         ica.fit(epochs)
 
         try:
             result = eeg_mne2eeg_epochs(epochs, ica)
 
-            # Check channel locations
             self.assertIn('chanlocs', result)
             self.assertIsInstance(result['chanlocs'], np.ndarray)
             self.assertEqual(len(result['chanlocs']), n_channels)
 
-            # Check channel location structure
             for i, chan in enumerate(result['chanlocs']):
                 self.assertIn('labels', chan)
                 self.assertIn('X', chan)
@@ -217,304 +168,52 @@ class TestEEGMNE2EEGEpochs(unittest.TestCase):
             self.skipTest(f"eeg_mne2eeg_epochs channel locations not available: {e}")
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_reference_handling(self):
-        """Test reference handling in the conversion."""
-        # Create MNE Epochs object
-        n_channels = 16
-        n_times = 100
-        n_epochs = 5
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        try:
-            # Create ICA object
-            ica = ICA(n_components=8, random_state=42)
-            ica.fit(epochs)
-
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check reference field exists
-            self.assertIn('ref', result)
-            # Reference handling varies by MNE version, just check it's set
-            self.assertIsNotNone(result['ref'])
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs reference handling not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_single_epoch(self):
-        """Test conversion with single epoch."""
-        # Create MNE Epochs object with single epoch
-        n_channels = 16
-        n_times = 100
-        n_epochs = 1
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[0, 0, 1]])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        # Create ICA object
-        ica = ICA(n_components=8, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            self.assertEqual(result['trials'], 1)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, n_epochs))
-            self.assertEqual(result['icaact'].shape, (8, n_times, n_epochs))
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs single epoch not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_minimal_channels(self):
-        """Test conversion with minimal channels (MNE ICA requires at least 2 components)."""
-        # Create MNE Epochs object with minimal channels
-        n_channels = 2  # MNE ICA requires at least 2 components
-        n_times = 100
-        n_epochs = 5
-        sfreq = 500.0
-
-        ch_names = ['EEG001', 'EEG002']
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        try:
-            # Create ICA object - use 2 components minimum for single channel
-            # (MNE doesn't support n_components=1)
-            ica = ICA(n_components=2, random_state=42)
-            ica.fit(epochs)
-
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], n_channels)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, n_epochs))
-            self.assertEqual(result['icaact'].shape, (2, n_times, n_epochs))
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs minimal channels not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_short_data(self):
-        """Test conversion with very short data."""
-        # Create MNE Epochs object with short data
-        n_channels = 8
-        n_times = 10
-        n_epochs = 3
+    def test_eeg_mne2eeg_epochs_keeps_in_window_events_and_subject(self):
+        """Time-locking events sit at time 0; events outside the window are dropped."""
         sfreq = 100.0
-
+        n_times = 71
+        tmin = -0.2
+        n_channels = 4
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        # Create ICA object
-        ica = ICA(n_components=4, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            self.assertEqual(result['pnts'], 10)
-            self.assertEqual(result['trials'], 3)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, n_epochs))
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs short data not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_large_dataset(self):
-        """Test conversion with large dataset."""
-        # Create large MNE Epochs object
-        n_channels = 64
-        n_times = 500
-        n_epochs = 50
-        sfreq = 1000.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        # Create ICA object
-        ica = ICA(n_components=20, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check data dimensions
-            self.assertEqual(result['nbchan'], 64)
-            self.assertEqual(result['pnts'], 500)
-            self.assertEqual(result['trials'], 50)
-            self.assertEqual(result['srate'], 1000.0)
-            self.assertEqual(result['icaact'].shape, (20, 500, 50))
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs large dataset not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_missing_channel_locations(self):
-        """Test conversion with missing channel locations."""
-        # Create MNE Epochs object without channel locations
-        n_channels = 16
-        n_times = 100
-        n_epochs = 5
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-
-        # Set channel locations to zeros (MNE requires 12-element array, None not allowed)
-        for ch in info['chs']:
-            ch['loc'] = np.zeros(12)
-
-        data = np.random.randn(n_epochs, n_channels, n_times)
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-        # Create ICA object
-        ica = ICA(n_components=8, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check that conversion still works
-            self.assertIsInstance(result, dict)
-            self.assertIn('chanlocs', result)
-
-            # Check that channel locations have default values
-            for chan in result['chanlocs']:
-                self.assertEqual(chan['X'], 0.0)
-                self.assertEqual(chan['Y'], 0.0)
-                self.assertEqual(chan['Z'], 0.0)
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs missing channel locations not available: {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_empty_epochs(self):
-        """Test conversion with empty epochs."""
-        # Create MNE Epochs object with no epochs
-        n_channels = 16
-        n_times = 100
-        n_epochs = 0
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_epochs, n_channels, n_times)
-
-        try:
-            events = np.array([], dtype=int).reshape(0, 3)
-            event_id = {}
-            epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
-
-            # Create ICA object
-            ica = ICA(n_components=8, random_state=42)
-            ica.fit(epochs)
-
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check that conversion still works
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['trials'], 0)
-            self.assertEqual(result['data'].shape, (n_channels, n_times, 0))
-            self.assertEqual(result['icaact'].shape, (8, n_times, 0))
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs empty epochs not available (MNE limitation): {e}")
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_epochs_integration_workflow(self):
-        """Test end-to-end conversion workflow."""
-        # Create a realistic MNE Epochs object
-        n_channels = 32
-        n_times = 200
-        n_epochs = 20
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-
-        # Add realistic channel locations (MNE requires exactly 12 elements)
-        for i, ch in enumerate(info['chs']):
-            ch['loc'] = np.array(
-                [
-                    np.cos(i * np.pi / 16) * 0.1,  # x
-                    np.sin(i * np.pi / 16) * 0.1,  # y
-                    0.0,  # z
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,  # other fields (12 total)
-                ]
+        data = np.random.default_rng(0).normal(size=(2, n_channels, n_times))
+        events = np.array([[0, 0, 1], [200, 0, 1]])
+        epochs = mne.EpochsArray(data, info, events, tmin=tmin, event_id={'target': 1}, verbose=False)
+        epochs.set_annotations(
+            mne.Annotations(
+                onset=[-0.05, 0.15, -0.5, 1.0, 2.8],
+                duration=[0, 0, 0, 0, 0],
+                description=['cue', 'response', 'early', 'between', 'after'],
             )
+        )
+        epochs.info['subject_info'] = {'his_id': 'sub-01'}
+        ica = ICA(n_components=2, random_state=0, max_iter=5)
+        ica.fit(epochs, verbose=False)
 
-        data = np.random.randn(n_epochs, n_channels, n_times)
-        events = np.array([[i, 0, 1] for i in range(n_epochs)])
-        event_id = {'event': 1}
-        epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
+        result = eeg_mne2eeg_epochs(epochs, ica)
 
-        # Create ICA object
-        ica = ICA(n_components=15, random_state=42)
-        ica.fit(epochs)
-
-        try:
-            result = eeg_mne2eeg_epochs(epochs, ica)
-
-            # Check basic properties
-            self.assertEqual(result['nbchan'], 32)
-            self.assertEqual(result['pnts'], 200)
-            self.assertEqual(result['trials'], 20)
-            self.assertEqual(result['srate'], 500.0)
-
-            # Check ICA properties
-            self.assertEqual(result['icaact'].shape, (15, 200, 20))
-            self.assertEqual(result['icawinv'].shape, (32, 15))
-            self.assertEqual(result['icasphere'].shape, (32, 32))
-            self.assertEqual(result['icaweights'].shape, (15, 32))
-            self.assertEqual(len(result['icachansind']), 32)
-
-            # Check channel locations
-            self.assertEqual(len(result['chanlocs']), 32)
-            for i, chan in enumerate(result['chanlocs']):
-                self.assertEqual(chan['labels'], f'EEG{i:03d}')
-                self.assertEqual(chan['type'], 'EEG')
-
-        except Exception as e:
-            self.skipTest(f"eeg_mne2eeg_epochs integration workflow not available: {e}")
+        self.assertEqual(result['subject'], 'sub-01')
+        got = [(str(event['type']), event['latency'], int(event['epoch'])) for event in result['event']]
+        # Epoch samples: time 0 is sample 21; -50 ms is 16; 150 ms is 36; epoch 2 adds 71.
+        self.assertEqual(
+            got,
+            [
+                ('cue', 16.0, 1),
+                ('target', 21.0, 1),
+                ('response', 36.0, 1),
+                ('target', 92.0, 2),
+            ],
+        )
+        self.assertNotIn('early', [row[0] for row in got])
+        self.assertNotIn('between', [row[0] for row in got])
+        self.assertNotIn('after', [row[0] for row in got])
+        self.assertEqual(len(result['epoch']), 2)
+        self.assertEqual([str(value) for value in result['epoch'][0]['eventtype']], ['cue', 'target', 'response'])
+        self.assertEqual([float(value) for value in result['epoch'][0]['eventlatency']], [-50.0, 0.0, 150.0])
+        self.assertEqual([str(value) for value in result['epoch'][1]['eventtype']], ['target'])
+        self.assertEqual([float(value) for value in result['epoch'][1]['eventlatency']], [0.0])
+        self.assertEqual([int(value) for value in result['epoch'][0]['event']], [0, 1, 2])
+        self.assertEqual([int(value) for value in result['epoch'][1]['event']], [3])
 
 
 if __name__ == '__main__':

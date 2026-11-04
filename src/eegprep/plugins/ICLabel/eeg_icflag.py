@@ -57,7 +57,8 @@ def eeg_icflag(EEG, thresholds):
         probs = ic_class[:, class_idx]
         reject |= (probs > min_thresh) & (probs < max_thresh)
 
-    EEG["reject"] = dict(EEG.get("reject") or {})
+    existing = EEG.get("reject")
+    EEG["reject"] = dict(existing) if isinstance(existing, dict) else {}
     EEG["reject"]["gcompreject"] = reject.astype(int)
 
     return EEG

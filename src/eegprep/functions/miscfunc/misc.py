@@ -6,6 +6,7 @@ import warnings
 from typing import Callable, Optional
 
 import numpy as np
+import psutil
 
 __all__ = [
     'is_debug',
@@ -49,6 +50,20 @@ def finite_matmul(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     if caught and not (_is_finite_array(left) and _is_finite_array(right) and _is_finite_array(result)):
         _reissue_warnings(caught)
     return result
+
+
+def matlab_mtimes(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Column-major ``*`` with MATLAB's rule that a single operand yields single."""
+    left = np.asarray(left)
+    right = np.asarray(right)
+    dtype = _matlab_product_dtype(left.dtype, right.dtype)
+    return finite_matmul(np.asfortranarray(left, dtype=dtype), np.asfortranarray(right, dtype=dtype))
+
+
+def _matlab_product_dtype(left: np.dtype, right: np.dtype) -> np.dtype:
+    if left.kind == "f" and right.kind == "f" and min(left.itemsize, right.itemsize) <= 4:
+        return np.dtype(np.float32)
+    return np.result_type(left, right)
 
 
 def finite_pinv(matrix: np.ndarray, solver: Callable[[np.ndarray], np.ndarray] | None = None) -> np.ndarray:
@@ -203,12 +218,6 @@ def num_jobs_from_reservation(ReservePerJob: str) -> int:
     else:
         reserve, margin = ReservePerJob, '0%'
     if reserve.endswith('B'):
-        try:
-            import psutil
-        except ImportError:
-            raise ImportError(
-                "psutil is required to determine available system RAM. Please install it with 'uv pip install psutil'."
-            )
         avail_amt = psutil.virtual_memory().available
         unit = reserve[-2:].upper()
         multiplier = {'GB': 2**30, 'MB': 2**20, 'KB': 2**10, 'B': 1}[unit]

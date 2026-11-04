@@ -1,0 +1,101 @@
+Isolated-reference implementation corrections approved September 29, 2026.
+Never apply to the pinned original or automatically during test setup.
+These are not test-source corrections or EEGPrep capability changes.
+
+--- a/plugins/LIMO4.1.2/limo_add_plots.m
++++ b/plugins/LIMO4.1.2/limo_add_plots.m
+@@ -35,4 +35,5 @@
+ restrict = [];
+ dimvalue = [];
+ fig      = 'new';
++variable_given = false;
+ warning  on
+@@ -47,7 +48,8 @@
+             elseif strcmpi(varargin{i},'dimvalue') % for Time-Frequency
+                 dimvalue  =  varargin{i+1};
+             elseif strcmpi(varargin{i},'variable') % for arrays of many variables
+-                infile  = {varargin{i+1}};
++                v  = varargin{i+1};
++                variable_given = true;
+             elseif strcmpi(varargin{i},'figure') % for arrays of many variables
+                 fig  = varargin{i+1};
+             elseif contains(varargin{i},'LIMO.mat')
+@@ -225,7 +227,11 @@
+             Data        = squeeze(tmp);
+         end
+     else
+-        if size(tmp,1) == 1 && size(tmp,3) == 1 % only 1 channel and 1 variable not squeezed yet
++        if subjects_plot == 1 && variable_given && isnumeric(v) && isscalar(v) && ...
++                strcmpi(data.limo.Analysis,'Time') && ndims(tmp) == 4 && size(tmp,3) == 1
++            % Single-condition subject data are channels x frames x 1 x subjects.
++            Data = reshape(tmp(:,:,1,v),size(tmp,1),size(tmp,2));
++        elseif size(tmp,1) == 1 && size(tmp,3) == 1 % only 1 channel and 1 variable not squeezed yet
+             D           = squeeze(tmp(:,:,1,:));
+             Data        = nan(1,size(tmp,2),size(tmp,4));
+             Data(1,:,:) = D; clear D;
+--- a/plugins/LIMO4.1.2/limo_best_electrodes.m
++++ b/plugins/LIMO4.1.2/limo_best_electrodes.m
+@@ -76,6 +76,13 @@
+ for i=Ns:-1:1
+     tmp = load(name{i});
+     if isfield(tmp,'LIMO')
+-        tmp = load(fullfile(tmp.LIMO.dir,'R2.mat'));
++        r2name = 'R2.mat';
++        if strcmp(tmp.LIMO.design.type_of_analysis,'Mass-univariate')
++            subname = limo_get_subname(tmp.LIMO.dir);
++            if ~isempty(subname)
++                r2name = [subname '_desc-R2.mat'];
++            end
++        end
++        tmp = load(fullfile(tmp.LIMO.dir,r2name));
+     end
+     tmp = tmp.(cell2mat(fieldnames(tmp)));
+@@ -97,5 +104,5 @@
+         LIMO = load([fileparts(name{i}) filesep 'LIMO.mat']); LIMO = LIMO.LIMO;
+-        if ~isempty(LIMO.data.chanlocs(channel_vector(i)).urchan)
++        if isfield(LIMO.data.chanlocs,'urchan') && ~isempty(LIMO.data.chanlocs(channel_vector(i)).urchan)
+             urchan_vector(i) = LIMO.data.chanlocs(channel_vector(i)).urchan;
+         end
+         fprintf('subject %g analysed \n',i);
+--- a/plugins/LIMO4.1.2/limo_random_select.m
++++ b/plugins/LIMO4.1.2/limo_random_select.m
+@@ -831,7 +831,7 @@
+         if gp_nb == 1 || gp_nb > maxsub % groups are always in row
+             LIMO.data.data = LIMO.data.data';
+             [gp_nb,maxsub] = size(LIMO.data.data);
+-            limo_warndlg('same number of groups and files (%g) in - be sure groups are in rows',gp_nb)
++            limo_warndlg(sprintf('same number of groups and files (%g) in - be sure groups are in rows',gp_nb))
+         elseif gp_nb == maxsub
+             warning('input transposed %g groups',gp_nb)
+         elseif gp_nb == 1 && maxsub == 1
+@@ -1613,7 +1613,11 @@
+ function [Names,Paths,Files] = breaklimofiles(cellfiles)
+ for ifiles = length(cellfiles):-1:1
+     if ~isempty(cellfiles{ifiles})
+-        [Paths{ifiles}, filename, ext] = fileparts(cellfiles{ifiles});
++        inputfile = cellfiles{ifiles};
++        if iscell(inputfile) && isscalar(inputfile)
++            inputfile = inputfile{1};
++        end
++        [Paths{ifiles}, filename, ext] = fileparts(inputfile);
+         Names{ifiles}                  = [filename ext];
+         Files{ifiles}                  = fullfile(Paths{ifiles},[filename ext]);
+     end
+@@ -1896,5 +1900,5 @@
+         if strcmp(LIMO.Type,'Channels')
+-            LIMO.design.electrode       = str2double(cell2mat(channel));
++            LIMO.design.electrode       = str2num(cell2mat(channel));
+             LIMO.data.chanlocs          = LIMO.data.expected_chanlocs;
+             LIMO.data.expected_chanlocs = LIMO.data.expected_chanlocs(LIMO.design.electrode);
+         else
+--- a/plugins/LIMO4.1.2/limo_tfce_handling.m
++++ b/plugins/LIMO4.1.2/limo_tfce_handling.m
+@@ -220,7 +220,7 @@
+                 end
+             else
+                 neighbouring_matrix = LIMO.data.neighbouring_matrix;
+-                H0_tval             = squeeze(H0_tval(:,:,end-1,:));
++                H0_tval             = reshape(H0_tval(:,:,end-1,:),1,size(H0_tval,2),nboot);
+                 tfce_H0_score       = NaN(1,size(H0_tval,2),nboot);
+                 parfor b=1:nboot
+                     [tfce_H0_score(1,:,b),tfce_H0_thmaps{b}] = limo_tfce(1,H0_tval(:,:,b),neighbouring_matrix,0);

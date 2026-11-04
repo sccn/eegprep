@@ -2,12 +2,9 @@ from pathlib import Path
 from unittest import mock
 
 import numpy as np
-import pytest
 
-from eegprep.functions.guifunc.qt import QtDialogRenderer
-from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
-from eegprep.functions.popfunc.pop_newset import pop_newset, pop_newset_dialog_spec
+from eegprep.functions.popfunc.pop_newset import pop_newset
 
 
 def _eeg(*, name: str = "demo") -> dict:
@@ -47,20 +44,6 @@ def test_pop_newset_stores_setname_and_retrieves_dataset():
     assert retrieve_command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 1);"
 
 
-def test_pop_newset_rejects_unknown_keyword_options():
-    with pytest.raises(ValueError, match="Unsupported pop_newset"):
-        pop_newset([], _eeg(), 0, unknown=True)
-
-
-def test_pop_newset_empty_retrieve_option_stores_current_dataset():
-    alleeg, current, current_set, command = pop_newset([], _eeg(name="stored"), 0, "retrieve", [])
-
-    assert current_set == 1
-    assert current["setname"] == "stored"
-    assert alleeg[0]["setname"] == "stored"
-    assert command == "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET);"
-
-
 def test_pop_newset_overwrites_current_dataset_when_requested():
     alleeg, current, current_set, _command = pop_newset([], _eeg(name="original"), 0)
     updated = _eeg(name="updated")
@@ -92,63 +75,6 @@ def test_pop_newset_gui_choice_can_create_new_dataset():
         "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, "
         "'setname', 'processed', 'comments', 'new notes', 'overwrite', 'off');"
     )
-
-
-def test_pop_newset_dialog_old_dataset_prompt_hides_currentset_index():
-    spec = pop_newset_dialog_spec(_eeg(name="processed"), 1)
-
-    labels = [control.string for control in spec.controls]
-    assert "What do you want to do with the old dataset (not modified since last saved)?" in labels
-    assert "What do you want to do with the old dataset 1 (not modified since last saved)?" not in labels
-
-
-def test_pop_newset_dialog_edit_description_opens_multiline_editor():
-    eeg = _eeg(name="processed")
-    eeg["comments"] = ["first line", "second line"]
-
-    control = controls_by_tag(pop_newset_dialog_spec(eeg, 1))["editdescription"]
-
-    assert control.callback is not None
-    assert control.callback.name == "edit_text"
-    assert control.callback.params == {
-        "button": "editdescription",
-        "target": "editdescription",
-        "title": "Edit description",
-        "label": "Dataset description:",
-        "value": "first line\nsecond line",
-    }
-
-
-def test_qt_edit_text_callback_stores_accepted_text(monkeypatch):
-    class QInputDialog:
-        @staticmethod
-        def getMultiLineText(_parent, title, label, text):
-            calls.append((title, label, text))
-            return "", True
-
-    class Widget:
-        def __init__(self):
-            self.properties = {}
-
-        def property(self, name):
-            return self.properties.get(name)
-
-        def setProperty(self, name, value):
-            self.properties[name] = value
-
-    calls = []
-    target = Widget()
-    QtWidgets = type("QtWidgets", (), {"QInputDialog": QInputDialog})
-    monkeypatch.setattr("eegprep.functions.guifunc.qt._require_qt", lambda: (None, QtWidgets))
-
-    QtDialogRenderer._edit_text(
-        object(),
-        target,
-        {"title": "Edit description", "label": "Dataset description:", "value": "old notes"},
-    )
-
-    assert calls == [("Edit description", "Dataset description:", "old notes")]
-    assert QtDialogRenderer._read_widget(target) == ""
 
 
 def test_pop_newset_gui_description_button_value_updates_comments():

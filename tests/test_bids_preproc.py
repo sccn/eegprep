@@ -69,7 +69,7 @@ class TestBidsPreproc(DebuggableTestCase):
             {
                 'studyname': 'ds003061',
                 'subjects': ['001'],  # , '002'],
-                'runs': [2],  # using run 2 to avoid ICA shape issues with cached run 1 files
+                'runs': [2],
             },
         ]
 
@@ -81,16 +81,10 @@ class TestBidsPreproc(DebuggableTestCase):
         from datetime import datetime
 
         for study in self.studies:
-            # subset of subjects/runs to compare
             studyname = study['studyname']
             subjects = study['subjects']
             runs = study['runs']
 
-            # ~200 µV tolerance - accounts for numerical accumulation through 14-stage pipeline
-            # including ICA (runica). ICA has inherent permutation/sign ambiguity, and
-            # Python/MATLAB RNG permutation algorithms differ (see test_parity_rng.py).
-            # This leads to different but scientifically equivalent ICA decompositions.
-            # Max observed differences: sub-001 ~10 µV, sub-002 ~160 µV; using 200 µV for margin.
             abstol = 200
 
             if self.root_path is None:
@@ -103,7 +97,6 @@ class TestBidsPreproc(DebuggableTestCase):
 
             study_path = os.path.join(self.root_path, retain[0])
 
-            # Create timestamped directory in project temp folder
             timestamp = datetime.now().strftime('%y%m%d_%H%M')
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             stage_dir = os.path.join(project_root, 'temp', f'stage_analysis_{timestamp}')
@@ -121,7 +114,6 @@ class TestBidsPreproc(DebuggableTestCase):
                 SkipIfPresent=True,
                 UseHashes=True,
                 MinimizeDiskUsage=False,
-                # parse events from BIDS, use value column
                 ApplyEvents=True,
                 EventColumn='value',  # <- needed for this study to match pop_importbids() in MATLAB
                 # channel selection - match MATLAB's default behavior
@@ -134,14 +126,11 @@ class TestBidsPreproc(DebuggableTestCase):
                 EpochEvents=[],
                 EpochLimits=[-0.2, 0.5],
                 EpochBaseline=[-0.2, 0],
-                # temporarily disabled for quicker runs
                 WithICA=True,
                 ICAAlgorithm='picard',
                 WithICLabel=True,
-                # save intermediate stages for comparison
                 SaveIntermediateStages=True,
                 IntermediateDir=stage_dir,
-                # return so we can compare things
                 ReturnData=True,
             )
 
@@ -165,8 +154,6 @@ class TestBidsPreproc(DebuggableTestCase):
                 if os.path.exists(p):
                     os.remove(p)
 
-            # testing up to here because pop_select occasionally retains events on py that
-            # are dropped by the MATLAB code, so things go out of sync at that point
             print("Comparing Python vs MATLAB results...")
             print(f"Python returned: {type(ALLEEG_py)}, length: {len(ALLEEG_py) if ALLEEG_py else 'N/A'}")
             print(f"MATLAB returned: {type(ALLEEG_mat)}, length: {len(ALLEEG_mat)}")
@@ -182,17 +169,13 @@ class TestBidsPreproc(DebuggableTestCase):
                 if 'epoch' in EEG_py and 'epoch' in EEG_mat:
                     print(f"  Python epochs: {len(EEG_py['epoch'])}, MATLAB epochs: {len(EEG_mat['epoch'])}")
                 np.testing.assert_allclose(EEG_py['data'][:, :, :], EEG_mat['data'][:, :, :], rtol=0, atol=abstol)
-                # PICARD currently doesn't pass its unit test vs MATLAB, so disabling for now
-                # np.testing.assert_allclose(EEG_py['icaweights'], EEG_mat['icaweights'], rtol=0, atol=1e-5)
                 print("passed.")
 
-            # Generate and save stage-by-stage comparison report
             print("\n" + "=" * 80)
             print("Generating stage-by-stage comparison report...")
             try:
                 comparison_table = generate_comparison_table(stage_dir)
                 print(comparison_table)
-                # Save as markdown report
                 save_comparison_report(stage_dir, comparison_table, studyname, subjects, runs)
                 print(f"Report saved to: {os.path.join(stage_dir, 'comparison_report.md')}")
             except Exception as e:
@@ -221,7 +204,6 @@ class TestBidsPreproc(DebuggableTestCase):
             bids_preproc(
                 os.path.join(self.root_path, p),
                 ReservePerJob=reservation,
-                # process just the first few subjects/sessions/runs, across all tasks
                 subjects=[0, 1],
                 sessions=[0, 1],
                 runs=[0, 1, 2],

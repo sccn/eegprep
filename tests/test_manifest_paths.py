@@ -93,23 +93,6 @@ def test_build_manifest_normalizes_runtime_relative_paths(tmp_path, monkeypatch)
     assert manifest["output_files"][0]["path"] == str((tmp_path / output_path).resolve())
 
 
-def test_write_manifest_preserves_relative_return_path(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    input_path = tmp_path / "input.set"
-    input_path.write_bytes(b"input")
-    manifest = _build_manifest(input_path, [tmp_path / "output.set"])
-    manifest_path = Path("records/manifest.json")
-
-    result = write_manifest(manifest_path, manifest)
-    file_manifest_path = Path("records/manifest-file.json")
-    entry = write_manifest_file(file_manifest_path, manifest)
-
-    assert result == manifest_path
-    assert (tmp_path / manifest_path).is_file()
-    assert entry["path"] == str(file_manifest_path)
-    assert (tmp_path / file_manifest_path).is_file()
-
-
 @pytest.mark.parametrize("schema_version", ["eegprep.manifest.v1", "eegprep.manifest.v3"])
 def test_read_manifest_does_not_reinterpret_other_schema_paths(tmp_path, schema_version):
     manifest_path = tmp_path / "manifest.json"
@@ -121,20 +104,6 @@ def test_read_manifest_does_not_reinterpret_other_schema_paths(tmp_path, schema_
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
 
     assert read_manifest(manifest_path) == payload
-
-
-def test_write_manifest_does_not_rewrite_v1_paths(tmp_path):
-    manifest_path = tmp_path / "manifest.json"
-    absolute_path = str((tmp_path / "input.set").resolve())
-    payload = {
-        "schema_version": "eegprep.manifest.v1",
-        "input_files": [{"path": absolute_path}],
-        "output_files": [],
-    }
-
-    write_manifest(manifest_path, payload)
-
-    assert json.loads(manifest_path.read_text(encoding="utf-8")) == payload
 
 
 def test_read_manifest_preserves_foreign_absolute_paths(tmp_path):

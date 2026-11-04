@@ -2,8 +2,6 @@
 % g = computeg(x,y,z,xelec,yelec,zelec, params);
 % save('-mat', 'test_computeg_results.mat', 'g');
 
-% compute G function
-% ------------------
 function g = computeg(x,y,z,xelec,yelec,zelec, params)
 
 unitmat = ones(length(x(:)),length(xelec));

@@ -11,7 +11,6 @@ end
 
 fileName = '../../sample_data/eeglab_data_with_ica_tmp.set';
 
-% call Python function
 system([pythonFunc ' ICL_feature_extractor_compare_helper.py ' fileName]);
 res = load('python_temp.mat');
 % delete('python_temp.mat');

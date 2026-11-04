@@ -29,7 +29,6 @@ def eeg_autocorr(EEG, pct_data=None):
     ncomp = EEG['icaact'].shape[0]
     nfft = 2 ** np.ceil(np.log2(2 * EEG['pnts'] - 1)).astype(int)
 
-    # Calculate autocorrelation
     c = np.zeros((ncomp, nfft))
     for it in range(ncomp):
         comp = EEG['icaact'][it, :].reshape(-1)
@@ -46,12 +45,10 @@ def eeg_autocorr(EEG, pct_data=None):
     else:
         ac = c[:, : int(EEG['srate']) + 1]
 
-    # Normalize by the 0-tap of the autocorrelation
     ac /= ac[:, [0]]
 
     # Resample to 1 second at 100 samples/sec
 
-    # print the size of the second dim of ac
     ac = resample_poly(ac.T, up=100, down=EEG['srate']).T
     ac = ac[:, 1:]
 

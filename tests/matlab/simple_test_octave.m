@@ -1,4 +1,3 @@
-% Get the directory of the current file
 base_dir = '/Users/arno';
 path2eeglab = fullfile(base_dir, 'eeglab');
 % Alternatively: path2eeglab = 'eeglab'; % init >10 seconds

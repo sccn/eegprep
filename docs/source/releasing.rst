@@ -14,10 +14,36 @@ The version lives in one place
 
 ``src/eegprep/__init__.py``::
 
-    __version__ = "0.3.0"
+    __version__ = "0.5.0"
 
 ``pyproject.toml`` declares ``dynamic = ["version"]`` and reads that attribute, so
-there is no version string to edit in ``pyproject.toml``.
+there is no version string to edit in the eegprep ``pyproject.toml``.
+
+``eegprep-lean`` carries the same version in two places, and both must equal
+``__version__``: ``packages/eegprep-lean/src/eegprep_lean/__init__.py`` and
+``version`` in ``packages/eegprep-lean/pyproject.toml``. The joint release
+below exits before it builds if those three strings differ.
+
+Both packages
+=============
+
+``scripts/release_packages.py`` builds eegprep and eegprep-lean with that one
+version. With no flags it builds both and does not upload::
+
+    python scripts/release_packages.py
+
+``--publish`` checks that both packages have built artifacts and that
+``UV_PUBLISH_TOKEN`` is set, then uploads eegprep-lean and eegprep in that
+order. It does not upload eegprep unless lean can be uploaded too. Lean has
+no trusted publisher, so a GitHub Actions token is not enough for this
+command. ``--check`` compares the versions and does not build. A ``v*`` tag
+in ``GITHUB_REF``, or ``RELEASE_TAG``, must name the same version.
+
+``.github/workflows/synced-release.yml`` runs the script without ``--publish``.
+That job builds and verifies. It does not upload. ``release.yml`` still
+publishes the eegprep project when a ``v*`` tag is pushed. Uploading
+``eegprep-lean`` needs a trusted publisher for that project, which is not
+configured; ``lean-wheel.yml`` builds the lean wheel and does not publish it.
 
 Release from your machine
 =========================
@@ -35,7 +61,7 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git commit -am "release: 0.3.0"
+   git commit -am "release: 0.5.0"
    git checkout master && git merge --no-ff develop && git push origin master
 
 .. tip::
@@ -49,8 +75,8 @@ problems before a tag exists:
 
 .. code-block:: bash
 
-   git tag -a v0.3.0 -m "Release version 0.3.0"
-   git push origin v0.3.0
+   git tag -a v0.5.0 -m "Release version 0.5.0"
+   git push origin v0.5.0
 
 **4. Watch it.** Nothing reaches PyPI unless every check passes:
 
@@ -93,8 +119,8 @@ nothing; once a version is on PyPI it can never be replaced.
 
 .. code-block:: bash
 
-   git push origin :refs/tags/v0.3.0     # delete the remote tag
-   git tag -f v0.3.0 && git push origin v0.3.0
+   git push origin :refs/tags/v0.5.0     # delete the remote tag
+   git tag -f v0.5.0 && git push origin v0.5.0
 
 Docker image
 ============

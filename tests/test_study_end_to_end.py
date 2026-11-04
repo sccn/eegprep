@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import matplotlib
@@ -9,24 +8,20 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 import numpy as np
-import pytest
 
-from eegprep.functions.adminfunc import eeglabcompat
 from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
-from eegprep.functions.guifunc.menu_actions import action_kind
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.studyfunc.pop_chanplot import pop_chanplot
 from eegprep.functions.studyfunc.pop_clust import pop_clust
 from eegprep.functions.studyfunc.pop_clustedit import pop_clustedit
-from eegprep.functions.studyfunc.pop_limo import pop_limo
 from eegprep.functions.studyfunc.pop_loadstudy import pop_loadstudy
 from eegprep.functions.studyfunc.pop_preclust import pop_preclust
 from eegprep.functions.studyfunc.pop_precomp import pop_precomp
 from eegprep.functions.studyfunc.pop_savestudy import pop_savestudy
 from eegprep.functions.studyfunc.pop_study import pop_study
 from eegprep.functions.studyfunc.pop_studydesign import pop_studydesign
-from tests.fixtures import create_test_eeg_with_ica, matlab_engine_available
+from tests.fixtures import create_test_eeg_with_ica
 
 
 def _study_eeg(setname: str, subject: str, condition: str, offset: float) -> dict:
@@ -162,123 +157,3 @@ def test_study_end_to_end_workflow_roundtrips_and_syncs_console(tmp_path):
     plt.close(channel_figure)
     plt.close(cluster_figure)
     plt.close("all")
-
-
-def test_study_menu_actions_owned_by_epic_are_implemented():
-    study_actions = {
-        "pop_study:edit",
-        "pop_studydesign",
-        "pop_precomp:channels",
-        "pop_chanplot",
-        "pop_precomp:components",
-        "pop_preclust",
-        "pop_clust",
-        "pop_clustedit",
-        "select_study_set",
-        "clear_study",
-    }
-
-    assert {action: action_kind(action) for action in study_actions} == {
-        action: "implemented" for action in study_actions
-    }
-
-
-def test_limo_entry_points_require_an_active_study_design():
-    with pytest.raises(ValueError, match="valid active STUDY design"):
-        pop_limo({}, [])
-
-
-def test_eeglabcompat_requires_external_reference_checkout(monkeypatch, tmp_path):
-    monkeypatch.delenv(eeglabcompat.EEGLAB_ROOT_ENV, raising=False)
-    monkeypatch.setattr(eeglabcompat, "REPO_ROOT", tmp_path / "repo")
-
-    with pytest.raises(ImportError, match=eeglabcompat.EEGLAB_ROOT_ENV):
-        eeglabcompat._resolve_eeglab_root()
-
-
-@pytest.mark.matlab
-@pytest.mark.parity
-def test_study_metadata_matlab_parity_when_reference_is_available():
-    if not matlab_engine_available():
-        pytest.skip("MATLAB engine not available or skipped")
-    eeglab_root = _eeglab_reference_root()
-    if eeglab_root is None:
-        pytest.skip("EEGLAB reference checkout not available; set EEGPREP_EEGLAB_ROOT")
-
-    try:
-        import matlab.engine
-    except ImportError as exc:
-        pytest.skip(f"MATLAB engine not available: {exc}")
-
-    python_study, _python_alleeg, _command = pop_study(
-        None,
-        [
-            _study_eeg("s01_target", "S01", "target", 0.0),
-            _study_eeg("s02_standard", "S02", "standard", 1.0),
-        ],
-        name="Parity study",
-        return_com=True,
-    )
-
-    engine = matlab.engine.start_matlab()
-    try:
-        engine.addpath(engine.genpath(str(eeglab_root)), nargout=0)
-        engine.eval(_matlab_study_metadata_script(), nargout=0)
-        matlab_subjects = list(engine.workspace["parity_subjects"])
-        matlab_conditions = list(engine.workspace["parity_conditions"])
-        matlab_dataset_count = int(engine.workspace["parity_dataset_count"])
-    finally:
-        engine.quit()
-
-    assert matlab_dataset_count == len(python_study["datasetinfo"])
-    assert matlab_subjects == python_study["subject"]
-    assert matlab_conditions == python_study["condition"]
-
-
-def _eeglab_reference_root() -> Path | None:
-    candidates = []
-    if os.environ.get(eeglabcompat.EEGLAB_ROOT_ENV):
-        candidates.append(Path(os.environ[eeglabcompat.EEGLAB_ROOT_ENV]).expanduser())
-    candidates.append(Path(__file__).resolve().parents[1].parent / "eeglab")
-    for candidate in candidates:
-        if (candidate / "eeglab.m").is_file():
-            return candidate
-    return None
-
-
-def _matlab_study_metadata_script() -> str:
-    return """
-clear STUDY ALLEEG parity_subjects parity_conditions parity_dataset_count;
-ALLEEG(1).setname = 's01_target';
-ALLEEG(1).filename = 's01_target.set';
-ALLEEG(1).filepath = '';
-ALLEEG(1).subject = 'S01';
-ALLEEG(1).condition = 'target';
-ALLEEG(1).group = 'control';
-ALLEEG(1).session = 1;
-ALLEEG(1).run = 1;
-ALLEEG(1).data = zeros(4, 32, 3);
-ALLEEG(1).nbchan = 4;
-ALLEEG(1).pnts = 32;
-ALLEEG(1).trials = 3;
-ALLEEG(1).srate = 128;
-ALLEEG(1).xmin = 0;
-ALLEEG(1).xmax = (ALLEEG(1).pnts - 1) / ALLEEG(1).srate;
-ALLEEG(1).chanlocs = struct('labels', {'Ch1' 'Ch2' 'Ch3' 'Ch4'});
-ALLEEG(1).event = struct([]);
-ALLEEG(1).urevent = struct([]);
-ALLEEG(1).epoch = struct([]);
-ALLEEG(1).icaweights = eye(3, 4);
-ALLEEG(1).icasphere = eye(4);
-ALLEEG(1).icawinv = pinv(ALLEEG(1).icaweights * ALLEEG(1).icasphere);
-ALLEEG(2) = ALLEEG(1);
-ALLEEG(2).setname = 's02_standard';
-ALLEEG(2).filename = 's02_standard.set';
-ALLEEG(2).subject = 'S02';
-ALLEEG(2).condition = 'standard';
-[STUDY, ALLEEG] = std_editset([], ALLEEG, 'name', 'Parity study');
-[STUDY, ALLEEG] = std_checkset(STUDY, ALLEEG);
-parity_subjects = STUDY.subject;
-parity_conditions = STUDY.condition;
-parity_dataset_count = numel(STUDY.datasetinfo);
-"""

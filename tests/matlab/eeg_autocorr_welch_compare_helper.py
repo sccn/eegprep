@@ -9,7 +9,6 @@ from eegprep import eeg_autocorr_welch
 eeglab_file_path = '../../sample_data/eeglab_data_with_ica_tmp.set'
 EEG = pop_loadset(eeglab_file_path)
 
-# Print the loaded data
 res = eeg_autocorr_welch(EEG, 100)
 
 # save in a matlab file

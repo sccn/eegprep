@@ -37,7 +37,6 @@ end
 % Limit number of components to plot
 n_comps = min(n_comps, size(EEG_mat.icawinv, 2));
 
-% Create figure
 fig = figure('Visible', 'off', 'Position', [100, 100, 300*n_comps, 600]);
 
 % Create subplots: MATLAB on top row, Python on bottom row
@@ -67,7 +66,6 @@ end
 sgtitle('ICA Component Scalp Maps: MATLAB (top) vs Python (bottom) - MATLAB Topoplot', ...
     'FontSize', 12, 'FontWeight', 'bold');
 
-% Save figure
 try
     print(fig, output_file, '-dpng', '-r150');
     close(fig);

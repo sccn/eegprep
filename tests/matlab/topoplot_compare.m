@@ -11,7 +11,6 @@ EEG = pop_loadset(dataset);
 
 for compInd = 0:31
 
-    % call Python function
     system([ pythonFunc ' topoplot_compare_helper.py ' dataset ' ' int2str(compInd) ]);
 
     res = load('topoplot_data.mat')

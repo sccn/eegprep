@@ -9,9 +9,42 @@ import scipy.linalg
 from ...functions.miscfunc.misc import canonicalize_signs, finite_matmul, round_mat
 from .private.covariance import cov_mean, cov_shrinkage
 from .private.stats import fit_eeg_distribution, geometric_median
+from .private.windows import matlab_window_offsets
 from .private.yulewalk import yulewalk
 
 logger = logging.getLogger(__name__)
+
+
+class ASRCalibrationError(ValueError):
+    """ASR could not build a calibration state from this recording."""
+
+
+def spectral_shaping_filter_available(srate: float) -> bool:
+    """Return whether the default ASR shaping filter can be designed at ``srate``."""
+    freqvals, _amps = _spectral_breakpoints(float(srate))
+    return _breakpoints_are_valid(freqvals)
+
+
+def _spectral_breakpoints(srate: float):
+    """Frequency and amplitude breakpoints from asr_calibrate.m."""
+    freqvals = np.concatenate((np.array([0, 2, 3, 13, 16, 40, min(80.0, srate / 2.0 - 1.0)]) * 2.0 / srate, [1.0]))
+    amps = np.array([3, 0.75, 0.33, 0.33, 1, 1, 3, 3], dtype=np.float64)
+    if srate < 80:
+        # min(80, srate/2-1) is already below 40 Hz here, so drop that breakpoint
+        # rather than attenuating it.
+        freqvals = np.delete(freqvals, freqvals.size - 3)
+        amps = amps[:-1]
+    return freqvals, amps
+
+
+def _breakpoints_are_valid(freqvals: np.ndarray) -> bool:
+    """Same grid checks as ``yulewalk`` before it rejects a breakpoint vector."""
+    if freqvals.size == 0:
+        return False
+    tolerance = np.finfo(float).eps
+    if abs(freqvals[0]) > tolerance or abs(freqvals[-1] - 1.0) > tolerance:
+        return False
+    return not bool(np.any(np.diff(freqvals) < 0))
 
 
 def asr_calibrate(
@@ -72,10 +105,11 @@ def asr_calibrate(
       max_dropout_fraction (float, optional): Maximum fraction (0-1) of windows subject to dropouts. Default: 0.1.
       min_clean_fraction (float, optional): Minimum fraction (0-1) of windows that must be clean. Default: 0.25.
       maxmem (int, optional): Maximum memory in MB (for very large data/many channels). Default: 64.
-      useriemannian (str, optional): Option to use a Riemannian ASR variant. Can be set to 'calib' to use a Riemannian estimate
-            at calibration time; this make somewhat different statistical tradeoffs than the default, resulting in a potentially
-            different baseline rejection threshold; as a result it is suggested to visually check results and adjust
-            the cutoff as needed. Default: None (disabled).
+      useriemannian (str, optional): Set to ``'calib'`` to use a Riemannian covariance
+            estimate at calibration time and the Euclidean processor. Full Riemannian
+            processing is ``asr_calibrate_r`` / ``clean_asr(..., useriemannian=True)``.
+            The calibration-only estimate makes different statistical tradeoffs than
+            the default; check the result and adjust ``cutoff`` if needed. Default: None.
       compatibility (str, optional): MATLAB compatibility level.
         * 'standard' (default) aims for 5 significant digits compatibility and may apply
           slightly better numerical methods (e.g. using SOS filters for IIR filtering)
@@ -90,8 +124,12 @@ def asr_calibrate(
     -------
       dict: State dictionary containing calibration results ('M', 'T') and filter parameters ('B', 'A', 'sos', 'iir_state')
             needed for `asr_process`.
+
+    Raises
+    ------
+    ASRCalibrationError
+        The default spectral breakpoints are not monotonic at ``srate``.
     """
-    # Ensure X is a numpy array and C x S
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
         raise ValueError("Input data X must be a 2D array (channels x samples).")
@@ -122,22 +160,19 @@ def asr_calibrate(
 
     # Spectral-shaping filter for the artifact statistics. asr_calibrate.m designs
     # this with yulewalk() at the dataset's own sampling rate; the frequency/amplitude
-    # breakpoints below are its emphasis curve (attenuate the 3-13 Hz alpha/theta
-    # range, emphasise DC drift and high-frequency muscle).
+    # breakpoints are its emphasis curve (attenuate the 3-13 Hz alpha/theta range,
+    # emphasise DC drift and high-frequency muscle).
     if B is None or A is None:
-        freqvals = np.concatenate((np.array([0, 2, 3, 13, 16, 40, min(80.0, srate / 2.0 - 1.0)]) * 2.0 / srate, [1.0]))
-        amps = np.array([3, 0.75, 0.33, 0.33, 1, 1, 3, 3], dtype=np.float64)
-        if srate < 80:
-            # min(80, srate/2-1) is already below 40 Hz here, so drop that breakpoint
-            # rather than attenuating it.
-            freqvals = np.delete(freqvals, freqvals.size - 3)
-            amps = amps[:-1]
+        if not spectral_shaping_filter_available(srate):
+            raise ASRCalibrationError(
+                f"ASR cannot design its spectral shaping filter at {srate:g} Hz. "
+                "The default frequency breakpoints are not monotonic at this sampling rate."
+            )
+        freqvals, amps = _spectral_breakpoints(srate)
         B, A = yulewalk(8, freqvals, amps)
 
-    # Ensure data is finite
     X[~np.isfinite(X)] = 0.0
 
-    # Apply the signal shaping filter based on compatibility mode
     if compatibility == 'max':
         # Maximum MATLAB compatibility: use B/A form with lfilter
         # Initialize filter state to zeros (matching MATLAB's filter(..., [], 2))
@@ -163,7 +198,6 @@ def asr_calibrate(
     # U will be shape (C, C, num_blocks)
     logger.info("Calculating blockwise covariances...")
 
-    # Determine the number of blocks
     num_blocks = int(np.ceil(S / blocksize))
     U = np.zeros((C, C, num_blocks))
     block_starts = np.arange(0, S, blocksize)
@@ -175,10 +209,8 @@ def asr_calibrate(
         if range_indices.size == 0:
             continue  # Skip if no indices
 
-        # Extract data for these indices
         X_k = Xf[:, range_indices]
 
-        # Calculate and accumulate outer products
         outer_products = np.reshape(X_k, (C, 1, -1)) * np.reshape(X_k, (1, C, -1))
 
         # Add to U, ensuring shape alignment
@@ -190,7 +222,6 @@ def asr_calibrate(
     # Average the accumulated covariances
     U /= blocksize
 
-    # compute a robust average of the covariance matrices
     med = None
     if useriemannian in ('calib', 'all', True):
         logger.info("Calculating Riemannian geometric median covariance...")
@@ -209,7 +240,6 @@ def asr_calibrate(
         logger.warning("Geometric median calculation resulted in NaNs. Using standard median as fallback.")
         med = np.median(U, axis=-1)
 
-    # make sure median is reshaped back to matrix form
     M_robust = np.reshape(med, (C, C))
 
     # Get the mixing matrix M (matrix square root of the robust covariance)
@@ -233,28 +263,25 @@ def asr_calibrate(
     # Transform data into component space (using eigenvectors)
     X_transformed = np.abs(finite_matmul(Xf.T, V))  # Shape: (S, C)
 
-    # Calculate window indices for RMS calculation
     step = N * (1.0 - window_overlap)
     if step <= 0:
         logger.warning("Window overlap >= 1, using step=1")
         step = 1
-    window_starts = round_mat(np.arange(0, S - N, step)).astype(int)
+    window_starts = matlab_window_offsets(S, N, step)
 
     if len(window_starts) <= 1:
-        raise ValueError(f'Not enough windows possible. Need length > {N}, got {S}.')
+        raise ValueError(
+            f"Fewer than 2 calibration windows: got {len(window_starts)} from {S} samples with window length {N}."
+        )
 
-    # Create window indices matrix
     window_indices = window_starts[:, None] + np.arange(N)
 
-    # Initialize arrays for mu and sigma
     mu = np.zeros(C)
     sig = np.zeros(C)
 
-    # Calculate thresholds for each component
     for c in reversed(range(C)):
         comp_data = X_transformed[:, c] ** 2
 
-        # Calculate RMS amplitude for each window
         rms_windows = np.sqrt(np.mean(comp_data[window_indices], axis=1))
 
         # Fit a distribution to the clean part
@@ -276,15 +303,12 @@ def asr_calibrate(
         mu = np.nan_to_num(mu, nan=np.nanmedian(mu) if np.any(~np.isnan(mu)) else 1.0)
         sig = np.nan_to_num(sig, nan=np.nanmedian(sig) if np.any(~np.isnan(sig)) else 0.5)
 
-    # Ensure sigma is non-negative
     sig = np.maximum(sig, 0)
 
-    # Calculate threshold matrix T
     T = finite_matmul(np.diag(mu + cutoff * sig), V.T)
 
     logger.info('Thresholds calculation complete.')
 
-    # Return the state dictionary
     state = {
         'M': M,  # Mixing matrix
         'T': T,  # Threshold matrix

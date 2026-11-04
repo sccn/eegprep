@@ -25,13 +25,25 @@ Installation Methods
 Using uv (Recommended)
 ----------------------
 
-For a project managed by uv, add eegprep with:
+For a project managed by uv, add the ``eegprep`` package with:
 
 .. code-block:: bash
 
     uv add eegprep
 
-To include all optional EEGPrep dependencies:
+This installs EEGPrep. It does not install the separate ``eegprep-lean``
+distribution (import name ``eegprep_lean``). NumPy, SciPy, Matplotlib,
+psutil, pyedflib, and h5py are part of this base install. Loading, cleaning,
+plotting, and EDF, BDF, and GDF export work with no brackets.
+
+Octave, MNE, PyBIDS, and Picard are extras. Install them together with:
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+To include every optional extra, including the GUI, console, docs, and
+classifier dependencies:
 
 .. code-block:: bash
 
@@ -61,7 +73,9 @@ To install eegprep from source for development:
 ``uv sync`` creates the project environment, installs EEGPrep in editable mode,
 and uses ``uv.lock`` for reproducible dependency resolution. The development
 environment includes the GUI and console runtime dependencies, so a fresh
-checkout can immediately launch ``uv run eegprep-console --full``.
+checkout can immediately launch ``uv run eegprep-console --full``. It also
+installs the ``eeglab``, ``mne``, ``pybids``, and ``picard`` packages so the
+test suite can exercise Octave, MNE conversion, BIDS import, and Picard ICA.
 
 To develop or build documentation from source, include the docs extra:
 
@@ -72,7 +86,45 @@ To develop or build documentation from source, include the docs extra:
 Optional Dependencies
 =====================
 
-eegprep has several optional dependencies that enable additional functionality:
+eegprep has several optional dependencies that enable additional functionality.
+Calling a function whose extra is not installed raises ``ImportError``. The
+message names the library, the function, and the command to install it, for
+example ``pip install "eegprep[mne]"``, and it mentions ``eegprep[full]``.
+When another path does not need that library, the message says what to do
+instead, such as leaving ``engine`` unset or using ``runica``.
+
+``dir(eegprep)`` lists every public name. ``eegprep.help()`` prints those
+names with a one-line summary, read from the function's docstring without
+importing its module, and names the extra when one path of the function needs
+it. ``help`` is not exported by ``from eegprep import *``.
+
+``full`` restores the previous base install
+-------------------------------------------
+
+.. code-block:: bash
+
+    uv add "eegprep[full]"
+
+This installs four extras:
+
+- ``eeglab`` (``oct2py``), the Octave runtime for
+  ``pop_resample(..., engine="octave")``, ``iclabel(..., engine="octave")``,
+  the RANSAC octave subroutine used by ``clean_channels``, and
+  ``eeglab_clean_artifacts``.
+- ``mne``, conversion to and from MNE objects, and the EDF, BDF, GDF, and
+  EGI ``.mff`` readers in ``pop_biosig`` and ``pop_fileio``. BrainVision
+  ``.eeg`` files, and ``.vhdr`` files when a block range is set, also use it.
+  EEGLAB ``.set``, CNT, and BrainVision ``.vhdr`` without a block range do not.
+- ``pybids``, BIDS import and ``bids_preproc``.
+- ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
+  does not need it. This extra also installs scikit-learn.
+
+``eegprep[all]`` includes these four extras plus the GUI, console, docs, and
+PyTorch extras.
+
+Riemannian ASR (``clean_asr(..., useriemannian=True)`` and
+``Distance="Riemannian"``) is included. It uses NumPy and SciPy; there is no
+separate manifold package to install.
 
 PyTorch (for GPU acceleration)
 ------------------------------
@@ -158,8 +210,10 @@ After installation, verify that eegprep is correctly installed by running:
 
     import eegprep
     print(eegprep.__version__)
+    eegprep.help()
 
-You should see the version number printed without any errors.
+You should see the version number, then a list of public names, printed
+without any errors.
 
 To verify all core modules are available:
 

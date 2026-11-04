@@ -14,8 +14,37 @@ from ...functions.miscfunc.misc import round_mat
 from ...functions.popfunc.eeg_eegrej import eeg_eegrej
 from .private.masks import mask_to_intervals
 from .private.stats import fit_eeg_distribution
+from .private.windows import matlab_colon, matlab_window_offsets
 
 logger = logging.getLogger(__name__)
+
+
+def _window_rms_mu_sigma(
+    rms: np.ndarray,
+    *,
+    min_clean_fraction: float,
+    max_dropout_fraction: float,
+    quants: Tuple[float, float],
+    step_sizes: Tuple[float, float],
+    beta: Union[np.ndarray, Sequence[float]],
+) -> tuple[float, float]:
+    mu, sig, *_rest = fit_eeg_distribution(
+        rms,
+        min_clean_fraction=min_clean_fraction,
+        max_dropout_fraction=max_dropout_fraction,
+        quants=quants,
+        step_sizes=step_sizes,
+        beta=beta,
+    )
+    if np.isfinite(mu) and np.isfinite(sig) and sig > 0.0:
+        return float(mu), float(sig)
+    center = float(np.nanmedian(rms))
+    scale = float(np.nanmedian(np.abs(rms - center)) * 1.4826)
+    if not np.isfinite(center):
+        center = 0.0
+    if not np.isfinite(scale) or scale <= 0.0:
+        scale = 1.0
+    return center, scale
 
 
 def clean_windows(
@@ -36,7 +65,12 @@ def clean_windows(
     Specifically, only windows are retained which have less than a certain
     fraction of *bad* channels, where a channel is bad in a window if its RMS
     power is above or below some *z*-threshold relative to a robust estimate
-    of clean EEG power in that channel.
+    of clean EEG power in that channel. When the generalized-Gaussian fit does
+    not return a positive scale, that estimate is the median and MAD of the
+    window RMS values, and windows outside the thresholds are still removed.
+    The fit's width grid is ``round(n * (max_width:-step:min_width))``. A
+    rounded width of 1 or less raises ``ValueError``, which is the MATLAB
+    indexing error in that loop. Eleven to twenty-two windows still fit.
 
     Args
     ----
@@ -77,9 +111,7 @@ def clean_windows(
         Boolean mask (length == original ``pnts``) indicating which samples are
         retained (``True``) or removed (``False``).
     """
-    # ------------------------------------------------------------------
     #                           Input handling
-    # ------------------------------------------------------------------
     # Operate on a deep copy so the caller's dataset is never mutated.
     EEG = deepcopy(EEG)
     input_data = np.asarray(EEG['data'])
@@ -88,7 +120,6 @@ def clean_windows(
     C, S = EEG['data'].shape
     Fs = EEG['srate']
 
-    # Convert fractional parameters to absolute where necessary
     if C == 0 or S == 0:
         raise ValueError('Empty data array encountered.')
 
@@ -99,41 +130,42 @@ def clean_windows(
 
     shape_range = np.asarray(shape_range)
 
-    # ------------------------------------------------------------------
-    #                    Prepare window indexing helpers
-    # ------------------------------------------------------------------
-    N = int(round_mat(window_len * Fs))  # samples per window
-    if N <= 0:
+    # clean_windows.m keeps N = window_len*srate. 0:N-1 is an integer index of
+    # length floor(N); the unrounded product is the colon step, the stop, and
+    # the RMS divisor.
+    N = float(window_len) * float(Fs)
+    wnd = matlab_colon(0.0, 1.0, N - 1.0)
+    if wnd.size == 0:
         raise ValueError('Window length too small - results in N <= 0.')
+    wnd = wnd.astype(int)
 
-    # MATLAB: offsets = round(1:N*(1-window_overlap):S-N)
     step = N * (1.0 - window_overlap)
     if step <= 0:
         # Avoid infinite loop when overlap >= 1
         step = 1.0
-    offsets = round_mat(np.arange(1, S - N + 1, step)).astype(int) - 1
+    offsets = matlab_window_offsets(S, N, step)
     if len(offsets) == 0:
         raise ValueError('Not enough data for even a single window.')
-
-    wnd = np.arange(N, dtype=int)
     W = len(offsets)
+    quants = np.asarray(truncate_quant, dtype=float)
+    max_width = float(quants[1] - quants[0])
+    min_width = float(min_clean_fraction) * max_width
+    width_step = float(np.asarray(step_sizes, dtype=float).reshape(-1)[1])
+    # fit_eeg_distribution.m:112 indexes X(m,:) for each rounded width. m <= 1
+    # is the MATLAB error; 11 to 22 windows still produce widths of 2 or more.
+    widths = matlab_colon(max_width, -width_step, min_width)
+    if widths.size and int(np.min(round_mat(W * widths))) <= 1:
+        raise ValueError(f"Too few windows ({W}) to fit the EEG distribution: round(n * width) must be greater than 1.")
 
     logger.info('Determining time window rejection thresholds...')
 
-    # ------------------------------------------------------------------
-    #                      Compute z-score per channel
-    # ------------------------------------------------------------------
     wz = np.zeros((C, W), dtype=float)
     for c in reversed(range(C)):
-        # compute RMS amplitude for each window
         Xsq = EEG['data'][c, :] ** 2  # power
         # Gather samples for all windows using broadcasting (W, N)
         indices = offsets[:, None] + wnd[None, :]
-        # Extract data and compute RMS per window
         rms = np.sqrt(np.sum(Xsq[indices], axis=1) / N)
-
-        # Fit distribution to clean EEG portion
-        mu, sig, *_ = fit_eeg_distribution(
+        mu, sig = _window_rms_mu_sigma(
             rms,
             min_clean_fraction=min_clean_fraction,
             max_dropout_fraction=max_dropout_fraction,
@@ -141,20 +173,10 @@ def clean_windows(
             step_sizes=step_sizes,
             beta=shape_range,
         )
-        if sig == 0 or np.isnan(sig):
-            # Fallback to robust MAD if fitting failed
-            sig = np.median(np.abs(rms - np.median(rms))) * 1.4826
-            mu = np.median(rms)
-            if sig == 0:
-                sig = 1.0  # avoid division by zero
-
-        # z-score relative to fitted distribution
         wz[c, :] = (rms - mu) / sig
     logger.info('done.')
 
-    # ------------------------------------------------------------------
     #                Identify windows to be removed/kept
-    # ------------------------------------------------------------------
     swz = np.sort(wz, axis=0)  # sort each column (ascending)
 
     remove_mask = np.zeros(W, dtype=bool)
@@ -172,29 +194,32 @@ def clean_windows(
 
     removed_windows = np.where(remove_mask)[0]
 
-    # ------------------------------------------------------------------
-    #                Convert window removals to sample mask
-    # ------------------------------------------------------------------
     sample_mask = np.ones(S, dtype=bool)
     for w in removed_windows:
         start = offsets[w]
-        sample_mask[start : start + N] = False
+        sample_mask[start : start + wnd.size] = False
 
     kept_pct = 100.0 * np.mean(sample_mask)
     kept_seconds = np.count_nonzero(sample_mask) / Fs
     logger.info(f'Keeping {kept_pct:.1f}% ({kept_seconds:.0f} seconds) of the data.')
 
-    # ------------------------------------------------------------------
-    #               Apply sample rejection
-    # ------------------------------------------------------------------
     rejected_intervals = mask_to_intervals(sample_mask, value=False)
     if rejected_intervals.size:
         EEG = eeg_eegrej(EEG, rejected_intervals)
+    # eeg_eegrej keeps a proportional xmax. eeg_checkset.m:849-854 snaps it
+    # only when round(srate*(xmax-xmin)+1) is not pnts, including the empty
+    # result xmin - 1/srate. round_mat is MATLAB's half-away-from-zero rule.
+    # Python round leaves an even .5 in place.
+    pnts = int(EEG['pnts'])
+    xmin = float(EEG['xmin'])
+    srate = float(EEG['srate'])
+    xmax = float(EEG['xmax'])
+    if int(round_mat(srate * (xmax - xmin) + 1)) != pnts:
+        EEG['xmax'] = (pnts - 1) / srate + xmin
+        if np.asarray(EEG.get('times', [])).size != pnts:
+            EEG['times'] = np.linspace(xmin * 1000.0, float(EEG['xmax']) * 1000.0, pnts)
     EEG['data'] = np.asarray(EEG['data'], dtype=output_dtype)
 
-    # ------------------------------------------------------------------
-    #                     Update/insert clean_sample_mask
-    # ------------------------------------------------------------------
     if 'etc' not in EEG:
         EEG['etc'] = {}
 
@@ -206,8 +231,8 @@ def clean_windows(
             prev_mask[one_inds] = sample_mask
             etc['clean_sample_mask'] = prev_mask
         else:
-            logger.warning('EEG.etc.clean_sample is present but incompatible; it is being overwritten.')
-            etc['clean_sample_mask'] = sample_mask
+            # clean_windows.m warns and leaves the previous mask in place.
+            logger.warning('EEG.etc.clean_sample is present. It is overwritten.')
     else:
         etc['clean_sample_mask'] = sample_mask
 

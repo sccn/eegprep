@@ -28,7 +28,6 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
 
     EEG = deepcopy(EEG)
 
-    # Check for ICA key and if it is not empty before dereferencing it
     if 'icawinv' not in EEG.keys() or EEG['icawinv'].size == 0:
         raise ValueError('You must have an ICA decomposition to use ICLabel')
 
@@ -38,17 +37,13 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     if EEG.get('ref') != 'average' and EEG.get('ref') != 'averef':
         EEG = pop_reref(EEG, [])
 
-    # Calculate ICA activations if missing and cast to double
     if EEG['icaact'] is None:
         raise ValueError('You must have ICA activations to use ICLabel')
-        # EEG['icaact'] = eeg_getica(EEG)
 
     EEG['icaact'] = EEG['icaact'].astype(float)
 
-    # Check ICA is real
     assert np.isreal(EEG['icaact']).all(), 'Your ICA decomposition must be real to use ICLabel'
 
-    # Calculate topo
     topo = np.zeros((32, 32, 1, ncomp))
     for it in range(ncomp):
         tmp_chanlocs = [EEG['chanlocs'][i] for i in EEG['icachansind']]
@@ -59,7 +54,6 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
     # Cast
     topo = topo.astype(np.float32)
 
-    # Calculate PSD
     psd = eeg_rpsd(EEG, 100)
 
     # Extrapolate or prune as needed
@@ -75,12 +69,10 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
         if np.any(notch_ind):
             psd[notch_ind, linenoise_ind] = np.mean(psd[notch_ind][:, linenoise_around], axis=1)
 
-    # Normalize
     psd = psd / np.max(np.abs(psd), axis=1)[:, np.newaxis]
 
     psd = np.transpose(np.expand_dims(np.expand_dims(psd, axis=-1), axis=-1), (2, 1, 3, 0)).astype(np.float32)
 
-    # Calculate autocorrelation
     if flag_autocorr:
         if EEG['trials'] == 1:
             if EEG['pnts'] / EEG['srate'] > 5:
@@ -90,7 +82,6 @@ def ICL_feature_extractor(EEG, flag_autocorr=False):
         else:
             autocorr = eeg_autocorr_fftw(EEG)
 
-        # Reshape and cast
         autocorr = np.transpose(np.expand_dims(np.expand_dims(autocorr, axis=-1), axis=-1), (2, 1, 3, 0)).astype(
             np.float32
         )

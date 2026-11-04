@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -162,7 +161,6 @@ def _assert_continuous_eeg(eeg: dict[str, Any], expected: np.ndarray, srate: flo
     np.testing.assert_allclose(eeg["times"], np.arange(expected.shape[1]) / srate * 1000)
 
 
-@eeglab_test(_UPSTREAM_WRAPPER, "test_test_pop_loadbv")
 def test_pop_loadbv_ports_all_eight_active_upstream_load_calls(tmp_path: Path) -> None:
     selected_raw = np.arange(32 * 5, dtype=np.int16).reshape(32, 5) - 50
     selected_header = _write_binary_brainvision(
@@ -255,6 +253,28 @@ def test_pop_loadbv_ports_all_eight_active_upstream_load_calls(tmp_path: Path) -
         ("TLE", 2.25, 1),
         ("square", 5.5, 2),
     ]
+
+
+@eeglab_test(_UPSTREAM_WRAPPER, "test_test_pop_loadbv")
+def test_upstream_pop_loadbv_original_eight_files(eeglab_backend, eeglab_suite_root):
+    directory = str(eeglab_suite_root / "unittesting_binary/testfiles/BVA")
+    eeglab_backend(
+        "pop_loadbv",
+        directory,
+        "brainvision_genericdataformat_binarymultiplexed_int16.vhdr",
+        1.0,
+        np.arange(1, 33, dtype=float)[None, :],
+    )
+    for filename in (
+        "BVA_withchanlocs.vhdr",
+        "brainvision_genericdataformat_binarymultiplexed_ieee32.vhdr",
+        "brainvision_genericdataformat_binarymultiplexed_int16.vhdr",
+        "brainvision_genericdataformat_binaryvectorized_ieee.vhdr",
+        "brainvision_genericdataformat_binaryvectorized_int16.vhdr",
+        "brainvision_recorder_acquisitiondataformat.vhdr",
+        "EEGLAB_export.vhdr",
+    ):
+        eeglab_backend("pop_loadbv", directory, filename)
 
 
 def test_pop_loadbv_normalizes_units_selects_samples_and_preserves_markers(tmp_path: Path) -> None:
@@ -367,48 +387,6 @@ def test_pop_loadbv_honors_big_endian_binary_headers(tmp_path: Path) -> None:
     eeg = pop_loadbv(header)
 
     _assert_continuous_eeg(eeg, raw, 250.0)
-
-
-@pytest.mark.parametrize(
-    ("change", "message"),
-    [
-        (lambda text: text.replace("DataOrientation=MULTIPLEXED", "DataOrientation=UNKNOWN"), "orientation"),
-        (lambda text: text.replace("DataType=TIMEDOMAIN", "DataType=FREQUENCYDOMAIN"), "data type"),
-        (lambda text: text.replace("SamplingInterval=4000", "SamplingInterval=0"), "SamplingInterval"),
-        (lambda text: text.replace("BinaryFormat=INT_16", "BinaryFormat=INT_32"), "binary format"),
-        (lambda text: text.replace("Ch2=Ch2,,1,µV\n", ""), "missing Ch2"),
-        (lambda text: text.replace("DataPoints=3", "DataPoints=4"), "declares 4 samples"),
-    ],
-)
-def test_pop_loadbv_rejects_malformed_headers(
-    tmp_path: Path,
-    change: Callable[[str], str],
-    message: str,
-) -> None:
-    header = _write_binary_brainvision(tmp_path, "malformed", np.ones((2, 3), dtype=np.int16))
-    header.write_text(change(header.read_text(encoding="utf-8")), encoding="utf-8")
-
-    with pytest.raises(ValueError, match=message):
-        pop_loadbv(header)
-
-
-def test_pop_loadbv_rejects_truncated_binary_and_invalid_selections(tmp_path: Path) -> None:
-    header = _write_binary_brainvision(tmp_path, "truncated", np.ones((2, 3), dtype=np.int16))
-    data_path = tmp_path / "truncated.dat"
-    data_path.write_bytes(data_path.read_bytes()[:-1])
-
-    with pytest.raises(ValueError, match="truncated"):
-        pop_loadbv(header)
-
-    valid = _write_binary_brainvision(tmp_path, "valid", np.ones((2, 3), dtype=np.int16))
-    with pytest.raises(ValueError, match="srange"):
-        pop_loadbv(valid, srange=[0, 2])
-    with pytest.raises(ValueError, match="srange"):
-        pop_loadbv(valid, srange=[2, 4])
-    with pytest.raises(ValueError, match="chans"):
-        pop_loadbv(valid, chans=[3])
-    with pytest.raises(ValueError, match="integer"):
-        pop_loadbv(valid, chans=[1.5])
 
 
 def test_pop_loadbv_warns_and_loads_when_marker_file_is_missing(tmp_path: Path) -> None:

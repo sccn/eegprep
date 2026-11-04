@@ -38,7 +38,6 @@ def get_git_commit_id(repo_path: str | None = None, shorten: int = 8) -> str | N
             check=True,  # Raise CalledProcessError if command fails
         )
 
-        # 2. Check for dirty status using the porcelain format
         # This command outputs nothing if the working tree is clean.
         status_cmd = ['git', 'status', '--porcelain']
         status_result = subprocess.run(status_cmd, cwd=repo_path, capture_output=True, text=True, check=True)

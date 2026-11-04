@@ -29,7 +29,6 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     if pct_data is None or pct_data == 0:
         pct_data = 100
 
-    # setup constants
     ncomp = EEG['icaweights'].shape[0]
     n_points = min(EEG['pnts'], EEG['srate'] * 3)
     nfft = 2 ** (int(np.log2(n_points * 2 - 1)) + 1)
@@ -39,16 +38,21 @@ def eeg_autocorr_welch(EEG, pct_data=100):
     ).astype(int)
     index = index.T
 
+    activations = np.asarray(EEG['icaact'])
+    if activations.ndim == 2:
+        selected = activations[:, index]
+    else:
+        selected = activations[:, index, :]
+    shaped = np.reshape(selected, (ncomp, *index.shape, EEG['trials']))
     # separate data segments
     if pct_data != 100:
         random.seed(0)
         n_seg = index.shape[0] * EEG['trials']
         subset = random.sample(range(n_seg), int(np.ceil(n_seg * pct_data / 100)))
         random.seed()  # restore normal random behavior
-        temp = np.reshape(EEG['icaact'][:, index, :], (ncomp, *index.shape, EEG['trials']))
-        segments = temp[:, :, subset]
+        segments = shaped[:, :, subset]
     else:
-        segments = np.reshape(EEG['icaact'][:, index, :], (ncomp, *index.shape, EEG['trials']))
+        segments = shaped
 
     # calc autocorrelation
     ac = np.zeros((ncomp, nfft))

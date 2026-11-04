@@ -28,7 +28,7 @@ def show_figures(figures: Any, *, plot: str | bool = "on") -> None:
     closed (unregistered from pyplot) so an interactive session cannot auto-display
     them; the caller keeps the returned Figure, which stays usable for ``savefig``.
     """
-    if not _plot_enabled(plot):
+    if not plot_enabled(plot):
         for figure in _as_figure_list(figures):
             plt.close(figure)
         return
@@ -202,7 +202,7 @@ def python_literal(value: Any) -> str:
     """Return a pasteable Python literal for EEGPrep console history."""
     if isinstance(value, np.ndarray):
         value = value.tolist()
-    if isinstance(value, (np.integer, np.floating)):
+    if isinstance(value, np.generic):
         value = value.item()
     if isinstance(value, float):
         if np.isnan(value):
@@ -217,6 +217,8 @@ def python_literal(value: Any) -> str:
         return "[" + ", ".join(python_literal(item) for item in value) + "]"
     if isinstance(value, tuple):
         return "(" + ", ".join(python_literal(item) for item in value) + ("," if len(value) == 1 else "") + ")"
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{python_literal(key)}: {python_literal(item)}" for key, item in value.items()) + "}"
     return repr(value)
 
 
@@ -263,7 +265,7 @@ def history_command(function_name: str, *args: Any, eeg_name: str = "EEG", **kwa
     return f"{function_name}({', '.join(pieces)})"
 
 
-def _plot_enabled(plot: str | bool) -> bool:
+def plot_enabled(plot: str | bool) -> bool:
     """Whether the ``plot`` flag requests a window: ``'on'/'off'`` or ``True/False``."""
     if isinstance(plot, bool):
         return plot

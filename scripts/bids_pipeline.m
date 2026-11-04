@@ -45,7 +45,6 @@ if nargin < 3
 if nargin < 4
     to_stage = 100; end
 
-% Parse optional arguments
 p = inputParser;
 addParameter(p, 'SaveIntermediateStages', false);
 addParameter(p, 'IntermediateDir', tempdir);
@@ -81,7 +80,6 @@ for idx=1:n_datasets
     else
         EEG = ALLEEG(idx);
         EEG = eeg_checkset(EEG, 'loaddata');
-        % Extract base name for unique identifiers
         [~, base_name, ~] = fileparts(EEG.filename);
         if save_intermediate
             fname = sprintf('%s_stage%02d_%s_mat.set', base_name, 1, stage_names{1});
@@ -89,8 +87,6 @@ for idx=1:n_datasets
         end
     end
 
-    % temporarily disabled for quicker runs
-    % keep only channels with EEG modality
     chn_modalities = {EEG.chanlocs.type};
     keep = find(strcmp('EEG',chn_modalities));
     if to_stage >= 2 && resume_from_stage < 2
@@ -124,7 +120,6 @@ for idx=1:n_datasets
     if to_stage >= 9 && resume_from_stage < 9
         EEG = pop_runica(EEG, 'icatype', 'runica', 'rndreset', 'no');
 
-        % sort components by mean descending activation variance
         [~, windex] = sort(sum(EEG.icawinv.^2).*sum((EEG.icaact').^2), 'descend');
         EEG.icaact = EEG.icaact(windex, :, :);
         EEG.icaweights = EEG.icaweights(windex, :);
@@ -178,7 +173,6 @@ for idx=1:n_datasets
         if save_intermediate, pop_saveset(EEG, 'filename', sprintf('%s_stage%02d_%s_mat.set', base_name, 14, stage_names{14}), 'filepath', intermediate_dir); end
     end
 
-    % write back as .set
     tmp_path = [tempname(), '.set'];
     pop_saveset(EEG, 'filename', tmp_path);
     result_paths{end+1} = tmp_path;

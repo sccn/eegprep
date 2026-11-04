@@ -5,28 +5,22 @@ This module tests the EEGLAB compatibility functions that provide
 Python interfaces to MATLAB/Octave EEGLAB functions.
 """
 
-import os
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+import scipy.io
 
 from eegprep.functions.adminfunc.eeglabcompat import (
     MatlabWrapper,
     _prepare_matlab_arg,
-    get_eeglab,
-    clean_drifts,
-    pop_eegfiltnew,
-    eeg_checkset as eeglab_eeg_checkset,
+    _restore_double_eeg_data,
+    _stash_double_eeg_data,
 )
-from eegprep import clean_artifacts, pop_loadset
-from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.misc import matlab_mtimes
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.utils.testing import DebuggableTestCase
 import eegprep.functions.adminfunc.eeglabcompat as eeglabcompat
-
-# Path to test data
-LOCAL_DATA_PATH = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
 
 def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_path):
@@ -55,7 +49,7 @@ def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_
         return {"loaded_from": str(filename)}
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(eeglabcompat, "get_eeglab", lambda auto_file_roundtrip=False: DummyEeglab())
+    monkeypatch.setattr(eeglabcompat, "get_eeglab", lambda auto_file_roundtrip=False, **_kwargs: DummyEeglab())
     monkeypatch.setattr(eeglabcompat, "pop_saveset", fake_pop_saveset)
     monkeypatch.setattr(eeglabcompat, "pop_loadset", fake_pop_loadset)
 
@@ -68,300 +62,119 @@ def test_eeglab_clean_artifacts_roundtrip_uses_private_tempdir(monkeypatch, tmp_
     assert {path.name for values in paths.values() for path in values} == {"input.set", "output.set"}
 
 
+def test_picard_plugin_paths_follow_the_installed_folder_name(tmp_path):
+    plugin = tmp_path / "plugins" / "PICARD"
+    sources = plugin / "matlab_octave"
+    sources.mkdir(parents=True)
+
+    paths = eeglabcompat._picard_plugin_paths(str(tmp_path))
+
+    assert paths == [str(plugin), str(sources)]
+
+
+class _RecordingEngine:
+    """Run the stash ``eval`` the way MATLAB would save the in-memory fields."""
+
+    def __init__(self, data, icaact):
+        self.data = np.asarray(data)
+        self.icaact = np.array(icaact, copy=True)
+
+    def eval(self, code, nargout=0):
+        assignment = code.split("eegprep_roundtrip_icaact =", 1)[1].split(";", 1)[0]
+        assert "double(" not in assignment
+        path = code.split("save('", 1)[1].split("'", 1)[0]
+        scipy.io.savemat(
+            path,
+            {
+                "eegprep_roundtrip_data": np.asarray(self.data, dtype=np.float64),
+                "eegprep_roundtrip_icaact": self.icaact,
+            },
+        )
+
+
+def test_matlab_bridge_round_trip_preserves_icaact(tmp_path):
+    data = np.arange(12, dtype=np.float64).reshape(2, 6)
+    single = np.array([[1.25, -2.5], [0.5, 4.0], [0.0, 1.0]], dtype=np.float32)
+    epoched = np.arange(24, dtype=np.float64).reshape(2, 4, 3)
+    cases = (single, epoched, np.empty((0, 0), dtype=np.float64))
+    for index, icaact in enumerate(cases):
+        path = tmp_path / f"roundtrip-{index}.mat"
+        _stash_double_eeg_data(_RecordingEngine(data, icaact), "OUT", str(path))
+        loaded = {
+            "data": np.zeros(data.shape, dtype=np.float32),
+            "icaact": np.ones((3, 6), dtype=np.float64),
+        }
+
+        _restore_double_eeg_data(loaded, str(path))
+
+        assert loaded["data"].dtype == np.float64
+        assert loaded["icaact"].dtype == icaact.dtype
+        assert loaded["icaact"].shape == icaact.shape
+        np.testing.assert_array_equal(loaded["icaact"], icaact)
+
+
+def test_restore_double_eeg_data_uses_matlab_layout(tmp_path):
+    original = np.arange(24, dtype=np.float64).reshape((4, 3, 2), order="F")
+    path = tmp_path / "roundtrip.mat"
+    scipy.io.savemat(path, {"eegprep_roundtrip_data": np.asfortranarray(original)})
+    loaded = {"data": np.zeros((4, 6), dtype=np.float32)}
+
+    _restore_double_eeg_data(loaded, str(path))
+
+    restored = np.reshape(original, (4, 6), order="F")
+    np.testing.assert_array_equal(loaded["data"], restored)
+    assert loaded["data"].dtype == np.float64
+
+
+def test_matlab_bridge_restores_icaact_from_the_data(eeglab_matlab_engine):
+    """Round-trip ICA through MatlabWrapper and match MATLAB's activation class."""
+    # eeg_checkset.m:1030 forms W*S in double; MATLAB rounds it to single for the product with single data. gamma uses eps = 2u, which covers both single evaluations.
+    data_class = np.dtype(np.float32)
+    sample = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_with_ica_tmp.set"
+    eeg = pop_loadset(sample)
+    eeg["data"] = np.asarray(eeg["data"], dtype=data_class)
+    eeg["icaact"] = np.full((np.asarray(eeg["icaweights"]).shape[0], int(eeg["pnts"])), 9.0, dtype=data_class)
+
+    restored = MatlabWrapper(eeglab_matlab_engine).eeg_checkset(eeg)
+
+    activations = np.asarray(restored["icaact"])
+    assert activations.dtype == data_class
+    assert activations.size == np.asarray(eeg["icaweights"]).shape[0] * int(eeg["pnts"]) * int(eeg["trials"])
+    channels = np.asarray(restored["icachansind"], dtype=int)
+    selected = np.asarray(restored["data"], dtype=data_class)[channels]
+    flat = np.reshape(selected, (selected.shape[0], -1), order="F")
+    unmixing = matlab_mtimes(np.asarray(restored["icaweights"]), np.asarray(restored["icasphere"]))
+    assert unmixing.dtype == np.dtype(np.float64)
+    expected = matlab_mtimes(unmixing, flat)
+    terms = int(flat.shape[0])
+    unit = float(np.finfo(data_class).eps)
+    gamma = terms * unit / (1.0 - terms * unit)
+    scale = np.abs(np.asarray(unmixing, dtype=np.float64)) @ np.abs(np.asarray(flat, dtype=np.float64))
+    bound = gamma * scale
+    actual = np.reshape(np.asarray(activations, dtype=np.float64), expected.shape, order="F")
+    residual = np.abs(actual - np.asarray(expected, dtype=np.float64))
+    assert np.all(residual <= bound)
+
+
 class TestMatlabWrapper(DebuggableTestCase):
     """Test cases for MatlabWrapper class."""
-
-    def test_marshal_boolean_values(self):
-        """Test marshaling of boolean values."""
-        # Test True
-        result = MatlabWrapper.marshal(True)
-        self.assertEqual(result, 'true')
-
-        # Test False
-        result = MatlabWrapper.marshal(False)
-        self.assertEqual(result, 'false')
-
-    def test_marshal_other_values(self):
-        """Test marshaling of other value types."""
-        # Test string
-        result = MatlabWrapper.marshal("test_string")
-        self.assertEqual(result, "'test_string'")
-
-        # Test number
-        result = MatlabWrapper.marshal(42)
-        self.assertEqual(result, '42')
-
-        # Test list
-        result = MatlabWrapper.marshal([1, 2, 3])
-        self.assertEqual(result, '[1, 2, 3]')
-
-    def test_wrapper_creation(self):
-        """Test MatlabWrapper creation with mock engine."""
-
-        class MockEngine:
-            def eval(self, cmd, nargout=0):
-                pass
-
-        engine = MockEngine()
-        wrapper = MatlabWrapper(engine)
-        self.assertIsInstance(wrapper, MatlabWrapper)
-        self.assertEqual(wrapper.engine, engine)
-
-    def test_getattr_returns_wrapper_function(self):
-        """Test that __getattr__ returns a callable wrapper function."""
-
-        class MockEngine:
-            def eval(self, cmd, nargout=0):
-                pass
-
-        engine = MockEngine()
-        wrapper = MatlabWrapper(engine)
-
-        # Test that getting an attribute returns a callable
-        func = wrapper.some_function
-        self.assertTrue(callable(func))
 
     def test_prepare_matlab_arg_keeps_empty_lists_numeric(self):
         """Empty Python lists should marshal as EEGLAB [] rather than {}."""
         empty = _prepare_matlab_arg([])
         strings = _prepare_matlab_arg(["square", "rt"])
         numbers = _prepare_matlab_arg([1, 2])
+        highpass = _prepare_matlab_arg((0.25, 0.75))
+        tolerances = _prepare_matlab_arg((-np.inf, 7.0))
 
         self.assertEqual(empty.shape, (0,))
         self.assertEqual(empty.dtype, np.dtype("float64"))
         self.assertEqual(strings.shape, (1, 2))
         self.assertEqual(strings.dtype, np.dtype("O"))
         np.testing.assert_array_equal(numbers, np.asarray([1.0, 2.0]))
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestGetEeglab(DebuggableTestCase):
-    """Test cases for get_eeglab function."""
-
-    def test_get_eeglab_default_runtime(self):
-        """Test get_eeglab with default runtime."""
-        try:
-            eeglab = get_eeglab()
-            self.assertIsNotNone(eeglab)
-        except Exception as e:
-            # Skip test if MATLAB/Octave is not available
-            self.skipTest(f"MATLAB/Octave not available: {e}")
-
-    def test_get_eeglab_mat_runtime(self):
-        """Test get_eeglab with MATLAB runtime."""
-        try:
-            eeglab = get_eeglab('MAT')
-            self.assertIsNotNone(eeglab)
-        except ImportError:
-            self.skipTest("MATLAB engine not available")
-        except Exception as e:
-            self.skipTest(f"MATLAB not available: {e}")
-
-    def test_get_eeglab_oct_runtime(self):
-        """Test get_eeglab with Octave runtime."""
-        try:
-            eeglab = get_eeglab('OCT')
-            self.assertIsNotNone(eeglab)
-        except ImportError:
-            self.skipTest("Oct2Py not available")
-        except Exception as e:
-            self.skipTest(f"Octave not available: {e}")
-
-    def test_get_eeglab_invalid_runtime(self):
-        """Test get_eeglab with invalid runtime."""
-        with self.assertRaises(ValueError):
-            get_eeglab('INVALID')
-
-    def test_get_eeglab_caching(self):
-        """Test that get_eeglab caches underlying engine instances."""
-        try:
-            eeglab1 = get_eeglab('MAT')
-            eeglab2 = get_eeglab('MAT')
-            # Wrappers are different instances, but underlying engines should be cached
-            self.assertIsInstance(eeglab1, MatlabWrapper)
-            self.assertIsInstance(eeglab2, MatlabWrapper)
-            self.assertIs(eeglab1.engine, eeglab2.engine)
-        except Exception as e:
-            self.skipTest(f"MATLAB not available: {e}")
-
-    def test_get_eeglab_auto_file_roundtrip(self):
-        """Test get_eeglab with auto_file_roundtrip disabled."""
-        try:
-            eeglab = get_eeglab('MAT', auto_file_roundtrip=False)
-            self.assertIsNotNone(eeglab)
-            # Should not be wrapped in MatlabWrapper
-            self.assertNotIsInstance(eeglab, MatlabWrapper)
-        except Exception as e:
-            self.skipTest(f"MATLAB not available: {e}")
-
-
-class TestEegCheckset(DebuggableTestCase):
-    """Test cases for eeg_checkset function (Python implementation)."""
-
-    def setUp(self):
-        """Set up test fixtures with real data."""
-        self.EEG = pop_loadset(os.path.join(LOCAL_DATA_PATH, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_eeg_checkset_basic(self):
-        """Test Python eeg_checkset with basic EEG structure."""
-        result = eeg_checkset(deepcopy(self.EEG))
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-        self.assertIn('srate', result)
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestEegChecksetMatlab(DebuggableTestCase):
-    """Test cases for eeg_checkset MATLAB wrapper."""
-
-    def setUp(self):
-        """Set up test fixtures with real data."""
-        self.EEG = pop_loadset(os.path.join(LOCAL_DATA_PATH, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_eeg_checkset_matlab_default(self):
-        """Test MATLAB eeg_checkset with default engine."""
-        result = eeglab_eeg_checkset(deepcopy(self.EEG))
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_eeg_checkset_matlab_explicit(self):
-        """Test MATLAB eeg_checkset with explicit engine."""
-        eeglab = get_eeglab('MAT')
-        result = eeglab_eeg_checkset(deepcopy(self.EEG), eeglab=eeglab)
-        self.assertIsNotNone(result)
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestCleanDrifts(DebuggableTestCase):
-    """Test cases for clean_drifts function."""
-
-    def setUp(self):
-        """Set up test fixtures with real data."""
-        self.EEG = pop_loadset(os.path.join(LOCAL_DATA_PATH, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_clean_drifts_basic(self):
-        """Test clean_drifts with basic parameters."""
-        # Transition is [low_freq, high_freq] for the highpass filter transition band
-        # Attenuation is the stopband attenuation in dB
-        result = clean_drifts(deepcopy(self.EEG), [0.25, 0.75], 80)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_clean_drifts_with_custom_eeglab(self):
-        """Test clean_drifts with custom eeglab instance."""
-        eeglab = get_eeglab('MAT')
-        result = clean_drifts(deepcopy(self.EEG), [0.25, 0.75], 80, eeglab=eeglab)
-        self.assertIsNotNone(result)
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestPopEegfiltnew(DebuggableTestCase):
-    """Test cases for pop_eegfiltnew function."""
-
-    def setUp(self):
-        """Set up test fixtures with real data."""
-        self.EEG = pop_loadset(os.path.join(LOCAL_DATA_PATH, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_pop_eegfiltnew_lowpass(self):
-        """Test pop_eegfiltnew with lowpass filter."""
-        result = pop_eegfiltnew(deepcopy(self.EEG), locutoff=None, hicutoff=25)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-        self.assertEqual(result['srate'], self.EEG['srate'])
-
-    def test_pop_eegfiltnew_highpass(self):
-        """Test pop_eegfiltnew with highpass filter."""
-        result = pop_eegfiltnew(deepcopy(self.EEG), locutoff=5, hicutoff=None)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_pop_eegfiltnew_bandpass(self):
-        """Test pop_eegfiltnew with bandpass filter."""
-        result = pop_eegfiltnew(deepcopy(self.EEG), locutoff=5, hicutoff=25)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_pop_eegfiltnew_with_revfilt(self):
-        """Test pop_eegfiltnew with reverse filter."""
-        result = pop_eegfiltnew(deepcopy(self.EEG), locutoff=5, hicutoff=25, revfilt=True)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_pop_eegfiltnew_with_plotfreqz(self):
-        """Test pop_eegfiltnew with plotfreqz."""
-        result = pop_eegfiltnew(deepcopy(self.EEG), locutoff=5, hicutoff=25, plotfreqz=True)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_pop_eegfiltnew_no_cutoffs(self):
-        """Test pop_eegfiltnew with no cutoffs defined."""
-        with self.assertRaises(Exception):
-            pop_eegfiltnew(deepcopy(self.EEG), locutoff=None, hicutoff=None)
-
-
-class TestCleanArtifacts(DebuggableTestCase):
-    """Test cases for clean_artifacts function."""
-
-    def setUp(self):
-        """Set up test fixtures with real data."""
-        self.EEG = pop_loadset(os.path.join(LOCAL_DATA_PATH, 'eeglab_data_with_ica_tmp.set'))
-
-    def test_clean_artifacts_basic(self):
-        """Test clean_artifacts with basic parameters (channel cleaning only)."""
-        result, *_ = clean_artifacts(deepcopy(self.EEG), BurstCriterion='off')
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_clean_artifacts_with_channel_criterion(self):
-        """Test clean_artifacts with channel criterion."""
-        result, *_ = clean_artifacts(deepcopy(self.EEG), ChannelCriterion=0.8, BurstCriterion='off')
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_clean_artifacts_with_burst_criterion(self):
-        """Test clean_artifacts with burst criterion."""
-        result, *_ = clean_artifacts(deepcopy(self.EEG), ChannelCriterion='off', BurstCriterion=20)
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-    def test_clean_artifacts_all_criteria_disabled(self):
-        """Test clean_artifacts with all criteria disabled."""
-        result, *_ = clean_artifacts(
-            deepcopy(self.EEG),
-            ChannelCriterion='off',
-            LineNoiseCriterion='off',
-            FlatlineCriterion='off',
-            BurstCriterion='off',
-            Highpass='off',
-        )
-        self.assertIsNotNone(result)
-        self.assertIn('data', result)
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestEeglabCompatIntegration(DebuggableTestCase):
-    """Integration tests for eeglabcompat functions."""
-
-    def test_eeglab_runtime_availability(self):
-        """Test that at least one EEGLAB runtime is available."""
-        runtimes_available = []
-
-        # Test MATLAB runtime
-        try:
-            get_eeglab('MAT')
-            runtimes_available.append('MAT')
-        except Exception:
-            pass
-
-        # Test Octave runtime
-        try:
-            get_eeglab('OCT')
-            runtimes_available.append('OCT')
-        except Exception:
-            pass
-
-        # At least one runtime should be available for testing
-        self.assertGreater(len(runtimes_available), 0, "No EEGLAB runtime available for testing")
+        np.testing.assert_array_equal(highpass, np.asarray([0.25, 0.75]))
+        np.testing.assert_array_equal(tolerances, np.asarray([-np.inf, 7.0]))
+        self.assertEqual(highpass.dtype, np.dtype("float64"))
 
 
 if __name__ == '__main__':

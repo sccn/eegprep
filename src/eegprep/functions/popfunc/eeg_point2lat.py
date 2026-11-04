@@ -30,10 +30,7 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
     if srate is None:
         raise ValueError("srate is required")
 
-    # defaults
-    if epoch_array is None or (
-        isinstance(epoch_array, (list, tuple, np.ndarray)) and len(np.atleast_1d(epoch_array)) == 0
-    ):
+    if epoch_array is None or _is_empty(epoch_array):
         epoch_array = 1
 
     if timewin is None:
@@ -51,7 +48,7 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
             raise ValueError("eeg_point2lat: latency and epoch arrays must have the same length")
         epoch_array = np.ones(lat_array.shape, dtype=float) * epoch_array.item()
 
-    timewin = np.atleast_1d(np.array(timewin, dtype=float)) * float(timeunit)
+    timewin = np.asarray(timewin, dtype=float).reshape(-1) * float(timeunit)
     if timewin.size != 2:
         raise ValueError("eeg_point2lat: timelimits array must have length 2")
 
@@ -65,3 +62,9 @@ def eeg_point2lat(lat_array, epoch_array=None, srate=None, timewin=None, timeuni
     # round to 1e-9 like MATLAB code
     newlat = round_mat(newlat * 1e9) / 1e9
     return newlat
+
+
+def _is_empty(value) -> bool:
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return np.asarray(value).size == 0
+    return False

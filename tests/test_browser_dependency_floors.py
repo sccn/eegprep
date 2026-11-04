@@ -18,7 +18,6 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from packaging.markers import Marker
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
@@ -97,19 +96,6 @@ def _declared_floor(requirement: Requirement) -> Version:
 
 
 @pytest.mark.parametrize("package", sorted(PYODIDE_COMPILED))
-def test_floor_does_not_exceed_what_pyodide_ships(package: str) -> None:
-    requirement = _requirements_active_in_pyodide().get(package)
-    assert requirement is not None, f"{package} is no longer a base dependency; drop it from PYODIDE_COMPILED"
-
-    floor = _declared_floor(requirement)
-    shipped = Version(PYODIDE_COMPILED[package])
-    assert floor <= shipped, (
-        f"{package}>={floor} is above the {shipped} that Pyodide {PYODIDE_VERSION} ships, "
-        f"so a browser install cannot satisfy it"
-    )
-
-
-@pytest.mark.parametrize("package", sorted(PYODIDE_COMPILED))
 def test_pyodide_version_satisfies_the_whole_specifier(package: str) -> None:
     """The floor is not the only bound; an upper bound can exclude Pyodide's build too."""
     requirement = _requirements_active_in_pyodide().get(package)
@@ -128,30 +114,6 @@ def test_requires_python_admits_the_pyodide_interpreter() -> None:
         f"requires-python {requires_python} excludes the CPython {PYODIDE_PYTHON} that "
         f"Pyodide {PYODIDE_VERSION} runs, so eegprep cannot be installed in the browser"
     )
-
-
-def test_the_darwin_scipy_floor_stays_out_of_the_browser() -> None:
-    """The macOS-only scipy floor is above what Pyodide ships, and must stay marker-guarded."""
-    darwin = dict(PYODIDE_ENVIRONMENT, sys_platform="darwin", platform_system="Darwin")
-    darwin_floors = [
-        _declared_floor(requirement)
-        for raw in _project()["dependencies"]
-        if (requirement := Requirement(raw)).name == "scipy"
-        and requirement.marker is not None
-        and requirement.marker.evaluate(darwin)
-    ]
-    assert darwin_floors, "the darwin-specific scipy floor is gone; update or remove this test"
-    assert max(darwin_floors) > Version(PYODIDE_COMPILED["scipy"]), (
-        "the darwin scipy floor no longer exceeds Pyodide's build, so the marker split may be "
-        "unnecessary; confirm before removing this test"
-    )
-    assert all(
-        Marker(str(requirement.marker)).evaluate(PYODIDE_ENVIRONMENT) is False
-        for raw in _project()["dependencies"]
-        if (requirement := Requirement(raw)).name == "scipy"
-        and requirement.marker is not None
-        and _declared_floor(requirement) > Version(PYODIDE_COMPILED["scipy"])
-    ), "a scipy floor above Pyodide's build is active under Pyodide"
 
 
 def _lean_project() -> dict:

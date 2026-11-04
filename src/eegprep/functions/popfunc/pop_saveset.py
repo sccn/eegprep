@@ -19,14 +19,6 @@ from eegprep.functions.adminfunc.storage import (
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 
-# Allows access using . notation
-# class EEG:
-#     def __init__(self, **kwargs):
-#         self.__dict__.update(kwargs)
-#     def __getitem__(self, key):
-#         return self.__dict__[key]
-#     def __setitem__(self, key, value):
-#         self.__dict__[key] = value
 
 default_empty = np.array([])
 
@@ -102,6 +94,13 @@ def _matlab_empty_or_copy(EEG, key):
     if isinstance(value, list) or (isinstance(value, np.ndarray) and value.dtype == object):
         return copy.deepcopy(value)
     return value
+
+
+def _urevent_for_disk(value):
+    """Shift a 0-based urevent, leaving None and empty values empty."""
+    if value is None or (isinstance(value, (list, tuple, np.ndarray)) and np.size(value) == 0):
+        return default_empty
+    return value + 1
 
 
 def _one_based(value):
@@ -194,7 +193,6 @@ def flatten_dict(data):
     np.recarray
         Flattened data.
     """
-    # Flatten each dictionary and collect the fields and types
     flat_data = [flatten_dict_sub(item) for item in data]
     fields = list(dict.fromkeys(field for item in flat_data for field in item))
     dtypes = []
@@ -254,40 +252,6 @@ def saveset(EEG, file_name):
     return pop_saveset(EEG, file_name)
 
 
-# def dictlist_to_recarray(events):
-#     # --- Infer dtype automatically ---
-#     dtype_fields = []
-#     for key in events[0].keys():
-#         values = [e[key] for e in events]
-
-#         # If string: pick Unicode type with max length
-#         if all(isinstance(v, str) for v in values):
-#             maxlen = max(len(v) for v in values)
-#             dtype_fields.append((key, f'U{maxlen}'))
-
-#         # If integer: use int32
-#         elif all(isinstance(v, int) for v in values):
-#             dtype_fields.append((key, 'i4'))
-
-#         # If float or mixed int/float: use float64
-#         elif all(isinstance(v, (float, int)) for v in values):
-#             dtype_fields.append((key, 'f8'))
-
-#         else:
-#             # fallback: generic object
-#             dtype_fields.append((key, object))
-
-#     dtype = np.dtype(dtype_fields)
-
-#     # --- Convert events to recarray ---
-#     rec_events = np.array(
-#         [tuple(e[k] for k in events[0].keys()) for e in events],
-#         dtype=dtype
-#     ).view(np.recarray)
-
-#     return rec_events
-
-
 def pop_saveset_old(EEG, file_path):
     """Save EEG data to file (old version).
 
@@ -303,9 +267,6 @@ def pop_saveset_old(EEG, file_path):
     dict
         EEG data.
     """
-    # convert Events to structured array
-    # if 'event' in EEG:
-    #     EEG['event'] = flatten_dict(EEG['event'])
 
     # add 1 to EEG['icachansind'] to make it 1-based
     if 'icachansind' in EEG and EEG['icachansind'].size > 0:
@@ -358,7 +319,6 @@ def _chanlocs_to_struct_array(chanlocs_list):
         ('unit', 'U20'),
     ]
 
-    # Extract values, replacing empty numpy arrays with None
     d_list = []
     for c in items:
         row = {}
@@ -411,7 +371,11 @@ def _serialize_chaninfo(chaninfo):
     out = {}
     for k, v in chaninfo.items():
         if k in ('removedchans', 'nodatchans'):
-            if isinstance(v, (list, np.ndarray)) and len(v) > 0:
+            if isinstance(v, np.ndarray):
+                nonempty = v.size > 0
+            else:
+                nonempty = isinstance(v, list) and len(v) > 0
+            if nonempty:
                 first = v[0] if isinstance(v, list) else v.flat[0]
                 if isinstance(first, dict):
                     out[k] = _chanlocs_to_struct_array(v)
@@ -426,6 +390,11 @@ def _serialize_chaninfo(chaninfo):
 
 def pop_saveset(EEG, file_name=None, *args, **kwargs):
     """Save EEG data to file.
+
+    The file stores ``icaact`` as ``[]``. The dataset returned in memory keeps
+    its activations; ``pop_loadset`` recomputes them. An event ``urevent`` is
+    stored one-based only when that event has one. ``None`` and ``[]`` are
+    written empty, the same as a missing field.
 
     Parameters
     ----------
@@ -463,7 +432,7 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         'times': EEG['times'],
         'data': mat_data,
         'datfile': datfile_name if save_two_files else '',
-        'icaact': _matlab_empty_if_missing(EEG, 'icaact'),
+        'icaact': default_empty,
         'icawinv': _matlab_empty_if_missing(EEG, 'icawinv'),
         'icasphere': _matlab_empty_if_missing(EEG, 'icasphere'),
         'icaweights': _matlab_empty_if_missing(EEG, 'icaweights'),
@@ -502,10 +471,21 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         for i in range(len(eeglab_dict['chanlocs'])):
             eeglab_dict['chanlocs'][i]['urchan'] = eeglab_dict['chanlocs'][i]['urchan'] + 1
 
-    # check if EEG['event'][i]['urevent'] is 0-based
-    if len(eeglab_dict['event']) > 0 and 'urevent' in eeglab_dict['event'][0]:
-        for i in range(len(eeglab_dict['event'])):
-            eeglab_dict['event'][i]['urevent'] = eeglab_dict['event'][i]['urevent'] + 1
+    # urevent is 0-based in memory. MATLAB event structs share one field set
+    # (eeg_checkset.m assigns event(index).urevent). A Python event list does
+    # not, and ``'urevent' in record`` on a structured record checks values.
+    events = eeglab_dict['event']
+    if isinstance(events, np.ndarray) and events.dtype.names:
+        if events.size and 'urevent' in events.dtype.names:
+            events = np.array(events, copy=True)
+            eeglab_dict['event'] = events
+            flat = events.ravel()
+            for index in range(flat.size):
+                flat[index]['urevent'] = _urevent_for_disk(flat[index]['urevent'])
+    else:
+        for event in events:
+            if isinstance(event, dict) and 'urevent' in event:
+                event['urevent'] = _urevent_for_disk(event['urevent'])
 
     # epoch.event / epoch.eventurevent index EEG.event / EEG.urevent: 0-based in memory
     for ep in eeglab_dict['epoch']:
@@ -548,12 +528,10 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     if save_two_files:
         write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
 
-    # # Step 4: Save the EEGLAB dataset as a .mat file
     try:
         scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
     except ValueError as e:
         if '31 characters' in str(e):
-            # try to save with long_field_names option
             scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
         else:
             # the file is likely partial and thus invalid -- delete

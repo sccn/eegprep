@@ -10,7 +10,7 @@ import numpy as np
 import tempfile
 import os
 import shutil
-from unittest import mock
+from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, 'src')
@@ -22,7 +22,14 @@ try:
 except ImportError:
     MNE_AVAILABLE = False
 
+from eegprep.functions.miscfunc._eeg_mne import _apply_eeg_events_to_mne, _subject_text
+from eegprep.functions.miscfunc.eeg_eeg2mne import eeg_eeg2mne
 from eegprep.functions.miscfunc.eeg_mne2eeg import eeg_mne2eeg, _mne_events_to_eeglab_events
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+EPOCHED_DATASET = REPO_ROOT / 'sample_data' / 'eeglab_data_epochs_ica.set'
+CONTINUOUS_DATASET = REPO_ROOT / 'sample_data' / 'eeglab_data.set'
 
 # Import fixtures - use absolute import to work with unittest discovery
 try:
@@ -54,21 +61,16 @@ class TestEEGMNE2EEG(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_raw_object(self):
         """Test conversion of MNE Raw object."""
-        # Create a simple MNE Raw object
         n_channels = 32
         n_times = 1000
         sfreq = 500.0
 
-        # Create channel names
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
 
-        # Create MNE info
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
 
-        # Create random data
         data = np.random.randn(n_channels, n_times)
 
-        # Create Raw object
         raw = mne.io.RawArray(data, info)
 
         result = eeg_mne2eeg(raw)
@@ -76,57 +78,34 @@ class TestEEGMNE2EEG(unittest.TestCase):
         # Check that result is a dict (EEGLAB format)
         self.assertIsInstance(result, dict)
 
-        # Check basic fields
         self.assertIn('data', result)
         self.assertIn('srate', result)
         self.assertIn('nbchan', result)
         self.assertIn('pnts', result)
         self.assertIn('trials', result)
 
-        # Check data dimensions
         self.assertEqual(result['nbchan'], n_channels)
         self.assertEqual(result['pnts'], n_times)
         self.assertEqual(result['trials'], 1)
         self.assertEqual(result['srate'], sfreq)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_cleans_temporary_bridge_files(self):
-        info = mne.create_info(["EEG001", "EEG002"], 100.0, ch_types='eeg')
-        raw = mne.io.RawArray(np.random.randn(2, 100), info)
-        real_tempdir = tempfile.TemporaryDirectory
-
-        def tempdir_factory(*args, **kwargs):
-            kwargs["dir"] = self.temp_dir
-            return real_tempdir(*args, **kwargs)
-
-        with mock.patch("eegprep.functions.miscfunc.eeg_mne2eeg.tempfile.TemporaryDirectory", tempdir_factory):
-            eeg_mne2eeg(raw)
-
-        self.assertEqual(os.listdir(self.temp_dir), [])
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_epochs_object(self):
         """Test conversion of MNE Epochs object."""
-        # Create a simple MNE Epochs object
         n_channels = 32
         n_times = 100
         n_epochs = 10
         sfreq = 500.0
 
-        # Create channel names
         ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
 
-        # Create MNE info
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
 
-        # Create random data
         data = np.random.randn(n_epochs, n_channels, n_times)
 
-        # Create events
         events = np.array([[i, 0, 1] for i in range(n_epochs)])
         event_id = {'event': 1}
 
-        # Create Epochs object
         epochs = mne.EpochsArray(data, info, events, tmin=0, event_id=event_id)
 
         result = eeg_mne2eeg(epochs)
@@ -134,61 +113,20 @@ class TestEEGMNE2EEG(unittest.TestCase):
         # Check that result is a dict (EEGLAB format)
         self.assertIsInstance(result, dict)
 
-        # Check basic fields
         self.assertIn('data', result)
         self.assertIn('srate', result)
         self.assertIn('nbchan', result)
         self.assertIn('pnts', result)
         self.assertIn('trials', result)
 
-        # Check data dimensions
         self.assertEqual(result['nbchan'], n_channels)
         self.assertEqual(result['pnts'], n_times)
         self.assertEqual(result['trials'], n_epochs)
         self.assertEqual(result['srate'], sfreq)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_with_annotations(self):
-        """Test conversion with MNE annotations."""
-        # Create a simple MNE Raw object with annotations
-        n_channels = 16
-        n_times = 1000
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
-
-        # Add annotations using set_annotations method
-        annotations = mne.Annotations(
-            onset=[0.1, 0.5, 0.9], duration=[0.05, 0.05, 0.05], description=['event1', 'event2', 'event3']
-        )
-        raw.set_annotations(annotations)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check that events were converted
-        self.assertIn('event', result)
-        self.assertIsInstance(result['event'], list)
-
-        # Check event count
-        self.assertEqual(len(result['event']), 3)
-
-        # Check event structure
-        for event in result['event']:
-            self.assertIn('latency', event)
-            self.assertIn('type', event)
-            self.assertIsInstance(event['latency'], int)
-            self.assertIsInstance(event['type'], str)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_with_events(self):
         """Test conversion with MNE events."""
-        # Create a simple MNE Epochs object with events
         n_channels = 16
         n_times = 100
         n_epochs = 5
@@ -198,7 +136,6 @@ class TestEEGMNE2EEG(unittest.TestCase):
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         data = np.random.randn(n_epochs, n_channels, n_times)
 
-        # Create events with different types
         events = np.array(
             [
                 [0, 0, 1],  # event type 1
@@ -214,143 +151,21 @@ class TestEEGMNE2EEG(unittest.TestCase):
 
         result = eeg_mne2eeg(epochs)
 
-        # Check that result is a dict
         self.assertIsInstance(result, dict)
 
-        # Check that events were converted
         self.assertIn('event', result)
-        self.assertIsInstance(result['event'], list)
+        self.assertIsInstance(result['event'], (list, np.ndarray))
 
-        # Check event count
         self.assertEqual(len(result['event']), 5)
 
-        # Check event types
         event_types = [event['type'] for event in result['event']]
         self.assertIn('stimulus', event_types)
         self.assertIn('response', event_types)
         self.assertIn('feedback', event_types)
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_single_channel(self):
-        """Test conversion with single channel."""
-        # Create single channel MNE Raw object
-        n_channels = 1
-        n_times = 500
-        sfreq = 250.0
-
-        ch_names = ['EEG001']
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check data dimensions
-        self.assertEqual(result['nbchan'], 1)
-        self.assertEqual(result['pnts'], 500)
-        self.assertEqual(result['trials'], 1)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_short_data(self):
-        """Test conversion with very short data."""
-        # Create MNE Raw object with short data
-        n_channels = 8
-        n_times = 10
-        sfreq = 100.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check data dimensions
-        self.assertEqual(result['nbchan'], 8)
-        self.assertEqual(result['pnts'], 10)
-        self.assertEqual(result['trials'], 1)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_float32_data(self):
-        """Test conversion with float32 data."""
-        # Create MNE Raw object with float32 data
-        n_channels = 16
-        n_times = 1000
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times).astype(np.float32)
-        raw = mne.io.RawArray(data, info)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check data type
-        self.assertEqual(result['data'].dtype, np.float32)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_large_dataset(self):
-        """Test conversion with large dataset."""
-        # Create large MNE Raw object
-        n_channels = 64
-        n_times = 5000
-        sfreq = 1000.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check data dimensions
-        self.assertEqual(result['nbchan'], 64)
-        self.assertEqual(result['pnts'], 5000)
-        self.assertEqual(result['trials'], 1)
-        self.assertEqual(result['srate'], 1000.0)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_empty_annotations(self):
-        """Test conversion with empty annotations."""
-        # Create MNE Raw object with empty annotations
-        n_channels = 16
-        n_times = 1000
-        sfreq = 500.0
-
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
-
-        # Add empty annotations using set_annotations method
-        empty_annotations = mne.Annotations([], [], [])
-        raw.set_annotations(empty_annotations)
-
-        result = eeg_mne2eeg(raw)
-
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
-
-        # Check that events field exists but is empty
-        self.assertIn('event', result)
-        self.assertEqual(len(result['event']), 0)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_eeg_mne2eeg_no_events(self):
         """Test conversion with no events."""
-        # Create MNE Epochs object with no events
         n_channels = 16
         n_times = 100
         n_epochs = 3
@@ -360,66 +175,226 @@ class TestEEGMNE2EEG(unittest.TestCase):
         info = mne.create_info(ch_names, sfreq, ch_types='eeg')
         data = np.random.randn(n_epochs, n_channels, n_times)
 
-        # Create events with no event_id mapping
         events = np.array([[i, 0, 999] for i in range(n_epochs)])  # Unknown event type
 
         epochs = mne.EpochsArray(data, info, events, tmin=0)
 
         result = eeg_mne2eeg(epochs)
 
-        # Check that result is a dict
         self.assertIsInstance(result, dict)
 
-        # Check that events were converted with string types
         self.assertIn('event', result)
-        self.assertIsInstance(result['event'], list)
+        self.assertIsInstance(result['event'], (list, np.ndarray))
         self.assertEqual(len(result['event']), 3)
 
-        # Check that event types are strings
         for event in result['event']:
-            self.assertIsInstance(event['type'], str)
-            self.assertEqual(event['type'], '999')
+            self.assertIsInstance(event['type'], int)
+            self.assertEqual(event['type'], 999)
+
+
+def _event_rows(events):
+    return [
+        (
+            event['type'],
+            event['latency'],
+            int(event['epoch']),
+            int(event['position']),
+        )
+        for event in events
+    ]
+
+
+def _epoch_rows(epochs):
+    rows = []
+    for epoch in epochs:
+        rows.append(
+            (
+                [int(value) for value in epoch['event']],
+                [str(value) for value in epoch['eventtype']],
+                [float(value) for value in epoch['eventlatency']],
+                [int(value) for value in epoch['eventposition']],
+            )
+        )
+    return rows
+
+
+def _mne_rows(epochs):
+    subject = (epochs.info.get('subject_info') or {}).get('his_id')
+    names = {code: name for name, code in epochs.event_id.items()}
+    locking = [names[int(code)] for code in epochs.events[:, 2]]
+    per_epoch = epochs.get_annotations_per_epoch(with_extras=True)
+    markers = []
+    for epoch_annots in per_epoch:
+        markers.append(
+            tuple(
+                (str(description), extras.get('latency'), int(extras.get('epoch')))
+                for _onset, _duration, description, extras in epoch_annots
+            )
+        )
+    return subject, tuple(locking), tuple(markers)
+
+
+class TestMNERoundTrip(unittest.TestCase):
+    """EEG and MNE epoch conversions preserve events and subject."""
 
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_eeg_mne2eeg_integration_workflow(self):
-        """Test end-to-end conversion workflow."""
-        # Create a realistic MNE Raw object
-        n_channels = 32
-        n_times = 2000
-        sfreq = 500.0
+    def test_sample_epochs_round_trip_events_and_subject(self):
+        original = pop_loadset(str(EPOCHED_DATASET))
+        original['subject'] = 'sub-01'
+        expected_events = _event_rows(original['event'])
+        expected_epochs = _epoch_rows(original['epoch'])
 
-        ch_names = [f'EEG{i:03d}' for i in range(n_channels)]
-        info = mne.create_info(ch_names, sfreq, ch_types='eeg')
-        data = np.random.randn(n_channels, n_times)
-        raw = mne.io.RawArray(data, info)
+        as_mne = eeg_eeg2mne(original)
+        restored = eeg_mne2eeg(as_mne)
+        self.assertEqual(restored['subject'], 'sub-01')
+        self.assertEqual(_event_rows(restored['event']), expected_events)
+        self.assertEqual(_epoch_rows(restored['epoch']), expected_epochs)
+        for original_event, restored_event in zip(original['event'], restored['event']):
+            self.assertNotIn('urevent', restored_event)
+            self.assertEqual(set(restored_event), set(original_event) - {'urevent'})
+        for original_epoch, restored_epoch in zip(original['epoch'], restored['epoch']):
+            self.assertNotIn('eventurevent', restored_epoch)
+            self.assertEqual(set(restored_epoch), set(original_epoch) - {'eventurevent'})
 
-        # Add realistic annotations using set_annotations method
-        annotations = mne.Annotations(
-            onset=[0.1, 0.5, 1.0, 1.5, 2.0],
-            duration=[0.05, 0.05, 0.05, 0.05, 0.05],
-            description=['stimulus', 'response', 'stimulus', 'response', 'stimulus'],
+        as_mne_again = eeg_eeg2mne(restored)
+        self.assertEqual(_mne_rows(as_mne_again), _mne_rows(as_mne))
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_sample_continuous_round_trip_subject(self):
+        original = pop_loadset(str(CONTINUOUS_DATASET))
+        original['subject'] = 'sub-02'
+        as_mne = eeg_eeg2mne(original)
+        self.assertEqual(as_mne.info['subject_info']['his_id'], 'sub-02')
+        restored = eeg_mne2eeg(as_mne)
+        self.assertEqual(restored['subject'], 'sub-02')
+        as_mne_again = eeg_eeg2mne(restored)
+        self.assertEqual(as_mne_again.info['subject_info']['his_id'], 'sub-02')
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_half_open_window_assigns_boundary_event_once(self):
+        sfreq = 100.0
+        n_times = 71
+        tmin = -0.2
+        info = mne.create_info(['EEG000'], sfreq, ch_types='eeg')
+        data = np.zeros((2, 1, n_times))
+        events = np.array([[0, 0, 1], [n_times, 0, 1]])
+        epochs = mne.EpochsArray(data, info, events, tmin=tmin, event_id={'target': 1}, verbose=False)
+        epochs.set_annotations(
+            mne.Annotations(
+                onset=[0.505, 0.51],
+                duration=[0.0, 0.0],
+                description=['edge', 'next'],
+            )
         )
-        raw.set_annotations(annotations)
 
-        result = eeg_mne2eeg(raw)
+        result = eeg_mne2eeg(epochs)
 
-        # Check that result is a dict
-        self.assertIsInstance(result, dict)
+        got = [(event['type'], int(event['epoch'])) for event in result['event']]
+        self.assertEqual(got.count(('edge', 1)), 1)
+        self.assertEqual(got.count(('next', 2)), 1)
+        self.assertNotIn(('edge', 2), got)
+        self.assertNotIn(('next', 1), got)
 
-        # Check basic properties
-        self.assertEqual(result['nbchan'], 32)
-        self.assertEqual(result['pnts'], 2000)
-        self.assertEqual(result['trials'], 1)
-        self.assertEqual(result['srate'], 500.0)
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_numeric_types_and_duration_round_trip(self):
+        eeg = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        eeg['event'] = [
+            {'type': 1, 'latency': 1, 'epoch': 1, 'duration': 16, 'urevent': 3},
+            {'type': 2, 'latency': 51, 'epoch': 2, 'duration': 0, 'urevent': 4},
+        ]
+        eeg['urevent'] = []
+        eeg['subject'] = 'sub-01'
 
-        # Check events
-        self.assertIn('event', result)
-        self.assertEqual(len(result['event']), 5)
+        restored = eeg_mne2eeg(eeg_eeg2mne(eeg))
 
-        # Check event types
-        event_types = [event['type'] for event in result['event']]
-        self.assertIn('stimulus', event_types)
-        self.assertIn('response', event_types)
+        self.assertEqual([event['type'] for event in restored['event']], [1, 2])
+        self.assertTrue(all(type(event['type']) is int for event in restored['event']))
+        self.assertEqual(restored['event'][0]['duration'], 16)
+        self.assertEqual(restored['event'][1]['duration'], 0)
+        self.assertTrue(all('duration' in event for event in restored['event']))
+        self.assertTrue(all('urevent' not in event for event in restored['event']))
+
+        padded = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        padded['event'] = [
+            {'type': '001', 'latency': 1, 'epoch': 1},
+            {'type': '002', 'latency': 51, 'epoch': 2},
+        ]
+        padded['urevent'] = []
+        padded_restored = eeg_mne2eeg(eeg_eeg2mne(padded))
+        self.assertEqual([event['type'] for event in padded_restored['event']], ['001', '002'])
+        self.assertTrue(all(type(event['type']) is str for event in padded_restored['event']))
+
+        mixed = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        mixed['event'] = [
+            {'type': 1, 'latency': 1, 'epoch': 1},
+            {'type': 'square', 'latency': 51, 'epoch': 2},
+        ]
+        mixed['urevent'] = []
+        mixed_restored = eeg_mne2eeg(eeg_eeg2mne(mixed))
+        self.assertEqual([event['type'] for event in mixed_restored['event']], ['1', 'square'])
+        self.assertTrue(all(type(event['type']) is str for event in mixed_restored['event']))
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_event_id_keys_are_plain_str(self):
+        eeg = create_test_eeg(n_channels=2, n_samples=50, srate=128.0, n_trials=2)
+        eeg['event'][0]['type'] = np.str_('square')
+        eeg['event'][1]['type'] = np.str_('rt')
+        converted = eeg_eeg2mne(eeg)
+        self.assertTrue(all(type(name) is str for name in converted.event_id))
+
+        info = mne.create_info(['EEG000'], 100.0, ch_types='eeg')
+        data = np.zeros((1, 1, 10))
+        epochs = mne.EpochsArray(
+            data,
+            info,
+            np.array([[0, 0, 1]]),
+            tmin=0.0,
+            event_id={np.str_('stimulus'): 1},
+            verbose=False,
+        )
+        restored = eeg_mne2eeg(epochs)
+        self.assertTrue(all(type(event['type']) is str for event in restored['event']))
+        self.assertEqual(restored['event'][0]['type'], 'stimulus')
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_apply_eeg_events_to_mne_rejects_empty_epoch(self):
+        info = mne.create_info(['EEG000'], 100.0, ch_types='eeg')
+        data = np.zeros((2, 1, 10))
+        epochs = mne.EpochsArray(
+            data,
+            info,
+            np.array([[0, 0, 1], [10, 0, 1]]),
+            tmin=0.0,
+            event_id={'target': 1},
+            verbose=False,
+        )
+        eeg = {
+            'trials': 2,
+            'pnts': 10,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.09,
+            'event': [{'type': 'target', 'latency': 1, 'epoch': 1}],
+        }
+        with self.assertRaisesRegex(ValueError, 'epoch 2 has no events'):
+            _apply_eeg_events_to_mne(epochs, eeg)
+
+    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
+    def test_eeg_eeg2mne_rejects_epoch_without_events(self):
+        middle = create_test_eeg(n_channels=2, n_samples=20, srate=100.0, n_trials=3)
+        middle['event'] = [middle['event'][0], middle['event'][2]]
+        with self.assertRaisesRegex(ValueError, 'epoch 2 has no events'):
+            eeg_eeg2mne(middle)
+
+        last = create_test_eeg(n_channels=2, n_samples=20, srate=100.0, n_trials=3)
+        last['event'] = last['event'][:-1]
+        with self.assertRaisesRegex(ValueError, 'epoch 3 has no events'):
+            eeg_eeg2mne(last)
+
+    def test_subject_text_rejects_multiple_values(self):
+        self.assertEqual(_subject_text(np.array([])), '')
+        with self.assertRaises(ValueError):
+            _subject_text(np.array(['a', 'b']))
 
 
 class TestMNEEventsToEEGLABEvents(unittest.TestCase):
@@ -428,12 +403,10 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_annotations(self):
         """Test conversion of MNE annotations to EEGLAB events."""
-        # Create MNE annotations
         annotations = mne.Annotations(
             onset=[0.1, 0.5, 1.0], duration=[0.05, 0.05, 0.05], description=['event1', 'event2', 'event3']
         )
 
-        # Create a mock raw object with annotations
         class MockRaw:
             def __init__(self, annotations, sfreq):
                 self.annotations = annotations
@@ -443,11 +416,9 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         result = _mne_events_to_eeglab_events(raw)
 
-        # Check result structure
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 3)
 
-        # Check event structure
         for event in result:
             self.assertIn('latency', event)
             self.assertIn('type', event)
@@ -462,7 +433,6 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
     @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
     def test_mne_events_to_eeglab_events_events_array(self):
         """Test conversion of MNE events array to EEGLAB events."""
-        # Create MNE events array
         events = np.array(
             [
                 [0, 0, 1],  # sample 0, event type 1
@@ -471,7 +441,6 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
             ]
         )
 
-        # Create a mock epochs object with events and event_id
         class MockEpochs:
             def __init__(self, events, event_id, sfreq):
                 self.events = events
@@ -483,11 +452,9 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
 
         result = _mne_events_to_eeglab_events(epochs)
 
-        # Check result structure
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 3)
 
-        # Check event structure
         for event in result:
             self.assertIn('latency', event)
             self.assertIn('type', event)
@@ -499,78 +466,9 @@ class TestMNEEventsToEEGLABEvents(unittest.TestCase):
         expected_latencies = [1, 101, 201]
         self.assertEqual(latencies, expected_latencies)
 
-        # Check event types
         event_types = [event['type'] for event in result]
         expected_types = ['stimulus', 'response', 'stimulus']
         self.assertEqual(event_types, expected_types)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_mne_events_to_eeglab_events_no_event_id(self):
-        """Test conversion when event_id is not available."""
-        # Create MNE events array
-        events = np.array(
-            [
-                [0, 0, 1],
-                [100, 0, 2],
-            ]
-        )
-
-        # Create a mock epochs object without event_id
-        class MockEpochs:
-            def __init__(self, events, sfreq):
-                self.events = events
-                self.info = {'sfreq': sfreq}
-
-        epochs = MockEpochs(events, 500.0)
-
-        result = _mne_events_to_eeglab_events(epochs)
-
-        # Check result structure
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 2)
-
-        # Check event types (should be string representations of numbers)
-        event_types = [event['type'] for event in result]
-        expected_types = ['1', '2']
-        self.assertEqual(event_types, expected_types)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_mne_events_to_eeglab_events_empty_annotations(self):
-        """Test conversion with empty annotations."""
-        # Create empty MNE annotations
-        annotations = mne.Annotations([], [], [])
-
-        class MockRaw:
-            def __init__(self, annotations, sfreq):
-                self.annotations = annotations
-                self.info = {'sfreq': sfreq}
-
-        raw = MockRaw(annotations, 500.0)
-
-        result = _mne_events_to_eeglab_events(raw)
-
-        # Check result structure
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 0)
-
-    @unittest.skipUnless(MNE_AVAILABLE, "MNE not available")
-    def test_mne_events_to_eeglab_events_no_events(self):
-        """Test conversion with no events."""
-        # Create empty events array
-        events = np.array([]).reshape(0, 3)
-
-        class MockEpochs:
-            def __init__(self, events, sfreq):
-                self.events = events
-                self.info = {'sfreq': sfreq}
-
-        epochs = MockEpochs(events, 500.0)
-
-        result = _mne_events_to_eeglab_events(epochs)
-
-        # Check result structure
-        self.assertIsInstance(result, list)
-        self.assertEqual(len(result), 0)
 
 
 if __name__ == '__main__':

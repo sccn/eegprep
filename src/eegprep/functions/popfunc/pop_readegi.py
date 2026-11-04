@@ -10,6 +10,7 @@ import numpy as np
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._file_io import eeg_from_data
 from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.popfunc.pop_chanevent import pop_chanevent
 from eegprep.functions.sigprocfunc.readegi import readegi
 from eegprep.functions.sigprocfunc.readegilocs import readegilocs
 
@@ -27,7 +28,11 @@ def pop_readegi(
     ``datachunks`` uses EEGLAB-facing 1-based frame or segment numbers. EGI
     integer A/D values are converted to microvolts by :func:`readegi`, event
     channels become dataset events, and segmented recordings are returned as
-    channel-by-point-by-trial arrays.
+    channel-by-point-by-trial arrays. An ``epoc`` event with no ``tim0`` event
+    is stored as ``boundary``. When both codes are present, the sample count
+    divides evenly into one more trial than there are ``epoc`` events, and each
+    ``epoc`` latency is the last sample of one of those trials, the pauses
+    become the trial boundaries and the ``epoc`` events are removed.
     """
     path = Path(filename)
     header, trial_data, event_data, categories = readegi(path, datachunks, forceversion)
@@ -68,21 +73,25 @@ def _egi_to_eeg(
         chanlocs=channel_locations,
     )
 
-    points, trials = _dataset_dimensions(header, trial_data.shape[1])
-    eeg["pnts"] = points
-    eeg["trials"] = trials
-    eeg["xmax"] = (points - 1) / float(header["samp_rate"]) if points else 0.0
-    eeg["times"] = np.arange(points, dtype=float) / float(header["samp_rate"]) * 1000.0
-    eeg["event"] = np.asarray(_event_records(event_data, header["eventcode"], points, trials), dtype=object)
-
+    eeg = _import_event_channels(eeg, event_data, list(header["eventcode"]))
     if _has_empty_reference(eeg["data"]):
         eeg["data"] = np.asarray(eeg["data"][:-1, :])
         eeg["nbchan"] = int(eeg["data"].shape[0])
         eeg["chanlocs"] = np.asarray(eeg["chanlocs"][:-1], dtype=object)
 
-    if trials > 1:
-        flat = np.asarray(eeg["data"])
-        eeg["data"] = flat.reshape(flat.shape[0], trials, points).transpose(0, 2, 1)
+    split_epochs = False
+    if not header["segmented"]:
+        split_epochs = _split_continuous_epochs(eeg)
+    if not split_epochs:
+        _rename_epoc_pauses(eeg)
+        points, trials = _dataset_dimensions(header, int(np.asarray(eeg["data"]).shape[1]))
+        eeg["pnts"] = points
+        eeg["trials"] = trials
+        eeg["xmax"] = (points - 1) / float(header["samp_rate"]) if points else 0.0
+        eeg["times"] = np.arange(points, dtype=float) / float(header["samp_rate"]) * 1000.0
+        if trials > 1:
+            flat = np.asarray(eeg["data"])
+            eeg["data"] = flat.reshape(flat.shape[0], trials, points).transpose(0, 2, 1)
     _apply_segment_categories(eeg, header, categories)
     _rebuild_urevents(eeg)
     with strict_mode(False):
@@ -93,25 +102,108 @@ def _egi_to_eeg(
     return eeg
 
 
-def _event_records(
-    event_data: np.ndarray,
-    event_codes: list[str],
-    points: int,
-    trials: int,
-) -> list[dict[str, Any]]:
-    if event_data.shape[1] == 0:
+def _import_event_channels(eeg: dict[str, Any], event_data: np.ndarray, event_codes: list[str]) -> dict[str, Any]:
+    """Import EGI event channels with EEGLAB's ``pop_chanevent`` call.
+
+    Channels are scanned from last to first on the concatenated 2-D recording.
+    Each call keeps existing events, names the event from the channel code, and
+    deletes the channel. A leading edge is the sample before the new level.
+    """
+    if event_data.shape[0] == 0 or event_data.size == 0:
+        return eeg
+    for index in range(event_data.shape[0] - 1, -1, -1):
+        data = np.asarray(eeg["data"])
+        eeg["data"] = np.vstack((data, event_data[index]))
+        eeg["nbchan"] = int(eeg["data"].shape[0])
+        eeg = pop_chanevent(
+            eeg,
+            int(eeg["nbchan"]),
+            "edge",
+            "leading",
+            "delevent",
+            "off",
+            "typename",
+            event_codes[index],
+            "nbtype",
+            1,
+            "delchan",
+            "on",
+        )
+    return eeg
+
+
+def _event_name(event: dict[str, Any]) -> str:
+    return str(event.get("type", "")).strip().lower()
+
+
+def _event_dicts(eeg: dict[str, Any]) -> list[dict[str, Any]]:
+    events = eeg.get("event", [])
+    if events is None:
         return []
-    events = []
-    for event_index in range(event_data.shape[0] - 1, -1, -1):
-        values = np.asarray(event_data[event_index])
-        differences = np.diff(np.abs(np.r_[0, values]))
-        for latency in np.flatnonzero(differences > 0) + 1:
-            event = {"type": event_codes[event_index], "latency": int(latency)}
-            if trials > 1:
-                event["epoch"] = 1 + int((latency - 1) // points)
-            events.append(event)
-    events.sort(key=lambda event: (int(event.get("epoch", 0)), int(event["latency"])))
-    return events
+    return [dict(event) for event in events]
+
+
+def _rename_epoc_pauses(eeg: dict[str, Any]) -> None:
+    """Store every ``epoc`` event as ``boundary`` when ``tim0`` is absent."""
+    events = _event_dicts(eeg)
+    if any(_event_name(event) == "tim0" for event in events):
+        return
+    if not any(_event_name(event) == "epoc" for event in events):
+        return
+    for event in events:
+        if _event_name(event) == "epoc":
+            event["type"] = "boundary"
+    eeg["event"] = np.asarray(events, dtype=object)
+
+
+def _epoc_latencies_mark_boundaries(events: list[dict[str, Any]], points: int, epoc_count: int) -> bool:
+    """Return whether each ``epoc`` latency is the last sample of epoch ``k``.
+
+    Epoch ``k`` ends at latency ``k * points`` for ``k = 1 .. epoc_count``.
+    """
+    latencies = []
+    for event in events:
+        if _event_name(event) != "epoc":
+            continue
+        latency = float(event["latency"])
+        if not latency.is_integer():
+            return False
+        latencies.append(int(latency))
+    return set(latencies) == {points * index for index in range(1, epoc_count + 1)}
+
+
+def _split_continuous_epochs(eeg: dict[str, Any]) -> bool:
+    """Reshape a continuous ``epoc`` plus ``tim0`` recording into equal trials.
+
+    The trial count is the number of ``epoc`` events plus one. Returns False
+    unless every ``epoc`` latency is ``k * pnts`` for a distinct ``k`` from 1
+    through that count. The ``epoc`` events are removed after the split.
+    """
+    events = _event_dicts(eeg)
+    epoc_count = sum(_event_name(event) == "epoc" for event in events)
+    if epoc_count == 0 or not any(_event_name(event) == "tim0" for event in events):
+        return False
+    data = np.asarray(eeg["data"])
+    epoch_count = epoc_count + 1
+    if data.ndim != 2 or data.shape[1] % epoch_count:
+        return False
+    points = data.shape[1] // epoch_count
+    if not _epoc_latencies_mark_boundaries(events, points, epoc_count):
+        return False
+    eeg["data"] = data.reshape(data.shape[0], epoch_count, points).transpose(0, 2, 1)
+    eeg["pnts"] = points
+    eeg["trials"] = epoch_count
+    srate = float(eeg["srate"])
+    eeg["xmax"] = (points - 1) / srate if points else 0.0
+    eeg["times"] = np.arange(points, dtype=float) / srate * 1000.0
+    kept = []
+    for event in events:
+        if _event_name(event) == "epoc":
+            continue
+        event["epoch"] = 1 + int((float(event["latency"]) - 1) // points)
+        kept.append(event)
+    eeg["event"] = np.asarray(kept, dtype=object)
+    return True
 
 
 def _dataset_dimensions(header: dict[str, Any], loaded_samples: int) -> tuple[int, int]:

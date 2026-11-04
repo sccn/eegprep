@@ -221,6 +221,10 @@ def _tokens(value: Any) -> list[str] | None:
         return None
     if isinstance(value, str):
         return [str(item) for item in parse_text_tokens(value)]
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return None
+        return [str(item) for item in value.ravel()]
     return [str(item) for item in value]
 
 

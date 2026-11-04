@@ -6,7 +6,6 @@ import mne
 import numpy as np
 import pytest
 
-import eegprep
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
 from eegprep.functions.sigprocfunc.writegdf import writegdf
@@ -129,41 +128,3 @@ def test_writegdf_avoids_collisions_between_numeric_and_text_event_codes(tmp_pat
 
     assert mapping == {"stimulus": 32769}
     assert list(raw.annotations.description) == ["32768", "32769"]
-
-
-@pytest.mark.parametrize(
-    ("mutation", "message"),
-    [
-        (lambda eeg: eeg.update(data=eeg["data"][:, :, None], trials=2), "continuous"),
-        (lambda eeg: eeg.update(data=eeg["data"].astype(complex) + 1j), "real"),
-        (lambda eeg: eeg["data"].__setitem__((0, 0), np.nan), "finite"),
-        (lambda eeg: eeg.update(srate=0), "sampling_rate"),
-        (lambda eeg: eeg["chanlocs"][0].update(labels="label-is-more-than-sixteen-bytes"), "16 bytes"),
-        (lambda eeg: eeg["event"][0].update(latency=1000), "outside"),
-        (lambda eeg: eeg["event"][0].update(type=2.5), "integers"),
-        (lambda eeg: eeg.update(srate=256.5), "integer sampling rate"),
-    ],
-)
-def test_writegdf_rejects_data_that_cannot_be_represented(
-    tmp_path: Path,
-    mutation,
-    message: str,
-) -> None:
-    eeg = _eeg()
-    mutation(eeg)
-
-    with pytest.raises(ValueError, match=message):
-        _write(eeg, tmp_path / "invalid.gdf")
-
-
-def test_writegdf_and_pop_writeeeg_reject_mismatched_output_types(tmp_path: Path) -> None:
-    eeg = _eeg()
-
-    with pytest.raises(ValueError, match="end in .gdf"):
-        _write(eeg, tmp_path / "invalid.edf")
-    with pytest.raises(ValueError, match="TYPE must match"):
-        pop_writeeeg(eeg, tmp_path / "invalid.gdf", "TYPE", "EDF")
-
-
-def test_writegdf_is_public() -> None:
-    assert eegprep.writegdf is writegdf

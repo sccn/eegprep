@@ -1,12 +1,26 @@
 """BIDS utilities."""
 
+from __future__ import annotations
+
 import os
-from typing import Sequence, Dict, Any, Optional
+from typing import TYPE_CHECKING, Sequence, Dict, Any, Optional
 
-import bids
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import bids
+
+from .sidecar import read_bids_json
 
 
-__all__ = ['root_for_fpath', 'gen_derived_fpath', 'layout_for_fpath', 'layout_get_lenient', 'query_for_adjacent_fpath']
+__all__ = [
+    'root_for_fpath',
+    'gen_derived_fpath',
+    'layout_for_fpath',
+    'layout_get_lenient',
+    'metadata_for_bids_file',
+    'query_for_adjacent_fpath',
+]
 
 
 # cache of BIDS layout objects, by root path
@@ -62,7 +76,7 @@ def root_for_fpath(fn: str) -> str:
 
 def query_for_adjacent_fpath(fn: str, **overrides) -> Dict[str, Any]:
     """Generate a query dictionary (of entities) for a given file path in a BIDS dataset."""
-    layout = layout_for_fpath(fn)
+    layout = layout_for_fpath(fn, feature="query_for_adjacent_fpath")
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)
     return query_entities
@@ -129,19 +143,71 @@ def gen_derived_fpath(
     return out_path
 
 
-def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
+def layout_for_fpath(filepath: str, *, feature: str = "layout_for_fpath") -> bids.BIDSLayout:
     """Get the applicable BIDS layout object for a given file path."""
+    bids = import_optional_dependency("bids", feature=feature)
     bids_root = root_for_fpath(filepath)
     try:
         return layout_cache[bids_root]
     except KeyError:
-        layout = bids.BIDSLayout(bids_root, validate=False)
+        layout = bids.BIDSLayout(
+            bids_root,
+            validate=False,
+            indexer=bids.BIDSLayoutIndexer(index_metadata=False),
+        )
         layout_cache[bids_root] = layout
         return layout
 
 
+def _filename_entity_count(path: str) -> int:
+    """Count key-value entities written in the file name."""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    return sum("-" in part for part in stem.split("_"))
+
+
+def metadata_for_bids_file(
+    layout: bids.BIDSLayout,
+    filename: str,
+    *,
+    include_entities: bool = False,
+) -> Dict[str, Any]:
+    """Return JSON sidecar metadata for one BIDS data file.
+
+    A sidecar applies when it shares the data file's suffix and is in that
+    file's directory or a parent. Every entity in the sidecar's name must
+    match the data file: the sidecar's entities are a subset of the file's.
+    Values load from the dataset root downward, so a lower directory overrides
+    the same key. In one directory, the sidecar with more entities overrides
+    a more general one. With ``include_entities``,
+    :meth:`parse_file_entities` is merged in as well.
+    """
+    data_entities = layout.parse_file_entities(filename)
+    metadata: Dict[str, Any] = {}
+    suffix = data_entities.get('suffix')
+    if suffix:
+        data_dir = os.path.dirname(os.path.abspath(filename))
+        root = os.path.abspath(str(layout.root))
+        applicable: list[tuple[int, int, str]] = []
+        for candidate in layout.get(extension='.json', suffix=suffix, return_type='object'):
+            path = os.path.abspath(candidate.path)
+            directory = os.path.dirname(path)
+            if os.path.commonpath([directory, data_dir]) != directory:
+                continue
+            entities = {key: value for key, value in candidate.entities.items() if key != 'extension'}
+            if any(data_entities.get(key) != value for key, value in entities.items()):
+                continue
+            relative = os.path.relpath(directory, root)
+            depth = 0 if relative == '.' else len(relative.split(os.sep))
+            applicable.append((depth, _filename_entity_count(path), path))
+        for _depth, _entity_count, path in sorted(applicable):
+            metadata.update(read_bids_json(path))
+    if include_entities:
+        metadata.update(data_entities)
+    return metadata
+
+
 def layout_get_lenient(
-    layout: 'bids.BIDSLayout',
+    layout: bids.BIDSLayout,
     *,
     return_type: str = 'filename',
     tolerate_missing: Sequence[str] = ('task', 'run'),
@@ -182,7 +248,6 @@ def layout_get_lenient(
             break
     if expect_one and len(results) > 1:
         if 'run' in query_entities:
-            # filter the entities to those that match the run exactly
             # (this helps disambiguate 001 vs 1 etc)
             # rule: try to use the run as a verbatim string to disambiguate 001 vs 1 etc
             run = str(query_entities['run'])

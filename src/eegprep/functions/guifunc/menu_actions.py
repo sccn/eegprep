@@ -16,7 +16,7 @@ from eegprep.functions.guifunc.long_task import LongTaskHandle, run_long_task
 from eegprep.functions.guifunc.menu_placeholders import PLACEHOLDER_ACTIONS, is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
-from eegprep.functions.adminfunc.eegh import eegh
+from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
 
@@ -1580,7 +1580,10 @@ class MenuActionDispatcher:
         elif name == "pop_erpimage":
             from eegprep.functions.popfunc.pop_erpimage import pop_erpimage
 
-            _result, command = pop_erpimage(selection, typeplot=0 if variant == "components" else 1, return_com=True)
+            typeplot = 0 if variant == "components" else 1
+            # Like EEGLAB's menu, the dialog reopens with the last matching command's values.
+            lastcom = eegh_find(self.session.ALLCOM, f"pop_erpimage(EEG, {typeplot},")
+            _result, command = pop_erpimage(selection, typeplot, lastcom=lastcom, return_com=True)
         elif name == "pop_envtopo":
             from eegprep.functions.popfunc.pop_envtopo import pop_envtopo
 

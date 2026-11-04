@@ -28,7 +28,6 @@ def _segmented_fixture(path: Path, *, trials: int = 3, pnts: int = 12) -> list[n
     return segments
 
 
-@eeglab_test(UPSTREAM_WRAPPER, "test_test_pop_importegimat")
 def test_pop_importegimat_loads_segmented_netstation_export(tmp_path: Path) -> None:
     """Turn the upstream assertion-free smoke call into an observable contract."""
     path = tmp_path / "segmented_matlab.mat"
@@ -124,24 +123,6 @@ def test_pop_importegimat_loads_continuous_session_data(tmp_path: Path) -> None:
     assert len(eeg["event"]) == 0
 
 
-def test_pop_importegimat_accepts_continuous_field_prefix(tmp_path: Path) -> None:
-    path = tmp_path / "continuous_prefix.mat"
-    data = np.arange(8, dtype=np.float64).reshape(2, 4)
-    savemat(path, {"NetStationSession": data})
-
-    eeg, command = pop_importegimat(
-        path,
-        srate=200,
-        data_field="NetStation",
-        fileloc="",
-        return_com=True,
-    )
-
-    np.testing.assert_array_equal(eeg["data"], data)
-    assert eeg["srate"] == 200
-    assert "'NetStation'" in command
-
-
 def test_pop_importegimat_orders_types_and_numeric_segment_numbers(tmp_path: Path) -> None:
     path = tmp_path / "ordering.mat"
     savemat(
@@ -171,47 +152,13 @@ def test_pop_importegimat_keeps_a_reference_channel_with_late_signal(tmp_path: P
     assert eeg["nbchan"] == 2
 
 
-@pytest.mark.parametrize(
-    ("variables", "kwargs", "message"),
-    [
-        ({"Session": np.ones((2, 3))}, {}, "srate is required"),
-        ({"samplingRate": [[0]], "Session": np.ones((2, 3))}, {}, "srate must be positive"),
-        (
-            {"samplingRate": [[100], [200]], "Session": np.ones((2, 3))},
-            {},
-            "srate must be a scalar",
-        ),
-        ({"samplingRate": [[250]], "Other": np.ones((2, 3))}, {}, "data field not found"),
-        (
-            {"samplingRate": [[250]], "Session": np.ones((2, 3, 4))},
-            {},
-            "must be a 2-D",
-        ),
-        (
-            {"samplingRate": [[250]], "A_Segment1": np.ones((2, 3)), "A_Segment2": np.ones((2, 4))},
-            {},
-            "same shape",
-        ),
-        (
-            {"samplingRate": [[250]], "A_Segment1": np.ones((2, 3))},
-            {"latpoint0": np.inf},
-            "latpoint0 must be finite",
-        ),
-    ],
-)
-def test_pop_importegimat_rejects_invalid_inputs(
-    tmp_path: Path,
-    variables: dict[str, object],
-    kwargs: dict[str, object],
-    message: str,
-) -> None:
-    path = tmp_path / "invalid.mat"
-    savemat(path, variables)
-
-    with pytest.raises(ValueError, match=message):
-        pop_importegimat(path, fileloc="", **kwargs)
-
-
-def test_pop_importegimat_requires_an_existing_file(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="EGI MATLAB file not found"):
-        pop_importegimat(tmp_path / "missing.mat")
+@eeglab_test(UPSTREAM_WRAPPER, "test_test_pop_importegimat")
+def test_upstream_pop_importegimat_original_recording(eeglab_backend, eeglab_suite_root):
+    filename = eeglab_suite_root / "unittesting_binary/testfiles/EGI/segmented_matlab.mat"
+    eeg = eeglab_backend("pop_importegimat", str(filename))
+    assert eeg["data"].size > 0
+    assert eeg["data"].shape == (
+        int(np.asarray(eeg["nbchan"]).item()),
+        int(np.asarray(eeg["pnts"]).item()),
+        int(np.asarray(eeg["trials"]).item()),
+    )

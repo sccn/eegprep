@@ -2,21 +2,119 @@ from __future__ import annotations
 
 import logging
 import struct
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 from scipy.signal import freqz
 
-from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, parsetxt, readneurodat, readtxtfile
-from tests.eeglab_tests import eeglab_test
+from eegprep import blockave, eegfilt, env, loadeeg, loadtxt, movav, pop_loadset, readneurodat
+from tests.eeglab_tests import assert_matlab_near, eeglab_test
 
 
 SIGPROC = "unittesting_sigprocfunc"
 
 
 @eeglab_test(f"{SIGPROC}/blockave/sigprocfunc_blockave_wrapperTest.m", "test_pass_equal_weights")
-def test_blockave_equal_weights_matches_current_suite() -> None:
+def test_reference_blockave(eeglab_backend):
+    data = np.array([[-3, 0.5, 1, -3.9, 0.5, -1.1], [2, 2, 3, -1.5, 4, 4]], dtype=float)
+    actual = eeglab_backend("blockave", data, 2.0)
+    # The source uses exact isequal, not the near helper, for this case.
+    np.testing.assert_array_equal(actual, [[-0.5, -1.5], [3.0, 1.5]])
+
+
+@eeglab_test(f"{SIGPROC}/env/sigprocfunc_env_wrapperTest.m", "test_pass_general")
+@eeglab_test(f"{SIGPROC}/env/sigprocfunc_env_wrapperTest.m", "test_pass_interpolate")
+def test_reference_env(eeglab_backend):
+    data = np.array([[2, 1, 3], [8, 2, 6], [4, 7, 3], [0, 1, -3], [-5, 3, 1]], dtype=float)
+    expected = np.array([[8, 7, 6], [-5, 1, -3]], dtype=float)
+    assert_matlab_near(eeglab_backend("env", data), expected)
+    interpolated = eeglab_backend("env", data, np.array([[1.0, 3.0]]), np.arange(1, 3.5, 0.5)[None, :])
+    assert_matlab_near(interpolated[:, [0, 2, 4]], expected)
+    assert np.all(interpolated[0] >= interpolated[1])
+
+
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_data_column_vector")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_five_frames")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_four_frames")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_general")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_i_empty")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_nonorm_one")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwidth_high")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwidth_low")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwin_column")
+@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwin_near_zero")
+def test_reference_movav(eeglab_backend):
+    data = np.array([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]], dtype=float)
+    empty = np.empty((0, 0))
+    expected_x = np.arange(1.0, 6.0)[None, :] + 0.625
+    cases = [
+        (np.array([[1], [2], [3], [0], [5], [-6]], dtype=float), (), [[1.5, 2.5, 1.5, 2.5, -0.5]], expected_x),
+        (data[:, :5], (), data[:, :5], np.arange(1.0, 6.0)[None, :] + 0.5),
+        (data[:, :4], (), data[:, :4], np.arange(1.0, 5.0)[None, :] + 0.375),
+        (data, (), [[1.5, 3.5, 4, 2.5, 0.5], [1.5, 2.5, 3.5, 4.5, 5.5], [-1, 2, -1, -1.5, 2]], expected_x),
+        (
+            data,
+            (np.array([[4, 5, 6, 6, 6, 6]], dtype=float), 0.0, 0.0, 1.0, 6.0),
+            [[0, 0, 1, 1.5, 2.2], [0, 0, 1, 1.5, 4], [0, 0, -2, -1, 0.4]],
+            expected_x,
+        ),
+        (
+            data,
+            (0.0, 0.0, 0.0, empty, empty, 0.0, 1.0),
+            [[3, 7, 8, 5, 1], [3, 5, 7, 9, 11], [-2, 4, -2, -3, 4]],
+            expected_x,
+        ),
+        (data, (0.0, 7.0), [[2.0], [3.5], [0.0]], [[4.5]]),
+        (
+            np.array(
+                [[1, 2, 5, 3, 2, -1, 0, 1, 2, -20], np.arange(1, 11), [-2, 0, 4, -6, 3, 1, -32, 5, 7, 18]], dtype=float
+            ),
+            (0.0, 2.0),
+            [
+                [1.5, 3.5, 4, 2.5, 0.5, -0.5, 0.5, 1.5, -9],
+                [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5],
+                [-1, 2, -1, -1.5, 2, -15.5, -13.5, 6, 12.5],
+            ],
+            np.arange(2.0, 11.0)[None, :],
+        ),
+        (
+            np.arange(1.0, 7.0)[None, :],
+            (0.0, 0.0, 0.0, empty, empty, np.array([[3.0], [1.0]])),
+            np.array([[5.0, 9.0, 13.0, 17.0, 21.0]]) / 4,
+            expected_x,
+        ),
+        (
+            np.arange(1.0, 7.0)[None, :],
+            (0.0, 0.0, 0.0, empty, empty, np.array([[3.0], [-3.0]])),
+            np.full((1, 5), -3.0),
+            expected_x,
+        ),
+    ]
+    for values, options, expected_data, times in cases:
+        actual_data, actual_times = eeglab_backend("movav", values, *options, nargout=2)
+        assert_matlab_near(actual_data, expected_data)
+        assert_matlab_near(actual_times, times)
+
+
+@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_custom_delim")
+@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_general")
+@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_only_delim")
+def test_reference_parsetxt(eeglab_backend):
+    actual = eeglab_backend("parsetxt", '1:3.c : "a"..}::{ ', '.:')
+    np.testing.assert_array_equal(actual, np.array([["1", "3", "c ", ' "a"', "}", "{ "]], dtype=object))
+    actual = eeglab_backend("parsetxt", ' Hello, , my  dear "friend".It\'s great! ')
+    np.testing.assert_array_equal(
+        actual, np.array([["Hello", "my", "dear", "friend", ".It", "s", "great!"]], dtype=object)
+    )
+    actual = eeglab_backend("parsetxt", ' , " \' \t,\', ')
+    assert actual.shape == (0, 0)
+    assert actual.dtype == object
+
+
+def test_python_regression_blockave_equal_weights_matches_current_suite() -> None:
     data = np.asarray([[-3, 0.5, 1, -3.9, 0.5, -1.1], [2, 2, 3, -1.5, 4, 4]])
 
     result = blockave(data, 2)
@@ -26,7 +124,147 @@ def test_blockave_equal_weights_matches_current_suite() -> None:
 
 
 @eeglab_test(f"{SIGPROC}/eegfilt/sigprocfunc_eegfilt_wrapperTest.m", "test_pass_general")
-def test_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
+@pytest.mark.gui
+def test_reference_eegfilt(eeglab_backend, request):
+    data = np.zeros((2, 48))
+    data[0, 0] = 1
+    data[1, ::2] = np.arange(1.0, 25.0)
+    filtered = eeglab_backend("eegfilt", data, 1.0, 0.17, 0.4)
+    times = np.arange(1.0, 49.0)[None, :]
+    matlab = request.config.getoption("--eeglab-backend") == "matlab"
+    try:
+        for channel in (0, 1):
+            signals = np.vstack((data[channel], filtered[channel]))
+            if matlab:
+                if channel:
+                    eeglab_backend("figure", nargout=0)
+                eeglab_backend("plot", times, signals, nargout=0)
+            else:
+                if channel:
+                    plt.figure()
+                plt.plot(times.ravel(), signals.T)
+    finally:
+        if matlab:
+            eeglab_backend("close", "all", nargout=0)
+        else:
+            plt.close("all")
+
+
+def _epoch_major_rows(data: np.ndarray) -> tuple[np.ndarray, int]:
+    channels, points, trials = data.shape
+    rows = np.transpose(data, (0, 2, 1)).reshape(channels, points * trials)
+    return rows, points
+
+
+def _edge_and_interior(delta: np.ndarray, frames: int, edge: int) -> tuple[float, float | None]:
+    pad = min(edge, frames)
+    edge_max = 0.0
+    interior: list[float] = []
+    for start in range(0, delta.shape[1], frames):
+        part = delta[:, start : start + frames]
+        if pad >= frames:
+            edge_max = max(edge_max, float(part.max()))
+            continue
+        edge_max = max(edge_max, float(part[:, :pad].max()), float(part[:, -pad:].max()))
+        if frames > 2 * pad:
+            interior.append(float(part[:, pad:-pad].max()))
+    return edge_max, max(interior) if interior else None
+
+
+def _passband_mean_amplitude(data: np.ndarray, srate: float, locutoff: float, hicutoff: float, frames: int) -> float:
+    means = []
+    for start in range(0, data.shape[1], frames):
+        part = data[:, start : start + frames]
+        spectrum = np.abs(np.fft.rfft(part, axis=1))
+        freqs = np.fft.rfftfreq(part.shape[1], d=1.0 / srate)
+        band = np.ones(freqs.shape, dtype=bool)
+        if locutoff > 0:
+            band &= freqs >= locutoff
+        if hicutoff > 0:
+            band &= freqs <= hicutoff
+        means.append(float(spectrum[:, band].mean()))
+    return float(np.mean(means))
+
+
+def _eegfilt_parity_message(
+    name: str,
+    python: np.ndarray,
+    matlab: np.ndarray,
+    python_b: np.ndarray,
+    matlab_b: np.ndarray,
+    srate: float,
+    locutoff: float,
+    hicutoff: float,
+    epochframes: int,
+) -> str:
+    python_b = np.ravel(python_b)
+    matlab_b = np.ravel(matlab_b)
+    if python.shape != matlab.shape or python_b.shape != matlab_b.shape:
+        return f"{name}: shape data {python.shape} vs {matlab.shape}, coeff {python_b.size} vs {matlab_b.size}"
+    delta = np.abs(python - matlab)
+    frames = epochframes or python.shape[1]
+    edge_max, interior_max = _edge_and_interior(delta, frames, 3 * (python_b.size - 1))
+    interior = "n/a" if interior_max is None else f"{interior_max:.6e}"
+    passband_python = _passband_mean_amplitude(python, srate, locutoff, hicutoff, frames)
+    passband_matlab = _passband_mean_amplitude(matlab, srate, locutoff, hicutoff, frames)
+    return (
+        f"{name}: coeff_max_abs={float(np.max(np.abs(python_b - matlab_b))):.6e} "
+        f"data_max_abs={float(delta.max()):.6e} edge_max_abs={edge_max:.6e} "
+        f"interior_max_abs={interior} "
+        f"passband_mean_abs_python={passband_python:.6e} "
+        f"passband_mean_abs_matlab={passband_matlab:.6e}"
+    )
+
+
+def test_eegfilt_sample_data_matches_matlab(eeglab_backend, request):
+    """Compare eegfilt with EEGLAB eegfilt on the checked-in sample recordings."""
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.skip("compares EEGPrep eegfilt with EEGLAB eegfilt")
+
+    continuous = np.asarray(pop_loadset("sample_data/eeglab_data.set")["data"], dtype=np.float64)
+    epoched, epochframes = _epoch_major_rows(
+        np.asarray(pop_loadset("sample_data/eeglab_data_epochs_ica.set")["data"], dtype=np.float64)
+    )
+    srate = 128.0
+    cases = (
+        ("continuous_highpass_default_order", continuous, 1.0, 0.0, 0, 0),
+        ("continuous_bandpass_order_100", continuous, 1.0, 40.0, 0, 100),
+        ("epoched_lowpass_order_126", epoched, 0.0, 40.0, epochframes, 126),
+        ("epoched_lowpass_order_127", epoched, 0.0, 40.0, epochframes, 127),
+    )
+    for name, data, locutoff, hicutoff, frames, order in cases:
+        python, python_b = eegfilt(data, srate, locutoff, hicutoff, frames, order)
+        matlab, matlab_b = eeglab_backend(
+            "eegfilt",
+            data,
+            srate,
+            locutoff,
+            hicutoff,
+            float(frames),
+            float(order),
+            0.0,
+            "firls",
+            0.0,
+            nargout=2,
+        )
+        python = np.asarray(python, dtype=float)
+        matlab = np.asarray(matlab, dtype=float)
+        message = _eegfilt_parity_message(
+            name, python, matlab, python_b, np.asarray(matlab_b), srate, locutoff, hicutoff, frames
+        )
+        warnings.warn(message, UserWarning, stacklevel=1)
+        assert python.shape == matlab.shape, message
+        np.testing.assert_allclose(
+            np.ravel(python_b),
+            np.ravel(np.asarray(matlab_b, dtype=float)),
+            rtol=1e-7,
+            atol=1e-12,
+            err_msg=message,
+        )
+        np.testing.assert_allclose(python, matlab, rtol=1e-7, atol=1e-8, err_msg=message)
+
+
+def test_python_regression_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
     data = np.asarray(
         [
             [1, *([0] * 47)],
@@ -60,15 +298,7 @@ def test_eegfilt_general_case_designs_and_applies_legacy_bandpass() -> None:
     assert not np.allclose(filtered, data)
 
 
-@eeglab_test(f"{SIGPROC}/env/sigprocfunc_env_wrapperTest.m", "test_pass_general")
-def test_env_general_case_matches_current_suite() -> None:
-    data = np.asarray([[2, 1, 3], [8, 2, 6], [4, 7, 3], [0, 1, -3], [-5, 3, 1]])
-
-    np.testing.assert_allclose(env(data), [[8, 7, 6], [-5, 1, -3]])
-
-
-@eeglab_test(f"{SIGPROC}/env/sigprocfunc_env_wrapperTest.m", "test_pass_interpolate")
-def test_env_interpolation_preserves_current_suite_anchors_and_envelope_order() -> None:
+def test_python_regression_env_interpolation_preserves_current_suite_anchors_and_envelope_order() -> None:
     data = np.asarray([[2, 1, 3], [8, 2, 6], [4, 7, 3], [0, 1, -3], [-5, 3, 1]])
 
     result = env(data, [1, 3], np.arange(1, 3.1, 0.5))
@@ -78,185 +308,79 @@ def test_env_interpolation_preserves_current_suite_anchors_and_envelope_order() 
     assert np.all(result[0] >= result[1])
 
 
-def _assert_movav(data: np.ndarray, expected_data: np.ndarray, expected_x: np.ndarray, **kwargs) -> None:
-    result, result_x = movav(data, **kwargs)
-    expected = np.asarray(expected_data)
-    if result.shape[1] == 1 and expected.ndim == 1:
-        expected = expected[:, None]
-    else:
-        expected = np.atleast_2d(expected)
-    np.testing.assert_allclose(result, expected)
-    np.testing.assert_allclose(result_x, np.atleast_1d(expected_x))
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_data_column_vector")
-def test_movav_column_vector_matches_current_suite() -> None:
-    _assert_movav(np.asarray([[1], [2], [3], [0], [5], [-6]]), [1.5, 2.5, 1.5, 2.5, -0.5], 0.625 + np.arange(1, 6))
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_five_frames")
-def test_movav_five_frames_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2], np.arange(1, 6), [-2, 0, 4, -6, 3]])
-    _assert_movav(data, data, 0.5 + np.arange(1, 6))
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_four_frames")
-def test_movav_four_frames_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3], [1, 2, 3, 4], [-2, 0, 4, -6]])
-    _assert_movav(data, data, 0.375 + np.arange(1, 5))
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_general")
-def test_movav_general_case_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[1.5, 3.5, 4, 2.5, 0.5], [1.5, 2.5, 3.5, 4.5, 5.5], [-1, 2, -1, -1.5, 2]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6))
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_i_empty")
-def test_movav_empty_windows_match_current_suite_replication() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[0, 0, 1, 1.5, 2.2], [0, 0, 1, 1.5, 4], [0, 0, -2, -1, 0.4]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6), xvals=[4, 5, 6, 6, 6, 6], firstx=1, lastx=6)
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_nonorm_one")
-def test_movav_non_normalized_sums_match_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    expected = np.asarray([[3, 7, 8, 5, 1], [3, 5, 7, 9, 11], [-2, 4, -2, -3, 4]])
-    _assert_movav(data, expected, 0.625 + np.arange(1, 6), nonorm=True)
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwidth_high")
-def test_movav_oversize_width_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1], np.arange(1, 7), [-2, 0, 4, -6, 3, 1]])
-    _assert_movav(data, [2, 3.5, 0], [4.5], xvals=0, xwidth=7)
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwidth_low")
-def test_movav_two_sample_width_matches_current_suite() -> None:
-    data = np.asarray([[1, 2, 5, 3, 2, -1, 0, 1, 2, -20], np.arange(1, 11), [-2, 0, 4, -6, 3, 1, -32, 5, 7, 18]])
-    expected = np.asarray(
-        [
-            [1.5, 3.5, 4, 2.5, 0.5, -0.5, 0.5, 1.5, -9],
-            [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5],
-            [-1, 2, -1, -1.5, 2, -15.5, -13.5, 6, 12.5],
-        ]
-    )
-    _assert_movav(data, expected, np.arange(2, 11), xvals=0, xwidth=2)
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwin_column")
-def test_movav_column_window_matches_current_suite() -> None:
-    _assert_movav(
-        np.arange(1, 7), np.asarray([5, 9, 13, 17, 21]) / 4, 0.625 + np.arange(1, 6), xwin=np.asarray([[3], [1]])
-    )
-
-
-@eeglab_test(f"{SIGPROC}/movav/sigprocfunc_movav_wrapperTest.m", "test_pass_xwin_near_zero")
-def test_movav_zero_sum_window_matches_current_suite() -> None:
-    _assert_movav(np.arange(1, 7), np.full(5, -3), 0.625 + np.arange(1, 6), xwin=np.asarray([[3], [-3]]))
-
-
-def _numeric_text(rows: int = 5, columns: int = 6) -> str:
-    values = np.arange(1, rows * columns + 1).reshape(rows, columns)
-    return "\n".join(" ".join(str(value) for value in row) for row in values) + "\n"
+def _source_loadtxt(eeglab_backend, eeglab_suite_root, filename, *options):
+    source = eeglab_suite_root / "unittesting_sigprocfunc/loadtxt" / filename
+    return eeglab_backend("loadtxt", str(source), *options)
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_convert_force")
-def test_loadtxt_force_conversion_matches_current_suite_column_order(tmp_path: Path) -> None:
-    source = tmp_path / "convert_force.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "convert", "force", verbose="off")
-    np.testing.assert_allclose(result, np.arange(1, 31).reshape(5, 6).reshape(-1, order="F"))
+def test_upstream_loadtxt_force(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "convert_force.txt", "convert", "force")
+    expected = np.arange(1.0, 31.0).reshape(5, 6).reshape(1, -1, order="F")
+    assert_matlab_near(result, expected)
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_convert_off")
-def test_loadtxt_conversion_off_matches_current_suite_strings(tmp_path: Path) -> None:
-    source = tmp_path / "convert_off.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "convert", "off", verbose="off")
+def test_upstream_loadtxt_conversion_off(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "convert_off.txt", "convert", "off")
     np.testing.assert_array_equal(result, np.arange(1, 31).astype(str).reshape(5, 6))
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_general")
-def test_loadtxt_general_numeric_cells_match_current_suite(tmp_path: Path) -> None:
-    source = tmp_path / "general.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
+def test_upstream_loadtxt_general(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "general.txt")
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_negative_skipline")
-def test_loadtxt_negative_skipline_counts_only_nonempty_lines(tmp_path: Path) -> None:
-    source = tmp_path / "negative_skipline.txt"
-    source.write_text("this\n\nlines\n\nare\n\nempty\n\n" + _numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "skipline", -4, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
+def test_upstream_loadtxt_negative_skipline(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "negative_skipline.txt", "skipline", -4.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_nlines")
-def test_loadtxt_nlines_limits_nonempty_rows(tmp_path: Path) -> None:
-    source = tmp_path / "nlines.txt"
-    source.write_text(_numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "nlines", 3, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 19).reshape(3, 6))
+def test_upstream_loadtxt_nlines(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "nlines.txt", "nlines", 3.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 19.0).reshape(3, 6))
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_skipline")
-def test_loadtxt_positive_skipline_counts_physical_lines(tmp_path: Path) -> None:
-    source = tmp_path / "skipline.txt"
-    source.write_text("\n\n\n\n" + _numeric_text(), encoding="utf-8")
-    result = loadtxt(source, "skipline", 4, verbose="off")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 31).reshape(5, 6))
+def test_upstream_loadtxt_skipline(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "skipline.txt", "skipline", 4.0)
+    np.testing.assert_array_equal(result, np.arange(1.0, 31.0).reshape(5, 6))
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_text")
-def test_loadtxt_mixed_text_and_numbers_match_current_suite(tmp_path: Path) -> None:
-    source = tmp_path / "text.txt"
-    source.write_text(_numeric_text().replace("3", "three", 1), encoding="utf-8")
-    result = loadtxt(source, verbose="off")
-    assert result.shape == (5, 6)
-    assert result[0, 2] == "three"
-    assert result[4, 5] == 30.0
+def test_upstream_loadtxt_text(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "text.txt")
+    expected = np.arange(1.0, 31.0).reshape(5, 6).astype(object)
+    expected[0, 2] = "three"
+    np.testing.assert_array_equal(result, expected)
 
 
 @eeglab_test(f"{SIGPROC}/loadtxt/sigprocfunc_loadtxt_wrapperTest.m", "test_pass_verbose")
-def test_loadtxt_verbose_mode_reports_and_returns_current_suite_table(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    source = tmp_path / "verbose.txt"
-    source.write_text(_numeric_text(rows=11, columns=3), encoding="utf-8")
-    with caplog.at_level(logging.INFO, logger="eegprep.functions.sigprocfunc.loadtxt"):
-        result = loadtxt(source, verbose="on")
-    np.testing.assert_allclose(np.asarray(result, dtype=float), np.arange(1, 34).reshape(11, 3))
-    assert "Read 11 non-empty line(s)" in caplog.text
-
-
-@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_custom_delim")
-def test_parsetxt_custom_delimiters_match_current_suite() -> None:
-    assert parsetxt('1:3.c : "a"..}::{ ', ".:") == ["1", "3", "c ", ' "a"', "}", "{ "]
-
-
-@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_general")
-def test_parsetxt_general_case_matches_current_suite() -> None:
-    assert parsetxt(' Hello, , my  dear "friend".It\'s great! ') == [
-        "Hello",
-        "my",
-        "dear",
-        "friend",
-        ".It",
-        "s",
-        "great!",
-    ]
-
-
-@eeglab_test(f"{SIGPROC}/parsetxt/sigprocfunc_parsetxt_wrapperTest.m", "test_pass_only_delim")
-def test_parsetxt_delimiter_only_input_matches_current_suite() -> None:
-    assert parsetxt(" , \" ' \t,' , ") == []
+def test_upstream_loadtxt_verbose(eeglab_backend, eeglab_suite_root):
+    result = _source_loadtxt(eeglab_backend, eeglab_suite_root, "verbose.txt", "verbose", "on")
+    np.testing.assert_array_equal(result, np.arange(1.0, 34.0).reshape(11, 3))
 
 
 @eeglab_test(f"{SIGPROC}/readneurodat/sigprocfunc_readneurodat_wrapperTest.m", "test_pass_general")
+def test_upstream_readneurodat_original_file(eeglab_backend, eeglab_suite_root):
+    path = eeglab_suite_root / "unittesting_sigprocfunc/readneurodat/test.dat"
+    locations, labels, _theta, _phi = eeglab_backend("readneurodat", str(path), nargout=4)
+    np.testing.assert_array_equal(locations["labels"], labels)
+
+
+@eeglab_test(f"{SIGPROC}/readtxtfile/sigprocfunc_readtxtfile_wrapperTest.m", "test_test_readtxtfile")
+def test_upstream_readtxtfile_original_location_files(eeglab_backend, eeglab_suite_root):
+    for path in (
+        "sample_locs/Standard-10-10-Cap33.ced",
+        "sample_locs/Standard-10-20-Cap25.locs",
+        "sample_data/eeglab_chan32.locs",
+    ):
+        eeglab_backend("readtxtfile", str(eeglab_suite_root / "eeglab" / path))
+
+
 def test_readneurodat_labels_and_coordinates_match_current_suite(tmp_path: Path) -> None:
     source = tmp_path / "test.dat"
     source.write_text(
@@ -307,7 +431,6 @@ def _write_neuroscan_eeg(
     return first, second
 
 
-@eeglab_test(f"{SIGPROC}/loadeeg/sigprocfunc_loadeeg_wrapperTest.m", "test_pass_bugzilla_456")
 def test_loadeeg_discards_incomplete_truncated_sweep(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     source = tmp_path / "bugzilla_456.eeg"
     first, _second = _write_neuroscan_eeg(source, truncate_second=True)
@@ -326,19 +449,6 @@ def test_loadeeg_discards_incomplete_truncated_sweep(tmp_path: Path, caplog: pyt
     assert xmin == pytest.approx(-0.1)
     assert xmax == pytest.approx(0.1)
     assert "incomplete data were discarded" in caplog.text
-
-
-@eeglab_test(f"{SIGPROC}/readtxtfile/sigprocfunc_readtxtfile_wrapperTest.m", "test_test_readtxtfile")
-def test_readtxtfile_reads_current_suite_location_file_variants(tmp_path: Path) -> None:
-    paths = [tmp_path / "cap33.ced", tmp_path / "cap25.locs", tmp_path / "chan32.locs"]
-    contents = ["Number\tlabels\n1\tFz\n", "1 0.0 0.5 Fz\r\n2 0.0 0.0 Cz\r\n", "1 -18 0.35 Fp1"]
-    for path, content in zip(paths, contents):
-        path.write_bytes(content.encode("utf-8"))
-    assert [readtxtfile(path) for path in paths] == [
-        "\nNumber\tlabels\n1\tFz",
-        "\n1 0.0 0.5 Fz\n2 0.0 0.0 Cz",
-        "\n1 -18 0.35 Fp1",
-    ]
 
 
 def test_loadeeg_selects_one_based_channels_and_sweep_metadata(tmp_path: Path) -> None:
@@ -389,7 +499,7 @@ def test_eegfilt_filters_epochs_independently() -> None:
     np.testing.assert_allclose(filtered[0, 80:], 0, atol=1e-12)
 
 
-def test_movav_ignores_nans_but_preserves_all_nan_windows() -> None:
+def test_python_regression_movav_ignores_nans_but_preserves_all_nan_windows() -> None:
     data = np.asarray([[1, np.nan, 3, 4], [np.nan, np.nan, 2, 2]])
     result, _x = movav(data, xwidth=2)
     assert result[0, 0] == pytest.approx(1)

@@ -27,10 +27,8 @@ def griddata_v4(x, y, v, xq, yq):
     # Combine x and y into complex numbers for convenience
     xy = x + 1j * y
 
-    # Determine distances between points
     d = np.abs(xy[:, None] - xy[None, :])
 
-    # Determine weights for interpolation
     with np.errstate(divide='ignore', invalid='ignore'):
         g = (d**2) * (np.log(d) - 1)  # Green's function
     np.fill_diagonal(g, 0)  # Fix value along diagonal
@@ -114,10 +112,6 @@ def topoplot(datavector, chan_locs, **kwargs):
     method = kwargs.get('method', 'v4')
     style = str(kwargs.get('style', 'map')).lower()
 
-    # print method
-    # print(f'method = {method}')
-
-    # Handle additional arguments
     if 'noplot' in kwargs:
         noplot = kwargs['noplot']
         if not isinstance(noplot, str):
@@ -145,7 +139,6 @@ def topoplot(datavector, chan_locs, **kwargs):
 
     ContourVals = np.array(ContourVals).flatten()
 
-    # Read the channel location information
     tmpeloc = chan_locs
     labels = [loc['labels'] for loc in tmpeloc]
     indices = [i for i, loc in enumerate(tmpeloc) if 'theta' in loc]
@@ -225,26 +218,13 @@ def topoplot(datavector, chan_locs, **kwargs):
         coords = np.array([intx.ravel(), inty.ravel()])
         values = intdatavector.ravel()
 
-        # find nan in values OR coordinates and remove them
         nanidx_values = np.where(np.isnan(values))[0]
         nanidx_coords = np.where(np.isnan(coords[0]) | np.isnan(coords[1]))[0]
         nanidx = np.union1d(nanidx_values, nanidx_coords)
         coords = np.delete(coords, nanidx, axis=1)
         values = np.delete(values, nanidx)
 
-        # use griddata_v4 to interpolate
         Zi = griddata_v4(coords[0], coords[1], values, xi, yi)
-
-        # Create the RBF interpolator
-
-        # rbf = Rbf(coords[0], coords[1], values, function='inverse') #, function='linear')
-        # Zi1 = rbf(xi, yi)
-
-        # rbf = Rbf(coords[0], coords[1], values, function='thin_plate') #, function='linear')
-        # Zi2 = rbf(xi, yi)
-
-        # # average the two results
-        # Zi = (Zi1 + Zi2) / 2
 
     # Mask outside the head circle (same as MATLAB)
     mask = np.sqrt(xi**2 + yi**2) <= rmax

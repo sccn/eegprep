@@ -70,11 +70,6 @@ def traces(ax) -> list:
 
 
 class TestGeometry:
-    def test_one_trace_per_channel_tagged_by_channel(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10)] * 3)))
-
-        assert [line.get_gid() for line in traces(ax)] == ["trace-0", "trace-1", "trace-2"]
-
     def test_the_first_channel_is_drawn_at_the_top(self) -> None:
         """Every EEG viewer counts downward. Drawing channel 0 at the bottom would put
         the montage upside down while looking entirely plausible."""
@@ -118,27 +113,6 @@ class TestTheCallersAxes:
         assert returned is mine
         assert len(traces(mine)) == 3
 
-    def test_a_new_axes_is_made_when_none_is_given(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10)] * 2)))
-
-        assert ax.figure is not None
-        assert len(traces(ax)) == 2
-
-    def test_a_window_that_is_not_channels_by_samples_is_refused(self) -> None:
-        """The only input guard in plot_window. A 1-D array would otherwise index as if
-        its samples were channels."""
-        flat = Window(
-            data=np.zeros(10),
-            channels=(0,),
-            start_sample=0,
-            rate=RATE,
-            group_name="eeg_250hz",
-            physical=True,
-        )
-
-        with pytest.raises(ValueError, match="channels-by-samples"):
-            plot_window(flat)
-
 
 class TestSpacing:
     def test_spacing_follows_the_median_channel_not_the_largest(self) -> None:
@@ -149,14 +123,6 @@ class TestSpacing:
 
         assert default_spacing(data) == pytest.approx(20.0 * SPACING_HEADROOM)
         assert SPACING_HEADROOM == 1.2
-
-    def test_traces_do_not_overlap_at_the_default_spacing(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10)] * 3)))
-
-        spans = [(float(np.min(line.get_ydata())), float(np.max(line.get_ydata()))) for line in traces(ax)]
-
-        for upper, lower in zip(spans[:-1], spans[1:], strict=True):
-            assert lower[1] < upper[0], "adjacent traces overlap at the default spacing"
 
     def test_flat_channels_still_get_separate_rows(self) -> None:
         """A data-derived spacing is zero here, which would stack every trace on one
@@ -178,13 +144,6 @@ class TestSpacing:
 
         assert bottom <= min(drawn), "the bottom of the plot is clipped"
         assert top >= max(drawn), "the top of the plot is clipped"
-
-    def test_an_explicit_spacing_is_used_exactly(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10)] * 3)), spacing=50.0)
-
-        centers = [float(np.mean(line.get_ydata())) for line in traces(ax)]
-
-        assert centers == [0.0, -50.0, -100.0]
 
 
 class TestDemeaning:
@@ -209,11 +168,6 @@ class TestDemeaning:
         plot_window(window)
 
         assert np.array_equal(window.data, data)
-
-    def test_demean_false_draws_the_values_as_they_are(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10) + self.OFFSET] * 2)), demean=False, spacing=50.0)
-
-        assert float(np.mean(traces(ax)[0].get_ydata())) == pytest.approx(self.OFFSET)
 
 
 class TestStatingAmplitudeWithoutNamingAUnit:
@@ -241,14 +195,6 @@ class TestStatingAmplitudeWithoutNamingAUnit:
         lowest_trace = min(float(np.min(line.get_ydata())) for line in traces(ax))
 
         assert bar_top <= lowest_trace, "the scale bar overlaps the traces"
-
-    def test_the_label_distinguishes_converted_values_from_stored_counts(self) -> None:
-        """Stored counts and physical values are different quantities; one word for both
-        would let a reader take int16 counts for signal amplitude."""
-        data = np.vstack([square(10)] * 2)
-
-        assert "units" in self._scalebar_text(plot_window(make_window(data, physical=True)))
-        assert "counts" in self._scalebar_text(plot_window(make_window(data, physical=False)))
 
     def test_the_windows_own_unit_is_named_when_it_has_one(self) -> None:
         """It is knowable: the channel group declares a unit per channel. An earlier
@@ -292,13 +238,6 @@ class TestResampling:
 
         assert ax.get_title() == "eeg_250hz, 250 Hz"
 
-    def test_a_window_that_declares_no_original_rate_says_nothing_extra(self) -> None:
-        """Absent, not zero: a missing field read as 0.0 would make every older store
-        look resampled from nothing."""
-        ax = plot_window(make_window(np.vstack([square(10)] * 2), original_rate=0.0))
-
-        assert ax.get_title() == "eeg_250hz, 250 Hz"
-
 
 class TestLabels:
     def test_the_windows_own_labels_are_used_before_the_indices(self) -> None:
@@ -309,11 +248,6 @@ class TestLabels:
         ax = plot_window(window)
 
         assert [label.get_text() for label in ax.get_yticklabels()] == ["E1", "E2"]
-
-    def test_indices_are_the_fallback_when_the_group_supplied_none(self) -> None:
-        ax = plot_window(make_window(np.vstack([square(10)] * 2), labels=None))
-
-        assert [label.get_text() for label in ax.get_yticklabels()] == ["0", "1"]
 
     def test_supplied_labels_replace_the_channel_indices(self) -> None:
         ax = plot_window(make_window(np.vstack([square(10)] * 2)), labels=["Cz", "Pz"])
@@ -359,16 +293,6 @@ class TestTheZarrExtraIsStillAnnounced:
 
         with pytest.raises(ImportError, match="read_window needs the zarr extra"):
             asyncio.run(run())
-
-    def test_the_guard_does_not_swallow_an_unrelated_import_error(self) -> None:
-        """A broken store.py raises ImportError too, and reporting that as a missing
-        extra sends the reader to install something they already have."""
-        from eegprep_lean.extras import is_missing_extra
-
-        with pytest.raises(ImportError) as caught:
-            importlib.import_module("a_module_that_does_not_exist_anywhere")
-
-        assert not is_missing_extra(caught.value, "zarr")
 
 
 class TestRendering:

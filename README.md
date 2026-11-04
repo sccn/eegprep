@@ -43,15 +43,42 @@ EEGLAB checkout at runtime.
 
 ## Install
 
-EEGPrep uses `uv` for development and CI. For a published release, install the
-lean package with:
+EEGPrep uses `uv` for development and CI. For a published release:
 
 ```bash
 uv add eegprep
 ```
 
-To install all optional extras, including GUI, console, docs, and classifier
-dependencies, use:
+That command installs this package, `eegprep`. It does not install
+`eegprep-lean` (import name `eegprep_lean`), which is a separate
+zero-dependency reader. NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py
+are part of this base install, so loading, cleaning, plotting, and EDF, BDF,
+and GDF export need no brackets.
+
+Four heavier libraries are extras. `pip install "eegprep[full]"` puts them
+back and restores the previous complete install:
+
+```bash
+uv add "eegprep[full]"   # oct2py, mne, pybids, and python-picard
+```
+
+| Extra | Installs | Used for |
+| --- | --- | --- |
+| `eeglab` | oct2py | Octave runtime |
+| `mne` | mne | MNE conversion and EDF, BDF, and GDF import |
+| `pybids` | pybids | BIDS import and `bids_preproc` |
+| `picard` | python-picard | Picard ICA; the default `runica` path does not need it |
+| `full` | the four above | the previous complete install |
+| `gui`, `console`, `torch`, `docs` | Qt, IPython, PyTorch, Sphinx | unchanged |
+| `all` | every extra above | GUI, docs, classifiers, and `full` |
+
+A function whose extra is missing raises `ImportError` naming that function,
+`pip install "eegprep[<extra>]"`, and `eegprep[full]`. When another path does
+not need the library, the message says what to do instead.
+`dir(eegprep)` lists every public name, and `eegprep.help()` prints a one-line
+summary of each, including which extra it needs.
+
+To install the GUI, console, docs, and classifier extras as well:
 
 ```bash
 uv add "eegprep[all]"
@@ -71,6 +98,10 @@ git clone https://github.com/sccn/eegprep.git
 cd eegprep
 uv sync --group dev
 ```
+
+The development group installs the `eeglab`, `mne`, `pybids`, and `picard`
+packages so the test suite can exercise those paths. It does not install
+`eegprep-lean`.
 
 The complete install can pull in large optional binaries on some platforms,
 especially for ICLabel/PyTorch support. You can install a lightweight CPU-only

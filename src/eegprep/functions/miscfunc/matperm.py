@@ -12,7 +12,13 @@ from ._validation import integer_array, real_array
 def matperm(
     first: Any, second: Any, first_indices: Any, second_indices: Any, correlations: Any
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Reorder and sign-correct rows of ``first`` into ``second`` row order."""
+    """Reorder and sign-correct rows of ``first`` into ``second`` row order.
+
+    ``first_indices`` and ``second_indices`` are 1-based row numbers, and the
+    returned permutation uses the same convention. A partial match returns one
+    row per pair. EEGLAB pads the shorter matrix with zero rows and requires
+    one index for every row of ``second``.
+    """
     left = np.asarray(first)
     right = np.asarray(second)
     rows = integer_array(first_indices, "first_indices").reshape(-1)
@@ -24,14 +30,14 @@ def matperm(
         raise ValueError("indices and correlations must have equal lengths")
     if np.unique(rows).size != rows.size or np.unique(destinations).size != destinations.size:
         raise ValueError("row matches must be unique")
-    if np.any(rows < 0) or np.any(rows >= left.shape[0]):
+    if np.any(rows < 1) or np.any(rows > left.shape[0]):
         raise IndexError("first_indices are out of range")
-    if np.any(destinations < 0) or np.any(destinations >= right.shape[0]):
+    if np.any(destinations < 1) or np.any(destinations > right.shape[0]):
         raise IndexError("second_indices are out of range")
     order = np.argsort(destinations, kind="stable")
     permutation = rows[order]
     signs = np.where(values[order] < 0, -1, 1)
-    return left[permutation] * signs[:, None], permutation
+    return left[permutation - 1] * signs[:, None], permutation
 
 
 __all__ = ["matperm"]

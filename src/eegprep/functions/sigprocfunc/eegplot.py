@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import component_activations
 
@@ -464,11 +465,11 @@ def eegplot2event(
     """
     rows = _filtered_winrej_rows(eegplotrej, color=color, colorout=colorout, round_colors=False)
     if rows.size == 0:
-        return np.zeros((0, 7), dtype=float)
+        return np.zeros((0, 0), dtype=float)
     events = np.zeros((rows.shape[0], 7), dtype=float)
     events[:, 0] = float(event_type)
     events[:, 1] = 1.0
-    events[:, 2:4] = np.rint(rows[:, 0:2])
+    events[:, 2:4] = round_mat(rows[:, 0:2])
     events[:, 4:7] = rows[:, 2:5]
     return events
 

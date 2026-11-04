@@ -2,13 +2,15 @@
 
 import logging
 import contextvars
+import math
 from contextlib import contextmanager
 
-# test_eeg_checkset()
 import numpy as np
 import os
 
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.adminfunc.storage import MemmapData, OffloadedData
+from eegprep.functions.miscfunc.misc import matlab_mtimes, round_mat
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +54,12 @@ def _eventconsistency(EEG):
 
     Performs, in order:
     1. Remove events with NaN latency
-    2. Handle first boundary event edge cases
+    2. Handle first boundary event edge cases (``eeg_isboundary``)
     3. Remove out-of-bounds events (latency < 0.5 or > pnts*trials+1)
     4. Remove events with invalid epoch numbers
     5. Set empty duration fields to 0
-    6. Remove duplicate boundary events (merge durations)
-    7. Resort events by {epoch, latency}
+    6. Chain durations of consecutive equal-latency boundary-list entries
+    7. Sort events by epoch, then latency
     8. Clamp first-event latency to >= 0.5
     """
     from ..popfunc.eeg_findboundaries import eeg_findboundaries
@@ -66,28 +68,27 @@ def _eventconsistency(EEG):
     if events is None:
         return EEG
 
-    # Convert numpy array to list for manipulation
     if isinstance(events, np.ndarray):
         events = list(events)
 
     if len(events) == 0:
         return EEG
 
-    # 1. Remove events with NaN latency
-    events = [
-        e for e in events if not ('latency' in e and isinstance(e.get('latency'), float) and np.isnan(e['latency']))
-    ]
+    events = [event for event in events if not _nan_latency(event)]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
 
-    # 2. First boundary event: if boundary with duration < 1 remove it;
-    #    if latency in (0, 1), clamp to 0.5  (MATLAB lines 424-430)
-    if events[0].get('type', '') == 'boundary' and 'duration' in events[0]:
-        if events[0].get('duration', 0) < 1:
+    # eeg_checkset.m: a leading boundary with duration < 1 is removed. Otherwise
+    # a leading-boundary latency in (0, 1) is clamped to 0.5 before the bounds check.
+    if _is_checkset_boundary(events[0]) and 'duration' in events[0]:
+        duration = _real_number(events[0].get('duration'))
+        if duration is not None and duration < 1:
             events.pop(0)
-        elif 0 < events[0].get('latency', 0) < 1:
-            events[0]['latency'] = 0.5
+        else:
+            latency = _real_number(events[0].get('latency'))
+            if latency is not None and 0 < latency < 1:
+                events[0]['latency'] = 0.5
 
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
@@ -97,7 +98,7 @@ def _eventconsistency(EEG):
     pnts = int(EEG.get('pnts', 0))
     trials = int(EEG.get('trials', 1))
     upper_bound = pnts * trials + 1
-    events = [e for e in events if 'latency' not in e or (e['latency'] >= 0.5 and e['latency'] <= upper_bound)]
+    events = [event for event in events if _latency_in_bounds(event, upper_bound)]
     if not events:
         EEG['event'] = np.asarray(events, dtype=object)
         return EEG
@@ -105,66 +106,201 @@ def _eventconsistency(EEG):
     # 4. Remove events with invalid epoch numbers (MATLAB lines 456-477)
     if trials > 1:
         keep = []
-        for e in events:
-            ep = e.get('epoch')
-            if ep is None:
-                keep.append(e)
-            elif isinstance(ep, (int, float)) and 1 <= ep <= trials:
-                keep.append(e)
-            # else: drop (invalid epoch)
+        for event in events:
+            epoch = event.get('epoch')
+            if epoch is None:
+                keep.append(event)
+            elif _real_number(epoch) is not None and 1 <= epoch <= trials:
+                keep.append(event)
         if len(keep) < len(events):
             logger.info(f"eeg_checkset: {len(events) - len(keep)} events with invalid epoch removed")
         events = keep
 
-    # 5. Set empty/None duration to 0 (MATLAB lines 481-489)
-    for e in events:
-        if 'duration' in e and (e['duration'] is None or e['duration'] == ''):
-            e['duration'] = 0
-
-    # 6. Remove duplicate boundary events at same latency, merge durations
-    #    (MATLAB lines 521-546)
+    # 5. Chain durations of consecutive equal-latency boundary-list entries (MATLAB lines 521-546)
     boundary_idx = eeg_findboundaries(EEG={'event': events, 'setname': '_'})
     if boundary_idx:
-        boundary_lats = [events[i].get('latency', float('nan')) for i in boundary_idx]
-        # Remove final boundary if past data end (single-trial only)
+        boundary_lats = [events[index].get('latency', float('nan')) for index in boundary_idx]
+        # MATLAB round ties away from zero, so round(latency-0.5) > pnts is floor(latency) > pnts.
         if trials == 1 and boundary_lats:
-            last_lat = boundary_lats[-1]
-            if isinstance(last_lat, (int, float)) and round(last_lat - 0.5) > pnts:
+            last_lat = _real_number(boundary_lats[-1])
+            if last_lat is not None and math.floor(last_lat) > pnts:
                 events.pop(boundary_idx[-1])
                 boundary_idx = boundary_idx[:-1]
                 boundary_lats = boundary_lats[:-1]
 
-        # Find consecutive duplicates (same latency)
+        has_duration = any('duration' in events[index] for index in boundary_idx)
         to_remove = []
-        for j in range(len(boundary_lats) - 1, 0, -1):
-            if boundary_lats[j] == boundary_lats[j - 1]:
-                # Merge duration into the next one
-                dur_this = events[boundary_idx[j]].get('duration', 0) or 0
-                dur_prev = events[boundary_idx[j - 1]].get('duration', 0) or 0
-                events[boundary_idx[j]]['duration'] = dur_this + dur_prev
-                to_remove.append(boundary_idx[j - 1])
+        for index in range(1, len(boundary_lats)):
+            if boundary_lats[index] != boundary_lats[index - 1]:
+                continue
+            later = boundary_idx[index]
+            earlier = boundary_idx[index - 1]
+            if has_duration:
+                events[later]['duration'] = _duration_value(events[later]) + _duration_value(events[earlier])
+            to_remove.append(earlier)
         if to_remove:
             logger.info("eeg_checkset: duplicate boundary events removed")
-            for idx in sorted(to_remove, reverse=True):
-                events.pop(idx)
+            for index in sorted(to_remove, reverse=True):
+                events.pop(index)
 
-    # 7. Resort events by (epoch, latency)  (MATLAB lines 580-596)
-    def _sort_key(e):
-        ep = e.get('epoch', 0)
-        lat = e.get('latency', 0)
-        ep = ep if isinstance(ep, (int, float)) else 0
-        lat = lat if isinstance(lat, (int, float)) else 0
-        return (ep, lat)
+    _fill_missing_durations(events)
 
-    events.sort(key=_sort_key)
+    # 7. Sort events by epoch, then latency
+    events.sort(key=_event_sort_key)
 
     # 8. Clamp first event latency to >= 0.5  (MATLAB lines 600-604)
     if events and 'latency' in events[0]:
-        if isinstance(events[0]['latency'], (int, float)) and events[0]['latency'] < 0.5:
+        latency = _real_number(events[0]['latency'])
+        if latency is not None and latency < 0.5:
             events[0]['latency'] = 0.5
 
     EEG['event'] = np.asarray(events, dtype=object)
     return EEG
+
+
+def _is_checkset_boundary(event):
+    """Return whether one event matches ``eeg_isboundary`` (exact, case-insensitive)."""
+    event_type = event.get('type')
+    if isinstance(event_type, bytes):
+        event_type = event_type.decode()
+    if isinstance(event_type, str):
+        return event_type.lower() == 'boundary'
+    event_type = _real_number(event_type)
+    return bool(EEG_OPTIONS['option_boundary99']) and event_type == -99
+
+
+def _real_number(value):
+    """Return ``value`` as a finite float, or None for a non-numeric value or NaN.
+
+    Booleans are not numeric. NumPy integers and floats are.
+    """
+    if isinstance(value, (bool, np.bool_)):
+        return None
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        number = float(value)
+        if math.isnan(number):
+            return None
+        return number
+    return None
+
+
+def _nan_latency(event):
+    """Return whether the event has a floating-point NaN latency."""
+    latency = event.get('latency')
+    return 'latency' in event and isinstance(latency, (float, np.floating)) and np.isnan(latency)
+
+
+def _latency_in_bounds(event, upper_bound):
+    """Return whether latency is absent or inside ``[0.5, upper_bound]``.
+
+    A NaN latency is out of bounds. An event with no latency field is kept.
+    """
+    if 'latency' not in event:
+        return True
+    if _nan_latency(event):
+        return False
+    latency = event['latency']
+    return latency >= 0.5 and latency <= upper_bound
+
+
+def _fill_missing_durations(events) -> None:
+    """Give every event a numeric duration when any event already has one.
+
+    MATLAB ``eeg_checkset.m`` lines 564-577 at d0963be9. A struct array exposes
+    ``duration`` on every event once one event has the field, and ``isempty``
+    values are replaced with 0. Events stay untouched when none has the field.
+    """
+    if not any('duration' in event for event in events):
+        return
+    for event in events:
+        if 'duration' not in event or _duration_empty(event.get('duration')):
+            event['duration'] = 0
+
+
+def _duration_empty(value) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.size == 0
+    if isinstance(value, (list, tuple)):
+        return len(value) == 0
+    return value is None or value == ''
+
+
+def _duration_value(event):
+    """Return the event duration as a float, or 0 when it is missing or not numeric."""
+    duration = _real_number(event.get('duration'))
+    if duration is None:
+        return 0.0
+    return duration
+
+
+def _event_sort_key(event):
+    """Return ``(epoch, latency)`` so events sort by epoch, then latency.
+
+    A missing or non-numeric field sorts as 0.
+    """
+    epoch = _real_number(event.get('epoch', 0))
+    latency = _real_number(event.get('latency', 0))
+    return (0 if epoch is None else epoch, 0 if latency is None else latency)
+
+
+def _refresh_icaact(EEG) -> None:
+    """Recompute stored activations from the current data array."""
+    if (
+        'icaweights' not in EEG
+        or 'icasphere' not in EEG
+        or not hasattr(EEG['icaweights'], 'size')
+        or not hasattr(EEG['icasphere'], 'size')
+        or EEG['icaweights'].size == 0
+        or EEG['icasphere'].size == 0
+    ):
+        return
+    if (
+        'icachansind' in EEG
+        and EEG['icachansind'] is not None
+        and hasattr(EEG['icachansind'], '__len__')
+        and len(EEG['icachansind']) > 0
+    ):
+        icachansind = np.array(EEG['icachansind'], dtype=int)
+        n_channels = EEG['data'].shape[0]
+        if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
+            logger.warning(
+                f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels - 1}). "
+                "Using all channels instead."
+            )
+            ica_data = EEG['data']
+        else:
+            ica_data = EEG['data'][icachansind, :]
+    else:
+        ica_data = EEG['data']
+
+    expected_channels = EEG['icaweights'].shape[1]
+    actual_channels = ica_data.shape[0]
+    if expected_channels != actual_channels:
+        logger.warning(
+            f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
+            f"but ica_data has {actual_channels} channels. Skipping ICA activation computation."
+        )
+        EEG['icaact'] = np.array([])
+        return
+    EEG['icaact'] = _ica_activation_matrix(EEG, ica_data)
+
+
+def _ica_activation_matrix(EEG, ica_data):
+    """Return ``(icaweights*icasphere)*data`` in the data class.
+
+    ``eeg_checkset.m:1030`` multiplies column-major, so a single ``data`` array
+    uses the single-precision GEMM. ``reshape`` at line 1032 drops a trailing
+    singleton when ``trials == 1``.
+    """
+    flat = np.asarray(ica_data).reshape(ica_data.shape[0], -1, order="F")
+    unmixing = matlab_mtimes(np.asarray(EEG["icaweights"]), np.asarray(EEG["icasphere"]))
+    product = matlab_mtimes(unmixing, flat)
+    components = EEG["icaweights"].shape[0]
+    pnts = int(EEG["pnts"])
+    trials = int(EEG["trials"])
+    if trials == 1:
+        return np.reshape(product, (components, pnts), order="F")
+    return np.reshape(product, (components, pnts, trials), order="F")
 
 
 def eeg_checkset(EEG, *checks, load_data=True):
@@ -173,12 +309,10 @@ def eeg_checkset(EEG, *checks, load_data=True):
     Ensures EEG dict has required fields with correct types, computes ICA activations if
     possible, and loads data from file if specified.
     """
-    # Get the exception type based on strict mode
     # In strict mode (True), we catch DummyException (never raised) so exceptions propagate
     # In non-strict mode (False), we catch Exception and handle gracefully
     exception_type = DummyException if _strict_mode_var.get() else Exception
 
-    # convert EEG['nbchan] to integer
     if 'nbchan' in EEG:
         EEG['nbchan'] = int(EEG['nbchan'])
     else:
@@ -218,7 +352,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
         EEG['reject'] = {}
 
     if 'data' in EEG and isinstance(EEG['data'], str) and load_data:
-        # get path from file_path
         file_name = EEG['filepath'] + os.sep + EEG['data']
         if not os.path.exists(file_name):
             # try to use the same name as the filename but with .fdt extension
@@ -253,7 +386,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # scaling shape: (n_components,)
                 scaling = np.sqrt(np.mean(EEG['icawinv'] ** 2, axis=0))
 
-                # Store original weights before scaling
                 if not isinstance(EEG.get('etc'), dict):
                     logger.debug("Replacing non-dict EEG['etc'] during ICA RMS scaling backup")
                     EEG['etc'] = {}
@@ -264,64 +396,16 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # icaweights shape: (n_components, n_channels)
                 EEG['icaweights'] = EEG['icaweights'] * scaling[:, np.newaxis]
 
-                # Recompute icawinv
                 with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
                     EEG['icawinv'] = np.linalg.pinv(EEG['icaweights'] @ EEG['icasphere'])
         except exception_type as e:
             logger.error("Error scaling ICA components: " + str(e))
 
-    # compute ICA activations
-    if (
-        'icaweights' in EEG
-        and 'icasphere' in EEG
-        and hasattr(EEG['icaweights'], 'size')
-        and hasattr(EEG['icasphere'], 'size')
-        and EEG['icaweights'].size > 0
-        and EEG['icasphere'].size > 0
-    ):
-        try:
-            # Use icachansind to select only channels ICA was trained on (matches MATLAB eeg_checkset.m:1030)
-            if (
-                'icachansind' in EEG
-                and EEG['icachansind'] is not None
-                and hasattr(EEG['icachansind'], '__len__')
-                and len(EEG['icachansind']) > 0
-            ):
-                # Convert to numpy array if it's a list
-                icachansind = np.array(EEG['icachansind'], dtype=int)
-                # Validate indices are within bounds
-                n_channels = EEG['data'].shape[0]
-                if np.any(icachansind < 0) or np.any(icachansind >= n_channels):
-                    logger.warning(
-                        f"icachansind contains out-of-bounds indices (valid range: 0-{n_channels - 1}). "
-                        "Using all channels instead."
-                    )
-                    ica_data = EEG['data']
-                else:
-                    ica_data = EEG['data'][icachansind, :]
-            else:
-                # If icachansind not set, assume all channels (default behavior)
-                ica_data = EEG['data']
-
-            # Check dimension compatibility before matrix multiplication
-            expected_channels = EEG['icaweights'].shape[1]  # Number of input channels ICA expects
-            actual_channels = ica_data.shape[0]  # Number of channels in ica_data
-
-            if expected_channels != actual_channels:
-                logger.warning(
-                    f"ICA dimension mismatch: icaweights expects {expected_channels} channels "
-                    f"but ica_data has {actual_channels} channels. Skipping ICA activation computation."
-                )
-                EEG['icaact'] = np.array([])
-            else:
-                EEG['icaact'] = np.dot(
-                    np.dot(EEG['icaweights'], EEG['icasphere']), ica_data.reshape(ica_data.shape[0], -1)
-                )
-                EEG['icaact'] = EEG['icaact'].astype(np.float32)
-                EEG['icaact'] = EEG['icaact'].reshape(EEG['icaweights'].shape[0], -1, int(EEG['trials']))
-        except exception_type as e:
-            logger.error("Error computing ICA activations: " + str(e))
-            EEG['icaact'] = np.array([])
+    try:
+        _refresh_icaact(EEG)
+    except exception_type as e:
+        logger.error("Error computing ICA activations: " + str(e))
+        EEG['icaact'] = np.array([])
 
     # Handle optional check modes (matches MATLAB's eeg_checkset(EEG, 'mode') API)
     for check in checks:
@@ -332,7 +416,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
     # This matches MATLAB's eeg_checkset behavior (lines 611-670 in eeg_checkset.m)
     try:
         if EEG.get('trials', 1) > 1 and len(EEG.get('event', [])) > 0:
-            # Initialize epoch field if missing or wrong size
             if 'epoch' not in EEG:
                 EEG['epoch'] = []
 
@@ -340,7 +423,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
                 # Need to rebuild epoch structure
                 EEG['epoch'] = []
             elif len(EEG['epoch']) > 0:
-                # Remove existing event-related fields from epoch structure
                 # (they will be regenerated from current events)
                 epoch_list = list(EEG['epoch'])
                 for i in range(len(epoch_list)):
@@ -350,18 +432,15 @@ def eeg_checkset(EEG, *checks, load_data=True):
                             del epoch_list[i][k]
                 EEG['epoch'] = np.array(epoch_list, dtype=object)
 
-            # Build epoch structure from events
             tmpevent = EEG['event']
             eventepoch = np.array([e.get('epoch', 1) for e in tmpevent])
 
-            # Create list of event indices for each epoch
             epochevent = []
             for k in range(EEG['trials']):
                 epoch_num = k + 1  # 1-based epoch numbering
                 event_indices = np.where(eventepoch == epoch_num)[0]
                 epochevent.append(list(event_indices))
 
-            # Initialize epoch structure if empty
             if len(EEG['epoch']) == 0:
                 EEG['epoch'] = np.array([{} for _ in range(EEG['trials'])], dtype=object)
 
@@ -373,18 +452,15 @@ def eeg_checkset(EEG, *checks, load_data=True):
             # Skip 'epoch' field itself to avoid duplication
             event_fields = []
             if len(tmpevent) > 0:
-                # Get field names from first event
                 event_fields = [f for f in tmpevent[0].keys() if f != 'epoch']
 
             for fname in event_fields:
-                # Build list of field values for each epoch
                 for k in range(EEG['trials']):
                     event_idx_list = epochevent[k]
                     if len(event_idx_list) == 0:
                         # No events in this epoch
                         field_values = []
                     else:
-                        # Extract values from events for this epoch
                         field_values = []
                         for idx in event_idx_list:
                             val = tmpevent[idx].get(fname, None)
@@ -404,7 +480,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
 
                             field_values.append(val)
 
-                    # Store in epoch structure
                     EEG['epoch'][k][f'event{fname}'] = field_values
 
     except exception_type as e:
@@ -437,14 +512,14 @@ def eeg_checkset(EEG, *checks, load_data=True):
     if all(key in EEG for key in ('srate', 'xmin', 'xmax', 'pnts')):
         if EEG['srate'] == 0:
             EEG['srate'] = 1.0
-        expected_pnts = round(EEG['srate'] * (EEG['xmax'] - EEG['xmin']) + 1)
+        # eeg_checkset.m:849. Half away from zero, so an even n+0.5 rounds up.
+        expected_pnts = int(round_mat(EEG['srate'] * (EEG['xmax'] - EEG['xmin']) + 1))
         if expected_pnts != EEG['pnts']:
             EEG['xmax'] = (EEG['pnts'] - 1) / EEG['srate'] + EEG['xmin']
             logger.info('eeg_checkset: xmax adjusted to match pnts, xmin, and srate')
         if EEG['pnts'] > 0:
             EEG['times'] = np.linspace(EEG['xmin'] * 1000, EEG['xmax'] * 1000, EEG['pnts'])
 
-    # Define the expected types
     expected_types = {
         'setname': str,
         'filename': str,
@@ -491,7 +566,6 @@ def eeg_checkset(EEG, *checks, load_data=True):
         'roi': dict,
     }
 
-    # Iterate through expected types and check input dictionary
     for field, expected_type in expected_types.items():
         if field not in EEG:
             logger.debug(f"Field '{field}' is missing from the EEG dictionary, adding it.")
@@ -538,13 +612,9 @@ def eeg_checkset(EEG, *checks, load_data=True):
                     logger.warning(
                         f"Field '{field}' is expected to be a numpy array of dictionaries but contains other types."
                     )
-            # elif field in ['eventdescription', 'epochdescription']:
-            #     if not all(isinstance(item, str) for item in value):
-            #         print(f"Field '{field}' is expected to be a numpy array of strings but contains other types.")
         else:
             # General type check
             if not isinstance(value, expected_type):
-                # check for empty Ndarray
                 if isinstance(value, np.ndarray) and value.size == 0:
                     continue
                 logger.warning(

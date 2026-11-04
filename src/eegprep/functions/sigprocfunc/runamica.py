@@ -30,9 +30,7 @@ logger = logging.getLogger(__name__)
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
-# --------------------------------------------------------------------------
 # Default AMICA parameters (matching MATLAB runamica15.m defaults)
-# --------------------------------------------------------------------------
 _AMICA_DEFAULTS = {
     'block_size': 128,
     'do_opt_block': 0,
@@ -226,7 +224,6 @@ def _find_amica_binary(amica_binary=None):
             return env_binary
         raise FileNotFoundError(f"AMICA_BINARY is set but not found or not executable: {env_binary}")
 
-    # Determine platform-specific binary name
     system = platform.system()
     if system == 'Darwin':
         binary_name = 'amica15mac'
@@ -262,7 +259,8 @@ def _find_amica_binary(amica_binary=None):
 def _write_data_file(data, path):
     """Write data matrix as raw float32 little-endian .fdt file.
 
-    Matches MATLAB's fwrite(fid, dat, 'float') behavior.
+    Store all channels of each frame together, matching MATLAB's
+    fwrite(fid, dat, 'float') column-major order.
 
     Parameters
     ----------
@@ -272,7 +270,7 @@ def _write_data_file(data, path):
         Output file path (should end in .fdt).
     """
     data_f32 = np.asarray(data, dtype='<f4')  # little-endian float32
-    data_f32.tofile(path)
+    data_f32.T.tofile(path)  # tofile always uses C order, even for Fortran arrays
     logger.info("Wrote data file: %s (%d bytes)", path, data_f32.nbytes)
 
 
@@ -511,7 +509,6 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
         logger.info("No S file found, using identity")
         S = np.eye(nx)
 
-    # -- comp_list --
     comp_list_path = os.path.join(outdir, 'comp_list')
     complistset = False
     if os.path.isfile(comp_list_path):
@@ -576,9 +573,7 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
     else:
         nd = np.zeros(0)
 
-    # =====================================================================
     # Post-processing (matching loadmodout15.m)
-    # =====================================================================
 
     # 1. Reorder models by descending gm
     gmord = np.argsort(gm)[::-1]
@@ -602,7 +597,6 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
     for h in range(num_models):
         A[:, :, h] = pinv(W[:, :, h] @ S[:nw, :])
 
-    # 3. Compute source variance and sort components by descending variance
     # Count active mixture components (alpha > 0) per component
     num_mix_used = np.zeros((n, num_models), dtype=int)
     for h in range(num_models):
@@ -623,7 +617,6 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
                 var_mix = a_slice * (mu_slice**2 + gamma(3.0 / rho_slice) / gamma(1.0 / rho_slice) / sbeta_slice**2)
                 svar[i, h] = np.sum(var_mix) * np.linalg.norm(A[:, i, h]) ** 2
 
-        # Sort by descending variance
         order = np.argsort(svar[:, h])[::-1]
         origord[:, h] = order
         svar[:, h] = svar[order, h]
@@ -638,7 +631,6 @@ def _load_amica_output(outdir, num_models, num_pcs, data_dim, num_mix_comps, max
         if ndset:
             nd[:, :, h] = nd[:, order, h]
 
-    # 4. Compute log10 posterior model odds
     v = None
     if LLtset and Lht is not None and Lt is not None:
         v = np.zeros((num_models, Lht.shape[1]))
@@ -798,7 +790,6 @@ def runamica(
     binary = _find_amica_binary(amica_binary)
     logger.info("Using AMICA binary: %s", binary)
 
-    # Create output directory
     tmp_created = False
     if outdir is None:
         outdir = tempfile.mkdtemp(prefix='amica_')
@@ -806,11 +797,9 @@ def runamica(
     else:
         os.makedirs(outdir, exist_ok=True)
 
-    # Write data file
     data_file = os.path.join(outdir, 'data.fdt')
     _write_data_file(data, data_file)
 
-    # Build parameter dict
     params = {
         'files': data_file,
         'outdir': outdir + os.sep,
@@ -824,14 +813,11 @@ def runamica(
     }
     params.update(kwargs)
 
-    # Write parameter file
     param_file = _write_param_file(outdir, params)
 
     try:
-        # Run the binary
         _run_amica(binary, param_file)
 
-        # Load output
         mods = _load_amica_output(
             outdir,
             num_models=num_models,
@@ -842,7 +828,6 @@ def runamica(
             field_dim=frames,
         )
 
-        # Extract model 0 weights and sphere
         weights = mods['W'][:, :, 0]
         sphere = mods['S'][: mods['num_pcs'], :]
     except BaseException:
@@ -854,10 +839,8 @@ def runamica(
 
     # Cleanup
     if cleanup:
-        # Remove the data file
         if os.path.isfile(data_file):
             os.remove(data_file)
-        # Remove temp directory if we created it
         if tmp_created:
             try:
                 shutil.rmtree(outdir)

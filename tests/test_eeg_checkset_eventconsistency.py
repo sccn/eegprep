@@ -1,29 +1,16 @@
 """Tests for eeg_checkset eventconsistency mode and pop_epoch boundary detection."""
 
-import os
 import numpy as np
-import pytest
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, _eventconsistency
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
+from eegprep.functions.popfunc.eeg_eegrej import eeg_eegrej
+from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
 
 
 class TestEventconsistencyOperations:
     """Unit tests for _eventconsistency helper."""
-
-    def test_removes_nan_latency_events(self):
-        EEG = {
-            'event': [
-                {'type': 'stim', 'latency': 100},
-                {'type': 'stim', 'latency': float('nan')},
-                {'type': 'stim', 'latency': 300},
-            ],
-            'pnts': 1000,
-            'trials': 1,
-        }
-        result = _eventconsistency(EEG)
-        assert len(result['event']) == 2
-        assert all(not np.isnan(e['latency']) for e in result['event'])
 
     def test_removes_out_of_bounds_events(self):
         EEG = {
@@ -106,10 +93,90 @@ class TestEventconsistencyOperations:
         result = _eventconsistency(EEG)
         assert result['event'][0]['type'] == 'stim'
 
-    def test_empty_events_noop(self):
-        EEG = {'event': [], 'pnts': 100, 'trials': 1}
+    def test_leading_boundary_duration_zero_and_open_unit_latency(self):
+        removed = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'Boundary', 'latency': 0.5, 'duration': 0},
+                    {'type': 'stim', 'latency': 10, 'duration': 1},
+                ],
+                'pnts': 100,
+                'trials': 1,
+            }
+        )
+        assert [(event['type'], event['latency']) for event in removed['event']] == [('stim', 10)]
+
+        clamped = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 0.25, 'duration': 2},
+                    {'type': 'stim', 'latency': 10, 'duration': 0},
+                ],
+                'pnts': 100,
+                'trials': 1,
+            }
+        )
+        assert [(event['type'], event['latency'], event['duration']) for event in clamped['event']] == [
+            ('boundary', 0.5, 2),
+            ('stim', 10, 0),
+        ]
+
+    def test_duplicate_boundary_run_keeps_every_duration(self):
+        EEG = {
+            'event': [
+                {'type': 'boundary', 'latency': 20, 'duration': 4},
+                {'type': 'stim', 'latency': 40, 'duration': 0},
+                {'type': 'boundary', 'latency': 20, 'duration': 1},
+                {'type': 'boundary', 'latency': 20, 'duration': 2},
+                {'type': 'stim', 'latency': 10, 'duration': 0},
+            ],
+            'pnts': 100,
+            'trials': 1,
+            'setname': 'test',
+        }
         result = _eventconsistency(EEG)
-        assert len(result['event']) == 0
+        assert [(event['type'], event['latency'], event['duration']) for event in result['event']] == [
+            ('stim', 10, 0),
+            ('boundary', 20, 7),
+            ('stim', 40, 0),
+        ]
+
+    def test_final_boundary_at_even_pnts_plus_one_is_removed(self):
+        EEG = {
+            'event': [
+                {'type': 'boundary', 'latency': 4.5, 'duration': 1},
+                {'type': 'boundary', 'latency': 5, 'duration': 3},
+                {'type': 'stim', 'latency': 2, 'duration': 0},
+            ],
+            'pnts': 4,
+            'trials': 1,
+            'setname': 'test',
+        }
+        result = _eventconsistency(EEG)
+        assert [(event['type'], event['latency'], event['duration']) for event in result['event']] == [
+            ('stim', 2, 0),
+            ('boundary', 4.5, 1),
+        ]
+
+    def test_numeric_boundary_follows_option_boundary99(self):
+        EEG = {
+            'event': [
+                {'type': -99, 'latency': 0.5, 'duration': 0},
+                {'type': 'stim', 'latency': 8, 'duration': 0},
+            ],
+            'pnts': 20,
+            'trials': 1,
+        }
+        previous = EEG_OPTIONS['option_boundary99']
+        EEG_OPTIONS['option_boundary99'] = 0
+        try:
+            kept = _eventconsistency({**EEG, 'event': [dict(event) for event in EEG['event']]})
+            assert [event['type'] for event in kept['event']] == [-99, 'stim']
+            EEG_OPTIONS['option_boundary99'] = 1
+            removed = _eventconsistency(EEG)
+            assert [event['type'] for event in removed['event']] == ['stim']
+        finally:
+            EEG_OPTIONS['option_boundary99'] = previous
 
     def test_eeg_checkset_accepts_eventconsistency_arg(self):
         """Verify eeg_checkset('eventconsistency') calls _eventconsistency."""
@@ -132,41 +199,82 @@ class TestEventconsistencyOperations:
         # NaN event should have been removed
         assert len(result['event']) == 1
 
-
-@pytest.mark.skipif(
-    not os.path.exists('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set'),
-    reason="Sub-002 parity data not available",
-)
-class TestPopEpochSubject002Parity:
-    """Integration test using real sub-002 step-5 data."""
-
-    def _load_step5(self):
-        from eegprep import pop_loadset, eeg_checkset_strict_mode
-
-        with eeg_checkset_strict_mode(False):
-            return pop_loadset('partity_analysis/all_steps/python_eegprep/sub-002_run-1_step5.set')
-
-    def _load_compat_step6(self):
-        from eegprep import pop_loadset, eeg_checkset_strict_mode
-
-        with eeg_checkset_strict_mode(False):
-            return pop_loadset('partity_analysis/all_steps/matlab_eeglabcompat/sub-002_run-1_step6.set')
-
-    def test_trial_count_matches_matlab(self):
-        """Python pop_epoch trial count must match MATLAB eeglabcompat.
-
-        Both should produce 402 trials after the MATLAB epoch.m int64 fix
-        (double cast on line 126) and the Python half-sample boundary fix.
-        """
-        eeg5 = self._load_step5()
-        eeg_matlab6 = self._load_compat_step6()
-
-        eeg_out, _ = pop_epoch(
-            eeg5,
-            ['standard', 'oddball', 'oddball_with_reponse'],
-            [-0.5, 1.0],
+    def test_duration_is_filled_on_every_event_when_any_event_has_one(self):
+        # EEGLAB eeg_checkset.m:564-577 (d0963be9): isfield is true for the
+        # whole struct array, then isempty durations become 0.
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 50, 'duration': 100},
+                    {'type': 'square', 'latency': 10},
+                    {'type': 'rt', 'latency': 80, 'duration': ''},
+                    {'type': 'stim', 'latency': 90, 'duration': np.array([])},
+                ],
+                'pnts': 200,
+                'trials': 1,
+            }
         )
+        assert [event['duration'] for event in filled['event']] == [0, 100, 0, 0]
 
-        assert eeg_out['trials'] == eeg_matlab6['trials'], (
-            f"Trial count mismatch: Python={eeg_out['trials']}, MATLAB={eeg_matlab6['trials']}"
+        untouched = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'square', 'latency': 10},
+                    {'type': 'rt', 'latency': 80},
+                ],
+                'pnts': 200,
+                'trials': 1,
+            }
         )
+        assert all('duration' not in event for event in untouched['event'])
+
+    def test_epoched_events_sort_by_epoch_and_fill_duration(self):
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'stim', 'latency': 10.0, 'epoch': 2, 'duration': 1.0},
+                    {'type': 'stim', 'latency': 4.0, 'epoch': 1},
+                ],
+                'pnts': 20,
+                'trials': 2,
+            }
+        )
+        events = list(filled['event'])
+        assert [(event['epoch'], event['latency'], event['duration']) for event in events] == [
+            (1, 4.0, 0),
+            (2, 10.0, 1.0),
+        ]
+
+    def test_empty_event_list_stays_empty(self):
+        eeg = {'event': [], 'pnts': 10, 'trials': 1}
+        _eventconsistency(eeg)
+        assert list(np.asarray(eeg['event'], dtype=object).ravel()) == []
+
+    def test_nan_duration_is_not_empty(self):
+        # MATLAB isempty(NaN) is false: NaN is a 1-by-1 double, not [].
+        filled = _eventconsistency(
+            {
+                'event': [
+                    {'type': 'boundary', 'latency': 5.0, 'duration': 3.0},
+                    {'type': 'stim', 'latency': 8.0, 'duration': np.nan},
+                ],
+                'pnts': 20,
+                'trials': 1,
+            }
+        )
+        stim = next(event for event in filled['event'] if event['type'] == 'stim')
+        assert np.isnan(stim['duration'])
+
+    def test_rejection_gives_every_event_a_duration(self):
+        eeg = pop_loadset('sample_data/eeglab_data.set')
+
+        def durations_of(dataset):
+            events = list(np.asarray(dataset['event'], dtype=object).ravel())
+            return [event['duration'] for event in events]
+
+        rejected = durations_of(eeg_eegrej(eeg, np.array([[101, 200]])))
+        assert rejected[0] == 100
+        assert set(rejected[1:]) == {0}
+        selected = durations_of(pop_select(eeg, rmtime=[1, 2]))
+        assert selected[0] == 129
+        assert set(selected[1:]) == {0}

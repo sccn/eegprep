@@ -53,7 +53,8 @@ def pop_reref(
     Numeric channel indices are 0-based to match existing EEGPrep channel
     selection APIs. String channel labels are resolved case-insensitively
     against ``EEG["chanlocs"]``. Calling ``pop_reref(EEG)`` launches the GUI;
-    pass ``ref=[]`` or ``ref=None`` for command-line average reference.
+    pass ``ref=[]`` or ``ref=None`` for command-line average reference. A NaN
+    stays on a channel only when that channel's sample or its reference is NaN.
 
     Args:
         EEG: EEG dictionary, or a list of EEG dictionaries.

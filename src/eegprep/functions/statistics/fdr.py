@@ -11,14 +11,19 @@ import numpy as np
 
 @dataclass(frozen=True)
 class FDRResult:
-    """False discovery rate threshold and mask."""
+    """False discovery rate threshold and mask.
+
+    ``matlab_outputs`` is the field order used when a caller asks for more
+    than one return value.
+    """
 
     threshold: np.ndarray | float
     mask: np.ndarray
+    matlab_outputs = ("threshold", "mask")
 
     def __iter__(self) -> Iterator[np.ndarray | float]:
-        yield self.threshold
-        yield self.mask
+        for name in self.matlab_outputs:
+            yield getattr(self, name)
 
 
 def fdr(pvals: Any, q: float | None = None, fdr_type: str = "parametric") -> FDRResult:

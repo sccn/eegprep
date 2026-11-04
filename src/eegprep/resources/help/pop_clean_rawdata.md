@@ -35,10 +35,10 @@ Behavior:
 - Channel correlation cleaning uses spatial channel coordinates when they are
   available. An empty `EEG['chanlocs']` automatically selects the location-free
   correlation method.
-- `Distance='Riemannian'` uses EEGPrep's calibration-time Riemannian ASR
-  estimate (`clean_asr(..., useriemannian='calib')`). Full Riemannian ASR
-  processing is not ported, and direct `clean_asr(useriemannian=True)` requests
-  raise a clear `ValueError`.
+- `Distance='Riemannian'` runs Riemannian ASR calibration and processing
+  (`clean_asr(..., useriemannian=True)`). `useriemannian='calib'` remains
+  available for a Riemannian calibration covariance with Euclidean processing.
+- Unknown `useriemannian` values raise `ValueError`.
 - Other distance names are rejected so misspellings do not silently switch the
   ASR calibration mode.
 - The "Pop up scrolling data window with rejected data highlighted" option

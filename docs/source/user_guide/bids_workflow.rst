@@ -37,6 +37,21 @@ EEGPrep's BIDS loader supports EEGLAB ``.set``/``.fdt``, BrainVision
 ``.vhdr``, EDF, and BDF EEG files. Sidecars can replace or merge metadata,
 events, and channel information into the returned EEG dictionary.
 
+BrainVision headers, including multiplexed and vectorized binary data, are
+read with ``pop_loadbv``. The header reference stays on each channel, and the
+dataset reference stays ``common``. A sidecar ``EEGReference`` value is kept
+in ``EEG["etc"]["BIDS"]``. ``report["ImporterUsed"]`` is ``"pop_loadbv"`` for
+these files.
+
+EDF and BDF recordings are read with ``pop_biosig``. ``report["ImporterUsed"]``
+is ``"pop_biosig"`` for these files. The dataset reference stays ``common``,
+and a sidecar ``EEGReference`` value is kept in ``EEG["etc"]["BIDS"]``.
+
+BIDS sidecars are decoded as UTF-8, and a leading UTF-8 BOM is removed. A TSV
+that is not valid UTF-8 is decoded as Latin-1, so each byte keeps its Unicode
+code point. The byte ``0xB5`` in a ``channels.tsv`` units field stays µ. JSON
+that is not UTF-8 is rejected.
+
 Create a Small Tutorial Export
 ==============================
 
@@ -125,6 +140,10 @@ Common loading options:
    * - ``infer_locations=None``
      - Infer locations only when no channel locations are present. Pass
        ``True``, ``False``, or a montage filename for explicit behavior.
+
+BIDS event ``duration`` is in seconds. ``pop_load_frombids`` stores each
+event's ``duration`` as that value times the sampling rate, including zero
+and fractional sample counts. A missing duration stays missing.
 
 Preprocess a BIDS Dataset
 =========================

@@ -4,6 +4,7 @@ Preprocessing and Artifacts
 ===========================
 
 Artifact detection and repair, referencing, resampling, interpolation, and rejection.
+``eeg_amplitudearea`` takes 1-based channel numbers.
 
 .. autosummary::
    :toctree: generated/

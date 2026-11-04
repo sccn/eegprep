@@ -17,6 +17,9 @@ Use `savemode="resave"` to keep an existing two-file dataset in its `.fdt`
 sidecar. A plain save follows the current `option_savetwofiles` setting and
 may inline data into the `.set` file when that option is disabled.
 
+The saved dataset stores `icaact` as `[]`. The dataset kept in memory still
+has its activations, and loading the file recomputes them.
+
 The main-window save actions update dataset `filename`, `filepath`, and
 `saved` metadata and record the save command in session history. Resaving
 multiple selected datasets requires each dataset to already have a filename.

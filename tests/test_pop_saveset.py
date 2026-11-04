@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import unittest
@@ -6,6 +7,7 @@ import numpy as np
 import scipy.io
 
 from eegprep import pop_loadset, pop_saveset  # Explicitly import pop_resample
+from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
 from eegprep.functions.popfunc.pop_editeventvals import pop_editeventvals
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 
@@ -13,38 +15,10 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 # where the test resources
 local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
 
-# where the test resources
-web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
-local_url = os.path.join(os.path.dirname(__file__), '../sample_data/')
-
-
-def ensure_file(fname: str) -> str:
-    """Download a file if it does not exist and return the local path."""
-    full_url = f"{web_root}{fname}"
-    local_file = f"{local_url}{fname}"
-    if not os.path.exists(local_file):
-        from urllib.request import urlretrieve
-
-        urlretrieve(full_url, local_file)
-    return local_file
-
 
 class TestPopSaveset(unittest.TestCase):
     def setUp(self):
         pass
-
-    def test_flanker(self):
-        pass
-        self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
-        pop_saveset(
-            self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')
-        )  # see MATLAB code to compare the results at the end of the file
-
-    def test_basic(self):
-        self.EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
-        pop_saveset(
-            self.EEG, os.path.join(local_url, 'eeglab_data_tmp.set')
-        )  # see MATLAB code to compare the results at the end of the file
 
     def test_saveset_does_not_mutate_caller_indices(self):
         EEG = pop_loadset(os.path.join(local_url, 'eeglab_data_with_ica_tmp.set'))
@@ -70,6 +44,49 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(urchan_after, urchan_before)  # still 0-based in memory
         self.assertEqual(urevent_after, urevent_before)
         np.testing.assert_array_equal(latency_after, latency_before)
+
+    def test_saveset_writes_empty_icaact_and_load_recomputes(self):
+        data = np.arange(20, dtype=np.float64).reshape(4, 5)
+        weights = np.array([[0.25, -0.5, 0.125, 0.125], [0.1, 0.2, -0.3, 0.4]])
+        sphere = np.eye(4)
+        eeg = eeg_emptyset()
+        eeg.update(
+            {
+                "setname": "ica-cache",
+                "data": data,
+                "nbchan": 4,
+                "pnts": 5,
+                "trials": 1,
+                "srate": 100.0,
+                "xmin": 0.0,
+                "xmax": 0.04,
+                "times": np.arange(5, dtype=float) * 10.0,
+                "chanlocs": [{"labels": f"E{index}"} for index in range(1, 5)],
+                "icaweights": weights,
+                "icasphere": sphere,
+                "icawinv": np.linalg.pinv(weights @ sphere),
+                "icachansind": np.arange(4),
+                "saved": "no",
+            }
+        )
+        stale = np.full((2, 5), 7.0)
+        eeg["icaact"] = stale
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for savemode in ("onefile", "twofiles"):
+                out = os.path.join(tmp, f"{savemode}.set")
+                pop_saveset(eeg, out, savemode=savemode)
+                np.testing.assert_array_equal(eeg["icaact"], stale)
+                saved = scipy.io.loadmat(out, squeeze_me=False)
+                self.assertEqual(saved["icaact"].shape, (0, 0))
+                loaded = pop_loadset(out)
+                reference = copy.deepcopy(eeg)
+                reference["icaact"] = np.array([])
+                if savemode == "twofiles":
+                    reference["data"] = np.asarray(reference["data"], dtype=np.float32)
+                expected = eeg_checkset(reference)["icaact"]
+                np.testing.assert_array_equal(loaded["icaact"], expected)
+                self.assertFalse(np.allclose(loaded["icaact"], stale))
 
     def test_saveset_writes_one_based_urevent_after_edit(self):
         EEG = pop_loadset(os.path.join(local_url, 'eeglab_data.set'))
@@ -170,49 +187,6 @@ class TestPopSaveset(unittest.TestCase):
         self.assertIsInstance(ep.eventtype, str)
         self.assertEqual(np.ndim(ep.eventlatency), 0)
         self.assertEqual(np.ndim(ep.eventurevent), 0)
-        # """Test basic resampling functionality with different engines"""
-        # # Apply resampling with different engines
-        # EEG_python = pop_resample(self.EEG.copy(), self.new_freq, engine='scipy')
-        # pop_saveset(EEG_python, os.path.join(local_url, 'eeglab_data_with_ica_tmp_python.set')) # see MATLAB code to compare the results at the end of the file
-
-        # EEG_matlab = pop_resample(self.EEG.copy(), self.new_freq, engine='matlab')
-        # pop_saveset(EEG_matlab, os.path.join(local_url, 'eeglab_data_with_ica_tmp_matlab.set')) # see MATLAB code to compare the results at the end of the file
-
-        # EEG_octave = pop_resample(self.EEG.copy(), self.new_freq, engine='octave')
-        # pop_saveset(EEG_octave, os.path.join(local_url, 'eeglab_data_with_ica_tmp_octave.set')) # see MATLAB code to compare the results at the end of the file
-
-        # # Check sampling rates
-        # self.assertEqual(EEG_python['srate'], self.new_freq, 'Python resampling failed')
-        # print("Sampling rate ok")
-        # self.assertEqual(EEG_matlab['srate'], self.new_freq, 'MATLAB resampling failed')
-        # print("Sampling rate ok")
-        # self.assertEqual(EEG_octave['srate'], self.new_freq, 'Octave resampling failed')
-        # print("Sampling rate ok")
-
-        # # Compare data shapes
-        # self.assertEqual(EEG_python['data'].shape[1], EEG_matlab['data'].shape[1],
-        #                 'Data shapes differ between Python and MATLAB')
-        # print("Data shape ok")
-        # self.assertEqual(EEG_python['data'].shape[1], EEG_octave['data'].shape[1],
-        #                 'Data shapes differ between Python and Octave')
-        # print("Data shape ok")
-        # # Compare data with tolerance
-        # # np.testing.assert_allclose(EEG_python['data'], EEG_matlab['data'],
-        # #                          rtol=1e-5, atol=1e-8,
-        # #                          err_msg='Python and MATLAB results differ beyond tolerance')
-        # np.testing.assert_allclose(EEG_matlab['data'].flatten(), EEG_octave['data'].flatten(),
-        #                          rtol=1e-5, atol=1e-8,
-        #                          err_msg='Python and MATLAB results differ beyond tolerance')
-        # print("Data comparison ok")
-
-        # Compare ICA activations if present
-        # if 'icaact' in self.EEG:
-        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_matlab['icaact'],
-        #                              rtol=1e-5, atol=1e-8,
-        #                              err_msg='ICA activations differ between Python and MATLAB')
-        #     np.testing.assert_allclose(EEG_python['icaact'], EEG_octave['icaact'],
-        #                              rtol=1e-5, atol=1e-8,
-        #                              err_msg='ICA activations differ between Python and Octave')
 
     def test_chanlocs_serialized_through_single_converter(self):
         # The primary EEG.chanlocs struct must be serialized through the same
@@ -307,21 +281,85 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(np.asarray(reloaded[1]['theta']).size, 0)
         self.assertEqual(np.asarray(reloaded[1]['radius']).size, 0)
 
+    def _continuous(self, events):
+        return {
+            'setname': 'mixed-urevent',
+            'nbchan': 1,
+            'trials': 1,
+            'pnts': 8,
+            'srate': 100.0,
+            'xmin': 0.0,
+            'xmax': 0.07,
+            'times': np.arange(8) / 100.0,
+            'data': np.zeros((1, 8)),
+            'chanlocs': [{'labels': 'Cz'}],
+            'event': events,
+            'icachansind': np.array([]),
+        }
+
+    def test_saveset_tolerates_events_without_urevent(self):
+        # The first record must not decide the field for every later event.
+        events = [
+            {'type': 'boundary', 'latency': 1.5, 'duration': 2.0, 'urevent': 0},
+            {'type': 'stim', 'latency': 4.0},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'mixed.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(int(np.asarray(saved[0].urevent).reshape(-1)[0]), 1)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(EEG['event'][0]['urevent'], 0)
+        self.assertNotIn('urevent', EEG['event'][1])
+
+        # A leading event without the field still leaves a later index 1-based on disk.
+        events = [
+            {'type': 'stim', 'latency': 2.0},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': 2},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'leading-missing.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[1].urevent).reshape(-1)[0]), 3)
+        self.assertNotIn('urevent', EEG['event'][0])
+        self.assertEqual(EEG['event'][1]['urevent'], 2)
+
+    def test_saveset_increments_structured_event_urevent(self):
+        events = np.array(
+            [('boundary', 1.5, 0.0), ('stim', 4.0, 2.0)],
+            dtype=[('type', 'U16'), ('latency', np.float64), ('urevent', np.float64)],
+        )
+        before = events['urevent'].copy()
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'structured.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual([int(ev.urevent) for ev in saved], [1, 3])
+        np.testing.assert_array_equal(EEG['event']['urevent'], before)
+
+    def test_saveset_treats_none_and_empty_urevent_as_absent(self):
+        events = [
+            {'type': 'stim', 'latency': 2.0, 'urevent': None},
+            {'type': 'boundary', 'latency': 5.0, 'urevent': []},
+            {'type': 'stim', 'latency': 7.0, 'urevent': 4},
+        ]
+        EEG = self._continuous(events)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'empty-urevent.set')
+            pop_saveset(EEG, out)
+            saved = scipy.io.loadmat(out, struct_as_record=False, squeeze_me=True)['event']
+        self.assertEqual(np.size(saved[0].urevent), 0)
+        self.assertEqual(np.size(saved[1].urevent), 0)
+        self.assertEqual(int(np.asarray(saved[2].urevent).reshape(-1)[0]), 5)
+        self.assertIsNone(EEG['event'][0]['urevent'])
+        self.assertEqual(EEG['event'][1]['urevent'], [])
+        self.assertEqual(EEG['event'][2]['urevent'], 4)
+
 
 if __name__ == '__main__':
-    # EEG = pop_loadset(ensure_file('FlankerTest.set'))
-    # pop_saveset(EEG, os.path.join(local_url, 'eeglab_data_tmp.set')) # see MATLAB code to compare the results at the end of the file
-
     unittest.main()
-
-# MATLAB code to compare the results
-# EEG_matlab = pop_loadset('eeglab_data_with_ica_tmp_matlab.set');
-# EEG_octave = pop_loadset('eeglab_data_with_ica_tmp_octave.set');
-# EEG_python = pop_loadset('eeglab_data_with_ica_tmp_python.set');
-# eegplot(EEG_matlab.data, 'srate', EEG_matlab.srate, 'data2', EEG_python.data);
-# figure; plot(EEG_matlab.data(1:10000), EEG_python.data(1:10000),'.')
-
-# figure; hist(abs(EEG_octave.data(:) - EEG_matlab.data(:)), 100)
-
-# assert(all( abs(EEG_python.data(:) - EEG_matlab.data(:)) <= (1e-8 + 1e-5 * abs(EEG_matlab.data(:))) ), ...
-#        'Python and MATLAB results differ beyond tolerance');

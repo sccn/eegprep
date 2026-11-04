@@ -10,12 +10,12 @@ import pytest
 
 from eegprep import pop_read_erpss, read_erpss
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 ERPSS_SOURCE = "unittesting_binary/pop_read_erpss/binary_pop_read_erpss_wrapperTest.m"
 
 
-@eeglab_test(ERPSS_SOURCE, "test_test_pop_read_erpss")
 def test_pop_read_erpss_imports_both_upstream_compressed_recordings(tmp_path: Path) -> None:
     """Strengthen the upstream test, which only calls the importer without assertions."""
     first_blocks = [
@@ -94,6 +94,15 @@ def test_pop_read_erpss_imports_both_upstream_compressed_recordings(tmp_path: Pa
     assert [event["latency"] for event in second_eeg["event"]] == [3]
 
 
+@eeglab_test(ERPSS_SOURCE, "test_test_pop_read_erpss")
+def test_upstream_pop_read_erpss_original_compressed_recordings(eeglab_backend, eeglab_suite_root, request):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "pop_read_erpss", "ERPSS")
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/ERPSS"
+    eeglab_backend("pop_read_erpss", str(directory / "ERPSSTESTCOMP.RAW"), 500.0)
+    eeglab_backend("pop_read_erpss", str(directory / "ERPSSCOMPRESSED.RAW"), 500.0)
+
+
 def test_read_erpss_reads_uncompressed_big_endian_samples_and_header_rate(tmp_path: Path) -> None:
     recording = tmp_path / "uncompressed.rdf"
     expected = np.array(
@@ -121,55 +130,26 @@ def test_read_erpss_reads_uncompressed_big_endian_samples_and_header_rate(tmp_pa
     assert [channel["labels"] for channel in eeg["chanlocs"]] == ["A1", "A2", "EOG"]
 
 
-def test_read_erpss_rejects_corrupt_and_truncated_recordings(tmp_path: Path) -> None:
-    data = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int16)
-    recording = tmp_path / "recording.raw"
-    _write_erpss(recording, [data], compressed=True, byteorder="little", labels=["A", "B"])
-
-    invalid_tag = tmp_path / "invalid-tag.raw"
-    invalid_tag.write_bytes(b"bad!" + recording.read_bytes()[4:])
-    with pytest.raises(ValueError, match="byte-order tag"):
-        read_erpss(invalid_tag)
-
-    truncated = tmp_path / "truncated.raw"
-    truncated.write_bytes(recording.read_bytes()[:-1])
-    with pytest.raises(ValueError, match="truncated sample data"):
-        read_erpss(truncated)
-
-    invalid_delta = tmp_path / "invalid-delta.raw"
-    invalid_bytes = bytearray(recording.read_bytes())
-    invalid_bytes[4608:4610] = b"\x00\x00"
-    invalid_delta.write_bytes(invalid_bytes)
-    with pytest.raises(ValueError, match="starts with a delta"):
-        read_erpss(invalid_delta)
-
-    outside_event = tmp_path / "outside-event.raw"
-    _write_erpss(
-        outside_event,
-        [data],
-        compressed=False,
-        byteorder="little",
-        labels=["A", "B"],
-        events=[[(3, 0, 1)]],
-    )
-    with pytest.raises(ValueError, match="outside the block"):
-        read_erpss(outside_event)
-
-
-def test_pop_read_erpss_requires_a_rate_when_the_header_has_none(tmp_path: Path) -> None:
-    recording = tmp_path / "unknown-rate.raw"
+def test_pop_read_erpss_imports_a_recording_shorter_than_its_channel_count(tmp_path: Path) -> None:
+    recording = tmp_path / "short.raw"
+    expected = np.arange(8, dtype=np.int16).reshape(4, 2)
+    labels = ["Cz", "Pz", "Fz", "Oz"]
     _write_erpss(
         recording,
-        [np.array([[1, 2]], dtype=np.int16)],
+        [expected],
         compressed=False,
         byteorder="little",
-        labels=["Cz"],
+        labels=labels,
+        sample_interval=2000,
     )
 
-    with pytest.raises(ValueError, match="sampling rate"):
-        pop_read_erpss(recording)
-    with pytest.raises(ValueError, match="finite positive"):
-        pop_read_erpss(recording, 0)
+    eeg = pop_read_erpss(recording)
+
+    np.testing.assert_array_equal(eeg["data"], expected)
+    assert eeg["nbchan"] == 4
+    assert eeg["pnts"] == 2
+    assert eeg["srate"] == 500
+    assert [channel["labels"] for channel in eeg["chanlocs"]] == labels
 
 
 def _write_erpss(

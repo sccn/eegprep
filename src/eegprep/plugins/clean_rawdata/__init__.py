@@ -7,7 +7,9 @@ from typing import Any
 
 _LAZY_EXPORTS = {
     "asr_calibrate": ("eegprep.plugins.clean_rawdata.asr_calibrate", "asr_calibrate"),
+    "asr_calibrate_r": ("eegprep.plugins.clean_rawdata.asr_calibrate_r", "asr_calibrate_r"),
     "asr_process": ("eegprep.plugins.clean_rawdata.asr_process", "asr_process"),
+    "asr_process_r": ("eegprep.plugins.clean_rawdata.asr_process_r", "asr_process_r"),
     "clean_artifacts": ("eegprep.plugins.clean_rawdata.clean_artifacts", "clean_artifacts"),
     "clean_asr": ("eegprep.plugins.clean_rawdata.clean_asr", "clean_asr"),
     "clean_channels": ("eegprep.plugins.clean_rawdata.clean_channels", "clean_channels"),

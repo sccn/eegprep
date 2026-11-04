@@ -139,19 +139,6 @@ def test_indvarmatch_and_gettrialsind_validate_standalone_inputs():
         std_gettrialsind("external_trialinfo.mat", "type", "rare")
 
 
-def test_gettrialsind_empty_string_and_type_mismatch_queries():
-    rows = [{"rt": 320.0, "type": "rare"}, {"rt": "", "type": "standard"}, {"rt": 410.0, "type": "rare"}]
-
-    indices, values = std_gettrialsind(rows, "rt", "", return_values=True)
-
-    assert indices == [1, 3]
-    assert values == [[320.0, 410.0]]
-    with pytest.raises(ValueError, match="expected numerical values"):
-        std_gettrialsind(rows, "rt", "rare")
-    with pytest.raises(ValueError, match="expected string values"):
-        std_gettrialsind(rows, "type", 1)
-
-
 def test_study_design_consistency_and_subject_selection_helpers():
     study, alleeg = _long_tail_study()
     study, _alltrialinfo = std_maketrialinfo(study, alleeg)

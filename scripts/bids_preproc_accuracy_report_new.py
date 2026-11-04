@@ -37,11 +37,6 @@ compare_ica_results = False
 
 # list of studies and subsets thereof to run the statistics on
 studies = [
-    # {
-    #     'studyname': 'ds003061',
-    #     'subjects': ['001', '002'],
-    #     'runs': [],
-    # },
     {
         'studyname': 'ds002680',
         'subjects': ['002'],  # first subject, has 2 sessions
@@ -78,7 +73,6 @@ if __name__ == '__main__':
         14: 'CommonAverageReference',
     }
 
-    # Initialize results structure indexed by stage
     results = {}
     for stage in range(1, max(StageNames.keys()) + 1):
         results[stage] = {'all': []}
@@ -86,10 +80,9 @@ if __name__ == '__main__':
             results[stage][study['studyname']] = []
 
     # compare the first k trials of each recording
-    max_trials = None  # was 30
+    max_trials = None
 
     for study in studies:
-        # subset of subjects/runs to compare
         studyname = study['studyname']
         subjects = study['subjects']
         runs = study['runs']
@@ -116,10 +109,8 @@ if __name__ == '__main__':
                 SkipIfPresent=True,
                 UseHashes=True,
                 MinimizeDiskUsage=False,
-                # parse events from BIDS, use value column
                 ApplyEvents=True,
                 EventColumn='value',  # <- needed for study ds3061 to match pop_importbids() in MATLAB
-                # determine arguments in accordance with to_stage
                 OnlyChannelsWithPosition=True if to_stage >= 2 else False,
                 OnlyModalities=() if to_stage >= 2 else (),
                 SamplingRate=128 if to_stage >= 3 else None,
@@ -137,7 +128,6 @@ if __name__ == '__main__':
                 CommonAverageReference=to_stage >= 14,
                 # misc params
                 EpochLimits=[-0.2, 0.5],
-                # return results so we can compare things
                 ReturnData=True,
             )
 
@@ -176,22 +166,18 @@ if __name__ == '__main__':
                 max_err = np.amax(abs_err)
                 stage_errs.append(max_err)
 
-            # Store results for this stage and study
             results[to_stage][studyname].extend(stage_errs)
             results[to_stage]['all'].extend(stage_errs)
 
-    # Print summary table
     print("\n\n" + "=" * 80)
     print("Summary of maximum absolute errors (in µV) between Python and MATLAB results:")
     print("=" * 80)
 
-    # Build header
     header = ["Stage", "StageName", "MaxErr(all)"]
     for study in studies:
         header.append(f"MaxErr({study['studyname']})")
     print("\t".join(header))
 
-    # Build rows
     for stage in range(1, max(StageNames.keys()) + 1):
         row = [str(stage), StageNames[stage]]
 

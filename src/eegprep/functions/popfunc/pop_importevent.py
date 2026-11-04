@@ -183,7 +183,7 @@ def _recompute_latencies(
             event["init_time"] = latency * timeunit
             event["latency"] = latency * srate * timeunit
             if "duration" in event:
-                event["duration"] = float(event["duration"]) * srate * timeunit
+                event["duration"] = _scale_duration(event["duration"], srate * timeunit)
         else:
             event["latency"] = latency
 
@@ -263,7 +263,17 @@ def _is_on(value: Any) -> bool:
     return str(value).lower() in {"on", "yes", "true", "1"}
 
 
+def _scale_duration(duration: Any, scale: float) -> Any:
+    if isinstance(duration, str) and not duration.strip():
+        return duration
+    return float(duration) * scale
+
+
 def _fields(value: Any) -> list[str] | None:
+    if isinstance(value, np.ndarray):
+        if value.size == 0:
+            return None
+        return [str(item) for item in value.ravel()]
     if value in (None, ""):
         return None
     if isinstance(value, str):

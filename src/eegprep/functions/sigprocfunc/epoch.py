@@ -60,10 +60,7 @@ def epoch(data, events, lim, **kwargs):
 
     newdatalength = int(reallim[1] - reallim[0] + 1)
 
-    # eeglab_options; option_memmapdata, mmo are EEGLAB-specific and not available here.
-    # if option_memmapdata == 1:
-    #     epochdat = mmo([], [data.shape[0], newdatalength, len(events)])  # MISSING: mmo
-    # else:
+    # EEGLAB's option_memmapdata / mmo path is not available here.
     epochdat = np.zeros((data.shape[0], newdatalength, len(events)), dtype=np.asarray(data).dtype)
 
     # MATLAB: g.allevents = g.allevents(:)'

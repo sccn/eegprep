@@ -8,9 +8,15 @@ User-facing ``pop_*`` wrappers. Each accepts ``return_com=True`` and returns a r
 Loading and Saving
 ------------------
 
-``pop_biosig`` and ``pop_fileio`` accept ``blockrange=[start, stop]`` for
-half-open, seconds-based reads of continuous EDF, BDF, and other MNE-backed
-formats. ``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
+``pop_biosig`` and ``pop_fileio`` accept their options as keywords or as
+positional name/value pairs. ``blockrange=[start, stop]`` requests a
+half-open, seconds-based read of continuous EDF, BDF, and other MNE-backed
+formats. A window or a whole recording with fewer samples than channels stays
+channel-major. BioSemi BDF import decodes ``Status`` with ``bdfeventmode`` (default
+4, rising edges of the lower 16 bits), stores those triggers when
+``importevent`` is ``on``, and removes ``Status`` when ``rmeventchan`` is
+``on``. A requested time range reads only the overlapping BDF records.
+``pop_fileio`` also accepts EEGLAB's 1-based ``channels`` selection
 and inclusive ``samples`` and ``trials`` ranges. ``pop_loadset`` supports
 metadata-only and 1-based channel loading through ``loadmode``.
 ``pop_importpres`` recognizes tab-delimited Presentation headers and also
@@ -19,7 +25,12 @@ accepts EEGLAB's positional event-type, time, and duration field names.
 and ``.RDF`` recordings. Pass a sampling rate only when timing is absent from
 the recording header.
 ``pop_readegi`` imports continuous or equal-length segmented EGI Simple Binary
-RAW files, including event channels and segment categories. ``pop_readsegegi``
+RAW files, including event channels and segment categories. An ``epoc`` event
+with no ``tim0`` event is stored as ``boundary``. When both codes are present,
+every ``epoc`` latency is the last sample of a trial, and the sample count
+divides evenly into one more trial than there are ``epoc`` events, the pauses
+become the trial boundaries and the ``epoc`` events are removed.
+``pop_readsegegi``
 joins a numbered continuous series ending in ``001.RAW``, ``002.RAW``, and so
 on, and validates that acquisition headers agree before concatenating samples.
 ``pop_importegimat`` reads EGI Net Station MATLAB exports. Segment variables
@@ -140,8 +151,15 @@ Plotting and Review
    eegprep.pop_topochansel
    eegprep.pop_topoplot
 
-The low-level ``erpimage`` helper accepts either one time value per sample or
-EEGLAB's compact ``[start_ms, frames, sampling_rate]`` time specification.
+``pop_erpimage`` follows EEGLAB's ``pop_erpimage`` arguments
+(``typeplot, channel, projchan, titleplot, smooth, decimate, sortingtype, sortingwin, sortingeventfield``
+and then any ``erpimage`` option),
+sorts the trials by event values with ``eeg_getepochevent``,
+and returns the ``erpimage`` result described under :ref:`erpimage_api`.
+Unlike ``erpimage``, it draws the ERP trace, a colorbar and a scalp map by default.
+Its ``lastcom=`` keyword reopens the dialog with an earlier history command,
+as the ``Plot`` menu does.
+
 ``newtimef`` accepts EEGLAB's default ``outputformat='plot'`` option; other
 output layouts are not yet implemented.
 

@@ -3,7 +3,8 @@
 EEGPrep's browser runtime.
 Reads a NEMAR recording without installing EEGPrep.
 
-`pip install eegprep` is unchanged and installs everything it always did.
+`pip install eegprep` installs NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py.
+Octave, MNE, PyBIDS, and Picard are extras (`pip install "eegprep[full]"`).
 This is a second distribution, built to a download budget instead,
 because a browser session pays for its dependencies before it sees anything.
 The reasoning is [Architecture Decision Record 0069][adr0069],
@@ -49,6 +50,11 @@ the base below it is this package alone, and it reads the index without installi
 anything.
 
 ## Use
+
+`eegprep_lean.help()` prints every public function with one line on what it does,
+the extra that supplies it, what is not available yet, and a short example.
+`dir(eegprep_lean)` and tab completion list the names behind an extra too,
+without importing it.
 
 With nothing installed but this package, you can ask what a dataset holds:
 

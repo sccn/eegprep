@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import scipy.io
 
+from eegprep.extras import import_optional_dependency, missing_matlab_message
 from eegprep.functions.adminfunc.pymat import py2mat
 from ..popfunc.pop_loadset import pop_loadset
 from ..popfunc.pop_saveset import pop_saveset
@@ -39,13 +40,47 @@ def _temp_dir() -> str:
     return temp_dir
 
 
+def _stash_double_eeg_data(engine, varname: str, path: str) -> None:
+    """Save double ``data`` and ``icaact`` as MATLAB holds them before ``pop_saveset``.
+
+    ``pop_saveset.m:225-226`` stores ``icaact`` as ``[]``. ``eeg_checkset.m:1000``
+    recomputes activations only when that field is empty or the wrong size.
+    """
+    engine.eval(
+        (
+            f"if isstruct({varname}) && isfield({varname}, 'data') && isnumeric({varname}.data), "
+            f"eegprep_roundtrip_data = double({varname}.data); "
+            f"if isfield({varname}, 'icaact'), eegprep_roundtrip_icaact = {varname}.icaact; "
+            "else, eegprep_roundtrip_icaact = []; end; "
+            f"save('{path}', 'eegprep_roundtrip_data', 'eegprep_roundtrip_icaact', '-v7'); "
+            "clear eegprep_roundtrip_data eegprep_roundtrip_icaact; "
+            "end"
+        ),
+        nargout=0,
+    )
+
+
+def _restore_double_eeg_data(eeg, path: str) -> None:
+    """Replace loaded single data and file activations with the MATLAB copies."""
+    if not os.path.exists(path) or not isinstance(eeg, dict) or "data" not in eeg:
+        return
+    saved = scipy.io.loadmat(path, squeeze_me=False)
+    stashed = np.asarray(saved["eegprep_roundtrip_data"])
+    current = np.asarray(eeg["data"])
+    if stashed.size != current.size:
+        return
+    eeg["data"] = np.reshape(stashed, current.shape, order="F")
+    if "eegprep_roundtrip_icaact" in saved:
+        eeg["icaact"] = np.asarray(saved["eegprep_roundtrip_icaact"])
+
+
 def _prepare_matlab_arg(arg: Any) -> Any:
     """Return one Python value in the shape expected by MATLAB ``savemat``."""
     if isinstance(arg, (list, tuple)) and len(arg) == 0:
         return np.array([], dtype=np.float64)
     if isinstance(arg, (list, tuple)) and all(isinstance(x, str) for x in arg):
         return np.array(arg, dtype=object).reshape(1, -1)
-    if isinstance(arg, list) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in arg):
         return np.array(arg, dtype=np.float64)
     if isinstance(arg, np.ndarray) and all(isinstance(x, (int, float, np.integer, np.floating)) for x in np.ravel(arg)):
         return np.array(arg, dtype=np.float64)
@@ -54,6 +89,28 @@ def _prepare_matlab_arg(arg: Any) -> Any:
     if isinstance(arg, str):
         return arg
     return py2mat(arg)
+
+
+def _matching_dir(parent: str | Path, *names: str) -> str | None:
+    """Return the first existing directory ``parent/name``."""
+    root = Path(parent)
+    for name in names:
+        candidate = root / name
+        if candidate.is_dir():
+            return str(candidate)
+    return None
+
+
+def _picard_plugin_paths(eeglab_root: str) -> list[str]:
+    """Return the installed Picard plugin directory and its ``matlab_octave`` sources."""
+    plugin = _matching_dir(Path(eeglab_root) / "plugins", "PICARD", "picard")
+    if plugin is None:
+        return []
+    paths = [plugin]
+    sources = _matching_dir(plugin, "matlab_octave")
+    if sources is not None:
+        paths.append(sources)
+    return paths
 
 
 def _resolve_eeglab_root() -> Path:
@@ -175,11 +232,11 @@ class MatlabWrapper:
                     temp_filename2 = temp_file2.name
                 result_filename = temp_filename1 + '.result.set'
                 result_extra_filename = temp_filename1 + '.result.mat'
+                double_data_filename = temp_filename1 + '.double.mat'
                 logger.debug("MATLAB roundtrip input set path: %s", temp_filename1)
                 logger.debug("MATLAB roundtrip args path: %s", temp_filename2)
                 logger.debug("MATLAB roundtrip result set path: %s", result_filename)
 
-                # save all parameters in the temp_filename which is a .mat file
                 if len(new_args) > 0:
                     if len(new_args) > 1:
                         scipy.io.savemat(
@@ -211,8 +268,10 @@ class MatlabWrapper:
                     and int(nargout) > 1
                     and name not in numeric_output_functions
                 ):
+                    _stash_double_eeg_data(self.engine, "OUT1", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT1, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     extra_names = ",".join(f"'OUT{i}'" for i in range(2, int(nargout) + 1))
                     self.engine.eval(f"save('-mat', '{result_extra_filename}', {extra_names});", nargout=0)
                     extra_data = scipy.io.loadmat(result_extra_filename, squeeze_me=True)
@@ -220,8 +279,10 @@ class MatlabWrapper:
                     return (OUT, *extras)
                 elif (needs_roundtrip or name == 'pop_loadset') and name not in numeric_output_functions:
                     # Always round-trip OUT for pop_loadset to get a proper Python EEG dict
+                    _stash_double_eeg_data(self.engine, "OUT", double_data_filename)
                     self.engine.eval(f"pop_saveset(OUT, '{result_filename}');", nargout=0)
                     OUT = pop_loadset(result_filename)
+                    _restore_double_eeg_data(OUT, double_data_filename)
                     return OUT
                 else:
                     self.engine.eval(f"save('-mat', '{result_filename}', 'OUT');", nargout=0)
@@ -259,17 +320,22 @@ class MatlabWrapper:
                         os.remove(result_filename.replace('result.set', 'result.fdt'))
                     if os.path.exists(result_extra_filename):
                         os.remove(result_extra_filename)
+                    if os.path.exists(double_data_filename):
+                        os.remove(double_data_filename)
                 except OSError as e:
                     logger.warning(f"Error deleting temporary file(s) in temp dir {temp_dir}: {e}")
-            # else:
-            #     # run it directly
-            #     return getattr(self.engine, name)(*args)
 
         return wrapper
 
 
 # noinspection PyDefaultArgument
-def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
+def get_eeglab(
+    runtime: str = default_runtime,
+    *,
+    auto_file_roundtrip: bool = True,
+    feature: str = "get_eeglab",
+    _cache={},
+):
     """Get a reference to an EEGLAB namespace that is powered by the specified runtime (Octave or MATLAB).
 
     Args
@@ -279,6 +345,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
       can be passed as arguments and returned by the engine. This is enabled
       by implicitly performing pop_saveset/pop_loadset with a temporary file
       whenever such a data structure is encountered.
+    feature : name of the function the caller asked for, used when Octave is
+      not installed.
     _cache : reserved for internal use
     """
     rt = runtime.lower()[:3]
@@ -295,9 +363,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 
         # not yet loaded, do so now
         if rt == 'oct':
-            from oct2py import Oct2Py, get_log
-
-            engine = Oct2Py(logger=get_log())
+            oct2py = import_optional_dependency("oct2py", feature=feature)
+            get_log = oct2py.get_log
+            engine = oct2py.Oct2Py(logger=get_log())
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
@@ -305,16 +373,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             try:
                 # Use import_module so ty can run before MATLAB Engine is installed.
                 matlab_engine = importlib.import_module("matlab.engine")
-            except ImportError:
-                raise ImportError("""\
-                    The MATLAB runtime has not been installed into your Python environment.
-                    To do that, make sure you have the pip executable for this python environment
-                    on the path, and then run:
-                    pip install /your/path/to/matlab/extern/engines/python
-
-                    This will insert a wrapper package in the python environment that forwards
-                    calls to the MATLAB runtime.
-                    """)
+            except ImportError as exc:
+                raise ImportError(missing_matlab_message(feature)) from exc
             engine = matlab_engine.start_matlab()
             # engine.cd(path2eeglab)
             # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow
@@ -331,9 +391,21 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
         engine.addpath(path2eeglab + '/plugins/dipfit')
         engine.addpath(path2eeglab + '/plugins/ICLabel')
         engine.addpath(path2eeglab + '/plugins/EEG-BIDS')
-        engine.addpath(path2eeglab + '/plugins/picard')
-        engine.addpath(path2eeglab + '/plugins/picard/matlab_octave')
+        for plugin_path in _picard_plugin_paths(path2eeglab):
+            engine.addpath(plugin_path)
         engine.addpath(path2eeglab + '/plugins/clean_rawdata')
+        # eegplugin_clean_rawdata adds these so rasr_nonlinear_eigenspace can call Manopt.
+        manopt_root = path2eeglab + '/plugins/clean_rawdata/manopt'
+        for relative in (
+            '',
+            '/manopt/manifolds/grassmann',
+            '/manopt/tools',
+            '/manopt/core',
+            '/manopt/solvers/trustregions',
+        ):
+            manopt_path = manopt_root + relative
+            if os.path.isdir(manopt_path):
+                engine.addpath(manopt_path, nargout=0)
         amica_path = path2eeglab + '/plugins/amica'
         if os.path.isdir(amica_path):
             engine.addpath(amica_path, nargout=0)
@@ -341,10 +413,6 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             engine.addpath(str(matlab_test_dir))
         engine.addpath(scripts_dir)
         engine.cd(path2eeglab + '/plugins/clean_rawdata/private')  # to grant access to util funcs for unit testing
-
-        # path2eeglab = 'eeglab' # init >10 seconds
-        # res = eeglab.version()
-        # print('Running EEGLAB commands in compatibility mode with Octave ' + res)
 
         if rt == 'oct':
             engine.logger.setLevel(logging.INFO)
@@ -367,30 +435,15 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 def eeg_checkset(EEG, eeglab=None):
     """Check the EEG dataset."""
     if eeglab is None:
-        eeglab = get_eeglab()
+        eeglab = get_eeglab(feature="eeg_checkset")
     return eeglab.eeg_checkset(EEG)
 
 
 def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
     """Remove drifts from EEG data."""
     if eeglab is None:
-        eeglab = get_eeglab()
+        eeglab = get_eeglab(feature="clean_drifts")
     return eeglab.clean_drifts(EEG, Transition, Attenuation)
-
-
-# def pop_resample( EEG, freq): # 2 additional parameters in MATLAB (never used)
-#     eeglab = get_eeglab(auto_file_roundtrip=False)
-
-#     pop_saveset(EEG, './tmp.set') # 0.8 seconds
-#     EEG2 = eeglab.pop_loadset('./tmp.set') # 2 seconds
-#     EEG2 = eeglab.pop_resample(EEG2, freq) # 2.4 seconds
-#     eeglab.pop_saveset(EEG2, './tmp2.set') # 2.4 seconds
-#     EEG3 = pop_loadset('./tmp2.set') # 0.2 seconds
-
-#     # delete temporary files
-#     os.remove('./tmp.set')
-#     os.remove('./tmp2.set')
-#     return EEG3
 
 
 def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=False):
@@ -414,7 +467,6 @@ def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=F
     dict
         Filtered EEG data.
     """
-    # error if locutoff and hicutoff are none
     if locutoff is None and hicutoff is None:
         raise ValueError('Cannot have low cutoff and high cutoff not defined')
 
@@ -425,7 +477,7 @@ def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=F
         hicutoff = []
 
     # Use wrapper which handles EEG struct conversion via file roundtrip
-    eeglab = get_eeglab(auto_file_roundtrip=True)
+    eeglab = get_eeglab(auto_file_roundtrip=True, feature="pop_eegfiltnew")
     return eeglab.pop_eegfiltnew(
         EEG, 'locutoff', locutoff, 'hicutoff', hicutoff, 'revfilt', revfilt, 'plotfreqz', plotfreqz
     )
@@ -480,7 +532,7 @@ def clean_artifacts(
     dict
         Cleaned EEG data.
     """
-    eeglab = get_eeglab(auto_file_roundtrip=False)
+    eeglab = get_eeglab(auto_file_roundtrip=False, feature="eeglab_clean_artifacts")
 
     if _matlab_false_or_off(ChannelCriterion):
         ChannelCriterion = 'off'

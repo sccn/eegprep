@@ -47,7 +47,6 @@ def firws(
     if m <= 0 or not isinstance(m, int) or m % 2 != 0:
         raise ValueError('Filter order must be a real, even, positive integer.')
 
-    # Convert f to array and normalize
     f_arr = np.asarray(f, dtype=float)
     if f_arr.ndim == 0:
         f_arr = f_arr.reshape(1)
@@ -61,7 +60,6 @@ def firws(
 
     if w is None:
         if t is not None and not isinstance(t, str):
-            # Handle case where third argument is window, not filter type
             w = t
             t = ''
         else:
@@ -100,21 +98,17 @@ def _fkernel(m: int, f: float, w: np.ndarray) -> np.ndarray:
     b : np.ndarray
         Filter kernel.
     """
-    # Create range -m/2 : m/2
     n = np.arange(-m // 2, m // 2 + 1, dtype=float)
 
-    # Compute sinc function
     b = np.zeros_like(n)
 
     # Handle n == 0 case (no division by zero)
     zero_idx = n == 0
     b[zero_idx] = 2 * np.pi * f
 
-    # Handle n != 0 case
     nonzero_idx = n != 0
     b[nonzero_idx] = np.sin(2 * np.pi * f * n[nonzero_idx]) / n[nonzero_idx]
 
-    # Apply window
     b = b * w
 
     # Normalization to unity gain at DC

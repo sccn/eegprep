@@ -10,6 +10,8 @@ import numpy as np
 def celltomat(cells: Any) -> np.ndarray:
     """Convert a rectangular nested sequence of numeric scalars to an array."""
     result = np.asarray(cells)
+    if result.dtype == object and result.size == 0:
+        return np.zeros(result.shape)
     if result.dtype == object and result.size:
         values = [_numeric_scalar(cell) for cell in result.flat]
         result = np.asarray(values).reshape(result.shape)

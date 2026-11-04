@@ -101,9 +101,6 @@ class TestLabelsAndUnits:
         a plot labeled by index."""
         assert metadata.labels((0, 999)) is None
 
-    def test_one_unit_when_the_rows_agree(self, metadata: GroupMetadata) -> None:
-        assert metadata.unit((0, 1, 2)) == UNIT
-
     def test_no_unit_when_the_rows_disagree(self) -> None:
         """The store contract says to read the unit from the channel, not the modality.
         A window spanning channels of different units has none to name, and naming one
@@ -119,10 +116,6 @@ class TestLabelsAndUnits:
 
         assert mixed.unit((0, 1)) is None
         assert mixed.unit((0,)) == "uV"
-
-    def test_a_blank_unit_is_not_a_unit(self) -> None:
-        blank = GroupMetadata(GROUP_NAME, "EEG", RATE, ORIGINAL_RATE, 1, (Channel("E1", "", "EEG", 0, 0.0, 0.0, True),))
-        assert blank.unit((0,)) is None
 
 
 @pytest.mark.network

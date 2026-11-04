@@ -48,7 +48,17 @@ selection:
    EEG, com = pop_select(EEG, channel=[1, 2, 3, 4, 5], return_com=True)
 
 GUI path: ``Edit > Select data``. Channel/component values in GUI dialogs are
-EEGLAB-facing one-based values.
+EEGLAB-facing one-based values. ``pop_select`` then checks event consistency:
+a leading boundary whose duration is less than one sample is removed, a leading
+boundary latency in (0, 1) is set to 0.5, events with an epoch number outside
+the dataset are removed, and the remaining events are sorted by epoch, then
+latency. Once any event has a duration, an empty or missing duration on
+another event is 0. A NaN duration is kept. Consecutive boundary-list entries
+that share a latency, taken in event order before that sort, chain their
+durations into the last entry of the run. A later boundary at the same latency
+stays separate when a different latency stands between the two entries.
+Boundary latencies 20, 20, 30, and 20 with durations 4, 1, 8, and 2 sort to
+latency 20 duration 5, latency 20 duration 2, and latency 30 duration 8.
 
 Filter
 ======
@@ -69,7 +79,10 @@ The usual FIR filtering entry point is ``pop_eegfiltnew``:
 
 GUI path: ``Tools > Filter the data``. The wrapper uses bundled FIRFilt-style
 Hamming-window defaults, respects continuous-data boundary events, clears stale
-ICA activations, and returns a replayable history command.
+ICA activations, and returns a replayable history command. ``minphase=True``
+converts the FIR to minimum phase with the real cepstrum before causal filtering.
+``usefftfilt=True`` filters each segment by overlap-add, so a missing sample
+stays inside the FFT block that contains it.
 
 Use FIRFilt helpers for custom filter design:
 
@@ -132,19 +145,26 @@ should use the first value or call ``pop_clean_rawdata``.
 Sampling Rates
 ==============
 
-ASR calibration designs its spectral-shaping filter for whatever sampling rate
-the dataset has, so no resampling is required beforehand. Clinical and
-consumer amplifier rates that are not round numbers, such as 258 Hz, work
-directly.
+ASR calibration designs its spectral-shaping filter for the dataset's sampling
+rate, so ordinary clinical rates, including non-integer rates such as 258 Hz,
+need no resampling first. A rate whose default frequency breakpoints are not
+monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
+that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
+leave that recording unchanged.
 
 Riemannian ASR Notes
 ====================
 
-EEGPrep supports the Riemannian ASR calibration variant through
-``clean_asr(EEG, useriemannian="calib")`` and
-``clean_artifacts(EEG, Distance="Riemannian")``. Full Riemannian ASR
-processing is not ported, so direct full-process requests fail clearly instead
-of silently substituting MATLAB-only behavior.
+``clean_asr(EEG, useriemannian=True)`` and
+``clean_artifacts(EEG, Distance="Riemannian")`` run Riemannian ASR.
+Calibration takes the geometric median of block covariances and sets
+component thresholds from the nonlinear eigenspace of the mixing matrix.
+Processing uses one sample covariance per chunk. A later chunk averages that
+covariance with the previous chunk along the affine-invariant geodesic.
+
+``clean_asr(EEG, useriemannian="calib")`` keeps the smaller variant: a
+Riemannian covariance during calibration, then the Euclidean ASR processor.
+Passing an unknown ``useriemannian`` value raises ``ValueError``.
 
 Review Rejected Segments
 ========================
@@ -174,6 +194,9 @@ appropriate:
 
 GUI path: ``Tools > Change sampling rate``. Continuous data with boundary
 events is resampled by segment. Event latencies and the time vector are updated.
+A missing sample stays missing where the anti-aliasing filter reaches it,
+including the exact-zero delay pads in MATLAB's resampler. Outputs no tap
+reaches stay finite.
 
 Re-Reference and Interpolate
 ============================
@@ -298,24 +321,23 @@ Two-condition comparisons (contrasting two datasets in a single figure) are not
 yet part of the standalone wrapper.
 
 Legacy ``pop_timef`` and ``pop_crossf`` calls route through the standalone
-``pop_newtimef`` and ``pop_newcrossf`` implementations. ERP-image workflows use
-``pop_erpimage`` for channel or component images:
+``pop_newtimef`` and ``pop_newcrossf`` implementations.
+ERP-image workflows use ``pop_erpimage`` for channel or component images of epoched data
+(see `Epoch and Baseline`_ below), with EEGLAB's arguments:
 
 .. code-block:: python
 
    from eegprep import pop_erpimage
 
-   image, com = pop_erpimage(EEG, typeplot=1, index=1, return_com=True)
+   # Channel Cz of epoched data, sorted by reaction-time latency, smoothed over 10 trials.
+   result, com = pop_erpimage(EEG, 1, "Cz", None, "", 10, 1, ["rt"], None, "latency", return_com=True)
 
-Channel ERP images use a symmetric color axis, a solid line marking time zero on
-both the image and the ERP trace, and a small scalp map at the upper left with
-the plotted channel marked, matching EEGLAB's ERP-image layout.
+``pop_erpimage`` draws the ERP trace, a colorbar and a scalp map by default,
+and accepts every :func:`~eegprep.erpimage` option, such as phase sorting or inter-trial coherence.
+See :ref:`gui_tutorials` for the dialog.
 
 GUI paths live under the ``Plot`` menu when a dataset is loaded. EEGPrep
-returns replayable Python history commands for these wrappers. Some MATLAB-only
-``pop_erpimage`` event-alignment and advanced renormalization options are not
-standalone EEGPrep features; those requests raise explicit errors instead of
-silently substituting a different analysis.
+returns replayable Python history commands for these wrappers.
 
 Epoch and Baseline
 ==================

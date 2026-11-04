@@ -5,7 +5,32 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from scipy.signal import fftconvolve, lfilter
+from scipy.signal import lfilter
+
+# fftfilt.m chooses a power-of-two length by minimizing block count times these
+# FFT flop estimates from the Signal Processing Toolbox.
+_FFT_FLOPS = (
+    18,
+    59,
+    138,
+    303,
+    660,
+    1441,
+    3150,
+    6875,
+    14952,
+    32373,
+    69762,
+    149647,
+    319644,
+    680105,
+    1441974,
+    3047619,
+    6422736,
+    13500637,
+    28311786,
+    59244791,
+)
 
 
 def fir_filterdcpadded(
@@ -49,7 +74,7 @@ def fir_filterdcpadded(
     end_pad = np.empty((0, x.shape[1]), dtype=float) if causal else np.repeat(x[-1:, :], group_delay, axis=0)
     padded = np.concatenate([start_pad, x, end_pad], axis=0)
     if usefftfilt:
-        filtered = fftconvolve(padded, coeffs[:, np.newaxis], mode="full", axes=0)[: padded.shape[0], :]
+        filtered = _fftfilt(coeffs, padded)
     else:
         filtered = lfilter(coeffs, [1.0], padded, axis=0)
     filtered = filtered[2 * group_delay :, :]
@@ -58,3 +83,42 @@ def fir_filterdcpadded(
     if squeeze:
         return filtered[:, 0]
     return filtered
+
+
+def _fftfilt_lengths(n_coeff: int, n_samples: int) -> tuple[int, int]:
+    if n_samples <= 0:
+        return 1, 1
+    if n_coeff >= n_samples or n_coeff > 2**20:
+        nfft = 1 << int(np.ceil(np.log2(max(n_coeff + n_samples - 1, 1))))
+        return nfft, n_samples
+    sizes = 2 ** np.arange(1, 21)
+    valid = sizes > (n_coeff - 1)
+    sizes = sizes[valid]
+    block_lengths = sizes - (n_coeff - 1)
+    flops = np.asarray(_FFT_FLOPS, dtype=float)[valid]
+    index = int(np.argmin(np.ceil(n_samples / block_lengths) * flops))
+    return int(sizes[index]), int(block_lengths[index])
+
+
+def _fftfilt(coeffs: np.ndarray, data: np.ndarray) -> np.ndarray:
+    """Overlap-add FIR filter matching MATLAB ``fftfilt`` along the first axis."""
+    n_samples = data.shape[0]
+    nfft, block = _fftfilt_lengths(coeffs.size, n_samples)
+    spectrum = np.fft.fft(coeffs, nfft)
+    output = np.zeros((n_samples, data.shape[1]), dtype=np.complex128)
+    start = 0
+    while start < n_samples:
+        stop = min(start + block, n_samples)
+        chunk = data[start:stop]
+        # fftfilt.m repeats a one-sample block out to the FFT length.
+        if chunk.shape[0] == 1:
+            transformed = np.fft.fft(np.repeat(chunk, nfft, axis=0), axis=0)
+        else:
+            transformed = np.fft.fft(chunk, nfft, axis=0)
+        filtered = np.fft.ifft(transformed * spectrum[:, None], axis=0)
+        end = min(n_samples, start + nfft)
+        output[start:end] += filtered[: end - start]
+        start += block
+    if np.isrealobj(coeffs) and np.isrealobj(data):
+        return np.real(output)
+    return output

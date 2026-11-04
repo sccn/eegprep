@@ -9,7 +9,6 @@ try:
     import colorama
 
     _COLORAMA_AVAILABLE = True
-    # Initialize colorama for Windows compatibility
     colorama.init()
 except ImportError:
     _COLORAMA_AVAILABLE = False
@@ -31,7 +30,6 @@ class ColoredWarningFormatter(logging.Formatter):
     RED = colorama.Fore.RED if _COLORAMA_AVAILABLE else '\033[91m'
     RESET = colorama.Style.RESET_ALL if _COLORAMA_AVAILABLE else '\033[0m'
 
-    # Define log format strings
     log_format = '%(levelname)s (%(name)s) %(message)s'
     # Wrap the entire format string with color codes
     log_format_warn = f'{YELLOW}%(levelname)s (%(name)s) %(message)s{RESET}'
@@ -53,7 +51,6 @@ class ColoredWarningFormatter(logging.Formatter):
     def format(self, record):
         """Format the record with color if applicable."""
         if _COLORAMA_AVAILABLE:
-            # Get the specialized formatter if one exists for this level
             formatter = self.formats.get(record.levelno)
             if formatter:
                 # Use the level-specific formatter
@@ -85,7 +82,6 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
     """
     root_logger = logging.getLogger()  # Get the root logger
 
-    # Check if handlers already exist and if we should skip configuration
     if only_if_unset and root_logger.hasHandlers():
         logging.getLogger(__name__).debug("Root logger already has handlers, skipping setup_logging.")
         return  # Skip configuration
@@ -97,7 +93,6 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
     # Configure console handler
     console_handler = logging.StreamHandler(sys.stderr)
 
-    # Determine formatter based on TTY and colorama availability
     if _COLORAMA_AVAILABLE and console_handler.stream.isatty():
         formatter = ColoredWarningFormatter()
         console_handler.setFormatter(formatter)
@@ -117,5 +112,4 @@ def setup_logging(level=logging.INFO, only_if_unset=True):
     # Set the level for the handler (controls what messages the handler *outputs*)
     console_handler.setLevel(level)
 
-    # Add the handler to the root logger
     root_logger.addHandler(console_handler)

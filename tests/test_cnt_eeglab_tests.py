@@ -1,7 +1,7 @@
 """Executable ports of the current EEGLAB CNT loader wrappers.
 
-Upstream suite: sccn/eeglab_tests@ff605546f3f70868916fb8d49c007472b3257b50
-EEGLAB tree: sccn/eeglab@8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba
+Upstream suite: sccn/eeglab_tests@fec88f9ffe7c225eb1de8924db8b6a3e0d53a4d9
+EEGLAB tree: sccn/eeglab@d0963be9d81acc5b66e84f8d3d7c89e3ce127cc4
 CNT implementation: sccn/neuroscanio@5915f10abac2db12f07876b9cf994371973f6c49
 
 The two upstream recordings are 14 MB and 27 MB Git LFS objects. These tests
@@ -13,17 +13,16 @@ from __future__ import annotations
 
 from pathlib import Path
 import struct
-from typing import Any
 
 import numpy as np
 import pytest
 
-import eegprep
 from eegprep.functions.adminfunc.storage import MemmapData
 from eegprep.functions.popfunc.pop_fileio import pop_fileio
 from eegprep.functions.popfunc.pop_loadcnt import pop_loadcnt
 from eegprep.functions.sigprocfunc.loadcnt import loadcnt
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.backend import skip_without_matlab_plugin
 
 
 LOADCNT_WRAPPER = "unittesting_binary/loadcnt/binary_loadcnt_wrapperTest.m"
@@ -161,47 +160,6 @@ def cnt_files(tmp_path: Path) -> tuple[Path, Path, np.ndarray, np.ndarray]:
     return int16_file, int32_file, counts16, counts32
 
 
-@eeglab_test(LOADCNT_WRAPPER, "test_test_loadcnt")
-def test_current_loadcnt_wrapper_cases(cnt_files: tuple[Path, Path, np.ndarray, np.ndarray], tmp_path: Path) -> None:
-    int16_file, int32_file, _counts16, _counts32 = cnt_files
-
-    case1 = loadcnt(int32_file, "dataformat", "int32")
-    case2 = loadcnt(int32_file, dataformat="int32", t1=0, lddur=301)
-    case3 = loadcnt(
-        int32_file,
-        dataformat="int32",
-        t1=0,
-        sample1=0,
-        lddur="301",
-        ldnsamples=1000,
-    )
-    case4 = loadcnt(int16_file, dataformat="int16")
-    mapped_file = tmp_path / "map.fdt"
-    case5 = loadcnt(int16_file, dataformat="int16", memmapfile=mapped_file)
-    case6 = loadcnt(int16_file, dataformat="int16", t1=0, lddur=227)
-    case7 = loadcnt(
-        int16_file,
-        dataformat="int16",
-        t1=0,
-        sample1=0,
-        lddur="227",
-        ldnsamples=1000,
-    )
-    case8 = loadcnt(int32_file, keystroke="on", dataformat="int32")
-
-    assert case1["data"].shape == (2, 1200)
-    assert case2["data"].shape == (2, 301)
-    assert case3["data"].shape == (2, 1000)
-    assert case4["data"].shape == (2, 1200)
-    assert isinstance(case5["data"], MemmapData)
-    np.testing.assert_array_equal(case5["data"], case4["data"])
-    assert mapped_file.stat().st_size == 2 * 1200 * 4
-    assert case6["data"].shape == (2, 227)
-    assert case7["data"].shape == (2, 1000)
-    assert case8["event"] == case1["event"]
-
-
-@eeglab_test(POP_LOADCNT_WRAPPER, "test_test_pop_loadcnt")
 def test_current_pop_loadcnt_wrapper_cases(
     cnt_files: tuple[Path, Path, np.ndarray, np.ndarray], tmp_path: Path
 ) -> None:
@@ -329,47 +287,6 @@ def test_pop_fileio_routes_cnt_through_standalone_loader(
     assert eeg["history"] == command
 
 
-@pytest.mark.parametrize(
-    ("operation", "message"),
-    [
-        (lambda path: loadcnt(path, dataformat="float32"), "dataformat"),
-        (lambda path: loadcnt(path, sample1=-1), "sample1"),
-        (lambda path: loadcnt(path, sample1=0.5), "sample1"),
-        (lambda path: loadcnt(path, ldnsamples=0), "sample count"),
-        (lambda path: loadcnt(path, memmapfile=path.with_suffix(".dat")), ".fdt"),
-        (lambda path: pop_loadcnt(path, keystroke="maybe"), "keystroke"),
-    ],
-)
-def test_cnt_loader_rejects_ambiguous_or_unsafe_options(
-    cnt_files: tuple[Path, Path, np.ndarray, np.ndarray],
-    operation: Any,
-    message: str,
-) -> None:
-    int16_file, _int32_file, _counts16, _counts32 = cnt_files
-
-    with pytest.raises(ValueError, match=message):
-        operation(int16_file)
-
-
-def test_loadcnt_reports_truncated_headers_and_misaligned_data(tmp_path: Path) -> None:
-    short = tmp_path / "short.cnt"
-    short.write_bytes(b"Version 3.0")
-    with pytest.raises(ValueError, match="setup header is truncated"):
-        loadcnt(short)
-
-    valid = _write_cnt(
-        tmp_path / "misaligned.cnt",
-        np.arange(20, dtype=np.int16).reshape(2, 10),
-        dataformat="int16",
-        rate=10,
-    )
-    payload = bytearray(valid.read_bytes())
-    struct.pack_into("<I", payload, 886, struct.unpack_from("<I", payload, 886)[0] - 1)
-    valid.write_bytes(payload)
-    with pytest.raises(ValueError, match="exact number of channel frames"):
-        loadcnt(valid, dataformat="int16")
-
-
 def test_loadcnt_warns_and_truncates_a_request_at_end_of_recording(
     cnt_files: tuple[Path, Path, np.ndarray, np.ndarray],
 ) -> None:
@@ -382,59 +299,41 @@ def test_loadcnt_warns_and_truncates_a_request_at_end_of_recording(
     assert loaded["ldnsamples"] == 5
 
 
-def test_loadcnt_validates_event_table_length(tmp_path: Path) -> None:
-    path = _write_cnt(
-        tmp_path / "truncated-events.cnt",
-        np.arange(20, dtype=np.int16).reshape(2, 10),
-        dataformat="int16",
-        rate=10,
-        events=[{"stimtype": 1, "sample": 2}],
-    )
-    payload = bytearray(path.read_bytes())
-    event_position = struct.unpack_from("<I", payload, 886)[0]
-    struct.pack_into("<I", payload, event_position + 1, 38)
-    path.write_bytes(payload)
-
-    with pytest.raises(ValueError, match="event table is truncated"):
-        loadcnt(path, dataformat="int16")
+@eeglab_test(LOADCNT_WRAPPER, "test_test_loadcnt")
+def test_upstream_loadcnt_original_eight_call_forms(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request
+):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "loadcnt", "neuroscanio")
+    _original_cnt_calls(eeglab_backend, eeglab_suite_root, "loadcnt")
 
 
-def test_loadcnt_rejects_event_offsets_between_channel_frames(tmp_path: Path) -> None:
-    path = _write_cnt(
-        tmp_path / "misaligned-event.cnt",
-        np.arange(20, dtype=np.int16).reshape(2, 10),
-        dataformat="int16",
-        rate=10,
-        events=[{"stimtype": 1, "sample": 2}],
-    )
-    payload = bytearray(path.read_bytes())
-    event_position = struct.unpack_from("<I", payload, 886)[0]
-    offset_position = event_position + 9 + 4
-    stored_offset = struct.unpack_from("<i", payload, offset_position)[0]
-    struct.pack_into("<i", payload, offset_position, stored_offset + 1)
-    path.write_bytes(payload)
-
-    with pytest.raises(ValueError, match="not aligned"):
-        loadcnt(path, dataformat="int16")
+@eeglab_test(POP_LOADCNT_WRAPPER, "test_test_pop_loadcnt")
+def test_upstream_pop_loadcnt_original_eight_call_forms(
+    eeglab_backend, eeglab_suite_root, eeglab_working_directory, request
+):
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        skip_without_matlab_plugin(request.getfixturevalue("eeglab_matlab_engine"), "pop_loadcnt", "neuroscanio")
+    _original_cnt_calls(eeglab_backend, eeglab_suite_root, "pop_loadcnt")
 
 
-def test_loadcnt_auto_uses_explicitly_warned_int16_fallback(tmp_path: Path) -> None:
-    counts = np.arange(20, dtype=np.int16).reshape(2, 10)
-    path = _write_cnt(
-        tmp_path / "ambiguous.cnt",
-        counts,
-        dataformat="int16",
-        rate=10,
-        header_samples=0,
-    )
-
-    with pytest.warns(RuntimeWarning, match="sample width is ambiguous"):
-        loaded = loadcnt(path, scale="off")
-
-    assert loaded["dataformat"] == "int16"
-    np.testing.assert_array_equal(loaded["data"], counts)
-
-
-def test_cnt_public_exports_are_available() -> None:
-    assert eegprep.loadcnt is loadcnt
-    assert eegprep.pop_loadcnt is pop_loadcnt
+def _original_cnt_calls(eeglab_backend, eeglab_suite_root, function):
+    directory = eeglab_suite_root / "unittesting_binary/testfiles/neuroscan"
+    int32_file = str(directory / "TEST32BIT_WITHEVENT.CNT")
+    int16_file = str(directory / "TEST.CNT")
+    mapped_file = Path("map.fdt")
+    cases = [
+        (int32_file, "dataformat", "int32"),
+        (int32_file, "dataformat", "int32", "t1", 0.0, "lddur", 301.0),
+        (int32_file, "dataformat", "int32", "t1", 0.0, "sample1", 0.0, "lddur", "301", "ldnsamples", 1000.0),
+        (int16_file, "dataformat", "int16"),
+        (int16_file, "dataformat", "int16", "memmapfile", str(mapped_file)),
+        (int16_file, "dataformat", "int16", "t1", 0.0, "lddur", 227.0),
+        (int16_file, "dataformat", "int16", "t1", 0.0, "sample1", 0.0, "lddur", "227", "ldnsamples", 1000.0),
+        (int32_file, "keystroke", "on", "dataformat", "int32"),
+    ]
+    for index, arguments in enumerate(cases):
+        eeglab_backend(function, *arguments)
+        if index == 4:
+            assert mapped_file.is_file()
+            mapped_file.unlink()

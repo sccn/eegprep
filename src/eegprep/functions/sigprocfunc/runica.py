@@ -26,6 +26,7 @@ import numpy as np
 from scipy.linalg import sqrtm, pinv, eig
 from ...plugins.clean_rawdata.private.ransac import rand_permutation
 from ..miscfunc.misc import finite_pinv
+from ..miscfunc.value_parsing import parse_key_value_args
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +66,15 @@ DEFAULT_PCAFLAG = 'off'
 DEFAULT_POSACTFLAG = 'off'
 DEFAULT_VERBOSE = 1
 DEFAULT_BIASFLAG = 1
-DEFAULT_RESETRANDOMSEED = False  # Note: Changed to False in 2015 (was True before)
+DEFAULT_RESETRANDOMSEED = False
 
 
-def runica(data, **kwargs):
+def runica(data, *args, **kwargs):
     """
     Perform Independent Component Analysis (ICA) decomposition using infomax.
+
+    Positional EEGLAB name/value pairs, such as ``runica(data, 'extended', 1)``,
+    are accepted and merged with keywords. Pair names are case-insensitive.
 
     This function implements the logistic infomax ICA algorithm of Bell & Sejnowski
     (1995) with the natural gradient feature, or optionally the extended-ICA
@@ -140,8 +144,7 @@ def runica(data, **kwargs):
             Draw interrupt figure. Options: 'on', 'off'.
 
         rndreset : str or bool, default='off' or False
-            Reset the random seed based on time of day. Default 'off' means
-            ICA will always return the SAME decomposition (deterministic).
+            Reset the random seed from the clock. Omitted calls stay off.
 
         seed : int, optional
             Random seed for RNG initialization. If provided, overrides rndreset
@@ -177,8 +180,15 @@ def runica(data, **kwargs):
     This is a direct translation of EEGLAB's MATLAB runica.m function.
     Uses float64 precision throughout for numerical consistency.
 
-    The RNG uses np.random.RandomState with seed 5489 (MATLAB default)
-    when rndreset='off', or a time-based seed when rndreset='on'.
+    ``runica.m`` line 205 sets ``DEFAULT_RESETRANDOMSEED = true``, so an omitted
+    ``rndreset`` takes the clock reseed at lines 816-817
+    (``rand('state', sum(100*clock))``). The help at lines 48-50 says the
+    default has been ``'off'`` since 2015, so repeated calls return the same
+    decomposition, and the off branch at line 819 is ``rand('state', 0)``.
+    EEGPrep follows that help text. An omitted ``rndreset`` is off and uses
+    ``RandomState(5489)``, the MT19937 stream ``pythoncompat`` selects at line
+    814 (``rng(5489, 'twister')``), rather than the legacy ``rand('state', 0)``
+    stream. ``rndreset='on'`` seeds from the clock.
 
     MATLAB Parity Validation Report
     -------------------------------
@@ -220,10 +230,6 @@ def runica(data, **kwargs):
     are scientifically equivalent to MATLAB's implementation.
     """
 
-    # =========================================================================
-    # 1. DATA VALIDATION AND INITIALIZATION
-    # =========================================================================
-
     # Ensure data is float64 for numerical consistency with MATLAB.
     # Copy at entry so the in-place channel-mean subtraction below never
     # mutates the caller's array, regardless of input dtype.
@@ -236,14 +242,8 @@ def runica(data, **kwargs):
     if chans < 2:
         raise ValueError(f'runica(): data size ({chans},{frames}) too small.')
 
-    # =========================================================================
-    # 2. PARAMETER PARSING AND DEFAULTS
-    # =========================================================================
+    kwargs_lower = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
 
-    # Parse keyword arguments (case-insensitive)
-    kwargs_lower = {k.lower(): v for k, v in kwargs.items()}
-
-    # Initialize all parameters with defaults
     pcaflag = DEFAULT_PCAFLAG
     sphering = DEFAULT_SPHEREFLAG
     posactflag = DEFAULT_POSACTFLAG
@@ -297,7 +297,6 @@ def runica(data, **kwargs):
     reset_randomseed = kwargs_lower.get('rndreset', DEFAULT_RESETRANDOMSEED)
     user_seed = kwargs_lower.get('seed', None)
 
-    # Handle PCA parameter
     if 'pca' in kwargs_lower:
         pca_val = kwargs_lower['pca']
         if ncomps < urchans and ncomps != pca_val:
@@ -310,13 +309,11 @@ def runica(data, **kwargs):
             ncomps = data.shape[0] + ncomps
         chans = ncomps
 
-    # Handle sphering parameter
     if 'sphering' in kwargs_lower or 'sphereing' in kwargs_lower or 'sphere' in kwargs_lower:
         sphering = kwargs_lower.get('sphering', kwargs_lower.get('sphereing', kwargs_lower.get('sphere', sphering)))
         if sphering not in ['on', 'off', 'none']:
             raise ValueError('runica(): sphering value must be on, off, or none')
 
-    # Handle bias parameter
     if 'bias' in kwargs_lower:
         bias_val = kwargs_lower['bias']
         if bias_val == 'on':
@@ -326,7 +323,6 @@ def runica(data, **kwargs):
         else:
             raise ValueError('runica(): bias value must be on or off')
 
-    # Handle extended parameter
     if 'extended' in kwargs_lower or 'extend' in kwargs_lower:
         ext_val = extended  # already retrieved above
         if ext_val != 0:
@@ -341,7 +337,6 @@ def runica(data, **kwargs):
                 if kurtsize < MIN_KURTSIZE:
                     logger.warning(f'runica(): kurtosis values inexact for << {MIN_KURTSIZE} points.')
 
-    # Handle verbose parameter
     if 'verbose' in kwargs_lower:
         verb_val = kwargs_lower['verbose']
         if isinstance(verb_val, str):
@@ -354,7 +349,6 @@ def runica(data, **kwargs):
         else:
             verbose = int(verb_val)
 
-    # Handle rndreset parameter
     if 'rndreset' in kwargs_lower:
         rnd_val = kwargs_lower['rndreset']
         if isinstance(rnd_val, str):
@@ -367,16 +361,11 @@ def runica(data, **kwargs):
         else:
             reset_randomseed = bool(rnd_val)
 
-    # Handle posact parameter
     if 'posact' in kwargs_lower:
         posact_val = kwargs_lower['posact']
         if posact_val not in ['on', 'off']:
             raise ValueError('runica(): posact value must be on or off')
         posactflag = posact_val
-
-    # =========================================================================
-    # 3. SPECIAL PARAMETER ADJUSTMENTS
-    # =========================================================================
 
     # Set annealstep based on extended mode if not provided
     if annealstep == 0:
@@ -400,10 +389,6 @@ def runica(data, **kwargs):
         else:
             nochange = DEFAULT_STOP
             nochangeupdated = True
-
-    # =========================================================================
-    # 4. VALIDATION CHECKS
-    # =========================================================================
 
     if ncomps > chans or ncomps < 1:
         raise ValueError(f'runica(): number of components must be 1 to {chans}.')
@@ -440,10 +425,6 @@ def runica(data, **kwargs):
 
     if momentum > 1.0 or momentum < 0:
         raise ValueError('runica(): momentum value is out of bounds [0,1]')
-
-    # =========================================================================
-    # 5. VERBOSE INITIALIZATION MESSAGES
-    # =========================================================================
 
     if verbose:
         logger.info(f'Input data size [{chans},{frames}] = {chans} channels, {frames} frames')
@@ -485,10 +466,6 @@ def runica(data, **kwargs):
         else:
             logger.info('Online bias adjustment will not be used.')
 
-    # =========================================================================
-    # 6. DATA PREPROCESSING - REMOVE ROW MEANS
-    # =========================================================================
-
     if verbose:
         logger.info('Removing mean of each channel ...')
 
@@ -498,15 +475,12 @@ def runica(data, **kwargs):
     if verbose:
         logger.info(f'Final training data range: {np.min(data):g} to {np.max(data):g}')
 
-    # =========================================================================
     # 7. PCA DIMENSION REDUCTION (if requested)
-    # =========================================================================
 
     if pcaflag == 'on':
         if verbose:
             logger.info(f'Reducing the data to {ncomps} principal dimensions...')
 
-        # Transpose and normalize
         PCdat2 = data.T  # shape: (frames, chans)
         PCn, PCp = PCdat2.shape
         PCdat2 = PCdat2 / PCn
@@ -520,17 +494,11 @@ def runica(data, **kwargs):
         PCeigenval = PCeigenval.real
         PCEigenVec = PCEigenVec.real
 
-        # Sort by decreasing eigenvalue
         PCindex = np.argsort(PCeigenval)[::-1]  # descending order
         PCEigenVectors = PCEigenVec[:, PCindex]
 
-        # Project to ncomps dimensions
         eigenvectors = PCEigenVectors
         data = _matmul(eigenvectors[:, :ncomps].T, data)
-
-    # =========================================================================
-    # 8. SPHERING COMPUTATION
-    # =========================================================================
 
     if sphering == 'on':
         if verbose:
@@ -581,10 +549,6 @@ def runica(data, **kwargs):
         if verbose:
             logger.info('Returned variable "sphere" will be the identity matrix.')
 
-    # =========================================================================
-    # 9. WEIGHT INITIALIZATION FOR TRAINING
-    # =========================================================================
-
     lastt = int((datalength / block - 1) * block + 1)
     BI = block * np.eye(ncomps, ncomps)
     delta = np.zeros(chans * ncomps)
@@ -598,7 +562,6 @@ def runica(data, **kwargs):
     lrates = np.zeros(maxsteps)
     bias = np.zeros((ncomps, 1))
 
-    # Initialize signs for extended-ICA
     signs = np.ones(ncomps)
     for k in range(nsub):
         signs[k] = -1  # first nsub components are sub-Gaussian
@@ -614,10 +577,6 @@ def runica(data, **kwargs):
     signcounts = []
     urextblocks = extblocks  # original value for resets
     old_kk = np.zeros(ncomps)
-
-    # =========================================================================
-    # 10. RNG INITIALIZATION
-    # =========================================================================
 
     # Initialize random number generator using mechanism from test_parity_rng.py
     # MATLAB default seed is 5489, equivalent to rng('default')
@@ -645,11 +604,8 @@ def runica(data, **kwargs):
         else:
             logger.info('Beginning ICA training ...')
 
-    # =========================================================================
     # Phase 2: Core ICA Training Loop
-    # =========================================================================
 
-    # Initialize step counters and tracking variables
     step = 0  # Training step counter (MATLAB line 795)
     laststep = 0  # Will be set when stopping criterion met
     blockno = 1  # Running block counter for kurtosis (MATLAB line 797)
@@ -661,18 +617,14 @@ def runica(data, **kwargs):
     angledelta = 0.0  # Angle between weight changes
     wts_blowup = 0  # Flag for weight matrix blowup
 
-    # =========================================================================
     # TRAINING LOOP DISPATCHER
-    # =========================================================================
     # Four variants based on biasflag and extended flags:
     # 1. biasflag=True,  extended=True  (lines 827-1001 in MATLAB)
     # 2. biasflag=True,  extended=False (lines 1003-1125 in MATLAB)
     # 3. biasflag=False, extended=True  (lines 1127-1295 in MATLAB)
     # 4. biasflag=False, extended=False (lines 1298-1422 in MATLAB)
 
-    # =========================================================================
     # TRAINING LOOP 1: bias=True, extended=True (Extended-ICA with tanh)
-    # =========================================================================
     # This implements lines 827-1001 of runica.m
 
     if biasflag and extended:
@@ -855,9 +807,7 @@ def runica(data, **kwargs):
 
         # End while step < maxsteps (MATLAB line 1000)
 
-    # =========================================================================
     # TRAINING LOOP 2: bias=True, extended=False (standard logistic ICA)
-    # =========================================================================
     # This implements lines 1003-1125 of runica.m
     # This is the most common use case
 
@@ -952,7 +902,6 @@ def runica(data, **kwargs):
                     if r < ncomps:
                         if verbose:
                             logger.warning(f'Data has rank {r}. Cannot compute {ncomps} components.')
-                        # Return current state
                         break
                     else:
                         if verbose:
@@ -960,7 +909,6 @@ def runica(data, **kwargs):
                 else:
                     if verbose:
                         logger.error('runica(): QUITTING - weight matrix may not be invertible!')
-                    # Return current state
                     break
 
             else:  # Weights in bounds (MATLAB line 1086)
@@ -1001,9 +949,7 @@ def runica(data, **kwargs):
 
         # End while step < maxsteps (MATLAB line 1123)
 
-    # =========================================================================
     # TRAINING LOOP 3: bias=False, extended=True (Extended-ICA, no bias)
-    # =========================================================================
     # This implements lines 1127-1295 of runica.m
 
     elif not biasflag and extended:
@@ -1162,9 +1108,7 @@ def runica(data, **kwargs):
 
         # End while step < maxsteps (MATLAB line 1294)
 
-    # =========================================================================
     # TRAINING LOOP 4: bias=False, extended=False (standard ICA, no bias)
-    # =========================================================================
     # This implements lines 1298-1422 of runica.m
 
     else:  # not biasflag and not extended
@@ -1286,9 +1230,7 @@ def runica(data, **kwargs):
 
         # End while step < maxsteps (MATLAB line 1421)
 
-    # =========================================================================
     # OUTPUT PREPARATION
-    # =========================================================================
 
     # Truncate learning rate history (MATLAB lines 1431-1434)
     if laststep == 0:
@@ -1298,9 +1240,7 @@ def runica(data, **kwargs):
     if verbose:
         logger.info(f'Training complete. Total steps: {laststep}')
 
-    # =========================================================================
     # Compute activations (MATLAB lines 1439-1455)
-    # =========================================================================
     # Note: data matrix was mean-centered at the start
     # Need to add back row means for activation computation
 
@@ -1318,9 +1258,7 @@ def runica(data, **kwargs):
 
     # Now 'activations_unsorted' are the component activations = weights*sphere*raw_data
 
-    # =========================================================================
     # Compose PCA and ICA matrices if PCA was used (MATLAB lines 1462-1468)
-    # =========================================================================
     if pcaflag == 'on':
         if verbose:
             logger.info(
@@ -1330,9 +1268,7 @@ def runica(data, **kwargs):
         weights = _matmul(_matmul(weights, sphere), eigenvectors[:, :ncomps].T)
         sphere = np.eye(urchans)
 
-    # =========================================================================
     # Sort components by descending mean projected variance (MATLAB lines 1470-1492)
-    # =========================================================================
     if verbose:
         logger.info('Sorting components in descending order of mean projected variance ...')
 
@@ -1365,9 +1301,7 @@ def runica(data, **kwargs):
             winv[:, flip] *= -1
             weights = _matmul(finite_pinv(winv, solver=pinv), np.linalg.inv(sphere))
 
-    # =========================================================================
     # Permute activations and reorder weights (MATLAB lines 1521-1528)
-    # =========================================================================
     if verbose:
         logger.info('Permuting the activation wave forms ...')
 
@@ -1378,7 +1312,6 @@ def runica(data, **kwargs):
     signs_vec = signs
     signs_vec = signs_vec[windex]  # reorder them
 
-    # Prepare final outputs
     bias_out = bias
     signs_out = signs_vec
     lrates_out = lrates

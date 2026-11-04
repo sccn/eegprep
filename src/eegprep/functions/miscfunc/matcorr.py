@@ -21,7 +21,8 @@ def matcorr(
 
     Methods are ``0`` (globally optimal Hungarian assignment), ``1`` (Vogel
     approximation), and ``2`` (successive maximum correlation). Returned row
-    indices are zero-based. Rectangular inputs return ``min(rows)`` unique pairs.
+    indices are 1-based. Rectangular inputs return ``min(rows)`` unique pairs.
+    EEGLAB forces method 2 unless both matrices are square.
     """
     left = real_array(first, "first")
     right = real_array(second, "second")
@@ -32,7 +33,8 @@ def matcorr(
         right = right - np.mean(right, axis=1, keepdims=True)
     correlations = _cosine_rows(left, right)
     correlations = _apply_weighting(correlations, weighting)
-    return _match_correlations(correlations, method)
+    values, rows, columns, correlations = _match_correlations(correlations, method)
+    return values, rows + 1, columns + 1, correlations
 
 
 def _cosine_rows(left: np.ndarray, right: np.ndarray) -> np.ndarray:

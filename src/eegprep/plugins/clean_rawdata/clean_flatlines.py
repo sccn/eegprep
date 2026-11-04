@@ -44,7 +44,6 @@ def clean_flatlines(EEG: Dict[str, Any], max_flatline_duration: float = 5.0, max
             if np.max(flat_intervals[:, 1] - flat_intervals[:, 0]) > max_duration:
                 removed_channels[i] = True
 
-    # remove them
     if np.all(removed_channels):
         logger.warning('All channels have a flat-line portion; not removing anything.')
     elif np.any(removed_channels):

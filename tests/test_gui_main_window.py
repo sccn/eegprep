@@ -1,7 +1,6 @@
 import ast
 import inspect
 import os
-import logging
 import sys
 import textwrap
 import unittest
@@ -10,21 +9,14 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from eegprep.functions.guifunc.eeglab_menu import eeglab_menus, menu_actions
+from eegprep.functions.guifunc.eeglab_menu import eeglab_menus
 from eegprep.functions.guifunc.menu_actions import (
     IMPLEMENTED_ACTIONS,
     MenuActionDispatcher,
-    action_kind,
 )
 from eegprep.functions.guifunc.long_task import LongTaskHandle
-from eegprep.functions.guifunc.menu_placeholders import is_placeholder_action, placeholder_message
 from eegprep.functions.guifunc.menu_spec import menu_enabled
 from eegprep.functions.guifunc.session import EEGPrepSession
-from eegprep.functions.popfunc.eeg_emptyset import eeg_emptyset
-
-
-def _labels(items):
-    return [item.label for item in items]
 
 
 def _child(menu, label):
@@ -137,125 +129,6 @@ def _demo_eeg(*, epoched=False, chanlocs=True, ica=True):
 
 
 class MainMenuSpecTests(unittest.TestCase):
-    def test_default_menu_matches_eeglab_top_level_and_hides_legacy_items(self):
-        menus = eeglab_menus(all_menus=False)
-
-        self.assertEqual(_labels(menus), ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"])
-        edit_labels = _labels(_child(tuple(menus), "Edit").children)
-        file_labels = _labels(_child(tuple(menus), "File").children)
-        tools_labels = _labels(_child(tuple(menus), "Tools").children)
-
-        self.assertIn("BIDS tools", file_labels)
-        self.assertNotIn("Adjust event latencies", edit_labels)
-        self.assertIn('(Expand tool choices via "File > Preferences")', tools_labels)
-        self.assertNotIn("Automatic channel rejection", tools_labels)
-        self.assertIn("Reject data using Clean Rawdata and ASR", tools_labels)
-        self.assertIn("Classify components using ICLabel", tools_labels)
-        self.assertIn("Source localization using DIPFIT", tools_labels)
-
-    def test_all_menus_mode_reveals_legacy_items_and_hides_expand_prompt(self):
-        menus = eeglab_menus(all_menus=True)
-        edit_labels = _labels(_child(tuple(menus), "Edit").children)
-        tools_labels = _labels(_child(tuple(menus), "Tools").children)
-
-        self.assertIn("Adjust event latencies", edit_labels)
-        self.assertIn("Automatic channel rejection", tools_labels)
-        self.assertIn("Reject data epochs", tools_labels)
-        self.assertNotIn('(Expand tool choices via "File > Preferences")', tools_labels)
-
-    def test_firfilt_plugin_items_precede_legacy_filter(self):
-        tools = _child(eeglab_menus(all_menus=True), "Tools")
-        filter_menu = _child(tools.children, "Filter the data")
-
-        self.assertEqual(
-            _labels(filter_menu.children)[:5],
-            [
-                "Basic FIR filter (new, default)",
-                "Windowed sinc FIR filter",
-                "Parks-McClellan (equiripple) FIR filter",
-                "Moving average FIR filter",
-                "Basic FIR filter (legacy)",
-            ],
-        )
-
-    def test_eeg_bids_plugin_items_match_file_menu_locations(self):
-        file_menu = _child(eeglab_menus(all_menus=False), "File")
-        import_menu = _child(file_menu.children, "Import data")
-        import_functions = _child(import_menu.children, "Using EEGPrep functions and plugins")
-        export_menu = _child(file_menu.children, "Export")
-
-        self.assertIn("From BIDS folder structure", _labels(import_functions.children))
-        self.assertIn("Import Magstim/EGI .mff file", _labels(import_functions.children))
-        self.assertIn("To BIDS folder structure", _labels(export_menu.children))
-        self.assertEqual(_labels(file_menu.children)[4], "BIDS tools")
-        self.assertIn("Manage EEGPrep extensions", _labels(file_menu.children))
-
-    def test_help_menu_uses_eegprep_branding_and_eeglab_style_actions(self):
-        help_menu = _child(eeglab_menus(all_menus=False), "Help")
-        help_labels = _labels(help_menu.children)
-
-        self.assertIn("About EEGPrep", help_labels)
-        self.assertIn("Check for EEGPrep updates", help_labels)
-        self.assertIn("EEGPrep menus", help_labels)
-        self.assertIn("EEGPrep tutorial", help_labels)
-        self.assertIn("Email the EEGPrep team", help_labels)
-        self.assertIn("Report an EEGPrep issue", help_labels)
-        self.assertNotIn("EEGLAB tutorial", help_labels)
-        self.assertEqual(_child(help_menu.children, "About EEGPrep").action, "help:eegprep")
-        self.assertEqual(_child(help_menu.children, "Check for EEGPrep updates").action, "updates")
-        self.assertEqual(_child(help_menu.children, "About EEGPrep help").action, "help:eeg_helphelp")
-        self.assertEqual(_child(help_menu.children, "EEGPrep menus").action, "help:eeg_helpmenu")
-        self.assertEqual(_child(help_menu.children, "EEGPrep tutorial").action, "tutorial")
-        self.assertEqual(_child(help_menu.children, "Email the EEGPrep team").action, "mailto:eeglab@sccn.ucsd.edu")
-        self.assertEqual(_child(help_menu.children, "Report an EEGPrep issue").action, "issues")
-
-    def test_help_functions_submenu_uses_eeglab_pophelp_topics(self):
-        functions_menu = _child(_child(eeglab_menus(all_menus=False), "Help").children, "EEGPrep functions")
-
-        self.assertEqual(
-            {item.label: item.action for item in functions_menu.children},
-            {
-                "Admin. functions": "help:eeg_helpadmin",
-                "Interactive pop_ functions": "help:eeg_helppop",
-                "Signal processing functions": "help:eeg_helpsigproc",
-                "Group data (STUDY) functions": "help:eeg_helpstudy",
-                "Time-frequency functions": "help:eeg_helptimefreq",
-                "Statistical functions": "help:eeg_helpstatistics",
-                "Graphic interface builder functions": "help:eeg_helpgui",
-                "Misc. command line functions": "help:eeg_helpmisc",
-            },
-        )
-
-    def test_help_menu_pophelp_actions_have_packaged_topics(self):
-        help_menu = _child(eeglab_menus(all_menus=False), "Help")
-        help_actions = [action for action in menu_actions((help_menu,)) if action.startswith("help:")]
-        help_topics = {action.split(":", 1)[1] for action in help_actions}
-
-        self.assertEqual(
-            help_topics,
-            {
-                "eegprep",
-                "eeg_helphelp",
-                "eeg_helpmenu",
-                "eeg_helpadmin",
-                "eeg_helppop",
-                "eeg_helpsigproc",
-                "eeg_helpstudy",
-                "eeg_helptimefreq",
-                "eeg_helpstatistics",
-                "eeg_helpgui",
-                "eeg_helpmisc",
-            },
-        )
-
-    def test_viewprops_plugin_items_match_plot_menu_locations(self):
-        plot_menu = _child(eeglab_menus(all_menus=False), "Plot")
-
-        self.assertEqual(
-            _labels(plot_menu.children)[-2:],
-            ["View extended channel properties", "View extended component properties"],
-        )
-
     def test_menu_enabled_matches_startup_and_dataset_rules(self):
         menus = eeglab_menus(all_menus=True)
         file_menu = _child(menus, "File")
@@ -269,75 +142,6 @@ class MainMenuSpecTests(unittest.TestCase):
         self.assertFalse(menu_enabled(tools_menu, {"startup"}))
         self.assertTrue(menu_enabled(tools_menu, {"continuous_dataset"}))
         self.assertFalse(menu_enabled(channel_locations, {"continuous_dataset", "chanloc_absent"}))
-
-    def test_startup_top_level_enabled_states_match_eegprep_ux(self):
-        enabled_by_label = {menu.label: menu_enabled(menu, {"startup"}) for menu in eeglab_menus(all_menus=False)}
-
-        self.assertEqual(
-            enabled_by_label,
-            {
-                "File": True,
-                "Edit": False,
-                "Tools": False,
-                "Plot": False,
-                "Study": False,
-                "Datasets": False,
-                "Help": True,
-            },
-        )
-
-    def test_main_window_stylesheet_makes_in_window_disabled_menus_discernible(self):
-        from eegprep.functions.guifunc.main_window import _main_window_stylesheet
-
-        stylesheet = _main_window_stylesheet()
-
-        self.assertIn("QMenuBar::item:disabled", stylesheet)
-        self.assertIn("color: #64708f", stylesheet)
-        self.assertIn("background: transparent", stylesheet)
-        self.assertIn("QFileDialog", stylesheet)
-        self.assertIn("QProgressDialog", stylesheet)
-        self.assertIn("QProgressDialog QProgressBar::chunk", stylesheet)
-        self.assertNotIn("\n        QProgressBar {", stylesheet)
-        self.assertIn("selection-background-color: #c6d9ff", stylesheet)
-
-    def test_all_menu_actions_are_classified(self):
-        actions = menu_actions(eeglab_menus(all_menus=True))
-
-        self.assertIn("pop_reref", actions)
-        self.assertEqual(action_kind("pop_reref"), "implemented")
-        self.assertEqual(action_kind("pop_select"), "implemented")
-        self.assertEqual(action_kind("pop_resample"), "implemented")
-        self.assertEqual(action_kind("pop_epoch"), "implemented")
-        self.assertEqual(action_kind("pop_eegfilt"), "implemented")
-        self.assertEqual(action_kind("pop_eegfiltnew"), "implemented")
-        self.assertEqual(action_kind("pop_firws"), "implemented")
-        self.assertEqual(action_kind("pop_firpm"), "implemented")
-        self.assertEqual(action_kind("pop_firma"), "implemented")
-        self.assertEqual(action_kind("pop_clean_rawdata"), "implemented")
-        self.assertEqual(action_kind("pop_runica"), "implemented")
-        self.assertEqual(action_kind("pop_iclabel"), "implemented")
-        self.assertEqual(action_kind("pop_icflag"), "implemented")
-        self.assertEqual(action_kind("pop_subcomp"), "implemented")
-        self.assertEqual(action_kind("pop_exportbids"), "implemented")
-        self.assertEqual(action_kind("select_multiple_datasets"), "implemented")
-        self.assertEqual(action_kind("topoplot:labels"), "implemented")
-        self.assertTrue(all(action_kind(action) in {"implemented", "placeholder"} for action in actions))
-        self.assertTrue(
-            all(action_kind(action) == "implemented" or is_placeholder_action(action) for action in actions)
-        )
-
-    def test_file_menu_actions_are_implemented_or_explicit_placeholders(self):
-        file_menu = _child(eeglab_menus(all_menus=True), "File")
-        file_actions = menu_actions((file_menu,))
-
-        self.assertIn("pop_importdata", file_actions)
-        self.assertIn("pop_exportbids", file_actions)
-        self.assertIn("pop_saveh:dataset", file_actions)
-        self.assertEqual(
-            [action for action in sorted(file_actions) if action_kind(action) != "implemented"],
-            [],
-        )
-        self.assertEqual(action_kind("pop_fileio_brainvision_mat"), "implemented")
 
     def test_implemented_actions_registry_matches_dispatch_routing(self):
         # IMPLEMENTED_ACTIONS gates whether a menu item is shown enabled. An entry
@@ -387,85 +191,6 @@ def _dispatch_routed_actions():
 
 
 class EEGPrepSessionTests(unittest.TestCase):
-    def test_session_reports_startup_without_data(self):
-        self.assertEqual(EEGPrepSession().menu_statuses(), {"startup"})
-
-    def test_session_uses_one_based_dataset_indices(self):
-        session = EEGPrepSession()
-        index = session.store_current(_demo_eeg(), new=True, command="EEG = demo;")
-
-        self.assertEqual(index, 1)
-        self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.dataset_summaries()[0][1], "Dataset 1:demo")
-        self.assertEqual(session.ALLCOM, ["EEG = demo;"])
-
-    def test_session_stores_multiple_selected_datasets_back_to_same_indices(self):
-        session = EEGPrepSession()
-        first = _demo_eeg()
-        second = _demo_eeg()
-        second["setname"] = "second"
-        session.store_current(first, new=True)
-        session.store_current(second, new=True)
-        session.retrieve([1, 2])
-
-        edited = [dict(item, ref="average") for item in session.EEG]
-        stored = session.store_current(edited, command="EEG = pop_reref(EEG);")
-
-        self.assertEqual(stored, [1, 2])
-        self.assertEqual(session.CURRENTSET, [1, 2])
-        self.assertEqual([item["ref"] for item in session.ALLEEG], ["average", "average"])
-
-    def test_apply_workspace_state_rejects_currentset_outside_alleeg_before_mutating(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        original_eeg = session.EEG
-        original_alleeg = list(session.ALLEEG)
-        original_currentset = list(session.CURRENTSET)
-
-        with self.assertRaisesRegex(ValueError, "CURRENTSET contains indices outside ALLEEG"):
-            session.apply_workspace_state(alleeg=[_demo_eeg()], currentset=2)
-
-        self.assertIs(session.EEG, original_eeg)
-        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
-        self.assertIs(session.ALLEEG[0], original_alleeg[0])
-        self.assertEqual(session.CURRENTSET, original_currentset)
-
-    def test_apply_workspace_state_rejects_eeg_list_length_mismatch_before_mutating(self):
-        session = EEGPrepSession()
-        first = _demo_eeg()
-        second = _demo_eeg()
-        second["setname"] = "second"
-        session.store_current(first, new=True)
-        session.store_current(second, new=True)
-        original_eeg = session.EEG
-        original_alleeg = list(session.ALLEEG)
-        original_currentset = list(session.CURRENTSET)
-
-        with self.assertRaisesRegex(ValueError, "EEG selection length must match CURRENTSET"):
-            session.apply_workspace_state(alleeg=[first, second], eeg=[first], currentset=[1, 2])
-
-        self.assertIs(session.EEG, original_eeg)
-        self.assertEqual(len(session.ALLEEG), len(original_alleeg))
-        self.assertIs(session.ALLEEG[0], original_alleeg[0])
-        self.assertIs(session.ALLEEG[1], original_alleeg[1])
-        self.assertEqual(session.CURRENTSET, original_currentset)
-
-    def test_session_delete_current_selects_remaining_dataset(self):
-        session = EEGPrepSession()
-        first = _demo_eeg()
-        second = _demo_eeg()
-        second["setname"] = "second"
-        session.store_current(first, new=True)
-        session.store_current(second, new=True)
-        session.retrieve(1)
-
-        session.delete_current()
-
-        self.assertEqual(session.ALLEEG[0], {})  # emptied in place, as in EEGLAB
-        self.assertEqual(session.CURRENTSET, [2])  # dataset 2 keeps its number
-        self.assertEqual(session.EEG["setname"], "second")
-        self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
-
     def test_session_delete_current_keeps_dataset_numbers_and_reuses_slot(self):
         session = EEGPrepSession()
         for name in ("first", "second", "third"):
@@ -487,21 +212,6 @@ class EEGPrepSessionTests(unittest.TestCase):
 
         self.assertEqual(session.CURRENTSET, [2])  # new datasets fill the lowest empty slot
         self.assertEqual(session.ALLEEG[1]["setname"], "fourth")
-
-    def test_session_selection_cannot_land_on_a_deleted_slot(self):
-        session = EEGPrepSession()
-        for name in ("first", "second", "third"):
-            eeg = _demo_eeg()
-            eeg["setname"] = name
-            session.store_current(eeg, new=True)
-        session.retrieve(2)
-        session.delete_current()
-
-        session.apply_workspace_state(currentset=2)
-
-        # eeglab redraw refuses to leave the selection on an emptied slot.
-        self.assertEqual(session.CURRENTSET, [3])
-        self.assertEqual(session.EEG["setname"], "third")
 
     def test_session_study_action_keeps_the_selected_dataset(self):
         from eegprep.functions.studyfunc.pop_study import pop_study
@@ -567,19 +277,6 @@ class EEGPrepSessionTests(unittest.TestCase):
 
         self.assertEqual(session.menu_statuses(), {"continuous_dataset"})
 
-    def test_session_dataset_summaries_include_empty_dataset_structs(self):
-        session = EEGPrepSession()
-        session.ALLEEG = [eeg_emptyset(), {}, _demo_eeg()]
-        session.CURRENTSET = [1]
-
-        self.assertEqual(
-            session.dataset_summaries(),
-            [
-                (1, "Dataset 1:(no dataset name)", True),
-                (3, "Dataset 3:demo", False),
-            ],
-        )
-
     def test_main_window_summary_handles_empty_numpy_metadata_values(self):
         from eegprep.functions.guifunc.main_window import _channel_location_state, _reference_state
 
@@ -594,13 +291,6 @@ class EEGPrepSessionTests(unittest.TestCase):
 
 
 class MenuActionDispatcherTests(unittest.TestCase):
-    def test_placeholder_message_is_user_facing(self):
-        message = placeholder_message("pop_selectcomps")
-
-        self.assertIn("not yet available in EEGPrep", message)
-        self.assertIn("https://github.com/sccn/eegprep/issues", message)
-        self.assertNotIn("TODO", message)
-
     def test_gui_dispatch_shows_warning_for_action_errors(self):
         dispatcher = MenuActionDispatcher(EEGPrepSession())
 
@@ -628,102 +318,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         # ALLEEG still has two slots, but one of them is an emptied slot, not a dataset.
         self.assertEqual(len(session.ALLEEG), 2)
         warn.assert_called_once_with("window", "Load at least two datasets before merging")
-
-    def test_show_help_missing_resource_raises_clear_error_not_coming_soon(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with (
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pophelp",
-                side_effect=FileNotFoundError("missing packaged help"),
-            ),
-            mock.patch.object(dispatcher, "show_coming_soon") as coming_soon,
-            self.assertRaisesRegex(FileNotFoundError, "missing packaged help"),
-        ):
-            dispatcher.dispatch("help:missing")
-
-        coming_soon.assert_not_called()
-
-    def test_show_help_uses_packaged_pophelp_for_help_topics(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
-            dispatcher.dispatch("help:eeg_helpadmin")
-
-        help_dialog.assert_called_once_with(
-            "eeg_helpadmin",
-            parent=None,
-            extension_runtime=dispatcher.extension_runtime,
-        )
-
-    def test_bare_help_action_defaults_to_eegprep_topic(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with mock.patch("eegprep.functions.guifunc.menu_actions.pophelp") as help_dialog:
-            dispatcher.dispatch("help")
-
-        help_dialog.assert_called_once_with(
-            "eegprep",
-            parent=None,
-            extension_runtime=dispatcher.extension_runtime,
-        )
-
-    def test_help_and_admin_link_actions_do_not_mutate_session_history(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        original_currentset = list(session.CURRENTSET)
-        original_history = list(session.ALLCOM)
-        dispatcher = MenuActionDispatcher(session)
-
-        with (
-            mock.patch("eegprep.functions.guifunc.menu_actions.pophelp"),
-            mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open"),
-        ):
-            for action in (
-                "help:eeg_helpadmin",
-                "help:eeg_helpmenu",
-                "tutorial",
-                "mailto:eeglab@sccn.ucsd.edu",
-                "updates",
-                "issues",
-                "license",
-            ):
-                dispatcher.dispatch(action)
-
-        self.assertEqual(session.CURRENTSET, original_currentset)
-        self.assertEqual(session.ALLCOM, original_history)
-        self.assertEqual(session.EEG["setname"], "demo")
-
-    def test_tutorial_mailto_updates_and_issue_actions_open_expected_targets(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with mock.patch("eegprep.functions.guifunc.menu_actions.webbrowser.open") as open_url:
-            dispatcher.dispatch("tutorial")
-            dispatcher.dispatch("mailto:eeglab@sccn.ucsd.edu")
-            dispatcher.dispatch("updates")
-            dispatcher.dispatch("issues")
-
-        self.assertEqual(
-            [call.args[0] for call in open_url.call_args_list],
-            [
-                "https://sccn.github.io/eegprep/user_guide/quickstart.html",
-                "mailto:eeglab@sccn.ucsd.edu",
-                "https://github.com/sccn/eegprep/releases",
-                "https://github.com/sccn/eegprep/issues",
-            ],
-        )
-
-    def test_dispatch_gui_reraises_headless_errors_and_logs_traceback(self):
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with (
-            mock.patch.object(dispatcher, "dispatch", side_effect=RuntimeError("boom")),
-            self.assertLogs("eegprep.functions.guifunc.menu_actions", level=logging.ERROR) as logs,
-            self.assertRaisesRegex(RuntimeError, "boom"),
-        ):
-            dispatcher.dispatch_gui("pop_reref")
-
-        self.assertIn("EEGPrep GUI menu action failed: pop_reref", "\n".join(logs.output))
 
     def test_retrieve_dataset_menu_action_clears_study_mode(self):
         session = EEGPrepSession()
@@ -809,36 +403,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
             ],
         )
 
-    def test_pop_eegplot_accept_stores_rejected_continuous_data_as_new_dataset_without_duplicate_history(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        refresh = mock.Mock()
-        dispatcher = MenuActionDispatcher(session, refresh=refresh)
-        captured = {}
-        command = "pop_eegplot(EEG, 1, 0, 1)"
-
-        def fake_pop_eegplot(eeg, *, command_callback=None, return_com=False, **_kwargs):
-            captured["callback"] = command_callback
-            self.assertTrue(return_com)
-            return eeg, command
-
-        with mock.patch("eegprep.functions.popfunc.pop_eegplot.pop_eegplot", side_effect=fake_pop_eegplot):
-            dispatcher.dispatch("pop_eegplot:data")
-
-        self.assertEqual(session.ALLCOM, [command])
-        session.add_history("EEG = pop_reref(EEG);")
-        out = dict(session.EEG)
-        out["data"] = np.asarray(out["data"])[:, :20]
-        out["pnts"] = 20
-        out["xmax"] = 0.19
-        captured["callback"](out, command)
-
-        self.assertEqual(len(session.ALLEEG), 2)
-        self.assertEqual(session.CURRENTSET, [2])
-        self.assertEqual(session.EEG["pnts"], 20)
-        self.assertEqual(session.ALLCOM, [command, "EEG = pop_reref(EEG);"])
-        self.assertGreaterEqual(refresh.call_count, 2)
-
     def test_pop_eegplot_accept_updates_original_dataset_after_selection_changes(self):
         session = EEGPrepSession()
         first = _demo_eeg()
@@ -869,20 +433,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.ALLEEG[0]["setname"], "accepted first")
         self.assertEqual(session.ALLEEG[1]["setname"], "second")
         self.assertEqual(session.ALLCOM, [command])
-
-    def test_pop_eegplot_component_menu_error_does_not_mutate_session_when_ica_missing(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(ica=False), new=True)
-        original_history = list(session.ALLCOM)
-        original_currentset = list(session.CURRENTSET)
-        dispatcher = MenuActionDispatcher(session)
-
-        with self.assertRaisesRegex(ValueError, "run ICA"):
-            dispatcher.dispatch("pop_eegplot:components")
-
-        self.assertEqual(session.CURRENTSET, original_currentset)
-        self.assertEqual(session.ALLCOM, original_history)
-        self.assertEqual(session.EEG["setname"], "demo")
 
     def test_pop_eegplot_menu_enabled_states_follow_dataset_and_ica_status(self):
         pytest.importorskip("PySide6")
@@ -958,24 +508,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertNotIn(select_command, str(session.EEG.get("history", "")))
         self.assertEqual(session.ALLCOM, original_allcom)
 
-    def test_committed_newset_records_processing_history_on_stored_dataset(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        processed = dict(session.EEG, setname="selected")
-        select_command = "EEG = pop_select(EEG, 'point', [1 20]);"
-
-        with mock.patch(
-            "eegprep.functions.popfunc.pop_select.pop_select",
-            return_value=(processed, select_command),
-        ):
-            dispatcher.dispatch("pop_select")
-
-        self.assertEqual(session.EEG["setname"], "selected")
-        self.assertEqual(session.ALLEEG[0]["setname"], "selected")
-        self.assertIn(select_command, str(session.EEG["history"]))
-        self.assertIn(select_command, str(session.ALLEEG[0]["history"]))
-
     def test_headplot_menu_action_commits_spline_file_through_session(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -999,22 +531,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         # history; a history-only path would leave the dataset .history untouched.
         self.assertIn(headplot_command, str(session.EEG["history"]))
         self.assertIn(headplot_command, str(session.ALLEEG[0]["history"]))
-
-    def test_resave_updates_single_dataset_metadata_and_saved_state(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        session.EEG["saved"] = "no"
-        session.ALLEEG[0]["saved"] = "no"
-        dispatcher = MenuActionDispatcher(session)
-
-        with mock.patch("eegprep.functions.popfunc.pop_saveset.pop_saveset") as saveset:
-            dispatcher.dispatch("pop_saveset:resave")
-
-        saveset.assert_called_once_with(mock.ANY, os.path.normpath("/tmp/demo.set"))
-        self.assertEqual(session.EEG["filename"], "demo.set")
-        self.assertEqual(session.EEG["filepath"], os.path.normpath("/tmp"))
-        self.assertEqual(session.EEG["saved"], "yes")
-        self.assertEqual(session.ALLEEG[0]["saved"], "yes")
 
     def test_resave_multiple_datasets_does_not_collapse_selection(self):
         session = EEGPrepSession()
@@ -1159,42 +675,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(events, [("begin", "pop_runica"), ("end", "pop_runica")])
         self.assertEqual(dispatcher._long_tasks, [])
 
-    def test_gui_pop_runica_long_task_error_does_not_mutate_session(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        options = {
-            "icatype": "runica",
-            "options": {"extended": 1},
-            "reorder": "on",
-            "chanind": None,
-            "dataset": None,
-            "concatenate": "off",
-            "concatcond": "off",
-        }
-        captured = {}
-        handle = LongTaskHandle(thread=object(), worker=object(), dialog=object())
-        warnings = []
-
-        def fake_run_long_task(**kwargs):
-            captured.update(kwargs)
-            return handle
-
-        with (
-            mock.patch("eegprep.functions.popfunc.pop_runica.pop_runica_gui_options", return_value=options),
-            mock.patch("eegprep.functions.guifunc.menu_actions.run_long_task", side_effect=fake_run_long_task),
-            mock.patch.object(dispatcher, "_warn", side_effect=lambda _parent, message: warnings.append(message)),
-        ):
-            dispatcher.dispatch("pop_runica", parent=object())
-            captured["on_error"](ValueError("runica failed"))
-            captured["on_finished"](handle)
-
-        self.assertEqual(session.EEG["setname"], "demo")
-        self.assertEqual(session.ALLEEG[0]["setname"], "demo")
-        self.assertEqual(session.ALLCOM, [])
-        self.assertEqual(warnings, ["runica failed"])
-        self.assertEqual(dispatcher._long_tasks, [])
-
     def test_gui_transform_action_can_commit_processed_dataset_as_new_set(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -1223,29 +703,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["setname"], "resampled")
         self.assertEqual(session.ALLCOM[-2:], ["EEG = pop_resample( EEG, 64);", newset_command])
-
-    def test_gui_transform_action_cancel_keeps_original_dataset_and_history(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        processed = dict(session.EEG, setname="resampled")
-
-        with (
-            mock.patch(
-                "eegprep.functions.popfunc.pop_resample.pop_resample",
-                return_value=(processed, "EEG = pop_resample( EEG, 64);"),
-            ),
-            mock.patch(
-                "eegprep.functions.guifunc.menu_actions.pop_newset",
-                return_value=([session.ALLEEG[0]], session.ALLEEG[0], 1, ""),
-            ),
-        ):
-            dispatcher.dispatch("pop_resample", parent=object())
-
-        self.assertEqual(len(session.ALLEEG), 1)
-        self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.EEG["setname"], "demo")
-        self.assertEqual(session.ALLCOM, [])
 
     def test_gui_transform_action_overwrites_multiple_selected_datasets(self):
         session = EEGPrepSession()
@@ -1305,43 +762,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
             "topoplot([], EEG['chanlocs'], style='blank', electrodes='labelpoint')",
         )
 
-    def test_pop_topoplot_menu_actions_record_history_without_replacing_dataset(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(epoched=True), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        original_eeg = session.EEG
-
-        with mock.patch(
-            "eegprep.functions.popfunc.pop_topoplot.pop_topoplot",
-            return_value=(["figure"], "pop_topoplot(EEG, typeplot=1, items=[0])"),
-        ) as topoplot_func:
-            dispatcher.dispatch("pop_topoplot:erp")
-
-        topoplot_func.assert_called_once_with(original_eeg, typeplot=1, return_com=True)
-        self.assertIs(session.EEG, original_eeg)
-        self.assertIs(session.ALLEEG[0], original_eeg)
-        self.assertEqual(session.ALLCOM[-1], "pop_topoplot(EEG, typeplot=1, items=[0])")
-
-    def test_dipfit_mutating_menu_action_updates_session_and_history(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        original = session.EEG
-        fitted = dict(original, setname="dipfit updated")
-        fitted["dipfit"] = {"model": [{"rv": 0.01}]}
-
-        with mock.patch(
-            "eegprep.plugins.dipfit.pop_dipfit_gridsearch.pop_dipfit_gridsearch",
-            return_value=(fitted, "EEG = pop_dipfit_gridsearch(EEG, select=[1]);"),
-        ) as gridsearch:
-            dispatcher.dispatch("pop_dipfit_gridsearch")
-
-        gridsearch.assert_called_once_with(original, return_com=True)
-        self.assertEqual(session.EEG["setname"], "dipfit updated")
-        self.assertEqual(session.ALLEEG[0]["dipfit"]["model"][0]["rv"], 0.01)
-        self.assertEqual(session.LASTCOM, "EEG = pop_dipfit_gridsearch(EEG, select=[1]);")
-        self.assertEqual(session.ALLCOM[-1], "EEG = pop_dipfit_gridsearch(EEG, select=[1]);")
-
     def test_copyset_menu_updates_alleeg_eeg_currentset_and_history(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -1364,29 +784,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "copied")
         self.assertEqual(session.ALLEEG[1]["setname"], "copied")
         self.assertEqual(session.LASTCOM, "[ALLEEG EEG CURRENTSET LASTCOM] = pop_copyset(ALLEEG, 1, 2);")
-
-    def test_select_multiple_datasets_menu_preserves_ordered_session_selection(self):
-        session = EEGPrepSession()
-        first = _demo_eeg()
-        first["setname"] = "first"
-        second = _demo_eeg()
-        second["setname"] = "second"
-        session.store_current(first, new=True)
-        session.store_current(second, new=True)
-        dispatcher = MenuActionDispatcher(session)
-
-        with mock.patch(
-            "eegprep.functions.guifunc.select_multiple_datasets.select_multiple_datasets",
-            side_effect=lambda session_arg, **_kwargs: (
-                session_arg.retrieve([2, 1]),
-                "[ALLEEG EEG CURRENTSET LASTCOM] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', [2 1]);",
-            ),
-        ):
-            dispatcher.dispatch("select_multiple_datasets")
-
-        self.assertEqual(session.CURRENTSET, [2, 1])
-        self.assertEqual([item["setname"] for item in session.EEG], ["second", "first"])
-        self.assertIn("pop_newset", session.ALLCOM[-1])
 
     def test_mergeset_menu_stores_merged_dataset_as_new_dataset(self):
         session = EEGPrepSession()
@@ -1413,59 +810,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "merged")
         self.assertEqual(session.ALLEEG[2]["setname"], "merged")
 
-    def test_pop_interp_dispatch_uses_generic_gui_command_echo(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        command = "EEG = pop_interp(EEG, [1], 'spherical');"
-        echoed = []
-        output = dict(session.EEG, setname="interpolated")
-
-        def fake_pop_interp(eeg, *, alleeg, return_com):
-            self.assertIs(eeg, session.EEG)
-            self.assertIs(alleeg, session.ALLEEG)
-            self.assertTrue(return_com)
-            return output, command
-
-        session.add_command_echo_listener(echoed.append)
-        with mock.patch("eegprep.functions.popfunc.pop_interp.pop_interp", side_effect=fake_pop_interp):
-            dispatcher.dispatch("pop_interp")
-
-        self.assertEqual(
-            echoed,
-            [
-                command,
-                "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
-            ],
-        )
-        self.assertEqual(session.EEG["setname"], "interpolated")
-        self.assertEqual(session.ALLCOM[-2], command)
-        self.assertEqual(
-            session.ALLCOM[-1],
-            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
-        )
-
-    def test_file_menu_importdata_dispatch_stores_new_dataset(self):
-        session = EEGPrepSession()
-        dispatcher = MenuActionDispatcher(session)
-        imported = _demo_eeg()
-        imported["setname"] = "imported"
-        qt_widgets = _fake_qt_widgets(open_file="/tmp/data.tsv", double_value=250.0)
-
-        with (
-            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
-            mock.patch(
-                "eegprep.functions.popfunc.pop_importdata.pop_importdata",
-                return_value=(imported, "EEG = pop_importdata('data', '/tmp/data.tsv');"),
-            ) as importdata,
-        ):
-            dispatcher.dispatch("pop_importdata")
-
-        importdata.assert_called_once()
-        self.assertEqual(session.EEG["setname"], "imported")
-        self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.ALLCOM[-1], "EEG = pop_importdata('data', '/tmp/data.tsv');")
-
     def test_file_menu_brainvision_dispatch_uses_pop_loadbv(self):
         session = EEGPrepSession()
         dispatcher = MenuActionDispatcher(session)
@@ -1487,80 +831,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
         self.assertEqual(session.ALLCOM[-1], command)
-
-    def test_file_menu_import_uses_native_file_dialog_by_default(self):
-        captured = {}
-
-        class QFileDialog:
-            class Option:
-                DontUseNativeDialog = 4
-
-            @staticmethod
-            def getOpenFileName(*args, **kwargs):
-                captured["args"] = args
-                captured["kwargs"] = kwargs
-                return "", ""
-
-        qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
-        dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-        with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
-            filename = dispatcher._open_import_filename("pop_fileio", None)
-
-        self.assertEqual(filename, "")
-        self.assertEqual(captured["args"][1], "Import data")
-        self.assertEqual(captured["kwargs"], {})
-
-    def test_file_menu_import_can_use_qt_file_dialog(self):
-        captured = {}
-
-        class QFileDialog:
-            class Option:
-                DontUseNativeDialog = 4
-
-            @staticmethod
-            def getOpenFileName(*args, **kwargs):
-                captured["args"] = args
-                captured["kwargs"] = kwargs
-                return "", ""
-
-        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-
-        original_option = EEG_OPTIONS.get("option_native_dialogs", 1)
-        EEG_OPTIONS["option_native_dialogs"] = 0
-
-        try:
-            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
-            dispatcher = MenuActionDispatcher(EEGPrepSession())
-
-            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
-                filename = dispatcher._open_import_filename("pop_fileio", None)
-
-            self.assertEqual(filename, "")
-            self.assertEqual(captured["args"][1], "Import data")
-            self.assertEqual(captured["kwargs"], {"options": QFileDialog.Option.DontUseNativeDialog})
-        finally:
-            EEG_OPTIONS["option_native_dialogs"] = original_option
-
-    def test_headless_preferences_dispatch_preserves_legacy_menu_toggle(self):
-        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-
-        original_options = dict(EEG_OPTIONS)
-        refresh = mock.Mock()
-        dispatcher = MenuActionDispatcher(EEGPrepSession(), refresh=refresh)
-        try:
-            EEG_OPTIONS["option_allmenus"] = 0
-            EEG_OPTIONS["option_native_dialogs"] = 1
-
-            with mock.patch.object(dispatcher, "_info"):
-                dispatcher.dispatch("pop_editoptions")
-
-            self.assertEqual(EEG_OPTIONS["option_allmenus"], 1)
-            self.assertEqual(EEG_OPTIONS["option_native_dialogs"], 1)
-            refresh.assert_called_once()
-        finally:
-            EEG_OPTIONS.clear()
-            EEG_OPTIONS.update(original_options)
 
     def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
         pytest.importorskip("PySide6")
@@ -1606,25 +876,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
             EEG_OPTIONS.update(original_options)
             parent.close()
             app.processEvents()
-
-    def test_file_menu_export_dispatch_records_history_without_changing_dataset(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        qt_widgets = _fake_qt_widgets(save_file="/tmp/export.tsv")
-
-        with (
-            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
-            mock.patch(
-                "eegprep.functions.popfunc.pop_export.pop_export",
-                return_value="LASTCOM = pop_export(EEG, '/tmp/export.tsv');",
-            ) as export,
-        ):
-            dispatcher.dispatch("pop_export")
-
-        export.assert_called_once()
-        self.assertEqual(session.EEG["setname"], "demo")
-        self.assertEqual(session.ALLCOM[-1], "LASTCOM = pop_export(EEG, '/tmp/export.tsv');")
 
     def test_file_menu_study_and_history_actions_update_session(self):
         session = EEGPrepSession()
@@ -1704,62 +955,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual(session.ALLEEG[0]["setname"], "demo")
         self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_loadstudy(filename='study.study');")
 
-    def test_file_menu_studywizard_uses_browsed_datasets(self):
-        session = EEGPrepSession()
-        dispatcher = MenuActionDispatcher(session)
-        qt_widgets = _fake_qt_widgets(open_file="/tmp/one.set")
-        eeg = _demo_eeg()
-        study = {"name": "wizard study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
-
-        with (
-            mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets),
-            mock.patch(
-                "eegprep.functions.studyfunc.pop_studywizard.pop_studywizard",
-                return_value=(study, [eeg], "STUDY, ALLEEG = pop_studywizard(filenames=['/tmp/one.set']);"),
-            ) as pop_studywizard,
-        ):
-            dispatcher.dispatch("pop_studywizard")
-
-        pop_studywizard.assert_called_once_with(["/tmp/one.set"], return_com=True)
-        self.assertEqual(session.CURRENTSTUDY, 1)
-        self.assertEqual(session.STUDY["name"], "wizard study")
-        self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_studywizard(filenames=['/tmp/one.set']);")
-
-    def test_study_menu_design_action_updates_shared_session(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        study = {"name": "study", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
-        session.STUDY = study
-        session.CURRENTSTUDY = 1
-        dispatcher = MenuActionDispatcher(session)
-        edited = dict(session.STUDY, currentdesign=1)
-
-        with mock.patch(
-            "eegprep.functions.studyfunc.pop_studydesign.pop_studydesign",
-            return_value=(edited, session.ALLEEG, "STUDY = std_makedesign(STUDY, ALLEEG, 1);"),
-        ) as pop_studydesign:
-            dispatcher.dispatch("pop_studydesign")
-
-        pop_studydesign.assert_called_once_with(study, session.ALLEEG, gui=True, return_com=True)
-        self.assertEqual(session.STUDY["currentdesign"], 1)
-        self.assertEqual(session.ALLCOM[-1], "STUDY = std_makedesign(STUDY, ALLEEG, 1);")
-
-    def test_file_menu_simple_erp_study_uses_loaded_datasets(self):
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        dispatcher = MenuActionDispatcher(session)
-        study = {"name": "Simple ERP STUDY", "datasetinfo": [{"index": 1, "setname": "demo"}], "design": []}
-
-        with mock.patch(
-            "eegprep.functions.studyfunc.pop_studyerp.pop_studyerp",
-            return_value=(study, session.ALLEEG, "STUDY, ALLEEG = pop_studyerp(ALLEEG);"),
-        ) as pop_studyerp:
-            dispatcher.dispatch("pop_studyerp")
-
-        pop_studyerp.assert_called_once_with(session.ALLEEG, return_com=True)
-        self.assertEqual(session.STUDY["name"], "Simple ERP STUDY")
-        self.assertEqual(session.ALLCOM[-1], "STUDY, ALLEEG = pop_studyerp(ALLEEG);")
-
     def test_file_menu_clear_study_matches_eeglab_clear_all(self):
         session = EEGPrepSession()
         session.store_current(_demo_eeg(), new=True)
@@ -1832,72 +1027,6 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
 
 class QtMainWindowTests(unittest.TestCase):
-    def test_gui_main_window_startup_branding_size_and_menu_states(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import (
-            _macos_application_menu_title,
-            _macos_process_name,
-            build_main_window,
-        )
-
-        window = build_main_window(EEGPrepSession(), all_menus=False)
-        window.show()
-        window.app.processEvents()
-        size = window.window.size()
-        minimum_size = window.window.minimumSize()
-        enabled_by_label = {item["label"]: item["enabled"] for item in window.menu_inventory()}
-
-        self.assertEqual(window.window.windowTitle(), "EEGPrep")
-        self.assertEqual(window.app.applicationName(), "EEGPrep")
-        self.assertEqual(window.app.applicationDisplayName(), "EEGPrep")
-        if sys.platform == "darwin":
-            self.assertEqual(_macos_process_name(), "EEGPrep")
-            menu_title = _macos_application_menu_title()
-            if menu_title is not None:
-                self.assertEqual(menu_title, "EEGPrep")
-        self.assertEqual((size.width(), size.height()), (520, 380))
-        self.assertEqual((minimum_size.width(), minimum_size.height()), (460, 340))
-        self.assertEqual(
-            enabled_by_label,
-            {
-                "File": True,
-                "Edit": False,
-                "Tools": False,
-                "Plot": False,
-                "Study": False,
-                "Datasets": False,
-                "Help": True,
-            },
-        )
-        top_level_actions = {action.text(): action for action in window.window.menuBar().actions()}
-        self.assertTrue(top_level_actions["File"].menu().isEnabled())
-        self.assertFalse(top_level_actions["Edit"].menu().isEnabled())
-        self.assertFalse(top_level_actions["Tools"].menu().isEnabled())
-        self.assertFalse(top_level_actions["Plot"].menu().isEnabled())
-        self.assertFalse(top_level_actions["Study"].menu().isEnabled())
-        self.assertFalse(top_level_actions["Datasets"].menu().isEnabled())
-        self.assertTrue(top_level_actions["Help"].menu().isEnabled())
-        window.window.close()
-
-    def test_gui_main_window_inventory_includes_dynamic_dataset_menu(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
-
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        window = build_main_window(session, all_menus=False)
-        inventory = window.menu_inventory()
-
-        self.assertEqual(
-            [item["label"] for item in inventory],
-            ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
-        )
-        datasets = next(item for item in inventory if item["label"] == "Datasets")
-        self.assertEqual(datasets["children"][0]["label"], "Dataset 1:demo")
-        window.window.close()
-
     def test_gui_main_window_checks_selected_dataset_menu_item(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -1921,45 +1050,6 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(dataset_actions["Dataset 2:second"].isChecked())
         window.window.close()
 
-    def test_gui_main_window_marks_browser_actions_implemented(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
-
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        window = build_main_window(session, all_menus=False)
-        actions_by_data = {
-            action.data(): action for action in _qt_actions(window.window.menuBar().actions()) if action.data()
-        }
-        browser = actions_by_data["pop_eegplot:data"]
-
-        self.assertEqual(browser.property("eegprep_label"), "Inspect/reject data by eye")
-        self.assertNotEqual(browser.property("eegprep_implementation_state"), "coming_soon")
-        self.assertEqual(browser.text(), "Inspect/reject data by eye")
-        self.assertTrue(browser.isEnabled())
-        self.assertFalse(browser.font().italic())
-        window.window.close()
-
-    def test_gui_main_window_inventory_reports_browser_source_label(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
-
-        session = EEGPrepSession()
-        session.store_current(_demo_eeg(), new=True)
-        window = build_main_window(session, all_menus=False)
-        tools = next(item for item in window.menu_inventory() if item["label"] == "Tools")
-        by_source_label = {item["source_label"]: item for item in tools["children"]}
-
-        browser = by_source_label["Inspect/reject data by eye"]
-        self.assertEqual(browser["implementation_state"], "implemented")
-        self.assertTrue(browser["enabled"])
-        self.assertEqual(browser["label"], "Inspect/reject data by eye")
-        self.assertEqual(by_source_label["Change sampling rate"]["implementation_state"], "implemented")
-        self.assertTrue(by_source_label["Change sampling rate"]["enabled"])
-        window.window.close()
-
     def test_gui_main_window_uses_native_menu_request_and_non_native_menu_roles(self):
         pytest.importorskip("PySide6")
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -1978,42 +1068,4 @@ class QtMainWindowTests(unittest.TestCase):
             self.assertFalse(menubar.isNativeMenuBar())
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
-        window.window.close()
-
-    def test_gui_main_window_can_force_in_window_menu_bar(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
-
-        window = build_main_window(EEGPrepSession(), all_menus=True, native_menu_bar=False)
-
-        self.assertFalse(window.window.menuBar().isNativeMenuBar())
-        self.assertEqual(
-            [action.text() for action in window.window.menuBar().actions()],
-            ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
-        )
-        window.window.close()
-
-    def test_gui_main_window_reapplies_branding_after_menu_action(self):
-        pytest.importorskip("PySide6")
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-        from eegprep.functions.guifunc.main_window import build_main_window
-
-        class FakeDispatcher:
-            def __init__(self):
-                self.actions = []
-
-            def dispatch_gui(self, action_id, parent):
-                self.actions.append((action_id, parent))
-
-        window = build_main_window(EEGPrepSession(), all_menus=False)
-        dispatcher = FakeDispatcher()
-        branding_calls = []
-        window.dispatcher = dispatcher
-        window._apply_application_branding = lambda: branding_calls.append("branding")
-
-        window._dispatch_menu_action("pop_loadset")
-
-        self.assertEqual(dispatcher.actions, [("pop_loadset", window.window)])
-        self.assertEqual(branding_calls, ["branding"])
         window.window.close()

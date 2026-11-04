@@ -12,8 +12,10 @@ variable, values, categorical = pop_addindepvar(
 )
 ```
 
-EEGPrep supports the command-line design-selection behavior used by
-`pop_studydesign` and `std_makedesign`. MATLAB GUI callback strings and direct
-figure mutation are not available in standalone EEGPrep.
+Pass `gui=True`, or use the study design editor's **New** button, to open
+**Add variable**. The dialog lists available factors, including continuous
+trial fields such as `rt`, and can combine selected categorical values.
+Command-line selection with `var` and `values` remains available.
+MATLAB callback strings and figure handles still raise `NotImplementedError`.
 
 See also: POP_LISTFACTORS, POP_STUDYDESIGN, STD_MAKEDESIGN

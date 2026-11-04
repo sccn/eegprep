@@ -25,10 +25,8 @@ else
     error('Config file not found: %s', configFile);
 end
 
-% Get the filename from the config
 fname = [ '../' configData.set ];
 
-% Create temporary file and output file names
 fname_tmp = strrep(fname, '.set', '_tmp2.set');
 fname_out = strrep(fname, '.set', '_out2.set');
 

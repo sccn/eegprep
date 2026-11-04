@@ -23,14 +23,14 @@ at a time.
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.statcond
-   eegprep.functions.statistics.statcondfieldtrip
-   eegprep.functions.statistics.ttest_cell
-   eegprep.functions.statistics.ttest2_cell
-   eegprep.functions.statistics.anova1_cell
-   eegprep.functions.statistics.anova1rm_cell
-   eegprep.functions.statistics.anova2_cell
-   eegprep.functions.statistics.anova2rm_cell
+   eegprep.statcond
+   eegprep.statcondfieldtrip
+   eegprep.ttest_cell
+   eegprep.ttest2_cell
+   eegprep.anova1_cell
+   eegprep.anova1rm_cell
+   eegprep.anova2_cell
+   eegprep.anova2rm_cell
 
 Two-way factor order
 --------------------
@@ -45,6 +45,25 @@ Although ``statcond`` documents rows, columns, and interaction, its unpaired
 branch forwards ``anova2_cell`` outputs in columns, rows, and interaction order.
 When translating positional unpaired MATLAB results, EEGPrep's ``rows`` value
 therefore corresponds to the second MATLAB cell and ``columns`` to the first.
+The MATLAB-shaped copies on ``matlab_stat``, ``matlab_df``, ``matlab_pvalue``,
+and ``matlab_surrogate`` keep that unpaired cell order. Paired two-way cells
+stay in row, column, interaction order.
+
+``statcond`` accepts the same options as keywords or as positional name/value
+pairs. ``mode`` selects the method when it is non-empty. ``verbose`` defaults
+to off. Unpaired ``variance`` defaults to Welch's inhomogenous formula,
+matching EEGLAB ``statcond`` ``finputcheck``. ``ttest2_cell`` itself still
+defaults to equal variance. ``cluster="on"`` replaces one-way permutation
+p-values with cluster-extent results. The cluster-forming threshold uses the
+t or F degrees of freedom of the test. EEGLAB's ``statcond.m`` lines 470 and
+490 pass the feature count to ``tcdf``:
+``tcdf(-abs(surrogval), size(surrogval,1))`` and
+``tcdf(-abs(ori_vals), length(ori_vals))``.
+``returnresamplingarray`` is the name/value form of
+``return_resampling_array``. Those cells are drawn from a MATLAB
+``rng('default')`` Twister. The Python ``samples`` stream is the ``rng``
+argument. ``structoutput="on"`` puts the EEGLAB struct in the single MATLAB
+output; the Python return value remains a ``StatcondResult``.
 
 FieldTrip-style inference
 -------------------------
@@ -113,10 +132,10 @@ Multiple Comparisons and Surrogates
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.fdr
-   eegprep.functions.statistics.stat_surrogate_pvals
-   eegprep.functions.statistics.stat_surrogate_ci
-   eegprep.functions.statistics.surrogdistrib
+   eegprep.fdr
+   eegprep.stat_surrogate_pvals
+   eegprep.stat_surrogate_ci
+   eegprep.surrogdistrib
 
 Data Helpers
 ============
@@ -124,15 +143,17 @@ Data Helpers
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.statistics.concatdata
-   eegprep.functions.statistics.corrcoef_cell
-   eegprep.functions.statistics.teststat
+   eegprep.concatdata
+   eegprep.corrcoef_cell
+   eegprep.teststat
 
 Clustering
 ==========
 
-``kmeans_st`` and ``kmeanscluster`` operate on observations in rows and return
-zero-based labels. Supply ``random_state`` for reproducible random starts.
+``kmeans_st`` partitions rows with a UPGMA start and single-point moves.
+Labels are zero-based indices of those centroid rows. Restarts use a NumPy
+permutation, not MATLAB ``randperm``. ``kmeanscluster`` initializes from the
+first rows and keeps that numbering.
 
 .. autosummary::
    :toctree: generated/
@@ -149,4 +170,4 @@ so exactly rank-deficient inputs return a finite effective dimension.
 .. autosummary::
    :toctree: generated/
 
-   eegprep.functions.miscfunc.numdim.numdim
+   eegprep.numdim

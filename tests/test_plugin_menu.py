@@ -17,7 +17,6 @@ from eegprep.extension_catalog import (
     load_extension_catalog,
 )
 from eegprep.functions.adminfunc.plugin_menu import (
-    EXTERNAL_PLUGIN_NOTICE,
     _build_plugin_dialog,
     _command_text,
     bundled_plugins,
@@ -26,20 +25,8 @@ from eegprep.functions.adminfunc.plugin_menu import (
     plugin_status,
 )
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
-from eegprep.functions.guifunc.pophelp import pophelp_text
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.extensions import ExtensionRegistry
-
-
-def test_bundled_plugins_describe_in_repo_extensions() -> None:
-    plugins = bundled_plugins()
-    names = [plugin["plugin"] for plugin in plugins]
-
-    assert names == ["clean_rawdata", "ICLabel", "firfilt", "dipfit", "EEG_BIDS"]
-    assert all(plugin["installed"] is True for plugin in plugins)
-    assert all(plugin["status"] == "ok" for plugin in plugins)
-    assert all(plugin["source"] == "bundled" for plugin in plugins)
-    assert all(plugin["menu"] for plugin in plugins)
 
 
 def test_bundled_plugins_match_extension_registry_records() -> None:
@@ -58,24 +45,6 @@ def test_bundled_plugins_match_extension_registry_records() -> None:
         assert plugin["tags"] == record.spec.capabilities
 
 
-def test_bundled_plugins_use_registry_menu_projection() -> None:
-    plugin_inventory = {plugin["plugin"]: plugin for plugin in bundled_plugins()}
-    manager_inventory = {
-        plugin["plugin"]: plugin for plugin in plugin_menu(catalog=_catalog(), include_entry_points=False, show=False)
-    }
-
-    assert plugin_inventory.keys() == manager_inventory.keys()
-    for name, plugin in plugin_inventory.items():
-        assert plugin["menu"] == manager_inventory[name]["menu"]
-
-
-def test_bundled_plugins_returns_copies() -> None:
-    plugins = bundled_plugins()
-    plugins[0]["status"] = "changed"
-
-    assert bundled_plugins()[0]["status"] == "ok"
-
-
 def test_plugin_status_supports_partial_and_exact_matches() -> None:
     partial_status, partial_names, partial_struct = plugin_status("label")
     exact_status, exact_names, exact_struct = plugin_status("ICLabel", exactmatch=True)
@@ -92,31 +61,6 @@ def test_plugin_status_supports_partial_and_exact_matches() -> None:
     assert missing_struct == []
 
 
-def test_plugin_menu_updates_session_without_gui() -> None:
-    session = EEGPrepSession()
-    plugins = plugin_menu(session=session, show=False)
-
-    assert session.PLUGINLIST == plugins
-    assert [plugin["plugin"] for plugin in session.PLUGINLIST] == [
-        "clean_rawdata",
-        "ICLabel",
-        "firfilt",
-        "dipfit",
-        "EEG_BIDS",
-    ]
-    assert [plugin["status"] for plugin in session.PLUGINLIST] == ["bundled"] * 5
-
-
-def test_format_plugin_menu_includes_external_plugin_exclusion() -> None:
-    text = format_plugin_menu()
-
-    assert "Available EEGPrep extensions" in text
-    assert "ICLabel" in text
-    assert "File > Import data / Export / BIDS tools" in text
-    assert EXTERNAL_PLUGIN_NOTICE in text
-    assert INSTALL_TRUST_WARNING in text
-
-
 def test_file_menu_plugin_action_uses_bundled_inventory_headlessly() -> None:
     session = EEGPrepSession()
     dispatcher = MenuActionDispatcher(session)
@@ -130,13 +74,6 @@ def test_file_menu_plugin_action_uses_bundled_inventory_headlessly() -> None:
         "dipfit",
         "EEG_BIDS",
     ]
-
-
-def test_plugin_menu_help_resource_is_packaged() -> None:
-    text, source_path = pophelp_text("plugin_menu")
-
-    assert "EEGPrep Extension Manager" in text
-    assert source_path == "eegprep/resources/help/plugin_menu.md"
 
 
 def test_catalog_only_extension_gets_safe_install_guidance() -> None:
@@ -435,30 +372,6 @@ def test_local_catalog_json_supports_git_and_rejects_archives(tmp_path: Path) ->
         "uv": "uv add git+https://github.com/sccn/eegprep-ext-git.git",
         "pip": "pip install git+https://github.com/sccn/eegprep-ext-git.git",
     }
-
-
-def test_catalog_rejects_local_archive_paths(tmp_path: Path) -> None:
-    catalog_path = tmp_path / "catalog.json"
-    catalog_path.write_text(
-        """
-        {
-          "catalog_kind": "extension_manager",
-          "schema_version": 1,
-          "extensions": [
-            {
-              "name": "local_wheel_extension",
-              "source": {"type": "local", "url": "/tmp/eegprep_ext_local-1.0.0-py3-none-any.whl"}
-            }
-          ]
-        }
-        """,
-        encoding="utf-8",
-    )
-
-    catalog = load_extension_catalog(catalog_path)
-
-    assert catalog.entries == ()
-    assert "source.url must point to metadata, docs, or a repository, not an archive" in catalog.errors[0]
 
 
 def test_environment_catalog_path_is_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

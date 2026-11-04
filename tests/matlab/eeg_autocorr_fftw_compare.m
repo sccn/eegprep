@@ -9,7 +9,6 @@ if ~exist('pop_loadset')
     eeglab;
 end
 
-% call Python function
 fileName = '../../sample_data/eeglab_data_with_ica_tmp.set';
 % fileName = '/System/Volumes/Data/data/data/STUDIES/STERN/S01/Memorize.set';
 

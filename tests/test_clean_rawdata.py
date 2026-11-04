@@ -20,6 +20,7 @@ from eegprep import (
 )
 from eegprep.functions.adminfunc import eeglabcompat
 from eegprep.utils.testing import DebuggableTestCase, compare_eeg, is_debug, use_64bit_eeg_options
+from tests.fixtures import create_test_eeg, matlab_engine_available
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +38,6 @@ def ensure_file(fname: str) -> str:
 
         urlretrieve(full_url, local_file)
     return local_file
-
-
-@unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
-class TestMATLABAccess(unittest.TestCase):
-    def setUp(self):
-        try:
-            self.eeglab = eeglabcompat.get_eeglab('MAT')
-            self.EEG = pop_loadset(ensure_file('FlankerTest.set'))
-        except ImportError as e:
-            self.skipTest(f"MATLAB not available: {e}")
-
-    def test_basic(self):
-        self.assertEqual(self.eeglab.sqrt(4.0), 2.0, 'MATLAB sqrt() failed')
-
-    def test_eeglab_presence(self):
-        eeglabcompat.eeg_checkset(self.EEG, eeglab=self.eeglab)
 
 
 class TestCleanFlatlines(unittest.TestCase):
@@ -111,7 +96,6 @@ class TestUtilFuncs(DebuggableTestCase):
         from eegprep.plugins.clean_rawdata.private.stats import block_geometric_median
 
         np.random.seed(42)
-        # generate heavy-tailed data with non-zero centroid and apply random rotation
         df = 3  # degrees of freedom for t-distribution
         center = np.arange(1, 33)  # non-zero centroid vector
         # random noise transform
@@ -129,10 +113,11 @@ class TestUtilFuncs(DebuggableTestCase):
         from scipy.stats import genextreme
 
         x = genextreme.rvs(0.1, size=5007)
-        observed, *_ = fit_eeg_distribution(x)  # returns 4 values, for now we check only the first
-        expected = self.eeglab.fit_eeg_distribution(x)
-        # compare numbers
-        np.testing.assert_almost_equal(observed, expected, err_msg='fit_eeg_distribution() test failed')
+        observed = fit_eeg_distribution(x)
+        expected = self.eeglab.fit_eeg_distribution(x, nargout=4)
+        self.assertEqual(len(expected), 4)
+        for name, got, want in zip(('mu', 'sigma', 'alpha', 'beta'), observed, expected):
+            np.testing.assert_almost_equal(got, want, err_msg=f'fit_eeg_distribution() {name} test failed')
 
 
 class TestCleanDrifts(DebuggableTestCase):
@@ -185,23 +170,63 @@ class TestCleanASR(DebuggableTestCase):
             err_msg='clean_asr() failed vs MATLAB',
         )
 
-    def test_riemannian(self):
-        """Test the Riemannian mode."""
-        # for now this is just checking that it does not crash since we don't have
-        # MATLAB reference code for this
-        clean_asr(deepcopy(self.EEG), useriemannian='calib')
+
+@unittest.skipUnless(matlab_engine_available(), 'MATLAB engine not available or skipped')
+class TestRiemannianASRMatlab(DebuggableTestCase):
+    """MATLAB reference for clean_asr(..., useriemannian=True).
+
+    The batch engine receives a double-precision struct. The .set round-trip
+    stores this burst in single precision and disagrees by about 2e-6.
+    """
+
+    def test_clean_asr_riemannian_matches_matlab(self):
+        eeg = create_test_eeg(n_channels=6, n_samples=1536, srate=128.0)
+        time = np.arange(eeg['pnts']) / eeg['srate']
+        rng = np.random.default_rng(443)
+        data = np.vstack([(1.0 + 0.04 * channel) * np.sin(2 * np.pi * 8 * time) for channel in range(eeg['nbchan'])])
+        data += 0.05 * rng.standard_normal(data.shape)
+        data[:, 600:760] += 25.0
+        eeg['data'] = data
+
+        cleaned = clean_asr(deepcopy(eeg), cutoff=5, ref_maxbadchannels='off', useriemannian=True, maxmem=64)
+        engine = eeglabcompat.get_eeglab('MAT', auto_file_roundtrip=False)
+        signal = {
+            'data': data,
+            'srate': float(eeg['srate']),
+            'nbchan': float(eeg['nbchan']),
+            'pnts': float(eeg['pnts']),
+            'trials': 1.0,
+            'xmin': 0.0,
+        }
+        expected = engine.clean_asr(signal, 5.0, None, None, None, 'off', None, None, False, True, 64.0)
+        matlab_data = np.asarray(expected['data'], dtype=float)
+        python_data = np.asarray(cleaned['data'], dtype=float)
+        abs_gap = np.abs(python_data - matlab_data)
+        denominator = np.abs(matlab_data)
+        rel_gap = np.divide(abs_gap, denominator, out=np.zeros_like(abs_gap), where=denominator > 0)
+        rel_gap = np.where((denominator == 0) & (abs_gap > 0), np.inf, rel_gap)
+        worst = np.unravel_index(int(np.argmax(rel_gap)), rel_gap.shape)
+        compare_eeg(
+            python_data,
+            matlab_data,
+            atol=0,
+            rtol=1e-8,
+            use_32_bit=False,
+            err_msg=(
+                'Riemannian clean_asr() failed vs MATLAB '
+                f'max_rel={float(np.max(rel_gap)):.6e} max_abs={float(np.max(abs_gap)):.6e} at index {worst}'
+            ),
+        )
 
 
 class TestCleanWindows(DebuggableTestCase):
     def setUp(self):
         self.EEG = pop_loadset(ensure_file('EmotionValence.set'))
 
-        # ------------------------------------------------------------------
         # Inject synthetic high‑amplitude artefacts so that clean_windows()
         # has something to remove. We draw 20 random stretches (200‑2000
         # samples) and corrupt a random subset of channels in each stretch
         # by adding scaled Gaussian noise.
-        # ------------------------------------------------------------------
         rng = np.random.default_rng(seed=42)  # deterministic for the test
 
         n_stretches = 20
@@ -238,14 +263,8 @@ class TestCleanWindows(DebuggableTestCase):
         expected = eeglab.clean_windows(self.EEG)
         compare_eeg(cleaned['data'], expected['data'], err_msg='clean_windows() failed vs MATLAB')
 
-    def test_clean_windows_preserves_float64(self):
-        cleaned, _ = clean_windows(deepcopy(self.EEG))
-        self.assertEqual(cleaned['data'].dtype, np.float64)
 
-
-# ------------------------------------------------------------------------------
 #                               clean_artifacts
-# ------------------------------------------------------------------------------
 
 
 class TestCleanArtifacts(DebuggableTestCase):
@@ -255,22 +274,29 @@ class TestCleanArtifacts(DebuggableTestCase):
 
     def test_clean_artifacts_defaults(self):
         """Compare Python clean_artifacts against MATLAB implementation (default params)."""
-        with use_64bit_eeg_options():
-            # --- Python version ---
-            cleaned_py, _, _, _ = clean_artifacts(deepcopy(self.EEG))
+        eeglab = None
+        try:
+            with use_64bit_eeg_options():
+                # --- Python version ---
+                eeg = deepcopy(self.EEG)
+                eeg['data'] = np.asarray(eeg['data'], dtype=np.float64)
+                cleaned_py, _, _, _ = clean_artifacts(deepcopy(eeg))
 
-            # --- MATLAB reference ---
-            eeglab = eeglabcompat.get_eeglab('MAT')
-            # Call with the matching name‑value pair
-            expected_mat = eeglab.clean_artifacts(self.EEG)
+                # --- MATLAB reference ---
+                eeglab = eeglabcompat.get_eeglab('MAT')
+                eeglab.engine.eval('clear eeg_options', nargout=0)
+                expected_mat = eeglab.clean_artifacts(eeg)
 
-            compare_eeg(
-                cleaned_py['data'],
-                expected_mat['data'],
-                rtol=0,
-                atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
-                err_msg='clean_artifacts() failed vs MATLAB',
-            )
+                compare_eeg(
+                    cleaned_py['data'],
+                    expected_mat['data'],
+                    rtol=0,
+                    atol=1e-5,  # limit to 1e-5 uV likely due to solver differences
+                    err_msg='clean_artifacts() failed vs MATLAB',
+                )
+        finally:
+            if eeglab is not None:
+                eeglab.engine.eval('clear eeg_options', nargout=0)
 
 
 class TestCleanArtifactsAdvanced(DebuggableTestCase):

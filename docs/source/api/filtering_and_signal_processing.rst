@@ -5,6 +5,11 @@ Filtering and Signal Processing
 
 FIR filter design, filtering helpers, and window functions.
 
+``dftfilt3`` accepts ``cycleinc``, ``winsize``, and ``timesupport`` as keywords
+or positional name/value pairs. Defaults are linear cycle spacing, a
+variable-length Morlet wavelet, and a time support of seven standard
+deviations. ``type`` is not an option.
+
 .. autosummary::
    :toctree: generated/
 
