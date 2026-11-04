@@ -202,8 +202,6 @@ def test_trailing_nans_are_reflected_before_processing_zeros_them():
         assert np.isnan(reflected[1, column])
 
     sig = np.concatenate((raw, reflected), axis=1)
-    # One BLAS thread. A parallel reduction moves the ratio below by ~1e-9 on
-    # Windows, which is past the recorded gap and not a different calibration.
     with threadpool_limits(limits=1, user_api="blas"):
         state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
         step = int(math.floor(srate * window_len / 2))
