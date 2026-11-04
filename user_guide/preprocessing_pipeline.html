@@ -658,6 +658,10 @@ covariance with the previous chunk along the affine-invariant geodesic.</p>
 <p><code class="docutils literal notranslate"><span class="pre">clean_asr(EEG,</span> <span class="pre">useriemannian=&quot;calib&quot;)</span></code> keeps the smaller variant: a
 Riemannian covariance during calibration, then the Euclidean ASR processor.
 Passing an unknown <code class="docutils literal notranslate"><span class="pre">useriemannian</span></code> value raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>.</p>
+<p>Calibration does not change non-finite samples in the recording it receives.
+<code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> reflects the end of that original recording to build lookahead.
+Processing prepends its carry, then replaces non-finite samples, including
+those reflected samples, with 0.</p>
 </section>
 <section id="review-rejected-segments">
 <h2>Review Rejected Segments<a class="headerlink" href="#review-rejected-segments" title="Link to this heading">#</a></h2>
