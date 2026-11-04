@@ -24,6 +24,10 @@ Unreleased
   type is numeric, matching ``pop_rmbase.m``. A NaN inside the baseline
   then fills that channel. A text first event, including ``boundary``,
   still removes the baseline inside each segment.
+- ``eeg_checkset`` turns a mix of numeric and text event types into text.
+  ``65.0`` next to ``boundary`` becomes ``'65'``, the same text as
+  ``num2str`` (``eeg_checkset.m`` lines 1235-1242). Numeric types stay
+  numeric when every type is numeric.
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two

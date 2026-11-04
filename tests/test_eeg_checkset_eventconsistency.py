@@ -171,10 +171,19 @@ class TestEventconsistencyOperations:
         EEG_OPTIONS['option_boundary99'] = 0
         try:
             kept = _eventconsistency({**EEG, 'event': [dict(event) for event in EEG['event']]})
-            assert [event['type'] for event in kept['event']] == [-99, 'stim']
+            assert [event['type'] for event in kept['event']] == ['-99', 'stim']
             EEG_OPTIONS['option_boundary99'] = 1
-            removed = _eventconsistency(EEG)
-            assert [event['type'] for event in removed['event']] == ['stim']
+            still_text = _eventconsistency({**EEG, 'event': [dict(event) for event in EEG['event']]})
+            assert [event['type'] for event in still_text['event']] == ['-99', 'stim']
+            numeric = {
+                **EEG,
+                'event': [
+                    {'type': -99, 'latency': 0.5, 'duration': 0},
+                    {'type': 1, 'latency': 8, 'duration': 0},
+                ],
+            }
+            removed = _eventconsistency(numeric)
+            assert [event['type'] for event in removed['event']] == [1]
         finally:
             EEG_OPTIONS['option_boundary99'] = previous
 

@@ -380,7 +380,7 @@ class TestPopSelectEventConsistency(unittest.TestCase):
         self.assertEqual(_event_rows(out), [('first', 30.0, 0.0), ('second', 5.0, 0.0)])
         np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
 
-    def test_numeric_boundary_type_follows_option_boundary99(self):
+    def test_mixed_numeric_boundary_is_text_before_the_boundary_check(self):
         eeg = _dataset(
             [
                 {'type': -99, 'latency': 0.5, 'duration': 0},
@@ -394,7 +394,8 @@ class TestPopSelectEventConsistency(unittest.TestCase):
             out = pop_select(eeg, channel=['Fz'])
         finally:
             EEG_OPTIONS['option_boundary99'] = previous
-        self.assertEqual(_event_rows(out), [('stim', 8.0, 0.0)])
+        # eeg_checkset.m:395-400 converts the mix before eeg_isboundary, so '-99' stays.
+        self.assertEqual(_event_rows(out), [('-99', 0.5, 0.0), ('stim', 8.0, 0.0)])
 
     def test_numeric_boundary_duplicates_are_merged(self):
         eeg = _dataset(

@@ -123,8 +123,10 @@ MATLAB Structure Transport
 When passing lists of dictionaries through the MATLAB bridge, numeric and text
 values in the same field retain their individual types regardless of record
 order. For example, ``42.0`` remains a MATLAB double when another record holds
-``"boundary"``; it does not become ``"42.0"``. EEGLAB's ``eeg_checkset`` may
-subsequently normalize mixed event types to strings as part of event validation.
+``"boundary"``; it does not become ``"42.0"``. ``eeg_checkset`` then converts
+that mix with the same rules as ``num2str`` (``eeg_checkset.m`` lines
+1235-1242): ``65.0`` next to ``boundary`` becomes ``'65'``. A list that is
+entirely numeric stays numeric.
 
 Known Differences from EEGLAB
 =============================

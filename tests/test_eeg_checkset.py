@@ -53,6 +53,22 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         result = eeg_checkset(eeg)
         self.assertAlmostEqual(result['xmax'], 0.99)
 
+    def test_mixed_event_types_use_num2str(self):
+        """65.0 next to a boundary becomes '65', the same text as num2str(65)."""
+        eeg = create_minimal_eeg()
+        eeg['event'] = [
+            {'type': 65.0, 'latency': 10.0},
+            {'type': 'boundary', 'latency': 40.0, 'duration': 1.0},
+        ]
+        result = eeg_checkset(eeg)
+        self.assertEqual([event['type'] for event in result['event']], ['65', 'boundary'])
+
+    def test_numeric_event_types_stay_numeric(self):
+        eeg = create_minimal_eeg()
+        eeg['event'] = [{'type': 65.0, 'latency': 10.0}, {'type': 2, 'latency': 20.0}]
+        result = eeg_checkset(eeg)
+        self.assertEqual([event['type'] for event in result['event']], [65.0, 2])
+
 
 class TestEegChecksetDataSqueezing(DebuggableTestCase):
     """Test 3D data squeezing behavior."""
