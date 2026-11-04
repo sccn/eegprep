@@ -3,6 +3,7 @@
 import logging
 
 import numpy as np
+import psutil
 import scipy.signal
 
 from ...functions.miscfunc.misc import finite_matmul, round_mat
@@ -61,8 +62,6 @@ def asr_process(
         lookahead = window_len / 2
     if max_mem is None:
         # use at most half of available memory
-        import psutil
-
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
 
     window_len = max(window_len, 1.5 * C / srate)
@@ -106,8 +105,6 @@ def asr_process(
             "Memory too low, increasing it (rejection block size now "
             "depends on available memory so it might not be fully reproducible)..."
         )
-        import psutil
-
         max_mem = psutil.virtual_memory().free / 1024**2 / 2
         if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
             raise RuntimeError('Not enough memory')

@@ -3,8 +3,9 @@
 from pathlib import Path
 import tempfile
 
-import mne
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
 
 from ..popfunc.pop_saveset import pop_saveset
 from ._eeg_mne import _apply_eeg_events_to_mne, _eeg_subject, _events_by_epoch, _set_mne_subject
@@ -22,7 +23,7 @@ def _with_readable_chaninfo(EEG):
     return copied
 
 
-def eeg_eeg2mne(EEG):
+def eeg_eeg2mne(EEG, *, feature="eeg_eeg2mne"):
     """Convert an EEG dataset to an MNE Raw or Epochs object.
 
     Continuous data becomes Raw. Epoched data becomes Epochs. ``EEG['subject']``
@@ -52,6 +53,7 @@ def eeg_eeg2mne(EEG):
     ValueError
         If an epoch has no events. The message names that epoch, 1-based.
     """
+    mne = import_optional_dependency("mne", feature=feature)
     if int(EEG.get('trials', 1) or 1) > 1:
         _events_by_epoch(EEG)
 

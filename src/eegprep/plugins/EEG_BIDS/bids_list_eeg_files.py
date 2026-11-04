@@ -2,6 +2,7 @@
 
 import logging
 from typing import List, Sequence
+
 from .bids import layout_for_fpath
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ def bids_list_eeg_files(
     List[str]
         A list of file paths to EEG files in the BIDS dataset.
     """
-    layout = layout_for_fpath(root)
+    layout = layout_for_fpath(root, feature="bids_list_eeg_files")
 
     filters = {
         'subject': [subjects] if isinstance(subjects, (str, int)) else subjects,

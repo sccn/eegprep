@@ -23,6 +23,7 @@ from eegprep.plugins.EEG_BIDS.coords import (
 from eegprep.plugins.EEG_BIDS.montage import apply_montage_inference
 from eegprep.plugins.EEG_BIDS.raw import load_raw_eeg_file
 from eegprep.plugins.EEG_BIDS.sidecar import read_bids_json, read_bids_table
+from eegprep.extras import import_optional_dependency
 from eegprep.functions.miscfunc.misc import ExceptionUnlessDebug
 
 import numpy as np
@@ -147,8 +148,7 @@ def pop_load_frombids(
     if bidsmetadata:
         if verbose:
             logger.info("  applying BIDS metadata...")
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
         metadata: Dict[str, Any] = metadata_for_bids_file(layout, filename, include_entities=True)
 
@@ -158,8 +158,7 @@ def pop_load_frombids(
         EEG['etc']['BIDS'] = metadata
 
     if bidschanloc:
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
         query_entities = {**layout.parse_file_entities(filename), 'suffix': 'channels', 'extension': '.tsv'}
@@ -387,8 +386,7 @@ def pop_load_frombids(
                     report['NotfoundChanlocs'] = notfound
 
     if bidsevent:
-        import bids
-
+        bids = import_optional_dependency("bids", feature="pop_load_frombids")
         layout: bids.BIDSLayout = layout_for_fpath(filename)
 
         query_entities = query_for_adjacent_fpath(filename, suffix='events', extension='.tsv')

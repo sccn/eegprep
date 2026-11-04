@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import scipy.io
 
+from eegprep.extras import import_optional_dependency, missing_matlab_message
 from eegprep.functions.adminfunc.pymat import py2mat
 from ..popfunc.pop_loadset import pop_loadset
 from ..popfunc.pop_saveset import pop_saveset
@@ -328,7 +329,13 @@ class MatlabWrapper:
 
 
 # noinspection PyDefaultArgument
-def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = True, _cache={}):
+def get_eeglab(
+    runtime: str = default_runtime,
+    *,
+    auto_file_roundtrip: bool = True,
+    feature: str = "get_eeglab",
+    _cache={},
+):
     """Get a reference to an EEGLAB namespace that is powered by the specified runtime (Octave or MATLAB).
 
     Args
@@ -338,6 +345,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
       can be passed as arguments and returned by the engine. This is enabled
       by implicitly performing pop_saveset/pop_loadset with a temporary file
       whenever such a data structure is encountered.
+    feature : name of the function the caller asked for, used when Octave is
+      not installed.
     _cache : reserved for internal use
     """
     rt = runtime.lower()[:3]
@@ -354,9 +363,9 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 
         # not yet loaded, do so now
         if rt == 'oct':
-            from oct2py import Oct2Py, get_log
-
-            engine = Oct2Py(logger=get_log())
+            oct2py = import_optional_dependency("oct2py", feature=feature)
+            get_log = oct2py.get_log
+            engine = oct2py.Oct2Py(logger=get_log())
             engine.logger = get_log("new_log")
             engine.logger.setLevel(logging.WARNING)
             engine.warning('off', 'backtrace')
@@ -364,16 +373,8 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
             try:
                 # Use import_module so ty can run before MATLAB Engine is installed.
                 matlab_engine = importlib.import_module("matlab.engine")
-            except ImportError:
-                raise ImportError("""\
-                    The MATLAB runtime has not been installed into your Python environment.
-                    To do that, make sure you have the pip executable for this python environment
-                    on the path, and then run:
-                    pip install /your/path/to/matlab/extern/engines/python
-
-                    This will insert a wrapper package in the python environment that forwards
-                    calls to the MATLAB runtime.
-                    """)
+            except ImportError as exc:
+                raise ImportError(missing_matlab_message(feature)) from exc
             engine = matlab_engine.start_matlab()
             # engine.cd(path2eeglab)
             # engine.eval('eeglab nogui;', nargout=0) # starting EEGLAB is too slow
@@ -434,14 +435,14 @@ def get_eeglab(runtime: str = default_runtime, *, auto_file_roundtrip: bool = Tr
 def eeg_checkset(EEG, eeglab=None):
     """Check the EEG dataset."""
     if eeglab is None:
-        eeglab = get_eeglab()
+        eeglab = get_eeglab(feature="eeg_checkset")
     return eeglab.eeg_checkset(EEG)
 
 
 def clean_drifts(EEG, Transition, Attenuation, eeglab=None):
     """Remove drifts from EEG data."""
     if eeglab is None:
-        eeglab = get_eeglab()
+        eeglab = get_eeglab(feature="clean_drifts")
     return eeglab.clean_drifts(EEG, Transition, Attenuation)
 
 
@@ -476,7 +477,7 @@ def pop_eegfiltnew(EEG, locutoff=None, hicutoff=None, revfilt=False, plotfreqz=F
         hicutoff = []
 
     # Use wrapper which handles EEG struct conversion via file roundtrip
-    eeglab = get_eeglab(auto_file_roundtrip=True)
+    eeglab = get_eeglab(auto_file_roundtrip=True, feature="pop_eegfiltnew")
     return eeglab.pop_eegfiltnew(
         EEG, 'locutoff', locutoff, 'hicutoff', hicutoff, 'revfilt', revfilt, 'plotfreqz', plotfreqz
     )
@@ -531,7 +532,7 @@ def clean_artifacts(
     dict
         Cleaned EEG data.
     """
-    eeglab = get_eeglab(auto_file_roundtrip=False)
+    eeglab = get_eeglab(auto_file_roundtrip=False, feature="eeglab_clean_artifacts")
 
     if _matlab_false_or_off(ChannelCriterion):
         ChannelCriterion = 'off'

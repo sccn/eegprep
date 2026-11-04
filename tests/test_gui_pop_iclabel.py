@@ -32,7 +32,7 @@ class PopIclabelGuiTests(unittest.TestCase):
         with mock.patch("eegprep.plugins.ICLabel.pop_iclabel.iclabel", return_value=updated) as classify:
             out, com = pop_iclabel(eeg, gui=True, renderer=Renderer(), return_com=True)
 
-        classify.assert_called_once_with(eeg, algorithm="default", engine=None)
+        classify.assert_called_once_with(eeg, algorithm="default", engine=None, feature="pop_iclabel")
         self.assertEqual(out["etc"]["ic_classification"]["ICLabel"]["version"], "default")
         self.assertEqual(com, "EEG = pop_iclabel(EEG, 'default');")
 

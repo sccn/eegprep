@@ -287,6 +287,80 @@ jobs:
         run: |
           uv pip list
 
+  # A plain `pip install eegprep` has no brackets. It must load, clean, and plot
+  # the sample recording. Octave, MNE, PyBIDS, and Picard stay out of this job.
+  base-install:
+    name: Base install without optional extras
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install the base package with no extras
+        run: |
+          uv venv --python 3.12 /tmp/eegprep-base
+          uv pip install --python /tmp/eegprep-base/bin/python .
+          uv pip install --python /tmp/eegprep-base/bin/python pytest pytest-timeout
+
+      - name: Clean and plot the sample recording
+        env:
+          MPLBACKEND: Agg
+          EEGPREP_SKIP_MATLAB: "1"
+        run: |
+          /tmp/eegprep-base/bin/python - <<'PY'
+          import importlib.util
+          import io
+          import sys
+          import eegprep
+          from eegprep import clean_artifacts, pop_loadset, topoplot
+
+          absent = [name for name in ("oct2py", "mne", "bids", "picard") if importlib.util.find_spec(name) is not None]
+          if absent:
+              raise SystemExit(f"base install includes {absent}")
+          missing = [
+              name
+              for name in ("numpy", "scipy", "matplotlib", "psutil", "pyedflib", "h5py")
+              if importlib.util.find_spec(name) is None
+          ]
+          if missing:
+              raise SystemExit(f"base install is missing {missing}")
+          names = dir(eegprep)
+          if "pop_loadset" not in names or "help" not in names or "clean_artifacts" not in names:
+              raise SystemExit("dir() is missing public names")
+          loaded = [name for name in ("mne", "oct2py", "bids", "picard") if name in sys.modules]
+          if loaded:
+              raise SystemExit(f"import eegprep loaded {loaded}")
+          buffer = io.StringIO()
+          sys.stdout = buffer
+          eegprep.help()
+          sys.stdout = sys.__stdout__
+          text = buffer.getvalue()
+          if "pop_loadset" not in text or 'pip install "eegprep[full]"' not in text:
+              raise SystemExit("help() did not describe the public names and extras")
+          eeg = pop_loadset("sample_data/eeglab_data.set")
+          cleaned, *_rest = clean_artifacts(eeg)
+          figure, *_plot = topoplot(cleaned["data"][:, 0], cleaned["chanlocs"])
+          image = io.BytesIO()
+          figure.savefig(image, format="png")
+          if not image.getvalue():
+              raise SystemExit("topoplot wrote an empty figure")
+          leaked = [name for name in ("mne", "oct2py", "bids", "picard") if name in sys.modules]
+          if leaked:
+              raise SystemExit(f"the base pipeline loaded {leaked}")
+          print(f"base pipeline ok; cleaned shape {cleaned['data'].shape}; png {len(image.getvalue())} bytes")
+          PY
+          /tmp/eegprep-base/bin/python -m pytest \
+            tests/test_package_help.py tests/test_optional_extras.py tests/test_browser_dependency_floors.py \
+            -q -p no:cacheprovider
+
   # No continue-on-error, so the job fails on any new failure or strict XPASS.
   # Maintainers should mark it required in branch protection. Known Python gaps
   # are individual strict xfails. GUI and slow contracts stay out because modal

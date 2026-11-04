@@ -411,6 +411,7 @@ def _run_ica_backend(EEG, icatype, options, *, reorder):
         return eeg_picard(
             EEG,
             sortcomps=reorder,
+            feature="pop_runica",
             **_picard_options(options, channel_count=int(EEG.get("nbchan", 0) or 0)),
         )
     if icatype == "runamica15":

@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import mne
 import numpy as np
 import scipy.io
+
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import mne
 
 from eegprep.functions.popfunc._file_io import mne_raw_to_eeg
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args, parse_numeric_sequence
@@ -25,7 +29,11 @@ _EEGLAB_STRUCT_MARKERS = frozenset({"nbchan", "srate", "pnts", "trials", "chanlo
 
 
 def pop_fileio(
-    filename: str | Path, *args: Any, return_com: bool = False, **kwargs: Any
+    filename: str | Path,
+    *args: Any,
+    return_com: bool = False,
+    feature: str = "pop_fileio",
+    **kwargs: Any,
 ) -> dict[str, Any] | tuple[dict[str, Any], str]:
     """Import an EEG file, optionally selecting 1-based channels, samples, or trials.
 
@@ -62,7 +70,7 @@ def pop_fileio(
         channels = None
         samples = None
     else:
-        reader = _reader_for_suffix(suffix)
+        reader = _reader_for_suffix(suffix, feature)
         raw = reader(str(path), preload=True, verbose=False)
         if blockrange is not None:
             _crop_raw_to_blockrange(raw, blockrange)
@@ -85,7 +93,8 @@ def _mat_is_eeglab_dataset(path: Path) -> bool:
     return "EEG" in names or bool(names & _EEGLAB_STRUCT_MARKERS)
 
 
-def _reader_for_suffix(suffix: str):
+def _reader_for_suffix(suffix: str, feature: str):
+    mne = import_optional_dependency("mne", feature=feature)
     if suffix == ".edf":
         return mne.io.read_raw_edf
     if suffix == ".bdf":

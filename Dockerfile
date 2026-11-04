@@ -18,10 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy local source and install (no PyTorch, no optional extras)
 COPY src/ src/
 COPY pyproject.toml LICENSE README.md ./
-RUN pip install --no-cache-dir --prefix=/install .
+RUN pip install --no-cache-dir --prefix=/install ".[pybids,mne]"
 
 # ----- Stage 2: runtime (no compilers, no dev headers) -------
 FROM python:3.12-slim

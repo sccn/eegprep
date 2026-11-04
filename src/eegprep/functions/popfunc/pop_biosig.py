@@ -47,7 +47,7 @@ def pop_biosig(
     remove_event_channel = _on_off("rmeventchan", options.pop("rmeventchan", "on"))
     import_events = _on_off("importevent", options.pop("importevent", "on"))
     blockrange = options.get("blockrange")
-    eeg, _command = pop_fileio(filename, return_com=True, **options)
+    eeg, _command = pop_fileio(filename, return_com=True, feature="pop_biosig", **options)
     if path.suffix.lower() == ".bdf":
         eeg = _import_bdf_status_channel(
             eeg,

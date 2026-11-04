@@ -7,11 +7,15 @@ import json
 import math
 from pathlib import Path
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import mne
 import numpy as np
 import scipy.io
+
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import mne
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset, strict_mode
 from eegprep.functions.popfunc._matlab_fields import matlab_index
@@ -279,6 +283,7 @@ def mne_raw_to_eeg(raw: mne.io.BaseRaw, *, setname: str = "", filename: str = ""
 
 def eeg_to_mne_raw(eeg: dict[str, Any]) -> mne.io.RawArray:
     """Convert a continuous EEGPrep EEG dict to MNE RawArray."""
+    mne = import_optional_dependency("mne", feature="eeg_to_mne_raw")
     data = np.asarray(eeg["data"])
     if data.ndim == 3:
         data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))

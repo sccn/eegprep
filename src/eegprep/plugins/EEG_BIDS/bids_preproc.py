@@ -1,5 +1,7 @@
 """Module for BIDS preprocessing of EEG."""
 
+from __future__ import annotations
+
 import os
 import hashlib
 import json
@@ -9,9 +11,14 @@ import multiprocessing
 import time
 from time import time as now
 import logging
-from typing import Union, Tuple, Optional, Sequence, List, Dict, Any
+from typing import TYPE_CHECKING, Union, Tuple, Optional, Sequence, List, Dict, Any
 
 import numpy as np
+
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    from bids import BIDSLayout
 
 from ...functions.adminfunc.git import get_git_commit_id
 from ...functions.miscfunc.misc import (
@@ -49,7 +56,6 @@ all_stages = [
 
 def _copy_misc_root_files(root: str, dst: str, exclude: List[str]) -> None:
     """Move miscellaneous description files from the study root to the target directory."""
-    from bids import BIDSLayout
     from bids.layout.models import BIDSJSONFile
 
     layout: BIDSLayout = layout_for_fpath(root)
@@ -404,6 +410,7 @@ def bids_preproc(
         Depending on ReturnData, either a list of EEG objects (if BIDS root folder was
         specified) or a single EEG object (if a single file was specified), otherwise None.
     """
+    import_optional_dependency("bids", feature="bids_preproc")
     kwargs = {k: v for k, v in locals().items() if not k.startswith('_')}
     del kwargs['root']  # we don't need the root here, only in the function body
     from eegprep import (

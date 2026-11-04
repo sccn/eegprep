@@ -1,9 +1,14 @@
 """BIDS utilities."""
 
-import os
-from typing import Sequence, Dict, Any, Optional
+from __future__ import annotations
 
-import bids
+import os
+from typing import TYPE_CHECKING, Sequence, Dict, Any, Optional
+
+from eegprep.extras import import_optional_dependency
+
+if TYPE_CHECKING:
+    import bids
 
 from .sidecar import read_bids_json
 
@@ -71,7 +76,7 @@ def root_for_fpath(fn: str) -> str:
 
 def query_for_adjacent_fpath(fn: str, **overrides) -> Dict[str, Any]:
     """Generate a query dictionary (of entities) for a given file path in a BIDS dataset."""
-    layout = layout_for_fpath(fn)
+    layout = layout_for_fpath(fn, feature="query_for_adjacent_fpath")
     query_entities = layout.parse_file_entities(fn).copy()
     query_entities.update(overrides)
     return query_entities
@@ -138,8 +143,9 @@ def gen_derived_fpath(
     return out_path
 
 
-def layout_for_fpath(filepath: str) -> 'bids.BIDSLayout':
+def layout_for_fpath(filepath: str, *, feature: str = "layout_for_fpath") -> bids.BIDSLayout:
     """Get the applicable BIDS layout object for a given file path."""
+    bids = import_optional_dependency("bids", feature=feature)
     bids_root = root_for_fpath(filepath)
     try:
         return layout_cache[bids_root]
@@ -160,7 +166,7 @@ def _filename_entity_count(path: str) -> int:
 
 
 def metadata_for_bids_file(
-    layout: 'bids.BIDSLayout',
+    layout: bids.BIDSLayout,
     filename: str,
     *,
     include_entities: bool = False,
@@ -201,7 +207,7 @@ def metadata_for_bids_file(
 
 
 def layout_get_lenient(
-    layout: 'bids.BIDSLayout',
+    layout: bids.BIDSLayout,
     *,
     return_type: str = 'filename',
     tolerate_missing: Sequence[str] = ('task', 'run'),

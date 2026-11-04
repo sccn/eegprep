@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from eegprep.extras import import_optional_dependency
 from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc.pop_load_frombids import pop_load_frombids
 from eegprep.plugins.EEG_BIDS.bids_list_eeg_files import bids_list_eeg_files
@@ -23,7 +24,11 @@ def pop_importbids(
     stay UTF-8, and a leading UTF-8 BOM is removed.
     """
     source = Path(path)
-    files = bids_list_eeg_files(str(source)) if source.is_dir() else [str(source)]
+    if source.is_dir():
+        import_optional_dependency("bids", feature="pop_importbids")
+        files = bids_list_eeg_files(str(source))
+    else:
+        files = [str(source)]
     if not files:
         raise ValueError(f"No supported EEG files found in BIDS path: {source}")
     eegs = [pop_load_frombids(filename, **kwargs) for filename in files]

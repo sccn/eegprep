@@ -35,15 +35,11 @@ dependencies = [
   # tests/test_browser_dependency_floors.py enforces the distinction.
   "h5py>=3.12.1",
   "matplotlib>=3.8.0",
-  "mne>=1.10.0",
   "numpy>=2.1.0",
-  "oct2py>=5.5.0",
   "packaging>=23.0",
   "psutil>=7.0.0",
-  "pybids>=0.4",
   "pyedflib>=0.1.42",
   "pyyaml>=6.0",
-  "python-picard>=0.8,<0.9",
   # 1.14.1 is what Pyodide 0.29.5 ships, so the floor cannot go above it without
   # making a browser install impossible. macOS needs more: scipy built before
   # 1.16.3 fails to dlopen on current macOS with a zero-fill section error.
@@ -53,6 +49,28 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Octave runtime for pop_resample, iclabel, the clean_channels RANSAC path, and eeglab_clean_artifacts.
+eeglab = [
+  "oct2py>=5.5.0",
+]
+# MNE conversion and EDF/BDF/GDF readers. Not used by the default cleaning or plotting path.
+mne = [
+  "mne>=1.10.0",
+]
+# BIDS dataset import and bids_preproc.
+pybids = [
+  "pybids>=0.4",
+]
+# Picard ICA. The default runica path does not import it. Pulls in scikit-learn.
+picard = [
+  "python-picard>=0.8,<0.9",
+]
+full = [
+  "eegprep[eeglab]",
+  "eegprep[mne]",
+  "eegprep[pybids]",
+  "eegprep[picard]",
+]
 torch = [
   "torch>=2.0"
 ]
@@ -80,6 +98,10 @@ all = [
   "eegprep[gui]",
   "eegprep[console]",
   "eegprep[docs]",
+  "eegprep[eeglab]",
+  "eegprep[mne]",
+  "eegprep[pybids]",
+  "eegprep[picard]",
 ]
 
 [project.scripts]
@@ -93,6 +115,12 @@ dev = [
   # Keep `uv run eegprep-console --full` working from a fresh source checkout.
   # Published installs still keep GUI/console dependencies behind extras.
   "ipython>=8.0",
+  # Same packages as the eeglab, mne, pybids, and picard extras, so the suite can
+  # exercise those paths without ``--all-extras``.
+  "mne>=1.10.0",
+  "oct2py>=5.5.0",
+  "pybids>=0.4",
+  "python-picard>=0.8,<0.9",
   "pytest>=8.0",
   "pytest-timeout>=2.4.0",
   "pyqtgraph>=0.13.7",

@@ -48,7 +48,7 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: uv sync --python 3.12 --group dev
+        run: uv sync --python 3.12 --group dev --extra eeglab --extra mne --extra pybids --extra picard
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2

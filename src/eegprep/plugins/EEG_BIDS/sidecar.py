@@ -5,9 +5,10 @@ from __future__ import annotations
 from io import StringIO
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def decode_bids_text(payload: bytes, *, suffix: str) -> str:
@@ -38,6 +39,8 @@ def read_bids_table(path: str | Path) -> pd.DataFrame:
 
     ``n/a`` is missing data. The file is decoded with :func:`decode_bids_text`.
     """
+    import pandas as pd
+
     return pd.read_csv(StringIO(read_bids_text(path)), sep="\t", na_values="n/a")
 
 
