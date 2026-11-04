@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
-    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/documentation_options.js?v=1dd76d02"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/sg-tags.js?v=d80f6fa4"></script>
@@ -66,7 +66,7 @@
     <link rel="prev" title="Releasing" href="releasing.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.4.0" />
+  <meta name="docsearch:version" content="0.5.0" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -473,22 +473,23 @@
 <span id="id1"></span><h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading">#</a></h1>
 <p>Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the <a class="reference external" href="https://github.com/sccn/eegprep/releases">GitHub Releases</a> page.</p>
-<section id="unreleased">
-<h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
+<section id="version-0-5-0">
+<h2>Version 0.5.0<a class="headerlink" href="#version-0-5-0" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>This version, 0.5.0, is shared with <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">dir(eegprep)</span></code> lists every public name, and <code class="docutils literal notranslate"><span class="pre">eegprep.help()</span></code> prints
 those names with a one-line summary taken from the docstring. Describing a
 name does not import its module. <code class="docutils literal notranslate"><span class="pre">help</span></code> is not in <code class="docutils literal notranslate"><span class="pre">__all__</span></code>, so
 <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">eegprep</span> <span class="pre">import</span> <span class="pre">*</span></code> does not replace the builtin.</p></li>
-<li><p>A plain <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">eegprep</span></code> includes NumPy, SciPy, Matplotlib,
-psutil, pyedflib, and h5py. Loading, cleaning, plotting, and EDF, BDF, and
-GDF export need no extra. Octave (<code class="docutils literal notranslate"><span class="pre">oct2py</span></code>), MNE,
-PyBIDS, and Picard are the <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code>
-extras. <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[full]&quot;</span></code> installs those four and restores
-the previous complete install. A missing library raises <code class="docutils literal notranslate"><span class="pre">ImportError</span></code>
-naming the library, the function, and <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[&lt;extra&gt;]&quot;</span></code>,
-and it mentions <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>. When another path does not need that
-library, the message says what to do instead. The minimal preprocessing image
+<li><p>A plain <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">eegprep</span></code> no longer includes mne, pybids, oct2py, and
+picard. It includes NumPy, SciPy, Matplotlib, psutil, pyedflib, and h5py, so
+loading, cleaning, plotting, and EDF, BDF, and GDF export need no extra.
+Those four libraries are the <code class="docutils literal notranslate"><span class="pre">mne</span></code>, <code class="docutils literal notranslate"><span class="pre">pybids</span></code>, <code class="docutils literal notranslate"><span class="pre">eeglab</span></code>, and <code class="docutils literal notranslate"><span class="pre">picard</span></code>
+extras. <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[full]&quot;</span></code> restores the previous install.
+A missing library raises <code class="docutils literal notranslate"><span class="pre">ImportError</span></code> naming the library, the function,
+and <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;eegprep[&lt;extra&gt;]&quot;</span></code>, and it mentions <code class="docutils literal notranslate"><span class="pre">eegprep[full]</span></code>.
+When another path does not need that library, the message says what to do
+instead. The minimal preprocessing image
 installs the <code class="docutils literal notranslate"><span class="pre">pybids</span></code> and <code class="docutils literal notranslate"><span class="pre">mne</span></code> extras so it can read a BIDS dataset
 and EDF or BDF files. <code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> stays a separate package.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> sets <code class="docutils literal notranslate"><span class="pre">trials</span></code> from the data shape, then runs the full
@@ -1105,7 +1106,7 @@ EEGLAB’s <code class="docutils literal notranslate"><span class="pre">asr_cali
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unreleased">Unreleased</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-5-0">Version 0.5.0</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-4-0">Version 0.4.0</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-3-0">Version 0.3.0</a></li>
 </ul>

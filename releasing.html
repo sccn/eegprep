@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
 
-    <script src="_static/documentation_options.js?v=6c02275b"></script>
+    <script src="_static/documentation_options.js?v=1dd76d02"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/sg-tags.js?v=d80f6fa4"></script>
@@ -67,7 +67,7 @@
     <link rel="prev" title="Development Setup" href="development.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.4.0" />
+  <meta name="docsearch:version" content="0.5.0" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -479,11 +479,34 @@ separate local publishing route. You drive it from your machine with <code class
 <section id="the-version-lives-in-one-place">
 <h2>The version lives in one place<a class="headerlink" href="#the-version-lives-in-one-place" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">src/eegprep/__init__.py</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.3.0&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.5.0&quot;</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> declares <code class="docutils literal notranslate"><span class="pre">dynamic</span> <span class="pre">=</span> <span class="pre">[&quot;version&quot;]</span></code> and reads that attribute, so
-there is no version string to edit in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>.</p>
+there is no version string to edit in the eegprep <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> carries the same version in two places, and both must equal
+<code class="docutils literal notranslate"><span class="pre">__version__</span></code>: <code class="docutils literal notranslate"><span class="pre">packages/eegprep-lean/src/eegprep_lean/__init__.py</span></code> and
+<code class="docutils literal notranslate"><span class="pre">version</span></code> in <code class="docutils literal notranslate"><span class="pre">packages/eegprep-lean/pyproject.toml</span></code>. The joint release
+below exits before it builds if those three strings differ.</p>
+</section>
+<section id="both-packages">
+<h2>Both packages<a class="headerlink" href="#both-packages" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">scripts/release_packages.py</span></code> builds eegprep and eegprep-lean with that one
+version. With no flags it builds both and does not upload:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">scripts</span><span class="o">/</span><span class="n">release_packages</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">--publish</span></code> checks that both packages have built artifacts and that
+<code class="docutils literal notranslate"><span class="pre">UV_PUBLISH_TOKEN</span></code> is set, then uploads eegprep-lean and eegprep in that
+order. It does not upload eegprep unless lean can be uploaded too. Lean has
+no trusted publisher, so a GitHub Actions token is not enough for this
+command. <code class="docutils literal notranslate"><span class="pre">--check</span></code> compares the versions and does not build. A <code class="docutils literal notranslate"><span class="pre">v*</span></code> tag
+in <code class="docutils literal notranslate"><span class="pre">GITHUB_REF</span></code>, or <code class="docutils literal notranslate"><span class="pre">RELEASE_TAG</span></code>, must name the same version.</p>
+<p><code class="docutils literal notranslate"><span class="pre">.github/workflows/synced-release.yml</span></code> runs the script without <code class="docutils literal notranslate"><span class="pre">--publish</span></code>.
+That job builds and verifies. It does not upload. <code class="docutils literal notranslate"><span class="pre">release.yml</span></code> still
+publishes the eegprep project when a <code class="docutils literal notranslate"><span class="pre">v*</span></code> tag is pushed. Uploading
+<code class="docutils literal notranslate"><span class="pre">eegprep-lean</span></code> needs a trusted publisher for that project, which is not
+configured; <code class="docutils literal notranslate"><span class="pre">lean-wheel.yml</span></code> builds the lean wheel and does not publish it.</p>
 </section>
 <section id="release-from-your-machine">
 <h2>Release from your machine<a class="headerlink" href="#release-from-your-machine" title="Link to this heading">#</a></h2>
@@ -495,7 +518,7 @@ gh<span class="w"> </span>run<span class="w"> </span>watch<span class="w"> </spa
 </div>
 <p><strong>2. Bump the version</strong> in <code class="docutils literal notranslate"><span class="pre">src/eegprep/__init__.py</span></code>, then commit and land it on
 <code class="docutils literal notranslate"><span class="pre">master</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">&quot;release: 0.3.0&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">&quot;release: 0.5.0&quot;</span>
 git<span class="w"> </span>checkout<span class="w"> </span>master<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>develop<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>master
 </pre></div>
 </div>
@@ -507,8 +530,8 @@ changes — for example a modified <code class="docutils literal notranslate"><s
 block the checkout.</p>
 </div>
 <p><strong>3. Tag and push.</strong> Pushing the tag starts the release:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.3.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release version 0.3.0&quot;</span>
-git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.3.0
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.5.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release version 0.5.0&quot;</span>
+git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.5.0
 </pre></div>
 </div>
 <p><strong>4. Watch it.</strong> Nothing reaches PyPI unless every check passes:</p>
@@ -545,8 +568,8 @@ stored in the repository.</p></li>
 <h2>If a tag was pushed at a bad commit<a class="headerlink" href="#if-a-tag-was-pushed-at-a-bad-commit" title="Link to this heading">#</a></h2>
 <p>Fix the problem, then move the tag. This is safe only while the tag published
 nothing; once a version is on PyPI it can never be replaced.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>:refs/tags/v0.3.0<span class="w">     </span><span class="c1"># delete the remote tag</span>
-git<span class="w"> </span>tag<span class="w"> </span>-f<span class="w"> </span>v0.3.0<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.3.0
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>:refs/tags/v0.5.0<span class="w">     </span><span class="c1"># delete the remote tag</span>
+git<span class="w"> </span>tag<span class="w"> </span>-f<span class="w"> </span>v0.5.0<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.5.0
 </pre></div>
 </div>
 </section>
@@ -622,6 +645,7 @@ executed” no matter what is installed.</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-version-lives-in-one-place">The version lives in one place</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#both-packages">Both packages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#release-from-your-machine">Release from your machine</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-workflow-does">What the workflow does</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#if-a-tag-was-pushed-at-a-bad-commit">If a tag was pushed at a bad commit</a></li>
