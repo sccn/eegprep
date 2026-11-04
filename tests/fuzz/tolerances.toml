@@ -22,7 +22,7 @@ abs = 0.0
 rel = 1.0e-6
 
 # Proposed sections below await Suraj/Arno approval.
-# They are not accepted tolerances. Do not loosen them to hide a mismatch.
+# They are not accepted tolerances.
 # u = 2^-53. meta_rel is 4*u, and 2*u for pop_epoch.
 # Data that is a copy or a selection is compared exactly.
 # pop_rmbase has no approved absolute allowance. A per-case bound is described

@@ -10,11 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``eeg_eegrej`` inserts a numeric ``-99`` boundary when every event type is
-  numeric and ``option_boundary99`` is on, matching ``eeg_boundarytype``.
-  A text type beside ``-99`` still inserts ``boundary``, and the
-  event-consistency check then turns that ``-99`` into ``'-99'``
-  (``eeg_eegrej.m`` line 144, ``eeg_checkset.m`` lines 395-400).
+- ``pop_rmbase`` returns an empty dataset unchanged and logs a warning.
+  That includes a zero-epoch result, such as epoching that selected no
+  events, and continuous data with no samples. EEGLAB prints the same
+  condition and returns (``pop_rmbase.m`` lines 69-71).
+- ``eeg_eegrej`` inserts a numeric ``-99`` boundary when ``option_boundary99``
+  is on and the first event type is numeric. ``eeg_boundarytype`` looks only
+  at that first type. A text first type inserts ``boundary``. A later text
+  type leaves the inserted ``-99`` in place until the event-consistency
+  check turns it into ``'-99'`` (``eeg_eegrej.m`` line 144,
+  ``eeg_checkset.m`` lines 395-400).
 - ``pop_select`` with ``sorttrial='off'`` keeps the first copy of a repeated
   trial. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
   ``unique_bc`` keeps the last copy, ``[4, 3, 2, 1, 5]``

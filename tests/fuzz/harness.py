@@ -1467,8 +1467,6 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             digest,
         )
     if outcome.diverged and _rmbase_mean_branch_is_known(case, eeg, python, oracle, tolerance):
-        # pop_rmbase.m:202 uses mean() unless the recording is continuous and
-        # the first event type is text. EEGPrep ignores that NaN.
         return _outcome(
             case,
             False,

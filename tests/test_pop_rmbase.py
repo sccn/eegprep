@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import os
 import unittest
 
@@ -176,6 +177,29 @@ def test_pop_rmbase_keeps_a_baseline_nan_local():
         assert np.isfinite(out["data"][0, 4:]).all()
     assert np.isnan(epoched["data"][0, :4, :]).all()
     assert np.isfinite(epoched["data"][0, 4:, :]).all()
+
+
+def test_pop_rmbase_returns_an_empty_dataset_unchanged(caplog):
+    epoched = create_test_eeg(n_channels=20, n_samples=600, n_trials=0)
+    continuous = create_test_eeg(n_channels=2, n_samples=0)
+    with caplog.at_level(logging.WARNING, logger="eegprep.functions.popfunc.pop_rmbase"):
+        epoched_out, command = pop_rmbase(epoched, [-1000, 0], return_com=True)
+        continuous_out = pop_rmbase(continuous, pointrange=[1, 2])
+
+    assert epoched_out is epoched
+    assert epoched_out["data"].shape == (20, 600, 0)
+    assert epoched_out["trials"] == 0
+    assert command == ""
+    assert continuous_out is continuous
+    assert continuous_out["data"].shape == (2, 0)
+    assert "pop_rmbase" in caplog.text
+    assert "empty dataset" in caplog.text
+    assert "no events" in caplog.text
+
+
+def test_pop_rmbase_names_a_non_dataset():
+    with pytest.raises(ValueError, match=r"pop_rmbase: EEG must be a dataset dictionary"):
+        pop_rmbase(np.zeros((2, 10)))
 
 
 def test_pop_rmbase_continuous_boundary_partial_pointrange_only_changes_selected_samples():

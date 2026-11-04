@@ -7,9 +7,9 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._event_utils import events_as_list, is_boundary_event
+from eegprep.functions.popfunc.eeg_boundarytype import eeg_boundarytype
 
 
 def eeg_insertbound(
@@ -60,7 +60,7 @@ def eeg_insertbound(
         boundary = {field: np.array([]) for field in extra_fields}
         boundary.update(
             {
-                "type": _boundary_type(output[:original_count]),
+                "type": eeg_boundarytype(output[:original_count]),
                 "latency": float(begin - np.sum(durations[:region_index]) - 0.5),
                 "duration": float(durations[region_index] + extra_duration),
                 "_eegprep_new_boundary": True,
@@ -81,13 +81,6 @@ def eeg_insertbound(
         if event.pop("_eegprep_new_boundary", False):
             new_indices.append(index)
     return retained, new_indices
-
-
-def _boundary_type(events: list[dict[str, Any]]) -> str | int:
-    numeric = not events or isinstance(events[0].get("type"), (int, float, np.integer, np.floating))
-    if numeric and EEG_OPTIONS["option_boundary99"] and events:
-        return -99
-    return "boundary"
 
 
 __all__ = ["eeg_insertbound"]

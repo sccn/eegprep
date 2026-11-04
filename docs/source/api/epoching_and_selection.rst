@@ -9,6 +9,7 @@ Extracting epochs, selecting data, and converting between latencies and sample p
    :toctree: generated/
 
    eegprep.eeg_addnewevents
+   eegprep.eeg_boundarytype
    eegprep.eeg_findboundaries
    eegprep.eeg_getepochevent
    eegprep.eeg_insertbound
