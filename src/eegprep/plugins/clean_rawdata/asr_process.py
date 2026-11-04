@@ -76,9 +76,6 @@ def asr_process(
     N = int(round_mat(window_len * srate))
     P = int(round_mat(lookahead * srate))
 
-    # Fix NaN and Inf values
-    data[~np.isfinite(data)] = 0
-
     M = state['M']  # Mixing matrix
     T = state['T']  # Threshold matrix
     sos = state.get('sos')  # SOS filter representation (None if compatibility='max')
@@ -98,8 +95,9 @@ def asr_process(
         ind = np.mod(np.arange(P + 1, 1, -1) - 1, S)
         carry = 2 * data[:, [0]] - data[:, ind]
 
-    # Prepend the carry buffer to the data
+    # asr_process.m:127-128
     X = np.concatenate((carry, data), axis=1)
+    X[~np.isfinite(X)] = 0
 
     if max_mem * 1024 * 1024 - C * C * P * 8 * 3 < 0:
         logger.warning(

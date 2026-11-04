@@ -5,6 +5,8 @@ including parameter validation, calibration data selection, and various
 processing switches.
 """
 
+import hashlib
+import math
 import unittest
 from pathlib import Path
 
@@ -12,9 +14,14 @@ import numpy as np
 
 import pytest
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
-from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError
+from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, asr_calibrate
+from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+
+# Nightly fuzz crop clean_asr|numeric|1e1, seed 20261031.
+_NAN_TAIL_SHA256 = "f98111327da99e56c5c9bf58d5ca02364023868af91ce44d4354caa79065e4d6"
 
 
 class TestCleanASRParameters(unittest.TestCase):
@@ -105,6 +112,86 @@ def test_low_sampling_rate_calibration_names_the_spectral_filter():
     message = str(raised.value)
     assert "spectral" in message.lower()
     assert "ff must be non-decreasing" not in message
+
+
+def _nan_tail_recording():
+    """Channels 24-30, samples 158:414, with channel index 1 samples 245-246 set to NaN."""
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    sample_index = np.arange(158, 158 + 256)
+    data = np.array(np.asarray(source["data"])[np.ix_(range(24, 31), sample_index)], dtype=np.float64)
+    data[1, 245:247] = np.nan
+    digest = hashlib.sha256(np.ascontiguousarray(data, dtype=np.float64).tobytes()).hexdigest()
+    assert digest == _NAN_TAIL_SHA256
+    srate = float(source["srate"])
+    return {
+        "data": data,
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": int(data.shape[1]),
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (data.shape[1] - 1) / srate,
+        "event": [],
+    }
+
+
+def _reflect_tail(data, srate):
+    """clean_asr.m:189 reflection of the original samples, NaNs included."""
+    window_len = max(0.5, 1.5 * data.shape[0] / srate)
+    n_extrap = int(round_mat(window_len / 2 * srate))
+    extrap_indices = np.arange(data.shape[1] - 2, data.shape[1] - n_extrap - 2, -1)
+    reflected = 2 * data[:, [-1]] - data[:, extrap_indices]
+    return window_len, n_extrap, extrap_indices, reflected
+
+
+def test_trailing_nans_are_reflected_before_processing_zeros_them():
+    """A NaN in the last half-window is reflected as NaN, then processed as 0.
+
+    Calibration must not zero the shared array first. That turned samples
+    245-246 into 0 and the lookahead into twice the final sample (133.655).
+    """
+    eeg = _nan_tail_recording()
+    raw = eeg["data"]
+    srate = float(eeg["srate"])
+    window_len, n_extrap, extrap_indices, reflected = _reflect_tail(raw, srate)
+    assert n_extrap == 32
+    for sample in (245, 246):
+        column = list(extrap_indices).index(sample)
+        assert np.isnan(reflected[1, column])
+
+    sig = np.concatenate((raw, reflected), axis=1)
+    state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
+    step = int(math.floor(srate * window_len / 2))
+    processed, _state = asr_process(
+        sig,
+        srate,
+        state,
+        window_len=window_len,
+        lookahead=window_len / 2,
+        step_size=step,
+        max_dims=0.66,
+        max_mem=64,
+    )
+    tail = processed[:, raw.shape[1] :]
+    for sample in (245, 246):
+        column = list(extrap_indices).index(sample)
+        assert tail[1, column] == 0.0
+
+    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    np.testing.assert_array_equal(cleaned["data"], processed[:, : raw.shape[1]])
+    np.testing.assert_array_equal(eeg["data"], raw)
+
+    zeroed = raw.copy()
+    zeroed[~np.isfinite(zeroed)] = 0.0
+    zeroed_eeg = dict(eeg)
+    zeroed_eeg["data"] = zeroed
+    cleaned_zeroed = clean_asr(zeroed_eeg, cutoff=5.0, ref_maxbadchannels="off")
+    finite = np.isfinite(raw)
+    gap = np.abs(cleaned["data"] - cleaned_zeroed["data"])[finite]
+    # Same gap the nightly fuzzer measured against EEGLAB on this crop.
+    np.testing.assert_allclose(gap.max(), 11.59255144724768, rtol=0, atol=1e-9)
+    scale = np.abs(cleaned["data"][finite])
+    np.testing.assert_allclose((gap / np.maximum(scale, 1e-300)).max(), 44.455707521301576, rtol=0, atol=1e-9)
 
 
 if __name__ == '__main__':

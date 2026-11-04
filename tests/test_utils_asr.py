@@ -262,6 +262,22 @@ class TestAsrCalibrate(unittest.TestCase):
                 np.testing.assert_allclose(state['B'], ref_b, rtol=1e-8, atol=1e-9)
                 np.testing.assert_allclose(state['A'], ref_a, rtol=1e-8, atol=1e-9)
 
+    def test_calibration_does_not_mutate_input(self):
+        """Non-finite samples stay in the caller's array, including a non-contiguous view."""
+        base = np.random.default_rng(5).normal(size=(4, 900))
+        base[0, 10] = np.nan
+        base[1, 11] = np.inf
+        base[2, 12] = -np.inf
+        view = base[:, :800]
+        original = view.copy()
+
+        asr_calibrate(view, 128.0, cutoff=5.0)
+
+        np.testing.assert_array_equal(view, original)
+        self.assertTrue(np.isnan(base[0, 10]))
+        self.assertTrue(np.isposinf(base[1, 11]))
+        self.assertTrue(np.isneginf(base[2, 12]))
+
 
 class TestAsrProcess(unittest.TestCase):
     """Test the asr_process function."""
@@ -296,6 +312,19 @@ class TestAsrProcess(unittest.TestCase):
 
         self.assertEqual(cleaned_data.shape, degenerate.shape)
         self.assertTrue(np.all(np.isfinite(cleaned_data)))
+
+    def test_process_does_not_mutate_input(self):
+        """NaNs in the chunk stay put. Processing zeros them on its own buffer."""
+        chunk = self.test_data.copy()
+        chunk[0, 3] = np.nan
+        chunk[1, 4] = np.inf
+        original = chunk.copy()
+
+        cleaned, _state = asr_process(chunk, self.srate, self.state)
+
+        np.testing.assert_array_equal(chunk, original)
+        self.assertEqual(cleaned.shape, original.shape)
+        self.assertTrue(np.isfinite(cleaned).all())
 
     def test_final_sample_is_reconstructed_when_length_mod_step_is_one(self):
         """Every chunk sample is updated, including when ``n % step == 1``.

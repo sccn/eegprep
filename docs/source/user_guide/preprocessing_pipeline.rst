@@ -166,6 +166,11 @@ covariance with the previous chunk along the affine-invariant geodesic.
 Riemannian covariance during calibration, then the Euclidean ASR processor.
 Passing an unknown ``useriemannian`` value raises ``ValueError``.
 
+Calibration does not change non-finite samples in the recording it receives.
+``clean_asr`` reflects the end of that original recording to build lookahead.
+Processing prepends its carry, then replaces non-finite samples, including
+those reflected samples, with 0.
+
 Review Rejected Segments
 ========================
 
