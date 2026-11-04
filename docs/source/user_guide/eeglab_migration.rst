@@ -217,7 +217,7 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        starts after sample 1, EEGLAB shifts the segment indices by that
        offset and removes the mean of the shifted span (``pop_rmbase.m``
        lines 183-196). EEGPrep writes only the listed baseline samples
-       inside each original segment (``pop_rmbase.py`` lines 226-231).
+       inside each original segment (``pop_rmbase.py`` lines 235-236).
        ``test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary``
        locks the EEGPrep result. A baseline that starts at sample 1 follows
        EEGLAB, including the case where the first event type is numeric:
