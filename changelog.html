@@ -473,6 +473,15 @@
 <span id="id1"></span><h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading">#</a></h1>
 <p>Notable changes to EEGPrep, newest first. Full release notes and downloads are on
 the <a class="reference external" href="https://github.com/sccn/eegprep/releases">GitHub Releases</a> page.</p>
+<section id="unreleased">
+<h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">asr_process</span></code> and <code class="docutils literal notranslate"><span class="pre">asr_process_r</span></code> refresh the reconstruction on the
+last sample of a chunk when the length modulo the step is 1. A
+29-channel, 257-sample recording at 128 Hz is processed as 289 samples
+with a step of 32, and that last sample was previously left raw.</p></li>
+</ul>
+</section>
 <section id="version-0-5-0">
 <h2>Version 0.5.0<a class="headerlink" href="#version-0-5-0" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -1106,6 +1115,7 @@ EEGLAB’s <code class="docutils literal notranslate"><span class="pre">asr_cali
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unreleased">Unreleased</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-5-0">Version 0.5.0</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-4-0">Version 0.4.0</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-0-3-0">Version 0.3.0</a></li>
