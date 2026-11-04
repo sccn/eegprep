@@ -295,7 +295,11 @@ def _pop_select_apply(EEG, **kwargs):
         else:
             # must touch epoch boundary
             if not (np.any(np.isclose(notime_mat[:, 0], xmin)) or np.any(np.isclose(notime_mat[:, 1], xmax))):
-                raise ValueError('Wrong notime range for epoched data; must include an epoch boundary')
+                raise ValueError(
+                    "pop_select: notime on epoched data must include the epoch start "
+                    f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                    "epoch cannot be removed; include one of those edges, or remove trials."
+                )
 
             # convert notime to keep time when aligned to boundaries
             if np.any(np.isclose(notime_mat[:, 1], xmax)) and np.any(np.isclose(notime_mat[:, 0], xmin)):
@@ -307,7 +311,11 @@ def _pop_select_apply(EEG, **kwargs):
                 elif np.any(np.isclose(notime_mat[:, 0], xmin)):
                     time_mat = np.array([[float(notime_mat[0, 1]), xmax]], dtype=float)
                 else:
-                    raise ValueError('Wrong notime range. Cannot remove a central slice from epoched data.')
+                    raise ValueError(
+                        "pop_select: notime on epoched data must include the epoch start "
+                        f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                        "epoch cannot be removed; include one of those edges, or remove trials."
+                    )
 
     # 4) Informational prints (optional)
     if len(g['trial']) != trials:

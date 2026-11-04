@@ -750,5 +750,13 @@ def test_sorttrial_off_keeps_the_first_copy_of_a_duplicate():
     assert out['data'][0, 0, :].tolist() == [5, 4, 3, 2, 1]
 
 
+def test_notime_inside_an_epoch_names_the_fix():
+    eeg = create_test_eeg(n_channels=1, n_samples=8, srate=100.0, n_trials=2)
+    eeg['xmin'] = -0.04
+    eeg['xmax'] = 0.03
+    with pytest.raises(ValueError, match="pop_select: notime on epoched data"):
+        pop_select(eeg, notime=[[-0.02, 0.01]])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -329,7 +329,10 @@ def _normalise_eventindices(value: Any, event_count: int) -> list[int]:
     indices = [int(item) for item in _as_list(value)]
     normalised = [index - 1 for index in indices]
     if any(index < 0 or index >= event_count for index in normalised):
-        raise ValueError("eventindices must be 1-based and within EEG.event")
+        raise ValueError(
+            f"pop_epoch: eventindices {indices} are outside 1..{event_count}. "
+            "Pass 1-based indices that exist in EEG.event."
+        )
     return sorted(set(normalised))
 
 

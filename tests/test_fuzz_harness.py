@@ -694,6 +694,43 @@ def test_duplicate_trial_order_is_not_filed():
     assert "first copy" in outcome.detail
 
 
+def test_epoched_notime_is_the_same_failure_as_eeglab():
+    case = FuzzCase("pop_select", EEGSpec((0,), 0, 2, 1, -1, 0, 0), freeze_params({}))
+    outcome = judge(
+        side_from_error(
+            ValueError(
+                "pop_select: notime on epoched data must include the epoch start (-1.0) or the epoch end (2.0). "
+                "A span in the middle of an epoch cannot be removed; include one of those edges, or remove trials."
+            )
+        ),
+        side_from_error(
+            RuntimeError(
+                "Wrong notime range. Remember that it is not possible to remove a slice of time for data epochs."
+            )
+        ),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+
+
+def test_eventindices_past_the_end_is_the_same_failure_as_eeglab():
+    case = FuzzCase("pop_epoch", EEGSpec((0,), 0, 8, 1, -1, 0, 0), freeze_params({}))
+    outcome = judge(
+        side_from_error(
+            ValueError("pop_epoch: eventindices [1, 2] are outside 1..1. Pass 1-based indices that exist in EEG.event.")
+        ),
+        side_from_error(RuntimeError("Index exceeds the number of array elements. Index must not exceed 1.")),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+
+
 def test_one_rms_window_message_does_not_hide_a_different_error():
     outcome = judge(
         side_from_error(

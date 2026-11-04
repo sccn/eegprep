@@ -459,9 +459,27 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
     # asr_calibrate.m uses one "No enough reference data" error both when the
     # calibration is shorter than one RMS window and when fewer than two
     # windows can be formed. EEGPrep names which of those happened.
-    return "No enough reference data" in oracle_message and (
-        "Fewer than 2 calibration windows" in message or "Not enough calibration data" in message
+    return (
+        "No enough reference data" in oracle_message
+        and ("Fewer than 2 calibration windows" in message or "Not enough calibration data" in message)
+        or _same_pop_select_notime(message, oracle_message)
+        or _same_pop_epoch_eventindices(message, oracle_message)
     )
+
+
+def _same_pop_select_notime(message: str, oracle_message: str) -> bool:
+    """pop_select.m rejects a notime span that misses both epoch edges."""
+    if "pop_select" not in message or "notime" not in message or "epoched" not in message:
+        return False
+    return "not possible to remove a slice of time" in oracle_message or "Wrong notime range" in oracle_message
+
+
+def _same_pop_epoch_eventindices(message: str, oracle_message: str) -> bool:
+    """pop_epoch.m indexes event latencies with eventindices and errors past the end."""
+    if "pop_epoch" not in message or "eventindices" not in message:
+        return False
+    folded = oracle_message.lower()
+    return "index exceeds" in folded or "out of bound" in folded or "index out of" in folded
 
 
 def _oracle_filter_unavailable(oracle: SideResult) -> bool:

@@ -927,7 +927,9 @@ edge draw sets that stored 0 on about half of the non-user ``eeg_eegrej``
 cases. ``pop_select`` with ``sorttrial='off'`` and a repeated trial is a
 match when EEGPrep kept the first copy and EEGLAB's ``unique_bc`` kept the
 last (``pop_select.m`` lines 282-286); the next step starts from the
-first-copy dataset. Both sides
+first-copy dataset. An epoched ``pop_select`` ``notime`` that misses both
+epoch edges, and a ``pop_epoch`` ``eventindices`` past the last event, are
+the same failure on both sides. Both sides
 raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
 a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
 ``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.

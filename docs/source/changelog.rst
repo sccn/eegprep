@@ -14,6 +14,9 @@ Unreleased
   trial. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
   ``unique_bc`` keeps the last copy, ``[4, 3, 2, 1, 5]``
   (``pop_select.m`` lines 282-286).
+- ``pop_select`` names an epoched ``notime`` span that misses both epoch
+  edges, and ``pop_epoch`` names an ``eventindices`` value past the last
+  event. Both are the same failure EEGLAB reports for those inputs.
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two
