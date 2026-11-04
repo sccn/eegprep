@@ -314,9 +314,12 @@ def test_missing_torch_and_matlab_name_the_function_and_the_install(monkeypatch,
     with pytest.raises(ImportError) as matlab_error:
         get_eeglab("mat", feature="pop_resample", _cache={})
     matlab_message = str(matlab_error.value)
-    assert matlab_message.startswith("pop_resample needs the MATLAB engine")
-    assert "pip install /your/path/to/matlab/extern/engines/python" in matlab_message
-    assert 'pip install "eegprep[eeglab]"' in matlab_message
+    assert matlab_message.startswith("pop_resample needs the MATLAB Engine for Python, which is not installed.")
+    assert (
+        "Install it from your MATLAB installation with: pip install <matlabroot>/extern/engines/python."
+        in matlab_message
+    )
+    assert 'To use Octave instead, run: pip install "eegprep[eeglab]".' in matlab_message
     assert "Leave engine unset to resample in Python." in matlab_message
 
 

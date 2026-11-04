@@ -119,10 +119,10 @@ def missing_torch_message(feature: str) -> str:
 def missing_matlab_message(feature: str) -> str:
     """Plain-language ``ImportError`` text when the MATLAB engine is absent."""
     return (
-        f"{feature} needs the MATLAB engine, and it is not installed. "
-        "Install the engine from your MATLAB checkout with "
-        "pip install /your/path/to/matlab/extern/engines/python. "
-        f"The Octave engine is {install_command('eeglab')}."
+        f"{feature} needs the MATLAB Engine for Python, which is not installed. "
+        "Install it from your MATLAB installation with: "
+        "pip install <matlabroot>/extern/engines/python. "
+        f"To use Octave instead, run: {install_command('eeglab')}."
         f"{_instead(feature)}"
     )
 
