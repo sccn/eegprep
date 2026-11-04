@@ -8,6 +8,7 @@ from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.miscfunc.event_utils import boundary_event_indices
 from eegprep.functions.miscfunc.event_utils import is_boundary_event as _is_boundary_event
+from eegprep.functions.popfunc.eeg_insertbound import _boundary_type
 from ..miscfunc.misc import round_mat
 
 
@@ -212,7 +213,7 @@ def _eegrej(
 
     # Insert boundary events (always, even if no original events)
     if True:
-        bound_type = "boundary"
+        bound_type = _boundary_type(events_out)
         for i in range(len(boundevents)):
             be = float(boundevents[i])
             if be > 0 and be < (newn + 1):

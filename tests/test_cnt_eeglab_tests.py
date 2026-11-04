@@ -180,8 +180,9 @@ def test_current_pop_loadcnt_wrapper_cases(
     assert case1["nbchan"] == case4["nbchan"] == 2
     assert case1["srate"] == case4["srate"] == 1
     assert [channel["labels"] for channel in case1["chanlocs"]] == ["E1", "E2"]
-    assert [event["type"] for event in case1["event"]] == [7, "boundary", 8]
-    assert [event["type"] for event in case8["event"]] == [7, "keyboard4", "keypad3", "boundary", 8]
+    # eeg_checkset.m:1236-1242 num2str's numeric types that sit beside text.
+    assert [event["type"] for event in case1["event"]] == ["7", "boundary", "8"]
+    assert [event["type"] for event in case8["event"]] == ["7", "keyboard4", "keypad3", "boundary", "8"]
     assert [event["latency"] for event in case8["event"]] == [1, 11, 21, 31, 1101]
     assert [event["urevent"] for event in case8["event"]] == list(range(5))
     assert "'keystroke', 'on'" in command
