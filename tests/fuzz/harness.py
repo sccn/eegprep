@@ -1864,21 +1864,30 @@ def _compare_extra(python: SideResult, oracle: SideResult):
 
 
 def _same_event_field(left, right) -> bool:
-    """True when two event fields match, including NaN with NaN."""
-    if left == right:
-        return True
-    return (
-        isinstance(left, (float, np.floating))
-        and isinstance(right, (float, np.floating))
-        and math.isnan(float(left))
-        and math.isnan(float(right))
-    )
+    """True when two event fields match, including NaN with NaN.
+
+    Numeric types compare as numbers, so ``65`` matches ``65.0``. Text stays
+    an exact string.
+    """
+    left_number = _event_number(left)
+    right_number = _event_number(right)
+    if left_number is not None and right_number is not None:
+        return (math.isnan(left_number) and math.isnan(right_number)) or left_number == right_number
+    return left == right
+
+
+def _event_number(value):
+    if isinstance(value, (bool, np.bool_)) or isinstance(value, (str, bytes)):
+        return None
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return float(value)
+    return None
 
 
 def _event_view(eeg: dict) -> tuple:
     return tuple(
         (
-            str(event.get("type", "")),
+            _event_type_view(event.get("type", "")),
             float(_scalar(event.get("latency", np.nan))),
             _optional_float(event, "duration"),
             _optional_int(event, "epoch"),
@@ -1886,6 +1895,17 @@ def _event_view(eeg: dict) -> tuple:
         )
         for event in _iter_events(eeg)
     )
+
+
+def _event_type_view(value):
+    number = _event_number(value)
+    if number is not None:
+        return number
+    if isinstance(value, bytes):
+        return value.decode()
+    if value is None:
+        return ""
+    return value if isinstance(value, str) else str(value)
 
 
 def _iter_events(eeg: dict):

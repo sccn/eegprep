@@ -41,6 +41,7 @@ from tests.fuzz.harness import (
     run_repro,
     run_session,
     side_from_call,
+    side_from_eeg,
     side_from_error,
     suspend_option_single,
     thaw_params,
@@ -716,6 +717,23 @@ def test_rmbase_mean_nan_spread_is_not_filed():
     outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
     assert outcome.diverged is False
     assert "mean()" in outcome.detail
+
+
+def test_int64_event_type_matches_float_type():
+    base = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=1)
+    base["event"] = [{"type": np.int64(65), "latency": 1.0}]
+    other = copy.deepcopy(base)
+    other["event"] = [{"type": 65.0, "latency": 1.0}]
+
+    outcome = judge(
+        side_from_eeg(base),
+        side_from_eeg(other),
+        Tolerance(0.0, 0.0),
+        FuzzCase("pop_eegfiltnew", EEGSpec((0,), 0, 4, 1, -1, 0, 0), freeze_params({})),
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
 
 
 def test_epoched_notime_is_the_same_failure_as_eeglab():

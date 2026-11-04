@@ -933,10 +933,9 @@ match when EEGPrep kept the first copy and EEGLAB's ``unique_bc`` kept the
 last (``pop_select.m`` lines 282-286); the next step starts from the
 first-copy dataset. An epoched ``pop_select`` ``notime`` that misses both
 epoch edges, and a ``pop_epoch`` ``eventindices`` past the last event, are
-the same failure on both sides. ``eeg_checkset`` turns a mix of numeric
-and text event types into text with the ``num2str`` rules, so ``65.0``
-beside ``boundary`` is ``'65'`` before a later step such as
-``pop_eegfiltnew``. Both sides
+the same failure on both sides. Numeric event types compare as numbers,
+so ``np.int64(65)`` matches the double ``65.0``. Text types stay exact.
+Both sides
 raising on a ``clean_windows`` input whose fit width rounds to 1 or less is
 a match. The MATLAB copy replaces ``None`` ``chaninfo`` fields, including
 ``plotrad`` and ``shrink``, with ``[]`` before ``savemat``.
