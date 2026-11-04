@@ -254,7 +254,11 @@ def asr_calibrate(
     # Window length for calculating thresholds
     N = int(round_mat(window_len * srate))
     if S < N:
-        raise ASRCalibrationError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
+        raise ASRCalibrationError(
+            f"asr_calibrate: Not enough calibration data. "
+            f"Calibration data has {S} samples but one {window_len:g} s RMS window needs {N} at {srate:g} Hz; "
+            f"use a recording of at least {N} samples or set BurstCriterion='off'."
+        )
 
     logger.info('Determining per-component thresholds...')
 
@@ -274,8 +278,14 @@ def asr_calibrate(
     window_starts = matlab_window_offsets(S, N, step)
 
     if len(window_starts) <= 1:
+        minimum = S + 1
+        while len(matlab_window_offsets(minimum, N, step)) < 2:
+            minimum += 1
         raise ASRCalibrationError(
-            f"Fewer than 2 calibration windows: got {len(window_starts)} from {S} samples with window length {N}."
+            f"asr_calibrate: Fewer than 2 calibration windows: got {len(window_starts)} "
+            f"from {S} samples with window length {N}. "
+            f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
+            f"use a longer recording or set BurstCriterion='off'."
         )
 
     window_indices = window_starts[:, None] + np.arange(N)

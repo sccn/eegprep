@@ -21,6 +21,13 @@ Unreleased
   21-channel, 89-sample, 128 Hz crop in issue 526. EEGLAB indexes that
   width and returns the recording unchanged. The valid widths are still
   used here.
+- ``pop_clean_rawdata`` with ``Distance='riemannian'`` warns and leaves the
+  burst stage unchanged when Riemannian calibration is shorter than one
+  0.1 s RMS window or yields fewer than two windows. ``clean_asr`` still
+  raises ``ASRCalibrationError``. EEGLAB calls that path outside the
+  ``try``/``catch`` in ``clean_artifacts.m`` (lines 267-268). Short-calibration
+  errors name the function, the sample counts, and whether to record more
+  data or set ``BurstCriterion`` off.
 - ``asr_process`` and ``asr_process_r`` refresh the reconstruction on the
   last sample of a chunk when the length modulo the step is 1. A
   29-channel, 257-sample recording at 128 Hz is processed as 289 samples

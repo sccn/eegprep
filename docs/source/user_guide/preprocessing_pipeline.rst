@@ -185,6 +185,12 @@ Calibration does not change non-finite samples in the recording it receives.
 Processing prepends its carry, then replaces non-finite samples, including
 those reflected samples, with 0.
 
+A Riemannian calibration shorter than one 0.1 s RMS window, or one with
+fewer than two such windows, raises ``ASRCalibrationError``. The message
+names ``asr_calibrate_r``, the sample counts, and the choice to record more
+data or set ``BurstCriterion`` off. ``pop_clean_rawdata`` warns and leaves
+the burst stage unchanged. EEGLAB does not catch that call.
+
 Review Rejected Segments
 ========================
 

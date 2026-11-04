@@ -185,7 +185,10 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        window-removal stage still runs. EEGLAB wraps the Euclidean
        ``clean_asr`` call in ``try``/``catch`` (``clean_artifacts.m`` lines
        270-275) and ``return`` leaves before window removal (line 318) and
-       before the rounded sampling rate is restored (line 311).
+       before the rounded sampling rate is restored (line 311). Riemannian
+       calibration raises the same error, and ``pop_clean_rawdata`` skips
+       that burst stage too. EEGLAB's Riemannian call is outside the
+       ``try``/``catch`` (lines 267-268).
    * - ASR at a low sampling rate
      - ``clean_asr`` raises an error naming the sampling rate when the default
        spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and

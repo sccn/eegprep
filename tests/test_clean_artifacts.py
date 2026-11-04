@@ -132,7 +132,11 @@ def test_short_recording_without_a_spectral_filter_failure_leaves_the_burst_unch
     np.testing.assert_array_equal(cleaned["data"], eeg["data"])
     np.testing.assert_array_equal(burst["data"], eeg["data"])
     assert any(
-        "Not enough calibration data" in record.message and "got 10" in record.message for record in caplog.records
+        "asr_calibrate:" in record.message
+        and "Not enough calibration data" in record.message
+        and "has 10 samples" in record.message
+        and "needs 64" in record.message
+        for record in caplog.records
     )
 
 
@@ -183,12 +187,15 @@ def test_issue_524_short_calibration_keeps_every_sample(caplog):
     np.testing.assert_allclose(eeg["data"], original, rtol=0.0, atol=0.0, equal_nan=True)
     assert cleaned["data"].shape == (16, 44)
     assert cleaned["srate"] == 128.0
-    assert any("Need at least 64 samples, got 44" in record.message for record in caplog.records)
+    assert any(
+        "asr_calibrate:" in record.message and "has 44 samples" in record.message and "needs 64" in record.message
+        for record in caplog.records
+    )
 
 
 def test_issue_524_clean_asr_still_names_the_short_calibration():
     eeg = _issue_524_eeg()
-    with pytest.raises(ASRCalibrationError, match=r"Need at least 64 samples, got 44"):
+    with pytest.raises(ASRCalibrationError, match=r"asr_calibrate:.*has 44 samples.*needs 64"):
         clean_asr(
             eeg,
             cutoff=20.0,
@@ -224,8 +231,63 @@ def test_one_calibration_window_skips_the_burst_and_keeps_samples(caplog):
     np.testing.assert_array_equal(cleaned["data"], data)
     np.testing.assert_array_equal(burst["data"], data)
     assert any(
-        "Fewer than 2 calibration windows" in record.message and "got 1" in record.message for record in caplog.records
+        "asr_calibrate:" in record.message
+        and "Fewer than 2 calibration windows" in record.message
+        and "got 1" in record.message
+        and "at least 87 samples" in record.message
+        for record in caplog.records
     )
+
+
+def _short_riemannian_eeg(samples: int):
+    data = np.ones((4, samples), dtype=np.float64)
+    return {
+        "data": data,
+        "srate": 128.0,
+        "nbchan": 4,
+        "pnts": samples,
+        "trials": 1,
+        "xmin": 0.0,
+        "event": [],
+    }
+
+
+def test_riemannian_short_calibration_warns_and_keeps_samples(caplog):
+    eeg = _short_riemannian_eeg(12)
+    original = np.array(eeg["data"], copy=True)
+    with caplog.at_level(logging.WARNING):
+        cleaned = pop_clean_rawdata(
+            eeg,
+            gui=False,
+            FlatlineCriterion="off",
+            Highpass="off",
+            ChannelCriterion="off",
+            LineNoiseCriterion="off",
+            WindowCriterion="off",
+            BurstCriterion=5.0,
+            BurstCriterionRefMaxBadChns="off",
+            Distance="riemannian",
+        )
+    np.testing.assert_array_equal(cleaned["data"], original)
+    assert any(
+        "asr_calibrate_r:" in record.message
+        and "Not enough calibration data" in record.message
+        and "has 12 samples" in record.message
+        and "one 0.1 s RMS window needs 13" in record.message
+        and "BurstCriterion='off'" in record.message
+        for record in caplog.records
+    )
+
+
+def test_riemannian_one_window_still_raises_from_clean_asr():
+    eeg = _short_riemannian_eeg(14)
+    with pytest.raises(ASRCalibrationError, match="asr_calibrate_r:") as raised:
+        clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off", useriemannian=True)
+    message = str(raised.value)
+    assert "Fewer than 2 calibration windows" in message
+    assert "got 1" in message
+    assert "at least 21 samples" in message
+    assert "BurstCriterion='off'" in message
 
 
 def test_short_calibration_still_runs_window_removal():

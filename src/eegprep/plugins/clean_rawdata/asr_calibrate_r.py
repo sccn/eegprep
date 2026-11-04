@@ -57,6 +57,12 @@ def asr_calibrate_r(
             Default 0.3.
         maxmem: Memory budget in MB used to grow ``blocksize``. Default 64.
 
+    Raises:
+        ASRCalibrationError: The spectral shaping filter cannot be designed,
+            the calibration is shorter than one RMS window, or fewer than two
+            RMS windows can be formed.
+        ValueError: ``X`` is not a channels-by-samples array.
+
     Returns:
         dict: Filter state for ``asr_process_r`` (``M``, ``T``, ``B``, ``A``,
         ``iir``, ``cov``, ``carry``, ``last_R``, ``last_trivial``).
@@ -116,7 +122,12 @@ def asr_calibrate_r(
 
     window_samples = int(round_mat(window_len * srate))
     if samples < window_samples:
-        raise ValueError(f'Not enough calibration data. Need at least {window_samples} samples, got {samples}.')
+        raise ASRCalibrationError(
+            f"asr_calibrate_r: Not enough calibration data. "
+            f"Calibration data has {samples} samples but one {window_len:g} s RMS window "
+            f"needs {window_samples} at {srate:g} Hz; "
+            f"use a recording of at least {window_samples} samples or set BurstCriterion='off'."
+        )
 
     logger.info('Determining per-component thresholds...')
     vectors, values = rasr_nonlinear_eigenspace(mixing, channels)
@@ -131,9 +142,14 @@ def asr_calibrate_r(
         step = 1
     window_starts = matlab_window_offsets(samples, window_samples, step)
     if len(window_starts) <= 1:
-        raise ValueError(
-            f"Fewer than 2 calibration windows: got {len(window_starts)} "
-            f"from {samples} samples with window length {window_samples}."
+        minimum = samples + 1
+        while len(matlab_window_offsets(minimum, window_samples, step)) < 2:
+            minimum += 1
+        raise ASRCalibrationError(
+            f"asr_calibrate_r: Fewer than 2 calibration windows: got {len(window_starts)} "
+            f"from {samples} samples with window length {window_samples}. "
+            f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
+            f"use a longer recording or set BurstCriterion='off'."
         )
     window_indices = window_starts[:, None] + np.arange(window_samples)
 

@@ -46,9 +46,9 @@ def clean_asr(
     A recording that is too short for EEGLAB's calibration-time RMS fit, which
     indexes a zero window width, is still calibrated here. Fewer than two
     calibration RMS windows, and a calibration shorter than one window, raise
-    ``ASRCalibrationError``. The first names the window count, the sample
-    count, and the window length. The second names the required and actual
-    sample counts. EEGLAB raises an error that asks for different
+    ``ASRCalibrationError``. Each names ``asr_calibrate`` or
+    ``asr_calibrate_r``, the sample counts, and whether to record more data
+    or set ``BurstCriterion`` off. EEGLAB raises an error that asks for different
     ``BurstCriterionRefTolerances`` in both cases. A sampling rate whose
     default spectral breakpoints are not monotonic raises
     ``ASRCalibrationError`` as well.
