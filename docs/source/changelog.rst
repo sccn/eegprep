@@ -17,6 +17,9 @@ Unreleased
 - ``pop_select`` names an epoched ``notime`` span that misses both epoch
   edges, and ``pop_epoch`` names an ``eventindices`` value past the last
   event. Both are the same failure EEGLAB reports for those inputs.
+- A dataset saved with ``trials=0`` loads the empty epoch stack from a
+  0-byte ``.fdt``. The sidecar reader used to treat that trial count as 1
+  and expect ``nbchan * pnts`` samples.
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two

@@ -67,6 +67,19 @@ def test_pop_saveset_twofiles_roundtrips_epoched_data_as_memmap(tmp_path: Path):
     assert reloaded["data"][1, 2, 1] == -123.0
 
 
+def test_zero_trial_sidecar_loads_empty_data(tmp_path: Path):
+    """trials=0 is an empty epoch stack. A 0-byte sidecar is that stack, not a missing file."""
+    data = np.zeros((32, 375, 0), dtype=np.float32)
+    set_file = tmp_path / "empty-epochs.set"
+
+    pop_saveset(_eeg(data, name="empty-epochs"), set_file, savemode="twofiles")
+    loaded = pop_loadset(set_file)
+
+    assert loaded["trials"] == 0
+    assert loaded["data"].shape == (32, 375, 0)
+    assert loaded["data"].size == 0
+
+
 def test_option_savetwofiles_defaults_to_sidecar_storage(tmp_path: Path):
     EEG_OPTIONS["option_savetwofiles"] = 1
     data = np.arange(12, dtype=np.float32).reshape((3, 4))

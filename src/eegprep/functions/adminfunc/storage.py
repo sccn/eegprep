@@ -814,12 +814,22 @@ def savetwofiles_enabled() -> bool:
     return bool(int(EEG_OPTIONS.get("option_savetwofiles", 0) or 0))
 
 
+def _metadata_int(eeg: dict[str, Any], key: str, default: int) -> int:
+    """Return one EEG count, keeping an explicit 0."""
+    value = eeg.get(key, default)
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
 def eeg_data_shape(eeg: dict[str, Any]) -> tuple[int, ...]:
     """Return the channel-major EEG data shape from metadata."""
-    nbchan = int(eeg.get("nbchan", 0) or 0)
-    pnts = int(eeg.get("pnts", 0) or 0)
-    trials = int(eeg.get("trials", 1) or 1)
-    return (nbchan, pnts, trials) if trials > 1 else (nbchan, pnts)
+    nbchan = _metadata_int(eeg, "nbchan", 0)
+    pnts = _metadata_int(eeg, "pnts", 0)
+    trials = _metadata_int(eeg, "trials", 1)
+    if trials == 1:
+        return (nbchan, pnts)
+    return (nbchan, pnts, trials)
 
 
 def write_fdt(data: Any, filename: str | Path, eeg: dict[str, Any]) -> None:
@@ -836,8 +846,8 @@ def write_fdt(data: Any, filename: str | Path, eeg: dict[str, Any]) -> None:
         if array.size != int(np.prod(shape)):
             raise ValueError(f"EEG data shape {array.shape} does not match metadata shape {shape}")
         array = array.reshape(shape, order="F")
-    nbchan = int(eeg.get("nbchan", 0) or 0)
-    frames = int(eeg.get("pnts", 0) or 0) * int(eeg.get("trials", 1) or 1)
+    nbchan = _metadata_int(eeg, "nbchan", 0)
+    frames = _metadata_int(eeg, "pnts", 0) * _metadata_int(eeg, "trials", 1)
     matrix = array.reshape((nbchan, frames), order="F")
     np.asfortranarray(matrix).ravel(order="F").tofile(path)
 
