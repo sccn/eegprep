@@ -16,7 +16,7 @@ from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
-from tests.fixtures import SAMPLE_DATASET_PATH
+from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -736,6 +736,18 @@ def test_ds003061_sub001_pop_select_matches_matlab(run, eventconsistency_matlab,
     python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
     saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'run-{run}.mat')
     _assert_matlab_match(python_eeg, saved)
+
+
+def test_sorttrial_off_keeps_the_first_copy_of_a_duplicate():
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
+    data = np.zeros((1, 4, 5))
+    for trial in range(5):
+        data[0, :, trial] = trial + 1
+    eeg['data'] = data
+
+    out = pop_select(eeg, trial=[5, 4, 3, 2, 1, 5], sorttrial='off')
+
+    assert out['data'][0, 0, :].tolist() == [5, 4, 3, 2, 1]
 
 
 if __name__ == '__main__':

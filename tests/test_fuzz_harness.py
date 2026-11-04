@@ -14,6 +14,8 @@ from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
+from tests.fixtures import create_test_eeg
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from tests.fuzz.harness import (
     EEGSpec,
@@ -38,6 +40,7 @@ from tests.fuzz.harness import (
     resume_eeg_options,
     run_repro,
     run_session,
+    side_from_call,
     side_from_error,
     suspend_option_single,
     thaw_params,
@@ -82,6 +85,17 @@ class _Backend:
         try:
             data = np.asarray(self.fn(case, eeg), dtype=float)
             return SideResult(True, data, float(eeg["srate"]), None, None)
+        except Exception as exc:
+            return side_from_error(exc)
+
+
+class _CallBackend:
+    def __init__(self, fn):
+        self.fn = fn
+
+    def run(self, case, eeg):
+        try:
+            return side_from_call(self.fn(case, eeg))
         except Exception as exc:
             return side_from_error(exc)
 
@@ -658,6 +672,26 @@ def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     assert path.read_bytes() == original
     backend.close()
     assert path.read_bytes() == original
+
+
+def test_duplicate_trial_order_is_not_filed():
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
+    data = np.zeros((1, 4, 5))
+    for trial in range(5):
+        data[0, :, trial] = trial + 1
+    eeg["data"] = data
+    case = FuzzCase(
+        "pop_select",
+        EEGSpec((0,), 0, 5, 1, -1, 0, 0),
+        freeze_params({"trial": [5, 4, 3, 2, 1, 5], "sorttrial": "off"}),
+    )
+
+    def oracle(_case, dataset):
+        return pop_select(dataset, trial=[4, 3, 2, 1, 5], sorttrial="off", gui=False)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+    assert outcome.diverged is False
+    assert "first copy" in outcome.detail
 
 
 def test_one_rms_window_message_does_not_hide_a_different_error():

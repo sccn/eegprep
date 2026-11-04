@@ -10,6 +10,10 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_select`` with ``sorttrial='off'`` keeps the first copy of a repeated
+  trial. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
+  ``unique_bc`` keeps the last copy, ``[4, 3, 2, 1, 5]``
+  (``pop_select.m`` lines 282-286).
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two

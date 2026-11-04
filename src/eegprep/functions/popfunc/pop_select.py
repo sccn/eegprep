@@ -26,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
-    """Select EEG data using EEGLAB ``pop_select`` semantics."""
+    """Select EEG data using EEGLAB ``pop_select`` semantics.
+
+    With ``sorttrial='off'``, a repeated trial is kept at its first position.
+    ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
+    ``pop_select.m`` lines 282-286 call ``unique_bc``
+    (``unique(..., 'legacy')``), which keeps the last copy, so the same
+    input becomes ``[4, 3, 2, 1, 5]``.
+    """
     options = parse_key_value_args(args, kwargs)
     if not isinstance(EEG, list) and EEG.get("data") is None:
         raise ValueError('EEG["data"] is required')

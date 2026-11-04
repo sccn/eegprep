@@ -201,6 +201,14 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
        at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
        EEGPrep result.
+   * - Repeated ``pop_select`` trials
+     - With ``sorttrial='off'``, a repeated trial is kept at its first
+       position. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``.
+       EEGLAB ``pop_select.m`` lines 282-286 call ``unique_bc``
+       (``unique(..., 'legacy')``), which keeps the last copy, so the same
+       input becomes ``[4, 3, 2, 1, 5]``.
+       ``test_sorttrial_off_keeps_the_first_copy_of_a_duplicate`` locks the
+       EEGPrep order.
    * - Baseline across a boundary
      - On continuous data with a boundary event, ``pop_rmbase`` subtracts
        each segment's mean of the requested samples. When ``pointrange``

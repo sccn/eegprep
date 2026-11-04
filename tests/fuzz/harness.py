@@ -46,6 +46,7 @@ from tests.fuzz.catalog import (
     tolerance_key_for,
 )
 from tests.fuzz.issues import publish_findings
+from tests.fuzz.targets import python_select
 from tests.matlab_batch_engine import install
 
 _ORIGINAL_FUNCTIONS = (
@@ -1140,6 +1141,49 @@ def _stale_zero_trials_is_known(
     return kept == oracle.events and len(python.events) > len(oracle.events)
 
 
+def _duplicate_trial_order_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """True when the only gap is unique_bc keeping the last repeated trial."""
+    if case.function != "pop_select" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    params = thaw_params(case.params)
+    if str(params.get("sorttrial", "on")).lower() != "off":
+        return False
+    raw = params.get("trial") or []
+    if isinstance(raw, (int, float, np.integer, np.floating)):
+        raw = [raw]
+    trials = [int(value) for value in raw]
+    if len(trials) == len(set(trials)):
+        return False
+    first = _unique_trial_order(trials, keep_last=False)
+    last = _unique_trial_order(trials, keep_last=True)
+    if first == last:
+        return False
+
+    def selected(order: list[int]) -> SideResult:
+        rewritten = dict(params)
+        rewritten["trial"] = order
+        rewritten["sorttrial"] = "off"
+        selected_case = FuzzCase("pop_select", case.spec, freeze_params(rewritten), sanity=case.sanity)
+        return side_from_call(python_select(selected_case, copy.deepcopy(eeg)))
+
+    comparators = comparators_for("pop_select")
+    first_gap = _judge_pair(python, selected(first), tolerance, case, "dup", comparators)
+    last_gap = _judge_pair(oracle, selected(last), tolerance, case, "dup", comparators)
+    return not first_gap.diverged and not last_gap.diverged
+
+
+def _unique_trial_order(trials: list[int], *, keep_last: bool) -> list[int]:
+    positions: dict[int, int] = {}
+    for index, trial in enumerate(trials):
+        if keep_last or trial not in positions:
+            positions[trial] = index
+    return [trials[index] for index in sorted(positions.values())]
+
+
 def _asr_short_calibration_is_oracle_defect(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
@@ -1312,6 +1356,19 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
             "known difference: eeg_eegrej keeps events when trials was 0",
             digest,
         )
+    if outcome.diverged and _duplicate_trial_order_is_known(case, eeg, python, oracle, tolerance):
+        # pop_select.m:282-286 uses unique_bc, which keeps the last copy of a
+        # repeated trial. EEGPrep keeps the first.
+        return _outcome(
+            case,
+            False,
+            True,
+            "match",
+            0.0,
+            0.0,
+            "known difference: pop_select keeps the first copy of a repeated trial",
+            digest,
+        )
     if outcome.diverged and case.function == "pop_rmbase" and _event_targets().rmbase_boundary_offset(case, eeg):
         # pop_rmbase.m shifts segment indices when the baseline starts after
         # sample 1. EEGPrep removes the mean of the listed samples.
@@ -1373,10 +1430,14 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         known_rmbase = (
             outcome.diverged and name == "pop_rmbase" and _event_targets().rmbase_boundary_offset(step, current)
         )
+        known_trials_order = outcome.diverged and _duplicate_trial_order_is_known(
+            step, current, python_side, oracle_side, tolerance
+        )
         if (
             not known_reref
             and not known_trials
             and not known_rmbase
+            and not known_trials_order
             and (outcome.diverged or outcome.error_class != "match")
         ):
             return _outcome(
@@ -1392,7 +1453,7 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
         # Continue from the Python EEG when MATLAB's output is the known
         # defect: a NaN spread by the reference matrix, or events dropped
         # because trials was still 0. Later steps then see a real signal.
-        if (known_reref or known_trials) and _eeg_dict(_python_eeg) is not None:
+        if (known_reref or known_trials or known_trials_order) and _eeg_dict(_python_eeg) is not None:
             nxt = _python_eeg
         else:
             nxt = oracle_eeg if _eeg_dict(oracle_eeg) is not None else _python_eeg
@@ -1406,6 +1467,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
             last_detail = f"{name}: known difference: a NaN stays on its channel under explicit re-reference"
         elif known_trials:
             last_detail = f"{name}: known difference: eeg_eegrej keeps events when trials was 0"
+        elif known_trials_order:
+            last_detail = f"{name}: known difference: pop_select keeps the first copy of a repeated trial"
         elif known_rmbase:
             last_detail = (
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "
