@@ -351,8 +351,7 @@ class MenuActionDispatcher:
             self._saveset(parent, resave=variant == "resave")
             return
         if base == "pop_delset":
-            self.session.delete_current()
-            self._refresh()
+            self._delete_datasets(parent)
             return
         if base == "retrieve_dataset":
             self._retrieve_dataset(int(variant))
@@ -482,36 +481,88 @@ class MenuActionDispatcher:
         self._store_current_from_gui(eeg, new=True, command=command)
         self._refresh()
 
+    def _delete_datasets(self, parent: Any | None) -> None:
+        # pop_delset.m:52-70
+        loaded = [index for index, eeg in enumerate(self.session.ALLEEG, start=1) if eeg]
+        if len(loaded) < 2:
+            self._warn(
+                parent,
+                "pop_delset cannot delete the only loaded dataset. "
+                "Use File > Clear study / Clear all to remove every dataset.",
+            )
+            return
+        from eegprep.functions.guifunc.inputdlg2 import inputdlg2
+        from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+
+        default = " ".join(str(index) for index in self.session.CURRENTSET) or "1"
+        answers = inputdlg2(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            [default],
+            "pop_delset",
+        )
+        if not answers or not str(answers[0]).strip():
+            return
+        try:
+            indices = [int(value) for value in parse_numeric_sequence(answers[0], dtype=int)]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"pop_delset: '{answers[0]}' is not a list of dataset numbers. "
+                "Enter numbers such as 2 or 1 3, or a range such as 1:3."
+            ) from exc
+        if not indices:
+            return
+        self.session.delete_indices(indices)
+        self._refresh()
+
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:
         selection = self._current_selection_or_warn(parent, allow_multiple=resave)
         if selection is None:
             return
         datasets = selection if isinstance(selection, list) else [selection]
-        filenames = [_existing_dataset_filename(eeg) if resave else "" for eeg in datasets]
+        filenames = [_resave_set_path(eeg) if resave else "" for eeg in datasets]
         if resave and len(datasets) > 1 and not all(filenames):
-            self._warn(parent, "Cannot resave multiple datasets until every selected dataset has a filename.")
+            self._warn(
+                parent,
+                "pop_saveset cannot resave these datasets because one has never been saved as a .set file. "
+                "Save each dataset with File > Save current dataset as, then resave.",
+            )
             return
         filename = filenames[0] if len(datasets) == 1 else ""
+        prompted = False
         if len(datasets) == 1 and not filename:
+            prompted = True
             qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
                 parent,
                 "Save current dataset as",
-                str(datasets[0].get("filename") or ""),
+                _save_as_suggestion(datasets[0]),
                 "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
-                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
+                **file_dialog_kwargs(
+                    qt_widgets,
+                    native_file_dialogs=self.native_file_dialogs,
+                    confirm_overwrite=False,
+                ),
             )
+            if filename:
+                filename = _confirm_set_overwrite(qt_widgets, parent, filename)
             filenames = [filename]
         if len(datasets) == 1 and not filename:
             return
         from eegprep.functions.popfunc.pop_saveset import pop_saveset
 
+        written: list[str] = []
         for eeg, filename in zip(datasets, filenames):
             pop_saveset(eeg, filename)
-            _apply_save_metadata(eeg, filename)
+            actual = _existing_dataset_filename(eeg)
+            _apply_save_metadata(eeg, actual)
+            written.append(actual)
         stored = datasets if isinstance(selection, list) else datasets[0]
         command = (
-            "EEG = pop_saveset(EEG, 'savemode', 'resave');" if resave else f"EEG = pop_saveset(EEG, {filenames[0]!r});"
+            "EEG = pop_saveset(EEG, 'savemode', 'resave');"
+            if resave and not prompted
+            else f"EEG = pop_saveset(EEG, {written[0]!r});"
         )
         self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
@@ -1753,6 +1804,50 @@ def _existing_dataset_filename(eeg: dict[str, Any]) -> str:
     if filepath and filename:
         return str(Path(filepath) / filename)
     return filename
+
+
+def _resave_set_path(eeg: dict[str, Any]) -> str:
+    path = _existing_dataset_filename(eeg)
+    if path and Path(path).suffix.lower() == ".set":
+        return path
+    return ""
+
+
+def _confirm_set_overwrite(qt_widgets: Any, parent: Any | None, filename: str) -> str:
+    # pop_saveset.m:126-127
+    target = Path(filename).with_suffix(".set")
+    if not target.is_file():
+        return str(target)
+    box = qt_widgets.QMessageBox
+    yes = _message_button(box, "Yes")
+    no = _message_button(box, "No")
+    answer = box.question(
+        parent,
+        "Save current dataset as",
+        f"{target} already exists.\nDo you want to replace it?",
+        yes | no,
+        no,
+    )
+    return str(target) if answer == yes else ""
+
+
+def _message_button(box: Any, name: str) -> Any:
+    standard = getattr(box, "StandardButton", None)
+    value = getattr(standard, name, None) if standard is not None else None
+    if value is not None:
+        return value
+    return getattr(box, name)
+
+
+def _save_as_suggestion(eeg: dict[str, Any]) -> str:
+    existing = _resave_set_path(eeg)
+    if existing:
+        return existing
+    filename = str(eeg.get("filename") or "")
+    filepath = str(eeg.get("filepath") or "")
+    stem = Path(filename).stem if filename else str(eeg.get("setname") or "dataset")
+    suggestion = f"{stem}.set"
+    return str(Path(filepath) / suggestion) if filepath else suggestion
 
 
 def _existing_study_filename(study: dict[str, Any]) -> str:

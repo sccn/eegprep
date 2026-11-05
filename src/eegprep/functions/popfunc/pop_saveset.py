@@ -402,7 +402,9 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         EEG data.
     file_name : str, optional
         File name. EEGLAB-style ``filename``/``filepath``/``savemode`` keyword
-        arguments are also accepted.
+        arguments are also accepted. Any extension is stored as ``.set``.
+        ``savemode="resave"`` requires an existing ``.set`` filename and will
+        not replace a raw source file.
     """
     file_path, savemode = _save_target(EEG, file_name, args, kwargs)
     file_name = os.fspath(file_path)
@@ -522,22 +524,32 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     for key in eeglab_dict:
         eeglab_dict[key] = _matlab_double(eeglab_dict[key])
 
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    if save_two_files:
-        write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
-
     try:
-        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
-    except ValueError as e:
-        if '31 characters' in str(e):
-            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
-        else:
-            # the file is likely partial and thus invalid -- delete
-            if os.path.exists(file_name):
-                os.remove(file_name)
-            raise
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if save_two_files:
+            write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
+        try:
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+        except ValueError as e:
+            if '31 characters' in str(e):
+                scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+            else:
+                # the file is likely partial and thus invalid -- delete
+                if os.path.exists(file_name):
+                    os.remove(file_name)
+                raise
+    except OSError as exc:
+        if os.path.isfile(file_name):
+            os.remove(file_name)
+        raise ValueError(
+            f"pop_saveset could not write {file_name} ({exc}). "
+            "Choose a .set file in a folder you can write to with File > Save current dataset as."
+        ) from exc
+    if not os.path.isfile(file_name):
+        raise ValueError(
+            f"pop_saveset did not create {file_name}. Choose a writable .set path with File > Save current dataset as."
+        )
     EEG['filename'] = save_name
     EEG['filepath'] = save_dir
     EEG['datfile'] = datfile_name if save_two_files else ''
@@ -567,15 +579,25 @@ def _save_target(EEG, file_name, args, kwargs):
     filepath = options.get('filepath')
     if savemode == 'resave' and filename in {None, ''}:
         target = dataset_set_path(EEG)
-        if target is None:
-            raise ValueError("savemode='resave' requires EEG filename/filepath metadata")
+        if target is None or target.suffix.lower() != '.set':
+            shown = os.fspath(target) if target is not None else '(none)'
+            raise ValueError(
+                "pop_saveset cannot resave this dataset because it has no .set filename "
+                f"(current filename is {shown}). Save it with File > Save current dataset as "
+                "and choose a .set file."
+            )
         return target, savemode
     if filename in {None, ''}:
         raise ValueError("file_name argument is required")
     path = Path(os.fspath(filename))
     if filepath not in {None, ''} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path.name
-    return path, savemode
+    return _as_set_path(path), savemode
+
+
+def _as_set_path(path: Path) -> Path:
+    # pop_saveset.m:126-127
+    return path.with_suffix('.set')
 
 
 def _save_two_files(EEG, savemode):

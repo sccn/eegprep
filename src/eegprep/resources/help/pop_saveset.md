@@ -14,14 +14,26 @@ float32 sidecar. The same layout is used by default when
 `EEG_OPTIONS["option_savetwofiles"] = 1`.
 
 Use `savemode="resave"` to keep an existing two-file dataset in its `.fdt`
-sidecar. A plain save follows the current `option_savetwofiles` setting and
+sidecar. Resave only writes a dataset that already has a `.set` filename.
+A dataset imported from `.vhdr`, `.edf`, or any other raw file has not been
+saved yet: pass a `.set` path, or use File > Save current dataset as. Resave
+will not replace the original recording. Any other filename is stored as
+`.set`, including a name whose extension is not `.set`.
+
+A plain save follows the current `option_savetwofiles` setting and
 may inline data into the `.set` file when that option is disabled.
+A missing parent folder is created. If the path still cannot be written,
+`pop_saveset` raises an error and leaves the dataset unsaved.
 
 The saved dataset stores `icaact` as `[]`. The dataset kept in memory still
 has its activations, and loading the file recomputes them.
 
 The main-window save actions update dataset `filename`, `filepath`, and
-`saved` metadata and record the save command in session history. Resaving
-multiple selected datasets requires each dataset to already have a filename.
+`saved` metadata and record the save command in session history. File >
+Resave current dataset(s) on a never-saved dataset opens Save as instead of
+writing over the source file. Save current dataset as asks before replacing
+the `.set` file that will be written. A typed name such as `test.edf` is
+stored as `test.set`. Resaving multiple selected datasets requires each
+dataset to already have a `.set` filename.
 
 See also: POP_LOADSET

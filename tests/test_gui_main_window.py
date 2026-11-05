@@ -561,6 +561,240 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["saved"] for item in session.EEG], ["yes", "yes"])
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
 
+    def test_resave_of_imported_raw_file_prompts_and_does_not_overwrite_source(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp) / "recording.vhdr"
+            raw.write_bytes(b"raw-header")
+            eeg = _demo_eeg()
+            eeg["filename"] = raw.name
+            eeg["filepath"] = str(raw.parent)
+            eeg["saved"] = "no"
+            session.store_current(eeg, new=True)
+            destination = raw.with_suffix(".set")
+            suggestions = []
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, directory, _filter, **_kwargs):
+                    suggestions.append(directory)
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset:resave")
+
+            self.assertEqual(suggestions, [str(destination)])
+            self.assertEqual(raw.read_bytes(), b"raw-header")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["filename"], "recording.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertNotIn("savemode", session.LASTCOM)
+            self.assertIn(repr(str(destination)), session.LASTCOM)
+
+    def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "nodir" / "x.set"
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertIn(repr(str(destination)), session.LASTCOM)
+
+            blocker = Path(tmp) / "notdir"
+            blocker.write_text("x", encoding="utf-8")
+            blocked = blocker / "x.set"
+
+            class BlockedDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(blocked), ""
+
+            blocked_widgets = type("FakeQtWidgets", (), {"QFileDialog": BlockedDialog})
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=blocked_widgets):
+                with self.assertRaises(ValueError) as caught:
+                    dispatcher.dispatch("pop_saveset")
+            self.assertIn("pop_saveset", str(caught.exception))
+            self.assertIn(str(blocked), str(caught.exception))
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertTrue(destination.is_file())
+            self.assertFalse(blocked.exists())
+
+    def test_save_as_confirms_the_set_file_that_will_be_written(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            typed = folder / "test.edf"
+            written = folder / "test.set"
+            typed.write_bytes(b"edf-bytes")
+            dialog_options = []
+            prompts = []
+
+            class DialogOption:
+                DontConfirmOverwrite = 8
+
+            class QMessageBox:
+                class StandardButton:
+                    Yes = 1
+                    No = 2
+
+                answer = StandardButton.No
+
+                @staticmethod
+                def question(_parent, title, text, buttons, default):
+                    prompts.append((title, text, buttons, default))
+                    return QMessageBox.answer
+
+            class QFileDialog:
+                Option = DialogOption
+
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **kwargs):
+                    dialog_options.append(kwargs.get("options"))
+                    return str(typed), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QMessageBox": QMessageBox})
+            dispatcher = MenuActionDispatcher(session, native_file_dialogs=True)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+
+            self.assertEqual(dialog_options, [DialogOption.DontConfirmOverwrite])
+            self.assertEqual(prompts, [])
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertTrue(written.is_file())
+            self.assertEqual(session.EEG["filename"], "test.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            original = written.read_bytes()
+
+            session.EEG["saved"] = "no"
+            session.EEG["setname"] = "replaced"
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertEqual(len(prompts), 1)
+            self.assertIn(str(written), prompts[0][1])
+            self.assertNotIn("test.edf", prompts[0][1])
+            self.assertEqual(prompts[0][3], QMessageBox.StandardButton.No)
+            self.assertEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["saved"], "no")
+
+            QMessageBox.answer = QMessageBox.StandardButton.Yes
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertIn(str(written), prompts[-1][1])
+            self.assertNotEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertIn(repr(str(written)), session.LASTCOM)
+
+    def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
+        session = EEGPrepSession()
+        for name in ("first", "second"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=[]) as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_called_once()
+        prompts, title, _lines, defaults, funcname = dialog.call_args.args
+        self.assertEqual(prompts, ["Dataset(s) to delete:"])
+        self.assertEqual(title, "Delete dataset -- pop_delset()")
+        self.assertEqual(defaults, ["2"])
+        self.assertEqual(funcname, "pop_delset")
+        self.assertEqual([item["setname"] for item in session.ALLEEG], ["first", "second"])
+        self.assertEqual(session.LASTCOM, "")
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["1"]):
+            dispatcher.dispatch("pop_delset")
+        self.assertEqual(session.ALLEEG[0], {})
+        self.assertEqual(session.ALLEEG[1]["setname"], "second")
+        self.assertIn("pop_delset", session.LASTCOM)
+        self.assertIn("[1]", session.LASTCOM)
+
+    def test_delete_dataset_refuses_the_only_loaded_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        warnings = []
+        dispatcher._warn = lambda _parent, message: warnings.append(message)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2") as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_not_called()
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertIn("pop_delset", warnings[0])
+        self.assertIn("Clear study / Clear all", warnings[0])
+
+    def test_delete_dataset_rejects_a_number_that_is_not_loaded(self):
+        session = EEGPrepSession()
+        for _name in ("first", "second"):
+            session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["9"]):
+            with self.assertRaises(ValueError) as caught:
+                dispatcher.dispatch("pop_delset")
+        self.assertIn("pop_delset", str(caught.exception))
+        self.assertIn("9", str(caught.exception))
+        self.assertEqual(len(session.ALLEEG), 2)
+
+    def test_delete_dataset_dialog_has_help_cancel_and_ok(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        try:
+            from eegprep.functions.guifunc import qt as qt_module
+            from eegprep.functions.guifunc.inputdlg2 import inputdlg2_dialog_spec
+        except ImportError:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        if qt_module.QtWidgets is None:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        spec = inputdlg2_dialog_spec(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            ["2"],
+            "pop_delset",
+        )
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+        try:
+            self.assertEqual(dialog.windowTitle(), "Delete dataset -- pop_delset()")
+            self.assertEqual(widgets["answer0"].text(), "2")
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "help"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "cancel"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "ok"))
+        finally:
+            dialog.close()
+
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
             "pop_clean_rawdata",

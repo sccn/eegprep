@@ -339,8 +339,14 @@ class EEGPrepSession:
         """
         if not self.CURRENTSET:
             return
-        deleted_indices = list(self.CURRENTSET)
-        self.ALLEEG, command = pop_delset(self.ALLEEG, self.CURRENTSET)
+        self.delete_indices(list(self.CURRENTSET))
+
+    def delete_indices(self, indices: list[int]) -> None:
+        """Delete datasets by 1-based index and select the nearest survivor."""
+        if not indices:
+            return
+        deleted_indices = [int(index) for index in indices]
+        self.ALLEEG, command = pop_delset(self.ALLEEG, deleted_indices)
         self.add_history(command, notify=False)
         target = nearest_dataset_index(self.ALLEEG, min(deleted_indices))
         if target is not None:

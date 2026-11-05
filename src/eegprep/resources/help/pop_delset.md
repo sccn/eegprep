@@ -19,8 +19,16 @@ dropped, and the next dataset you create fills the lowest empty slot. Asking for
 a dataset number that does not exist raises an error.
 
 The main-window "Clear dataset(s)" and "Delete dataset(s) from memory" actions
-use the shared session helpers so `EEG`, `ALLEEG`, and `CURRENTSET` stay
-synchronized with the console. After a delete the selection moves to the nearest
-remaining dataset.
+ask which datasets to delete before changing anything. The dialog title is
+"Delete dataset -- pop_delset()" and the field is "Dataset(s) to delete:".
+It starts with the current dataset number. Cancel leaves every dataset in
+place. With only one dataset loaded, the menu does not delete it: use
+File > Clear study / Clear all. EEGLAB's `pop_delset.m` lines 52-54 raise
+"Restart EEGLAB" for that case, including for a direct call. A direct
+`pop_delset(ALLEEG, index)` call here still deletes the last dataset.
+
+The actions use the shared session helpers so `EEG`, `ALLEEG`, and `CURRENTSET`
+stay synchronized with the console. After a delete the selection moves to the
+nearest remaining dataset.
 
 See also: EEG_STORE, EEG_RETRIEVE
