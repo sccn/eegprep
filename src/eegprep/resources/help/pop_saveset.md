@@ -22,6 +22,8 @@ as `.set`. Any other extension is refused.
 
 A plain save follows the current `option_savetwofiles` setting and
 may inline data into the `.set` file when that option is disabled.
+A missing parent folder is created. If the path still cannot be written,
+`pop_saveset` raises an error and leaves the dataset unsaved.
 
 The saved dataset stores `icaact` as `[]`. The dataset kept in memory still
 has its activations, and loading the file recomputes them.

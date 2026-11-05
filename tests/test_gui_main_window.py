@@ -596,6 +596,52 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertNotIn("savemode", session.LASTCOM)
             self.assertIn(str(destination), session.LASTCOM)
 
+    def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "nodir" / "x.set"
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertIn(str(destination), session.LASTCOM)
+
+            blocker = Path(tmp) / "notdir"
+            blocker.write_text("x", encoding="utf-8")
+            blocked = blocker / "x.set"
+
+            class BlockedDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **_kwargs):
+                    return str(blocked), ""
+
+            blocked_widgets = type("FakeQtWidgets", (), {"QFileDialog": BlockedDialog})
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=blocked_widgets):
+                with self.assertRaises(ValueError) as caught:
+                    dispatcher.dispatch("pop_saveset")
+            self.assertIn("pop_saveset", str(caught.exception))
+            self.assertIn(str(blocked), str(caught.exception))
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["filename"], "x.set")
+            self.assertTrue(destination.is_file())
+            self.assertFalse(blocked.exists())
+
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
             "pop_clean_rawdata",

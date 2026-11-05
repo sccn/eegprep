@@ -524,22 +524,32 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
     for key in eeglab_dict:
         eeglab_dict[key] = _matlab_double(eeglab_dict[key])
 
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    if save_two_files:
-        write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
-
     try:
-        scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
-    except ValueError as e:
-        if '31 characters' in str(e):
-            scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
-        else:
-            # the file is likely partial and thus invalid -- delete
-            if os.path.exists(file_name):
-                os.remove(file_name)
-            raise
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        if save_two_files:
+            write_fdt(data_value, Path(save_dir) / datfile_name, EEG)
+        try:
+            scipy.io.savemat(file_name, eeglab_dict, appendmat=False)
+        except ValueError as e:
+            if '31 characters' in str(e):
+                scipy.io.savemat(file_name, eeglab_dict, appendmat=False, long_field_names=True)
+            else:
+                # the file is likely partial and thus invalid -- delete
+                if os.path.exists(file_name):
+                    os.remove(file_name)
+                raise
+    except OSError as exc:
+        if os.path.isfile(file_name):
+            os.remove(file_name)
+        raise ValueError(
+            f"pop_saveset could not write {file_name} ({exc}). "
+            "Choose a .set file in a folder you can write to with File > Save current dataset as."
+        ) from exc
+    if not os.path.isfile(file_name):
+        raise ValueError(
+            f"pop_saveset did not create {file_name}. Choose a writable .set path with File > Save current dataset as."
+        )
     EEG['filename'] = save_name
     EEG['filepath'] = save_dir
     EEG['datfile'] = datfile_name if save_two_files else ''

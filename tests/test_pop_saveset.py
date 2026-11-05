@@ -404,6 +404,35 @@ class TestPopSaveset(unittest.TestCase):
             self.assertFalse(os.path.exists(requested))
             self.assertEqual(eeg['filename'], 'noext.set')
 
+    def test_saveset_creates_a_missing_parent_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'nodir', 'x.set')
+            eeg = self._continuous([])
+            eeg['saved'] = 'no'
+            pop_saveset(eeg, out)
+            self.assertTrue(os.path.isfile(out))
+            self.assertEqual(eeg['saved'], 'yes')
+            self.assertEqual(eeg['filename'], 'x.set')
+            self.assertEqual(eeg['filepath'], os.path.join(tmp, 'nodir'))
+
+    def test_saveset_refuses_a_parent_that_is_not_a_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            blocker = os.path.join(tmp, 'notdir')
+            with open(blocker, 'w', encoding='utf-8') as stream:
+                stream.write('x')
+            out = os.path.join(blocker, 'x.set')
+            eeg = self._continuous([])
+            eeg['saved'] = 'no'
+            eeg['filename'] = 'demo.set'
+            with self.assertRaises(ValueError) as caught:
+                pop_saveset(eeg, out)
+            message = str(caught.exception)
+            self.assertIn('pop_saveset', message)
+            self.assertIn(out, message)
+            self.assertEqual(eeg['saved'], 'no')
+            self.assertEqual(eeg['filename'], 'demo.set')
+            self.assertFalse(os.path.exists(out))
+
 
 if __name__ == '__main__':
     unittest.main()

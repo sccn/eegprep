@@ -10,6 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_saveset`` creates a missing parent folder. If the folder cannot be
+  created or the ``.set`` file is not written, it raises an error that names
+  ``pop_saveset`` and the path, and it does not mark the dataset saved.
 - Edit > Event values and Edit > Channel locations treat the number field as a
   goto. Enter shows that event or channel, and a number outside the list is
   clamped to the ends, as in ``pop_editeventvals.m`` lines 153-160 and 571.
