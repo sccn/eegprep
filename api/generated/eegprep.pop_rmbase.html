@@ -639,7 +639,8 @@
 <p><code class="docutils literal notranslate"><span class="pre">timerange</span></code> uses the units stored in <code class="docutils literal notranslate"><span class="pre">EEG[&quot;times&quot;]</span></code>. <code class="docutils literal notranslate"><span class="pre">pointrange</span></code>
 and numeric <code class="docutils literal notranslate"><span class="pre">chanlist</span></code> values use EEGLAB-facing 1-based indices.
 Calling <code class="docutils literal notranslate"><span class="pre">pop_rmbase(EEG)</span></code> opens the GUI; pass explicit ranges or
-<code class="docutils literal notranslate"><span class="pre">gui=False</span></code> for direct command-line use.</p>
+<code class="docutils literal notranslate"><span class="pre">gui=False</span></code> for direct command-line use. An empty dataset, including a
+zero-epoch result, is returned unchanged (<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> lines 69-71).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

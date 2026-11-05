@@ -123,8 +123,10 @@ MATLAB Structure Transport
 When passing lists of dictionaries through the MATLAB bridge, numeric and text
 values in the same field retain their individual types regardless of record
 order. For example, ``42.0`` remains a MATLAB double when another record holds
-``"boundary"``; it does not become ``"42.0"``. EEGLAB's ``eeg_checkset`` may
-subsequently normalize mixed event types to strings as part of event validation.
+``"boundary"``; it does not become ``"42.0"``. ``eeg_checkset`` then converts
+that mix with the same rules as ``num2str`` (``eeg_checkset.m`` lines
+1235-1242): ``65.0`` next to ``boundary`` becomes ``'65'``. A list that is
+entirely numeric stays numeric.
 
 Known Differences from EEGLAB
 =============================
@@ -199,7 +201,31 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
      - ``pop_reref`` leaves a NaN on a channel only when that sample or the
        reference subtracted from it is NaN. EEGLAB multiplies by a reference
        matrix that contains explicit zeros, so ``0*NaN`` marks every channel
-       at that time.
+       at that time. ``test_pop_reref_keeps_a_nan_on_its_channel`` locks the
+       EEGPrep result.
+   * - Repeated ``pop_select`` trials
+     - With ``sorttrial='off'``, a repeated trial is kept at its first
+       position. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``.
+       EEGLAB ``pop_select.m`` lines 282-286 call ``unique_bc``
+       (``unique(..., 'legacy')``), which keeps the last copy, so the same
+       input becomes ``[4, 3, 2, 1, 5]``.
+       ``test_sorttrial_off_keeps_the_first_copy_of_a_duplicate`` locks the
+       EEGPrep order.
+   * - Baseline across a boundary
+     - On continuous data with a boundary event, ``pop_rmbase`` subtracts
+       each segment's mean of the requested samples. When ``pointrange``
+       starts after sample 1, EEGLAB shifts the segment indices by that
+       offset and removes the mean of the shifted span (``pop_rmbase.m``
+       lines 183-196). EEGPrep writes only the listed baseline samples
+       inside each original segment (``pop_rmbase.py`` lines 230-231).
+       ``test_pop_rmbase_continuous_boundary_pointrange_can_span_boundary``
+       locks the EEGPrep result. EEGLAB uses ``nan_mean`` and boundary
+       segments only on continuous data whose first event type is text
+       (``pop_rmbase.m`` lines 176-198, ``rmbase.m`` lines 108-110).
+       Otherwise (a numeric first type, no events, or epoched data) it uses
+       plain ``mean()`` at ``pop_rmbase.m`` line 202, so one baseline NaN
+       turns the channel NaN and boundaries are ignored. EEGPrep always
+       ignores NaN and always respects boundaries.
    * - BDF ``bdfeventmode``
      - ``pop_biosig`` decodes modes 1-8 and 99. EEGLAB passes the mode to
        ``sopen`` as ``BDF:[n]``. The ``sopen`` regexp matches ``BDF:n`` only,

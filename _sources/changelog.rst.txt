@@ -10,6 +10,39 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_rmbase`` returns an empty dataset unchanged and logs a warning.
+  That includes a zero-epoch result, such as epoching that selected no
+  events, and continuous data with no samples. EEGLAB prints the same
+  condition and returns (``pop_rmbase.m`` lines 69-71).
+- ``eeg_eegrej`` inserts a numeric ``-99`` boundary when ``option_boundary99``
+  is on and the first event type is numeric. ``eeg_boundarytype`` looks only
+  at that first type. A text first type inserts ``boundary``. A later text
+  type leaves the inserted ``-99`` in place until the event-consistency
+  check turns it into ``'-99'`` (``eeg_eegrej.m`` line 144,
+  ``eeg_checkset.m`` lines 395-400).
+- ``pop_select`` with ``sorttrial='off'`` keeps the first copy of a repeated
+  trial. ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
+  ``unique_bc`` keeps the last copy, ``[4, 3, 2, 1, 5]``
+  (``pop_select.m`` lines 282-286).
+- ``pop_select`` names an epoched ``notime`` span that misses both epoch
+  edges, and ``pop_epoch`` names an ``eventindices`` value past the last
+  event. Both are the same failure EEGLAB reports for those inputs.
+- A dataset saved with ``trials=0`` loads the empty epoch stack from a
+  0-byte ``.fdt``. The sidecar reader used to treat that trial count as 1
+  and expect ``nbchan * pnts`` samples.
+- ``pop_rmbase`` ignores a NaN in the baseline and, on continuous data,
+  still removes the baseline inside each boundary segment. EEGLAB uses
+  ``nan_mean`` and those segments only when the first event type is text
+  (``pop_rmbase.m`` lines 176-198, ``rmbase.m`` lines 108-110). A numeric
+  first type, no events, or epoched data takes ``mean()`` at
+  ``pop_rmbase.m`` line 202, so one baseline NaN fills the channel and
+  boundaries are ignored.
+- ``eeg_checkset`` turns a mix of numeric and text event types into text
+  with ``num2str``. The event-consistency check inspects every event
+  (``eeg_checkset.m`` line 395). The full check decides from the first
+  100 (lines 1236-1242). ``65`` becomes ``'65'``, ``pi`` becomes
+  ``'3.1416'``, and ``1e20`` becomes ``'1e+20'``. An all-numeric list
+  stays numeric.
 - ``pop_clean_rawdata`` skips ASR and warns when calibration is shorter than
   one 0.5 s RMS window, or yields fewer than two of those windows. The
   44-sample, 128 Hz crop in issue 524 stays identical, including its two

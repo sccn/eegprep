@@ -476,6 +476,39 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> returns an empty dataset unchanged and logs a warning.
+That includes a zero-epoch result, such as epoching that selected no
+events, and continuous data with no samples. EEGLAB prints the same
+condition and returns (<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> lines 69-71).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> inserts a numeric <code class="docutils literal notranslate"><span class="pre">-99</span></code> boundary when <code class="docutils literal notranslate"><span class="pre">option_boundary99</span></code>
+is on and the first event type is numeric. <code class="docutils literal notranslate"><span class="pre">eeg_boundarytype</span></code> looks only
+at that first type. A text first type inserts <code class="docutils literal notranslate"><span class="pre">boundary</span></code>. A later text
+type leaves the inserted <code class="docutils literal notranslate"><span class="pre">-99</span></code> in place until the event-consistency
+check turns it into <code class="docutils literal notranslate"><span class="pre">'-99'</span></code> (<code class="docutils literal notranslate"><span class="pre">eeg_eegrej.m</span></code> line 144,
+<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 395-400).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code> with <code class="docutils literal notranslate"><span class="pre">sorttrial='off'</span></code> keeps the first copy of a repeated
+trial. <code class="docutils literal notranslate"><span class="pre">trial=[5,</span> <span class="pre">4,</span> <span class="pre">3,</span> <span class="pre">2,</span> <span class="pre">1,</span> <span class="pre">5]</span></code> stays <code class="docutils literal notranslate"><span class="pre">[5,</span> <span class="pre">4,</span> <span class="pre">3,</span> <span class="pre">2,</span> <span class="pre">1]</span></code>. EEGLAB
+<code class="docutils literal notranslate"><span class="pre">unique_bc</span></code> keeps the last copy, <code class="docutils literal notranslate"><span class="pre">[4,</span> <span class="pre">3,</span> <span class="pre">2,</span> <span class="pre">1,</span> <span class="pre">5]</span></code>
+(<code class="docutils literal notranslate"><span class="pre">pop_select.m</span></code> lines 282-286).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_select</span></code> names an epoched <code class="docutils literal notranslate"><span class="pre">notime</span></code> span that misses both epoch
+edges, and <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> names an <code class="docutils literal notranslate"><span class="pre">eventindices</span></code> value past the last
+event. Both are the same failure EEGLAB reports for those inputs.</p></li>
+<li><p>A dataset saved with <code class="docutils literal notranslate"><span class="pre">trials=0</span></code> loads the empty epoch stack from a
+0-byte <code class="docutils literal notranslate"><span class="pre">.fdt</span></code>. The sidecar reader used to treat that trial count as 1
+and expect <code class="docutils literal notranslate"><span class="pre">nbchan</span> <span class="pre">*</span> <span class="pre">pnts</span></code> samples.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> ignores a NaN in the baseline and, on continuous data,
+still removes the baseline inside each boundary segment. EEGLAB uses
+<code class="docutils literal notranslate"><span class="pre">nan_mean</span></code> and those segments only when the first event type is text
+(<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> lines 176-198, <code class="docutils literal notranslate"><span class="pre">rmbase.m</span></code> lines 108-110). A numeric
+first type, no events, or epoched data takes <code class="docutils literal notranslate"><span class="pre">mean()</span></code> at
+<code class="docutils literal notranslate"><span class="pre">pop_rmbase.m</span></code> line 202, so one baseline NaN fills the channel and
+boundaries are ignored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> turns a mix of numeric and text event types into text
+with <code class="docutils literal notranslate"><span class="pre">num2str</span></code>. The event-consistency check inspects every event
+(<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> line 395). The full check decides from the first
+100 (lines 1236-1242). <code class="docutils literal notranslate"><span class="pre">65</span></code> becomes <code class="docutils literal notranslate"><span class="pre">'65'</span></code>, <code class="docutils literal notranslate"><span class="pre">pi</span></code> becomes
+<code class="docutils literal notranslate"><span class="pre">'3.1416'</span></code>, and <code class="docutils literal notranslate"><span class="pre">1e20</span></code> becomes <code class="docutils literal notranslate"><span class="pre">'1e+20'</span></code>. An all-numeric list
+stays numeric.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skips ASR and warns when calibration is shorter than
 one 0.5 s RMS window, or yields fewer than two of those windows. The
 44-sample, 128 Hz crop in issue 524 stays identical, including its two
