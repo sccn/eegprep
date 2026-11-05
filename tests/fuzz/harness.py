@@ -880,6 +880,34 @@ def _asr_zero_width_index_is_known(case: FuzzCase, eeg: dict, python: SideResult
     return _fit_width_reaches_zero(_asr_rms_window_count(int(eeg["pnts"]), float(eeg["srate"])))
 
 
+def _pop_clean_rawdata_zero_width_is_known(
+    case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
+) -> bool:
+    """EEGLAB returned the input after its RMS fit indexed a width of 0.
+
+    ``pop_clean_rawdata`` catches that error. EEGPrep calibrates on the
+    positive widths and still removes bursts. A direct ``clean_asr`` call
+    stays with the index-error check above, because EEGLAB does not catch it.
+    """
+    if case.function != "clean_asr" or not python.ok or not oracle.ok:
+        return False
+    if python.data is None or oracle.data is None:
+        return False
+    params = thaw_params(case.params)
+    if params["entry"] != "clean_rawdata" or params["ref_maxbadchannels"] != "off":
+        return False
+    original = np.asarray(eeg["data"], dtype=np.float64)
+    n_windows = _asr_rms_window_count(int(original.shape[-1]), float(eeg["srate"]))
+    if not _fit_width_reaches_zero(n_windows):
+        return False
+    oracle_gap, *_rest = compare_data(original, oracle.data, float(eeg["srate"]), float(oracle.srate), tolerance)
+    if oracle_gap:
+        return False
+    cleaned = clean_asr(copy.deepcopy(eeg), cutoff=float(params["cutoff"]), ref_maxbadchannels="off")
+    python_gap, *_rest = compare_data(python.data, cleaned["data"], float(python.srate), float(eeg["srate"]), tolerance)
+    return not python_gap
+
+
 def _low_rate_spectral_filter_is_known(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
@@ -953,6 +981,10 @@ def evaluate_case(case, materialize, python_backend, oracle_backend, tolerances)
     if _asr_zero_width_index_is_known(case, eeg, python, oracle):
         # asr_calibrate.m's own RMS fit, with reference selection off, indexes
         # X(m,:) at m = 0 for two or three windows. EEGPrep still calibrates.
+        return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
+    if _pop_clean_rawdata_zero_width_is_known(case, eeg, python, oracle, tolerance):
+        # The same m = 0 index is caught by clean_artifacts.m:270-275, which
+        # returns the recording. EEGPrep skips the non-positive widths.
         return _outcome(case, False, True, "match", 0.0, 0.0, "match", digest)
     if _low_rate_spectral_filter_is_known(case, eeg, python, oracle, tolerance):
         # Below the rate where the default breakpoints stay monotonic,

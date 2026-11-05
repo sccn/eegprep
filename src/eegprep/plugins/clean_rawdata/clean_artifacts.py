@@ -74,10 +74,17 @@ def clean_artifacts(
     BurstCriterion : float or 'off'
         ASR standard-deviation cutoff for high-amplitude bursts; values above this
         relative to calibration data are repaired (or removed if BurstRejection='on').
-        'off' skips ASR. Default 5.0. When the sampling rate makes the default
-        spectral shaping filter impossible to design, ASR is skipped, a warning
-        explains the rate and the breakpoint problem, and the recording at this
-        stage is left unchanged.
+        'off' skips ASR. Default 5.0. ASR is skipped, with a warning, when the
+        default spectral shaping filter cannot be designed, when the calibration
+        is shorter than one RMS window, or when fewer than two of those
+        windows can be formed. That includes Riemannian calibration, whose
+        default window is 0.1 s. The recording at this stage is left unchanged.
+        A requested window-removal stage still runs. EEGLAB catches only the
+        Euclidean ``clean_asr`` call (``clean_artifacts.m`` lines 270-275) and
+        returns before that stage. The Riemannian call (lines 267-268) is
+        outside that ``try``/``catch``. Two or three Euclidean RMS windows
+        still calibrate. EEGLAB indexes a rounded width of 0 and returns the
+        recording unchanged; those widths are skipped here.
     WindowCriterion : float or 'off'
         Fraction (0-1) or count of channels allowed to be bad per window; windows with
         more bad channels are removed. 'off' disables final window removal. Default 0.25.

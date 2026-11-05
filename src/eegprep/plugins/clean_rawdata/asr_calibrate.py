@@ -128,7 +128,9 @@ def asr_calibrate(
     Raises
     ------
     ASRCalibrationError
-        The default spectral breakpoints are not monotonic at ``srate``.
+        The default spectral breakpoints are not monotonic at ``srate``, the
+        calibration is shorter than one RMS window, or fewer than two RMS
+        windows can be formed.
     """
     X = np.asarray(X, dtype=float)
     if X.ndim != 2:
@@ -252,7 +254,11 @@ def asr_calibrate(
     # Window length for calculating thresholds
     N = int(round_mat(window_len * srate))
     if S < N:
-        raise ValueError(f'Not enough calibration data. Need at least {N} samples, got {S}.')
+        raise ASRCalibrationError(
+            f"asr_calibrate: Not enough calibration data. "
+            f"Calibration data has {S} samples but one {window_len:g} s RMS window needs {N} at {srate:g} Hz; "
+            f"use a recording of at least {N} samples or set BurstCriterion='off'."
+        )
 
     logger.info('Determining per-component thresholds...')
 
@@ -272,8 +278,14 @@ def asr_calibrate(
     window_starts = matlab_window_offsets(S, N, step)
 
     if len(window_starts) <= 1:
-        raise ValueError(
-            f"Fewer than 2 calibration windows: got {len(window_starts)} from {S} samples with window length {N}."
+        minimum = S + 1
+        while len(matlab_window_offsets(minimum, N, step)) < 2:
+            minimum += 1
+        raise ASRCalibrationError(
+            f"asr_calibrate: Fewer than 2 calibration windows: got {len(window_starts)} "
+            f"from {S} samples with window length {N}. "
+            f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
+            f"use a longer recording or set BurstCriterion='off'."
         )
 
     window_indices = window_starts[:, None] + np.arange(N)

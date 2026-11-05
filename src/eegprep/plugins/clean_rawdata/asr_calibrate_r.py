@@ -39,7 +39,8 @@ def asr_calibrate_r(
     ``rasr_nonlinear_eigenspace`` rather than a Euclidean eigendecomposition.
     Defaults that differ from ``asr_calibrate`` (cutoff 3, 0.1 s windows,
     overlap 0.5, minimum clean fraction 0.3) are the ones ``clean_asr`` relies
-    on when Riemannian processing is requested.
+    on when Riemannian processing is requested. A calibration that cannot form
+    two RMS windows raises before any covariance or eigendecomposition.
 
     Args:
         X: Calibration data, channels by samples, zero-mean.
@@ -56,6 +57,12 @@ def asr_calibrate_r(
         min_clean_fraction: Minimum clean fraction for threshold fitting.
             Default 0.3.
         maxmem: Memory budget in MB used to grow ``blocksize``. Default 64.
+
+    Raises:
+        ASRCalibrationError: The spectral shaping filter cannot be designed,
+            the calibration is shorter than one RMS window, or fewer than two
+            RMS windows can be formed.
+        ValueError: ``X`` is not a channels-by-samples array.
 
     Returns:
         dict: Filter state for ``asr_process_r`` (``M``, ``T``, ``B``, ``A``,
@@ -81,6 +88,30 @@ def asr_calibrate_r(
         max_dropout_fraction = 0.1
     if min_clean_fraction is None:
         min_clean_fraction = 0.3
+
+    window_samples = int(round_mat(window_len * srate))
+    if samples < window_samples:
+        raise ASRCalibrationError(
+            f"asr_calibrate_r: Not enough calibration data. "
+            f"Calibration data has {samples} samples but one {window_len:g} s RMS window "
+            f"needs {window_samples} at {srate:g} Hz; "
+            f"use a recording of at least {window_samples} samples or set BurstCriterion='off'."
+        )
+    step = window_samples * (1.0 - window_overlap)
+    if step <= 0:
+        logger.warning('Window overlap >= 1, using step=1')
+        step = 1
+    window_starts = matlab_window_offsets(samples, window_samples, step)
+    if len(window_starts) <= 1:
+        minimum = samples + 1
+        while len(matlab_window_offsets(minimum, window_samples, step)) < 2:
+            minimum += 1
+        raise ASRCalibrationError(
+            f"asr_calibrate_r: Fewer than 2 calibration windows: got {len(window_starts)} "
+            f"from {samples} samples with window length {window_samples}. "
+            f"Two {window_len:g} s RMS windows at {srate:g} Hz need at least {minimum} samples; "
+            f"use a longer recording or set BurstCriterion='off'."
+        )
 
     blocksize = max(blocksize, math.ceil((channels * channels * samples * 8 * 3 * 2) / (maxmem * (2**21))))
 
@@ -114,27 +145,12 @@ def asr_calibrate_r(
     robust = np.real(np.reshape(median, (channels, channels), order='F'))
     mixing = np.real(scipy.linalg.sqrtm(robust))
 
-    window_samples = int(round_mat(window_len * srate))
-    if samples < window_samples:
-        raise ValueError(f'Not enough calibration data. Need at least {window_samples} samples, got {samples}.')
-
     logger.info('Determining per-component thresholds...')
     vectors, values = rasr_nonlinear_eigenspace(mixing, channels)
     eigenvalues = np.real(np.diag(values))
     order = np.argsort(eigenvalues, kind='mergesort')
     basis = np.real(vectors[:, order])
     transformed = np.abs(finite_matmul(shaped.T, basis))
-
-    step = window_samples * (1.0 - window_overlap)
-    if step <= 0:
-        logger.warning('Window overlap >= 1, using step=1')
-        step = 1
-    window_starts = matlab_window_offsets(samples, window_samples, step)
-    if len(window_starts) <= 1:
-        raise ValueError(
-            f"Fewer than 2 calibration windows: got {len(window_starts)} "
-            f"from {samples} samples with window length {window_samples}."
-        )
     window_indices = window_starts[:, None] + np.arange(window_samples)
 
     mu = np.zeros(channels)

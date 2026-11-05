@@ -11,14 +11,16 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-
 import pytest
+from threadpoolctl import threadpool_limits
 
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.plugins.clean_rawdata.asr_calibrate import ASRCalibrationError, asr_calibrate
 from eegprep.plugins.clean_rawdata.asr_process import asr_process
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
+from eegprep.plugins.clean_rawdata.pop_clean_rawdata import pop_clean_rawdata
+from tests.fuzz.harness import compare_data, load_tolerances
 
 # Nightly fuzz crop clean_asr|numeric|1e1, seed 20261031.
 _NAN_TAIL_SHA256 = "f98111327da99e56c5c9bf58d5ca02364023868af91ce44d4354caa79065e4d6"
@@ -97,6 +99,46 @@ def test_very_short_recording_still_calibrates_with_reference_off():
     assert np.max(np.abs(cleaned["data"] - data)) > 1.0
 
 
+_ISSUE_526_SHA256 = "5f90669b03649cfc1fbd82a6cdabd4cda1b3dc43d7adb22db5bbaba07fd19569"
+
+
+def test_issue_526_two_rms_windows_are_still_cleaned():
+    """21 channels, 89 samples at 128 Hz. EEGLAB indexes width 0 and returns the input."""
+    source = pop_loadset(Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data.set")
+    data = np.array(np.asarray(source["data"])[np.ix_(range(10, 31), np.arange(49, 49 + 89))], dtype=np.float64)
+    digest = hashlib.sha256(np.ascontiguousarray(data, dtype=np.float64).tobytes()).hexdigest()
+    assert digest == _ISSUE_526_SHA256
+    srate = float(source["srate"])
+    eeg = {
+        "data": data,
+        "srate": srate,
+        "nbchan": int(data.shape[0]),
+        "pnts": int(data.shape[1]),
+        "trials": 1,
+        "xmin": 0.0,
+        "xmax": (data.shape[1] - 1) / srate,
+        "event": [],
+    }
+    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    popped = pop_clean_rawdata(
+        eeg,
+        gui=False,
+        FlatlineCriterion="off",
+        Highpass="off",
+        ChannelCriterion="off",
+        LineNoiseCriterion="off",
+        WindowCriterion="off",
+        BurstCriterion=5.0,
+        BurstCriterionRefMaxBadChns="off",
+        BurstRejection="off",
+    )
+    np.testing.assert_array_equal(popped["data"], cleaned["data"])
+    assert cleaned["data"].shape == (21, 89)
+    gap, error_class, *_rest = compare_data(cleaned["data"], data, srate, srate, load_tolerances()["clean_asr"])
+    assert gap is True
+    assert error_class == "numeric"
+
+
 def test_low_sampling_rate_calibration_names_the_spectral_filter():
     eeg = {
         "data": np.ones((1, 256), dtype=np.float64),
@@ -160,32 +202,33 @@ def test_trailing_nans_are_reflected_before_processing_zeros_them():
         assert np.isnan(reflected[1, column])
 
     sig = np.concatenate((raw, reflected), axis=1)
-    state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
-    step = int(math.floor(srate * window_len / 2))
-    processed, _state = asr_process(
-        sig,
-        srate,
-        state,
-        window_len=window_len,
-        lookahead=window_len / 2,
-        step_size=step,
-        max_dims=0.66,
-        max_mem=64,
-    )
-    tail = processed[:, raw.shape[1] :]
-    for sample in (245, 246):
-        column = list(extrap_indices).index(sample)
-        assert tail[1, column] == 0.0
+    with threadpool_limits(limits=1, user_api="blas"):
+        state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
+        step = int(math.floor(srate * window_len / 2))
+        processed, _state = asr_process(
+            sig,
+            srate,
+            state,
+            window_len=window_len,
+            lookahead=window_len / 2,
+            step_size=step,
+            max_dims=0.66,
+            max_mem=64,
+        )
+        tail = processed[:, raw.shape[1] :]
+        for sample in (245, 246):
+            column = list(extrap_indices).index(sample)
+            assert tail[1, column] == 0.0
 
-    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
-    np.testing.assert_array_equal(cleaned["data"], processed[:, : raw.shape[1]])
-    np.testing.assert_array_equal(eeg["data"], raw)
+        cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+        np.testing.assert_array_equal(cleaned["data"], processed[:, : raw.shape[1]])
+        np.testing.assert_array_equal(eeg["data"], raw)
 
-    zeroed = raw.copy()
-    zeroed[~np.isfinite(zeroed)] = 0.0
-    zeroed_eeg = dict(eeg)
-    zeroed_eeg["data"] = zeroed
-    cleaned_zeroed = clean_asr(zeroed_eeg, cutoff=5.0, ref_maxbadchannels="off")
+        zeroed = raw.copy()
+        zeroed[~np.isfinite(zeroed)] = 0.0
+        zeroed_eeg = dict(eeg)
+        zeroed_eeg["data"] = zeroed
+        cleaned_zeroed = clean_asr(zeroed_eeg, cutoff=5.0, ref_maxbadchannels="off")
     finite = np.isfinite(raw)
     gap = np.abs(cleaned["data"] - cleaned_zeroed["data"])[finite]
     # Same gap the nightly fuzzer measured against EEGLAB on this crop.

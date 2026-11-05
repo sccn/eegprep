@@ -152,6 +152,20 @@ monotonic, such as 32 Hz, cannot be calibrated. ``clean_asr`` raises an error
 that names the rate. ``clean_artifacts`` and ``pop_clean_rawdata`` warn and
 leave that recording unchanged.
 
+A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
+two such windows, cannot set thresholds either. ``clean_asr`` raises
+``ASRCalibrationError`` and names the sample or window counts. ``clean_artifacts``
+and ``pop_clean_rawdata`` warn, leave the burst stage unchanged, and still run
+window removal when it was requested. On a 44-sample recording at 128 Hz the
+burst stage needs 64 samples, so with the other stages off the samples stay
+identical, including NaNs. EEGLAB prints the calibration error and returns
+before window removal.
+
+Two or three 0.5 s RMS windows still calibrate. EEGLAB's fit indexes a rounded
+width of 0 and ``clean_artifacts`` returns the recording unchanged. EEGPrep
+skips those non-positive widths and still removes bursts. A 21-channel,
+89-sample recording at 128 Hz has two such windows.
+
 Riemannian ASR Notes
 ====================
 
@@ -170,6 +184,12 @@ Calibration does not change non-finite samples in the recording it receives.
 ``clean_asr`` reflects the end of that original recording to build lookahead.
 Processing prepends its carry, then replaces non-finite samples, including
 those reflected samples, with 0.
+
+A Riemannian calibration shorter than one 0.1 s RMS window, or one with
+fewer than two such windows, raises ``ASRCalibrationError``. The message
+names ``asr_calibrate_r``, the sample counts, and the choice to record more
+data or set ``BurstCriterion`` off. ``pop_clean_rawdata`` warns and leaves
+the burst stage unchanged. EEGLAB does not catch that call.
 
 Review Rejected Segments
 ========================
