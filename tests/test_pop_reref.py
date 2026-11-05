@@ -74,6 +74,47 @@ def test_pop_reref_current_suite_standard_method_with_multiple_references():
     np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
 
 
+def test_pop_reref_keeps_a_nan_on_its_channel():
+    """Subtraction keeps a NaN on its channel. EEGLAB's refmatrix spreads 0*NaN."""
+    data = np.array(
+        [
+            [1.0, np.nan, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+        ]
+    )
+    eeg = {
+        "data": data,
+        "nbchan": 3,
+        "pnts": 3,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 0.02,
+        "times": np.arange(3) / 100.0,
+        "chanlocs": [{"labels": f"Ch{index + 1}"} for index in range(3)],
+        "event": [],
+        "urevent": [],
+        "epoch": [],
+        "icaweights": np.array([]),
+        "icasphere": np.array([]),
+        "icawinv": np.array([]),
+        "icaact": np.array([]),
+        "icachansind": np.array([], dtype=int),
+    }
+    output = pop_reref(eeg, [2])
+    reference = data[2]
+    np.testing.assert_allclose(output["data"], data[:2] - reference, equal_nan=True)
+    assert np.isnan(output["data"][0, 1])
+    assert np.isfinite(output["data"][1]).all()
+
+    refmatrix = np.eye(3)
+    refmatrix[:, 2] -= 1.0
+    with np.errstate(invalid="ignore"):
+        spread = refmatrix @ data
+    assert np.isnan(spread[:, 1]).all()
+
+
 @eeglab_test("unittesting_sigprocfunc/reref/sigprocfunc_reref_wrapperTest.m", "test_test_reref")
 def test_reference_reref(eeglab_backend, eeglab_suite_root):
     references = np.array([[2, 5, 26]], dtype=float)

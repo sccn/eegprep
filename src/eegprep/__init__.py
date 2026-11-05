@@ -87,6 +87,7 @@ _LAZY_EXPORTS = {
     "eeg_autocorr": ("eegprep.plugins.ICLabel.eeg_autocorr", "eeg_autocorr"),
     "eeg_autocorr_fftw": ("eegprep.plugins.ICLabel.eeg_autocorr_fftw", "eeg_autocorr_fftw"),
     "eeg_autocorr_welch": ("eegprep.plugins.ICLabel.eeg_autocorr_welch", "eeg_autocorr_welch"),
+    "eeg_boundarytype": ("eegprep.functions.popfunc.eeg_boundarytype", "eeg_boundarytype"),
     "eeg_chaninds": ("eegprep.functions.popfunc.eeg_chaninds", "eeg_chaninds"),
     "eeg_checkchanlocs": ("eegprep.functions.adminfunc.eeg_checkchanlocs", "eeg_checkchanlocs"),
     "eeg_checkset": ("eegprep.functions.adminfunc.eeg_checkset", "eeg_checkset"),

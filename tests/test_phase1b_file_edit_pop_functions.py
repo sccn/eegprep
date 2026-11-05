@@ -342,7 +342,7 @@ def test_pop_selectevent_renames_events_before_epoched_trial_selection():
     assert any(event["type"] == "target" for event in out["event"])
 
 
-def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events():
+def test_pop_selectevent_keeps_boundary99_when_deleting_continuous_events():
     eeg = _eeg()
     eeg["event"].insert(1, {"type": -99, "latency": 25.0, "duration": 0.0, "urevent": 2})
     eeg["urevent"].append({"type": -99, "latency": 25.0, "duration": 0.0})
@@ -354,7 +354,7 @@ def test_pop_selectevent_keeps_numeric_boundary_when_deleting_continuous_events(
         EEG_OPTIONS["option_boundary99"] = old
 
     assert selected == [1, 2]
-    assert [event["type"] for event in out["event"]] == ["stim", -99]
+    assert [event["type"] for event in out["event"]] == ["stim", "-99"]
 
 
 def test_pop_rmdat_removes_or_keeps_continuous_windows_around_events():

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import logging
 import re
 from typing import Any
 
@@ -20,6 +21,15 @@ from eegprep.functions.sigprocfunc.rmbase import rmbase
 
 _UNSET = object()
 _RANGE_TOKEN = re.compile(r"^(-?\d+(?:\.\d+)?)(?::(-?\d+(?:\.\d+)?))?(?::(-?\d+(?:\.\d+)?))?$")
+logger = logging.getLogger(__name__)
+_EMPTY_DATASET_MESSAGE = (
+    "pop_rmbase: cannot remove baseline of an empty dataset. "
+    "The dataset has no samples or epochs; epoching may have selected no events. "
+    "Returning the dataset unchanged."
+)
+_DATASET_TYPE_MESSAGE = (
+    "pop_rmbase: EEG must be a dataset dictionary. Pass the current dataset, for example pop_rmbase(EEG, [-200, 0])."
+)
 
 
 def pop_rmbase(
@@ -37,7 +47,8 @@ def pop_rmbase(
     ``timerange`` uses the units stored in ``EEG["times"]``. ``pointrange``
     and numeric ``chanlist`` values use EEGLAB-facing 1-based indices.
     Calling ``pop_rmbase(EEG)`` opens the GUI; pass explicit ranges or
-    ``gui=False`` for direct command-line use.
+    ``gui=False`` for direct command-line use. An empty dataset, including a
+    zero-epoch result, is returned unchanged (``pop_rmbase.m`` lines 69-71).
     """
     if EEG is _UNSET or EEG is None:
         raise ValueError("pop_rmbase(): EEG dataset is required")
@@ -57,6 +68,12 @@ def pop_rmbase(
         outputs = [pop_rmbase(item, timerange, pointrange, chanlist, gui=False) for item in EEG]
         command = _history_command(timerange, pointrange, None, None)
         return (outputs, command) if return_com else outputs
+
+    if not isinstance(EEG, dict):
+        raise ValueError(_DATASET_TYPE_MESSAGE)
+    if _dataset_is_empty(EEG):
+        logger.warning(_EMPTY_DATASET_MESSAGE)
+        return (EEG, "") if return_com else EEG
 
     if gui:
         result = _run_gui(EEG, renderer=renderer, multiple=False)
@@ -275,8 +292,20 @@ def _continuous_boundary_starts(EEG: dict[str, Any], pnts: int) -> list[int]:
         events = events.tolist()
     if not isinstance(events, list) or not events:
         return []
+    boundary_indices = list(eeg_findboundaries(EEG=EEG))
+    found = set(boundary_indices)
+    for index, event in enumerate(events):
+        if isinstance(event, np.ndarray) and event.shape == ():
+            event = event.item()
+        if not isinstance(event, dict) or index in found:
+            continue
+        event_type = event.get("type")
+        if isinstance(event_type, bytes):
+            event_type = event_type.decode()
+        if isinstance(event_type, str) and event_type.startswith("boundary"):
+            boundary_indices.append(index)
     starts = []
-    for event_index in eeg_findboundaries(EEG=EEG):
+    for event_index in boundary_indices:
         event = events[event_index]
         try:
             latency = float(event.get("latency"))
@@ -431,12 +460,16 @@ def _default_baseline_timerange(EEG: dict[str, Any]) -> str:
     return f"{times[0]:g} 0"
 
 
+def _dataset_is_empty(EEG: dict[str, Any]) -> bool:
+    data = EEG.get("data")
+    if data is None:
+        return True
+    return np.asarray(data).size == 0
+
+
 def _validate_eeg(EEG: dict[str, Any]) -> None:
     if not isinstance(EEG, dict):
-        raise ValueError("pop_rmbase(): EEG must be a dataset dictionary")
-    data = EEG.get("data")
-    if data is None or np.asarray(data).size == 0:
-        raise ValueError("pop_rmbase(): cannot remove baseline of an empty dataset")
+        raise ValueError(_DATASET_TYPE_MESSAGE)
 
 
 def _has_values(value: Any) -> bool:

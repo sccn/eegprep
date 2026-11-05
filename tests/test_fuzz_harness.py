@@ -14,6 +14,8 @@ from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_select import pop_select
+from tests.fixtures import create_test_eeg
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
 from tests.fuzz.harness import (
     EEGSpec,
@@ -38,6 +40,8 @@ from tests.fuzz.harness import (
     resume_eeg_options,
     run_repro,
     run_session,
+    side_from_call,
+    side_from_eeg,
     side_from_error,
     suspend_option_single,
     thaw_params,
@@ -82,6 +86,17 @@ class _Backend:
         try:
             data = np.asarray(self.fn(case, eeg), dtype=float)
             return SideResult(True, data, float(eeg["srate"]), None, None)
+        except Exception as exc:
+            return side_from_error(exc)
+
+
+class _CallBackend:
+    def __init__(self, fn):
+        self.fn = fn
+
+    def run(self, case, eeg):
+        try:
+            return side_from_call(self.fn(case, eeg))
         except Exception as exc:
             return side_from_error(exc)
 
@@ -658,6 +673,104 @@ def test_matlab_backend_restores_eeg_options_bytes(tmp_path):
     assert path.read_bytes() == original
     backend.close()
     assert path.read_bytes() == original
+
+
+def test_duplicate_trial_order_is_not_filed():
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
+    data = np.zeros((1, 4, 5))
+    for trial in range(5):
+        data[0, :, trial] = trial + 1
+    eeg["data"] = data
+    case = FuzzCase(
+        "pop_select",
+        EEGSpec((0,), 0, 5, 1, -1, 0, 0),
+        freeze_params({"trial": [5, 4, 3, 2, 1, 5], "sorttrial": "off"}),
+    )
+
+    def oracle(_case, dataset):
+        return pop_select(dataset, trial=[4, 3, 2, 1, 5], sorttrial="off", gui=False)
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+    assert outcome.diverged is False
+    assert "first copy" in outcome.detail
+
+
+def test_rmbase_mean_nan_spread_is_not_filed():
+    eeg = create_test_eeg(n_channels=1, n_samples=64, srate=128.0, n_trials=1)
+    channel = np.arange(64, dtype=float)
+    channel[:4] = np.nan
+    eeg["data"] = channel[None, :]
+    eeg["event"] = []
+    case = FuzzCase(
+        "pop_rmbase",
+        EEGSpec((0,), 0, 64, 1, -1, 0, 0),
+        freeze_params({"timerange": [], "pointrange": list(range(1, 31)), "chanlist": []}),
+    )
+
+    def oracle(_case, dataset):
+        data = np.array(dataset["data"], dtype=float, copy=True)
+        data -= np.mean(data[:, :30], axis=1)[:, None]
+        copied = copy.deepcopy(dataset)
+        copied["data"] = data
+        return copied
+
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+    assert outcome.diverged is False
+    assert "mean()" in outcome.detail
+
+
+def test_int64_event_type_matches_float_type():
+    base = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=1)
+    base["event"] = [{"type": np.int64(65), "latency": 1.0}]
+    other = copy.deepcopy(base)
+    other["event"] = [{"type": 65.0, "latency": 1.0}]
+
+    outcome = judge(
+        side_from_eeg(base),
+        side_from_eeg(other),
+        Tolerance(0.0, 0.0),
+        FuzzCase("pop_eegfiltnew", EEGSpec((0,), 0, 4, 1, -1, 0, 0), freeze_params({})),
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "match"
+
+
+def test_epoched_notime_is_the_same_failure_as_eeglab():
+    case = FuzzCase("pop_select", EEGSpec((0,), 0, 2, 1, -1, 0, 0), freeze_params({}))
+    outcome = judge(
+        side_from_error(
+            ValueError(
+                "pop_select: notime on epoched data must include the epoch start (-1.0) or the epoch end (2.0). "
+                "A span in the middle of an epoch cannot be removed; include one of those edges, or remove trials."
+            )
+        ),
+        side_from_error(
+            RuntimeError(
+                "Wrong notime range. Remember that it is not possible to remove a slice of time for data epochs."
+            )
+        ),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
+
+
+def test_eventindices_past_the_end_is_the_same_failure_as_eeglab():
+    case = FuzzCase("pop_epoch", EEGSpec((0,), 0, 8, 1, -1, 0, 0), freeze_params({}))
+    outcome = judge(
+        side_from_error(
+            ValueError("pop_epoch: eventindices [1, 2] are outside 1..1. Pass 1-based indices that exist in EEG.event.")
+        ),
+        side_from_error(RuntimeError("Index exceeds the number of array elements. Index must not exceed 1.")),
+        Tolerance(0.0, 1e-6),
+        case,
+        "abc",
+    )
+    assert outcome.diverged is False
+    assert outcome.error_class == "both-error"
 
 
 def test_one_rms_window_message_does_not_hide_a_different_error():

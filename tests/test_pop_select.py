@@ -16,7 +16,7 @@ from eegprep.functions.popfunc.pop_saveset import pop_saveset
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from tests.eeg_options_snapshot import eeg_options_snapshot, restore_eeg_options
-from tests.fixtures import SAMPLE_DATASET_PATH
+from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 # where the test resources
 web_root = 'https://sccntestdatasets.s3.us-east-2.amazonaws.com/'
@@ -380,7 +380,7 @@ class TestPopSelectEventConsistency(unittest.TestCase):
         self.assertEqual(_event_rows(out), [('first', 30.0, 0.0), ('second', 5.0, 0.0)])
         np.testing.assert_array_equal(out['data'], eeg['data'][0:1])
 
-    def test_numeric_boundary_type_follows_option_boundary99(self):
+    def test_mixed_numeric_boundary_is_text_before_the_boundary_check(self):
         eeg = _dataset(
             [
                 {'type': -99, 'latency': 0.5, 'duration': 0},
@@ -394,7 +394,8 @@ class TestPopSelectEventConsistency(unittest.TestCase):
             out = pop_select(eeg, channel=['Fz'])
         finally:
             EEG_OPTIONS['option_boundary99'] = previous
-        self.assertEqual(_event_rows(out), [('stim', 8.0, 0.0)])
+        # eeg_checkset.m:395-400 converts the mix before eeg_isboundary, so '-99' stays.
+        self.assertEqual(_event_rows(out), [('-99', 0.5, 0.0), ('stim', 8.0, 0.0)])
 
     def test_numeric_boundary_duplicates_are_merged(self):
         eeg = _dataset(
@@ -736,6 +737,26 @@ def test_ds003061_sub001_pop_select_matches_matlab(run, eventconsistency_matlab,
     python_eeg = pop_select(pop_loadset(str(set_path)), channel=labels)
     saved = _matlab_pop_select(eventconsistency_matlab, set_path, labels, tmp_path / f'run-{run}.mat')
     _assert_matlab_match(python_eeg, saved)
+
+
+def test_sorttrial_off_keeps_the_first_copy_of_a_duplicate():
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=5)
+    data = np.zeros((1, 4, 5))
+    for trial in range(5):
+        data[0, :, trial] = trial + 1
+    eeg['data'] = data
+
+    out = pop_select(eeg, trial=[5, 4, 3, 2, 1, 5], sorttrial='off')
+
+    assert out['data'][0, 0, :].tolist() == [5, 4, 3, 2, 1]
+
+
+def test_notime_inside_an_epoch_names_the_fix():
+    eeg = create_test_eeg(n_channels=1, n_samples=8, srate=100.0, n_trials=2)
+    eeg['xmin'] = -0.04
+    eeg['xmax'] = 0.03
+    with pytest.raises(ValueError, match="pop_select: notime on epoched data"):
+        pop_select(eeg, notime=[[-0.02, 0.01]])
 
 
 if __name__ == '__main__':

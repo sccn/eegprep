@@ -26,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
-    """Select EEG data using EEGLAB ``pop_select`` semantics."""
+    """Select EEG data using EEGLAB ``pop_select`` semantics.
+
+    With ``sorttrial='off'``, a repeated trial is kept at its first position.
+    ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
+    ``pop_select.m`` lines 282-286 call ``unique_bc``
+    (``unique(..., 'legacy')``), which keeps the last copy, so the same
+    input becomes ``[4, 3, 2, 1, 5]``.
+    """
     options = parse_key_value_args(args, kwargs)
     if not isinstance(EEG, list) and EEG.get("data") is None:
         raise ValueError('EEG["data"] is required')
@@ -288,7 +295,11 @@ def _pop_select_apply(EEG, **kwargs):
         else:
             # must touch epoch boundary
             if not (np.any(np.isclose(notime_mat[:, 0], xmin)) or np.any(np.isclose(notime_mat[:, 1], xmax))):
-                raise ValueError('Wrong notime range for epoched data; must include an epoch boundary')
+                raise ValueError(
+                    "pop_select: notime on epoched data must include the epoch start "
+                    f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                    "epoch cannot be removed; include one of those edges, or remove trials."
+                )
 
             # convert notime to keep time when aligned to boundaries
             if np.any(np.isclose(notime_mat[:, 1], xmax)) and np.any(np.isclose(notime_mat[:, 0], xmin)):
@@ -300,7 +311,11 @@ def _pop_select_apply(EEG, **kwargs):
                 elif np.any(np.isclose(notime_mat[:, 0], xmin)):
                     time_mat = np.array([[float(notime_mat[0, 1]), xmax]], dtype=float)
                 else:
-                    raise ValueError('Wrong notime range. Cannot remove a central slice from epoched data.')
+                    raise ValueError(
+                        "pop_select: notime on epoched data must include the epoch start "
+                        f"({xmin}) or the epoch end ({xmax}). A span in the middle of an "
+                        "epoch cannot be removed; include one of those edges, or remove trials."
+                    )
 
     # 4) Informational prints (optional)
     if len(g['trial']) != trials:

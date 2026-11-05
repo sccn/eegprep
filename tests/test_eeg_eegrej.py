@@ -138,8 +138,26 @@ class TestEEGEegrejExtended(unittest.TestCase):
         self.assertEqual(result['data'].shape[1], 13)
 
     def test_eeg_eegrej_preserves_numeric_boundary99_when_enabled(self):
-        """Numeric -99 boundaries use the canonical boundary contract."""
+        """eeg_eegrej.m:144 keeps -99 when every event type is numeric."""
         EEG = self.base_eeg.copy()
+        EEG["event"] = [dict(event) for event in EEG["event"]]
+        for event, code in zip(EEG["event"], (1, -99, 2, 3), strict=True):
+            event["type"] = code
+        old = EEG_OPTIONS["option_boundary99"]
+        EEG_OPTIONS["option_boundary99"] = 1
+        try:
+            result = eeg_eegrej(EEG, np.array([[6, 10]], dtype=int))
+        finally:
+            EEG_OPTIONS["option_boundary99"] = old
+
+        preserved = [event for event in result["event"] if event.get("latency") == 6.0]
+        self.assertEqual(len(preserved), 1)
+        self.assertEqual(preserved[0]["type"], -99)
+
+    def test_eeg_eegrej_stringifies_a_numeric_boundary_beside_text(self):
+        """eeg_checkset.m:395-400 num2str's -99 when another type is text."""
+        EEG = self.base_eeg.copy()
+        EEG["event"] = [dict(event) for event in EEG["event"]]
         EEG["event"][1]["type"] = -99
         old = EEG_OPTIONS["option_boundary99"]
         EEG_OPTIONS["option_boundary99"] = 1
@@ -148,7 +166,7 @@ class TestEEGEegrejExtended(unittest.TestCase):
         finally:
             EEG_OPTIONS["option_boundary99"] = old
 
-        preserved = [event for event in result["event"] if event.get("type") == -99]
+        preserved = [event for event in result["event"] if event.get("type") == "-99"]
         self.assertEqual(len(preserved), 1)
         self.assertEqual(preserved[0]["latency"], 6.0)
 
