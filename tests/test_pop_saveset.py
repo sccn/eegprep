@@ -360,6 +360,50 @@ class TestPopSaveset(unittest.TestCase):
         self.assertEqual(EEG['event'][1]['urevent'], [])
         self.assertEqual(EEG['event'][2]['urevent'], 4)
 
+    def test_resave_refuses_to_overwrite_a_raw_source_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = os.path.join(tmp, 'recording.vhdr')
+            with open(raw, 'wb') as stream:
+                stream.write(b'raw-header')
+            eeg = self._continuous([])
+            eeg['filename'] = 'recording.vhdr'
+            eeg['filepath'] = tmp
+            eeg['saved'] = 'no'
+            with self.assertRaises(ValueError) as caught:
+                pop_saveset(eeg, savemode='resave')
+            message = str(caught.exception)
+            self.assertIn('pop_saveset', message)
+            self.assertIn('.set', message)
+            self.assertIn(raw, message)
+            with open(raw, 'rb') as stream:
+                self.assertEqual(stream.read(), b'raw-header')
+            self.assertFalse(os.path.exists(os.path.join(tmp, 'recording.set')))
+            self.assertEqual(eeg['saved'], 'no')
+            self.assertEqual(eeg['filename'], 'recording.vhdr')
+
+    def test_saveset_refuses_an_explicit_non_set_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = os.path.join(tmp, 'recording.edf')
+            with open(raw, 'wb') as stream:
+                stream.write(b'edf-bytes')
+            eeg = self._continuous([])
+            with self.assertRaises(ValueError) as caught:
+                pop_saveset(eeg, raw)
+            self.assertIn('pop_saveset', str(caught.exception))
+            self.assertIn(raw, str(caught.exception))
+            with open(raw, 'rb') as stream:
+                self.assertEqual(stream.read(), b'edf-bytes')
+            self.assertEqual(eeg.get('saved', 'no'), 'no')
+
+    def test_saveset_appends_set_extension_when_the_name_has_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            requested = os.path.join(tmp, 'noext')
+            eeg = self._continuous([])
+            pop_saveset(eeg, requested)
+            self.assertTrue(os.path.isfile(requested + '.set'))
+            self.assertFalse(os.path.exists(requested))
+            self.assertEqual(eeg['filename'], 'noext.set')
+
 
 if __name__ == '__main__':
     unittest.main()

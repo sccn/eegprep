@@ -561,6 +561,41 @@ class MenuActionDispatcherTests(unittest.TestCase):
         self.assertEqual([item["saved"] for item in session.EEG], ["yes", "yes"])
         self.assertEqual([item["saved"] for item in session.ALLEEG], ["yes", "yes"])
 
+    def test_resave_of_imported_raw_file_prompts_and_does_not_overwrite_source(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp) / "recording.vhdr"
+            raw.write_bytes(b"raw-header")
+            eeg = _demo_eeg()
+            eeg["filename"] = raw.name
+            eeg["filepath"] = str(raw.parent)
+            eeg["saved"] = "no"
+            session.store_current(eeg, new=True)
+            destination = raw.with_suffix(".set")
+            suggestions = []
+
+            class QFileDialog:
+                @staticmethod
+                def getSaveFileName(_parent, _caption, directory, _filter, **_kwargs):
+                    suggestions.append(directory)
+                    return str(destination), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog})
+            dispatcher = MenuActionDispatcher(session)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset:resave")
+
+            self.assertEqual(suggestions, [str(destination)])
+            self.assertEqual(raw.read_bytes(), b"raw-header")
+            self.assertTrue(destination.is_file())
+            self.assertEqual(session.EEG["filename"], "recording.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertNotIn("savemode", session.LASTCOM)
+            self.assertIn(str(destination), session.LASTCOM)
+
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
             "pop_clean_rawdata",

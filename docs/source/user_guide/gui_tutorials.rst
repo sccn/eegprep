@@ -55,7 +55,10 @@ Load, Inspect, and Save a Dataset
      <p>Choose <strong>Plot > Channel data (scroll)</strong> to inspect the
      current dataset in EEGBrowser.</p>
      <p>Choose <strong>File > Save current dataset as</strong> when you want a
-     new <code>.set</code> file.</p>
+     new <code>.set</code> file. <strong>File > Resave current dataset(s)</strong>
+     updates a dataset that already has a <code>.set</code> file. A dataset
+     imported from a raw recording opens Save as instead, so the original
+     file is not replaced.</p>
    </div>
 
 Equivalent console calls:

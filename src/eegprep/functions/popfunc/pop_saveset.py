@@ -402,7 +402,9 @@ def pop_saveset(EEG, file_name=None, *args, **kwargs):
         EEG data.
     file_name : str, optional
         File name. EEGLAB-style ``filename``/``filepath``/``savemode`` keyword
-        arguments are also accepted.
+        arguments are also accepted. The file is always a ``.set`` file. A
+        name with no extension gets ``.set``. ``savemode="resave"`` requires
+        an existing ``.set`` filename and will not replace a raw source file.
     """
     file_path, savemode = _save_target(EEG, file_name, args, kwargs)
     file_name = os.fspath(file_path)
@@ -567,15 +569,34 @@ def _save_target(EEG, file_name, args, kwargs):
     filepath = options.get('filepath')
     if savemode == 'resave' and filename in {None, ''}:
         target = dataset_set_path(EEG)
-        if target is None:
-            raise ValueError("savemode='resave' requires EEG filename/filepath metadata")
+        if target is None or target.suffix.lower() != '.set':
+            shown = os.fspath(target) if target is not None else '(none)'
+            raise ValueError(
+                "pop_saveset cannot resave this dataset because it has no .set filename "
+                f"(current filename is {shown}). Save it with File > Save current dataset as "
+                "and choose a .set file."
+            )
         return target, savemode
     if filename in {None, ''}:
         raise ValueError("file_name argument is required")
     path = Path(os.fspath(filename))
     if filepath not in {None, ''} and not path.is_absolute():
         path = Path(os.fspath(filepath)) / path.name
-    return path, savemode
+    return _as_set_path(path), savemode
+
+
+def _as_set_path(path: Path) -> Path:
+    # pop_saveset.m:126-127 replaces the extension with .set before writing.
+    # Resave then copies EEG.filename unchanged (line 192). An imported .vhdr
+    # or .edf name would be overwritten with the MAT payload; refuse that target.
+    if path.suffix.lower() == '.set':
+        return path
+    if path.suffix == '':
+        return path.with_suffix('.set')
+    raise ValueError(
+        f"pop_saveset cannot write a dataset to {path} because the extension is not .set. "
+        "Choose a .set filename with File > Save current dataset as."
+    )
 
 
 def _save_two_files(EEG, savemode):

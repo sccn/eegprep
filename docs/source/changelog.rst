@@ -10,6 +10,14 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_saveset`` resave writes only an existing ``.set`` file. File > Resave
+  on a dataset imported from ``.vhdr``, ``.edf``, or another raw file opens
+  Save as instead of replacing that recording. A path with no extension is
+  saved as ``.set``. Any other extension is refused. EEGLAB forces ``.set``
+  before most saves (``pop_saveset.m`` lines 126-127) and prompts when the
+  filename is empty (lines 81-96). Its resave path then copies
+  ``EEG.filename`` unchanged (line 192), which would overwrite a raw source
+  if an importer had stored one.
 - ``pop_rmbase`` returns an empty dataset unchanged and logs a warning.
   That includes a zero-epoch result, such as epoching that selected no
   events, and continuous data with no samples. EEGLAB prints the same
