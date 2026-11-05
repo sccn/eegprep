@@ -1,9 +1,12 @@
 """BrainVision Analyzer MATLAB export import."""
 
+import math
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
+import scipy.io
 from scipy.io import savemat
 
 from eegprep.functions.popfunc.pop_fileio_brainvision_mat import pop_fileio_brainvision_mat
@@ -74,9 +77,8 @@ def test_continuous_analyzer_export_keeps_channels_rate_and_skips_blank_markers(
     np.testing.assert_allclose(eeg["data"][0], np.arange(8))
     np.testing.assert_allclose(eeg["data"][1], np.arange(8) + 1)
     assert [loc["labels"] for loc in eeg["chanlocs"]] == ["Fp1", "Cz", "Pz", "Oz"]
-    assert "sph_theta_besa" not in eeg["chanlocs"][0]
-    assert "sph_radius" in eeg["chanlocs"][0]
-    assert "sph_radius" not in eeg["chanlocs"][1]
+    _assert_besa_location(eeg["chanlocs"][0], theta_besa=-20.0, phi_besa=15.0, radius=1.0)
+    assert set(eeg["chanlocs"][1]) == {"labels"}
     events = _events(eeg)
     assert [event["type"] for event in events] == ["stim", "resp"]
     assert [event["latency"] for event in events] == [1.0, 4.0]
@@ -211,3 +213,91 @@ def test_menu_import_uses_the_analyzer_layout(tmp_path):
     assert eeg["filename"] == ""
     assert path.is_file()
     assert "pop_fileio_brainvision_mat" in session.LASTCOM
+
+
+def _wrap_degrees(value):
+    wrapped = (float(value) + 180.0) % 360.0 - 180.0
+    if math.isclose(wrapped, -180.0) and value > 0:
+        return 180.0
+    return wrapped
+
+
+def _expected_besa_location(theta_besa, phi_besa, radius):
+    """EEGLAB convertlocs sphbesa2all, then drop the BESA angles."""
+    angle = 90.0 - phi_besa if theta_besa >= 0 else -90.0 - phi_besa
+    sph_theta = _wrap_degrees(-angle)
+    sph_phi = 90.0 - abs(theta_besa)
+    theta = math.radians(sph_theta)
+    phi = math.radians(sph_phi)
+    return {
+        "theta": _wrap_degrees(-sph_theta),
+        "radius": 0.5 - sph_phi / 180.0,
+        "sph_theta": sph_theta,
+        "sph_phi": sph_phi,
+        "sph_radius": radius,
+        "X": radius * math.cos(phi) * math.cos(theta),
+        "Y": radius * math.cos(phi) * math.sin(theta),
+        "Z": radius * math.sin(phi),
+    }
+
+
+def _assert_besa_location(loc, theta_besa, phi_besa, radius):
+    expected = _expected_besa_location(theta_besa, phi_besa, radius)
+    for field, value in expected.items():
+        assert loc[field] == pytest.approx(value)
+    assert "sph_theta_besa" not in loc
+    assert "sph_phi_besa" not in loc
+
+
+def _suite_bva_file(request, name):
+    root = request.config.getoption("--eeglab-suite-root")
+    if not root:
+        pytest.skip("BrainVision recorder fixtures need --eeglab-suite-root")
+    path = Path(root) / "unittesting_binary" / "testfiles" / "BVA" / name
+    if not path.is_file():
+        pytest.skip(f"missing BrainVision recorder fixture {path}")
+    if path.read_bytes()[:40].startswith(b"version https://git-lfs.github.com"):
+        pytest.skip(f"{path.name} is a Git LFS pointer")
+    return path
+
+
+def test_parity_brainvision_recorder_files_keep_coordinates(request):
+    raw = _suite_bva_file(request, "brainvision_recorder_acquisitiondataformat_raw_data.mat")
+    segmented = _suite_bva_file(request, "brainvision_recorder_acquisitiondataformat_segmentation.mat")
+    continuous = pop_fileio_brainvision_mat(raw)
+    epochs = pop_fileio_brainvision_mat(segmented)
+
+    assert continuous["data"].shape == (32, 2112)
+    assert continuous["srate"] == 200.0
+    assert continuous["trials"] == 1
+    assert len(_events(continuous)) == 16
+    assert epochs["data"].shape == (32, 200, 10)
+    assert epochs["srate"] == 200.0
+    assert epochs["trials"] == 10
+    assert len(_events(epochs)) == 15
+
+    labels = [loc["labels"] for loc in continuous["chanlocs"]]
+    assert labels[:3] == ["Fp1", "Fp2", "F3"]
+    assert [loc["theta"] for loc in continuous["chanlocs"][:3]] == pytest.approx([-18.0, 18.0, -39.0])
+    besa = _file_besa_records(raw)
+    assert len(besa) == 32
+    for imported in (continuous, epochs):
+        assert [loc["labels"] for loc in imported["chanlocs"]] == labels
+        for loc, (theta_besa, phi_besa, radius) in zip(imported["chanlocs"], besa, strict=True):
+            if radius == 0:
+                assert "theta" not in loc
+                assert "X" not in loc
+                continue
+            _assert_besa_location(loc, theta_besa, phi_besa, radius)
+
+
+def _file_besa_records(path):
+    loaded = scipy.io.loadmat(path, squeeze_me=False, struct_as_record=False, appendmat=False)
+    channels = loaded["Channels"].ravel(order="F")
+    records = []
+    for record in channels:
+        radius = float(np.asarray(record.Radius).reshape(-1)[0])
+        theta = float(np.asarray(record.Theta).reshape(-1)[0])
+        phi = float(np.asarray(record.Phi).reshape(-1)[0])
+        records.append((theta, phi, radius))
+    return records

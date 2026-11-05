@@ -87,7 +87,7 @@ def _load_brainvision_analyzer_mat(path: Path) -> dict[str, Any]:
             continue
         index = _channel_index(field_name, names)
         if index is None:
-            # pop_loadbva.m:61-65 appends this channel twice; one record matches the warning.
+            # pop_loadbva.m:61-65
             logger.warning("channel '%s' is not in the Channels structure", field_name.lower())
             names.append(field_name.lower())
             channel_records.append({"Name": field_name, "Phi": None, "Theta": None, "Radius": 0})
@@ -218,8 +218,7 @@ def _events(markers: Any, *, segmented: bool, pnts: int) -> list[dict[str, Any]]
     if markers is None:
         return []
     events: list[dict[str, Any]] = []
-    # pop_loadbva.m:110-113 skips an empty Description. That is why a file can
-    # contain one more marker record than events.
+    # pop_loadbva.m:110-113
     for epoch_index, record in _marker_rows(markers):
         mapping = _record_mapping(record)
         if _is_blank(_record_value(mapping, "Description")):
@@ -255,11 +254,12 @@ def _chanlocs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             loc["sph_phi_besa"] = _optional_number(_record_value(record, "Phi"))
             loc["sph_radius"] = radius
         chanlocs.append(loc)
-    convertlocs(chanlocs, "sphbesa2all")
-    for loc in chanlocs:
+    # pop_loadbva.m:101-103
+    converted = convertlocs(chanlocs, "sphbesa2all")
+    for loc in converted:
         loc.pop("sph_theta_besa", None)
         loc.pop("sph_phi_besa", None)
-    return chanlocs
+    return converted
 
 
 def _marker_rows(markers: Any) -> list[tuple[int, Any]]:
