@@ -646,6 +646,18 @@ need no resampling first. A rate whose default frequency breakpoints are not
 monotonic, such as 32 Hz, cannot be calibrated. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises an error
 that names the rate. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warn and
 leave that recording unchanged.</p>
+<p>A calibration shorter than one 0.5 s RMS window, or one that yields fewer than
+two such windows, cannot set thresholds either. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> and names the sample or window counts. <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code>
+and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warn, leave the burst stage unchanged, and still run
+window removal when it was requested. On a 44-sample recording at 128 Hz the
+burst stage needs 64 samples, so with the other stages off the samples stay
+identical, including NaNs. EEGLAB prints the calibration error and returns
+before window removal.</p>
+<p>Two or three 0.5 s RMS windows still calibrate. EEGLAB’s fit indexes a rounded
+width of 0 and <code class="docutils literal notranslate"><span class="pre">clean_artifacts</span></code> returns the recording unchanged. EEGPrep
+skips those non-positive widths and still removes bursts. A 21-channel,
+89-sample recording at 128 Hz has two such windows.</p>
 </section>
 <section id="riemannian-asr-notes">
 <h2>Riemannian ASR Notes<a class="headerlink" href="#riemannian-asr-notes" title="Link to this heading">#</a></h2>
@@ -662,6 +674,11 @@ Passing an unknown <code class="docutils literal notranslate"><span class="pre">
 <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> reflects the end of that original recording to build lookahead.
 Processing prepends its carry, then replaces non-finite samples, including
 those reflected samples, with 0.</p>
+<p>A Riemannian calibration shorter than one 0.1 s RMS window, or one with
+fewer than two such windows, raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. The message
+names <code class="docutils literal notranslate"><span class="pre">asr_calibrate_r</span></code>, the sample counts, and the choice to record more
+data or set <code class="docutils literal notranslate"><span class="pre">BurstCriterion</span></code> off. <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and leaves
+the burst stage unchanged. EEGLAB does not catch that call.</p>
 </section>
 <section id="review-rejected-segments">
 <h2>Review Rejected Segments<a class="headerlink" href="#review-rejected-segments" title="Link to this heading">#</a></h2>

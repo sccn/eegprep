@@ -711,14 +711,29 @@ calibrates on every sample.</p></td>
 <tr class="row-odd"><td><p>ASR on a very short recording</p></td>
 <td><p>With calibration reference selection off, <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still returns
 cleaned data when only two or three RMS windows are available.
-EEGLAB’s calibration fit indexes a zero window width and errors.</p></td>
+EEGLAB’s calibration fit indexes a zero window width and errors
+(<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> lines 392-395, the same index as
+<code class="docutils literal notranslate"><span class="pre">fit_eeg_distribution.m</span></code> lines 112-115). <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code>
+catches that error and returns the recording unchanged
+(<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275). EEGPrep skips the
+non-positive widths and still removes bursts. The 21-channel,
+89-sample recording at 128 Hz has two windows, and eleven of those
+widths round to zero.</p></td>
 </tr>
 <tr class="row-even"><td><p>One ASR calibration window</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> when fewer than two calibration
-RMS windows are available, and when the calibration is shorter than
-one window. The error names the window count, the sample count, and
-the window length. EEGLAB raises an error that asks for different
-<code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code>. Neither call returns cleaned data.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code> when fewer than two
+calibration RMS windows are available, and when the calibration is
+shorter than one window. The error names the window count or the
+sample counts. EEGLAB’s <code class="docutils literal notranslate"><span class="pre">asr_calibrate</span></code> asks for different
+<code class="docutils literal notranslate"><span class="pre">BurstCriterionRefTolerances</span></code> (<code class="docutils literal notranslate"><span class="pre">asr_calibrate.m</span></code> lines 189-204).
+<code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> warns and skips the burst stage. A requested
+window-removal stage still runs. EEGLAB wraps the Euclidean
+<code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> call in <code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">catch</span></code> (<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines
+270-275) and <code class="docutils literal notranslate"><span class="pre">return</span></code> leaves before window removal (line 318) and
+before the rounded sampling rate is restored (line 311). Riemannian
+calibration raises the same error, and <code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skips
+that burst stage too. EEGLAB’s Riemannian call is outside the
+<code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">catch</span></code> (lines 267-268).</p></td>
 </tr>
 <tr class="row-odd"><td><p>ASR at a low sampling rate</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> raises an error naming the sampling rate when the default

@@ -476,6 +476,25 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> skips ASR and warns when calibration is shorter than
+one 0.5 s RMS window, or yields fewer than two of those windows. The
+44-sample, 128 Hz crop in issue 524 stays identical, including its two
+NaNs, when the other cleaning stages are off. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still raises
+<code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. EEGLAB prints that calibration error and returns
+before window removal; a requested window stage still runs here.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> still removes bursts when only two or three 0.5 s
+RMS windows are available. Eleven fit widths round to zero on the
+21-channel, 89-sample, 128 Hz crop in issue 526. EEGLAB indexes that
+width and returns the recording unchanged. The valid widths are still
+used here.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_clean_rawdata</span></code> with <code class="docutils literal notranslate"><span class="pre">Distance='riemannian'</span></code> warns and leaves the
+burst stage unchanged when Riemannian calibration is shorter than one
+0.1 s RMS window or yields fewer than two windows. <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> still
+raises <code class="docutils literal notranslate"><span class="pre">ASRCalibrationError</span></code>. EEGLAB calls that path outside the
+<code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">catch</span></code> in <code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> (lines 267-268). Those checks run
+before covariance or eigendecomposition, so a constant recording raises the
+same error. Short-calibration errors name the function, the sample counts,
+and whether to record more data or set <code class="docutils literal notranslate"><span class="pre">BurstCriterion</span></code> off.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">asr_process</span></code> and <code class="docutils literal notranslate"><span class="pre">asr_process_r</span></code> refresh the reconstruction on the
 last sample of a chunk when the length modulo the step is 1. A
 29-channel, 257-sample recording at 128 Hz is processed as 289 samples

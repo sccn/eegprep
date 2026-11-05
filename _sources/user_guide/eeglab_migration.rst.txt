@@ -167,13 +167,28 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
    * - ASR on a very short recording
      - With calibration reference selection off, ``clean_asr`` still returns
        cleaned data when only two or three RMS windows are available.
-       EEGLAB's calibration fit indexes a zero window width and errors.
+       EEGLAB's calibration fit indexes a zero window width and errors
+       (``asr_calibrate.m`` lines 392-395, the same index as
+       ``fit_eeg_distribution.m`` lines 112-115). ``pop_clean_rawdata``
+       catches that error and returns the recording unchanged
+       (``clean_artifacts.m`` lines 270-275). EEGPrep skips the
+       non-positive widths and still removes bursts. The 21-channel,
+       89-sample recording at 128 Hz has two windows, and eleven of those
+       widths round to zero.
    * - One ASR calibration window
-     - ``clean_asr`` raises ``ValueError`` when fewer than two calibration
-       RMS windows are available, and when the calibration is shorter than
-       one window. The error names the window count, the sample count, and
-       the window length. EEGLAB raises an error that asks for different
-       ``BurstCriterionRefTolerances``. Neither call returns cleaned data.
+     - ``clean_asr`` raises ``ASRCalibrationError`` when fewer than two
+       calibration RMS windows are available, and when the calibration is
+       shorter than one window. The error names the window count or the
+       sample counts. EEGLAB's ``asr_calibrate`` asks for different
+       ``BurstCriterionRefTolerances`` (``asr_calibrate.m`` lines 189-204).
+       ``pop_clean_rawdata`` warns and skips the burst stage. A requested
+       window-removal stage still runs. EEGLAB wraps the Euclidean
+       ``clean_asr`` call in ``try``/``catch`` (``clean_artifacts.m`` lines
+       270-275) and ``return`` leaves before window removal (line 318) and
+       before the rounded sampling rate is restored (line 311). Riemannian
+       calibration raises the same error, and ``pop_clean_rawdata`` skips
+       that burst stage too. EEGLAB's Riemannian call is outside the
+       ``try``/``catch`` (lines 267-268).
    * - ASR at a low sampling rate
      - ``clean_asr`` raises an error naming the sampling rate when the default
        spectral breakpoints are not monotonic. ``pop_clean_rawdata`` warns and

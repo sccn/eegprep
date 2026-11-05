@@ -559,10 +559,17 @@ considered bad. ‘off’ disables line-noise check. Default 4.0.</p>
 </dd>
 <dt>BurstCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>ASR standard-deviation cutoff for high-amplitude bursts; values above this
 relative to calibration data are repaired (or removed if BurstRejection=’on’).
-‘off’ skips ASR. Default 5.0. When the sampling rate makes the default
-spectral shaping filter impossible to design, ASR is skipped, a warning
-explains the rate and the breakpoint problem, and the recording at this
-stage is left unchanged.</p>
+‘off’ skips ASR. Default 5.0. ASR is skipped, with a warning, when the
+default spectral shaping filter cannot be designed, when the calibration
+is shorter than one RMS window, or when fewer than two of those
+windows can be formed. That includes Riemannian calibration, whose
+default window is 0.1 s. The recording at this stage is left unchanged.
+A requested window-removal stage still runs. EEGLAB catches only the
+Euclidean <code class="docutils literal notranslate"><span class="pre">clean_asr</span></code> call (<code class="docutils literal notranslate"><span class="pre">clean_artifacts.m</span></code> lines 270-275) and
+returns before that stage. The Riemannian call (lines 267-268) is
+outside that <code class="docutils literal notranslate"><span class="pre">try</span></code>/<code class="docutils literal notranslate"><span class="pre">catch</span></code>. Two or three Euclidean RMS windows
+still calibrate. EEGLAB indexes a rounded width of 0 and returns the
+recording unchanged; those widths are skipped here.</p>
 </dd>
 <dt>WindowCriterion<span class="classifier">float or ‘off’</span></dt><dd><p>Fraction (0-1) or count of channels allowed to be bad per window; windows with
 more bad channels are removed. ‘off’ disables final window removal. Default 0.25.</p>
