@@ -381,19 +381,23 @@ class TestPopSaveset(unittest.TestCase):
             self.assertEqual(eeg['saved'], 'no')
             self.assertEqual(eeg['filename'], 'recording.vhdr')
 
-    def test_saveset_refuses_an_explicit_non_set_path(self):
+    def test_saveset_replaces_a_non_set_extension(self):
         with tempfile.TemporaryDirectory() as tmp:
             raw = os.path.join(tmp, 'recording.edf')
             with open(raw, 'wb') as stream:
                 stream.write(b'edf-bytes')
+            other = os.path.join(tmp, 'my.data')
             eeg = self._continuous([])
-            with self.assertRaises(ValueError) as caught:
-                pop_saveset(eeg, raw)
-            self.assertIn('pop_saveset', str(caught.exception))
-            self.assertIn(raw, str(caught.exception))
+            pop_saveset(eeg, raw)
             with open(raw, 'rb') as stream:
                 self.assertEqual(stream.read(), b'edf-bytes')
-            self.assertEqual(eeg.get('saved', 'no'), 'no')
+            self.assertTrue(os.path.isfile(os.path.join(tmp, 'recording.set')))
+            self.assertEqual(eeg['filename'], 'recording.set')
+            eeg = self._continuous([])
+            pop_saveset(eeg, other)
+            self.assertTrue(os.path.isfile(os.path.join(tmp, 'my.set')))
+            self.assertFalse(os.path.exists(other))
+            self.assertEqual(eeg['filename'], 'my.set')
 
     def test_saveset_appends_set_extension_when_the_name_has_none(self):
         with tempfile.TemporaryDirectory() as tmp:

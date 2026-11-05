@@ -482,11 +482,7 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _delete_datasets(self, parent: Any | None) -> None:
-        # pop_delset.m:52-54 refuses when fewer than two datasets are loaded, then
-        # prompts (lines 56-70). The menu passes the current set as the default
-        # by calling pop_delset(ALLEEG, -CURRENTSET). The API still deletes the
-        # last dataset; only this dialog refuses, and it names Clear study / Clear all
-        # instead of telling the user to restart EEGLAB.
+        # pop_delset.m:52-70
         loaded = [index for index, eeg in enumerate(self.session.ALLEEG, start=1) if eeg]
         if len(loaded) < 2:
             self._warn(

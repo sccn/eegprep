@@ -43,10 +43,12 @@ EEGPrep keeps writing the same ``.fdt`` sidecar. Resave requires a ``.set``
 filename. A dataset imported from a raw file (``.vhdr``, ``.edf``, and the
 other readers) keeps that source name for display, but resave will not write
 the dataset over it. Pass a ``.set`` path, or use File > Save current dataset
-as. A path with no extension is stored as ``.set``. Any other extension is
-refused, and the source file is left unchanged. A missing parent folder is
-created. If that folder cannot be created or the file cannot be written,
-``pop_saveset`` raises an error and does not mark the dataset saved. A plain save without
+as. Any filename extension is replaced with ``.set`` before writing, so
+``my.data`` and ``x.edf`` are stored as ``my.set`` and ``x.set``. The original
+file is left unchanged. If the parent folder cannot be created or the
+``.set`` file is not written, ``pop_saveset`` raises an error and does not
+mark the dataset saved. A missing parent folder is created when that is
+possible. A plain save without
 ``savemode`` follows the current ``option_savetwofiles`` setting; if that
 option is disabled, the data is saved inline in the ``.set`` file.
 

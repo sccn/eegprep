@@ -17,8 +17,8 @@ Use `savemode="resave"` to keep an existing two-file dataset in its `.fdt`
 sidecar. Resave only writes a dataset that already has a `.set` filename.
 A dataset imported from `.vhdr`, `.edf`, or any other raw file has not been
 saved yet: pass a `.set` path, or use File > Save current dataset as. Resave
-will not replace the original recording. A name with no extension is saved
-as `.set`. Any other extension is refused.
+will not replace the original recording. Any other filename is stored as
+`.set`, including a name whose extension is not `.set`.
 
 A plain save follows the current `option_savetwofiles` setting and
 may inline data into the `.set` file when that option is disabled.
