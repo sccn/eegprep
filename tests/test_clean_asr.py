@@ -12,7 +12,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from threadpoolctl import threadpool_limits
 
 from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -202,39 +201,39 @@ def test_trailing_nans_are_reflected_before_processing_zeros_them():
         assert np.isnan(reflected[1, column])
 
     sig = np.concatenate((raw, reflected), axis=1)
-    with threadpool_limits(limits=1, user_api="blas"):
-        state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
-        step = int(math.floor(srate * window_len / 2))
-        processed, _state = asr_process(
-            sig,
-            srate,
-            state,
-            window_len=window_len,
-            lookahead=window_len / 2,
-            step_size=step,
-            max_dims=0.66,
-            max_mem=64,
-        )
-        tail = processed[:, raw.shape[1] :]
-        for sample in (245, 246):
-            column = list(extrap_indices).index(sample)
-            assert tail[1, column] == 0.0
+    state = asr_calibrate(raw.copy(), srate, cutoff=5.0)
+    step = int(math.floor(srate * window_len / 2))
+    processed, _state = asr_process(
+        sig,
+        srate,
+        state,
+        window_len=window_len,
+        lookahead=window_len / 2,
+        step_size=step,
+        max_dims=0.66,
+        max_mem=64,
+    )
+    tail = processed[:, raw.shape[1] :]
+    for sample in (245, 246):
+        column = list(extrap_indices).index(sample)
+        assert tail[1, column] == 0.0
 
-        cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
-        np.testing.assert_array_equal(cleaned["data"], processed[:, : raw.shape[1]])
-        np.testing.assert_array_equal(eeg["data"], raw)
+    cleaned = clean_asr(eeg, cutoff=5.0, ref_maxbadchannels="off")
+    np.testing.assert_array_equal(cleaned["data"], processed[:, : raw.shape[1]])
+    np.testing.assert_array_equal(eeg["data"], raw)
 
-        zeroed = raw.copy()
-        zeroed[~np.isfinite(zeroed)] = 0.0
-        zeroed_eeg = dict(eeg)
-        zeroed_eeg["data"] = zeroed
-        cleaned_zeroed = clean_asr(zeroed_eeg, cutoff=5.0, ref_maxbadchannels="off")
+    zeroed = raw.copy()
+    zeroed[~np.isfinite(zeroed)] = 0.0
+    zeroed_eeg = dict(eeg)
+    zeroed_eeg["data"] = zeroed
+    cleaned_zeroed = clean_asr(zeroed_eeg, cutoff=5.0, ref_maxbadchannels="off")
     finite = np.isfinite(raw)
     gap = np.abs(cleaned["data"] - cleaned_zeroed["data"])[finite]
     # Same gap the nightly fuzzer measured against EEGLAB on this crop.
     np.testing.assert_allclose(gap.max(), 11.59255144724768, rtol=0, atol=1e-9)
-    scale = np.abs(cleaned["data"][finite])
-    np.testing.assert_allclose((gap / np.maximum(scale, 1e-300)).max(), 44.455707521301576, rtol=0, atol=1e-9)
+    window = slice(raw.shape[1] - n_extrap, None)
+    signal_scale = np.max(np.abs(cleaned["data"][:, window][finite[:, window]]))
+    np.testing.assert_allclose(gap.max() / signal_scale, 0.15200149020594309, rtol=0, atol=1e-9)
 
 
 if __name__ == '__main__':
