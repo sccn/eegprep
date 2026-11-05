@@ -642,6 +642,81 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(destination.is_file())
             self.assertFalse(blocked.exists())
 
+    def test_save_as_confirms_the_set_file_that_will_be_written(self):
+        import tempfile
+        from pathlib import Path
+
+        session = EEGPrepSession()
+        eeg = _demo_eeg()
+        eeg["saved"] = "no"
+        session.store_current(eeg, new=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            typed = folder / "test.edf"
+            written = folder / "test.set"
+            typed.write_bytes(b"edf-bytes")
+            dialog_options = []
+            prompts = []
+
+            class DialogOption:
+                DontConfirmOverwrite = 8
+
+            class QMessageBox:
+                class StandardButton:
+                    Yes = 1
+                    No = 2
+
+                answer = StandardButton.No
+
+                @staticmethod
+                def question(_parent, title, text, buttons, default):
+                    prompts.append((title, text, buttons, default))
+                    return QMessageBox.answer
+
+            class QFileDialog:
+                Option = DialogOption
+
+                @staticmethod
+                def getSaveFileName(_parent, _caption, _directory, _filter, **kwargs):
+                    dialog_options.append(kwargs.get("options"))
+                    return str(typed), ""
+
+            qt_widgets = type("FakeQtWidgets", (), {"QFileDialog": QFileDialog, "QMessageBox": QMessageBox})
+            dispatcher = MenuActionDispatcher(session, native_file_dialogs=True)
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+
+            self.assertEqual(dialog_options, [DialogOption.DontConfirmOverwrite])
+            self.assertEqual(prompts, [])
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertTrue(written.is_file())
+            self.assertEqual(session.EEG["filename"], "test.set")
+            self.assertEqual(session.EEG["saved"], "yes")
+            original = written.read_bytes()
+
+            session.EEG["saved"] = "no"
+            session.EEG["setname"] = "replaced"
+            before = session.LASTCOM
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertEqual(len(prompts), 1)
+            self.assertIn(str(written), prompts[0][1])
+            self.assertNotIn("test.edf", prompts[0][1])
+            self.assertEqual(prompts[0][3], QMessageBox.StandardButton.No)
+            self.assertEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.LASTCOM, before)
+            self.assertEqual(session.EEG["saved"], "no")
+
+            QMessageBox.answer = QMessageBox.StandardButton.Yes
+            with mock.patch("eegprep.functions.guifunc.menu_actions._require_qt_widgets", return_value=qt_widgets):
+                dispatcher.dispatch("pop_saveset")
+            self.assertIn(str(written), prompts[-1][1])
+            self.assertNotEqual(written.read_bytes(), original)
+            self.assertEqual(typed.read_bytes(), b"edf-bytes")
+            self.assertEqual(session.EEG["saved"], "yes")
+            self.assertIn(repr(str(written)), session.LASTCOM)
+
     def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
         session = EEGPrepSession()
         for name in ("first", "second"):

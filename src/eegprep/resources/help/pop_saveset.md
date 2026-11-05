@@ -31,7 +31,9 @@ has its activations, and loading the file recomputes them.
 The main-window save actions update dataset `filename`, `filepath`, and
 `saved` metadata and record the save command in session history. File >
 Resave current dataset(s) on a never-saved dataset opens Save as instead of
-writing over the source file. Resaving multiple selected datasets requires
-each dataset to already have a `.set` filename.
+writing over the source file. Save current dataset as asks before replacing
+the `.set` file that will be written. A typed name such as `test.edf` is
+stored as `test.set`. Resaving multiple selected datasets requires each
+dataset to already have a `.set` filename.
 
 See also: POP_LOADSET

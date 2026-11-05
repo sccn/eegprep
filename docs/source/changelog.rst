@@ -49,7 +49,10 @@ Unreleased
 - ``pop_saveset`` resave writes only an existing ``.set`` file. File > Resave
   on a dataset imported from ``.vhdr``, ``.edf``, or another raw file opens
   Save as instead of replacing that recording. Any filename extension is
-  replaced with ``.set`` (``pop_saveset.m`` lines 126-127). EEGLAB prompts
+  replaced with ``.set`` (``pop_saveset.m`` lines 126-127). File > Save
+  current dataset as asks before replacing that ``.set`` file. Typing
+  ``test.edf`` writes ``test.set`` and does not ask about ``test.edf``.
+  EEGLAB prompts
   when the filename is empty (lines 81-96). Its resave path then copies
   ``EEG.filename`` unchanged (line 192), which would overwrite a raw source
   if an importer had stored one. Resave here does not do that.

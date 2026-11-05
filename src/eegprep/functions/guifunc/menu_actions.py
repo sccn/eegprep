@@ -539,8 +539,14 @@ class MenuActionDispatcher:
                 "Save current dataset as",
                 _save_as_suggestion(datasets[0]),
                 "EEGPrep/EEGLAB datasets (*.set);;All files (*)",
-                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs),
+                **file_dialog_kwargs(
+                    qt_widgets,
+                    native_file_dialogs=self.native_file_dialogs,
+                    confirm_overwrite=False,
+                ),
             )
+            if filename:
+                filename = _confirm_set_overwrite(qt_widgets, parent, filename)
             filenames = [filename]
         if len(datasets) == 1 and not filename:
             return
@@ -1805,6 +1811,32 @@ def _resave_set_path(eeg: dict[str, Any]) -> str:
     if path and Path(path).suffix.lower() == ".set":
         return path
     return ""
+
+
+def _confirm_set_overwrite(qt_widgets: Any, parent: Any | None, filename: str) -> str:
+    # pop_saveset.m:126-127
+    target = Path(filename).with_suffix(".set")
+    if not target.is_file():
+        return str(target)
+    box = qt_widgets.QMessageBox
+    yes = _message_button(box, "Yes")
+    no = _message_button(box, "No")
+    answer = box.question(
+        parent,
+        "Save current dataset as",
+        f"{target} already exists.\nDo you want to replace it?",
+        yes | no,
+        no,
+    )
+    return str(target) if answer == yes else ""
+
+
+def _message_button(box: Any, name: str) -> Any:
+    standard = getattr(box, "StandardButton", None)
+    value = getattr(standard, name, None) if standard is not None else None
+    if value is not None:
+        return value
+    return getattr(box, name)
 
 
 def _save_as_suggestion(eeg: dict[str, Any]) -> str:
