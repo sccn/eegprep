@@ -11,9 +11,10 @@ Unreleased
 ==========
 
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
-  ``type``. ``pop_loadbva`` does not set them; ``eeg_checkchanlocs`` fills a
-  missing string field with ``''`` (``eeg_checkchanlocs.m`` lines 148-162).
-  An unknown channel variable is still appended once.
+  ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
+  ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the
+  checked structure also carries empty ``type``. An unknown channel variable
+  is still appended once.
 - ``pop_fileio_brainvision_mat`` reads a BrainVision Analyzer MATLAB export
   the way bva-io ``pop_loadbva.m`` lines 46-139 does: one variable per channel,
   ``SampleRate``, the ``t`` axis in milliseconds, and ``Markers``. Channel

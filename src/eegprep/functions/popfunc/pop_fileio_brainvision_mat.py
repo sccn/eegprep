@@ -254,13 +254,13 @@ def _chanlocs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             loc["sph_phi_besa"] = _optional_number(_record_value(record, "Phi"))
             loc["sph_radius"] = radius
         chanlocs.append(loc)
-    # pop_loadbva.m:101-103, then eeg_checkchanlocs.m:148-162
+    # pop_loadbva.m:101-103
     converted = convertlocs(chanlocs, "sphbesa2all")
     for loc in converted:
         loc.pop("sph_theta_besa", None)
         loc.pop("sph_phi_besa", None)
-        loc["ref"] = ""
-        loc["type"] = ""
+        loc.setdefault("ref", "")
+        loc.setdefault("type", "")
     return converted
 
 

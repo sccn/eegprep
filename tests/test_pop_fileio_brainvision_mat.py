@@ -255,8 +255,8 @@ def _assert_besa_location(loc, theta_besa, phi_besa, radius):
 
 def _assert_empty_ref_and_type(chanlocs):
     for loc in chanlocs:
-        assert loc["ref"] == ""
-        assert loc["type"] == ""
+        assert "ref" in loc and loc["ref"] == ""
+        assert "type" in loc and loc["type"] == ""
 
 
 def _suite_bva_file(request, name):
