@@ -351,8 +351,7 @@ class MenuActionDispatcher:
             self._saveset(parent, resave=variant == "resave")
             return
         if base == "pop_delset":
-            self.session.delete_current()
-            self._refresh()
+            self._delete_datasets(parent)
             return
         if base == "retrieve_dataset":
             self._retrieve_dataset(int(variant))
@@ -480,6 +479,45 @@ class MenuActionDispatcher:
         command = f"EEG = pop_loadset({filename!r});"
         eeg = pop_loadset(filename)
         self._store_current_from_gui(eeg, new=True, command=command)
+        self._refresh()
+
+    def _delete_datasets(self, parent: Any | None) -> None:
+        # pop_delset.m:52-54 refuses when fewer than two datasets are loaded, then
+        # prompts (lines 56-70). The menu passes the current set as the default
+        # by calling pop_delset(ALLEEG, -CURRENTSET). The API still deletes the
+        # last dataset; only this dialog refuses, and it names Clear study / Clear all
+        # instead of telling the user to restart EEGLAB.
+        loaded = [index for index, eeg in enumerate(self.session.ALLEEG, start=1) if eeg]
+        if len(loaded) < 2:
+            self._warn(
+                parent,
+                "pop_delset cannot delete the only loaded dataset. "
+                "Use File > Clear study / Clear all to remove every dataset.",
+            )
+            return
+        from eegprep.functions.guifunc.inputdlg2 import inputdlg2
+        from eegprep.functions.miscfunc.value_parsing import parse_numeric_sequence
+
+        default = " ".join(str(index) for index in self.session.CURRENTSET) or "1"
+        answers = inputdlg2(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            [default],
+            "pop_delset",
+        )
+        if not answers or not str(answers[0]).strip():
+            return
+        try:
+            indices = [int(value) for value in parse_numeric_sequence(answers[0], dtype=int)]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"pop_delset: '{answers[0]}' is not a list of dataset numbers. "
+                "Enter numbers such as 2 or 1 3, or a range such as 1:3."
+            ) from exc
+        if not indices:
+            return
+        self.session.delete_indices(indices)
         self._refresh()
 
     def _saveset(self, parent: Any | None, *, resave: bool = False) -> None:

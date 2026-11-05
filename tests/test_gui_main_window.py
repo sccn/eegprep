@@ -642,6 +642,84 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(destination.is_file())
             self.assertFalse(blocked.exists())
 
+    def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
+        session = EEGPrepSession()
+        for name in ("first", "second"):
+            eeg = _demo_eeg()
+            eeg["setname"] = name
+            session.store_current(eeg, new=True)
+        session.retrieve(2)
+        dispatcher = MenuActionDispatcher(session)
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=[]) as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_called_once()
+        prompts, title, _lines, defaults, funcname = dialog.call_args.args
+        self.assertEqual(prompts, ["Dataset(s) to delete:"])
+        self.assertEqual(title, "Delete dataset -- pop_delset()")
+        self.assertEqual(defaults, ["2"])
+        self.assertEqual(funcname, "pop_delset")
+        self.assertEqual([item["setname"] for item in session.ALLEEG], ["first", "second"])
+        self.assertEqual(session.LASTCOM, "")
+
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["1"]):
+            dispatcher.dispatch("pop_delset")
+        self.assertEqual(session.ALLEEG[0], {})
+        self.assertEqual(session.ALLEEG[1]["setname"], "second")
+        self.assertIn("pop_delset", session.LASTCOM)
+        self.assertIn("[1]", session.LASTCOM)
+
+    def test_delete_dataset_refuses_the_only_loaded_dataset(self):
+        session = EEGPrepSession()
+        session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        warnings = []
+        dispatcher._warn = lambda _parent, message: warnings.append(message)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2") as dialog:
+            dispatcher.dispatch("pop_delset")
+        dialog.assert_not_called()
+        self.assertEqual(len(session.ALLEEG), 1)
+        self.assertIn("pop_delset", warnings[0])
+        self.assertIn("Clear study / Clear all", warnings[0])
+
+    def test_delete_dataset_rejects_a_number_that_is_not_loaded(self):
+        session = EEGPrepSession()
+        for _name in ("first", "second"):
+            session.store_current(_demo_eeg(), new=True)
+        dispatcher = MenuActionDispatcher(session)
+        with mock.patch("eegprep.functions.guifunc.inputdlg2.inputdlg2", return_value=["9"]):
+            with self.assertRaises(ValueError) as caught:
+                dispatcher.dispatch("pop_delset")
+        self.assertIn("pop_delset", str(caught.exception))
+        self.assertIn("9", str(caught.exception))
+        self.assertEqual(len(session.ALLEEG), 2)
+
+    def test_delete_dataset_dialog_has_help_cancel_and_ok(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        try:
+            from eegprep.functions.guifunc import qt as qt_module
+            from eegprep.functions.guifunc.inputdlg2 import inputdlg2_dialog_spec
+        except ImportError:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        if qt_module.QtWidgets is None:
+            self.skipTest("PySide6 Qt libraries unavailable in this environment")
+        spec = inputdlg2_dialog_spec(
+            ["Dataset(s) to delete:"],
+            "Delete dataset -- pop_delset()",
+            1,
+            ["2"],
+            "pop_delset",
+        )
+        _app, dialog, widgets = qt_module.QtDialogRenderer().build_dialog(spec)
+        try:
+            self.assertEqual(dialog.windowTitle(), "Delete dataset -- pop_delset()")
+            self.assertEqual(widgets["answer0"].text(), "2")
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "help"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "cancel"))
+            self.assertIsNotNone(dialog.findChild(qt_module.QtWidgets.QPushButton, "ok"))
+        finally:
+            dialog.close()
+
     def test_new_main_window_pop_actions_dispatch_to_real_wrappers(self):
         newset_actions = {
             "pop_clean_rawdata",

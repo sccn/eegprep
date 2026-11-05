@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > Clear dataset(s) and Edit > Delete dataset(s) from memory ask for
+  confirmation in the same dialog as EEGLAB ``pop_delset.m`` lines 56-70
+  ("Delete dataset -- pop_delset()", "Dataset(s) to delete:"). Cancel deletes
+  nothing. With only one dataset loaded, the menu refuses and points at
+  File > Clear study / Clear all. EEGLAB raises "Restart EEGLAB" for that
+  case (``pop_delset.m`` lines 52-54) and also blocks a direct call.
+  ``pop_delset(ALLEEG, index)`` still deletes the last dataset.
 - ``pop_saveset`` creates a missing parent folder. If the folder cannot be
   created or the ``.set`` file is not written, it raises an error that names
   ``pop_saveset`` and the path, and it does not mark the dataset saved.

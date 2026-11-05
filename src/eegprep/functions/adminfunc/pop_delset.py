@@ -18,9 +18,15 @@ def pop_delset(
     delete_indices = [int(indices)] if isinstance(indices, int) else [int(index) for index in indices]
     for index in set(delete_indices):
         if index < 1:
-            raise ValueError("EEGLAB dataset indices are 1-based")
+            raise ValueError(
+                f"pop_delset: dataset index {index} is not valid. "
+                "Dataset numbers start at 1. Pass a loaded dataset number."
+            )
         if index > len(alleeg):
-            raise IndexError(f"No dataset at EEGLAB index {index}")
+            raise ValueError(
+                f"pop_delset: dataset {index} is not loaded. "
+                f"There are {len(alleeg)} dataset slots. Pass a number from 1 to {len(alleeg)}."
+            )
         alleeg[index - 1] = {}
     while alleeg and not alleeg[-1]:
         alleeg.pop()
