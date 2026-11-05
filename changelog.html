@@ -476,6 +476,52 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> reads a BrainVision Analyzer MATLAB export
+the way bva-io <code class="docutils literal notranslate"><span class="pre">pop_loadbva.m</span></code> lines 46-139 does: one variable per channel,
+<code class="docutils literal notranslate"><span class="pre">SampleRate</span></code>, the <code class="docutils literal notranslate"><span class="pre">t</span></code> axis in milliseconds, and <code class="docutils literal notranslate"><span class="pre">Markers</span></code>. Channel
+locations are converted with <code class="docutils literal notranslate"><span class="pre">convertlocs(...,</span> <span class="pre">'sphbesa2all')</span></code> and the
+BESA angles are then removed (lines 101-103), leaving theta, radius, X/Y/Z,
+and spherical coordinates. A marker with an empty <code class="docutils literal notranslate"><span class="pre">Description</span></code> is
+skipped (lines 112-113). A name such as <code class="docutils literal notranslate"><span class="pre">xFp1</span></code> matches channel <code class="docutils literal notranslate"><span class="pre">Fp1</span></code>.
+An unknown channel variable is appended once. <code class="docutils literal notranslate"><span class="pre">pop_loadbva.m</span></code> lines 61-65
+each call <code class="docutils literal notranslate"><span class="pre">chanstruct(end+1)</span></code>, so EEGLAB appends four records (one named
+record and three empty ones). A MATLAB v7.3 file or any other <code class="docutils literal notranslate"><span class="pre">.mat</span></code>
+layout raises an error instead of returning a one-channel guess. The
+history command remains <code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code>. The dataset
+filename is left empty so a later resave cannot overwrite the <code class="docutils literal notranslate"><span class="pre">.mat</span></code>
+export.</p></li>
+<li><p>File &gt; Clear dataset(s) and Edit &gt; Delete dataset(s) from memory ask for
+confirmation in the same dialog as EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_delset.m</span></code> lines 56-70
+(“Delete dataset – pop_delset()”, “Dataset(s) to delete:”). Cancel deletes
+nothing. With only one dataset loaded, the menu refuses and points at
+File &gt; Clear study / Clear all. EEGLAB raises “Restart EEGLAB” for that
+case (<code class="docutils literal notranslate"><span class="pre">pop_delset.m</span></code> lines 52-54) and also blocks a direct call.
+<code class="docutils literal notranslate"><span class="pre">pop_delset(ALLEEG,</span> <span class="pre">index)</span></code> still deletes the last dataset. A dataset
+number that is not loaded raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> from <code class="docutils literal notranslate"><span class="pre">pop_delset</span></code>
+(previously <code class="docutils literal notranslate"><span class="pre">IndexError</span></code>). EEGLAB reports that case as
+<code class="docutils literal notranslate"><span class="pre">Error:</span> <span class="pre">no</span> <span class="pre">such</span> <span class="pre">dataset</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> checks that the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file exists before it marks the
+dataset saved. If the parent folder cannot be created or the file is not
+written, it raises an error that names <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> and the path.
+Creating a missing parent folder was already the behavior.</p></li>
+<li><p>Edit &gt; Event values and Edit &gt; Channel locations treat the number field as
+a goto. Enter shows that event or channel, and a number outside the list
+is clamped to the ends, as in <code class="docutils literal notranslate"><span class="pre">pop_editeventvals.m</span></code> lines 153-160 and
+571. An edit is applied to the record on screen before the arrows or a
+typed number leave it, and Ok records every edit. EEGLAB writes each field
+from its edit callback before navigation. A number that is still out of
+range raises an error from <code class="docutils literal notranslate"><span class="pre">pop_editeventvals</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_chanedit</span></code>
+instead of <code class="docutils literal notranslate"><span class="pre">list</span> <span class="pre">index</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">range</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> resave writes only an existing <code class="docutils literal notranslate"><span class="pre">.set</span></code> file. File &gt; Resave
+on a dataset imported from <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code>, <code class="docutils literal notranslate"><span class="pre">.edf</span></code>, or another raw file opens
+Save as instead of replacing that recording. Any filename extension is
+replaced with <code class="docutils literal notranslate"><span class="pre">.set</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_saveset.m</span></code> lines 126-127). File &gt; Save
+current dataset as asks before replacing that <code class="docutils literal notranslate"><span class="pre">.set</span></code> file. Typing
+<code class="docutils literal notranslate"><span class="pre">test.edf</span></code> writes <code class="docutils literal notranslate"><span class="pre">test.set</span></code> and does not ask about <code class="docutils literal notranslate"><span class="pre">test.edf</span></code>.
+EEGLAB prompts
+when the filename is empty (lines 81-96). Its resave path then copies
+<code class="docutils literal notranslate"><span class="pre">EEG.filename</span></code> unchanged (line 192), which would overwrite a raw source
+if an importer had stored one. Resave here does not do that.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_rmbase</span></code> returns an empty dataset unchanged and logs a warning.
 That includes a zero-epoch result, such as epoching that selected no
 events, and continuous data with no samples. EEGLAB prints the same

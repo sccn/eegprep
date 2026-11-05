@@ -266,13 +266,15 @@ float32 ``.fdt`` sidecar.
 
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 107-110
+.. GENERATED FROM PYTHON SOURCE LINES 107-112
 
 Delete datasets from memory (``Edit > Delete dataset(s) from memory`` or
-``File > Clear dataset(s)``). As in EEGLAB, the slot is emptied in place, so the
-remaining datasets keep their numbers; trailing empty slots are dropped.
+``File > Clear dataset(s)``). The menu asks for the dataset numbers first and
+does not remove the only loaded dataset; this call deletes immediately. As in
+EEGLAB, the slot is emptied in place, so the remaining datasets keep their
+numbers; trailing empty slots are dropped.
 
-.. GENERATED FROM PYTHON SOURCE LINES 110-114
+.. GENERATED FROM PYTHON SOURCE LINES 112-116
 
 .. code-block:: Python
 
@@ -297,7 +299,7 @@ remaining datasets keep their numbers; trailing empty slots are dropped.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 0.194 seconds)
+   **Total running time of the script:** (0 minutes 0.231 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_dataset_management.py:

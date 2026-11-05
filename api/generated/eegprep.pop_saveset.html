@@ -646,7 +646,9 @@ written empty, the same as a missing field.</p>
 <dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data.</p>
 </dd>
 <dt>file_name<span class="classifier">str, optional</span></dt><dd><p>File name. EEGLAB-style <code class="docutils literal notranslate"><span class="pre">filename</span></code>/<code class="docutils literal notranslate"><span class="pre">filepath</span></code>/<code class="docutils literal notranslate"><span class="pre">savemode</span></code> keyword
-arguments are also accepted.</p>
+arguments are also accepted. Any extension is stored as <code class="docutils literal notranslate"><span class="pre">.set</span></code>.
+<code class="docutils literal notranslate"><span class="pre">savemode=&quot;resave&quot;</span></code> requires an existing <code class="docutils literal notranslate"><span class="pre">.set</span></code> filename and will
+not replace a raw source file.</p>
 </dd>
 </dl>
 </section>

@@ -712,6 +712,13 @@ fields. Use <code class="docutils literal notranslate"><span class="pre">metadat
 without loading samples. Uniform marker-based or fixed-time segments are
 returned as trials rather than a flattened continuous array. BIDS import uses
 this same reader for <code class="docutils literal notranslate"><span class="pre">.vhdr</span></code> files.</p>
+<p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> reads a BrainVision Analyzer MATLAB export.
+The file has one variable per channel plus <code class="docutils literal notranslate"><span class="pre">Channels</span></code>, <code class="docutils literal notranslate"><span class="pre">SampleRate</span></code>,
+<code class="docutils literal notranslate"><span class="pre">t</span></code> (milliseconds), <code class="docutils literal notranslate"><span class="pre">SegmentCount</span></code>, and <code class="docutils literal notranslate"><span class="pre">Markers</span></code>. A segmented channel
+matrix is segments by time. A marker with an empty <code class="docutils literal notranslate"><span class="pre">Description</span></code> is not an
+event, matching bva-io <code class="docutils literal notranslate"><span class="pre">pop_loadbva.m</span></code> lines 112-113. A MATLAB v7.3 file,
+or a <code class="docutils literal notranslate"><span class="pre">.mat</span></code> that is not this export, raises an error instead of returning
+a guessed array. This reader does not need the <code class="docutils literal notranslate"><span class="pre">mne</span></code> extra.</p>
 <p><code class="docutils literal notranslate"><span class="pre">read_erpss</span></code> reads uncompressed and delta-compressed ERPSS <code class="docutils literal notranslate"><span class="pre">.RAW</span></code> and
 <code class="docutils literal notranslate"><span class="pre">.RDF</span></code> recordings without a compiled MEX extension. It preserves channel
 labels and 1-based event sample offsets, and supports both little- and

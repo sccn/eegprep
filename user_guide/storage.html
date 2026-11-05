@@ -549,7 +549,17 @@ array’s dtype. <code class="docutils literal notranslate"><span class="pre">po
 activations. Event and channel indices load as integers, and integral
 <code class="docutils literal notranslate"><span class="pre">run</span></code> and <code class="docutils literal notranslate"><span class="pre">session</span></code> labels stay integers.</p>
 <p>When an existing two-file dataset is saved with <code class="docutils literal notranslate"><span class="pre">savemode=&quot;resave&quot;</span></code>,
-EEGPrep keeps writing the same <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar. A plain save without
+EEGPrep keeps writing the same <code class="docutils literal notranslate"><span class="pre">.fdt</span></code> sidecar. Resave requires a <code class="docutils literal notranslate"><span class="pre">.set</span></code>
+filename. A dataset imported from a raw file (<code class="docutils literal notranslate"><span class="pre">.vhdr</span></code>, <code class="docutils literal notranslate"><span class="pre">.edf</span></code>, and the
+other readers) keeps that source name for display, but resave will not write
+the dataset over it. Pass a <code class="docutils literal notranslate"><span class="pre">.set</span></code> path, or use File &gt; Save current dataset
+as. Any filename extension is replaced with <code class="docutils literal notranslate"><span class="pre">.set</span></code> before writing, so
+<code class="docutils literal notranslate"><span class="pre">my.data</span></code> and <code class="docutils literal notranslate"><span class="pre">x.edf</span></code> are stored as <code class="docutils literal notranslate"><span class="pre">my.set</span></code> and <code class="docutils literal notranslate"><span class="pre">x.set</span></code>. The original
+file is left unchanged. File &gt; Save current dataset as asks before replacing
+the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file that will be written. If the parent folder cannot be created or the
+<code class="docutils literal notranslate"><span class="pre">.set</span></code> file is not written, <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> raises an error and does not
+mark the dataset saved. A missing parent folder is created when that is
+possible. A plain save without
 <code class="docutils literal notranslate"><span class="pre">savemode</span></code> follows the current <code class="docutils literal notranslate"><span class="pre">option_savetwofiles</span></code> setting; if that
 option is disabled, the data is saved inline in the <code class="docutils literal notranslate"><span class="pre">.set</span></code> file.</p>
 </section>

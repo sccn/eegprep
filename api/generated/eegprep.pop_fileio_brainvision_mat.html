@@ -635,10 +635,23 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_fileio_brainvision_mat">
 <span class="sig-name descname"><span class="pre">pop_fileio_brainvision_mat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_fileio_brainvision_mat" title="Link to this definition">#</a></dt>
-<dd><p>Import a BrainVision Analyzer MATLAB file.</p>
-<p>EEGLAB exposes this menu through the optional <code class="docutils literal notranslate"><span class="pre">bva-io</span></code> plugin. EEGPrep
-does not depend on that plugin at runtime, so this wrapper delegates MATLAB
-files to the existing standalone File-IO/MAT importer.</p>
+<dd><p>Import a BrainVision Analyzer MATLAB export.</p>
+<section id="parameters">
+<h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
+<dl class="simple">
+<dt>filename<span class="classifier">str or Path</span></dt><dd><p>MATLAB v7 <code class="docutils literal notranslate"><span class="pre">.mat</span></code> export. v7.3 (HDF5) files are refused.</p>
+</dd>
+<dt>return_com<span class="classifier">bool, optional</span></dt><dd><p>When true, also return the history command.</p>
+</dd>
+</dl>
+</section>
+<section id="returns">
+<h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
+<dl class="simple">
+<dt>dict or tuple</dt><dd><p>EEG dataset, or <code class="docutils literal notranslate"><span class="pre">(EEG,</span> <span class="pre">command)</span></code> when <code class="docutils literal notranslate"><span class="pre">return_com</span></code> is true.</p>
+</dd>
+</dl>
+</section>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

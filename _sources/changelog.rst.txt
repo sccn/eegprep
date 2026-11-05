@@ -10,6 +10,52 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_fileio_brainvision_mat`` reads a BrainVision Analyzer MATLAB export
+  the way bva-io ``pop_loadbva.m`` lines 46-139 does: one variable per channel,
+  ``SampleRate``, the ``t`` axis in milliseconds, and ``Markers``. Channel
+  locations are converted with ``convertlocs(..., 'sphbesa2all')`` and the
+  BESA angles are then removed (lines 101-103), leaving theta, radius, X/Y/Z,
+  and spherical coordinates. A marker with an empty ``Description`` is
+  skipped (lines 112-113). A name such as ``xFp1`` matches channel ``Fp1``.
+  An unknown channel variable is appended once. ``pop_loadbva.m`` lines 61-65
+  each call ``chanstruct(end+1)``, so EEGLAB appends four records (one named
+  record and three empty ones). A MATLAB v7.3 file or any other ``.mat``
+  layout raises an error instead of returning a one-channel guess. The
+  history command remains ``pop_fileio_brainvision_mat``. The dataset
+  filename is left empty so a later resave cannot overwrite the ``.mat``
+  export.
+- File > Clear dataset(s) and Edit > Delete dataset(s) from memory ask for
+  confirmation in the same dialog as EEGLAB ``pop_delset.m`` lines 56-70
+  ("Delete dataset -- pop_delset()", "Dataset(s) to delete:"). Cancel deletes
+  nothing. With only one dataset loaded, the menu refuses and points at
+  File > Clear study / Clear all. EEGLAB raises "Restart EEGLAB" for that
+  case (``pop_delset.m`` lines 52-54) and also blocks a direct call.
+  ``pop_delset(ALLEEG, index)`` still deletes the last dataset. A dataset
+  number that is not loaded raises ``ValueError`` from ``pop_delset``
+  (previously ``IndexError``). EEGLAB reports that case as
+  ``Error: no such dataset``.
+- ``pop_saveset`` checks that the ``.set`` file exists before it marks the
+  dataset saved. If the parent folder cannot be created or the file is not
+  written, it raises an error that names ``pop_saveset`` and the path.
+  Creating a missing parent folder was already the behavior.
+- Edit > Event values and Edit > Channel locations treat the number field as
+  a goto. Enter shows that event or channel, and a number outside the list
+  is clamped to the ends, as in ``pop_editeventvals.m`` lines 153-160 and
+  571. An edit is applied to the record on screen before the arrows or a
+  typed number leave it, and Ok records every edit. EEGLAB writes each field
+  from its edit callback before navigation. A number that is still out of
+  range raises an error from ``pop_editeventvals`` or ``pop_chanedit``
+  instead of ``list index out of range``.
+- ``pop_saveset`` resave writes only an existing ``.set`` file. File > Resave
+  on a dataset imported from ``.vhdr``, ``.edf``, or another raw file opens
+  Save as instead of replacing that recording. Any filename extension is
+  replaced with ``.set`` (``pop_saveset.m`` lines 126-127). File > Save
+  current dataset as asks before replacing that ``.set`` file. Typing
+  ``test.edf`` writes ``test.set`` and does not ask about ``test.edf``.
+  EEGLAB prompts
+  when the filename is empty (lines 81-96). Its resave path then copies
+  ``EEG.filename`` unchanged (line 192), which would overwrite a raw source
+  if an importer had stored one. Resave here does not do that.
 - ``pop_rmbase`` returns an empty dataset unchanged and logs a warning.
   That includes a zero-epoch result, such as epoching that selected no
   events, and continuous data with no samples. EEGLAB prints the same

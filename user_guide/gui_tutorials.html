@@ -560,7 +560,10 @@ or embed it. The default <code class="docutils literal notranslate"><span class=
   <p>Choose <strong>Plot > Channel data (scroll)</strong> to inspect the
   current dataset in EEGBrowser.</p>
   <p>Choose <strong>File > Save current dataset as</strong> when you want a
-  new <code>.set</code> file.</p>
+  new <code>.set</code> file. <strong>File > Resave current dataset(s)</strong>
+  updates a dataset that already has a <code>.set</code> file. A dataset
+  imported from a raw recording opens Save as instead, so the original
+  file is not replaced.</p>
 </div><p>Equivalent console calls:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_loadset</span><span class="p">,</span> <span class="n">pop_saveset</span>
