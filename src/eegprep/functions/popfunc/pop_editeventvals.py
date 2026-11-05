@@ -65,6 +65,10 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             return None
         return CallbackSpec(name="navigate_event", params={**_nav_base, "delta": delta, "source": tag})
 
+    eventnum_callback = (
+        CallbackSpec(name="navigate_event", params={**_nav_base, "delta": 0, "source": "eventnum"}) if events else None
+    )
+
     controls: list[ControlSpec] = [
         ControlSpec("text", f"Edit event field values (currently {len(events)} events)", font_weight="bold"),
         ControlSpec("pushbutton", "Delete event", tag="delete_button", enabled=False),
@@ -93,7 +97,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", "Insert event", tag="insert_button", enabled=False),
             ControlSpec("pushbutton", "<<", tag="back10", enabled=nav_enabled, callback=_nav("back10", -10)),
             ControlSpec("pushbutton", "<", tag="back1", enabled=nav_enabled, callback=_nav("back1", -1)),
-            ControlSpec("edit", tag="eventnum", value="1"),
+            ControlSpec("edit", tag="eventnum", value="1", callback=eventnum_callback),
             ControlSpec("pushbutton", ">", tag="next1", enabled=nav_enabled, callback=_nav("next1", 1)),
             ControlSpec("pushbutton", ">>", tag="next10", enabled=nav_enabled, callback=_nav("next10", 10)),
             ControlSpec("pushbutton", "Append event", tag="append_button", enabled=False),
@@ -133,7 +137,18 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
     result = inputgui(pop_editeventvals_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    event_index = int(float(result.get("eventnum") or 1))
+    try:
+        event_index = int(float(result.get("eventnum") or 1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "pop_editeventvals: the event number must be an integer from 1 to "
+            f"{len(events)}. Type an event number in that range and press Enter."
+        ) from exc
+    if event_index < 1 or event_index > len(events):
+        raise ValueError(
+            f"pop_editeventvals: event number {event_index} is outside 1 to {len(events)}. "
+            "Type an event number in that range and press Enter."
+        )
     current = events[event_index - 1]
     options: list[tuple[str, Any]] = []
     for field in fields:

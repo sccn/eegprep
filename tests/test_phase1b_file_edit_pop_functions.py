@@ -494,6 +494,67 @@ def test_qt_renderer_navigation_updates_channel_and_fields():
         dialog.close()
 
 
+def test_channel_number_enter_loads_that_channel_and_ok_does_not_copy_channel_1():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    eeg = _eeg()
+    renderer = qt_module.QtDialogRenderer()
+    _app, dialog, widgets = renderer.build_dialog(pop_chanedit_dialog_spec(eeg))
+    dialog2 = None
+    try:
+        widgets["channel"].setText("2")
+        widgets["channel"].editingFinished.emit()
+        assert widgets["channel"].text() == "2"
+        assert widgets["field_labels"].text() == "Pz"
+        widgets["field_labels"].setText("Oz")
+        dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+        entered = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+
+        _app, dialog2, widgets2 = renderer.build_dialog(pop_chanedit_dialog_spec(eeg))
+        widgets2["field_labels"].setText("Oz")
+        widgets2["channel"].setText("999")
+        dialog2.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+        assert widgets2["channel"].text() == str(len(eeg["chanlocs"]))
+        assert widgets2["field_labels"].text() == eeg["chanlocs"][-1]["labels"]
+        clamped = {tag: renderer._read_widget(widget) for tag, widget in widgets2.items()}
+    finally:
+        dialog.close()
+        if dialog2 is not None:
+            dialog2.close()
+
+    class Entered:
+        def run(self, spec, initial_values=None):
+            return entered
+
+    class Clamped:
+        def run(self, spec, initial_values=None):
+            return clamped
+
+    edited = pop_chanedit(deepcopy(eeg), gui=True, renderer=Entered())
+    assert edited["chanlocs"][0]["labels"] == "Cz"
+    assert edited["chanlocs"][1]["labels"] == "Oz"
+    untouched = pop_chanedit(deepcopy(eeg), gui=True, renderer=Clamped())
+    assert [chan["labels"] for chan in untouched["chanlocs"]] == [chan["labels"] for chan in eeg["chanlocs"]]
+
+
+def test_pop_chanedit_gui_rejects_a_channel_number_outside_the_list():
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            result = {control.tag: control.value for control in spec.controls if control.tag}
+            result["channel"] = "999"
+            result["field_labels"] = "Oz"
+            return result
+
+    eeg = _eeg()
+    with pytest.raises(ValueError, match=r"pop_chanedit: channel number 999 is outside 1 to"):
+        pop_chanedit(deepcopy(eeg), gui=True, renderer=Renderer())
+    assert eeg["chanlocs"][0]["labels"] == "Cz"
+
+
 def test_pop_chanedit_reads_comma_delimited_ced_with_comments(tmp_path):
     loc_file = tmp_path / "locs.ced"
     loc_file.write_text("% exported by EEGLAB\nlabels,X,Y,Z\nFz,0,1,0\nCz,0,0,1\n", encoding="utf-8")

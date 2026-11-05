@@ -10,6 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Edit > Event values and Edit > Channel locations treat the number field as a
+  goto. Enter shows that event or channel, and a number outside the list is
+  clamped to the ends, as in ``pop_editeventvals.m`` lines 153-160 and 571.
+  Ok refreshes the form to the typed number before saving, so values from one
+  record are not written onto another. A number that is still out of range
+  raises an error from ``pop_editeventvals`` or ``pop_chanedit`` instead of
+  ``list index out of range``.
 - ``pop_saveset`` resave writes only an existing ``.set`` file. File > Resave
   on a dataset imported from ``.vhdr``, ``.edf``, or another raw file opens
   Save as instead of replacing that recording. A path with no extension is

@@ -15,6 +15,9 @@ channel-location template. EEGPrep records the template filename and nose
 direction in `EEG["chaninfo"]`; labels absent from the template remain in the
 dataset without invented coordinates.
 
-The GUI presents the first channel in an EEGLAB-style channel editor. Rich
-channel-table navigation is intentionally limited in this phase; command-line
-calls cover the implemented edit operations.
+The GUI presents the first channel in an EEGLAB-style channel editor. Type a
+channel number and press Enter to show that channel. The number is kept inside
+1 through the channel count. Ok writes the values on screen to the channel
+those fields belong to. Rich channel-table actions such as plotting and file
+import stay unavailable in this phase; command-line calls cover the
+implemented edit operations.

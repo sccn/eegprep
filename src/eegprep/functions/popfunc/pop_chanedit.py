@@ -88,6 +88,10 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             return None
         return CallbackSpec("navigate_channel", params={**nav_base, "delta": delta, "source": tag})
 
+    channel_callback = (
+        CallbackSpec("navigate_channel", params={**nav_base, "delta": 0, "source": "channel"}) if chanlocs else None
+    )
+
     controls: list[ControlSpec] = [
         ControlSpec('text', 'Channel information ("field_name"):', font_weight="bold"),
         ControlSpec("spacer"),
@@ -125,7 +129,7 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
             ControlSpec("pushbutton", "Insert chan", tag="insert_button", enabled=False),
             ControlSpec("pushbutton", "<<", tag="back10", enabled=nav_enabled, callback=_nav("back10", -10)),
             ControlSpec("pushbutton", "<", tag="back1", enabled=nav_enabled, callback=_nav("back1", -1)),
-            ControlSpec("edit", tag="channel", value="1"),
+            ControlSpec("edit", tag="channel", value="1", callback=channel_callback),
             ControlSpec("pushbutton", ">", tag="next1", enabled=nav_enabled, callback=_nav("next1", 1)),
             ControlSpec("pushbutton", ">>", tag="next10", enabled=nav_enabled, callback=_nav("next10", 10)),
             ControlSpec("pushbutton", "Append chan", tag="append_button", enabled=False),
@@ -184,9 +188,20 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
     result = inputgui(pop_chanedit_dialog_spec(EEG), renderer=renderer)
     if result is None:
         return None
-    channel = int(float(result.get("channel") or 1))
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
-    current = chanlocs[_single_index(channel, len(chanlocs))]
+    try:
+        channel = int(float(result.get("channel") or 1))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "pop_chanedit: the channel number must be an integer from 1 to "
+            f"{len(chanlocs)}. Type a channel number in that range and press Enter."
+        ) from exc
+    if channel < 1 or channel > len(chanlocs):
+        raise ValueError(
+            f"pop_chanedit: channel number {channel} is outside 1 to {len(chanlocs)}. "
+            "Type a channel number in that range and press Enter."
+        )
+    current = chanlocs[channel - 1]
     options: dict[str, Any] = {}
     for field in _CHANNEL_FIELDS:
         text = str(result.get(f"field_{field}") or "").strip()

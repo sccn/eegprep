@@ -116,3 +116,124 @@ def test_qt_renderer_navigation_updates_eventnum_and_fields():
         assert widgets["eventnum"].text() == "1"
     finally:
         dialog.close()
+
+
+def _continuous_events(count=5):
+    return {
+        "data": np.zeros((1, 40), dtype=float),
+        "nbchan": 1,
+        "pnts": 40,
+        "trials": 1,
+        "srate": 100.0,
+        "xmin": 0.0,
+        "xmax": 0.39,
+        "times": np.arange(40, dtype=float),
+        "chanlocs": [{"labels": "Cz"}],
+        "chaninfo": {},
+        "event": [{"type": f"e{index}", "latency": float(index)} for index in range(1, count + 1)],
+        "urevent": [],
+        "epoch": [],
+        "reject": {},
+        "stats": {},
+        "icaweights": np.array([]),
+        "icasphere": np.array([]),
+        "icawinv": np.array([]),
+        "icaact": np.array([]),
+        "icachansind": np.array([], dtype=int),
+        "history": "",
+        "saved": "no",
+    }
+
+
+def _qt_event_dialog(eeg):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    renderer = qt_module.QtDialogRenderer()
+    _app, dialog, widgets = renderer.build_dialog(pop_editeventvals_dialog_spec(eeg))
+    ok = dialog.findChild(qt_module.QtWidgets.QPushButton, "ok")
+    return renderer, dialog, widgets, ok
+
+
+def test_event_number_enter_loads_that_event_and_ok_keeps_the_edit():
+    """Enter on the event number shows that event; Ok writes the edit to it."""
+    eeg = _continuous_events()
+    renderer, dialog, widgets, ok = _qt_event_dialog(eeg)
+    try:
+        widgets["eventnum"].setText("5")
+        widgets["eventnum"].editingFinished.emit()
+        assert widgets["eventnum"].text() == "5"
+        assert widgets["field_type"].text() == "e5"
+        assert widgets["field_latency"].text() == str(_display_event_value(eeg, eeg["event"][4], "latency"))
+        widgets["field_type"].setText("zz")
+        ok.click()
+        assert int(dialog.result()) == 1
+        result = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+    finally:
+        dialog.close()
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return result
+
+    out = pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
+    assert out["event"][0]["type"] == "e1"
+    assert out["event"][4]["type"] == "zz"
+    assert out["event"][4]["latency"] == eeg["event"][4]["latency"]
+
+
+def test_event_number_ok_does_not_copy_the_displayed_event_onto_another():
+    """Ok with a typed event number refreshes the form before saving."""
+    eeg = _continuous_events()
+    renderer, dialog, widgets, ok = _qt_event_dialog(eeg)
+    try:
+        widgets["field_type"].setText("zz")
+        widgets["eventnum"].setText("5")
+        ok.click()
+        assert widgets["eventnum"].text() == "5"
+        assert widgets["field_type"].text() == "e5"
+        result = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+    finally:
+        dialog.close()
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return result
+
+    out = pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
+    assert [event["type"] for event in out["event"]] == [event["type"] for event in eeg["event"]]
+
+
+def test_event_number_out_of_range_is_clamped_and_non_numeric_is_restored():
+    eeg = _continuous_events()
+    _renderer, dialog, widgets, _ok = _qt_event_dialog(eeg)
+    try:
+        widgets["eventnum"].setText("999")
+        widgets["eventnum"].editingFinished.emit()
+        assert widgets["eventnum"].text() == "5"
+        assert widgets["field_type"].text() == "e5"
+        widgets["field_type"].setText("zz")
+        widgets["eventnum"].setText("abc")
+        widgets["eventnum"].editingFinished.emit()
+        assert widgets["eventnum"].text() == "5"
+        assert widgets["field_type"].text() == "zz"
+    finally:
+        dialog.close()
+
+
+def test_run_gui_rejects_an_event_number_outside_the_list():
+    eeg = _continuous_events()
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            result = {control.tag: control.value for control in spec.controls if control.tag}
+            result["eventnum"] = "999"
+            result["field_type"] = "zz"
+            return result
+
+    with pytest.raises(ValueError, match=r"pop_editeventvals: event number 999 is outside 1 to 5"):
+        pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
+    assert eeg["event"][0]["type"] == "e1"
