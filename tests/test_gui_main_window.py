@@ -594,7 +594,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertEqual(session.EEG["filename"], "recording.set")
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertNotIn("savemode", session.LASTCOM)
-            self.assertIn(str(destination), session.LASTCOM)
+            self.assertIn(repr(str(destination)), session.LASTCOM)
 
     def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
         import tempfile
@@ -619,7 +619,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(destination.is_file())
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertEqual(session.EEG["filename"], "x.set")
-            self.assertIn(str(destination), session.LASTCOM)
+            self.assertIn(repr(str(destination)), session.LASTCOM)
 
             blocker = Path(tmp) / "notdir"
             blocker.write_text("x", encoding="utf-8")
