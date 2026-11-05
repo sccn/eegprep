@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -124,7 +125,7 @@ def pop_editeventvals_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         geometry=tuple(geometry),
         controls=tuple(controls),
         known_differences=(
-            "EEGPrep edits one event per dialog submission; navigation refreshes the form for the targeted event but Delete/Insert/Append remain disabled.",
+            "Delete, Insert, and Append stay disabled. Edits are kept on the event you leave and recorded together when the dialog is accepted.",
         ),
     )
 
@@ -134,7 +135,8 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
     if not events:
         raise ValueError("Getevent: cannot deal with empty event structure")
     fields = event_field_names(events)
-    result = inputgui(pop_editeventvals_dialog_spec(EEG), renderer=renderer)
+    spec = pop_editeventvals_dialog_spec(EEG)
+    result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
     try:
@@ -149,14 +151,32 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> list[tuple[
             f"pop_editeventvals: event number {event_index} is outside 1 to {len(events)}. "
             "Type an event number in that range and press Enter."
         )
-    current = events[event_index - 1]
+    displays = _indexed_field_displays(spec, "navigate_event")
     options: list[tuple[str, Any]] = []
-    for field in fields:
-        tag = f"field_{field}"
-        value = _parse_gui_value(result.get(tag))
-        if value != _display_event_value(EEG, current, field):
-            options.append(("changefield", [event_index, field, value]))
+    for index, event in enumerate(events, start=1):
+        source = result if index == event_index else _display_row(displays, index)
+        if source is None:
+            continue
+        for field in fields:
+            value = _parse_gui_value(source.get(f"field_{field}"))
+            if value != _display_event_value(EEG, event, field):
+                options.append(("changefield", [index, field, value]))
     return options
+
+
+def _indexed_field_displays(spec: DialogSpec, callback_name: str) -> Any:
+    for control in spec.controls:
+        callback = control.callback
+        if callback is not None and callback.name == callback_name:
+            return callback.params.get("field_displays")
+    return None
+
+
+def _display_row(displays: Any, index: int) -> Mapping[str, Any] | None:
+    if not displays or index < 1 or index > len(displays):
+        return None
+    row = displays[index - 1]
+    return row if isinstance(row, Mapping) else None
 
 
 def _apply_options(EEG: dict[str, Any], options: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -316,7 +336,9 @@ def _allocate_inserted_urevent(output: dict[str, Any], events: list[dict[str, An
 
 
 def _parse_gui_value(value: Any) -> Any:
-    text = str(value or "").strip()
+    if value is None:
+        return ""
+    text = str(value).strip()
     if not text:
         return ""
     try:

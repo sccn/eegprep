@@ -1294,14 +1294,14 @@ def _navigate_indexed_form(widgets: Mapping[str, Any], params: Mapping[str, Any]
         index_widget.setText(str(displayed))
         return
     delta = int(params["delta"])
-    # delta 0 is an absolute goto (pop_editeventvals.m:571 numval callback).
-    # Arrow buttons pass a shift and clamp (pop_editeventvals.m:153-160).
+    # pop_editeventvals.m:153-160, pop_editeventvals.m:571
     target = current if delta == 0 else current + delta
     target = max(1, min(max_index, target))
-    if delta == 0 and target == displayed:
+    if target == displayed:
         if _widget_text(index_widget) != str(target):
             index_widget.setText(str(target))
         return
+    _store_displayed_fields(widgets, displays[displayed - 1])
     setattr(index_widget, _DISPLAYED_INDEX_ATTR, target)
     index_widget.setText(str(target))
     display = displays[target - 1]
@@ -1310,6 +1310,30 @@ def _navigate_indexed_form(widgets: Mapping[str, Any], params: Mapping[str, Any]
         if field is None:
             continue
         _set_widget_display_value(field, value)
+
+
+def _store_displayed_fields(widgets: Mapping[str, Any], display: Mapping[str, Any]) -> None:
+    if not isinstance(display, dict):
+        return
+    for tag, previous in list(display.items()):
+        widget = widgets.get(tag)
+        if widget is None:
+            continue
+        value = _read_widget(widget)
+        if _same_displayed_value(previous, value):
+            continue
+        display[tag] = value
+
+
+def _same_displayed_value(previous: Any, value: Any) -> bool:
+    if isinstance(previous, bool) or isinstance(value, bool):
+        return isinstance(previous, bool) and isinstance(value, bool) and previous == value
+    if isinstance(previous, (int, float)) and not isinstance(previous, bool):
+        try:
+            return float(value) == float(previous)
+        except (TypeError, ValueError):
+            return False
+    return str(previous) == str(value)
 
 
 def _set_widget_display_value(widget: Any, value: Any) -> None:

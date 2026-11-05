@@ -158,53 +158,83 @@ def _qt_event_dialog(eeg):
     return renderer, dialog, widgets, ok
 
 
+def _drive_event_dialog(eeg, edit):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            renderer = qt_module.QtDialogRenderer()
+            _app, dialog, widgets = renderer.build_dialog(spec)
+            try:
+                edit(dialog, widgets, qt_module)
+                dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+                return {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
+            finally:
+                dialog.close()
+
+    return pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer(), return_com=True)
+
+
 def test_event_number_enter_loads_that_event_and_ok_keeps_the_edit():
     """Enter on the event number shows that event; Ok writes the edit to it."""
     eeg = _continuous_events()
-    renderer, dialog, widgets, ok = _qt_event_dialog(eeg)
-    try:
+
+    def edit(_dialog, widgets, _qt):
         widgets["eventnum"].setText("5")
         widgets["eventnum"].editingFinished.emit()
         assert widgets["eventnum"].text() == "5"
         assert widgets["field_type"].text() == "e5"
         assert widgets["field_latency"].text() == str(_display_event_value(eeg, eeg["event"][4], "latency"))
         widgets["field_type"].setText("zz")
-        ok.click()
-        assert int(dialog.result()) == 1
-        result = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
-    finally:
-        dialog.close()
 
-    class Renderer:
-        def run(self, spec, initial_values=None):
-            return result
-
-    out = pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
+    out, command = _drive_event_dialog(eeg, edit)
     assert out["event"][0]["type"] == "e1"
     assert out["event"][4]["type"] == "zz"
     assert out["event"][4]["latency"] == eeg["event"][4]["latency"]
+    assert "zz" in command
 
 
-def test_event_number_ok_does_not_copy_the_displayed_event_onto_another():
-    """Ok with a typed event number refreshes the form before saving."""
+def test_leaving_an_event_keeps_the_edit_for_ok():
+    """Arrow navigation applies the pending edit before showing the next event."""
     eeg = _continuous_events()
-    renderer, dialog, widgets, ok = _qt_event_dialog(eeg)
-    try:
+
+    def edit(_dialog, widgets, _qt):
+        widgets["eventnum"].setText("5")
+        widgets["eventnum"].editingFinished.emit()
+        widgets["field_type"].setText("yy")
+        widgets["back1"].click()
+        assert widgets["eventnum"].text() == "4"
+        assert widgets["field_type"].text() == "e4"
+        widgets["field_type"].setText("qq")
+        widgets["next1"].click()
+        assert widgets["eventnum"].text() == "5"
+        assert widgets["field_type"].text() == "yy"
+
+    out, command = _drive_event_dialog(eeg, edit)
+    assert out["event"][3]["type"] == "qq"
+    assert out["event"][4]["type"] == "yy"
+    assert out["event"][0]["type"] == "e1"
+    assert "'yy'" in command
+    assert "'qq'" in command
+
+
+def test_ok_applies_a_pending_edit_before_a_typed_event_number():
+    """Ok follows the typed event number after saving the event still on screen."""
+    eeg = _continuous_events()
+
+    def edit(_dialog, widgets, _qt):
         widgets["field_type"].setText("zz")
         widgets["eventnum"].setText("5")
-        ok.click()
-        assert widgets["eventnum"].text() == "5"
-        assert widgets["field_type"].text() == "e5"
-        result = {tag: renderer._read_widget(widget) for tag, widget in widgets.items()}
-    finally:
-        dialog.close()
 
-    class Renderer:
-        def run(self, spec, initial_values=None):
-            return result
-
-    out = pop_editeventvals(deepcopy(eeg), gui=True, renderer=Renderer())
-    assert [event["type"] for event in out["event"]] == [event["type"] for event in eeg["event"]]
+    out, command = _drive_event_dialog(eeg, edit)
+    assert out["event"][0]["type"] == "zz"
+    assert out["event"][4]["type"] == "e5"
+    assert "zz" in command
 
 
 def test_event_number_out_of_range_is_clamped_and_non_numeric_is_restored():

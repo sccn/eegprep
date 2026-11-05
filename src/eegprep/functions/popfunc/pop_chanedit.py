@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -179,13 +180,14 @@ def pop_chanedit_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         controls=tuple(controls),
         geomvert=tuple(1 for _row in geometry),
         known_differences=(
-            "EEGPrep supports command-line channel edits and one-channel-per-submission GUI edits; navigation refreshes the form, while plotting and file buttons remain disabled.",
+            "Command-line channel edits and the location form are supported. Edits are kept on the channel you leave. Plotting and file buttons stay disabled.",
         ),
     )
 
 
 def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, Any] | None:
-    result = inputgui(pop_chanedit_dialog_spec(EEG), renderer=renderer)
+    spec = pop_chanedit_dialog_spec(EEG)
+    result = inputgui(spec, renderer=renderer)
     if result is None:
         return None
     chanlocs = chanlocs_as_list(EEG.get("chanlocs"))
@@ -201,15 +203,34 @@ def _run_gui(EEG: dict[str, Any], *, renderer: Any | None = None) -> dict[str, A
             f"pop_chanedit: channel number {channel} is outside 1 to {len(chanlocs)}. "
             "Type a channel number in that range and press Enter."
         )
-    current = chanlocs[channel - 1]
+    displays = _indexed_field_displays(spec)
     options: dict[str, Any] = {}
-    for field in _CHANNEL_FIELDS:
-        text = str(result.get(f"field_{field}") or "").strip()
-        if text != _display_channel_value(current, field).strip():
-            options.setdefault("changefield", []).append([channel, field, _parse_field_value(text)])
+    for index, current in enumerate(chanlocs, start=1):
+        source = result if index == channel else _display_row(displays, index)
+        if source is None:
+            continue
+        for field in _CHANNEL_FIELDS:
+            text = str(source.get(f"field_{field}") or "").strip()
+            if text != _display_channel_value(current, field).strip():
+                options.setdefault("changefield", []).append([index, field, _parse_field_value(text)])
     if options and result.get("rplurchan"):
         options["rplurchanloc"] = "on"
     return options
+
+
+def _indexed_field_displays(spec: DialogSpec) -> Any:
+    for control in spec.controls:
+        callback = control.callback
+        if callback is not None and callback.name == "navigate_channel":
+            return callback.params.get("field_displays")
+    return None
+
+
+def _display_row(displays: Any, index: int) -> Mapping[str, Any] | None:
+    if not displays or index < 1 or index > len(displays):
+        return None
+    row = displays[index - 1]
+    return row if isinstance(row, Mapping) else None
 
 
 def _channel_value_control(field: str, value: Any) -> ControlSpec:
