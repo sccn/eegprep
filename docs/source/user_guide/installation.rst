@@ -114,7 +114,8 @@ This installs four extras:
 - ``mne``, conversion to and from MNE objects, and the EDF, BDF, GDF, and
   EGI ``.mff`` readers in ``pop_biosig`` and ``pop_fileio``. BrainVision
   ``.eeg`` files, and ``.vhdr`` files when a block range is set, also use it.
-  EEGLAB ``.set``, CNT, and BrainVision ``.vhdr`` without a block range do not.
+  EEGLAB ``.set``, CNT, BrainVision ``.vhdr`` without a block range, and
+  BrainVision Analyzer ``.mat`` exports do not.
 - ``pybids``, BIDS import and ``bids_preproc``.
 - ``picard`` (``python-picard``), Picard ICA. The default ``runica`` path
   does not need it. This extra also installs scikit-learn.

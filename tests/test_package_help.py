@@ -15,9 +15,6 @@ from eegprep.package_help import render_help
 
 HEAVY_MODULES = ("numpy", "scipy", "mne", "matplotlib", "h5py", "oct2py")
 SRC_ROOT = Path(eegprep.__file__).resolve().parent
-# pop_fileio reads .mat without mne. This wrapper rejects every other suffix,
-# so the static call to pop_fileio is not an mne path.
-_FORMAT_BRANCH_FALSE_POSITIVES = frozenset({"pop_fileio_brainvision_mat"})
 _PRIVATE_DIR = {"logging", "Any", "setup_logging", "render_help", "importlib"}
 
 
@@ -228,9 +225,6 @@ def _public_optional_extras() -> dict[str, str]:
         if key not in functions:
             continue
         found = {OPTIONAL_LIBRARIES[library] for library in reached_libraries(key)}
-        if name in _FORMAT_BRANCH_FALSE_POSITIVES:
-            assert found == {"mne"}, (name, found)
-            continue
         if not found:
             continue
         if len(found) == 1:

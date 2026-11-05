@@ -10,6 +10,16 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_fileio_brainvision_mat`` reads a BrainVision Analyzer MATLAB export
+  the way bva-io ``pop_loadbva.m`` lines 46-139 does: one variable per channel,
+  ``SampleRate``, the ``t`` axis in milliseconds, and ``Markers``. A marker
+  with an empty ``Description`` is skipped (lines 112-113). A name such as
+  ``xFp1`` matches channel ``Fp1``. An unknown channel variable is appended
+  once; ``pop_loadbva.m`` lines 61-65 append that record twice. A MATLAB v7.3
+  file or any other ``.mat`` layout raises an error instead of returning a
+  one-channel guess. The history command remains
+  ``pop_fileio_brainvision_mat``. The dataset filename is left empty so a
+  later resave cannot overwrite the ``.mat`` export.
 - File > Clear dataset(s) and Edit > Delete dataset(s) from memory ask for
   confirmation in the same dialog as EEGLAB ``pop_delset.m`` lines 56-70
   ("Delete dataset -- pop_delset()", "Dataset(s) to delete:"). Cancel deletes
