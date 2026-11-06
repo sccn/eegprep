@@ -8,9 +8,9 @@ MATLAB runica() function from EEGLAB, maintaining numerical parity.
 Derived from MATLAB:
     This code was translated from EEGLAB's runica.m function. The Python
     implementation produces scientifically equivalent results to MATLAB
-    with 99.97-99.99% component-wise correlation. Minor differences in
-    component ordering may occur due to variance computation differences.
-    Extended-ICA achieves exact step-count match with MATLAB.
+    with 99.97-99.99% component-wise correlation. Component order uses the
+    projected-variance key in runica.m line 1519. Extended-ICA kurtosis
+    draws the same fix(rand) subset as runica.m lines 890-896.
 
 Reference:
     Makeig, S., Bell, A.J., Jung, T-P and Sejnowski, T.J.,
@@ -223,8 +223,8 @@ def runica(data, *args, **kwargs):
 
     Known Acceptable Differences:
 
-    1. Component Ordering: May differ from MATLAB due to variance scaling.
-       Scientifically acceptable (ICA permutation ambiguity).
+    1. Component ordering follows runica.m line 1519: sphered-channel energy
+       when ``posact`` is off, activation energy when ``posact`` is on.
 
     2. Convergence Steps (Standard ICA only): May take ~10% more steps
        due to sqrtm precision differences. Extended-ICA: 0% difference.

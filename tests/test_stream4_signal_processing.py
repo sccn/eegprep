@@ -28,6 +28,54 @@ from tests.eeglab_tests import assert_matlab_equal, assert_matlab_near
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _matlab_scalar_struct(**fields: object) -> np.ndarray:
+    result = np.empty((1, 1), dtype=[(name, object) for name in fields])
+    for name, value in fields.items():
+        result[name][0, 0] = value
+    return result
+
+
+def _matlab_chanlocs(n_channels: int) -> np.ndarray:
+    fields = (
+        "labels",
+        "theta",
+        "radius",
+        "X",
+        "Y",
+        "Z",
+        "sph_theta",
+        "sph_phi",
+        "sph_radius",
+        "type",
+        "ref",
+    )
+    result = np.empty((1, n_channels), dtype=[(field, object) for field in fields])
+    for index, location in enumerate(_locations(n_channels)):
+        x = float(location["X"])
+        y = float(location["Y"])
+        z = float(location["Z"])
+        horizontal = float(np.hypot(x, y))
+        values = {
+            "labels": location["labels"],
+            "theta": float(location["theta"]),
+            "radius": float(location["radius"]),
+            "X": x,
+            "Y": y,
+            "Z": z,
+            "sph_theta": float(np.degrees(np.arctan2(y, x))),
+            "sph_phi": float(np.degrees(np.arctan2(z, horizontal))),
+            "sph_radius": float(np.sqrt(x * x + y * y + z * z)),
+            "type": "",
+            "ref": "",
+        }
+        for field, value in values.items():
+            if isinstance(value, str):
+                result[field][0, index] = value
+            else:
+                result[field][0, index] = np.array([[value]], dtype=float)
+    return result
+
+
 def _locations(n_channels: int) -> list[dict]:
     locations = []
     for index in range(n_channels):
@@ -290,26 +338,21 @@ def test_f91_f126_time_frequency_matches_eeglab(eeglab_backend):
     frames = 128
     signal = np.random.default_rng(2).normal(size=(frames, 3))
     python_cross = newcrossf(signal, signal, frames, [-500, 500], 128, [3, 0.5], padratio=1, plot="off")
-    _coherence, _phase, _times, freqs = eeglab_backend(
+    vector = signal.reshape(1, -1, order="F")
+    _coherence, _baseline, _times, freqs = eeglab_backend(
         "newcrossf",
-        signal,
-        signal,
+        vector,
+        vector,
         float(frames),
         np.array([[-500.0, 500.0]]),
         128.0,
         np.array([[3.0, 0.5]]),
         "padratio",
         1.0,
-        "plotersp",
-        "off",
-        "plotitc",
-        "off",
         "plotamp",
         "off",
         "plotphase",
         "off",
-        "alpha",
-        np.nan,
         nargout=4,
     )
     assert_matlab_near(python_cross.freqs, np.asarray(freqs).reshape(-1))
@@ -352,20 +395,20 @@ def test_f91_f126_time_frequency_matches_eeglab(eeglab_backend):
 @pytest.mark.matlab_oracle
 def test_f60_pinned_pop_interp_discards_the_fourth_argument(eeglab_backend):
     """Pinned pop_interp.m:61 clears t_range, so the ranged call matches the full one."""
-    eeg = _continuous(n_channels=6, n_points=40, srate=100.0)
-    eeg["chaninfo"] = {}
-    eeg["event"] = []
-    eeg["epoch"] = []
-    eeg["icaact"] = np.array([])
-    eeg["icawinv"] = np.array([])
-    eeg["icasphere"] = np.array([])
-    eeg["icaweights"] = np.array([])
-    eeg["icachansind"] = np.array([])
-    eeg["urchanlocs"] = copy.deepcopy(eeg["chanlocs"])
-    eeg["ref"] = "common"
-    eeg["history"] = ""
-    eeg["saved"] = "no"
-    eeg["setname"] = "stream4"
+    eeg = eeglab_backend("eeg_emptyset")
+    recording = _continuous(n_channels=6, n_points=40, srate=100.0)
+    eeg["data"] = np.asarray(recording["data"], dtype=float)
+    eeg["nbchan"] = float(recording["nbchan"])
+    eeg["pnts"] = float(recording["pnts"])
+    eeg["trials"] = float(recording["trials"])
+    eeg["srate"] = float(recording["srate"])
+    eeg["xmin"] = float(recording["xmin"])
+    eeg["xmax"] = float(recording["xmax"])
+    eeg["times"] = np.asarray(recording["times"], dtype=float).reshape(1, -1)
+    eeg["chanlocs"] = _matlab_chanlocs(int(recording["nbchan"]))
+    eeg["chaninfo"] = _matlab_scalar_struct(nosedir="+X", nodatchans=np.array([]))
+    eeg["reject"] = _matlab_scalar_struct(rejjp=np.array([]))
+    eeg["etc"] = _matlab_scalar_struct(eeglabvers="")
     eeg = eeglab_backend("eeg_checkset", eeg)
     full = eeglab_backend("pop_interp", eeg, np.array([[1.0]]), "spherical", nargout=1)
     ranged = eeglab_backend(
