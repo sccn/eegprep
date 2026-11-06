@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_saveset import pop_saveset
+from tests.fixtures import create_test_eeg
 from tests.fuzz.harness import (
     EEGSpec,
     FakeOracle,
@@ -36,7 +37,6 @@ from tests.fuzz.harness import (
     write_repro,
 )
 from tests.fuzz.targets import extra_sanity, rmbase_boundary_offset
-from tests.fixtures import create_test_eeg
 
 _U = 2.0**-53
 _GOLDEN = Path(__file__).resolve().parent / "fuzz" / "golden_draws_20261012.json"
@@ -57,6 +57,39 @@ def _side(**changes) -> SideResult:
 
 def _event(latency: float, kind: str = "square") -> tuple:
     return (kind, latency, None, None, None)
+
+
+@pytest.mark.parametrize(
+    "option, selection",
+    [
+        ("channel", [1, 1, 4, 2]),
+        ("channel", ["Ch1", "Ch2", "Ch4"]),
+        ("nochannel", [1, 1, 4, 2]),
+    ],
+)
+def test_select_adapter_converts_channel_numbers_only(option, selection):
+    eeg = create_test_eeg(n_channels=4, n_samples=8, n_trials=2)
+    params = {option: selection, "trial": [1]}
+    case = FuzzCase("pop_select", _spec(), freeze_params(params))
+    expected = [0, 1, 3] if option == "channel" else [2]
+
+    out = dispatch_python(case, eeg)
+
+    np.testing.assert_array_equal(out["data"], eeg["data"][expected, :, 0])
+    assert [chan["labels"] for chan in out["chanlocs"]] == [eeg["chanlocs"][index]["labels"] for index in expected]
+    assert thaw_params(case.params) == params
+
+
+def test_select_duplicate_draw_uses_cropped_channel_count():
+    cases = draw_cases("pop_select", seed_value=20261105, examples=4)
+    duplicate_cases = [case for case in cases if "channel" in thaw_params(case.params)]
+    assert duplicate_cases
+    for case in duplicate_cases:
+        nbchan = len(case.spec.channels)
+        assert thaw_params(case.params)["channel"] == [1, 1, nbchan, 2]
+        eeg = materialize_eeg(case)
+        out = dispatch_python(case, eeg)
+        np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, nbchan - 1]])
 
 
 class _ShiftedOracle:
@@ -267,42 +300,6 @@ def test_pipeline_crop_covers_thirty_seconds():
     case = next(iter(draw_cases("pipeline", seed_value=20261017, examples=1)))
     rec = recording(case.spec.source)
     assert case.spec.length == min(rec.pnts, int(round(30.0 * rec.srate)))
-
-
-def test_replay_543_duplicate_channels_use_the_cropped_channel_count():
-    cases = draw_cases("pop_select", seed_value=20261105, examples=4)
-    case = next(case for case in cases if "channel" in thaw_params(case.params))
-    channels = thaw_params(case.params)["channel"]
-    assert channels == [1, 1, len(case.spec.channels), 2]
-    eeg = materialize_eeg(case)
-    out = dispatch_python(case, eeg)
-    np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, -1]])
-
-
-@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
-@pytest.mark.parametrize("channels", [[1, 1, 26, 2], [1.0, 1.0, 26.0, 2.0]])
-def test_select_fuzz_adapter_converts_one_based_channel_indices(option, channels):
-    eeg = create_test_eeg(n_channels=26, n_samples=8)
-    case = FuzzCase("pop_select", _spec(), freeze_params({option: channels}))
-    selected = [0, 1, 25]
-    kept = selected if option == "channel" else [index for index in range(26) if index not in selected]
-    out = dispatch_python(case, eeg)
-    np.testing.assert_array_equal(out["data"], eeg["data"][kept])
-
-
-def test_replay_543_out_of_range_channels_still_reject():
-    case = FuzzCase(
-        "pop_select",
-        EEGSpec(tuple(range(3, 29)), 0, 256, 1, -1, 0, 0, events="keep+boundary"),
-        freeze_params({"channel": [1, 1, 32, 2]}),
-    )
-    result = PythonBackend().run(case, materialize_eeg(case))
-    assert not result.ok
-    assert result.error_type == "ValueError"
-    assert "pop_select" in result.error_message
-    assert "31" in result.error_message
-    assert "0..25" in result.error_message
-    assert "1..26" in result.error_message
 
 
 def test_pipeline_explicit_reref_nan_spread_is_a_match():

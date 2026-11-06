@@ -246,14 +246,13 @@ def matlab_eegrej(engine, case, eeg):
 
 
 def python_select(case, eeg):
-    kwargs = _select_kwargs(thaw_params(case.params))
-    # eeg_decodechan.m:164-169 uses 1-based channels; the Python API uses 0-based channels.
+    params = _select_kwargs(thaw_params(case.params))
     for key in ("channel", "nochannel", "rmchannel"):
-        if key in kwargs:
-            values = np.asarray(kwargs[key])
-            if np.issubdtype(values.dtype, np.number):
-                kwargs[key] = (values - 1).tolist()
-    return pop_select(eeg, gui=False, **kwargs)
+        if key not in params:
+            continue
+        values = params[key] if isinstance(params[key], list) else [params[key]]
+        params[key] = [value - 1 if isinstance(value, (int, float)) else value for value in values]
+    return pop_select(eeg, gui=False, **params)
 
 
 def matlab_select(engine, case, eeg):

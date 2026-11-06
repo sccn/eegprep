@@ -462,18 +462,15 @@ def _same_failure(python: SideResult, oracle: SideResult) -> bool:
     return (
         "No enough reference data" in oracle_message
         and ("Fewer than 2 calibration windows" in message or "Not enough calibration data" in message)
-        or _same_pop_select_notime(message, oracle_message)
         or _same_pop_select_channel_range(message, oracle_message)
+        or _same_pop_select_notime(message, oracle_message)
         or _same_pop_epoch_eventindices(message, oracle_message)
     )
 
 
 def _same_pop_select_channel_range(message: str, oracle_message: str) -> bool:
-    """eeg_decodechan.m:165-167 rejects channels outside 1..nbchan."""
-    folded = message.lower()
-    return (
-        all(marker in folded for marker in ("pop_select", "channel", "out of range"))
-        and "channel index out of range" in oracle_message.lower()
+    return all(marker in message.lower() for marker in ("pop_select:", "channel indices", "out of range")) and all(
+        marker in oracle_message.lower() for marker in ("channel", "index", "out of range")
     )
 
 
