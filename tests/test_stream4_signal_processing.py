@@ -248,18 +248,17 @@ def test_f126_pop_newtimef_keeps_the_last_sample_and_a_prestimulus_baseline():
     assert full.times[0] < 0.0
 
 
-def test_f126_pop_newcrossf_end_index_excludes_the_sample_newtimef_keeps():
+def test_f126_pop_newcrossf_keeps_the_end_sample_pinned_eeglab_drops():
     eeg = _epoch()
     common = dict(tlimits=[-1000, 1992], cycles=[3, 0.5], padratio=1, plot="off")
     base = pop_newcrossf(eeg, 1, 1, 2, **common)
     last = copy.deepcopy(eeg)
     last["data"][:, -1, :] = 0.0
-    unchanged = pop_newcrossf(last, 1, 1, 2, **common)
-    np.testing.assert_allclose(base.coherence, unchanged.coherence)
-    penultimate = copy.deepcopy(eeg)
-    penultimate["data"][:, -2, :] = 0.0
-    changed = pop_newcrossf(penultimate, 1, 1, 2, **common)
+    changed = pop_newcrossf(last, 1, 1, 2, **common)
     assert not np.allclose(base.coherence, changed.coherence)
+    help_text = (ROOT / "src/eegprep/resources/help/pop_newcrossf.md").read_text()
+    assert "pop_newcrossf.m" in help_text
+    assert "line 189" in help_text
 
 
 @pytest.mark.matlab_oracle
@@ -301,10 +300,16 @@ def test_f91_f126_time_frequency_matches_eeglab(eeglab_backend):
         np.array([[3.0, 0.5]]),
         "padratio",
         1.0,
+        "plotersp",
+        "off",
+        "plotitc",
+        "off",
         "plotamp",
         "off",
         "plotphase",
         "off",
+        "alpha",
+        np.nan,
         nargout=4,
     )
     assert_matlab_near(python_cross.freqs, np.asarray(freqs).reshape(-1))
@@ -348,6 +353,20 @@ def test_f91_f126_time_frequency_matches_eeglab(eeglab_backend):
 def test_f60_pinned_pop_interp_discards_the_fourth_argument(eeglab_backend):
     """Pinned pop_interp.m:61 clears t_range, so the ranged call matches the full one."""
     eeg = _continuous(n_channels=6, n_points=40, srate=100.0)
+    eeg["chaninfo"] = {}
+    eeg["event"] = []
+    eeg["epoch"] = []
+    eeg["icaact"] = np.array([])
+    eeg["icawinv"] = np.array([])
+    eeg["icasphere"] = np.array([])
+    eeg["icaweights"] = np.array([])
+    eeg["icachansind"] = np.array([])
+    eeg["urchanlocs"] = copy.deepcopy(eeg["chanlocs"])
+    eeg["ref"] = "common"
+    eeg["history"] = ""
+    eeg["saved"] = "no"
+    eeg["setname"] = "stream4"
+    eeg = eeglab_backend("eeg_checkset", eeg)
     full = eeglab_backend("pop_interp", eeg, np.array([[1.0]]), "spherical", nargout=1)
     ranged = eeglab_backend(
         "pop_interp",

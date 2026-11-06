@@ -284,7 +284,6 @@ def _gui_method(value: Any, *, is_continuous: bool = True) -> str:
 
 
 def _gui_channels_as_one_based(chans: Any) -> Any:
-    """Qt stores data-channel picks as 0-based indices. ``pop_interp`` is 1-based."""
     if isinstance(chans, np.ndarray):
         chans = chans.tolist()
     if isinstance(chans, list) and chans and isinstance(chans[0], (int, np.integer)) and not isinstance(chans[0], bool):

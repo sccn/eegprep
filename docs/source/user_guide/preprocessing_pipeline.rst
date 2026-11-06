@@ -290,8 +290,10 @@ wrappers for the common EEGLAB plotting workflows:
 ``pop_newtimef`` plots one channel or component at a time. Set ``typeproc=1`` for
 a channel and ``typeproc=0`` for an ICA component; ``num`` is the 1-based channel
 or component index. ``tlimits`` is the epoch window in milliseconds. The sample
-window matches EEGLAB's rounding, and the decomposition uses those requested
-limits. ``pop_newcrossf`` without a frequency range stops at 50 Hz.
+window uses EEGLAB rounding and the decomposition uses those requested limits.
+``pop_newtimef`` includes the end sample. ``pop_newcrossf`` includes it too;
+pinned ``pop_newcrossf.m`` line 189 drops that sample.
+``pop_newcrossf`` without a frequency range stops at 50 Hz.
 ``cycles`` selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
 ``[n factor]``) uses an ``n``-cycle Morlet wavelet that narrows toward higher
 frequencies. Called with no index, ``pop_newtimef`` opens a dialog to collect

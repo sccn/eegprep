@@ -311,7 +311,6 @@ class TestEegInterpParity(unittest.TestCase):
         self._compare_eeg_results(py_result, ml_result)
 
     def test_parity_custom_time_range(self):
-        """Inclusive EEG.times window versus pinned eeg_interp.m:322 floor restore."""
         bad_chans = [2, 8]
         bad_chans_matlab = [3, 9]
         t_range = (-0.5, 0.5)
@@ -337,7 +336,6 @@ class TestEegInterpParity(unittest.TestCase):
         if ml_partial_data.ndim == 3:
             ml_partial_data = ml_partial_data[:, :, 0]
         self._compare_eeg_results(py_full, ml_full)
-        # Pinned eeg_interp.m:322 leaves the final sample interpolated.
         self.assertGreater(
             np.max(np.abs(ml_partial_data[bad_chans, -1] - original[bad_chans, -1])),
             5e-2,

@@ -237,7 +237,6 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
 
 
 def _dialog_msec(seconds: Any) -> str:
-    """pop_newtimef.m:172 uses int2str, which truncates toward zero."""
     return str(int(np.trunc(float(seconds) * 1000.0)))
 
 
@@ -270,7 +269,6 @@ def _pointrange(EEG: dict[str, Any], tlimits: Any, *, end_offset: float, functio
 
 
 def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any) -> tuple[np.ndarray, np.ndarray]:
-    # pop_newtimef.m:306 adds 1 before rounding the last sample.
     window = _pointrange(EEG, tlimits, end_offset=1.0, function="pop_newtimef")
     requested = _requested_tlimits(EEG, tlimits)
     index = int(_first_index(num)) - 1

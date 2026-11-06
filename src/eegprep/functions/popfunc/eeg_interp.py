@@ -204,7 +204,6 @@ def _sample_times_ms(EEG: dict, pnts: int) -> np.ndarray:
 
 
 def _restore_outside_time_range(bad_data, original_bad_data, EEG, t_range, location_channels):
-    """Keep samples outside an inclusive ``EEG.times`` window (eeglab#980)."""
     if location_channels:
         return bad_data
     start = float(t_range[0])

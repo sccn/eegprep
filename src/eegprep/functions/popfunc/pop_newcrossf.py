@@ -166,7 +166,6 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
 
 
 def _dialog_msec(seconds: Any) -> str:
-    """pop_newcrossf.m:87 uses int2str, which truncates toward zero."""
     return str(int(np.trunc(float(seconds) * 1000.0)))
 
 
@@ -181,7 +180,6 @@ def _requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:
 
 
 def _pointrange(EEG: dict[str, Any], tlimits: Any) -> slice:
-    # pop_newcrossf.m:189 does not add 1 before rounding the last sample.
     pnts = int(EEG.get("pnts") or np.asarray(EEG["data"]).shape[1])
     bounds = numeric_vector(tlimits)
     if bounds.size != 2:
@@ -189,7 +187,7 @@ def _pointrange(EEG: dict[str, Any], tlimits: Any) -> slice:
     xmin = float(EEG.get("xmin", 0.0) or 0.0)
     srate = float(EEG.get("srate", 1.0) or 1.0)
     first = int(np.round(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
-    last = int(np.round(min((float(bounds[1]) / 1000.0 - xmin) * srate, float(pnts))))
+    last = int(np.round(min((float(bounds[1]) / 1000.0 - xmin) * srate + 1.0, float(pnts))))
     if last < first:
         raise ValueError(
             f"pop_newcrossf: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "

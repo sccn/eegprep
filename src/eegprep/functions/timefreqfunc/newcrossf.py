@@ -127,7 +127,6 @@ def newcrossf(
 
 
 def _apply_cross_frequency_defaults(options: dict[str, Any]) -> None:
-    """newcrossf.m lines 396-397 and 461: default ``[0, 50]`` Hz, log floor at 3 Hz."""
     maxfreq = options.pop("maxfreq", None)
     if "freqs" not in options and "freqrange" not in options:
         if maxfreq is None:

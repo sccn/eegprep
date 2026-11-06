@@ -59,7 +59,6 @@ def plotfresp(
 
 
 def _linear_phase_fir(b: np.ndarray) -> bool:
-    """Same symmetry test as ``fir_filterdcpadded`` (not bit-identical reversal)."""
     if b.size % 2 == 0:
         return bool(np.allclose(b, b[::-1]) or np.allclose(b, -b[::-1]))
     group_delay = (b.size - 1) // 2
