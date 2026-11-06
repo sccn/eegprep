@@ -22,7 +22,10 @@ the following participant indices" takes 1-based positions in
 missing. `2` selects the second participant. A value that is not a positive
 whole number, or that is past the end of the list, raises an error that names
 `pop_importbids` and shows the valid range. The history command records the
-numbers, for example `'subjects', [1 2]`. Passing `subjects=[1, 2]` to
+numbers, for example `'subjects', [1 2]`. A folder import opened from the
+dialog records `[STUDY, ALLEEG] = pop_importbids(...)` with `return_study`
+on, and includes the selected recordings, task, sessions, and runs. Running
+that command again rebuilds the same study. Passing `subjects=[1, 2]` to
 `pop_importbids` uses those same 1-based indices, so the recorded command
 imports the same participants. An index outside the list raises an error that
 names `pop_importbids` and the valid range. The event type defaults to the `value`

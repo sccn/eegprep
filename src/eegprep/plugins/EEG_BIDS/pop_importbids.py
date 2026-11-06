@@ -37,7 +37,7 @@ def pop_importbids(
     return_com: bool = False,
     gui: bool = False,
     renderer: Any = None,
-    return_study: bool = False,
+    return_study: bool | str = False,
     **kwargs: Any,
 ) -> Any:
     """Load one or more EEG files from a BIDS dataset.
@@ -51,8 +51,11 @@ def pop_importbids(
     (or sorted ``sub-*`` folders when that file is missing), the same indices
     the dialog records. ``return_study=True`` returns an in-memory STUDY. EEGLAB also
     copies every dataset into ``derivatives/eeglab`` (``pop_importbids.m``
-    lines 839 and 892). This function does not write that copy.
+    lines 839 and 892). This function does not write that copy. A folder
+    import opened from the dialog records ``[STUDY, ALLEEG] =
+    pop_importbids(...)`` with ``return_study`` on, matching that return.
     """
+    return_study = _on_off(return_study, "return_study")
     source = Path(path)
     dialog_options: dict[str, Any] = {}
     if gui and source.is_dir():
@@ -79,10 +82,11 @@ def pop_importbids(
             "Point it at a BIDS folder that contains .set, .edf, .bdf, or .vhdr files."
         )
     eegs = [pop_load_frombids(filename, **loader_options) for filename in files]
-    study_name = str(dialog_options.get("studyName") or kwargs.get("studyName") or source.name)
+    study_name = str(dialog_options.get("studyName") or _folded(kwargs, "studyName") or source.name)
     command = _history_command(source, dialog_options, return_study=return_study)
     if return_study:
-        study = ensure_study({"name": study_name, "task": str(dialog_options.get("bidstask") or "")})
+        task_name = str(dialog_options.get("bidstask") or _folded(kwargs, "bidstask") or "")
+        study = ensure_study({"name": study_name, "task": task_name})
         study, datasets = std_checkset(study, eegs)
         for dataset in datasets:
             dataset["history"] = command
@@ -354,11 +358,11 @@ def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str,
 
 def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
     filters: dict[str, Any] = {}
-    subjects = dialog.get("subjects", kwargs.get("subjects"))
-    sessions = dialog.get("sessions", kwargs.get("sessions"))
-    runs = dialog.get("runs", kwargs.get("runs"))
-    recordings = dialog.get("recordings", kwargs.get("recordings"))
-    tasks = dialog.get("bidstask", kwargs.get("bidstask", kwargs.get("tasks")))
+    subjects = dialog.get("subjects", _folded(kwargs, "subjects"))
+    sessions = dialog.get("sessions", _folded(kwargs, "sessions"))
+    runs = dialog.get("runs", _folded(kwargs, "runs"))
+    recordings = dialog.get("recordings", _folded(kwargs, "recordings"))
+    tasks = dialog.get("bidstask", _folded(kwargs, "bidstask", _folded(kwargs, "tasks")))
     if subjects:
         filters["subjects"] = subjects
     if sessions:
@@ -467,10 +471,33 @@ def _history_command(source: Path, dialog: dict[str, Any], *, return_study: bool
         parts.extend([format_history_value("studyName"), format_history_value(dialog["studyName"])])
     if dialog.get("outputdir"):
         parts.extend([format_history_value("outputdir"), format_history_value(Path(dialog["outputdir"]))])
-    for key in ("bidstask", "sessions", "runs", "subjects"):
+    for key in ("bidstask", "sessions", "runs", "recordings", "subjects"):
         if dialog.get(key):
             parts.extend([format_history_value(key), format_history_value(dialog[key])])
+    if return_study:
+        parts.extend([format_history_value("return_study"), "'on'"])
     call = f"pop_importbids({', '.join(parts)})"
     if return_study:
         return f"[STUDY, ALLEEG] = {call};"
     return f"EEG = {call};"
+
+
+def _on_off(value: Any, name: str) -> bool:
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "on":
+            return True
+        if text == "off":
+            return False
+        raise ValueError(
+            f"pop_importbids: {name} {value!r} is not 'on' or 'off'. "
+            f"Pass {name}=True to replay a study import, or {name}=False to return datasets only."
+        )
+    return bool(value)
+
+
+def _folded(mapping: dict[str, Any], name: str, default: Any = None) -> Any:
+    for key, value in mapping.items():
+        if str(key).lower() == name.lower():
+            return value
+    return default

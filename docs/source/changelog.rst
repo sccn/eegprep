@@ -10,6 +10,12 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
+  with ``return_study`` on, so the console rebuilds the same study.
+  ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct
+  call still returns the datasets unless ``return_study=True``. The history
+  also keeps the dialog's ``recordings`` selection, along with task, session,
+  run, and subject.
 - ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
   indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
   Replaying the recorded ``'subjects', [1 2]`` command selects those

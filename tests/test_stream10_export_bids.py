@@ -381,7 +381,6 @@ def test_bids_import_prefers_the_value_column(tmp_path):
     assert study["name"] == "Oddball"
     assert study["datasetinfo"]
     assert len(datasets) == 1
-    assert command.startswith("[STUDY, ALLEEG] = pop_importbids(")
     assert "'eventtype', 'value'" in command
     assert "'bidsevent', 'on'" in command
     assert "derivatives/eeglab" in command.replace("\\", "/")
@@ -635,6 +634,103 @@ def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
         pop_importbids(root, subjects=[0])
     with pytest.raises(ValueError, match="pop_importbids: participant index 3"):
         pop_importbids(root, subjects=[3])
+
+
+def test_import_dialog_study_history_replays_two_subjects(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = "001"
+    datasets[1]["subject"] = "002"
+    root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
+    study, alleeg, command = pop_importbids(
+        root,
+        gui=True,
+        return_study=True,
+        return_com=True,
+        renderer=_Renderer(
+            {
+                "studyName": "Two subjects",
+                "chanlocs": True,
+                "events": True,
+                "typefield": 1,
+                "bidstask": False,
+                "bidssubjects": False,
+                "folder": str(tmp_path / "derivatives" / "eeglab"),
+            }
+        ),
+    )
+    expected = _study_view(study, alleeg)
+    assert expected == {"name": "Two subjects", "count": 2, "subjects": ["001", "002"], "recordings": ["", ""]}
+    assert _study_view(*_replay_assignment(command)) == expected
+
+
+def test_import_dialog_recordings_history_replays_the_same_datasets(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = "001"
+    datasets[1]["subject"] = "002"
+    root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
+    _tag_recording(root / "sub-001", "head")
+    _tag_recording(root / "sub-002", "aux")
+    study, alleeg, command = pop_importbids(
+        root,
+        gui=True,
+        return_study=True,
+        return_com=True,
+        renderer=_Renderer(
+            {
+                "studyName": "Head only",
+                "chanlocs": True,
+                "events": True,
+                "typefield": 1,
+                "bidstask": False,
+                "bidsrecordings": True,
+                "bidsrecordingsstr": "head",
+                "bidssubjects": False,
+                "folder": str(tmp_path / "derivatives" / "eeglab"),
+            }
+        ),
+    )
+    expected = _study_view(study, alleeg)
+    assert expected == {"name": "Head only", "count": 1, "subjects": ["001"], "recordings": ["head"]}
+    assert "'recordings'" in command
+    assert _study_view(*_replay_assignment(command)) == expected
+
+
+def _tag_recording(subject_dir: Path, recording: str) -> None:
+    for path in sorted(subject_dir.rglob("*"), reverse=True):
+        if not path.is_file() or "_recording-" in path.name:
+            continue
+        name = path.name
+        if "_run-" in name:
+            name = name.replace("_run-", f"_recording-{recording}_run-", 1)
+        elif "_eeg." in name:
+            name = name.replace("_eeg.", f"_recording-{recording}_eeg.", 1)
+        else:
+            continue
+        path.rename(path.with_name(name))
+
+
+def _replay_assignment(command: str):
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session)
+    exec(_console_python_command(command), workspace.namespace)  # noqa: S102
+    return workspace.namespace["STUDY"], workspace.namespace["ALLEEG"]
+
+
+def _study_view(study, datasets) -> dict[str, object]:
+    if not isinstance(datasets, list):
+        return {"name": None, "count": None, "subjects": None, "recordings": None}
+    subjects = []
+    recordings = []
+    for eeg in datasets:
+        bids = (eeg.get("etc") or {}).get("BIDS") or {}
+        subjects.append(str(eeg.get("subject") or ""))
+        recordings.append(str(bids.get("recording") or ""))
+    return {
+        "name": study.get("name") if isinstance(study, dict) else None,
+        "count": len(datasets),
+        "subjects": subjects,
+        "recordings": recordings,
+    }
 
 
 def _replay_history(command: str):
