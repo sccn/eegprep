@@ -73,14 +73,17 @@ Unreleased
   to 3 Hz (line 461). The previous default followed ``timefreq`` up to
   Nyquist, so a 128 Hz epoch with ``padratio`` 1 ran 6-64 Hz instead of 6-50 Hz.
 - The cross-coherence and time-frequency dialogs show epoch limits with
-  ``int2str`` truncation toward zero (``pop_newcrossf.m`` line 87,
-  ``pop_newtimef.m`` line 172), so 1.9921875 s is ``1992`` ms.
+  MATLAB ``int2str`` rounding, halves away from zero (``pop_newcrossf.m``
+  line 87, ``pop_newtimef.m`` line 172), so 0.9996 s is ``1000`` ms. When
+  the frequency field is empty and the epoch starts before zero,
+  ``pop_newtimef`` sets ``winsize`` the same way (``pop_newtimef.m`` line
+  292): ``xmin`` -0.1 s at 256 Hz is 26 samples.
 - ``pop_newtimef`` takes the EEGLAB sample window (``pop_newtimef.m`` lines
   305-306) and passes those requested time limits into the decomposition.
   ``pop_newcrossf`` uses that same inclusive end. Pinned ``pop_newcrossf.m``
-  line 189 omits the +1, so EEGLAB drops the last sample of a truncated
-  limit; the help text and a regression test record that difference. The
-  previous slice dropped the sample after the truncated limit and evaluated
+  line 189 omits the +1, so EEGLAB drops the last sample of a
+  whole-millisecond limit; the help text and a regression test record that
+  difference. The previous slice dropped the sample after that limit and evaluated
   the decomposition on the kept sample times, so an explicit baseline did
   not move the result.
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and

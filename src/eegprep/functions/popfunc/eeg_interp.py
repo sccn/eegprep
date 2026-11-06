@@ -214,16 +214,10 @@ def _restore_outside_time_range(bad_data, original_bad_data, EEG, t_range, locat
     outside = (times_ms < start * 1000.0) | (times_ms > end * 1000.0)
     if not np.any(outside):
         return bad_data
-    restored = np.array(bad_data, dtype=float, copy=True)
-    original = np.asarray(original_bad_data, dtype=float)
-    flat = original.shape[1]
-    if pnts > 0 and flat % pnts == 0:
-        restored = restored.reshape(restored.shape[0], pnts, flat // pnts)
-        original = original.reshape(original.shape[0], pnts, flat // pnts)
-        restored[:, outside, :] = original[:, outside, :]
-        return restored.reshape(restored.shape[0], flat)
-    restored[:, outside] = original[:, outside]
-    return restored
+    restored = np.array(bad_data, dtype=float, copy=True).reshape(len(bad_data), pnts, -1)
+    original = np.asarray(original_bad_data, dtype=float).reshape(len(bad_data), pnts, -1)
+    restored[:, outside, :] = original[:, outside, :]
+    return restored.reshape(len(bad_data), -1)
 
 
 def _normalise_method(method):

@@ -8,6 +8,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
@@ -229,7 +230,7 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         freqs,
     )
     if freqs == [] and "winsize" not in options and float(EEG.get("xmin", 0) or 0) < 0:
-        options["winsize"] = max(2, int(np.trunc(-float(EEG.get("xmin", 0) or 0) * float(EEG.get("srate", 1) or 1))))
+        options["winsize"] = max(2, int(round_mat(-float(EEG.get("xmin", 0) or 0) * float(EEG.get("srate", 1) or 1))))
     cycles = [0] if bool(result.get("fft", False)) else numeric_vector(result.get("cycles", "3 0.8")).tolist()
     return {
         "num": _first_index(result.get("num", 1)),

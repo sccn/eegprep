@@ -7,7 +7,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
 
@@ -194,8 +194,8 @@ def numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
 
 
 def dialog_msec(seconds: Any) -> str:
-    """Format a latency in seconds as truncated milliseconds."""
-    return str(int(np.trunc(float(seconds) * 1000.0)))
+    """Format a latency in seconds as whole milliseconds, matching MATLAB ``int2str``."""
+    return str(int(round_mat(float(seconds) * 1000.0)))
 
 
 def requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:

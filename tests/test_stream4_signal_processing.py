@@ -291,12 +291,50 @@ def test_f91_newcrossf_log_scale_lifts_a_zero_lower_edge_to_3_hz():
     assert result.freqs[-1] == pytest.approx(50.0)
 
 
-def test_f92_dialogs_truncate_epoch_limits_toward_zero():
+def test_f92_dialogs_round_epoch_limits_half_away_from_zero():
     eeg = _epoch()
+    eeg["xmin"] = -1.0006
+    eeg["xmax"] = 0.9996
     cross = controls_by_tag(pop_newcrossf_dialog_spec(eeg))
     timef = controls_by_tag(pop_newtimef_dialog_spec(eeg))
-    assert cross["tlimits"].value == "-1000 1992"
-    assert timef["tlimits"].value == "-1000 1992"
+    assert cross["tlimits"].value == "-1001 1000"
+    assert timef["tlimits"].value == "-1001 1000"
+
+
+def test_f92_prestimulus_window_rounds_half_away_from_zero():
+    eeg = _epoch(n_channels=1, n_points=64, trials=2, srate=256.0)
+    eeg["xmin"] = -0.1
+    eeg["xmax"] = -0.1 + 63 / 256.0
+    eeg["times"] = linspace(eeg["xmin"] * 1000.0, eeg["xmax"] * 1000.0, 64)
+
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {
+                "num": "1",
+                "tlimits": "-100 146",
+                "ntimesout": 1,
+                "freqs": "",
+                "nfreqs": 1,
+                "freqscale": False,
+                "baseline": "0",
+                "basenorm": 1,
+                "nobase": False,
+                "cycles": "3 0.8",
+                "fft": False,
+                "erspmax": "",
+                "scale": True,
+                "itcmax": "",
+                "plotphase": False,
+                "alpha": "",
+                "fdr": False,
+                "options": "",
+                "plotersp": False,
+                "plotitc": False,
+                "plotcurve": False,
+            }
+
+    _result, command = pop_newtimef(eeg, gui=True, renderer=Renderer(), plot="off", return_com=True)
+    assert "winsize=26" in command
 
 
 def test_f126_pop_newtimef_keeps_the_last_sample_and_a_prestimulus_baseline():
