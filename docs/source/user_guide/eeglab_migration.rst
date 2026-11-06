@@ -48,8 +48,10 @@ What Changes
        EEGLAB channel numbers before passing them to Python, or use labels
        such as ``channel=['Cz', 'Pz']``. The GUI uses one-based numbers
        from ``1`` through ``EEG['nbchan']``. After cropping channels, use
-       the current dataset's channel count. Range errors report the
-       invalid indices, current count, and both valid ranges.
+       the current dataset's channel count. Python range errors report
+       the invalid indices, current count, and both valid ranges. GUI
+       errors preserve the entered channel numbers and give the valid
+       one-based range.
    * - Globals
      - EEGPrep functions take explicit inputs. The shared console namespace is
        session state, not a hidden global dependency.
