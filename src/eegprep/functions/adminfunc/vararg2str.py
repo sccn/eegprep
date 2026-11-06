@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 
 
 def vararg2str(
@@ -34,6 +35,24 @@ def vararg2str(
         else:
             rendered.append(_format_value(value, raw_string=bool(raw_string)))
     return ",".join(rendered)
+
+
+def _matlab_history_value(value: Any) -> str:
+    if isinstance(value, str) and not _looks_numeric(value):
+        return f"'{value}'"
+    values = parse_numeric_sequence(value, dtype=float)
+    if not values:
+        return "[]"
+    if len(values) == 1:
+        return _matlab_num2str(values[0])
+    return "[" + _matlab_contarray(values, _matlab_num2str) + "] "
+
+
+def _looks_numeric(value: str) -> bool:
+    token = value.strip().strip("[]")
+    if not token:
+        return True
+    return all(character.isdigit() or character in ".:-+eE,; " for character in token)
 
 
 def _padded(values: Sequence[Any] | None, length: int, default: Any) -> list[Any]:
@@ -74,20 +93,21 @@ def matlab_array2str(values: Any) -> str:
     return "[" + ";".join(_matlab_contarray(row) for row in array) + "]"
 
 
-def _matlab_contarray(array: np.ndarray) -> str:
-    values = np.asarray(array, dtype=float).reshape(-1)
-    if values.size == 1:
-        return _matlab_num(float(values[0]))
-    if values.size == 2:
-        return f"{_matlab_num(float(values[0]))} {_matlab_num(float(values[1]))}"
-    if np.all(np.isnan(values) | np.isclose(values, np.rint(values), equal_nan=True)):
-        return _matlab_integer_row(values)
-    return " ".join(_matlab_num(float(value)) for value in values)
-
-
-def _matlab_integer_row(values: np.ndarray) -> str:
-    numbers = [float(value) for value in values]
-    parts = [_matlab_num(numbers[0])]
+def _matlab_contarray(values: Any, formatter: Callable[[float], str] | None = None) -> str:
+    # vararg2str.m:196-242
+    format_number = _matlab_num if formatter is None else formatter
+    numbers = [float(value) for value in np.asarray([] if values is None else values, dtype=float).reshape(-1)]
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return format_number(numbers[0])
+    if len(numbers) == 2:
+        return f"{format_number(numbers[0])} {format_number(numbers[1])}"
+    array = np.asarray(numbers, dtype=float)
+    non_integers = np.flatnonzero(np.round(array) != array)
+    if non_integers.size and not np.all(np.isnan(array[non_integers])):
+        return " ".join(format_number(value) for value in numbers)
+    parts = [format_number(numbers[0])]
     skip = 0
     indent = numbers[1] - numbers[0]
     last_index = 1
@@ -96,27 +116,27 @@ def _matlab_integer_row(values: np.ndarray) -> str:
         if numbers[index] != numbers[index - 1] + indent or indent == 0:
             if skip <= 1:
                 if skip == 0:
-                    parts.append(_matlab_num(numbers[index]))
+                    parts.append(format_number(numbers[index]))
                 else:
-                    parts.append(_matlab_num(numbers[index - 1]))
-                    parts.append(_matlab_num(numbers[index]))
+                    parts.append(format_number(numbers[index - 1]))
+                    parts.append(format_number(numbers[index]))
             elif indent == 1:
-                parts[-1] = f"{parts[-1]}:{_matlab_num(numbers[index - 1])}"
-                parts.append(_matlab_num(numbers[index]))
+                parts[-1] = f"{parts[-1]}:{format_number(numbers[index - 1])}"
+                parts.append(format_number(numbers[index]))
             else:
-                parts[-1] = f"{parts[-1]}:{_matlab_num(indent)}:{_matlab_num(numbers[index - 1])}"
-                parts.append(_matlab_num(numbers[index]))
+                parts[-1] = f"{parts[-1]}:{format_number(indent)}:{format_number(numbers[index - 1])}"
+                parts.append(format_number(numbers[index]))
             skip = 0
             indent = numbers[index] - numbers[index - 1]
         else:
             skip += 1
     if numbers[last_index] == numbers[last_index - 1] + indent and skip != 0:
         if indent == 1:
-            parts[-1] = f"{parts[-1]}:{_matlab_num(numbers[last_index])}"
+            parts[-1] = f"{parts[-1]}:{format_number(numbers[last_index])}"
         elif indent == 0:
-            parts.append(_matlab_num(numbers[last_index]))
+            parts.append(format_number(numbers[last_index]))
         else:
-            parts[-1] = f"{parts[-1]}:{_matlab_num(indent)}:{_matlab_num(numbers[last_index])}"
+            parts[-1] = f"{parts[-1]}:{format_number(indent)}:{format_number(numbers[last_index])}"
     return " ".join(parts)
 
 

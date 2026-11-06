@@ -121,9 +121,9 @@ def _apply_one(
 ) -> tuple[dict[str, Any], list[int]]:
     if int(EEG.get("trials", 1) or 1) <= 1:
         raise ValueError("pop_autorej requires epoched data")
-    threshold = float(parse_numeric_sequence(options.get("threshold", 1000), dtype=float)[0])
-    startprob = float(parse_numeric_sequence(options.get("startprob", 5), dtype=float)[0])
-    maxrej = float(parse_numeric_sequence(options.get("maxrej", 5), dtype=float)[0])
+    threshold = _dialog_number(options.get("threshold", 1000), "Threshold limit (microV)", "1000")
+    startprob = _dialog_number(options.get("startprob", 5), "Probability threshold (std. dev.)", "5")
+    maxrej = _dialog_number(options.get("maxrej", 5), "Maximum % of total trials to reject per iteration", "5")
     electrodes = one_based_indices(options.get("electrodes"), limit=int(EEG.get("nbchan", 0)), default_all=True)
     icacomps = one_based_indices(
         options.get("icacomps"),
@@ -219,6 +219,18 @@ def _autorej_marked_dataset(
         row_marks[np.ix_(selected, np.flatnonzero(marks))] = True
     update_reject_fields(out, icacomp=int(process_data), kind="rejauto", reject=marks, reject_e=row_marks)
     return out
+
+
+def _dialog_number(value: Any, field: str, example: str) -> float:
+    try:
+        values = parse_numeric_sequence(value, dtype=float)
+    except ValueError:
+        values = []
+    if len(values) != 1 or not np.isfinite(values[0]):
+        raise ValueError(
+            f"pop_autorej: {field} must be one finite number, for example {example}. The entered value was {value!r}."
+        )
+    return float(values[0])
 
 
 def _history_command(options: dict[str, Any]) -> str:

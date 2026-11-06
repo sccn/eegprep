@@ -343,6 +343,17 @@ class QtDialogRenderer:
             targets = [widgets[tag] for tag in params["targets"] if tag in widgets]
             source.toggled.connect(lambda checked: self._set_enabled(targets, checked))
             self._set_enabled(targets, source.isChecked())
+        elif callback.name == "toggle_checked_text":
+            source = widgets[params["source"]]
+            target = widgets[params["target"]]
+            checked_text = str(params["checked"])
+            unchecked_text = str(params["unchecked"])
+
+            def apply_text(checked: bool, target: Any = target) -> None:
+                target.setText(checked_text if checked else unchecked_text)
+
+            source.toggled.connect(apply_text)
+            apply_text(bool(source.isChecked()))
         elif callback.name == "toggle_index_enabled":
             source = widgets[params["source"]]
             targets = [widgets[tag] for tag in params["targets"] if tag in widgets]

@@ -39,6 +39,98 @@ Unreleased
   281). The indices are mapped to subject labels before the file filter. A
   non-numeric or out-of-range value raises ``pop_importbids``. The history
   command records the numbers, for example ``'subjects', [1 2]``.
+- ``pop_rejspec`` multitaper estimation stops each series on its own ``pmtm``
+  test, ``sum(abs(S-S1))/nfft > tol``. A non-finite change stops that series,
+  so one NaN sample returns instead of looping. Finite tutorial epochs are
+  unchanged: ±30 dB and ±35 dB still mark nothing.
+- Reject marked epochs records ``eeg_rejsuperpose`` only after the new-dataset
+  dialog is accepted. Cancelling that dialog leaves the command history as it
+  was.
+- ``vararg2str`` continuous-array history uses MATLAB ``num2str``
+  (``vararg2str.m:196-242``).
+- ``pop_rejspec`` multitaper power is ``10*log10`` (dB). ``pop_rejspec.m:310``
+  uses ``10*log`` (natural log). On ``eeglab_data_epochs_ica.set``, 15–30 Hz
+  at ±35 dB marks no data epochs; EEGLAB marks epoch 37. At ±30 dB, EEGPrep
+  marks no data epochs and no component epochs; EEGLAB marks data epoch 37
+  and components 13, 14, 15, 26, and 79.
+- ``pop_rejcont`` applies frequency limits to the real FFT bin frequencies.
+  ``pop_rejcont.m:211`` stretches those bins with ``linspace`` from 0 to
+  Nyquist. On ``eeglab_data.set``, 20–40 Hz at 10 dB keeps 27720 points in
+  8 regions; EEGLAB keeps 28008 points in 9.
+- ``pop_rejcont`` accepts a ``[min max]`` threshold and a cell of thresholds
+  or frequency ranges (``pop_rejcont.m:172-177`` and ``pop_rejcont.m:239``).
+  A single limit is still expanded to ``[-100 limit]``. On
+  ``eeglab_data.set``, ``[-50 10]`` keeps 27720 points in 8 regions and
+  ``[-5 10]`` keeps 3432 points in 17 regions.
+- ``pop_rejcont`` history leaves ``eegplot`` out of the commented call
+  (``pop_rejcont.m:370``). Accepting the marked regions records a separate
+  ``pop_select( EEG, 'nopoint',[...]);`` entry (``pop_select.m:749``).
+- A two-number threshold typed into the ``pop_rejcont`` dialog, such as
+  ``-50 10``, stays ``[min max]``. ``pop_rejcont.m:147`` reads that field
+  with ``str2double``, which becomes NaN and rejects nothing. On
+  ``eeglab_data.set``, ``-50 10`` still keeps 27720 points in 8 regions.
+- ``pop_rejcont`` with ``correct`` ``blank`` writes the zeroed samples back
+  onto the dataset. A ``float32`` recording is copied by the floating-point
+  conversion, so the zeros have to be stored explicitly. On
+  ``eeglab_data.set``, 20-40 Hz at 10 dB with the default taper zeroes
+  1312 columns.
+- ``pop_eegthresh`` history uses the ``vararg2str`` form at
+  ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed. The
+  reject flag is the value that was applied. ``pop_eegthresh.m:252``
+  always writes 0, so replaying a scripted ``reject=1`` call in EEGLAB
+  only marks the epochs. Dialog times use MATLAB ``num2str``:
+  five significant digits below 1, and ``floor(log10(|x|))+5`` digits
+  otherwise. The sample epoch file shows an end time of 1.9922;
+  12.34567 is 12.3457 and 123.456789 is 123.4568.
+- Update Marks shows the warning that epochs marked for rejection have been
+  noted (``eeg_rejmacro.m:119-121``).
+- ``pop_rejcont`` reports the Add trails field, the function name, and an
+  example value when that field is not one number of seconds.
+- Reject marked epochs history is ``pop_rejepoch( EEG, [1:6 9] ,0)``
+  (``pop_rejepoch.m:101``).
+- Reject marked epochs, for data and for ICA, stores the result with
+  ``pop_newset`` (``eeglab.m:663-664`` and ``eeglab.m:676-677``).
+- The reject-by-spectra dialog opens on FFT (``pop_rejspec.m:142-149``).
+- Unchecking normalization in channel rejection relabels the threshold as
+  an absolute limit (``pop_rejchan.m:86-89``).
+- Multitaper spectra adapt until ``pmtm``'s convergence test on the full
+  ``nfft``, with no iteration cap (``pop_rejspec.m:307-326``).
+- ``pop_rejepoch(..., confirm=-1)`` follows ``pop_rejepoch.m:96-97`` and
+  allows an empty dataset. Any other confirm value still names
+  ``pop_rejepoch`` and tells you to clear a mark.
+- ``pop_autorej`` reports which dialog field was not numeric, and shows a
+  valid example, instead of a bare float conversion error.
+- ``eeg_regepochs`` stores ``urevent`` as an array and inserts every regular
+  event. ``pop_epoch`` drops an epoch whose window passes the end of the
+  data and warns ``event N out of data boundary``.
+- ``pop_eegthresh`` now opens the component dialog on components 1:5
+  (``pop_eegthresh.m:120``) instead of every component.
+- Reject marked epochs now builds ``rejglobal`` with ``eeg_rejsuperpose``
+  before removing trials (``eeglab.m:663-677``). Rejecting every epoch raises
+  a ``pop_rejepoch`` error that says how to clear a mark, instead of an empty
+  dataset from ``pop_select``.
+- Export marks to ICA reject now superposes data marks and copies
+  ``rejglobal`` onto ``icarejmanual`` (``eeglab.m:661-662``). Export marks to
+  data reject copies ICA marks onto ``rejmanual`` (``eeglab.m:674-675``).
+- ``pop_rejchan`` now rejects probability and kurtosis channels with the
+  two-sided mask from ``rejkurt.m:131`` and ``jointprob.m:133``, after the
+  10% trimmed normalization at ``rejkurt.m:109-114``. The dialog offers
+  Probability, Kurtosis, and Spectrum (``pop_rejchan.m:96``) and enables the
+  frequency range only for Spectrum (``pop_rejchan.m:99-100``). History uses
+  the ``vararg2str`` form at ``pop_rejchan.m:246``.
+- ``pop_rejspec`` multitaper spectra follow ``pop_rejspec.m:307-326`` for
+  the seven adaptive Slepian tapers and the ``eegthresh`` bin limits, and
+  convert power with ``10*log10`` rather than the natural log at
+  ``pop_rejspec.m:310``. On ``eeglab_data_epochs_ica.set`` that marks no
+  epochs at ±30 dB or ±35 dB.
+- ``pop_rejcont`` now rejects the trial-mean spectrum of overlapping windows
+  and merges them with the rule at ``pop_rejcont.m:211-316``. On
+  ``eeglab_data.set`` the 20-40 Hz, 10 dB settings remove 8 regions and keep
+  27720 points. The scroll view uses the ``eegplot.m:457-473`` spacing, and
+  the dialog has no Help button (``pop_rejcont.m:140``).
+- Channel-mode automatic epoch rejection uses ``rejkurt``. ``pop_autorej.m:224``
+  uses ``icarejkurt``, so on ``eeglab_data_epochs_ica.set`` EEGLAB keeps 75
+  epochs and EEGPrep keeps 74.
 - Clicking or dragging in the scroll window marks data again. The plot
   viewport was asked for ``mapToScene``, which only ``QGraphicsView``
   provides, so every left click raised ``AttributeError``. Continuous

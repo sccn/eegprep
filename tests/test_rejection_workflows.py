@@ -6,7 +6,8 @@ import pytest
 
 import eegprep.functions.popfunc._eegplot_rejection as eegplot_rejection_module
 import eegprep.functions.popfunc.pop_rejcont as pop_rejcont_module
-from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _console_python_command
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc._rejection import (
     _normalize_scores,
@@ -377,10 +378,24 @@ def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
     assert out["reject"]["rejthreshE"][0].tolist() == [False, True, False, False, False]
     assert component_rejected == [2]
     assert component_out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
-    assert _console_python_command(com) == (
-        "EEG = pop_eegthresh(EEG, icacomp=1, elecrange=[1], negthresh=[-10], "
-        "posthresh=[10], starttime=[0], endtime=[0.79], superpose=0, reject=0)"
-    )
+    assert com == "EEG = pop_eegthresh(EEG,1,1,-10,10,0,0.79,0,0);"
+
+
+def test_pop_eegthresh_reject_one_history_replays_dropped_epochs():
+    eeg = _epoched_eeg()
+    out, command = pop_eegthresh(eeg, 1, [1], -10, 10, 0, 0.79, 0, 1, return_com=True)
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    session.add_history(command)
+    workspace = EEGPrepConsoleWorkspace(session)
+
+    workspace.execute_history_command(command)
+
+    assert command == "EEG = pop_eegthresh(EEG,1,1,-10,10,0,0.79,0,1);"
+    assert out["trials"] == 4
+    assert session.EEG["trials"] == out["trials"]
+    np.testing.assert_array_equal(np.asarray(session.EEG["data"]), np.asarray(out["data"]))
+    workspace.close()
 
 
 def test_eegplot_accepts_epoched_data_after_spectral_rejection_marks():
@@ -474,8 +489,9 @@ def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeyp
     )
 
     assert out is eeg
-    assert command == ""
-    assert accepted[0][1].startswith("EEG = pop_rejcont(EEG, ")
+    assert command.startswith("% the command below does the automated rejection")
+    assert "eegplot" not in command
+    assert accepted[0][1].startswith("EEG = pop_select( EEG, 'nopoint',[")
 
 
 def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
@@ -538,7 +554,9 @@ def test_jointprob_computed_and_precomputed_thresholds_match_upstream():
 def test_jointprob_trim_rounds_a_half_count_away_from_zero():
     values = np.arange(25, dtype=float) ** 2
     scores = values.reshape(1, -1)
-    normalized = _normalize_scores(scores, 2, signal_ndim=2)
+    # 25 * 0.1 is 2.5. Epoch rows trim with round_mat, so the kept samples are
+    # [3:22]. A 2-D signal instead trims the score column (rejkurt.m:112-113).
+    normalized = _normalize_scores(scores, 2, signal_ndim=3)
     baseline = values[3:22]
     expected = (values[0] - baseline.mean()) / baseline.std(ddof=1)
     assert normalized[0, 0] == pytest.approx(expected)
@@ -652,7 +670,7 @@ def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
     removed, reject_com = pop_rejepoch(copy.deepcopy(marked), marked["reject"]["rejglobal"], 0, return_com=True)
     assert removed["trials"] == 3
     assert _console_python_command(com) == "EEG = eeg_rejsuperpose(EEG, 1, 1, 0, 0, 0, 0, 0, 0)"
-    assert _console_python_command(reject_com) == "EEG = pop_rejepoch(EEG, tmprej=[2, 5], confirm=0)"
+    assert reject_com == "EEG = pop_rejepoch( EEG, [2 5] ,0);"
 
 
 def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families():
@@ -770,10 +788,13 @@ def test_pop_rejcont_history_replays_effectful_mode_and_overlap_options():
         return_com=True,
     )
 
-    assert _console_python_command(command) == (
-        "EEG = pop_rejcont(EEG, elecrange=[1], freqlimit=[20, 40], threshold=1000000000, "
-        "epochlength=0.5, overlap=0.1, mode='mean', onlyreturnselection='on')"
-    )
+    assert command.startswith("% the command below does the automated rejection")
+    assert "'elecrange',1" in command
+    assert "'freqlimit',[20 40] " in command
+    assert "'threshold',1000000000" in command
+    assert "'mode','mean'" in command
+    assert "'onlyreturnselection','on'" in command
+    assert not any(line.startswith("EEG = pop_select") for line in command.splitlines())
 
 
 def test_component_selection_and_viewprops_are_replayable_without_scrolling_browser():

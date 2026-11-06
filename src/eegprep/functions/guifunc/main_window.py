@@ -87,6 +87,11 @@ class EEGPrepMainWindow:
             native_file_dialogs=native_file_dialogs,
             extension_runtime=self.extension_runtime,
         )
+        # While a menu popup is open, shiboken deletes a QMenu whose Python
+        # wrapper is collected. That removes the open menu and any menu opened
+        # on the way to it, which is why cancelling a dialog drops File, Edit,
+        # and Tools. Holding the wrappers keeps the bar intact.
+        self._menu_refs: list[Any] = []
         self._build_central_widget()
         self.refresh()
 
@@ -192,12 +197,14 @@ class EEGPrepMainWindow:
 
     def _build_menus(self) -> None:
         menubar = self.window.menuBar()
+        kept: list[Any] = []
         menubar.clear()
         statuses = self.session.menu_statuses()
         for spec in self._current_menu_specs():
-            action = self._add_top_menu(menubar, spec, statuses)
+            action = self._add_top_menu(menubar, spec, statuses, kept)
             if spec.label == "Study" and "multiple_datasets" in statuses:
                 _set_menu_enabled(action.menu(), action, False)
+        self._menu_refs = kept
         _set_macos_application_menu_title(APP_NAME)
 
     def _apply_application_branding(self) -> None:
@@ -263,22 +270,24 @@ class EEGPrepMainWindow:
             )
         return tuple(items)
 
-    def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str]) -> Any:
+    def _add_top_menu(self, menubar: Any, spec: MenuItemSpec, statuses: set[str], kept: list[Any]) -> Any:
         menu = menubar.addMenu(spec.label)
+        kept.append(menu)
         action = menu.menuAction()
         _apply_action_metadata(action, spec, self._qt_gui)
         _set_menu_enabled(menu, action, menu_enabled(spec, statuses))
         if spec.tag:
             menu.setObjectName(spec.tag)
         for child in spec.children:
-            self._add_menu_item(menu, child, statuses)
+            self._add_menu_item(menu, child, statuses, kept)
         return action
 
-    def _add_menu_item(self, menu: Any, spec: MenuItemSpec, statuses: set[str]) -> Any:
+    def _add_menu_item(self, menu: Any, spec: MenuItemSpec, statuses: set[str], kept: list[Any]) -> Any:
         if spec.separator:
             menu.addSeparator()
         if spec.children:
             submenu = menu.addMenu(spec.label)
+            kept.append(submenu)
             if spec.tag:
                 submenu.setObjectName(spec.tag)
             action = submenu.menuAction()
@@ -287,7 +296,7 @@ class EEGPrepMainWindow:
             if spec.origin != "core":
                 action.setIconText(spec.label)
             for child in spec.children:
-                self._add_menu_item(submenu, child, statuses)
+                self._add_menu_item(submenu, child, statuses, kept)
             return action
         coming_soon = _is_coming_soon_item(spec)
         action = menu.addAction(_display_menu_label(spec))

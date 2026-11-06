@@ -10,6 +10,7 @@ from eegprep.functions.popfunc.plot_utils import history_command
 import numpy as np
 
 from eegprep.functions.popfunc._eegplot_rejection import (
+    show_marked_epochs_notice,
     DEFAULT_REJECTION_COLORS,
     MANUAL_REJECTION_COLOR,
     displayed_rejection_families,
@@ -100,6 +101,8 @@ def pop_eegplot(
             reject=reject,
             return_com=True,
         )
+        if not int(bool(reject)):
+            show_marked_epochs_notice()
         if accept_callback is not None:
             accept_callback(eeg_out, accept_command)
 

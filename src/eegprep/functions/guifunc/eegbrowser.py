@@ -148,6 +148,10 @@ class EEGBrowserWindow(_QMainWindow):
         self._linked_windows: list[Any] = []
         self._child_windows: list[Any] = []
         self._syncing_link = False
+        # addMenu returns a QMenu owned by Python, and its menuAction is the
+        # menu-bar entry. Shiboken deletes both when those wrappers are
+        # collected, including while the menu is popped up.
+        self._menu_refs: list[Any] = []
         self.setObjectName("eegbrowser")
         self.setWindowTitle(model.state.title)
         self.setStyleSheet(_BUTTON_STYLE)
@@ -216,8 +220,14 @@ class EEGBrowserWindow(_QMainWindow):
         self.controls.sync_from_state()
 
     def _build_menus(self) -> None:
-        figure_menu = self.menuBar().addMenu("Figure")
-        print_menu = figure_menu.addMenu("Print")
+        kept: list[Any] = []
+
+        def retain(menu: Any) -> Any:
+            kept.extend((menu, menu.menuAction()))
+            return menu
+
+        figure_menu = retain(self.menuBar().addMenu("Figure"))
+        print_menu = retain(figure_menu.addMenu("Print"))
         self.print_portrait_action = print_menu.addAction("Portrait")
         self.print_portrait_action.triggered.connect(
             lambda: self._show_status_message("Print portrait is not available.")
@@ -235,20 +245,20 @@ class EEGBrowserWindow(_QMainWindow):
         self.cancel_action = figure_menu.addAction("Cancel and close")
         self.cancel_action.triggered.connect(self.cancel_and_close)
 
-        display_menu = self.menuBar().addMenu("Display")
-        mark_menu = display_menu.addMenu("Data select/mark")
+        display_menu = retain(self.menuBar().addMenu("Display"))
+        mark_menu = retain(display_menu.addMenu("Data select/mark"))
         self.marks_action = mark_menu.addAction("")
         self.marks_action.triggered.connect(self._toggle_marks)
         self.mark_color_action = mark_menu.addAction("Choose color")
         self.mark_color_action.triggered.connect(self._choose_mark_color)
         self.event_duration_action = display_menu.addAction("Plot event duration")
         self.event_duration_action.triggered.connect(self._toggle_event_durations)
-        grid_menu = display_menu.addMenu("Grid")
+        grid_menu = retain(display_menu.addMenu("Grid"))
         self.xgrid_action = grid_menu.addAction("")
         self.xgrid_action.triggered.connect(self._toggle_xgrid)
         self.ygrid_action = grid_menu.addAction("")
         self.ygrid_action.triggered.connect(self._toggle_ygrid)
-        grid_style_menu = grid_menu.addMenu("Grid Style")
+        grid_style_menu = retain(grid_menu.addMenu("Grid Style"))
         for label in ("- -", "_ .", ". .", "__"):
             action = grid_style_menu.addAction(label)
             action.setEnabled(False)
@@ -264,12 +274,12 @@ class EEGBrowserWindow(_QMainWindow):
         self.norm_action = display_menu.addAction("")
         self.norm_action.triggered.connect(self.toggle_normalize)
 
-        settings_menu = self.menuBar().addMenu("Settings")
+        settings_menu = retain(self.menuBar().addMenu("Settings"))
         self.time_range_action = settings_menu.addAction("Time range to display")
         self.time_range_action.triggered.connect(self._prompt_time_range)
         self.dispchans_action = settings_menu.addAction("Number of channels to display")
         self.dispchans_action.triggered.connect(self._prompt_displayed_channels)
-        channel_label_menu = settings_menu.addMenu("Channel labels")
+        channel_label_menu = retain(settings_menu.addMenu("Channel labels"))
         self.show_numbers_action = channel_label_menu.addAction("Show number")
         self.show_numbers_action.setCheckable(True)
         self.show_numbers_action.triggered.connect(lambda: self.set_channel_label_mode("numbers"))
@@ -278,12 +288,12 @@ class EEGBrowserWindow(_QMainWindow):
         self.show_labels_action.triggered.connect(lambda: self.set_channel_label_mode("labels"))
         self.load_locs_action = channel_label_menu.addAction("Load .loc(s) file")
         self.load_locs_action.setEnabled(False)
-        zoom_menu = settings_menu.addMenu("Zoom off/on")
+        zoom_menu = retain(settings_menu.addMenu("Zoom off/on"))
         self.zoom_on_action = zoom_menu.addAction("Zoom on")
         self.zoom_on_action.triggered.connect(lambda: self.set_zoom_enabled(True))
         self.zoom_off_action = zoom_menu.addAction("Zoom off")
         self.zoom_off_action.triggered.connect(lambda: self.set_zoom_enabled(False))
-        events_menu = settings_menu.addMenu("Events")
+        events_menu = retain(settings_menu.addMenu("Events"))
         self.events_on_action = events_menu.addAction("Events on")
         self.events_on_action.triggered.connect(lambda: self.set_events_visible(True))
         self.events_off_action = events_menu.addAction("Events off")
@@ -295,6 +305,7 @@ class EEGBrowserWindow(_QMainWindow):
 
         self.help_action = self.menuBar().addAction("Help")
         self.help_action.triggered.connect(lambda: self._show_status_message("EEGPrep eegplot browser"))
+        self._menu_refs = kept
         self._refresh_menu_labels()
 
     def _build_shortcuts(self) -> None:
