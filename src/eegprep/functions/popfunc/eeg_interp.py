@@ -188,18 +188,17 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
 
 
 def _sample_times_ms(EEG: dict, pnts: int) -> np.ndarray:
-    xmin = float(EEG["xmin"])
-    xmax = float(EEG["xmax"])
-    expected = np.linspace(xmin * 1000.0, xmax * 1000.0, pnts)
-    times = EEG.get("times")
-    if times is None:
-        return expected
-    values = np.asarray(times, dtype=float).reshape(-1)
+    if "times" not in EEG or EEG["times"] is None:
+        raise ValueError(
+            "eeg_interp: EEG.times is missing, so the time range cannot be applied. "
+            "Run eeg_checkset so the dataset has one time value per sample."
+        )
+    values = np.asarray(EEG["times"], dtype=float).reshape(-1)
     if values.size != pnts:
-        return expected
-    span = float(values[-1] - values[0]) if values.size else 0.0
-    if not np.isclose(span, (xmax - xmin) * 1000.0, rtol=1e-3, atol=1e-6):
-        return expected
+        raise ValueError(
+            f"eeg_interp: EEG.times has {values.size} values but EEG.pnts is {pnts}. "
+            "Run eeg_checkset so times has one value per sample."
+        )
     return values
 
 

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import dimpulse
 
+from eegprep.plugins.firfilt.fir_filterdcpadded import is_linear_phase_fir
+
 
 def plotfresp(
     b: Any,
@@ -58,17 +60,6 @@ def plotfresp(
     return fig, axes, response
 
 
-def _linear_phase_fir(b: np.ndarray) -> bool:
-    if b.size % 2 == 0:
-        return bool(np.allclose(b, b[::-1]) or np.allclose(b, -b[::-1]))
-    group_delay = (b.size - 1) // 2
-    if group_delay == 0:
-        return True
-    symmetric = np.allclose(b[:group_delay], b[:group_delay:-1])
-    antisymmetric = np.allclose(b[:group_delay], -b[:group_delay:-1]) and np.isclose(b[group_delay], 0.0)
-    return bool(symmetric or antisymmetric)
-
-
 def _response_data(b: Any, a: Any, nfft: int, fs: float, direction: str) -> dict[str, np.ndarray]:
     b = np.asarray(b, dtype=float).ravel()
     a = np.asarray(a, dtype=float).ravel()
@@ -78,7 +69,7 @@ def _response_data(b: Any, a: Any, nfft: int, fs: float, direction: str) -> dict
     fs = float(fs or 1)
     direction = str(direction or "onepass")
     is_fir = a.size == 1 and a[0] == 1
-    is_linear_phase = is_fir and _linear_phase_fir(b)
+    is_linear_phase = is_fir and is_linear_phase_fir(b)
     if direction.startswith("twopass"):
         is_twopass = True
         is_zerophase = True

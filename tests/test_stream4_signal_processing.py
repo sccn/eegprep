@@ -172,6 +172,17 @@ def test_f59_gui_empty_time_field_matches_unrestricted_interpolation():
     np.testing.assert_array_equal(gui["data"], whole["data"])
 
 
+def test_eeg_interp_time_range_requires_sample_times():
+    eeg = _continuous()
+    del eeg["times"]
+    with pytest.raises(ValueError, match="eeg_checkset"):
+        eeg_interp(eeg, [0], method="spherical", t_range=(0.2, 0.5))
+    eeg = _continuous()
+    eeg["times"] = eeg["times"][:-1]
+    with pytest.raises(ValueError, match="eeg_checkset"):
+        eeg_interp(eeg, [0], method="spherical", t_range=(0.2, 0.5))
+
+
 def test_f59_partial_range_includes_both_endpoints_and_keeps_the_final_sample():
     eeg = _continuous()
     start, end = 0.2, 0.5
@@ -227,17 +238,29 @@ def test_pop_interp_channel_indices_are_one_based():
 
 
 def test_f69_kurtosis_subset_uses_fix_rand_on_the_twister_stream():
-    datalength = 30504
-    kurtsize = 17
-    got = _kurtosis_columns(np.random.RandomState(5489), datalength, kurtsize)
-    rng = np.random.RandomState(5489)
-    expected = np.fix(rng.rand(kurtsize) * datalength).astype(np.int64)
-    while np.any(expected == 0):
-        missing = expected == 0
-        expected[missing] = np.fix(rng.rand(int(np.count_nonzero(missing))) * datalength).astype(np.int64)
-    np.testing.assert_array_equal(got, expected - 1)
-    randint_columns = np.random.RandomState(5489).randint(1, datalength, size=kurtsize)
-    assert not np.array_equal(randint_columns, got)
+    got = _kurtosis_columns(np.random.RandomState(5489), 30504, 17)
+    expected = np.array(
+        [
+            24852,
+            27630,
+            3873,
+            27861,
+            19289,
+            2975,
+            8495,
+            16682,
+            29207,
+            29432,
+            4807,
+            29606,
+            29197,
+            14805,
+            24411,
+            4328,
+            12865,
+        ]
+    )
+    np.testing.assert_array_equal(got + 1, expected)
 
 
 def test_f91_newcrossf_default_frequencies_stop_at_50_hz():
