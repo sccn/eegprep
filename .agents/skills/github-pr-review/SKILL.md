@@ -199,11 +199,13 @@ Focus on:
 
 Flag only significant bugs. Ignore nitpicks and likely false positives.
 
-Do not flag issues that cannot be validated without looking at context outside of the diff.
+Reading EEGLAB reference files, callers of changed functions, and nearby tests is expected. Only findings must be about the PR's changes, or about direct breakage they cause.
 
 #### Pass 4: EEGLAB parity and data structures
 
 Review the introduced code for EEGPrep-specific risks.
+
+For each changed EEGPrep function, open the corresponding EEGLAB `.m` file and compare defaults, indexing (0- vs 1-based), struct fields, GUI behavior, and cancel paths. Cite the `.m` file and line in the finding. Differences that EEGPrep documents as intentional, where EEGLAB has a bug, are not parity bugs, as long as they are documented and covered by a test.
 
 Focus on:
 
