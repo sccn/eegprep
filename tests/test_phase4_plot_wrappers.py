@@ -997,6 +997,17 @@ def test_component_activations_dedup_contract():
     assert np.allclose(component_activations(eeg), stored)
 
 
+def test_headplot_dialog_latency_range_rounds_halves_away_from_zero():
+    eeg = {
+        "xmin": 0.0005,
+        "xmax": 1.0005,
+        "chanlocs": [{"labels": "Cz", "theta": 0.0, "radius": 0.5}],
+        "nbchan": 1,
+    }
+    texts = [control.string for control in pop_headplot_dialog_spec(eeg).controls]
+    assert any("from 1 to 1001 ms" in text for text in texts)
+
+
 def _matlab_string(path: Any) -> str:
     return str(path).replace("'", "''")
 

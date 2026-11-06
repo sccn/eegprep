@@ -4,6 +4,7 @@ from unittest.mock import patch
 import numpy as np
 
 from eegprep import pop_interp
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.guifunc.qt import QtDialogRenderer
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_interp import pop_interp_dialog_spec
@@ -14,14 +15,17 @@ from tests.eeglab_tests import eeglab_test
 def _eeg(n_channels=8, n_points=50, trials=1):
     data_shape = (n_channels, n_points) if trials == 1 else (n_channels, n_points, trials)
     rng = np.random.default_rng(123)
+    xmin = 0.0
+    xmax = (n_points - 1) / 100.0
     eeg = {
         "data": rng.normal(size=data_shape),
         "nbchan": n_channels,
         "pnts": n_points,
         "trials": trials,
         "srate": 100,
-        "xmin": 0,
-        "xmax": (n_points - 1) / 100,
+        "xmin": xmin,
+        "xmax": xmax,
+        "times": linspace(xmin * 1000.0, xmax * 1000.0, n_points),
         "chanlocs": [],
         "chaninfo": {},
         "epoch": [] if trials == 1 else [{} for _ in range(trials)],
@@ -71,7 +75,7 @@ def test_pop_interp_current_suite_sample_channel_workflows():
     eeg["pnts"] = 1000
 
     for method in ("spherical", "invdist"):
-        interpolated = pop_interp(eeg, list(range(16)), method)
+        interpolated = pop_interp(eeg, list(range(1, 17)), method)
         unchanged = pop_interp(eeg, [], method)
 
         assert interpolated["data"].shape == eeg["data"].shape
@@ -84,8 +88,8 @@ class PopInterpTests(unittest.TestCase):
     def test_command_line_supports_planar_and_spacetime_methods_from_eeglab_doc(self):
         eeg = _eeg()
 
-        planar = pop_interp(eeg, [0], "invdist")
-        spacetime = pop_interp(eeg, [0], "spacetime")
+        planar = pop_interp(eeg, [1], "invdist")
+        spacetime = pop_interp(eeg, [1], "spacetime")
 
         self.assertEqual(planar["data"].shape, eeg["data"].shape)
         self.assertEqual(spacetime["data"].shape, eeg["data"].shape)

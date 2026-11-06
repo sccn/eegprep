@@ -69,6 +69,7 @@ def newcrossf(
     plottype = str(options.pop("plottype", "image")).lower()
     title = str(options.pop("title", "Cross-coherence"))
     options.pop("condboot", None)
+    _apply_cross_frequency_defaults(options)
     compute_options = _compute_time_frequency_options(options)
 
     freqs, times, tf_x = compute_time_frequency(x, frames, tlimits, srate, cycles, **compute_options)
@@ -123,6 +124,22 @@ def newcrossf(
     return CrossFrequencyResult(
         coherence, phase, times, freqs, allcoher, tf_x, tf_y, figure, rboot, pvalues, significant, lagmap
     )
+
+
+def _apply_cross_frequency_defaults(options: dict[str, Any]) -> None:
+    maxfreq = options.pop("maxfreq", None)
+    if "freqs" not in options and "freqrange" not in options:
+        if maxfreq is None:
+            limit = 50.0
+        else:
+            limit = float(np.asarray(maxfreq, dtype=float).reshape(-1)[0])
+        options["freqs"] = [0.0, limit]
+    if str(options.get("freqscale", "linear")).lower() != "log" or "freqs" not in options:
+        return
+    freqs = np.asarray(options["freqs"], dtype=float).reshape(-1).copy()
+    if freqs.size and freqs[0] == 0:
+        freqs[0] = 3.0
+        options["freqs"] = freqs
 
 
 def _compute_time_frequency_options(options: dict[str, Any]) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _consol
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc._rejection import (
+    _normalize_scores,
     jointprob,
     jointprob_marks,
     kurtosis_marks,
@@ -548,6 +549,17 @@ def test_jointprob_computed_and_precomputed_thresholds_match_upstream():
     np.testing.assert_allclose(reused, expected)
     np.testing.assert_array_equal(rejected, [[False], [False], [True]])
     np.testing.assert_array_equal(reused_rejected, rejected)
+
+
+def test_jointprob_trim_rounds_a_half_count_away_from_zero():
+    values = np.arange(25, dtype=float) ** 2
+    scores = values.reshape(1, -1)
+    # 25 * 0.1 is 2.5. Epoch rows trim with round_mat, so the kept samples are
+    # [3:22]. A 2-D signal instead trims the score column (rejkurt.m:112-113).
+    normalized = _normalize_scores(scores, 2, signal_ndim=3)
+    baseline = values[3:22]
+    expected = (values[0] - baseline.mean()) / baseline.std(ddof=1)
+    assert normalized[0, 0] == pytest.approx(expected)
 
 
 def test_jointprob_uses_matlab_sample_standard_deviation_for_normalization():

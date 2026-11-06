@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import dimpulse
 
+from eegprep.plugins.firfilt.fir_filterdcpadded import is_linear_phase_fir
+
 
 def plotfresp(
     b: Any,
@@ -67,13 +69,17 @@ def _response_data(b: Any, a: Any, nfft: int, fs: float, direction: str) -> dict
     fs = float(fs or 1)
     direction = str(direction or "onepass")
     is_fir = a.size == 1 and a[0] == 1
-    is_linear_phase = is_fir and np.all(b == b[::-1])
+    is_linear_phase = is_fir and is_linear_phase_fir(b)
     if direction.startswith("twopass"):
         is_twopass = True
         is_zerophase = True
     elif direction == "onepass-zerophase":
         if not is_linear_phase:
-            raise ValueError("Onepass-zerophase filtering is only allowed for linear-phase FIR filters.")
+            raise ValueError(
+                "plotfresp: onepass-zerophase needs a linear-phase FIR filter "
+                "(symmetric or antisymmetric coefficients). "
+                "Design the filter with firws or another linear-phase method, or plot dir='onepass'."
+            )
         is_twopass = False
         is_zerophase = True
     else:

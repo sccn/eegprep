@@ -17,6 +17,7 @@ from eegprep.functions.sigprocfunc.eegplot import (
     eegplot2event,
     eegplot2trial,
     event_latency_to_sample,
+    time_to_sample,
     normalize_events,
     toggle_winrej_at_sample,
     trial2eegplot,
@@ -125,6 +126,12 @@ def test_epoched_data_flattens_in_eeglab_trial_order_and_clamps_window() -> None
     assert model.data.mode == "epoched"
     assert model.state.limits == (0.0, 750.0)
     assert visible_sample_bounds(model.data, model.state) == (4, 8)
+
+
+def test_visible_window_half_sample_rounds_away_from_zero() -> None:
+    model = build_eegplot_model(np.zeros((1, 20)), srate=2, winlength=1, time=1.25, spacing=1, show=False)
+    assert visible_sample_bounds(model.data, model.state) == (3, 5)
+    assert time_to_sample(1.25, model.data, model.state) == 3
 
 
 def test_event_latency_conversion_uses_eeglab_one_based_samples() -> None:

@@ -996,7 +996,7 @@ def _pythonize_known_pop_arguments(text: str) -> str:
 
 def _pythonize_pop_interp_channels(text: str) -> str:
     def replacement(match: re.Match[str]) -> str:
-        channels = [int(token) - 1 for token in match.group(2).replace(",", " ").split()]
+        channels = [int(token) for token in match.group(2).replace(",", " ").split()]
         return f"{match.group(1)}{channels}"
 
     return _replace_outside_strings(text, _POP_INTERP_CHANNELS_PATTERN, replacement)

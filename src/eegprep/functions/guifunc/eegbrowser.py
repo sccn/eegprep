@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.eeg_point2lat import eeg_point2lat
 from eegprep.functions.sigprocfunc.eegplot import (
     BrowserModel,
@@ -1113,11 +1114,11 @@ class EEGBrowserCanvas(_QWidget):
             max_sample = self.model.data.total_samples - 1
         elif self.model.data.epoched:
             # 0-based: epoched winrej rows follow trial2eegplot sample offsets.
-            sample = int(round(x_value))
+            sample = int(round_mat(x_value))
             max_sample = self.model.data.total_samples - 1
         else:
             # 1-based: continuous winrej rows feed eeg_eegrej latency ranges.
-            sample = int(round(x_value * float(self.model.state.srate))) + 1
+            sample = int(round_mat(x_value * float(self.model.state.srate))) + 1
             max_sample = self.model.data.total_samples
         return max(0, min(sample, max_sample))
 
@@ -1463,7 +1464,7 @@ def _channel_std(values: np.ndarray) -> float:
 
 
 def _winrej_frame_to_index(value: float) -> int:
-    frame = int(round(float(value)))
+    frame = int(round_mat(float(value)))
     if frame <= 0:
         return 0
     return frame - 1

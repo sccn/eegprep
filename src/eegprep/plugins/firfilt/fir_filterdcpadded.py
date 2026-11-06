@@ -33,6 +33,14 @@ _FFT_FLOPS = (
 )
 
 
+def is_linear_phase_fir(b: np.ndarray) -> bool:
+    """Return whether FIR coefficients are symmetric or antisymmetric."""
+    coeffs = np.asarray(b, dtype=float).ravel()
+    if coeffs.size <= 1:
+        return True
+    return bool(np.allclose(coeffs, coeffs[::-1]) or np.allclose(coeffs, -coeffs[::-1]))
+
+
 def fir_filterdcpadded(
     b: Any,
     a: Any,
@@ -60,13 +68,10 @@ def fir_filterdcpadded(
     group_delay = (coeffs.size - 1) // 2
     if group_delay == 0:
         return np.asarray(data).copy()
-    if not causal:
-        is_sym = np.allclose(coeffs[:group_delay], coeffs[:group_delay:-1])
-        is_antisym = np.allclose(coeffs[:group_delay], -coeffs[:group_delay:-1]) and np.isclose(coeffs[group_delay], 0)
-        if not (is_sym or is_antisym):
-            raise ValueError(
-                "Filter is not anti-/symmetric. For onepass-zerophase filtering the filter must be anti-/symmetric."
-            )
+    if not causal and not is_linear_phase_fir(coeffs):
+        raise ValueError(
+            "Filter is not anti-/symmetric. For onepass-zerophase filtering the filter must be anti-/symmetric."
+        )
     was_single = x.dtype == np.float32
     x = x.astype(float, copy=False)
     start_width = 2 * group_delay if causal else group_delay

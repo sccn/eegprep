@@ -11,6 +11,7 @@ from matplotlib.colors import Normalize
 from matplotlib.patches import ConnectionPatch
 from scipy.signal import get_window, welch
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.topoplot import topoplot
 
@@ -128,14 +129,14 @@ def compute_spectra(
             epochs = epochs[:, :, :keep_trials]
             trials = keep_trials
         else:
-            keep = max(1, int(round(pnts * percent / 100.0)))
+            keep = max(1, int(round_mat(pnts * percent / 100.0)))
             epochs = epochs[:, :keep, :]
             pnts = keep
 
     window_type = str(wintype).strip().lower()
     if window_type not in {"hamming", "blackmanharris"}:
         raise ValueError("wintype must be 'hamming' or 'blackmanharris'")
-    nperseg = int(winsize or min(round(srate), pnts))
+    nperseg = int(winsize or min(int(round_mat(srate)), pnts))
     if window_type == "blackmanharris":
         divisor = int(blckhn)
         if divisor <= 0:

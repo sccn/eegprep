@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 from scipy import signal, stats
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.plot_utils import component_activations as plot_component_activations
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 
@@ -430,17 +431,13 @@ def _realproba(data: np.ndarray, bins: int = 1000) -> np.ndarray:
     return counts[indices] / data.size
 
 
-def _matlab_round(value: float) -> int:
-    return int(np.floor(float(value) + 0.5))
-
-
 def _trimmed_channel_scores(scores: np.ndarray) -> np.ndarray:
     # rejkurt.m:109-114 and jointprob.m:113-115 trim 10% of a 2-D (one-sweep) score column.
     ordered = np.sort(np.asarray(scores, dtype=float).reshape(-1, order="F"))
     count = ordered.size
-    drop = _matlab_round(count * 0.1)
+    drop = int(round_mat(count * 0.1))
     start = max(drop, 1)
-    stop = _matlab_round(count - drop)
+    stop = int(round_mat(count - drop))
     if start > stop:
         return ordered
     return ordered[start - 1 : stop]
@@ -454,7 +451,7 @@ def _normalize_scores(scores: np.ndarray, mode: int, *, signal_ndim: int) -> np.
         baseline = _trimmed_channel_scores(baseline)
     elif mode == 2:
         sorted_scores = np.sort(baseline, axis=1)
-        trim = np.maximum(np.rint(sorted_scores.shape[1] * 0.1).astype(int), 1)
+        trim = np.maximum(np.asarray(round_mat(sorted_scores.shape[1] * 0.1), dtype=int), 1)
         if sorted_scores.shape[1] > 2 * trim:
             baseline = sorted_scores[:, trim:-trim]
     if signal_ndim == 2:

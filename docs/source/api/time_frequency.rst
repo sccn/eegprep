@@ -18,7 +18,11 @@ undefined ``timefreq`` argument, reported with the caller's spelling.
 ``rng`` is an EEGPrep-only name that seeds the bootstrap.
 Defaults follow the ``newtimef`` list, including ``baseline`` 0,
 ``scale`` ``"log"``, ``timesout`` 200, and ``padratio`` 2. ``ntimesout`` is
-the output time count when ``timesout`` is not a vector. ``itctype`` replaces
+the output time count when ``timesout`` is not a vector. Times that round to
+the same sample are kept, so that count is the requested grid after the
+window clamp, not the number of distinct samples. Grid points are spaced as
+MATLAB ``linspace`` (``start + i * (stop - start) / (n - 1)``, last point
+equal to the end limit). ``itctype`` replaces
 ``type`` unless it is ``phasecoher``. The default frequency range is
 ``[0, 50]``; ``maxfreq`` above the Nyquist rate is capped and then written
 into that range, so a sampling rate below 100 Hz yields ``[0, Nyquist]``.

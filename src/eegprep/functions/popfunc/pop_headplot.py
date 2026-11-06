@@ -10,6 +10,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
+
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -128,8 +130,8 @@ def pop_headplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     mesh_transforms = tuple(_default_transform_text(EEG, mesh) for mesh in _MESH_CHOICES)
     setup_file = _default_spline_path(EEG)
     plot_label = (
-        f"Making headplots for these latencies (from {round(float(EEG.get('xmin', 0)) * 1000)} "
-        f"to {round(float(EEG.get('xmax', 0)) * 1000)} ms):"
+        f"Making headplots for these latencies (from {int(round_mat(float(EEG.get('xmin', 0)) * 1000))} "
+        f"to {int(round_mat(float(EEG.get('xmax', 0)) * 1000))} ms):"
         if int(typeplot)
         else "Component numbers to plot (negative numbers invert comp. polarities):"
     )

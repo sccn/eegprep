@@ -200,6 +200,13 @@ def test_continuous_data_erp_image_uses_one_second_lines() -> None:
     plt.close("all")
 
 
+def test_spectopo_percent_and_window_round_halves_away_from_zero() -> None:
+    _spectra, freqs, _none = compute_spectra(np.ones((1, 5)), 5, 100.0, percent=50)
+    assert freqs[1] == pytest.approx(100.0 / 3.0)
+    _window, window_freqs, _none = compute_spectra(np.ones((1, 20)), 20, 4.5)
+    assert window_freqs[1] == pytest.approx(4.5 / 5.0)
+
+
 def test_continuous_data_too_short_for_an_erp_image() -> None:
     eeg = create_test_eeg_with_ica(n_channels=4, n_samples=40, srate=100.0, n_trials=1)
     fig = pop_prop(eeg, 1, 1, plot="off")
