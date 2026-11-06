@@ -25,6 +25,7 @@ from tests.fuzz.harness import (
     PythonBackend,
     SideResult,
     Tolerance,
+    _same_failure,
     compare_data,
     data_sha256,
     default_sanity,
@@ -719,6 +720,34 @@ def test_rmbase_mean_nan_spread_is_not_filed():
     assert "mean()" in outcome.detail
 
 
+@pytest.mark.parametrize("function", ["pop_rmbase", "pipeline"])
+def test_rmbase_542_finite_reduction_gap_is_still_reported(function):
+    eeg = create_test_eeg(n_channels=2, n_samples=192, srate=128.0, n_trials=3)
+    eeg["data"] = np.random.default_rng(542).standard_normal((2, 192, 3)) * 10
+    eeg["times"] = np.arange(192) * (1000 / 128) - 500
+    params = freeze_params({"timerange": [-500, 0]})
+    case = FuzzCase(
+        function,
+        EEGSpec((0, 1), 0, 3, 1, -1, 0, 0),
+        params,
+        pipeline=(("pop_rmbase", params),) if function == "pipeline" else (),
+    )
+
+    def pairwise_baseline(_case, dataset):
+        data = np.asarray(dataset["data"])
+        baseline = np.ascontiguousarray(data[:, :65, :].transpose(0, 2, 1))
+        mean = np.mean(baseline, axis=2, dtype=np.float64)
+        return {**dataset, "data": data - mean[:, None, :]}
+
+    outcome = evaluate_case(
+        case, lambda _case: eeg, PythonBackend(), _CallBackend(pairwise_baseline), load_tolerances()
+    )
+    assert outcome.diverged
+    assert outcome.error_class == ("pop_rmbase:numeric" if function == "pipeline" else "numeric")
+    assert 0 < outcome.max_abs <= 7.105427357601002e-15
+    assert "known difference" not in outcome.detail
+
+
 def test_int64_event_type_matches_float_type():
     base = create_test_eeg(n_channels=1, n_samples=4, srate=100.0, n_trials=1)
     base["event"] = [{"type": np.int64(65), "latency": 1.0}]
@@ -756,6 +785,25 @@ def test_epoched_notime_is_the_same_failure_as_eeglab():
     )
     assert outcome.diverged is False
     assert outcome.error_class == "both-error"
+
+
+@pytest.mark.parametrize(
+    "message, oracle_message, expected",
+    [
+        (
+            "pop_select: channel indices [31] out of range for nbchan=26. Use 0-based indices in 0..25.",
+            "Error using eeg_decodechan (line 167)\nChannel index out of range",
+            True,
+        ),
+        ("pop_select: trial indices [32] out of range", "Channel index out of range", False),
+        ("pop_reref: channel indices [32] out of range", "Channel index out of range", False),
+        ("pop_select: channel labels not found", "Channel index out of range", False),
+        ("pop_select: channel indices [32] out of range", "Unrecognized field name 'chanlocs'", False),
+    ],
+)
+def test_same_failure_pop_select_channel_range(message, oracle_message, expected):
+    oracle = SideResult(False, None, None, "MatlabExecutionError", oracle_message)
+    assert _same_failure(side_from_error(ValueError(message)), oracle) is expected
 
 
 def test_eventindices_past_the_end_is_the_same_failure_as_eeglab():
