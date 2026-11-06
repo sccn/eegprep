@@ -13,7 +13,10 @@ com = pop_writeeeg(EEG, "recording.gdf", "TYPE", "GDF")
 File > Export asks for a file name and the EDF, GDF, or BDF format. Epoched
 data is concatenated when you accept that prompt. The history command is
 `pop_writeeeg(EEG, 'file', 'TYPE', 'EDF');` with no `LASTCOM` prefix. EDF and
-BDF keep the original sample count and every event annotation. Samples use the
+BDF keep the original sample count and every event annotation. EEGLAB pads the
+same recording up to the next whole data record (one second when the recording
+is longer than 1000 samples) and fills the extra samples with the digital
+minimum. Samples use the
 standard 16-bit and 24-bit ranges. GDF uses float64 samples, so signal values
 are not quantized;
 numeric event types and sample timing are stored in the GDF event table. Since

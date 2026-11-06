@@ -25,8 +25,12 @@ Unreleased
   ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
   copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
   892 do).
-- ``pop_writeeeg`` writes EDF and BDF without padding the recording to a whole
-  number of one-second records, and it keeps every event annotation.
+- ``pop_writeeeg`` keeps every EDF and BDF sample and every event annotation.
+  EEGLAB ``writeeeg.m`` line 139 shortens a block longer than 1000 samples to
+  one second (``round(srate)`` samples per record). Biosig then pads the file
+  to that record boundary and fills the extra samples with the digital minimum,
+  which reads back as the channel physical minimum. A 2112-sample recording at
+  200 Hz is 11 seconds from EEGLAB and stays 2112 samples in EEGPrep.
   ``pop_writeeeg.m`` line 97 records the command without a ``LASTCOM`` prefix.
   Epoched data is concatenated after the same confirmation as lines 53-57.
 - ``pop_export`` writes ``%.Nf`` decimal places (``pop_export.m`` line 179).

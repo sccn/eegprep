@@ -687,26 +687,47 @@ def test_reference_bids_importeventfile_uses_value(eeglab_backend, tmp_path):
     assert [str(item) for item in types] == ["stimulus", "response"]
 
 
+def _edf_quantum(reader, channel=0):
+    digital = reader.getDigitalMaximum(channel) - reader.getDigitalMinimum(channel)
+    return (reader.getPhysicalMaximum(channel) - reader.getPhysicalMinimum(channel)) / digital
+
+
 def test_reference_pop_writeeeg_edf_length(eeglab_backend, eeglab_working_directory):
     present = int(np.asarray(eeglab_backend("exist", "sopen", "file")).reshape(-1)[0])
     if present == 0:
         pytest.skip("Biosig sopen is not on the MATLAB path (pop_writeeeg.m:49)")
     pnts = 2112
-    eeg = _matlab_eeg(
-        data=np.zeros((1, pnts)),
-        srate=200.0,
+    srate = 200.0
+    data = np.zeros((1, pnts))
+    events = [{"type": f"e{index}", "latency": float(index + 1)} for index in range(17)]
+    python_eeg = _eeg(pnts=pnts, srate=srate, data=data, events=events)
+    python_path = eeglab_working_directory / "python_recording.edf"
+    pop_writeeeg(python_eeg, python_path, "TYPE", "EDF")
+    matlab_eeg = _matlab_eeg(
+        data=data,
+        srate=srate,
         pnts=float(pnts),
         event=np.array(
-            [(f"e{index}", float(index + 1)) for index in range(17)],
+            [(event["type"], event["latency"]) for event in events],
             dtype=[("type", object), ("latency", float)],
         ),
         chanlocs=np.array([("Fz",)], dtype=[("labels", object)]),
     )
     matlab_path = eeglab_working_directory / "matlab_recording.edf"
-    eeglab_backend("pop_writeeeg", eeg, str(matlab_path), "TYPE", "EDF")
-    reader = pyedflib.EdfReader(str(matlab_path))
+    eeglab_backend("pop_writeeeg", matlab_eeg, str(matlab_path), "TYPE", "EDF")
+    python_reader = pyedflib.EdfReader(str(python_path))
+    matlab_reader = pyedflib.EdfReader(str(matlab_path))
     try:
-        assert reader.getNSamples()[0] == pnts
-        assert len(reader.readAnnotations()[0]) == 17
+        assert python_reader.getNSamples()[0] == pnts
+        record_samples = int(matlab_reader.samples_in_datarecord(0))
+        padded = ((pnts + record_samples - 1) // record_samples) * record_samples
+        matlab_signal = matlab_reader.readSignal(0)
+        python_signal = python_reader.readSignal(0)
+        assert matlab_reader.getNSamples()[0] == len(matlab_signal) == padded
+        assert padded > pnts
+        quantum = max(_edf_quantum(python_reader), _edf_quantum(matlab_reader))
+        assert np.max(np.abs(python_signal - matlab_signal[:pnts])) <= quantum
+        assert np.max(np.abs(matlab_signal[pnts:] - matlab_reader.getPhysicalMinimum(0))) <= _edf_quantum(matlab_reader)
     finally:
-        reader.close()
+        python_reader.close()
+        matlab_reader.close()
