@@ -19,3 +19,9 @@ Common options:
   'rmchantype' - channel types to remove.
 
 Calling pop_select(EEG) opens the EEGPrep GUI dialog.
+
+Direct Python channel, nochannel, and rmchannel arguments use 0-based indices
+from 0 through EEG["nbchan"] - 1. The GUI and EEGLAB use 1-based channel indices
+from 1 through EEG["nbchan"]. MATLAB history replay in eegprep-console converts
+these indices. Channel labels work in either interface. An out-of-range error
+names the invalid indices, the channel count, and both valid ranges.
