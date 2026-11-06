@@ -10,6 +10,15 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_rejspec`` multitaper estimation stops each series on its own ``pmtm``
+  test, ``sum(abs(S-S1))/nfft > tol``. A non-finite change stops that series,
+  so one NaN sample returns instead of looping. Finite tutorial epochs are
+  unchanged: ±30 dB and ±35 dB still mark nothing.
+- Reject marked epochs records ``eeg_rejsuperpose`` only after the new-dataset
+  dialog is accepted. Cancelling that dialog leaves the command history as it
+  was.
+- ``vararg2str`` continuous-array history uses MATLAB ``num2str``
+  (``vararg2str.m:196-242``).
 - ``pop_rejspec`` multitaper power is ``10*log10`` (dB). ``pop_rejspec.m:310``
   uses ``10*log`` (natural log). On ``eeglab_data_epochs_ica.set``, 15–30 Hz
   at ±35 dB marks no data epochs; EEGLAB marks epoch 37. At ±30 dB, EEGPrep

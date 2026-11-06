@@ -7,7 +7,8 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.popfunc._rejection import bool_marks
-from eegprep.functions.popfunc.pop_rejchan import _matlab_contarray, _matlab_number
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.adminfunc.vararg2str import _matlab_contarray
 from eegprep.functions.popfunc.pop_select import pop_select
 
 
@@ -62,7 +63,7 @@ def _history_command(indices: Any) -> str:
     if not values:
         body = "[]"
     elif len(values) == 1:
-        body = _matlab_number(values[0])
+        body = _matlab_num2str(values[0])
     else:
         body = "[" + _matlab_contarray(values) + "] "
     return f"EEG = pop_rejepoch( EEG, {body},0);"

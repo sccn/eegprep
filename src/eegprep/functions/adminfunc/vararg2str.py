@@ -7,7 +7,8 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.popfunc._pop_utils import format_history_value, parse_numeric_sequence
 
 
 def vararg2str(
@@ -34,6 +35,62 @@ def vararg2str(
         else:
             rendered.append(_format_value(value, raw_string=bool(raw_string)))
     return ",".join(rendered)
+
+
+def _matlab_history_value(value: Any) -> str:
+    if isinstance(value, str) and not _looks_numeric(value):
+        return f"'{value}'"
+    values = parse_numeric_sequence(value, dtype=float)
+    if not values:
+        return "[]"
+    if len(values) == 1:
+        return _matlab_num2str(values[0])
+    return "[" + _matlab_contarray(values) + "] "
+
+
+def _looks_numeric(value: str) -> bool:
+    token = value.strip().strip("[]")
+    if not token:
+        return True
+    return all(character.isdigit() or character in ".:-+eE,; " for character in token)
+
+
+def _matlab_contarray(values: list[float]) -> str:
+    # vararg2str.m:196-242
+    array = [float(item) for item in values]
+    if len(array) == 2:
+        return f"{_matlab_num2str(array[0])} {_matlab_num2str(array[1])}"
+    if any(not item.is_integer() for item in array):
+        return " ".join(_matlab_num2str(item) for item in array)
+    rendered = _matlab_num2str(array[0])
+    skip = 0
+    indent = array[1] - array[0]
+    for index in range(1, len(array)):
+        if array[index] != array[index - 1] + indent or indent == 0:
+            if skip <= 1:
+                if skip == 0:
+                    rendered = f"{rendered} {_matlab_num2str(array[index])}"
+                else:
+                    rendered = f"{rendered} {_matlab_num2str(array[index - 1])} {_matlab_num2str(array[index])}"
+            elif indent == 1:
+                rendered = f"{rendered}:{_matlab_num2str(array[index - 1])} {_matlab_num2str(array[index])}"
+            else:
+                rendered = (
+                    f"{rendered}:{_matlab_num2str(indent)}:{_matlab_num2str(array[index - 1])} "
+                    f"{_matlab_num2str(array[index])}"
+                )
+            skip = 0
+            indent = array[index] - array[index - 1]
+        else:
+            skip += 1
+    if array[-1] == array[-2] + indent and skip != 0:
+        if indent == 1:
+            rendered = f"{rendered}:{_matlab_num2str(array[-1])}"
+        elif indent == 0:
+            rendered = f"{rendered} {_matlab_num2str(array[-1])}"
+        else:
+            rendered = f"{rendered}:{_matlab_num2str(indent)}:{_matlab_num2str(array[-1])}"
+    return rendered
 
 
 def _padded(values: Sequence[Any] | None, length: int, default: Any) -> list[Any]:

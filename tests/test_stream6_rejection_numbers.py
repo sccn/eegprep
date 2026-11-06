@@ -714,6 +714,47 @@ def test_reject_marked_epochs_superposes_before_removing_trials():
     assert any("pop_newset" in line for line in session.ALLCOM)
 
 
+def test_cancelling_reject_epochs_newset_leaves_history_unchanged(monkeypatch):
+    session = EEGPrepSession()
+    eeg = create_test_eeg(n_channels=3, n_samples=8, n_trials=3, srate=100)
+    eeg["reject"]["icarejmanual"] = np.array([False, True, False])
+    session.store_current(eeg, new=True)
+    history = list(session.ALLCOM)
+
+    def cancel_newset(alleeg, _eeg, currentset, *args, **kwargs):
+        del args, kwargs
+        return list(alleeg), session.EEG, currentset, ""
+
+    monkeypatch.setattr("eegprep.functions.guifunc.menu_actions.pop_newset", cancel_newset)
+    monkeypatch.setattr("eegprep.functions.guifunc.menu_actions._confirm_reject_epochs", lambda _parent: True)
+    MenuActionDispatcher(session).dispatch("pop_rejepoch:ica", parent=object())
+
+    assert session.ALLCOM == history
+    assert session.EEG["trials"] == 3
+
+
+def test_pop_rejspec_multitaper_returns_when_one_sample_is_nan():
+    eeg = create_test_eeg(n_channels=2, n_samples=32, n_trials=2, srate=100)
+    eeg["data"][0, 0, 0] = np.nan
+
+    _out, rejected = pop_rejspec(
+        eeg,
+        1,
+        "elecrange",
+        [1, 2],
+        "method",
+        "multitaper",
+        "threshold",
+        [-30, 30],
+        "freqlimits",
+        [15, 30],
+        "eegplotreject",
+        0,
+    )
+
+    assert isinstance(rejected, list)
+
+
 def test_pop_rejspec_dialog_defaults_to_fft():
     spec = pop_rejspec_dialog_spec(_epochs(), 1)
     method = controls_by_tag(spec)["method"]

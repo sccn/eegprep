@@ -11,7 +11,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
 from eegprep.functions.popfunc._rejection import eegthresh_marks, parse_numeric_sequence
-from eegprep.functions.popfunc.pop_rejchan import _matlab_contarray
+from eegprep.functions.adminfunc.vararg2str import _matlab_contarray
 
 
 def pop_eegthresh(

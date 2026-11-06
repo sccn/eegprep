@@ -1139,6 +1139,7 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
+        leading_command = ""
         if name == "pop_adjustevents":
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
 
@@ -1336,7 +1337,7 @@ class MenuActionDispatcher:
             typerej = 0 if variant == "ica" else 1
             superposed, superpose_command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
             out = pop_rejepoch(superposed, return_com=True)
-            self._add_history_from_gui(superpose_command)
+            leading_command = superpose_command
         elif name == "pop_rejmenu":
             from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 
@@ -1374,7 +1375,9 @@ class MenuActionDispatcher:
             return
         if command:
             if name in _NEWSET_COMMIT_ACTIONS:
-                self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)
+                self._commit_processed_dataset_from_gui(
+                    eeg_out, command=command, parent=parent, leading_command=leading_command
+                )
             else:
                 self._store_current_from_gui(eeg_out, command=command)
             self._refresh()
@@ -1708,7 +1711,14 @@ class MenuActionDispatcher:
         self.session.echo_command(command)
         return self.session.store_current(eeg, **kwargs)
 
-    def _commit_processed_dataset_from_gui(self, eeg: Any, *, command: str, parent: Any | None) -> None:
+    def _commit_processed_dataset_from_gui(
+        self,
+        eeg: Any,
+        *,
+        command: str,
+        parent: Any | None,
+        leading_command: str = "",
+    ) -> None:
         if not command:
             return
         old_currentset = self.session.current_set_value()
@@ -1730,6 +1740,9 @@ class MenuActionDispatcher:
             if old_selection:
                 self.session.retrieve(old_selection if len(old_selection) > 1 else old_selection[0])
             return
+        if leading_command:
+            self.session.echo_command(leading_command)
+            self.session.add_history(leading_command, notify=False)
         for dataset in current if isinstance(current, list) else [current]:
             if isinstance(dataset, dict):
                 eegh(command, dataset)

@@ -294,16 +294,21 @@ def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.nd
         spectrum = 0.5 * (eigenspectra[:, 0, :] + eigenspectra[:, 1, :])
         noise = variance[:, np.newaxis] * (1.0 - eigenvalues)[np.newaxis, :]
         tolerance = 0.0005 * variance / nfft
-        converged = False
-        while not converged:
+        previous = np.zeros_like(spectrum)
+        active = np.ones(spectrum.shape[0], dtype=bool)
+        while np.any(active):
+            change = np.sum(np.abs(spectrum - previous), axis=1) / nfft
+            active &= np.isfinite(change) & (change > tolerance)
+            if not np.any(active):
+                break
+            previous[active] = spectrum[active]
             denominator = eigenvalues[np.newaxis, :, np.newaxis] * spectrum[:, np.newaxis, :] + noise[:, :, np.newaxis]
             weights = spectrum[:, np.newaxis, :] / np.maximum(denominator, np.finfo(float).tiny)
             weighted = (weights**2) * eigenvalues[np.newaxis, :, np.newaxis]
             updated = np.sum(weighted * eigenspectra, axis=1) / np.maximum(
                 np.sum(weighted, axis=1), np.finfo(float).tiny
             )
-            converged = bool(np.max(np.mean(np.abs(updated - spectrum), axis=1) - tolerance) <= 0)
-            spectrum = updated
+            spectrum[active] = updated[active]
     nfreq = nfft // 2 + 1
     spectrum = spectrum[:, :nfreq]
     power = 10.0 * np.log10(np.maximum(spectrum, np.finfo(float).tiny))

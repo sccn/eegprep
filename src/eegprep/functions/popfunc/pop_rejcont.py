@@ -13,7 +13,7 @@ from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.popfunc.eeg_regepochs import eeg_regepochs
-from eegprep.functions.popfunc.pop_rejchan import _matlab_history_value
+from eegprep.functions.adminfunc.vararg2str import _matlab_history_value
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.sigprocfunc.nan_mean import nan_mean
