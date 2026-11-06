@@ -259,6 +259,8 @@ def _chanlocs(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for loc in converted:
         loc.pop("sph_theta_besa", None)
         loc.pop("sph_phi_besa", None)
+        loc.setdefault("ref", "")
+        loc.setdefault("type", "")
     return converted
 
 

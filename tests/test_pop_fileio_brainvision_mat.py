@@ -78,7 +78,8 @@ def test_continuous_analyzer_export_keeps_channels_rate_and_skips_blank_markers(
     np.testing.assert_allclose(eeg["data"][1], np.arange(8) + 1)
     assert [loc["labels"] for loc in eeg["chanlocs"]] == ["Fp1", "Cz", "Pz", "Oz"]
     _assert_besa_location(eeg["chanlocs"][0], theta_besa=-20.0, phi_besa=15.0, radius=1.0)
-    assert set(eeg["chanlocs"][1]) == {"labels"}
+    _assert_empty_ref_and_type(eeg["chanlocs"])
+    assert set(eeg["chanlocs"][1]) == {"labels", "ref", "type"}
     events = _events(eeg)
     assert [event["type"] for event in events] == ["stim", "resp"]
     assert [event["latency"] for event in events] == [1.0, 4.0]
@@ -143,7 +144,10 @@ def test_unknown_channel_variable_is_appended_once(tmp_path, caplog):
     with caplog.at_level("WARNING"):
         eeg = pop_fileio_brainvision_mat(path)
     assert [loc["labels"] for loc in eeg["chanlocs"]] == ["Fp1", "Cz", "Pz", "Oz", "EOG"]
+    assert [loc["labels"] for loc in eeg["chanlocs"]].count("EOG") == 1
     assert eeg["nbchan"] == 5
+    _assert_empty_ref_and_type(eeg["chanlocs"])
+    assert set(eeg["chanlocs"][-1]) == {"labels", "ref", "type"}
     assert "eog" in caplog.text.lower()
 
 
@@ -249,6 +253,12 @@ def _assert_besa_location(loc, theta_besa, phi_besa, radius):
     assert "sph_phi_besa" not in loc
 
 
+def _assert_empty_ref_and_type(chanlocs):
+    for loc in chanlocs:
+        assert "ref" in loc and loc["ref"] == ""
+        assert "type" in loc and loc["type"] == ""
+
+
 def _suite_bva_file(request, name):
     root = request.config.getoption("--eeglab-suite-root")
     if not root:
@@ -282,6 +292,7 @@ def test_parity_brainvision_recorder_files_keep_coordinates(request):
     besa = _file_besa_records(raw)
     assert len(besa) == 32
     for imported in (continuous, epochs):
+        _assert_empty_ref_and_type(imported["chanlocs"])
         assert [loc["labels"] for loc in imported["chanlocs"]] == labels
         for loc, (theta_besa, phi_besa, radius) in zip(imported["chanlocs"], besa, strict=True):
             if radius == 0:
