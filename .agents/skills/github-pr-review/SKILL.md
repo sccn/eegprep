@@ -1,12 +1,14 @@
 ---
 name: github-pr-review
 description: Review a pull request for correctness, EEGLAB parity, and behavioral regressions in sccn/eegprep.
-allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(git rev-parse:*), mcp__github_inline_comment__create_inline_comment
+allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh api:*), Bash(git rev-parse:*), mcp__github_inline_comment__create_inline_comment
 ---
 
 Provide a code review for the given pull request.
 
 You are reviewing this PR for EEGPrep, a Python library that aims to port core EEGLAB concepts, workflows, code organization, GUI patterns, and user experience from MATLAB to Python.
+
+Reviewing never authorizes code edits.
 
 ## What EEGPrep is trying to achieve
 
@@ -17,6 +19,16 @@ You are reviewing this PR for EEGPrep, a Python library that aims to port core E
 - No code comments that restate code or justify workarounds.
 - A plain `pip install eegprep` should be as easy to use as eegprep-lean; heavy optional pieces live behind extras with helpful install errors.
 - PRs that change numerics need MATLAB reference evidence in the body, per AGENTS.md.
+
+## Review standard
+
+A reviewable EEGPrep pull request:
+
+- Implements the behavior claimed by its title and description without an introduced correctness, security, state-transition, or error-handling defect.
+- Keeps public interfaces, invariants, dependency direction, configuration, and types coherent across every changed call site.
+- Uses tests for behavior rather than implementation details, private state, tautologies (expected values rebuilt with the same code as the implementation), or mocks below an I/O boundary.
+- Keeps abstraction proportional to demonstrated reuse.
+- Keeps documentation synchronized with behavior.
 
 ## Review goals
 
@@ -103,7 +115,7 @@ Check if any of the following are true:
 - The pull request is closed.
 - The pull request is a draft.
 - The pull request does not need code review, such as an automated PR or a trivial change that is obviously correct.
-- A comment contains `<!-- eegprep-claude-review -->`, checked with `gh pr view <PR> --comments`, and the review was not explicitly requested via comment, such as "claude review this."
+- Issue comments or inline review comments contain `<!-- eegprep-claude-review -->`, and the review was not explicitly requested via comment, such as "claude review this." Check both `gh pr view <PR> --json comments` and `gh api repos/{owner}/{repo}/pulls/<PR>/comments --paginate`.
 
 When a maintainer explicitly requests a re-review, always proceed even if a prior review exists.
 
@@ -111,7 +123,7 @@ If any stop condition is true, stop and do not proceed.
 
 Still review Claude-generated PRs.
 
-Confirm the checked-out SHA equals the pull request head (`git rev-parse HEAD` against `gh pr view <PR> --json headRefOid`). If they differ, report the stale review and post nothing.
+Confirm that the checked-out commit (`git rev-parse HEAD`) and the pull request's current head (`gh pr view <PR> --json headRefOid`) both match the requested head. If either differs, report the stale review and post nothing.
 
 ### 2. Find repository instructions
 
@@ -120,6 +132,7 @@ Return a list of file paths, not contents, for all relevant CLAUDE.md and AGENTS
 - Root CLAUDE.md and AGENTS.md files, if they exist
 - Any CLAUDE.md or AGENTS.md files in directories containing files modified by the pull request
 - Any CLAUDE.md or AGENTS.md files in parent directories of modified files
+- When tests change, root TESTING.md if it exists, any TESTING.md in a changed file's directory or a parent directory, and the Testing section of AGENTS.md
 
 When evaluating compliance for a file, only consider CLAUDE.md and AGENTS.md files that are in that file's directory or parent directories.
 
@@ -157,6 +170,8 @@ Audit changes for CLAUDE.md and AGENTS.md compliance.
 
 Only flag clear, unambiguous violations where the relevant instruction is scoped to the changed file.
 
+When tests change, read root and scoped testing docs (TESTING.md, if present, and AGENTS.md §Testing) and flag only concrete violations.
+
 #### Pass 2: Repository convention and maintainability
 
 Audit whether the PR follows existing EEGPrep style, architecture, and conventions.
@@ -164,6 +179,8 @@ Audit whether the PR follows existing EEGPrep style, architecture, and conventio
 Only flag maintainability issues that are specific to the changed code and likely to matter.
 
 Do not request speculative abstractions, broad refactors, or unrelated cleanup.
+
+Rank the changed, human-authored areas by design impact: public interfaces, invariants, state transitions, and abstraction boundaries. Skip generated files, formatting, and mechanical edits. Privately simulate reasonable future changes near the edited code to find hidden assumptions, distant coupling, or unneeded indirection. Report only a concrete structural obstacle. Validate it against the pull request description and surrounding context, and omit the hypothetical from the comment.
 
 #### Pass 3: Correctness and regression
 
@@ -199,6 +216,8 @@ Focus on:
 
 Only flag concrete, actionable issues tied to changed code.
 
+For a substantial design change, check callers, defaults, and consequences outside the diff. Scale that investigation to the size and risk of the change.
+
 ## High-signal threshold
 
 We only want high-signal findings.
@@ -227,6 +246,8 @@ Do not flag:
 - Broad refactors unrelated to the PR
 
 If you are not confident an issue is real, do not flag it. False positives erode trust and waste reviewer time.
+
+Validate every finding against the diff, the surrounding code, and the applicable instructions.
 
 ### 5. Validate candidate issues
 
@@ -318,6 +339,7 @@ Rules for the review comment:
 * Keep the review concise.
 * Do not include generic praise.
 * If the PR looks good, say so in the overall assessment and mention the specific areas checked.
+* End the summary with `<!-- eegprep-claude-review -->`.
 
 If no issues were found, use this format:
 
@@ -383,6 +405,7 @@ For each inline comment:
 * If follow-up steps are required, do not leave a committable suggestion.
 * Only post one comment per unique issue.
 * Do not duplicate content already handled better in the summary comment.
+* End the comment with `<!-- eegprep-claude-review -->`.
 
 ## Linking requirements
 
