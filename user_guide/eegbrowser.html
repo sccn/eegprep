@@ -557,19 +557,23 @@ also open browser-backed review windows before updating marks or removing data.<
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Channel inspection</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">data</span> <span class="pre">(scroll)</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">eegplot(EEG)</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG)</span></code></p></td>
+<tr class="row-even"><td><p>Inspect/reject data by eye</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Inspect/reject</span> <span class="pre">data</span> <span class="pre">by</span> <span class="pre">eye</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG)</span></code> (instruction dialog on continuous data)</p></td>
 </tr>
-<tr class="row-odd"><td><p>Component inspection</p></td>
+<tr class="row-odd"><td><p>Channel inspection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">data</span> <span class="pre">(scroll)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG,</span> <span class="pre">1,</span> <span class="pre">1,</span> <span class="pre">1)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Component inspection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Component</span> <span class="pre">activations</span> <span class="pre">(scroll)</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG,</span> <span class="pre">icacomp=0,</span> <span class="pre">reject=0)</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Epoched data rejection</p></td>
+<tr class="row-odd"><td><p>Epoched data rejection</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Reject</span> <span class="pre">data</span> <span class="pre">epochs</span> <span class="pre">&gt;</span> <span class="pre">Reject</span> <span class="pre">by</span> <span class="pre">inspection</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG,</span> <span class="pre">reject=1)</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>ICA rejection marks</p></td>
+<tr class="row-even"><td><p>ICA rejection marks</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Reject</span> <span class="pre">data</span> <span class="pre">using</span> <span class="pre">ICA</span> <span class="pre">&gt;</span> <span class="pre">Reject</span> <span class="pre">by</span> <span class="pre">inspection</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG,</span> <span class="pre">icacomp=0,</span> <span class="pre">reject=1)</span></code></p></td>
 </tr>
@@ -579,13 +583,20 @@ also open browser-backed review windows before updating marks or removing data.<
 </section>
 <section id="marks-and-rejection">
 <h2>Marks And Rejection<a class="headerlink" href="#marks-and-rejection" title="Link to this heading">#</a></h2>
-<p>Dragging across the browser marks a time range. On continuous data, accepted
-marks can be stored in <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanualwinrej</span></code> for later review or
-converted through <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> to remove samples. Overlapping or reversed
-intervals are merged before event latencies move, and a one-sample gap stays
-two intervals. Removing every sample sets <code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">-1/srate</span></code>. On epoched data, accepted
+<p>Dragging across continuous data marks a time range. A click on a marked
+stretch clears it. On epoched data, a click marks or clears that whole epoch;
+dragging does not add further epochs. <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Inspect/reject</span> <span class="pre">data</span> <span class="pre">by</span> <span class="pre">eye</span></code>
+explains this and waits for Continue before the browser opens. Cancel, or
+closing that dialog, leaves the dataset untouched. Plot scroll commands skip
+the dialog.</p>
+<p>On continuous data, accepted marks can be stored in
+<code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanualwinrej</span></code> for later review or converted through
+<code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> to remove samples. Overlapping or reversed intervals are merged
+before event latencies move, and a one-sample gap stays two intervals.
+Removing every sample sets <code class="docutils literal notranslate"><span class="pre">xmax</span></code> to <code class="docutils literal notranslate"><span class="pre">-1/srate</span></code>. On epoched data, accepted
 marks update <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanual</span></code> and <code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanualE</span></code> or remove
-marked epochs through <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code>.</p>
+marked epochs through <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code>. Reject asks for confirmation before
+removing epochs. NO leaves the epochs in place.</p>
 <p>Component mode uses ICA activations and writes ICA-prefixed rejection fields
 where applicable. Event overlays use EEGLAB one-based event latencies; Python
 array indexing remains zero-based internally.</p>
@@ -593,9 +604,10 @@ array indexing remains zero-based internally.</p>
 <section id="accepting-browser-results">
 <h2>Accepting Browser Results<a class="headerlink" href="#accepting-browser-results" title="Link to this heading">#</a></h2>
 <p>In <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>, browser accept callbacks keep GUI state, <code class="docutils literal notranslate"><span class="pre">EEG</span></code>,
-<code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, and history synchronized. If a browser action creates a new dataset
-instead of mutating the current one, the session stores that dataset through the
-same dataset helpers used by menu actions.</p>
+<code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, and history synchronized. Rejecting marked data from the GUI menu
+records <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code> and then opens the dataset dialog
+(<code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>). The dialog’s default is a new dataset. Cancel discards the
+rejection. A console <code class="docutils literal notranslate"><span class="pre">pop_eegplot</span></code> call stores the returned dataset directly.</p>
 <p>In normal Python, call the lower-level rejection helpers explicitly after
 reviewing the browser model or marks.</p>
 </section>

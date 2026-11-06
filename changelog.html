@@ -476,6 +476,34 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Clicking or dragging in the scroll window marks data again. The plot
+viewport was asked for <code class="docutils literal notranslate"><span class="pre">mapToScene</span></code>, which only <code class="docutils literal notranslate"><span class="pre">QGraphicsView</span></code>
+provides, so every left click raised <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code>. Continuous
+drags mark the 1-based sample range <code class="docutils literal notranslate"><span class="pre">round(x</span> <span class="pre">*</span> <span class="pre">srate)</span> <span class="pre">+</span> <span class="pre">1</span></code>
+(<code class="docutils literal notranslate"><span class="pre">eegplot.m</span></code> lines 2110-2144). An epoched click marks or clears that
+whole epoch on mouse-down, including a one-sample epoch, and a drag does
+not spread to other epochs (<code class="docutils literal notranslate"><span class="pre">eegplot.m</span></code> lines 2130-2135). Channel
+inspection, epoch inspection,
+and ICA component inspection share this path.</p></li>
+<li><p>Rejecting marked continuous data records <code class="docutils literal notranslate"><span class="pre">EEG</span> <span class="pre">=</span> <span class="pre">eeg_eegrej(</span> <span class="pre">EEG,</span> <span class="pre">...);</span></code>
+from the reduced two-column regions (<code class="docutils literal notranslate"><span class="pre">eeg_eegrej.m</span></code> builds that command
+after <code class="docutils literal notranslate"><span class="pre">combineregions</span></code>) and asks what to do with the new dataset through
+<code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>. Cancel keeps the original dataset and does not record the
+rejection. An empty mark does nothing (<code class="docutils literal notranslate"><span class="pre">eeg_eegrej.m</span></code> lines 59-60).</p></li>
+<li><p>Tools &gt; Inspect/reject data by eye shows the instruction dialog from
+<code class="docutils literal notranslate"><span class="pre">pop_eegplot.m</span></code> lines 180-186 before the browser opens. That menu
+calls <code class="docutils literal notranslate"><span class="pre">pop_eegplot(EEG,</span> <span class="pre">1)</span></code> (<code class="docutils literal notranslate"><span class="pre">eeglab.m</span></code> line 644). Cancel returns
+without opening the browser. Closing the dialog also stays on the
+current dataset; EEGLAB continues unless the button text is <code class="docutils literal notranslate"><span class="pre">Cancel</span></code>.
+Plot &gt; Channel data (scroll) passes <code class="docutils literal notranslate"><span class="pre">reject</span></code> explicitly
+(<code class="docutils literal notranslate"><span class="pre">eeglab.m</span></code> line 683) and does not show the dialog.</p></li>
+<li><p>Rejecting marked epochs asks “Are you sure, you want to reject the
+labeled trials ?” (<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m</span></code> lines 78-84) only when Reject is
+removing epochs. Update Marks does not ask. NO, or closing the dialog,
+leaves the epochs in place. YES removes them and opens <code class="docutils literal notranslate"><span class="pre">pop_newset</span></code>.
+Clearing every mark and pressing Reject stores the manual marks as
+unmarked and does not add a rejection command. The history command uses
+<code class="docutils literal notranslate"><span class="pre">pop_rejepoch(</span> <span class="pre">EEG,</span> <span class="pre">[..]</span> <span class="pre">,0);</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m</span></code> line 101).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> channel locations include empty <code class="docutils literal notranslate"><span class="pre">ref</span></code> and
 <code class="docutils literal notranslate"><span class="pre">type</span></code> on every channel. MATLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> fills a missing
 <code class="docutils literal notranslate"><span class="pre">chanlocs.ref</span></code> with <code class="docutils literal notranslate"><span class="pre">''</span></code> (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 1105-1117) and the

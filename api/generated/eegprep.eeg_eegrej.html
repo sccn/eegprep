@@ -541,24 +541,33 @@
 <h1>eeg_eegrej<a class="headerlink" href="#eeg-eegrej" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.eeg_eegrej">
-<span class="sig-name descname"><span class="pre">eeg_eegrej</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regions</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eegrej" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">eeg_eegrej</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regions</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_regions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.eeg_eegrej" title="Link to this definition">#</a></dt>
 <dd><p>Reject EEG data segments specified by regions.</p>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h2>
 <dl class="simple">
 <dt>EEG<span class="classifier">dict</span></dt><dd><p>EEG data structure</p>
 </dd>
-<dt>regions<span class="classifier">array-like</span></dt><dd><p>Regions to reject, shape (n_regions, 2) or (n_regions, 4)</p>
+<dt>regions<span class="classifier">array-like</span></dt><dd><p>Regions to reject, shape (n_regions, 2) or wider eegplot rows.
+Columns 3 and 4 of a wider row are the sample bounds.</p>
+</dd>
+<dt>return_regions<span class="classifier">bool</span></dt><dd><p>Also return the reduced two-column bounds that were removed.</p>
 </dd>
 </dl>
 </section>
 <section id="returns">
 <h2>Returns<a class="headerlink" href="#returns" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt>EEG<span class="classifier">dict</span></dt><dd><p>Updated EEG data structure with rejected segments removed</p>
+<dt>EEG<span class="classifier">dict</span></dt><dd><p>Updated EEG data structure with rejected segments removed.
+With <code class="docutils literal notranslate"><span class="pre">return_regions</span></code>, a tuple of that dataset and the reduced bounds.</p>
 </dd>
 </dl>
 </section>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>return_regions</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>)</p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>

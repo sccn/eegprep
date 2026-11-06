@@ -691,10 +691,12 @@ with an optional channel to project them onto.</p>
 </section>
 <section id="use-eegbrowser-for-rejection">
 <h2>Use EEGBrowser for Rejection<a class="headerlink" href="#use-eegbrowser-for-rejection" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">data</span> <span class="pre">(scroll)</span></code> opens EEGBrowser for inspection. Rejection
-workflows open the same browser in a marking mode. Continuous marks can become
-sample-removal intervals through <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code>; epoch marks can update
-<code class="docutils literal notranslate"><span class="pre">EEG.reject.rejmanual</span></code> and then be removed with <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Plot</span> <span class="pre">&gt;</span> <span class="pre">Channel</span> <span class="pre">data</span> <span class="pre">(scroll)</span></code> opens EEGBrowser for inspection. <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span>
+<span class="pre">Inspect/reject</span> <span class="pre">data</span> <span class="pre">by</span> <span class="pre">eye</span></code> opens the same browser after an instruction
+dialog; Cancel leaves the data unchanged. Rejection workflows mark continuous
+stretches by dragging and whole epochs by clicking. Reject then removes the
+marks with <code class="docutils literal notranslate"><span class="pre">eeg_eegrej</span></code> or <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code> and asks whether to keep the
+result as a new dataset.</p>
 <p>See <a class="reference internal" href="eegbrowser.html#eegbrowser"><span class="std std-ref">EEGBrowser Workflows</span></a> for browser modes, mark fields, and performance behavior.</p>
 </section>
 <section id="create-a-study">

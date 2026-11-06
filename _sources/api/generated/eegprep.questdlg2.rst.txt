@@ -1,0 +1,6 @@
+﻿questdlg2
+=========
+
+.. currentmodule:: eegprep
+
+.. autofunction:: questdlg2
