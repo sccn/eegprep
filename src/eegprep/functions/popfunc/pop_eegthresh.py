@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
@@ -113,10 +114,10 @@ def pop_eegthresh_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> D
             ControlSpec("edit", tag="posthresh", value="10" if is_data else "20"),
             ControlSpec("text", "Start time limit(s) (seconds, Ex -0.1 0.3):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="starttime", value=_num2str(float(EEG.get("xmin", 0)))),
+            ControlSpec("edit", tag="starttime", value=_matlab_num2str(float(EEG.get("xmin", 0)))),
             ControlSpec("text", "End time limit(s) (seconds, Ex 0.2):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="endtime", value=_num2str(float(EEG.get("xmax", 0)))),
+            ControlSpec("edit", tag="endtime", value=_matlab_num2str(float(EEG.get("xmax", 0)))),
             ControlSpec("spacer"),
             ControlSpec("text", "Display previous rejection marks"),
             ControlSpec("spacer"),
@@ -234,16 +235,9 @@ def _history_vector(value: Any) -> str:
     if not values:
         return "[]"
     if len(values) == 1:
-        return _num2str(values[0])
+        return _matlab_num2str(values[0])
     if len(values) == 2 or any(not item.is_integer() for item in values):
-        body = " ".join(_num2str(item) for item in values)
+        body = " ".join(_matlab_num2str(item) for item in values)
     else:
         body = _matlab_contarray(values)
     return "[" + body + "] "
-
-
-def _num2str(value: float) -> str:
-    number = float(value)
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:.5g}"

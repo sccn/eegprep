@@ -22,10 +22,17 @@ Unreleased
   ``-50 10``, stays ``[min max]``. ``pop_rejcont.m:147`` reads that field
   with ``str2double``, which becomes NaN and rejects nothing. On
   ``eeglab_data.set``, ``-50 10`` still keeps 28008 points in 9 regions.
+- ``pop_rejcont`` with ``correct`` ``blank`` writes the zeroed samples back
+  onto the dataset. A ``float32`` recording is copied by the floating-point
+  conversion, so the zeros have to be stored explicitly. On
+  ``eeglab_data.set``, 20-40 Hz at 10 dB with the default taper zeroes
+  1056 columns.
 - ``pop_eegthresh`` history uses the ``vararg2str`` form at
   ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed and the
-  reject flag recorded as 0. Dialog time limits use five significant digits,
-  so the sample epoch file shows an end time of 1.9922.
+  reject flag recorded as 0. Dialog times use MATLAB ``num2str``:
+  five significant digits below 1, and ``floor(log10(|x|))+5`` digits
+  otherwise. The sample epoch file shows an end time of 1.9922;
+  12.34567 is 12.3457 and 123.456789 is 123.4568.
 - Update Marks shows the warning that epochs marked for rejection have been
   noted (``eeg_rejmacro.m:119-121``).
 - ``pop_rejcont`` reports the Add trails field, the function name, and an

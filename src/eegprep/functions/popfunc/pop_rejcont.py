@@ -160,6 +160,7 @@ def _apply_one(
         if str(options.get("correct", "remove")).lower() == "blank":
             for start, stop in selected.astype(int):
                 data[np.asarray(elecrange, dtype=int) - 1, start - 1 : stop] = 0
+            out["data"] = data
             command = comment
         else:
             out = pop_select(out, "nopoint", selected.tolist(), gui=False)

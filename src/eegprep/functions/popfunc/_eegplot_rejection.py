@@ -8,8 +8,9 @@ from typing import Any, Callable
 import numpy as np
 
 try:
-    from PySide6 import QtWidgets
+    from PySide6 import QtCore, QtWidgets
 except ImportError:
+    QtCore = None
     QtWidgets = None
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
@@ -165,13 +166,39 @@ def show_marked_epochs_notice(parent: Any | None = None) -> None:
     logger.warning("%s", MARKED_EPOCHS_NOTICE)
     if QtWidgets is None or QtWidgets.QApplication.instance() is None:
         return
+    if parent is None:
+        parent = _notice_parent()
     box = QtWidgets.QMessageBox(parent)
     box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
     box.setWindowTitle("Warning")
     box.setText(MARKED_EPOCHS_NOTICE)
     box.setObjectName("marked_epochs_notice")
-    _notice_boxes.append(box)
+    if parent is None:
+        _notice_boxes.append(box)
+        box.finished.connect(lambda _result, box=box: _forget_notice(box))
+    else:
+        box.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
     box.show()
+
+
+def _notice_parent() -> Any | None:
+    if QtWidgets.QApplication.instance() is None:
+        return None
+    active = QtWidgets.QApplication.activeWindow()
+    if active is not None:
+        return active
+    for widget in QtWidgets.QApplication.topLevelWidgets():
+        if isinstance(widget, QtWidgets.QMainWindow) and widget.isVisible():
+            return widget
+    return None
+
+
+def _forget_notice(box: Any) -> None:
+    try:
+        _notice_boxes.remove(box)
+    except ValueError:
+        return
+    box.deleteLater()
 
 
 def vistype_from_gui(value: Any) -> int:

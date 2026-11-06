@@ -1,11 +1,13 @@
 """Release-readiness checks for rejection counts (issue 551, stream 6)."""
 
 import logging
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
@@ -25,6 +27,7 @@ from eegprep.functions.popfunc.pop_rejspec import pop_rejspec, pop_rejspec_dialo
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from tests.eeglab_tests import eeglab_test
+from tests.eeglab_tests.recordings import _records
 from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
@@ -287,6 +290,35 @@ def test_pop_rejcont_two_sided_and_cell_thresholds():
     )
 
 
+def test_pop_rejcont_blank_zeroes_float32_sample_columns():
+    eeg = _continuous()
+    eeg["data"] = np.asarray(eeg["data"], dtype=np.float32)
+    original = np.array(eeg["data"], copy=True)
+
+    out, _regions = pop_rejcont(
+        eeg,
+        "elecrange",
+        list(range(1, 33)),
+        "freqlimit",
+        [20, 40],
+        "threshold",
+        10,
+        "taper",
+        "none",
+        "correct",
+        "blank",
+        "eegplot",
+        "off",
+    )
+    data = np.asarray(out["data"])
+    zeroed = np.flatnonzero(np.all(data == 0, axis=0) & np.any(original != 0, axis=0))
+
+    assert data.shape == original.shape
+    assert zeroed.size == 1056
+    assert np.all(data[:, zeroed] == 0)
+    assert np.array_equal(np.asarray(eeg["data"]), original)
+
+
 def test_pop_rejcont_names_a_two_number_add_trails_value():
     eeg = create_test_eeg(n_channels=2, n_samples=40, n_trials=1, srate=100)
 
@@ -308,6 +340,46 @@ def test_pop_eegthresh_history_and_dialog_follow_num2str():
     assert controls_by_tag(spec)["starttime"].value == "-1"
     assert controls_by_tag(spec)["endtime"].value == "1.9922"
     assert command == "EEG = pop_eegthresh(EEG,1,[1:32] ,-75,75,-1,1.9922,0,0);"
+    assert _matlab_num2str(1.9921875) == "1.9922"
+    assert _matlab_num2str(12.34567) == "12.3457"
+    assert _matlab_num2str(123.456789) == "123.4568"
+
+
+def test_marked_epochs_notice_closes_instead_of_staying_in_the_session_list(monkeypatch):
+    pytest.importorskip("PySide6")
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    try:
+        from PySide6 import QtWidgets
+    except ImportError as exc:
+        pytest.skip(f"Qt is not loadable: {exc}")
+
+    from eegprep.functions.popfunc import _eegplot_rejection as rejection
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    window = QtWidgets.QMainWindow()
+    window.show()
+    app.processEvents()
+    before = list(rejection._notice_boxes)
+
+    rejection.show_marked_epochs_notice()
+    app.processEvents()
+    boxes = window.findChildren(QtWidgets.QMessageBox, "marked_epochs_notice")
+    assert boxes
+    assert boxes[0].parent() is window
+    assert rejection._notice_boxes == before
+    boxes[0].close()
+    app.processEvents()
+    assert window.findChildren(QtWidgets.QMessageBox, "marked_epochs_notice") == []
+    window.close()
+
+    monkeypatch.setattr(rejection, "_notice_parent", lambda: None)
+    rejection.show_marked_epochs_notice()
+    app.processEvents()
+    held = [box for box in rejection._notice_boxes if box not in before]
+    assert len(held) == 1
+    held[0].close()
+    app.processEvents()
+    assert held[0] not in rejection._notice_boxes
 
 
 def test_update_marks_shows_the_eeglab_notice(monkeypatch):
@@ -774,6 +846,25 @@ def test_reference_eeg_regepochs_keeps_events_inside_overlapping_epochs(eeglab_b
         assert _record_count(result.get("urevent")) == urevents
 
 
+def test_type_count_reads_matlab_struct_event_arrays():
+    events = np.array(
+        [("X     ", 1.0), ("square", 2.0), ("X", 3.0)],
+        dtype=[("type", "U6"), ("latency", float)],
+    )
+    chars = np.zeros(2, dtype=[("type", "U1", (1, 6)), ("latency", float)])
+    chars["type"][0, 0] = list("X     ")
+    chars["latency"][0] = 1.0
+    chars["type"][1, 0] = list("square")
+    chars["latency"][1] = 2.0
+
+    assert _record_count(events) == 3
+    assert _type_count(events, "X") == 2
+    assert _type_count(chars, "X") == 1
+    assert (
+        _type_count(np.array([{"type": "X", "latency": 1.0}, {"type": "rt", "latency": 2.0}], dtype=object), "X") == 1
+    )
+
+
 def _record_count(value) -> int:
     if value is None:
         return 0
@@ -785,13 +876,22 @@ def _record_count(value) -> int:
 
 
 def _type_count(value, event_type: str) -> int:
-    if isinstance(value, np.ndarray):
-        records = value.reshape(-1).tolist()
-    elif isinstance(value, dict):
-        records = [value]
-    else:
-        records = list(value or [])
-    return sum(isinstance(record, dict) and str(record.get("type")) == event_type for record in records)
+    return sum(
+        _matlab_event_type(record.get("type")) == event_type for record in _records(value) if isinstance(record, dict)
+    )
+
+
+def _matlab_event_type(value) -> str:
+    if isinstance(value, bytes):
+        return value.decode("latin-1").strip()
+    if isinstance(value, str):
+        return value.strip()
+    array = np.asarray(value)
+    if array.dtype == object and array.size == 1:
+        return _matlab_event_type(array.reshape(-1)[0])
+    if array.dtype.kind in "SU":
+        return "".join(str(item) for item in array.ravel(order="F")).strip()
+    return str(value).strip()
 
 
 @eeglab_test("functions/popfunc/pop_rejchan.m", "test_reference_pop_rejchan_sample_channels")
