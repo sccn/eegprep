@@ -247,12 +247,21 @@ def spectrum_marks(
         raise ValueError("method must be 'fft' or 'multitaper'")
     power = power - power.mean(axis=2, keepdims=True)
     row_marks = np.zeros((data.shape[0], data.shape[2]), dtype=bool)
+    band_start = float(freqs[0]) if freqs.size else 0.0
+    band_end = float(freqs[-1]) if freqs.size else 0.0
     for out_index, row_index in enumerate(selected):
         low, high = freqs_limits[out_index]
-        freq_mask = (freqs >= low) & (freqs <= high)
-        if not freq_mask.any():
+        if method == "multitaper":
+            # pop_rejspec.m:325-326 selects bins with eegthresh, not a frequency mask.
+            first, last = _time_window(power.shape[1], (band_start, band_end), float(low), min(band_end, float(high)))
+            segment = power[row_index, first:last, :]
+        else:
+            freq_mask = (freqs >= low) & (freqs <= high)
+            if not freq_mask.any():
+                continue
+            segment = power[row_index, freq_mask, :]
+        if segment.size == 0:
             continue
-        segment = power[row_index, freq_mask, :]
         row_marks[row_index, :] = (segment.min(axis=0) < thresholds[out_index, 0]) | (
             segment.max(axis=0) > thresholds[out_index, 1]
         )
@@ -268,18 +277,43 @@ def _fft_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
-    points = data.shape[1]
-    nw = min(4.0, max(0.5, (points - 1) / 2 - np.finfo(float).eps))
-    kmax = max(1, min(int(2 * nw) - 1, points))
-    tapers = signal.windows.dpss(points, nw, Kmax=kmax, sym=False)
-    if tapers.ndim == 1:
-        tapers = tapers[np.newaxis, :]
-    demeaned = data - data.mean(axis=1, keepdims=True)
-    tapered = demeaned[:, np.newaxis, :, :] * tapers[np.newaxis, :, :, np.newaxis]
-    spectra = np.fft.rfft(tapered, axis=2)[:, :, 1:, :]
-    freqs = np.fft.rfftfreq(points, d=1 / float(srate))[1:]
-    power = np.mean(np.abs(spectra) ** 2, axis=1)
-    return 10 * np.log10(np.maximum(power, np.finfo(float).tiny)), freqs
+    # pop_rejspec.m:307 calls pmtm with NW=4 and nfft=max(256, 2^nextpow2(N)),
+    # then 10*log (natural) at line 310. The first 2*NW-1 tapers are kept.
+    points = int(data.shape[1])
+    time_bandwidth = 4.0
+    taper_count = max(1, min(int(round(2 * time_bandwidth)) - 1, points))
+    nfft = max(256, 1 << (points - 1).bit_length())
+    tapers, ratios = signal.windows.dpss(
+        points, time_bandwidth, Kmax=taper_count, sym=False, norm=2, return_ratios=True
+    )
+    series = np.moveaxis(data, 1, -1).reshape(-1, points)
+    tapered = series[:, np.newaxis, :] * np.asarray(tapers, dtype=float)[np.newaxis, :, :]
+    eigenspectra = np.abs(np.fft.fft(tapered, n=nfft, axis=-1)) ** 2
+    nfreq = nfft // 2 + 1
+    eigenspectra = eigenspectra[..., :nfreq]
+    eigenvalues = np.asarray(ratios, dtype=float)
+    if taper_count == 1:
+        spectrum = eigenspectra[:, 0, :]
+    else:
+        variance = np.sum(series**2, axis=1) / points
+        spectrum = 0.5 * (eigenspectra[:, 0, :] + eigenspectra[:, 1, :])
+        noise = variance[:, np.newaxis] * (1.0 - eigenvalues)[np.newaxis, :]
+        tolerance = 0.0005 * variance / nfft
+        for _ in range(20):
+            denominator = eigenvalues[np.newaxis, :, np.newaxis] * spectrum[:, np.newaxis, :] + noise[:, :, np.newaxis]
+            weights = spectrum[:, np.newaxis, :] / np.maximum(denominator, np.finfo(float).tiny)
+            weighted = (weights**2) * eigenvalues[np.newaxis, :, np.newaxis]
+            updated = np.sum(weighted * eigenspectra, axis=1) / np.maximum(
+                np.sum(weighted, axis=1), np.finfo(float).tiny
+            )
+            if np.max(np.mean(np.abs(updated - spectrum), axis=1) - tolerance) <= 0:
+                spectrum = updated
+                break
+            spectrum = updated
+    power = 10.0 * np.log(np.maximum(spectrum, np.finfo(float).tiny))
+    power = power.reshape(data.shape[0], data.shape[2], nfreq).transpose(0, 2, 1)
+    freqs = np.arange(nfreq, dtype=float) * float(srate) / nfft
+    return power, freqs
 
 
 def jointprob(
@@ -395,11 +429,29 @@ def _realproba(data: np.ndarray, bins: int = 1000) -> np.ndarray:
     return counts[indices] / data.size
 
 
+def _matlab_round(value: float) -> int:
+    return int(np.floor(float(value) + 0.5))
+
+
+def _trimmed_channel_scores(scores: np.ndarray) -> np.ndarray:
+    # rejkurt.m:109-114 and jointprob.m:113-115 trim 10% of a 2-D (one-sweep) score column.
+    ordered = np.sort(np.asarray(scores, dtype=float).reshape(-1, order="F"))
+    count = ordered.size
+    drop = _matlab_round(count * 0.1)
+    start = max(drop, 1)
+    stop = _matlab_round(count - drop)
+    if start > stop:
+        return ordered
+    return ordered[start - 1 : stop]
+
+
 def _normalize_scores(scores: np.ndarray, mode: int, *, signal_ndim: int) -> np.ndarray:
     if not mode:
         return scores
     baseline = np.asarray(scores, dtype=float)
-    if mode == 2:
+    if mode == 2 and signal_ndim == 2:
+        baseline = _trimmed_channel_scores(baseline)
+    elif mode == 2:
         sorted_scores = np.sort(baseline, axis=1)
         trim = np.maximum(np.rint(sorted_scores.shape[1] * 0.1).astype(int), 1)
         if sorted_scores.shape[1] > 2 * trim:

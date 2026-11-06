@@ -22,8 +22,8 @@ def pop_rejepoch(
 
     ``tmprej`` may be either a boolean vector of length ``EEG.trials`` or a
     list of EEGLAB-facing 1-based epoch indices. ``confirm`` is accepted for
-    EEGLAB signature parity; browser-style confirmation is not opened in
-    EEGPrep.
+    EEGLAB signature parity. This function does not open a dialog; the Reject
+    marked epochs menu asks before it calls ``pop_rejepoch``.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -37,6 +37,11 @@ def pop_rejepoch(
     if indices.size == 0:
         command = _history_command([], confirm)
         return (EEG, command) if return_com else EEG
+    if indices.size == trials and int(confirm) != -1:
+        raise ValueError(
+            "pop_rejepoch: rejecting every epoch would leave the dataset empty. "
+            "Clear at least one epoch mark, then choose Reject marked epochs again."
+        )
     output = pop_select(EEG, "notrial", indices.tolist(), gui=False)
     command = _history_command(indices.tolist(), confirm)
     return (output, command) if return_com else output

@@ -11,8 +11,11 @@ from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
+from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
+from eegprep.functions.popfunc.eeg_regepochs import eeg_regepochs
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegplot import eegplot
+from eegprep.functions.sigprocfunc.nan_mean import nan_mean
 
 
 _REJCONT_WINREJ_COLOR = (0.0, 0.9, 0.0)
@@ -56,7 +59,8 @@ def pop_rejcont_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
         title="Reject continuous portions of data - pop_rejcont()",
         function_name="pop_rejcont",
         eeglab_source="functions/popfunc/pop_rejcont.m",
-        help_text="pophelp('pop_rejcont')",
+        help_text=None,
+        show_help_button=False,
         size=(560, 332),
         geometry=((2, 1),) * 7,
         controls=(
@@ -122,8 +126,8 @@ def _apply_one(
     addlength = float(parse_numeric_sequence(options.get("addlength", 0.25), dtype=float)[0])
     freqlimit = parse_numeric_sequence(options.get("freqlimit", [35, min(128, srate / 2)]), dtype=float)
     selected = _selected_regions(
-        data,
-        [item - 1 for item in elecrange],
+        out,
+        elecrange,
         srate,
         epochlength,
         overlap,
@@ -185,6 +189,7 @@ def _open_rejcont_browser(
         "events": EEG.get("event", []),
         "winlength": 50,
         "xgrid": "off",
+        "spacing": _eegplot_spacing(selected_data),
         "winrej": winrej,
         "wincolor": _REJCONT_WINREJ_COLOR,
         "butlabel": "Reject",
@@ -241,7 +246,6 @@ def _rejcont_winrej(selected: np.ndarray, channel_count: int) -> np.ndarray:
     rows = np.zeros((selected.shape[0], 5 + channel_count), dtype=float)
     rows[:, 0:2] = selected[:, 0:2]
     rows[:, 2:5] = np.asarray(_REJCONT_WINREJ_COLOR, dtype=float)
-    rows[:, 5:] = 1
     return rows
 
 
@@ -250,9 +254,27 @@ def _selected_chanlocs(EEG: dict[str, Any], selected_rows: np.ndarray) -> list[d
     return [chanlocs[index] for index in selected_rows if index < len(chanlocs)]
 
 
+def _eegplot_spacing(data: np.ndarray) -> float:
+    # eegplot.m:457-473. std is the sample standard deviation.
+    sample_count = min(1000, int(data.shape[1]))
+    stds = np.std(np.asarray(data, dtype=float)[:, :sample_count], axis=1, ddof=1)
+    stds = np.sort(stds[np.isfinite(stds)])
+    if stds.size > 2:
+        spacing = float(np.mean(stds[1:-1]) * 3.0)
+    elif stds.size:
+        spacing = float(np.mean(stds) * 3.0)
+    else:
+        spacing = 1.0
+    if spacing > 10:
+        spacing = float(np.floor(spacing + 0.5))
+    if spacing == 0 or np.isnan(spacing):
+        spacing = 1.0
+    return spacing
+
+
 def _selected_regions(
-    data: np.ndarray,
-    rows: list[int],
+    EEG: dict[str, Any],
+    elecrange: list[int],
     srate: float,
     epochlength: float,
     overlap: float,
@@ -262,49 +284,171 @@ def _selected_regions(
     addlength: float,
     options: dict[str, Any],
 ) -> np.ndarray:
-    window = max(1, int(round(epochlength * srate)))
-    step = max(1, int(round((epochlength - overlap) * srate)))
-    if window > data.shape[1]:
+    # pop_rejcont.m:202 passes overlap as eeg_regepochs recurrence, with limits [0 epochlength].
+    work = copy_eeg(EEG)
+    work["event"] = _boundary_events(work.get("event"))
+    work["urevent"] = []
+    try:
+        epoched = eeg_regepochs(work, overlap, [0.0, epochlength], np.nan)
+    except ValueError as exc:
+        raise ValueError(f"pop_rejcont: {exc}. Use a shorter epoch length or a positive overlap.") from exc
+    spectra, frequencies = _epoch_log_spectrum(epoched, srate, str(options.get("taper", "none")))
+    if spectra.size == 0 or not elecrange:
         return np.empty((0, 2), dtype=int)
-    starts = list(range(0, data.shape[1] - window + 1, step))
-    flagged = np.zeros(len(starts), dtype=bool)
-    taper = np.hamming(window) if str(options.get("taper", "none")).lower() == _REJCONT_TAPER else np.ones(window)
-    freqs = np.fft.rfftfreq(window, d=1 / srate)
-    if len(freqlimit) < 2:
-        freqlimit = [35, min(128, srate / 2)]
-    freq_mask = (freqs >= freqlimit[0]) & (freqs <= freqlimit[-1])
-    if not freq_mask.any():
+    selected_rows = [index - 1 for index in elecrange]
+    averaged = np.asarray(nan_mean(spectra[selected_rows], axis=0), dtype=float)
+    if averaged.ndim == 1:
+        averaged = averaged[:, np.newaxis]
+    rejected = _threshold_epochs(
+        averaged,
+        frequencies,
+        freqlimit if len(freqlimit) >= 2 else [35.0, min(128.0, srate / 2.0)],
+        threshold,
+        str(options.get("mode", "max")),
+    )
+    rows = _windows_for_epochs(epoched, rejected, epochlength, srate)
+    grouplen = contiguous / 2.0 * epochlength * srate + 1.0
+    rows = _merge_rejcont_windows(rows, grouplen, contiguous)
+    point_count = int(EEG.get("pnts", np.asarray(EEG.get("data")).shape[1]))
+    padded = [
+        [max(1.0, row[0] - addlength * srate), min(float(point_count), row[1] + addlength * srate)] for row in rows
+    ]
+    if not padded:
         return np.empty((0, 2), dtype=int)
-    for index, start in enumerate(starts):
-        segment = data[rows, start : start + window] * taper
-        power = 10 * np.log10(np.maximum(np.abs(np.fft.rfft(segment, axis=1)) ** 2, np.finfo(float).tiny))
-        score = (
-            power[:, freq_mask].max(axis=1)
-            if str(options.get("mode", "max")).lower() == "max"
-            else power[:, freq_mask].mean(axis=1)
+    return np.rint(np.asarray(padded, dtype=float)).astype(int)
+
+
+def _boundary_events(value: Any) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        value = value.reshape(-1).tolist()
+    if isinstance(value, dict):
+        records = [value]
+    elif isinstance(value, list):
+        records = [item for item in value if isinstance(item, dict)]
+    else:
+        records = []
+    if not records:
+        return []
+    bounds = eeg_findboundaries(EEG=records)
+    return [records[index] for index in bounds] if bounds else []
+
+
+def _epoch_log_spectrum(epoched: dict[str, Any], srate: float, taper: str) -> tuple[np.ndarray, np.ndarray]:
+    data = np.asarray(epoched.get("data"), dtype=float)
+    if data.ndim == 2:
+        data = data[:, :, np.newaxis]
+    if data.ndim != 3 or data.shape[1] < 2:
+        return np.empty((0, 0, 0), dtype=float), np.empty(0, dtype=float)
+    if taper.lower() == _REJCONT_TAPER:
+        data = data * np.hamming(data.shape[1])[np.newaxis, :, np.newaxis]
+    spectrum = np.fft.fft(data, axis=1)
+    half = spectrum.shape[1] // 2
+    # pop_rejcont.m:211-213 stretches linspace(0, Nyquist, N/2) and drops DC, rather than using bin frequencies.
+    frequencies = np.linspace(0.0, srate / 2.0, half)[1:]
+    spectrum = spectrum[:, 1:half, :]
+    power = 10.0 * np.log10(np.maximum(np.abs(spectrum) ** 2, np.finfo(float).tiny))
+    power = power - np.mean(power, axis=2, keepdims=True)
+    return power, frequencies
+
+
+def _threshold_epochs(
+    spectrum: np.ndarray,
+    frequencies: np.ndarray,
+    freqlimit: list[float],
+    threshold: float,
+    mode: str,
+) -> np.ndarray:
+    # pop_rejcont.m:239 expands a single threshold to [-100, threshold] before either mode.
+    low = -100.0
+    high = float(threshold)
+    if frequencies.size == 0:
+        return np.empty(0, dtype=int)
+    if mode.lower() == "max":
+        timerange = (float(frequencies[0]), float(frequencies[-1]))
+        span = timerange[1] - timerange[0]
+        if span == 0:
+            return np.empty(0, dtype=int)
+        frame_low = max(1, int(np.floor((freqlimit[0] - timerange[0]) / span * (frequencies.size - 1))) + 1)
+        frame_high = int(np.floor((freqlimit[-1] - timerange[0]) / span * (frequencies.size - 1))) + 1
+        frame_high = min(frequencies.size, max(frame_low, frame_high))
+        segment = spectrum[frame_low - 1 : frame_high, :]
+    else:
+        nearest_start = int(np.argmin(np.abs(frequencies - freqlimit[0])))
+        nearest_stop = int(np.argmin(np.abs(frequencies - freqlimit[-1])))
+        if nearest_stop < nearest_start:
+            nearest_start, nearest_stop = nearest_stop, nearest_start
+        segment = np.mean(spectrum[nearest_start : nearest_stop + 1, :], axis=0, keepdims=True)
+    if segment.size == 0:
+        return np.empty(0, dtype=int)
+    rejected = (np.min(segment, axis=0) < low) | (np.max(segment, axis=0) > high)
+    return np.flatnonzero(rejected) + 1
+
+
+def _windows_for_epochs(
+    epoched: dict[str, Any], rejected: np.ndarray, epochlength: float, srate: float
+) -> list[list[float]]:
+    events = epoched.get("event")
+    if events is None:
+        events = []
+    if isinstance(events, np.ndarray):
+        events = events.reshape(-1).tolist()
+    if any("epoch" not in event for event in events):
+        raise ValueError(
+            "pop_rejcont: some events are not associated with any epoch. "
+            "Reload the continuous dataset and run pop_rejcont again."
         )
-        flagged[index] = bool(np.any(score > threshold))
-    regions = _runs_to_regions(flagged, starts, window, contiguous)
-    if not regions:
-        return np.empty((0, 2), dtype=int)
-    pad = int(round(addlength * srate))
-    padded = [[max(1, start + 1 - pad), min(data.shape[1], stop + pad)] for start, stop in regions]
-    return _merge_regions(np.asarray(padded, dtype=int))
-
-
-def _runs_to_regions(flagged: np.ndarray, starts: list[int], window: int, contiguous: int) -> list[list[int]]:
-    regions = []
-    index = 0
-    while index < flagged.size:
-        if not flagged[index]:
-            index += 1
+    by_epoch: dict[int, list[dict[str, Any]]] = {}
+    for event in events:
+        by_epoch.setdefault(int(event["epoch"]), []).append(event)
+    urevents = epoched.get("urevent")
+    if urevents is None:
+        urevents = []
+    if isinstance(urevents, np.ndarray):
+        urevents = urevents.reshape(-1).tolist()
+    rows: list[list[float]] = []
+    width = epochlength * srate - 1.0
+    for epoch_number in rejected.tolist():
+        matched = by_epoch.get(int(epoch_number))
+        if not matched:
             continue
-        run_start = index
-        while index < flagged.size and flagged[index]:
-            index += 1
-        if index - run_start >= contiguous:
-            regions.append([starts[run_start], starts[index - 1] + window])
-    return regions
+        event = matched[0]
+        if str(event.get("type")) != "X":
+            raise ValueError(
+                "pop_rejcont: an epoch event was not type 'X'. "
+                "Run pop_rejcont on continuous data; boundary events are kept and regular epochs are rebuilt."
+            )
+        latency = float(urevents[int(event["urevent"])]["latency"])
+        rows.append([latency, latency + width])
+    return rows
+
+
+def _merge_rejcont_windows(rows: list[list[float]], grouplen: float, contiguous: int) -> list[list[float]]:
+    # pop_rejcont.m:293-316, including the backwards deletion order.
+    index = len(rows) - 1
+    while index >= 0:
+        count = len(rows)
+        start, stop = rows[index][0], rows[index][1]
+        if contiguous >= 2 and count >= index + 1 and stop - start > grouplen:
+            del rows[index]
+        elif contiguous >= 2 and index == 0 and count > 1 and rows[1][0] - stop > grouplen:
+            del rows[index]
+        elif contiguous >= 2 and index == count - 1 and count > 1 and start - rows[index - 1][1] > grouplen:
+            del rows[index]
+        elif (
+            contiguous >= 2
+            and 0 < index < count - 1
+            and count > 1
+            and rows[index + 1][0] - stop > grouplen
+            and start - rows[index - 1][1] > grouplen
+        ):
+            del rows[index]
+        elif index < count - 1 and count > 1 and rows[index + 1][0] - stop <= grouplen:
+            rows[index][1] = rows[index + 1][1]
+            del rows[index + 1]
+        index -= 1
+    return rows
 
 
 def _merge_regions(regions: np.ndarray) -> np.ndarray:

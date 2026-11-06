@@ -10,6 +10,33 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_eegthresh`` now opens the component dialog on components 1:5
+  (``pop_eegthresh.m:120``) instead of every component.
+- Reject marked epochs now builds ``rejglobal`` with ``eeg_rejsuperpose``
+  before removing trials (``eeglab.m:663-677``). Rejecting every epoch raises
+  a ``pop_rejepoch`` error that says how to clear a mark, instead of an empty
+  dataset from ``pop_select``.
+- Export marks to ICA reject now superposes data marks and copies
+  ``rejglobal`` onto ``icarejmanual`` (``eeglab.m:661-662``). Export marks to
+  data reject copies ICA marks onto ``rejmanual`` (``eeglab.m:674-675``).
+- ``pop_rejchan`` now rejects probability and kurtosis channels with the
+  two-sided mask from ``rejkurt.m:131`` and ``jointprob.m:133``, after the
+  10% trimmed normalization at ``rejkurt.m:109-114``. The dialog offers
+  Probability, Kurtosis, and Spectrum (``pop_rejchan.m:96``) and enables the
+  frequency range only for Spectrum (``pop_rejchan.m:99-100``). History uses
+  the ``vararg2str`` form at ``pop_rejchan.m:246``.
+- ``pop_rejspec`` multitaper spectra now follow ``pop_rejspec.m:307-326``:
+  seven adaptive Slepian tapers, natural-log power, and ``eegthresh`` bin
+  limits. On ``eeglab_data_epochs_ica.set`` this marks component epochs
+  13, 14, 15, 26, and 79 at ±30 dB and data epoch 37 at ±30 dB and ±35 dB.
+- ``pop_rejcont`` now rejects the trial-mean spectrum of overlapping windows
+  and merges them with the rule at ``pop_rejcont.m:211-316``. On
+  ``eeglab_data.set`` the 20-40 Hz, 10 dB settings remove 9 regions and keep
+  28008 points. The scroll view uses the ``eegplot.m:457-473`` spacing, and
+  the dialog has no Help button (``pop_rejcont.m:140``).
+- Channel-mode automatic epoch rejection uses ``rejkurt``. ``pop_autorej.m:224``
+  uses ``icarejkurt``, so on ``eeglab_data_epochs_ica.set`` EEGLAB keeps 75
+  epochs and EEGPrep keeps 74.
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the

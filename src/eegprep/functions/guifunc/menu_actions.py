@@ -1321,13 +1321,19 @@ class MenuActionDispatcher:
 
             out = pop_rejchan(selection, return_com=True)
         elif name == "pop_rejepoch":
+            from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
             from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 
             if isinstance(selection, list):
                 self._warn(parent, "Select one dataset before rejecting marked epochs.")
                 return
-            marks = (selection.get("reject") or {}).get("rejglobal", [])
-            out = pop_rejepoch(selection, marks, return_com=True)
+            # eeglab.m:663-664 (data) and eeglab.m:676-677 (ICA) superpose before pop_rejepoch.
+            if parent is not None and not _confirm_reject_epochs(parent):
+                return
+            typerej = 0 if variant == "ica" else 1
+            superposed, superpose_command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
+            out = pop_rejepoch(superposed, return_com=True)
+            self._add_history_from_gui(superpose_command)
         elif name == "pop_rejmenu":
             from eegprep.functions.popfunc.pop_rejmenu import pop_rejmenu
 
@@ -1516,9 +1522,19 @@ class MenuActionDispatcher:
             return
         from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 
-        typerej = 0 if variant == "data_to_ica" else 1
+        # eeglab.m:661-662 exports data marks onto icarejmanual; lines 674-675 export ICA marks onto rejmanual.
+        typerej = 1 if variant == "data_to_ica" else 0
         eeg_out, command = eeg_rejsuperpose(selection, typerej, 1, 1, 1, 1, 1, 1, 1, return_com=True)
-        self._store_current_from_gui(eeg_out, command=command)
+        reject = eeg_out.setdefault("reject", {})
+        copied = reject["rejglobal"].copy()
+        if variant == "data_to_ica":
+            reject["icarejmanual"] = copied
+            copy_command = "EEG.reject.icarejmanual = EEG.reject.rejglobal;"
+        else:
+            reject["rejmanual"] = copied
+            copy_command = "EEG.reject.rejmanual = EEG.reject.rejglobal;"
+        self._add_history_from_gui(command)
+        self._store_current_from_gui(eeg_out, command=copy_command)
         self._refresh()
 
     def _run_dipfit_function(self, name: str, parent: Any | None) -> None:
@@ -1811,6 +1827,24 @@ def _resave_set_path(eeg: dict[str, Any]) -> str:
     if path and Path(path).suffix.lower() == ".set":
         return path
     return ""
+
+
+def _confirm_reject_epochs(parent: Any | None) -> bool:
+    # pop_rejepoch.m:78-80
+    qt_widgets = _qt_widgets()
+    if qt_widgets is None or parent is None:
+        return True
+    box = qt_widgets.QMessageBox
+    yes = _message_button(box, "Yes")
+    no = _message_button(box, "No")
+    answer = box.question(
+        parent,
+        "Reject pre-labelled epochs -- pop_rejepoch()",
+        "Are you sure, you want to reject the labeled trials ?",
+        no | yes,
+        yes,
+    )
+    return answer == yes
 
 
 def _confirm_set_overwrite(qt_widgets: Any, parent: Any | None, filename: str) -> str:

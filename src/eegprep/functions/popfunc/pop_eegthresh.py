@@ -104,7 +104,8 @@ def pop_eegthresh_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> D
         controls=(
             ControlSpec("text", label),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="elecrange", value=f"1:{rows}"),
+            # pop_eegthresh.m:120 uses the literal component range '1:5'.
+            ControlSpec("edit", tag="elecrange", value=f"1:{rows}" if is_data else "1:5"),
             ControlSpec("text", f"Minimum rejection threshold(s) ({unit}, Ex:-20 -10 -15):"),
             ControlSpec("spacer"),
             ControlSpec("edit", tag="negthresh", value="-10" if is_data else "-20"),

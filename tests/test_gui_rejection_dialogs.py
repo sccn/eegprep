@@ -115,11 +115,11 @@ class RejectionDialogTests(unittest.TestCase):
         np.testing.assert_array_equal(session.EEG["reject"]["gcompreject"], [0, 1, 0])
         np.testing.assert_array_equal(session.ALLEEG[0]["reject"]["gcompreject"], [0, 1, 0])
 
-    def test_reject_marked_epochs_uses_rejglobal_for_ica_menu(self):
+    def test_reject_marked_epochs_superposes_ica_marks_before_pop_rejepoch(self):
         session = EEGPrepSession()
         eeg = _epoched_ica_eeg()
-        eeg["reject"]["rejglobal"] = np.array([False, True, False])
-        eeg["reject"]["icarejglobal"] = np.array([False, False, False])
+        eeg["reject"]["rejglobal"] = np.array([False, False, False])
+        eeg["reject"]["icarejmanual"] = np.array([False, True, False])
         session.store_current(eeg, new=True)
         dispatcher = MenuActionDispatcher(session)
 
@@ -130,7 +130,8 @@ class RejectionDialogTests(unittest.TestCase):
             dispatcher.dispatch("pop_rejepoch:ica")
 
         rejepoch.assert_called_once()
-        np.testing.assert_array_equal(rejepoch.call_args.args[1], np.array([False, True, False]))
+        passed = rejepoch.call_args.args[0]
+        np.testing.assert_array_equal(passed["reject"]["rejglobal"], [False, True, False])
 
     def test_rejection_dispatch_stores_multi_dataset_results_without_browser_callback(self):
         session = EEGPrepSession()
