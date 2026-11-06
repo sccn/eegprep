@@ -656,7 +656,6 @@ class EEGBrowserCanvas(_QWidget):
                 return super().eventFilter(watched, event)
             sample = self._event_sample(scene_point)
             if self.model.data.epoched and not self.model.state.setelectrode:
-                # eegplot.m:2130-2135 marks one epoch on button-down and does not drag.
                 self._toggle_epoch(sample)
                 self._clear_drag()
                 return True
