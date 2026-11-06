@@ -345,21 +345,6 @@ def test_clean_artifacts_default_runs_on_sample_data_without_warning_noise(sampl
     assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
 
 
-def _close_eeg_browsers() -> None:
-    try:
-        from PySide6 import QtWidgets
-        from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
-    except ImportError:
-        return
-    app = QtWidgets.QApplication.instance()
-    if not isinstance(app, QtWidgets.QApplication):
-        return
-    for widget in list(app.topLevelWidgets()):
-        if isinstance(widget, EEGBrowserWindow):
-            widget.close()
-    app.processEvents()
-
-
 def test_pop_clean_rawdata_gui_defaults_run_on_sample_data_without_warning_noise(sample_eeg, caplog):
     class Renderer:
         def run(self, spec, initial_values=None):
@@ -371,14 +356,11 @@ def test_pop_clean_rawdata_gui_defaults_run_on_sample_data_without_warning_noise
         warnings.simplefilter("error", RuntimeWarning)
         cleaned, command = pop_clean_rawdata(sample_eeg, gui=True, renderer=Renderer(), return_com=True)
 
-    try:
-        assert cleaned["nbchan"] == 30
-        assert cleaned["pnts"] < 30504
-        assert np.isfinite(cleaned["data"]).all()
-        assert "'BurstRejection', 'on'" in command
-        assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
-    finally:
-        _close_eeg_browsers()
+    assert cleaned["nbchan"] == 30
+    assert cleaned["pnts"] < 30504
+    assert np.isfinite(cleaned["data"]).all()
+    assert "'BurstRejection', 'on'" in command
+    assert not [record for record in caplog.records if record.levelname in {"WARNING", "ERROR"}]
 
 
 def test_pop_clean_rawdata_riemannian_asr_runs_on_sample_data_without_warning_noise(sample_eeg, caplog):

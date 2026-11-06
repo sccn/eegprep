@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from eegprep.functions.adminfunc.vararg2str import vararg2str
+from eegprep.functions.adminfunc.vararg2str import matlab_array2str
+from eegprep.functions.guifunc.questdlg2 import questdlg2
 from eegprep.functions.popfunc.plot_utils import history_command
 import numpy as np
 
@@ -89,7 +90,7 @@ def pop_eegplot(
         options.setdefault("winrej", _initial_continuous_winrej(EEG, icacomp))
 
     def _accept(winrej: np.ndarray) -> None:
-        if _epoch_reject_pending(EEG, winrej) and not _confirm_epoch_rejection():
+        if int(bool(reject)) and _epoch_reject_pending(EEG, winrej) and not _confirm_epoch_rejection():
             return
         eeg_out, accept_command = apply_eegplot_rejections(
             EEG,
@@ -99,7 +100,7 @@ def pop_eegplot(
             reject=reject,
             return_com=True,
         )
-        if accept_callback is not None and accept_command:
+        if accept_callback is not None:
             accept_callback(eeg_out, accept_command)
 
     if return_com and show and accept_callback is None:
@@ -161,9 +162,9 @@ def apply_eegplot_rejections(
         if int(bool(reject)):
             regions = eegplot2event(rows, -1) if rows.size else np.zeros((0, 0))
             if regions.size:
-                out = eeg_eegrej(out, regions)
+                out, reduced = eeg_eegrej(out, regions, return_regions=True)
                 _clear_continuous_marks(out, icacomp=icacomp)
-                command = f"EEG = eeg_eegrej( EEG, {vararg2str([regions])});"
+                command = f"EEG = eeg_eegrej( EEG, {matlab_array2str(reduced)});"
             else:
                 command = ""
         else:
@@ -180,17 +181,10 @@ def apply_eegplot_rejections(
         store_superpose = 0
     _store_epoch_marks(out, trial_marks, row_marks, icacomp=icacomp, superpose=store_superpose)
     if int(bool(reject)):
-        command = _epoch_reject_command(trial_marks)
-        if trial_marks.any():
-            out, _reject_command = pop_rejepoch(out, trial_marks, 1, return_com=True)
+        command = ""
+        if np.asarray(trial_marks).any():
+            out, command = pop_rejepoch(out, trial_marks, 0, return_com=True)
     return (out, command) if return_com else out
-
-
-def _epoch_reject_command(trial_marks: np.ndarray) -> str:
-    indices = np.flatnonzero(np.asarray(trial_marks, dtype=bool)) + 1
-    if indices.size == 0:
-        return ""
-    return f"EEG = pop_rejepoch( EEG, {vararg2str([indices, 0])});"
 
 
 def _epoch_reject_pending(EEG: dict[str, Any], winrej: Any) -> bool:
@@ -206,48 +200,11 @@ def _epoch_reject_pending(EEG: dict[str, Any], winrej: Any) -> bool:
 
 
 def _confirm_continuous_reject_instructions() -> bool:
-    return _ask_dialog("Warning", _CONTINUOUS_REJECT_INSTRUCTIONS, ("Cancel", "Continue"), "Continue") == "Continue"
+    return questdlg2(_CONTINUOUS_REJECT_INSTRUCTIONS, "Warning", "Cancel", "Continue", "Continue") == "Continue"
 
 
 def _confirm_epoch_rejection() -> bool:
-    return _ask_dialog("Question", _EPOCH_REJECT_QUESTION, ("NO", "YES"), "YES", title=_EPOCH_REJECT_TITLE) == "YES"
-
-
-def _ask_dialog(icon_name: str, text: str, labels: tuple[str, str], default: str, *, title: str | None = None) -> str:
-    try:
-        from PySide6 import QtCore, QtWidgets
-    except ImportError as exc:
-        raise RuntimeError(
-            "pop_eegplot could not open its dialog because PySide6 is not installed. "
-            "Install it with `pip install eegprep[gui]`."
-        ) from exc
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    dialog = QtWidgets.QDialog()
-    dialog.setWindowTitle(title or icon_name)
-    dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
-    layout = QtWidgets.QVBoxLayout(dialog)
-    message = QtWidgets.QLabel(text, dialog)
-    message.setObjectName("eegplot_ask_text")
-    message.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-    layout.addWidget(message)
-    clicked: dict[str, str] = {"label": ""}
-    button_row = QtWidgets.QHBoxLayout()
-    button_row.addStretch(1)
-    button_by_label: dict[str, QtWidgets.QPushButton] = {}
-    for label in labels:
-        button = QtWidgets.QPushButton(label, dialog)
-        button_by_label[label] = button
-        button_row.addWidget(button)
-
-        def choose(_checked: bool = False, label: str = label) -> None:
-            clicked["label"] = label
-            dialog.accept()
-
-        button.clicked.connect(choose)
-    layout.addLayout(button_row)
-    button_by_label[default].setDefault(True)
-    dialog.exec()
-    return clicked["label"]
+    return questdlg2(_EPOCH_REJECT_QUESTION, _EPOCH_REJECT_TITLE, "NO", "YES", "YES") == "YES"
 
 
 def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> np.ndarray:

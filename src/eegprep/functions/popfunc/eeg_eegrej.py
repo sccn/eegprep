@@ -289,7 +289,7 @@ def _eegrej(
     return newx, newt, events_out, boundevents
 
 
-def eeg_eegrej(EEG, regions):
+def eeg_eegrej(EEG, regions, *, return_regions: bool = False):
     """Reject EEG data segments specified by regions.
 
     Parameters
@@ -297,31 +297,26 @@ def eeg_eegrej(EEG, regions):
     EEG : dict
         EEG data structure
     regions : array-like
-        Regions to reject, shape (n_regions, 2) or (n_regions, 4)
+        Regions to reject, shape (n_regions, 2) or wider eegplot rows.
+        Columns 3 and 4 of a wider row are the sample bounds.
+    return_regions : bool
+        Also return the reduced two-column bounds that were removed.
 
     Returns
     -------
     EEG : dict
-        Updated EEG data structure with rejected segments removed
+        Updated EEG data structure with rejected segments removed.
+        With ``return_regions``, a tuple of that dataset and the reduced bounds.
     """
     source_data = EEG.get("data")
     EEG = deepcopy(EEG)
     if regions is None or len(regions) == 0:
-        return EEG
+        reduced = np.zeros((0, 2), dtype=float)
+        return (EEG, reduced) if return_regions else EEG
 
     # Sort, then merge fractional bounds the way combineregions does. Rounding
     # happens in _eegrej, after overlaps have been collapsed.
-    regions = np.asarray(regions, dtype=float)
-
-    if regions.shape[1] > 2:
-        regions = regions[np.argsort(regions[:, 2], kind="mergesort")]
-    else:
-        regions = regions[np.argsort(regions[:, 0], kind="mergesort")]
-
-    if regions.shape[1] > 2:
-        regions = regions[:, 2:4]
-
-    regions = _combine_regions(regions)
+    regions = _reduced_regions(regions)
 
     # Use original events; backend will handle pruning, shifting, and boundary insertion
     events = _events_as_dicts(EEG.get("event", []))
@@ -376,7 +371,20 @@ def eeg_eegrej(EEG, regions):
     EEG["event"] = _events_as_dicts(EEG.get("event"))
     if len(EEG["event"]) > 1 and EEG["event"][-1].get("latency", 0) - 0.5 > EEG["pnts"] and EEG.get("trials", 1) == 1:
         EEG["event"].pop()
-    return EEG
+    return (EEG, regions) if return_regions else EEG
+
+
+def _reduced_regions(regions):
+    regions = np.asarray(regions, dtype=float)
+    if regions.ndim == 1:
+        regions = regions.reshape(1, -1)
+    if regions.shape[1] > 2:
+        regions = regions[np.argsort(regions[:, 2], kind="mergesort")]
+    else:
+        regions = regions[np.argsort(regions[:, 0], kind="mergesort")]
+    if regions.shape[1] > 2:
+        regions = regions[:, 2:4]
+    return _combine_regions(regions)
 
 
 def _combine_regions(regs):

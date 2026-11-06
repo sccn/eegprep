@@ -283,7 +283,60 @@ def test_apply_eegplot_rejections_removes_continuous_regions_and_inserts_boundar
     assert out["event"][0]["latency"] == 2.5
     assert out["event"][0]["duration"] == 3.0
     assert out["event"][1]["latency"] == 5.0
-    assert command == "EEG = eeg_eegrej( EEG, [-1 1 3 5 0.7 1 0.9]);"
+    assert command == "EEG = eeg_eegrej( EEG, [3 5] );"
+
+
+def test_reject_zero_epoch_update_stores_marks_without_a_dialog(monkeypatch: pytest.MonkeyPatch) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
+    eeg["data"] = np.arange(24, dtype=float).reshape(2, 4, 3)
+    captured: dict[str, Any] = {}
+
+    def fake_eegplot(_eeg, *args, **kwargs):
+        del args
+        captured["callback"] = kwargs["command_callback"]
+        return "window"
+
+    def fail_dialog(*_args, **_kwargs):
+        raise AssertionError("questdlg2")
+
+    monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
+    monkeypatch.setattr(pop_eegplot_module, "questdlg2", fail_dialog)
+    stored: dict[str, Any] = {}
+    pop_eegplot(
+        eeg,
+        reject=0,
+        command_callback=lambda eeg_out, command: stored.update(eeg=eeg_out, command=command),
+    )
+    rows = trial2eegplot([False, True, False], np.zeros((2, 3), dtype=bool), 4, [1.0, 0.9, 0.9])
+    captured["callback"](rows)
+
+    np.testing.assert_array_equal(stored["eeg"]["reject"]["rejmanual"], [False, True, False])
+    assert stored["eeg"]["trials"] == 3
+    assert "pop_rejepoch" not in stored["command"]
+
+
+def test_clearing_every_epoch_mark_stores_rejmanual_without_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+    from eegprep.functions.guifunc.session import EEGPrepSession
+
+    eeg = create_test_eeg(n_channels=2, n_samples=4, n_trials=3, srate=10)
+    eeg["reject"]["rejmanual"] = np.array([True, False, True])
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    captured: dict[str, Any] = {}
+
+    def fake_eegplot(_eeg, *args, **kwargs):
+        del args
+        captured["callback"] = kwargs["command_callback"]
+        return "window"
+
+    monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
+    MenuActionDispatcher(session).dispatch("pop_eegplot:reject_data")
+    captured["callback"](np.zeros((0, 7)))
+
+    np.testing.assert_array_equal(session.EEG["reject"]["rejmanual"], [False, False, False])
+    assert session.EEG["trials"] == 3
+    assert session.ALLCOM == ["pop_eegplot(EEG, 1, 0, 1)"]
 
 
 def test_apply_eegplot_rejections_updates_continuous_mark_only_rows() -> None:

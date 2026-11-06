@@ -1251,6 +1251,8 @@ class MenuActionDispatcher:
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action("pop_eegplot"):
                     if not command:
+                        self._store_current_from_gui(eeg_out, command="", index=target_index)
+                        self._refresh()
                         return
                     store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
                     if store_new and parent is not None:
@@ -1928,8 +1930,6 @@ def _required_extension_parameters(
 
 
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
-    # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
-    # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
     if variant == "components":
         return 0, 1, 1
     if variant == "reject_ica":

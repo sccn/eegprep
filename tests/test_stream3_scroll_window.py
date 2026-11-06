@@ -76,7 +76,7 @@ def test_apply_eegplot_rejections_epoch_command_matches_pop_rejepoch_history() -
 
     out, command = apply_eegplot_rejections(eeg, rows, return_com=True)
 
-    assert command == "EEG = pop_rejepoch( EEG, [2 4],0);"
+    assert command == "EEG = pop_rejepoch( EEG, [2 4] ,0);"
     assert out["trials"] == 2
     np.testing.assert_array_equal(out["data"], eeg["data"][:, :, [0, 2]])
 
@@ -88,7 +88,7 @@ def test_scroll_window_region_removed_by_eeg_eegrej_is_exact() -> None:
 
     out, command = apply_eegplot_rejections(eeg, rows, return_com=True)
 
-    assert command == "EEG = eeg_eegrej( EEG, [-1 1 13 24 1 0.9 0.9]);"
+    assert command == "EEG = eeg_eegrej( EEG, [13 24] );"
     assert out["pnts"] == 28
     np.testing.assert_array_equal(out["data"], np.concatenate([original[:, :12], original[:, 24:]], axis=1))
     assert out["event"][0]["type"] == "boundary"
@@ -331,7 +331,7 @@ def test_gui_reject_cancel_keeps_dataset_and_ok_records_eeg_eegrej_and_pop_newse
     assert len(session.ALLEEG) == 2
     assert session.ALLEEG[0]["pnts"] == original.shape[1]
     np.testing.assert_array_equal(session.EEG["data"], expected)
-    assert "EEG = eeg_eegrej( EEG, [-1 1 13 24 1 0.9 0.9]);" in session.ALLCOM
+    assert "EEG = eeg_eegrej( EEG, [13 24] );" in session.ALLCOM
     assert any(command.startswith("[ALLEEG EEG CURRENTSET] = pop_newset(") for command in session.ALLCOM)
     parent.close()
 
@@ -388,7 +388,7 @@ def test_gui_epoch_reject_no_and_close_keep_trials_yes_opens_pop_newset(qapp) ->
     assert state["seen"][1][0] == "Dataset info -- pop_newset()"
     assert session.EEG["trials"] == 4
     np.testing.assert_array_equal(session.EEG["data"], eeg["data"][:, :, [0, 2, 4, 5]])
-    assert "EEG = pop_rejepoch( EEG, [2 4],0);" in session.ALLCOM
+    assert "EEG = pop_rejepoch( EEG, [2 4] ,0);" in session.ALLCOM
     assert any(command.startswith("[ALLEEG EEG CURRENTSET] = pop_newset(") for command in session.ALLCOM)
     parent.close()
 
@@ -507,7 +507,7 @@ def _drive(app, qt_widgets, actions: list) -> dict:
         if isinstance(child, qt_widgets.QMessageBox):
             text = child.text()
         else:
-            label = child.findChild(qt_widgets.QLabel, "eegplot_ask_text")
+            label = child.findChild(qt_widgets.QLabel, "questdlg2_prompt")
             text = label.text() if label is not None else ""
         state["seen"].append((child.windowTitle(), text))
         actions[state["step"]](child)

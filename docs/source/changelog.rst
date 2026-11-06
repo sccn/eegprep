@@ -19,10 +19,10 @@ Unreleased
   (``eegplot.m`` lines 2130-2135). Channel inspection, epoch inspection,
   and ICA component inspection share this path.
 - Rejecting marked continuous data records ``EEG = eeg_eegrej( EEG, ...);``
-  (``eeg_eegrej.m`` line 194, from ``pop_eegplot.m`` lines 170-176) and
-  asks what to do with the new dataset through ``pop_newset``. Cancel
-  keeps the original dataset and does not record the rejection. An empty
-  mark does nothing (``eeg_eegrej.m`` lines 59-60).
+  from the reduced two-column regions (``eeg_eegrej.m`` builds that command
+  after ``combineregions``) and asks what to do with the new dataset through
+  ``pop_newset``. Cancel keeps the original dataset and does not record the
+  rejection. An empty mark does nothing (``eeg_eegrej.m`` lines 59-60).
 - Tools > Inspect/reject data by eye shows the instruction dialog from
   ``pop_eegplot.m`` lines 180-186 before the browser opens. That menu
   calls ``pop_eegplot(EEG, 1)`` (``eeglab.m`` line 644). Cancel returns
@@ -31,11 +31,12 @@ Unreleased
   Plot > Channel data (scroll) passes ``reject`` explicitly
   (``eeglab.m`` line 683) and does not show the dialog.
 - Rejecting marked epochs asks "Are you sure, you want to reject the
-  labeled trials ?" (``pop_rejepoch.m`` lines 78-84), which
-  ``eeg_rejmacro.m`` lines 108-111 runs when marks are present. NO, or
-  closing the dialog, leaves the epochs in place. YES removes them and
-  opens ``pop_newset``. The history command records the confirmation flag
-  as 0 (``pop_rejepoch.m`` line 101).
+  labeled trials ?" (``pop_rejepoch.m`` lines 78-84) only when Reject is
+  removing epochs. Update Marks does not ask. NO, or closing the dialog,
+  leaves the epochs in place. YES removes them and opens ``pop_newset``.
+  Clearing every mark and pressing Reject stores the manual marks as
+  unmarked and does not add a rejection command. The history command uses
+  ``pop_rejepoch( EEG, [..] ,0);`` (``pop_rejepoch.m`` line 101).
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the
