@@ -15,6 +15,11 @@ Unreleased
   duplicates only when the index list is shorter than its unique values, so
   that drop never runs. A 128-sample epoch from -500 ms to 492 ms at 128 Hz,
   cycles ``[3, 0.8]``, and ``padratio`` 1 returns 111 times.
+- ``timefreq`` spaces that time grid the way MATLAB ``linspace`` does:
+  ``start + i * (stop - start) / (n - 1)``, and the last point is the end
+  limit. Spacing the step first moved 26 of those 111 times by one unit in
+  the last place, and five of them (including one in the baseline) crossed a
+  half-sample, so every ERSP row picked up a constant dB offset.
 - ``plotfresp`` accepts the symmetric and antisymmetric FIR filters that
   ``fir_filterdcpadded`` already runs. ``plotfresp.m`` line 67 compares
   coefficients with exact reversal, so a windowed-sinc highpass whose taps
