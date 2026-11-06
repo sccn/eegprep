@@ -504,7 +504,11 @@ def _drive(app, qt_widgets, actions: list) -> dict:
             QtCore.QTimer.singleShot(10, poll)
             return
         state["tries"] = 0
-        text = child.text() if isinstance(child, qt_widgets.QMessageBox) else ""
+        if isinstance(child, qt_widgets.QMessageBox):
+            text = child.text()
+        else:
+            label = child.findChild(qt_widgets.QLabel, "eegplot_ask_text")
+            text = label.text() if label is not None else ""
         state["seen"].append((child.windowTitle(), text))
         actions[state["step"]](child)
         state["step"] += 1
@@ -517,7 +521,9 @@ def _drive(app, qt_widgets, actions: list) -> dict:
 
 def _click_message(label: str):
     def click(box) -> None:
-        for button in box.buttons():
+        from PySide6 import QtWidgets
+
+        for button in box.findChildren(QtWidgets.QPushButton):
             if button.text() == label:
                 button.click()
                 return

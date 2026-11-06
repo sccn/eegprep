@@ -221,27 +221,33 @@ def _ask_dialog(icon_name: str, text: str, labels: tuple[str, str], default: str
             "pop_eegplot could not open its dialog because PySide6 is not installed. "
             "Install it with `pip install eegprep[gui]`."
         ) from exc
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    native_dialogs = QtCore.Qt.ApplicationAttribute.AA_DontUseNativeDialogs
-    previous_native_dialogs = app.testAttribute(native_dialogs)
-    app.setAttribute(native_dialogs, True)
-    try:
-        box = QtWidgets.QMessageBox()
-        box.setIcon(getattr(QtWidgets.QMessageBox.Icon, icon_name))
-        box.setWindowTitle(title or icon_name)
-        box.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-        box.setText(text)
-        buttons = {label: box.addButton(label, QtWidgets.QMessageBox.ButtonRole.ActionRole) for label in labels}
-        box.setDefaultButton(buttons[default])
-        box.setEscapeButton(buttons[labels[0]])
-        box.exec()
-        clicked = box.clickedButton()
-        for label, button in buttons.items():
-            if clicked is button:
-                return label
-        return ""
-    finally:
-        app.setAttribute(native_dialogs, previous_native_dialogs)
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    dialog = QtWidgets.QDialog()
+    dialog.setWindowTitle(title or icon_name)
+    dialog.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
+    layout = QtWidgets.QVBoxLayout(dialog)
+    message = QtWidgets.QLabel(text, dialog)
+    message.setObjectName("eegplot_ask_text")
+    message.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+    layout.addWidget(message)
+    clicked: dict[str, str] = {"label": ""}
+    button_row = QtWidgets.QHBoxLayout()
+    button_row.addStretch(1)
+    button_by_label: dict[str, QtWidgets.QPushButton] = {}
+    for label in labels:
+        button = QtWidgets.QPushButton(label, dialog)
+        button_by_label[label] = button
+        button_row.addWidget(button)
+
+        def choose(_checked: bool = False, label: str = label) -> None:
+            clicked["label"] = label
+            dialog.accept()
+
+        button.clicked.connect(choose)
+    layout.addLayout(button_row)
+    button_by_label[default].setDefault(True)
+    dialog.exec()
+    return clicked["label"]
 
 
 def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> np.ndarray:
