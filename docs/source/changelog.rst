@@ -10,6 +10,24 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_exportbids`` writes each study dataset under its own subject. The
+  label comes from ``EEG.subject``, then the matching ``STUDY.datasetinfo``
+  subject (``pop_exportbids.m`` lines 167-172). A dataset with neither set
+  raises ``pop_exportbids: no subject info found...``. One dataset with no
+  subject still uses the ``subject`` argument. ``createids`` assigns
+  ``sub-001``, ``sub-002``, and so on to the unique subjects
+  (``bids_export.m`` lines 605-608), so two sessions of one subject keep one
+  id and ``participants.tsv`` has one row per subject. Session and run are
+  taken from the dataset when they are set. The export dialog records a
+  command that replays in ``eegprep-console`` with the dataset list, task,
+  license, changes, and createids. EEGLAB leaves this command empty
+  (``pop_exportbids.m`` lines 247-252).
+- The BIDS import field "Import only the following participant indices"
+  takes 1-based indices into ``participants.tsv`` order, or sorted ``sub-*``
+  folder names when that file is missing (``pop_importbids.m`` lines 163 and
+  281). The indices are mapped to subject labels before the file filter. A
+  non-numeric or out-of-range value raises ``pop_importbids``. The history
+  command records the numbers, for example ``'subjects', [1 2]``.
 - Clicking or dragging in the scroll window marks data again. The plot
   viewport was asked for ``mapToScene``, which only ``QGraphicsView``
   provides, so every left click raised ``AttributeError``. Continuous

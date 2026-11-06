@@ -22,6 +22,9 @@ def pop_exportbids(
     *,
     subject: str = "01",
     task: str = "eeg",
+    license: str = "CC0",  # noqa: A002
+    changes: str = "",
+    createids: bool | str = False,
     return_com: bool = False,
     gui: bool = False,
     renderer: Any = None,
@@ -35,6 +38,12 @@ def pop_exportbids(
     that were already saved (line 204). A direct ``pop_exportbids(EEG, folder)``
     call still writes the dataset from memory so the command-line export keeps
     working.
+
+    Each dataset is filed under ``EEG['subject']``, or the matching
+    ``STUDY.datasetinfo`` subject when that field is empty. A single dataset
+    with neither set uses ``subject``. ``createids`` replaces the unique
+    subjects with ``sub-001``, ``sub-002``, and so on. Session and run come
+    from the dataset when they are set.
     """
     datasets = [item for item in (EEG if isinstance(EEG, list) else [EEG]) if isinstance(item, dict)]
     if require_study and not study:
@@ -42,14 +51,14 @@ def pop_exportbids(
             "pop_exportbids: BIDS export can only export EEGLAB studies. "
             "Create a study with File > Create study, then export again."
         )
-    license_name = "CC0"
-    changes = ""
-    createids = False
+    license_name = str(license)
+    changes_text = str(changes)
+    createids_flag = _createids_flag(createids)
     if gui or (output_dir is None and renderer is not None):
         selected = _export_dialog(datasets, renderer, task=str((study or {}).get("task") or task))
         if selected is None:
             return ("", "") if return_com else ""
-        output_dir, task, license_name, changes, createids = selected
+        output_dir, task, license_name, changes_text, createids_flag = selected
     if output_dir is None:
         raise ValueError(
             "pop_exportbids: an output folder is required. "
@@ -61,11 +70,28 @@ def pop_exportbids(
     task_info = _task_info(datasets, task)
     _write_description(root / "dataset_description.json", task_info, license_name)
     _write_readme(root / "README", task_info)
-    if changes:
-        (root / "CHANGES").write_text(str(changes).rstrip() + "\n", encoding="utf-8")
-    subjects = _write_recordings(root, datasets, subject=subject, task=task, createids=createids, task_info=task_info)
-    _write_participants(root / "participants.tsv", datasets, subjects)
-    command = f"LASTCOM = pop_exportbids(EEG, {format_history_value(root)});"
+    if changes_text:
+        (root / "CHANGES").write_text(changes_text.rstrip() + "\n", encoding="utf-8")
+    labels, used_subject = _subject_labels(datasets, study, subject=subject)
+    exported_labels = _write_recordings(
+        root,
+        datasets,
+        labels,
+        study=study,
+        task=task,
+        createids=createids_flag,
+        task_info=task_info,
+    )
+    _write_participants(root / "participants.tsv", datasets, exported_labels)
+    command = _history_command(
+        root,
+        datasets,
+        task=task,
+        license_name=license_name,
+        changes=changes_text,
+        createids=createids_flag,
+        subject=used_subject,
+    )
     return (str(root), command) if return_com else str(root)
 
 
@@ -112,6 +138,8 @@ def pop_exportbids_dialog_spec(*, task: str = "eeg") -> DialogSpec:
             "(pop_exportbids.m lines 90-98).",
             "PowerLineFrequency defaults to n/a, the value bids_writetinfofile.m line 70 writes. "
             "EEGLAB prompts when the field is missing (pop_exportbids.m lines 100-113).",
+            "The dialog records a replayable pop_exportbids command with the dataset list, task, "
+            "license, changes, and createids. pop_exportbids.m lines 247-252 leave that command empty.",
         ),
     )
 
@@ -220,39 +248,175 @@ def _write_readme(path: Path, task_info: dict[str, Any]) -> None:
     path.write_text(f"# {name}\n\n{intro}\n", encoding="utf-8")
 
 
-def _write_recordings(
+def _createids_flag(value: bool | str) -> bool:
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text == "on":
+            return True
+        if text == "off":
+            return False
+        raise ValueError(
+            f"pop_exportbids: createids {value!r} is not 'on' or 'off'. "
+            "Pass createids='on' to anonymize subject IDs, or createids='off' to keep them."
+        )
+    return bool(value)
+
+
+def _bids_label(value: Any) -> str:
+    from eegprep.plugins.EEG_BIDS.bids_tools import _subject_text
+
+    text = _subject_text(value)
+    if text.lower().startswith("sub-"):
+        text = text[4:]
+    return text.strip()
+
+
+def _entity_label(value: Any) -> str:
+    if isinstance(value, (float, np.floating)):
+        if not np.isfinite(float(value)):
+            return ""
+        if float(value).is_integer():
+            value = int(value)
+    text = _bids_label(value)
+    lowered = text.lower()
+    for prefix in ("ses-", "run-"):
+        if lowered.startswith(prefix):
+            text = text[len(prefix) :]
+            break
+    if text.isdigit():
+        return f"{int(text):02d}"
+    return text
+
+
+def _dataset_info(study: dict[str, Any] | None, count: int) -> list[dict[str, Any]]:
+    raw = (study or {}).get("datasetinfo") or []
+    if isinstance(raw, dict):
+        raw = [raw]
+    infos: list[dict[str, Any]] = []
+    for index in range(count):
+        item = raw[index] if index < len(raw) and isinstance(raw[index], dict) else {}
+        infos.append(item)
+    return infos
+
+
+def _subject_labels(
+    datasets: list[dict[str, Any]],
+    study: dict[str, Any] | None,
+    *,
+    subject: str,
+) -> tuple[list[str], str | None]:
+    # pop_exportbids.m:167-172 reads EEG.subject, then STUDY.datasetinfo.subject.
+    allow_argument = study is None and len(datasets) == 1
+    infos = _dataset_info(study, len(datasets))
+    labels: list[str] = []
+    used_argument = False
+    for index, (eeg, info) in enumerate(zip(datasets, infos), start=1):
+        label = _bids_label(eeg.get("subject")) or _bids_label(info.get("subject"))
+        if not label and allow_argument:
+            label = _bids_label(subject)
+            used_argument = bool(label)
+        if not label:
+            raise ValueError(
+                f"pop_exportbids: no subject info found for dataset {index} in either EEG or "
+                "STUDY.datasetinfo. Add a subject with Study > Edit STUDY info, or set "
+                "EEG['subject'], then export again."
+            )
+        labels.append(label)
+    return labels, subject if used_argument else None
+
+
+def _history_command(
     root: Path,
     datasets: list[dict[str, Any]],
     *,
-    subject: str,
+    task: str,
+    license_name: str,
+    changes: str,
+    createids: bool,
+    subject: str | None,
+) -> str:
+    parts = ["EEG" if len(datasets) == 1 else "ALLEEG", format_history_value(root)]
+    if subject is not None:
+        parts.extend([format_history_value("subject"), format_history_value(subject)])
+    parts.extend(
+        [
+            format_history_value("task"),
+            format_history_value(task),
+            format_history_value("license"),
+            format_history_value(license_name),
+            format_history_value("changes"),
+            format_history_value(changes),
+            format_history_value("createids"),
+            "'on'" if createids else "'off'",
+        ]
+    )
+    return f"LASTCOM = pop_exportbids({', '.join(parts)});"
+
+
+def _exported_subject_ids(labels: list[str], *, createids: bool) -> list[str]:
+    # bids_export.m:605-608 numbers unique subjects, so one subject's sessions share an id.
+    unique: list[str] = []
+    for label in labels:
+        if label not in unique:
+            unique.append(label)
+    if not createids:
+        return list(labels)
+    aliases = {label: f"{index:03d}" for index, label in enumerate(unique, start=1)}
+    return [aliases[label] for label in labels]
+
+
+def _write_recordings(
+    root: Path,
+    datasets: list[dict[str, Any]],
+    labels: list[str],
+    *,
+    study: dict[str, Any] | None,
     task: str,
     createids: bool,
     task_info: dict[str, Any],
 ) -> list[str]:
+    exported = _exported_subject_ids(labels, createids=createids)
+    infos = _dataset_info(study, len(datasets))
     run_counts: dict[str, int] = {}
-    subjects: list[str] = []
-    for index, eeg in enumerate(datasets, start=1):
-        subject_label = f"{index:02d}" if createids else str(subject).removeprefix("sub-")
-        run_counts[subject_label] = run_counts.get(subject_label, 0) + 1
-        if subject_label not in subjects:
-            subjects.append(subject_label)
-        eeg_dir = root / f"sub-{subject_label}" / "eeg"
+    for eeg, info, subject_label in zip(datasets, infos, exported):
+        session = _entity_label(eeg.get("session")) or _entity_label(info.get("session"))
+        run = _entity_label(eeg.get("run")) or _entity_label(info.get("run"))
+        if not run:
+            run_counts[subject_label] = run_counts.get(subject_label, 0) + 1
+            run = f"{run_counts[subject_label]:02d}"
+        eeg_dir = root / f"sub-{subject_label}"
+        if session:
+            eeg_dir = eeg_dir / f"ses-{session}"
+        eeg_dir = eeg_dir / "eeg"
         eeg_dir.mkdir(parents=True, exist_ok=True)
-        prefix = f"sub-{subject_label}_task-{task}_run-{run_counts[subject_label]:02d}"
-        pop_saveset(deepcopy(eeg), str(eeg_dir / f"{prefix}_eeg.set"))
+        prefix = f"sub-{subject_label}"
+        if session:
+            prefix += f"_ses-{session}"
+        prefix += f"_task-{task}_run-{run}"
+        target = eeg_dir / f"{prefix}_eeg.set"
+        if target.exists():
+            raise ValueError(
+                f"pop_exportbids: {prefix}_eeg.set already exists. Set a distinct EEG['session'] "
+                "or EEG['run'] on each dataset, then export again."
+            )
+        pop_saveset(deepcopy(eeg), str(target))
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
         _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, task_info)
         electrode_stem = _electrode_basename(prefix)
         _write_electrodes(eeg_dir / f"{electrode_stem}_electrodes.tsv", eeg)
         _write_coordsystem(eeg_dir / f"{electrode_stem}_coordsystem.json", eeg)
-    return subjects
+    return exported
 
 
 def _write_participants(path: Path, datasets: list[dict[str, Any]], subjects: list[str]) -> None:
     extra_fields = ("Gender", "Age", "Group", "HeadCircumference", "SubjectArtefactDescription")
     rows = []
+    seen: set[str] = set()
     for dataset, subject_label in zip(datasets, subjects):
+        if subject_label in seen:
+            continue
+        seen.add(subject_label)
         participant = _section(dataset, "participant")
         row = {"participant_id": f"sub-{subject_label}"}
         for field in extra_fields:

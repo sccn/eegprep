@@ -207,9 +207,14 @@ def _import_dialog(source: Path, renderer: Any) -> dict[str, Any] | None:
         if chosen:
             options["recordings"] = chosen
     if result.get("bidssubjects"):
-        subjects = _split_list(result.get("bidssubjectsstr"))
-        if subjects:
-            options["subjects"] = subjects
+        text = str(result.get("bidssubjectsstr") or "").strip()
+        if text:
+            indices = _participant_indices(text)
+            labels = _indexed_participants(source)
+            _check_participant_indices(indices, labels)
+            options["subjects"] = indices
+            # pop_importbids.m:281 adds 1 because participants.tsv row 1 is the header.
+            options["subject_labels"] = [labels[index - 1] for index in indices]
     folder = str(result.get("folder") or "").strip()
     if folder:
         options["outputdir"] = folder
@@ -346,7 +351,7 @@ def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str,
 
 def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
     filters: dict[str, Any] = {}
-    subjects = dialog.get("subjects", kwargs.get("subjects"))
+    subjects = dialog.get("subject_labels", dialog.get("subjects", kwargs.get("subjects")))
     sessions = dialog.get("sessions", kwargs.get("sessions"))
     runs = dialog.get("runs", kwargs.get("runs"))
     recordings = dialog.get("recordings", kwargs.get("recordings"))
@@ -362,6 +367,57 @@ def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, A
     if tasks:
         filters["tasks"] = tasks
     return filters
+
+
+def _participant_indices(text: str) -> list[int]:
+    tokens = text.replace(",", " ").split()
+    indices: list[int] = []
+    for token in tokens:
+        if not token.isdigit() or int(token) < 1:
+            raise ValueError(
+                f"pop_importbids: participant index {token!r} is not a positive whole number. "
+                "Enter 1-based indices into the participant list, such as 2 or 1 2, then import again."
+            )
+        indices.append(int(token))
+    return indices
+
+
+def _indexed_participants(source: Path) -> list[str]:
+    table = source / "participants.tsv"
+    if table.is_file():
+        rows = read_bids_table(table)
+        if "participant_id" in rows.columns:
+            labels = [_participant_label(value) for value in rows["participant_id"].tolist()]
+            labels = [label for label in labels if label]
+            if labels:
+                return labels
+    return sorted(path.name[4:] for path in source.iterdir() if path.is_dir() and path.name.startswith("sub-"))
+
+
+def _participant_label(value: Any) -> str:
+    if value is None or value != value:
+        return ""
+    text = str(value).strip()
+    if text.lower() in {"", "nan", "n/a"}:
+        return ""
+    if text.lower().startswith("sub-"):
+        text = text[4:]
+    return text
+
+
+def _check_participant_indices(indices: list[int], labels: list[str]) -> None:
+    if not labels:
+        raise ValueError(
+            "pop_importbids: this BIDS folder has no participants to index. "
+            "Add participants.tsv or sub-* folders, then import again."
+        )
+    for index in indices:
+        if index > len(labels):
+            shown = ", ".join(labels)
+            raise ValueError(
+                f"pop_importbids: participant index {index} is outside 1..{len(labels)}. "
+                f"Enter an index into the participant list ({shown}), then import again."
+            )
 
 
 def _split_list(value: Any) -> list[str]:

@@ -13,6 +13,7 @@ import numpy as np
 import pyedflib
 import pytest
 
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _console_python_command
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
@@ -71,6 +72,31 @@ def _eeg(*, pnts=8, srate=100.0, trials=1, events=None, data=None):
         }
     )
     return eeg
+
+
+def _participant_ids(root: Path) -> list[str]:
+    with (root / "participants.tsv").open(encoding="utf-8", newline="") as stream:
+        return [row["participant_id"] for row in csv.DictReader(stream, delimiter="\t")]
+
+
+def _bids_snapshot(root: Path) -> dict[str, object]:
+    snapshot: dict[str, object] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if path.suffix == ".set":
+            loaded = pop_loadset(path)
+            snapshot[rel] = {
+                "data": np.asarray(loaded["data"]).tolist(),
+                "subject": loaded.get("subject"),
+                "srate": float(loaded.get("srate") or 0),
+            }
+        elif path.suffix == ".fdt":
+            snapshot[rel] = path.stat().st_size
+        else:
+            snapshot[rel] = path.read_text(encoding="utf-8")
+    return snapshot
 
 
 def _matlab_eeg(**overrides):
@@ -280,6 +306,28 @@ def test_pop_writeeeg_keeps_every_sample_and_annotation(tmp_path):
         reader.close()
 
 
+def test_pop_writeeeg_edf_record_duration_at_256_hz(tmp_path):
+    srate = 256.0
+    pnts = 1000
+    data = np.linspace(-50.0, 50.0, pnts, dtype=float).reshape(1, pnts)
+    eeg = _eeg(pnts=pnts, srate=srate, data=data)
+    eeg["nbchan"] = 1
+    eeg["chanlocs"] = [{"labels": "Fz"}]
+    path = tmp_path / "fractional.edf"
+    pop_writeeeg(eeg, path)
+    reader = pyedflib.EdfReader(str(path))
+    try:
+        record_samples = int(reader.samples_in_datarecord(0))
+        duration = float(reader.datarecord_duration)
+        assert reader.getNSamples()[0] == pnts
+        assert pnts % record_samples == 0
+        assert duration == pytest.approx(record_samples / srate)
+        assert reader.file_duration == pytest.approx(pnts / srate)
+    finally:
+        reader.close()
+    assert pnts % int(srate) != 0
+
+
 def test_pop_writeeeg_warns_for_bdf_and_rejects_an_impossible_length(tmp_path):
     eeg = _eeg(pnts=4, srate=2000.0, data=np.ones((1, 4)))
     eeg["nbchan"] = 1
@@ -415,6 +463,140 @@ def test_pop_exportbids_writes_required_sidecars_and_value_column(tmp_path):
     )
     assert command.startswith("LASTCOM = pop_exportbids")
     assert Path(exported, "dataset_description.json").exists()
+
+
+def test_pop_exportbids_uses_each_dataset_subject(tmp_path):
+    first = _eeg()
+    second = _eeg()
+    first["subject"] = "S01"
+    second["subject"] = "S02"
+    root = Path(pop_exportbids([first, second], tmp_path / "bids", task="oddball"))
+    assert (root / "sub-S01").is_dir()
+    assert (root / "sub-S02").is_dir()
+    assert _participant_ids(root) == ["sub-S01", "sub-S02"]
+
+    from_study = [_eeg(), _eeg()]
+    from_study[0]["subject"] = ""
+    from_study[1]["subject"] = ""
+    study = {"datasetinfo": [{"subject": "S01"}, {"subject": "S02"}]}
+    study_root = Path(pop_exportbids(from_study, tmp_path / "from-study", study=study))
+    assert (study_root / "sub-S01").is_dir()
+    assert (study_root / "sub-S02").is_dir()
+    assert _participant_ids(study_root) == ["sub-S01", "sub-S02"]
+
+
+def test_pop_exportbids_createids_keeps_one_id_per_subject(tmp_path):
+    first = _eeg()
+    second = _eeg()
+    first["subject"] = "S01"
+    second["subject"] = "S01"
+    first["session"] = 1
+    second["session"] = 2
+    second["run"] = 3
+    root = Path(pop_exportbids([first, second], tmp_path / "bids", createids=True))
+    assert [path.name for path in root.iterdir() if path.is_dir() and path.name.startswith("sub-")] == ["sub-001"]
+    sessions = sorted(path.name for path in (root / "sub-001").iterdir() if path.name.startswith("ses-"))
+    assert sessions == ["ses-01", "ses-02"]
+    names = sorted(path.name for path in (root / "sub-001").rglob("*_eeg.set"))
+    assert names == ["sub-001_ses-01_task-eeg_run-01_eeg.set", "sub-001_ses-02_task-eeg_run-03_eeg.set"]
+    assert _participant_ids(root) == ["sub-001"]
+
+
+def test_pop_exportbids_raises_when_a_study_dataset_has_no_subject(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = ""
+    datasets[1]["subject"] = ""
+    study = {"datasetinfo": [{"subject": ""}, {"subject": ""}]}
+    with pytest.raises(ValueError, match="pop_exportbids: no subject info found"):
+        pop_exportbids(datasets, tmp_path / "bids", study=study)
+
+
+def test_export_dialog_history_replays_the_same_tree(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = "S01"
+    datasets[1]["subject"] = "S02"
+    folder = tmp_path / "wizard"
+    _exported, command = pop_exportbids(
+        datasets,
+        gui=True,
+        return_com=True,
+        renderer=_Renderer(
+            {
+                "outputfolder": str(folder),
+                "license": "Creative Common 0 (CC0)",
+                "changes": "Initial export",
+                "newids": True,
+                "taskname": "oddball",
+            }
+        ),
+    )
+    assert "ALLEEG" in command
+    assert "'task', 'oddball'" in command
+    assert "'license', 'CC0'" in command
+    assert "'changes', 'Initial export'" in command
+    assert "'createids', 'on'" in command
+    replay_folder = tmp_path / "replay"
+    replay_command = command.replace(folder.as_posix(), replay_folder.as_posix())
+    session = EEGPrepSession()
+    session.ALLEEG = datasets
+    workspace = EEGPrepConsoleWorkspace(session)
+    exec(_console_python_command(replay_command), workspace.namespace)  # noqa: S102
+    assert _bids_snapshot(folder) == _bids_snapshot(replay_folder)
+
+
+def test_import_dialog_participant_indices_are_one_based(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = "001"
+    datasets[1]["subject"] = "002"
+    root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
+    imported, command = pop_importbids(
+        root,
+        gui=True,
+        return_com=True,
+        renderer=_Renderer(
+            {
+                "chanlocs": True,
+                "events": True,
+                "typefield": 1,
+                "bidstask": False,
+                "bidssubjects": True,
+                "bidssubjectsstr": "2",
+                "folder": str(tmp_path / "derivatives" / "eeglab"),
+            }
+        ),
+    )
+    assert imported["subject"] == "002"
+    assert "'subjects', [2]" in command
+    both, both_command = pop_importbids(
+        root,
+        gui=True,
+        return_com=True,
+        renderer=_Renderer(
+            {
+                "chanlocs": True,
+                "events": True,
+                "typefield": 1,
+                "bidstask": False,
+                "bidssubjects": True,
+                "bidssubjectsstr": "1 2",
+                "folder": str(tmp_path / "derivatives" / "eeglab"),
+            }
+        ),
+    )
+    assert {eeg["subject"] for eeg in both} == {"001", "002"}
+    assert "'subjects', [1 2]" in both_command
+    with pytest.raises(ValueError, match="pop_importbids: participant index 'abc'"):
+        pop_importbids(
+            root,
+            gui=True,
+            renderer=_Renderer({"bidssubjects": True, "bidssubjectsstr": "abc"}),
+        )
+    with pytest.raises(ValueError, match="pop_importbids: participant index 3"):
+        pop_importbids(
+            root,
+            gui=True,
+            renderer=_Renderer({"bidssubjects": True, "bidssubjectsstr": "3"}),
+        )
 
 
 def test_bids_metadata_dialogs_store_structured_fields():

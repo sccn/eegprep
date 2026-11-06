@@ -16,7 +16,13 @@ are found. Pass `return_study=True` to also get an in-memory study. The File
 menu import does that after showing the options dialog: study name, channel
 locations, the events column used as the event type, and optional task,
 session, run, and subject filters. Those task, session, run, and recording
-choices are a popup and listboxes filled by scanning the folder. The event type defaults to the `value`
+choices are a popup and listboxes filled by scanning the folder. "Import only
+the following participant indices" takes 1-based positions in
+`participants.tsv`, or in the sorted `sub-*` folders when that file is
+missing. `2` selects the second participant. A value that is not a positive
+whole number, or that is past the end of the list, raises an error that names
+`pop_importbids` and shows the valid range. The history command records the
+numbers, for example `'subjects', [1 2]`. The event type defaults to the `value`
 column. `trial_type` is used when `value` is absent. The import does not copy
 datasets into `derivatives/eeglab`.
 

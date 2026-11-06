@@ -1499,7 +1499,7 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
         name="Face type",
         variable1="face_type",
         values1=["famous", "scrambled", "unfamiliar"],
-        subjselect=["01", "02"],
+        subjselect=["S01", "S02"],
         return_com=True,
     )
     study, epochs, precompute_command = std_precomp(

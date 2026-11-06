@@ -87,9 +87,18 @@ field. The electrodes and coordinate-system file names omit ``task-`` and
 ``desc-``.
 
 A direct ``pop_exportbids(EEG, folder)`` call writes that one dataset from
-memory. The File menu follows EEGLAB and exports only a loaded study. Importing
-a BIDS folder from the File menu loads the datasets into an in-memory study.
-It does not copy them into ``derivatives/eeglab``.
+memory. The File menu follows EEGLAB and exports only a loaded study. Each
+dataset is written under ``EEG.subject``, or the study's ``datasetinfo``
+subject when the dataset subject is empty. One dataset with neither set uses
+the ``subject`` argument. ``createids=True`` replaces the unique subjects
+with ``sub-001``, ``sub-002``, and so on, and ``participants.tsv`` has one
+row per subject. The export dialog records a command you can run again in
+``eegprep-console``. EEGLAB leaves that history command empty. Importing a
+BIDS folder from the File menu loads the datasets into an in-memory study.
+It does not copy them into ``derivatives/eeglab``. The import field "Import
+only the following participant indices" takes 1-based positions in
+``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
+missing), such as ``2`` or ``1 2``.
 
 This export is useful for learning EEGPrep's BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.
