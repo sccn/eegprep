@@ -1,4 +1,5 @@
 import ast
+import gc
 import inspect
 import os
 import sys
@@ -1303,3 +1304,96 @@ class QtMainWindowTests(unittest.TestCase):
         self.assertTrue(actions)
         self.assertTrue(all(action.menuRole() == QtGui.QAction.MenuRole.NoRole for action in actions))
         window.window.close()
+
+    @pytest.mark.modal_dialogs
+    def test_cancel_rejection_dialog_keeps_menus_history_and_dataset(self):
+        pytest.importorskip("PySide6")
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PySide6.QtCore import QTimer
+        from PySide6.QtWidgets import QPushButton
+
+        from eegprep.functions.guifunc.main_window import build_main_window
+
+        action_ids = (
+            "pop_eegthresh:ica",
+            "pop_eegthresh:data",
+            "pop_rejtrend:ica",
+            "pop_jointprob:ica",
+            "pop_rejkurt:ica",
+            "pop_rejspec:ica",
+            "pop_rejmenu:ica",
+        )
+        for action_id in action_ids:
+            with self.subTest(action_id=action_id):
+                session = EEGPrepSession()
+                eeg = _demo_eeg(epoched=True, ica=True)
+                session.store_current(eeg, command="")
+                session.ALLCOM.clear()
+                trials = int(eeg["trials"])
+                data = np.array(eeg["data"], copy=True)
+                window = build_main_window(session, all_menus=True, include_plugins=False)
+                try:
+                    window.show()
+                    window.app.processEvents()
+                    before = _top_menu_state(window)
+                    self.assertEqual(
+                        [item[0] for item in before],
+                        ["File", "Edit", "Tools", "Plot", "Study", "Datasets", "Help"],
+                    )
+
+                    window.open_menu("Tools")
+                    action = _find_menu_action(window.window.menuBar(), action_id)
+                    self.assertIsNotNone(action, f"menu action {action_id} is missing")
+
+                    def cancel(app=window.app):
+                        dialog = app.activeModalWidget()
+                        button = dialog.findChild(QPushButton, "cancel") if dialog is not None else None
+                        if button is None:
+                            QTimer.singleShot(0, cancel)
+                            return
+                        # Dialog construction allocates enough to collect the menu
+                        # wrappers Qt created while the popup was open.
+                        gc.collect()
+                        button.click()
+
+                    QTimer.singleShot(0, cancel)
+                    action.trigger()
+                    window.app.processEvents()
+
+                    self.assertEqual(
+                        _top_menu_state(window),
+                        before,
+                        f"cancelling {action_id} changed the main menu bar",
+                    )
+                    self.assertEqual(list(session.ALLCOM), [], f"cancelling {action_id} wrote history")
+                    current = session.current_eeg()
+                    self.assertEqual(int(current["trials"]), trials)
+                    self.assertTrue(np.array_equal(current["data"], data))
+                finally:
+                    window.window.close()
+                    window.app.processEvents()
+
+
+def _top_menu_state(window):
+    menubar = window.window.menuBar()
+    return [
+        (
+            action.text(),
+            action.isEnabled(),
+            menubar.actionGeometry(action).x(),
+            menubar.actionGeometry(action).width(),
+        )
+        for action in menubar.actions()
+    ]
+
+
+def _find_menu_action(menu, action_id):
+    for action in menu.actions():
+        if action.data() == action_id:
+            return action
+        child = action.menu()
+        if child is not None:
+            found = _find_menu_action(child, action_id)
+            if found is not None:
+                return found
+    return None
