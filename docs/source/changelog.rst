@@ -121,6 +121,67 @@ Unreleased
   with the string from line 93. The function default remains 7 decimal places
   (line 129). The dialog default remains 4 (line 94) and is the edit field's
   value, so pressing Ok without changing that field writes 4 decimal places.
+- ``newtimef`` and ``timefreq`` keep every requested output time, including
+  times that round onto the same sample. ``timefreq.m`` ``gettimes`` drops
+  duplicates only when the index list is shorter than its unique values, so
+  that drop never runs. A 128-sample epoch from -500 ms to 492 ms at 128 Hz,
+  cycles ``[3, 0.8]``, and ``padratio`` 1 returns 111 times.
+- ``timefreq`` spaces that time grid the way MATLAB ``linspace`` does:
+  ``start + i * (stop - start) / (n - 1)``, and the last point is the end
+  limit. Spacing the step first moved 26 of those 111 times by one unit in
+  the last place, and five of them (including one in the baseline) crossed a
+  half-sample, so every ERSP row picked up a constant dB offset.
+- ``plotfresp`` accepts the symmetric and antisymmetric FIR filters that
+  ``fir_filterdcpadded`` already runs. ``plotfresp.m`` line 67 compares
+  coefficients with exact reversal, so a windowed-sinc highpass whose taps
+  are linear-phase but not bit-identical raised "Onepass-zerophase filtering
+  is only allowed for linear-phase FIR filters" and the default frequency-
+  response plot never opened.
+- ``eeg_interp`` limits a time range with inclusive ``EEG.times`` in
+  milliseconds, on continuous and epoched data. A full-range list equal to
+  ``[xmin, xmax]`` no longer restores the second-to-last sample. Pinned
+  ``eeg_interp.m`` line 322 restores ``floor(t*srate)`` and stops short of
+  the last sample; this follows the inclusive window in eeglab pull 980.
+- ``pop_interp`` keeps a scripted ``t_range``. Pinned ``pop_interp.m`` line 61
+  sets ``t_range = ''`` and interpolates the whole recording; the help text
+  and a regression test record that difference.
+- ``pop_interp`` channel indices are 1-based. Channel 1 is the first channel.
+  Replayed history keeps those indices.
+- ``runica`` extended kurtosis draws ``fix(rand*datalength)`` on the
+  ``RandomState(5489)`` stream and divides by ``m2`` (``runica.m`` lines
+  890-903). With ``posact`` off, component order uses sphered-channel energy
+  (``runica.m`` lines 1472 and 1519).
+- ``newcrossf`` defaults the frequency range to ``[0, 50]`` Hz
+  (``newcrossf.m`` lines 396-397). A log scale still lifts a zero lower edge
+  to 3 Hz (line 461). The previous default followed ``timefreq`` up to
+  Nyquist, so a 128 Hz epoch with ``padratio`` 1 ran 6-64 Hz instead of 6-50 Hz.
+- The cross-coherence and time-frequency dialogs show epoch limits with
+  MATLAB ``int2str`` rounding, halves away from zero (``pop_newcrossf.m``
+  line 87, ``pop_newtimef.m`` line 172), so 0.9996 s is ``1000`` ms. When
+  the frequency field is empty and the epoch starts before zero,
+  ``pop_newtimef`` sets ``winsize`` the same way (``pop_newtimef.m`` line
+  292): ``xmin`` -0.1 s at 256 Hz is 26 samples.
+- Sample indices that follow MATLAB ``round`` send halves away from zero.
+  ``[25 800]`` ms at 100 Hz with ``xmin`` 0 starts at sample 3
+  (``pop_newtimef.m`` lines 305-306; ``pop_newcrossf.m`` line 188 uses the
+  same ``round``). The same tie is used for time-warp frames
+  (``newtimef.m`` lines 630 and 635), the ``envtopo`` contribution window
+  (lines 418-419), ``dftfilt`` tapers (lines 70-71), ``spectopo`` percent
+  and window length (lines 320 and 895), scroll-window bounds and click
+  latencies (``eegplot.m`` lines 1318-1319, 1403, and 2028-2029), rejection
+  regions (``eegrej.m`` line 82), the kurtosis and joint-probability trim
+  (``rejkurt.m`` line 110, ``jointprob.m`` line 115), scalp-map and epoch
+  dialogs (``pop_topoplot.m`` lines 104 and 391, ``pop_headplot.m`` line
+  159, ``pop_epoch.m`` line 122), and epoch latencies (``eeg_checkset.m``
+  line 652).
+- ``pop_newtimef`` takes the EEGLAB sample window (``pop_newtimef.m`` lines
+  305-306) and passes those requested time limits into the decomposition.
+  ``pop_newcrossf`` uses that same inclusive end. Pinned ``pop_newcrossf.m``
+  line 189 omits the +1, so EEGLAB drops the last sample of a
+  whole-millisecond limit; the help text and a regression test record that
+  difference. The previous slice dropped the sample after that limit and evaluated
+  the decomposition on the kept sample times, so an explicit baseline did
+  not move the result.
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the

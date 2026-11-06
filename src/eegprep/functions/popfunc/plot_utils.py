@@ -7,7 +7,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._pop_utils import is_empty_value, parse_numeric_sequence
 
@@ -191,6 +191,41 @@ def numeric_vector(value: Any, *, dtype: Any = float) -> np.ndarray:
     if isinstance(value, np.ndarray):
         return value.astype(dtype).ravel()
     return np.asarray(parse_numeric_sequence(value, dtype=dtype), dtype=dtype)
+
+
+def dialog_msec(seconds: Any) -> str:
+    """Format a latency in seconds as whole milliseconds, matching MATLAB ``int2str``."""
+    return str(int(round_mat(float(seconds) * 1000.0)))
+
+
+def requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:
+    """Return requested time limits in milliseconds, or the epoch limits."""
+    bounds = numeric_vector(tlimits)
+    if bounds.size == 2:
+        return np.asarray([float(bounds[0]), float(bounds[1])], dtype=float)
+    return np.asarray(
+        [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
+        dtype=float,
+    )
+
+
+def pointrange(EEG: dict[str, Any], tlimits: Any, function: str) -> slice:
+    """Return the inclusive sample slice for time limits in milliseconds."""
+    pnts = int(EEG.get("pnts") or np.asarray(EEG["data"]).shape[1])
+    bounds = numeric_vector(tlimits)
+    if bounds.size != 2:
+        return slice(0, pnts)
+    xmin = float(EEG.get("xmin", 0.0) or 0.0)
+    srate = float(EEG.get("srate", 1.0) or 1.0)
+    first = int(round_mat(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
+    last = int(round_mat(min((float(bounds[1]) / 1000.0 - xmin) * srate + 1.0, float(pnts))))
+    if last < first:
+        raise ValueError(
+            f"{function}: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "
+            f"at {srate:g} Hz (xmin {xmin:g} s, {pnts} points). "
+            "Widen the limits so they cover at least one sample."
+        )
+    return slice(first - 1, last)
 
 
 def colon_sequence(token: str) -> list[float]:

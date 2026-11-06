@@ -28,7 +28,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import MaxNLocator
 
-from eegprep.functions.miscfunc.misc import finite_matmul
+from eegprep.functions.miscfunc.misc import finite_matmul, round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.sigprocfunc.axcopy import axcopy
 from eegprep.functions.sigprocfunc.topoplot import topoplot
@@ -315,8 +315,8 @@ def _limcontrib_frames(limcontrib, times_ms, n_frames):
         return 0, n_frames - 1
     start, stop = float(times_ms[0]), float(times_ms[-1])
     per_ms = (n_frames - 1) / (stop - start)
-    lim1 = int(round((min(max(bounds[0], start), stop) - start) * per_ms))
-    lim2 = int(round((min(max(bounds[1], start), stop) - start) * per_ms))
+    lim1 = int(round_mat((min(max(bounds[0], start), stop) - start) * per_ms))
+    lim2 = int(round_mat((min(max(bounds[1], start), stop) - start) * per_ms))
     if lim2 <= lim1:
         raise ValueError("limcontrib does not span any samples")
     return lim1, lim2

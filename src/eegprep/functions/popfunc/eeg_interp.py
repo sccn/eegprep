@@ -54,8 +54,16 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     method = _normalise_method(method)
     if method not in ('spherical', 'sphericalKang', 'sphericalCRD', 'sphericalfast', 'invdist', 'v4', 'spacetime'):
         raise ValueError(f"Unknown method {method}")
-    if t_range is None:
-        t_range = (EEG['xmin'], EEG['xmax'])
+    if t_range is None or np.size(t_range) == 0:
+        t_range = (float(EEG['xmin']), float(EEG['xmax']))
+    else:
+        t_values = np.asarray(t_range, dtype=float).reshape(-1)
+        if t_values.size != 2:
+            raise ValueError(
+                "eeg_interp: t_range must be [start, end] in seconds. "
+                "Pass two numbers, or omit t_range to interpolate the whole recording."
+            )
+        t_range = (float(t_values[0]), float(t_values[1]))
     if params is None:
         if method == 'spherical':
             params = (0, 4, 7)
@@ -83,6 +91,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     if candidate_chanlocs and isinstance(candidate_chanlocs[0], dict):
         bad_chans = candidate_chanlocs
 
+    location_channels = False
     if isinstance(bad_chans, list) and len(bad_chans) == 0:
         bad_idx = []
     elif (
@@ -94,6 +103,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         and 'Y' in bad_chans[0]
         and 'Z' in bad_chans[0]
     ):
+        location_channels = True
         EEG, bad_idx = _handle_chanloc_interpolation(EEG, bad_chans)
         locs = EEG['chanlocs']
     elif isinstance(bad_chans, list) and len(bad_chans) > 0 and isinstance(bad_chans[0], str):
@@ -159,40 +169,7 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
     else:
         bad_data = _spacetime_interpolate(locs, good_idx, bad_idx, d[good_idx, :])
 
-    # restore original time range if needed
-    if t_range != (EEG['xmin'], EEG['xmax']):
-        t_start, t_end = t_range
-        # Only apply for continuous data (trials=1), not epoched data (trials>1)
-        # MATLAB's length(size(tmpdata))==2 is true for continuous data because
-        # MATLAB drops trailing singleton dimensions
-        if EEG['trials'] == 1 and 'srate' in EEG:
-            # MATLAB convention: For continuous data, xmin is set to 0 by eeg_checkset,
-            # so time values are interpreted as absolute sample indices using time*srate
-            # times_2b_ignored = [1:floor(t_start*srate), floor(t_end*srate):floor(xmax*srate)]
-            # (MATLAB 1-based indexing)
-            # But empirically, MATLAB uses pnts-1 instead of floor(xmax*srate) for the upper bound
-
-            # Calculate sample indices using MATLAB convention (time*srate, not (time-xmin)*srate)
-            idx_start = int(np.floor(t_start * EEG['srate']))
-            idx_end = int(np.floor(t_end * EEG['srate']))
-            # Use pnts-1 as upper bound instead of floor(xmax*srate)
-            idx_upper = EEG['pnts'] - 1
-
-            # Build list of time indices to ignore (outside requested range)
-            # In MATLAB: [1:idx_start, idx_end:pnts] where pnts is the last index
-            # In Python (0-based): [0:max(0,idx_start), idx_end-1:pnts-2]
-            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
-            times_to_ignore = []
-            if idx_start > 0:
-                times_to_ignore.extend(range(0, idx_start))
-            # MATLAB keeps indices [idx_end-1 : idx_upper-1] as original
-            # So we restore these indices
-            if idx_end - 1 < idx_upper:
-                times_to_ignore.extend(range(idx_end - 1, idx_upper))
-
-            # Restore original data for bad channels at these time points
-            if len(times_to_ignore) > 0:
-                bad_data[:, times_to_ignore] = original_bad_data[:, times_to_ignore]
+    bad_data = _restore_outside_time_range(bad_data, original_bad_data, EEG, t_range, location_channels)
 
     # assemble full data array
     full = np.zeros_like(d)
@@ -208,6 +185,39 @@ def eeg_interp(EEG, bad_chans, method='spherical', t_range=None, params=None, dt
         # Original was 3D epoched data or needs to be 3D
         EEG['data'] = full.reshape(EEG['nbchan'], EEG['pnts'], EEG['trials'])
     return EEG
+
+
+def _sample_times_ms(EEG: dict, pnts: int) -> np.ndarray:
+    if "times" not in EEG or EEG["times"] is None:
+        raise ValueError(
+            "eeg_interp: EEG.times is missing, so the time range cannot be applied. "
+            "Run eeg_checkset so the dataset has one time value per sample."
+        )
+    values = np.asarray(EEG["times"], dtype=float).reshape(-1)
+    if values.size != pnts:
+        raise ValueError(
+            f"eeg_interp: EEG.times has {values.size} values but EEG.pnts is {pnts}. "
+            "Run eeg_checkset so times has one value per sample."
+        )
+    return values
+
+
+def _restore_outside_time_range(bad_data, original_bad_data, EEG, t_range, location_channels):
+    if location_channels:
+        return bad_data
+    start = float(t_range[0])
+    end = float(t_range[1])
+    if start == float(EEG["xmin"]) and end == float(EEG["xmax"]):
+        return bad_data
+    pnts = int(EEG["pnts"])
+    times_ms = _sample_times_ms(EEG, pnts)
+    outside = (times_ms < start * 1000.0) | (times_ms > end * 1000.0)
+    if not np.any(outside):
+        return bad_data
+    restored = np.array(bad_data, dtype=float, copy=True).reshape(len(bad_data), pnts, -1)
+    original = np.asarray(original_bad_data, dtype=float).reshape(len(bad_data), pnts, -1)
+    restored[:, outside, :] = original[:, outside, :]
+    return restored.reshape(len(bad_data), -1)
 
 
 def _normalise_method(method):

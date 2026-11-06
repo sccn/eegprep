@@ -551,7 +551,7 @@ def eeg_checkset(EEG, *checks, load_data=True):
                                 epoch_start_sample = k * EEG['pnts']
                                 rel_sample = val - epoch_start_sample - 1  # -1 because latencies are 1-based
                                 rel_time_ms = (rel_sample / EEG['srate']) * 1000 + EEG['xmin'] * 1000
-                                val = round(rel_time_ms * 1e8) / 1e8  # Round to match MATLAB precision
+                                val = float(round_mat(rel_time_ms * 1e8)) / 1e8
 
                             # Special handling for duration: convert to ms
                             elif fname == 'duration' and val is not None:

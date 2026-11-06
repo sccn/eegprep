@@ -40,6 +40,20 @@ class TestEegChecksetTypeConversion(DebuggableTestCase):
         self.assertEqual(result['xmax'], 3.996)
         self.assertIsInstance(result['xmax'], float)
 
+    def test_epoch_latency_half_ulp_rounds_away_from_zero(self):
+        eeg = {
+            'data': np.zeros((1, 2, 2)),
+            'nbchan': 1,
+            'pnts': 2,
+            'trials': 2,
+            'srate': 1000.0,
+            'xmin': 0.5e-11,
+            'xmax': 0.5e-11 + 0.001,
+            'event': [{'type': 'stim', 'latency': 1.0, 'epoch': 1}],
+        }
+        result = eeg_checkset(eeg)
+        self.assertEqual(result['epoch'][0]['eventlatency'], [1e-8])
+
     def test_xmax_half_frame_uses_matlab_rounding(self):
         """100.5 frames snaps. Python round(100.5) is 100 and would keep 0.995 s."""
         eeg = {

@@ -113,6 +113,10 @@ class TestSigprocEegrej(unittest.TestCase):
         # The second boundary's .duration is region2's base span (22 - 20 + 1 = 3).
         self.assertEqual(bnd[13.5], 3.0)
 
+    def test_half_sample_region_rounds_away_from_zero(self):
+        out, *_rest = eegrej(self.data, [[2.5, 4.0]], self.timelength)
+        np.testing.assert_array_equal(out[0, :4], [1.0, 2.0, 5.0, 6.0])
+
     def test_adjacent_regions_merge_to_single_boundary(self):
         # Adjacent regions excise a contiguous block; the two boundaries collapse
         # to one latency after the base-span shift.

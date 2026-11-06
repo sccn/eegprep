@@ -8,15 +8,19 @@ import numpy as np
 
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
     component_map_data,
-    data_time_slice,
+    dialog_msec,
+    eeg_epoch_data,
     history_command,
     numeric_vector,
     parse_plot_options_text,
+    pointrange,
+    requested_tlimits,
     show_figures,
 )
 from eegprep.functions.popfunc._pop_utils import parse_key_value_args
@@ -60,11 +64,9 @@ def pop_newtimef(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.8]
-    data, times = _selected_signal(EEG, typeproc, num, tlimits)
+    data, tlimits_ms = _selected_signal(EEG, typeproc, num, tlimits)
     plot_options = {"title": "", **_topo_options(EEG, typeproc, num), **options}
-    result = newtimef(
-        data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **plot_options
-    )
+    result = newtimef(data, data.shape[0], tlimits_ms, float(EEG.get("srate", 1) or 1), cycles, **plot_options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
     show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
@@ -99,7 +101,7 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec(
             "edit",
             tag="tlimits",
-            value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+            value=f"{dialog_msec(EEG.get('xmin', 0))} {dialog_msec(EEG.get('xmax', 0))}",
         ),
         ControlSpec("popupmenu", "|".join(_NTIMES_CHOICES), tag="ntimesout", value=4),
         ControlSpec("spacer"),
@@ -228,7 +230,7 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         freqs,
     )
     if freqs == [] and "winsize" not in options and float(EEG.get("xmin", 0) or 0) < 0:
-        options["winsize"] = max(2, int(round(-float(EEG.get("xmin", 0)) * float(EEG.get("srate", 1) or 1))))
+        options["winsize"] = max(2, int(round_mat(-float(EEG.get("xmin", 0) or 0) * float(EEG.get("srate", 1) or 1))))
     cycles = [0] if bool(result.get("fft", False)) else numeric_vector(result.get("cycles", "3 0.8")).tolist()
     return {
         "num": _first_index(result.get("num", 1)),
@@ -239,22 +241,22 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
 
 
 def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any) -> tuple[np.ndarray, np.ndarray]:
-    data, times = data_time_slice(EEG, tlimits)
+    window = pointrange(EEG, tlimits, "pop_newtimef")
+    requested = requested_tlimits(EEG, tlimits)
     index = int(_first_index(num)) - 1
     if typeproc == 1:
+        data = eeg_epoch_data(EEG)
         if index < 0 or index >= data.shape[0]:
-            raise ValueError(f"channel number must be 1-based and within 1..{data.shape[0]}")
-        return data[index, :, :], times
+            raise ValueError(
+                f"pop_newtimef: channel number must be from 1 to {data.shape[0]}. Channel 1 is the first channel."
+            )
+        return data[index, window, :], requested
     acts = component_activations(EEG)
-    full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
-    bounds = numeric_vector(tlimits)
-    if bounds.size == 2:
-        mask = (full_times >= bounds[0]) & (full_times <= bounds[1])
-        acts = acts[:, mask, :]
-        full_times = full_times[mask]
     if index < 0 or index >= acts.shape[0]:
-        raise ValueError(f"component number must be 1-based and within 1..{acts.shape[0]}")
-    return acts[index, :, :], full_times
+        raise ValueError(
+            f"pop_newtimef: component number must be from 1 to {acts.shape[0]}. Component 1 is the first component."
+        )
+    return acts[index, window, :], requested
 
 
 def _topo_options(EEG: dict[str, Any], typeproc: int, num: Any) -> dict[str, Any]:

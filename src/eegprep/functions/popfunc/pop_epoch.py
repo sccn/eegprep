@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import eeg_checkset
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.adminfunc.storage import mapped_output_like
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
@@ -516,7 +517,7 @@ def _default_epoch_limits(EEG: dict[str, Any]) -> str:
         is_epoched = data.ndim == 3 and data.shape[2] > 1
     is_epoched = is_epoched or int(EEG.get("trials", 1) or 1) > 1
     if is_epoched:
-        return f"{round(float(EEG.get('xmin', 0) or 0)):g} {round(float(EEG.get('xmax', 0) or 0)):g}"
+        return f"{int(round_mat(float(EEG.get('xmin', 0) or 0))):g} {int(round_mat(float(EEG.get('xmax', 0) or 0))):g}"
     return "-1 2"
 
 
