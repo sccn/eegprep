@@ -10,7 +10,7 @@ from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc.plot_utils import (
     component_activations,
-    data_time_slice,
+    eeg_epoch_data,
     history_command,
     numeric_vector,
     parse_plot_options_text,
@@ -61,9 +61,9 @@ def pop_newcrossf(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.5]
-    signal1, signal2, times = _selected_signals(EEG, typeproc, num1, num2, tlimits)
+    signal1, signal2, tlimits_ms = _selected_signals(EEG, typeproc, num1, num2, tlimits)
     result = newcrossf(
-        signal1, signal2, signal1.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **options
+        signal1, signal2, signal1.shape[0], tlimits_ms, float(EEG.get("srate", 1) or 1), cycles, **options
     )
     command = history_command(
         "pop_newcrossf", typeproc, _first_index(num1), _first_index(num2), tlimits, cycles, **options
@@ -87,7 +87,7 @@ def pop_newcrossf_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dial
         ControlSpec(
             "edit",
             tag="tlimits",
-            value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+            value=f"{_dialog_msec(EEG.get('xmin', 0))} {_dialog_msec(EEG.get('xmax', 0))}",
         ),
         ControlSpec("spacer"),
         ControlSpec("text", "Wavelet cycles (0->FFT, see Help)", font_weight="bold"),
@@ -165,26 +165,62 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     }
 
 
+def _dialog_msec(seconds: Any) -> str:
+    """pop_newcrossf.m:87 uses int2str, which truncates toward zero."""
+    return str(int(np.trunc(float(seconds) * 1000.0)))
+
+
+def _requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:
+    bounds = numeric_vector(tlimits)
+    if bounds.size == 2:
+        return np.asarray([float(bounds[0]), float(bounds[1])], dtype=float)
+    return np.asarray(
+        [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
+        dtype=float,
+    )
+
+
+def _pointrange(EEG: dict[str, Any], tlimits: Any) -> slice:
+    # pop_newcrossf.m:189 does not add 1 before rounding the last sample.
+    pnts = int(EEG.get("pnts") or np.asarray(EEG["data"]).shape[1])
+    bounds = numeric_vector(tlimits)
+    if bounds.size != 2:
+        return slice(0, pnts)
+    xmin = float(EEG.get("xmin", 0.0) or 0.0)
+    srate = float(EEG.get("srate", 1.0) or 1.0)
+    first = int(np.round(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
+    last = int(np.round(min((float(bounds[1]) / 1000.0 - xmin) * srate, float(pnts))))
+    if last < first:
+        raise ValueError(
+            f"pop_newcrossf: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "
+            f"at {srate:g} Hz (xmin {xmin:g} s, {pnts} points). "
+            "Widen the limits so they cover at least one sample."
+        )
+    return slice(first - 1, last)
+
+
 def _selected_signals(
     EEG: dict[str, Any], typeproc: int, num1: Any, num2: Any, tlimits: Any
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    data, times = data_time_slice(EEG, tlimits)
+    window = _pointrange(EEG, tlimits)
+    requested = _requested_tlimits(EEG, tlimits)
     first = int(_first_index(num1)) - 1
     second = int(_first_index(num2)) - 1
     if typeproc == 1:
-        if first < 0 or second < 0 or first >= data.shape[0] or second >= data.shape[0]:
-            raise ValueError(f"channel numbers must be 1-based and within 1..{data.shape[0]}")
-        return data[first, :, :], data[second, :, :], times
+        data = eeg_epoch_data(EEG)
+        nchan = data.shape[0]
+        if first < 0 or second < 0 or first >= nchan or second >= nchan:
+            raise ValueError(
+                f"pop_newcrossf: channel numbers must be from 1 to {nchan}. Channel 1 is the first channel."
+            )
+        return data[first, window, :], data[second, window, :], requested
     acts = component_activations(EEG)
-    full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
-    bounds = numeric_vector(tlimits)
-    if bounds.size == 2:
-        mask = (full_times >= bounds[0]) & (full_times <= bounds[1])
-        acts = acts[:, mask, :]
-        full_times = full_times[mask]
-    if first < 0 or second < 0 or first >= acts.shape[0] or second >= acts.shape[0]:
-        raise ValueError(f"component numbers must be 1-based and within 1..{acts.shape[0]}")
-    return acts[first, :, :], acts[second, :, :], full_times
+    ncomp = acts.shape[0]
+    if first < 0 or second < 0 or first >= ncomp or second >= ncomp:
+        raise ValueError(
+            f"pop_newcrossf: component numbers must be from 1 to {ncomp}. Component 1 is the first component."
+        )
+    return acts[first, window, :], acts[second, window, :], requested
 
 
 def _first_index(value: Any) -> int:

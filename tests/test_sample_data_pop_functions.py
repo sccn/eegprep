@@ -263,7 +263,7 @@ def test_pop_chanevent_adds_edges_from_sample_channel_without_deleting_channel(s
 def test_pop_interp_reconstructs_selected_sample_channel_without_runtime_warnings(sample_eeg):
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        interpolated = pop_interp(sample_eeg, [0], "spherical")
+        interpolated = pop_interp(sample_eeg, [1], "spherical")
 
     assert interpolated["data"].shape == sample_eeg["data"].shape
     assert np.isfinite(interpolated["data"]).all()

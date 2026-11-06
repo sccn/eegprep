@@ -13,6 +13,8 @@ result = pop_newtimef(EEG, 1, 1, [-100, 200], [3, 0.8])
 result = pop_newtimef(EEG, 0, 2, [-100, 200], [0], freqs=[4, 30], padratio=2)
 ```
 
+`tlimits` selects samples with the same rounding as EEGLAB and the decomposition is evaluated on those requested limits, not on the timestamp of the last kept sample. The dialog shows those limits as whole milliseconds, truncated toward zero.
+
 The EEGPrep implementation provides deterministic FFT output for `cycles=[0]`
 and Morlet wavelet output for non-zero `cycles`, with EEGLAB-compatible inputs,
 history strings, baseline modes, bootstrap significance outputs, and image or

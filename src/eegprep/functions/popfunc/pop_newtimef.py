@@ -13,7 +13,7 @@ from eegprep.functions.popfunc.plot_utils import (
     channel_labels,
     component_activations,
     component_map_data,
-    data_time_slice,
+    eeg_epoch_data,
     history_command,
     numeric_vector,
     parse_plot_options_text,
@@ -60,11 +60,9 @@ def pop_newtimef(
         tlimits = [float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0]
     if cycles is None:
         cycles = [3, 0.8]
-    data, times = _selected_signal(EEG, typeproc, num, tlimits)
+    data, tlimits_ms = _selected_signal(EEG, typeproc, num, tlimits)
     plot_options = {"title": "", **_topo_options(EEG, typeproc, num), **options}
-    result = newtimef(
-        data, data.shape[0], [times[0], times[-1]], float(EEG.get("srate", 1) or 1), cycles, **plot_options
-    )
+    result = newtimef(data, data.shape[0], tlimits_ms, float(EEG.get("srate", 1) or 1), cycles, **plot_options)
     command = history_command("pop_newtimef", typeproc, _first_index(num), tlimits, cycles, **options)
     show_figures(result.figure, plot=plot)
     return (result, command) if return_com else result
@@ -99,7 +97,7 @@ def pop_newtimef_dialog_spec(EEG: dict[str, Any], *, typeproc: int = 1) -> Dialo
         ControlSpec(
             "edit",
             tag="tlimits",
-            value=f"{float(EEG.get('xmin', 0)) * 1000:g} {float(EEG.get('xmax', 0)) * 1000:g}",
+            value=f"{_dialog_msec(EEG.get('xmin', 0))} {_dialog_msec(EEG.get('xmax', 0))}",
         ),
         ControlSpec("popupmenu", "|".join(_NTIMES_CHOICES), tag="ntimesout", value=4),
         ControlSpec("spacer"),
@@ -228,7 +226,7 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
         freqs,
     )
     if freqs == [] and "winsize" not in options and float(EEG.get("xmin", 0) or 0) < 0:
-        options["winsize"] = max(2, int(round(-float(EEG.get("xmin", 0)) * float(EEG.get("srate", 1) or 1))))
+        options["winsize"] = max(2, int(np.trunc(-float(EEG.get("xmin", 0) or 0) * float(EEG.get("srate", 1) or 1))))
     cycles = [0] if bool(result.get("fft", False)) else numeric_vector(result.get("cycles", "3 0.8")).tolist()
     return {
         "num": _first_index(result.get("num", 1)),
@@ -238,23 +236,57 @@ def _run_gui(EEG: dict[str, Any], *, typeproc: int, renderer: Any | None = None)
     }
 
 
-def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any) -> tuple[np.ndarray, np.ndarray]:
-    data, times = data_time_slice(EEG, tlimits)
-    index = int(_first_index(num)) - 1
-    if typeproc == 1:
-        if index < 0 or index >= data.shape[0]:
-            raise ValueError(f"channel number must be 1-based and within 1..{data.shape[0]}")
-        return data[index, :, :], times
-    acts = component_activations(EEG)
-    full_times = np.linspace(float(EEG.get("xmin", 0)) * 1000.0, float(EEG.get("xmax", 0)) * 1000.0, acts.shape[1])
+def _dialog_msec(seconds: Any) -> str:
+    """pop_newtimef.m:172 uses int2str, which truncates toward zero."""
+    return str(int(np.trunc(float(seconds) * 1000.0)))
+
+
+def _requested_tlimits(EEG: dict[str, Any], tlimits: Any) -> np.ndarray:
     bounds = numeric_vector(tlimits)
     if bounds.size == 2:
-        mask = (full_times >= bounds[0]) & (full_times <= bounds[1])
-        acts = acts[:, mask, :]
-        full_times = full_times[mask]
+        return np.asarray([float(bounds[0]), float(bounds[1])], dtype=float)
+    return np.asarray(
+        [float(EEG.get("xmin", 0) or 0) * 1000.0, float(EEG.get("xmax", 0) or 0) * 1000.0],
+        dtype=float,
+    )
+
+
+def _pointrange(EEG: dict[str, Any], tlimits: Any, *, end_offset: float, function: str) -> slice:
+    pnts = int(EEG.get("pnts") or np.asarray(EEG["data"]).shape[1])
+    bounds = numeric_vector(tlimits)
+    if bounds.size != 2:
+        return slice(0, pnts)
+    xmin = float(EEG.get("xmin", 0.0) or 0.0)
+    srate = float(EEG.get("srate", 1.0) or 1.0)
+    first = int(np.round(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
+    last = int(np.round(min((float(bounds[1]) / 1000.0 - xmin) * srate + end_offset, float(pnts))))
+    if last < first:
+        raise ValueError(
+            f"{function}: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "
+            f"at {srate:g} Hz (xmin {xmin:g} s, {pnts} points). "
+            "Widen the limits so they cover at least one sample."
+        )
+    return slice(first - 1, last)
+
+
+def _selected_signal(EEG: dict[str, Any], typeproc: int, num: Any, tlimits: Any) -> tuple[np.ndarray, np.ndarray]:
+    # pop_newtimef.m:306 adds 1 before rounding the last sample.
+    window = _pointrange(EEG, tlimits, end_offset=1.0, function="pop_newtimef")
+    requested = _requested_tlimits(EEG, tlimits)
+    index = int(_first_index(num)) - 1
+    if typeproc == 1:
+        data = eeg_epoch_data(EEG)
+        if index < 0 or index >= data.shape[0]:
+            raise ValueError(
+                f"pop_newtimef: channel number must be from 1 to {data.shape[0]}. Channel 1 is the first channel."
+            )
+        return data[index, window, :], requested
+    acts = component_activations(EEG)
     if index < 0 or index >= acts.shape[0]:
-        raise ValueError(f"component number must be 1-based and within 1..{acts.shape[0]}")
-    return acts[index, :, :], full_times
+        raise ValueError(
+            f"pop_newtimef: component number must be from 1 to {acts.shape[0]}. Component 1 is the first component."
+        )
+    return acts[index, window, :], requested
 
 
 def _topo_options(EEG: dict[str, Any], typeproc: int, num: Any) -> dict[str, Any]:

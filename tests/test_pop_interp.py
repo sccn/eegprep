@@ -71,7 +71,7 @@ def test_pop_interp_current_suite_sample_channel_workflows():
     eeg["pnts"] = 1000
 
     for method in ("spherical", "invdist"):
-        interpolated = pop_interp(eeg, list(range(16)), method)
+        interpolated = pop_interp(eeg, list(range(1, 17)), method)
         unchanged = pop_interp(eeg, [], method)
 
         assert interpolated["data"].shape == eeg["data"].shape
@@ -84,8 +84,8 @@ class PopInterpTests(unittest.TestCase):
     def test_command_line_supports_planar_and_spacetime_methods_from_eeglab_doc(self):
         eeg = _eeg()
 
-        planar = pop_interp(eeg, [0], "invdist")
-        spacetime = pop_interp(eeg, [0], "spacetime")
+        planar = pop_interp(eeg, [1], "invdist")
+        spacetime = pop_interp(eeg, [1], "spacetime")
 
         self.assertEqual(planar["data"].shape, eeg["data"].shape)
         self.assertEqual(spacetime["data"].shape, eeg["data"].shape)

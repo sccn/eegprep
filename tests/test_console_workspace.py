@@ -1392,10 +1392,10 @@ def test_ipython_adapter_echoes_gui_commands_as_valid_python():
         adapter.echo_gui_command("EEG = pop_interp(EEG, [1], 'spherical', [5 10]);")
 
     echoed = shell.history_manager.inputs[0][1]
-    assert echoed == "EEG = pop_interp(EEG, bad_elec=[0], method='spherical', t_range=[5, 10])"
+    assert echoed == "EEG = pop_interp(EEG, bad_elec=[1], method='spherical', t_range=[5, 10])"
     ast.parse(echoed)
     terminal_write.assert_called_once_with(
-        "In [1]: EEG = pop_interp(EEG, bad_elec=[0], method='spherical', t_range=[5, 10])\n",
+        "In [1]: EEG = pop_interp(EEG, bad_elec=[1], method='spherical', t_range=[5, 10])\n",
         stream=console_module.sys.stderr,
         sync=True,
     )

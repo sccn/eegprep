@@ -10,6 +10,38 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``plotfresp`` accepts the symmetric and antisymmetric FIR filters that
+  ``fir_filterdcpadded`` already runs. ``plotfresp.m`` line 67 compares
+  coefficients with exact reversal, so a windowed-sinc highpass whose taps
+  are linear-phase but not bit-identical raised "Onepass-zerophase filtering
+  is only allowed for linear-phase FIR filters" and the default frequency-
+  response plot never opened.
+- ``eeg_interp`` limits a time range with inclusive ``EEG.times`` in
+  milliseconds, on continuous and epoched data. A full-range list equal to
+  ``[xmin, xmax]`` no longer restores the second-to-last sample. Pinned
+  ``eeg_interp.m`` line 322 restores ``floor(t*srate)`` and stops short of
+  the last sample; this follows the inclusive window in eeglab pull 980.
+- ``pop_interp`` keeps a scripted ``t_range``. Pinned ``pop_interp.m`` line 61
+  sets ``t_range = ''`` and interpolates the whole recording; the help text
+  and a regression test record that difference.
+- ``pop_interp`` channel indices are 1-based. Channel 1 is the first channel.
+  Replayed history keeps those indices.
+- ``runica`` extended kurtosis draws ``fix(rand*datalength)`` on the
+  ``RandomState(5489)`` stream and divides by ``m2`` (``runica.m`` lines
+  890-903). With ``posact`` off, component order uses sphered-channel energy
+  (``runica.m`` lines 1472 and 1519).
+- ``newcrossf`` defaults the frequency range to ``[0, 50]`` Hz
+  (``newcrossf.m`` lines 396-397). A log scale still lifts a zero lower edge
+  to 3 Hz (line 461). The previous default followed ``timefreq`` up to
+  Nyquist, so a 128 Hz epoch with ``padratio`` 1 ran 6-64 Hz instead of 6-50 Hz.
+- The cross-coherence and time-frequency dialogs show epoch limits with
+  ``int2str`` truncation toward zero (``pop_newcrossf.m`` line 87,
+  ``pop_newtimef.m`` line 172), so 1.9921875 s is ``1992`` ms.
+- ``pop_newtimef`` and ``pop_newcrossf`` take the EEGLAB sample window
+  (``pop_newtimef.m`` lines 305-306, ``pop_newcrossf.m`` lines 188-189) and
+  pass those requested time limits into the decomposition. The previous slice
+  dropped the sample after the truncated limit and evaluated the decomposition
+  on the kept sample times, so an explicit baseline did not move the result.
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the

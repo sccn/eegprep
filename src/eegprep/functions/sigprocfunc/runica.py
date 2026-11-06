@@ -8,9 +8,9 @@ MATLAB runica() function from EEGLAB, maintaining numerical parity.
 Derived from MATLAB:
     This code was translated from EEGLAB's runica.m function. The Python
     implementation produces scientifically equivalent results to MATLAB
-    with 99.97-99.99% component-wise correlation. Minor differences in
-    component ordering may occur due to variance computation differences.
-    Extended-ICA achieves exact step-count match with MATLAB.
+    with 99.97-99.99% component-wise correlation. Component order uses the
+    projected-variance key in runica.m line 1519. Extended-ICA kurtosis
+    draws the same fix(rand) subset as runica.m lines 890-896.
 
 Reference:
     Makeig, S., Bell, A.J., Jung, T-P and Sejnowski, T.J.,
@@ -29,6 +29,15 @@ from ..miscfunc.misc import finite_pinv
 from ..miscfunc.value_parsing import parse_key_value_args
 
 logger = logging.getLogger(__name__)
+
+
+def _kurtosis_columns(rng: np.random.RandomState, datalength: int, kurtsize: int) -> np.ndarray:
+    """0-based columns for runica.m lines 890-896."""
+    selected = np.fix(rng.rand(kurtsize) * datalength).astype(np.int64, copy=False)
+    while np.any(selected == 0):
+        missing = selected == 0
+        selected[missing] = np.fix(rng.rand(int(np.count_nonzero(missing))) * datalength).astype(np.int64, copy=False)
+    return selected - 1
 
 
 def _matmul(left, right):
@@ -215,8 +224,8 @@ def runica(data, *args, **kwargs):
 
     Known Acceptable Differences:
 
-    1. Component Ordering: May differ from MATLAB due to variance scaling.
-       Scientifically acceptable (ICA permutation ambiguity).
+    1. Component ordering follows runica.m line 1519: sphered-channel energy
+       when ``posact`` is off, activation energy when ``posact`` is on.
 
     2. Convergence Steps (Standard ICA only): May take ~10% more steps
        due to sqrtm precision differences. Extended-ICA: 0% difference.
@@ -668,19 +677,15 @@ def runica(data, *args, **kwargs):
                         if extblocks > 0 and blockno % extblocks == 0:
                             # Random subset selection or whole data (MATLAB lines 868-879)
                             if kurtsize < frames:
-                                # Pick random subset (MATLAB lines 869-876)
-                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                                rp = rng.randint(1, datalength, size=kurtsize)
-                                partact = weights @ data[:, rp[:kurtsize]]
+                                rp = _kurtosis_columns(rng, datalength, kurtsize)
+                                partact = weights @ data[:, rp]
                             else:
-                                # For small data sets, use whole data (MATLAB lines 877-878)
                                 partact = weights @ data
 
-                            # Compute kurtosis (MATLAB lines 880-882)
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
-                            # Add epsilon to prevent division by zero for near-zero variance components
-                            kk = (m4 / (m2 + 1e-10)) - 3.0  # kurtosis estimates
+                            with np.errstate(divide="ignore", invalid="ignore"):
+                                kk = (m4 / m2) - 3.0
 
                             # Apply momentum to kurtosis (MATLAB lines 883-886)
                             if extmomentum:
@@ -987,16 +992,15 @@ def runica(data, *args, **kwargs):
                     if not wts_blowup:
                         if extblocks > 0 and blockno % extblocks == 0:
                             if kurtsize < frames:
-                                # Use randint to avoid index overflow (rand() * datalength could equal datalength)
-                                rp = rng.randint(1, datalength, size=kurtsize)
-                                partact = weights @ data[:, rp[:kurtsize]]
+                                rp = _kurtosis_columns(rng, datalength, kurtsize)
+                                partact = weights @ data[:, rp]
                             else:
                                 partact = weights @ data
 
                             m2 = np.mean(partact**2, axis=1) ** 2
                             m4 = np.mean(partact**4, axis=1)
-                            # Add epsilon to prevent division by zero for near-zero variance components
-                            kk = (m4 / (m2 + 1e-10)) - 3.0
+                            with np.errstate(divide="ignore", invalid="ignore"):
+                                kk = (m4 / m2) - 3.0
 
                             if extmomentum:
                                 kk = extmomentum * old_kk + (1.0 - extmomentum) * kk
@@ -1240,12 +1244,13 @@ def runica(data, *args, **kwargs):
     if verbose:
         logger.info(f'Training complete. Total steps: {laststep}')
 
-    # Compute activations (MATLAB lines 1439-1455)
-    # Note: data matrix was mean-centered at the start
-    # Need to add back row means for activation computation
+    # runica.m:1472 materializes activations only for posact or a returned
+    # activation argument. The 6-output sort at line 1519 still sees sphered data.
+    if posactflag == "on" or data.shape[0] != ncomps:
+        projected_energy = None
+    else:
+        projected_energy = np.sum(data**2, axis=1)
 
-    # Make activations from sphered data (MATLAB line 1439)
-    # Add back the row means removed from data before sphering (MATLAB lines 1442-1447)
     if pcaflag == 'off':
         sr = _matmul(sphere, rowmeans)
         data += sr
@@ -1281,9 +1286,9 @@ def runica(data, *args, **kwargs):
             logger.info('Using pseudo-inverse of weight matrix to rank order component projections.')
         winv = finite_pinv(unmixing, solver=pinv)
 
-    # Compute variances without backprojecting (MATLAB line 1486)
-    # Formula from Rey Ramirez 8/07
-    meanvar = np.sum(winv**2, axis=0) * np.sum(activations_unsorted**2, axis=1) / ((chans * frames) - 1)
+    if projected_energy is None:
+        projected_energy = np.sum(activations_unsorted**2, axis=1)
+    meanvar = np.sum(winv**2, axis=0) * projected_energy / ((chans * frames) - 1)
 
     # Sort components by mean variance (MATLAB lines 1490-1492)
     sortvar = np.argsort(meanvar)

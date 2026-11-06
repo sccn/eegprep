@@ -240,14 +240,15 @@ Interpolate known bad channels after channel removal or rejection:
 
    from eegprep import pop_interp
 
-   EEG, com = pop_interp(EEG, [0, 4, 9], return_com=True)
+   EEG, com = pop_interp(EEG, [1, 5, 10], return_com=True)
 
 Use ``Tools > Re-reference the data`` and ``Tools > Interpolate electrodes``
 from the GUI.
 
-The programmatic ``bad_elec`` list for ``pop_interp`` uses Python zero-based
-indices when integers are supplied. GUI channel selection remains one-based and
-label-driven.
+``bad_elec`` integers are 1-based: channel 1 is the first channel. A ``t_range``
+of ``[start, end]`` seconds is inclusive on ``EEG.times``. An empty dialog time
+field interpolates the whole recording. A scripted range is honoured.
+Pinned EEGLAB ``pop_interp.m`` line 61 discards that fourth argument.
 
 Run ICA and ICLabel
 ===================
@@ -288,8 +289,10 @@ wrappers for the common EEGLAB plotting workflows:
 
 ``pop_newtimef`` plots one channel or component at a time. Set ``typeproc=1`` for
 a channel and ``typeproc=0`` for an ICA component; ``num`` is the 1-based channel
-or component index. ``tlimits`` is the epoch window in milliseconds and ``cycles``
-selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
+or component index. ``tlimits`` is the epoch window in milliseconds. The sample
+window matches EEGLAB's rounding, and the decomposition uses those requested
+limits. ``pop_newcrossf`` without a frequency range stops at 50 Hz.
+``cycles`` selects the decomposition: ``[0]`` uses a short-time FFT, while ``[n]`` (optionally
 ``[n factor]``) uses an ``n``-cycle Morlet wavelet that narrows toward higher
 frequencies. Called with no index, ``pop_newtimef`` opens a dialog to collect
 these values; the ``Plot`` menu exposes the same dialog under *Channel

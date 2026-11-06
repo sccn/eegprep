@@ -946,7 +946,7 @@ def test_pop_newtimef_timewarp_options_are_replayable(sample_epoch):
     )
 
     assert result.tfdata.shape == (result.freqs.size, result.times.size, trial_count)
-    np.testing.assert_allclose(result.timewarp_markers, [31.25, 78.125], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(result.timewarp_markers, [32.8125, 79.6875], rtol=1e-12, atol=1e-12)
     assert "timewarp=" in command
     assert "timewarpms=[30, 80]" in command
     assert "timewarpidx=[1, 2]" in command

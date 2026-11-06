@@ -311,19 +311,38 @@ class TestEegInterpParity(unittest.TestCase):
         self._compare_eeg_results(py_result, ml_result)
 
     def test_parity_custom_time_range(self):
-        """Test parity with custom time range"""
+        """Inclusive EEG.times window versus pinned eeg_interp.m:322 floor restore."""
         bad_chans = [2, 8]
-        bad_chans_matlab = [3, 9]  # 1-based for MATLAB
+        bad_chans_matlab = [3, 9]
         t_range = (-0.5, 0.5)
+        times_ms = np.linspace(
+            self.test_EEG["xmin"] * 1000.0,
+            self.test_EEG["xmax"] * 1000.0,
+            self.test_EEG["pnts"],
+        )
+        inside = (times_ms >= t_range[0] * 1000.0) & (times_ms <= t_range[1] * 1000.0)
 
-        py_result = eeg_interp(self.test_EEG, bad_chans, method='spherical', t_range=t_range)
+        py_partial = eeg_interp(self.test_EEG, bad_chans, method="spherical", t_range=t_range)
+        py_full = eeg_interp(self.test_EEG, bad_chans, method="spherical")
+        ml_full = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical")
+        ml_partial = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, "spherical", np.array(t_range))
 
-        # Convert tuple to numpy array for MATLAB
-        t_range_array = np.array(t_range)
-        ml_result = self.eeglab.eeg_interp(self.test_EEG, bad_chans_matlab, 'spherical', t_range_array)
+        py_data = py_partial["data"][:, :, 0] if py_partial["data"].ndim == 3 else py_partial["data"]
+        full_data = py_full["data"][:, :, 0] if py_full["data"].ndim == 3 else py_full["data"]
+        original = self.test_EEG["data"][:, :, 0]
+        np.testing.assert_array_equal(py_data[np.ix_(bad_chans, ~inside)], original[np.ix_(bad_chans, ~inside)])
+        np.testing.assert_array_equal(py_data[:, inside], full_data[:, inside])
 
-        # Compare results using the helper method
-        self._compare_eeg_results(py_result, ml_result)
+        ml_partial_data = np.asarray(ml_partial["data"])
+        if ml_partial_data.ndim == 3:
+            ml_partial_data = ml_partial_data[:, :, 0]
+        self._compare_eeg_results(py_full, ml_full)
+        # Pinned eeg_interp.m:322 leaves the final sample interpolated.
+        self.assertGreater(
+            np.max(np.abs(ml_partial_data[bad_chans, -1] - original[bad_chans, -1])),
+            5e-2,
+        )
+        np.testing.assert_array_equal(py_data[bad_chans, -1], original[bad_chans, -1])
 
     def test_parity_multiple_trials(self):
         """Test parity with multiple trials (epochs)"""
