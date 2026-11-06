@@ -1311,6 +1311,8 @@ class MenuActionDispatcher:
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             eeg_out = out[0] if isinstance(out, tuple) and out else out
             if name == "pop_rejcont":
+                if command:
+                    self._add_history_from_gui(command)
                 return
             if command:
                 self._store_current_from_gui(eeg_out, command=command)

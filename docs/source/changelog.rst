@@ -15,9 +15,21 @@ Unreleased
   A single limit is still expanded to ``[-100 limit]``. On
   ``eeglab_data.set``, ``[-50 10]`` keeps 28008 points in 9 regions and
   ``[-5 10]`` keeps 3496 points in 16 regions.
-- ``pop_rejcont`` history is the commented ``vararg2str`` call plus
-  ``pop_select(..., 'nopoint', ...)`` (``pop_rejcont.m:352`` and
-  ``pop_rejcont.m:370``).
+- ``pop_rejcont`` history leaves ``eegplot`` out of the commented call
+  (``pop_rejcont.m:370``). Accepting the marked regions records a separate
+  ``pop_select( EEG, 'nopoint',[...]);`` entry (``pop_select.m:749``).
+- A two-number threshold typed into the ``pop_rejcont`` dialog, such as
+  ``-50 10``, stays ``[min max]``. ``pop_rejcont.m:147`` reads that field
+  with ``str2double``, which becomes NaN and rejects nothing. On
+  ``eeglab_data.set``, ``-50 10`` still keeps 28008 points in 9 regions.
+- ``pop_eegthresh`` history uses the ``vararg2str`` form at
+  ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed and the
+  reject flag recorded as 0. Dialog time limits use five significant digits,
+  so the sample epoch file shows an end time of 1.9922.
+- Update Marks shows the warning that epochs marked for rejection have been
+  noted (``eeg_rejmacro.m:119-121``).
+- ``pop_rejcont`` reports the Add trails field, the function name, and an
+  example value when that field is not one number of seconds.
 - Reject marked epochs history is ``pop_rejepoch( EEG, [1:6 9] ,0)``
   (``pop_rejepoch.m:101``).
 - Reject marked epochs, for data and for ICA, stores the result with
@@ -32,8 +44,9 @@ Unreleased
   ``pop_rejepoch`` and tells you to clear a mark.
 - ``pop_autorej`` reports which dialog field was not numeric, and shows a
   valid example, instead of a bare float conversion error.
-- ``eeg_regepochs`` stores ``urevent`` as an array and does not insert a
-  regular event whose epoch window extends past the data.
+- ``eeg_regepochs`` stores ``urevent`` as an array and inserts every regular
+  event. ``pop_epoch`` drops an epoch whose window passes the end of the
+  data and warns ``event N out of data boundary``.
 - ``pop_eegthresh`` now opens the component dialog on components 1:5
   (``pop_eegthresh.m:120``) instead of every component.
 - Reject marked epochs now builds ``rejglobal`` with ``eeg_rejsuperpose``

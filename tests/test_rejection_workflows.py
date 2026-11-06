@@ -376,10 +376,7 @@ def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
     assert out["reject"]["rejthreshE"][0].tolist() == [False, True, False, False, False]
     assert component_rejected == [2]
     assert component_out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
-    assert _console_python_command(com) == (
-        "EEG = pop_eegthresh(EEG, icacomp=1, elecrange=[1], negthresh=[-10], "
-        "posthresh=[10], starttime=[0], endtime=[0.79], superpose=0, reject=0)"
-    )
+    assert com == "EEG = pop_eegthresh(EEG,1,1,-10,10,0,0.79,0,0);"
 
 
 def test_eegplot_accepts_epoched_data_after_spectral_rejection_marks():
@@ -473,8 +470,9 @@ def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeyp
     )
 
     assert out is eeg
-    assert command == ""
-    assert accepted[0][1].startswith("% the command below does the automated rejection")
+    assert command.startswith("% the command below does the automated rejection")
+    assert "eegplot" not in command
+    assert accepted[0][1].startswith("EEG = pop_select( EEG, 'nopoint',[")
 
 
 def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels():

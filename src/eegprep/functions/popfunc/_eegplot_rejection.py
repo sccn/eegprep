@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 import numpy as np
+
+try:
+    from PySide6 import QtWidgets
+except ImportError:
+    QtWidgets = None
 
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
 from eegprep.functions.popfunc._rejection import (
@@ -32,6 +38,13 @@ REJECTION_FAMILIES = ("manual", "thresh", "const", "jp", "kurt", "freq")
 
 # Autorej shares manual-color browser marks and is not superposed as a separate EEGLAB family.
 _AUTO_REJECTION_COLOR = MANUAL_REJECTION_COLOR
+MARKED_EPOCHS_NOTICE = (
+    "Epochs (=trials) marked for rejection have been noted.\n"
+    "To actually reject these epochs, use the same menu item to\n"
+    'inspect/reject data and select "Reject marked trials" checkbox'
+)
+logger = logging.getLogger(__name__)
+_notice_boxes: list[Any] = []
 
 
 def run_epoched_rejection(
@@ -147,6 +160,20 @@ def run_epoched_mark_rejection(
     return out, rejected, command, payload
 
 
+def show_marked_epochs_notice(parent: Any | None = None) -> None:
+    """Show the EEGLAB Update Marks warning from ``eeg_rejmacro.m:119-121``."""
+    logger.warning("%s", MARKED_EPOCHS_NOTICE)
+    if QtWidgets is None or QtWidgets.QApplication.instance() is None:
+        return
+    box = QtWidgets.QMessageBox(parent)
+    box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+    box.setWindowTitle("Warning")
+    box.setText(MARKED_EPOCHS_NOTICE)
+    box.setObjectName("marked_epochs_notice")
+    _notice_boxes.append(box)
+    box.show()
+
+
 def vistype_from_gui(value: Any) -> int:
     """Map an EEGLAB visualization-mode popup value to a vistype flag."""
     if isinstance(value, str):
@@ -197,6 +224,8 @@ def open_epoched_rejection_browser(
             row_count=row_count,
             return_com=True,
         )
+        if not int(bool(reject)):
+            show_marked_epochs_notice()
         if command_callback is not None:
             command_callback(eeg_out, accept_command)
 

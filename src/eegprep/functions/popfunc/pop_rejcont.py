@@ -9,7 +9,7 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._chanutils import chanlocs_as_list
-from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key_value_args
+from eegprep.functions.popfunc._pop_utils import parse_key_value_args
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.popfunc.eeg_regepochs import eeg_regepochs
@@ -123,7 +123,11 @@ def _apply_one(
     epochlength = float(parse_numeric_sequence(options.get("epochlength", 0.5), dtype=float)[0])
     overlap = float(parse_numeric_sequence(options.get("overlap", 0.25), dtype=float)[0])
     contiguous = int(parse_numeric_sequence(options.get("contiguous", 4), dtype=float)[0])
-    addlength = float(parse_numeric_sequence(options.get("addlength", 0.25), dtype=float)[0])
+    addlength = _one_seconds(
+        options.get("addlength", 0.25),
+        "Add trails before and after regions (s)",
+        "0.25",
+    )
     bands = _rejection_bands(
         options.get("threshold", 10),
         options.get("freqlimit", [35, min(128.0, srate / 2)]),
@@ -139,7 +143,7 @@ def _apply_one(
         addlength,
         options,
     )
-    command = _history_command(options, selected)
+    comment = _history_comment(options)
     browser_display = display and str(options.get("onlyreturnselection", "off")).lower() != "on"
     if browser_display:
         _open_rejcont_browser(
@@ -148,18 +152,21 @@ def _apply_one(
             selected,
             elecrange,
             options,
-            command=command,
             command_callback=command_callback,
             show=show,
         )
+        command = comment
     elif selected.size and str(options.get("onlyreturnselection", "off")).lower() != "on":
         if str(options.get("correct", "remove")).lower() == "blank":
             for start, stop in selected.astype(int):
                 data[np.asarray(elecrange, dtype=int) - 1, start - 1 : stop] = 0
-            out["data"] = data
+            command = comment
         else:
             out = pop_select(out, "nopoint", selected.tolist(), gui=False)
-    return (EEG if browser_display else out), selected, "" if browser_display else command
+            command = comment + "\n" + _pop_select_history(selected)
+    else:
+        command = comment
+    return (EEG if browser_display else out), selected, command
 
 
 def _open_rejcont_browser(
@@ -169,7 +176,6 @@ def _open_rejcont_browser(
     elecrange: list[int],
     options: dict[str, Any],
     *,
-    command: str,
     command_callback: Any | None,
     show: bool,
 ) -> Any:
@@ -178,9 +184,9 @@ def _open_rejcont_browser(
     winrej = _rejcont_winrej(selected, len(elecrange))
 
     def _accept(winrej_rows: np.ndarray) -> None:
-        eeg_out = _apply_rejcont_winrej(EEG, winrej_rows, elecrange, options)
+        eeg_out, select_command = _apply_rejcont_winrej(EEG, winrej_rows, elecrange, options)
         if command_callback is not None:
-            command_callback(eeg_out, command)
+            command_callback(eeg_out, select_command)
 
     kwargs: dict[str, Any] = {
         "srate": EEG.get("srate", 256),
@@ -209,11 +215,11 @@ def _apply_rejcont_winrej(
     winrej_rows: np.ndarray,
     elecrange: list[int],
     options: dict[str, Any],
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], str]:
     out = copy_eeg(EEG)
     selected = _continuous_rows_to_regions(winrej_rows, int(out.get("pnts", np.asarray(out.get("data")).shape[1])))
     if selected.size == 0:
-        return out
+        return out, ""
     if str(options.get("correct", "remove")).lower() == "blank":
         data = np.asarray(out.get("data"), dtype=float)
         if data.ndim == 3:
@@ -221,8 +227,8 @@ def _apply_rejcont_winrej(
         for start, stop in selected.astype(int):
             data[np.asarray(elecrange, dtype=int) - 1, start - 1 : stop] = 0
         out["data"] = data
-        return out
-    return pop_select(out, "nopoint", selected.tolist(), gui=False)
+        return out, ""
+    return pop_select(out, "nopoint", selected.tolist(), gui=False), _pop_select_history(selected)
 
 
 def _continuous_rows_to_regions(winrej_rows: np.ndarray, pnts: int) -> np.ndarray:
@@ -458,18 +464,33 @@ def _merge_regions(regions: np.ndarray) -> np.ndarray:
     return np.asarray(merged, dtype=int)
 
 
-def _history_command(options: dict[str, Any], selected: np.ndarray) -> str:
+def _history_comment(options: dict[str, Any]) -> str:
     # pop_rejcont.m:370
-    parts = [f"'{key}',{_history_argument(value)}" for key, value in options.items()]
-    comment = (
+    parts = [f"'{key}',{_history_argument(value)}" for key, value in options.items() if key != "eegplot"]
+    return (
         "% the command below does the automated rejection "
         "(the pop_select command after that includes manual editing)\n"
         "% EEG = pop_rejcont(EEG, " + ",".join(parts) + ");"
     )
-    if selected.size == 0 or str(options.get("onlyreturnselection", "off")).lower() == "on":
-        return comment
-    regions = format_history_value(np.asarray(selected, dtype=int), cell_for_sequence=None)
-    return comment + f"\nEEG = pop_select(EEG, 'nopoint', {regions});"
+
+
+def _pop_select_history(selected: np.ndarray) -> str:
+    # pop_select.m:749
+    rows = ";".join(f"{int(start)} {int(stop)}" for start, stop in np.asarray(selected, dtype=int))
+    return f"EEG = pop_select( EEG, 'nopoint',[{rows}]);"
+
+
+def _one_seconds(value: Any, field: str, example: str) -> float:
+    try:
+        values = parse_numeric_sequence(value, dtype=float)
+    except ValueError:
+        values = []
+    if len(values) != 1 or not np.isfinite(values[0]):
+        raise ValueError(
+            f"pop_rejcont: {field} must be one finite number of seconds, for example {example}. "
+            f"The entered value was {value!r}."
+        )
+    return float(values[0])
 
 
 def _history_argument(value: Any) -> str:

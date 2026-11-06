@@ -9,8 +9,8 @@ import numpy as np
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
-from eegprep.functions.popfunc._pop_utils import format_history_value
 from eegprep.functions.popfunc._rejection import eegthresh_marks, parse_numeric_sequence
+from eegprep.functions.popfunc.pop_rejchan import _matlab_contarray
 
 
 def pop_eegthresh(
@@ -113,10 +113,10 @@ def pop_eegthresh_dialog_spec(EEG: dict[str, Any], icacomp: int | bool = 1) -> D
             ControlSpec("edit", tag="posthresh", value="10" if is_data else "20"),
             ControlSpec("text", "Start time limit(s) (seconds, Ex -0.1 0.3):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="starttime", value=f"{float(EEG.get('xmin', 0)):g}"),
+            ControlSpec("edit", tag="starttime", value=_num2str(float(EEG.get("xmin", 0)))),
             ControlSpec("text", "End time limit(s) (seconds, Ex 0.2):"),
             ControlSpec("spacer"),
-            ControlSpec("edit", tag="endtime", value=f"{float(EEG.get('xmax', 0)):g}"),
+            ControlSpec("edit", tag="endtime", value=_num2str(float(EEG.get("xmax", 0)))),
             ControlSpec("spacer"),
             ControlSpec("text", "Display previous rejection marks"),
             ControlSpec("spacer"),
@@ -215,18 +215,35 @@ def _history_command(
     superpose: int | bool,
     reject: int | bool,
 ) -> str:
-    args = [
-        int(bool(icacomp)),
-        parse_numeric_sequence(elecrange, dtype=int),
-        parse_numeric_sequence(negthresh, dtype=float),
-        parse_numeric_sequence(posthresh, dtype=float),
-        parse_numeric_sequence(starttime, dtype=float),
-        parse_numeric_sequence(endtime, dtype=float),
-        int(superpose),
-        int(bool(reject)),
+    # pop_eegthresh.m:251-252
+    parts = [
+        str(int(bool(icacomp))),
+        _history_vector(elecrange),
+        _history_vector(negthresh),
+        _history_vector(posthresh),
+        _history_vector(starttime),
+        _history_vector(endtime),
+        str(int(bool(superpose))),
+        "0",
     ]
-    return (
-        "EEG = pop_eegthresh(EEG, "
-        + ", ".join(format_history_value(arg, cell_for_sequence=None) for arg in args)
-        + ");"
-    )
+    return "EEG = pop_eegthresh(EEG," + ",".join(parts) + ");"
+
+
+def _history_vector(value: Any) -> str:
+    values = [float(item) for item in parse_numeric_sequence(value, dtype=float)]
+    if not values:
+        return "[]"
+    if len(values) == 1:
+        return _num2str(values[0])
+    if len(values) == 2 or any(not item.is_integer() for item in values):
+        body = " ".join(_num2str(item) for item in values)
+    else:
+        body = _matlab_contarray(values)
+    return "[" + body + "] "
+
+
+def _num2str(value: float) -> str:
+    number = float(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.5g}"

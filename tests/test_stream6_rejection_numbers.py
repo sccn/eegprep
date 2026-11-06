@@ -11,6 +11,10 @@ from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc.pop_autorej import pop_autorej
+from eegprep.functions.popfunc._eegplot_rejection import (
+    MARKED_EPOCHS_NOTICE,
+    open_epoched_rejection_browser,
+)
 from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh, pop_eegthresh_dialog_spec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rejchan import pop_rejchan, pop_rejchan_dialog_spec
@@ -237,7 +241,6 @@ def test_pop_rejcont_keeps_the_sample_recording_regions(caplog):
     with caplog.at_level(logging.WARNING, logger="eegprep"):
         out, selected = _sample_rejcont(_continuous(), 10)
 
-    assert "out of data boundary" not in caplog.text
     assert "Field 'urevent'" not in caplog.text
     assert out["pnts"] == 28008
     assert np.asarray(selected, dtype=int).tolist() == REJCONT_REGIONS
@@ -248,6 +251,7 @@ def test_pop_rejcont_two_sided_and_cell_thresholds():
     wide, wide_regions = _sample_rejcont(continuous, [-50, 10])
     narrow, narrow_regions = _sample_rejcont(continuous, [-5, 10])
     cell, cell_regions = _sample_rejcont(continuous, [[-50, 10]], freqlimit=[[20, 40]])
+    dialog_text, dialog_regions = _sample_rejcont(continuous, "-50 10")
     _out, command = pop_rejcont(
         continuous,
         "elecrange",
@@ -273,8 +277,82 @@ def test_pop_rejcont_two_sided_and_cell_thresholds():
     assert np.asarray(narrow_regions, dtype=int).tolist() == REJCONT_LOW_REGIONS
     assert cell["pnts"] == wide["pnts"]
     assert np.asarray(cell_regions, dtype=int).tolist() == REJCONT_REGIONS
+    assert dialog_text["pnts"] == 28008
+    assert np.asarray(dialog_regions, dtype=int).tolist() == REJCONT_REGIONS
+    assert "eegplot" not in command
     assert command.splitlines()[1].startswith("% EEG = pop_rejcont(EEG, ")
-    assert "EEG = pop_select(EEG, 'nopoint', [321 480;" in command
+    assert command.splitlines()[2] == (
+        "EEG = pop_select( EEG, 'nopoint',[321 480;3489 3936;4289 4608;7713 7904;"
+        "13505 13664;26561 26816;27201 27360;27553 27840;28033 28544]);"
+    )
+
+
+def test_pop_rejcont_names_a_two_number_add_trails_value():
+    eeg = create_test_eeg(n_channels=2, n_samples=40, n_trials=1, srate=100)
+
+    with pytest.raises(ValueError, match="pop_rejcont: Add trails before and after regions") as error:
+        pop_rejcont(eeg, "addlength", "1 2", "eegplot", "off")
+
+    assert "0.25" in str(error.value)
+    assert "'1 2'" in str(error.value)
+
+
+def test_pop_eegthresh_history_and_dialog_follow_num2str():
+    eeg = create_test_eeg(n_channels=32, n_samples=4, n_trials=2, srate=128)
+    eeg["xmin"] = -1.0
+    eeg["xmax"] = 1.9921875
+    spec = pop_eegthresh_dialog_spec(_epochs(), 1)
+
+    _out, command = pop_eegthresh(eeg, 1, list(range(1, 33)), -75, 75, -1, 1.9921875, 0, 0, return_com=True)
+
+    assert controls_by_tag(spec)["starttime"].value == "-1"
+    assert controls_by_tag(spec)["endtime"].value == "1.9922"
+    assert command == "EEG = pop_eegthresh(EEG,1,[1:32] ,-75,75,-1,1.9922,0,0);"
+
+
+def test_update_marks_shows_the_eeglab_notice(monkeypatch):
+    notices = []
+    eeg = create_test_eeg(n_channels=2, n_samples=8, n_trials=2, srate=100)
+
+    def fake_eegplot(_data, *args, **kwargs):
+        del args
+        kwargs["command_callback"](np.zeros((0, 5)))
+        return "window"
+
+    monkeypatch.setattr(
+        "eegprep.functions.popfunc._eegplot_rejection.eegplot",
+        fake_eegplot,
+    )
+    monkeypatch.setattr(
+        "eegprep.functions.popfunc._eegplot_rejection.show_marked_epochs_notice",
+        lambda parent=None: notices.append(MARKED_EPOCHS_NOTICE),
+    )
+
+    open_epoched_rejection_browser(
+        eeg,
+        data=np.asarray(eeg["data"]),
+        icacomp=1,
+        elecrange=[1],
+        kind="thresh",
+        superpose=0,
+        reject=0,
+        command="",
+        show=True,
+    )
+    open_epoched_rejection_browser(
+        eeg,
+        data=np.asarray(eeg["data"]),
+        icacomp=1,
+        elecrange=[1],
+        kind="thresh",
+        superpose=0,
+        reject=1,
+        command="",
+        show=True,
+    )
+
+    assert notices == [MARKED_EPOCHS_NOTICE]
+    assert notices[0].startswith("Epochs (=trials) marked for rejection have been noted.")
 
 
 def test_pop_rejcont_keeps_the_same_regions_after_1hz_highpass():
@@ -665,10 +743,55 @@ def test_reference_pop_autorej_eeglab_omits_epoch_16(eeglab_backend, request):
         eeglab_backend("pop_loadset", str(EPOCH_DATASET_PATH)),
         "eegplot",
         "off",
+        "nogui",
+        "on",
         nargout=2,
     )
 
-    assert _indices(rejected) == [1, 2, 28, 46, 70]
+    assert sorted(_indices(rejected)) == [1, 2, 28, 46, 70]
+
+
+@eeglab_test(
+    "functions/miscfunc/eeg_regepochs.m",
+    "test_reference_eeg_regepochs_keeps_events_inside_overlapping_epochs",
+)
+def test_reference_eeg_regepochs_keeps_events_inside_overlapping_epochs(eeglab_backend):
+    expected = (
+        (0.25, [0.0, 0.5], 952, 2212, 1904, 1107),
+        (0.5, [0.0, 2.0], 473, 2506, 1892, 630),
+    )
+    for recurrence, limits, trials, events, x_events, urevents in expected:
+        result = eeglab_backend(
+            "eeg_regepochs",
+            eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH)),
+            float(recurrence),
+            np.asarray(limits, dtype=float).reshape(1, 2),
+            np.nan,
+        )
+        assert int(np.asarray(result["trials"]).reshape(-1)[0]) == trials
+        assert _record_count(result.get("event")) == events
+        assert _type_count(result.get("event"), "X") == x_events
+        assert _record_count(result.get("urevent")) == urevents
+
+
+def _record_count(value) -> int:
+    if value is None:
+        return 0
+    if isinstance(value, np.ndarray):
+        return int(value.size)
+    if isinstance(value, dict):
+        return 1
+    return len(value)
+
+
+def _type_count(value, event_type: str) -> int:
+    if isinstance(value, np.ndarray):
+        records = value.reshape(-1).tolist()
+    elif isinstance(value, dict):
+        records = [value]
+    else:
+        records = list(value or [])
+    return sum(isinstance(record, dict) and str(record.get("type")) == event_type for record in records)
 
 
 @eeglab_test("functions/popfunc/pop_rejchan.m", "test_reference_pop_rejchan_sample_channels")
