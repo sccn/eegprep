@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from eegprep.functions.popfunc._pop_utils import format_history_value
+from eegprep.functions.adminfunc.vararg2str import matlab_array2str
 from eegprep.functions.popfunc._rejection import bool_marks
 from eegprep.functions.popfunc.pop_select import pop_select
 
@@ -35,12 +35,12 @@ def pop_rejepoch(
     marks = bool_marks(tmprej, trials)
     indices = np.flatnonzero(marks) + 1
     if indices.size == 0:
-        command = _history_command([], confirm)
+        command = _history_command([])
         return (EEG, command) if return_com else EEG
     output = pop_select(EEG, "notrial", indices.tolist(), gui=False)
-    command = _history_command(indices.tolist(), confirm)
+    command = _history_command(indices.tolist())
     return (output, command) if return_com else output
 
 
-def _history_command(indices: Any, confirm: int | bool) -> str:
-    return f"EEG = pop_rejepoch(EEG, {format_history_value(indices, cell_for_sequence=None)}, {int(bool(confirm))});"
+def _history_command(indices: Any) -> str:
+    return f"EEG = pop_rejepoch( EEG, {matlab_array2str(indices)},0);"

@@ -424,6 +424,7 @@ _LAZY_EXPORTS = {
     "posact": ("eegprep.functions.sigprocfunc.posact", "posact"),
     "promax": ("eegprep.functions.miscfunc.promax", "promax"),
     "quantile": ("eegprep.functions.sigprocfunc.quantile", "quantile"),
+    "questdlg2": ("eegprep.functions.guifunc.questdlg2", "questdlg2"),
     "read_erpss": ("eegprep.functions.sigprocfunc.read_erpss", "read_erpss"),
     "readbdf": ("eegprep.functions.sigprocfunc.readbdf", "readbdf"),
     "readeetraklocs": ("eegprep.functions.sigprocfunc.readlocs", "readeetraklocs"),
