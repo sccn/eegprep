@@ -584,11 +584,11 @@ rejection).</p>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;after interpolation:&quot;</span><span class="p">,</span> <a href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="builtins.dict" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">EEG_interp</span></a><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">],</span> <span class="s2">&quot;channels; restored&quot;</span><span class="p">,</span> <a href="https://docs.python.org/3/builtins/stdtypes.html#list" title="builtins.list" class="sphx-glr-backref-module-builtins sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">bad_labels</span></a><span class="p">)</span>
 </pre></div>
 </div>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>bad channel indices (1-based): [1]
-max |z| of kurtosis measure: 5.014
-EEG = pop_select( EEG, &#39;nochannel&#39;, [1]);
-after drop: 31 channels; removed [&#39;FPz&#39;]
-after interpolation: 32 channels; restored [&#39;FPz&#39;]
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>bad channel indices (1-based): [1, 2, 6]
+max |z| of kurtosis measure: 60.367
+EEG = pop_select( EEG, &#39;nochannel&#39;, [1 2 6]);
+after drop: 29 channels; removed [&#39;FPz&#39;, &#39;EOG1&#39;, &#39;EOG2&#39;]
+after interpolation: 32 channels; restored [&#39;FPz&#39;, &#39;EOG1&#39;, &#39;EOG2&#39;]
 </pre></div>
 </div>
 </section>
@@ -694,7 +694,7 @@ EEG = pop_subcomp(EEG, [3 11], 0);
 components remaining: 30
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 8.381 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 9.023 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-plot-reject-artifacts-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/f9ca11ccf09f2a2e8305410fa5edf859/plot_reject_artifacts.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">plot_reject_artifacts.ipynb</span></code></a></p>

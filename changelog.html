@@ -505,6 +505,98 @@ folder names when that file is missing (<code class="docutils literal notranslat
 281). The indices are mapped to subject labels before the file filter. A
 non-numeric or out-of-range value raises <code class="docutils literal notranslate"><span class="pre">pop_importbids</span></code>. The history
 command records the numbers, for example <code class="docutils literal notranslate"><span class="pre">'subjects',</span> <span class="pre">[1</span> <span class="pre">2]</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejspec</span></code> multitaper estimation stops each series on its own <code class="docutils literal notranslate"><span class="pre">pmtm</span></code>
+test, <code class="docutils literal notranslate"><span class="pre">sum(abs(S-S1))/nfft</span> <span class="pre">&gt;</span> <span class="pre">tol</span></code>. A non-finite change stops that series,
+so one NaN sample returns instead of looping. Finite tutorial epochs are
+unchanged: ±30 dB and ±35 dB still mark nothing.</p></li>
+<li><p>Reject marked epochs records <code class="docutils literal notranslate"><span class="pre">eeg_rejsuperpose</span></code> only after the new-dataset
+dialog is accepted. Cancelling that dialog leaves the command history as it
+was.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vararg2str</span></code> continuous-array history uses MATLAB <code class="docutils literal notranslate"><span class="pre">num2str</span></code>
+(<code class="docutils literal notranslate"><span class="pre">vararg2str.m:196-242</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejspec</span></code> multitaper power is <code class="docutils literal notranslate"><span class="pre">10*log10</span></code> (dB). <code class="docutils literal notranslate"><span class="pre">pop_rejspec.m:310</span></code>
+uses <code class="docutils literal notranslate"><span class="pre">10*log</span></code> (natural log). On <code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code>, 15–30 Hz
+at ±35 dB marks no data epochs; EEGLAB marks epoch 37. At ±30 dB, EEGPrep
+marks no data epochs and no component epochs; EEGLAB marks data epoch 37
+and components 13, 14, 15, 26, and 79.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> applies frequency limits to the real FFT bin frequencies.
+<code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:211</span></code> stretches those bins with <code class="docutils literal notranslate"><span class="pre">linspace</span></code> from 0 to
+Nyquist. On <code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code>, 20–40 Hz at 10 dB keeps 27720 points in
+8 regions; EEGLAB keeps 28008 points in 9.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> accepts a <code class="docutils literal notranslate"><span class="pre">[min</span> <span class="pre">max]</span></code> threshold and a cell of thresholds
+or frequency ranges (<code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:172-177</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:239</span></code>).
+A single limit is still expanded to <code class="docutils literal notranslate"><span class="pre">[-100</span> <span class="pre">limit]</span></code>. On
+<code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code>, <code class="docutils literal notranslate"><span class="pre">[-50</span> <span class="pre">10]</span></code> keeps 27720 points in 8 regions and
+<code class="docutils literal notranslate"><span class="pre">[-5</span> <span class="pre">10]</span></code> keeps 3432 points in 17 regions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> history leaves <code class="docutils literal notranslate"><span class="pre">eegplot</span></code> out of the commented call
+(<code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:370</span></code>). Accepting the marked regions records a separate
+<code class="docutils literal notranslate"><span class="pre">pop_select(</span> <span class="pre">EEG,</span> <span class="pre">'nopoint',[...]);</span></code> entry (<code class="docutils literal notranslate"><span class="pre">pop_select.m:749</span></code>).</p></li>
+<li><p>A two-number threshold typed into the <code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> dialog, such as
+<code class="docutils literal notranslate"><span class="pre">-50</span> <span class="pre">10</span></code>, stays <code class="docutils literal notranslate"><span class="pre">[min</span> <span class="pre">max]</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:147</span></code> reads that field
+with <code class="docutils literal notranslate"><span class="pre">str2double</span></code>, which becomes NaN and rejects nothing. On
+<code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code>, <code class="docutils literal notranslate"><span class="pre">-50</span> <span class="pre">10</span></code> still keeps 27720 points in 8 regions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> with <code class="docutils literal notranslate"><span class="pre">correct</span></code> <code class="docutils literal notranslate"><span class="pre">blank</span></code> writes the zeroed samples back
+onto the dataset. A <code class="docutils literal notranslate"><span class="pre">float32</span></code> recording is copied by the floating-point
+conversion, so the zeros have to be stored explicitly. On
+<code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code>, 20-40 Hz at 10 dB with the default taper zeroes
+1312 columns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_eegthresh</span></code> history uses the <code class="docutils literal notranslate"><span class="pre">vararg2str</span></code> form at
+<code class="docutils literal notranslate"><span class="pre">pop_eegthresh.m:251-252</span></code>, with contiguous ranges collapsed. The
+reject flag is the value that was applied. <code class="docutils literal notranslate"><span class="pre">pop_eegthresh.m:252</span></code>
+always writes 0, so replaying a scripted <code class="docutils literal notranslate"><span class="pre">reject=1</span></code> call in EEGLAB
+only marks the epochs. Dialog times use MATLAB <code class="docutils literal notranslate"><span class="pre">num2str</span></code>:
+five significant digits below 1, and <code class="docutils literal notranslate"><span class="pre">floor(log10(|x|))+5</span></code> digits
+otherwise. The sample epoch file shows an end time of 1.9922;
+12.34567 is 12.3457 and 123.456789 is 123.4568.</p></li>
+<li><p>Update Marks shows the warning that epochs marked for rejection have been
+noted (<code class="docutils literal notranslate"><span class="pre">eeg_rejmacro.m:119-121</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> reports the Add trails field, the function name, and an
+example value when that field is not one number of seconds.</p></li>
+<li><p>Reject marked epochs history is <code class="docutils literal notranslate"><span class="pre">pop_rejepoch(</span> <span class="pre">EEG,</span> <span class="pre">[1:6</span> <span class="pre">9]</span> <span class="pre">,0)</span></code>
+(<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m:101</span></code>).</p></li>
+<li><p>Reject marked epochs, for data and for ICA, stores the result with
+<code class="docutils literal notranslate"><span class="pre">pop_newset</span></code> (<code class="docutils literal notranslate"><span class="pre">eeglab.m:663-664</span></code> and <code class="docutils literal notranslate"><span class="pre">eeglab.m:676-677</span></code>).</p></li>
+<li><p>The reject-by-spectra dialog opens on FFT (<code class="docutils literal notranslate"><span class="pre">pop_rejspec.m:142-149</span></code>).</p></li>
+<li><p>Unchecking normalization in channel rejection relabels the threshold as
+an absolute limit (<code class="docutils literal notranslate"><span class="pre">pop_rejchan.m:86-89</span></code>).</p></li>
+<li><p>Multitaper spectra adapt until <code class="docutils literal notranslate"><span class="pre">pmtm</span></code>’s convergence test on the full
+<code class="docutils literal notranslate"><span class="pre">nfft</span></code>, with no iteration cap (<code class="docutils literal notranslate"><span class="pre">pop_rejspec.m:307-326</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejepoch(...,</span> <span class="pre">confirm=-1)</span></code> follows <code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m:96-97</span></code> and
+allows an empty dataset. Any other confirm value still names
+<code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code> and tells you to clear a mark.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_autorej</span></code> reports which dialog field was not numeric, and shows a
+valid example, instead of a bare float conversion error.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_regepochs</span></code> stores <code class="docutils literal notranslate"><span class="pre">urevent</span></code> as an array and inserts every regular
+event. <code class="docutils literal notranslate"><span class="pre">pop_epoch</span></code> drops an epoch whose window passes the end of the
+data and warns <code class="docutils literal notranslate"><span class="pre">event</span> <span class="pre">N</span> <span class="pre">out</span> <span class="pre">of</span> <span class="pre">data</span> <span class="pre">boundary</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_eegthresh</span></code> now opens the component dialog on components 1:5
+(<code class="docutils literal notranslate"><span class="pre">pop_eegthresh.m:120</span></code>) instead of every component.</p></li>
+<li><p>Reject marked epochs now builds <code class="docutils literal notranslate"><span class="pre">rejglobal</span></code> with <code class="docutils literal notranslate"><span class="pre">eeg_rejsuperpose</span></code>
+before removing trials (<code class="docutils literal notranslate"><span class="pre">eeglab.m:663-677</span></code>). Rejecting every epoch raises
+a <code class="docutils literal notranslate"><span class="pre">pop_rejepoch</span></code> error that says how to clear a mark, instead of an empty
+dataset from <code class="docutils literal notranslate"><span class="pre">pop_select</span></code>.</p></li>
+<li><p>Export marks to ICA reject now superposes data marks and copies
+<code class="docutils literal notranslate"><span class="pre">rejglobal</span></code> onto <code class="docutils literal notranslate"><span class="pre">icarejmanual</span></code> (<code class="docutils literal notranslate"><span class="pre">eeglab.m:661-662</span></code>). Export marks to
+data reject copies ICA marks onto <code class="docutils literal notranslate"><span class="pre">rejmanual</span></code> (<code class="docutils literal notranslate"><span class="pre">eeglab.m:674-675</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejchan</span></code> now rejects probability and kurtosis channels with the
+two-sided mask from <code class="docutils literal notranslate"><span class="pre">rejkurt.m:131</span></code> and <code class="docutils literal notranslate"><span class="pre">jointprob.m:133</span></code>, after the
+10% trimmed normalization at <code class="docutils literal notranslate"><span class="pre">rejkurt.m:109-114</span></code>. The dialog offers
+Probability, Kurtosis, and Spectrum (<code class="docutils literal notranslate"><span class="pre">pop_rejchan.m:96</span></code>) and enables the
+frequency range only for Spectrum (<code class="docutils literal notranslate"><span class="pre">pop_rejchan.m:99-100</span></code>). History uses
+the <code class="docutils literal notranslate"><span class="pre">vararg2str</span></code> form at <code class="docutils literal notranslate"><span class="pre">pop_rejchan.m:246</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejspec</span></code> multitaper spectra follow <code class="docutils literal notranslate"><span class="pre">pop_rejspec.m:307-326</span></code> for
+the seven adaptive Slepian tapers and the <code class="docutils literal notranslate"><span class="pre">eegthresh</span></code> bin limits, and
+convert power with <code class="docutils literal notranslate"><span class="pre">10*log10</span></code> rather than the natural log at
+<code class="docutils literal notranslate"><span class="pre">pop_rejspec.m:310</span></code>. On <code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code> that marks no
+epochs at ±30 dB or ±35 dB.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_rejcont</span></code> now rejects the trial-mean spectrum of overlapping windows
+and merges them with the rule at <code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:211-316</span></code>. On
+<code class="docutils literal notranslate"><span class="pre">eeglab_data.set</span></code> the 20-40 Hz, 10 dB settings remove 8 regions and keep
+27720 points. The scroll view uses the <code class="docutils literal notranslate"><span class="pre">eegplot.m:457-473</span></code> spacing, and
+the dialog has no Help button (<code class="docutils literal notranslate"><span class="pre">pop_rejcont.m:140</span></code>).</p></li>
+<li><p>Channel-mode automatic epoch rejection uses <code class="docutils literal notranslate"><span class="pre">rejkurt</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_autorej.m:224</span></code>
+uses <code class="docutils literal notranslate"><span class="pre">icarejkurt</span></code>, so on <code class="docutils literal notranslate"><span class="pre">eeglab_data_epochs_ica.set</span></code> EEGLAB keeps 75
+epochs and EEGPrep keeps 74.</p></li>
 <li><p>Clicking or dragging in the scroll window marks data again. The plot
 viewport was asked for <code class="docutils literal notranslate"><span class="pre">mapToScene</span></code>, which only <code class="docutils literal notranslate"><span class="pre">QGraphicsView</span></code>
 provides, so every left click raised <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code>. Continuous

@@ -140,11 +140,11 @@ rejection).
 
  .. code-block:: none
 
-    bad channel indices (1-based): [1]
-    max |z| of kurtosis measure: 5.014
-    EEG = pop_select( EEG, 'nochannel', [1]);
-    after drop: 31 channels; removed ['FPz']
-    after interpolation: 32 channels; restored ['FPz']
+    bad channel indices (1-based): [1, 2, 6]
+    max |z| of kurtosis measure: 60.367
+    EEG = pop_select( EEG, 'nochannel', [1 2 6]);
+    after drop: 29 channels; removed ['FPz', 'EOG1', 'EOG2']
+    after interpolation: 32 channels; restored ['FPz', 'EOG1', 'EOG2']
 
 
 
@@ -307,7 +307,7 @@ ICLabel, Tools > Remove components from data.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 8.381 seconds)
+   **Total running time of the script:** (0 minutes 9.023 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_reject_artifacts.py:

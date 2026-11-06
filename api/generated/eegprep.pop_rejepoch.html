@@ -637,9 +637,12 @@
 <span class="sig-name descname"><span class="pre">pop_rejepoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmprej</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_com</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_rejepoch" title="Link to this definition">#</a></dt>
 <dd><p>Remove rejected epochs.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tmprej</span></code> may be either a boolean vector of length <code class="docutils literal notranslate"><span class="pre">EEG.trials</span></code> or a
-list of EEGLAB-facing 1-based epoch indices. <code class="docutils literal notranslate"><span class="pre">confirm</span></code> is accepted for
-EEGLAB signature parity; browser-style confirmation is not opened in
-EEGPrep.</p>
+list of EEGLAB-facing 1-based epoch indices. The history command is always
+<code class="docutils literal notranslate"><span class="pre">pop_rejepoch(</span> <span class="pre">EEG,</span> <span class="pre">indices</span> <span class="pre">,0)</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m:101</span></code>). <code class="docutils literal notranslate"><span class="pre">confirm=-1</span></code>
+keeps an empty result (<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m:96-97</span></code>, <code class="docutils literal notranslate"><span class="pre">erroronempty</span></code> off).
+Any other confirm value raises when every epoch is marked. This function
+does not open a dialog. The scroll window asks before removing epochs, and
+the Reject marked epochs menu superposes marks before it calls this function.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
