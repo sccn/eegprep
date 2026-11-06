@@ -580,7 +580,14 @@ class MenuActionDispatcher:
                 return
             from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids
 
-            eeg_out, command = pop_importbids(source, return_com=True)
+            study, datasets, command = pop_importbids(source, gui=True, return_study=True, return_com=True)
+            if not command:
+                return
+            self.session.echo_command(command)
+            loaded = datasets if isinstance(datasets, list) else [datasets]
+            self.session.set_study(study, loaded, command=command)
+            self._refresh()
+            return
         else:
             filename = self._open_import_filename(action, parent)
             if not filename:
@@ -677,20 +684,32 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=allow_multiple)
         if selection is None:
             return
-        qt_widgets = _require_qt_widgets()
         if action in {"pop_exportbids", "bids_exporter"}:
-            directory = qt_widgets.QFileDialog.getExistingDirectory(
-                parent,
-                "Export to BIDS folder structure",
-                "",
-                **file_dialog_kwargs(qt_widgets, native_file_dialogs=self.native_file_dialogs, directories=True),
-            )
-            if not directory:
-                return
+            if self.session.CURRENTSTUDY != 1 or not self.session.STUDY:
+                raise ValueError(
+                    "pop_exportbids: BIDS export can only export EEGLAB studies. "
+                    "Create a study with File > Create study, then export again."
+                )
+            datasets = [eeg for eeg in self.session.ALLEEG if isinstance(eeg, dict) and has_eeg_data(eeg)]
             from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids
 
-            _output, command = pop_exportbids(selection, directory, return_com=True)
+            _output, command = pop_exportbids(
+                datasets,
+                gui=True,
+                require_study=True,
+                study=self.session.STUDY,
+                return_com=True,
+            )
+        elif action == "pop_export":
+            from eegprep.functions.popfunc.pop_export import pop_export
+
+            command = pop_export(selection)
+        elif action == "pop_writeeeg":
+            from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
+
+            command = pop_writeeeg(selection)
         else:
+            qt_widgets = _require_qt_widgets()
             filename, _filter = qt_widgets.QFileDialog.getSaveFileName(
                 parent,
                 "Export data",
@@ -700,22 +719,16 @@ class MenuActionDispatcher:
             )
             if not filename:
                 return
-            if action == "pop_export":
-                from eegprep.functions.popfunc.pop_export import pop_export
-
-                command = pop_export(selection, filename, "transpose", "on")
-            elif action == "pop_expica":
+            if action == "pop_expica":
                 from eegprep.functions.popfunc.pop_expica import pop_expica
 
                 command = pop_expica(selection, filename, variant or "weights")
-            elif action == "pop_expevents":
+            else:
                 from eegprep.functions.popfunc.pop_expevents import pop_expevents
 
                 command = pop_expevents(selection, filename)
-            else:
-                from eegprep.functions.popfunc.pop_writeeeg import pop_writeeeg
-
-                command = pop_writeeeg(selection, filename)
+        if not command:
+            return
         self._add_history_from_gui(command)
         self._refresh()
 
@@ -999,20 +1012,24 @@ class MenuActionDispatcher:
             from eegprep.plugins.EEG_BIDS.bids_tools import validate_bids
 
             report = validate_bids(directory)
+            detail = "\n".join(report["errors"][:12])
+            note = str(report.get("note") or "")
             self._info(
-                parent, f"BIDS validation complete: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+                parent,
+                f"validate_bids: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+                + (f"\n{note}" if note else "")
+                + (f"\n{detail}" if detail else ""),
             )
             return
         target = self.session.STUDY if self.session.CURRENTSTUDY == 1 and self.session.STUDY else self.session.EEG
         if isinstance(target, list):
             self._warn(parent, "Select one dataset or a study before editing BIDS metadata")
             return
-        metadata = self._ask_metadata(parent, action)
-        if metadata is None:
-            return
         from eegprep.plugins.EEG_BIDS import bids_tools
 
-        updated, command = getattr(bids_tools, action)(target, **metadata)
+        updated, command = getattr(bids_tools, action)(target, gui=True)
+        if not command:
+            return
         if self.session.CURRENTSTUDY == 1 and self.session.STUDY:
             self.session.echo_command(command)
             self.session.set_study(updated, command=command)

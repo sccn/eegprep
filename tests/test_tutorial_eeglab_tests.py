@@ -1424,11 +1424,11 @@ def _add_face_type_to_bids_events(root: Path) -> None:
     for path in root.rglob("*_events.tsv"):
         lines = path.read_text(encoding="utf-8").splitlines()
         header = lines[0].split("\t")
-        trial_type_index = header.index("trial_type")
+        value_index = header.index("value")
         rows = [line.split("\t") for line in lines[1:]]
         output = ["\t".join([*header, "face_type"])]
         for row in rows:
-            face_type = row[trial_type_index].split("_", maxsplit=1)[0]
+            face_type = row[value_index].split("_", maxsplit=1)[0]
             output.append("\t".join([*row, face_type]))
         path.write_text("\n".join(output) + "\n", encoding="utf-8")
 
@@ -1451,7 +1451,7 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
 
     imported, import_command = pop_importbids(
         bids_root,
-        eventtype="trial_type",
+        eventtype="value",
         bidsevent="replace",
         return_com=True,
     )
@@ -1499,7 +1499,7 @@ def test_bids_face_experiment_runs_import_ica_epoch_and_trial_factor_study(tmp_p
         name="Face type",
         variable1="face_type",
         values1=["famous", "scrambled", "unfamiliar"],
-        subjselect=["01", "02"],
+        subjselect=["S01", "S02"],
         return_com=True,
     )
     study, epochs, precompute_command = std_precomp(

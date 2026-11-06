@@ -18,6 +18,7 @@ def bids_list_eeg_files(
     sessions: Sequence[str | int] | str | int = (),
     runs: Sequence[str | int] | str | int = (),
     tasks: Sequence[str | int] | str | int = (),
+    recordings: Sequence[str | int] | str | int = (),
 ) -> List[str]:
     """Return a list of all EEG raw-data files in a BIDS dataset.
 
@@ -38,6 +39,8 @@ def bids_list_eeg_files(
     tasks : Sequence[str] | str, optional
         A sequence of task names or single task to filter the files by. If empty, all
         tasks are included (default is an empty sequence).
+    recordings : Sequence[str | int] | str | int, optional
+        Recording labels to filter by. If empty, all recordings are included.
 
     Returns
     -------
@@ -51,6 +54,7 @@ def bids_list_eeg_files(
         'session': [sessions] if isinstance(sessions, (str, int)) else sessions,
         'run': [runs] if isinstance(runs, (str, int)) else runs,
         'task': [tasks] if isinstance(tasks, (str, int)) else tasks,
+        'recording': [recordings] if isinstance(recordings, (str, int)) else recordings,
     }
     filters = {k: v for k, v in filters.items() if v}  # remove empty filters
 

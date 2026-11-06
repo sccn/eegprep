@@ -1381,7 +1381,14 @@ def _select_file(button: Any, target: Any, params: Mapping[str, Any], widgets: M
     file_filter = str(params.get("filter", "All files (*)"))
     kwargs = file_dialog_kwargs(qt_widgets)
 
-    if params.get("mode") == "save":
+    if params.get("mode") == "directory":
+        filename = qt_widgets.QFileDialog.getExistingDirectory(
+            button,
+            caption,
+            "",
+            **file_dialog_kwargs(qt_widgets, directories=True),
+        )
+    elif params.get("mode") == "save":
         filename, _selected_filter = qt_widgets.QFileDialog.getSaveFileName(button, caption, "", file_filter, **kwargs)
     else:
         filename, _selected_filter = qt_widgets.QFileDialog.getOpenFileName(button, caption, "", file_filter, **kwargs)

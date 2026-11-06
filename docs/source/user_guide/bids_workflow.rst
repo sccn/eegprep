@@ -31,6 +31,8 @@ recording:
            |-- sub-01_task-rest_run-01_eeg.fdt
            |-- sub-01_task-rest_run-01_channels.tsv
            |-- sub-01_task-rest_run-01_events.tsv
+           |-- sub-01_run-01_electrodes.tsv
+           |-- sub-01_run-01_coordsystem.json
            `-- sub-01_task-rest_run-01_eeg.json
 
 EEGPrep's BIDS loader supports EEGLAB ``.set``/``.fdt``, BrainVision
@@ -74,6 +76,34 @@ without downloading a public BIDS dataset:
 
    EEG = pop_load_frombids(eeg_files[0])
    print(EEG["setname"], EEG["nbchan"], EEG["pnts"], EEG["srate"])
+
+The export writes ``dataset_description.json``, ``README``, ``participants.tsv``,
+an EEGLAB ``.set``, ``*_channels.tsv``, ``*_events.tsv``, ``*_electrodes.tsv``,
+``*_coordsystem.json``, and ``*_eeg.json``. ``events.tsv`` uses ``onset``,
+``duration``, ``sample``, and ``value``. ``value`` is the event type, written
+the way MATLAB ``num2str`` does, so a numeric type ``1`` stays ``1``. A
+``trial_type`` column is added only when the dataset events already have that
+field. The electrodes and coordinate-system file names omit ``task-`` and
+``desc-``.
+
+A direct ``pop_exportbids(EEG, folder)`` call writes that one dataset from
+memory. The File menu follows EEGLAB and exports only a loaded study. Each
+dataset is written under ``EEG.subject``, or the study's ``datasetinfo``
+subject when the dataset subject is empty. One dataset with neither set uses
+the ``subject`` argument. ``createids=True`` replaces the unique subjects
+with ``sub-001``, ``sub-002``, and so on, and ``participants.tsv`` has one
+row per subject. The export dialog records a command you can run again in
+``eegprep-console``. EEGLAB leaves that history command empty. Importing a
+BIDS folder from the File menu loads the datasets into an in-memory study.
+It does not copy them into ``derivatives/eeglab``. The import field "Import
+only the following participant indices" takes 1-based positions in
+``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
+missing), such as ``2`` or ``1 2``. ``pop_importbids(..., subjects=[1, 2])``
+uses that same list, including when the dialog's history command is run again.
+A folder import from the dialog records ``[STUDY, ALLEEG] = pop_importbids(...)``
+with ``return_study`` on, plus any selected recordings. Running that command
+again rebuilds the same study. A direct call still returns the datasets unless
+``return_study=True``.
 
 This export is useful for learning EEGPrep's BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.
@@ -135,8 +165,10 @@ Common loading options:
    * - ``bidsevent="replace"``
      - Replace file events with events from the BIDS sidecar. Use ``"merge"``,
        ``"append"``, or ``False`` when your dataset needs a different policy.
-   * - ``eventtype="trial_type"``
+   * - ``eventtype="value"``
      - Choose the event sidecar column to use as the EEG event type.
+       ``value`` is the default. ``trial_type`` is the next fallback when
+       ``value`` is absent, and you can name either column explicitly.
    * - ``infer_locations=None``
      - Infer locations only when no channel locations are present. Pass
        ``True``, ``False``, or a montage filename for explicit behavior.
@@ -264,9 +296,12 @@ plugin menus. In a shared session, use:
    uv run eegprep-console --full
 
 Then choose ``File > Import data > From BIDS folder structure`` or
-``File > Export > To BIDS folder structure``. Successful menu actions update
-``EEG``, ``ALLEEG``, ``CURRENTSET``, ``LASTCOM``, and ``ALLCOM`` in the shared
-session just like other loading and saving workflows.
+``File > Export > To BIDS folder structure``. Import asks for the BIDS options,
+including which events column becomes the EEG event type, and stores a study.
+Export asks for the BIDS output folder, license, and task name, and it is
+available once a study is loaded. File > BIDS tools opens the task, participant,
+and event metadata dialogs. Successful menu actions update ``EEG``, ``ALLEEG``,
+``CURRENTSET``, ``STUDY``, ``LASTCOM``, and ``ALLCOM`` in the shared session.
 
 Troubleshooting
 ===============
@@ -287,8 +322,8 @@ Wrong Events or Labels
 Use ``return_report=True`` with ``pop_load_frombids`` and inspect the report.
 Then adjust ``bidsevent`` or ``eventtype``. For example, set
 ``bidsevent=False`` to keep events stored in the raw EEG file, or set
-``eventtype="value"`` when your event sidecar stores condition labels in a
-non-default column.
+``eventtype="trial_type"`` when the condition label lives in ``trial_type``
+and the file also has a ``value`` column. The default column is ``value``.
 
 Batch Job Uses Too Much Memory
 ------------------------------

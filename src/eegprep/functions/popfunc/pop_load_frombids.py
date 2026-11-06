@@ -31,8 +31,22 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-# list of candidate column names for event types in BIDS events files, in order of preference.
-event_type_columns = ['trial_type', 'type', 'event_type', 'HED', 'value', 'code']
+# bids_importeventfile.m:14 and pop_importbids.m:181 default the type column to value.
+event_type_columns = ['value', 'trial_type', 'type', 'event_type', 'HED', 'code']
+
+
+def _event_type_text(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, np.str_)):
+        return "" if str(value).strip().lower() == "nan" else value
+    try:
+        if np.isnan(value):
+            return ""
+    except TypeError:
+        return value
+    return value
+
 
 # a list of column names that we interpret to contain event timing information
 event_timing_columns = ['onset', 'duration', 'sample']
@@ -138,6 +152,8 @@ def pop_load_frombids(
         logger.info(f"Loading EEG data from {filename}...")
     basename = os.path.basename(filename)
     EEG, Fs, times_sec, raw_report = load_raw_eeg_file(filename, dtype=dtype)
+    if not isinstance(EEG.get("etc"), dict):
+        EEG["etc"] = {}
     report.update(raw_report)
 
     report['EEGFileHadLocations'] = sum(chanloc_has_coords(ch) for ch in EEG['chanlocs'])
@@ -323,7 +339,12 @@ def pop_load_frombids(
                     f"or were invalid; not overriding channel locations."
                 )
             else:
-                if EEG['chaninfo']['nosedir'] != '+X':
+                chaninfo = EEG.get("chaninfo")
+                if not isinstance(chaninfo, dict):
+                    chaninfo = {}
+                    EEG["chaninfo"] = chaninfo
+                # eeg_checkchanlocs.m default nose direction is +X.
+                if chaninfo.get("nosedir", "+X") != "+X":
                     warning(
                         f"Converting to the coordinate system {coord_system} of "
                         f"the EEG data file is not supported by this importer. "
@@ -468,7 +489,7 @@ def pop_load_frombids(
                     )
                     ev_types = np.full_like(ev_lats, '', dtype=object)
 
-                ev_types = [typ or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
+                ev_types = [_event_type_text(typ) or ('boundary' if typ == 'New Segment' else '') for typ in ev_types]
 
                 # this does not in
                 extra_columns = sorted(set(events.columns) - set(used_columns))
@@ -577,6 +598,11 @@ def pop_load_frombids(
         from eegprep import eeg_checkchanlocs
 
         EEG = eeg_checkchanlocs(EEG)
+        chaninfo = EEG.get("chaninfo")
+        if isinstance(chaninfo, dict):
+            for key in ("plotrad", "shrink"):
+                if chaninfo.get(key) is None:
+                    chaninfo[key] = np.array([])
     except ImportError:
         logger.info("eeg_checkchanlocs not available, skipping channel location check.")
 
