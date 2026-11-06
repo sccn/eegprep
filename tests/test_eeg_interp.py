@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 import pytest
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.eeg_interp import eeg_interp, spheric_spline, computeg
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
@@ -179,7 +180,7 @@ class TestEegInterpParity(unittest.TestCase):
             'srate': 500,
             'xmin': -1.0,
             'xmax': 1.0,
-            'times': np.linspace(-1.0, 1.0, n_timepoints),
+            'times': linspace(-1.0 * 1000.0, 1.0 * 1000.0, n_timepoints),
             'chanlocs': [],
             # Required fields for pop_saveset
             'icaact': np.array([]),
@@ -314,7 +315,7 @@ class TestEegInterpParity(unittest.TestCase):
         bad_chans = [2, 8]
         bad_chans_matlab = [3, 9]
         t_range = (-0.5, 0.5)
-        times_ms = np.linspace(
+        times_ms = linspace(
             self.test_EEG["xmin"] * 1000.0,
             self.test_EEG["xmax"] * 1000.0,
             self.test_EEG["pnts"],

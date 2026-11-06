@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.pop_interp import pop_interp
 from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
@@ -104,7 +105,7 @@ def _continuous(n_channels: int = 8, n_points: int = 100, srate: float = 100.0) 
         "srate": srate,
         "xmin": xmin,
         "xmax": xmax,
-        "times": np.linspace(xmin * 1000.0, xmax * 1000.0, n_points),
+        "times": linspace(xmin * 1000.0, xmax * 1000.0, n_points),
         "chanlocs": _locations(n_channels),
     }
 
