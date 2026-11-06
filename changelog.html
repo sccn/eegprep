@@ -476,6 +476,11 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> channel locations include empty <code class="docutils literal notranslate"><span class="pre">ref</span></code> and
+<code class="docutils literal notranslate"><span class="pre">type</span></code> on every channel. MATLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> fills a missing
+<code class="docutils literal notranslate"><span class="pre">chanlocs.ref</span></code> with <code class="docutils literal notranslate"><span class="pre">''</span></code> (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 1105-1117) and the
+checked structure also carries empty <code class="docutils literal notranslate"><span class="pre">type</span></code>. An unknown channel variable
+is still appended once.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> reads a BrainVision Analyzer MATLAB export
 the way bva-io <code class="docutils literal notranslate"><span class="pre">pop_loadbva.m</span></code> lines 46-139 does: one variable per channel,
 <code class="docutils literal notranslate"><span class="pre">SampleRate</span></code>, the <code class="docutils literal notranslate"><span class="pre">t</span></code> axis in milliseconds, and <code class="docutils literal notranslate"><span class="pre">Markers</span></code>. Channel
