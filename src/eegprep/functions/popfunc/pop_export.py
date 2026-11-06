@@ -10,6 +10,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.guifunc.inputgui import inputgui
+from eegprep.functions.guifunc.spec import CallbackSpec, ControlSpec, DialogSpec
 from eegprep.functions.miscfunc.misc import finite_matmul
 from eegprep.functions.popfunc._file_io import channel_labels
 from eegprep.functions.popfunc._pop_utils import format_history_value, is_on, parse_key_value_args
@@ -31,9 +33,25 @@ _EXPORT_EXPR_KEYWORDS = {
 _MAX_POWER_EXPONENT = 12
 
 
-def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: Any) -> str:
-    """Export EEG data or ICA activity to a delimited text file."""
-    options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
+def pop_export(
+    EEG: dict[str, Any],
+    filename: str | Path | None = None,
+    *args: Any,
+    renderer: Any = None,
+    **kwargs: Any,
+) -> str:
+    """Export EEG data or ICA activity to a delimited text file.
+
+    With no filename, the export dialog from ``pop_export.m`` lines 77-115 is
+    shown. Cancel returns an empty command.
+    """
+    if filename is None:
+        selected = _export_dialog_options(renderer)
+        if selected is None:
+            return ""
+        filename, options = selected
+    else:
+        options = parse_key_value_args(args, kwargs, lowercase_kwargs=True)
     data = _selected_data(EEG, ica=is_on(options.get("ica", "off")))
     if is_on(options.get("erp", "off")) and data.ndim == 3:
         data = data.mean(axis=2)
@@ -43,32 +61,177 @@ def pop_export(EEG: dict[str, Any], filename: str | Path, *args: Any, **kwargs: 
         data = _apply_expression(data, str(options["expr"]))
         if data.ndim == 3:
             data = data.reshape((data.shape[0], data.shape[1] * data.shape[2]))
-    if is_on(options.get("time", "on")):
+    use_time = is_on(options.get("time", "on"))
+    if use_time:
         time = np.tile(
             np.linspace(float(EEG.get("xmin", 0)), float(EEG.get("xmax", 0)), int(EEG["pnts"]))
-            / float(options.get("timeunit", 1e-3)),
+            / _time_unit(options.get("timeunit", 1e-3)),
             int(EEG.get("trials", 1)) if not is_on(options.get("erp", "off")) else 1,
         )
         data = np.vstack([time, data])
     separator = str(options.get("separator", "\t"))
     precision = int(options.get("precision", 7))
-    labels = ["Time", *channel_labels(EEG)] if is_on(options.get("time", "on")) else channel_labels(EEG)
+    use_elec = is_on(options.get("elec", "on"))
+    ica = is_on(options.get("ica", "off"))
     path = Path(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     transpose = is_on(options.get("transpose", "off"))
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream, delimiter=separator)
         if transpose:
-            if is_on(options.get("elec", "on")):
-                writer.writerow(labels)
+            if use_elec:
+                writer.writerow(_transpose_header(EEG, data.shape[0], ica=ica, use_time=use_time))
             writer.writerows(_format_row(row, precision) for row in data.T)
         else:
             for index, row in enumerate(data):
                 values = _format_row(row, precision)
-                if is_on(options.get("elec", "on")):
-                    values = [labels[index], *values]
+                if use_elec:
+                    values = [_row_label(EEG, index, ica=ica, use_time=use_time), *values]
                 writer.writerow(values)
     return _history_command(filename, options)
+
+
+def pop_export_dialog_spec() -> DialogSpec:
+    """Return the export dialog from ``pop_export.m`` lines 77-99."""
+    browse = CallbackSpec(
+        "select_file",
+        {
+            "button": "browse",
+            "target": "filename",
+            "mode": "save",
+            "caption": "Select a text file",
+            "filter": "All files (*)",
+        },
+    )
+    return DialogSpec(
+        title="Export data - pop_export()",
+        function_name="pop_export",
+        eeglab_source="functions/popfunc/pop_export.m",
+        geometry=(
+            [1, 2, 0.5],
+            *[[1.7, 0.25, 0.7, 0.6]] * 5,
+            [3, 0.7, 0.8, 0.6],
+            [3, 2, 0.05, 0.05],
+            [3, 2, 0.05, 0.05],
+        ),
+        controls=(
+            ControlSpec("text", "Output file name"),
+            ControlSpec("edit", tag="filename"),
+            ControlSpec("pushbutton", "Browse", tag="browse", callback=browse),
+            ControlSpec("text", "Export ICA activities instead of EEG data:"),
+            ControlSpec("checkbox", tag="ica", value=False),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Export ERP average instead of trials:"),
+            ControlSpec("checkbox", tag="erp", value=False),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Transpose matrix (elec -> cols):"),
+            ControlSpec("checkbox", tag="transpose", value=True),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Export channel labels/component numbers:"),
+            ControlSpec("checkbox", tag="elec", value=True),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Use comma separator (csv) instead of tab:"),
+            ControlSpec("checkbox", tag="separator", value=False),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Export time values:"),
+            ControlSpec("checkbox", tag="time", value=True),
+            ControlSpec("text", "Unit (re. sec)"),
+            ControlSpec("edit", tag="timeunit", value="1E-3"),
+            ControlSpec("text", "Number of significant digits to output:"),
+            ControlSpec("edit", tag="precision", value="4"),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Apply an expression to the output (see 'expr' help):"),
+            ControlSpec("edit", tag="expr"),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+        ),
+        known_differences=("The label says significant digits, but pop_export.m:179 writes %.Nf decimal places.",),
+    )
+
+
+def _export_dialog_options(renderer: Any) -> tuple[str, dict[str, Any]] | None:
+    """Decode the dialog the way ``pop_export.m`` lines 104-115 do."""
+    result = inputgui(pop_export_dialog_spec(), renderer=renderer)
+    if not result:
+        return None
+    filename = str(result.get("filename") or "").strip()
+    if not filename:
+        raise ValueError("pop_export: File name required. Enter an output file name, then press Ok.")
+    options: dict[str, Any] = {}
+    if result.get("ica"):
+        options["ica"] = "on"
+    if result.get("erp"):
+        options["erp"] = "on"
+    if result.get("transpose"):
+        options["transpose"] = "on"
+    if not result.get("elec", True):
+        options["elec"] = "off"
+    if result.get("separator"):
+        options["separator"] = ","
+    if not result.get("time", True):
+        options["time"] = "off"
+    timeunit = str(result.get("timeunit") or "1E-3").strip()
+    if timeunit.casefold() != "1e-3":
+        options["timeunit"] = _time_unit(timeunit)
+    precision = str(result.get("precision") or "7").strip()
+    if precision != "7":
+        options["precision"] = _precision(precision)
+    expression = str(result.get("expr") or "").strip()
+    if expression:
+        options["expr"] = expression
+    return filename, options
+
+
+def _time_unit(value: Any) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"pop_export: time unit {value!r} is not a number. Enter a value such as 1E-3.") from exc
+    if number <= 0:
+        raise ValueError(f"pop_export: time unit {value!r} must be greater than 0. Enter a value such as 1E-3.")
+    return number
+
+
+def _precision(value: Any) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"pop_export: precision {value!r} is not an integer. Enter the number of decimal places, such as 7."
+        ) from exc
+    if number < 0:
+        raise ValueError(f"pop_export: precision {value!r} must be 0 or greater. Enter a value such as 7.")
+    return number
+
+
+def _names(EEG: dict[str, Any], count: int, *, ica: bool) -> list[str]:
+    chanlocs = EEG.get("chanlocs")
+    if isinstance(chanlocs, np.ndarray):
+        chanlocs = [] if chanlocs.size == 0 else chanlocs.tolist()
+    if ica or not chanlocs:
+        return [str(index) for index in range(1, count + 1)]
+    labels = channel_labels(EEG)
+    return [labels[index] if index < len(labels) else str(index + 1) for index in range(count)]
+
+
+def _transpose_header(EEG: dict[str, Any], n_rows: int, *, ica: bool, use_time: bool) -> list[str]:
+    count = int(EEG.get("nbchan") or max(0, n_rows - (1 if use_time else 0)))
+    names = _names(EEG, count, ica=ica)
+    return ["Time", *names] if use_time else names
+
+
+def _row_label(EEG: dict[str, Any], index: int, *, ica: bool, use_time: bool) -> str:
+    # pop_export.m:217 writes a leading space on the non-transposed time label.
+    if use_time and index == 0:
+        return " Time"
+    label_index = index - 1 if use_time else index
+    return _names(EEG, label_index + 1, ica=ica)[label_index]
 
 
 def _selected_data(EEG: dict[str, Any], *, ica: bool) -> np.ndarray:
@@ -89,7 +252,7 @@ def _selected_data(EEG: dict[str, Any], *, ica: bool) -> np.ndarray:
 
 
 def _format_row(row: np.ndarray, precision: int) -> list[str]:
-    return [f"{float(value):.{precision}g}" for value in row]
+    return [f"{float(value):.{precision}f}" for value in row]
 
 
 def _apply_expression(data: np.ndarray, expression: str) -> np.ndarray:

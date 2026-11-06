@@ -10,6 +10,35 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
+  with ``return_study`` on, so the console rebuilds the same study.
+  ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct
+  call still returns the datasets unless ``return_study=True``. The history
+  also keeps the dialog's ``recordings`` selection, along with task, session,
+  run, and subject.
+- ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
+  indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
+  Replaying the recorded ``'subjects', [1 2]`` command selects those
+  participants. An index outside that list raises ``pop_importbids`` and
+  names the valid range.
+- ``pop_exportbids`` writes each study dataset under its own subject. The
+  label comes from ``EEG.subject``, then the matching ``STUDY.datasetinfo``
+  subject (``pop_exportbids.m`` lines 167-172). A dataset with neither set
+  raises ``pop_exportbids: no subject info found...``. One dataset with no
+  subject still uses the ``subject`` argument. ``createids`` assigns
+  ``sub-001``, ``sub-002``, and so on to the unique subjects
+  (``bids_export.m`` lines 605-608), so two sessions of one subject keep one
+  id and ``participants.tsv`` has one row per subject. Session and run are
+  taken from the dataset when they are set. The export dialog records a
+  command that replays in ``eegprep-console`` with the dataset list, task,
+  license, changes, and createids. EEGLAB leaves this command empty
+  (``pop_exportbids.m`` lines 247-252).
+- The BIDS import field "Import only the following participant indices"
+  takes 1-based indices into ``participants.tsv`` order, or sorted ``sub-*``
+  folder names when that file is missing (``pop_importbids.m`` lines 163 and
+  281). The indices are mapped to subject labels before the file filter. A
+  non-numeric or out-of-range value raises ``pop_importbids``. The history
+  command records the numbers, for example ``'subjects', [1 2]``.
 - Clicking or dragging in the scroll window marks data again. The plot
   viewport was asked for ``mapToScene``, which only ``QGraphicsView``
   provides, so every left click raised ``AttributeError``. Continuous
@@ -38,6 +67,60 @@ Unreleased
   Clearing every mark and pressing Reject stores the manual marks as
   unmarked and does not add a rejection command. The history command uses
   ``pop_rejepoch( EEG, [..] ,0);`` (``pop_rejepoch.m`` line 101).
+- File > Export opens the ``pop_export``, ``pop_writeeeg``, and ``pop_exportbids``
+  dialogs (``pop_export.m`` lines 77-115, ``pop_writeeeg.m`` lines 52-80,
+  ``pop_exportbids.m`` lines 48-83). ``pop_expica`` and ``pop_expevents`` stay
+  file pickers, matching ``pop_expica.m`` lines 61-69 and ``pop_expevents.m``
+  lines 67-73.
+- File > BIDS tools opens the task, participant, and event dialogs from
+  ``pop_taskinfo.m``, ``pop_participantinfo.m`` line 160, and ``pop_eventinfo.m``
+  line 59. Values are stored on ``EEG.etc.bids`` so ``pop_saveset`` keeps them.
+  An empty subject code raises an error from ``pop_participantinfo``.
+- Importing a BIDS dataset replaces a missing ``chaninfo.plotrad`` or
+  ``chaninfo.shrink`` with an empty array, so File > Save no longer fails while
+  ``savemat`` is writing those fields. The import dialog matches
+  ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
+  copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
+  892 do).
+- ``pop_writeeeg`` keeps every EDF and BDF sample and every event annotation.
+  EEGLAB ``writeeeg.m`` line 139 shortens a block longer than 1000 samples to
+  one second (``round(srate)`` samples per record). Biosig then pads the file
+  to that record boundary and fills the extra samples with the digital minimum,
+  which reads back as the channel physical minimum. A 2112-sample recording at
+  200 Hz is 11 seconds from EEGLAB and stays 2112 samples in EEGPrep.
+  ``pop_writeeeg.m`` line 97 records the command without a ``LASTCOM`` prefix.
+  Epoched data is concatenated after the same confirmation as lines 53-57.
+- ``pop_export`` writes ``%.Nf`` decimal places (``pop_export.m`` line 179).
+  The dialog label still says "significant digits" (line 93). ICA columns use
+  component numbers (lines 187-191). A non-transposed time row is labeled
+  `` Time`` (line 217). ``pop_expica`` writes ``save -ascii`` text
+  (``pop_expica.m`` line 79) with each value formatted ``%16.7e``.
+  ``pop_expevents`` follows ``eeg_eventtable.m`` lines 123-159: a ``number``
+  column, first-seen field order, and ``%f`` numeric cells.
+- ``pop_exportbids`` writes ``README``, ``*_eeg.json``, ``*_electrodes.tsv``,
+  and ``*_coordsystem.json``. The electrodes and coordinate-system names drop
+  ``task-`` and ``desc-`` (``bids_writeelectrodefile.m`` lines 32-49 and
+  272-316). Event tables use ``onset``, ``duration``, ``sample``, and ``value``
+  (``bids_writeeventfile.m`` lines 128-197), and a numeric type ``1`` is written
+  as ``1``. ``validate_bids`` reports a missing README, ``*_eeg.json``,
+  electrodes file, or coordsystem file. It runs the official bids-validator
+  when ``bids-validator``, ``npx``, or ``deno`` is on PATH, and otherwise says
+  the check was sidecars only and how to install the validator. It does not add
+  ``eegprep_bids_validation.json`` to the dataset. The File menu exports a study
+  only (``pop_exportbids.m`` line 33). ``pop_exportbids(EEG, folder)`` still
+  writes one dataset from memory.
+- BIDS import uses the ``value`` column as the EEG event type when that column
+  exists (``bids_importeventfile.m`` line 14, ``pop_importbids.m`` line 181).
+  ``trial_type`` is still used when ``value`` is absent. A ``nan`` event type
+  is stored as an empty string. The import dialog's task, session, run, and
+  recording selectors are the popup and listboxes from ``pop_importbids.m``
+  lines 112-118, filled by scanning the folder. Empty session, run, and
+  recording rows are omitted (lines 128-142).
+- The export dialog's "Number of significant digits" field is passed through
+  as ``%.Nf`` decimal places, which is what ``pop_export.m`` line 179 does
+  with the string from line 93. The function default remains 7 decimal places
+  (line 129). The dialog default remains 4 (line 94) and is the edit field's
+  value, so pressing Ok without changing that field writes 4 decimal places.
 - ``newtimef`` and ``timefreq`` keep every requested output time, including
   times that round onto the same sample. ``timefreq.m`` ``gettimes`` drops
   duplicates only when the index list is shorter than its unique values, so

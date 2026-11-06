@@ -86,7 +86,7 @@ def test_pop_writeeeg_gdf_history_and_free_text_event_mapping(tmp_path: Path) ->
     assert list(raw.annotations.onset * eeg["srate"] + 1) == pytest.approx([20, 40, 60], abs=1e-3)
     # MNE normalizes zero-duration GDF events to one sample when reading.
     assert list(raw.annotations.duration) == [1 / eeg["srate"]] * 3
-    assert command == f"LASTCOM = pop_writeeeg(EEG, '{output.as_posix()}', 'TYPE', 'GDF');"
+    assert command == f"pop_writeeeg(EEG, '{output.as_posix()}', 'TYPE', 'GDF');"
 
 
 def test_writegdf_preserves_fractional_sampling_rates_without_events(tmp_path: Path) -> None:

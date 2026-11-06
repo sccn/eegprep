@@ -8,7 +8,10 @@ Usage:
 com = pop_expevents(EEG, "events.tsv")
 ```
 
-The exported table preserves event fields available in the current EEG
-dictionary. Use `pop_importevent` to import compatible event tables.
+The table starts with a `number` column, then the event fields in the order
+they appear on the events. Numeric values use six digits after the decimal
+point. `urevent` is written 1-based. The default unit is `samples`. Pass
+`unit="seconds"` to write `latency` and `duration` in seconds. File > Export
+asks for the file name only, the same as the EEGLAB dialog.
 
 See also: POP_IMPORTEVENT

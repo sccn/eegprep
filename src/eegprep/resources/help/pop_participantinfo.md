@@ -9,7 +9,9 @@ Usage:
 EEG, com = pop_participantinfo(EEG, participant_id="sub-01")
 ```
 
-The File > BIDS tools menu prompts for `key=value` lines and stores the values
-under `target["etc"]["bids"]["participant"]`.
+File > BIDS tools opens a dialog whose first field is the subject code, then
+Gender, Age, Group, head circumference, and artefact description. The subject
+code is required. Keyword arguments skip the dialog. Values are stored under
+`target["etc"]["bids"]["participant"]`.
 
 See also: POP_TASKINFO, POP_EVENTINFO, POP_EXPORTBIDS

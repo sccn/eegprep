@@ -25,8 +25,14 @@ require small numeric-constant exponents such as `x ** 2`; dynamic or very
 large exponents are rejected before evaluation. The expression must leave a 2-D
 or 3-D array.
 
-The main-window export action prompts for an output file and records the
-resulting command in session history. Use BIDS export for dataset sidecars and
-structured folder output.
+File > Export opens the export dialog. It asks for the file name, ICA or ERP
+export, transpose, channel labels, a comma separator, time values, the time
+unit, the number of decimal places, and an optional expression. The dialog
+label says "significant digits", and the file uses that many digits after the
+decimal point. Calling `pop_export` with a filename skips the dialog. The
+default precision on that call is 7. Transpose defaults to off unless you pass
+`"transpose", "on"`. The dialog checkbox for transpose starts on.
+
+Use BIDS export for dataset sidecars and structured folder output.
 
 See also: POP_EXPORTBIDS, POP_EXPEVENTS, POP_WRITEEEG

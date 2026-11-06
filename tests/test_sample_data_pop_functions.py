@@ -488,8 +488,8 @@ def test_pop_expica_exports_sample_ica_matrices(sample_eeg_with_ica, tmp_path):
         weights_command = pop_expica(sample_eeg_with_ica, weights_file)
         inverse_command = pop_expica(sample_eeg_with_ica, inverse_file, "inv")
 
-    exported_weights = np.loadtxt(weights_file, delimiter="\t")
-    exported_inverse = np.loadtxt(inverse_file, delimiter="\t")
+    exported_weights = np.loadtxt(weights_file)
+    exported_inverse = np.loadtxt(inverse_file)
     np.testing.assert_allclose(
         exported_weights,
         finite_matmul(sample_eeg_with_ica["icaweights"], sample_eeg_with_ica["icasphere"]),
@@ -550,11 +550,14 @@ def test_pop_expevents_writes_all_sample_events(tmp_path, sample_eeg):
     command = pop_expevents(sample_eeg, output_file)
 
     lines = output_file.read_text(encoding="utf-8").splitlines()
-    assert lines[0] == "latency\tposition\ttype\turevent"
+    header = lines[0].split("\t")
+    assert header[0] == "number"
+    assert "urevent" in header
     assert len(lines) == len(sample_eeg["event"]) + 1
     assert "square" in lines[1]
     # Exported urevent is 1-based like EEGLAB; in memory it is 0-based.
-    exported_urevents = [int(line.split("\t")[3]) for line in lines[1:]]
+    urevent_index = header.index("urevent")
+    exported_urevents = [int(float(line.split("\t")[urevent_index])) for line in lines[1:]]
     assert exported_urevents == [int(event["urevent"]) + 1 for event in sample_eeg["event"]]
     assert exported_urevents[0] == 1
     assert "pop_expevents" in command
