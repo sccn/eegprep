@@ -15,7 +15,8 @@ a single EEG dictionary or a list of dictionaries depending on how many files
 are found. Pass `return_study=True` to also get an in-memory study. The File
 menu import does that after showing the options dialog: study name, channel
 locations, the events column used as the event type, and optional task,
-session, run, and subject filters. The event type defaults to the `value`
+session, run, and subject filters. Those task, session, run, and recording
+choices are a popup and listboxes filled by scanning the folder. The event type defaults to the `value`
 column. `trial_type` is used when `value` is absent. The import does not copy
 datasets into `derivatives/eeglab`.
 

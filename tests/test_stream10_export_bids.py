@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +32,11 @@ from eegprep.plugins.EEG_BIDS.bids_tools import (
     pop_taskinfo_dialog_spec,
     validate_bids,
 )
-from eegprep.plugins.EEG_BIDS.pop_exportbids import pop_exportbids, pop_exportbids_dialog_spec
+from eegprep.plugins.EEG_BIDS.pop_exportbids import (
+    _electrode_basename,
+    pop_exportbids,
+    pop_exportbids_dialog_spec,
+)
 from eegprep.plugins.EEG_BIDS.pop_importbids import pop_importbids, pop_importbids_dialog_spec
 
 
@@ -77,9 +84,9 @@ def test_pop_export_dialog_matches_eeglab_defaults_and_decimal_places(tmp_path):
 
     assert spec.title == "Export data - pop_export()"
     assert "Number of significant digits to output:" in labels
-    assert controls["precision"].string == "4"
+    assert controls["precision"].value == "4"
     assert controls["transpose"].value is True
-    assert controls["timeunit"].string == "1E-3"
+    assert controls["timeunit"].value == "1E-3"
     assert controls["time"].value is True
 
     eeg = _eeg(data=np.array([[1.23456789, -2.5], [0.0, 1.0]]))
@@ -287,8 +294,12 @@ def test_bids_import_prefers_the_value_column(tmp_path):
     assert command.startswith("[STUDY, ALLEEG] = pop_importbids(")
     assert "'eventtype', 'value'" in command
     assert "'bidsevent', 'on'" in command
-    assert "derivatives/eeglab" in command
-    assert any("listboxes" in note for note in spec.known_differences)
+    assert "derivatives/eeglab" in command.replace("\\", "/")
+    controls = controls_by_tag(spec)
+    assert controls["bidstaskstr"].style == "popupmenu"
+    assert "oddball" in controls["bidstaskstr"].string.split("|")
+    assert controls["bidsrunsstr"].style == "listbox"
+    assert controls["folder"].value.endswith("derivatives/eeglab")
     assert not (tmp_path / "derivatives" / "eeglab").exists()
     assert pop_importbids(root, gui=True, renderer=_Renderer(None), return_com=True) == (None, "")
 
@@ -313,9 +324,13 @@ def test_pop_exportbids_writes_required_sidecars_and_value_column(tmp_path):
     sidecar = (prefix.parent / f"{prefix.name}_eeg.json").read_text(encoding="utf-8")
     assert '"TaskName": "oddball"' in sidecar
     assert '"PowerLineFrequency": "n/a"' in sidecar
-    electrodes = prefix.parent / f"{prefix.name}_electrodes.tsv"
+    electrodes = prefix.parent / "sub-01_run-01_electrodes.tsv"
     assert electrodes.exists()
-    assert "task-oddball" in electrodes.name
+    assert "task-" not in electrodes.name
+    assert "desc-" not in electrodes.name
+    coords = json.loads((prefix.parent / "sub-01_run-01_coordsystem.json").read_text(encoding="utf-8"))
+    assert coords["EEGCoordinateSystem"] == "CTF"
+    assert coords["EEGCoordinateUnits"] == "mm"
     rows = list(csv.reader((prefix.parent / f"{prefix.name}_events.tsv").open(encoding="utf-8"), delimiter="\t"))
     assert rows[0][:4] == ["onset", "duration", "sample", "value"]
     assert rows[1][rows[0].index("value")] == "1"
@@ -333,7 +348,11 @@ def test_pop_exportbids_writes_required_sidecars_and_value_column(tmp_path):
         pop_exportbids(eeg, tmp_path / "bad-task", task="my task")
 
     wizard = pop_exportbids_dialog_spec()
+    wizard_controls = controls_by_tag(wizard)
     labels = [control.string for control in wizard.controls]
+    assert wizard_controls["outputfolder"].value == "BIDS_EXPORT"
+    assert wizard_controls["license"].value == "Creative Common 0 (CC0)"
+    assert wizard_controls["taskname"].value == "eeg"
     assert "Output folder:" in labels
     assert "Edit task & EEG info" in labels
     assert "Edit participants" in labels
@@ -405,6 +424,22 @@ def test_bids_metadata_dialogs_store_structured_fields():
     assert updated["etc"]["bids"]["task"]["PowerLineFrequency"] == "60"
     with pytest.raises(ValueError, match="pop_participantinfo: No subject ID found"):
         pop_participantinfo(eeg, gui=True, renderer=_Renderer({"participant_id": ""}))
+    listed = _eeg()
+    listed["subject"] = ["001"]
+    captured: dict[str, object] = {}
+
+    class _Capture(_Renderer):
+        def run(self, spec, initial_values=None):
+            captured["initial"] = dict(initial_values or {})
+            return {"participant_id": captured["initial"]["participant_id"]}
+
+    updated, _command = pop_participantinfo(listed, gui=True, renderer=_Capture(None))
+    assert captured["initial"]["participant_id"] == "sub-001"
+    assert updated["etc"]["bids"]["participant"]["participant_id"] == "sub-001"
+    array_subject = _eeg()
+    array_subject["subject"] = np.array(["002"])
+    pop_participantinfo(array_subject, gui=True, renderer=_Capture(None))
+    assert captured["initial"]["participant_id"] == "sub-002"
     updated, _command = pop_eventinfo(eeg, gui=True, renderer=_Renderer({"value": "stimulus code", "onset": ""}))
     assert updated["etc"]["bids"]["event"] == {"value": "stimulus code"}
 
@@ -430,6 +465,91 @@ def test_export_menu_uses_dialogs_and_requires_a_study(monkeypatch):
     dispatcher.dispatch("pop_export")
     dispatcher.dispatch("pop_writeeeg")
     assert seen == {"pop_export": None, "pop_writeeeg": None}
+
+
+def test_electrode_basename_strips_task_and_desc():
+    assert _electrode_basename("sub-01_ses-01_task-GoNogo_desc-preproc_run-01") == "sub-01_ses-01_run-01"
+    assert _electrode_basename("sub-01_task-oddball") == "sub-01"
+
+
+def test_import_dialog_uses_scanned_popup_and_listboxes(tmp_path):
+    eeg_dir = tmp_path / "sub-01" / "ses-02" / "eeg"
+    eeg_dir.mkdir(parents=True)
+    (eeg_dir / "sub-01_ses-02_task-rest_run-2_recording-head_eeg.set").write_bytes(b"")
+    controls = controls_by_tag(pop_importbids_dialog_spec(tmp_path))
+    assert controls["bidstaskstr"].style == "popupmenu"
+    assert controls["bidstaskstr"].string == "rest"
+    assert controls["bidstaskstr"].enabled is False
+    assert controls["bidsessionstr"].style == "listbox"
+    assert controls["bidsessionstr"].string == "ses-02"
+    assert controls["bidsrunsstr"].style == "listbox"
+    assert controls["bidsrunsstr"].string == "2"
+    assert controls["bidsrecordingsstr"].style == "listbox"
+    assert controls["bidsrecordingsstr"].string == "head"
+
+
+def test_validate_bids_uses_the_official_validator_when_it_is_installed(tmp_path, monkeypatch):
+    root = Path(pop_exportbids(_eeg(), tmp_path / "bids"))
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/bids-validator" if name == "bids-validator" else None)
+
+    def _run(command, **_kwargs):
+        assert command[:2] == ["/usr/bin/bids-validator", "--json"]
+        payload = json.dumps({"issues": {"errors": [{"reason": "bad electrodes"}], "warnings": []}})
+        return subprocess.CompletedProcess(command, 1, stdout=payload, stderr="")
+
+    monkeypatch.setattr("eegprep.plugins.EEG_BIDS.bids_tools.subprocess.run", _run)
+    report = validate_bids(root)
+    assert any("bad electrodes" in error for error in report["errors"])
+    assert report["note"] is None
+
+
+def test_validate_bids_says_when_only_the_sidecar_check_ran(tmp_path, monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    report = validate_bids(tmp_path / "missing")
+    assert report["note"]
+    assert "sidecar check only" in report["note"]
+    assert "npm install -g bids-validator" in report["note"]
+
+
+def test_pop_export_ok_keeps_the_dialog_precision_default(tmp_path):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from eegprep.functions.guifunc import qt as qt_module
+
+    if qt_module.QtCore is None or qt_module.QtWidgets is None:
+        pytest.skip("PySide6 Qt libraries unavailable in this environment")
+    renderer = qt_module.QtDialogRenderer()
+    _app, dialog, widgets = renderer.build_dialog(pop_export_dialog_spec())
+    try:
+        assert widgets["precision"].text() == "4"
+        assert widgets["timeunit"].text() == "1E-3"
+        destination = tmp_path / "defaults.txt"
+        widgets["filename"].setText(str(destination))
+        dialog.findChild(qt_module.QtWidgets.QPushButton, "ok").click()
+        assert dialog.result() == qt_module.QtWidgets.QDialog.DialogCode.Accepted
+        values = {tag: qt_module.QtDialogRenderer._read_widget(widget) for tag, widget in widgets.items()}
+    finally:
+        dialog.close()
+    eeg = _eeg(data=np.array([[1.23456789, -2.5]]))
+    eeg["pnts"] = 2
+    eeg["nbchan"] = 1
+    command = pop_export(eeg, renderer=_Renderer(values))
+    text = destination.read_text(encoding="utf-8")
+    assert "1.2346" in text
+    assert "1.2345679" not in text
+    assert "'precision', 4" in command
+
+    _app, wizard, wizard_widgets = renderer.build_dialog(pop_exportbids_dialog_spec(task="oddball"))
+    try:
+        assert wizard_widgets["outputfolder"].text() == "BIDS_EXPORT"
+        assert wizard_widgets["license"].text() == "Creative Common 0 (CC0)"
+        assert wizard_widgets["taskname"].text() == "oddball"
+    finally:
+        wizard.close()
+    _app, importer, import_widgets = renderer.build_dialog(pop_importbids_dialog_spec(tmp_path))
+    try:
+        assert import_widgets["folder"].text().replace("\\", "/").endswith("derivatives/eeglab")
+    finally:
+        importer.close()
 
 
 def test_qt_export_dialogs_build(tmp_path):

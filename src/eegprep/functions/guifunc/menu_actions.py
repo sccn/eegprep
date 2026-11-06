@@ -1013,9 +1013,11 @@ class MenuActionDispatcher:
 
             report = validate_bids(directory)
             detail = "\n".join(report["errors"][:12])
+            note = str(report.get("note") or "")
             self._info(
                 parent,
                 f"validate_bids: {len(report['errors'])} errors, {len(report['warnings'])} warnings."
+                + (f"\n{note}" if note else "")
                 + (f"\n{detail}" if detail else ""),
             )
             return

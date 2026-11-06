@@ -141,9 +141,9 @@ def pop_export_dialog_spec() -> DialogSpec:
             ControlSpec("text", "Export time values:"),
             ControlSpec("checkbox", tag="time", value=True),
             ControlSpec("text", "Unit (re. sec)"),
-            ControlSpec("edit", "1E-3", tag="timeunit"),
+            ControlSpec("edit", tag="timeunit", value="1E-3"),
             ControlSpec("text", "Number of significant digits to output:"),
-            ControlSpec("edit", "4", tag="precision"),
+            ControlSpec("edit", tag="precision", value="4"),
             ControlSpec("text", ""),
             ControlSpec("text", ""),
             ControlSpec("text", "Apply an expression to the output (see 'expr' help):"),
@@ -211,7 +211,6 @@ def _precision(value: Any) -> int:
 
 
 def _names(EEG: dict[str, Any], count: int, *, ica: bool) -> list[str]:
-    # pop_export.m:187-191 prints the component index when exporting ICA activity.
     chanlocs = EEG.get("chanlocs")
     if isinstance(chanlocs, np.ndarray):
         chanlocs = [] if chanlocs.size == 0 else chanlocs.tolist()
@@ -253,7 +252,6 @@ def _selected_data(EEG: dict[str, Any], *, ica: bool) -> np.ndarray:
 
 
 def _format_row(row: np.ndarray, precision: int) -> list[str]:
-    # pop_export.m:179 uses %.Nf (decimal places), not significant digits.
     return [f"{float(value):.{precision}f}" for value in row]
 
 

@@ -31,7 +31,8 @@ recording:
            |-- sub-01_task-rest_run-01_eeg.fdt
            |-- sub-01_task-rest_run-01_channels.tsv
            |-- sub-01_task-rest_run-01_events.tsv
-           |-- sub-01_task-rest_run-01_electrodes.tsv
+           |-- sub-01_run-01_electrodes.tsv
+           |-- sub-01_run-01_coordsystem.json
            `-- sub-01_task-rest_run-01_eeg.json
 
 EEGPrep's BIDS loader supports EEGLAB ``.set``/``.fdt``, BrainVision
@@ -78,11 +79,12 @@ without downloading a public BIDS dataset:
 
 The export writes ``dataset_description.json``, ``README``, ``participants.tsv``,
 an EEGLAB ``.set``, ``*_channels.tsv``, ``*_events.tsv``, ``*_electrodes.tsv``,
-and ``*_eeg.json``. ``events.tsv`` uses ``onset``, ``duration``, ``sample``, and
-``value``. ``value`` is the event type, written the way MATLAB ``num2str`` does,
-so a numeric type ``1`` stays ``1``. A ``trial_type`` column is added only when
-the dataset events already have that field. The electrodes file keeps the
-``task-`` entity in its name.
+``*_coordsystem.json``, and ``*_eeg.json``. ``events.tsv`` uses ``onset``,
+``duration``, ``sample``, and ``value``. ``value`` is the event type, written
+the way MATLAB ``num2str`` does, so a numeric type ``1`` stays ``1``. A
+``trial_type`` column is added only when the dataset events already have that
+field. The electrodes and coordinate-system file names omit ``task-`` and
+``desc-``.
 
 A direct ``pop_exportbids(EEG, folder)`` call writes that one dataset from
 memory. The File menu follows EEGLAB and exports only a loaded study. Importing

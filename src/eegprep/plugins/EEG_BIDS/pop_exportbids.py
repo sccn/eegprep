@@ -35,10 +35,6 @@ def pop_exportbids(
     that were already saved (line 204). A direct ``pop_exportbids(EEG, folder)``
     call still writes the dataset from memory so the command-line export keeps
     working.
-
-    ``bids_writeelectrodefile.m`` lines 32-39 drop the ``task-`` entity to work
-    around a bids-validator 1.10 bug. The electrodes file written here keeps
-    ``task-`` so the name matches the recording.
     """
     datasets = [item for item in (EEG if isinstance(EEG, list) else [EEG]) if isinstance(item, dict)]
     if require_study and not study:
@@ -93,10 +89,10 @@ def pop_exportbids_dialog_spec(*, task: str = "eeg") -> DialogSpec:
             ControlSpec("text", "Export EEGLAB study to BIDS", font_weight="bold"),
             ControlSpec("text", ""),
             ControlSpec("text", "Output folder:"),
-            ControlSpec("edit", "BIDS_EXPORT", tag="outputfolder"),
+            ControlSpec("edit", tag="outputfolder", value="BIDS_EXPORT"),
             ControlSpec("pushbutton", "...", tag="browse", callback=browse),
             ControlSpec("text", "Licence for distributing:"),
-            ControlSpec("edit", "Creative Common 0 (CC0)", tag="license"),
+            ControlSpec("edit", tag="license", value="Creative Common 0 (CC0)"),
             ControlSpec("text", "CHANGES compared to previous releases:"),
             ControlSpec("edit", tag="changes"),
             ControlSpec("pushbutton", "Edit task & EEG info", tag="task"),
@@ -109,7 +105,7 @@ def pop_exportbids_dialog_spec(*, task: str = "eeg") -> DialogSpec:
                 value=False,
             ),
             ControlSpec("text", "Task name (no space or underscore)"),
-            ControlSpec("edit", task, tag="taskname"),
+            ControlSpec("edit", tag="taskname", value=task),
         ),
         known_differences=(
             "Task name is on this dialog. EEGLAB asks in a second window when STUDY.task is empty "
@@ -176,7 +172,6 @@ def _run_qt_export_dialog(spec: DialogSpec, datasets: list[dict[str, Any]]) -> d
 
 
 def _check_task_name(task: str) -> None:
-    # bids_writetinfofile.m:88-89
     if any(character in task for character in (" ", "_")):
         raise ValueError(
             f"pop_exportbids: task name {task!r} contains a space or underscore. "
@@ -248,7 +243,9 @@ def _write_recordings(
         _write_channels(eeg_dir / f"{prefix}_channels.tsv", eeg)
         _write_events(eeg_dir / f"{prefix}_events.tsv", eeg)
         _write_eeg_json(eeg_dir / f"{prefix}_eeg.json", eeg, task_info)
-        _write_electrodes(eeg_dir / f"{prefix}_electrodes.tsv", eeg)
+        electrode_stem = _electrode_basename(prefix)
+        _write_electrodes(eeg_dir / f"{electrode_stem}_electrodes.tsv", eeg)
+        _write_coordsystem(eeg_dir / f"{electrode_stem}_coordsystem.json", eeg)
     return subjects
 
 
@@ -282,7 +279,6 @@ def _write_channels(path: Path, eeg: dict[str, Any]) -> None:
 
 
 def _write_events(path: Path, eeg: dict[str, Any]) -> None:
-    # bids_writeeventfile.m:128 puts onset, duration, sample, and value first.
     events = events_to_records(eeg.get("event"))
     include_trial_type = any("trial_type" in event for event in events)
     fields = ["onset", "duration", "sample", "value"]
@@ -307,7 +303,6 @@ def _write_events(path: Path, eeg: dict[str, Any]) -> None:
 
 
 def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) -> None:
-    # bids_writetinfofile.m lines 41-70.
     trials = int(eeg.get("trials") or 1)
     pnts = int(eeg.get("pnts") or np.asarray(eeg.get("data")).shape[-1])
     srate = float(eeg.get("srate") or 1.0)
@@ -344,6 +339,56 @@ def _write_eeg_json(path: Path, eeg: dict[str, Any], task_info: dict[str, Any]) 
     ):
         if task_info.get(key) not in (None, ""):
             payload[key] = task_info[key]
+    write_json(path, payload)
+
+
+def _electrode_basename(stem: str) -> str:
+    # bids_writeelectrodefile.m:32-49 removes task- and desc- from the electrodes name.
+    return _drop_filename_entity(_drop_filename_entity(stem, "task-"), "desc-")
+
+
+def _drop_filename_entity(name: str, token: str) -> str:
+    start = name.find(token)
+    if start < 0:
+        return name
+    end = name.find("_", start)
+    if end < 0:
+        end = len(name)
+    cut = start - 1 if start > 0 and name[start - 1] == "_" else start
+    return name[:cut] + name[end:]
+
+
+def _write_coordsystem(path: Path, eeg: dict[str, Any]) -> None:
+    # bids_writeelectrodefile.m:272-316 writes one coordsystem.json beside electrodes.tsv.
+    chaninfo = eeg.get("chaninfo")
+    bids = chaninfo.get("BIDS") if isinstance(chaninfo, dict) else None
+    if not isinstance(bids, dict):
+        bids = {}
+    systems = bids.get("coordsystems")
+    if isinstance(systems, list) and systems:
+        base = path.name.removesuffix("_coordsystem.json")
+        for system in systems:
+            if not isinstance(system, dict):
+                continue
+            payload = {key: value for key, value in system.items() if str(key).lower() != "space"}
+            space = str(system.get("space") or "")
+            target = path.with_name(f"{base}_space-{space}_coordsystem.json") if space else path
+            write_json(target, payload)
+        return
+    etc = eeg.get("etc")
+    datatype = str(etc.get("datatype") or "") if isinstance(etc, dict) else ""
+    if datatype.lower() == "emg":
+        payload = {
+            "EMGCoordinateUnits": bids.get("EMGCoordinateUnits", "mm"),
+            "EMGCoordinateSystem": bids.get("EMGCoordinateSystem", "Other"),
+            "EMGCoordinateSystemDescription": bids.get("EMGCoordinateSystemDescription", "Electrode locations in mm"),
+        }
+    else:
+        payload = {
+            "EEGCoordinateUnits": bids.get("EEGCoordinateUnits", "mm"),
+            "EEGCoordinateSystem": bids.get("EEGCoordinateSystem", "CTF"),
+            "EEGCoordinateSystemDescription": bids.get("EEGCoordinateSystemDescription", "EEGLAB"),
+        }
     write_json(path, payload)
 
 

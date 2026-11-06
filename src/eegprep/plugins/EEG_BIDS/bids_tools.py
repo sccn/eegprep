@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -165,11 +168,21 @@ def pop_eventinfo_dialog_spec() -> DialogSpec:
     )
 
 
-def validate_bids(root: str | Path) -> dict[str, list[str]]:
-    """Check that a BIDS folder has the sidecars ``pop_exportbids`` writes.
+_VALIDATOR_NOTE = (
+    "validate_bids: this was a sidecar check only. The official bids-validator was not found on PATH. "
+    "Install it with `npm install -g bids-validator` or `deno install -A jsr:@bids/validator`, "
+    "then run validate_bids again."
+)
 
-    This does not run the external bids-validator binary used by
-    ``pop_validatebids.m``. It does not write a report file into the dataset.
+
+def validate_bids(root: str | Path) -> dict[str, list[str] | str | None]:
+    """Check BIDS sidecars, then the official bids-validator when it is installed.
+
+    ``pop_validatebids.m`` runs the bids-validator plugin. This function runs
+    ``bids-validator`` or ``npx --no-install bids-validator`` when that command
+    is on PATH, and ``deno run -A jsr:@bids/validator`` when ``deno`` is on PATH.
+    It does not write a report file into the dataset. ``note`` tells the GUI
+    when only the sidecar check ran.
     """
     path = Path(root)
     errors: list[str] = []
@@ -178,7 +191,7 @@ def validate_bids(root: str | Path) -> dict[str, list[str]]:
         errors.append(
             f"validate_bids: BIDS path does not exist: {path}. Pass the folder that contains dataset_description.json."
         )
-        return {"errors": errors, "warnings": warnings}
+        return {"errors": errors, "warnings": warnings, "note": _VALIDATOR_NOTE}
     if not (path / "dataset_description.json").exists():
         errors.append(
             f"validate_bids: dataset_description.json is missing from {path}. "
@@ -211,7 +224,98 @@ def validate_bids(root: str | Path) -> dict[str, list[str]]:
             f"validate_bids: no *_electrodes.tsv file in {path}. "
             "Re-export with pop_exportbids so each recording has an electrodes.tsv file."
         )
-    return {"errors": errors, "warnings": warnings}
+    coordsystems = list(path.rglob("*_coordsystem.json")) + list(path.glob("coordsystem.json"))
+    if electrodes and not coordsystems:
+        errors.append(
+            f"validate_bids: electrodes.tsv is present in {path} but no *_coordsystem.json was found. "
+            "Re-export with pop_exportbids, which writes the coordinate-system sidecar beside electrodes.tsv."
+        )
+    note = _run_official_validator(path, errors, warnings)
+    return {"errors": errors, "warnings": warnings, "note": note}
+
+
+def _validator_command() -> list[str] | None:
+    validator = shutil.which("bids-validator")
+    if validator:
+        return [validator]
+    npx = shutil.which("npx")
+    if npx:
+        return [npx, "--no-install", "bids-validator"]
+    deno = shutil.which("deno")
+    if deno:
+        return [deno, "run", "-A", "jsr:@bids/validator"]
+    return None
+
+
+def _run_official_validator(path: Path, errors: list[str], warnings: list[str]) -> str | None:
+    command = _validator_command()
+    if command is None:
+        return _VALIDATOR_NOTE
+    try:
+        completed = subprocess.run(
+            [*command, "--json", str(path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return _VALIDATOR_NOTE
+    stdout = completed.stdout or ""
+    stderr = completed.stderr or ""
+    if _validator_unavailable(completed.returncode, stdout, stderr):
+        return _VALIDATOR_NOTE
+    payload = _validator_payload(stdout)
+    if payload is None:
+        if completed.returncode != 0:
+            detail = (stderr or stdout).strip().splitlines()
+            message = detail[0] if detail else f"exit {completed.returncode}"
+            errors.append(f"validate_bids: bids-validator failed. {message}")
+        return None
+    issues = payload.get("issues", payload)
+    if not isinstance(issues, dict):
+        return None
+    for issue in issues.get("errors") or []:
+        errors.append(f"validate_bids: {_issue_text(issue)}")
+    for issue in issues.get("warnings") or []:
+        warnings.append(f"validate_bids: {_issue_text(issue)}")
+    return None
+
+
+def _validator_unavailable(code: int, stdout: str, stderr: str) -> bool:
+    if stdout.strip().startswith("{"):
+        return False
+    text = f"{stdout}\n{stderr}".lower()
+    missing = (
+        "not found",
+        "not recognized",
+        "npm err",
+        "could not determine executable",
+        "cannot find module",
+        "err_module_not_found",
+        "error: could not find",
+    )
+    return code != 0 and any(marker in text for marker in missing)
+
+
+def _validator_payload(stdout: str) -> dict[str, Any] | None:
+    start = stdout.find("{")
+    if start < 0:
+        return None
+    try:
+        payload = json.loads(stdout[start:])
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _issue_text(issue: Any) -> str:
+    if isinstance(issue, str):
+        return issue
+    if isinstance(issue, dict):
+        reason = issue.get("reason") or issue.get("key") or issue.get("code") or "bids-validator issue"
+        return str(reason)
+    return str(issue)
 
 
 def _dialog_metadata(spec: DialogSpec, renderer: Any, initial: dict[str, Any]) -> dict[str, Any] | None:
@@ -248,10 +352,30 @@ def _task_initial(target: dict[str, Any]) -> dict[str, Any]:
 def _participant_initial(target: dict[str, Any]) -> dict[str, Any]:
     stored = dict(_section(target, "participant"))
     if not stored.get("participant_id"):
-        subject = str(target.get("subject") or "").strip()
+        subject = _subject_text(target.get("subject"))
         if subject:
-            stored["participant_id"] = subject if subject.startswith("sub-") else f"sub-{subject}"
+            stored["participant_id"] = subject
     return stored
+
+
+def _subject_text(subject: Any) -> str:
+    for _ in range(5):
+        if isinstance(subject, str) or subject is None:
+            break
+        shape = getattr(subject, "shape", None)
+        if shape == ():
+            subject = subject.item()
+            break
+        if isinstance(subject, (list, tuple)) or shape is not None:
+            if len(subject) == 0:
+                return ""
+            subject = subject[0]
+            continue
+        break
+    text = "" if subject is None else str(subject).strip()
+    if not text:
+        return ""
+    return text if text.startswith("sub-") else f"sub-{text}"
 
 
 def _section(target: dict[str, Any], name: str) -> dict[str, Any]:

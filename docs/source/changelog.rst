@@ -36,23 +36,30 @@ Unreleased
   (``pop_expica.m`` line 79) with each value formatted ``%16.7e``.
   ``pop_expevents`` follows ``eeg_eventtable.m`` lines 123-159: a ``number``
   column, first-seen field order, and ``%f`` numeric cells.
-- ``pop_exportbids`` writes ``README``, ``*_eeg.json``, and ``*_electrodes.tsv``.
-  The electrodes name keeps the ``task-`` entity. ``bids_writeelectrodefile.m``
-  lines 32-39 remove it for a bids-validator 1.10 workaround. Event tables use
-  ``onset``, ``duration``, ``sample``, and ``value`` (``bids_writeeventfile.m``
-  lines 128-197), and a numeric type ``1`` is written as ``1``. ``validate_bids``
-  reports a missing README, ``*_eeg.json``, or electrodes file and does not add
+- ``pop_exportbids`` writes ``README``, ``*_eeg.json``, ``*_electrodes.tsv``,
+  and ``*_coordsystem.json``. The electrodes and coordinate-system names drop
+  ``task-`` and ``desc-`` (``bids_writeelectrodefile.m`` lines 32-49 and
+  272-316). Event tables use ``onset``, ``duration``, ``sample``, and ``value``
+  (``bids_writeeventfile.m`` lines 128-197), and a numeric type ``1`` is written
+  as ``1``. ``validate_bids`` reports a missing README, ``*_eeg.json``,
+  electrodes file, or coordsystem file. It runs the official bids-validator
+  when ``bids-validator``, ``npx``, or ``deno`` is on PATH, and otherwise says
+  the check was sidecars only and how to install the validator. It does not add
   ``eegprep_bids_validation.json`` to the dataset. The File menu exports a study
   only (``pop_exportbids.m`` line 33). ``pop_exportbids(EEG, folder)`` still
   writes one dataset from memory.
 - BIDS import uses the ``value`` column as the EEG event type when that column
   exists (``bids_importeventfile.m`` line 14, ``pop_importbids.m`` line 181).
   ``trial_type`` is still used when ``value`` is absent. A ``nan`` event type
-  is stored as an empty string.
+  is stored as an empty string. The import dialog's task, session, run, and
+  recording selectors are the popup and listboxes from ``pop_importbids.m``
+  lines 112-118, filled by scanning the folder. Empty session, run, and
+  recording rows are omitted (lines 128-142).
 - The export dialog's "Number of significant digits" field is passed through
   as ``%.Nf`` decimal places, which is what ``pop_export.m`` line 179 does
   with the string from line 93. The function default remains 7 decimal places
-  (line 129). The dialog default remains 4 (line 94).
+  (line 129). The dialog default remains 4 (line 94) and is the edit field's
+  value, so pressing Ok without changing that field writes 4 decimal places.
 
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing

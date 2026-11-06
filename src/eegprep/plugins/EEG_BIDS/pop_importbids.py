@@ -95,9 +95,10 @@ def pop_importbids(
 
 
 def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = _TYPE_FIELDS) -> DialogSpec:
-    """Return the import options dialog from ``pop_importbids.m`` lines 104-125."""
+    """Return the import options dialog from ``pop_importbids.m`` lines 104-143."""
     folder = Path(path)
     fields = type_fields or ("value",)
+    tasks, sessions, runs, recordings = _scan_bids_entities(folder)
     browse = CallbackSpec(
         "select_file",
         {
@@ -107,69 +108,76 @@ def pop_importbids_dialog_spec(path: str | Path, type_fields: tuple[str, ...] = 
             "caption": "Study output folder",
         },
     )
+    controls: list[ControlSpec] = [
+        ControlSpec("text", "Enter study name (default is BIDS folder name)"),
+        ControlSpec("edit", tag="studyName"),
+        ControlSpec("text", ""),
+        ControlSpec(
+            "checkbox",
+            "Use BIDS electrode.tsv files (when present) for channel locations; off: look up locations using channel labels",
+            tag="chanlocs",
+            value=True,
+        ),
+        ControlSpec(
+            "checkbox",
+            "Use BIDS event.tsv files for events and use the following BIDS field for event type",
+            tag="events",
+            value=True,
+            callback=CallbackSpec("toggle_enabled", {"source": "events", "targets": ("typefield",)}),
+        ),
+        ControlSpec("popupmenu", "|".join(fields), tag="typefield", value=1),
+        *_choice_row(
+            "Import only the following BIDS tasks",
+            "bidstask",
+            "bidstaskstr",
+            tasks or ["n/a"],
+            "popupmenu",
+        ),
+    ]
+    geometry: list[list[float] | list[int]] = [[2, 1.5], [1], [1], [1, 0.35], [0.6, 0.35, 0.5]]
+    for label, check_tag, value_tag, choices in (
+        ("Import only the following sessions", "bidssessions", "bidsessionstr", sessions),
+        ("Import only the following runs", "bidsruns", "bidsrunsstr", runs),
+        ("Import only the following recordings (multi-device)", "bidsrecordings", "bidsrecordingsstr", recordings),
+    ):
+        if not choices:
+            continue
+        controls.extend(_choice_row(label, check_tag, value_tag, choices, "listbox"))
+        geometry.append([0.6, 0.35, 0.5])
+    controls.extend(
+        [
+            ControlSpec(
+                "checkbox",
+                "Import only the following participant indices",
+                tag="bidssubjects",
+                value=False,
+                callback=CallbackSpec("toggle_enabled", {"source": "bidssubjects", "targets": ("bidssubjectsstr",)}),
+            ),
+            ControlSpec("edit", tag="bidssubjectsstr", enabled=False),
+            ControlSpec("text", ""),
+            ControlSpec("text", ""),
+            ControlSpec("text", "Study output folder"),
+            ControlSpec("edit", tag="folder", value=(folder / "derivatives" / "eeglab").as_posix()),
+            ControlSpec("pushbutton", "...", tag="browse", callback=browse),
+        ]
+    )
+    geometry.extend([[0.6, 0.35, 0.5], [1], [1, 2, 0.5]])
     return DialogSpec(
         title="Import BIDS data -- pop_importbids()",
         function_name="pop_importbids",
         eeglab_source="plugins/EEG-BIDS/pop_importbids.m",
-        geometry=(
-            [2, 1.5],
-            [1],
-            [1],
-            [1, 0.35],
-            [0.6, 0.35, 0.5],
-            [0.6, 0.35, 0.5],
-            [0.6, 0.35, 0.5],
-            [0.6, 0.35, 0.5],
-            [1],
-            [1, 2, 0.5],
-        ),
-        controls=(
-            ControlSpec("text", "Enter study name (default is BIDS folder name)"),
-            ControlSpec("edit", tag="studyName"),
-            ControlSpec("text", ""),
-            ControlSpec(
-                "checkbox",
-                "Use BIDS electrode.tsv files (when present) for channel locations; off: look up locations using channel labels",
-                tag="chanlocs",
-                value=True,
-            ),
-            ControlSpec(
-                "checkbox",
-                "Use BIDS event.tsv files for events and use the following BIDS field for event type",
-                tag="events",
-                value=True,
-            ),
-            ControlSpec("popupmenu", "|".join(fields), tag="typefield", value=1),
-            ControlSpec("checkbox", "Import only the following BIDS tasks", tag="bidstask", value=False),
-            ControlSpec("edit", tag="bidstaskstr"),
-            ControlSpec("text", ""),
-            ControlSpec("checkbox", "Import only the following sessions", tag="bidssessions", value=False),
-            ControlSpec("edit", tag="bidsessionstr"),
-            ControlSpec("text", ""),
-            ControlSpec("checkbox", "Import only the following runs", tag="bidsruns", value=False),
-            ControlSpec("edit", tag="bidsrunsstr"),
-            ControlSpec("text", ""),
-            ControlSpec("checkbox", "Import only the following participant indices", tag="bidssubjects", value=False),
-            ControlSpec("edit", tag="bidssubjectsstr"),
-            ControlSpec("text", ""),
-            ControlSpec("text", ""),
-            ControlSpec("text", "Study output folder"),
-            ControlSpec("edit", str(folder / "derivatives" / "eeglab"), tag="folder"),
-            ControlSpec("pushbutton", "...", tag="browse", callback=browse),
-        ),
+        geometry=tuple(geometry),
+        controls=tuple(controls),
         known_differences=(
             "The output folder is recorded on the command but datasets stay in memory. "
             "pop_importbids.m lines 839 and 892 also save a derivatives/eeglab copy.",
-            "Task, session, and run filters are text fields. pop_importbids.m lines 112-118 "
-            "fills a task popup and session/run listboxes by scanning the folder. The typed "
-            "identifiers are the same values the import filter accepts. The recordings row "
-            "(lines 117-118) is shown only when a recording entity exists, so it is omitted here.",
         ),
     )
 
 
 def _import_dialog(source: Path, renderer: Any) -> dict[str, Any] | None:
     fields = _event_columns(source)
+    tasks, sessions, runs, recordings = _scan_bids_entities(source)
     result = inputgui(pop_importbids_dialog_spec(source, fields), renderer=renderer)
     if not result:
         return None
@@ -180,20 +188,24 @@ def _import_dialog(source: Path, renderer: Any) -> dict[str, Any] | None:
     options["bidschanloc"] = bool(result.get("chanlocs", True))
     options["bidsevent"] = bool(result.get("events", True))
     choice = int(result.get("typefield") or 1)
-    if 1 <= choice <= len(fields):
+    if 1 <= choice <= len(fields) and fields[choice - 1] != "n/a":
         options["eventtype"] = fields[choice - 1]
     if result.get("bidstask"):
-        task = str(result.get("bidstaskstr") or "").strip()
-        if task:
-            options["bidstask"] = task
+        chosen = _menu_selection(result.get("bidstaskstr"), tasks or ["n/a"])
+        if chosen:
+            options["bidstask"] = chosen[0]
     if result.get("bidssessions"):
-        sessions = _split_list(result.get("bidsessionstr"))
-        if sessions:
-            options["sessions"] = sessions
+        chosen = [_entity_id(name) for name in _menu_selection(result.get("bidsessionstr"), sessions)]
+        if chosen:
+            options["sessions"] = chosen
     if result.get("bidsruns"):
-        runs = _split_list(result.get("bidsrunsstr"))
-        if runs:
-            options["runs"] = runs
+        chosen = _menu_selection(result.get("bidsrunsstr"), runs)
+        if chosen:
+            options["runs"] = chosen
+    if result.get("bidsrecordings"):
+        chosen = _menu_selection(result.get("bidsrecordingsstr"), recordings)
+        if chosen:
+            options["recordings"] = chosen
     if result.get("bidssubjects"):
         subjects = _split_list(result.get("bidssubjectsstr"))
         if subjects:
@@ -202,6 +214,105 @@ def _import_dialog(source: Path, renderer: Any) -> dict[str, Any] | None:
     if folder:
         options["outputdir"] = folder
     return options
+
+
+def _choice_row(
+    label: str,
+    check_tag: str,
+    value_tag: str,
+    choices: list[str],
+    style: str,
+) -> list[ControlSpec]:
+    return [
+        ControlSpec(
+            "checkbox",
+            label,
+            tag=check_tag,
+            value=False,
+            callback=CallbackSpec("toggle_enabled", {"source": check_tag, "targets": (value_tag,)}),
+        ),
+        ControlSpec(
+            style,
+            "|".join(choices),
+            tag=value_tag,
+            value=[] if style == "listbox" else 1,
+            enabled=False,
+        ),
+        ControlSpec("text", ""),
+    ]
+
+
+def _scan_bids_entities(root: Path) -> tuple[list[str], list[str], list[str], list[str]]:
+    # pop_importbids.m:85 calls bids_getinfofromfolder, which reads task/run/recording
+    # from file names and session names from ses- directories.
+    tasks: list[str] = []
+    sessions: list[str] = []
+    runs: list[str] = []
+    recordings: list[str] = []
+    if not root.is_dir():
+        return tasks, sessions, runs, recordings
+    for path in root.rglob("*"):
+        if path.is_dir():
+            if path.name.startswith("ses-") and len(path.name) > 4:
+                _append_unique(sessions, path.name)
+            continue
+        name = path.name
+        lowered = name.lower()
+        if "_task-" in name and ("eeg" in lowered or "meg" in lowered):
+            _append_unique(tasks, _entity_value(name, "task-"))
+        if "_run-" in name and any(token in lowered for token in ("eeg", "meg", "emg")):
+            _append_unique(runs, _entity_value(name, "run-"))
+        if "_recording-" in name and any(token in lowered for token in ("eeg", "meg", "emg", "ieeg")):
+            _append_unique(recordings, _entity_value(name, "recording-"))
+    return sorted(tasks), sorted(sessions), sorted(runs), sorted(recordings)
+
+
+def _entity_value(name: str, token: str) -> str:
+    start = name.find(token)
+    if start < 0:
+        return ""
+    rest = name[start + len(token) :]
+    end = len(rest)
+    for marker in ("_", "."):
+        found = rest.find(marker)
+        if found >= 0:
+            end = min(end, found)
+    return rest[:end]
+
+
+def _append_unique(values: list[str], item: str) -> None:
+    if item and item not in values:
+        values.append(item)
+
+
+def _menu_selection(value: Any, choices: list[str]) -> list[str]:
+    if value in (None, "", []):
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        if text.isdigit():
+            return _names_at([int(text)], choices)
+        return [item for item in _split_list(text) if item != "n/a"]
+    if isinstance(value, (list, tuple)):
+        if value and all(isinstance(item, str) and not item.strip().isdigit() for item in value):
+            return [str(item) for item in value if str(item) != "n/a"]
+        return _names_at([int(item) for item in value], choices)
+    return _names_at([int(value)], choices)
+
+
+def _names_at(indices: list[int], choices: list[str]) -> list[str]:
+    names = []
+    for index in indices:
+        if 1 <= index <= len(choices) and choices[index - 1] != "n/a":
+            names.append(choices[index - 1])
+    return names
+
+
+def _entity_id(name: str) -> str:
+    for prefix in ("sub-", "ses-", "task-", "run-", "recording-"):
+        if name.startswith(prefix):
+            return name[len(prefix) :]
+    return name
 
 
 def _event_columns(source: Path) -> tuple[str, ...]:
@@ -238,6 +349,7 @@ def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, A
     subjects = dialog.get("subjects", kwargs.get("subjects"))
     sessions = dialog.get("sessions", kwargs.get("sessions"))
     runs = dialog.get("runs", kwargs.get("runs"))
+    recordings = dialog.get("recordings", kwargs.get("recordings"))
     tasks = dialog.get("bidstask", kwargs.get("bidstask", kwargs.get("tasks")))
     if subjects:
         filters["subjects"] = subjects
@@ -245,6 +357,8 @@ def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, A
         filters["sessions"] = sessions
     if runs:
         filters["runs"] = runs
+    if recordings:
+        filters["recordings"] = recordings
     if tasks:
         filters["tasks"] = tasks
     return filters
@@ -256,7 +370,6 @@ def _split_list(value: Any) -> list[str]:
 
 
 def _history_command(source: Path, dialog: dict[str, Any], *, return_study: bool) -> str:
-    # pop_importbids.m:895 records the dialog options with vararg2str.
     parts = [format_history_value(source)]
     if dialog.get("eventtype"):
         parts.extend([format_history_value("eventtype"), format_history_value(dialog["eventtype"])])
