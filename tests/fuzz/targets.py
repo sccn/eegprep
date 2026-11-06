@@ -246,7 +246,13 @@ def matlab_eegrej(engine, case, eeg):
 
 
 def python_select(case, eeg):
-    return pop_select(eeg, gui=False, **_select_kwargs(thaw_params(case.params)))
+    params = _select_kwargs(thaw_params(case.params))
+    for key in ("channel", "nochannel", "rmchannel"):
+        if key not in params:
+            continue
+        values = params[key] if isinstance(params[key], list) else [params[key]]
+        params[key] = [value - 1 if isinstance(value, (int, float)) else value for value in values]
+    return pop_select(eeg, gui=False, **params)
 
 
 def matlab_select(engine, case, eeg):
@@ -781,7 +787,7 @@ def _edge_select(draw, spec_cls, continuous, epoched):
     if kind == "nopoint":
         return spec, {"nopoint": [[1, min(8, spec.length)]]}
     if kind == "dupes":
-        return spec, {"channel": [1, 1, rec.nbchan, 2]}
+        return spec, {"channel": [1, 1, len(spec.channels), 2]}
     spec = _draw_trials(draw, spec_cls, epoched, user=False)
     # pop_select.m rejects a notime span that does not touch either epoch edge.
     return spec, {"notime": [[-0.2, 0.2]]}

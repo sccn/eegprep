@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 def pop_select(EEG, *args, gui=None, renderer=None, return_com=False, **kwargs):
     """Select EEG data using EEGLAB ``pop_select`` semantics.
 
+    Numeric ``channel``, ``nochannel``, and ``rmchannel`` arguments use
+    zero-based Python indices. The GUI uses one-based channel numbers.
+    Channel labels can be used in either interface.
+
     With ``sorttrial='off'``, a repeated trial is kept at its first position.
     ``trial=[5, 4, 3, 2, 1, 5]`` stays ``[5, 4, 3, 2, 1]``. EEGLAB
     ``pop_select.m`` lines 282-286 call ``unique_bc``
@@ -188,8 +192,13 @@ def _pop_select_apply(EEG, **kwargs):
 
     def _numeric_channel_indices(values):
         inds = [int(value) for value in values]
-        if any(index < 0 or index >= nbchan for index in inds):
-            raise ValueError("Wrong channel range")
+        invalid = [index for index in inds if index < 0 or index >= nbchan]
+        if invalid:
+            raise ValueError(
+                f"pop_select: channel indices {invalid} are out of range for nbchan={nbchan}. "
+                f"Use Python 0-based indices 0..{nbchan - 1}; EEGLAB/GUI uses 1-based 1..{nbchan} "
+                "(subtract 1 before calling Python), or pass channel labels."
+            )
         return inds
 
     chan_selected_flag = np.ones(nbchan, dtype=bool)  # default keep all
