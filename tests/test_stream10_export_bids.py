@@ -599,6 +599,57 @@ def test_import_dialog_participant_indices_are_one_based(tmp_path):
         )
 
 
+def test_import_dialog_subject_history_replays_the_same_participants(tmp_path):
+    datasets = [_eeg(), _eeg()]
+    datasets[0]["subject"] = "001"
+    datasets[1]["subject"] = "002"
+    root = Path(pop_exportbids(datasets, tmp_path / "bids", task="oddball"))
+    dialog = {
+        "chanlocs": True,
+        "events": True,
+        "typefield": 1,
+        "bidstask": False,
+        "bidssubjects": True,
+        "folder": str(tmp_path / "derivatives" / "eeglab"),
+    }
+    imported, command = pop_importbids(
+        root,
+        gui=True,
+        return_com=True,
+        renderer=_Renderer({**dialog, "bidssubjectsstr": "2"}),
+    )
+    assert imported["subject"] == "002"
+    assert _imported_subjects(_replay_history(command)) == ["002"]
+    assert pop_importbids(root, subjects=[2])["subject"] == "002"
+
+    both, both_command = pop_importbids(
+        root,
+        gui=True,
+        return_com=True,
+        renderer=_Renderer({**dialog, "bidssubjectsstr": "1 2"}),
+    )
+    assert _imported_subjects(both) == ["001", "002"]
+    assert _imported_subjects(_replay_history(both_command)) == ["001", "002"]
+    assert _imported_subjects(pop_importbids(root, subjects=[1, 2])) == ["001", "002"]
+    with pytest.raises(ValueError, match="pop_importbids: participant index 0"):
+        pop_importbids(root, subjects=[0])
+    with pytest.raises(ValueError, match="pop_importbids: participant index 3"):
+        pop_importbids(root, subjects=[3])
+
+
+def _replay_history(command: str):
+    session = EEGPrepSession()
+    workspace = EEGPrepConsoleWorkspace(session)
+    exec(_console_python_command(command), workspace.namespace)  # noqa: S102
+    replayed = workspace.namespace["EEG"]
+    return replayed.eeg if hasattr(replayed, "eeg") else replayed
+
+
+def _imported_subjects(imported) -> list[str]:
+    datasets = imported if isinstance(imported, list) else [imported]
+    return [str(eeg["subject"]) for eeg in datasets]
+
+
 def test_bids_metadata_dialogs_store_structured_fields():
     eeg = _eeg()
     task_labels = [control.string for control in pop_taskinfo_dialog_spec().controls]

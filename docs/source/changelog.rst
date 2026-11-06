@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_importbids(..., subjects=[1, 2])`` uses the same 1-based participant
+  indices as the import dialog (``pop_importbids.m`` lines 163 and 281).
+  Replaying the recorded ``'subjects', [1 2]`` command selects those
+  participants. An index outside that list raises ``pop_importbids`` and
+  names the valid range.
 - ``pop_exportbids`` writes each study dataset under its own subject. The
   label comes from ``EEG.subject``, then the matching ``STUDY.datasetinfo``
   subject (``pop_exportbids.m`` lines 167-172). A dataset with neither set

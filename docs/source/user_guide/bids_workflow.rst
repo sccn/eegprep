@@ -98,7 +98,8 @@ BIDS folder from the File menu loads the datasets into an in-memory study.
 It does not copy them into ``derivatives/eeglab``. The import field "Import
 only the following participant indices" takes 1-based positions in
 ``participants.tsv`` (or in the sorted ``sub-*`` folders when that file is
-missing), such as ``2`` or ``1 2``.
+missing), such as ``2`` or ``1 2``. ``pop_importbids(..., subjects=[1, 2])``
+uses that same list, including when the dialog's history command is run again.
 
 This export is useful for learning EEGPrep's BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.

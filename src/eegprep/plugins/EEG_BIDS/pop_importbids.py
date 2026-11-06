@@ -47,7 +47,9 @@ def pop_importbids(
     stay UTF-8, and a leading UTF-8 BOM is removed.
 
     ``gui=True`` shows the options dialog from ``pop_importbids.m`` lines
-    104-164. ``return_study=True`` returns an in-memory STUDY. EEGLAB also
+    104-164. ``subjects=[1, 2]`` selects 1-based rows of ``participants.tsv``
+    (or sorted ``sub-*`` folders when that file is missing), the same indices
+    the dialog records. ``return_study=True`` returns an in-memory STUDY. EEGLAB also
     copies every dataset into ``derivatives/eeglab`` (``pop_importbids.m``
     lines 839 and 892). This function does not write that copy.
     """
@@ -64,6 +66,8 @@ def pop_importbids(
         dialog_options = selected
     loader_options = _loader_options(kwargs, dialog_options)
     list_filters = _list_filters(kwargs, dialog_options)
+    if source.is_dir() and list_filters.get("subjects"):
+        list_filters["subjects"] = _resolve_subject_query(source, list_filters["subjects"])
     if source.is_dir():
         import_optional_dependency("bids", feature="pop_importbids")
         files = bids_list_eeg_files(str(source), **list_filters)
@@ -209,12 +213,7 @@ def _import_dialog(source: Path, renderer: Any) -> dict[str, Any] | None:
     if result.get("bidssubjects"):
         text = str(result.get("bidssubjectsstr") or "").strip()
         if text:
-            indices = _participant_indices(text)
-            labels = _indexed_participants(source)
-            _check_participant_indices(indices, labels)
-            options["subjects"] = indices
-            # pop_importbids.m:281 adds 1 because participants.tsv row 1 is the header.
-            options["subject_labels"] = [labels[index - 1] for index in indices]
+            options["subjects"] = _participant_indices(text)
     folder = str(result.get("folder") or "").strip()
     if folder:
         options["outputdir"] = folder
@@ -340,6 +339,10 @@ def _event_columns(source: Path) -> tuple[str, ...]:
 
 def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
     options = {key: value for key, value in kwargs.items() if key.lower() not in _DIALOG_KEYS}
+    if options.get("bidsevent") == "on":
+        options["bidsevent"] = "replace"
+    elif options.get("bidsevent") == "off":
+        options["bidsevent"] = False
     if "bidschanloc" in dialog:
         options["bidschanloc"] = dialog["bidschanloc"]
     if "bidsevent" in dialog:
@@ -351,7 +354,7 @@ def _loader_options(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str,
 
 def _list_filters(kwargs: dict[str, Any], dialog: dict[str, Any]) -> dict[str, Any]:
     filters: dict[str, Any] = {}
-    subjects = dialog.get("subject_labels", dialog.get("subjects", kwargs.get("subjects")))
+    subjects = dialog.get("subjects", kwargs.get("subjects"))
     sessions = dialog.get("sessions", kwargs.get("sessions"))
     runs = dialog.get("runs", kwargs.get("runs"))
     recordings = dialog.get("recordings", kwargs.get("recordings"))
@@ -405,6 +408,33 @@ def _participant_label(value: Any) -> str:
     return text
 
 
+def _resolve_subject_query(source: Path, subjects: Any) -> list[str]:
+    values = [subjects] if _is_subject_index(subjects) or isinstance(subjects, str) else list(subjects)
+    if values and all(_is_subject_index(item) for item in values):
+        indices = [int(item) for item in values]
+        labels = _indexed_participants(source)
+        _check_participant_indices(indices, labels)
+        # pop_importbids.m:281 adds 1 because participants.tsv row 1 is the header.
+        return [labels[index - 1] for index in indices]
+    if any(_is_subject_index(item) for item in values):
+        raise ValueError(
+            "pop_importbids: subjects mixes participant indices and labels. "
+            "Pass 1-based indices such as [1, 2], or labels such as ['001', '002']."
+        )
+    labels = [_participant_label(item) for item in values]
+    return [label for label in labels if label]
+
+
+def _is_subject_index(value: Any) -> bool:
+    if isinstance(value, bool) or isinstance(value, str):
+        return False
+    try:
+        value.__index__()
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return True
+
+
 def _check_participant_indices(indices: list[int], labels: list[str]) -> None:
     if not labels:
         raise ValueError(
@@ -412,7 +442,7 @@ def _check_participant_indices(indices: list[int], labels: list[str]) -> None:
             "Add participants.tsv or sub-* folders, then import again."
         )
     for index in indices:
-        if index > len(labels):
+        if index < 1 or index > len(labels):
             shown = ", ".join(labels)
             raise ValueError(
                 f"pop_importbids: participant index {index} is outside 1..{len(labels)}. "
