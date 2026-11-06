@@ -1006,9 +1006,8 @@ The `seed 20261105 artifact
 No baseline implementation, numerical tolerance, or baseline divergence
 classifier was changed during this investigation.
 
-The run used EEGPrep ``fdb4d80cdea0c91584174aa6ef0146cb3039631f`` and
-EEGLAB ``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``. At that EEGLAB
-revision, ``pop_rmbase.m`` lines 162-167 select both time endpoints.
+In EEGLAB ``8ac485f654d6bbb1a6acb8dc9ef3f2eaf3d409ba``,
+``pop_rmbase.m`` lines 162-167 select both time endpoints.
 For epoched data, lines 201-203 compute
 ``mean(double(EEG.data(indc,pointrange,:)),2)`` per channel and then
 subtract the replicated mean. This branch does not call ``rmbase.m``.
@@ -1019,10 +1018,7 @@ accumulator and subtracts once into the input floating dtype. With finite
 data these express the same calculation, but the MATLAB source does not
 specify the internal summation order of ``mean``.
 
-A Python-only replay on ``c7247234`` with NumPy 2.2.6 and SciPy 1.15.3
-verified the saved input array byte-for-byte and matched its SHA-256:
-``bf38a142ef11f42b0b623924acc861e79d22359b538d2b3674808369d6a8665e``.
-The crop has shape ``(32, 3840)``. Running the saved clean, reference,
+The saved crop has shape ``(32, 3840)``. Running the saved clean, reference,
 and epoch steps in Python produces float64 data of shape
 ``(30, 192, 13)``. The baseline contains 65 samples, zero-based indices
 0 through 64, spanning -500 through 0 ms inclusively.
@@ -1037,11 +1033,10 @@ That experiment supports a reduction-order hypothesis; it does not
 establish MATLAB's order or show that the difference cannot be eliminated.
 The artifact stores the initial crop, not MATLAB's intermediate baseline
 input or means. The nightly pipeline advances from each oracle result,
-whereas the Python-only probe advances from Python results. Suraj's next
-decision is whether to capture the MATLAB input immediately before
+whereas the Python-only probe advances from Python results. Choosing a
+matching reduction order still requires MATLAB's input immediately before
 ``pop_rmbase``, its time vector, selected points, per-channel ``tmpmean``,
-and output on that same input. Those intermediates are needed before
-choosing a matching reduction order.
+and output on that same input.
 
 ``test_rmbase_542_double_mean_and_inclusive_baseline`` locks exact,
 analytically known means for float32 and float64 inputs, both baseline

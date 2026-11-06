@@ -701,6 +701,14 @@ def _run_gui(EEG, renderer=None):
     _add_range_option(options, result, "trial", "rmtrial")
     _add_text_option(options, result, "chans", "rmchannel", keep_key="channel", remove_key="rmchannel")
     _add_text_option(options, result, "chantype", "rmchantype", keep_key="chantype", remove_key="rmchantype")
+    nbchan = int(EEG["nbchan"])
+    channels = options.get("channel", options.get("rmchannel", []))
+    invalid = [number for number in channels if isinstance(number, int) and not 1 <= number <= nbchan]
+    if invalid:
+        raise ValueError(
+            f"pop_select: channel numbers {invalid} are out of range for nbchan={nbchan}. "
+            f"Use GUI/EEGLAB 1-based numbers 1..{nbchan}, or pass channel labels."
+        )
     return options or None
 
 

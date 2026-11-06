@@ -6,6 +6,7 @@ import numpy as np
 
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.pop_select import pop_select, pop_select_dialog_spec
+from tests.fixtures import create_test_eeg
 
 
 def _eeg():
@@ -110,6 +111,21 @@ class PopSelectGuiTests(unittest.TestCase):
 
         self.assertEqual([chan["labels"] for chan in out["chanlocs"]], ["Fz", "Cz", "HEOG"])
         self.assertEqual(com, "EEG = pop_select( EEG, 'channel', [1 2 3]);")
+
+    def test_gui_channel_range_error_preserves_one_based_number(self):
+        class Renderer:
+            def run(self, spec, initial_values=None):
+                return {"chans": "33"}
+
+        eeg = create_test_eeg(n_channels=32, n_samples=10)
+        with self.assertRaises(ValueError) as exc:
+            pop_select(eeg, gui=True, renderer=Renderer())
+
+        self.assertEqual(
+            str(exc.exception),
+            "pop_select: channel numbers [33] are out of range for nbchan=32. "
+            "Use GUI/EEGLAB 1-based numbers 1..32, or pass channel labels.",
+        )
 
     def test_gui_result_accepts_matlab_colon_trial_range(self):
         class Renderer:
