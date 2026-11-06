@@ -321,7 +321,7 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
 .. _baseline-roundoff-triage:
 
 Baseline Roundoff Under Investigation
-====================================
+=====================================
 
 Nightly fuzz issue #542 reports a finite ``pop_rmbase`` difference of
 ``7.105427357601002e-15`` after cleaning, re-referencing, and epoching, with
@@ -341,9 +341,10 @@ The saved artifacts contain the initial recording, not MATLAB's intermediate
 epochs or baseline means. The matching maximum alone does not establish
 MATLAB's reduction order or prove the difference is irreducible. This remains
 an open parity investigation, separate from the intentional NaN behavior above.
-Regression tests pin the current float64 accumulation and output dtype and
-ensure finite reduction differences remain reported. The fuzz tolerance stays
-at zero; no numerical exemption has been added.
+Regression tests check output dtype and inclusive baseline endpoints against
+a float64 reference within a few ulp, and ensure finite reduction differences
+remain reported. The fuzz tolerance stays at zero; no numerical exemption has
+been added.
 
 Plugin Migration
 ================

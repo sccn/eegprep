@@ -20,9 +20,9 @@ Unreleased
   pipeline step receives identical inputs on both sides. A Python-only replay
   of the saved input reproduces the reported maximum difference of
   ``7.105427357601002e-15`` by changing only the float64 mean reduction order.
-  Tests pin the current sample-order accumulation, output dtype, and inclusive
-  baseline endpoints. The MATLAB reduction order remains unverified; finite
-  differences remain failures at the unchanged zero tolerance. See
+  Tests check output dtype and inclusive baseline endpoints against a float64
+  reference within a few ulp. The MATLAB reduction order remains unverified;
+  finite differences remain failures at the unchanged zero tolerance. See
   :ref:`baseline-roundoff-triage`.
 - Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
   with ``return_study`` on, so the console rebuilds the same study.
