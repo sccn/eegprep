@@ -10,20 +10,13 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- ``pop_select`` reports invalid channel indices, the dataset's channel count,
-  and the valid ranges for Python (0-based) and EEGLAB/GUI (1-based), with
-  channel labels as an alternative. The fuzz adapter now converts EEGLAB
-  channel indices to Python indices and generates valid duplicate selections
-  using the cropped channel count. Equivalent out-of-range errors are
-  recognized without copying MATLAB's opaque message (#543).
-- Investigation of nightly fuzz #542 isolates the baseline stage: each
-  pipeline step receives identical inputs on both sides. A Python-only replay
-  of the saved input reproduces the reported maximum difference of
-  ``7.105427357601002e-15`` by changing only the float64 mean reduction order.
-  Tests check output dtype and inclusive baseline endpoints against a float64
-  reference within a few ulp. The MATLAB reduction order remains unverified;
-  finite differences remain failures at the unchanged zero tolerance. See
-  :ref:`baseline-roundoff-triage`.
+- Baseline investigation (#542) adds tests for inclusive endpoints,
+  float32/float64 output dtype, and float64 mean behavior. The finding
+  remains open; the implementation and tolerances are unchanged.
+- The fuzz adapter converts EEGLAB's 1-based channel indices to Python
+  ``pop_select``'s 0-based indices (#543). Duplicate-channel draws use the
+  cropped channel count. Out-of-range errors name ``pop_select``, the
+  invalid indices, ``nbchan``, and the valid Python and EEGLAB/GUI ranges.
 - Replaying a folder import records ``[STUDY, ALLEEG] = pop_importbids(...)``
   with ``return_study`` on, so the console rebuilds the same study.
   ``pop_importbids.m`` always returns ``STUDY`` and ``ALLEEG``. The direct

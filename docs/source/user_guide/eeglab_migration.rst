@@ -42,6 +42,14 @@ What Changes
    * - User-facing selectors
      - Keep channel, component, dataset, and epoch numbers one-based in GUI
        dialogs and command strings unless a function documents otherwise.
+   * - ``pop_select`` channel arguments
+     - Python ``channel``, ``nochannel``, and ``rmchannel`` use zero-based
+       indices from ``0`` through ``EEG['nbchan'] - 1``. Subtract 1 from
+       EEGLAB channel numbers before passing them to Python, or use labels
+       such as ``channel=['Cz', 'Pz']``. The GUI uses one-based numbers
+       from ``1`` through ``EEG['nbchan']``. After cropping channels, use
+       the current dataset's channel count. Range errors report the
+       invalid indices, current count, and both valid ranges.
    * - Globals
      - EEGPrep functions take explicit inputs. The shared console namespace is
        session state, not a hidden global dependency.
@@ -109,13 +117,6 @@ EEGPrep intentionally keeps both conventions visible:
 
 * Python arrays are zero-based: ``EEG["data"][0, :]`` is the first channel.
 * GUI channel/component/dataset selectors are one-based.
-* Direct Python ``pop_select`` calls use zero-based ``channel``, ``nochannel``,
-  and ``rmchannel`` indices: ``channel=[0, 25]`` selects the first and last
-  channels of a 26-channel dataset. EEGLAB and the GUI use ``[1, 26]`` for
-  that selection; MATLAB history replay in ``eegprep-console`` converts the
-  indices. Channel labels work in either interface. Invalid numeric selections
-  raise ``ValueError`` naming ``pop_select``, the invalid indices, ``nbchan``,
-  and both valid ranges.
 * ``abspeak``, ``matcorr``, ``mapcorr``, ``matperm``, ``hungarian``,
   ``getchanlist``, ``shuffle``, and ``eeg_amplitudearea`` use 1-based indices,
   including ``shuffle``'s dimension. Subtract 1 before indexing a NumPy array.
@@ -317,34 +318,6 @@ These are intentional. EEGPrep does not reproduce the EEGLAB result.
        ``option_boundary99`` on. EEGLAB skips that merge when the first
        event type is numeric, so two ``-99`` boundaries with durations 1
        and 2 stay separate. EEGPrep keeps one boundary whose duration is 3.
-
-.. _baseline-roundoff-triage:
-
-Baseline Roundoff Under Investigation
-=====================================
-
-Nightly fuzz issue #542 reports a finite ``pop_rmbase`` difference of
-``7.105427357601002e-15`` after cleaning, re-referencing, and epoching, with
-``timerange=[-500, 0]``. The harness compares each step on a shared input and
-then continues from the oracle output, so earlier stages cannot accumulate
-different inputs to baseline removal.
-
-EEGPrep uses ``rmbase`` for epoched data and ignores baseline NaNs. EEGLAB
-``pop_rmbase.m`` lines 201-203 instead computes ``mean(double(...), 2)`` per
-channel. A Python-only replay of the saved initial recording reaches finite
-float64 epochs with 65 baseline samples at 128 Hz, including both -500 ms
-and 0 ms. Changing only the mean from sample-order accumulation to NumPy's
-contiguous pairwise reduction produces the same maximum absolute difference.
-On the same layout, ``mean`` and ``nanmean`` agree for these finite samples.
-
-The saved artifacts contain the initial recording, not MATLAB's intermediate
-epochs or baseline means. The matching maximum alone does not establish
-MATLAB's reduction order or prove the difference is irreducible. This remains
-an open parity investigation, separate from the intentional NaN behavior above.
-Regression tests check output dtype and inclusive baseline endpoints against
-a float64 reference within a few ulp, and ensure finite reduction differences
-remain reported. The fuzz tolerance stays at zero; no numerical exemption has
-been added.
 
 Plugin Migration
 ================
