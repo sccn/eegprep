@@ -43,6 +43,26 @@ def _chan_labels(EEG):
     return labs
 
 
+@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
+@pytest.mark.parametrize("bad_index", [-1, 26, 32])
+def test_pop_select_out_of_range_channel_names_indices_and_fix(option, bad_index):
+    eeg = create_test_eeg(n_channels=26, n_samples=8)
+
+    with pytest.raises(ValueError) as error:
+        pop_select(eeg, **{option: [1, 1, bad_index, 2]})
+
+    message = str(error.value)
+    for marker in ("pop_select", str(bad_index), "out of range", "nbchan=26", "0..25", "0-based", "1..26", "1-based"):
+        assert marker in message
+    assert "labels" in message
+
+
+def test_pop_select_python_channel_indices_include_both_endpoints():
+    eeg = create_test_eeg(n_channels=26, n_samples=8)
+    out = pop_select(eeg, channel=[0, 0, 25, 1])
+    np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, 25]])
+
+
 @pytest.mark.matlab_oracle
 @unittest.skipIf(os.getenv('EEGPREP_SKIP_MATLAB') == '1', "MATLAB not available")
 class TestPopSelectParity(unittest.TestCase):

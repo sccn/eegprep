@@ -113,6 +113,27 @@ def test_rmbase_preserves_nan_results_and_warning_behavior():
     np.testing.assert_array_equal(actual_means, expected_means)
 
 
+@pytest.mark.parametrize("order", ["C", "F"])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_pop_rmbase_542_explicit_baseline_accumulates_in_sample_order(order, dtype):
+    eeg = create_test_eeg(n_channels=32, n_samples=192, srate=128.0, n_trials=10)
+    data = np.array(np.random.default_rng(542).standard_normal((32, 192, 10)) * 10, dtype=dtype, order=order)
+    eeg.update(data=data, xmin=-0.5, xmax=1.0 - 1 / 128, times=np.arange(192) * (1000 / 128) - 500)
+    baseline = data[:, :65, :].astype(np.float64)
+    mean = np.add.accumulate(baseline, axis=1)[:, -1, :] / 65
+    expected = (data.astype(np.float64) - mean[:, None, :]).astype(dtype)
+
+    actual = pop_rmbase(eeg, timerange=[-500, 0])["data"]
+
+    np.testing.assert_array_equal(actual, expected)
+    assert actual.dtype == dtype
+    if dtype == np.float64:
+        pairwise_mean = np.mean(np.ascontiguousarray(baseline.transpose(0, 2, 1)), axis=2)
+        pairwise = data - pairwise_mean[:, None, :]
+        assert np.any(actual != pairwise)
+        np.testing.assert_allclose(actual, pairwise, rtol=0, atol=7.105427357601002e-15)
+
+
 def test_pop_rmbase_chanlist_subset_uses_one_based_channels():
     eeg = create_test_eeg(n_channels=5, n_samples=100, srate=100.0, n_trials=2)
     data_before = eeg["data"].copy()
