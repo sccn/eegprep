@@ -641,9 +641,9 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><em>object</em></a>) – EEG dictionary. MATLAB callback-string mode is handled internally
 by the GUI renderer in EEGPrep rather than by public string calls.</p></li>
-<li><p><strong>bad_elec</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – 0-based channel indices, channel labels, or channel-location
-dictionaries to interpolate. When omitted, the EEGLAB-like GUI is
-shown.</p></li>
+<li><p><strong>bad_elec</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – 1-based channel indices, channel labels, or channel-location
+dictionaries to interpolate. Channel 1 is the first channel.
+When omitted, the EEGLAB-like GUI is shown.</p></li>
 <li><p><strong>method</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Interpolation method. Defaults to <code class="docutils literal notranslate"><span class="pre">&quot;spherical&quot;</span></code> when
 <code class="docutils literal notranslate"><span class="pre">bad_elec</span></code> is provided, matching EEGLAB.</p></li>
 <li><p><strong>t_range</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>) – Optional <code class="docutils literal notranslate"><span class="pre">[start,</span> <span class="pre">end]</span></code> interpolation time range in seconds.</p></li>

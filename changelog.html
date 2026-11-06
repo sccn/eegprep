@@ -587,6 +587,67 @@ as <code class="docutils literal notranslate"><span class="pre">%.Nf</span></cod
 with the string from line 93. The function default remains 7 decimal places
 (line 129). The dialog default remains 4 (line 94) and is the edit field’s
 value, so pressing Ok without changing that field writes 4 decimal places.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">newtimef</span></code> and <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> keep every requested output time, including
+times that round onto the same sample. <code class="docutils literal notranslate"><span class="pre">timefreq.m</span></code> <code class="docutils literal notranslate"><span class="pre">gettimes</span></code> drops
+duplicates only when the index list is shorter than its unique values, so
+that drop never runs. A 128-sample epoch from -500 ms to 492 ms at 128 Hz,
+cycles <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">0.8]</span></code>, and <code class="docutils literal notranslate"><span class="pre">padratio</span></code> 1 returns 111 times.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">timefreq</span></code> spaces that time grid the way MATLAB <code class="docutils literal notranslate"><span class="pre">linspace</span></code> does:
+<code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">+</span> <span class="pre">i</span> <span class="pre">*</span> <span class="pre">(stop</span> <span class="pre">-</span> <span class="pre">start)</span> <span class="pre">/</span> <span class="pre">(n</span> <span class="pre">-</span> <span class="pre">1)</span></code>, and the last point is the end
+limit. Spacing the step first moved 26 of those 111 times by one unit in
+the last place, and five of them (including one in the baseline) crossed a
+half-sample, so every ERSP row picked up a constant dB offset.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plotfresp</span></code> accepts the symmetric and antisymmetric FIR filters that
+<code class="docutils literal notranslate"><span class="pre">fir_filterdcpadded</span></code> already runs. <code class="docutils literal notranslate"><span class="pre">plotfresp.m</span></code> line 67 compares
+coefficients with exact reversal, so a windowed-sinc highpass whose taps
+are linear-phase but not bit-identical raised “Onepass-zerophase filtering
+is only allowed for linear-phase FIR filters” and the default frequency-
+response plot never opened.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eeg_interp</span></code> limits a time range with inclusive <code class="docutils literal notranslate"><span class="pre">EEG.times</span></code> in
+milliseconds, on continuous and epoched data. A full-range list equal to
+<code class="docutils literal notranslate"><span class="pre">[xmin,</span> <span class="pre">xmax]</span></code> no longer restores the second-to-last sample. Pinned
+<code class="docutils literal notranslate"><span class="pre">eeg_interp.m</span></code> line 322 restores <code class="docutils literal notranslate"><span class="pre">floor(t*srate)</span></code> and stops short of
+the last sample; this follows the inclusive window in eeglab pull 980.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> keeps a scripted <code class="docutils literal notranslate"><span class="pre">t_range</span></code>. Pinned <code class="docutils literal notranslate"><span class="pre">pop_interp.m</span></code> line 61
+sets <code class="docutils literal notranslate"><span class="pre">t_range</span> <span class="pre">=</span> <span class="pre">''</span></code> and interpolates the whole recording; the help text
+and a regression test record that difference.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> channel indices are 1-based. Channel 1 is the first channel.
+Replayed history keeps those indices.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">runica</span></code> extended kurtosis draws <code class="docutils literal notranslate"><span class="pre">fix(rand*datalength)</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">RandomState(5489)</span></code> stream and divides by <code class="docutils literal notranslate"><span class="pre">m2</span></code> (<code class="docutils literal notranslate"><span class="pre">runica.m</span></code> lines
+890-903). With <code class="docutils literal notranslate"><span class="pre">posact</span></code> off, component order uses sphered-channel energy
+(<code class="docutils literal notranslate"><span class="pre">runica.m</span></code> lines 1472 and 1519).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">newcrossf</span></code> defaults the frequency range to <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">50]</span></code> Hz
+(<code class="docutils literal notranslate"><span class="pre">newcrossf.m</span></code> lines 396-397). A log scale still lifts a zero lower edge
+to 3 Hz (line 461). The previous default followed <code class="docutils literal notranslate"><span class="pre">timefreq</span></code> up to
+Nyquist, so a 128 Hz epoch with <code class="docutils literal notranslate"><span class="pre">padratio</span></code> 1 ran 6-64 Hz instead of 6-50 Hz.</p></li>
+<li><p>The cross-coherence and time-frequency dialogs show epoch limits with
+MATLAB <code class="docutils literal notranslate"><span class="pre">int2str</span></code> rounding, halves away from zero (<code class="docutils literal notranslate"><span class="pre">pop_newcrossf.m</span></code>
+line 87, <code class="docutils literal notranslate"><span class="pre">pop_newtimef.m</span></code> line 172), so 0.9996 s is <code class="docutils literal notranslate"><span class="pre">1000</span></code> ms. When
+the frequency field is empty and the epoch starts before zero,
+<code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> sets <code class="docutils literal notranslate"><span class="pre">winsize</span></code> the same way (<code class="docutils literal notranslate"><span class="pre">pop_newtimef.m</span></code> line
+292): <code class="docutils literal notranslate"><span class="pre">xmin</span></code> -0.1 s at 256 Hz is 26 samples.</p></li>
+<li><p>Sample indices that follow MATLAB <code class="docutils literal notranslate"><span class="pre">round</span></code> send halves away from zero.
+<code class="docutils literal notranslate"><span class="pre">[25</span> <span class="pre">800]</span></code> ms at 100 Hz with <code class="docutils literal notranslate"><span class="pre">xmin</span></code> 0 starts at sample 3
+(<code class="docutils literal notranslate"><span class="pre">pop_newtimef.m</span></code> lines 305-306; <code class="docutils literal notranslate"><span class="pre">pop_newcrossf.m</span></code> line 188 uses the
+same <code class="docutils literal notranslate"><span class="pre">round</span></code>). The same tie is used for time-warp frames
+(<code class="docutils literal notranslate"><span class="pre">newtimef.m</span></code> lines 630 and 635), the <code class="docutils literal notranslate"><span class="pre">envtopo</span></code> contribution window
+(lines 418-419), <code class="docutils literal notranslate"><span class="pre">dftfilt</span></code> tapers (lines 70-71), <code class="docutils literal notranslate"><span class="pre">spectopo</span></code> percent
+and window length (lines 320 and 895), scroll-window bounds and click
+latencies (<code class="docutils literal notranslate"><span class="pre">eegplot.m</span></code> lines 1318-1319, 1403, and 2028-2029), rejection
+regions (<code class="docutils literal notranslate"><span class="pre">eegrej.m</span></code> line 82), the kurtosis and joint-probability trim
+(<code class="docutils literal notranslate"><span class="pre">rejkurt.m</span></code> line 110, <code class="docutils literal notranslate"><span class="pre">jointprob.m</span></code> line 115), scalp-map and epoch
+dialogs (<code class="docutils literal notranslate"><span class="pre">pop_topoplot.m</span></code> lines 104 and 391, <code class="docutils literal notranslate"><span class="pre">pop_headplot.m</span></code> line
+159, <code class="docutils literal notranslate"><span class="pre">pop_epoch.m</span></code> line 122), and epoch latencies (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code>
+line 652).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> takes the EEGLAB sample window (<code class="docutils literal notranslate"><span class="pre">pop_newtimef.m</span></code> lines
+305-306) and passes those requested time limits into the decomposition.
+<code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> uses that same inclusive end. Pinned <code class="docutils literal notranslate"><span class="pre">pop_newcrossf.m</span></code>
+line 189 omits the +1, so EEGLAB drops the last sample of a
+whole-millisecond limit; the help text and a regression test record that
+difference. The previous slice dropped the sample after that limit and evaluated
+the decomposition on the kept sample times, so an explicit baseline did
+not move the result.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> channel locations include empty <code class="docutils literal notranslate"><span class="pre">ref</span></code> and
 <code class="docutils literal notranslate"><span class="pre">type</span></code> on every channel. MATLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> fills a missing
 <code class="docutils literal notranslate"><span class="pre">chanlocs.ref</span></code> with <code class="docutils literal notranslate"><span class="pre">''</span></code> (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 1105-1117) and the

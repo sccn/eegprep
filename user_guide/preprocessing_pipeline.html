@@ -718,14 +718,15 @@ reaches stay finite.</p>
 <p>Interpolate known bad channels after channel removal or rejection:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eegprep</span><span class="w"> </span><span class="kn">import</span> <span class="n">pop_interp</span>
 
-<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_interp</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">EEG</span><span class="p">,</span> <span class="n">com</span> <span class="o">=</span> <span class="n">pop_interp</span><span class="p">(</span><span class="n">EEG</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span> <span class="n">return_com</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Re-reference</span> <span class="pre">the</span> <span class="pre">data</span></code> and <code class="docutils literal notranslate"><span class="pre">Tools</span> <span class="pre">&gt;</span> <span class="pre">Interpolate</span> <span class="pre">electrodes</span></code>
 from the GUI.</p>
-<p>The programmatic <code class="docutils literal notranslate"><span class="pre">bad_elec</span></code> list for <code class="docutils literal notranslate"><span class="pre">pop_interp</span></code> uses Python zero-based
-indices when integers are supplied. GUI channel selection remains one-based and
-label-driven.</p>
+<p><code class="docutils literal notranslate"><span class="pre">bad_elec</span></code> integers are 1-based: channel 1 is the first channel. A <code class="docutils literal notranslate"><span class="pre">t_range</span></code>
+of <code class="docutils literal notranslate"><span class="pre">[start,</span> <span class="pre">end]</span></code> seconds is inclusive on <code class="docutils literal notranslate"><span class="pre">EEG.times</span></code>. An empty dialog time
+field interpolates the whole recording. A scripted range is honoured.
+Pinned EEGLAB <code class="docutils literal notranslate"><span class="pre">pop_interp.m</span></code> line 61 discards that fourth argument.</p>
 </section>
 <section id="run-ica-and-iclabel">
 <h2>Run ICA and ICLabel<a class="headerlink" href="#run-ica-and-iclabel" title="Link to this heading">#</a></h2>
@@ -758,8 +759,12 @@ wrappers for the common EEGLAB plotting workflows:</p>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> plots one channel or component at a time. Set <code class="docutils literal notranslate"><span class="pre">typeproc=1</span></code> for
 a channel and <code class="docutils literal notranslate"><span class="pre">typeproc=0</span></code> for an ICA component; <code class="docutils literal notranslate"><span class="pre">num</span></code> is the 1-based channel
-or component index. <code class="docutils literal notranslate"><span class="pre">tlimits</span></code> is the epoch window in milliseconds and <code class="docutils literal notranslate"><span class="pre">cycles</span></code>
-selects the decomposition: <code class="docutils literal notranslate"><span class="pre">[0]</span></code> uses a short-time FFT, while <code class="docutils literal notranslate"><span class="pre">[n]</span></code> (optionally
+or component index. <code class="docutils literal notranslate"><span class="pre">tlimits</span></code> is the epoch window in milliseconds. The sample
+window uses EEGLAB rounding and the decomposition uses those requested limits.
+<code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> includes the end sample. <code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> includes it too;
+pinned <code class="docutils literal notranslate"><span class="pre">pop_newcrossf.m</span></code> line 189 drops that sample.
+<code class="docutils literal notranslate"><span class="pre">pop_newcrossf</span></code> without a frequency range stops at 50 Hz.
+<code class="docutils literal notranslate"><span class="pre">cycles</span></code> selects the decomposition: <code class="docutils literal notranslate"><span class="pre">[0]</span></code> uses a short-time FFT, while <code class="docutils literal notranslate"><span class="pre">[n]</span></code> (optionally
 <code class="docutils literal notranslate"><span class="pre">[n</span> <span class="pre">factor]</span></code>) uses an <code class="docutils literal notranslate"><span class="pre">n</span></code>-cycle Morlet wavelet that narrows toward higher
 frequencies. Called with no index, <code class="docutils literal notranslate"><span class="pre">pop_newtimef</span></code> opens a dialog to collect
 these values; the <code class="docutils literal notranslate"><span class="pre">Plot</span></code> menu exposes the same dialog under <em>Channel

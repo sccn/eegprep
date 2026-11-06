@@ -6,7 +6,7 @@
 
 Computation times
 =================
-**00:39.673** total execution time for 17 files **from all galleries**:
+**00:35.165** total execution time for 17 files **from all galleries**:
 
 .. container::
 
@@ -33,53 +33,53 @@ Computation times
      - Time
      - Mem (MB)
    * - :ref:`sphx_glr_auto_examples_plot_reject_artifacts.py` (``examples/plot_reject_artifacts.py``)
-     - 00:09.139
+     - 00:08.381
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_artifact_removal.py` (``examples/plot_artifact_removal.py``)
-     - 00:08.224
+     - 00:06.756
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_data_plotting.py` (``examples/plot_data_plotting.py``)
-     - 00:05.009
+     - 00:04.853
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_group_analysis_study.py` (``examples/plot_group_analysis_study.py``)
-     - 00:04.384
+     - 00:03.790
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_basic_preprocessing.py` (``examples/plot_basic_preprocessing.py``)
-     - 00:03.994
+     - 00:03.397
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_ica_and_iclabel.py` (``examples/plot_ica_and_iclabel.py``)
-     - 00:03.837
+     - 00:03.175
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_import_data.py` (``examples/plot_import_data.py``)
-     - 00:02.153
+     - 00:02.186
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_channel_interpolation.py` (``examples/plot_channel_interpolation.py``)
-     - 00:01.083
+     - 00:00.979
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_source_analysis_dipfit.py` (``examples/plot_source_analysis_dipfit.py``)
-     - 00:00.774
-     - 0.0
-   * - :ref:`sphx_glr_auto_examples_plot_preprocess_data.py` (``examples/plot_preprocess_data.py``)
-     - 00:00.311
+     - 00:00.654
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_history_to_script.py` (``examples/plot_history_to_script.py``)
-     - 00:00.302
+     - 00:00.298
+     - 0.0
+   * - :ref:`sphx_glr_auto_examples_plot_preprocess_data.py` (``examples/plot_preprocess_data.py``)
+     - 00:00.276
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_dataset_management.py` (``examples/plot_dataset_management.py``)
-     - 00:00.196
+     - 00:00.174
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_data_structures.py` (``examples/plot_data_structures.py``)
-     - 00:00.096
+     - 00:00.091
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_bids_pipeline.py` (``examples/plot_bids_pipeline.py``)
-     - 00:00.070
+     - 00:00.065
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_extract_epochs.py` (``examples/plot_extract_epochs.py``)
-     - 00:00.055
+     - 00:00.051
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_quickstart_tour.py` (``examples/plot_quickstart_tour.py``)
-     - 00:00.025
+     - 00:00.023
      - 0.0
    * - :ref:`sphx_glr_auto_examples_plot_public_api_and_plugins.py` (``examples/plot_public_api_and_plugins.py``)
-     - 00:00.021
+     - 00:00.017
      - 0.0

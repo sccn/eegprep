@@ -676,8 +676,8 @@ EEGLAB runica.m with 99.97-99.99% component-wise correlation.</p>
 </ul>
 <p>Known Acceptable Differences:</p>
 <ol class="arabic simple">
-<li><p>Component Ordering: May differ from MATLAB due to variance scaling.
-Scientifically acceptable (ICA permutation ambiguity).</p></li>
+<li><p>Component ordering follows runica.m line 1519: sphered-channel energy
+when <code class="docutils literal notranslate"><span class="pre">posact</span></code> is off, activation energy when <code class="docutils literal notranslate"><span class="pre">posact</span></code> is on.</p></li>
 <li><p>Convergence Steps (Standard ICA only): May take ~10% more steps
 due to sqrtm precision differences. Extended-ICA: 0% difference.</p></li>
 <li><p>Runtime: Python ~1.5-2x slower than MATLAB (acceptable).</p></li>
