@@ -112,19 +112,25 @@ def test_scroll_window_eeg_eegrej_region_matches_matlab() -> None:
     np.testing.assert_array_equal(np.asarray(py["data"]), np.asarray(mat["data"]))
 
 
+def _close_browser_windows(app) -> None:
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
+
+    for widget in list(app.topLevelWidgets()):
+        if isinstance(widget, EEGBrowserWindow):
+            widget.close()
+            widget.deleteLater()
+    app.processEvents()
+
+
 @pytest.fixture
 def qapp():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     qt_widgets = pytest.importorskip("PySide6.QtWidgets")
     pytest.importorskip("pyqtgraph")
     app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    _close_browser_windows(app)
     yield app
-    from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
-
-    for widget in list(app.topLevelWidgets()):
-        if isinstance(widget, EEGBrowserWindow):
-            widget.close()
-    app.processEvents()
+    _close_browser_windows(app)
 
 
 def test_gui_explicit_reject_skips_instruction_dialog(qapp) -> None:
@@ -407,19 +413,22 @@ def _qt_app():
     return app
 
 
-def _browser_windows() -> list:
+def _browser_windows(*, visible_only: bool = True) -> list:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 
     return [
-        widget for widget in _qt_app().topLevelWidgets() if isinstance(widget, EEGBrowserWindow) and widget.isVisible()
+        widget
+        for widget in _qt_app().topLevelWidgets()
+        if isinstance(widget, EEGBrowserWindow) and (widget.isVisible() or not visible_only)
     ]
 
 
 def _open_browser(eeg: dict, **kwargs):
+    before = {id(window) for window in _browser_windows(visible_only=False)}
     pop_eegplot(eeg, return_com=True, command_callback=lambda *_args: None, **kwargs)
-    windows = _browser_windows()
-    assert len(windows) == 1
-    window = windows[0]
+    opened = [window for window in _browser_windows() if id(window) not in before]
+    assert len(opened) == 1
+    window = opened[0]
     app = _qt_app()
     window.show()
     window.resize(960, 560)

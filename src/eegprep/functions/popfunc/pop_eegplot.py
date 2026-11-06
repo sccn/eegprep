@@ -221,21 +221,27 @@ def _ask_dialog(icon_name: str, text: str, labels: tuple[str, str], default: str
             "pop_eegplot could not open its dialog because PySide6 is not installed. "
             "Install it with `pip install eegprep[gui]`."
         ) from exc
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    box = QtWidgets.QMessageBox()
-    box.setIcon(getattr(QtWidgets.QMessageBox.Icon, icon_name))
-    box.setWindowTitle(title or icon_name)
-    box.setTextFormat(QtCore.Qt.TextFormat.PlainText)
-    box.setText(text)
-    buttons = {label: box.addButton(label, QtWidgets.QMessageBox.ButtonRole.ActionRole) for label in labels}
-    box.setDefaultButton(buttons[default])
-    box.setEscapeButton(buttons[labels[0]])
-    box.exec()
-    clicked = box.clickedButton()
-    for label, button in buttons.items():
-        if clicked is button:
-            return label
-    return ""
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    native_dialogs = QtCore.Qt.ApplicationAttribute.AA_DontUseNativeDialogs
+    previous_native_dialogs = app.testAttribute(native_dialogs)
+    app.setAttribute(native_dialogs, True)
+    try:
+        box = QtWidgets.QMessageBox()
+        box.setIcon(getattr(QtWidgets.QMessageBox.Icon, icon_name))
+        box.setWindowTitle(title or icon_name)
+        box.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+        box.setText(text)
+        buttons = {label: box.addButton(label, QtWidgets.QMessageBox.ButtonRole.ActionRole) for label in labels}
+        box.setDefaultButton(buttons[default])
+        box.setEscapeButton(buttons[labels[0]])
+        box.exec()
+        clicked = box.clickedButton()
+        for label, button in buttons.items():
+            if clicked is button:
+                return label
+        return ""
+    finally:
+        app.setAttribute(native_dialogs, previous_native_dialogs)
 
 
 def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> np.ndarray:
