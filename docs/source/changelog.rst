@@ -10,6 +10,50 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- File > Export opens the ``pop_export``, ``pop_writeeeg``, and ``pop_exportbids``
+  dialogs (``pop_export.m`` lines 77-115, ``pop_writeeeg.m`` lines 52-80,
+  ``pop_exportbids.m`` lines 48-83). ``pop_expica`` and ``pop_expevents`` stay
+  file pickers, matching ``pop_expica.m`` lines 61-69 and ``pop_expevents.m``
+  lines 67-73.
+- File > BIDS tools opens the task, participant, and event dialogs from
+  ``pop_taskinfo.m``, ``pop_participantinfo.m`` line 160, and ``pop_eventinfo.m``
+  line 59. Values are stored on ``EEG.etc.bids`` so ``pop_saveset`` keeps them.
+  An empty subject code raises an error from ``pop_participantinfo``.
+- Importing a BIDS dataset replaces a missing ``chaninfo.plotrad`` or
+  ``chaninfo.shrink`` with an empty array, so File > Save no longer fails while
+  ``savemat`` is writing those fields. The import dialog matches
+  ``pop_importbids.m`` lines 104-164 and loads an in-memory study. It does not
+  copy datasets into ``derivatives/eeglab`` (``pop_importbids.m`` lines 839 and
+  892 do).
+- ``pop_writeeeg`` writes EDF and BDF without padding the recording to a whole
+  number of one-second records, and it keeps every event annotation.
+  ``pop_writeeeg.m`` line 97 records the command without a ``LASTCOM`` prefix.
+  Epoched data is concatenated after the same confirmation as lines 53-57.
+- ``pop_export`` writes ``%.Nf`` decimal places (``pop_export.m`` line 179).
+  The dialog label still says "significant digits" (line 93). ICA columns use
+  component numbers (lines 187-191). A non-transposed time row is labeled
+  `` Time`` (line 217). ``pop_expica`` writes ``save -ascii`` text
+  (``pop_expica.m`` line 79) with each value formatted ``%16.7e``.
+  ``pop_expevents`` follows ``eeg_eventtable.m`` lines 123-159: a ``number``
+  column, first-seen field order, and ``%f`` numeric cells.
+- ``pop_exportbids`` writes ``README``, ``*_eeg.json``, and ``*_electrodes.tsv``.
+  The electrodes name keeps the ``task-`` entity. ``bids_writeelectrodefile.m``
+  lines 32-39 remove it for a bids-validator 1.10 workaround. Event tables use
+  ``onset``, ``duration``, ``sample``, and ``value`` (``bids_writeeventfile.m``
+  lines 128-197), and a numeric type ``1`` is written as ``1``. ``validate_bids``
+  reports a missing README, ``*_eeg.json``, or electrodes file and does not add
+  ``eegprep_bids_validation.json`` to the dataset. The File menu exports a study
+  only (``pop_exportbids.m`` line 33). ``pop_exportbids(EEG, folder)`` still
+  writes one dataset from memory.
+- BIDS import uses the ``value`` column as the EEG event type when that column
+  exists (``bids_importeventfile.m`` line 14, ``pop_importbids.m`` line 181).
+  ``trial_type`` is still used when ``value`` is absent. A ``nan`` event type
+  is stored as an empty string.
+- The export dialog's "Number of significant digits" field is passed through
+  as ``%.Nf`` decimal places, which is what ``pop_export.m`` line 179 does
+  with the string from line 93. The function default remains 7 decimal places
+  (line 129). The dialog default remains 4 (line 94).
+
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the

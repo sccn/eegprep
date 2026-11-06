@@ -10,9 +10,12 @@ com = pop_writeeeg(EEG, "recording.bdf", "TYPE", "BDF")
 com = pop_writeeeg(EEG, "recording.gdf", "TYPE", "GDF")
 ```
 
-The File > Export menu prompts for an output path and records the command in
-session history. EDF and BDF are written with their standard 16-bit and 24-bit
-sample ranges. GDF uses float64 samples, so signal values are not quantized;
+File > Export asks for a file name and the EDF, GDF, or BDF format. Epoched
+data is concatenated when you accept that prompt. The history command is
+`pop_writeeeg(EEG, 'file', 'TYPE', 'EDF');` with no `LASTCOM` prefix. EDF and
+BDF keep the original sample count and every event annotation. Samples use the
+standard 16-bit and 24-bit ranges. GDF uses float64 samples, so signal values
+are not quantized;
 numeric event types and sample timing are stored in the GDF event table. Since
 GDF event types are uint16 codes, free-text labels receive file-local codes and
 raise a warning that reports the mapping. Use `pop_saveset` for EEGPrep/EEGLAB
