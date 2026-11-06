@@ -60,9 +60,22 @@ def pop_rejchan_dialog_spec(EEG: dict[str, Any]) -> DialogSpec:
                 ),
             ),
             ControlSpec("text", "Normalize measure (check=on)"),
-            ControlSpec("checkbox", tag="norm", value=True),
+            ControlSpec(
+                "checkbox",
+                tag="norm",
+                value=True,
+                callback=CallbackSpec(
+                    "toggle_checked_text",
+                    {
+                        "source": "norm",
+                        "target": "normlab",
+                        "checked": "Z-score threshold [max] or [min max]",
+                        "unchecked": "Absolute threshold [max] or [min max]",
+                    },
+                ),
+            ),
             ControlSpec("spacer"),
-            ControlSpec("text", "Z-score threshold [max] or [min max]"),
+            ControlSpec("text", "Z-score threshold [max] or [min max]", tag="normlab"),
             ControlSpec("edit", tag="threshold", value="5"),
             ControlSpec("text", "Spectrum freq. range", tag="freq_label", enabled=False),
             ControlSpec(
@@ -162,7 +175,7 @@ def _threshold_measure(measure: np.ndarray, threshold: list[float]) -> np.ndarra
 
 
 def _history_command(options: dict[str, Any]) -> str:
-    # pop_rejchan.m:246 records the call with vararg2str, including the space array2str leaves before a comma.
+    # pop_rejchan.m:246
     parts = []
     for key in ("elec", "threshold", "norm", "measure", "freqrange", "indexonly"):
         if key in options:
@@ -196,13 +209,38 @@ def _matlab_number(value: float) -> str:
 
 
 def _matlab_contarray(values: list[float]) -> str:
-    if len(values) == 2:
-        return f"{_matlab_number(values[0])} {_matlab_number(values[1])}"
-    if all(float(item).is_integer() for item in values):
-        integers = [int(round(float(item))) for item in values]
-        step = integers[1] - integers[0]
-        if step != 0 and all(integers[index] - integers[index - 1] == step for index in range(1, len(integers))):
-            if step == 1:
-                return f"{integers[0]}:{integers[-1]}"
-            return f"{integers[0]}:{step}:{integers[-1]}"
-    return " ".join(_matlab_number(item) for item in values)
+    # vararg2str.m:196-242
+    array = [float(item) for item in values]
+    if len(array) == 2:
+        return f"{_matlab_number(array[0])} {_matlab_number(array[1])}"
+    if any(not item.is_integer() for item in array):
+        return " ".join(_matlab_number(item) for item in array)
+    rendered = _matlab_number(array[0])
+    skip = 0
+    indent = array[1] - array[0]
+    for index in range(1, len(array)):
+        if array[index] != array[index - 1] + indent or indent == 0:
+            if skip <= 1:
+                if skip == 0:
+                    rendered = f"{rendered} {_matlab_number(array[index])}"
+                else:
+                    rendered = f"{rendered} {_matlab_number(array[index - 1])} {_matlab_number(array[index])}"
+            elif indent == 1:
+                rendered = f"{rendered}:{_matlab_number(array[index - 1])} {_matlab_number(array[index])}"
+            else:
+                rendered = (
+                    f"{rendered}:{_matlab_number(indent)}:{_matlab_number(array[index - 1])} "
+                    f"{_matlab_number(array[index])}"
+                )
+            skip = 0
+            indent = array[index] - array[index - 1]
+        else:
+            skip += 1
+    if array[-1] == array[-2] + indent and skip != 0:
+        if indent == 1:
+            rendered = f"{rendered}:{_matlab_number(array[-1])}"
+        elif indent == 0:
+            rendered = f"{rendered} {_matlab_number(array[-1])}"
+        else:
+            rendered = f"{rendered}:{_matlab_number(indent)}:{_matlab_number(array[-1])}"
+    return rendered

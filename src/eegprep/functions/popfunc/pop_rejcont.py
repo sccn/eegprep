@@ -13,6 +13,7 @@ from eegprep.functions.popfunc._pop_utils import format_history_value, parse_key
 from eegprep.functions.popfunc._rejection import copy_eeg, one_based_indices, parse_numeric_sequence
 from eegprep.functions.popfunc.eeg_findboundaries import eeg_findboundaries
 from eegprep.functions.popfunc.eeg_regepochs import eeg_regepochs
+from eegprep.functions.popfunc.pop_rejchan import _matlab_history_value
 from eegprep.functions.popfunc.pop_select import pop_select
 from eegprep.functions.sigprocfunc.eegplot import eegplot
 from eegprep.functions.sigprocfunc.nan_mean import nan_mean
@@ -121,23 +122,24 @@ def _apply_one(
     )
     epochlength = float(parse_numeric_sequence(options.get("epochlength", 0.5), dtype=float)[0])
     overlap = float(parse_numeric_sequence(options.get("overlap", 0.25), dtype=float)[0])
-    threshold = float(parse_numeric_sequence(options.get("threshold", 10), dtype=float)[0])
     contiguous = int(parse_numeric_sequence(options.get("contiguous", 4), dtype=float)[0])
     addlength = float(parse_numeric_sequence(options.get("addlength", 0.25), dtype=float)[0])
-    freqlimit = parse_numeric_sequence(options.get("freqlimit", [35, min(128, srate / 2)]), dtype=float)
+    bands = _rejection_bands(
+        options.get("threshold", 10),
+        options.get("freqlimit", [35, min(128.0, srate / 2)]),
+    )
     selected = _selected_regions(
         out,
         elecrange,
         srate,
         epochlength,
         overlap,
-        freqlimit,
-        threshold,
+        bands,
         contiguous,
         addlength,
         options,
     )
-    command = _history_command(options)
+    command = _history_command(options, selected)
     browser_display = display and str(options.get("onlyreturnselection", "off")).lower() != "on"
     if browser_display:
         _open_rejcont_browser(
@@ -255,7 +257,7 @@ def _selected_chanlocs(EEG: dict[str, Any], selected_rows: np.ndarray) -> list[d
 
 
 def _eegplot_spacing(data: np.ndarray) -> float:
-    # eegplot.m:457-473. std is the sample standard deviation.
+    # eegplot.m:457-473
     sample_count = min(1000, int(data.shape[1]))
     stds = np.std(np.asarray(data, dtype=float)[:, :sample_count], axis=1, ddof=1)
     stds = np.sort(stds[np.isfinite(stds)])
@@ -278,16 +280,14 @@ def _selected_regions(
     srate: float,
     epochlength: float,
     overlap: float,
-    freqlimit: list[float],
-    threshold: float,
+    bands: list[tuple[float, float, list[float]]],
     contiguous: int,
     addlength: float,
     options: dict[str, Any],
 ) -> np.ndarray:
-    # pop_rejcont.m:202 passes overlap as eeg_regepochs recurrence, with limits [0 epochlength].
     work = copy_eeg(EEG)
     work["event"] = _boundary_events(work.get("event"))
-    work["urevent"] = []
+    work["urevent"] = np.empty(0, dtype=object)
     try:
         epoched = eeg_regepochs(work, overlap, [0.0, epochlength], np.nan)
     except ValueError as exc:
@@ -299,13 +299,12 @@ def _selected_regions(
     averaged = np.asarray(nan_mean(spectra[selected_rows], axis=0), dtype=float)
     if averaged.ndim == 1:
         averaged = averaged[:, np.newaxis]
-    rejected = _threshold_epochs(
-        averaged,
-        frequencies,
-        freqlimit if len(freqlimit) >= 2 else [35.0, min(128.0, srate / 2.0)],
-        threshold,
-        str(options.get("mode", "max")),
-    )
+    rejected = np.array([], dtype=int)
+    for low, high, freqlimit in bands:
+        rejected = np.union1d(
+            rejected,
+            _threshold_epochs(averaged, frequencies, freqlimit, low, high, str(options.get("mode", "max"))),
+        )
     rows = _windows_for_epochs(epoched, rejected, epochlength, srate)
     grouplen = contiguous / 2.0 * epochlength * srate + 1.0
     rows = _merge_rejcont_windows(rows, grouplen, contiguous)
@@ -345,7 +344,6 @@ def _epoch_log_spectrum(epoched: dict[str, Any], srate: float, taper: str) -> tu
         data = data * np.hamming(data.shape[1])[np.newaxis, :, np.newaxis]
     spectrum = np.fft.fft(data, axis=1)
     half = spectrum.shape[1] // 2
-    # pop_rejcont.m:211-213 stretches linspace(0, Nyquist, N/2) and drops DC, rather than using bin frequencies.
     frequencies = np.linspace(0.0, srate / 2.0, half)[1:]
     spectrum = spectrum[:, 1:half, :]
     power = 10.0 * np.log10(np.maximum(np.abs(spectrum) ** 2, np.finfo(float).tiny))
@@ -357,12 +355,10 @@ def _threshold_epochs(
     spectrum: np.ndarray,
     frequencies: np.ndarray,
     freqlimit: list[float],
-    threshold: float,
+    low: float,
+    high: float,
     mode: str,
 ) -> np.ndarray:
-    # pop_rejcont.m:239 expands a single threshold to [-100, threshold] before either mode.
-    low = -100.0
-    high = float(threshold)
     if frequencies.size == 0:
         return np.empty(0, dtype=int)
     if mode.lower() == "max":
@@ -425,7 +421,7 @@ def _windows_for_epochs(
 
 
 def _merge_rejcont_windows(rows: list[list[float]], grouplen: float, contiguous: int) -> list[list[float]]:
-    # pop_rejcont.m:293-316, including the backwards deletion order.
+    # pop_rejcont.m:293-316
     index = len(rows) - 1
     while index >= 0:
         count = len(rows)
@@ -462,26 +458,70 @@ def _merge_regions(regions: np.ndarray) -> np.ndarray:
     return np.asarray(merged, dtype=int)
 
 
-def _history_command(options: dict[str, Any]) -> str:
-    values: list[Any] = []
-    for key in (
-        "elecrange",
-        "freqlimit",
-        "threshold",
-        "epochlength",
-        "overlap",
-        "mode",
-        "contiguous",
-        "addlength",
-        "taper",
-        "correct",
-        "onlyreturnselection",
-        "eegplot",
-    ):
-        if key in options:
-            values.extend([key, options[key]])
-    return (
-        "EEG = pop_rejcont(EEG, "
-        + ", ".join(format_history_value(item, cell_for_sequence=None) for item in values)
-        + ");"
+def _history_command(options: dict[str, Any], selected: np.ndarray) -> str:
+    # pop_rejcont.m:370
+    parts = [f"'{key}',{_history_argument(value)}" for key, value in options.items()]
+    comment = (
+        "% the command below does the automated rejection "
+        "(the pop_select command after that includes manual editing)\n"
+        "% EEG = pop_rejcont(EEG, " + ",".join(parts) + ");"
     )
+    if selected.size == 0 or str(options.get("onlyreturnselection", "off")).lower() == "on":
+        return comment
+    regions = format_history_value(np.asarray(selected, dtype=int), cell_for_sequence=None)
+    return comment + f"\nEEG = pop_select(EEG, 'nopoint', {regions});"
+
+
+def _history_argument(value: Any) -> str:
+    if _is_option_cell(value):
+        items = value.reshape(-1).tolist() if isinstance(value, np.ndarray) else list(value)
+        return "{" + ",".join(_history_argument(item) for item in items) + "}"
+    return _matlab_history_value(value)
+
+
+def _rejection_bands(threshold: Any, freqlimit: Any) -> list[tuple[float, float, list[float]]]:
+    # pop_rejcont.m:172-177, 239
+    threshold_cell = _is_option_cell(threshold)
+    freq_cell = _is_option_cell(freqlimit)
+    thresholds = _cell_vectors(threshold) if threshold_cell else [_numeric_vector(threshold)]
+    limits = _cell_vectors(freqlimit) if freq_cell else [_numeric_vector(freqlimit)]
+    if not threshold_cell and len(thresholds[0]) == 2 and freq_cell and len(limits) == 2:
+        thresholds = [[thresholds[0][0]], [thresholds[0][1]]]
+    if len(limits) == 1 and len(thresholds) > 1:
+        limits = limits * len(thresholds)
+    if len(limits) != len(thresholds):
+        raise ValueError(
+            "pop_rejcont: freqlimit and threshold must have one entry each, or the same number of bands. "
+            f"Got {len(limits)} frequency range(s) and {len(thresholds)} threshold(s)."
+        )
+    bands = []
+    for values, band in zip(thresholds, limits, strict=True):
+        if len(values) == 1:
+            low, high = -100.0, values[0]
+        elif len(values) >= 2:
+            low, high = values[0], values[1]
+        else:
+            raise ValueError("pop_rejcont: threshold is empty. Pass a maximum, or [min max].")
+        if len(band) < 2:
+            raise ValueError("pop_rejcont: freqlimit must contain a low and a high frequency, in Hz.")
+        bands.append((low, high, [band[0], band[1]]))
+    return bands
+
+
+def _is_option_cell(value: Any) -> bool:
+    if isinstance(value, np.ndarray):
+        return value.dtype == object
+    if isinstance(value, (list, tuple)) and value:
+        return any(isinstance(item, (list, tuple, np.ndarray, dict)) for item in value)
+    return False
+
+
+def _cell_vectors(value: Any) -> list[list[float]]:
+    items = value.reshape(-1).tolist() if isinstance(value, np.ndarray) else list(value)
+    return [_numeric_vector(item) for item in items]
+
+
+def _numeric_vector(value: Any) -> list[float]:
+    if isinstance(value, (list, tuple)) and len(value) == 1 and isinstance(value[0], (list, tuple, np.ndarray)):
+        value = value[0]
+    return [float(item) for item in parse_numeric_sequence(value, dtype=float)]

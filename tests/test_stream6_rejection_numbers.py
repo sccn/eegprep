@@ -1,22 +1,23 @@
 """Release-readiness checks for rejection counts (issue 551, stream 6)."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.guifunc.spec import controls_by_tag
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc.pop_autorej import pop_autorej
-from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh_dialog_spec
+from eegprep.functions.popfunc.pop_eegthresh import pop_eegthresh, pop_eegthresh_dialog_spec
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
 from eegprep.functions.popfunc.pop_rejchan import pop_rejchan, pop_rejchan_dialog_spec
 from eegprep.functions.popfunc.pop_rejcont import pop_rejcont, pop_rejcont_dialog_spec
 from eegprep.functions.popfunc.pop_rejepoch import pop_rejepoch
 from eegprep.functions.popfunc.pop_rejkurt import pop_rejkurt
-from eegprep.functions.popfunc.pop_rejspec import pop_rejspec
+from eegprep.functions.popfunc.pop_rejspec import pop_rejspec, pop_rejspec_dialog_spec
 from eegprep.functions.popfunc.pop_rejtrend import pop_rejtrend
 from eegprep.plugins.firfilt.pop_eegfiltnew import pop_eegfiltnew
 from tests.eeglab_tests import eeglab_test
@@ -24,6 +25,24 @@ from tests.fixtures import SAMPLE_DATASET_PATH, create_test_eeg
 
 
 EPOCH_DATASET_PATH = Path(__file__).resolve().parents[1] / "sample_data" / "eeglab_data_epochs_ica.set"
+REJCONT_LOW_REGIONS = [
+    [1, 4832],
+    [5057, 6272],
+    [6401, 7008],
+    [7361, 11488],
+    [12513, 12832],
+    [12929, 13760],
+    [13857, 14848],
+    [15009, 17344],
+    [17441, 18688],
+    [18817, 19136],
+    [19233, 22208],
+    [22593, 23456],
+    [23649, 24288],
+    [24385, 26816],
+    [27105, 29632],
+    [29761, 30496],
+]
 REJCONT_REGIONS = [
     [321, 480],
     [3489, 3936],
@@ -144,7 +163,7 @@ def _indices(value) -> list[int]:
     return [int(item) for item in array]
 
 
-def _rejcont(eeglab_backend, EEG):
+def _rejcont(eeglab_backend, EEG, threshold=10.0):
     return eeglab_backend(
         "pop_rejcont",
         EEG,
@@ -153,7 +172,7 @@ def _rejcont(eeglab_backend, EEG):
         "freqlimit",
         np.array([[20.0, 40.0]]),
         "threshold",
-        10.0,
+        np.asarray(threshold, dtype=float).reshape(1, -1),
         "epochlength",
         0.5,
         "contiguous",
@@ -194,9 +213,43 @@ def _rejspec(eeglab_backend, EEG, icacomp, method, threshold):
     )
 
 
-def test_pop_rejcont_keeps_the_sample_recording_regions():
-    out, selected = pop_rejcont(
-        _continuous(),
+def _sample_rejcont(eeg, threshold, freqlimit=None):
+    return pop_rejcont(
+        eeg,
+        "elecrange",
+        list(range(1, 33)),
+        "freqlimit",
+        [20, 40] if freqlimit is None else freqlimit,
+        "threshold",
+        threshold,
+        "epochlength",
+        0.5,
+        "contiguous",
+        4,
+        "addlength",
+        0.25,
+        "taper",
+        "hamming",
+    )
+
+
+def test_pop_rejcont_keeps_the_sample_recording_regions(caplog):
+    with caplog.at_level(logging.WARNING, logger="eegprep"):
+        out, selected = _sample_rejcont(_continuous(), 10)
+
+    assert "out of data boundary" not in caplog.text
+    assert "Field 'urevent'" not in caplog.text
+    assert out["pnts"] == 28008
+    assert np.asarray(selected, dtype=int).tolist() == REJCONT_REGIONS
+
+
+def test_pop_rejcont_two_sided_and_cell_thresholds():
+    continuous = _continuous()
+    wide, wide_regions = _sample_rejcont(continuous, [-50, 10])
+    narrow, narrow_regions = _sample_rejcont(continuous, [-5, 10])
+    cell, cell_regions = _sample_rejcont(continuous, [[-50, 10]], freqlimit=[[20, 40]])
+    _out, command = pop_rejcont(
+        continuous,
         "elecrange",
         list(range(1, 33)),
         "freqlimit",
@@ -211,12 +264,17 @@ def test_pop_rejcont_keeps_the_sample_recording_regions():
         0.25,
         "taper",
         "hamming",
-        "overlap",
-        0.25,
+        return_com=True,
     )
 
-    assert out["pnts"] == 28008
-    assert np.asarray(selected, dtype=int).tolist() == REJCONT_REGIONS
+    assert wide["pnts"] == 28008
+    assert np.asarray(wide_regions, dtype=int).tolist() == REJCONT_REGIONS
+    assert narrow["pnts"] == 3496
+    assert np.asarray(narrow_regions, dtype=int).tolist() == REJCONT_LOW_REGIONS
+    assert cell["pnts"] == wide["pnts"]
+    assert np.asarray(cell_regions, dtype=int).tolist() == REJCONT_REGIONS
+    assert command.splitlines()[1].startswith("% EEG = pop_rejcont(EEG, ")
+    assert "EEG = pop_select(EEG, 'nopoint', [321 480;" in command
 
 
 def test_pop_rejcont_keeps_the_same_regions_after_1hz_highpass():
@@ -297,6 +355,12 @@ def test_pop_rejchan_dialog_and_history_follow_vararg2str():
     assert tags["measure"].string == "Probability|Kurtosis|Spectrum"
     assert tags["freqrange"].enabled is False
     assert tags["freq_label"].enabled is False
+    norm = tags["norm"].callback
+    assert norm is not None
+    assert norm.name == "toggle_checked_text"
+    assert norm.params["target"] == "normlab"
+    assert tags["normlab"].string == "Z-score threshold [max] or [min max]"
+    assert norm.params["unchecked"] == "Absolute threshold [max] or [min max]"
     assert callback is not None
     assert callback.params["enabled_index"] == 3
     _, command = pop_rejchan(
@@ -459,8 +523,52 @@ def test_reject_marked_epochs_superposes_before_removing_trials():
     MenuActionDispatcher(session).dispatch("pop_rejepoch:ica")
 
     assert session.EEG["trials"] == 2
-    assert "eeg_rejsuperpose(EEG, 0, 1, 1, 1, 1, 1, 1, 1)" in session.ALLCOM[-2]
-    assert session.ALLCOM[-1].startswith("EEG = pop_rejepoch(")
+    assert "eeg_rejsuperpose(EEG, 0, 1, 1, 1, 1, 1, 1, 1)" in session.ALLCOM[-3]
+    assert "EEG = pop_rejepoch( EEG, 2,0);" in session.ALLCOM
+    assert any("pop_newset" in line for line in session.ALLCOM)
+
+
+def test_pop_rejspec_dialog_defaults_to_fft():
+    spec = pop_rejspec_dialog_spec(_epochs(), 1)
+    method = controls_by_tag(spec)["method"]
+
+    assert method.string == "FFT|Multitaper"
+    assert method.value == 1
+
+
+def test_threshold_75_marks_71_epochs_and_export_copies_them():
+    epochs = _epochs()
+    xmin = float(np.asarray(epochs["xmin"]).reshape(-1)[0])
+    xmax = float(np.asarray(epochs["xmax"]).reshape(-1)[0])
+    marked, rejected = pop_eegthresh(epochs, 1, list(range(1, 33)), -75, 75, xmin, xmax, 0, 0)
+    session = EEGPrepSession()
+    session.store_current(marked, new=True)
+
+    MenuActionDispatcher(session).dispatch("eeg_rejsuperpose:data_to_ica")
+
+    assert len(rejected) == 71
+    assert int(np.asarray(session.EEG["reject"]["icarejmanual"]).sum()) == 71
+
+
+def test_pop_rejepoch_history_compresses_ranges_and_records_confirm_zero():
+    eeg = create_test_eeg(n_channels=2, n_samples=8, n_trials=10, srate=100)
+    marks = np.zeros(10, dtype=bool)
+    marks[:6] = True
+    marks[8] = True
+
+    _out, command = pop_rejepoch(eeg, marks, 0, return_com=True)
+
+    assert command == "EEG = pop_rejepoch( EEG, [1:6 9] ,0);"
+
+
+def test_pop_rejepoch_confirm_minus_one_keeps_an_empty_dataset():
+    eeg = create_test_eeg(n_channels=2, n_samples=8, n_trials=3, srate=100)
+    eeg["reject"]["rejglobal"] = np.ones(3, dtype=bool)
+
+    empty = pop_rejepoch(eeg, confirm=-1)
+
+    assert empty["trials"] == 0
+    assert np.asarray(empty["data"]).shape[-1] == 0
 
 
 def test_pop_rejepoch_names_the_empty_dataset_error():
@@ -469,6 +577,13 @@ def test_pop_rejepoch_names_the_empty_dataset_error():
 
     with pytest.raises(ValueError, match="pop_rejepoch: rejecting every epoch"):
         pop_rejepoch(eeg)
+
+
+def test_pop_autorej_names_a_non_numeric_dialog_field():
+    with pytest.raises(ValueError, match="pop_autorej: Threshold limit \\(microV\\)") as error:
+        pop_autorej(_epochs(), "threshold", "abc", "eegplot", "off")
+
+    assert "1000" in str(error.value)
 
 
 def test_eeg_rejsuperpose_public_typerej_still_means_data():
@@ -509,6 +624,51 @@ def test_reference_pop_rejcont_sample_regions(eeglab_backend):
 
     assert python_regions.astype(int).tolist() == REJCONT_REGIONS
     assert np.rint(np.asarray(matlab_regions, dtype=float)).astype(int).tolist() == python_regions.astype(int).tolist()
+
+
+@eeglab_test("functions/popfunc/pop_rejcont.m", "test_reference_pop_rejcont_two_sided_thresholds")
+def test_reference_pop_rejcont_two_sided_thresholds(eeglab_backend):
+    matlab = eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH))
+    for threshold, expected in (([-50.0, 10.0], REJCONT_REGIONS), ([-5.0, 10.0], REJCONT_LOW_REGIONS)):
+        _eeg, regions = _rejcont(eeglab_backend, matlab, threshold)
+        assert np.rint(np.asarray(regions, dtype=float)).astype(int).tolist() == expected
+
+
+@eeglab_test("functions/popfunc/pop_eegthresh.m", "test_reference_threshold_75_marks_71_epochs")
+def test_reference_threshold_75_marks_71_epochs(eeglab_backend):
+    epochs = _epochs()
+    xmin = float(np.asarray(epochs["xmin"]).reshape(-1)[0])
+    xmax = float(np.asarray(epochs["xmax"]).reshape(-1)[0])
+    _marked, rejected = eeglab_backend(
+        "pop_eegthresh",
+        eeglab_backend("pop_loadset", str(EPOCH_DATASET_PATH)),
+        1.0,
+        np.arange(1, 33, dtype=float)[None, :],
+        -75.0,
+        75.0,
+        xmin,
+        xmax,
+        0.0,
+        0.0,
+        nargout=2,
+    )
+
+    assert _indices(rejected) and len(_indices(rejected)) == 71
+
+
+@eeglab_test("functions/popfunc/pop_autorej.m", "test_reference_pop_autorej_eeglab_omits_epoch_16")
+def test_reference_pop_autorej_eeglab_omits_epoch_16(eeglab_backend, request):
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        pytest.skip("pop_autorej.m:224 reads icarejkurt; EEGPrep's rejkurt result is asserted separately")
+    _eeg, rejected = eeglab_backend(
+        "pop_autorej",
+        eeglab_backend("pop_loadset", str(EPOCH_DATASET_PATH)),
+        "eegplot",
+        "off",
+        nargout=2,
+    )
+
+    assert _indices(rejected) == [1, 2, 28, 46, 70]
 
 
 @eeglab_test("functions/popfunc/pop_rejchan.m", "test_reference_pop_rejchan_sample_channels")

@@ -10,6 +10,30 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_rejcont`` accepts a ``[min max]`` threshold and a cell of thresholds
+  or frequency ranges (``pop_rejcont.m:172-177`` and ``pop_rejcont.m:239``).
+  A single limit is still expanded to ``[-100 limit]``. On
+  ``eeglab_data.set``, ``[-50 10]`` keeps 28008 points in 9 regions and
+  ``[-5 10]`` keeps 3496 points in 16 regions.
+- ``pop_rejcont`` history is the commented ``vararg2str`` call plus
+  ``pop_select(..., 'nopoint', ...)`` (``pop_rejcont.m:352`` and
+  ``pop_rejcont.m:370``).
+- Reject marked epochs history is ``pop_rejepoch( EEG, [1:6 9] ,0)``
+  (``pop_rejepoch.m:101``).
+- Reject marked epochs, for data and for ICA, stores the result with
+  ``pop_newset`` (``eeglab.m:663-664`` and ``eeglab.m:676-677``).
+- The reject-by-spectra dialog opens on FFT (``pop_rejspec.m:142-149``).
+- Unchecking normalization in channel rejection relabels the threshold as
+  an absolute limit (``pop_rejchan.m:86-89``).
+- Multitaper spectra adapt until ``pmtm``'s convergence test on the full
+  ``nfft``, with no iteration cap (``pop_rejspec.m:307-326``).
+- ``pop_rejepoch(..., confirm=-1)`` follows ``pop_rejepoch.m:96-97`` and
+  allows an empty dataset. Any other confirm value still names
+  ``pop_rejepoch`` and tells you to clear a mark.
+- ``pop_autorej`` reports which dialog field was not numeric, and shows a
+  valid example, instead of a bare float conversion error.
+- ``eeg_regepochs`` stores ``urevent`` as an array and does not insert a
+  regular event whose epoch window extends past the data.
 - ``pop_eegthresh`` now opens the component dialog on components 1:5
   (``pop_eegthresh.m:120``) instead of every component.
 - Reject marked epochs now builds ``rejglobal`` with ``eeg_rejsuperpose``

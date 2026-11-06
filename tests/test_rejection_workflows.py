@@ -474,7 +474,7 @@ def test_pop_rejcont_display_defers_history_command_until_browser_accept(monkeyp
 
     assert out is eeg
     assert command == ""
-    assert accepted[0][1].startswith("EEG = pop_rejcont(EEG, ")
+    assert accepted[0][1].startswith("% the command below does the automated rejection")
 
 
 def test_jointprob_global_marks_match_eeglab_trial_rows_for_duplicate_channels():
@@ -642,7 +642,7 @@ def test_eeg_rejsuperpose_and_pop_rejepoch_remove_marked_epochs():
     removed, reject_com = pop_rejepoch(copy.deepcopy(marked), marked["reject"]["rejglobal"], 0, return_com=True)
     assert removed["trials"] == 3
     assert _console_python_command(com) == "EEG = eeg_rejsuperpose(EEG, 1, 1, 0, 0, 0, 0, 0, 0)"
-    assert _console_python_command(reject_com) == "EEG = pop_rejepoch(EEG, tmprej=[2, 5], confirm=0)"
+    assert reject_com == "EEG = pop_rejepoch( EEG, [2 5] ,0);"
 
 
 def test_eeg_rejsuperpose_only_crosses_trial_marks_between_data_and_ica_families():
@@ -760,10 +760,13 @@ def test_pop_rejcont_history_replays_effectful_mode_and_overlap_options():
         return_com=True,
     )
 
-    assert _console_python_command(command) == (
-        "EEG = pop_rejcont(EEG, elecrange=[1], freqlimit=[20, 40], threshold=1000000000, "
-        "epochlength=0.5, overlap=0.1, mode='mean', onlyreturnselection='on')"
-    )
+    assert command.startswith("% the command below does the automated rejection")
+    assert "'elecrange',1" in command
+    assert "'freqlimit',[20 40] " in command
+    assert "'threshold',1000000000" in command
+    assert "'mode','mean'" in command
+    assert "'onlyreturnselection','on'" in command
+    assert not any(line.startswith("EEG = pop_select") for line in command.splitlines())
 
 
 def test_component_selection_and_viewprops_are_replayable_without_scrolling_browser():

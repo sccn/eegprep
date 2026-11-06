@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
 from eegprep.functions.popfunc.pop_epoch import pop_epoch
 from eegprep.functions.popfunc.pop_mergeset import pop_mergeset
@@ -65,17 +66,19 @@ def eeg_regepochs(EEG: dict[str, Any] | list[dict[str, Any]], *args: Any, **kwar
         ]
         for index, event in enumerate(events):
             event["urevent"] = index
+    extract = str(options["extractepochs"]).casefold()
     for index in range(event_count):
         latency = recurrence * index * sampling_rate + 1
+        if extract == "on" and not _epoch_window_fits(latency, limits, sampling_rate, points):
+            continue
         urevent = {"type": event_type, "latency": latency, **deepcopy(extra)}
         event = {**deepcopy(urevent), "urevent": len(urevents)}
         urevents.append(urevent)
         events.append(event)
     events.sort(key=lambda event: float(event.get("latency", np.inf)))
-    dataset["event"] = events
-    dataset["urevent"] = urevents
+    dataset["event"] = np.array(events, dtype=object)
+    dataset["urevent"] = np.array(urevents, dtype=object)
 
-    extract = str(options["extractepochs"]).casefold()
     if extract == "off":
         dataset["saved"] = "no"
         return dataset
@@ -124,6 +127,13 @@ def _options(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:
     if unknown:
         raise ValueError(f"eeg_regepochs: unsupported option(s): {', '.join(unknown)}")
     return {**_DEFAULTS, **supplied}
+
+
+def _epoch_window_fits(latency: float, limits: list[float], srate: float, points: int) -> bool:
+    start = int(round_mat(limits[0] * srate))
+    stop = int(round_mat(limits[1] * srate - 1))
+    position = int(np.floor(float(latency)))
+    return position + start >= 1 and position + stop <= points
 
 
 def _limits(value: Any, recurrence: float) -> list[float]:

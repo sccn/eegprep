@@ -222,6 +222,7 @@ _NEWSET_COMMIT_ACTIONS = {
     "pop_reref",
     "pop_rmbase",
     "pop_rmdat",
+    "pop_rejepoch",
     "pop_select",
     "pop_selectevent",
     "pop_subcomp",

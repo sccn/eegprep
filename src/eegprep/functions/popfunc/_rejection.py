@@ -252,7 +252,6 @@ def spectrum_marks(
     for out_index, row_index in enumerate(selected):
         low, high = freqs_limits[out_index]
         if method == "multitaper":
-            # pop_rejspec.m:325-326 selects bins with eegthresh, not a frequency mask.
             first, last = _time_window(power.shape[1], (band_start, band_end), float(low), min(band_end, float(high)))
             segment = power[row_index, first:last, :]
         else:
@@ -277,8 +276,6 @@ def _fft_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.ndarray]:
-    # pop_rejspec.m:307 calls pmtm with NW=4 and nfft=max(256, 2^nextpow2(N)),
-    # then 10*log (natural) at line 310. The first 2*NW-1 tapers are kept.
     points = int(data.shape[1])
     time_bandwidth = 4.0
     taper_count = max(1, min(int(round(2 * time_bandwidth)) - 1, points))
@@ -289,8 +286,6 @@ def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.nd
     series = np.moveaxis(data, 1, -1).reshape(-1, points)
     tapered = series[:, np.newaxis, :] * np.asarray(tapers, dtype=float)[np.newaxis, :, :]
     eigenspectra = np.abs(np.fft.fft(tapered, n=nfft, axis=-1)) ** 2
-    nfreq = nfft // 2 + 1
-    eigenspectra = eigenspectra[..., :nfreq]
     eigenvalues = np.asarray(ratios, dtype=float)
     if taper_count == 1:
         spectrum = eigenspectra[:, 0, :]
@@ -299,17 +294,18 @@ def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.nd
         spectrum = 0.5 * (eigenspectra[:, 0, :] + eigenspectra[:, 1, :])
         noise = variance[:, np.newaxis] * (1.0 - eigenvalues)[np.newaxis, :]
         tolerance = 0.0005 * variance / nfft
-        for _ in range(20):
+        converged = False
+        while not converged:
             denominator = eigenvalues[np.newaxis, :, np.newaxis] * spectrum[:, np.newaxis, :] + noise[:, :, np.newaxis]
             weights = spectrum[:, np.newaxis, :] / np.maximum(denominator, np.finfo(float).tiny)
             weighted = (weights**2) * eigenvalues[np.newaxis, :, np.newaxis]
             updated = np.sum(weighted * eigenspectra, axis=1) / np.maximum(
                 np.sum(weighted, axis=1), np.finfo(float).tiny
             )
-            if np.max(np.mean(np.abs(updated - spectrum), axis=1) - tolerance) <= 0:
-                spectrum = updated
-                break
+            converged = bool(np.max(np.mean(np.abs(updated - spectrum), axis=1) - tolerance) <= 0)
             spectrum = updated
+    nfreq = nfft // 2 + 1
+    spectrum = spectrum[:, :nfreq]
     power = 10.0 * np.log(np.maximum(spectrum, np.finfo(float).tiny))
     power = power.reshape(data.shape[0], data.shape[2], nfreq).transpose(0, 2, 1)
     freqs = np.arange(nfreq, dtype=float) * float(srate) / nfft
