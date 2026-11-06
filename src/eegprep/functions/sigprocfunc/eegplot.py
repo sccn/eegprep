@@ -549,8 +549,6 @@ def add_winrej_region(
     end_value = int(round(float(end)))
     if end_value < start_value:
         start_value, end_value = end_value, start_value
-    if start_value == end_value:
-        return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
     if pnts is not None:
         return _add_epoched_winrej(
             regions,
@@ -562,6 +560,8 @@ def add_winrej_region(
             color,
             channel_index,
         )
+    if start_value == end_value:
+        return toggle_winrej_at_sample(regions, start_value, n_channels=n_channels, channel_index=channel_index)
     start_value = max(1, min(start_value, int(total_samples)))
     end_value = max(1, min(end_value, int(total_samples)))
     mask = _new_mask(n_channels, channel_index)
