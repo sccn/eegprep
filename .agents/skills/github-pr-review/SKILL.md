@@ -1,12 +1,34 @@
 ---
 name: github-pr-review
 description: Review a pull request for correctness, EEGLAB parity, and behavioral regressions in sccn/eegprep.
-allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(git rev-parse:*), mcp__github_inline_comment__create_inline_comment
+allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh api:*), Bash(git rev-parse:*), mcp__github_inline_comment__create_inline_comment
 ---
 
 Provide a code review for the given pull request.
 
 You are reviewing this PR for EEGPrep, a Python library that aims to port core EEGLAB concepts, workflows, code organization, GUI patterns, and user experience from MATLAB to Python.
+
+Reviewing never authorizes code edits.
+
+## What EEGPrep is trying to achieve
+
+- The current goal is release readiness. Everything in EEGLAB except STUDY and third-party plugins (default plugins only) should give EEGLAB users the same end-to-end experience in Python, GUI included, with numerical parity against MATLAB EEGLAB.
+- Where EEGLAB has a bug or mathematical quirk, EEGPrep does the mathematically correct thing, documents the difference and locks it with a test. A documented, tested deviation is not a parity bug.
+- Tolerances are never loosened to make a test pass; fix the root cause.
+- Error messages must say what is wrong, which function hit it, and the exact fix (e.g. `pip install eegprep[x]`).
+- No code comments that restate code or justify workarounds.
+- A plain `pip install eegprep` should be as easy to use as eegprep-lean; heavy optional pieces live behind extras with helpful install errors.
+- PRs that change numerics need MATLAB reference evidence in the body, per AGENTS.md.
+
+## Review standard
+
+A reviewable EEGPrep pull request:
+
+- Implements the behavior claimed by its title and description without an introduced correctness, security, state-transition, or error-handling defect.
+- Keeps public interfaces, invariants, dependency direction, configuration, and types coherent across every changed call site.
+- Uses tests for behavior rather than implementation details, private state, tautologies (expected values rebuilt with the same code as the implementation), or mocks below an I/O boundary.
+- Keeps abstraction proportional to demonstrated reuse.
+- Keeps documentation synchronized with behavior.
 
 ## Review goals
 
@@ -70,7 +92,7 @@ When reviewing tests:
 
 ## Agent assumptions
 
-These assumptions apply to all agents and subagents:
+These assumptions apply to this review session:
 
 - All tools are functional and will work without error.
 - Do not test tools or make exploratory tool calls.
@@ -82,16 +104,18 @@ These assumptions apply to all agents and subagents:
 
 ## Review workflow
 
+Do not use subagents or background tasks.
+
 Follow these steps precisely.
 
 ### 1. Pre-review gate
 
-Launch a haiku agent to check if any of the following are true:
+Check if any of the following are true:
 
 - The pull request is closed.
 - The pull request is a draft.
 - The pull request does not need code review, such as an automated PR or a trivial change that is obviously correct.
-- Claude has already commented on this PR, checked with `gh pr view <PR> --comments`, and the review was not explicitly requested via comment, such as "claude review this."
+- Issue comments or inline review comments contain `<!-- eegprep-claude-review -->`, and the review was not explicitly requested via comment, such as "claude review this." Check both `gh pr view <PR> --json comments` and `gh api repos/{owner}/{repo}/pulls/<PR>/comments --paginate`.
 
 When a maintainer explicitly requests a re-review, always proceed even if a prior review exists.
 
@@ -99,19 +123,22 @@ If any stop condition is true, stop and do not proceed.
 
 Still review Claude-generated PRs.
 
+Confirm that the checked-out commit (`git rev-parse HEAD`) and the pull request's current head (`gh pr view <PR> --json headRefOid`) both match the requested head. If either differs, report the stale review and post nothing.
+
 ### 2. Find repository instructions
 
-Launch a haiku agent to return a list of file paths, not contents, for all relevant CLAUDE.md and AGENTS.md files, including:
+Return a list of file paths, not contents, for all relevant CLAUDE.md and AGENTS.md files, including:
 
 - Root CLAUDE.md and AGENTS.md files, if they exist
 - Any CLAUDE.md or AGENTS.md files in directories containing files modified by the pull request
 - Any CLAUDE.md or AGENTS.md files in parent directories of modified files
+- When tests change, root TESTING.md if it exists, any TESTING.md in a changed file's directory or a parent directory, and the Testing section of AGENTS.md
 
 When evaluating compliance for a file, only consider CLAUDE.md and AGENTS.md files that are in that file's directory or parent directories.
 
 ### 3. Summarize the PR
 
-Launch a sonnet agent to view the pull request and return:
+View the pull request and return:
 
 - PR title
 - PR description
@@ -119,9 +146,9 @@ Launch a sonnet agent to view the pull request and return:
 - High-level summary of the change
 - Areas most likely to affect correctness, EEGLAB parity, data structure compatibility, GUI/user experience, or tests
 
-### 4. Independent review agents
+### 4. Review passes
 
-Launch 4 agents in parallel. Each agent should receive:
+Do four passes in order in this session. Each pass should receive:
 
 - PR title
 - PR description
@@ -129,7 +156,7 @@ Launch 4 agents in parallel. Each agent should receive:
 - Relevant CLAUDE.md and AGENTS.md paths
 - EEGPrep and EEGLAB review context from this skill
 
-Each agent should return a list of issues. Each issue must include:
+Each pass should return a list of issues. Each issue must include:
 
 - Description
 - Severity: blocking, important, or nit
@@ -137,13 +164,15 @@ Each agent should return a list of issues. Each issue must include:
 - Reason it was flagged, such as bug, EEGLAB parity, CLAUDE.md adherence, data structure compatibility, unsafe input handling, or test gap
 - Confidence level
 
-#### Agent 1: CLAUDE.md/AGENTS.md compliance sonnet agent
+#### Pass 1: CLAUDE.md/AGENTS.md compliance
 
 Audit changes for CLAUDE.md and AGENTS.md compliance.
 
 Only flag clear, unambiguous violations where the relevant instruction is scoped to the changed file.
 
-#### Agent 2: Repository convention and maintainability sonnet agent
+When tests change, read root and scoped testing docs (TESTING.md, if present, and AGENTS.md §Testing) and flag only concrete violations.
+
+#### Pass 2: Repository convention and maintainability
 
 Audit whether the PR follows existing EEGPrep style, architecture, and conventions.
 
@@ -151,7 +180,9 @@ Only flag maintainability issues that are specific to the changed code and likel
 
 Do not request speculative abstractions, broad refactors, or unrelated cleanup.
 
-#### Agent 3: Opus correctness and regression agent
+Rank the changed, human-authored areas by design impact: public interfaces, invariants, state transitions, and abstraction boundaries. Skip generated files, formatting, and mechanical edits. Privately simulate reasonable future changes near the edited code to find hidden assumptions, distant coupling, or unneeded indirection. Report only a concrete structural obstacle. Validate it against the pull request description and surrounding context, and omit the hypothetical from the comment.
+
+#### Pass 3: Correctness and regression
 
 Scan for correctness bugs in the diff itself.
 
@@ -168,11 +199,13 @@ Focus on:
 
 Flag only significant bugs. Ignore nitpicks and likely false positives.
 
-Do not flag issues that cannot be validated without looking at context outside of the diff.
+Reading EEGLAB reference files, callers of changed functions, and nearby tests is expected. Only findings must be about the PR's changes, or about direct breakage they cause.
 
-#### Agent 4: Opus EEGLAB parity and data structure agent
+#### Pass 4: EEGLAB parity and data structures
 
 Review the introduced code for EEGPrep-specific risks.
+
+For each changed EEGPrep function, open the corresponding EEGLAB `.m` file and compare defaults, indexing (0- vs 1-based), struct fields, GUI behavior, and cancel paths. Cite the `.m` file and line in the finding. Differences that EEGPrep documents as intentional, where EEGLAB has a bug, are not parity bugs, as long as they are documented and covered by a test.
 
 Focus on:
 
@@ -184,6 +217,8 @@ Focus on:
 - Performance concerns that are realistic for EEG data sizes
 
 Only flag concrete, actionable issues tied to changed code.
+
+For a substantial design change, check callers, defaults, and consequences outside the diff. Scale that investigation to the size and risk of the change.
 
 ## High-signal threshold
 
@@ -214,11 +249,11 @@ Do not flag:
 
 If you are not confident an issue is real, do not flag it. False positives erode trust and waste reviewer time.
 
+Validate every finding against the diff, the surrounding code, and the applicable instructions.
+
 ### 5. Validate candidate issues
 
-For each issue found in step 4, launch a parallel validation subagent.
-
-The validation subagent should receive:
+For each issue found in step 4, validate it in this session against:
 
 - PR title
 - PR description
@@ -228,12 +263,7 @@ The validation subagent should receive:
 - Reason it was flagged
 - EEGPrep and EEGLAB context
 
-Use:
-
-- Opus subagents for correctness, logic, regression, EEGLAB parity, data structure, security, and performance issues
-- Sonnet subagents for CLAUDE.md, AGENTS.md, test coverage, and repository convention issues
-
-The validation subagent must determine whether the issue is truly valid with high confidence.
+Determine whether the issue is truly valid with high confidence.
 
 For example:
 
@@ -299,6 +329,8 @@ The comment must use this format:
 ## EEGLAB parity notes
 
 <findings or None.>
+
+<!-- eegprep-claude-review -->
 ````
 
 Rules for the review comment:
@@ -309,6 +341,7 @@ Rules for the review comment:
 * Keep the review concise.
 * Do not include generic praise.
 * If the PR looks good, say so in the overall assessment and mention the specific areas checked.
+* End the summary with `<!-- eegprep-claude-review -->`.
 
 If no issues were found, use this format:
 
@@ -340,6 +373,8 @@ None.
 None.
 
 Checked for correctness bugs, EEGLAB parity, data structure compatibility, changed-behavior tests, and CLAUDE.md/AGENTS.md compliance.
+
+<!-- eegprep-claude-review -->
 ```
 
 Post or update the PR review comment using:
@@ -372,6 +407,7 @@ For each inline comment:
 * If follow-up steps are required, do not leave a committable suggestion.
 * Only post one comment per unique issue.
 * Do not duplicate content already handled better in the summary comment.
+* End the comment with `<!-- eegprep-claude-review -->`.
 
 ## Linking requirements
 

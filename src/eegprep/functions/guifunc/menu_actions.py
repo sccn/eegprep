@@ -1267,27 +1267,35 @@ class MenuActionDispatcher:
 
             def accept_eegplot(eeg_out: Any, command: str) -> None:
                 with self.session.gui_action("pop_eegplot"):
-                    if command:
-                        store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
-                        store_command = "" if command in recorded_commands else command
-                        recorded_commands.add(command)
-                        store_index = None if store_new else target_index
-                        self._store_current_from_gui(
-                            eeg_out,
-                            new=store_new,
-                            command=store_command,
-                            index=store_index,
-                        )
+                    if not command:
+                        self._store_current_from_gui(eeg_out, command="", index=target_index)
                         self._refresh()
+                        return
+                    store_new = eegplot_accept_creates_dataset(selection, eeg_out, reject)
+                    if store_new and parent is not None:
+                        self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent)
+                        self._refresh()
+                        return
+                    store_command = "" if command in recorded_commands else command
+                    recorded_commands.add(command)
+                    store_index = None if store_new else target_index
+                    self._store_current_from_gui(
+                        eeg_out,
+                        new=store_new,
+                        command=store_command,
+                        index=store_index,
+                    )
+                    self._refresh()
 
-            out = pop_eegplot(
-                selection,
-                icacomp=icacomp,
-                superpose=superpose,
-                reject=reject,
-                command_callback=accept_eegplot,
-                return_com=True,
-            )
+            plot_kwargs: dict[str, Any] = {
+                "icacomp": icacomp,
+                "command_callback": accept_eegplot,
+                "return_com": True,
+            }
+            if variant != "data":
+                plot_kwargs["superpose"] = superpose
+                plot_kwargs["reject"] = reject
+            out = pop_eegplot(selection, **plot_kwargs)
             command = out[1] if isinstance(out, tuple) and len(out) > 1 else ""
             if command:
                 self._add_history_from_gui(command)
@@ -1939,8 +1947,6 @@ def _required_extension_parameters(
 
 
 def _pop_eegplot_variant_options(variant: str) -> tuple[int, int, int]:
-    # Mirrors eeglab.m callbacks: cb_eegplot/cb_eegplotrej* omit optional args,
-    # while Plot scroll actions explicitly call pop_eegplot(EEG, icacomp, 1, 1).
     if variant == "components":
         return 0, 1, 1
     if variant == "reject_ica":

@@ -10,6 +10,34 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- Clicking or dragging in the scroll window marks data again. The plot
+  viewport was asked for ``mapToScene``, which only ``QGraphicsView``
+  provides, so every left click raised ``AttributeError``. Continuous
+  drags mark the 1-based sample range ``round(x * srate) + 1``
+  (``eegplot.m`` lines 2110-2144). An epoched click marks or clears that
+  whole epoch on mouse-down, including a one-sample epoch, and a drag does
+  not spread to other epochs (``eegplot.m`` lines 2130-2135). Channel
+  inspection, epoch inspection,
+  and ICA component inspection share this path.
+- Rejecting marked continuous data records ``EEG = eeg_eegrej( EEG, ...);``
+  from the reduced two-column regions (``eeg_eegrej.m`` builds that command
+  after ``combineregions``) and asks what to do with the new dataset through
+  ``pop_newset``. Cancel keeps the original dataset and does not record the
+  rejection. An empty mark does nothing (``eeg_eegrej.m`` lines 59-60).
+- Tools > Inspect/reject data by eye shows the instruction dialog from
+  ``pop_eegplot.m`` lines 180-186 before the browser opens. That menu
+  calls ``pop_eegplot(EEG, 1)`` (``eeglab.m`` line 644). Cancel returns
+  without opening the browser. Closing the dialog also stays on the
+  current dataset; EEGLAB continues unless the button text is ``Cancel``.
+  Plot > Channel data (scroll) passes ``reject`` explicitly
+  (``eeglab.m`` line 683) and does not show the dialog.
+- Rejecting marked epochs asks "Are you sure, you want to reject the
+  labeled trials ?" (``pop_rejepoch.m`` lines 78-84) only when Reject is
+  removing epochs. Update Marks does not ask. NO, or closing the dialog,
+  leaves the epochs in place. YES removes them and opens ``pop_newset``.
+  Clearing every mark and pressing Reject stores the manual marks as
+  unmarked and does not add a rejection command. The history command uses
+  ``pop_rejepoch( EEG, [..] ,0);`` (``pop_rejepoch.m`` line 101).
 - File > Export opens the ``pop_export``, ``pop_writeeeg``, and ``pop_exportbids``
   dialogs (``pop_export.m`` lines 77-115, ``pop_writeeeg.m`` lines 52-80,
   ``pop_exportbids.m`` lines 48-83). ``pop_expica`` and ``pop_expevents`` stay
@@ -64,7 +92,6 @@ Unreleased
   with the string from line 93. The function default remains 7 decimal places
   (line 129). The dialog default remains 4 (line 94) and is the edit field's
   value, so pressing Ok without changing that field writes 4 decimal places.
-
 - ``pop_fileio_brainvision_mat`` channel locations include empty ``ref`` and
   ``type`` on every channel. MATLAB ``eeg_checkset`` fills a missing
   ``chanlocs.ref`` with ``''`` (``eeg_checkset.m`` lines 1105-1117) and the
