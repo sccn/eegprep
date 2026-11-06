@@ -267,7 +267,7 @@ def _history_command(source: Path, dialog: dict[str, Any], *, return_study: bool
     if dialog.get("studyName"):
         parts.extend([format_history_value("studyName"), format_history_value(dialog["studyName"])])
     if dialog.get("outputdir"):
-        parts.extend([format_history_value("outputdir"), format_history_value(dialog["outputdir"])])
+        parts.extend([format_history_value("outputdir"), format_history_value(Path(dialog["outputdir"]))])
     for key in ("bidstask", "sessions", "runs", "subjects"):
         if dialog.get(key):
             parts.extend([format_history_value(key), format_history_value(dialog[key])])
