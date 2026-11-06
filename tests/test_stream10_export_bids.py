@@ -73,6 +73,48 @@ def _eeg(*, pnts=8, srate=100.0, trials=1, events=None, data=None):
     return eeg
 
 
+def _matlab_eeg(**overrides):
+    pnts = float(overrides.get("pnts", 200.0))
+    srate = float(overrides.get("srate", 100.0))
+    data = overrides.get("data", np.zeros((1, int(pnts))))
+    eeg = {
+        "setname": "stream10",
+        "filename": "",
+        "filepath": "",
+        "subject": "",
+        "group": "",
+        "condition": "",
+        "session": np.empty((0, 0)),
+        "comments": "",
+        "nbchan": float(np.shape(data)[0]),
+        "trials": 1.0,
+        "pnts": pnts,
+        "srate": srate,
+        "xmin": 0.0,
+        "xmax": 0.0 if srate == 0.0 else (pnts - 1) / srate,
+        "data": data,
+        "icaact": np.empty((0, 0)),
+        "icawinv": np.empty((0, 0)),
+        "icasphere": np.empty((0, 0)),
+        "icaweights": np.empty((0, 0)),
+        "icachansind": np.empty((1, 0)),
+        "chanlocs": np.empty((0,), dtype=[("labels", object)]),
+        "urchanlocs": np.empty((0,), dtype=[("labels", object)]),
+        "chaninfo": np.array([("",)], dtype=[("filename", object)]),
+        "ref": "common",
+        "event": np.empty((0,), dtype=[("type", object), ("latency", float), ("urevent", float)]),
+        "urevent": np.empty((0,), dtype=[("type", object), ("latency", float)]),
+        "eventdescription": np.empty((1, 0), dtype=object),
+        "epoch": np.empty((0, 0)),
+        "epochdescription": np.empty((1, 0), dtype=object),
+        "history": "",
+        "saved": "no",
+        "etc": np.array([("",)], dtype=[("description", object)]),
+    }
+    eeg.update(overrides)
+    return eeg
+
+
 def _lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
 
@@ -618,10 +660,10 @@ def test_reference_pop_expevents_table(eeglab_backend, eeglab_working_directory)
     python_path = eeglab_working_directory / "python_events.txt"
     pop_expevents(eeg, python_path)
     matlab_path = eeglab_working_directory / "matlab_events.txt"
-    matlab_eeg = {
-        "srate": 100.0,
-        "event": [{"type": "square", "latency": 11.0, "urevent": 1.0}],
-    }
+    matlab_eeg = _matlab_eeg(
+        srate=100.0,
+        event=np.array([("square", 11.0, 1.0)], dtype=[("type", object), ("latency", float), ("urevent", float)]),
+    )
     eeglab_backend("pop_expevents", matlab_eeg, str(matlab_path), "samples")
     assert python_path.read_text(encoding="utf-8") == matlab_path.read_text(encoding="utf-8")
 
@@ -635,7 +677,7 @@ def test_reference_bids_importeventfile_uses_value(eeglab_backend, tmp_path):
         "onset\tduration\ttrial_type\tvalue\n0\t0\toddball\tstimulus\n1\t0\tstandard\tresponse\n",
         encoding="utf-8",
     )
-    eeg = {"srate": 100.0, "trials": 1, "pnts": 200, "data": np.zeros((1, 200)), "event": []}
+    eeg = _matlab_eeg(srate=100.0, trials=1.0, pnts=200.0, data=np.zeros((1, 200)))
     imported = eeglab_backend("bids_importeventfile", eeg, str(events))
     event = imported["event"]
     if isinstance(event, dict):
@@ -650,15 +692,16 @@ def test_reference_pop_writeeeg_edf_length(eeglab_backend, eeglab_working_direct
     if present == 0:
         pytest.skip("Biosig sopen is not on the MATLAB path (pop_writeeeg.m:49)")
     pnts = 2112
-    eeg = {
-        "data": np.zeros((1, pnts)),
-        "srate": 200.0,
-        "nbchan": 1,
-        "pnts": pnts,
-        "trials": 1,
-        "event": [{"type": f"e{index}", "latency": float(index + 1)} for index in range(17)],
-        "chanlocs": [{"labels": "Fz"}],
-    }
+    eeg = _matlab_eeg(
+        data=np.zeros((1, pnts)),
+        srate=200.0,
+        pnts=float(pnts),
+        event=np.array(
+            [(f"e{index}", float(index + 1)) for index in range(17)],
+            dtype=[("type", object), ("latency", float)],
+        ),
+        chanlocs=np.array([("Fz",)], dtype=[("labels", object)]),
+    )
     matlab_path = eeglab_working_directory / "matlab_recording.edf"
     eeglab_backend("pop_writeeeg", eeg, str(matlab_path), "TYPE", "EDF")
     reader = pyedflib.EdfReader(str(matlab_path))
