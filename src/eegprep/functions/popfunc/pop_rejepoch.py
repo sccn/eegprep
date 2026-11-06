@@ -6,9 +6,8 @@ from typing import Any
 
 import numpy as np
 
+from eegprep.functions.adminfunc.vararg2str import matlab_array2str
 from eegprep.functions.popfunc._rejection import bool_marks
-from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
-from eegprep.functions.adminfunc.vararg2str import _matlab_contarray
 from eegprep.functions.popfunc.pop_select import pop_select
 
 
@@ -22,11 +21,12 @@ def pop_rejepoch(
     """Remove rejected epochs.
 
     ``tmprej`` may be either a boolean vector of length ``EEG.trials`` or a
-    list of EEGLAB-facing 1-based epoch indices. ``confirm`` is accepted for
-    EEGLAB signature parity. ``confirm=-1`` keeps an empty result
-    (``pop_rejepoch.m:96-97``, ``erroronempty`` off). Any other confirm value
-    raises when every epoch is marked. This function does not open a dialog;
-    the Reject marked epochs menu asks before it calls ``pop_rejepoch``.
+    list of EEGLAB-facing 1-based epoch indices. The history command is always
+    ``pop_rejepoch( EEG, indices ,0)`` (``pop_rejepoch.m:101``). ``confirm=-1``
+    keeps an empty result (``pop_rejepoch.m:96-97``, ``erroronempty`` off).
+    Any other confirm value raises when every epoch is marked. This function
+    does not open a dialog. The scroll window asks before removing epochs, and
+    the Reject marked epochs menu superposes marks before it calls this function.
     """
     if EEG is None:
         return (None, "") if return_com else None
@@ -58,12 +58,4 @@ def pop_rejepoch(
 
 
 def _history_command(indices: Any) -> str:
-    # pop_rejepoch.m:101
-    values = [float(item) for item in list(indices)]
-    if not values:
-        body = "[]"
-    elif len(values) == 1:
-        body = _matlab_num2str(values[0])
-    else:
-        body = "[" + _matlab_contarray(values) + "] "
-    return f"EEG = pop_rejepoch( EEG, {body},0);"
+    return f"EEG = pop_rejepoch( EEG, {matlab_array2str(indices)},0);"

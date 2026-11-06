@@ -52,9 +52,12 @@ Browser Modes
    * - Workflow
      - GUI entry
      - Programmatic entry
+   * - Inspect/reject data by eye
+     - ``Tools > Inspect/reject data by eye``
+     - ``pop_eegplot(EEG)`` (instruction dialog on continuous data)
    * - Channel inspection
      - ``Plot > Channel data (scroll)``
-     - ``eegplot(EEG)`` or ``pop_eegplot(EEG)``
+     - ``pop_eegplot(EEG, 1, 1, 1)``
    * - Component inspection
      - ``Plot > Component activations (scroll)``
      - ``pop_eegplot(EEG, icacomp=0, reject=0)``
@@ -68,13 +71,21 @@ Browser Modes
 Marks And Rejection
 ===================
 
-Dragging across the browser marks a time range. On continuous data, accepted
-marks can be stored in ``EEG.reject.rejmanualwinrej`` for later review or
-converted through ``eeg_eegrej`` to remove samples. Overlapping or reversed
-intervals are merged before event latencies move, and a one-sample gap stays
-two intervals. Removing every sample sets ``xmax`` to ``-1/srate``. On epoched data, accepted
+Dragging across continuous data marks a time range. A click on a marked
+stretch clears it. On epoched data, a click marks or clears that whole epoch;
+dragging does not add further epochs. ``Tools > Inspect/reject data by eye``
+explains this and waits for Continue before the browser opens. Cancel, or
+closing that dialog, leaves the dataset untouched. Plot scroll commands skip
+the dialog.
+
+On continuous data, accepted marks can be stored in
+``EEG.reject.rejmanualwinrej`` for later review or converted through
+``eeg_eegrej`` to remove samples. Overlapping or reversed intervals are merged
+before event latencies move, and a one-sample gap stays two intervals.
+Removing every sample sets ``xmax`` to ``-1/srate``. On epoched data, accepted
 marks update ``EEG.reject.rejmanual`` and ``EEG.reject.rejmanualE`` or remove
-marked epochs through ``pop_rejepoch``.
+marked epochs through ``pop_rejepoch``. Reject asks for confirmation before
+removing epochs. NO leaves the epochs in place.
 
 Component mode uses ICA activations and writes ICA-prefixed rejection fields
 where applicable. Event overlays use EEGLAB one-based event latencies; Python
@@ -84,9 +95,10 @@ Accepting Browser Results
 =========================
 
 In ``eegprep-console``, browser accept callbacks keep GUI state, ``EEG``,
-``ALLEEG``, and history synchronized. If a browser action creates a new dataset
-instead of mutating the current one, the session stores that dataset through the
-same dataset helpers used by menu actions.
+``ALLEEG``, and history synchronized. Rejecting marked data from the GUI menu
+records ``eeg_eegrej`` or ``pop_rejepoch`` and then opens the dataset dialog
+(``pop_newset``). The dialog's default is a new dataset. Cancel discards the
+rejection. A console ``pop_eegplot`` call stores the returned dataset directly.
 
 In normal Python, call the lower-level rejection helpers explicitly after
 reviewing the browser model or marks.
