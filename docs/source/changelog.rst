@@ -46,8 +46,10 @@ Unreleased
   ``eeglab_data.set``, 20-40 Hz at 10 dB with the default taper zeroes
   1312 columns.
 - ``pop_eegthresh`` history uses the ``vararg2str`` form at
-  ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed and the
-  reject flag recorded as 0. Dialog times use MATLAB ``num2str``:
+  ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed. The
+  reject flag is the value that was applied. ``pop_eegthresh.m:252``
+  always writes 0, so replaying a scripted ``reject=1`` call in EEGLAB
+  only marks the epochs. Dialog times use MATLAB ``num2str``:
   five significant digits below 1, and ``floor(log10(|x|))+5`` digits
   otherwise. The sample epoch file shows an end time of 1.9922;
   12.34567 is 12.3457 and 123.456789 is 123.4568.

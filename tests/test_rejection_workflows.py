@@ -6,7 +6,8 @@ import pytest
 
 import eegprep.functions.popfunc._eegplot_rejection as eegplot_rejection_module
 import eegprep.functions.popfunc.pop_rejcont as pop_rejcont_module
-from eegprep.functions.adminfunc.console import _console_python_command
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _console_python_command
+from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc._rejection import (
     jointprob,
@@ -377,6 +378,23 @@ def test_pop_eegthresh_marks_epochs_and_emits_replayable_python():
     assert component_rejected == [2]
     assert component_out["reject"]["icarejthresh"].tolist() == [False, True, False, False, False]
     assert com == "EEG = pop_eegthresh(EEG,1,1,-10,10,0,0.79,0,0);"
+
+
+def test_pop_eegthresh_reject_one_history_replays_dropped_epochs():
+    eeg = _epoched_eeg()
+    out, command = pop_eegthresh(eeg, 1, [1], -10, 10, 0, 0.79, 0, 1, return_com=True)
+    session = EEGPrepSession()
+    session.store_current(eeg, new=True)
+    session.add_history(command)
+    workspace = EEGPrepConsoleWorkspace(session)
+
+    workspace.execute_history_command(command)
+
+    assert command == "EEG = pop_eegthresh(EEG,1,1,-10,10,0,0.79,0,1);"
+    assert out["trials"] == 4
+    assert session.EEG["trials"] == out["trials"]
+    np.testing.assert_array_equal(np.asarray(session.EEG["data"]), np.asarray(out["data"]))
+    workspace.close()
 
 
 def test_eegplot_accepts_epoched_data_after_spectral_rejection_marks():

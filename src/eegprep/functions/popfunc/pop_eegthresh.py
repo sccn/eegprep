@@ -7,11 +7,11 @@ from typing import Any
 import numpy as np
 
 from eegprep.functions.adminfunc.eeg_checkset import _matlab_num2str
+from eegprep.functions.adminfunc.vararg2str import _matlab_history_value
 from eegprep.functions.guifunc.inputgui import inputgui
 from eegprep.functions.guifunc.spec import ControlSpec, DialogSpec
 from eegprep.functions.popfunc._eegplot_rejection import run_epoched_mark_rejection
-from eegprep.functions.popfunc._rejection import eegthresh_marks, parse_numeric_sequence
-from eegprep.functions.adminfunc.vararg2str import _matlab_contarray
+from eegprep.functions.popfunc._rejection import eegthresh_marks
 
 
 def pop_eegthresh(
@@ -216,28 +216,15 @@ def _history_command(
     superpose: int | bool,
     reject: int | bool,
 ) -> str:
-    # pop_eegthresh.m:251-252
+    # pop_eegthresh.m:252 always writes 0. Replay needs the flag that was applied.
     parts = [
         str(int(bool(icacomp))),
-        _history_vector(elecrange),
-        _history_vector(negthresh),
-        _history_vector(posthresh),
-        _history_vector(starttime),
-        _history_vector(endtime),
+        _matlab_history_value(elecrange),
+        _matlab_history_value(negthresh),
+        _matlab_history_value(posthresh),
+        _matlab_history_value(starttime),
+        _matlab_history_value(endtime),
         str(int(bool(superpose))),
-        "0",
+        str(int(bool(reject))),
     ]
     return "EEG = pop_eegthresh(EEG," + ",".join(parts) + ");"
-
-
-def _history_vector(value: Any) -> str:
-    values = [float(item) for item in parse_numeric_sequence(value, dtype=float)]
-    if not values:
-        return "[]"
-    if len(values) == 1:
-        return _matlab_num2str(values[0])
-    if len(values) == 2 or any(not item.is_integer() for item in values):
-        body = " ".join(_matlab_num2str(item) for item in values)
-    else:
-        body = _matlab_contarray(values)
-    return "[" + body + "] "
