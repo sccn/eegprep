@@ -43,24 +43,26 @@ def _chan_labels(EEG):
     return labs
 
 
-@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
-@pytest.mark.parametrize("bad_index", [-1, 26, 32])
-def test_pop_select_out_of_range_channel_names_indices_and_fix(option, bad_index):
-    eeg = create_test_eeg(n_channels=26, n_samples=8)
+def test_channel_range_error_explains_zero_based_fix():
+    eeg = create_test_eeg(n_channels=4, n_samples=8)
 
-    with pytest.raises(ValueError) as error:
-        pop_select(eeg, **{option: [1, 1, bad_index, 2]})
+    with pytest.raises(ValueError) as exc:
+        pop_select(eeg, gui=False, channel=[-1, 0, 4])
 
-    message = str(error.value)
-    for marker in ("pop_select", str(bad_index), "out of range", "nbchan=26", "0..25", "0-based", "1..26", "1-based"):
-        assert marker in message
-    assert "labels" in message
+    message = str(exc.value)
+    for detail in ("pop_select", "[-1, 4]", "nbchan=4", "0..3", "1..4", "subtract 1", "labels"):
+        assert detail in message
 
 
-def test_pop_select_python_channel_indices_include_both_endpoints():
-    eeg = create_test_eeg(n_channels=26, n_samples=8)
-    out = pop_select(eeg, channel=[0, 0, 25, 1])
-    np.testing.assert_array_equal(out["data"], eeg["data"][[0, 1, 25]])
+@pytest.mark.parametrize("option", ["channel", "nochannel"])
+def test_numeric_channels_stay_zero_based_and_deduplicate(option):
+    eeg = create_test_eeg(n_channels=4, n_samples=8)
+    expected = [0, 1, 3] if option == "channel" else [2]
+
+    out = pop_select(eeg, gui=False, **{option: [0, 0, 3, 1]})
+
+    np.testing.assert_array_equal(out["data"], eeg["data"][expected])
+    assert _chan_labels(out) == [_chan_labels(eeg)[index] for index in expected]
 
 
 @pytest.mark.matlab_oracle

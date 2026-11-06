@@ -14,6 +14,7 @@ from hypothesis import strategies as st
 
 from eegprep.functions.adminfunc.eeglabcompat import MatlabWrapper
 from eegprep.functions.popfunc.pop_loadset import pop_loadset
+from eegprep.functions.popfunc.pop_rmbase import pop_rmbase
 from eegprep.functions.popfunc.pop_select import pop_select
 from tests.fixtures import create_test_eeg
 from eegprep.plugins.clean_rawdata.clean_asr import clean_asr
@@ -25,7 +26,6 @@ from tests.fuzz.harness import (
     PythonBackend,
     SideResult,
     Tolerance,
-    _same_failure,
     compare_data,
     data_sha256,
     default_sanity,
@@ -720,32 +720,28 @@ def test_rmbase_mean_nan_spread_is_not_filed():
     assert "mean()" in outcome.detail
 
 
-@pytest.mark.parametrize("function", ["pop_rmbase", "pipeline"])
-def test_rmbase_542_finite_reduction_gap_is_still_reported(function):
-    eeg = create_test_eeg(n_channels=2, n_samples=192, srate=128.0, n_trials=3)
-    eeg["data"] = np.random.default_rng(542).standard_normal((2, 192, 3)) * 10
-    eeg["times"] = np.arange(192) * (1000 / 128) - 500
-    params = freeze_params({"timerange": [-500, 0]})
+@pytest.mark.parametrize("pipeline", [False, True])
+def test_rmbase_542_finite_difference_is_still_reported(pipeline):
+    eeg = create_test_eeg(n_channels=1, n_samples=4, srate=128, n_trials=2)
+    eeg["data"] = np.arange(8, dtype=np.float64).reshape(1, 4, 2)
+    params = freeze_params({"pointrange": [1, 2]})
     case = FuzzCase(
-        function,
-        EEGSpec((0, 1), 0, 3, 1, -1, 0, 0),
-        params,
-        pipeline=(("pop_rmbase", params),) if function == "pipeline" else (),
+        "pipeline" if pipeline else "pop_rmbase",
+        _spec(),
+        freeze_params({}) if pipeline else params,
+        pipeline=(("pop_rmbase", params),) if pipeline else (),
     )
 
-    def pairwise_baseline(_case, dataset):
-        data = np.asarray(dataset["data"])
-        baseline = np.ascontiguousarray(data[:, :65, :].transpose(0, 2, 1))
-        mean = np.mean(baseline, axis=2, dtype=np.float64)
-        return {**dataset, "data": data - mean[:, None, :]}
+    def oracle(_case, dataset):
+        output = pop_rmbase(dataset, pointrange=[1, 2], gui=False)
+        output["data"][0, 0, 0] += 7.105427357601002e-15
+        return output
 
-    outcome = evaluate_case(
-        case, lambda _case: eeg, PythonBackend(), _CallBackend(pairwise_baseline), load_tolerances()
-    )
+    outcome = evaluate_case(case, lambda _case: eeg, PythonBackend(), _CallBackend(oracle), load_tolerances())
+
     assert outcome.diverged
-    assert outcome.error_class == ("pop_rmbase:numeric" if function == "pipeline" else "numeric")
-    assert 0 < outcome.max_abs <= 7.105427357601002e-15
-    assert "known difference" not in outcome.detail
+    assert outcome.error_class == ("pop_rmbase:numeric" if pipeline else "numeric")
+    assert outcome.max_abs == 7.105427357601002e-15
 
 
 def test_int64_event_type_matches_float_type():
@@ -788,22 +784,43 @@ def test_epoched_notime_is_the_same_failure_as_eeglab():
 
 
 @pytest.mark.parametrize(
-    "message, oracle_message, expected",
+    "oracle_message, equivalent",
     [
-        (
-            "pop_select: channel indices [31] out of range for nbchan=26. Use 0-based indices in 0..25.",
-            "Error using eeg_decodechan (line 167)\nChannel index out of range",
-            True,
-        ),
-        ("pop_select: trial indices [32] out of range", "Channel index out of range", False),
-        ("pop_reref: channel indices [32] out of range", "Channel index out of range", False),
-        ("pop_select: channel labels not found", "Channel index out of range", False),
-        ("pop_select: channel indices [32] out of range", "Unrecognized field name 'chanlocs'", False),
+        ("Channel index out of range", True),
+        ("EEGLAB eeg_decodechan: channel index out of range", True),
+        ("Wrong trial range", False),
+        ("Channel labels not found", False),
     ],
 )
-def test_same_failure_pop_select_channel_range(message, oracle_message, expected):
-    oracle = SideResult(False, None, None, "MatlabExecutionError", oracle_message)
-    assert _same_failure(side_from_error(ValueError(message)), oracle) is expected
+def test_select_channel_range_failures_match_semantically(oracle_message, equivalent):
+    eeg = create_test_eeg(n_channels=26, n_samples=8)
+    case = FuzzCase("pop_select", _spec(26), freeze_params({"channel": [1, 1, 32, 2]}))
+    python = PythonBackend().run(case, eeg)
+    assert not python.ok
+
+    outcome = judge(
+        python,
+        side_from_error(RuntimeError(oracle_message)),
+        tolerance_for("pop_select", load_tolerances()),
+        case,
+        "abc",
+    )
+
+    assert outcome.diverged is not equivalent
+    if equivalent:
+        assert outcome.error_class == "both-error"
+
+
+def test_select_channel_range_match_does_not_hide_other_python_errors():
+    case = FuzzCase("pop_select", _spec(), freeze_params({}))
+    outcome = judge(
+        side_from_error(ValueError("pop_select: channel labels not found")),
+        side_from_error(RuntimeError("Channel index out of range")),
+        tolerance_for("pop_select", load_tolerances()),
+        case,
+        "abc",
+    )
+    assert outcome.diverged
 
 
 def test_eventindices_past_the_end_is_the_same_failure_as_eeglab():

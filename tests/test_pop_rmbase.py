@@ -99,6 +99,30 @@ def test_rmbase_matches_legacy_for_other_dtypes(dtype: type[np.generic]):
     assert actual.dtype == (np.dtype(np.float64) if np.issubdtype(dtype, np.integer) else dtype)
 
 
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("baseline", [{"timerange": [-500, 0]}, {"pointrange": list(range(1, 66))}])
+def test_rmbase_542_double_mean_and_inclusive_baseline(dtype, baseline):
+    eeg = create_test_eeg(n_channels=3, n_samples=192, srate=128.0, n_trials=2)
+    offsets = 8 * np.arange(6).reshape(3, 1, 2)
+    data = np.full((3, 192, 2), 65, dtype=dtype)
+    data[:, 0, :] = 2**24
+    data[:, 64, :] = -(2**24)
+    data += offsets
+    eeg.update(data=data, xmin=-0.5, xmax=0.9921875, times=(np.arange(192) - 64) * 1000 / 128)
+    expected_means = offsets[:, 0, :] + 63
+    expected = (data.astype(np.float64) - expected_means[:, None, :]).astype(dtype)
+
+    corrected, means = rmbase(data, frames=192, basevector=list(range(1, 66)), return_mean=True)
+    out = pop_rmbase(eeg, chanlist=[1, 3], gui=False, **baseline)
+
+    np.testing.assert_array_equal(means, expected_means)
+    np.testing.assert_array_equal(corrected, expected)
+    np.testing.assert_array_equal(out["data"][[0, 2]], expected[[0, 2]])
+    np.testing.assert_array_equal(out["data"][1], data[1])
+    assert means.dtype == np.float64
+    assert corrected.dtype == out["data"].dtype == dtype
+
+
 def test_rmbase_preserves_nan_results_and_warning_behavior():
     data = np.arange(16, dtype=np.float32).reshape(2, 8)
     data[0, :2] = np.nan
@@ -111,22 +135,6 @@ def test_rmbase_preserves_nan_results_and_warning_behavior():
 
     np.testing.assert_array_equal(actual, expected)
     np.testing.assert_array_equal(actual_means, expected_means)
-
-
-@pytest.mark.parametrize("order", ["C", "F"])
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_pop_rmbase_542_explicit_baseline_preserves_dtype_and_inclusive_endpoints(order, dtype):
-    eeg = create_test_eeg(n_channels=32, n_samples=192, srate=128.0, n_trials=10)
-    data = np.array(np.random.default_rng(542).standard_normal((32, 192, 10)) * 10, dtype=dtype, order=order)
-    eeg.update(data=data, xmin=-0.5, xmax=1.0 - 1 / 128, times=np.arange(192) * (1000 / 128) - 500)
-    baseline = data[:, :65, :].astype(np.float64)
-    mean = np.mean(baseline, axis=1, dtype=np.float64)
-    expected = data.astype(np.float64) - mean[:, None, :]
-
-    actual = pop_rmbase(eeg, timerange=[-500, 0])["data"]
-
-    np.testing.assert_allclose(actual, expected, rtol=np.finfo(dtype).eps, atol=7.105427357601002e-15)
-    assert actual.dtype == dtype
 
 
 def test_pop_rmbase_chanlist_subset_uses_one_based_channels():
