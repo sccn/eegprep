@@ -35,12 +35,12 @@ def pop_rejepoch(
     marks = bool_marks(tmprej, trials)
     indices = np.flatnonzero(marks) + 1
     if indices.size == 0:
-        command = _history_command([], confirm)
+        command = _history_command([])
         return (EEG, command) if return_com else EEG
     output = pop_select(EEG, "notrial", indices.tolist(), gui=False)
-    command = _history_command(indices.tolist(), confirm)
+    command = _history_command(indices.tolist())
     return (output, command) if return_com else output
 
 
-def _history_command(indices: Any, _confirm: int | bool) -> str:
+def _history_command(indices: Any) -> str:
     return f"EEG = pop_rejepoch( EEG, {matlab_array2str(indices)},0);"

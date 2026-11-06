@@ -186,6 +186,19 @@ def test_gui_epoch_click_marks_one_epoch_and_drag_does_not_spread(qapp) -> None:
     qapp.processEvents()
 
 
+def test_gui_one_sample_epoch_click_marks_that_epoch(qapp) -> None:
+    eeg = create_test_eeg(n_channels=2, n_samples=1, n_trials=3, srate=100)
+    eeg["data"] = np.zeros((2, 1, 3))
+    window = _open_browser(eeg, reject=1)
+    canvas = window.canvas
+
+    _mouse(canvas, "press", 1)
+    rows = winrej_to_array(canvas.model.state.winrej, 2)
+    np.testing.assert_array_equal(rows[:, :2], [[1, 1]])
+    window.close()
+    qapp.processEvents()
+
+
 def test_gui_component_epoch_click_marks_that_epoch(qapp) -> None:
     eeg = create_test_eeg_with_ica(n_channels=3, n_samples=20, n_trials=4, n_components=2, srate=100)
     window = _open_browser(eeg, icacomp=0, reject=1)

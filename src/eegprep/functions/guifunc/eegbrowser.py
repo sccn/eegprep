@@ -709,7 +709,7 @@ class EEGBrowserCanvas(_QWidget):
                 return
         epoch_start = epoch * pnts
         epoch_end = min(self.model.data.total_samples, (epoch + 1) * pnts) - 1
-        if epoch_end > epoch_start:
+        if epoch_end >= epoch_start:
             self.mark_samples(epoch_start, epoch_end)
 
     def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name

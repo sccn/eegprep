@@ -15,8 +15,9 @@ Unreleased
   provides, so every left click raised ``AttributeError``. Continuous
   drags mark the 1-based sample range ``round(x * srate) + 1``
   (``eegplot.m`` lines 2110-2144). An epoched click marks or clears that
-  whole epoch on mouse-down, and a drag does not spread to other epochs
-  (``eegplot.m`` lines 2130-2135). Channel inspection, epoch inspection,
+  whole epoch on mouse-down, including a one-sample epoch, and a drag does
+  not spread to other epochs (``eegplot.m`` lines 2130-2135). Channel
+  inspection, epoch inspection,
   and ICA component inspection share this path.
 - Rejecting marked continuous data records ``EEG = eeg_eegrej( EEG, ...);``
   from the reduced two-column regions (``eeg_eegrej.m`` builds that command
