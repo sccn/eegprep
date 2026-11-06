@@ -9,6 +9,7 @@ import eegprep.functions.popfunc.pop_rejcont as pop_rejcont_module
 from eegprep.functions.adminfunc.console import _console_python_command
 from eegprep.functions.popfunc.eeg_rejsuperpose import eeg_rejsuperpose
 from eegprep.functions.popfunc._rejection import (
+    _normalize_scores,
     jointprob,
     jointprob_marks,
     kurtosis_marks,
@@ -532,6 +533,15 @@ def test_jointprob_computed_and_precomputed_thresholds_match_upstream():
     np.testing.assert_allclose(reused, expected)
     np.testing.assert_array_equal(rejected, [[False], [False], [True]])
     np.testing.assert_array_equal(reused_rejected, rejected)
+
+
+def test_jointprob_trim_rounds_a_half_count_away_from_zero():
+    values = np.arange(25, dtype=float) ** 2
+    scores = values.reshape(1, -1)
+    normalized = _normalize_scores(scores, 2, signal_ndim=2)
+    baseline = values[3:22]
+    expected = (values[0] - baseline.mean()) / baseline.std(ddof=1)
+    assert normalized[0, 0] == pytest.approx(expected)
 
 
 def test_jointprob_uses_matlab_sample_standard_deviation_for_normalization():

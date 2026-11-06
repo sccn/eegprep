@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.miscfunc.value_parsing import is_empty_value as _is_empty_value
 from eegprep.functions.miscfunc.value_parsing import is_on as _is_on
 from eegprep.functions.miscfunc.value_parsing import parse_key_value_args
@@ -560,7 +561,7 @@ def _timewarp_options(
         return None, None
     limits = _tlimits_vector(tlimits)
     frame_count = int(frames)
-    marker_frames = np.rint((markers_ms - limits[0]) / 1000.0 * float(srate)).astype(int) + 1
+    marker_frames = np.asarray(round_mat((markers_ms - limits[0]) / 1000.0 * float(srate)), dtype=int) + 1
     _validate_timewarp_frames(marker_frames, frame_count, "Time warping events")
 
     reference_ms = _numeric_vector(timewarpms)
@@ -568,7 +569,7 @@ def _timewarp_options(
     if reference_ms.size:
         if reference_ms.size != markers_ms.shape[1]:
             raise ValueError("timewarpms must have one latency per timewarp event column")
-        reference_frames = np.rint((reference_ms - limits[0]) / 1000.0 * float(srate)).astype(int) + 1
+        reference_frames = np.asarray(round_mat((reference_ms - limits[0]) / 1000.0 * float(srate)), dtype=int) + 1
         _validate_timewarp_frames(reference_frames, frame_count, "Time warping reference latencies")
     reference_for_markers = reference_frames if reference_frames.size else np.median(marker_frames, axis=0)
     plot_indices = _timewarp_plot_indices(timewarpidx, markers_ms.shape[1])

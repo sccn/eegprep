@@ -131,7 +131,10 @@ def pop_topoplot_dialog_spec(EEG: dict[str, Any], *, typeplot: int = 1) -> Dialo
     )
     if int(typeplot):
         first_label = "Plotting ERP scalp maps at these latencies"
-        range_label = f"(range: {round(float(EEG.get('xmin', 0)) * 1000)} to {round(float(EEG.get('xmax', 0)) * 1000)} ms, NaN -> empty):"
+        range_label = (
+            f"(range: {int(round_mat(float(EEG.get('xmin', 0)) * 1000))} to "
+            f"{int(round_mat(float(EEG.get('xmax', 0)) * 1000))} ms, NaN -> empty):"
+        )
         item_value = ""
     else:
         first_label = "Component numbers"
@@ -331,7 +334,7 @@ def _erp_maps(EEG: dict[str, Any], latencies_ms: np.ndarray) -> tuple[list[np.nd
             labels.append("")
             continue
         maps.append(np.nanmean(data[:, position, :], axis=1))
-        labels.append(f"{int(round(float(latency)))} ms")
+        labels.append(f"{int(round_mat(float(latency)))} ms")
     return maps, labels
 
 

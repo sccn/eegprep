@@ -41,6 +41,7 @@ from eegprep.functions.timefreqfunc._bootstrap import (
 from eegprep.functions.timefreqfunc.bootstat import bootstat, bootstrap_threshold, exact_p_values
 from eegprep.functions.timefreqfunc.correctfit import correctfit
 from eegprep.functions.timefreqfunc.dftfilt2 import dftfilt2
+from eegprep.functions.timefreqfunc.dftfilt import dftfilt
 from eegprep.functions.timefreqfunc.dftfilt3 import dftfilt3
 from eegprep.functions.statistics.stat_surrogate_pvals import stat_surrogate_pvals
 from eegprep.functions.timefreqfunc.newcrossf import _upper_thresholds_by_frequency
@@ -1869,3 +1870,13 @@ def test_dftfilt3_accepts_matlab_name_value_pairs_and_rejects_type():
     np.testing.assert_array_equal(keyword[3], positional[3])
     with pytest.raises(ValueError, match="unexpected option 'type'"):
         dftfilt3([6, 10], 3, 128, "type", "morlet")
+
+
+def test_dftfilt_taper_half_sample_rounds_away_from_zero():
+    filters = dftfilt(10, 1.0, 1.0, 1.0, 0.5)
+    assert filters[0, 1] == 0
+    assert filters[1, 1] == 0
+    assert filters[2, 1] != 0
+    exact = dftfilt(10, 1.0, 1.0, 1.0, 1.0)
+    assert exact[2, 1] == 0
+    assert exact[3, 1] != 0

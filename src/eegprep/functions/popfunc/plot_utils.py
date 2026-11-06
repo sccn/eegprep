@@ -217,8 +217,8 @@ def pointrange(EEG: dict[str, Any], tlimits: Any, function: str) -> slice:
         return slice(0, pnts)
     xmin = float(EEG.get("xmin", 0.0) or 0.0)
     srate = float(EEG.get("srate", 1.0) or 1.0)
-    first = int(np.round(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
-    last = int(np.round(min((float(bounds[1]) / 1000.0 - xmin) * srate + 1.0, float(pnts))))
+    first = int(round_mat(max((float(bounds[0]) / 1000.0 - xmin) * srate, 1.0)))
+    last = int(round_mat(min((float(bounds[1]) / 1000.0 - xmin) * srate + 1.0, float(pnts))))
     if last < first:
         raise ValueError(
             f"{function}: time limits [{float(bounds[0]):g} {float(bounds[1]):g}] ms contain no samples "

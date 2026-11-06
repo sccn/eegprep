@@ -15,8 +15,10 @@ import pytest
 from eegprep.functions.miscfunc.linspace import linspace
 from eegprep.functions.popfunc.eeg_interp import eeg_interp
 from eegprep.functions.popfunc.pop_interp import pop_interp
+from eegprep.functions.popfunc.plot_utils import pointrange
 from eegprep.functions.popfunc.pop_newcrossf import pop_newcrossf, pop_newcrossf_dialog_spec
 from eegprep.functions.popfunc.pop_newtimef import pop_newtimef, pop_newtimef_dialog_spec
+from eegprep.functions.timefreqfunc.newtimef import _timewarp_options
 from eegprep.functions.sigprocfunc.runica import _kurtosis_columns, runica
 from eegprep.functions.timefreqfunc.newcrossf import newcrossf
 from eegprep.functions.timefreqfunc.newtimef import newtimef
@@ -335,6 +337,21 @@ def test_f92_prestimulus_window_rounds_half_away_from_zero():
 
     _result, command = pop_newtimef(eeg, gui=True, renderer=Renderer(), plot="off", return_com=True)
     assert "winsize=26" in command
+
+
+def test_pointrange_half_sample_starts_at_sample_3():
+    window = pointrange(
+        {"pnts": 100, "xmin": 0.0, "srate": 100.0, "data": np.zeros((1, 100))}, [25, 800], "pop_newtimef"
+    )
+    assert window.start + 1 == 3
+    end = pointrange({"pnts": 100, "xmin": 0.0, "srate": 100.0, "data": np.zeros((1, 100))}, [0, 15], "pop_newtimef")
+    assert end.stop == 3
+
+
+def test_timewarp_half_sample_frame_rounds_away_from_zero():
+    (markers, references), _lines = _timewarp_options(np.array([[25.0]]), [25.0], None, 100, [0.0, 1000.0], 100.0)
+    assert markers[0, 0] == 4
+    assert references[0] == 4
 
 
 def test_f126_pop_newtimef_keeps_the_last_sample_and_a_prestimulus_baseline():

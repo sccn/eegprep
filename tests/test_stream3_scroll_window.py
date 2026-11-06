@@ -112,6 +112,39 @@ def test_scroll_window_eeg_eegrej_region_matches_matlab() -> None:
     np.testing.assert_array_equal(np.asarray(py["data"]), np.asarray(mat["data"]))
 
 
+def test_browser_click_and_winrej_round_halves_away_from_zero() -> None:
+    from types import SimpleNamespace
+
+    from eegprep.functions.guifunc.eegbrowser import EEGBrowserCanvas, _winrej_frame_to_index
+
+    class _Point:
+        def __init__(self, x: float) -> None:
+            self._x = x
+
+        def x(self) -> float:
+            return self._x
+
+    class _Plot:
+        def getPlotItem(self):
+            return self
+
+        class vb:
+            @staticmethod
+            def mapSceneToView(point):
+                return point
+
+    canvas = EEGBrowserCanvas.__new__(EEGBrowserCanvas)
+    canvas.plot = _Plot()
+    canvas.model = SimpleNamespace(
+        data=SimpleNamespace(x_values=None, epoched=False, total_samples=200),
+        state=SimpleNamespace(srate=100.0),
+    )
+    assert canvas._event_sample(_Point(0.025)) == 4
+    canvas.model.data.epoched = True
+    assert canvas._event_sample(_Point(2.5)) == 3
+    assert _winrej_frame_to_index(2.5) == 2
+
+
 def _close_browser_windows(app) -> None:
     from eegprep.functions.guifunc.eegbrowser import EEGBrowserWindow
 

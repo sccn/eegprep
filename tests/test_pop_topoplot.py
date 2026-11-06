@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from eegprep.functions.popfunc.pop_topoplot import (
+    _erp_maps,
     _latency_positions,
     _parse_items_text,
     plot_channel_locations,
@@ -277,3 +278,11 @@ def test_pop_topoplot_gui_parses_eeglab_style_options():
     assert "items=[1, 2]" in command
     assert "colorbar='off'" in command
     plt.close(figures[0])
+
+
+def test_topoplot_dialog_and_latency_label_round_halves_away_from_zero():
+    eeg = {"xmin": 0.0005, "xmax": 1.0005, "nbchan": 1, "pnts": 4, "data": np.zeros((1, 4, 1))}
+    texts = [control.string for control in pop_topoplot_dialog_spec(eeg).controls]
+    assert any("1 to 1001 ms" in text for text in texts)
+    _maps, labels = _erp_maps(eeg, np.array([2.5]))
+    assert labels == ["3 ms"]

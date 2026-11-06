@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 from scipy import signal, stats
 
+from eegprep.functions.miscfunc.misc import round_mat
 from eegprep.functions.popfunc.plot_utils import component_activations as plot_component_activations
 from eegprep.functions.popfunc._pop_utils import parse_numeric_sequence
 
@@ -401,7 +402,7 @@ def _normalize_scores(scores: np.ndarray, mode: int, *, signal_ndim: int) -> np.
     baseline = np.asarray(scores, dtype=float)
     if mode == 2:
         sorted_scores = np.sort(baseline, axis=1)
-        trim = np.maximum(np.rint(sorted_scores.shape[1] * 0.1).astype(int), 1)
+        trim = np.maximum(np.asarray(round_mat(sorted_scores.shape[1] * 0.1), dtype=int), 1)
         if sorted_scores.shape[1] > 2 * trim:
             baseline = sorted_scores[:, trim:-trim]
     if signal_ndim == 2:

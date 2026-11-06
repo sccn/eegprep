@@ -334,8 +334,8 @@ def browser_max_channel_offset(browser_data: BrowserData, state: BrowserState) -
 def visible_sample_bounds(browser_data: BrowserData, state: BrowserState) -> tuple[int, int]:
     """Return 0-based half-open sample bounds for the visible window."""
     multiplier = browser_data.pnts if browser_data.epoched else state.srate
-    start = int(round(float(state.time) * float(multiplier)))
-    stop = int(round((float(state.time) + float(state.winlength)) * float(multiplier)))
+    start = int(round_mat(float(state.time) * float(multiplier)))
+    stop = int(round_mat((float(state.time) + float(state.winlength)) * float(multiplier)))
     start = max(0, min(start, browser_data.total_samples - 1))
     stop = max(start + 1, min(stop, browser_data.total_samples))
     return start, stop
@@ -344,7 +344,7 @@ def visible_sample_bounds(browser_data: BrowserData, state: BrowserState) -> tup
 def time_to_sample(time_value: float, browser_data: BrowserData, state: BrowserState) -> int:
     """Convert a browser time in seconds or epochs to a 0-based sample index."""
     multiplier = browser_data.pnts if browser_data.epoched else state.srate
-    return max(0, min(int(round(float(time_value) * float(multiplier))), browser_data.total_samples - 1))
+    return max(0, min(int(round_mat(float(time_value) * float(multiplier))), browser_data.total_samples - 1))
 
 
 def event_latency_to_sample(latency: float, browser_data: BrowserData) -> int:

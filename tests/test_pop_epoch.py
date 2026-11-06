@@ -14,7 +14,8 @@ import tempfile
 import copy
 
 from eegprep.functions.adminfunc.eeglabcompat import get_eeglab
-from eegprep.functions.popfunc.pop_epoch import pop_epoch
+from eegprep.functions.guifunc.spec import controls_by_tag
+from eegprep.functions.popfunc.pop_epoch import pop_epoch, pop_epoch_dialog_spec
 from eegprep.functions.sigprocfunc.floatwrite import floatwrite
 from tests.eeglab_tests import eeglab_test
 
@@ -420,6 +421,15 @@ class TestPopEpochGuiAndHistory(unittest.TestCase):
             'urevent': [],
             'saved': 'no',
         }
+
+    def test_epoched_limit_text_rounds_halves_away_from_zero(self):
+        eeg = dict(self.EEG)
+        eeg["trials"] = 2
+        eeg["data"] = np.zeros((1, 2, 2))
+        eeg["pnts"] = 2
+        eeg["xmin"] = -0.5
+        eeg["xmax"] = 0.5
+        self.assertEqual(controls_by_tag(pop_epoch_dialog_spec(eeg))["limits"].value, "-1 1")
 
     def test_gui_result_epochs_and_returns_console_history(self):
         class Renderer:

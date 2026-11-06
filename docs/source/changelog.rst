@@ -78,6 +78,19 @@ Unreleased
   the frequency field is empty and the epoch starts before zero,
   ``pop_newtimef`` sets ``winsize`` the same way (``pop_newtimef.m`` line
   292): ``xmin`` -0.1 s at 256 Hz is 26 samples.
+- Sample indices that follow MATLAB ``round`` send halves away from zero.
+  ``[25 800]`` ms at 100 Hz with ``xmin`` 0 starts at sample 3
+  (``pop_newtimef.m`` lines 305-306; ``pop_newcrossf.m`` line 188 uses the
+  same ``round``). The same tie is used for time-warp frames
+  (``newtimef.m`` lines 630 and 635), the ``envtopo`` contribution window
+  (lines 418-419), ``dftfilt`` tapers (lines 70-71), ``spectopo`` percent
+  and window length (lines 320 and 895), scroll-window bounds and click
+  latencies (``eegplot.m`` lines 1318-1319, 1403, and 2028-2029), rejection
+  regions (``eegrej.m`` line 82), the kurtosis and joint-probability trim
+  (``rejkurt.m`` line 110, ``jointprob.m`` line 115), scalp-map and epoch
+  dialogs (``pop_topoplot.m`` lines 104 and 391, ``pop_headplot.m`` line
+  159, ``pop_epoch.m`` line 122), and epoch latencies (``eeg_checkset.m``
+  line 652).
 - ``pop_newtimef`` takes the EEGLAB sample window (``pop_newtimef.m`` lines
   305-306) and passes those requested time limits into the decomposition.
   ``pop_newcrossf`` uses that same inclusive end. Pinned ``pop_newcrossf.m``
