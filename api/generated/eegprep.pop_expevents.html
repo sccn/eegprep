@@ -634,14 +634,18 @@
 <h1>pop_expevents<a class="headerlink" href="#pop-expevents" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_expevents">
-<span class="sig-name descname"><span class="pre">pop_expevents</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_expevents" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">pop_expevents</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'samples'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_expevents" title="Link to this definition">#</a></dt>
 <dd><p>Export <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code> as a tab-delimited text file.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">urevent</span></code> column is written 1-based to match EEGLAB’s export.</p>
+<p>Columns follow <code class="docutils literal notranslate"><span class="pre">eeg_eventtable.m</span></code> lines 123-159: a 1-based <code class="docutils literal notranslate"><span class="pre">number</span></code>
+column, then event fields in first-seen order. Numeric cells use <code class="docutils literal notranslate"><span class="pre">%f</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">urevent</span></code> column is written 1-based. <code class="docutils literal notranslate"><span class="pre">unit</span></code> is <code class="docutils literal notranslate"><span class="pre">samples</span></code> (the
+GUI and function default) or <code class="docutils literal notranslate"><span class="pre">seconds</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>]</em>)</p></li>
 <li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a>)</p></li>
+<li><p><strong>unit</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>

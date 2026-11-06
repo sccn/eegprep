@@ -634,14 +634,20 @@
 <h1>pop_writeeeg<a class="headerlink" href="#pop-writeeeg" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="eegprep.pop_writeeeg">
-<span class="sig-name descname"><span class="pre">pop_writeeeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_writeeeg" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">pop_writeeeg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">EEG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">renderer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#eegprep.pop_writeeeg" title="Link to this definition">#</a></dt>
 <dd><p>Write continuous EEG data to EDF, BDF, or GDF.</p>
+<p>With no filename, the file-format dialog from <code class="docutils literal notranslate"><span class="pre">pop_writeeeg.m</span></code> lines
+52-80 is shown. Cancel returns an empty command. Epoched data is
+concatenated, which is what <code class="docutils literal notranslate"><span class="pre">EEG.data(:,:)</span></code> does once the user accepts
+the prompt at lines 53-57. The history command has no <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> prefix
+(<code class="docutils literal notranslate"><span class="pre">pop_writeeeg.m</span></code> line 97).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>EEG</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>]</em>)</p></li>
-<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a>)</p></li>
+<li><p><strong>filename</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.15)"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>args</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
+<li><p><strong>renderer</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 <li><p><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>)</p></li>
 </ul>
 </dd>

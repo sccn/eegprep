@@ -476,6 +476,35 @@ the <a class="reference external" href="https://github.com/sccn/eegprep/releases
 <section id="unreleased">
 <h2>Unreleased<a class="headerlink" href="#unreleased" title="Link to this heading">#</a></h2>
 <ul class="simple">
+<li><p>Replaying a folder import records <code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code>
+with <code class="docutils literal notranslate"><span class="pre">return_study</span></code> on, so the console rebuilds the same study.
+<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> always returns <code class="docutils literal notranslate"><span class="pre">STUDY</span></code> and <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>. The direct
+call still returns the datasets unless <code class="docutils literal notranslate"><span class="pre">return_study=True</span></code>. The history
+also keeps the dialog’s <code class="docutils literal notranslate"><span class="pre">recordings</span></code> selection, along with task, session,
+run, and subject.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_importbids(...,</span> <span class="pre">subjects=[1,</span> <span class="pre">2])</span></code> uses the same 1-based participant
+indices as the import dialog (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 163 and 281).
+Replaying the recorded <code class="docutils literal notranslate"><span class="pre">'subjects',</span> <span class="pre">[1</span> <span class="pre">2]</span></code> command selects those
+participants. An index outside that list raises <code class="docutils literal notranslate"><span class="pre">pop_importbids</span></code> and
+names the valid range.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_exportbids</span></code> writes each study dataset under its own subject. The
+label comes from <code class="docutils literal notranslate"><span class="pre">EEG.subject</span></code>, then the matching <code class="docutils literal notranslate"><span class="pre">STUDY.datasetinfo</span></code>
+subject (<code class="docutils literal notranslate"><span class="pre">pop_exportbids.m</span></code> lines 167-172). A dataset with neither set
+raises <code class="docutils literal notranslate"><span class="pre">pop_exportbids:</span> <span class="pre">no</span> <span class="pre">subject</span> <span class="pre">info</span> <span class="pre">found...</span></code>. One dataset with no
+subject still uses the <code class="docutils literal notranslate"><span class="pre">subject</span></code> argument. <code class="docutils literal notranslate"><span class="pre">createids</span></code> assigns
+<code class="docutils literal notranslate"><span class="pre">sub-001</span></code>, <code class="docutils literal notranslate"><span class="pre">sub-002</span></code>, and so on to the unique subjects
+(<code class="docutils literal notranslate"><span class="pre">bids_export.m</span></code> lines 605-608), so two sessions of one subject keep one
+id and <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> has one row per subject. Session and run are
+taken from the dataset when they are set. The export dialog records a
+command that replays in <code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code> with the dataset list, task,
+license, changes, and createids. EEGLAB leaves this command empty
+(<code class="docutils literal notranslate"><span class="pre">pop_exportbids.m</span></code> lines 247-252).</p></li>
+<li><p>The BIDS import field “Import only the following participant indices”
+takes 1-based indices into <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> order, or sorted <code class="docutils literal notranslate"><span class="pre">sub-*</span></code>
+folder names when that file is missing (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 163 and
+281). The indices are mapped to subject labels before the file filter. A
+non-numeric or out-of-range value raises <code class="docutils literal notranslate"><span class="pre">pop_importbids</span></code>. The history
+command records the numbers, for example <code class="docutils literal notranslate"><span class="pre">'subjects',</span> <span class="pre">[1</span> <span class="pre">2]</span></code>.</p></li>
 <li><p>Clicking or dragging in the scroll window marks data again. The plot
 viewport was asked for <code class="docutils literal notranslate"><span class="pre">mapToScene</span></code>, which only <code class="docutils literal notranslate"><span class="pre">QGraphicsView</span></code>
 provides, so every left click raised <code class="docutils literal notranslate"><span class="pre">AttributeError</span></code>. Continuous
@@ -504,6 +533,60 @@ leaves the epochs in place. YES removes them and opens <code class="docutils lit
 Clearing every mark and pressing Reject stores the manual marks as
 unmarked and does not add a rejection command. The history command uses
 <code class="docutils literal notranslate"><span class="pre">pop_rejepoch(</span> <span class="pre">EEG,</span> <span class="pre">[..]</span> <span class="pre">,0);</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_rejepoch.m</span></code> line 101).</p></li>
+<li><p>File &gt; Export opens the <code class="docutils literal notranslate"><span class="pre">pop_export</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code>, and <code class="docutils literal notranslate"><span class="pre">pop_exportbids</span></code>
+dialogs (<code class="docutils literal notranslate"><span class="pre">pop_export.m</span></code> lines 77-115, <code class="docutils literal notranslate"><span class="pre">pop_writeeeg.m</span></code> lines 52-80,
+<code class="docutils literal notranslate"><span class="pre">pop_exportbids.m</span></code> lines 48-83). <code class="docutils literal notranslate"><span class="pre">pop_expica</span></code> and <code class="docutils literal notranslate"><span class="pre">pop_expevents</span></code> stay
+file pickers, matching <code class="docutils literal notranslate"><span class="pre">pop_expica.m</span></code> lines 61-69 and <code class="docutils literal notranslate"><span class="pre">pop_expevents.m</span></code>
+lines 67-73.</p></li>
+<li><p>File &gt; BIDS tools opens the task, participant, and event dialogs from
+<code class="docutils literal notranslate"><span class="pre">pop_taskinfo.m</span></code>, <code class="docutils literal notranslate"><span class="pre">pop_participantinfo.m</span></code> line 160, and <code class="docutils literal notranslate"><span class="pre">pop_eventinfo.m</span></code>
+line 59. Values are stored on <code class="docutils literal notranslate"><span class="pre">EEG.etc.bids</span></code> so <code class="docutils literal notranslate"><span class="pre">pop_saveset</span></code> keeps them.
+An empty subject code raises an error from <code class="docutils literal notranslate"><span class="pre">pop_participantinfo</span></code>.</p></li>
+<li><p>Importing a BIDS dataset replaces a missing <code class="docutils literal notranslate"><span class="pre">chaninfo.plotrad</span></code> or
+<code class="docutils literal notranslate"><span class="pre">chaninfo.shrink</span></code> with an empty array, so File &gt; Save no longer fails while
+<code class="docutils literal notranslate"><span class="pre">savemat</span></code> is writing those fields. The import dialog matches
+<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 104-164 and loads an in-memory study. It does not
+copy datasets into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code> (<code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> lines 839 and
+892 do).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_writeeeg</span></code> keeps every EDF and BDF sample and every event annotation.
+EEGLAB <code class="docutils literal notranslate"><span class="pre">writeeeg.m</span></code> line 139 shortens a block longer than 1000 samples to
+one second (<code class="docutils literal notranslate"><span class="pre">round(srate)</span></code> samples per record). Biosig then pads the file
+to that record boundary and fills the extra samples with the digital minimum,
+which reads back as the channel physical minimum. A 2112-sample recording at
+200 Hz is 11 seconds from EEGLAB and stays 2112 samples in EEGPrep.
+<code class="docutils literal notranslate"><span class="pre">pop_writeeeg.m</span></code> line 97 records the command without a <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code> prefix.
+Epoched data is concatenated after the same confirmation as lines 53-57.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_export</span></code> writes <code class="docutils literal notranslate"><span class="pre">%.Nf</span></code> decimal places (<code class="docutils literal notranslate"><span class="pre">pop_export.m</span></code> line 179).
+The dialog label still says “significant digits” (line 93). ICA columns use
+component numbers (lines 187-191). A non-transposed time row is labeled
+`` Time`` (line 217). <code class="docutils literal notranslate"><span class="pre">pop_expica</span></code> writes <code class="docutils literal notranslate"><span class="pre">save</span> <span class="pre">-ascii</span></code> text
+(<code class="docutils literal notranslate"><span class="pre">pop_expica.m</span></code> line 79) with each value formatted <code class="docutils literal notranslate"><span class="pre">%16.7e</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pop_expevents</span></code> follows <code class="docutils literal notranslate"><span class="pre">eeg_eventtable.m</span></code> lines 123-159: a <code class="docutils literal notranslate"><span class="pre">number</span></code>
+column, first-seen field order, and <code class="docutils literal notranslate"><span class="pre">%f</span></code> numeric cells.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pop_exportbids</span></code> writes <code class="docutils literal notranslate"><span class="pre">README</span></code>, <code class="docutils literal notranslate"><span class="pre">*_eeg.json</span></code>, <code class="docutils literal notranslate"><span class="pre">*_electrodes.tsv</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">*_coordsystem.json</span></code>. The electrodes and coordinate-system names drop
+<code class="docutils literal notranslate"><span class="pre">task-</span></code> and <code class="docutils literal notranslate"><span class="pre">desc-</span></code> (<code class="docutils literal notranslate"><span class="pre">bids_writeelectrodefile.m</span></code> lines 32-49 and
+272-316). Event tables use <code class="docutils literal notranslate"><span class="pre">onset</span></code>, <code class="docutils literal notranslate"><span class="pre">duration</span></code>, <code class="docutils literal notranslate"><span class="pre">sample</span></code>, and <code class="docutils literal notranslate"><span class="pre">value</span></code>
+(<code class="docutils literal notranslate"><span class="pre">bids_writeeventfile.m</span></code> lines 128-197), and a numeric type <code class="docutils literal notranslate"><span class="pre">1</span></code> is written
+as <code class="docutils literal notranslate"><span class="pre">1</span></code>. <code class="docutils literal notranslate"><span class="pre">validate_bids</span></code> reports a missing README, <code class="docutils literal notranslate"><span class="pre">*_eeg.json</span></code>,
+electrodes file, or coordsystem file. It runs the official bids-validator
+when <code class="docutils literal notranslate"><span class="pre">bids-validator</span></code>, <code class="docutils literal notranslate"><span class="pre">npx</span></code>, or <code class="docutils literal notranslate"><span class="pre">deno</span></code> is on PATH, and otherwise says
+the check was sidecars only and how to install the validator. It does not add
+<code class="docutils literal notranslate"><span class="pre">eegprep_bids_validation.json</span></code> to the dataset. The File menu exports a study
+only (<code class="docutils literal notranslate"><span class="pre">pop_exportbids.m</span></code> line 33). <code class="docutils literal notranslate"><span class="pre">pop_exportbids(EEG,</span> <span class="pre">folder)</span></code> still
+writes one dataset from memory.</p></li>
+<li><p>BIDS import uses the <code class="docutils literal notranslate"><span class="pre">value</span></code> column as the EEG event type when that column
+exists (<code class="docutils literal notranslate"><span class="pre">bids_importeventfile.m</span></code> line 14, <code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code> line 181).
+<code class="docutils literal notranslate"><span class="pre">trial_type</span></code> is still used when <code class="docutils literal notranslate"><span class="pre">value</span></code> is absent. A <code class="docutils literal notranslate"><span class="pre">nan</span></code> event type
+is stored as an empty string. The import dialog’s task, session, run, and
+recording selectors are the popup and listboxes from <code class="docutils literal notranslate"><span class="pre">pop_importbids.m</span></code>
+lines 112-118, filled by scanning the folder. Empty session, run, and
+recording rows are omitted (lines 128-142).</p></li>
+<li><p>The export dialog’s “Number of significant digits” field is passed through
+as <code class="docutils literal notranslate"><span class="pre">%.Nf</span></code> decimal places, which is what <code class="docutils literal notranslate"><span class="pre">pop_export.m</span></code> line 179 does
+with the string from line 93. The function default remains 7 decimal places
+(line 129). The dialog default remains 4 (line 94) and is the edit field’s
+value, so pressing Ok without changing that field writes 4 decimal places.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pop_fileio_brainvision_mat</span></code> channel locations include empty <code class="docutils literal notranslate"><span class="pre">ref</span></code> and
 <code class="docutils literal notranslate"><span class="pre">type</span></code> on every channel. MATLAB <code class="docutils literal notranslate"><span class="pre">eeg_checkset</span></code> fills a missing
 <code class="docutils literal notranslate"><span class="pre">chanlocs.ref</span></code> with <code class="docutils literal notranslate"><span class="pre">''</span></code> (<code class="docutils literal notranslate"><span class="pre">eeg_checkset.m</span></code> lines 1105-1117) and the

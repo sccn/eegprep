@@ -540,6 +540,8 @@ recording:</p>
         |-- sub-01_task-rest_run-01_eeg.fdt
         |-- sub-01_task-rest_run-01_channels.tsv
         |-- sub-01_task-rest_run-01_events.tsv
+        |-- sub-01_run-01_electrodes.tsv
+        |-- sub-01_run-01_coordsystem.json
         `-- sub-01_task-rest_run-01_eeg.json
 </pre></div>
 </div>
@@ -579,6 +581,32 @@ without downloading a public BIDS dataset:</p>
 <span class="nb">print</span><span class="p">(</span><span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;setname&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;nbchan&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;pnts&quot;</span><span class="p">],</span> <span class="n">EEG</span><span class="p">[</span><span class="s2">&quot;srate&quot;</span><span class="p">])</span>
 </pre></div>
 </div>
+<p>The export writes <code class="docutils literal notranslate"><span class="pre">dataset_description.json</span></code>, <code class="docutils literal notranslate"><span class="pre">README</span></code>, <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code>,
+an EEGLAB <code class="docutils literal notranslate"><span class="pre">.set</span></code>, <code class="docutils literal notranslate"><span class="pre">*_channels.tsv</span></code>, <code class="docutils literal notranslate"><span class="pre">*_events.tsv</span></code>, <code class="docutils literal notranslate"><span class="pre">*_electrodes.tsv</span></code>,
+<code class="docutils literal notranslate"><span class="pre">*_coordsystem.json</span></code>, and <code class="docutils literal notranslate"><span class="pre">*_eeg.json</span></code>. <code class="docutils literal notranslate"><span class="pre">events.tsv</span></code> uses <code class="docutils literal notranslate"><span class="pre">onset</span></code>,
+<code class="docutils literal notranslate"><span class="pre">duration</span></code>, <code class="docutils literal notranslate"><span class="pre">sample</span></code>, and <code class="docutils literal notranslate"><span class="pre">value</span></code>. <code class="docutils literal notranslate"><span class="pre">value</span></code> is the event type, written
+the way MATLAB <code class="docutils literal notranslate"><span class="pre">num2str</span></code> does, so a numeric type <code class="docutils literal notranslate"><span class="pre">1</span></code> stays <code class="docutils literal notranslate"><span class="pre">1</span></code>. A
+<code class="docutils literal notranslate"><span class="pre">trial_type</span></code> column is added only when the dataset events already have that
+field. The electrodes and coordinate-system file names omit <code class="docutils literal notranslate"><span class="pre">task-</span></code> and
+<code class="docutils literal notranslate"><span class="pre">desc-</span></code>.</p>
+<p>A direct <code class="docutils literal notranslate"><span class="pre">pop_exportbids(EEG,</span> <span class="pre">folder)</span></code> call writes that one dataset from
+memory. The File menu follows EEGLAB and exports only a loaded study. Each
+dataset is written under <code class="docutils literal notranslate"><span class="pre">EEG.subject</span></code>, or the study’s <code class="docutils literal notranslate"><span class="pre">datasetinfo</span></code>
+subject when the dataset subject is empty. One dataset with neither set uses
+the <code class="docutils literal notranslate"><span class="pre">subject</span></code> argument. <code class="docutils literal notranslate"><span class="pre">createids=True</span></code> replaces the unique subjects
+with <code class="docutils literal notranslate"><span class="pre">sub-001</span></code>, <code class="docutils literal notranslate"><span class="pre">sub-002</span></code>, and so on, and <code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> has one
+row per subject. The export dialog records a command you can run again in
+<code class="docutils literal notranslate"><span class="pre">eegprep-console</span></code>. EEGLAB leaves that history command empty. Importing a
+BIDS folder from the File menu loads the datasets into an in-memory study.
+It does not copy them into <code class="docutils literal notranslate"><span class="pre">derivatives/eeglab</span></code>. The import field “Import
+only the following participant indices” takes 1-based positions in
+<code class="docutils literal notranslate"><span class="pre">participants.tsv</span></code> (or in the sorted <code class="docutils literal notranslate"><span class="pre">sub-*</span></code> folders when that file is
+missing), such as <code class="docutils literal notranslate"><span class="pre">2</span></code> or <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">2</span></code>. <code class="docutils literal notranslate"><span class="pre">pop_importbids(...,</span> <span class="pre">subjects=[1,</span> <span class="pre">2])</span></code>
+uses that same list, including when the dialog’s history command is run again.
+A folder import from the dialog records <code class="docutils literal notranslate"><span class="pre">[STUDY,</span> <span class="pre">ALLEEG]</span> <span class="pre">=</span> <span class="pre">pop_importbids(...)</span></code>
+with <code class="docutils literal notranslate"><span class="pre">return_study</span></code> on, plus any selected recordings. Running that command
+again rebuilds the same study. A direct call still returns the datasets unless
+<code class="docutils literal notranslate"><span class="pre">return_study=True</span></code>.</p>
 <p>This export is useful for learning EEGPrep’s BIDS file handling. It is not a
 replacement for a curated experimental BIDS dataset with full study metadata.</p>
 </section>
@@ -637,8 +665,10 @@ combination:</p>
 <td><p>Replace file events with events from the BIDS sidecar. Use <code class="docutils literal notranslate"><span class="pre">&quot;merge&quot;</span></code>,
 <code class="docutils literal notranslate"><span class="pre">&quot;append&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">False</span></code> when your dataset needs a different policy.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">eventtype=&quot;trial_type&quot;</span></code></p></td>
-<td><p>Choose the event sidecar column to use as the EEG event type.</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">eventtype=&quot;value&quot;</span></code></p></td>
+<td><p>Choose the event sidecar column to use as the EEG event type.
+<code class="docutils literal notranslate"><span class="pre">value</span></code> is the default. <code class="docutils literal notranslate"><span class="pre">trial_type</span></code> is the next fallback when
+<code class="docutils literal notranslate"><span class="pre">value</span></code> is absent, and you can name either column explicitly.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">infer_locations=None</span></code></p></td>
 <td><p>Infer locations only when no channel locations are present. Pass
@@ -774,9 +804,12 @@ plugin menus. In a shared session, use:</p>
 </pre></div>
 </div>
 <p>Then choose <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">&gt;</span> <span class="pre">Import</span> <span class="pre">data</span> <span class="pre">&gt;</span> <span class="pre">From</span> <span class="pre">BIDS</span> <span class="pre">folder</span> <span class="pre">structure</span></code> or
-<code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">&gt;</span> <span class="pre">Export</span> <span class="pre">&gt;</span> <span class="pre">To</span> <span class="pre">BIDS</span> <span class="pre">folder</span> <span class="pre">structure</span></code>. Successful menu actions update
-<code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>, <code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> in the shared
-session just like other loading and saving workflows.</p>
+<code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">&gt;</span> <span class="pre">Export</span> <span class="pre">&gt;</span> <span class="pre">To</span> <span class="pre">BIDS</span> <span class="pre">folder</span> <span class="pre">structure</span></code>. Import asks for the BIDS options,
+including which events column becomes the EEG event type, and stores a study.
+Export asks for the BIDS output folder, license, and task name, and it is
+available once a study is loaded. File &gt; BIDS tools opens the task, participant,
+and event metadata dialogs. Successful menu actions update <code class="docutils literal notranslate"><span class="pre">EEG</span></code>, <code class="docutils literal notranslate"><span class="pre">ALLEEG</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CURRENTSET</span></code>, <code class="docutils literal notranslate"><span class="pre">STUDY</span></code>, <code class="docutils literal notranslate"><span class="pre">LASTCOM</span></code>, and <code class="docutils literal notranslate"><span class="pre">ALLCOM</span></code> in the shared session.</p>
 </section>
 <section id="troubleshooting">
 <h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
@@ -795,8 +828,8 @@ session just like other loading and saving workflows.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">return_report=True</span></code> with <code class="docutils literal notranslate"><span class="pre">pop_load_frombids</span></code> and inspect the report.
 Then adjust <code class="docutils literal notranslate"><span class="pre">bidsevent</span></code> or <code class="docutils literal notranslate"><span class="pre">eventtype</span></code>. For example, set
 <code class="docutils literal notranslate"><span class="pre">bidsevent=False</span></code> to keep events stored in the raw EEG file, or set
-<code class="docutils literal notranslate"><span class="pre">eventtype=&quot;value&quot;</span></code> when your event sidecar stores condition labels in a
-non-default column.</p>
+<code class="docutils literal notranslate"><span class="pre">eventtype=&quot;trial_type&quot;</span></code> when the condition label lives in <code class="docutils literal notranslate"><span class="pre">trial_type</span></code>
+and the file also has a <code class="docutils literal notranslate"><span class="pre">value</span></code> column. The default column is <code class="docutils literal notranslate"><span class="pre">value</span></code>.</p>
 </section>
 <section id="batch-job-uses-too-much-memory">
 <h3>Batch Job Uses Too Much Memory<a class="headerlink" href="#batch-job-uses-too-much-memory" title="Link to this heading">#</a></h3>

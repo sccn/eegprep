@@ -673,14 +673,14 @@ and <code class="docutils literal notranslate"><span class="pre">latpoint0</span
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_editset.html#eegprep.pop_editset" title="eegprep.pop_editset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_editset</span></code></a>(EEG, *args[, gui, ...])</p></td>
 <td><p>Edit dataset metadata fields in an EEG dictionary.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_expevents.html#eegprep.pop_expevents" title="eegprep.pop_expevents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_expevents</span></code></a>(EEG, filename)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_expevents.html#eegprep.pop_expevents" title="eegprep.pop_expevents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_expevents</span></code></a>(EEG, filename[, unit])</p></td>
 <td><p>Export <code class="docutils literal notranslate"><span class="pre">EEG.event</span></code> as a tab-delimited text file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_export.html#eegprep.pop_export" title="eegprep.pop_export"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_export</span></code></a>(EEG, filename, *args, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_export.html#eegprep.pop_export" title="eegprep.pop_export"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_export</span></code></a>(EEG[, filename, renderer])</p></td>
 <td><p>Export EEG data or ICA activity to a delimited text file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_exportbids.html#eegprep.pop_exportbids" title="eegprep.pop_exportbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_exportbids</span></code></a>(EEG, output_dir, *[, ...])</p></td>
-<td><p>Export EEG dataset(s) as BIDS-like EEGLAB files and sidecars.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_exportbids.html#eegprep.pop_exportbids" title="eegprep.pop_exportbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_exportbids</span></code></a>(EEG[, output_dir, ...])</p></td>
+<td><p>Export EEG dataset(s) as BIDS EEGLAB files and sidecars.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.importevent.html#eegprep.importevent" title="eegprep.importevent"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.importevent</span></code></a>(event[, oldevent, srate])</p></td>
 <td><p>Import event records from a text table or in-memory rows.</p></td>
@@ -724,7 +724,7 @@ and <code class="docutils literal notranslate"><span class="pre">latpoint0</span
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_saveset.html#eegprep.pop_saveset" title="eegprep.pop_saveset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_saveset</span></code></a>(EEG[, file_name])</p></td>
 <td><p>Save EEG data to file.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_writeeeg.html#eegprep.pop_writeeeg" title="eegprep.pop_writeeeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writeeeg</span></code></a>(EEG, filename, *args, ...)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_writeeeg.html#eegprep.pop_writeeeg" title="eegprep.pop_writeeeg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_writeeeg</span></code></a>(EEG[, filename, renderer])</p></td>
 <td><p>Write continuous EEG data to EDF, BDF, or GDF.</p></td>
 </tr>
 </tbody>
@@ -1051,7 +1051,7 @@ output layouts are not yet implemented.</p>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_icflag.html#eegprep.pop_icflag" title="eegprep.pop_icflag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_icflag</span></code></a>(EEG[, thresholds, gui, ...])</p></td>
 <td><p>Flag ICLabel-classified components for later rejection.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importbids.html#eegprep.pop_importbids" title="eegprep.pop_importbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importbids</span></code></a>(path, *[, return_com])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/eegprep.pop_importbids.html#eegprep.pop_importbids" title="eegprep.pop_importbids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importbids</span></code></a>(path, *[, ...])</p></td>
 <td><p>Load one or more EEG files from a BIDS dataset.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/eegprep.pop_importerplab.html#eegprep.pop_importerplab" title="eegprep.pop_importerplab"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eegprep.pop_importerplab</span></code></a>(EEG[, filename, ...])</p></td>

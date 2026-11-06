@@ -338,7 +338,7 @@ BIDS: export a dataset to a BIDS folder and import it back.
 
  .. code-block:: none
 
-    bids files: ['dataset_description.json', 'participants.tsv', 'sub-01/eeg/sub-01_task-tutorial_run-01_channels.tsv', 'sub-01/eeg/sub-01_task-tutorial_run-01_eeg.set', 'sub-01/eeg/sub-01_task-tutorial_run-01_events.tsv']
+    bids files: ['README', 'dataset_description.json', 'participants.tsv', 'sub-01/eeg/sub-01_run-01_coordsystem.json', 'sub-01/eeg/sub-01_run-01_electrodes.tsv', 'sub-01/eeg/sub-01_task-tutorial_run-01_channels.tsv']
     imported from BIDS: 1 dataset(s); 32 channels
 
 
@@ -364,7 +364,7 @@ Clean up the temporary directory used by this example.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.345 seconds)
+   **Total running time of the script:** (0 minutes 2.153 seconds)
 
 
 .. _sphx_glr_download_auto_examples_plot_import_data.py:
