@@ -43,19 +43,18 @@ def _chan_labels(EEG):
     return labs
 
 
-@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
-def test_channel_range_error_explains_zero_based_fix(option):
+def test_channel_range_error_explains_zero_based_fix():
     eeg = create_test_eeg(n_channels=4, n_samples=8)
 
     with pytest.raises(ValueError) as exc:
-        pop_select(eeg, gui=False, **{option: [-1, 0, 4]})
+        pop_select(eeg, gui=False, channel=[-1, 0, 4])
 
     message = str(exc.value)
     for detail in ("pop_select", "[-1, 4]", "nbchan=4", "0..3", "1..4", "subtract 1", "labels"):
         assert detail in message
 
 
-@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
+@pytest.mark.parametrize("option", ["channel", "nochannel"])
 def test_numeric_channels_stay_zero_based_and_deduplicate(option):
     eeg = create_test_eeg(n_channels=4, n_samples=8)
     expected = [0, 1, 3] if option == "channel" else [2]

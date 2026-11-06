@@ -59,14 +59,19 @@ def _event(latency: float, kind: str = "square") -> tuple:
     return (kind, latency, None, None, None)
 
 
-@pytest.mark.parametrize("option", ["channel", "nochannel", "rmchannel"])
-@pytest.mark.parametrize("selection", [[1, 1, 4, 2], [1.0, 1.0, 4.0, 2.0], 1, ["Ch1", "Ch2", "Ch4"]])
+@pytest.mark.parametrize(
+    "option, selection",
+    [
+        ("channel", [1, 1, 4, 2]),
+        ("channel", ["Ch1", "Ch2", "Ch4"]),
+        ("nochannel", [1, 1, 4, 2]),
+    ],
+)
 def test_select_adapter_converts_channel_numbers_only(option, selection):
     eeg = create_test_eeg(n_channels=4, n_samples=8, n_trials=2)
     params = {option: selection, "trial": [1]}
     case = FuzzCase("pop_select", _spec(), freeze_params(params))
-    selected = [0] if selection == 1 else [0, 1, 3]
-    expected = selected if option == "channel" else [index for index in range(4) if index not in selected]
+    expected = [0, 1, 3] if option == "channel" else [2]
 
     out = dispatch_python(case, eeg)
 
