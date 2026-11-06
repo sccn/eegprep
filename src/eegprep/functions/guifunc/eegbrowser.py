@@ -655,6 +655,11 @@ class EEGBrowserCanvas(_QWidget):
             if not self.plot.getPlotItem().vb.sceneBoundingRect().contains(scene_point):
                 return super().eventFilter(watched, event)
             sample = self._event_sample(scene_point)
+            if self.model.data.epoched and not self.model.state.setelectrode:
+                # eegplot.m:2130-2135 marks one epoch on button-down and does not drag.
+                self._toggle_epoch(sample)
+                self._clear_drag()
+                return True
             self._drag_start_sample = sample
             self._drag_start_pos = event.position() if hasattr(event, "position") else event.pos()
             self._drag_channel_index = self._event_channel(scene_point) if self.model.state.setelectrode else None
@@ -695,6 +700,18 @@ class EEGBrowserCanvas(_QWidget):
             channel_index=channel_index,
         )
         self.redraw()
+
+    def _toggle_epoch(self, sample: int) -> None:
+        pnts = max(1, int(self.model.data.pnts))
+        epoch = max(0, int(sample)) // pnts
+        for region in self.model.state.winrej:
+            if int(region.start) // pnts == epoch:
+                self.toggle_sample(int(region.start))
+                return
+        epoch_start = epoch * pnts
+        epoch_end = min(self.model.data.total_samples, (epoch + 1) * pnts) - 1
+        if epoch_end > epoch_start:
+            self.mark_samples(epoch_start, epoch_end)
 
     def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
@@ -1074,7 +1091,9 @@ class EEGBrowserCanvas(_QWidget):
 
     def _event_scene_point(self, event: Any) -> Any:
         point = event.position() if hasattr(event, "position") else event.pos()
-        return self.plot.viewport().mapToScene(point.toPoint() if hasattr(point, "toPoint") else point)
+        if hasattr(point, "toPoint"):
+            point = point.toPoint()
+        return self.plot.mapToScene(point)
 
     def _event_sample(self, scene_point: Any) -> int:
         view_point = self.plot.getPlotItem().vb.mapSceneToView(scene_point)

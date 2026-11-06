@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from eegprep.functions.adminfunc.vararg2str import vararg2str
 from eegprep.functions.popfunc.plot_utils import history_command
 import numpy as np
 
@@ -31,13 +32,23 @@ from eegprep.functions.sigprocfunc.eegplot import (
 
 CONTINUOUS_MANUAL_WINREJ = "rejmanualwinrej"
 CONTINUOUS_ICA_MANUAL_WINREJ = "icarejmanualwinrej"
+_REJECT_OMITTED = object()
+_CONTINUOUS_REJECT_INSTRUCTIONS = (
+    "Mark stretches of continuous data for rejection\n"
+    "by dragging the left mouse button. Click on marked\n"
+    'stretches to unmark. When done,press "REJECT" to\n'
+    "excise marked stretches (Note: Leaves rejection\n"
+    "boundary markers in the event table)."
+)
+_EPOCH_REJECT_QUESTION = "Are you sure, you want to reject the labeled trials ?"
+_EPOCH_REJECT_TITLE = "Reject pre-labelled epochs -- pop_rejepoch()"
 
 
 def pop_eegplot(
     EEG: dict[str, Any] | None = None,
     icacomp: int = 1,
     superpose: int = 0,
-    reject: int = 1,
+    reject: Any = _REJECT_OMITTED,
     topcommand: Any = None,
     *args: Any,
     return_com: bool = False,
@@ -47,11 +58,17 @@ def pop_eegplot(
     """Inspect EEG channel or component activity in the scrolling browser.
 
     The browser edits marks in window-local state. Data or rejection fields are
-    changed only when the Accept/Reject callback runs.
+    changed only when the Accept/Reject callback runs. Omitting ``reject`` on
+    continuous data shows the rejection instruction dialog before the browser
+    opens. Pass ``reject`` explicitly, or ``show=False``, to skip that dialog.
     """
     del topcommand
     if EEG is None:
         raise ValueError("pop_eegplot requires a non-empty EEG dataset")
+    reject_omitted = reject is _REJECT_OMITTED
+    if reject_omitted:
+        reject = 1
+    reject = int(reject)
     if icacomp not in {0, 1}:
         raise ValueError("icacomp must be 1 for data channels or 0 for components")
     if int(bool(icacomp)) == 0:
@@ -72,6 +89,8 @@ def pop_eegplot(
         options.setdefault("winrej", _initial_continuous_winrej(EEG, icacomp))
 
     def _accept(winrej: np.ndarray) -> None:
+        if _epoch_reject_pending(EEG, winrej) and not _confirm_epoch_rejection():
+            return
         eeg_out, accept_command = apply_eegplot_rejections(
             EEG,
             winrej,
@@ -80,7 +99,7 @@ def pop_eegplot(
             reject=reject,
             return_com=True,
         )
-        if accept_callback is not None:
+        if accept_callback is not None and accept_command:
             accept_callback(eeg_out, accept_command)
 
     if return_com and show and accept_callback is None:
@@ -88,6 +107,8 @@ def pop_eegplot(
             "pop_eegplot(return_com=True) opens a non-blocking browser; pass command_callback to receive "
             "accepted browser results, or use apply_eegplot_rejections for programmatic rejection."
         )
+    if show and reject_omitted and reject and trials <= 1 and not _confirm_continuous_reject_instructions():
+        return (None, "") if return_com else None
     if show:
         options["command_callback"] = _accept
     if icacomp == 1:
@@ -138,9 +159,13 @@ def apply_eegplot_rejections(
     trials = int(out.get("trials", 1) or 1)
     if trials <= 1:
         if int(bool(reject)):
-            if rows.size:
-                out = eeg_eegrej(out, eegplot2event(rows, -1))
+            regions = eegplot2event(rows, -1) if rows.size else np.zeros((0, 0))
+            if regions.size:
+                out = eeg_eegrej(out, regions)
                 _clear_continuous_marks(out, icacomp=icacomp)
+                command = f"EEG = eeg_eegrej( EEG, {vararg2str([regions])});"
+            else:
+                command = ""
         else:
             _store_continuous_marks(out, rows, icacomp=icacomp)
         return (out, command) if return_com else out
@@ -154,9 +179,63 @@ def apply_eegplot_rejections(
         row_marks = np.zeros((rejection_row_count(out, icacomp), trials), dtype=bool)
         store_superpose = 0
     _store_epoch_marks(out, trial_marks, row_marks, icacomp=icacomp, superpose=store_superpose)
-    if int(bool(reject)) and trial_marks.any():
-        out, _reject_command = pop_rejepoch(out, trial_marks, 1, return_com=True)
+    if int(bool(reject)):
+        command = _epoch_reject_command(trial_marks)
+        if trial_marks.any():
+            out, _reject_command = pop_rejepoch(out, trial_marks, 1, return_com=True)
     return (out, command) if return_com else out
+
+
+def _epoch_reject_command(trial_marks: np.ndarray) -> str:
+    indices = np.flatnonzero(np.asarray(trial_marks, dtype=bool)) + 1
+    if indices.size == 0:
+        return ""
+    return f"EEG = pop_rejepoch( EEG, {vararg2str([indices, 0])});"
+
+
+def _epoch_reject_pending(EEG: dict[str, Any], winrej: Any) -> bool:
+    if int(EEG.get("trials", 1) or 1) <= 1:
+        return False
+    rows = _as_winrej_rows(winrej)
+    if rows.size == 0:
+        return False
+    trials = int(EEG.get("trials", 1) or 1)
+    pnts = int(EEG.get("pnts", np.asarray(EEG.get("data")).shape[1]))
+    trial_marks, _row_marks = eegplot2trial(rows, pnts, trials, manual_rejection_color(EEG), None)
+    return bool(np.asarray(trial_marks).any())
+
+
+def _confirm_continuous_reject_instructions() -> bool:
+    return _ask_dialog("Warning", _CONTINUOUS_REJECT_INSTRUCTIONS, ("Cancel", "Continue"), "Continue") == "Continue"
+
+
+def _confirm_epoch_rejection() -> bool:
+    return _ask_dialog("Question", _EPOCH_REJECT_QUESTION, ("NO", "YES"), "YES", title=_EPOCH_REJECT_TITLE) == "YES"
+
+
+def _ask_dialog(icon_name: str, text: str, labels: tuple[str, str], default: str, *, title: str | None = None) -> str:
+    try:
+        from PySide6 import QtCore, QtWidgets
+    except ImportError as exc:
+        raise RuntimeError(
+            "pop_eegplot could not open its dialog because PySide6 is not installed. "
+            "Install it with `pip install eegprep[gui]`."
+        ) from exc
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    box = QtWidgets.QMessageBox()
+    box.setIcon(getattr(QtWidgets.QMessageBox.Icon, icon_name))
+    box.setWindowTitle(title or icon_name)
+    box.setTextFormat(QtCore.Qt.TextFormat.PlainText)
+    box.setText(text)
+    buttons = {label: box.addButton(label, QtWidgets.QMessageBox.ButtonRole.ActionRole) for label in labels}
+    box.setDefaultButton(buttons[default])
+    box.setEscapeButton(buttons[labels[0]])
+    box.exec()
+    clicked = box.clickedButton()
+    for label, button in buttons.items():
+        if clicked is button:
+            return label
+    return ""
 
 
 def _initial_epoch_winrej(EEG: dict[str, Any], icacomp: int, superpose: int) -> np.ndarray:

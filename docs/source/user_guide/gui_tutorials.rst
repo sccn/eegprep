@@ -206,10 +206,12 @@ with an optional channel to project them onto.
 Use EEGBrowser for Rejection
 ============================
 
-``Plot > Channel data (scroll)`` opens EEGBrowser for inspection. Rejection
-workflows open the same browser in a marking mode. Continuous marks can become
-sample-removal intervals through ``eeg_eegrej``; epoch marks can update
-``EEG.reject.rejmanual`` and then be removed with ``pop_rejepoch``.
+``Plot > Channel data (scroll)`` opens EEGBrowser for inspection. ``Tools >
+Inspect/reject data by eye`` opens the same browser after an instruction
+dialog; Cancel leaves the data unchanged. Rejection workflows mark continuous
+stretches by dragging and whole epochs by clicking. Reject then removes the
+marks with ``eeg_eegrej`` or ``pop_rejepoch`` and asks whether to keep the
+result as a new dataset.
 
 See :ref:`eegbrowser` for browser modes, mark fields, and performance behavior.
 

@@ -261,7 +261,7 @@ def test_pop_eegplot_return_com_with_callback_does_not_return_stale_eeg(monkeypa
 
     monkeypatch.setattr(pop_eegplot_module, "eegplot", fake_eegplot)
 
-    out, command = pop_eegplot(eeg, return_com=True, command_callback=lambda _eeg, _command: None)
+    out, command = pop_eegplot(eeg, reject=1, return_com=True, command_callback=lambda _eeg, _command: None)
 
     assert out is None
     assert command == "pop_eegplot(EEG, 1, 0, 1)"
@@ -283,7 +283,7 @@ def test_apply_eegplot_rejections_removes_continuous_regions_and_inserts_boundar
     assert out["event"][0]["latency"] == 2.5
     assert out["event"][0]["duration"] == 3.0
     assert out["event"][1]["latency"] == 5.0
-    assert command == "pop_eegplot(EEG, 1, 0, 1)"
+    assert command == "EEG = eeg_eegrej( EEG, [-1 1 3 5 0.7 1 0.9]);"
 
 
 def test_apply_eegplot_rejections_updates_continuous_mark_only_rows() -> None:
