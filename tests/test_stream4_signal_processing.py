@@ -333,6 +333,27 @@ def test_f69_runica_short_run_matches_pythoncompat(eeglab_backend):
         assert_matlab_near(sphere, np.asarray(matlab_sphere))
 
 
+def test_newtimef_keeps_repeated_sample_times():
+    frames = 128
+    signal = np.random.default_rng(2).normal(size=(frames, 3))
+    result = newtimef(
+        signal,
+        frames,
+        [-500, 492],
+        128,
+        [3, 0.8],
+        padratio=1,
+        baseline=0,
+        plotersp="off",
+        plotitc="off",
+        verbose="off",
+    )
+    assert result.ersp.shape == (4, 111)
+    assert result.itc.shape == (4, 111)
+    assert result.times.size == 111
+    assert np.unique(result.times).size < result.times.size
+
+
 @pytest.mark.matlab_oracle
 def test_f91_f126_time_frequency_matches_eeglab(eeglab_backend):
     frames = 128

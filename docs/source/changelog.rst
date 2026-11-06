@@ -10,6 +10,11 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``newtimef`` and ``timefreq`` keep every requested output time, including
+  times that round onto the same sample. ``timefreq.m`` ``gettimes`` drops
+  duplicates only when the index list is shorter than its unique values, so
+  that drop never runs. A 128-sample epoch from -500 ms to 492 ms at 128 Hz,
+  cycles ``[3, 0.8]``, and ``padratio`` 1 returns 111 times.
 - ``plotfresp`` accepts the symmetric and antisymmetric FIR filters that
   ``fir_filterdcpadded`` already runs. ``plotfresp.m`` line 67 compares
   coefficients with exact reversal, so a windowed-sinc highpass whose taps

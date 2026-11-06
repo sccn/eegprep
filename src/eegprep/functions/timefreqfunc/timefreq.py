@@ -345,7 +345,7 @@ def _output_times(
         if wanted.size == 0:
             raise ValueError("No time points. Reduce time window or minimum frequency.")
         indices = _nearest_time_indices(wanted, srate, tlimits)
-    indices = np.unique(indices[(indices >= 0) & (indices < frames)])
+    indices = indices[(indices >= 0) & (indices < frames)]
     if indices.size == 0:
         raise ValueError("No valid time points for time-frequency decomposition")
     return timevect[indices], indices
