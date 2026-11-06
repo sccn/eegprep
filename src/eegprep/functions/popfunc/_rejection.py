@@ -306,7 +306,7 @@ def _multitaper_power(data: np.ndarray, srate: float) -> tuple[np.ndarray, np.nd
             spectrum = updated
     nfreq = nfft // 2 + 1
     spectrum = spectrum[:, :nfreq]
-    power = 10.0 * np.log(np.maximum(spectrum, np.finfo(float).tiny))
+    power = 10.0 * np.log10(np.maximum(spectrum, np.finfo(float).tiny))
     power = power.reshape(data.shape[0], data.shape[2], nfreq).transpose(0, 2, 1)
     freqs = np.arange(nfreq, dtype=float) * float(srate) / nfft
     return power, freqs

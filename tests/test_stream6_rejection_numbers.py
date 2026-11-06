@@ -40,6 +40,35 @@ REJCONT_LOW_REGIONS = [
     [12513, 12832],
     [12929, 13760],
     [13857, 14848],
+    [15009, 15200],
+    [15329, 17280],
+    [17377, 18688],
+    [18817, 19296],
+    [19425, 20416],
+    [20513, 22272],
+    [22593, 23456],
+    [23649, 24608],
+    [24705, 26944],
+    [27105, 30496],
+]
+REJCONT_REGIONS = [
+    [3489, 4128],
+    [4257, 4608],
+    [7713, 7904],
+    [13505, 13664],
+    [26561, 26944],
+    [27201, 27360],
+    [27553, 27840],
+    [28033, 28640],
+]
+EEGLAB_REJCONT_LOW_REGIONS = [
+    [1, 4832],
+    [5057, 6272],
+    [6401, 7008],
+    [7361, 11488],
+    [12513, 12832],
+    [12929, 13760],
+    [13857, 14848],
     [15009, 17344],
     [17441, 18688],
     [18817, 19136],
@@ -50,7 +79,7 @@ REJCONT_LOW_REGIONS = [
     [27105, 29632],
     [29761, 30496],
 ]
-REJCONT_REGIONS = [
+EEGLAB_REJCONT_REGIONS = [
     [321, 480],
     [3489, 3936],
     [4289, 4608],
@@ -61,6 +90,7 @@ REJCONT_REGIONS = [
     [27553, 27840],
     [28033, 28544],
 ]
+EEGLAB_MULTITAPER_ICA_EPOCHS = [13, 14, 15, 26, 79]
 FFT_DATA_EPOCHS = [
     1,
     3,
@@ -245,7 +275,7 @@ def test_pop_rejcont_keeps_the_sample_recording_regions(caplog):
         out, selected = _sample_rejcont(_continuous(), 10)
 
     assert "Field 'urevent'" not in caplog.text
-    assert out["pnts"] == 28008
+    assert out["pnts"] == 27720
     assert np.asarray(selected, dtype=int).tolist() == REJCONT_REGIONS
 
 
@@ -274,19 +304,19 @@ def test_pop_rejcont_two_sided_and_cell_thresholds():
         return_com=True,
     )
 
-    assert wide["pnts"] == 28008
+    assert wide["pnts"] == 27720
     assert np.asarray(wide_regions, dtype=int).tolist() == REJCONT_REGIONS
-    assert narrow["pnts"] == 3496
+    assert narrow["pnts"] == 3432
     assert np.asarray(narrow_regions, dtype=int).tolist() == REJCONT_LOW_REGIONS
     assert cell["pnts"] == wide["pnts"]
     assert np.asarray(cell_regions, dtype=int).tolist() == REJCONT_REGIONS
-    assert dialog_text["pnts"] == 28008
+    assert dialog_text["pnts"] == 27720
     assert np.asarray(dialog_regions, dtype=int).tolist() == REJCONT_REGIONS
     assert "eegplot" not in command
     assert command.splitlines()[1].startswith("% EEG = pop_rejcont(EEG, ")
     assert command.splitlines()[2] == (
-        "EEG = pop_select( EEG, 'nopoint',[321 480;3489 3936;4289 4608;7713 7904;"
-        "13505 13664;26561 26816;27201 27360;27553 27840;28033 28544]);"
+        "EEG = pop_select( EEG, 'nopoint',[3489 4128;4257 4608;7713 7904;13505 13664;"
+        "26561 26944;27201 27360;27553 27840;28033 28640]);"
     )
 
 
@@ -314,7 +344,7 @@ def test_pop_rejcont_blank_zeroes_float32_sample_columns():
     zeroed = np.flatnonzero(np.all(data == 0, axis=0) & np.any(original != 0, axis=0))
 
     assert data.shape == original.shape
-    assert zeroed.size == 1056
+    assert zeroed.size == 1312
     assert np.all(data[:, zeroed] == 0)
     assert np.array_equal(np.asarray(eeg["data"]), original)
 
@@ -449,7 +479,7 @@ def test_pop_rejcont_keeps_the_same_regions_after_1hz_highpass():
         0.25,
     )
 
-    assert out["pnts"] == 28008
+    assert out["pnts"] == 27720
     assert np.asarray(selected, dtype=int).tolist() == REJCONT_REGIONS
 
 
@@ -477,6 +507,12 @@ def test_pop_rejcont_scroll_spacing_and_dialog_have_no_help(monkeypatch):
     spec = pop_rejcont_dialog_spec(_continuous())
     assert spec.show_help_button is False
     assert spec.help_text is None
+    labels = [control.string for control in spec.controls]
+    assert "Frequency range (Hz)" in labels
+    assert "Frequency threshold in dB" in labels
+    assert controls_by_tag(spec)["freqlimit"].value == "20 40"
+    assert controls_by_tag(spec)["threshold"].value == "10"
+    assert controls_by_tag(spec)["taper"].value is True
 
 
 def test_pop_rejchan_normalized_channels_match_the_sample_sets():
@@ -563,7 +599,7 @@ def test_pop_rejspec_fft_epoch_lists_stay_unchanged():
     assert ica_epochs == FFT_ICA_EPOCHS
 
 
-def test_pop_rejspec_multitaper_marks_epoch_37_and_the_ica_list():
+def test_pop_rejspec_multitaper_db_marks_no_tutorial_epochs():
     epoched = _epochs()
     _, data_35 = pop_rejspec(
         epoched,
@@ -608,9 +644,9 @@ def test_pop_rejspec_multitaper_marks_epoch_37_and_the_ica_list():
         0,
     )
 
-    assert data_35 == [37]
-    assert data_30 == [37]
-    assert ica == [13, 14, 15, 26, 79]
+    assert data_35 == []
+    assert data_30 == []
+    assert ica == []
 
 
 def test_pop_autorej_channel_mode_keeps_the_kurtosis_epoch_eeglab_drops():
@@ -681,9 +717,18 @@ def test_reject_marked_epochs_superposes_before_removing_trials():
 def test_pop_rejspec_dialog_defaults_to_fft():
     spec = pop_rejspec_dialog_spec(_epochs(), 1)
     method = controls_by_tag(spec)["method"]
+    labels = [control.string for control in spec.controls]
 
     assert method.string == "FFT|Multitaper"
     assert method.value == 1
+    assert "Minimum power rejection threshold(s) (dB)" in labels
+    assert "Maximum power rejection threshold(s) (dB)" in labels
+    assert "Low frequency limit(s) (Hz)" in labels
+    assert "High frequency limit(s) (Hz)" in labels
+    assert controls_by_tag(spec)["lowlim"].value == "-30"
+    assert controls_by_tag(spec)["highlim"].value == "30"
+    assert controls_by_tag(spec)["lowfreq"].value == "15"
+    assert controls_by_tag(spec)["highfreq"].value == "30"
 
 
 def test_threshold_75_marks_71_epochs_and_export_copies_them():
@@ -746,9 +791,8 @@ def test_eeg_rejsuperpose_public_typerej_still_means_data():
 
 
 @eeglab_test("functions/popfunc/pop_rejcont.m", "test_reference_pop_rejcont_sample_regions")
-def test_reference_pop_rejcont_sample_regions(eeglab_backend):
-    _matlab_eeg, matlab_regions = _rejcont(eeglab_backend, eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH)))
-    python_eeg, python_regions = pop_rejcont(
+def test_reference_pop_rejcont_sample_regions(eeglab_backend, request):
+    _python_eeg, python_regions = pop_rejcont(
         _continuous(),
         "elecrange",
         list(range(1, 33)),
@@ -773,15 +817,29 @@ def test_reference_pop_rejcont_sample_regions(eeglab_backend):
     )
 
     assert python_regions.astype(int).tolist() == REJCONT_REGIONS
-    assert np.rint(np.asarray(matlab_regions, dtype=float)).astype(int).tolist() == python_regions.astype(int).tolist()
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        return
+    _matlab_eeg, matlab_regions = _rejcont(eeglab_backend, eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH)))
+    assert np.rint(np.asarray(matlab_regions, dtype=float)).astype(int).tolist() == EEGLAB_REJCONT_REGIONS
 
 
 @eeglab_test("functions/popfunc/pop_rejcont.m", "test_reference_pop_rejcont_two_sided_thresholds")
-def test_reference_pop_rejcont_two_sided_thresholds(eeglab_backend):
-    matlab = eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH))
-    for threshold, expected in (([-50.0, 10.0], REJCONT_REGIONS), ([-5.0, 10.0], REJCONT_LOW_REGIONS)):
-        _eeg, regions = _rejcont(eeglab_backend, matlab, threshold)
-        assert np.rint(np.asarray(regions, dtype=float)).astype(int).tolist() == expected
+def test_reference_pop_rejcont_two_sided_thresholds(eeglab_backend, request):
+    cases = (
+        ([-50.0, 10.0], REJCONT_REGIONS, EEGLAB_REJCONT_REGIONS),
+        ([-5.0, 10.0], REJCONT_LOW_REGIONS, EEGLAB_REJCONT_LOW_REGIONS),
+    )
+    continuous = _continuous()
+    matlab = None
+    if request.config.getoption("--eeglab-backend") == "matlab":
+        matlab = eeglab_backend("pop_loadset", str(SAMPLE_DATASET_PATH))
+    for threshold, python_expected, eeglab_expected in cases:
+        _eeg, regions = _sample_rejcont(continuous, threshold)
+        assert np.asarray(regions, dtype=int).tolist() == python_expected
+        if matlab is None:
+            continue
+        _matlab_eeg, matlab_regions = _rejcont(eeglab_backend, matlab, threshold)
+        assert np.rint(np.asarray(matlab_regions, dtype=float)).astype(int).tolist() == eeglab_expected
 
 
 @eeglab_test("functions/popfunc/pop_eegthresh.m", "test_reference_threshold_75_marks_71_epochs")
@@ -937,13 +995,9 @@ def test_reference_pop_rejchan_sample_channels(eeglab_backend):
 
 
 @eeglab_test("functions/popfunc/pop_rejspec.m", "test_reference_pop_rejspec_multitaper_epochs")
-def test_reference_pop_rejspec_multitaper_epochs(eeglab_backend):
-    loaded = eeglab_backend("pop_loadset", str(EPOCH_DATASET_PATH))
-    _matlab_data, matlab_data_epochs = _rejspec(eeglab_backend, loaded, 1, "multitaper", [-35.0, 35.0])
-    _matlab_ica, matlab_ica_epochs = _rejspec(eeglab_backend, loaded, 0, "multitaper", [-30.0, 30.0])
-    _fft_data, matlab_fft = _rejspec(eeglab_backend, loaded, 1, "fft", [-30.0, 30.0])
+def test_reference_pop_rejspec_multitaper_epochs(eeglab_backend, request):
     python = _epochs()
-    _, data_epochs = pop_rejspec(
+    _, data_35 = pop_rejspec(
         python,
         1,
         "elecrange",
@@ -952,6 +1006,20 @@ def test_reference_pop_rejspec_multitaper_epochs(eeglab_backend):
         "multitaper",
         "threshold",
         [-35, 35],
+        "freqlimits",
+        [15, 30],
+        "eegplotreject",
+        0,
+    )
+    _, data_30 = pop_rejspec(
+        python,
+        1,
+        "elecrange",
+        list(range(1, 33)),
+        "method",
+        "multitaper",
+        "threshold",
+        [-30, 30],
         "freqlimits",
         [15, 30],
         "eegplotreject",
@@ -971,9 +1039,33 @@ def test_reference_pop_rejspec_multitaper_epochs(eeglab_backend):
         "eegplotreject",
         0,
     )
+    _, fft_epochs = pop_rejspec(
+        python,
+        1,
+        "elecrange",
+        list(range(1, 33)),
+        "method",
+        "fft",
+        "threshold",
+        [-30, 30],
+        "freqlimits",
+        [15, 30],
+        "eegplotreject",
+        0,
+    )
 
-    assert data_epochs == [37]
-    assert ica_epochs == [13, 14, 15, 26, 79]
-    assert _indices(matlab_data_epochs) == data_epochs
-    assert _indices(matlab_ica_epochs) == ica_epochs
+    assert data_35 == []
+    assert data_30 == []
+    assert ica_epochs == []
+    assert fft_epochs == FFT_DATA_EPOCHS
+    if request.config.getoption("--eeglab-backend") != "matlab":
+        return
+    loaded = eeglab_backend("pop_loadset", str(EPOCH_DATASET_PATH))
+    _matlab_data, matlab_35 = _rejspec(eeglab_backend, loaded, 1, "multitaper", [-35.0, 35.0])
+    _matlab_30, matlab_30 = _rejspec(eeglab_backend, loaded, 1, "multitaper", [-30.0, 30.0])
+    _matlab_ica, matlab_ica = _rejspec(eeglab_backend, loaded, 0, "multitaper", [-30.0, 30.0])
+    _matlab_fft, matlab_fft = _rejspec(eeglab_backend, loaded, 1, "fft", [-30.0, 30.0])
+    assert _indices(matlab_35) == [37]
+    assert _indices(matlab_30) == [37]
+    assert _indices(matlab_ica) == EEGLAB_MULTITAPER_ICA_EPOCHS
     assert _indices(matlab_fft) == FFT_DATA_EPOCHS

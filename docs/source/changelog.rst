@@ -10,23 +10,32 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
+- ``pop_rejspec`` multitaper power is ``10*log10`` (dB). ``pop_rejspec.m:310``
+  uses ``10*log`` (natural log). On ``eeglab_data_epochs_ica.set``, 15–30 Hz
+  at ±35 dB marks no data epochs; EEGLAB marks epoch 37. At ±30 dB, EEGPrep
+  marks no data epochs and no component epochs; EEGLAB marks data epoch 37
+  and components 13, 14, 15, 26, and 79.
+- ``pop_rejcont`` applies frequency limits to the real FFT bin frequencies.
+  ``pop_rejcont.m:211`` stretches those bins with ``linspace`` from 0 to
+  Nyquist. On ``eeglab_data.set``, 20–40 Hz at 10 dB keeps 27720 points in
+  8 regions; EEGLAB keeps 28008 points in 9.
 - ``pop_rejcont`` accepts a ``[min max]`` threshold and a cell of thresholds
   or frequency ranges (``pop_rejcont.m:172-177`` and ``pop_rejcont.m:239``).
   A single limit is still expanded to ``[-100 limit]``. On
-  ``eeglab_data.set``, ``[-50 10]`` keeps 28008 points in 9 regions and
-  ``[-5 10]`` keeps 3496 points in 16 regions.
+  ``eeglab_data.set``, ``[-50 10]`` keeps 27720 points in 8 regions and
+  ``[-5 10]`` keeps 3432 points in 17 regions.
 - ``pop_rejcont`` history leaves ``eegplot`` out of the commented call
   (``pop_rejcont.m:370``). Accepting the marked regions records a separate
   ``pop_select( EEG, 'nopoint',[...]);`` entry (``pop_select.m:749``).
 - A two-number threshold typed into the ``pop_rejcont`` dialog, such as
   ``-50 10``, stays ``[min max]``. ``pop_rejcont.m:147`` reads that field
   with ``str2double``, which becomes NaN and rejects nothing. On
-  ``eeglab_data.set``, ``-50 10`` still keeps 28008 points in 9 regions.
+  ``eeglab_data.set``, ``-50 10`` still keeps 27720 points in 8 regions.
 - ``pop_rejcont`` with ``correct`` ``blank`` writes the zeroed samples back
   onto the dataset. A ``float32`` recording is copied by the floating-point
   conversion, so the zeros have to be stored explicitly. On
   ``eeglab_data.set``, 20-40 Hz at 10 dB with the default taper zeroes
-  1056 columns.
+  1312 columns.
 - ``pop_eegthresh`` history uses the ``vararg2str`` form at
   ``pop_eegthresh.m:251-252``, with contiguous ranges collapsed and the
   reject flag recorded as 0. Dialog times use MATLAB ``num2str``:
@@ -69,14 +78,15 @@ Unreleased
   Probability, Kurtosis, and Spectrum (``pop_rejchan.m:96``) and enables the
   frequency range only for Spectrum (``pop_rejchan.m:99-100``). History uses
   the ``vararg2str`` form at ``pop_rejchan.m:246``.
-- ``pop_rejspec`` multitaper spectra now follow ``pop_rejspec.m:307-326``:
-  seven adaptive Slepian tapers, natural-log power, and ``eegthresh`` bin
-  limits. On ``eeglab_data_epochs_ica.set`` this marks component epochs
-  13, 14, 15, 26, and 79 at ±30 dB and data epoch 37 at ±30 dB and ±35 dB.
+- ``pop_rejspec`` multitaper spectra follow ``pop_rejspec.m:307-326`` for
+  the seven adaptive Slepian tapers and the ``eegthresh`` bin limits, and
+  convert power with ``10*log10`` rather than the natural log at
+  ``pop_rejspec.m:310``. On ``eeglab_data_epochs_ica.set`` that marks no
+  epochs at ±30 dB or ±35 dB.
 - ``pop_rejcont`` now rejects the trial-mean spectrum of overlapping windows
   and merges them with the rule at ``pop_rejcont.m:211-316``. On
-  ``eeglab_data.set`` the 20-40 Hz, 10 dB settings remove 9 regions and keep
-  28008 points. The scroll view uses the ``eegplot.m:457-473`` spacing, and
+  ``eeglab_data.set`` the 20-40 Hz, 10 dB settings remove 8 regions and keep
+  27720 points. The scroll view uses the ``eegplot.m:457-473`` spacing, and
   the dialog has no Help button (``pop_rejcont.m:140``).
 - Channel-mode automatic epoch rejection uses ``rejkurt``. ``pop_autorej.m:224``
   uses ``icarejkurt``, so on ``eeglab_data_epochs_ica.set`` EEGLAB keeps 75

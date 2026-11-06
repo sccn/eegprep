@@ -351,7 +351,7 @@ def _epoch_log_spectrum(epoched: dict[str, Any], srate: float, taper: str) -> tu
         data = data * np.hamming(data.shape[1])[np.newaxis, :, np.newaxis]
     spectrum = np.fft.fft(data, axis=1)
     half = spectrum.shape[1] // 2
-    frequencies = np.linspace(0.0, srate / 2.0, half)[1:]
+    frequencies = np.fft.fftfreq(spectrum.shape[1], d=1.0 / float(srate))[1:half]
     spectrum = spectrum[:, 1:half, :]
     power = 10.0 * np.log10(np.maximum(np.abs(spectrum) ** 2, np.finfo(float).tiny))
     power = power - np.mean(power, axis=2, keepdims=True)
