@@ -34,7 +34,9 @@ Unreleased
   optional-dependency error with the extra's installation command.
 - Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
   events, channel calibration, and rejected sweeps (F119). Generic File-IO
-  also recognizes EGI Simple Binary ``.raw`` files (F23).
+  also recognizes EGI Simple Binary ``.raw`` files (F23). Files ending in
+  ``.eeg`` or ``.EEG`` use BrainVision when a sibling ``.vhdr`` or ``.ahdr``
+  exists, including channel/sample selections and time-range imports.
 
 - MATLAB v7.3 datasets preserve complete labels, nested references, empty
   events, and channel-major data even when dimensions coincide (F15, #497).

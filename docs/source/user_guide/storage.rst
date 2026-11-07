@@ -164,9 +164,12 @@ Importing MFF and Neuroscan recordings
 ======================================
 
 For EGI MFF, select the ``.mff`` folder itself. Install the reader and XML
-support with ``pip install "eegprep[mne]"``. Neuroscan epoched ``.EEG`` files
-load through ``pop_fileio`` without MNE. Each sweep retains trial, accept,
-correct, response, and reaction-time events, including rejected sweeps.
+support with ``pip install "eegprep[mne]"``. For ``.eeg`` and ``.EEG`` files,
+``pop_fileio`` first looks for a sibling ``.vhdr`` or ``.ahdr`` header and
+uses the BrainVision reader when one exists. Without a sibling header it
+uses the native Neuroscan epoch reader, which does not require MNE.
+Each sweep retains trial, accept, correct, response, and reaction-time events,
+including rejected sweeps.
 
 The F119 audit's File-IO comparison reports 1,193 trials and 5,960 events.
 The same recording contains 1,200 sweeps, including seven marked rejected.

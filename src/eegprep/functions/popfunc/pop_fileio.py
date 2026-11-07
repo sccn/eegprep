@@ -45,7 +45,8 @@ def pop_fileio(
     ``blockrange``, ``channels``, ``samples``, ``trials``, and reader options
     may be keywords or positional name/value pairs.
     """
-    path = Path(filename)
+    source_path = Path(filename)
+    path = source_path
     suffix = path.suffix.lower()
     options = parse_key_value_args(args, kwargs, lowercase_keys=True, lowercase_kwargs=True)
     if gui:
@@ -60,6 +61,12 @@ def pop_fileio(
     channels = options.pop("channels", None)
     samples = options.pop("samples", None)
     trials = options.pop("trials", None)
+    if suffix == '.eeg':
+        for header_suffix in ('.vhdr', '.ahdr'):
+            header = path.with_suffix(header_suffix)
+            if header.is_file():
+                path, suffix = header, header_suffix
+                break
     if suffix == ".set":
         eeg = pop_loadset(str(path))
     elif suffix == ".mat" and options.get("dataformat") != "matlab-array":
@@ -92,7 +99,7 @@ def pop_fileio(
             _crop_raw_to_blockrange(raw, blockrange)
         eeg = mne_raw_to_eeg(raw, setname=path.stem, filename=str(path))
     eeg = _select_imported_data(eeg, channels=channels, samples=samples, trials=trials)
-    command = _history_command(path, history_options)
+    command = _history_command(source_path, history_options)
     eeg["history"] = command
     return (eeg, command) if return_com else eeg
 
@@ -117,7 +124,7 @@ def _reader_for_suffix(suffix: str, feature: str):
         return mne.io.read_raw_bdf
     if suffix == ".gdf":
         return mne.io.read_raw_gdf
-    if suffix == ".vhdr":
+    if suffix in {".vhdr", ".ahdr"}:
         return mne.io.read_raw_brainvision
     if suffix == ".mff":
         import_optional_dependency("defusedxml", feature=feature)

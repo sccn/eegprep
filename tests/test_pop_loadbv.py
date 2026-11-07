@@ -431,3 +431,47 @@ def test_pop_fileio_routes_brainvision_headers_through_the_standalone_loader(tmp
     _assert_continuous_eeg(eeg, np.array([[1.5, 2.5]]), 250.0)
     assert command == f"EEG = pop_fileio('{header.as_posix()}', 'channels', [2], 'samples', [2 3]);"
     assert eeg["history"] == command
+
+
+@pytest.mark.parametrize('data_suffix', ['.eeg', '.EEG'])
+@pytest.mark.parametrize('header_suffix', ['.vhdr', '.ahdr'])
+def test_pop_fileio_detects_brainvision_data_from_sibling_header(tmp_path, data_suffix, header_suffix):
+    raw = np.arange(12, dtype=np.int16).reshape(2, 6)
+    header = _write_binary_brainvision(
+        tmp_path,
+        'recording',
+        raw,
+        data_suffix=data_suffix,
+        resolutions=[2, 0.5],
+        markers=['Mk1=Stimulus,S 1,2,1,0'],
+    )
+    header.rename(header.with_suffix(header_suffix))
+    path = header.with_suffix(data_suffix)
+
+    loaded = pop_fileio(path)
+    _assert_continuous_eeg(loaded, raw * np.array([[2], [0.5]]), 250)
+    assert loaded['data'].dtype == np.float32
+    assert [(event['type'], event['latency']) for event in loaded['event']] == [('S 1', 2)]
+
+    selected, command = pop_fileio(path, channels=[2], samples=[2, 3], return_com=True)
+    np.testing.assert_array_equal(selected['data'], raw[[1], 1:3] * 0.5)
+    assert selected['chanlocs'][0]['labels'] == 'Ch2'
+    assert selected['event'][0]['latency'] == 1
+    assert command == f"EEG = pop_fileio('{path.as_posix()}', 'channels', [2], 'samples', [2 3]);"
+
+
+@pytest.mark.parametrize('header_suffix', ['.vhdr', '.ahdr'])
+def test_pop_fileio_brainvision_data_path_retains_blockrange(tmp_path, header_suffix):
+    pytest.importorskip('mne')
+    raw = np.arange(40, dtype=np.int16).reshape(2, 20)
+    header = _write_binary_brainvision(tmp_path, 'recording', raw, data_suffix='.eeg')
+    header.rename(header.with_suffix(header_suffix))
+    path = header.with_suffix('.eeg')
+    if header_suffix == '.ahdr':
+        # MNE's BrainAmp AHDR reader expects an additional unlabelled sample channel.
+        np.vstack([raw, np.zeros((1, raw.shape[1]), dtype=raw.dtype)]).T.tofile(path)
+
+    loaded, command = pop_fileio(path, blockrange=[0.004, 0.016], channels=[2], return_com=True)
+    np.testing.assert_array_equal(loaded['data'], raw[[1], 1:4])
+    assert loaded['chanlocs'][0]['labels'] == 'Ch2'
+    assert command == f"EEG = pop_fileio('{path.as_posix()}', 'blockrange', [0.004 0.016], 'channels', [2]);"
