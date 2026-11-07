@@ -65,6 +65,8 @@ TOLERANCES_PATH = Path(__file__).resolve().parent / "tolerances.toml"
 _MIN_LENGTH = 256
 _MAX_LENGTH = 1536
 _SHORT_MAX = 96
+_RMBASE_ROUNDOFF_EPS_FACTOR = 4
+_RMBASE_ROUNDOFF_DETAIL = "known difference: platform-specific pop_rmbase baseline-mean summation roundoff (#542)"
 
 Materialize = Callable[["FuzzCase"], dict]
 
@@ -547,11 +549,17 @@ def _compare_success(
 ) -> Outcome:
     max_abs = 0.0
     max_rel = 0.0
+    known_rmbase_roundoff = False
     selected = set(comparators)
     if "data" in selected:
         diverged, error_class, max_abs, max_rel, detail = compare_data(
             python.data, oracle.data, float(python.srate), float(oracle.srate), tolerance
         )
+        known_rmbase_roundoff = _rmbase_roundoff_is_known(case, python, oracle, error_class, max_abs)
+        if known_rmbase_roundoff:
+            diverged, error_class, max_abs, max_rel, detail = _srate_or_match(
+                float(python.srate), float(oracle.srate), max_abs, max_rel
+            )
         if diverged:
             return _outcome(case, True, True, error_class, max_abs, max_rel, detail, digest)
     if "events" in selected:
@@ -570,7 +578,8 @@ def _compare_success(
         diverged, error_class, detail = _compare_extra(python, oracle)
         if diverged:
             return _outcome(case, True, True, error_class, 0.0, 0.0, detail, digest)
-    return _outcome(case, False, True, "match", max_abs, max_rel, "match", digest)
+    detail = _RMBASE_ROUNDOFF_DETAIL if known_rmbase_roundoff else "match"
+    return _outcome(case, False, True, "match", max_abs, max_rel, detail, digest)
 
 
 def _judge_pipeline(
@@ -581,6 +590,7 @@ def _judge_pipeline(
     count = min(len(python.steps), len(oracle.steps))
     last_abs = 0.0
     last_rel = 0.0
+    last_detail = "match"
     for index in range(count):
         name, left = python.steps[index]
         _name, right = oracle.steps[index]
@@ -617,6 +627,8 @@ def _judge_pipeline(
             )
         last_abs = outcome.max_abs
         last_rel = outcome.max_rel
+        if outcome.detail == _RMBASE_ROUNDOFF_DETAIL:
+            last_detail = f"{name}: {outcome.detail}"
     if len(python.steps) != len(oracle.steps):
         return _outcome(
             case,
@@ -628,7 +640,7 @@ def _judge_pipeline(
             f"python steps {len(python.steps)} != oracle steps {len(oracle.steps)}",
             digest,
         )
-    return _outcome(case, False, True, "match", last_abs, last_rel, "match", digest)
+    return _outcome(case, False, True, "match", last_abs, last_rel, last_detail, digest)
 
 
 def _pipeline_tolerance(name: str, tolerances: dict[str, Tolerance]) -> Tolerance:
@@ -1201,6 +1213,27 @@ def _duplicate_trial_order_is_known(
     return not first_gap.diverged and not last_gap.diverged
 
 
+def _rmbase_roundoff_is_known(
+    case: FuzzCase, python: SideResult, oracle: SideResult, error_class: str, max_abs: float
+) -> bool:
+    """Accept #542 roundoff after the successful-output numeric comparison.
+
+    ``pop_rmbase.m:201-203`` subtracts per-channel means. The #542 MATLAB
+    capture differed by less than eps * max(1, output magnitude); four eps
+    allows a few rounding steps without adopting a platform's summation order.
+    Shape and finite masks have already matched when the class is numeric.
+    """
+    if case.function != "pop_rmbase" or error_class != "numeric":
+        return False
+    left = np.asarray(python.data, dtype=np.float64)
+    right = np.asarray(oracle.data, dtype=np.float64)
+    finite = np.isfinite(left)
+    if not np.array_equal(left[~finite], right[~finite], equal_nan=True):
+        return False
+    magnitude = max(1.0, float(np.max(np.abs(left[finite]))), float(np.max(np.abs(right[finite]))))
+    return max_abs <= _RMBASE_ROUNDOFF_EPS_FACTOR * np.finfo(np.float64).eps * magnitude
+
+
 def _rmbase_mean_branch_is_known(
     case: FuzzCase, eeg: dict, python: SideResult, oracle: SideResult, tolerance: Tolerance
 ) -> bool:
@@ -1598,6 +1631,8 @@ def _evaluate_pipeline(case, eeg, oracle_backend, tolerances, digest) -> Outcome
                 f"{name}: known divergence: continuous pop_rmbase with a boundary "
                 "and pointrange starting after sample 1"
             )
+        elif outcome.detail == _RMBASE_ROUNDOFF_DETAIL:
+            last_detail = f"{name}: {outcome.detail}"
     return _outcome(case, False, True, "match", last_abs, last_rel, last_detail, digest)
 
 
