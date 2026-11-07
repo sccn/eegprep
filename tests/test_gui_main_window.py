@@ -4,6 +4,8 @@ import inspect
 import os
 import sys
 import textwrap
+import tempfile
+from pathlib import Path
 import unittest
 from unittest import mock
 
@@ -337,7 +339,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertEqual(
             echoed,
-            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', 2);"],
+            ["CURRENTSTUDY = 0;[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 2, 'retrieve', 2, 'study', 1);"],
         )
         self.assertEqual(session.CURRENTSTUDY, 0)
         self.assertEqual(session.CURRENTSET, [2])
@@ -447,7 +449,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         self.assertTrue(actions["pop_eegplot:data"].isEnabled())
         self.assertTrue(actions["pop_eegplot:channels"].isEnabled())
-        self.assertFalse(actions["pop_eegplot:components"].isEnabled())
+        self.assertTrue(actions["pop_eegplot:components"].isEnabled())
         self.assertFalse(actions["pop_eegplot:reject_data"].isEnabled())
         self.assertFalse(actions["pop_eegplot:reject_ica"].isEnabled())
         window.window.close()
@@ -595,7 +597,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertEqual(session.EEG["filename"], "recording.set")
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertNotIn("savemode", session.LASTCOM)
-            self.assertIn(repr(str(destination)), session.LASTCOM)
+            self.assertIn(f"'filename', {destination.name!r}, 'filepath', {str(destination.parent)!r}", session.LASTCOM)
 
     def test_save_as_creates_missing_folder_and_failed_save_is_not_recorded(self):
         import tempfile
@@ -620,7 +622,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertTrue(destination.is_file())
             self.assertEqual(session.EEG["saved"], "yes")
             self.assertEqual(session.EEG["filename"], "x.set")
-            self.assertIn(repr(str(destination)), session.LASTCOM)
+            self.assertIn(f"'filename', {destination.name!r}, 'filepath', {str(destination.parent)!r}", session.LASTCOM)
 
             blocker = Path(tmp) / "notdir"
             blocker.write_text("x", encoding="utf-8")
@@ -716,7 +718,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             self.assertNotEqual(written.read_bytes(), original)
             self.assertEqual(typed.read_bytes(), b"edf-bytes")
             self.assertEqual(session.EEG["saved"], "yes")
-            self.assertIn(repr(str(written)), session.LASTCOM)
+            self.assertIn(f"'filename', {written.name!r}, 'filepath', {str(written.parent)!r}", session.LASTCOM)
 
     def test_delete_dataset_asks_for_confirmation_and_can_cancel(self):
         session = EEGPrepSession()
@@ -853,7 +855,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
                     self.assertEqual(session.ALLCOM[-2], f"EEG = {action}(EEG);")
                     self.assertEqual(
                         session.ALLCOM[-1],
-                        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+                        "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'overwrite', 'on', 'gui', 'off');",
                     )
                     self.assertIn(f"EEG = {action}(EEG);", session.EEG["history"])
                 else:
@@ -933,7 +935,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
         newset.assert_called_once()
         self.assertEqual(newset.call_args.args[:3], ([session.ALLEEG[0]], processed, 1))
-        self.assertEqual(newset.call_args.args[3:], ("gui", "on", "overwrite", "off"))
+        self.assertEqual(newset.call_args.kwargs, {"gui": "on", "overwrite": "off"})
         self.assertEqual(len(session.ALLEEG), 2)
         self.assertEqual(session.CURRENTSET, [2])
         self.assertEqual(session.EEG["setname"], "resampled")
@@ -953,7 +955,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
             dict(original_alleeg[0], setname="first resampled"),
             dict(original_alleeg[1], setname="second resampled"),
         ]
-        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');"
+        newset_command = "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, [1 2], 'study', 0);"
 
         with (
             mock.patch(
@@ -965,11 +967,11 @@ class MenuActionDispatcherTests(unittest.TestCase):
                 return_value=(processed, processed, [1, 2], newset_command),
             ) as newset,
         ):
-            dispatcher.dispatch("pop_resample", parent=object())
+            dispatcher.dispatch("pop_resample", parent=None)
 
         newset.assert_called_once()
         self.assertEqual(newset.call_args.args[:3], (original_alleeg, processed, [1, 2]))
-        self.assertEqual(newset.call_args.args[3:], ("gui", "off", "overwrite", "on"))
+        self.assertEqual(newset.call_args.kwargs, {"study": 0})
         self.assertEqual(session.CURRENTSET, [1, 2])
         self.assertEqual(session.ALLEEG[0]["setname"], "first resampled")
         self.assertEqual(session.ALLEEG[1]["setname"], "second resampled")
@@ -1065,7 +1067,7 @@ class MenuActionDispatcherTests(unittest.TestCase):
         loadbv.assert_called_once_with("/tmp/recording.vhdr", return_com=True)
         self.assertEqual(session.EEG["setname"], "brainvision")
         self.assertEqual(session.CURRENTSET, [1])
-        self.assertEqual(session.ALLCOM[-1], command)
+        self.assertEqual(session.ALLCOM[-2:], [command, "[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);"])
 
     def test_preferences_dialog_updates_menu_and_file_dialog_options(self):
         pytest.importorskip("PySide6")
@@ -1081,19 +1083,24 @@ class MenuActionDispatcherTests(unittest.TestCase):
         dispatcher = MenuActionDispatcher(session)
 
         def accept_with_both_options(dialog):
-            checkboxes = {checkbox.text(): checkbox for checkbox in dialog.findChildren(QtWidgets.QCheckBox)}
+            checkboxes = {checkbox.objectName(): checkbox for checkbox in dialog.findChildren(QtWidgets.QCheckBox)}
             self.assertEqual(
-                set(checkboxes),
-                {"Show advanced legacy menu items?", "Use Native OS Dialogs"},
+                set(checkboxes) & {"option_allmenus", "option_native_dialogs"},
+                {"option_allmenus", "option_native_dialogs"},
             )
-            for checkbox in checkboxes.values():
-                checkbox.setChecked(True)
+            for key in ("option_allmenus", "option_native_dialogs"):
+                checkboxes[key].setChecked(True)
             return QtWidgets.QDialog.Accepted
 
         try:
             EEG_OPTIONS["option_allmenus"] = 0
             EEG_OPTIONS["option_native_dialogs"] = 0
             with (
+                tempfile.TemporaryDirectory() as directory,
+                mock.patch(
+                    "eegprep.functions.adminfunc.pop_editoptions.eegprep_options_path",
+                    return_value=Path(directory) / "options.json",
+                ),
                 mock.patch(
                     "eegprep.functions.guifunc.menu_actions._require_qt_widgets",
                     return_value=QtWidgets,
@@ -1105,7 +1112,8 @@ class MenuActionDispatcherTests(unittest.TestCase):
 
             self.assertEqual(EEG_OPTIONS["option_allmenus"], 1)
             self.assertEqual(EEG_OPTIONS["option_native_dialogs"], 1)
-            self.assertEqual(session.ALLCOM, ["LASTCOM = pop_editoptions();"])
+            self.assertIn("'option_allmenus', 1", session.LASTCOM)
+            self.assertNotIn("option_native_dialogs", session.LASTCOM)
         finally:
             EEG_OPTIONS.clear()
             EEG_OPTIONS.update(original_options)

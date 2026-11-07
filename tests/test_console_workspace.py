@@ -618,7 +618,7 @@ def test_gui_pop_action_warning_output_follows_echoed_command(action, patch_targ
     if action in newset_actions:
         assert session.ALLCOM == [
             command,
-            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'overwrite', 'on');",
+            "[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, 1, 'overwrite', 'on', 'gui', 'off');",
         ]
     else:
         assert session.ALLCOM == [command]
@@ -1420,8 +1420,8 @@ def test_console_python_command_converts_common_eeglab_history_syntax():
     converted = [console_module._console_python_command(command) for command in commands]
 
     assert converted == [
-        "ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=1)",
-        "CURRENTSTUDY = 0; ALLEEG, EEG, CURRENTSET = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=2)",
+        "ALLEEG, EEG, CURRENTSET, LASTCOM = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=1)",
+        "CURRENTSTUDY = 0; ALLEEG, EEG, CURRENTSET, LASTCOM = pop_newset(ALLEEG, EEG, CURRENTSET, retrieve=2)",
         "EEG = pop_select(EEG, channel=[0, 1], chantype=['EEG', 'EOG'])",
         'LASTCOM = pop_export(EEG, filename="/tmp/demo\'s data.tsv")',
         "EEG = pop_resample(EEG, freq=64)",
