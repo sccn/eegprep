@@ -4,6 +4,13 @@ import gc
 
 import pytest
 import numpy as np
+
+try:
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QFileDialog, QLineEdit, QMessageBox
+except ImportError:
+    pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
+
 from eegprep.functions.guifunc.main_window import _reference_state, _size_mb, _summary_for_session
 
 from eegprep.functions.guifunc.main_window import build_main_window
@@ -35,8 +42,6 @@ def test_f54_f121_f30_refresh_keeps_open_menu_objects(qapp):
 
 @pytest.fixture
 def qapp():
-    from PySide6.QtWidgets import QApplication
-
     app = QApplication.instance() or QApplication([])
     yield app
     app.processEvents()
@@ -44,9 +49,6 @@ def qapp():
 
 @pytest.mark.modal_dialogs
 def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QFileDialog, QMessageBox
-
     corrupt = tmp_path / "corrupt.set"
     corrupt.write_text("not a MAT file")
     window = build_main_window(include_plugins=False, native_file_dialogs=False)
@@ -58,7 +60,7 @@ def test_f121_failed_import_keeps_file_menu(qapp, tmp_path):
         dialog = qapp.activeModalWidget()
         if isinstance(dialog, QFileDialog):
             seen.append("file")
-            dialog.selectFile(str(corrupt))
+            dialog.findChild(QLineEdit, "fileNameEdit").setText(str(corrupt))
             dialog.accept()
         elif isinstance(dialog, QMessageBox):
             seen.append("error")

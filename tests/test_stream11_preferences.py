@@ -1,13 +1,23 @@
 """Preferences and persistence regressions for F29/F89."""
 
 import json
+from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QCheckBox, QLineEdit
+
+try:
+    from PySide6.QtWidgets import QCheckBox, QScrollArea
+except ImportError:
+    pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
 from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
+from eegprep.functions.adminfunc.pop_editoptions import (
+    load_eegprep_options,
+    pop_editoptions,
+    pop_editoptions_dialog_spec,
+)
 from eegprep.functions.guifunc.main_window import build_main_window
+from eegprep.functions.guifunc.qt import QtDialogRenderer
 from tests.test_stream11_datasets import accept, dialogs as dialogs
 from tests.test_stream11_menus import qapp as qapp
 
@@ -16,8 +26,6 @@ pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
 
 @pytest.fixture
 def options(tmp_path, monkeypatch):
-    from pathlib import Path
-
     previous = dict(EEG_OPTIONS)
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     yield tmp_path / ".eegprep" / "options.json"
@@ -26,8 +34,6 @@ def options(tmp_path, monkeypatch):
 
 
 def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
-    from eegprep.functions.adminfunc.pop_editoptions import load_eegprep_options
-
     EEG_OPTIONS["option_allmenus"] = 0
     window = build_main_window(include_plugins=False)
     pending, _ = dialogs
@@ -47,7 +53,6 @@ def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
             assert dialog.findChild(QCheckBox, key) is not None
         dialog.findChild(QCheckBox, "option_allmenus").setChecked(True)
         dialog.findChild(QCheckBox, "option_savetwofiles").setChecked(True)
-        dialog.findChild(QLineEdit, "option_cachesize").setText("256")
         accept(dialog)
 
     pending.append(edit)
@@ -55,13 +60,12 @@ def test_f89_preferences_apply_immediately_and_reload(options, qapp, dialogs):
         window.dispatcher.dispatch("pop_editoptions", window.window)
         assert window.all_menus
         assert EEG_OPTIONS["option_savetwofiles"] == 1
-        assert EEG_OPTIONS["option_cachesize"] == 256
         assert json.loads(options.read_text())["option_allmenus"] == 1
-        EEG_OPTIONS.update(option_allmenus=0, option_cachesize=500)
+        EEG_OPTIONS.update(option_allmenus=0, option_savetwofiles=0)
         load_eegprep_options(options)
         restarted = build_main_window(include_plugins=False)
         assert restarted.all_menus
-        assert EEG_OPTIONS["option_cachesize"] == 256
+        assert EEG_OPTIONS["option_savetwofiles"] == 1
         restarted.window.close()
     finally:
         window.window.close()
@@ -92,3 +96,55 @@ def test_f89_invalid_preference_is_atomic(options):
 def test_f89_preferences_history_records_replayable_values(options):
     command = pop_editoptions(option_allmenus=1, option_cachesize=128, persist=True)
     assert command == "pop_editoptions('option_allmenus', 1, 'option_cachesize', 128);"
+
+
+def test_f89_default_options_are_visible_without_scrolling(qapp, options):
+    values = dict(EEG_OPTIONS, option_showadvanced=0)
+    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values))
+    dialog.show()
+    qapp.processEvents()
+    try:
+        viewport = dialog.findChild(QScrollArea).viewport()
+        cache = widgets["option_cachesize"]
+        assert viewport.rect().contains(cache.mapTo(viewport, cache.rect().center()))
+    finally:
+        dialog.close()
+
+
+def test_f27_native_dialog_preference_does_not_enter_matlab_history(options):
+    command = pop_editoptions(option_native_dialogs=0, option_allmenus=1, persist=True)
+    assert "option_native_dialogs" not in command
+    assert json.loads(options.read_text())["option_native_dialogs"] == 0
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "option_saveversion6",
+        "option_saveasstruct",
+        "option_parallel",
+        "option_single",
+        "option_eegobject",
+        "option_computeica",
+        "option_scaleicarms",
+        "option_rememberfolder",
+        "option_donotusetoolboxes",
+        "option_showpendingplugins",
+        "option_htmlingraphics",
+        "option_checkversion",
+        "option_cachesize",
+    ],
+)
+def test_f89_unavailable_preferences_cannot_be_changed_in_gui(qapp, options, key):
+    values = dict(EEG_OPTIONS, option_showadvanced=1)
+    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values))
+    try:
+        control = widgets[key]
+        assert not control.isEnabled()
+        assert control.toolTip()
+        if isinstance(control, QCheckBox):
+            before = control.isChecked()
+            control.click()
+            assert control.isChecked() == before
+    finally:
+        dialog.close()

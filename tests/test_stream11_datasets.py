@@ -4,9 +4,14 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QLineEdit, QMessageBox, QPushButton
 
+try:
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QDialogButtonBox, QFileDialog, QLineEdit, QMessageBox, QPushButton
+except ImportError:
+    pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
+
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace
 from eegprep.functions.guifunc.main_window import build_main_window
 from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
 from eegprep.functions.guifunc.session import EEGPrepSession
@@ -181,7 +186,7 @@ def test_f27_exported_session_history_is_matlab_script(qapp, dialogs, tmp_path):
 
     def save(dialog):
         assert isinstance(dialog, QFileDialog)
-        dialog.selectFile(str(path))
+        dialog.findChild(QLineEdit, "fileNameEdit").setText(str(path))
         dialog.accept()
 
     pending.append(save)
@@ -215,7 +220,7 @@ def test_f27_save_history_separates_filename_and_filepath(qapp, dialogs, tmp_pat
     path = tmp_path / "saved.set"
 
     def save(dialog):
-        dialog.selectFile(str(path))
+        dialog.findChild(QLineEdit, "fileNameEdit").setText(str(path))
         dialog.accept()
 
     pending.append(save)
@@ -246,5 +251,50 @@ def test_f29_clear_keeps_s1_dataset_number_dialog(qapp, dialogs, cancel):
         window.dispatcher.dispatch("pop_delset", window.window)
         assert len(session.ALLEEG) == (2 if cancel else 1)
         assert session.CURRENTSET == ([2] if cancel else [1])
+    finally:
+        window.window.close()
+
+
+def test_f28_python_script_updates_shared_gui_and_console(qapp, dialogs, tmp_path):
+    session = make_session()
+    window = build_main_window(session, include_plugins=False, native_file_dialogs=False)
+    workspace = EEGPrepConsoleWorkspace(session, window=window)
+    path = tmp_path / "rename.py"
+    path.write_text("EEG = dict(EEG, setname='scripted')\n")
+    pending, _ = dialogs
+
+    def choose(dialog):
+        dialog.findChild(QLineEdit, "fileNameEdit").setText(str(path))
+        dialog.accept()
+
+    pending.append(choose)
+    try:
+        window.dispatcher.dispatch("pop_runscript", window.window)
+        assert workspace.namespace["EEG"]["setname"] == "scripted"
+        assert "scripted" in window.heading.text()
+        assert session.ALLEEG[1]["setname"] == "scripted"
+    finally:
+        workspace.close()
+        window.window.close()
+
+
+@pytest.mark.parametrize("discard", [False, True])
+def test_quit_requires_explicit_choice_for_unsaved_datasets(qapp, dialogs, discard):
+    session = make_session()
+    window = build_main_window(session, include_plugins=False)
+    window.show()
+    pending, _ = dialogs
+
+    def choose(dialog):
+        assert isinstance(dialog, QMessageBox)
+        assert "unsaved" in dialog.text().lower()
+        button = dialog.button(QMessageBox.Discard if discard else QMessageBox.Cancel)
+        button.click()
+
+    pending.append(choose)
+    try:
+        window.dispatcher.dispatch("quit", window.window)
+        assert window.window.isVisible() is not discard
+        assert len(session.ALLEEG) == 2
     finally:
         window.window.close()
