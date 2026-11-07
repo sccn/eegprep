@@ -290,7 +290,6 @@ def _gui_channels_as_one_based(chans: Any) -> Any:
     return chans
 
 
-
 def _gui_t_range(EEG: dict, value: Any) -> list[float]:
     if not str(value or "").strip():
         # EEGLAB GUI submits the full range explicitly instead of omitting it.

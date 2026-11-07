@@ -537,4 +537,3 @@ def _zero_based_channels(bad_elec, nbchan):
             f"eeg_interp: channel index {int(outside[0])} is outside 1..{nbchan}. Channel 1 is the first channel."
         )
     return (indices - 1).tolist()
-
