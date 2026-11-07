@@ -85,6 +85,14 @@ durations are stored as sample counts.
 Preprocessing
 -------------
 
+``pop_reref`` uses 1-based channel numbers for ``ref`` and ``exclude``;
+``interpchan`` numbers index ``urchanlocs`` and ``refloc`` numbers index the
+non-fiducial reference locations. ``pop_interp`` and ``eeg_interp`` also use
+1-based channel numbers. Channel labels and location dictionaries remain
+available where documented. When starting with NumPy row indices, add 1 at
+these API boundaries. The low-level ``reref`` function still uses zero-based
+array indices.
+
 .. autosummary::
    :toctree: generated/
 
