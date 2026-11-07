@@ -50,8 +50,6 @@ def pop_loadset(file_path=None, *args, loadmode="all", memmap=None, **kwargs):
     info_only = isinstance(loadmode, str) and loadmode == "info"
     channel_selection = [] if isinstance(loadmode, str) else loadmode
 
-    # MAT v7.3 files are HDF5; older v5/v7 files are not.
-    # Dispatch on the real format instead of treating every scipy error as "must be HDF5".
     loaded_with_h5 = _is_hdf5_file(file_path)
     try:
         if loaded_with_h5:

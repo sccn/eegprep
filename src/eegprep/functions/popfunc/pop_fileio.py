@@ -201,8 +201,6 @@ def _read_neuroscan_epochs(path: Path, *, format="auto"):
         chanlocs=[{"labels": label} for label in labels],
     )
     events = []
-    # loadeeg exposes every sweep, including rejected ones; FieldTrip reads the
-    # accepted-count header as a file length, truncating the tail of such files.
     with path.open('rb') as stream:
         data_format = _detect_format(stream) if format == "auto" else format
         sample_size = 4 if data_format == "int32" else 2
