@@ -562,6 +562,18 @@ def test_jointprob_trim_rounds_a_half_count_away_from_zero():
     assert normalized[0, 0] == pytest.approx(expected)
 
 
+@pytest.mark.parametrize(("count", "minind", "maxind"), [(5, 1, 4), (15, 2, 13), (25, 3, 22)])
+def test_channel_score_trim_rounds_a_half_count_away_from_zero(count, minind, maxind):
+    # rejkurt.m: minind = max(round(n*0.1),1); maxind = round(n-round(n*0.1)),
+    # so n*0.1 = 0.5, 1.5, 2.5 keep the 1-based sorted ranges minind:maxind.
+    values = np.arange(count, dtype=float) ** 2
+    scores = values[::-1].reshape(-1, 1)
+    normalized = _normalize_scores(scores, 2, signal_ndim=2)
+    baseline = values[minind - 1 : maxind]
+    expected = (scores - baseline.mean()) / baseline.std(ddof=1)
+    np.testing.assert_allclose(normalized, expected)
+
+
 def test_jointprob_uses_matlab_sample_standard_deviation_for_normalization():
     signal = np.asarray([[1, 1, 3], [1, 2, 1], [1, 2, 3]])
     raw, _ = jointprob(signal)
