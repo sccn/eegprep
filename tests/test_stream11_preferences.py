@@ -1,7 +1,9 @@
 """Preferences and persistence regressions for F29/F89."""
 
 import importlib
+import io
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -98,7 +100,22 @@ def test_interactive_startup_loads_saved_preferences(options, qapp, startup):
             namespace["window"].window.close()
             return _FakeShell()
 
-        assert run_console(["--no-plugins"], shell_factory=shell_factory) == 0
+        logger = logging.getLogger("eegprep.tests.startup_streams")
+        delayed = logging.FileHandler(options.parent / "console.log", delay=True)
+        stream = io.StringIO()
+        closed = logging.StreamHandler(stream)
+        stream.close()
+        logger.addHandler(delayed)
+        logger.addHandler(closed)
+        try:
+            assert run_console(["--no-plugins"], shell_factory=shell_factory) == 0
+            assert delayed.stream is None
+            assert closed.stream is stream
+        finally:
+            logger.removeHandler(delayed)
+            logger.removeHandler(closed)
+            delayed.close()
+            closed.close()
         return
     window = eeglab(show=False, include_plugins=False)
     try:
@@ -182,15 +199,17 @@ def test_f89_preferences_history_records_replayable_values(options):
     assert command == "pop_editoptions('option_allmenus', 1, 'option_cachesize', 128);"
 
 
-def test_f89_default_options_are_visible_without_scrolling(qapp, options):
+@pytest.mark.parametrize("long_path", [False, True])
+def test_f89_default_options_are_visible_without_scrolling(qapp, options, long_path):
     values = dict(EEG_OPTIONS, option_showadvanced=0)
-    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values))
+    path = options.parent / ("session-" * 30) / "options.json" if long_path else options
+    _, dialog, widgets = QtDialogRenderer().build_dialog(pop_editoptions_dialog_spec(values, path))
     dialog.show()
     qapp.processEvents()
     try:
         viewport = dialog.findChild(QScrollArea).viewport()
         cache = widgets["option_cachesize"]
-        assert viewport.rect().contains(cache.mapTo(viewport, cache.rect().center()))
+        assert viewport.rect().contains(cache.rect().translated(cache.mapTo(viewport, cache.rect().topLeft())))
     finally:
         dialog.close()
 

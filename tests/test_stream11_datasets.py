@@ -1,6 +1,7 @@
 """Dataset workflow and MATLAB history regressions from issue #556."""
 
 from copy import deepcopy
+import sys
 
 import numpy as np
 import pytest
@@ -97,10 +98,11 @@ def test_f90_warning_precedes_multi_processing_and_cancel_preserves_state(qapp, 
     window = build_main_window(session, include_plugins=False)
     pending, seen = dialogs
     before = deepcopy(session.ALLEEG)
+    warning_title = "" if sys.platform == "darwin" else "Multiple dataset warning"
 
     def warning(dialog):
         assert isinstance(dialog, QMessageBox)
-        assert dialog.windowTitle() == "Multiple dataset warning"
+        assert dialog.windowTitle() == warning_title
         assert "overwritten" in dialog.text()
         button = next(button for button in dialog.buttons() if button.text() == ("Proceed" if proceed else "Cancel"))
         button.click()
@@ -115,7 +117,7 @@ def test_f90_warning_precedes_multi_processing_and_cancel_preserves_state(qapp, 
         pending.append(resample)
     try:
         window.dispatcher.dispatch("pop_resample", window.window)
-        assert seen[0] == "Multiple dataset warning"
+        assert seen[0] == warning_title
         assert session.CURRENTSET == [1, 2]
         if proceed:
             assert [eeg["srate"] for eeg in session.EEG] == [50, 50]

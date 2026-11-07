@@ -4,6 +4,7 @@ from io import BytesIO
 import json
 from urllib.error import URLError
 
+import numpy as np
 import pytest
 
 try:
@@ -12,6 +13,7 @@ except ImportError:
     pytest.skip("PySide6 is required for GUI workflows", allow_module_level=True)
 
 from eegprep.functions.guifunc.main_window import build_main_window
+from eegprep.functions.guifunc.menu_actions import MenuActionDispatcher
 from eegprep.functions.guifunc.pophelp import pophelp
 from eegprep.functions.guifunc.session import EEGPrepSession
 from tests.test_gui_main_window import _demo_eeg
@@ -30,6 +32,9 @@ pytestmark = [pytest.mark.gui, pytest.mark.modal_dialogs]
         "pop_spectopo:components",
         "pop_erpimage:components",
         "pop_newtimef:components",
+        "pop_newcrossf:components",
+        "pop_eegplot:reject_ica",
+        "pop_rejepoch:ica",
         "pop_topoplot:components",
         "pop_headplot:components",
         "pop_envtopo",
@@ -58,6 +63,24 @@ def test_f64_f81_no_ica_is_reported_before_opening_settings(qapp, dialogs, actio
         assert not session.ALLCOM
     finally:
         window.window.close()
+
+
+@pytest.mark.parametrize(
+    "variant,source,target",
+    [("data_to_ica", "rejthresh", "icarejmanual"), ("ica_to_data", "icarejthresh", "rejmanual")],
+)
+def test_rejection_marks_transfer_without_ica(qapp, qt_dialogs, variant, source, target):
+    eeg = _demo_eeg(ica=False, epoched=True)
+    marks = np.arange(eeg["trials"]) % 2 == 0
+    eeg["reject"] = {source: marks}
+    session = EEGPrepSession()
+    session.store_current(eeg)
+
+    MenuActionDispatcher(session).dispatch(f"eeg_rejsuperpose:{variant}")
+
+    assert not qt_dialogs.messages
+    np.testing.assert_array_equal(session.EEG["reject"][target], marks)
+    assert session.LASTCOM == f"EEG.reject.{target} = EEG.reject.rejglobal;"
 
 
 @pytest.mark.parametrize(

@@ -2,11 +2,15 @@
 
 import pytest
 
-from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _console_python_command
+from eegprep.functions.adminfunc.console import EEGPrepConsoleWorkspace, _PromptSafeStream, _console_python_command
 from eegprep.functions.guifunc.select_multiple_datasets import select_multiple_datasets
 from eegprep.functions.guifunc.session import EEGPrepSession
 from eegprep.functions.popfunc.pop_copyset import pop_copyset
 from tests.test_gui_main_window import _demo_eeg
+
+
+def test_missing_console_stream_can_be_flushed():
+    _PromptSafeStream(None).flush()
 
 
 @pytest.mark.parametrize(
