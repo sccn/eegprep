@@ -995,7 +995,7 @@ MATLAB is not configured:
         assert not outcome.diverged
 
 Baseline summation-order roundoff (#542)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `Finding #542 <https://github.com/sccn/eegprep/issues/542>`_ was settled as
 platform-specific baseline-mean summation roundoff in the
