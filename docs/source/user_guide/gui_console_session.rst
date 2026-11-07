@@ -31,6 +31,10 @@ tools.
 The important idea is simple: the GUI and console are two views of one
 ``EEGPrepSession``.
 
+Calling ``gui()`` or ``eeglab()`` from the console opens another window on its
+existing session. It keeps scripted ``pop_editoptions(..., persist=False)``
+changes without reloading saved preferences.
+
 When to Use This Workflow
 =========================
 

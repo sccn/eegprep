@@ -10,8 +10,9 @@ the `GitHub Releases <https://github.com/sccn/eegprep/releases>`_ page.
 Unreleased
 ==========
 
-- Saved preferences load explicitly at GUI/console startup, so importing
-  ``pop_editoptions`` leaves the process's options unchanged (F89, #556).
+- Saved preferences load in the interactive launchers. Imports and window or
+  workspace constructors preserve in-process options, including when opening
+  another GUI from a running console (F89, #556).
 - Console history replay expands MATLAB colon ranges, including stepped ranges,
   and accepts the three-output dataset commands stored for EEGLAB. Stored
   history remains unchanged (Stream 2 handover and F27/F49/F94, #556).

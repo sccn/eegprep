@@ -91,7 +91,10 @@ an EEGPrep file; it does not modify MATLAB's ``eeg_options.m``. Cancel leaves
 both the current options and the file unchanged. Scripted changes stay in the
 current process unless you pass ``persist=True`` to ``pop_editoptions``.
 Importing ``pop_editoptions`` does not load preferences or change
-``EEG_OPTIONS``; loading happens when a main window or console workspace starts.
+``EEG_OPTIONS``. A fresh ``eeglab()``/``gui()`` launch or ``eegprep-console``
+loads the file. Constructing windows or workspaces directly, or opening a GUI
+with an existing session, preserves scripted in-process options. The console's
+``gui()`` and ``eeglab()`` commands automatically use its existing session.
 
 The dialog follows the memory-options layout and exposes working controls for
 storing inactive datasets on disk, saving two-file datasets, boundary events,
