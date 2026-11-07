@@ -19,6 +19,8 @@ from eegprep.functions.guifunc.session import EEGPrepSession, has_eeg_data
 from eegprep.functions.adminfunc.eegh import eegh, eegh_find
 from eegprep.functions.popfunc._coming_soon import coming_soon
 from eegprep.functions.popfunc.pop_newset import pop_newset
+from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 logger = logging.getLogger(__name__)
@@ -891,50 +893,10 @@ class MenuActionDispatcher:
         self._refresh()
 
     def _edit_options(self, parent: Any | None) -> None:
-        from eegprep.functions.adminfunc.eeg_options import EEG_OPTIONS
-        from eegprep.functions.adminfunc.pop_editoptions import pop_editoptions
-
-        allmenus_val = int(EEG_OPTIONS.get("option_allmenus", 0))
-        native_dialogs_val = int(EEG_OPTIONS.get("option_native_dialogs", 1))
-
-        if parent is None:
-            allmenus_val = int(not bool(allmenus_val))
-        else:
-            qt_widgets = _require_qt_widgets()
-            dialog = qt_widgets.QDialog(parent)
-            dialog.setWindowTitle("EEGPrep preferences")
-            layout = qt_widgets.QVBoxLayout(dialog)
-
-            allmenus_cb = qt_widgets.QCheckBox("Show advanced legacy menu items?")
-            allmenus_cb.setChecked(bool(allmenus_val))
-            layout.addWidget(allmenus_cb)
-
-            group_box = qt_widgets.QGroupBox("Experimental Features")
-            group_layout = qt_widgets.QVBoxLayout(group_box)
-            native_dialogs_cb = qt_widgets.QCheckBox("Use Native OS Dialogs")
-            native_dialogs_cb.setChecked(bool(native_dialogs_val))
-            group_layout.addWidget(native_dialogs_cb)
-            layout.addWidget(group_box)
-
-            button_box = qt_widgets.QDialogButtonBox(
-                qt_widgets.QDialogButtonBox.Ok | qt_widgets.QDialogButtonBox.Cancel
-            )
-            button_box.accepted.connect(dialog.accept)
-            button_box.rejected.connect(dialog.reject)
-            layout.addWidget(button_box)
-
-            if dialog.exec() != qt_widgets.QDialog.Accepted:
-                return
-
-            allmenus_val = int(allmenus_cb.isChecked())
-            native_dialogs_val = int(native_dialogs_cb.isChecked())
-
-        command = pop_editoptions(option_allmenus=allmenus_val, option_native_dialogs=native_dialogs_val)
+        command = pop_editoptions(gui=True)
+        if not command:
+            return
         self._add_history_from_gui(command)
-        self._info(
-            parent,
-            "Preferences updated. File-dialog changes apply immediately; reopen the main window to rebuild menus.",
-        )
         self._refresh()
 
     def _save_history(self, variant: str, parent: Any | None) -> None:
@@ -956,6 +918,8 @@ class MenuActionDispatcher:
             if variant == "dataset" and isinstance(self.session.EEG, dict)
             else self.session.ALLCOM
         )
+        if isinstance(history, list):
+            history = "\n".join(["[ALLEEG EEG CURRENTSET ALLCOM] = eeglab;", *history, "eeglab redraw;"])
         command = pop_saveh(history, path.name, path.parent)
         self._add_history_from_gui(command)
         self._refresh()
@@ -1156,6 +1120,21 @@ class MenuActionDispatcher:
         selection = self._current_selection_or_warn(parent, allow_multiple=name in _MULTIPLE_DATASET_ACTIONS)
         if selection is None:
             return
+        if parent is not None and isinstance(selection, list) and len(selection) > 1:
+            qt_widgets = _require_qt_widgets()
+            warning = qt_widgets.QMessageBox(parent)
+            warning.setWindowTitle("Multiple dataset warning")
+            warning.setText(
+                "When processing multiple datasets, it is not possible to enter new names "
+                "for the newly created datasets and old datasets are overwritten.\n"
+                "You may still cancel this operation."
+            )
+            warning.addButton("Cancel", qt_widgets.QMessageBox.RejectRole)
+            proceed = warning.addButton("Proceed", qt_widgets.QMessageBox.AcceptRole)
+            warning.setDefaultButton(proceed)
+            warning.exec()
+            if warning.clickedButton() is not proceed:
+                return
         leading_command = ""
         if name == "pop_adjustevents":
             from eegprep.functions.popfunc.pop_adjustevents import pop_adjustevents
@@ -1544,7 +1523,7 @@ class MenuActionDispatcher:
         default_indices = selected if len(selected) >= 2 else None
         eeg_out, command = pop_mergeset(self.session.ALLEEG, default_indices, gui=True, return_com=True)
         if command:
-            self._store_current_from_gui(eeg_out, new=True, command=command)
+            self._commit_processed_dataset_from_gui(eeg_out, command=command, parent=parent, new=True)
             self._refresh()
 
     def _run_rejsuperpose(self, variant: str, parent: Any | None) -> None:
@@ -1733,8 +1712,17 @@ class MenuActionDispatcher:
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
+        if command and command.startswith("EEG = pop_saveset(") and "'savemode'" not in command:
+            command = (
+                f"EEG = pop_saveset(EEG, 'filename', {format_history_value(eeg['filename'])}, "
+                f"'filepath', {format_history_value(eeg['filepath'])});"
+            )
+            kwargs["command"] = command
         self.session.echo_command(command)
-        return self.session.store_current(eeg, **kwargs)
+        index = self.session.store_current(eeg, **kwargs)
+        if command and kwargs.get("new"):
+            self._add_history_from_gui("[ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG, 0);")
+        return index
 
     def _commit_processed_dataset_from_gui(
         self,
@@ -1743,23 +1731,31 @@ class MenuActionDispatcher:
         command: str,
         parent: Any | None,
         leading_command: str = "",
+        new: bool = False,
     ) -> None:
         if not command:
             return
+        if any(not has_eeg_data(dataset) for dataset in (eeg if isinstance(eeg, list) else [eeg])):
+            function = command.split("=", 1)[-1].strip().split("(", 1)[0]
+            raise ValueError(
+                f"{function}: EEG.data is empty. Choose a selection containing at least one channel, sample, and epoch."
+            )
         old_currentset = self.session.current_set_value()
         old_selection = list(self.session.CURRENTSET)
         gui = parent is not None and not isinstance(eeg, list)
         if isinstance(eeg, list):
             for offset, _dataset in enumerate(eeg, start=1):
                 logger.info("Processing group dataset %s of %s.", offset, len(eeg))
+        newset_options = (
+            {"study": int(bool(self.session.STUDY))}
+            if isinstance(eeg, list)
+            else {"gui": "on" if gui else "off", "overwrite": "off" if gui or new else "on"}
+        )
         alleeg, current, current_set, newset_command = pop_newset(
             self.session.ALLEEG,
             eeg,
             old_currentset,
-            "gui",
-            "on" if gui else "off",
-            "overwrite",
-            "on" if isinstance(eeg, list) or not gui else "off",
+            **newset_options,
         )
         if not newset_command:
             if old_selection:
@@ -1782,8 +1778,12 @@ class MenuActionDispatcher:
 
     def _retrieve_dataset(self, index: int) -> None:
         was_study = self.session.CURRENTSTUDY == 1
+        previous = format_history_value(self.session.current_set_value())
         self.session.retrieve(index)
-        command = f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {index});"
+        command = (
+            f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, {previous}, "
+            f"'retrieve', {index}, 'study', {int(bool(self.session.STUDY))});"
+        )
         if was_study:
             self.session.apply_workspace_state(currentstudy=0)
             command = f"CURRENTSTUDY = 0;{command}"

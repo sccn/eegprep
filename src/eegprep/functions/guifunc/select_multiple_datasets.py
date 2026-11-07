@@ -6,6 +6,7 @@ from typing import Any
 
 from eegprep.functions.guifunc.session import EEGPrepSession, normalize_dataset_indices
 from eegprep.functions.popfunc.pop_chansel import pop_chansel
+from eegprep.functions.popfunc._pop_utils import format_history_value
 
 
 def select_multiple_datasets(
@@ -30,8 +31,9 @@ def select_multiple_datasets(
             )
         indices = result
     selection = normalize_dataset_indices(indices, allow_empty=False)
+    previous = session.current_set_value()
     eeg = session.retrieve(selection)
-    command = _history_command(selection)
+    command = _history_command(previous, selection, int(bool(session.STUDY)))
     return (eeg if isinstance(eeg, list) else [eeg], command) if return_com else eeg
 
 
@@ -54,9 +56,12 @@ def _run_gui(session: EEGPrepSession, *, renderer: Any | None = None) -> list[in
     return [dataset_indices[int(position) - 1] for position in positions]
 
 
-def _history_command(indices: list[int]) -> str:
+def _history_command(previous: int | list[int], indices: list[int], study: int) -> str:
     vector = "[" + " ".join(str(index) for index in indices) + "]"
-    return f"[ALLEEG EEG CURRENTSET LASTCOM] = pop_newset(ALLEEG, EEG, CURRENTSET, 'retrieve', {vector});"
+    return (
+        f"[ALLEEG EEG CURRENTSET] = pop_newset(ALLEEG, EEG, {format_history_value(previous)}, "
+        f"'retrieve', {vector}, 'study', {study});"
+    )
 
 
 __all__ = ["select_multiple_datasets"]
