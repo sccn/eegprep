@@ -611,11 +611,16 @@ class MenuActionDispatcher:
             _apply_save_metadata(eeg, actual)
             written.append(actual)
         stored = datasets if isinstance(selection, list) else datasets[0]
-        command = (
-            "EEG = pop_saveset(EEG, 'savemode', 'resave');"
-            if resave and not prompted
-            else f"EEG = pop_saveset(EEG, {written[0]!r});"
-        )
+        if resave and not prompted:
+            command = "EEG = pop_saveset(EEG, 'savemode', 'resave');"
+        else:
+            # Emit the runnable EEGLAB filename/filepath form here (F27), not via a
+            # later string rewrite in _store_current_from_gui.
+            first = datasets[0]
+            command = (
+                f"EEG = pop_saveset(EEG, 'filename', {format_history_value(first['filename'])}, "
+                f"'filepath', {format_history_value(first['filepath'])});"
+            )
         self._store_current_from_gui(stored, command=command, mark_saved=True)
         self._refresh()
 
@@ -1761,12 +1766,6 @@ class MenuActionDispatcher:
 
     def _store_current_from_gui(self, eeg: Any, **kwargs: Any) -> Any:
         command = kwargs.get("command")
-        if command and command.startswith("EEG = pop_saveset(") and "'savemode'" not in command:
-            command = (
-                f"EEG = pop_saveset(EEG, 'filename', {format_history_value(eeg['filename'])}, "
-                f"'filepath', {format_history_value(eeg['filepath'])});"
-            )
-            kwargs["command"] = command
         self.session.echo_command(command)
         index = self.session.store_current(eeg, **kwargs)
         if command and kwargs.get("new"):
