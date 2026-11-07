@@ -34,7 +34,8 @@ Unreleased
   parser required by its MFF reader (F18). Missing XML support uses the shared
   optional-dependency error with the extra's installation command.
 - Neuroscan ``.EEG`` import uses the native epoch reader and retains sweep
-  events, channel calibration, and rejected sweeps (F119). Generic File-IO
+  events, channel calibration, and rejected sweeps (F119), matching EEGLAB
+  ``loadeeg``/``pop_loadeeg`` (``accepttype='all'``). Generic File-IO
   also recognizes EGI Simple Binary ``.raw`` files (F23). Files ending in
   ``.eeg`` or ``.EEG`` use BrainVision when a sibling ``.vhdr`` or ``.ahdr``
   exists, including channel/sample selections and time-range imports.

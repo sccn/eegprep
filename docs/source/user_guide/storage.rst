@@ -169,12 +169,15 @@ support with ``pip install "eegprep[mne]"``. For ``.eeg`` and ``.EEG`` files,
 uses the BrainVision reader when one exists. Without a sibling header it
 uses the native Neuroscan epoch reader, which does not require MNE.
 Each sweep retains trial, accept, correct, response, and reaction-time events,
-including rejected sweeps.
+including rejected sweeps. That matches EEGLAB's ``loadeeg`` /
+``pop_loadeeg`` default (``accepttype='all'``), which also keeps rejected
+sweeps and exposes the per-sweep ``accept`` field (0 rejected, 1 accepted)
+so callers can filter later.
 
 The F119 audit's File-IO comparison reports 1,193 trials and 5,960 events.
 The same recording contains 1,200 sweeps, including seven marked rejected.
 FieldTrip's ``read_ns_hdr`` uses the accepted-count field at byte 364 as
 ``nsweeps``; its reader then reads that many leading sweeps. EEGPrep uses the
 total-sweep field at byte 362 and retains all complete sweeps and their
-acceptance metadata. This source-based difference is regression-tested;
-MATLAB comparison remains a human verification step.
+acceptance metadata, matching EEGLAB rather than FieldTrip. This
+source-based difference from FieldTrip is regression-tested.
