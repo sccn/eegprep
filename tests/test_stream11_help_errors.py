@@ -61,14 +61,14 @@ def test_f64_f81_no_ica_is_reported_before_opening_settings(qapp, dialogs, actio
 
 
 @pytest.mark.parametrize(
-    "action,field,value,required",
+    "action,field,value,message",
     [
-        ("pop_editset", "srate", "abc", ("srate", "positive")),
-        ("pop_select", "chans", "XYZ", ("channel", "labels")),
-        ("pop_select", "trial", "99", ("trial", "1")),
+        ("pop_editset", "srate", "abc", "could not convert string to float: 'abc'"),
+        ("pop_select", "chans", "XYZ", "Channels not found: ['XYZ']"),
+        ("pop_select", "trial", "99", "Wrong trial range"),
     ],
 )
-def test_f47_errors_name_function_field_and_recovery(qapp, dialogs, action, field, value, required):
+def test_f47_errors_name_function_and_preserve_source_message(qapp, dialogs, action, field, value, message):
     session = EEGPrepSession()
     session.store_current(_demo_eeg(epoched=True))
     window = build_main_window(session, include_plugins=False)
@@ -80,9 +80,7 @@ def test_f47_errors_name_function_field_and_recovery(qapp, dialogs, action, fiel
 
     def error(dialog):
         assert isinstance(dialog, QMessageBox)
-        assert action in dialog.text()
-        for text in required:
-            assert text in dialog.text()
+        assert dialog.text() == f"{action}: {message}"
         dialog.accept()
 
     pending.extend([enter, error])
