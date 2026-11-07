@@ -10,6 +10,7 @@ import unittest
 import sys
 import tempfile
 import warnings
+import pytest
 import numpy as np
 import scipy.io
 
@@ -68,7 +69,7 @@ def test_pop_reref_current_suite_standard_method_with_multiple_references():
         "icachansind": np.array([], dtype=int),
     }
 
-    output = pop_reref(eeg, [0, 1], "method", "standard")
+    output = pop_reref(eeg, [1, 2], "method", "standard")
 
     expected_reference = eeg["data"][[0, 1]].mean(axis=0)
     np.testing.assert_allclose(output["data"], eeg["data"][[2]] - expected_reference)
@@ -102,7 +103,7 @@ def test_pop_reref_keeps_a_nan_on_its_channel():
         "icaact": np.array([]),
         "icachansind": np.array([], dtype=int),
     }
-    output = pop_reref(eeg, [2])
+    output = pop_reref(eeg, [3])
     reference = data[2]
     np.testing.assert_allclose(output["data"], data[:2] - reference, equal_nan=True)
     assert np.isnan(output["data"][0, 1])
@@ -478,7 +479,7 @@ class TestPopReref(DebuggableTestCase):
         EEG = self.create_test_eeg(nbchan=4, pnts=20)
         original_data = EEG['data'].copy()
 
-        result = pop_reref(EEG, ref=1)
+        result = pop_reref(EEG, ref=2)
 
         expected = original_data - original_data[1:2, :, :]
         expected = np.delete(expected, 1, axis=0)
@@ -512,7 +513,7 @@ class TestPopReref(DebuggableTestCase):
         EEG['chanlocs'] = []
         EEG['urchanlocs'] = []
 
-        result = pop_reref(EEG, ref=1)
+        result = pop_reref(EEG, ref=2)
 
         self.assertEqual(result['nbchan'], 3)
         self.assertEqual(result['data'].shape[0], 3)
@@ -544,7 +545,7 @@ class TestPopReref(DebuggableTestCase):
         """Test EEGLAB edge case where excluded ICA channels invalidate ICA."""
         EEG = self.create_test_eeg(nbchan=4, pnts=20)
 
-        result = pop_reref(EEG, ref=[], exclude=[0])
+        result = pop_reref(EEG, ref=[], exclude=[1])
 
         self.assertEqual(result['icawinv'].size, 0)
         self.assertEqual(result['icaweights'].size, 0)
@@ -607,7 +608,7 @@ class TestPopReref(DebuggableTestCase):
     def test_history_command_formats_numeric_channels_as_matlab_indices(self):
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
 
-        _out, com = pop_reref(EEG, ref=[0], exclude=[3], return_com=True)
+        _out, com = pop_reref(EEG, ref=[1], exclude=[4], return_com=True)
 
         self.assertEqual(com, "EEG = pop_reref( EEG, [1], 'exclude', [4]);")
 
@@ -656,7 +657,7 @@ class TestPopReref(DebuggableTestCase):
                 return {
                     "huberef": True,
                     "huberval": "25",
-                    "exclude": "1",
+                    "exclude": "2",
                 }
 
         EEG = self.create_simple_eeg(nbchan=2, pnts=20)
@@ -666,12 +667,12 @@ class TestPopReref(DebuggableTestCase):
 
         np.testing.assert_allclose(out['data'][1], original_excluded)
 
-    def test_gui_numeric_reference_text_is_zero_based_like_python_api(self):
+    def test_gui_numeric_reference_text_is_one_based_like_python_api(self):
         class Renderer:
             def run(self, spec, initial_values=None):
                 return {
                     "rerefstr": True,
-                    "reref": "0",
+                    "reref": "1",
                     "keepref": True,
                 }
 
@@ -732,7 +733,7 @@ class TestPopReref(DebuggableTestCase):
         """Test MATLAB parity for explicit common reference with keepref."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
 
-        py_result = pop_reref(EEG, ref=1, keepref='on')
+        py_result = pop_reref(EEG, ref=2, keepref='on')
         ml_result = self._matlab_pop_reref(EEG, "2", ", 'keepref', 'on'")
 
         np.testing.assert_allclose(py_result['data'], ml_result['data_ml'], rtol=1e-6, atol=1e-6)
@@ -742,7 +743,7 @@ class TestPopReref(DebuggableTestCase):
         """Test MATLAB parity for explicit common reference with default ref removal."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
 
-        py_result = pop_reref(EEG, ref=1)
+        py_result = pop_reref(EEG, ref=2)
         ml_result = self._matlab_pop_reref(EEG, "2")
 
         np.testing.assert_allclose(py_result['data'], ml_result['data_ml'], rtol=1e-6, atol=1e-6)
@@ -752,7 +753,7 @@ class TestPopReref(DebuggableTestCase):
         """Test MATLAB parity for average reference with excluded channels."""
         EEG = self.create_simple_eeg(nbchan=4, pnts=20)
 
-        py_result = pop_reref(EEG, ref=[], exclude=[3])
+        py_result = pop_reref(EEG, ref=[], exclude=[4])
         ml_result = self._matlab_pop_reref(EEG, "[]", ", 'exclude', 4")
 
         np.testing.assert_allclose(py_result['data'], ml_result['data_ml'], rtol=1e-6, atol=1e-6)
@@ -862,3 +863,46 @@ class TestPopReref(DebuggableTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_reref_gui_excludes_exactly_the_typed_channels_and_records_them():
+    eeg = TestPopReref().create_simple_eeg()
+    eeg["data"] = np.arange(320, dtype=float).reshape(8, 40)
+    eeg["nbchan"] = 8
+    eeg["chanlocs"] = [{"labels": f"Ch{i + 1}"} for i in range(8)]
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            return {"ave": True, "exclude": "2 6"}
+    out, command = pop_reref(eeg, gui=True, renderer=Renderer(), return_com=True)
+    included = [0, 2, 3, 4, 6, 7]
+    expected = eeg["data"].copy()
+    expected[included] -= expected[included].mean(axis=0)
+    np.testing.assert_allclose(out["data"], expected)
+    assert command == "EEG = pop_reref( EEG, [], 'exclude', [2 6]);"
+    by_api = pop_reref(eeg, [], exclude=[2, 6])
+    np.testing.assert_array_equal(out["data"], by_api["data"])
+
+
+@pytest.mark.parametrize("empty", [None, "", [], np.array([])])
+def test_reref_empty_reference_header_is_unknown(empty):
+    eeg = TestPopReref().create_simple_eeg()
+    eeg["ref"] = empty
+    for loc in eeg["chanlocs"]:
+        loc["ref"] = empty
+    class Renderer:
+        def run(self, spec, initial_values=None):
+            assert spec.controls[0].string == "Current data reference state is: unknown"
+            return None
+    pop_reref(eeg, gui=True, renderer=Renderer())
+
+
+@pytest.mark.parametrize("key", ["ref", "exclude", "refloc", "interpchan"])
+@pytest.mark.parametrize("value", [0, 5, 1.5, np.nan])
+def test_reref_rejects_invalid_one_based_identifiers(key, value):
+    eeg = TestPopReref().create_simple_eeg()
+    eeg["urchanlocs"] = eeg["chanlocs"]
+    eeg["chaninfo"] = {"nodatchans": eeg["chanlocs"]}
+    kwargs = {key: [value]}
+    kwargs.setdefault("ref", [])
+    with pytest.raises(ValueError, match=r"pop_reref:.*1\.\.4"):
+        pop_reref(eeg, **kwargs)
